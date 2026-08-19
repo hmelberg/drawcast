@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildSystemPrompt, selectExemplars } from "../src/llm/prompt";
+import { buildSystemPrompt, missingPlaceholders, selectExemplars, stripFence } from "../src/llm/prompt";
 
 describe("buildSystemPrompt", () => {
   test("substitutes schema, catalog, fewshot, and exemplar placeholders", () => {
@@ -14,6 +14,27 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("FEWSHOTS HERE");
     expect(out).toContain("EXEMPLARS HERE");
     expect(out).not.toMatch(/\{\{[A-Z]+\}\}/);
+  });
+});
+
+describe("missingPlaceholders", () => {
+  test("a complete prompt has none missing", () => {
+    expect(missingPlaceholders("x {{SCHEMA}} y {{CATALOG}} {{FEWSHOTS}} {{EXEMPLARS}}")).toEqual([]);
+  });
+
+  test("reports exactly the absent placeholders", () => {
+    expect(missingPlaceholders("only {{SCHEMA}} here")).toEqual(["{{CATALOG}}", "{{FEWSHOTS}}", "{{EXEMPLARS}}"]);
+  });
+});
+
+describe("stripFence", () => {
+  test("removes a fence wrapping the whole text", () => {
+    expect(stripFence("```markdown\n# Prompt\nbody\n```")).toBe("# Prompt\nbody");
+    expect(stripFence("```\nplain\n```")).toBe("plain");
+  });
+
+  test("leaves unfenced text (and inner fences) alone", () => {
+    expect(stripFence("# Prompt\n```json\n{}\n```\ntail")).toBe("# Prompt\n```json\n{}\n```\ntail");
   });
 });
 

@@ -13,7 +13,8 @@ const KEYS = {
   logs: "drawcast.logs.v1",
   exemplars: "drawcast.exemplars.v1",
   library: "drawcast.library.v1",
-  customPrompt: "drawcast.customPrompt.v1",
+  customPrompt: "drawcast.customPrompt.v1", // legacy single slot; migrated into prompts
+  prompts: "drawcast.prompts.v1",
   apiKey: "drawcast.apikey",
 } as const;
 
@@ -104,15 +105,38 @@ export function deleteDrawing(id: string): void {
   localStorage.setItem(KEYS.library, JSON.stringify(loadLibrary().filter((x) => x.id !== id)));
 }
 
-// ---- Custom compiler prompt (editable in the editor's Prompt panel) ----
+// ---- User prompt library (named compiler-prompt variants, Loop 2's UI) ----
 
-export function loadCustomPrompt(): string | null {
-  return localStorage.getItem(KEYS.customPrompt);
+export interface UserPrompt {
+  id: string;
+  name: string;
+  source: string;
+  ts: string;
 }
 
-export function saveCustomPrompt(source: string | null): void {
-  if (source) localStorage.setItem(KEYS.customPrompt, source);
-  else localStorage.removeItem(KEYS.customPrompt);
+export function loadUserPrompts(): UserPrompt[] {
+  return readArray<UserPrompt>(KEYS.prompts);
+}
+
+/** Insert or update (by id). Newest-edited first. */
+export function saveUserPrompt(p: UserPrompt): void {
+  const all = loadUserPrompts().filter((x) => x.id !== p.id);
+  all.unshift(p);
+  localStorage.setItem(KEYS.prompts, JSON.stringify(all));
+}
+
+export function deleteUserPrompt(id: string): void {
+  localStorage.setItem(KEYS.prompts, JSON.stringify(loadUserPrompts().filter((x) => x.id !== id)));
+}
+
+/** One-time migration of the legacy single custom-prompt slot into the library. */
+export function migrateLegacyCustomPrompt(): UserPrompt | null {
+  const source = localStorage.getItem(KEYS.customPrompt);
+  if (source === null) return null;
+  const p: UserPrompt = { id: crypto.randomUUID(), name: "custom", source, ts: new Date().toISOString() };
+  saveUserPrompt(p);
+  localStorage.removeItem(KEYS.customPrompt);
+  return p;
 }
 
 // ---- Generation log (the improvement packet's raw material) ----
@@ -171,6 +195,14 @@ export function updateLog(id: string, patch: Partial<LogEntry>): void {
 
 export function clearLogs(): void {
   localStorage.removeItem(KEYS.logs);
+}
+
+/** The worst logged generations (lowest rating, most lint, errors), for prompt improvement. */
+export function worstLoggedCases(n: number): LogEntry[] {
+  return [...loadLogs()]
+    .filter((l) => l.rating !== undefined || l.error || l.lintIssues.length > 0)
+    .sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0) || b.lintIssues.length - a.lintIssues.length)
+    .slice(0, n);
 }
 
 // ---- Exemplar library (Loop 2) ----

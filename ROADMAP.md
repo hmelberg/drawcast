@@ -17,6 +17,12 @@ ROADMAP for that record.
   promote-to-exemplar, editable compiler prompt saved as a custom variant).
 - **Share mode**: `#gdoc=<id>` plays a spec from a link-shared Google Doc
   (legacy `&backend=` params map onto styles).
+- **Prompt library** (2026-08-19): named user prompt variants with the full
+  lifecycle (copy from bundled, edit, rename, delete, download/upload .md),
+  an active-prompt selector feeding generation, placeholder validation
+  ({{SCHEMA}} required), and **Improve with AI** — the model revises the
+  active prompt from the worst logged generations; proposals become new
+  prompts, never silent replacements (the brief's Loop-2 rule).
 - **YAML as the human format** (2026-08-19): specs parse as YAML or JSON,
   auto-detected, everywhere text comes in (gdoc, upload, the editor textarea);
   the editor presents YAML by default with a JSON toggle. The engine and LLM

@@ -6,7 +6,8 @@
 import "./styles.css";
 import { render, type RenderHandle, type RenderStyle } from "./render";
 import { SpeechManager } from "./render/speech";
-import { generateSpec, promptVariants, type PromptVariant } from "./llm/compile";
+import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
+import { missingPlaceholders } from "./llm/prompt";
 import { MODELS } from "./llm/client";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { formatSpec, parseSpecText, type SpecFormat } from "./spec/text";
@@ -21,19 +22,23 @@ import {
   deleteDrawing,
   downloadJson,
   downloadText,
+  deleteUserPrompt,
   getApiKey,
-  loadCustomPrompt,
   loadExemplars,
   loadLibrary,
   loadLogs,
   loadSettings,
-  saveCustomPrompt,
+  loadUserPrompts,
+  migrateLegacyCustomPrompt,
   saveDrawing,
   saveSettings,
+  saveUserPrompt,
   setApiKey,
   updateLog,
+  worstLoggedCases,
   type LogEntry,
   type SavedDrawing,
+  type UserPrompt,
 } from "./store";
 import fewshots from "./llm/prompts/fewshots.json";
 
@@ -126,33 +131,64 @@ const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", 
 const importBtn = h("button", { class: "small" }, "Upload spec");
 const libraryList = h("div", { class: "library-list" });
 
-// Prompt panel (change/improve the compiler prompt)
-const variantSel = h("select", { title: "Prompt variant" });
-function refreshVariantOptions(): void {
-  variantSel.replaceChildren();
-  for (const v of variants) variantSel.appendChild(h("option", { value: v.name }, `bundled ${v.name}`));
-  if (loadCustomPrompt() !== null) variantSel.appendChild(h("option", { value: "custom" }, "custom (edited)"));
-  variantSel.value =
-    [...variantSel.options].some((o) => o.value === settings.variant) ? settings.variant : variants[0].name;
+// Prompt library: named compiler-prompt variants (Loop 2's UI).
+// The active prompt is what Generate uses; bundled prompts are read-only,
+// user prompts support the full lifecycle (copy/edit/rename/delete/share).
+const migrated = migrateLegacyCustomPrompt();
+if (migrated && settings.variant === "custom") {
+  settings.variant = `user:${migrated.id}`;
+  saveSettings(settings);
 }
-refreshVariantOptions();
-const promptSource = h("textarea", { class: "prompt-source", spellcheck: "false" });
-const promptSaveBtn = h("button", { class: "small" }, "Save as custom prompt");
-const promptResetBtn = h("button", { class: "small" }, "Discard custom prompt");
+
+const variantSel = h("select", { title: "Active compiler prompt (used by Generate)" });
+const promptSource = h("textarea", { class: "prompt-source", spellcheck: "false", "aria-label": "Prompt source" });
+const promptSaveBtn = h("button", { class: "small" }, "Save");
+const promptRenameBtn = h("button", { class: "small" }, "Rename");
+const promptCopyBtn = h("button", { class: "small" }, "Copy");
+const promptDeleteBtn = h("button", { class: "small" }, "Delete");
+const promptDownloadBtn = h("button", { class: "small", title: "Download the prompt as a markdown file" }, "Download .md");
+const promptUploadInput = h("input", { type: "file", accept: ".md,.txt", style: "display:none" }) as HTMLInputElement;
+const promptUploadBtn = h("button", { class: "small" }, "Upload .md");
+const promptImproveBtn = h(
+  "button",
+  { class: "small", title: "Ask the model to revise this prompt using your worst logged generations. The proposal is saved as a NEW prompt — nothing is overwritten." },
+  "Improve with AI",
+);
+const promptHint = h("div", { class: "hint" });
+
+function activeUserPrompt(): UserPrompt | undefined {
+  if (!settings.variant.startsWith("user:")) return undefined;
+  const id = settings.variant.slice(5);
+  return loadUserPrompts().find((p) => p.id === id);
+}
 
 function currentVariant(): PromptVariant {
-  if (settings.variant === "custom") {
-    const source = loadCustomPrompt();
-    if (source) return { name: "custom", source };
-  }
+  const up = activeUserPrompt();
+  if (up) return { name: `user:${up.name}`, source: up.source };
   return variants.find((v) => v.name === settings.variant) ?? variants[0];
 }
 
-function showVariantSource(): void {
-  promptSource.value = currentVariant().source;
-  promptResetBtn.disabled = loadCustomPrompt() === null;
+function refreshPromptPanel(): void {
+  variantSel.replaceChildren();
+  for (const v of variants) variantSel.appendChild(h("option", { value: v.name }, `bundled ${v.name}`));
+  for (const p of loadUserPrompts()) variantSel.appendChild(h("option", { value: `user:${p.id}` }, p.name));
+  if (![...variantSel.options].some((o) => o.value === settings.variant)) {
+    settings.variant = variants[0].name;
+    persist();
+  }
+  variantSel.value = settings.variant;
+  const up = activeUserPrompt();
+  promptSource.value = up ? up.source : currentVariant().source;
+  promptSource.readOnly = !up;
+  promptSaveBtn.disabled = !up;
+  promptRenameBtn.disabled = !up;
+  promptDeleteBtn.disabled = !up;
+  promptCopyBtn.textContent = up ? "Copy" : "Copy to my prompts";
+  promptHint.textContent = up
+    ? "Edits apply after Save. {{SCHEMA}}, {{CATALOG}}, {{FEWSHOTS}} and {{EXEMPLARS}} are filled in at generation time and must stay in."
+    : "Bundled prompts are read-only — use “Copy to my prompts” to make an editable version. The active prompt is what Generate uses.";
 }
-showVariantSource();
+refreshPromptPanel();
 
 // Data panel
 const exemplarCount = h("span", { class: "count" });
@@ -212,10 +248,11 @@ const editorWrap = h(
       "section",
       { class: "panel" },
       h("h2", { class: "squiggle" }, "Prompt"),
-      h("div", { class: "row" }, h("label", {}, "Variant ", variantSel)),
+      h("div", { class: "row" }, h("label", {}, "Active ", variantSel)),
       promptSource,
-      h("div", { class: "row" }, promptSaveBtn, promptResetBtn),
-      h("div", { class: "hint" }, "The compiler prompt is data. Edit it, save it as the custom variant, and generation uses your version. {{SCHEMA}}, {{CATALOG}}, {{FEWSHOTS}}, {{EXEMPLARS}} are filled in automatically."),
+      h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
+      h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
+      promptHint,
     ),
     h(
       "section",
@@ -383,7 +420,7 @@ async function generate(): Promise<void> {
   if (!apiKey) return;
   generateBtn.disabled = true;
   const logId = crypto.randomUUID();
-  setStatus(`Generating (${settings.model}, prompt ${settings.variant})…`);
+  setStatus(`Generating (${settings.model}, prompt ${currentVariant().name})…`);
   try {
     const outcome = await generateSpec(request, {
       apiKey,
@@ -395,7 +432,7 @@ async function generate(): Promise<void> {
       id: logId,
       ts: new Date().toISOString(),
       prompt: request,
-      config: { model: settings.model, promptVariant: settings.variant, specVersion: SPEC_VERSION },
+      config: { model: settings.model, promptVariant: currentVariant().name, specVersion: SPEC_VERSION },
       rounds: outcome.rounds.map((r) => ({
         label: r.label,
         validationErrors: r.validationErrors,
@@ -551,31 +588,125 @@ formatSel.addEventListener("change", () => {
   persist();
 });
 
-// ---------- prompt panel ----------
+// ---------- prompt library ----------
+
+function fileSafe(name: string): string {
+  return name.replace(/[^\wæøå -]+/gi, "").trim() || "prompt";
+}
+
+function selectUserPrompt(p: UserPrompt): void {
+  settings.variant = `user:${p.id}`;
+  persist();
+  refreshPromptPanel();
+}
 
 variantSel.addEventListener("change", () => {
   settings.variant = variantSel.value;
   persist();
-  showVariantSource();
+  refreshPromptPanel();
 });
 
 promptSaveBtn.addEventListener("click", () => {
-  saveCustomPrompt(promptSource.value);
-  settings.variant = "custom";
-  persist();
-  refreshVariantOptions();
-  showVariantSource();
-  setStatus("Custom prompt saved — generation now uses it.", "ok");
+  const up = activeUserPrompt();
+  if (!up) return;
+  const missing = missingPlaceholders(promptSource.value);
+  if (missing.includes("{{SCHEMA}}")) {
+    setStatus("Not saved: the prompt must keep {{SCHEMA}} — it is replaced by the spec schema at generation time.", "error");
+    return;
+  }
+  saveUserPrompt({ ...up, source: promptSource.value, ts: new Date().toISOString() });
+  refreshPromptPanel();
+  setStatus(missing.length > 0 ? `Saved "${up.name}" — note: missing ${missing.join(", ")}.` : `Saved "${up.name}".`, missing.length > 0 ? "info" : "ok");
 });
 
-promptResetBtn.addEventListener("click", () => {
-  saveCustomPrompt(null);
-  if (settings.variant === "custom") settings.variant = variants[0].name;
-  persist();
-  refreshVariantOptions();
-  showVariantSource();
-  setStatus("Custom prompt discarded — back to the bundled prompt.", "ok");
+promptRenameBtn.addEventListener("click", () => {
+  const up = activeUserPrompt();
+  if (!up) return;
+  const name = window.prompt("New name for this prompt:", up.name)?.trim();
+  if (!name) return;
+  saveUserPrompt({ ...up, name });
+  refreshPromptPanel();
 });
+
+promptCopyBtn.addEventListener("click", () => {
+  const up = activeUserPrompt();
+  const name = up ? `${up.name} copy` : `${settings.variant} copy`;
+  const p: UserPrompt = { id: crypto.randomUUID(), name, source: promptSource.value, ts: new Date().toISOString() };
+  saveUserPrompt(p);
+  selectUserPrompt(p);
+  setStatus(`Created "${name}" — now the active prompt, edit away.`, "ok");
+});
+
+promptDeleteBtn.addEventListener("click", () => {
+  const up = activeUserPrompt();
+  if (!up) return;
+  deleteUserPrompt(up.id);
+  refreshPromptPanel(); // falls back to the bundled prompt
+  setStatus(`Deleted "${up.name}".`, "ok");
+});
+
+promptDownloadBtn.addEventListener("click", () => {
+  const name = activeUserPrompt()?.name ?? settings.variant;
+  downloadText(`${fileSafe(name)}.md`, promptSource.value, "text/markdown");
+});
+
+promptUploadBtn.addEventListener("click", () => promptUploadInput.click());
+promptUploadInput.addEventListener("change", () => {
+  const file = promptUploadInput.files?.[0];
+  if (!file) return;
+  void file.text().then((source) => {
+    promptUploadInput.value = "";
+    if (missingPlaceholders(source).includes("{{SCHEMA}}")) {
+      setStatus("Not a compiler prompt: the file is missing the {{SCHEMA}} placeholder.", "error");
+      return;
+    }
+    const p: UserPrompt = {
+      id: crypto.randomUUID(),
+      name: file.name.replace(/\.(md|txt)$/i, ""),
+      source,
+      ts: new Date().toISOString(),
+    };
+    saveUserPrompt(p);
+    selectUserPrompt(p);
+    setStatus(`Uploaded "${p.name}" — now the active prompt.`, "ok");
+  });
+});
+
+promptImproveBtn.addEventListener("click", () => void improveActivePrompt());
+async function improveActivePrompt(): Promise<void> {
+  const apiKey = requireKey();
+  if (!apiKey) return;
+  promptImproveBtn.disabled = true;
+  const cases: ImproveCase[] = worstLoggedCases(6).map((l) => ({
+    prompt: l.prompt,
+    rating: l.rating,
+    error: l.error,
+    lintMessages: l.lintIssues.map((i) => i.message),
+    rounds: l.rounds.length,
+  }));
+  setStatus(
+    cases.length > 0
+      ? `Asking ${settings.model} to revise the prompt from your ${cases.length} worst logged generations…`
+      : `No logged failures yet — asking ${settings.model} for a clarity pass…`,
+  );
+  try {
+    const outcome = await improvePrompt({ apiKey, model: settings.model }, currentVariant().source, cases);
+    if (!outcome.source) {
+      setStatus(`Prompt improvement failed: ${outcome.error}`, "error");
+      return;
+    }
+    const baseName = activeUserPrompt()?.name ?? settings.variant;
+    const p: UserPrompt = { id: crypto.randomUUID(), name: `${baseName} improved`, source: outcome.source, ts: new Date().toISOString() };
+    saveUserPrompt(p);
+    selectUserPrompt(p);
+    setStatus(
+      `Proposal saved as "${p.name}" and made active${outcome.error ? ` (${outcome.error})` : ""}. Review the diff and test-generate before trusting it.`,
+      "ok",
+    );
+  } finally {
+    promptImproveBtn.disabled = false;
+  }
+}
 
 // ---------- settings + misc wiring ----------
 

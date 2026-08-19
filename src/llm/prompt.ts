@@ -18,6 +18,20 @@ export function buildSystemPrompt(variantSource: string, parts: PromptParts): st
     .replaceAll("{{EXEMPLARS}}", parts.exemplars);
 }
 
+/** The placeholders every compiler prompt must carry; filled in at generation time. */
+export const PROMPT_PLACEHOLDERS = ["{{SCHEMA}}", "{{CATALOG}}", "{{FEWSHOTS}}", "{{EXEMPLARS}}"] as const;
+
+/** Placeholders absent from a prompt source. {{SCHEMA}} missing = broken; others = degraded. */
+export function missingPlaceholders(source: string): string[] {
+  return PROMPT_PLACEHOLDERS.filter((p) => !source.includes(p));
+}
+
+/** Strip a single markdown code fence wrapping the whole text (LLMs love adding one). */
+export function stripFence(text: string): string {
+  const m = /^\s*```[a-z]*\s*\n([\s\S]*?)\n\s*```\s*$/i.exec(text);
+  return m ? m[1] : text.trim();
+}
+
 export interface Exemplar {
   prompt: string;
   spec: Spec;
