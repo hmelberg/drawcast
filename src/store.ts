@@ -16,6 +16,7 @@ const KEYS = {
   customPrompt: "drawcast.customPrompt.v1", // legacy single slot; migrated into prompts
   prompts: "drawcast.prompts.v1",
   apiKey: "drawcast.apikey",
+  ttsKey: "drawcast.ttskey",
 } as const;
 
 export interface Settings {
@@ -83,6 +84,15 @@ export function getApiKey(): string {
 export function setApiKey(key: string): void {
   if (key) localStorage.setItem(KEYS.apiKey, key);
   else localStorage.removeItem(KEYS.apiKey);
+}
+
+export function getTtsKey(): string {
+  return localStorage.getItem(KEYS.ttsKey) ?? "";
+}
+
+export function setTtsKey(key: string): void {
+  if (key) localStorage.setItem(KEYS.ttsKey, key);
+  else localStorage.removeItem(KEYS.ttsKey);
 }
 
 // ---- Drawing library (the user's saved drawcasts) ----
@@ -231,14 +241,17 @@ export function addExemplar(ex: StoredExemplar): void {
 
 // ---- Exports ----
 
-export function downloadText(filename: string, text: string, type = "text/plain"): void {
-  const blob = new Blob([text], { type });
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function downloadText(filename: string, text: string, type = "text/plain"): void {
+  downloadBlob(filename, new Blob([text], { type }));
 }
 
 export function downloadJson(filename: string, data: unknown): void {

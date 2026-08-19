@@ -17,6 +17,13 @@ ROADMAP for that record.
   promote-to-exemplar, editable compiler prompt saved as a custom variant).
 - **Share mode**: `#gdoc=<id>` plays a spec from a link-shared Google Doc
   (legacy `&backend=` params map onto styles).
+- **Video export** (2026-08-19): "Export video" in the editor toolbar replays
+  the drawcast once into a 720p canvas (captions burned in) while mixing
+  narration synthesized by BYOK Google Cloud TTS (per-line en/nb voice pick),
+  records via MediaRecorder, downloads a narrated WebM (YouTube-ready).
+  Deliberately TTS-only: speechSynthesis is uncapturable and loopback capture
+  was rejected as fragile. MP4 (WebCodecs) and direct YouTube upload were
+  evaluated and deferred — WebM + drag-into-Studio covers the workflow.
 - **Watch-page polish** (2026-08-19): YouTube-sized player (title below the
   video), mute (volume-0 narration, timing unchanged), theater and fullscreen
   toggles, editor/player switch on the control bar; the editor became an

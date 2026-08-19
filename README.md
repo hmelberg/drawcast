@@ -35,6 +35,12 @@ Cartesian, y-up, origin bottom-left; the single y-flip lives in `toSvgY`.
   ask the model to **improve the prompt from your worst logged generations**
   (proposals are saved as new prompts, never overwriting — you promote).
 
+**Video export**: the editor records the drawcast as a narrated **WebM**
+(720p, captions burned in) entirely in the browser — canvas frames plus
+Google Cloud TTS narration mixed via WebAudio (bring your own key; browser
+speechSynthesis cannot be captured). English and Norwegian neural voices are
+picked per line automatically. YouTube accepts WebM uploads directly.
+
 A standalone share mode plays a spec straight from a link-shared Google Doc:
 `…/#gdoc=<doc-id>` (optional `&style=sketchy &mode=silent &speed=1.5`). The doc
 can hold the spec as YAML or JSON — the format is auto-detected, and

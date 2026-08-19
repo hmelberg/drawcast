@@ -14,6 +14,7 @@ import { formatSpec, parseSpecText, type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
 import { h } from "./ui/dom";
 import { attachPlayerControls, type PlaybackPrefs } from "./ui/controls";
+import { exportVideo } from "./export/video";
 import {
   addExemplar,
   appendLog,
@@ -21,9 +22,12 @@ import {
   clearLogs,
   deleteDrawing,
   downloadJson,
+  downloadBlob,
   downloadText,
   deleteUserPrompt,
   getApiKey,
+  getTtsKey,
+  setTtsKey,
   loadExemplars,
   loadLibrary,
   loadLogs,
@@ -141,6 +145,11 @@ const saveBtn = h("button", { class: "small" }, "Save to library");
 const exportBtn = h("button", { class: "small", title: "Download the current spec as JSON" }, "Download");
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
 const importBtn = h("button", { class: "small" }, "Upload spec");
+const exportVideoBtn = h(
+  "button",
+  { class: "small", title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
+  "Export video",
+);
 const libraryList = h("div", { class: "library-list" });
 
 // Prompt library: named compiler-prompt variants (Loop 2's UI).
@@ -254,6 +263,7 @@ const editorWrap = h(
       exportBtn,
       importBtn,
       importInput,
+      exportVideoBtn,
       h("span", { class: "toolbar-sep" }),
       h("label", { class: "toolbar-label" }, "Model ", modelSel),
       h("label", { class: "toolbar-label" }, "Style ", styleSel),
@@ -300,6 +310,9 @@ app.appendChild(main);
 const keyInput = h("input", { type: "password", placeholder: "sk-ant-…", autocomplete: "off" }) as HTMLInputElement;
 keyInput.value = getApiKey();
 const clearKeyBtn = h("button", { class: "small" }, "Clear key");
+const ttsKeyInput = h("input", { type: "password", placeholder: "AIza…", autocomplete: "off" }) as HTMLInputElement;
+ttsKeyInput.value = getTtsKey();
+const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
 const voiceSel = h("select", {});
 const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
@@ -316,6 +329,18 @@ const dialog = h(
     keyInput,
     h("div", {}, clearKeyBtn),
     h("div", { class: "settings-note" }, "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com."),
+  ),
+  h(
+    "div",
+    { class: "settings-field" },
+    h("label", {}, "Google Cloud Text-to-Speech key (for video export)"),
+    ttsKeyInput,
+    h("div", {}, clearTtsKeyBtn),
+    h(
+      "div",
+      { class: "settings-note" },
+      "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. The free tier (~1M characters/month) covers roughly a thousand drawcasts.",
+    ),
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Narration voice"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
@@ -622,6 +647,71 @@ formatSel.addEventListener("change", () => {
   persist();
 });
 
+// ---------- video export ----------
+
+const exportCanvas = h("canvas", { class: "export-canvas" }) as HTMLCanvasElement;
+const exportStatus = h("div", { class: "hint" });
+const exportCloseBtn = h("button", { class: "small" }, "Cancel");
+// Offscreen but laid out: path measurement needs rendered geometry.
+const exportStage = h("div", { class: "export-offscreen" });
+const exportDialog = h(
+  "dialog",
+  { class: "export-dialog" },
+  h("h3", {}, "Export video"),
+  exportStatus,
+  exportCanvas,
+  h("div", { class: "row" }, exportCloseBtn),
+  exportStage,
+);
+app.appendChild(exportDialog);
+
+let exportAbort: AbortController | null = null;
+exportCloseBtn.addEventListener("click", () => {
+  exportAbort?.abort();
+  exportDialog.close();
+});
+
+exportVideoBtn.addEventListener("click", () => void runVideoExport());
+async function runVideoExport(): Promise<void> {
+  const ttsKey = getTtsKey();
+  if (!ttsKey) {
+    setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
+    dialog.showModal();
+    return;
+  }
+  const controller = new AbortController();
+  exportAbort = controller;
+  exportStage.replaceChildren();
+  exportCloseBtn.textContent = "Cancel";
+  exportStatus.textContent = "Preparing…";
+  exportDialog.showModal();
+  exportVideoBtn.disabled = true;
+  try {
+    const blob = await exportVideo(
+      doc.spec,
+      { ttsKey, style: settings.style, rate: settings.rate },
+      {
+        onStatus: (t) => (exportStatus.textContent = t),
+        canvas: exportCanvas,
+        workbench: exportStage,
+        signal: controller.signal,
+      },
+    );
+    const base = (doc.spec.title ?? "drawcast").replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+    downloadBlob(`${base}.webm`, blob);
+    exportStatus.textContent = "Done — the narrated WebM was downloaded. YouTube accepts WebM uploads directly (Studio → Create → Upload).";
+    exportCloseBtn.textContent = "Close";
+  } catch (err) {
+    if (!controller.signal.aborted) {
+      exportStatus.textContent = `Export failed: ${(err as Error).message}`;
+      exportCloseBtn.textContent = "Close";
+    }
+  } finally {
+    exportStage.replaceChildren();
+    exportVideoBtn.disabled = false;
+  }
+}
+
 // ---------- prompt library ----------
 
 function fileSafe(name: string): string {
@@ -748,6 +838,11 @@ keyInput.addEventListener("change", () => setApiKey(keyInput.value.trim()));
 clearKeyBtn.addEventListener("click", () => {
   setApiKey("");
   keyInput.value = "";
+});
+ttsKeyInput.addEventListener("change", () => setTtsKey(ttsKeyInput.value.trim()));
+clearTtsKeyBtn.addEventListener("click", () => {
+  setTtsKey("");
+  ttsKeyInput.value = "";
 });
 voiceSel.addEventListener("change", () => {
   settings.voiceURI = voiceSel.value || null;
