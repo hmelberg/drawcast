@@ -24,12 +24,17 @@ Cartesian, y-up, origin bottom-left; the single y-flip lives in `toSvgY`.
 - **Player** (default): a YouTube-like screen — poster, big play button,
   seekable progress bar, speed menu, captions. The chrome fades while playing.
 - **Editor**: create drawcasts with AI (bring your own Anthropic API key) or by
-  hand — load bundled examples, edit the spec JSON directly, save to a local
-  library, download/upload specs, rate results, promote good ones to few-shot
+  hand — load bundled examples, edit the spec directly (**YAML by default**,
+  JSON one toggle away; parsing always accepts both), save to a local library,
+  download/upload specs, rate results, promote good ones to few-shot
   exemplars, and **edit the compiler prompt itself** (saved as a custom variant).
 
 A standalone share mode plays a spec straight from a link-shared Google Doc:
-`…/#gdoc=<doc-id>` (optional `&style=sketchy &mode=silent &speed=1.5`).
+`…/#gdoc=<doc-id>` (optional `&style=sketchy &mode=silent &speed=1.5`). The doc
+can hold the spec as YAML or JSON — the format is auto-detected, and
+word-processor smart quotes are repaired. Internally the engine and the LLM
+always speak JSON; YAML is a lossless human-facing conversion layer
+(`src/spec/text.ts`).
 
 ## The command language
 

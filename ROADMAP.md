@@ -17,6 +17,10 @@ ROADMAP for that record.
   promote-to-exemplar, editable compiler prompt saved as a custom variant).
 - **Share mode**: `#gdoc=<id>` plays a spec from a link-shared Google Doc
   (legacy `&backend=` params map onto styles).
+- **YAML as the human format** (2026-08-19): specs parse as YAML or JSON,
+  auto-detected, everywhere text comes in (gdoc, upload, the editor textarea);
+  the editor presents YAML by default with a JSON toggle. The engine and LLM
+  stay JSON — YAML is a lossless conversion layer (`src/spec/text.ts`).
 
 ## Phase A — interaction primitives
 

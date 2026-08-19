@@ -9,6 +9,7 @@ import { SpeechManager } from "./render/speech";
 import { generateSpec, promptVariants, type PromptVariant } from "./llm/compile";
 import { MODELS } from "./llm/client";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
+import { formatSpec, parseSpecText, type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
 import { h } from "./ui/dom";
 import { attachPlayerControls, type PlaybackPrefs } from "./ui/controls";
@@ -19,6 +20,7 @@ import {
   clearLogs,
   deleteDrawing,
   downloadJson,
+  downloadText,
   getApiKey,
   loadCustomPrompt,
   loadExemplars,
@@ -120,8 +122,8 @@ examples.forEach((ex, i) => exampleSel.appendChild(h("option", { value: String(i
 const exampleLoadBtn = h("button", { class: "small" }, "Load example");
 const saveBtn = h("button", { class: "small" }, "Save to library");
 const exportBtn = h("button", { class: "small", title: "Download the current spec as JSON" }, "Download");
-const importInput = h("input", { type: "file", accept: ".json", style: "display:none" }) as HTMLInputElement;
-const importBtn = h("button", { class: "small" }, "Upload JSON");
+const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
+const importBtn = h("button", { class: "small" }, "Upload spec");
 const libraryList = h("div", { class: "library-list" });
 
 // Prompt panel (change/improve the compiler prompt)
@@ -164,8 +166,11 @@ refreshCounts();
 
 // Preview column
 const previewHost = h("div", { class: "player-figure" });
-const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec JSON" });
+const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
 const rerenderBtn = h("button", { class: "small" }, "Re-render");
+const formatSel = h("select", { class: "cs-bar-select", title: "Spec text format (parsing accepts both)" });
+formatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
+formatSel.value = settings.specFormat;
 const lintBox = h("div", {});
 
 const ratingBox = h("span", { class: "rating" });
@@ -229,7 +234,7 @@ const editorWrap = h(
       "section",
       { class: "panel" },
       h("div", { class: "row" }, h("span", { class: "rating-label" }, "Would use in teaching:"), ratingBox, " ", promoteBtn),
-      h("details", { open: "" }, h("summary", {}, "Spec JSON (editable)"), specArea, h("div", { class: "row" }, rerenderBtn)),
+      h("details", { open: "" }, h("summary", {}, "Spec (editable)"), specArea, h("div", { class: "row" }, rerenderBtn, formatSel)),
       lintBox,
     ),
   ),
@@ -320,7 +325,7 @@ async function present(): Promise<void> {
 function setDoc(next: Doc, statusText?: string): void {
   doc = next;
   lastLogId = null; // ratings apply to generations only
-  specArea.value = JSON.stringify(doc.spec, null, 2);
+  specArea.value = formatSpec(doc.spec, settings.specFormat);
   promptEl.value = doc.prompt ?? promptEl.value;
   ratingButtons.forEach((rb) => rb.classList.remove("lit"));
   promoteBtn.disabled = false;
@@ -448,9 +453,9 @@ exampleLoadBtn.addEventListener("click", () => {
 rerenderBtn.addEventListener("click", () => {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(specArea.value);
+    parsed = parseSpecText(specArea.value).value;
   } catch (err) {
-    setStatus(`Spec is not valid JSON: ${(err as Error).message}`, "error");
+    setStatus(`Spec unreadable: ${(err as Error).message}`, "error");
     return;
   }
   const v = validateSpec(parsed);
@@ -501,7 +506,8 @@ saveBtn.addEventListener("click", () => {
 });
 
 exportBtn.addEventListener("click", () => {
-  downloadJson(`${(doc.spec.title ?? "drawcast").replace(/[^\wæøå -]+/gi, "").trim() || "drawcast"}.json`, doc.spec);
+  const base = (doc.spec.title ?? "drawcast").replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  downloadText(`${base}.${settings.specFormat}`, formatSpec(doc.spec, settings.specFormat));
 });
 
 importBtn.addEventListener("click", () => importInput.click());
@@ -512,9 +518,9 @@ importInput.addEventListener("change", () => {
     importInput.value = "";
     let parsed: unknown;
     try {
-      parsed = JSON.parse(text);
+      parsed = parseSpecText(text).value; // YAML or JSON, auto-detected
     } catch (err) {
-      setStatus(`Not valid JSON: ${(err as Error).message}`, "error");
+      setStatus((err as Error).message, "error");
       return;
     }
     // Accept either a bare spec or a saved-drawing object.
@@ -528,6 +534,21 @@ importInput.addEventListener("change", () => {
     const s = spec as Spec;
     setDoc({ title: s.title ?? maybe.title ?? file.name.replace(/\.json$/i, ""), prompt: maybe.prompt, spec: s }, "Uploaded.");
   });
+});
+
+formatSel.addEventListener("change", () => {
+  const next = formatSel.value as SpecFormat;
+  // Convert whatever is in the textarea (possibly with unsaved edits) — don't lose work.
+  try {
+    const parsed = parseSpecText(specArea.value).value;
+    specArea.value = formatSpec(parsed, next);
+  } catch (err) {
+    setStatus(`Fix the spec text before switching format: ${(err as Error).message}`, "error");
+    formatSel.value = settings.specFormat;
+    return;
+  }
+  settings.specFormat = next;
+  persist();
 });
 
 // ---------- prompt panel ----------
@@ -591,6 +612,6 @@ clearLogsBtn.addEventListener("click", () => {
 
 // ---------- boot ----------
 
-specArea.value = JSON.stringify(doc.spec, null, 2);
+specArea.value = formatSpec(doc.spec, settings.specFormat);
 if (doc.prompt) promptEl.value = doc.prompt;
 showMode(settings.uiMode);

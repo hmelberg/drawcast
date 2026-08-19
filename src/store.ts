@@ -4,6 +4,7 @@
 
 import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
+import type { SpecFormat } from "./spec/text";
 import type { LintIssue } from "./lint/lint";
 import type { RenderStyle } from "./render";
 
@@ -26,6 +27,8 @@ export interface Settings {
   voiceURI: string | null;
   rate: number;
   uiMode: "player" | "editor";
+  /** How the editor presents the spec text (parsing always accepts both). */
+  specFormat: SpecFormat;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   voiceURI: null,
   rate: 1,
   uiMode: "player",
+  specFormat: "yaml",
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -190,14 +194,18 @@ export function addExemplar(ex: StoredExemplar): void {
 
 // ---- Exports ----
 
-export function downloadJson(filename: string, data: unknown): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+export function downloadText(filename: string, text: string, type = "text/plain"): void {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function downloadJson(filename: string, data: unknown): void {
+  downloadText(filename, JSON.stringify(data, null, 2), "application/json");
 }
 
 /** Loop 3 handoff: the exportable improvement packet for a Claude Code session. */

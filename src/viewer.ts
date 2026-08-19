@@ -1,6 +1,6 @@
-// Standalone viewer mode: #gdoc=<google-doc-id> loads a spec from a
-// link-shared Google Doc and shows just a single player — no editor, no AI,
-// no key. Extra hash params: &style=sketchy &mode=silent &speed=1.5.
+// Standalone viewer mode: #gdoc=<google-doc-id> loads a spec (YAML or JSON,
+// auto-detected) from a link-shared Google Doc and shows just a single player —
+// no editor, no AI, no key. Extra hash params: &style=sketchy &mode=silent &speed=1.5.
 // Example: https://…/drawcast/#gdoc=1AbC…xyz
 
 import "./styles.css";
@@ -8,7 +8,7 @@ import { render, type RenderStyle } from "./render";
 import { SpeechManager } from "./render/speech";
 import { h } from "./ui/dom";
 import { attachPlayerControls } from "./ui/controls";
-import { desmartenJson, extractJson } from "./spec/extract";
+import { parseSpecText } from "./spec/text";
 import { validateSpec } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import { loadSettings } from "./store";
@@ -72,7 +72,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
 
   try {
     const text = await fetchGdocText(req.docId);
-    const spec = extractJson(desmartenJson(text)) as Spec;
+    const spec = parseSpecText(text).value as Spec;
     const validation = validateSpec(spec);
     if (!validation.ok) {
       throw new Error(`The document's spec is invalid: ${validation.errors[0]}${validation.errors.length > 1 ? ` (+${validation.errors.length - 1} more)` : ""}`);
