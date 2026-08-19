@@ -1,33 +1,38 @@
-// The experiment harness UI: prompt → generate → compare configurations
-// side by side, rate results, run the benchmark, export logs and packets.
+// drawcast — two modes over one document:
+//   Player: a YouTube-like screen that just plays the current drawcast.
+//   Editor: create drawings with AI or by hand, load examples and saved work,
+//           edit the spec JSON, and change/improve the compiler prompt.
 
 import "./styles.css";
-import { render, type RenderHandle } from "./render";
+import { render, type RenderHandle, type RenderStyle } from "./render";
 import { SpeechManager } from "./render/speech";
-import { backendRegistry, RAW_BASELINE_NAME } from "./render/backends";
-import { generateSpec, promptVariants, type GenerationOutcome, type PromptVariant } from "./llm/compile";
-import { generateRawSvg } from "./llm/baseline";
-import { describeApiError, MODELS } from "./llm/client";
-import { validateSpec } from "./spec/schema";
-import { SPEC_VERSION } from "./spec/schema";
+import { generateSpec, promptVariants, type PromptVariant } from "./llm/compile";
+import { MODELS } from "./llm/client";
+import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
-import { BENCHMARK } from "./harness/benchmark";
-import { createCard, h, type Card } from "./harness/cards";
+import { h } from "./ui/dom";
+import { attachPlayerControls, type PlaybackPrefs } from "./ui/controls";
 import {
   addExemplar,
   appendLog,
   buildImprovementPacket,
   clearLogs,
+  deleteDrawing,
   downloadJson,
   getApiKey,
+  loadCustomPrompt,
   loadExemplars,
+  loadLibrary,
   loadLogs,
   loadSettings,
+  saveCustomPrompt,
+  saveDrawing,
   saveSettings,
   setApiKey,
   updateLog,
   type LogEntry,
-} from "./harness/store";
+  type SavedDrawing,
+} from "./store";
 import fewshots from "./llm/prompts/fewshots.json";
 
 const settings = loadSettings();
@@ -35,134 +40,211 @@ const speech = new SpeechManager();
 speech.setVoice(settings.voiceURI);
 speech.setRate(settings.rate);
 const variants: PromptVariant[] = promptVariants();
+const examples = fewshots as { request: string; spec: Spec }[];
+
+interface Doc {
+  title: string;
+  prompt?: string;
+  spec: Spec;
+}
+
+let doc: Doc = initialDoc();
+let handle: RenderHandle | null = null;
+let lastLogId: string | null = null;
+
+function initialDoc(): Doc {
+  const saved = loadLibrary()[0];
+  if (saved) return { title: saved.title, prompt: saved.prompt, spec: saved.spec };
+  const ex = examples[0];
+  return { title: ex.spec.title ?? ex.request, prompt: ex.request, spec: ex.spec };
+}
 
 const app = document.getElementById("app")!;
 
-// ---------- page skeleton ----------
+// ---------- topbar with the mode toggle ----------
 
+const playerModeBtn = h("button", { class: "mode-btn", title: "Watch the current drawcast" }, "▶ Player");
+const editorModeBtn = h("button", { class: "mode-btn", title: "Create and edit drawcasts" }, "✎ Editor");
+const settingsBtn = h("button", { class: "mode-btn", title: "Settings" }, "⚙");
+
+app.appendChild(
+  h(
+    "header",
+    { class: "topbar" },
+    h("div", { class: "wordmark squiggle" }, "drawcast"),
+    h("div", { class: "mode-toggle" }, playerModeBtn, editorModeBtn),
+    settingsBtn,
+  ),
+);
+
+// ---------- player mode ----------
+
+const playerTitle = h("h1", { class: "player-title squiggle" }, doc.title);
+const playerHost = h("div", { class: "player-figure" });
+const playerWrap = h(
+  "div",
+  { class: "player-wrap" },
+  playerTitle,
+  playerHost,
+  h("div", { class: "player-hint hint" }, "Click the drawing to play — or switch to the editor to change it."),
+);
+
+// ---------- editor mode ----------
+
+const statusEl = h("div", { class: "editor-status hint" });
+
+function setStatus(text: string, kind: "info" | "error" | "ok" = "info"): void {
+  statusEl.textContent = text;
+  statusEl.className = `editor-status hint ${kind === "info" ? "" : kind}`.trim();
+}
+
+// Create panel
 const promptEl = h("textarea", {
-  id: "prompt",
   "aria-label": "Describe the drawing",
-  placeholder: "Describe the drawing… e.g. \"Show the deadweight loss from a tax, with shaded regions\"",
+  placeholder: 'Describe the drawing… e.g. "Show the deadweight loss from a tax, with shaded regions"',
 });
-const generateBtn = h("button", { class: "primary" }, "Generate");
-const compareBtn = h("button", {}, "Compare configs");
-const exampleBtn = h("button", { title: "Render a bundled spec without an API key" }, "Offline example");
-const settingsBtn = h("button", {}, "Settings ⚙");
+const generateBtn = h("button", { class: "primary" }, "Generate with AI");
+const blankBtn = h("button", { title: "Start from a minimal hand-editable spec" }, "New blank");
 
 const modelSel = h("select", { title: "Model" });
 for (const m of MODELS) modelSel.appendChild(h("option", { value: m.id }, m.label));
 modelSel.value = settings.model;
 
-const backendSel = h("select", { title: "Backend" });
-for (const b of Object.values(backendRegistry)) backendSel.appendChild(h("option", { value: b.name }, b.label));
-backendSel.appendChild(h("option", { value: RAW_BASELINE_NAME }, "Raw-SVG baseline (backend 0)"));
-backendSel.value = settings.backend;
+const styleSel = h("select", { title: "Drawing style" });
+styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
+styleSel.value = settings.style;
 
+// Examples & library panel
+const exampleSel = h("select", { title: "Bundled examples" });
+examples.forEach((ex, i) => exampleSel.appendChild(h("option", { value: String(i) }, ex.spec.title ?? ex.request)));
+const exampleLoadBtn = h("button", { class: "small" }, "Load example");
+const saveBtn = h("button", { class: "small" }, "Save to library");
+const exportBtn = h("button", { class: "small", title: "Download the current spec as JSON" }, "Download");
+const importInput = h("input", { type: "file", accept: ".json", style: "display:none" }) as HTMLInputElement;
+const importBtn = h("button", { class: "small" }, "Upload JSON");
+const libraryList = h("div", { class: "library-list" });
+
+// Prompt panel (change/improve the compiler prompt)
 const variantSel = h("select", { title: "Prompt variant" });
-for (const v of variants) variantSel.appendChild(h("option", { value: v.name }, `prompt ${v.name}`));
-if (variants.some((v) => v.name === settings.variant)) variantSel.value = settings.variant;
+function refreshVariantOptions(): void {
+  variantSel.replaceChildren();
+  for (const v of variants) variantSel.appendChild(h("option", { value: v.name }, `bundled ${v.name}`));
+  if (loadCustomPrompt() !== null) variantSel.appendChild(h("option", { value: "custom" }, "custom (edited)"));
+  variantSel.value =
+    [...variantSel.options].some((o) => o.value === settings.variant) ? settings.variant : variants[0].name;
+}
+refreshVariantOptions();
+const promptSource = h("textarea", { class: "prompt-source", spellcheck: "false" });
+const promptSaveBtn = h("button", { class: "small" }, "Save as custom prompt");
+const promptResetBtn = h("button", { class: "small" }, "Discard custom prompt");
 
-const compareWrap = h("details", {});
-compareWrap.appendChild(h("summary", {}, "Compare set (backend × prompt variant)"));
-const compareBackendBoxes: HTMLInputElement[] = [];
-const compareVariantBoxes: HTMLInputElement[] = [];
-{
-  const row1 = h("div", { class: "tags" });
-  for (const name of [...Object.keys(backendRegistry), RAW_BASELINE_NAME]) {
-    const cb = h("input", { type: "checkbox", value: name }) as HTMLInputElement;
-    cb.checked = settings.compareBackends.includes(name);
-    cb.addEventListener("change", persistCompareSet);
-    compareBackendBoxes.push(cb);
-    row1.appendChild(h("label", {}, cb, ` ${name}`));
+function currentVariant(): PromptVariant {
+  if (settings.variant === "custom") {
+    const source = loadCustomPrompt();
+    if (source) return { name: "custom", source };
   }
-  const row2 = h("div", { class: "tags" });
-  for (const v of variants) {
-    const cb = h("input", { type: "checkbox", value: v.name }) as HTMLInputElement;
-    cb.checked = settings.compareVariants.includes(v.name);
-    cb.addEventListener("change", persistCompareSet);
-    compareVariantBoxes.push(cb);
-    row2.appendChild(h("label", {}, cb, ` prompt ${v.name}`));
-  }
-  compareWrap.append(h("div", { class: "hint" }, "Backends:"), row1, h("div", { class: "hint" }, "Prompt variants:"), row2);
+  return variants.find((v) => v.name === settings.variant) ?? variants[0];
 }
 
-const resultsEl = h("div", { class: "results" });
-
-const benchStatus = h("span", { class: "hint" });
-const benchRunBtn = h("button", {}, "Run benchmark");
-const benchList = h("ol", { class: "bench-list" });
-for (const b of BENCHMARK) {
-  const link = h(
-    "button",
-    { class: "bench-link", title: "Generate just this prompt with the current model/backend/prompt variant" },
-    b.prompt,
-  );
-  link.addEventListener("click", () => {
-    promptEl.value = b.prompt;
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    void runConfigs(b.prompt, [settings.backend], [settings.variant], b.family);
-  });
-  benchList.appendChild(
-    h("li", {}, link, h("span", { class: "family" }, `${b.family}${b.curveball ? " · curveball" : ""}`)),
-  );
+function showVariantSource(): void {
+  promptSource.value = currentVariant().source;
+  promptResetBtn.disabled = loadCustomPrompt() === null;
 }
+showVariantSource();
 
-const logCount = h("span", { class: "count" });
+// Data panel
 const exemplarCount = h("span", { class: "count" });
-const exportLogsBtn = h("button", { class: "small" }, "Export logs JSON");
-const exportPacketBtn = h("button", { class: "small", title: "Loop 3: worst cases + failure stats for a Claude Code session" }, "Export improvement packet");
+const exportPacketBtn = h("button", { class: "small", title: "Worst cases + failure stats for a Claude Code session" }, "Export improvement packet");
 const clearLogsBtn = h("button", { class: "small" }, "Clear logs");
 
-app.append(
+function refreshCounts(): void {
+  exemplarCount.textContent = `${loadExemplars().length} exemplars · ${loadLogs().length} logged generations`;
+}
+refreshCounts();
+
+// Preview column
+const previewHost = h("div", { class: "player-figure" });
+const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec JSON" });
+const rerenderBtn = h("button", { class: "small" }, "Re-render");
+const lintBox = h("div", {});
+
+const ratingBox = h("span", { class: "rating" });
+const ratingButtons: HTMLButtonElement[] = [];
+for (let n = 1; n <= 5; n++) {
+  const b = h("button", { title: `${n}/5 — would use in teaching` }, "★");
+  b.addEventListener("click", () => {
+    ratingButtons.forEach((rb, i) => rb.classList.toggle("lit", i < n));
+    if (lastLogId) updateLog(lastLogId, { rating: n });
+  });
+  ratingButtons.push(b);
+  ratingBox.appendChild(b);
+}
+const promoteBtn = h("button", { class: "small", title: "Store (request, spec) as a few-shot exemplar for future generations" }, "☆ Promote to exemplar");
+
+const editorWrap = h(
+  "div",
+  { class: "editor-grid" },
   h(
-    "header",
-    { class: "topbar" },
-    h("div", { class: "wordmark squiggle" }, "Concept Sketch", h("span", { class: "tagline" }, "LLM → drawing-spec experiment harness")),
-    settingsBtn,
+    "div",
+    { class: "editor-side" },
+    h(
+      "section",
+      { class: "panel" },
+      h("h2", { class: "squiggle" }, "Create"),
+      promptEl,
+      h("div", { class: "row" }, generateBtn, blankBtn),
+      h("div", { class: "row config-row" }, h("label", {}, "Model ", modelSel), h("label", {}, "Style ", styleSel)),
+    ),
+    h(
+      "section",
+      { class: "panel" },
+      h("h2", { class: "squiggle" }, "Examples & library"),
+      h("div", { class: "row" }, exampleSel, exampleLoadBtn),
+      h("div", { class: "row" }, saveBtn, exportBtn, importBtn, importInput),
+      libraryList,
+    ),
+    h(
+      "section",
+      { class: "panel" },
+      h("h2", { class: "squiggle" }, "Prompt"),
+      h("div", { class: "row" }, h("label", {}, "Variant ", variantSel)),
+      promptSource,
+      h("div", { class: "row" }, promptSaveBtn, promptResetBtn),
+      h("div", { class: "hint" }, "The compiler prompt is data. Edit it, save it as the custom variant, and generation uses your version. {{SCHEMA}}, {{CATALOG}}, {{FEWSHOTS}}, {{EXEMPLARS}} are filled in automatically."),
+    ),
+    h(
+      "section",
+      { class: "panel" },
+      h("h2", { class: "squiggle" }, "Data"),
+      h("div", { class: "row" }, exemplarCount),
+      h("div", { class: "row" }, exportPacketBtn, clearLogsBtn),
+    ),
   ),
   h(
-    "main",
-    {},
+    "div",
+    { class: "editor-main" },
+    statusEl,
+    previewHost,
     h(
       "section",
-      { class: "panel composer" },
-      promptEl,
-      h("div", { class: "composer-actions" }, generateBtn, compareBtn, exampleBtn),
-      h(
-        "div",
-        { class: "config-row" },
-        h("label", {}, "Model", modelSel),
-        h("label", {}, "Backend", backendSel),
-        h("label", {}, "Prompt", variantSel),
-      ),
-      compareWrap,
-    ),
-    resultsEl,
-    h(
-      "section",
-      { class: "panel bench" },
-      h("h2", { class: "squiggle" }, "Benchmark"),
-      h("div", {}, benchRunBtn, " ", benchStatus),
-      benchList,
-      h("div", { class: "hint" }, "Runs all 10 prompts with the selected model/backend/prompt variant, sequentially, and logs every result. Vision critic (Loop 1.3) is not built yet — see ROADMAP."),
-    ),
-    h(
-      "section",
-      { class: "panel data" },
-      h("h2", { class: "squiggle" }, "Experiment data"),
-      h("div", { class: "data-row" }, logCount, exemplarCount, exportLogsBtn, exportPacketBtn, clearLogsBtn),
+      { class: "panel" },
+      h("div", { class: "row" }, h("span", { class: "rating-label" }, "Would use in teaching:"), ratingBox, " ", promoteBtn),
+      h("details", { open: "" }, h("summary", {}, "Spec JSON (editable)"), specArea, h("div", { class: "row" }, rerenderBtn)),
+      lintBox,
     ),
   ),
 );
 
+const main = h("main", {}, playerWrap, editorWrap);
+app.appendChild(main);
+
 // ---------- settings dialog ----------
 
-const keyInput = h("input", { id: "apikey", type: "password", placeholder: "sk-ant-…", autocomplete: "off" }) as HTMLInputElement;
+const keyInput = h("input", { type: "password", placeholder: "sk-ant-…", autocomplete: "off" }) as HTMLInputElement;
 keyInput.value = getApiKey();
 const clearKeyBtn = h("button", { class: "small" }, "Clear key");
-const voiceSel = h("select", { id: "voice" });
-const rateSel = h("select", { id: "voice-rate" });
+const voiceSel = h("select", {});
+const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
 rateSel.value = String(settings.rate);
 
@@ -173,17 +255,13 @@ const dialog = h(
   h(
     "div",
     { class: "settings-field" },
-    h("label", { for: "apikey" }, "Anthropic API key (bring your own)"),
+    h("label", {}, "Anthropic API key (bring your own)"),
     keyInput,
     h("div", {}, clearKeyBtn),
-    h(
-      "div",
-      { class: "settings-note" },
-      "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com.",
-    ),
+    h("div", { class: "settings-note" }, "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com."),
   ),
-  h("div", { class: "settings-field" }, h("label", { for: "voice" }, "Narration voice"), voiceSel),
-  h("div", { class: "settings-field" }, h("label", { for: "voice-rate" }, "Narration rate"), rateSel),
+  h("div", { class: "settings-field" }, h("label", {}, "Narration voice"), voiceSel),
+  h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
   h("div", {}, h("button", { class: "primary small" }, "Close")),
 );
 app.appendChild(dialog);
@@ -194,27 +272,292 @@ function populateVoices(): void {
   voiceSel.replaceChildren(h("option", { value: "" }, "(browser default)"));
   const score = (v: SpeechSynthesisVoice) => (v.lang.startsWith("no") || v.lang.startsWith("nb") || v.lang.startsWith("nn") ? 0 : v.lang.startsWith("en") ? 1 : 2);
   for (const v of [...voices].sort((a, b) => score(a) - score(b) || a.lang.localeCompare(b.lang))) {
-    const o = h("option", { value: v.voiceURI }, `${v.name} (${v.lang})`);
-    voiceSel.appendChild(o);
+    voiceSel.appendChild(h("option", { value: v.voiceURI }, `${v.name} (${v.lang})`));
   }
   if (settings.voiceURI) voiceSel.value = settings.voiceURI;
 }
 populateVoices();
 speech.onVoicesChanged(populateVoices);
 
-// ---------- event wiring ----------
+// ---------- rendering the current document ----------
 
 function persist(): void {
   saveSettings(settings);
 }
 
-function persistCompareSet(): void {
-  settings.compareBackends = compareBackendBoxes.filter((c) => c.checked).map((c) => c.value);
-  settings.compareVariants = compareVariantBoxes.filter((c) => c.checked).map((c) => c.value);
-  persist();
+function playbackPrefs(): PlaybackPrefs {
+  return {
+    mode: settings.mode,
+    speed: settings.speed,
+    onMode: (m) => {
+      settings.mode = m;
+      persist();
+    },
+    onSpeed: (s) => {
+      settings.speed = s;
+      persist();
+    },
+  };
 }
 
+async function present(): Promise<void> {
+  const host = settings.uiMode === "player" ? playerHost : previewHost;
+  handle?.destroy();
+  handle = null;
+  host.replaceChildren();
+  playerTitle.textContent = doc.title;
+  document.title = `${doc.title} — drawcast`;
+  try {
+    const hd = await render(doc.spec, host, { style: settings.style, speech, mode: settings.mode, speed: settings.speed });
+    handle = hd;
+    attachPlayerControls(host, hd, playbackPrefs(), (playing) => document.body.classList.toggle("is-playing", playing));
+    if (settings.uiMode === "editor") setLint(hd);
+  } catch (err) {
+    setStatus(`Render failed: ${(err as Error).message}`, "error");
+  }
+}
+
+function setDoc(next: Doc, statusText?: string): void {
+  doc = next;
+  lastLogId = null; // ratings apply to generations only
+  specArea.value = JSON.stringify(doc.spec, null, 2);
+  promptEl.value = doc.prompt ?? promptEl.value;
+  ratingButtons.forEach((rb) => rb.classList.remove("lit"));
+  promoteBtn.disabled = false;
+  promoteBtn.textContent = "☆ Promote to exemplar";
+  if (statusText) setStatus(statusText, "ok");
+  void present();
+}
+
+function setLint(hd: RenderHandle): void {
+  lintBox.replaceChildren();
+  const issues = hd.layout.issues;
+  const warnings = [...hd.layout.warnings, ...hd.plan.warnings];
+  if (issues.length === 0 && warnings.length === 0) {
+    lintBox.appendChild(h("div", { class: "lint-clean" }, "Lint clean ✓"));
+    return;
+  }
+  const ul = h("ul", { class: "lint-list" });
+  for (const i of issues) ul.appendChild(h("li", { class: i.severity }, `${i.rule}: ${i.message}`));
+  for (const w of warnings) ul.appendChild(h("li", {}, w));
+  lintBox.appendChild(ul);
+}
+
+// ---------- mode switching ----------
+
+function showMode(mode: "player" | "editor"): void {
+  settings.uiMode = mode;
+  persist();
+  document.body.classList.toggle("mode-player", mode === "player");
+  document.body.classList.toggle("mode-editor", mode === "editor");
+  playerModeBtn.classList.toggle("active", mode === "player");
+  editorModeBtn.classList.toggle("active", mode === "editor");
+  void present();
+}
+
+playerModeBtn.addEventListener("click", () => showMode("player"));
+editorModeBtn.addEventListener("click", () => showMode("editor"));
 settingsBtn.addEventListener("click", () => dialog.showModal());
+
+// ---------- editor actions ----------
+
+function requireKey(): string | null {
+  const key = getApiKey();
+  if (!key) {
+    setStatus("Add your Anthropic API key in Settings to generate with AI. Everything else works without one.", "error");
+    dialog.showModal();
+    return null;
+  }
+  return key;
+}
+
+async function generate(): Promise<void> {
+  const request = promptEl.value.trim();
+  if (!request) return;
+  const apiKey = requireKey();
+  if (!apiKey) return;
+  generateBtn.disabled = true;
+  const logId = crypto.randomUUID();
+  setStatus(`Generating (${settings.model}, prompt ${settings.variant})…`);
+  try {
+    const outcome = await generateSpec(request, {
+      apiKey,
+      model: settings.model,
+      variant: currentVariant(),
+      exemplars: loadExemplars(),
+    });
+    const entry: LogEntry = {
+      id: logId,
+      ts: new Date().toISOString(),
+      prompt: request,
+      config: { model: settings.model, promptVariant: settings.variant, specVersion: SPEC_VERSION },
+      rounds: outcome.rounds.map((r) => ({
+        label: r.label,
+        validationErrors: r.validationErrors,
+        lintCount: r.lintIssues.length,
+        ms: Math.round(r.meta.ms),
+        structuredOutput: r.meta.structuredOutput,
+      })),
+      spec: outcome.spec,
+      lintIssues: [],
+      warnings: [],
+      error: outcome.error,
+    };
+    appendLog(entry);
+    refreshCounts();
+    if (!outcome.spec) {
+      setStatus(outcome.error ?? "Generation failed.", "error");
+      return;
+    }
+    setDoc(
+      { title: outcome.spec.title ?? request, prompt: request, spec: outcome.spec },
+      outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
+    );
+    lastLogId = logId; // after setDoc, so the rating stars target this generation
+  } finally {
+    generateBtn.disabled = false;
+  }
+}
+
+const BLANK_SPEC: Spec = {
+  title: "Untitled drawcast",
+  domain: { x: [0, 100], y: [0, 100] },
+  elements: [
+    { id: "ax", type: "axes", x_label: "x", y_label: "y" },
+    { id: "curve1", type: "curve", expr: "80 - 0.6*x" },
+    { id: "label1", type: "label", text: "A curve", attach_to: "curve1", side: "above-right" },
+  ],
+  commands: [
+    { speak: "Start with a pair of axes." },
+    { draw: ["ax"] },
+    { speak: "Then draw a curve and label it." },
+    { draw: ["curve1", "label1"] },
+  ],
+};
+
+generateBtn.addEventListener("click", () => void generate());
+blankBtn.addEventListener("click", () => {
+  setDoc({ title: "Untitled drawcast", spec: JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec }, "Blank spec loaded — edit the JSON below.");
+});
+
+exampleLoadBtn.addEventListener("click", () => {
+  const ex = examples[parseInt(exampleSel.value, 10)] ?? examples[0];
+  setDoc({ title: ex.spec.title ?? ex.request, prompt: ex.request, spec: ex.spec }, "Example loaded.");
+});
+
+rerenderBtn.addEventListener("click", () => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(specArea.value);
+  } catch (err) {
+    setStatus(`Spec is not valid JSON: ${(err as Error).message}`, "error");
+    return;
+  }
+  const v = validateSpec(parsed);
+  if (!v.ok) {
+    setStatus(`Spec invalid: ${v.errors[0]}${v.errors.length > 1 ? ` (+${v.errors.length - 1} more)` : ""}`, "error");
+    return;
+  }
+  const spec = parsed as Spec;
+  doc = { title: spec.title ?? doc.title, prompt: doc.prompt, spec };
+  setStatus("Re-rendered from edited spec.", "ok");
+  void present();
+});
+
+promoteBtn.addEventListener("click", () => {
+  addExemplar({ prompt: doc.prompt ?? doc.title, spec: doc.spec, ts: new Date().toISOString() });
+  promoteBtn.textContent = "★ Promoted";
+  promoteBtn.disabled = true;
+  refreshCounts();
+});
+
+// ---------- library ----------
+
+function refreshLibrary(): void {
+  libraryList.replaceChildren();
+  const items = loadLibrary();
+  if (items.length === 0) {
+    libraryList.appendChild(h("div", { class: "hint" }, "Nothing saved yet."));
+    return;
+  }
+  for (const item of items) {
+    const openBtn = h("button", { class: "library-open", title: "Load this drawing" }, item.title);
+    openBtn.addEventListener("click", () => setDoc({ title: item.title, prompt: item.prompt, spec: item.spec }, "Loaded from library."));
+    const delBtn = h("button", { class: "library-del", title: "Delete from library" }, "✕");
+    delBtn.addEventListener("click", () => {
+      deleteDrawing(item.id);
+      refreshLibrary();
+    });
+    libraryList.appendChild(h("div", { class: "library-item" }, openBtn, delBtn));
+  }
+}
+refreshLibrary();
+
+saveBtn.addEventListener("click", () => {
+  const title = doc.spec.title ?? doc.title;
+  saveDrawing({ id: crypto.randomUUID(), title, prompt: doc.prompt, spec: doc.spec, ts: new Date().toISOString() });
+  refreshLibrary();
+  setStatus(`Saved "${title}" to the library (this browser).`, "ok");
+});
+
+exportBtn.addEventListener("click", () => {
+  downloadJson(`${(doc.spec.title ?? "drawcast").replace(/[^\wæøå -]+/gi, "").trim() || "drawcast"}.json`, doc.spec);
+});
+
+importBtn.addEventListener("click", () => importInput.click());
+importInput.addEventListener("change", () => {
+  const file = importInput.files?.[0];
+  if (!file) return;
+  void file.text().then((text) => {
+    importInput.value = "";
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (err) {
+      setStatus(`Not valid JSON: ${(err as Error).message}`, "error");
+      return;
+    }
+    // Accept either a bare spec or a saved-drawing object.
+    const maybe = parsed as Partial<SavedDrawing> & Partial<Spec>;
+    const spec = (maybe.spec ?? parsed) as unknown;
+    const v = validateSpec(spec);
+    if (!v.ok) {
+      setStatus(`Spec invalid: ${v.errors[0]}`, "error");
+      return;
+    }
+    const s = spec as Spec;
+    setDoc({ title: s.title ?? maybe.title ?? file.name.replace(/\.json$/i, ""), prompt: maybe.prompt, spec: s }, "Uploaded.");
+  });
+});
+
+// ---------- prompt panel ----------
+
+variantSel.addEventListener("change", () => {
+  settings.variant = variantSel.value;
+  persist();
+  showVariantSource();
+});
+
+promptSaveBtn.addEventListener("click", () => {
+  saveCustomPrompt(promptSource.value);
+  settings.variant = "custom";
+  persist();
+  refreshVariantOptions();
+  showVariantSource();
+  setStatus("Custom prompt saved — generation now uses it.", "ok");
+});
+
+promptResetBtn.addEventListener("click", () => {
+  saveCustomPrompt(null);
+  if (settings.variant === "custom") settings.variant = variants[0].name;
+  persist();
+  refreshVariantOptions();
+  showVariantSource();
+  setStatus("Custom prompt discarded — back to the bundled prompt.", "ok");
+});
+
+// ---------- settings + misc wiring ----------
+
 keyInput.addEventListener("change", () => setApiKey(keyInput.value.trim()));
 clearKeyBtn.addEventListener("click", () => {
   setApiKey("");
@@ -234,290 +577,20 @@ modelSel.addEventListener("change", () => {
   settings.model = modelSel.value;
   persist();
 });
-backendSel.addEventListener("change", () => {
-  settings.backend = backendSel.value;
+styleSel.addEventListener("change", () => {
+  settings.style = styleSel.value as RenderStyle;
   persist();
-});
-variantSel.addEventListener("change", () => {
-  settings.variant = variantSel.value;
-  persist();
+  void present();
 });
 
-generateBtn.addEventListener("click", () => void generate());
-compareBtn.addEventListener("click", () => void compare());
-exampleBtn.addEventListener("click", () => void offlineExample());
-benchRunBtn.addEventListener("click", () => void runBenchmark());
-exportLogsBtn.addEventListener("click", () => downloadJson(`draw-logs-${Date.now()}.json`, loadLogs()));
-exportPacketBtn.addEventListener("click", () => downloadJson(`draw-improvement-packet-${Date.now()}.json`, buildImprovementPacket()));
+exportPacketBtn.addEventListener("click", () => downloadJson(`drawcast-improvement-packet-${Date.now()}.json`, buildImprovementPacket()));
 clearLogsBtn.addEventListener("click", () => {
   clearLogs();
   refreshCounts();
 });
 
-function refreshCounts(): void {
-  logCount.textContent = `${loadLogs().length} logged generations`;
-  exemplarCount.textContent = `${loadExemplars().length} exemplars`;
-}
-refreshCounts();
+// ---------- boot ----------
 
-// ---------- generation flows ----------
-
-function requireKey(): string | null {
-  const key = getApiKey();
-  if (!key) {
-    dialog.showModal();
-    return null;
-  }
-  return key;
-}
-
-function variantByName(name: string): PromptVariant {
-  return variants.find((v) => v.name === name) ?? variants[0];
-}
-
-async function generate(): Promise<void> {
-  const prompt = promptEl.value.trim();
-  if (!prompt) return;
-  await runConfigs(prompt, [settings.backend], [settings.variant]);
-}
-
-async function compare(): Promise<void> {
-  const prompt = promptEl.value.trim();
-  if (!prompt) return;
-  const backends = settings.compareBackends.length > 0 ? settings.compareBackends : [settings.backend];
-  const variantNames = settings.compareVariants.length > 0 ? settings.compareVariants : [settings.variant];
-  await runConfigs(prompt, backends, variantNames);
-}
-
-async function runConfigs(prompt: string, backends: string[], variantNames: string[], family?: string): Promise<void> {
-  const apiKey = requireKey();
-  if (!apiKey) return;
-
-  for (const variantName of variantNames) {
-    const specBackends = backends.filter((b) => b !== RAW_BASELINE_NAME);
-    if (specBackends.length > 0) {
-      const cards = specBackends.map((b) => newSpecCard(prompt, b, variantName));
-      cards.forEach((c) => c.card.setStatus(`Generating spec (${settings.model}, prompt ${variantName})…`));
-      const outcome = await generateSpec(prompt, {
-        apiKey,
-        model: settings.model,
-        variant: variantByName(variantName),
-        exemplars: loadExemplars(),
-      });
-      for (const c of cards) {
-        await fillSpecCard(c, prompt, outcome, variantName, family);
-      }
-    }
-    if (backends.includes(RAW_BASELINE_NAME)) {
-      await runBaseline(prompt, apiKey, family);
-    }
-  }
-  refreshCounts();
-}
-
-interface SpecCardCtx {
-  card: Card;
-  backendName: string;
-  logId: string;
-  current: { handle: RenderHandle | null };
-}
-
-function playbackPrefs() {
-  return {
-    mode: settings.mode,
-    speed: settings.speed,
-    onMode: (m: typeof settings.mode) => {
-      settings.mode = m;
-      persist();
-    },
-    onSpeed: (s: number) => {
-      settings.speed = s;
-      persist();
-    },
-  };
-}
-
-function newSpecCard(prompt: string, backendName: string, variantName: string): SpecCardCtx {
-  const logId = crypto.randomUUID();
-  const current: { handle: RenderHandle | null } = { handle: null };
-  let lastSpec: Spec | null = null;
-
-  const card = createCard(truncate(prompt, 64), `${backendName} · ${settings.model} · prompt ${variantName}`, {
-    onRating: (rating) => updateLog(logId, { rating }),
-    onTags: (tags, comment) => updateLog(logId, { tags, comment }),
-    onPromote: () => {
-      if (lastSpec) {
-        addExemplar({ prompt, spec: lastSpec, ts: new Date().toISOString() });
-        refreshCounts();
-      }
-    },
-    onRerender: (specText) => void rerender(specText),
-  }, playbackPrefs());
-  resultsEl.prepend(card.root);
-
-  async function rerender(specText: string): Promise<void> {
-    let spec: unknown;
-    try {
-      spec = JSON.parse(specText);
-    } catch (err) {
-      card.setStatus(`Spec is not valid JSON: ${(err as Error).message}`, "error");
-      return;
-    }
-    const v = validateSpec(spec);
-    if (!v.ok) {
-      card.setStatus(`Spec invalid: ${v.errors[0]}${v.errors.length > 1 ? ` (+${v.errors.length - 1} more)` : ""}`, "error");
-      return;
-    }
-    current.handle?.destroy();
-    card.stageHost.replaceChildren();
-    lastSpec = spec as Spec;
-    const handle = await render(lastSpec, card.stageHost, { backend: backendName, speech, mode: settings.mode, speed: settings.speed });
-    current.handle = handle;
-    card.attachHandle(handle);
-    card.setLint(handle.layout.issues, handle.layout.warnings);
-    card.setStatus("Re-rendered from edited spec.", "ok");
-  }
-
-  const ctx: SpecCardCtx = { card, backendName, logId, current };
-  // expose lastSpec setter through closure
-  (ctx as SpecCardCtx & { setLastSpec: (s: Spec) => void }).setLastSpec = (s: Spec) => {
-    lastSpec = s;
-  };
-  return ctx;
-}
-
-async function fillSpecCard(ctx: SpecCardCtx, prompt: string, outcome: GenerationOutcome, variantName: string, family?: string): Promise<void> {
-  const { card, backendName, logId } = ctx;
-  const entry: LogEntry = {
-    id: logId,
-    ts: new Date().toISOString(),
-    prompt,
-    config: { model: settings.model, backend: backendName, promptVariant: variantName, specVersion: SPEC_VERSION },
-    family,
-    rounds: outcome.rounds.map((r) => ({
-      label: r.label,
-      validationErrors: r.validationErrors,
-      lintCount: r.lintIssues.length,
-      ms: Math.round(r.meta.ms),
-      structuredOutput: r.meta.structuredOutput,
-    })),
-    spec: outcome.spec,
-    lintIssues: [],
-    warnings: [],
-    error: outcome.error,
-  };
-
-  if (!outcome.spec) {
-    card.setStatus(outcome.error ?? "Generation failed.", "error");
-    appendLog(entry);
-    return;
-  }
-
-  (ctx as SpecCardCtx & { setLastSpec?: (s: Spec) => void }).setLastSpec?.(outcome.spec);
-  if (outcome.spec.title) card.setTitle(outcome.spec.title);
-  card.setSpecText(outcome.spec);
-  card.setStatus(outcome.error ? `Partial: ${outcome.error}` : "Rendering…", outcome.error ? "error" : "info");
-
-  const t0 = performance.now();
-  try {
-    const handle = await render(outcome.spec, card.stageHost, { backend: backendName, speech, mode: settings.mode, speed: settings.speed });
-    ctx.current.handle = handle;
-    card.attachHandle(handle);
-    card.setLint(handle.layout.issues, handle.layout.warnings);
-    entry.lintIssues = handle.layout.issues.map(({ rule, ids, message, severity }) => ({ rule, ids, message, severity }));
-    entry.warnings = handle.layout.warnings;
-    entry.renderMs = Math.round(performance.now() - t0);
-    const meta = [
-      `${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}`,
-      `${entry.rounds.reduce((a, r) => a + r.ms, 0)} ms LLM`,
-      `${entry.renderMs} ms render`,
-      outcome.rounds[0]?.meta.structuredOutput ? "structured output" : "plain JSON",
-      outcome.rounds[0]?.meta.servedBy ? `served by ${outcome.rounds[0].meta.servedBy}` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    card.setMetaLine(meta);
-    card.setStatus(handle.backendApplies ? "Ready." : "Backend does not support this family.", handle.backendApplies ? "ok" : "error");
-  } catch (err) {
-    card.setStatus(`Render failed: ${(err as Error).message}`, "error");
-    entry.error = `render: ${(err as Error).message}`;
-  }
-  appendLog(entry);
-}
-
-async function runBaseline(prompt: string, apiKey: string, family?: string): Promise<void> {
-  const logId = crypto.randomUUID();
-  const card = createCard(truncate(prompt, 64), `raw-svg-baseline · ${settings.model}`, {
-    onRating: (rating) => updateLog(logId, { rating }),
-    onTags: (tags, comment) => updateLog(logId, { tags, comment }),
-  });
-  resultsEl.prepend(card.root);
-  card.setStatus(`Generating raw SVG (${settings.model})…`);
-  try {
-    const { svg, ms } = await generateRawSvg(prompt, { apiKey, model: settings.model });
-    card.showRawSvg(svg);
-    card.setMetaLine(`${Math.round(ms)} ms LLM · no spec · no lint`);
-    card.setStatus("Baseline rendered.", "ok");
-    appendLog({
-      id: logId,
-      ts: new Date().toISOString(),
-      prompt,
-      config: { model: settings.model, backend: RAW_BASELINE_NAME, promptVariant: "-", specVersion: SPEC_VERSION },
-      family,
-      rounds: [{ label: "initial", validationErrors: [], lintCount: 0, ms: Math.round(ms) }],
-      spec: null,
-      lintIssues: [],
-      warnings: [],
-      baselineSvg: svg,
-    });
-  } catch (err) {
-    card.setStatus(describeApiError(err), "error");
-    appendLog({
-      id: logId,
-      ts: new Date().toISOString(),
-      prompt,
-      config: { model: settings.model, backend: RAW_BASELINE_NAME, promptVariant: "-", specVersion: SPEC_VERSION },
-      family,
-      rounds: [],
-      spec: null,
-      lintIssues: [],
-      warnings: [],
-      error: describeApiError(err),
-    });
-  }
-}
-
-let exampleIdx = 0;
-async function offlineExample(): Promise<void> {
-  const examples = fewshots as { request: string; spec: Spec }[];
-  const ex = examples[exampleIdx % examples.length];
-  exampleIdx++;
-  const ctx = newSpecCard(ex.request, settings.backend === RAW_BASELINE_NAME ? "custom-svg" : settings.backend, "bundled");
-  if (ex.spec.title) ctx.card.setTitle(ex.spec.title);
-  ctx.card.setSpecText(ex.spec);
-  const handle = await render(ex.spec, ctx.card.stageHost, { backend: ctx.backendName, speech, mode: settings.mode, speed: settings.speed });
-  ctx.current.handle = handle;
-  ctx.card.attachHandle(handle);
-  ctx.card.setLint(handle.layout.issues, handle.layout.warnings);
-  ctx.card.setMetaLine("bundled example spec — no API call");
-  ctx.card.setStatus("Ready.", "ok");
-}
-
-async function runBenchmark(): Promise<void> {
-  const apiKey = requireKey();
-  if (!apiKey) return;
-  benchRunBtn.disabled = true;
-  try {
-    for (const [i, b] of BENCHMARK.entries()) {
-      benchStatus.textContent = `Running ${i + 1}/${BENCHMARK.length}: ${b.prompt}`;
-      await runConfigs(b.prompt, [settings.backend], [settings.variant], b.family);
-    }
-    benchStatus.textContent = `Done — ${BENCHMARK.length} prompts logged.`;
-  } finally {
-    benchRunBtn.disabled = false;
-  }
-}
-
-function truncate(s: string, n: number): string {
-  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
-}
+specArea.value = JSON.stringify(doc.spec, null, 2);
+if (doc.prompt) promptEl.value = doc.prompt;
+showMode(settings.uiMode);

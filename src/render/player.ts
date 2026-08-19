@@ -30,7 +30,7 @@ export class Player {
   private speech: SpeechManager;
   private captionEl: HTMLElement | null;
   private effects: BackendEffects | null;
-  /** Settable after construction (the harness wires its controls in later). */
+  /** Settable after construction (the UI wires its controls in later). */
   callbacks: PlayerCallbacks;
 
   private mode: PlaybackMode;

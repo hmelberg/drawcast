@@ -1,33 +1,36 @@
 // Standalone viewer mode: #gdoc=<google-doc-id> loads a spec from a
-// link-shared Google Doc and shows just a single player — no harness, no AI,
-// no key. Extra hash params: &backend=clean-svg &mode=silent &speed=1.5.
-// Example: https://draw.melberg.app/#gdoc=1AbC…xyz
+// link-shared Google Doc and shows just a single player — no editor, no AI,
+// no key. Extra hash params: &style=sketchy &mode=silent &speed=1.5.
+// Example: https://…/drawcast/#gdoc=1AbC…xyz
 
 import "./styles.css";
-import { render } from "./render";
+import { render, type RenderStyle } from "./render";
 import { SpeechManager } from "./render/speech";
-import { attachPlayerControls, h } from "./harness/cards";
+import { h } from "./ui/dom";
+import { attachPlayerControls } from "./ui/controls";
 import { desmartenJson, extractJson } from "./spec/extract";
 import { validateSpec } from "./spec/schema";
 import type { Spec } from "./spec/types";
-import { loadSettings } from "./harness/store";
+import { loadSettings } from "./store";
 
 export interface ViewerRequest {
   docId: string;
-  backend: string;
+  style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
 }
 
-/** Accepts #gdoc=<id> and #gdoc-<id>, with optional &backend= &mode= &speed=. */
+/** Accepts #gdoc=<id> and #gdoc-<id>, with optional &style= &mode= &speed=. */
 export function parseViewerHash(hash: string): ViewerRequest | null {
   const m = /[#&]gdoc[=-]([A-Za-z0-9_-]{10,})/.exec(hash);
   if (!m) return null;
   const params = new URLSearchParams(hash.replace(/^#/, "").replace(/gdoc-([A-Za-z0-9_-]+)/, "gdoc=$1"));
   const mode = params.get("mode");
+  // Legacy draw links used &backend=custom-svg / clean-svg; map them.
+  const styleParam = params.get("style") ?? params.get("backend");
   return {
     docId: m[1],
-    backend: params.get("backend") ?? "custom-svg",
+    style: styleParam === "sketchy" || styleParam === "custom-svg" ? "sketchy" : "clean",
     mode: mode === "silent" || mode === "instant" ? mode : "narrated",
     speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
   };
@@ -57,13 +60,13 @@ async function fetchGdocText(docId: string): Promise<string> {
 export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
-  const titleEl = h("h1", { class: "viewer-title squiggle" }, "Concept Sketch");
+  const titleEl = h("h1", { class: "viewer-title squiggle" }, "drawcast");
   const status = h("div", { class: "viewer-status" }, "Loading drawing from Google Doc…");
   const figureHost = h("div", { class: "viewer-figure" });
   const footer = h(
     "div",
     { class: "viewer-footer" },
-    h("a", { href: location.pathname, title: "Open the Concept Sketch app" }, "Made with Concept Sketch ✏️"),
+    h("a", { href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast ✏️"),
   );
   app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, footer));
 
@@ -76,14 +79,14 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     }
     if (spec.title) {
       titleEl.textContent = spec.title;
-      document.title = `${spec.title} — Concept Sketch`;
+      document.title = `${spec.title} — drawcast`;
     }
     const settings = loadSettings();
     const speech = new SpeechManager();
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
     const handle = await render(spec, figureHost, {
-      backend: req.backend,
+      style: req.style,
       mode: req.mode,
       speed: req.speed,
       speech,

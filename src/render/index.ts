@@ -1,6 +1,6 @@
 // The renderer module boundary (future web-component contract):
 // render(spec, container, options) -> { timeline, update(diff), lint() }.
-// Framework-free by design.
+// Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { LintIssue } from "../lint/lint";
@@ -8,11 +8,12 @@ import type { Spec } from "../spec/types";
 import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager } from "./speech";
-import { backendRegistry } from "./backends";
-import { makeBrowserMeasure } from "./svg-backend";
+import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
+
+export type { RenderStyle } from "./svg-backend";
 
 export interface RenderOptions {
-  backend?: string;
+  style?: RenderStyle;
   mode?: PlaybackMode;
   speed?: number;
   speech?: SpeechManager;
@@ -24,8 +25,6 @@ export interface RenderHandle {
   layout: LayoutResult;
   plan: Plan;
   spec: Spec;
-  backendName: string;
-  backendApplies: boolean;
   lint(): LintIssue[];
   /**
    * M5 stub: applies a shallow spec diff and re-renders in place.
@@ -54,9 +53,7 @@ function ensureFonts(): Promise<void> {
 
 export async function render(spec: Spec, container: HTMLElement, options: RenderOptions = {}): Promise<RenderHandle> {
   await ensureFonts();
-  const backendName = options.backend ?? "custom-svg";
-  const backend = backendRegistry[backendName];
-  if (!backend) throw new Error(`unknown backend "${backendName}"`);
+  const renderer = rendererFor(options.style ?? "sketchy");
 
   const figure = document.createElement("div");
   figure.className = "cs-figure";
@@ -76,30 +73,15 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     ...domainMapping(spec.domain),
   });
 
-  const backendApplies = backend.appliesTo(spec);
-  let mounted: Awaited<ReturnType<typeof backend.mount>>;
-  if (backendApplies) {
-    mounted = await backend.mount(layout, spec, stage);
-  } else {
-    const note = document.createElement("div");
-    note.className = "cs-backend-note";
-    note.textContent = `The ${backend.label} backend does not support this diagram family (by design — see BRIEF).`;
-    stage.appendChild(note);
-    mounted = { elements: new Map(), destroy: () => note.remove() };
-  }
-
-  if (!backend.supportsAnimation) {
-    // Static backends show everything at mount; the player only sequences narration.
-    for (const el of mounted.elements.values()) el.finish();
-  }
+  const mounted = await renderer.mount(layout, spec, stage);
 
   const speech = options.speech ?? new SpeechManager();
   const player = new Player(
     plan,
-    backend.supportsAnimation ? mounted.elements : new Map(),
+    mounted.elements,
     speech,
     caption,
-    { mode: options.mode, speed: options.speed, effects: backend.supportsAnimation ? mounted.effects : undefined },
+    { mode: options.mode, speed: options.speed, effects: mounted.effects },
     options.callbacks,
   );
 
@@ -108,8 +90,6 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     layout,
     plan,
     spec,
-    backendName,
-    backendApplies,
     lint: () => layout.issues,
     update: async (diff) => {
       player.dispose();

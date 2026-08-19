@@ -139,7 +139,7 @@ export async function callForJson(
   };
 }
 
-/** Plain text call (used by the raw-SVG baseline). */
+/** Plain text call (kept for future non-JSON uses, e.g. a narration pass). */
 export async function callForText(
   client: Anthropic,
   model: string,

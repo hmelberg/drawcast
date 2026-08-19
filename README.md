@@ -1,35 +1,44 @@
-# Concept Sketch (`draw`)
+# drawcast
 
-An experimental web app testing how well an LLM can translate a short request
-("draw a demand and supply diagram") into a **structured drawing spec** that
-deterministic code renders as an animated, narrated, hand-drawn educational
-figure. Experiment harness first, product second — see [BRIEF.md](BRIEF.md)
-(the founding document) and [ROADMAP.md](ROADMAP.md) (milestone status).
+Animated, narrated, hand-drawn explainer figures — "drawcasts" — that play like
+short videos. Describe a diagram ("draw a demand and supply diagram"), an LLM
+compiles it into a **structured drawing spec**, and deterministic code renders
+it as a gradually drawn, spoken figure with a laser pointer, highlights, and
+camera moves.
 
-**Live app:** https://hmelberg.github.io/draw/
+drawcast is the product graduation of [hmelberg/draw](https://github.com/hmelberg/draw)
+(Concept Sketch), the experiment harness that compared spec formats and
+rendering backends. The experiment picked its winner; drawcast keeps the engine
+and drops the lab. `draw` remains as the frozen lab — fixes flow one way, into
+this repo.
 
-## Core principle
+## Core principle (inherited, non-negotiable)
 
 **The LLM writes semantics; deterministic code computes geometry.** The LLM
 outputs a JSON spec (what exists, how elements relate); scales, tree layout,
 label collision solving, and lint are all code. Logical canvas 1000×750,
 Cartesian, y-up, origin bottom-left; the single y-flip lives in `toSvgY`.
 
-## Using it
+## Two modes, one document
 
-1. Open the app, press **Settings**, paste your Anthropic API key
-   (stored in `localStorage` only; sent only to `api.anthropic.com` — direct
-   browser calls via Anthropic's supported CORS mechanism; no server at all).
-2. Describe a drawing → **Generate**. The spec appears in an editable JSON
-   panel; the figure renders below with play/pause, step, mode
-   (narrated/silent/instant) and speed controls.
-3. **Compare configs** runs one prompt through backends × prompt variants
-   side by side. **Run benchmark** runs the fixed 10-prompt set and logs
-   everything. Rate results (1–5), tag failures, promote good ones to
-   exemplars (used as few-shots for similar future prompts).
-4. **Offline example** renders a bundled spec without any API key.
+- **Player** (default): a YouTube-like screen — poster, big play button,
+  seekable progress bar, speed menu, captions. The chrome fades while playing.
+- **Editor**: create drawcasts with AI (bring your own Anthropic API key) or by
+  hand — load bundled examples, edit the spec JSON directly, save to a local
+  library, download/upload specs, rate results, promote good ones to few-shot
+  exemplars, and **edit the compiler prompt itself** (saved as a custom variant).
 
-No key? Everything except generation works — try the offline examples.
+A standalone share mode plays a spec straight from a link-shared Google Doc:
+`…/#gdoc=<doc-id>` (optional `&style=sketchy &mode=silent &speed=1.5`).
+
+## The command language
+
+A spec is elements + a storyboard of commands. Narration: `speak` (with
+`blocking:false` to talk while gesturing). Drawing: `draw`, `pause`. Gesture
+verbs: `highlight` (pulse/circle/glow), `point` (laser pointer), `move`
+(translate with easing/path), `show`/`hide`/`erase`, `clear`, `camera`
+(zoom/pan). The planner precomputes scene state at every step boundary, so
+step-back and seeking are exact.
 
 ## Architecture map
 
@@ -37,14 +46,15 @@ No key? Everything except generation works — try the offline examples.
 |---|---|
 | `src/spec/` | Spec types, JSON Schema (= API output constraint = prompt docs), sandboxed expression evaluator |
 | `src/layout/` | Canvas/scales, layout IR, tier-2/3 element layout, label collision solver, orchestrator |
-| `src/scenes/<name>/` | `manifest.json` (routing data, Loop 2) + `layout.ts` (geometry code, Loop 3) |
-| `src/lint/` | Deterministic visual lint (feeds the Loop-1 repair round) |
-| `src/render/` | Command planner (scene state per step), Player (speak/draw/pause + gesture verbs: highlight, point, move, show/hide/erase, clear, camera), speech, backends (custom-svg/rough.js, jsxgraph, mermaid) |
-| `src/llm/` | BYOK Anthropic client, generation pipeline with capped repair rounds, prompts-as-data (`prompts/*.md`), raw-SVG baseline |
-| `src/harness/` | UI cards, benchmark set, logs/exemplars/improvement-packet store |
+| `src/scenes/<name>/` | `manifest.json` (routing data) + `layout.ts` (geometry code) |
+| `src/lint/` | Deterministic visual lint (feeds the repair round) |
+| `src/render/` | Command planner (scene state per step), Player, gesture effects, speech, the SVG renderer (clean/sketchy style toggle) |
+| `src/llm/` | BYOK Anthropic client, generation pipeline with capped repair rounds, prompts-as-data (`prompts/*.md`) |
+| `src/ui/` | DOM helper + shared video-style player controls |
+| `src/main.ts` | The two-mode app shell; `src/viewer.ts` the #gdoc share player |
 
 Renderer boundary: `render(spec, container, options) → { timeline, update(diff), lint() }`
-(`src/render/index.ts`) — framework-free, future `<concept-sketch>` web component.
+(`src/render/index.ts`) — framework-free, future `<drawcast>` web component.
 
 ## Development
 
@@ -55,12 +65,8 @@ npm run dev     # vite dev server
 npm run build   # tsc + vite build (deployed to GitHub Pages on push to main)
 ```
 
-## Improvement loops
+No API key? Everything except AI generation works — load the bundled examples.
 
-- **Loop 1** (automatic, per generation): schema validation → visual lint →
-  capped LLM repair rounds. Vision critic not yet built (ROADMAP).
-- **Loop 2** (in-app data): exemplar library, prompt variants
-  (`src/llm/prompts/compiler-*.md` — add a file, it appears in the A/B harness),
-  scene manifests.
-- **Loop 3** (dev loop): "Export improvement packet" produces worst cases +
-  failure statistics for a Claude Code session in this repo.
+See [ROADMAP.md](ROADMAP.md) for what's next (interactivity: waits, quizzes,
+chapters, math). [BRIEF.md](BRIEF.md) is the founding document inherited from
+the `draw` experiment, kept for the record.

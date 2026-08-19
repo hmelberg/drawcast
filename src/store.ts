@@ -1,39 +1,42 @@
-// Local persistence for the experiment: settings, API key, generation logs,
-// exemplar library. Everything exportable as JSON (Loops 2 & 3 feed on this).
+// Local persistence: settings, API key, the drawing library, the exemplar
+// library (Loop 2), a custom compiler-prompt override, and generation logs
+// that feed the exportable improvement packet (Loop 3).
 
-import { SPEC_VERSION } from "../spec/schema";
-import type { Spec } from "../spec/types";
-import type { LintIssue } from "../lint/lint";
+import { SPEC_VERSION } from "./spec/schema";
+import type { Spec } from "./spec/types";
+import type { LintIssue } from "./lint/lint";
+import type { RenderStyle } from "./render";
 
 const KEYS = {
-  settings: "draw.settings.v1",
-  logs: "draw.logs.v1",
-  exemplars: "draw.exemplars.v1",
-  apiKey: "draw.apikey",
+  settings: "drawcast.settings.v1",
+  logs: "drawcast.logs.v1",
+  exemplars: "drawcast.exemplars.v1",
+  library: "drawcast.library.v1",
+  customPrompt: "drawcast.customPrompt.v1",
+  apiKey: "drawcast.apikey",
 } as const;
 
 export interface Settings {
   model: string;
-  backend: string;
+  style: RenderStyle;
+  /** Prompt variant name, or "custom" for the locally edited prompt. */
   variant: string;
   mode: "narrated" | "silent" | "instant";
   speed: number;
   voiceURI: string | null;
   rate: number;
-  compareBackends: string[];
-  compareVariants: string[];
+  uiMode: "player" | "editor";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
-  backend: "custom-svg",
+  style: "clean",
   variant: "v1",
   mode: "narrated",
   speed: 1,
   voiceURI: null,
   rate: 1,
-  compareBackends: ["custom-svg", "raw-svg-baseline"],
-  compareVariants: ["v1"],
+  uiMode: "player",
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -72,7 +75,43 @@ export function setApiKey(key: string): void {
   else localStorage.removeItem(KEYS.apiKey);
 }
 
-// ---- Generation log (Loop 3's raw material) ----
+// ---- Drawing library (the user's saved drawcasts) ----
+
+export interface SavedDrawing {
+  id: string;
+  title: string;
+  /** The request that produced it, when AI-generated. */
+  prompt?: string;
+  spec: Spec;
+  ts: string;
+}
+
+export function loadLibrary(): SavedDrawing[] {
+  return readArray<SavedDrawing>(KEYS.library);
+}
+
+export function saveDrawing(d: SavedDrawing): void {
+  const all = loadLibrary().filter((x) => x.id !== d.id);
+  all.unshift(d);
+  localStorage.setItem(KEYS.library, JSON.stringify(all));
+}
+
+export function deleteDrawing(id: string): void {
+  localStorage.setItem(KEYS.library, JSON.stringify(loadLibrary().filter((x) => x.id !== id)));
+}
+
+// ---- Custom compiler prompt (editable in the editor's Prompt panel) ----
+
+export function loadCustomPrompt(): string | null {
+  return localStorage.getItem(KEYS.customPrompt);
+}
+
+export function saveCustomPrompt(source: string | null): void {
+  if (source) localStorage.setItem(KEYS.customPrompt, source);
+  else localStorage.removeItem(KEYS.customPrompt);
+}
+
+// ---- Generation log (the improvement packet's raw material) ----
 
 export interface LogRound {
   label: string;
@@ -88,11 +127,9 @@ export interface LogEntry {
   prompt: string;
   config: {
     model: string;
-    backend: string;
     promptVariant: string;
     specVersion: string;
   };
-  family?: string;
   rounds: LogRound[];
   spec: Spec | null;
   lintIssues: Pick<LintIssue, "rule" | "ids" | "message" | "severity">[];
@@ -100,9 +137,6 @@ export interface LogEntry {
   renderMs?: number;
   error?: string;
   rating?: number;
-  tags?: string[];
-  comment?: string;
-  baselineSvg?: string;
 }
 
 const MAX_LOGS = 300;
@@ -113,9 +147,6 @@ export function loadLogs(): LogEntry[] {
 
 export function appendLog(entry: LogEntry): void {
   const logs = loadLogs();
-  if (entry.baselineSvg && entry.baselineSvg.length > 50_000) {
-    entry.baselineSvg = entry.baselineSvg.slice(0, 50_000);
-  }
   logs.push(entry);
   while (logs.length > MAX_LOGS) logs.shift();
   try {
@@ -169,35 +200,24 @@ export function downloadJson(filename: string, data: unknown): void {
   URL.revokeObjectURL(url);
 }
 
-export const FAILURE_TAGS = [
-  "overlap",
-  "bad-label-placement",
-  "wrong-shape",
-  "wrong-concept",
-  "ugly-style",
-  "animation-issue",
-  "other",
-] as const;
-
 /** Loop 3 handoff: the exportable improvement packet for a Claude Code session. */
 export function buildImprovementPacket(): object {
   const logs = loadLogs();
-  const byFamily: Record<string, { count: number; ratings: number[]; tags: Record<string, number>; lintRules: Record<string, number> }> = {};
+  const byFamily: Record<string, { count: number; ratings: number[]; lintRules: Record<string, number> }> = {};
   const untemplatedPrompts: string[] = [];
 
   for (const log of logs) {
-    const family = log.family ?? (log.spec?.template ? `template:${log.spec.template}` : "untemplated");
-    byFamily[family] ??= { count: 0, ratings: [], tags: {}, lintRules: {} };
+    const family = log.spec?.template ? `template:${log.spec.template}` : "untemplated";
+    byFamily[family] ??= { count: 0, ratings: [], lintRules: {} };
     const f = byFamily[family];
     f.count++;
     if (log.rating !== undefined) f.ratings.push(log.rating);
-    for (const t of log.tags ?? []) f.tags[t] = (f.tags[t] ?? 0) + 1;
     for (const i of log.lintIssues) f.lintRules[i.rule] = (f.lintRules[i.rule] ?? 0) + 1;
     if (!log.spec?.template && log.spec) untemplatedPrompts.push(log.prompt);
   }
 
   const worst = [...logs]
-    .filter((l) => l.rating !== undefined || l.tags?.length || l.error)
+    .filter((l) => l.rating !== undefined || l.error)
     .sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0) || b.lintIssues.length - a.lintIssues.length)
     .slice(0, 10)
     .map((l) => ({
@@ -208,14 +228,12 @@ export function buildImprovementPacket(): object {
       warnings: l.warnings,
       rounds: l.rounds,
       rating: l.rating,
-      tags: l.tags,
-      comment: l.comment,
       error: l.error,
     }));
 
   return {
     generated_at: new Date().toISOString(),
-    app: "draw (Concept Sketch)",
+    app: "drawcast",
     spec_version: SPEC_VERSION,
     stats: {
       total_logged: logs.length,
@@ -225,7 +243,6 @@ export function buildImprovementPacket(): object {
           {
             count: v.count,
             avg_rating: v.ratings.length ? v.ratings.reduce((a, b) => a + b, 0) / v.ratings.length : null,
-            tag_counts: v.tags,
             lint_rule_counts: v.lintRules,
           },
         ]),
@@ -234,10 +251,9 @@ export function buildImprovementPacket(): object {
     },
     worst_cases: worst,
     handoff_instructions:
-      "This packet was exported by the Concept Sketch harness (repo: draw). " +
-      "Feed it to a Claude Code session in that repo. Renderer/layout code lives in src/layout and src/scenes; " +
-      "scene manifests (routing data) in src/scenes/*/manifest.json; the compiler prompt in src/llm/prompts/. " +
-      "Untemplated prompt clusters above suggest which scene to author next. " +
-      "PNG screenshots and pre-drafted scene skeletons are not included yet (see ROADMAP).",
+      "This packet was exported by drawcast. Feed it to a Claude Code session in the drawcast repo. " +
+      "Renderer/layout code lives in src/layout and src/scenes; scene manifests (routing data) in " +
+      "src/scenes/*/manifest.json; the compiler prompt in src/llm/prompts/. " +
+      "Untemplated prompt clusters above suggest which scene to author next.",
   };
 }

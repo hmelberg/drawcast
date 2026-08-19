@@ -1,9 +1,8 @@
-// Backend contract: a backend mounts the backend-independent layout IR into a
-// container and returns per-element handles the Player can animate. Backends
-// that can't animate return no handles — the Player then just sequences
-// captions/speech over a statically rendered figure. The optional effects
-// primitives power the gesture verbs (highlight/point/camera); backends
-// without them simply skip those steps.
+// Renderer contract: the SVG renderer mounts the layout IR into a container
+// and returns per-element handles the Player animates, plus the effects
+// primitives that power the gesture verbs (highlight/point/camera). The
+// contract stays a seam so alternative renderers remain possible, but drawcast
+// ships exactly one: the SVG renderer with a clean/sketchy style toggle.
 
 import type { BBox } from "../layout/geometry";
 import type { LayoutResult } from "../layout/layout";
@@ -54,9 +53,5 @@ export interface MountResult {
 export interface BackendModule {
   name: string;
   label: string;
-  description: string;
-  supportsAnimation: boolean;
-  /** Whether this backend can render the given spec at all (mermaid is tree-only). */
-  appliesTo(spec: Spec): boolean;
   mount(layout: LayoutResult, spec: Spec, container: HTMLElement): Promise<MountResult>;
 }

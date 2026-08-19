@@ -529,13 +529,10 @@ function makeEffects(
   };
 }
 
-function makeSvgBackend(opts: { name: string; label: string; description: string; sketchy: boolean }): BackendModule {
+function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean }): BackendModule {
   return {
     name: opts.name,
     label: opts.label,
-    description: opts.description,
-    supportsAnimation: true,
-    appliesTo: () => true,
     async mount(layout: LayoutResult, _spec, container: HTMLElement): Promise<MountResult> {
       const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
       svg.setAttribute("viewBox", `0 0 ${CANVAS.w} ${CANVAS.h}`);
@@ -584,16 +581,12 @@ function makeSvgBackend(opts: { name: string; label: string; description: string
   };
 }
 
-export const customSvgBackend = makeSvgBackend({
-  name: "custom-svg",
-  label: "Custom SVG (rough.js)",
-  description: "Hand-rolled SVG with rough.js sketchiness and dash-offset progressive drawing.",
-  sketchy: true,
-});
+/** The one renderer, in its two styles. Same drawables, same animation. */
+export const sketchyRenderer = makeSvgBackend({ name: "sketchy", label: "Hand-drawn (rough.js)", sketchy: true });
+export const cleanRenderer = makeSvgBackend({ name: "clean", label: "Clean lines", sketchy: false });
 
-export const cleanSvgBackend = makeSvgBackend({
-  name: "clean-svg",
-  label: "Clean SVG (no sketch)",
-  description: "The same renderer and animation without the hand-drawn styling: crisp lines, solid fills.",
-  sketchy: false,
-});
+export type RenderStyle = "sketchy" | "clean";
+
+export function rendererFor(style: RenderStyle): BackendModule {
+  return style === "clean" ? cleanRenderer : sketchyRenderer;
+}

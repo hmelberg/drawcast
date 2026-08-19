@@ -1,6 +1,6 @@
 {
-  "name": "draw",
-  "description": "Concept Sketch — an experimental LLM→drawing-spec app",
+  "name": "drawcast",
+  "description": "drawcast — animated, narrated, hand-drawn explainer figures from a structured drawing spec, with an AI editor",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -17,8 +17,6 @@
     "d3-hierarchy": "^3.1.2",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",
-    "jsxgraph": "^1.11.1",
-    "mermaid": "^11.12.0",
     "roughjs": "^4.6.6"
   },
   "devDependencies": {

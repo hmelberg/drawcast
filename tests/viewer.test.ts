@@ -5,12 +5,17 @@ import { desmartenJson, extractJson } from "../src/spec/extract";
 describe("parseViewerHash", () => {
   test("accepts #gdoc=<id> with defaults", () => {
     const r = parseViewerHash("#gdoc=1AbC_dEf-123456789");
-    expect(r).toMatchObject({ docId: "1AbC_dEf-123456789", backend: "custom-svg", mode: "narrated" });
+    expect(r).toMatchObject({ docId: "1AbC_dEf-123456789", style: "clean", mode: "narrated" });
   });
 
   test("accepts #gdoc-<id> and extra params", () => {
-    const r = parseViewerHash("#gdoc-1AbC_dEf-123456789&backend=clean-svg&mode=silent&speed=1.5");
-    expect(r).toMatchObject({ docId: "1AbC_dEf-123456789", backend: "clean-svg", mode: "silent", speed: 1.5 });
+    const r = parseViewerHash("#gdoc-1AbC_dEf-123456789&style=sketchy&mode=silent&speed=1.5");
+    expect(r).toMatchObject({ docId: "1AbC_dEf-123456789", style: "sketchy", mode: "silent", speed: 1.5 });
+  });
+
+  test("maps legacy draw backend params onto styles", () => {
+    expect(parseViewerHash("#gdoc=1AbC_dEf-123456789&backend=custom-svg")).toMatchObject({ style: "sketchy" });
+    expect(parseViewerHash("#gdoc=1AbC_dEf-123456789&backend=clean-svg")).toMatchObject({ style: "clean" });
   });
 
   test("returns null without a gdoc fragment", () => {
