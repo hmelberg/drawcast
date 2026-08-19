@@ -103,6 +103,31 @@ export function attachPlayerControls(
   // The bar lives below the drawing so it never covers axis labels.
   stage.insertAdjacentElement("afterend", bar);
 
+  // YouTube-like idle behavior: while playing, the controls fade out fully
+  // after a moment of pointer inactivity (cursor hidden too) and return on any
+  // movement; when paused/done they are always visible. Listeners live on the
+  // per-render .cs-figure so re-renders never stack them up.
+  const figure = stage.parentElement ?? stageHost;
+  const IDLE_MS = 2800;
+  let idleTimer: number | null = null;
+  let playing = false;
+  const setIdle = (idle: boolean) => figure.classList.toggle("cs-idle", idle);
+  const scheduleIdle = (ms = IDLE_MS) => {
+    if (idleTimer !== null) window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => setIdle(true), ms);
+  };
+  const activity = () => {
+    setIdle(false);
+    if (idleTimer !== null) window.clearTimeout(idleTimer);
+    idleTimer = null;
+    if (playing) scheduleIdle();
+  };
+  figure.addEventListener("pointermove", activity);
+  figure.addEventListener("pointerdown", activity);
+  figure.addEventListener("pointerleave", () => {
+    if (playing) scheduleIdle(600);
+  });
+
   const togglePlay = () => {
     if (hd.timeline.state === "playing") hd.timeline.pause();
     else void hd.timeline.play();
@@ -138,6 +163,9 @@ export function attachPlayerControls(
     onState: (s) => {
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
+      playing = s === "playing";
+      if (playing) scheduleIdle(); // hide even without any mouse movement
+      else activity(); // paused/done: controls stay visible
       opts.onPlayingChange?.(s === "playing");
       playBtn.textContent = s === "playing" ? "⏸" : "▶";
       bigPlay.textContent = s === "done" ? "↺" : "▶";
