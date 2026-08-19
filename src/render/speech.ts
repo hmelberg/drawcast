@@ -42,6 +42,7 @@ export class SpeechManager {
   private synth: SpeechSynthesis | null;
   private voiceURI: string | null = null;
   private rate = 1;
+  private mutedFlag = false;
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -83,6 +84,15 @@ export class SpeechManager {
 
   setRate(rate: number): void {
     this.rate = rate;
+  }
+
+  /** Muted narration keeps its exact timing (volume 0), unlike silent mode which skips it. */
+  setMuted(muted: boolean): void {
+    this.mutedFlag = muted;
+  }
+
+  get muted(): boolean {
+    return this.mutedFlag;
   }
 
   /** Reading-time estimate (~170 wpm), used for captions when speech can't run. */
@@ -127,6 +137,7 @@ export class SpeechManager {
       if (voice) utterance.voice = voice;
       utterance.lang = voice?.lang ?? (lang === "nb" ? "nb-NO" : "en-US");
       utterance.rate = Math.min(4, Math.max(0.25, this.rate * speedMultiplier));
+      utterance.volume = this.mutedFlag ? 0 : 1;
       utterance.onend = done;
       utterance.onerror = () => {
         // fall back to the remaining reading-time estimate

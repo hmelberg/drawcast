@@ -93,7 +93,7 @@ main {
   padding: 0 1.4rem 4rem;
 }
 
-body.mode-player .editor-grid { display: none; }
+body.mode-player .editor-wrap { display: none; }
 body.mode-editor .player-wrap { display: none; }
 
 /* Focus mode: while playing in player mode, the chrome fades away. */
@@ -103,18 +103,22 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
 
 /* ---------- player mode ---------- */
 
+/* YouTube-sized by default; theater mode goes wide. */
 .player-wrap {
-  width: min(1000px, 100%);
+  width: min(780px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  transition: width 0.25s ease;
 }
+.player-wrap.theater { width: min(1220px, 98vw); }
 
+/* Title below the video, like a watch page. */
 .player-title {
   font-family: var(--sketch-font);
   font-weight: 400;
-  font-size: 2rem;
-  margin: 0.2rem 0 0.9rem;
+  font-size: 1.5rem;
+  margin: 0.7rem 0 0.1rem;
   align-self: flex-start;
 }
 
@@ -126,40 +130,73 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
   padding: 0.5rem 0.6rem 0.3rem;
 }
 
-.player-hint { margin-top: 0.7rem; text-align: center; transition: opacity 0.35s ease; }
+.player-hint { margin-top: 0.35rem; transition: opacity 0.35s ease; }
 
-/* ---------- editor mode ---------- */
-
-.editor-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 400px) 1fr;
-  gap: 1.1rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .editor-grid { grid-template-columns: 1fr; }
-}
-
-.editor-side {
+/* Fullscreen: the figure fills the screen, letterboxed on paper. */
+.player-figure:fullscreen {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  justify-content: center;
+  background: var(--paper);
+  border: none;
+  border-radius: 0;
+  padding: 1rem 2rem;
 }
+.player-figure:fullscreen .cs-stage {
+  width: min(100%, calc(76vh * 4 / 3));
+  margin: 0 auto;
+}
+.player-figure:fullscreen .cs-caption { font-size: 1.5rem; }
 
-.editor-main {
+/* ---------- editor mode (xplainer-style workbench) ---------- */
+
+.editor-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+}
+
+.editor-toolbar { padding: 0.7rem 0.9rem; }
+.editor-toolbar .row { margin-top: 0; }
+.editor-toolbar .prompt-row { flex-wrap: nowrap; margin-bottom: 0.55rem; }
+.editor-toolbar .prompt-row textarea {
+  flex: 1;
+  min-height: 44px;
+  height: 44px;
+}
+.toolbar-row { row-gap: 0.4rem; }
+.toolbar-row button, .toolbar-row select { font-size: 0.85rem; padding: 0.3rem 0.55rem; }
+.toolbar-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 0.35rem; }
+.toolbar-label { color: var(--muted); font-size: 0.85rem; }
+.toolbar-label > select { margin-left: 0.2rem; }
+
+.editor-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 940px) {
+  .editor-split { grid-template-columns: 1fr; }
+}
+
+.editor-code { display: flex; flex-direction: column; }
+.editor-code textarea.spec-json { min-height: 460px; flex: 1; }
+
+.editor-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   min-width: 0;
 }
 
-section h2 {
+.editor-extra > summary {
   font-family: var(--sketch-font);
-  font-size: 1.35rem;
-  font-weight: 400;
-  margin: 0 0 0.7rem;
-  display: inline-block;
+  font-size: 1.15rem;
+  cursor: pointer;
+  color: var(--ink);
 }
 
 .panel {
@@ -177,9 +214,6 @@ section h2 {
   margin-top: 0.6rem;
   align-items: center;
 }
-
-.config-row { color: var(--muted); font-size: 0.9rem; gap: 0.9rem 1.4rem; }
-.config-row label > select { margin-left: 0.2rem; }
 
 .editor-status { min-height: 1.3em; }
 .editor-status.error { color: var(--loss); font-weight: 600; }

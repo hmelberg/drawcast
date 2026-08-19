@@ -1,22 +1,39 @@
 // YouTube-style player controls: poster (finished drawing), big play button,
-// seekable per-command progress bar, mode/speed selects. Shared between the
-// player mode, the editor preview, and the standalone #gdoc viewer.
+// seekable per-command progress bar, mute, mode/speed selects, theater and
+// fullscreen toggles. Shared between the player mode, the editor preview, and
+// the standalone #gdoc viewer.
 
 import type { RenderHandle } from "../render";
+import type { SpeechManager } from "../render/speech";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
   mode: "narrated" | "silent" | "instant";
   speed: number;
+  muted?: boolean;
   onMode?(mode: "narrated" | "silent" | "instant"): void;
   onSpeed?(speed: number): void;
+  onMute?(muted: boolean): void;
+}
+
+export interface ControlsOptions {
+  /** Focus mode hook: the host fades its chrome while playing. */
+  onPlayingChange?(playing: boolean): void;
+  /** Enables the mute button (mute keeps narration timing, volume 0). */
+  speech?: SpeechManager;
+  /** Enables the fullscreen button; this element goes fullscreen. */
+  fullscreenEl?: HTMLElement;
+  /** Enables the theater (wide) toggle. */
+  onTheater?(): void;
+  /** Extra buttons appended at the right end (e.g. the editor/player switch). */
+  trailing?: HTMLElement[];
 }
 
 export function attachPlayerControls(
   stageHost: HTMLElement,
   hd: RenderHandle,
   prefs: PlaybackPrefs,
-  onPlayingChange?: (playing: boolean) => void,
+  opts: ControlsOptions = {},
 ): void {
   const stage = stageHost.querySelector<HTMLElement>(".cs-stage");
   if (!stage) return;
@@ -37,7 +54,51 @@ export function attachPlayerControls(
   for (const s of ["0.5", "0.75", "1", "1.25", "1.5", "2"]) speedSel.appendChild(h("option", { value: s }, `${s}×`));
   speedSel.value = String(prefs.speed);
   if (!speedSel.value) speedSel.value = "1";
-  const bar = h("div", { class: "cs-controlbar" }, playBtn, backBtn, fwdBtn, progress, stepInd, modeSel, speedSel);
+
+  const leftExtra: HTMLElement[] = [];
+  const rightExtra: HTMLElement[] = [];
+
+  if (opts.speech) {
+    const speech = opts.speech;
+    speech.setMuted(prefs.muted === true);
+    const muteBtn = h("button", { class: "cs-bar-btn", title: "Mute narration (timing unchanged)" }, speech.muted ? "🔇" : "🔊");
+    muteBtn.addEventListener("click", () => {
+      const muted = !speech.muted;
+      speech.setMuted(muted);
+      muteBtn.textContent = muted ? "🔇" : "🔊";
+      prefs.onMute?.(muted);
+    });
+    leftExtra.push(muteBtn);
+  }
+  if (opts.onTheater) {
+    const theaterBtn = h("button", { class: "cs-bar-btn", title: "Theater mode (wide)" }, "▭");
+    theaterBtn.addEventListener("click", () => opts.onTheater?.());
+    rightExtra.push(theaterBtn);
+  }
+  if (opts.fullscreenEl) {
+    const el = opts.fullscreenEl;
+    const fsBtn = h("button", { class: "cs-bar-btn", title: "Fullscreen" }, "⛶");
+    fsBtn.addEventListener("click", () => {
+      if (document.fullscreenElement) void document.exitFullscreen();
+      else void el.requestFullscreen?.();
+    });
+    rightExtra.push(fsBtn);
+  }
+
+  const bar = h(
+    "div",
+    { class: "cs-controlbar" },
+    playBtn,
+    backBtn,
+    fwdBtn,
+    ...leftExtra,
+    progress,
+    stepInd,
+    modeSel,
+    speedSel,
+    ...rightExtra,
+    ...(opts.trailing ?? []),
+  );
   stage.appendChild(bigPlay);
   // The bar lives below the drawing so it never covers axis labels.
   stage.insertAdjacentElement("afterend", bar);
@@ -77,8 +138,7 @@ export function attachPlayerControls(
     onState: (s) => {
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
-      // Focus mode: let the host fade its chrome while playing.
-      onPlayingChange?.(s === "playing");
+      opts.onPlayingChange?.(s === "playing");
       playBtn.textContent = s === "playing" ? "⏸" : "▶";
       bigPlay.textContent = s === "done" ? "↺" : "▶";
       bigPlay.title = s === "done" ? "Replay with narration" : "Play with narration";

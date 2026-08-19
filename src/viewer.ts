@@ -91,7 +91,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       speed: req.speed,
       speech,
     });
-    attachPlayerControls(figureHost, handle, { mode: req.mode, speed: req.speed });
+    attachPlayerControls(figureHost, handle, { mode: req.mode, speed: req.speed }, { speech, fullscreenEl: figureHost });
     status.remove();
   } catch (err) {
     status.textContent = (err as Error).message;

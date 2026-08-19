@@ -86,15 +86,27 @@ app.appendChild(
 
 // ---------- player mode ----------
 
+// YouTube-like: the video first, the title below it.
 const playerTitle = h("h1", { class: "player-title squiggle" }, doc.title);
 const playerHost = h("div", { class: "player-figure" });
 const playerWrap = h(
   "div",
   { class: "player-wrap" },
-  playerTitle,
   playerHost,
-  h("div", { class: "player-hint hint" }, "Click the drawing to play — or switch to the editor to change it."),
+  playerTitle,
+  h("div", { class: "player-hint hint" }, "Click the drawing to play."),
 );
+
+function applyTheater(): void {
+  playerWrap.classList.toggle("theater", settings.theater);
+}
+applyTheater();
+
+function toggleTheater(): void {
+  settings.theater = !settings.theater;
+  persist();
+  applyTheater();
+}
 
 // ---------- editor mode ----------
 
@@ -222,58 +234,61 @@ for (let n = 1; n <= 5; n++) {
 }
 const promoteBtn = h("button", { class: "small", title: "Store (request, spec) as a few-shot exemplar for future generations" }, "☆ Promote to exemplar");
 
+// Editor: an xplainer-style workbench — one compact toolbar, then the spec
+// text and the live preview side by side. Everything secondary collapses.
 const editorWrap = h(
   "div",
-  { class: "editor-grid" },
+  { class: "editor-wrap" },
   h(
     "div",
-    { class: "editor-side" },
+    { class: "panel editor-toolbar" },
+    h("div", { class: "row prompt-row" }, promptEl, generateBtn),
     h(
-      "section",
-      { class: "panel" },
-      h("h2", { class: "squiggle" }, "Create"),
-      promptEl,
-      h("div", { class: "row" }, generateBtn, blankBtn),
-      h("div", { class: "row config-row" }, h("label", {}, "Model ", modelSel), h("label", {}, "Style ", styleSel)),
-    ),
-    h(
-      "section",
-      { class: "panel" },
-      h("h2", { class: "squiggle" }, "Examples & library"),
-      h("div", { class: "row" }, exampleSel, exampleLoadBtn),
-      h("div", { class: "row" }, saveBtn, exportBtn, importBtn, importInput),
-      libraryList,
-    ),
-    h(
-      "section",
-      { class: "panel" },
-      h("h2", { class: "squiggle" }, "Prompt"),
-      h("div", { class: "row" }, h("label", {}, "Active ", variantSel)),
-      promptSource,
-      h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
-      h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
-      promptHint,
-    ),
-    h(
-      "section",
-      { class: "panel" },
-      h("h2", { class: "squiggle" }, "Data"),
-      h("div", { class: "row" }, exemplarCount),
-      h("div", { class: "row" }, exportPacketBtn, clearLogsBtn),
+      "div",
+      { class: "row toolbar-row" },
+      exampleSel,
+      exampleLoadBtn,
+      blankBtn,
+      h("span", { class: "toolbar-sep" }),
+      saveBtn,
+      exportBtn,
+      importBtn,
+      importInput,
+      h("span", { class: "toolbar-sep" }),
+      h("label", { class: "toolbar-label" }, "Model ", modelSel),
+      h("label", { class: "toolbar-label" }, "Style ", styleSel),
     ),
   ),
+  statusEl,
   h(
     "div",
-    { class: "editor-main" },
-    statusEl,
-    previewHost,
+    { class: "editor-split" },
+    h("div", { class: "panel editor-code" }, specArea, h("div", { class: "row" }, rerenderBtn, formatSel)),
     h(
-      "section",
-      { class: "panel" },
+      "div",
+      { class: "editor-preview" },
+      previewHost,
       h("div", { class: "row" }, h("span", { class: "rating-label" }, "Would use in teaching:"), ratingBox, " ", promoteBtn),
-      h("details", { open: "" }, h("summary", {}, "Spec (editable)"), specArea, h("div", { class: "row" }, rerenderBtn, formatSel)),
       lintBox,
     ),
+  ),
+  h("details", { class: "panel editor-extra" }, h("summary", {}, "Library"), libraryList),
+  h(
+    "details",
+    { class: "panel editor-extra" },
+    h("summary", {}, "Prompt"),
+    h("div", { class: "row" }, h("label", {}, "Active ", variantSel)),
+    promptSource,
+    h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
+    h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
+    promptHint,
+  ),
+  h(
+    "details",
+    { class: "panel editor-extra" },
+    h("summary", {}, "Data"),
+    h("div", { class: "row" }, exemplarCount),
+    h("div", { class: "row" }, exportPacketBtn, clearLogsBtn),
   ),
 );
 
@@ -331,6 +346,7 @@ function playbackPrefs(): PlaybackPrefs {
   return {
     mode: settings.mode,
     speed: settings.speed,
+    muted: settings.muted,
     onMode: (m) => {
       settings.mode = m;
       persist();
@@ -339,11 +355,16 @@ function playbackPrefs(): PlaybackPrefs {
       settings.speed = s;
       persist();
     },
+    onMute: (m) => {
+      settings.muted = m;
+      persist();
+    },
   };
 }
 
 async function present(): Promise<void> {
-  const host = settings.uiMode === "player" ? playerHost : previewHost;
+  const isPlayer = settings.uiMode === "player";
+  const host = isPlayer ? playerHost : previewHost;
   handle?.destroy();
   handle = null;
   host.replaceChildren();
@@ -352,8 +373,21 @@ async function present(): Promise<void> {
   try {
     const hd = await render(doc.spec, host, { style: settings.style, speech, mode: settings.mode, speed: settings.speed });
     handle = hd;
-    attachPlayerControls(host, hd, playbackPrefs(), (playing) => document.body.classList.toggle("is-playing", playing));
-    if (settings.uiMode === "editor") setLint(hd);
+    // The editor/player switch lives in the control bar too, YouTube-style.
+    const switchBtn = h(
+      "button",
+      { class: "cs-bar-btn", title: isPlayer ? "Open the editor" : "Watch in the player" },
+      isPlayer ? "✎" : "▶ Player",
+    );
+    switchBtn.addEventListener("click", () => showMode(isPlayer ? "editor" : "player"));
+    attachPlayerControls(host, hd, playbackPrefs(), {
+      onPlayingChange: (playing) => document.body.classList.toggle("is-playing", playing),
+      speech,
+      fullscreenEl: host,
+      onTheater: isPlayer ? toggleTheater : undefined,
+      trailing: [switchBtn],
+    });
+    if (!isPlayer) setLint(hd);
   } catch (err) {
     setStatus(`Render failed: ${(err as Error).message}`, "error");
   }

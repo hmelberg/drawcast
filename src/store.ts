@@ -27,6 +27,9 @@ export interface Settings {
   speed: number;
   voiceURI: string | null;
   rate: number;
+  muted: boolean;
+  /** Theater mode: wide player. */
+  theater: boolean;
   uiMode: "player" | "editor";
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
@@ -40,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   speed: 1,
   voiceURI: null,
   rate: 1,
+  muted: false,
+  theater: false,
   uiMode: "player",
   specFormat: "yaml",
 };

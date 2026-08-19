@@ -17,6 +17,11 @@ ROADMAP for that record.
   promote-to-exemplar, editable compiler prompt saved as a custom variant).
 - **Share mode**: `#gdoc=<id>` plays a spec from a link-shared Google Doc
   (legacy `&backend=` params map onto styles).
+- **Watch-page polish** (2026-08-19): YouTube-sized player (title below the
+  video), mute (volume-0 narration, timing unchanged), theater and fullscreen
+  toggles, editor/player switch on the control bar; the editor became an
+  xplainer-style workbench — one compact toolbar, spec text and live preview
+  side by side, Library/Prompt/Data collapsed below.
 - **Prompt library** (2026-08-19): named user prompt variants with the full
   lifecycle (copy from bundled, edit, rename, delete, download/upload .md),
   an active-prompt selector feeding generation, placeholder validation

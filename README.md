@@ -21,8 +21,11 @@ Cartesian, y-up, origin bottom-left; the single y-flip lives in `toSvgY`.
 
 ## Two modes, one document
 
-- **Player** (default): a YouTube-like screen — poster, big play button,
-  seekable progress bar, speed menu, captions. The chrome fades while playing.
+- **Player** (default): a YouTube-like watch page — video-sized stage with the
+  title below it, poster, big play button, seekable progress bar, mute (keeps
+  narration timing), playback mode and speed, theater (wide) and fullscreen
+  toggles, and an ✎ switch into the editor right on the control bar. The
+  chrome fades while playing.
 - **Editor**: create drawcasts with AI (bring your own Anthropic API key) or by
   hand — load bundled examples, edit the spec directly (**YAML by default**,
   JSON one toggle away; parsing always accepts both), save to a local library,
