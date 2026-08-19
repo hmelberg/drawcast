@@ -41,6 +41,11 @@ Google Cloud TTS narration mixed via WebAudio (bring your own key; browser
 speechSynthesis cannot be captured). English and Norwegian neural voices are
 picked per line automatically. YouTube accepts WebM uploads directly.
 
+**Cloud voices in playback too**: with a TTS key set, normal player/editor
+narration also uses the Google neural voices (cached per session, prefetched
+before play, live mute, real pause/resume) — falling back to the browser
+voice per line if a call fails. Toggleable in Settings.
+
 A standalone share mode plays a spec straight from a link-shared Google Doc:
 `…/#gdoc=<doc-id>` (optional `&style=sketchy &mode=silent &speed=1.5`). The doc
 can hold the spec as YAML or JSON — the format is auto-detected, and

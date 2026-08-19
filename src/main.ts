@@ -5,7 +5,6 @@
 
 import "./styles.css";
 import { render, type RenderHandle, type RenderStyle } from "./render";
-import { SpeechManager } from "./render/speech";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
 import { missingPlaceholders } from "./llm/prompt";
 import { MODELS } from "./llm/client";
@@ -14,7 +13,8 @@ import { formatSpec, parseSpecText, type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
 import { h } from "./ui/dom";
 import { attachPlayerControls, type PlaybackPrefs } from "./ui/controls";
-import { exportVideo } from "./export/video";
+import { exportVideo, collectSpeakTexts } from "./export/video";
+import { CloudSpeech } from "./export/tts";
 import {
   addExemplar,
   appendLog,
@@ -47,7 +47,9 @@ import {
 import fewshots from "./llm/prompts/fewshots.json";
 
 const settings = loadSettings();
-const speech = new SpeechManager();
+// Cloud voices for live playback when a TTS key is set (and the toggle is on);
+// falls back to the browser's speechSynthesis otherwise, per line.
+const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
 speech.setVoice(settings.voiceURI);
 speech.setRate(settings.rate);
 const variants: PromptVariant[] = promptVariants();
@@ -313,6 +315,8 @@ const clearKeyBtn = h("button", { class: "small" }, "Clear key");
 const ttsKeyInput = h("input", { type: "password", placeholder: "AIza…", autocomplete: "off" }) as HTMLInputElement;
 ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
+const cloudPlaybackCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+cloudPlaybackCb.checked = settings.cloudPlayback;
 const voiceSel = h("select", {});
 const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
@@ -341,8 +345,9 @@ const dialog = h(
       { class: "settings-note" },
       "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. The free tier (~1M characters/month) covers roughly a thousand drawcasts.",
     ),
+    h("label", { class: "settings-check" }, cloudPlaybackCb, " Also use these voices for normal playback (falls back to the browser voice if a call fails)"),
   ),
-  h("div", { class: "settings-field" }, h("label", {}, "Narration voice"), voiceSel),
+  h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
   h("div", {}, h("button", { class: "primary small" }, "Close")),
 );
@@ -396,6 +401,8 @@ async function present(): Promise<void> {
   playerTitle.textContent = doc.title;
   document.title = `${doc.title} — drawcast`;
   try {
+    // Warm the cloud-voice cache so narrated playback starts without stalls.
+    if (settings.mode === "narrated") speech.prefetch(collectSpeakTexts(doc.spec), settings.speed);
     const hd = await render(doc.spec, host, { style: settings.style, speech, mode: settings.mode, speed: settings.speed });
     handle = hd;
     // The editor/player switch lives in the control bar too, YouTube-style.
@@ -840,6 +847,10 @@ clearKeyBtn.addEventListener("click", () => {
   keyInput.value = "";
 });
 ttsKeyInput.addEventListener("change", () => setTtsKey(ttsKeyInput.value.trim()));
+cloudPlaybackCb.addEventListener("change", () => {
+  settings.cloudPlayback = cloudPlaybackCb.checked;
+  persist();
+});
 clearTtsKeyBtn.addEventListener("click", () => {
   setTtsKey("");
   ttsKeyInput.value = "";

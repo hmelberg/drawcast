@@ -31,6 +31,8 @@ export interface Settings {
   muted: boolean;
   /** Theater mode: wide player. */
   theater: boolean;
+  /** Use the cloud TTS voices for live playback too (when a TTS key is set). */
+  cloudPlayback: boolean;
   uiMode: "player" | "editor";
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rate: 1,
   muted: false,
   theater: false,
+  cloudPlayback: true,
   uiMode: "player",
   specFormat: "yaml",
 };

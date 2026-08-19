@@ -441,6 +441,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .settings-field label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
 .settings-field input[type="password"], .settings-field select { width: 100%; }
 .settings-note { font-size: 0.78rem; color: var(--muted); }
+.settings-field label.settings-check {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  margin-top: 0.55rem;
+  color: var(--ink);
+}
 
 .hint { color: var(--muted); font-size: 0.85rem; }
 

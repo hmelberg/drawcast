@@ -112,7 +112,7 @@ export class Player {
   pause(): void {
     if (this.state !== "playing") return;
     this.pausedFlag = true;
-    if (this.speech.available) window.speechSynthesis.pause();
+    this.speech.pause();
     this.setState("paused");
   }
 
@@ -179,7 +179,7 @@ export class Player {
   }
 
   private speechSynthResume(): void {
-    if (this.speech.available) window.speechSynthesis.resume();
+    this.speech.resume();
   }
 
   private setState(s: PlayerState): void {

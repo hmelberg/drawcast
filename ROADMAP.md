@@ -24,6 +24,10 @@ ROADMAP for that record.
   Deliberately TTS-only: speechSynthesis is uncapturable and loopback capture
   was rejected as fragile. MP4 (WebCodecs) and direct YouTube upload were
   evaluated and deferred — WebM + drag-into-Studio covers the workflow.
+  Follow-up the same day: **cloud voices in live playback** (CloudSpeech) —
+  when the TTS key is set, player/editor narration uses the same neural
+  voices with per-session caching, prefetch, live mute, and AudioContext
+  pause/resume; per-line fallback to the browser voice on any failure.
 - **Watch-page polish** (2026-08-19): YouTube-sized player (title below the
   video), mute (volume-0 narration, timing unchanged), theater and fullscreen
   toggles, editor/player switch on the control bar; the editor became an

@@ -5,13 +5,14 @@
 
 import "./styles.css";
 import { render, type RenderStyle } from "./render";
-import { SpeechManager } from "./render/speech";
+import { CloudSpeech } from "./export/tts";
+import { collectSpeakTexts } from "./export/video";
 import { h } from "./ui/dom";
 import { attachPlayerControls } from "./ui/controls";
 import { parseSpecText } from "./spec/text";
 import { validateSpec } from "./spec/schema";
 import type { Spec } from "./spec/types";
-import { loadSettings } from "./store";
+import { getTtsKey, loadSettings } from "./store";
 
 export interface ViewerRequest {
   docId: string;
@@ -82,9 +83,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       document.title = `${spec.title} — drawcast`;
     }
     const settings = loadSettings();
-    const speech = new SpeechManager();
+    const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
+    if (req.mode === "narrated") speech.prefetch(collectSpeakTexts(spec), req.speed);
     const handle = await render(spec, figureHost, {
       style: req.style,
       mode: req.mode,

@@ -105,6 +105,14 @@ export class SpeechManager {
     this.synth?.cancel();
   }
 
+  pause(): void {
+    this.synth?.pause();
+  }
+
+  resume(): void {
+    this.synth?.resume();
+  }
+
   /**
    * Speak one utterance; resolves when it ends. speedMultiplier scales the
    * configured rate. Falls back to a timed wait on error/unavailability.

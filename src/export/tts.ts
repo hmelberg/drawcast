@@ -81,6 +81,139 @@ export async function synthesizeAll(
 }
 
 /**
+ * SpeechManager for LIVE playback with cloud voices: synthesizes lines on
+ * demand (cached per rate for the session), plays them through WebAudio with
+ * live mute and real pause/resume, and falls back to the browser's
+ * speechSynthesis whenever no key is set or a cloud call fails.
+ */
+export class CloudSpeech extends SpeechManager {
+  private getKey: () => string;
+  private audioCtx: AudioContext | null = null;
+  private gain: GainNode | null = null;
+  private baseRate = 1;
+  private cache = new Map<string, AudioBuffer>();
+  private pending = new Map<string, Promise<AudioBuffer>>();
+  private active = new Set<AudioBufferSourceNode>();
+
+  constructor(getKey: () => string) {
+    super();
+    this.getKey = getKey;
+  }
+
+  override setRate(rate: number): void {
+    super.setRate(rate);
+    this.baseRate = rate;
+  }
+
+  override setMuted(muted: boolean): void {
+    super.setMuted(muted);
+    if (this.gain) this.gain.gain.value = muted ? 0 : 1; // applies mid-line
+  }
+
+  private ensureCtx(): AudioContext {
+    if (!this.audioCtx) {
+      this.audioCtx = new AudioContext();
+      this.gain = this.audioCtx.createGain();
+      this.gain.gain.value = this.muted ? 0 : 1;
+      this.gain.connect(this.audioCtx.destination);
+    }
+    return this.audioCtx;
+  }
+
+  private effRate(speedMultiplier: number): number {
+    return Math.min(4, Math.max(0.25, this.baseRate * speedMultiplier));
+  }
+
+  private buffer(text: string, rate: number, audioCtx: AudioContext): Promise<AudioBuffer> {
+    const key = `${rate.toFixed(2)}|${text}`;
+    const hit = this.cache.get(key);
+    if (hit) return Promise.resolve(hit);
+    const inFlight = this.pending.get(key);
+    if (inFlight) return inFlight;
+    const p = synthesizeOne({ apiKey: this.getKey(), rate }, text, audioCtx)
+      .then((b) => {
+        this.cache.set(key, b);
+        this.pending.delete(key);
+        return b;
+      })
+      .catch((err: unknown) => {
+        this.pending.delete(key);
+        throw err;
+      });
+    this.pending.set(key, p);
+    return p;
+  }
+
+  /** Warm the cache for upcoming lines (fire-and-forget; errors surface at speak time). */
+  prefetch(texts: string[], speedMultiplier: number): void {
+    if (!this.getKey()) return;
+    const audioCtx = this.ensureCtx();
+    const rate = this.effRate(speedMultiplier);
+    for (const text of texts) void this.buffer(text, rate, audioCtx).catch(() => undefined);
+  }
+
+  override speak(text: string, speedMultiplier: number, signal?: AbortSignal): Promise<void> {
+    if (!this.getKey()) return super.speak(text, speedMultiplier, signal);
+    const audioCtx = this.ensureCtx();
+    // Prefetch may have created the context before any user gesture (autoplay
+    // policy leaves it suspended); speak runs inside the play click, so resume.
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+    return this.buffer(text, this.effRate(speedMultiplier), audioCtx)
+      .then(
+        (buffer) =>
+          new Promise<void>((resolve) => {
+            if (signal?.aborted) return resolve();
+            const src = audioCtx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(this.gain!);
+            this.active.add(src);
+            let settled = false;
+            const done = () => {
+              if (settled) return;
+              settled = true;
+              this.active.delete(src);
+              resolve();
+            };
+            src.onended = done;
+            signal?.addEventListener("abort", () => {
+              try {
+                src.stop();
+              } catch {
+                /* already stopped */
+              }
+              done();
+            });
+            src.start();
+          }),
+      )
+      .catch(() => super.speak(text, speedMultiplier, signal)); // cloud hiccup → browser voice
+  }
+
+  override cancel(): void {
+    super.cancel();
+    for (const src of this.active) {
+      try {
+        src.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.active.clear();
+    if (this.audioCtx?.state === "suspended") void this.audioCtx.resume();
+  }
+
+  override pause(): void {
+    super.pause();
+    if (this.audioCtx?.state === "running") void this.audioCtx.suspend();
+  }
+
+  override resume(): void {
+    super.resume();
+    if (this.audioCtx?.state === "suspended") void this.audioCtx.resume();
+  }
+}
+
+/**
  * SpeechManager drop-in for export: `speak` plays the pre-synthesized buffer
  * into the recording destination (and the speakers, so the export is audible)
  * and resolves when it ends — the Player's timing works unchanged.
