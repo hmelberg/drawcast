@@ -81,7 +81,7 @@ export function saveSettings(s: Settings): void {
 }
 
 export function getApiKey(): string {
-  return localStorage.getItem(KEYS.apiKey) ?? "";
+  return localStorage.getItem(KEYS.apiKey) || (import.meta.env.VITE_ANTHROPIC_API_KEY ?? "");
 }
 
 export function setApiKey(key: string): void {
@@ -90,7 +90,7 @@ export function setApiKey(key: string): void {
 }
 
 export function getTtsKey(): string {
-  return localStorage.getItem(KEYS.ttsKey) ?? "";
+  return localStorage.getItem(KEYS.ttsKey) || (import.meta.env.VITE_GOOGLE_TTS_KEY ?? "");
 }
 
 export function setTtsKey(key: string): void {
