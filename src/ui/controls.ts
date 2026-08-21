@@ -29,6 +29,29 @@ export interface ControlsOptions {
   trailing?: HTMLElement[];
 }
 
+/**
+ * The wait verb's gate: a full-stage overlay so ANY click continues (and never
+ * reaches the stage's play/pause toggle underneath). Resolves on signal abort
+ * so scrubbing and disposal are never blocked.
+ */
+export function clickGate(stage: HTMLElement, label = "Click to continue ▸"): (signal: AbortSignal) => Promise<void> {
+  return (signal) =>
+    new Promise<void>((resolve) => {
+      const gate = h("div", { class: "cs-waitgate", title: "Continue" }, h("span", { class: "cs-waitgate-pill" }, label));
+      const done = () => {
+        gate.remove();
+        signal.removeEventListener("abort", done);
+        resolve();
+      };
+      gate.addEventListener("click", (e) => {
+        e.stopPropagation();
+        done();
+      });
+      signal.addEventListener("abort", done);
+      stage.appendChild(gate);
+    });
+}
+
 export function attachPlayerControls(
   stageHost: HTMLElement,
   hd: RenderHandle,
@@ -127,6 +150,8 @@ export function attachPlayerControls(
   figure.addEventListener("pointerleave", () => {
     if (playing) scheduleIdle(600);
   });
+
+  hd.timeline.inputGate = clickGate(stage);
 
   const togglePlay = () => {
     if (hd.timeline.state === "playing") hd.timeline.pause();

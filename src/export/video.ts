@@ -117,8 +117,15 @@ export interface ExportHooks {
   signal: AbortSignal;
 }
 
-export async function exportVideo(spec: Spec, cfg: ExportConfig, hooks: ExportHooks): Promise<Blob> {
+/**
+ * Record one or more specs (a single drawcast, or a playlist's items with
+ * their title cards) into ONE narrated WebM. The recorder runs continuously
+ * while each spec replays in sequence; wait verbs auto-resolve — there is
+ * no viewer to click during an export.
+ */
+export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: ExportHooks): Promise<Blob> {
   const { canvas, workbench, signal } = hooks;
+  if (items.length === 0) throw new Error("nothing to export");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
@@ -128,7 +135,7 @@ export async function exportVideo(spec: Spec, cfg: ExportConfig, hooks: ExportHo
   try {
     const buffers = await synthesizeAll(
       { apiKey: cfg.ttsKey, rate: cfg.rate },
-      collectSpeakTexts(spec),
+      [...new Set(items.flatMap(collectSpeakTexts))],
       audioCtx,
       (done, total) => hooks.onStatus(`Synthesizing narration ${done}/${total}…`),
       signal,
@@ -138,10 +145,6 @@ export async function exportVideo(spec: Spec, cfg: ExportConfig, hooks: ExportHo
 
     const dest = audioCtx.createMediaStreamDestination();
     const speech = new BufferSpeech(audioCtx, dest, buffers);
-    handle = await render(spec, workbench, { style: cfg.style, speech, mode: "narrated", speed: 1 });
-    const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
-    const captionEl = workbench.querySelector<HTMLElement>(".cs-caption");
-    if (!svg) throw new Error("nothing to record — the spec rendered no figure");
 
     const stream = new MediaStream([...canvas.captureStream(FPS).getVideoTracks(), ...dest.stream.getAudioTracks()]);
     const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((m) => MediaRecorder.isTypeSupported(m));
@@ -152,29 +155,51 @@ export async function exportVideo(spec: Spec, cfg: ExportConfig, hooks: ExportHo
     };
     const stopped = new Promise<void>((r) => (recorder.onstop = () => r()));
 
+    // The frame loop reads whatever spec is currently mounted.
+    let currentSvg: SVGSVGElement | null = null;
+    let currentCaption: HTMLElement | null = null;
     const serializer = new XMLSerializer();
     let paintError: Error | null = null;
     let stopLoop = false;
-    const frameLoop = (async () => {
+    async function runFrameLoop(): Promise<void> {
       while (!stopLoop && !signal.aborted) {
         const t0 = performance.now();
         try {
-          await paintFrame(ctx, serializer.serializeToString(svg), fontStyle, captionEl?.textContent ?? "");
+          if (currentSvg) await paintFrame(ctx!, serializer.serializeToString(currentSvg), fontStyle, currentCaption?.textContent ?? "");
         } catch (err) {
           paintError ??= err as Error;
           stopLoop = true;
         }
         await sleep(Math.max(0, 1000 / FPS - (performance.now() - t0)));
       }
-    })();
+    }
+    const frameLoop = runFrameLoop();
 
     recorder.start(1000);
-    hooks.onStatus("Recording — playing the drawcast once…");
-    const currentHandle = handle;
-    const onAbort = () => currentHandle.timeline.dispose();
+    const onAbort = () => handle?.timeline.dispose();
     signal.addEventListener("abort", onAbort);
-    await handle.timeline.play();
-    signal.removeEventListener("abort", onAbort);
+    try {
+      for (let i = 0; i < items.length; i++) {
+        if (signal.aborted) break;
+        hooks.onStatus(items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…");
+        handle = await render(items[i], workbench, { style: cfg.style, speech, mode: "narrated", speed: 1 });
+        const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
+        if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
+        currentSvg = svg;
+        currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
+        handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : sleep(600));
+        await handle.timeline.play();
+        if (i < items.length - 1) {
+          await sleep(300); // beat between parts
+          currentSvg = null;
+          currentCaption = null;
+          handle.destroy();
+          handle = null;
+        }
+      }
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+    }
     if (signal.aborted) throw new Error("export cancelled");
     await sleep(600); // let the last stroke and audio tail land
     stopLoop = true;

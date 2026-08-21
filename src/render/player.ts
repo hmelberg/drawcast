@@ -32,6 +32,12 @@ export class Player {
   private effects: BackendEffects | null;
   /** Settable after construction (the UI wires its controls in later). */
   callbacks: PlayerCallbacks;
+  /**
+   * Provider for the wait verb, set by the controls layer (click overlay) or
+   * the exporter (auto-resolve). Must resolve on signal abort. When unset,
+   * wait degrades to a short pause so a bare Player never deadlocks.
+   */
+  inputGate: ((signal: AbortSignal) => Promise<void>) | null = null;
 
   private mode: PlaybackMode;
   private speedVal: number;
@@ -214,6 +220,9 @@ export class Player {
       }
       case "pause":
         return this.waitScaled(step.seconds * 1000, signal);
+      case "wait":
+        if (this.inputGate) return this.inputGate(signal);
+        return this.waitScaled(800, signal);
       case "draw": {
         const els = this.els(step.ids);
         if (step.parallel) {

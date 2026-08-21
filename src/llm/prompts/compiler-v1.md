@@ -24,6 +24,8 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 - `pause`: seconds of silence, for pacing.
 - Elements you never mention are drawn automatically at the end — but a good storyboard mentions everything in a deliberate order (axes first, then curves, then derived things like intersections and shaded regions).
 - 4–8 speak lines is the sweet spot for one figure.
+- **Start drawing early.** At most ONE short speak line before the first `draw`. Never two consecutive `speak` commands with nothing new on screen — pair every spoken idea with a visual event (a draw, a reveal, or at least a `point`/`highlight` on what is being discussed). Prefer `"blocking": false` narration over dead air: talk WHILE drawing, the way a lecturer talks while sketching.
+- **Be concrete.** Prefer a worked example with actual numbers ("a tax of 10 kr", "utility drops from 0.9 to 0.6") over abstract statements, and define a term the moment its element is first drawn.
 
 Gesture verbs, for teaching moves after elements are on screen (all id lists accept one or many ids):
 
@@ -32,6 +34,7 @@ Gesture verbs, for teaching moves after elements are on screen (all id lists acc
 - `move`: `{"move": {"target": ["note_arrow"], "by": [15, 0], "duration": 1}}` — translate elements by a delta (domain units when a domain is declared), optionally with `easing` or a waypoint `path`. IMPORTANT: `move` translates ONLY the listed elements — attached labels, intersection points, guide lines, and regions do NOT follow. To shift a curve semantically (e.g. demand shifting right with a new equilibrium), declare the shifted curve as a second element (D′) and draw it — do not move the original.
 - `show` / `hide`: make elements (in)visible instantly; hidden elements can return. `erase`: remove elements with a reverse hand-drawn animation (they stay hidden).
 - `clear`: `{"clear": {"keep": ["axes"]}}` — wipe everything visible except `keep`. Useful before a second act of the same figure.
+- `wait`: `{"wait": "click"}` — pause until the viewer clicks. Use it as a reveal gate ("study this table… now click") or at an act boundary, and only when the request asks for click-gated pacing. It auto-resolves in video export.
 - `camera`: `{"camera": {"center": {"ref": "dwl_region"}, "zoom": 2}}` — zoom into a detail; `{"camera": {"reset": true}}` returns to the full view.
 
 Directing tips: after a key reveal (an equilibrium, an intersection, a result), add one gesture moment — a non-blocking `speak` followed by a `point` or `highlight` — so the viewer's eye lands where the words are. Use `erase` to remove scaffolding you no longer need (construction lines, a rejected case). Use gestures sparingly: one or two per figure lands; one per command exhausts.

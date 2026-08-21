@@ -128,7 +128,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command. Set EXACTLY ONE verb: speak / draw / pause / show / hide / erase / clear / highlight / point / move / camera. " +
+    "One playback command. Set EXACTLY ONE verb: speak / draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera. " +
     "Commands run strictly in sequence; each completes before the next begins (except speak with blocking:false).",
   properties: {
     speak: { type: "string", description: "Narration sentence, spoken aloud and shown as a caption." },
@@ -139,6 +139,11 @@ const commandSchema = {
     draw: idListSchema("Element ids to draw. Listed elements animate one after another unless parallel is true."),
     parallel: { type: "boolean", description: "With draw/erase: animate the listed elements simultaneously." },
     pause: { type: "number", description: "Pause for this many seconds." },
+    wait: {
+      type: "string",
+      enum: ["click"],
+      description: "Wait until the viewer clicks before continuing — a reveal gate ('study this… now click') or an act boundary. Auto-resolved in video export.",
+    },
     show: idListSchema("Element ids to make visible instantly (inverse of hide; no animation)."),
     hide: idListSchema("Element ids to make invisible instantly. Hidden elements still exist and can be shown again."),
     erase: idListSchema("Element ids to remove with a reverse hand-drawn (un-sketch) animation, then keep hidden."),
@@ -216,6 +221,7 @@ export const specSchema = {
     "Commands interleave narration (speak) with drawing (draw) for a gradually built, narrated figure.",
   properties: {
     title: { type: "string", description: "Short title of the figure." },
+    level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
     template: { type: "string", description: "Scene template name from the catalog. Omit when composing elements directly." },
     params: { type: "object", description: "Scene template parameters, per the catalog's parameter schema.", additionalProperties: true },
     domain: {
@@ -253,6 +259,11 @@ export function normalizeSpec(spec: unknown): unknown {
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
+    // YAML-friendly spelling: `pause: click` means the wait verb.
+    if ((cmd.pause as unknown) === "click") {
+      delete cmd.pause;
+      cmd.wait = "click";
+    }
     if (cmd.draw !== undefined) cmd.draw = toList(cmd.draw);
     if (cmd.show !== undefined) cmd.show = toList(cmd.show);
     if (cmd.hide !== undefined) cmd.hide = toList(cmd.hide);
@@ -279,7 +290,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const VERBS = ["speak", "draw", "pause", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
+  const VERBS = ["speak", "draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const kinds = VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     if (kinds.length !== 1) {

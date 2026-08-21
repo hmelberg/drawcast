@@ -4,6 +4,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, type JsonCallMeta } from "./client";
+import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { sceneCatalogText } from "../scenes/registry";
 import { specSchema, validateSpec } from "../spec/schema";
@@ -64,6 +65,11 @@ export interface GenerateConfig {
   variant: PromptVariant;
   exemplars: Exemplar[];
   maxRepairs?: number;
+  /**
+   * Directing brief from #tags, appended to the user message only. The request
+   * itself stays clean — it also drives exemplar selection and logging.
+   */
+  brief?: string;
 }
 
 export function assembleSystemPrompt(request: string, variant: PromptVariant, exemplarPool: Exemplar[]): string {
@@ -153,7 +159,8 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
 
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: request }];
+  const userContent = cfg.brief ? `${request}\n\n${cfg.brief}` : request;
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
   let repairsUsed = 0;
@@ -200,4 +207,12 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     error: best ? undefined : "The model never produced a valid spec (see rounds).",
     systemPromptChars: system.length,
   };
+}
+
+/** The outline call for #playlist / #parts=N. Throws on API errors; null when the model's outline is unusable. */
+export async function generateOutline(request: string, cfg: { apiKey: string; model: string }, parts: number | null): Promise<Outline | null> {
+  const client = makeClient(cfg.apiKey);
+  const { system, user } = buildOutlineMessages(request, parts);
+  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object);
+  return normalizeOutline(json);
 }

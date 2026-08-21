@@ -143,8 +143,10 @@ export interface Command {
   draw?: string[] | string;
   /** With draw/erase: animate the listed elements simultaneously. */
   parallel?: boolean;
-  /** seconds */
+  /** seconds (the YAML-friendly `pause: click` is normalized to `wait`) */
   pause?: number;
+  /** Wait for viewer input before continuing (auto-resolved in export/kiosk). */
+  wait?: "click";
   /** Make elements visible instantly (inverse of hide). */
   show?: string[] | string;
   /** Make elements invisible instantly (they can be shown again). */
@@ -165,6 +167,8 @@ export interface Command {
 
 export interface Spec {
   title?: string;
+  /** Difficulty badge, shown in playlist navigation (stamped from #basic/#advanced). */
+  level?: "basic" | "advanced";
   canvas?: { width: number; height: number };
   template?: string;
   params?: Record<string, unknown>;

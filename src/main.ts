@@ -4,16 +4,29 @@
 //           edit the spec JSON, and change/improve the compiler prompt.
 
 import "./styles.css";
-import { render, type RenderHandle, type RenderStyle } from "./render";
-import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
+import { type RenderHandle, type RenderStyle } from "./render";
+import { generateOutline, generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
+import { buildPartRequest } from "./llm/outline";
 import { missingPlaceholders } from "./llm/prompt";
-import { MODELS } from "./llm/client";
+import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
+import { MODELS, describeApiError } from "./llm/client";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
-import { formatSpec, parseSpecText, type SpecFormat } from "./spec/text";
+import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
 import { h } from "./ui/dom";
-import { attachPlayerControls, type PlaybackPrefs } from "./ui/controls";
-import { exportVideo, collectSpeakTexts } from "./export/video";
+import { type PlaybackPrefs } from "./ui/controls";
+import {
+  DEFAULT_META,
+  formatPlaylist,
+  isSingle,
+  itemsOf,
+  makeTitleCard,
+  parsePlaylistText,
+  singlePlaylist,
+  type Playlist,
+} from "./playlist/playlist";
+import { itemTitle, mountPlaylist, playlistSpeakTexts, type SessionHandle } from "./playlist/session";
+import { exportVideo } from "./export/video";
 import { CloudSpeech } from "./export/tts";
 import {
   addExemplar,
@@ -58,18 +71,34 @@ const examples = fewshots as { request: string; spec: Spec }[];
 interface Doc {
   title: string;
   prompt?: string;
-  spec: Spec;
+  playlist: Playlist;
 }
 
 let doc: Doc = initialDoc();
-let handle: RenderHandle | null = null;
+let session: SessionHandle | null = null;
 let lastLogId: string | null = null;
+
+/** First item's spec — the poster, the exemplar target, single-figure back-compat. */
+function firstSpec(d: Doc): Spec {
+  return itemsOf(d.playlist)[0]?.spec ?? { commands: [] };
+}
+
+function docFromSaved(saved: SavedDrawing): Doc {
+  if (saved.playlist) {
+    try {
+      return { title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
+    } catch {
+      /* fall through to the single spec */
+    }
+  }
+  return { title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+}
 
 function initialDoc(): Doc {
   const saved = loadLibrary()[0];
-  if (saved) return { title: saved.title, prompt: saved.prompt, spec: saved.spec };
+  if (saved) return docFromSaved(saved);
   const ex = examples[0];
-  return { title: ex.spec.title ?? ex.request, prompt: ex.request, spec: ex.spec };
+  return { title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
 }
 
 const app = document.getElementById("app")!;
@@ -130,6 +159,106 @@ const promptEl = h("textarea", {
 });
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
 const blankBtn = h("button", { title: "Start from a minimal hand-editable spec" }, "New blank");
+
+// ---------- hashtag directives: chips + autosuggest ----------
+// One vocabulary (TAGS) drives parsing, the chips, and this popup. Tags only
+// steer generation — playback stays in Settings and the control bar.
+
+const tagHints = new Map(TAGS.map((t) => [t.tag, t.hint]));
+const tagChips = h("div", { class: "tag-chips", hidden: "" });
+const tagSuggest = h("div", { class: "tag-suggest", hidden: "" });
+let suggestIndex = 0;
+
+function refreshChips(): void {
+  const parsed = parseTags(promptEl.value);
+  tagChips.replaceChildren();
+  const chips: HTMLElement[] = parsed.tags.map((t) =>
+    h("span", { class: "chip", title: tagHints.get(t) ?? "" }, `#${t}`),
+  );
+  if (parsed.playlist) {
+    chips.push(h("span", { class: "chip", title: tagHints.get("playlist") ?? "" }, parsed.parts ? `#parts=${parsed.parts}` : "#playlist"));
+  }
+  for (const u of parsed.unknown) {
+    chips.push(h("span", { class: "chip chip-unknown", title: "Unknown tag — sent to the AI as plain text. Type # to see the vocabulary." }, `#${u}?`));
+  }
+  tagChips.append(...chips);
+  tagChips.hidden = chips.length === 0;
+}
+
+function tagPrefixAtCaret(): { start: number; prefix: string } | null {
+  const pos = promptEl.selectionStart ?? promptEl.value.length;
+  const before = promptEl.value.slice(0, pos);
+  const m = /(^|\s)#([a-zA-Zæøå]*)$/.exec(before);
+  if (!m) return null;
+  return { start: pos - m[2].length - 1, prefix: m[2] };
+}
+
+function hideSuggest(): void {
+  tagSuggest.hidden = true;
+}
+
+function acceptSuggestion(tag: string): void {
+  const cur = tagPrefixAtCaret();
+  if (!cur) return;
+  const pos = promptEl.selectionStart ?? promptEl.value.length;
+  // parts=N keeps the caret after the '=' so the number can be typed.
+  const insert = tag === "parts=N" ? "#parts=" : `#${tag} `;
+  promptEl.value = promptEl.value.slice(0, cur.start) + insert + promptEl.value.slice(pos);
+  const caret = cur.start + insert.length;
+  promptEl.setSelectionRange(caret, caret);
+  promptEl.focus();
+  hideSuggest();
+  refreshChips();
+}
+
+function refreshSuggest(): void {
+  const cur = tagPrefixAtCaret();
+  if (!cur) return hideSuggest();
+  const matches = suggestTags(cur.prefix);
+  if (matches.length === 0) return hideSuggest();
+  suggestIndex = Math.min(suggestIndex, matches.length - 1);
+  tagSuggest.replaceChildren(
+    ...matches.map((s, i) => {
+      const row = h(
+        "button",
+        { class: `tag-suggest-row${i === suggestIndex ? " active" : ""}` },
+        h("span", { class: "tag-suggest-tag" }, `#${s.tag}`),
+        h("span", { class: "tag-suggest-hint" }, s.hint),
+      );
+      // mousedown, not click: it must beat the textarea's blur.
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        acceptSuggestion(s.tag);
+      });
+      return row;
+    }),
+  );
+  tagSuggest.hidden = false;
+}
+
+promptEl.addEventListener("input", () => {
+  suggestIndex = 0;
+  refreshChips();
+  refreshSuggest();
+});
+promptEl.addEventListener("blur", () => window.setTimeout(hideSuggest, 150));
+promptEl.addEventListener("keydown", (e) => {
+  if (tagSuggest.hidden) return;
+  const rows = tagSuggest.querySelectorAll<HTMLElement>(".tag-suggest-row");
+  if (rows.length === 0) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    suggestIndex = (suggestIndex + (e.key === "ArrowDown" ? 1 : rows.length - 1)) % rows.length;
+    rows.forEach((r, i) => r.classList.toggle("active", i === suggestIndex));
+  } else if (e.key === "Enter" || e.key === "Tab") {
+    e.preventDefault();
+    const active = rows[suggestIndex];
+    const tag = active?.querySelector(".tag-suggest-tag")?.textContent?.slice(1);
+    if (tag) acceptSuggestion(tag);
+  } else if (e.key === "Escape") {
+    hideSuggest();
+  }
+});
 
 const modelSel = h("select", { title: "Model" });
 for (const m of MODELS) modelSel.appendChild(h("option", { value: m.id }, m.label));
@@ -253,7 +382,8 @@ const editorWrap = h(
   h(
     "div",
     { class: "panel editor-toolbar" },
-    h("div", { class: "row prompt-row" }, promptEl, generateBtn),
+    h("div", { class: "row prompt-row" }, promptEl, generateBtn, tagSuggest),
+    tagChips,
     h(
       "div",
       { class: "row toolbar-row" },
@@ -395,16 +525,14 @@ function playbackPrefs(): PlaybackPrefs {
 async function present(): Promise<void> {
   const isPlayer = settings.uiMode === "player";
   const host = isPlayer ? playerHost : previewHost;
-  handle?.destroy();
-  handle = null;
+  session?.destroy();
+  session = null;
   host.replaceChildren();
   playerTitle.textContent = doc.title;
   document.title = `${doc.title} — drawcast`;
   try {
     // Warm the cloud-voice cache so narrated playback starts without stalls.
-    if (settings.mode === "narrated") speech.prefetch(collectSpeakTexts(doc.spec), settings.speed);
-    const hd = await render(doc.spec, host, { style: settings.style, speech, mode: settings.mode, speed: settings.speed });
-    handle = hd;
+    if (settings.mode === "narrated") speech.prefetch(playlistSpeakTexts(doc.playlist), settings.speed);
     // The editor/player switch lives in the control bar too, YouTube-style.
     const switchBtn = h(
       "button",
@@ -412,14 +540,23 @@ async function present(): Promise<void> {
       isPlayer ? "✎" : "▶ Player",
     );
     switchBtn.addEventListener("click", () => showMode(isPlayer ? "editor" : "player"));
-    attachPlayerControls(host, hd, playbackPrefs(), {
-      onPlayingChange: (playing) => document.body.classList.toggle("is-playing", playing),
+    session = await mountPlaylist(host, doc.playlist, {
+      style: settings.style,
+      mode: settings.mode,
+      speed: settings.speed,
       speech,
-      fullscreenEl: host,
-      onTheater: isPlayer ? toggleTheater : undefined,
-      trailing: [switchBtn],
+      prefs: playbackPrefs(),
+      controls: {
+        onPlayingChange: (playing) => document.body.classList.toggle("is-playing", playing),
+        speech,
+        fullscreenEl: host,
+        onTheater: isPlayer ? toggleTheater : undefined,
+        trailing: [switchBtn],
+      },
+      onItemMounted: (hd) => {
+        if (!isPlayer) setLint(hd);
+      },
     });
-    if (!isPlayer) setLint(hd);
   } catch (err) {
     setStatus(`Render failed: ${(err as Error).message}`, "error");
   }
@@ -428,13 +565,44 @@ async function present(): Promise<void> {
 function setDoc(next: Doc, statusText?: string): void {
   doc = next;
   lastLogId = null; // ratings apply to generations only
-  specArea.value = formatSpec(doc.spec, settings.specFormat);
+  specArea.value = formatPlaylist(doc.playlist, settings.specFormat);
   promptEl.value = doc.prompt ?? promptEl.value;
+  refreshChips();
   ratingButtons.forEach((rb) => rb.classList.remove("lit"));
-  promoteBtn.disabled = false;
+  // Exemplars are (request, single spec) pairs — a multi-part doc has no such pair.
+  promoteBtn.disabled = !isSingle(doc.playlist);
   promoteBtn.textContent = "☆ Promote to exemplar";
   if (statusText) setStatus(statusText, "ok");
   void present();
+}
+
+/** Parse + validate playlist text; returns null after reporting the first problem. */
+function readPlaylistText(text: string): Playlist | null {
+  let playlist: Playlist;
+  try {
+    playlist = parsePlaylistText(text);
+  } catch (err) {
+    setStatus(`Spec unreadable: ${(err as Error).message}`, "error");
+    return null;
+  }
+  const items = itemsOf(playlist);
+  if (items.length === 0) {
+    setStatus("The playlist has no drawable items.", "error");
+    return null;
+  }
+  for (const item of items) {
+    const v = validateSpec(item.spec);
+    if (!v.ok) {
+      const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
+      setStatus(`Spec invalid: ${where}${v.errors[0]}${v.errors.length > 1 ? ` (+${v.errors.length - 1} more)` : ""}`, "error");
+      return null;
+    }
+  }
+  return playlist;
+}
+
+function docTitleOf(playlist: Playlist, fallback: string): string {
+  return playlist.meta.title ?? itemsOf(playlist)[0]?.spec.title ?? fallback;
 }
 
 function setLint(hd: RenderHandle): void {
@@ -479,52 +647,114 @@ function requireKey(): string | null {
   return key;
 }
 
+/** Log one generation outcome; returns the log id. */
+function logOutcome(prompt: string, outcome: Awaited<ReturnType<typeof generateSpec>>): string {
+  const logId = crypto.randomUUID();
+  const entry: LogEntry = {
+    id: logId,
+    ts: new Date().toISOString(),
+    prompt,
+    config: { model: settings.model, promptVariant: currentVariant().name, specVersion: SPEC_VERSION },
+    rounds: outcome.rounds.map((r) => ({
+      label: r.label,
+      validationErrors: r.validationErrors,
+      lintCount: r.lintIssues.length,
+      ms: Math.round(r.meta.ms),
+      structuredOutput: r.meta.structuredOutput,
+    })),
+    spec: outcome.spec,
+    lintIssues: [],
+    warnings: [],
+    error: outcome.error,
+  };
+  appendLog(entry);
+  refreshCounts();
+  return logId;
+}
+
 async function generate(): Promise<void> {
-  const request = promptEl.value.trim();
-  if (!request) return;
+  const rawRequest = promptEl.value.trim();
+  if (!rawRequest) return;
   const apiKey = requireKey();
   if (!apiKey) return;
+  const parsed = parseTags(rawRequest);
+  if (!parsed.clean) {
+    setStatus("The request is only tags — add what to draw.", "error");
+    return;
+  }
+  const brief = buildBrief(parsed.tags);
   generateBtn.disabled = true;
-  const logId = crypto.randomUUID();
-  setStatus(`Generating (${settings.model}, prompt ${currentVariant().name})…`);
   try {
-    const outcome = await generateSpec(request, {
+    if (parsed.playlist) {
+      await generateMulti(rawRequest, parsed, brief, apiKey);
+      return;
+    }
+    setStatus(`Generating (${settings.model}, prompt ${currentVariant().name})…`);
+    const outcome = await generateSpec(parsed.clean, {
       apiKey,
       model: settings.model,
       variant: currentVariant(),
       exemplars: loadExemplars(),
+      brief,
     });
-    const entry: LogEntry = {
-      id: logId,
-      ts: new Date().toISOString(),
-      prompt: request,
-      config: { model: settings.model, promptVariant: currentVariant().name, specVersion: SPEC_VERSION },
-      rounds: outcome.rounds.map((r) => ({
-        label: r.label,
-        validationErrors: r.validationErrors,
-        lintCount: r.lintIssues.length,
-        ms: Math.round(r.meta.ms),
-        structuredOutput: r.meta.structuredOutput,
-      })),
-      spec: outcome.spec,
-      lintIssues: [],
-      warnings: [],
-      error: outcome.error,
-    };
-    appendLog(entry);
-    refreshCounts();
+    const logId = logOutcome(rawRequest, outcome);
     if (!outcome.spec) {
       setStatus(outcome.error ?? "Generation failed.", "error");
       return;
     }
+    if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
     setDoc(
-      { title: outcome.spec.title ?? request, prompt: request, spec: outcome.spec },
+      { title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
     );
     lastLogId = logId; // after setDoc, so the rating stars target this generation
   } finally {
     generateBtn.disabled = false;
   }
+}
+
+/** #playlist / #parts=N: one outline call, then one ordinary generation per part. */
+async function generateMulti(rawRequest: string, parsed: ParsedTags, brief: string, apiKey: string): Promise<void> {
+  setStatus(`Outlining a multi-part drawcast (${settings.model})…`);
+  let outline;
+  try {
+    outline = await generateOutline(parsed.clean, { apiKey, model: settings.model }, parsed.parts);
+  } catch (err) {
+    setStatus(`Outline failed: ${describeApiError(err)}`, "error");
+    return;
+  }
+  if (!outline) {
+    setStatus("The model could not outline this into parts — try rephrasing, or drop #playlist.", "error");
+    return;
+  }
+  const specs: Spec[] = [];
+  for (let i = 0; i < outline.parts.length; i++) {
+    setStatus(`Generating part ${i + 1}/${outline.parts.length}: ${outline.parts[i].title}…`);
+    const outcome = await generateSpec(buildPartRequest(parsed.clean, outline, i, brief), {
+      apiKey,
+      model: settings.model,
+      variant: currentVariant(),
+      exemplars: loadExemplars(),
+    });
+    logOutcome(`${rawRequest} [part ${i + 1}: ${outline.parts[i].title}]`, outcome);
+    if (!outcome.spec) {
+      if (specs.length === 0) {
+        setStatus(`Part ${i + 1} failed: ${outcome.error ?? "no spec"}`, "error");
+        return;
+      }
+      setStatus(`Part ${i + 1} failed (${outcome.error ?? "no spec"}) — keeping the ${specs.length} finished part${specs.length === 1 ? "" : "s"}.`, "error");
+      break;
+    }
+    outcome.spec.title ??= outline.parts[i].title;
+    outcome.spec.level ??= outline.parts[i].level ?? parsed.level ?? undefined;
+    specs.push(outcome.spec);
+  }
+  const playlist: Playlist = {
+    meta: { ...DEFAULT_META, title: outline.title },
+    entries: specs.map((spec) => ({ kind: "item", spec })),
+    warnings: [],
+  };
+  setDoc({ title: outline.title, prompt: rawRequest, playlist }, `Generated a ${specs.length}-part drawcast.`);
 }
 
 const BLANK_SPEC: Spec = {
@@ -545,35 +775,27 @@ const BLANK_SPEC: Spec = {
 
 generateBtn.addEventListener("click", () => void generate());
 blankBtn.addEventListener("click", () => {
-  setDoc({ title: "Untitled drawcast", spec: JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec }, "Blank spec loaded — edit the JSON below.");
+  setDoc(
+    { title: "Untitled drawcast", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
+    "Blank spec loaded — edit the JSON below.",
+  );
 });
 
 exampleLoadBtn.addEventListener("click", () => {
   const ex = examples[parseInt(exampleSel.value, 10)] ?? examples[0];
-  setDoc({ title: ex.spec.title ?? ex.request, prompt: ex.request, spec: ex.spec }, "Example loaded.");
+  setDoc({ title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
 });
 
 rerenderBtn.addEventListener("click", () => {
-  let parsed: unknown;
-  try {
-    parsed = parseSpecText(specArea.value).value;
-  } catch (err) {
-    setStatus(`Spec unreadable: ${(err as Error).message}`, "error");
-    return;
-  }
-  const v = validateSpec(parsed);
-  if (!v.ok) {
-    setStatus(`Spec invalid: ${v.errors[0]}${v.errors.length > 1 ? ` (+${v.errors.length - 1} more)` : ""}`, "error");
-    return;
-  }
-  const spec = parsed as Spec;
-  doc = { title: spec.title ?? doc.title, prompt: doc.prompt, spec };
+  const playlist = readPlaylistText(specArea.value);
+  if (!playlist) return;
+  doc = { title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   setStatus("Re-rendered from edited spec.", "ok");
   void present();
 });
 
 promoteBtn.addEventListener("click", () => {
-  addExemplar({ prompt: doc.prompt ?? doc.title, spec: doc.spec, ts: new Date().toISOString() });
+  addExemplar({ prompt: doc.prompt ?? doc.title, spec: firstSpec(doc), ts: new Date().toISOString() });
   promoteBtn.textContent = "★ Promoted";
   promoteBtn.disabled = true;
   refreshCounts();
@@ -589,8 +811,9 @@ function refreshLibrary(): void {
     return;
   }
   for (const item of items) {
-    const openBtn = h("button", { class: "library-open", title: "Load this drawing" }, item.title);
-    openBtn.addEventListener("click", () => setDoc({ title: item.title, prompt: item.prompt, spec: item.spec }, "Loaded from library."));
+    const label = item.playlist ? `${item.title} ▤` : item.title;
+    const openBtn = h("button", { class: "library-open", title: item.playlist ? "Load this playlist" : "Load this drawing" }, label);
+    openBtn.addEventListener("click", () => setDoc(docFromSaved(item), "Loaded from library."));
     const delBtn = h("button", { class: "library-del", title: "Delete from library" }, "✕");
     delBtn.addEventListener("click", () => {
       deleteDrawing(item.id);
@@ -602,15 +825,23 @@ function refreshLibrary(): void {
 refreshLibrary();
 
 saveBtn.addEventListener("click", () => {
-  const title = doc.spec.title ?? doc.title;
-  saveDrawing({ id: crypto.randomUUID(), title, prompt: doc.prompt, spec: doc.spec, ts: new Date().toISOString() });
+  const title = doc.title;
+  saveDrawing({
+    id: crypto.randomUUID(),
+    title,
+    prompt: doc.prompt,
+    spec: firstSpec(doc),
+    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+    ts: new Date().toISOString(),
+  });
   refreshLibrary();
   setStatus(`Saved "${title}" to the library (this browser).`, "ok");
 });
 
 exportBtn.addEventListener("click", () => {
-  const base = (doc.spec.title ?? "drawcast").replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-  downloadText(`${base}.${settings.specFormat}`, formatSpec(doc.spec, settings.specFormat));
+  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  const format: SpecFormat = isSingle(doc.playlist) ? settings.specFormat : "yaml";
+  downloadText(`${base}.${format}`, formatPlaylist(doc.playlist, format));
 });
 
 importBtn.addEventListener("click", () => importInput.click());
@@ -619,37 +850,41 @@ importInput.addEventListener("change", () => {
   if (!file) return;
   void file.text().then((text) => {
     importInput.value = "";
-    let parsed: unknown;
+    // A saved-drawing JSON export ({title, spec, …}) still opens: unwrap it first.
     try {
-      parsed = parseSpecText(text).value; // YAML or JSON, auto-detected
-    } catch (err) {
-      setStatus((err as Error).message, "error");
-      return;
+      const maybe = JSON.parse(text) as Partial<SavedDrawing>;
+      if (maybe && typeof maybe === "object" && maybe.spec) {
+        const inner = maybe.playlist ?? JSON.stringify(maybe.spec);
+        const playlist = readPlaylistText(inner);
+        if (playlist) setDoc({ title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
+        return;
+      }
+    } catch {
+      /* not a saved-drawing object — treat as spec/playlist text */
     }
-    // Accept either a bare spec or a saved-drawing object.
-    const maybe = parsed as Partial<SavedDrawing> & Partial<Spec>;
-    const spec = (maybe.spec ?? parsed) as unknown;
-    const v = validateSpec(spec);
-    if (!v.ok) {
-      setStatus(`Spec invalid: ${v.errors[0]}`, "error");
-      return;
-    }
-    const s = spec as Spec;
-    setDoc({ title: s.title ?? maybe.title ?? file.name.replace(/\.json$/i, ""), prompt: maybe.prompt, spec: s }, "Uploaded.");
+    const playlist = readPlaylistText(text);
+    if (!playlist) return;
+    setDoc({ title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
   });
 });
 
 formatSel.addEventListener("change", () => {
   const next = formatSel.value as SpecFormat;
   // Convert whatever is in the textarea (possibly with unsaved edits) — don't lose work.
+  let playlist: Playlist;
   try {
-    const parsed = parseSpecText(specArea.value).value;
-    specArea.value = formatSpec(parsed, next);
+    playlist = parsePlaylistText(specArea.value);
   } catch (err) {
     setStatus(`Fix the spec text before switching format: ${(err as Error).message}`, "error");
     formatSel.value = settings.specFormat;
     return;
   }
+  if (next === "json" && !isSingle(playlist)) {
+    setStatus("Playlists are YAML-only (a JSON document cannot hold a multi-document stream).", "error");
+    formatSel.value = "yaml";
+    return;
+  }
+  specArea.value = formatPlaylist(playlist, next);
   settings.specFormat = next;
   persist();
 });
@@ -678,6 +913,23 @@ exportCloseBtn.addEventListener("click", () => {
   exportDialog.close();
 });
 
+/**
+ * The specs a video export plays, in order: items with the same title cards a
+ * viewer would see, but always auto-advancing — there is no one to click.
+ */
+function exportSequence(playlist: Playlist): Spec[] {
+  const items = itemsOf(playlist);
+  const seq: Spec[] = [];
+  items.forEach((item, i) => {
+    if (i > 0 && playlist.meta.transitions === "auto") {
+      const crossing = item.chapter !== items[i - 1].chapter ? item.chapter : undefined;
+      seq.push(makeTitleCard({ next: itemTitle(item), chapter: crossing, level: item.spec.level, gate: "auto", gap: playlist.meta.gap }));
+    }
+    seq.push(item.spec);
+  });
+  return seq;
+}
+
 exportVideoBtn.addEventListener("click", () => void runVideoExport());
 async function runVideoExport(): Promise<void> {
   const ttsKey = getTtsKey();
@@ -695,7 +947,7 @@ async function runVideoExport(): Promise<void> {
   exportVideoBtn.disabled = true;
   try {
     const blob = await exportVideo(
-      doc.spec,
+      exportSequence(doc.playlist),
       { ttsKey, style: settings.style, rate: settings.rate },
       {
         onStatus: (t) => (exportStatus.textContent = t),
@@ -704,7 +956,7 @@ async function runVideoExport(): Promise<void> {
         signal: controller.signal,
       },
     );
-    const base = (doc.spec.title ?? "drawcast").replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+    const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     downloadBlob(`${base}.webm`, blob);
     exportStatus.textContent = "Done — the narrated WebM was downloaded. YouTube accepts WebM uploads directly (Studio → Create → Upload).";
     exportCloseBtn.textContent = "Close";
@@ -883,6 +1135,7 @@ clearLogsBtn.addEventListener("click", () => {
 
 // ---------- boot ----------
 
-specArea.value = formatSpec(doc.spec, settings.specFormat);
+specArea.value = formatPlaylist(doc.playlist, isSingle(doc.playlist) ? settings.specFormat : "yaml");
 if (doc.prompt) promptEl.value = doc.prompt;
+refreshChips();
 showMode(settings.uiMode);

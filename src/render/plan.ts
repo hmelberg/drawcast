@@ -12,6 +12,7 @@ export type PlanStep =
   | { kind: "speak"; text: string; blocking: boolean }
   | { kind: "draw"; ids: string[]; parallel: boolean; implicit?: boolean }
   | { kind: "pause"; seconds: number }
+  | { kind: "wait" }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
@@ -110,6 +111,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       pushStep({ kind: "draw", ids, parallel: cmd.parallel === true });
     } else if (cmd.pause !== undefined) {
       pushStep({ kind: "pause", seconds: cmd.pause });
+    } else if (cmd.wait !== undefined) {
+      pushStep({ kind: "wait" });
     } else if (cmd.show !== undefined) {
       const ids = resolveIds(cmd.show, "show");
       ids.forEach((id) => mentioned.add(id));

@@ -105,7 +105,10 @@ export interface SavedDrawing {
   title: string;
   /** The request that produced it, when AI-generated. */
   prompt?: string;
+  /** First item's spec (kept for poster/back-compat; the whole doc when single). */
   spec: Spec;
+  /** Multi-part drawcasts: the full playlist as serialized multi-doc YAML. */
+  playlist?: string;
   ts: string;
 }
 

@@ -501,3 +501,161 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ---------- wait verb: click-to-continue gate ---------- */
+
+.cs-waitgate {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 1.1rem;
+  cursor: pointer;
+  z-index: 5;
+}
+.cs-waitgate-pill {
+  font-family: var(--sketch-font);
+  font-size: 1.05rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 0.3rem 1rem;
+  box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.25);
+  animation: waitgate-nudge 1.6s ease-in-out infinite;
+}
+@keyframes waitgate-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* ---------- hashtag chips + autosuggest ---------- */
+
+.editor-toolbar .prompt-row { position: relative; }
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: -0.25rem 0 0.55rem;
+}
+.chip {
+  font-size: 0.78rem;
+  color: var(--steel);
+  background: color-mix(in srgb, var(--steel) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--steel) 45%, var(--surface));
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+}
+.chip-unknown {
+  color: var(--muted);
+  background: var(--surface);
+  border-style: dashed;
+}
+.tag-suggest {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 0.2rem;
+  z-index: 30;
+  min-width: 21rem;
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(61, 56, 51, 0.18);
+  overflow: hidden;
+}
+.tag-suggest-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.32rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.tag-suggest-row.active,
+.tag-suggest-row:hover { background: color-mix(in srgb, var(--steel) 10%, var(--surface)); }
+.tag-suggest-tag { color: var(--steel); font-weight: 600; white-space: nowrap; }
+.tag-suggest-hint { color: var(--muted); }
+
+/* ---------- playlist: dots, panel, badges ---------- */
+
+.pl-host { position: relative; }
+.pl-dots {
+  display: inline-flex;
+  gap: 0.28rem;
+  align-items: center;
+  padding: 0 0.2rem;
+}
+.pl-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.pl-dot:hover { border-color: var(--ink); }
+.pl-dot.current { background: var(--rust); border-color: var(--rust); }
+.pl-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(21rem, 85%);
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: -8px 0 22px rgba(61, 56, 51, 0.18);
+  padding: 0.8rem 0.9rem;
+  overflow-y: auto;
+  z-index: 20;
+  display: none;
+}
+.pl-panel.open { display: block; }
+.pl-panel-title {
+  font-family: var(--sketch-font);
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+}
+.pl-list { display: flex; flex-direction: column; gap: 0.15rem; }
+.pl-chapter > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0;
+}
+.pl-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.pl-item:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
+.pl-item.current { background: color-mix(in srgb, var(--rust) 12%, var(--surface)); }
+.pl-item-no { color: var(--muted); font-size: 0.8rem; min-width: 1.1rem; }
+.pl-item-title { flex: 1; }
+.pl-badge {
+  font-size: 0.7rem;
+  border-radius: 999px;
+  padding: 0.02rem 0.45rem;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.pl-badge-basic { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--surface)); }
+.pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
