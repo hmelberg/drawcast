@@ -6,6 +6,7 @@ import { normalizeSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { lintLayout, type LintIssue } from "../lint/lint";
 import { layoutElements } from "./tier2";
+import { annotationDrawables } from "./annotate";
 import { placeLabels, type LabelRequest } from "./labels";
 import { bboxOfPts, bboxOfText, expandBox, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
@@ -68,36 +69,56 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     if (!order.includes(req.id)) order.push(req.id);
   }
 
+  // Annotations last: they mark ALREADY-placed geometry (labels included),
+  // whether the target came from a template or from tier-2 elements.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "annotation") continue;
+    const box = el.target ? unionBBoxForId(drawables, el.target, measure) : null;
+    if (!box) {
+      warnings.push(`annotation "${el.id}": unknown or empty target "${el.target}" — skipped`);
+      continue;
+    }
+    const leaves = leafDrawables(drawablesForId(drawables, el.target!));
+    const textTarget = leaves.length > 0 && leaves.every((d) => d.kind === "text");
+    drawables.push(...annotationDrawables(el, box, textTarget));
+  }
+
   const issues = lintLayout(drawables, measure);
   return { drawables, order, issues, warnings };
+}
+
+/** Union bbox of every leaf drawable belonging to one element id, or null. */
+function unionBBoxForId(drawables: Drawable[], id: string, measure: MeasureFn): BBox | null {
+  const boxes: BBox[] = [];
+  for (const d of leafDrawables(drawablesForId(drawables, id))) {
+    if (d.kind === "text") {
+      boxes.push(bboxOfText(d, measure));
+    } else if (d.kind === "stroke" && d.shapeHint?.type === "circle") {
+      const { c, r } = d.shapeHint;
+      boxes.push({ x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r });
+    } else if (d.kind === "stroke" && d.shapeHint?.type === "rect") {
+      boxes.push({ x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h });
+    } else if (d.pts.length > 0) {
+      boxes.push(bboxOfPts(d.pts));
+    }
+  }
+  if (boxes.length === 0) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const b of boxes) {
+    x0 = Math.min(x0, b.x);
+    y0 = Math.min(y0, b.y);
+    x1 = Math.max(x1, b.x + b.w);
+    y1 = Math.max(y1, b.y + b.h);
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
 /** Union bbox per command-addressable element id (logical units), for the gesture verbs. */
 export function elementBBoxes(layout: LayoutResult, measure: MeasureFn = heuristicMeasure): Map<string, BBox> {
   const map = new Map<string, BBox>();
   for (const id of layout.order) {
-    const boxes: BBox[] = [];
-    for (const d of leafDrawables(drawablesForId(layout.drawables, id))) {
-      if (d.kind === "text") {
-        boxes.push(bboxOfText(d, measure));
-      } else if (d.kind === "stroke" && d.shapeHint?.type === "circle") {
-        const { c, r } = d.shapeHint;
-        boxes.push({ x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r });
-      } else if (d.kind === "stroke" && d.shapeHint?.type === "rect") {
-        boxes.push({ x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h });
-      } else if (d.pts.length > 0) {
-        boxes.push(bboxOfPts(d.pts));
-      }
-    }
-    if (boxes.length === 0) continue;
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const b of boxes) {
-      x0 = Math.min(x0, b.x);
-      y0 = Math.min(y0, b.y);
-      x1 = Math.max(x1, b.x + b.w);
-      y1 = Math.max(y1, b.y + b.h);
-    }
-    map.set(id, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    const box = unionBBoxForId(layout.drawables, id, measure);
+    if (box) map.set(id, box);
   }
   return map;
 }

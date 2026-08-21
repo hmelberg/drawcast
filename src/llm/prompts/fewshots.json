@@ -53,6 +53,9 @@
           ]
         }
       },
+      "elements": [
+        { "id": "rule_out", "type": "annotation", "target": "label_wait", "kind": "strike" }
+      ],
       "commands": [
         { "speak": "The choice: operate, or wait. Let's map the decision." },
         { "draw": ["node_choice", "label_choice"], "speak": "This square is the decision we control: operate, or wait." },
@@ -62,7 +65,9 @@
         { "draw": ["edge_surgery_ok", "branchlabel_surgery_ok", "node_ok", "label_ok", "payoff_ok", "edge_surgery_comp", "branchlabel_surgery_comp", "node_comp", "label_comp", "payoff_comp"], "speak": "With probability 0.85 the operation succeeds; with 0.15 there is a complication." },
         { "highlight": { "target": ["payoff_ok", "payoff_comp"], "effect": "circle" }, "speak": "The payoffs: 9.2 QALYs after recovery, 5.1 after a complication." },
         { "pause": 0.3 },
-        { "draw": ["edge_choice_wait", "branchlabel_choice_wait", "node_wait", "label_wait", "payoff_wait"], "speak": "Watchful waiting avoids the risk, at a lower expected payoff." }
+        { "draw": ["edge_choice_wait", "branchlabel_choice_wait", "node_wait", "label_wait", "payoff_wait"], "speak": "Watchful waiting avoids the risk, at a lower expected payoff." },
+        { "pause": 0.3 },
+        { "draw": ["rule_out"], "speak": "Expected value favours surgery — about 8.6 against 7.4 QALYs — so we rule out waiting." }
       ]
     }
   },
@@ -77,7 +82,8 @@
         { "id": "u_label", "type": "label", "text": "U(x)", "attach_to": "utility", "side": "above" },
         { "id": "p1", "type": "point", "at": { "x": 2, "y": 55.1 }, "guides": true },
         { "id": "p2", "type": "point", "at": { "x": 6, "y": 90.9 }, "guides": true },
-        { "id": "note", "type": "label", "text": "Each extra unit adds less", "attach_to": "p2", "side": "below-right" }
+        { "id": "note", "type": "label", "text": "Each extra unit adds less", "attach_to": "p2", "side": "below-right" },
+        { "id": "mark_note", "type": "annotation", "target": "note", "kind": "highlight" }
       ],
       "commands": [
         { "speak": "Let's see why the first unit we consume matters more than the sixth." },
@@ -86,7 +92,7 @@
         { "draw": ["p1", "p2"], "parallel": true, "speak": "The first two units bring utility to 55; the next four only lift it to 91." },
         { "highlight": { "target": ["p1", "p2"], "effect": "circle" }, "speak": "The same extra unit buys less and less." },
         { "pause": 0.3 },
-        { "draw": ["note"], "speak": "That flattening is diminishing marginal utility." }
+        { "draw": ["note", "mark_note"], "speak": "That flattening is diminishing marginal utility." }
       ]
     }
   },

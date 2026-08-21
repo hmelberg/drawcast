@@ -59,7 +59,7 @@ const elementSchema = {
     id: { type: "string", description: "Unique id, referenced by commands and other elements." },
     type: {
       type: "string",
-      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "path", "text", "shape"],
+      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape"],
     },
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
@@ -97,6 +97,14 @@ const elementSchema = {
     },
     // region
     between: { type: "array", items: { type: "string" }, description: "region: two curve ids; the region is shaded between them (use x_from/x_to to limit)." },
+    // annotation
+    target: { type: "string", description: "annotation: id of the element to mark (declare the annotation AFTER its target)." },
+    kind: {
+      type: "string",
+      enum: ["underline", "box", "circle", "highlight", "strike", "cross"],
+      description:
+        "annotation: mark style — underline / box / circle around it / highlight (thick marker sweep BEHIND it, for the key number or word) / strike / cross (for rejected options). Default: underline for text targets, circle otherwise.",
+    },
     // node / shape
     shape: {
       type: "string",
@@ -351,6 +359,9 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "region":
       need(Array.isArray(el.between) && el.between.length === 2, "needs between: [curveId, curveId]");
+      break;
+    case "annotation":
+      need(!!el.target, "needs target (id of the element it marks)");
       break;
     case "point":
       need(!!el.at, "needs at ({x,y} or {intersection_of})");

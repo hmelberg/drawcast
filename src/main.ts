@@ -524,7 +524,12 @@ function playbackPrefs(): PlaybackPrefs {
   };
 }
 
+let presentSeq = 0;
+
 async function present(): Promise<void> {
+  // Guard against overlapping presents (e.g. Re-render while a mount is in
+  // flight): only the latest call may keep its session.
+  const seq = ++presentSeq;
   const isPlayer = settings.uiMode === "player";
   const host = isPlayer ? playerHost : previewHost;
   session?.destroy();
@@ -542,7 +547,7 @@ async function present(): Promise<void> {
       isPlayer ? "✎" : "▶ Player",
     );
     switchBtn.addEventListener("click", () => showMode(isPlayer ? "editor" : "player"));
-    session = await mountPlaylist(host, doc.playlist, {
+    const mounted = await mountPlaylist(host, doc.playlist, {
       style: settings.style,
       mode: settings.mode,
       speed: settings.speed,
@@ -559,6 +564,11 @@ async function present(): Promise<void> {
         if (!isPlayer) setLint(hd);
       },
     });
+    if (seq !== presentSeq) {
+      mounted.destroy(); // a newer present superseded this one mid-mount
+      return;
+    }
+    session = mounted;
   } catch (err) {
     setStatus(`Render failed: ${(err as Error).message}`, "error");
   }

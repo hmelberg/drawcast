@@ -11,9 +11,13 @@ export type ElementType =
   | "region"
   | "node"
   | "edge"
+  | "annotation"
   | "path"
   | "text"
   | "shape";
+
+/** Hand-drawn notation styles (rough-notation vocabulary, drawn natively). */
+export type AnnotationKind = "underline" | "box" | "circle" | "highlight" | "strike" | "cross";
 
 export type Side =
   | "above"
@@ -73,6 +77,11 @@ export interface SpecElement {
   side?: Side;
   // region
   between?: string[];
+  // annotation
+  /** Id of the element this annotation marks. */
+  target?: string;
+  /** Mark style; defaults to underline for text targets, circle otherwise. */
+  kind?: AnnotationKind;
   // node / tier-3 shape
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";
   // tier-3 raw coordinates (logical units)
