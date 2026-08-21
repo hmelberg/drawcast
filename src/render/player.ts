@@ -42,6 +42,12 @@ export class Player {
   private mode: PlaybackMode;
   private speedVal: number;
   private pausedFlag = false;
+  /**
+   * In-flight non-blocking narration. Steps that add or remove content (draw/
+   * show/erase/clear/wait) await it first, so visuals never race ahead of the
+   * voice; gestures and pauses run UNDER the voice by design.
+   */
+  private pendingSpeech: Promise<void> | null = null;
   private ac: AbortController | null = null;
   /** Boundary: number of fully completed steps. */
   private completed = 0;
@@ -179,9 +185,17 @@ export class Player {
 
   private abortRun(): void {
     this.pausedFlag = false;
+    this.pendingSpeech = null;
     this.speech.cancel();
     this.ac?.abort();
     this.ac = null;
+  }
+
+  /** Wait out any in-flight non-blocking narration (resolves on abort too). */
+  private async narrationBarrier(): Promise<void> {
+    if (!this.pendingSpeech) return;
+    await this.pendingSpeech;
+    this.pendingSpeech = null;
   }
 
   private speechSynthResume(): void {
@@ -212,18 +226,25 @@ export class Player {
         if (this.mode === "narrated") {
           const spoken = this.speech.speak(step.text, this.speedVal, signal);
           if (step.blocking) await spoken;
-        } else if (step.blocking) {
-          // silent: caption still shown briefly
-          await this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.text) * 0.4), signal);
+          else this.pendingSpeech = spoken;
+        } else {
+          // silent: hold the caption for a reading-time slice instead
+          const hold = this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.text) * 0.4), signal);
+          if (step.blocking) await hold;
+          else this.pendingSpeech = hold;
         }
         return;
       }
       case "pause":
         return this.waitScaled(step.seconds * 1000, signal);
       case "wait":
+        await this.narrationBarrier();
+        if (signal.aborted) return;
         if (this.inputGate) return this.inputGate(signal);
         return this.waitScaled(800, signal);
       case "draw": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
         const els = this.els(step.ids);
         if (step.parallel) {
           await Promise.all(els.map((el) => this.animateRange(el, 0, 1, el.durationMs, signal)));
@@ -236,12 +257,16 @@ export class Player {
         return;
       }
       case "show":
+        await this.narrationBarrier();
+        if (signal.aborted) return;
         for (const el of this.els(step.ids)) el.finish();
         return;
       case "hide":
         for (const el of this.els(step.ids)) el.hide();
         return;
       case "erase": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
         const els = this.els(step.ids);
         if (step.parallel) {
           await Promise.all(els.map((el) => this.animateRange(el, 1, 0, el.durationMs * ERASE_SPEED, signal)));
@@ -254,6 +279,8 @@ export class Player {
         return;
       }
       case "clear": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
         const els = this.els(step.ids);
         await Promise.all(els.map((el) => this.animateRange(el, 1, 0, Math.min(el.durationMs * 0.4, CLEAR_MS), signal)));
         return;

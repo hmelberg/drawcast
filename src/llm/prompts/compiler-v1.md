@@ -21,7 +21,7 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 `commands` is the storyboard: the figure is drawn gradually while narration is spoken. The order is **draw, then explain**: an element appears first, and the narration then says what the viewer now sees — never the other way around. Rules:
 
 - Each command sets exactly one verb. The core three: `speak` / `draw` / `pause`.
-- `speak`: one short, clear teaching sentence (it is read aloud — write for the ear). Add `"blocking": false` to keep talking while the NEXT commands run (perfect over a `point` or `highlight`).
+- `speak`: one short, clear teaching sentence (it is read aloud — write for the ear). Add `"blocking": false` to keep talking while gestures and pauses run under the voice (perfect over a `point` or `highlight`). Drawing never runs ahead: the next `draw`/`show`/`erase`/`clear`/`wait` waits for the sentence to finish.
 - `draw`: a list of element ids, drawn one after another; add `"parallel": true` to draw them simultaneously.
 - `pause`: seconds of silence, for pacing.
 - Elements you never mention are drawn automatically at the end — but a good storyboard mentions everything in a deliberate order (axes first, then curves, then derived things like intersections and shaded regions).
