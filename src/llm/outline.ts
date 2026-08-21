@@ -46,7 +46,7 @@ export function buildOutlineMessages(request: string, parts: number | null): { s
   const system = [
     "You plan a multi-part drawcast: a short series of narrated, hand-drawn teaching figures, each about 30–90 seconds.",
     `Split the request into ${count}. Each part must stand on one single figure and one idea.`,
-    "Design the arc across parts: part 1 opens with the hook, the middle carries the development (a worked example, and one pros/cons or debate moment if the topic has one), the last part delivers the synthesis.",
+    "Design the arc across parts: part 1 announces what the series will explain and grounds it in a concrete example, the middle carries the step-by-step development (the worked example, and one pros/cons or debate moment if the topic has one), the last part delivers the synthesis.",
     // The shape lives in the prompt text too: when structured outputs are
     // unavailable (the client degrades to plain JSON per session), the model
     // must still know exactly what to return.
@@ -91,14 +91,16 @@ export function buildPartRequest(clean: string, outline: Outline, index: number,
     `The full series: ${outline.parts.map((p, i) => `${i + 1}. ${p.title}`).join("; ")}.`,
   ];
   if (index === 0) {
-    lines.push("Open the series with a hook — a question, a puzzle, a surprising number, or an analogy — that the final part will answer.");
+    lines.push(
+      "Open by saying in one sentence what the whole series will explain, then ground this part in a concrete example — with drawing already underway, never a teaser over a blank canvas.",
+    );
   } else {
     lines.push(
       `The previous part was "${outline.parts[index - 1].title}". Open by bridging from it in one sentence ("Now that we have seen …") — do not re-introduce the whole topic.`,
     );
   }
   if (index === n - 1) {
-    lines.push("End with a synthesis that answers the series' opening hook.");
+    lines.push("End with a synthesis that ties the series together and restates the core insight.");
   }
   if (brief) lines.push("", brief);
   return lines.join("\n");

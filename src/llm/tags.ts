@@ -33,22 +33,23 @@ export const TAGS: TagDef[] = [
   {
     tag: "long",
     group: "length",
-    hint: "10–16 lines in 2–3 acts, hook + example + synthesis",
+    hint: "10–16 lines in 2–3 acts: announce, example, step by step, synthesis",
     brief:
       "Make it a long drawcast: 10–16 speak lines in 2–3 acts (use clear between acts); override the examples' length. " +
-      "Open with a hook — a question, a puzzle, a surprising number, or an analogy, never a definition. " +
-      "Define each term as its element is drawn, include one worked example with concrete numbers, and end with a one-line synthesis.",
+      "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
+      "Build the explanation step by step through that example: every new element gets a speak line saying what it is and why it matters, and no step is skipped. " +
+      "End with a one-line synthesis of the insight.",
   },
   {
     tag: "verylong",
     group: "length",
-    hint: "16–24 lines, deep dive: hook, example, debate, synthesis",
+    hint: "16–24 lines, deep dive: announce, example, steps, debate, synthesis",
     brief:
       "Make it a deep-dive drawcast: 16–24 speak lines in 3–4 acts (use clear between acts); override the examples' length. " +
-      "Open with a hook (a question, a puzzle, a surprising number — never a definition). Define terms as their elements are drawn, " +
-      "give context for why the concept matters, and include one worked example with concrete numbers. " +
-      "Include one pros/cons or debate/controversy moment related to the concept, and optionally a brief historical remark. " +
-      "End with a synthesis that answers the opening hook.",
+      "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
+      "Build the explanation step by step through that example: every new element gets a speak line saying what it is and why it matters, and no step is skipped. " +
+      "Give context for why the concept matters, include one pros/cons or debate/controversy moment related to it, and optionally a brief historical remark. " +
+      "End with a synthesis that restates the core insight in the example's terms.",
   },
   {
     tag: "basic",

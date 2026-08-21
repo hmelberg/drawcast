@@ -86,10 +86,11 @@ describe("buildBrief", () => {
     expect(brief.toLowerCase()).toContain("override the examples");
   });
 
-  test("long includes the pedagogy: hook, example, synthesis", () => {
+  test("long pedagogy: announce first, ground in a concrete example, explain step by step, synthesis", () => {
     const brief = buildBrief(["long"]).toLowerCase();
-    expect(brief).toContain("hook");
-    expect(brief).toContain("example");
+    expect(brief).toContain("what you will explain");
+    expect(brief).toContain("step by step");
+    expect(brief).toContain("concrete example");
     expect(brief).toContain("synthesis");
   });
 

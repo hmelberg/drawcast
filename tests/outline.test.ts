@@ -78,10 +78,11 @@ describe("buildPartRequest", () => {
     expect(r).toContain("Vaccination economics");
   });
 
-  test("later parts bridge from the previous part; the first opens the series with a hook", () => {
+  test("later parts bridge from the previous part; the first announces what the series will explain", () => {
     const first = buildPartRequest("x", outline, 0, "");
     const second = buildPartRequest("x", outline, 1, "");
-    expect(first.toLowerCase()).toContain("hook");
+    expect(first.toLowerCase()).toContain("series will explain");
+    expect(first.toLowerCase()).toContain("concrete example");
     expect(second).toContain("Externalities");
     expect(second.toLowerCase()).toContain("bridg");
   });
