@@ -88,8 +88,8 @@ export const TAGS: TagDef[] = [
   {
     tag: "calm",
     group: "pacing",
-    hint: "unhurried pacing with more pauses",
-    brief: "Calm pacing: add short pauses between ideas and keep sentences unhurried.",
+    hint: "unhurried pacing: ~1 s between beats",
+    brief: "Calm pacing: lengthen the between-beat pauses to about 1 second, and keep sentences unhurried.",
   },
   {
     tag: "rich",
