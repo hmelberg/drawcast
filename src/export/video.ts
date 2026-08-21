@@ -34,12 +34,15 @@ export function wrapCaption(measure: (s: string) => number, text: string, maxWid
   return lines;
 }
 
-// 720p, paper-colored, with the 4:3 figure centered and captions below it.
+// 720p, paper-colored: title band on top, the 4:3 figure centered, captions
+// below. The layout is fixed whether or not a title exists, so parts of a
+// playlist never jump.
 const W = 1280;
 const H = 720;
-const FIG_W = 840;
-const FIG_H = 630;
-const FIG_Y = 12;
+const FIG_W = 800;
+const FIG_H = 600;
+const FIG_Y = 42;
+const TITLE_BASELINE = 30;
 const FPS = 30;
 const PAPER = "#f5f1e6";
 const INK = "#3d3833";
@@ -68,7 +71,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function paintFrame(ctx: CanvasRenderingContext2D, svgText: string, fontStyle: string, caption: string): Promise<void> {
+async function paintFrame(ctx: CanvasRenderingContext2D, svgText: string, fontStyle: string, caption: string, title: string): Promise<void> {
   // Explicit dimensions: some browsers refuse to draw an SVG image without them.
   let src = svgText.replace("<svg ", `<svg width="${FIG_W}" height="${FIG_H}" `);
   if (fontStyle) src = src.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
@@ -89,12 +92,16 @@ async function paintFrame(ctx: CanvasRenderingContext2D, svgText: string, fontSt
     ctx.lineWidth = 2;
     ctx.strokeRect(x, FIG_Y, FIG_W, FIG_H);
     ctx.drawImage(img, x, FIG_Y, FIG_W, FIG_H);
+    ctx.fillStyle = INK;
+    ctx.textAlign = "center";
+    if (title) {
+      ctx.font = "30px 'Patrick Hand', 'Segoe Print', cursive";
+      ctx.fillText(title, W / 2, TITLE_BASELINE);
+    }
     if (caption) {
-      ctx.fillStyle = INK;
-      ctx.font = "28px 'Patrick Hand', 'Segoe Print', cursive";
-      ctx.textAlign = "center";
+      ctx.font = "26px 'Patrick Hand', 'Segoe Print', cursive";
       const lines = wrapCaption((s) => ctx.measureText(s).width, caption, W - 200).slice(0, 2);
-      lines.forEach((line, i) => ctx.fillText(line, W / 2, FIG_Y + FIG_H + 36 + i * 34));
+      lines.forEach((line, i) => ctx.fillText(line, W / 2, FIG_Y + FIG_H + 34 + i * 32));
     }
   } finally {
     URL.revokeObjectURL(url);
@@ -158,6 +165,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     // The frame loop reads whatever spec is currently mounted.
     let currentSvg: SVGSVGElement | null = null;
     let currentCaption: HTMLElement | null = null;
+    let currentTitle = "";
     const serializer = new XMLSerializer();
     let paintError: Error | null = null;
     let stopLoop = false;
@@ -165,7 +173,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
       while (!stopLoop && !signal.aborted) {
         const t0 = performance.now();
         try {
-          if (currentSvg) await paintFrame(ctx!, serializer.serializeToString(currentSvg), fontStyle, currentCaption?.textContent ?? "");
+          if (currentSvg) await paintFrame(ctx!, serializer.serializeToString(currentSvg), fontStyle, currentCaption?.textContent ?? "", currentTitle);
         } catch (err) {
           paintError ??= err as Error;
           stopLoop = true;
@@ -187,6 +195,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
         currentSvg = svg;
         currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
+        currentTitle = items[i].title ?? "";
         handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : sleep(600));
         await handle.timeline.play();
         if (i < items.length - 1) {

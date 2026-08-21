@@ -677,3 +677,17 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   max-width: 12.5rem;
 }
 .gen-model:hover { border-color: #9c3d26; }
+
+/* ---------- figure title (centered, above the drawing) ---------- */
+
+.cs-title {
+  font-family: var(--sketch-font);
+  font-size: 1.3rem;
+  color: var(--ink);
+  text-align: center;
+  width: fit-content;
+  padding: 0.15rem 0.4rem 9px;
+  margin: 0.1rem auto 0.15rem;
+  max-width: 90%;
+}
+.player-figure:fullscreen .cs-title { font-size: 1.7rem; }

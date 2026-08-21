@@ -61,7 +61,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   stage.className = "cs-stage";
   const caption = document.createElement("div");
   caption.className = "cs-caption cs-caption-empty";
-  // Caption sits below the figure so it never covers the drawing.
+  // Title above, caption below — figure chrome, never inside the canvas
+  // coordinates (so it can never collide with the drawing).
+  if (spec.title) {
+    const title = document.createElement("div");
+    title.className = "cs-title squiggle";
+    title.textContent = spec.title;
+    figure.appendChild(title);
+  }
   figure.append(stage, caption);
   container.appendChild(figure);
 
