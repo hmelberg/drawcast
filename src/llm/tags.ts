@@ -37,7 +37,7 @@ export const TAGS: TagDef[] = [
     brief:
       "Make it a long drawcast: 10–16 speak lines in 2–3 acts (use clear between acts); override the examples' length. " +
       "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
-      "Build the explanation step by step through that example: every new element gets a speak line saying what it is and why it matters, and no step is skipped. " +
+      "Build the explanation step by step through that example: draw each element FIRST, then explain it — what it is and why it matters — and no step is skipped. " +
       "End with a one-line synthesis of the insight.",
   },
   {
@@ -47,7 +47,7 @@ export const TAGS: TagDef[] = [
     brief:
       "Make it a deep-dive drawcast: 16–24 speak lines in 3–4 acts (use clear between acts); override the examples' length. " +
       "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
-      "Build the explanation step by step through that example: every new element gets a speak line saying what it is and why it matters, and no step is skipped. " +
+      "Build the explanation step by step through that example: draw each element FIRST, then explain it — what it is and why it matters — and no step is skipped. " +
       "Give context for why the concept matters, include one pros/cons or debate/controversy moment related to it, and optionally a brief historical remark. " +
       "End with a synthesis that restates the core insight in the example's terms.",
   },

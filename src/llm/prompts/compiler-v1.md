@@ -18,7 +18,7 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 
 ## Narration and drawing commands (a key feature)
 
-`commands` is the storyboard: the figure is drawn gradually while narration is spoken. Alternate `speak` and `draw` so each spoken idea is immediately illustrated. Rules:
+`commands` is the storyboard: the figure is drawn gradually while narration is spoken. The order is **draw, then explain**: an element appears first, and the narration then says what the viewer now sees — never the other way around. Rules:
 
 - Each command sets exactly one verb. The core three: `speak` / `draw` / `pause`.
 - `speak`: one short, clear teaching sentence (it is read aloud — write for the ear). Add `"blocking": false` to keep talking while the NEXT commands run (perfect over a `point` or `highlight`).
@@ -26,9 +26,10 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 - `pause`: seconds of silence, for pacing.
 - Elements you never mention are drawn automatically at the end — but a good storyboard mentions everything in a deliberate order (axes first, then curves, then derived things like intersections and shaded regions).
 - 4–8 speak lines is the sweet spot for one figure.
-- **Say what you are about to explain.** The FIRST speak line announces the goal in plain words ("Let's see why a tax creates a deadweight loss") while the first element is already being drawn — never a teaser question or riddle over a blank canvas.
-- **Start drawing early.** At most ONE short speak line before the first `draw`. Never two consecutive `speak` commands with nothing new on screen — pair every spoken idea with a visual event (a draw, a reveal, or at least a `point`/`highlight` on what is being discussed). Prefer `"blocking": false` narration over dead air: talk WHILE drawing, the way a lecturer talks while sketching.
-- **Explain step by step, through an example.** Ground the explanation early in one concrete example with actual numbers ("a tax of 10 kr", "utility drops from 0.9 to 0.6") — a concrete case is the best hook — and carry that example through the figure. Every new element gets a speak line saying what it is and why it matters; define each term the moment its element is drawn, and never draw something the narration does not explain.
+- **Say what you are about to explain.** The FIRST speak line announces the goal in plain words ("Let's see why a tax creates a deadweight loss") — this is the ONLY narration allowed before something is on the canvas, and the first `draw` follows it immediately. Never a teaser question or riddle over a blank canvas.
+- **The canonical beat: draw → explain → gesture.** Draw ONE element (with its label), then speak about it — what it is and why it matters — with `"blocking": false`, then `point` at or `highlight` it so the viewer's eye follows the voice. One idea per beat: draw the demand curve and explain it, THEN draw the supply curve and explain it — never draw several ideas and then talk about them all. After the opening line, narration may only refer to things already on the canvas ("this shaded area…" requires the area to be there).
+- **Never two consecutive `speak` commands** with nothing new on screen — between spoken sentences something must happen: a draw, a reveal, a gesture.
+- **Explain step by step, through an example.** Ground the explanation early in one concrete example with actual numbers ("a $10 tax", "utility drops from 0.9 to 0.6") and carry that example through the figure — a concrete case is the best hook. Define each term the moment its element is drawn, and skip no step of the reasoning. Currency: use $ by default; if the request uses another currency (kr, €, £), keep the request's.
 
 Gesture verbs, for teaching moves after elements are on screen (all id lists accept one or many ids):
 
@@ -40,7 +41,7 @@ Gesture verbs, for teaching moves after elements are on screen (all id lists acc
 - `wait`: `{"wait": "click"}` — pause until the viewer clicks. Use it as a reveal gate ("study this table… now click") or at an act boundary, and only when the request asks for click-gated pacing. It auto-resolves in video export.
 - `camera`: `{"camera": {"center": {"ref": "dwl_region"}, "zoom": 2}}` — zoom into a detail; `{"camera": {"reset": true}}` returns to the full view.
 
-Directing tips: after a key reveal (an equilibrium, an intersection, a result), add one gesture moment — a non-blocking `speak` followed by a `point` or `highlight` — so the viewer's eye lands where the words are. Use `erase` to remove scaffolding you no longer need (construction lines, a rejected case). Use gestures sparingly: one or two per figure lands; one per command exhausts.
+Directing tips: gestures belong INSIDE the beat — while a non-blocking `speak` explains a just-drawn element, a `point` or `highlight` on that element makes the viewer's eye follow the voice. Give the gesture treatment to the elements that carry the argument (2–4 per figure lands; a gesture on literally every element exhausts). Use `erase` to remove scaffolding you no longer need (construction lines, a rejected case).
 
 ## Output
 
