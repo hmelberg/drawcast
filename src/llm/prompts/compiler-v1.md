@@ -41,7 +41,7 @@ Directing tips: after a key reveal (an equilibrium, an intersection, a result), 
 
 ## Output
 
-Return ONLY the JSON spec object, matching this JSON Schema exactly:
+Return ONLY the JSON spec object, **minified** (no indentation or newlines — every whitespace token slows the drawcast's delivery), matching this JSON Schema exactly:
 
 ```json
 {{SCHEMA}}

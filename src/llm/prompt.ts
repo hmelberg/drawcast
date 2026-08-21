@@ -11,11 +11,28 @@ export interface PromptParts {
 }
 
 export function buildSystemPrompt(variantSource: string, parts: PromptParts): string {
-  return variantSource
-    .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema, null, 2))
-    .replaceAll("{{CATALOG}}", parts.catalog)
-    .replaceAll("{{FEWSHOTS}}", parts.fewshots)
-    .replaceAll("{{EXEMPLARS}}", parts.exemplars);
+  const { prefix, suffix } = buildSystemBlocks(variantSource, parts);
+  return prefix + suffix;
+}
+
+/**
+ * The system prompt split for prompt caching: `prefix` holds everything up to
+ * the exemplars placeholder (schema/catalog/fewshots filled — byte-stable
+ * across requests, so it caches), `suffix` holds the request-dependent tail
+ * (exemplars vary per request). No {{EXEMPLARS}} in the source → all prefix.
+ */
+export function buildSystemBlocks(variantSource: string, parts: PromptParts): { prefix: string; suffix: string } {
+  const fill = (s: string) =>
+    s
+      .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema, null, 2))
+      .replaceAll("{{CATALOG}}", parts.catalog)
+      .replaceAll("{{FEWSHOTS}}", parts.fewshots);
+  const at = variantSource.indexOf("{{EXEMPLARS}}");
+  if (at === -1) return { prefix: fill(variantSource), suffix: "" };
+  return {
+    prefix: fill(variantSource.slice(0, at)),
+    suffix: fill(variantSource.slice(at)).replaceAll("{{EXEMPLARS}}", parts.exemplars),
+  };
 }
 
 /** The placeholders every compiler prompt must carry; filled in at generation time. */

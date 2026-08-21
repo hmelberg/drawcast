@@ -7,9 +7,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { extractJson } from "../spec/extract";
 
 export const MODELS = [
-  { id: "claude-opus-5", label: "Claude Opus 5 (default)" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+  { id: "claude-opus-5", label: "Opus 5 — best quality" },
+  { id: "claude-sonnet-5", label: "Sonnet 5 — 2–3× faster" },
+  { id: "claude-haiku-4-5", label: "Haiku 4.5 — fastest" },
 ] as const;
 
 export const DEFAULT_MODEL = "claude-opus-5";
@@ -37,14 +37,14 @@ export interface JsonCallMeta {
   outputTokens?: number;
 }
 
-function opusTier(model: string): boolean {
+export function opusTier(model: string): boolean {
   return model.startsWith("claude-opus-5") || model.startsWith("claude-fable");
 }
 
 async function createMessage(
   client: Anthropic,
   model: string,
-  system: string,
+  system: string | Anthropic.TextBlockParam[],
   messages: Anthropic.MessageParam[],
   outputSchema: object | null,
   useFallbacks: boolean,
@@ -81,7 +81,7 @@ const featureBroken = { structuredOutput: false, fallbacks: false };
 export async function callForJson(
   client: Anthropic,
   model: string,
-  system: string,
+  system: string | Anthropic.TextBlockParam[],
   messages: Anthropic.MessageParam[],
   outputSchema: object,
 ): Promise<{ json: unknown; raw: string; meta: JsonCallMeta }> {
@@ -143,7 +143,7 @@ export async function callForJson(
 export async function callForText(
   client: Anthropic,
   model: string,
-  system: string,
+  system: string | Anthropic.TextBlockParam[],
   messages: Anthropic.MessageParam[],
 ): Promise<{ text: string; ms: number }> {
   const t0 = performance.now();

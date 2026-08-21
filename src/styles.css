@@ -659,3 +659,21 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .pl-badge-basic { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--surface)); }
 .pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
+
+/* ---------- split send button: Generate + model choice ---------- */
+
+.gen-split { display: flex; align-items: stretch; flex-shrink: 0; }
+.gen-split button.primary {
+  border-radius: 5px 0 0 5px;
+  border-right: none;
+}
+.gen-model {
+  border-radius: 0 5px 5px 0;
+  border-color: var(--rust);
+  background: color-mix(in srgb, var(--rust) 8%, #fff);
+  color: var(--rust);
+  font-size: 0.82rem;
+  font-weight: 600;
+  max-width: 12.5rem;
+}
+.gen-model:hover { border-color: #9c3d26; }

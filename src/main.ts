@@ -260,9 +260,12 @@ promptEl.addEventListener("keydown", (e) => {
   }
 });
 
-const modelSel = h("select", { title: "Model" });
+// The model choice lives ON the send button (split button): the speed/quality
+// decision happens where generation starts. Repairs always run on a fast model.
+const modelSel = h("select", { class: "gen-model", title: "Model for generation. Repair rounds always use a fast model." });
 for (const m of MODELS) modelSel.appendChild(h("option", { value: m.id }, m.label));
 modelSel.value = settings.model;
+if (!modelSel.value) modelSel.value = MODELS[0].id;
 
 const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
@@ -382,7 +385,7 @@ const editorWrap = h(
   h(
     "div",
     { class: "panel editor-toolbar" },
-    h("div", { class: "row prompt-row" }, promptEl, generateBtn, tagSuggest),
+    h("div", { class: "row prompt-row" }, promptEl, h("div", { class: "gen-split" }, generateBtn, modelSel), tagSuggest),
     tagChips,
     h(
       "div",
@@ -397,7 +400,6 @@ const editorWrap = h(
       importInput,
       exportVideoBtn,
       h("span", { class: "toolbar-sep" }),
-      h("label", { class: "toolbar-label" }, "Model ", modelSel),
       h("label", { class: "toolbar-label" }, "Style ", styleSel),
     ),
   ),
@@ -727,34 +729,53 @@ async function generateMulti(rawRequest: string, parsed: ParsedTags, brief: stri
     setStatus("The model could not outline this into parts — try rephrasing, or drop #playlist.", "error");
     return;
   }
+  if (!outline.title) outline.title = parsed.clean;
+  // Parts depend only on the outline (bridging uses outline titles, not each
+  // other's specs), so they generate in parallel: N parts in ~one part's time.
+  const n = outline.parts.length;
+  let finished = 0;
+  setStatus(`Generating ${n} parts in parallel (${settings.model})…`);
+  const outcomes = await Promise.all(
+    outline.parts.map((part, i) =>
+      generateSpec(buildPartRequest(parsed.clean, outline, i, brief), {
+        apiKey,
+        model: settings.model,
+        variant: currentVariant(),
+        exemplars: loadExemplars(),
+      }).then((outcome) => {
+        finished++;
+        setStatus(`Generating ${n} parts in parallel — ${finished}/${n} done…`);
+        logOutcome(`${rawRequest} [part ${i + 1}: ${part.title}]`, outcome);
+        return outcome;
+      }),
+    ),
+  );
   const specs: Spec[] = [];
-  for (let i = 0; i < outline.parts.length; i++) {
-    setStatus(`Generating part ${i + 1}/${outline.parts.length}: ${outline.parts[i].title}…`);
-    const outcome = await generateSpec(buildPartRequest(parsed.clean, outline, i, brief), {
-      apiKey,
-      model: settings.model,
-      variant: currentVariant(),
-      exemplars: loadExemplars(),
-    });
-    logOutcome(`${rawRequest} [part ${i + 1}: ${outline.parts[i].title}]`, outcome);
+  const failedParts: number[] = [];
+  outcomes.forEach((outcome, i) => {
     if (!outcome.spec) {
-      if (specs.length === 0) {
-        setStatus(`Part ${i + 1} failed: ${outcome.error ?? "no spec"}`, "error");
-        return;
-      }
-      setStatus(`Part ${i + 1} failed (${outcome.error ?? "no spec"}) — keeping the ${specs.length} finished part${specs.length === 1 ? "" : "s"}.`, "error");
-      break;
+      failedParts.push(i + 1);
+      return;
     }
     outcome.spec.title ??= outline.parts[i].title;
     outcome.spec.level ??= outline.parts[i].level ?? parsed.level ?? undefined;
     specs.push(outcome.spec);
+  });
+  if (specs.length === 0) {
+    setStatus(`Every part failed: ${outcomes[0]?.error ?? "no spec"}`, "error");
+    return;
   }
   const playlist: Playlist = {
     meta: { ...DEFAULT_META, title: outline.title },
     entries: specs.map((spec) => ({ kind: "item", spec })),
     warnings: [],
   };
-  setDoc({ title: outline.title, prompt: rawRequest, playlist }, `Generated a ${specs.length}-part drawcast.`);
+  setDoc(
+    { title: outline.title, prompt: rawRequest, playlist },
+    failedParts.length > 0
+      ? `Generated ${specs.length}/${n} parts (part${failedParts.length > 1 ? "s" : ""} ${failedParts.join(", ")} failed).`
+      : `Generated a ${specs.length}-part drawcast.`,
+  );
 }
 
 const BLANK_SPEC: Spec = {

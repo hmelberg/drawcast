@@ -11,6 +11,12 @@ describe("buildOutlineMessages", () => {
     expect(buildOutlineMessages("x", 3).system).toContain("exactly 3");
     expect(buildOutlineMessages("x", null).system).toMatch(/2[–-]4/);
   });
+
+  test("the JSON shape is spelled out in the prompt itself (plain-JSON fallback must work too)", () => {
+    const { system } = buildOutlineMessages("x", null);
+    expect(system).toContain('"parts"');
+    expect(system).toContain('"brief"');
+  });
 });
 
 describe("normalizeOutline", () => {
@@ -24,6 +30,18 @@ describe("normalizeOutline", () => {
     expect(normalizeOutline({ title: "T", parts: [{ title: "A", brief: "a" }] })).toBeNull();
     expect(normalizeOutline({ title: "T" })).toBeNull();
     expect(normalizeOutline("garbage")).toBeNull();
+  });
+
+  test("a missing series title is tolerated (empty — the caller falls back to the request)", () => {
+    const o = normalizeOutline({ parts: [{ title: "A", brief: "a" }, { title: "B", brief: "b" }] });
+    expect(o?.parts).toHaveLength(2);
+    expect(o?.title).toBe("");
+  });
+
+  test("a part with a missing brief survives with an empty brief", () => {
+    const o = normalizeOutline({ title: "T", parts: [{ title: "A" }, { title: "B", brief: "b" }] });
+    expect(o?.parts).toHaveLength(2);
+    expect(o?.parts[0]).toEqual({ title: "A", brief: "" });
   });
 
   test("an overlong outline is trimmed to six parts", () => {

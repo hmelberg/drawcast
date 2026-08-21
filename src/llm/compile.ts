@@ -3,9 +3,9 @@
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { makeClient, callForJson, callForText, describeApiError, type JsonCallMeta } from "./client";
+import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { buildSystemBlocks, buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { sceneCatalogText } from "../scenes/registry";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -81,6 +81,19 @@ export function assembleSystemPrompt(request: string, variant: PromptVariant, ex
   });
 }
 
+/** A repair round is warranted only for real problems — warn-level lint is cosmetic. */
+export function needsRepair(validationErrors: string[], lintIssues: LintIssue[]): boolean {
+  return validationErrors.length > 0 || lintIssues.some((i) => i.severity === "error");
+}
+
+/**
+ * Repairs are mechanical ("here are the errors, return the corrected spec") —
+ * a fast model does them as well as Opus. Never pick a slower model than chosen.
+ */
+export function repairModelFor(model: string): string {
+  return opusTier(model) ? "claude-sonnet-5" : model;
+}
+
 // ---- Local prompt improvement (Loop 2's meta-improvement, run in-app) ----
 
 export interface ImproveCase {
@@ -154,7 +167,19 @@ export async function improvePrompt(
 
 export async function generateSpec(request: string, cfg: GenerateConfig): Promise<GenerationOutcome> {
   const client = makeClient(cfg.apiKey);
-  const system = assembleSystemPrompt(request, cfg.variant, cfg.exemplars);
+  // Prompt caching: the schema/catalog/fewshots prefix is byte-stable across
+  // requests, so it is sent as a cache_control block — repair rounds (and any
+  // generation within the TTL) skip re-processing ~10k tokens of prompt.
+  const blocks = buildSystemBlocks(cfg.variant.source, {
+    schema: apiSchema(),
+    catalog: sceneCatalogText(),
+    fewshots: fewshotsText(),
+    exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
+  });
+  const system: Anthropic.TextBlockParam[] = [
+    { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
+    ...(blocks.suffix ? [{ type: "text" as const, text: blocks.suffix }] : []),
+  ];
   const schema = apiSchema();
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
@@ -168,7 +193,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   try {
     while (true) {
       const label: GenerationRound["label"] = rounds.length === 0 ? "initial" : rounds[rounds.length - 1].validationErrors.length > 0 ? "schema-repair" : "lint-repair";
-      const { json, raw, meta } = await callForJson(client, cfg.model, system, messages, schema);
+      // The creative first round uses the chosen model; mechanical repairs use a faster one.
+      const roundModel = rounds.length === 0 ? cfg.model : repairModelFor(cfg.model);
+      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema);
       const validation = validateSpec(json);
       let lintIssues: LintIssue[] = [];
       if (validation.ok) {
@@ -182,14 +209,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       }
       rounds.push({ label, spec: json, validationErrors: validation.errors, lintIssues, meta });
 
-      const needsRepair = validation.errors.length > 0 || lintIssues.length > 0;
-      if (!needsRepair || repairsUsed >= maxRepairs) break;
+      if (!needsRepair(validation.errors, lintIssues) || repairsUsed >= maxRepairs) break;
       repairsUsed++;
 
+      const lintErrors = lintIssues.filter((i) => i.severity === "error");
       const feedback =
         validation.errors.length > 0
-          ? `The spec failed validation:\n${validation.errors.join("\n")}\n\nReturn the corrected COMPLETE spec (not a diff).`
-          : `The rendered figure has visual problems:\n${lintReportText(lintIssues)}\n\nReturn the corrected COMPLETE spec (not a diff). Typical fixes: different label sides, shorter texts, fewer overlapping elements.`;
+          ? `The spec failed validation:\n${validation.errors.join("\n")}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON.`
+          : `The rendered figure has visual problems:\n${lintReportText(lintErrors)}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON. Typical fixes: different label sides, shorter texts, fewer overlapping elements.`;
       messages.push({ role: "assistant", content: raw }, { role: "user", content: feedback });
     }
   } catch (err) {
@@ -197,7 +224,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       spec: best,
       rounds,
       error: describeApiError(err),
-      systemPromptChars: system.length,
+      systemPromptChars: blocks.prefix.length + blocks.suffix.length,
     };
   }
 
@@ -205,7 +232,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     spec: best,
     rounds,
     error: best ? undefined : "The model never produced a valid spec (see rounds).",
-    systemPromptChars: system.length,
+    systemPromptChars: blocks.prefix.length + blocks.suffix.length,
   };
 }
 
