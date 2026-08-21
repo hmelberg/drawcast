@@ -307,7 +307,7 @@ function semanticErrors(spec: Spec): string[] {
       errors.push(`commands[${i}] must set a verb: speak, or one of ${ACTION_VERBS.join("/")}`);
       continue;
     }
-    const verb = actions[0] ?? "speak";
+    const verb: string = actions.length > 0 ? actions[0] : "speak";
     if (cmd.blocking !== undefined && (verb !== "speak" || cmd.speak === undefined)) {
       errors.push(`commands[${i}]: blocking only applies to a standalone speak (a speak paired with an action always joins both)`);
     }
