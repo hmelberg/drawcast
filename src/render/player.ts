@@ -173,6 +173,7 @@ export class Player {
     for (let i = 0; i < n; i++) {
       const s = this.plan.steps[i];
       if (s.kind === "speak") caption = s.text;
+      else if (s.narration !== undefined) caption = s.narration;
     }
     this.setCaption(caption);
     this.callbacks.onStep?.(this.completed, this.plan.steps.length);
@@ -218,6 +219,23 @@ export class Player {
   }
 
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
+    const step = this.plan.steps[index];
+    if (step.kind !== "speak" && step.narration !== undefined) {
+      // Narrated action: voice and action start together; both must finish.
+      await this.narrationBarrier();
+      if (signal.aborted) return;
+      this.setCaption(step.narration);
+      const voice =
+        this.mode === "narrated"
+          ? this.speech.speak(step.narration, this.speedVal, signal)
+          : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.narration) * 0.4), signal);
+      await Promise.all([this.runAction(index, signal), voice]);
+      return;
+    }
+    return this.runAction(index, signal);
+  }
+
+  private async runAction(index: number, signal: AbortSignal): Promise<void> {
     const step = this.plan.steps[index];
     const before = this.stateAt(index);
     switch (step.kind) {

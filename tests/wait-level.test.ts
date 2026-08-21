@@ -23,10 +23,10 @@ describe("wait verb", () => {
     expect(validateSpec({ ...base, commands: [{ wait: "click" }] }).ok).toBe(true);
   });
 
-  test("wait plus another verb in one command is rejected", () => {
+  test("wait plus another action verb in one command is rejected", () => {
     const v = validateSpec({ ...base, commands: [{ wait: "click", pause: 1 }] });
     expect(v.ok).toBe(false);
-    expect(v.errors[0]).toContain("exactly one verb");
+    expect(v.errors[0]).toContain("at most one action verb");
   });
 
   test('normalizeSpec maps the YAML-friendly pause: "click" to wait', () => {

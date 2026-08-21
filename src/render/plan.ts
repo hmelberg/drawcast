@@ -8,7 +8,7 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { Command, Easing, HighlightEffect, PointGesture } from "../spec/types";
 
-export type PlanStep =
+export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean }
   | { kind: "draw"; ids: string[]; parallel: boolean; implicit?: boolean }
   | { kind: "pause"; seconds: number }
@@ -20,7 +20,11 @@ export type PlanStep =
   | { kind: "highlight"; ids: string[]; boxes: Record<string, BBox>; effect: HighlightEffect; seconds: number; color?: string }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
-  | { kind: "camera"; box: BBox | null; seconds: number };
+  | { kind: "camera"; box: BBox | null; seconds: number }
+) & {
+  /** speak paired with an action: voice and action start together, both must finish. */
+  narration?: string;
+};
 
 /** Scene state at a step boundary. A pure function of the step index. */
 export interface SceneState {
@@ -69,7 +73,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const offsets: Record<string, Pt> = {};
   let camera: BBox | null = null;
 
+  /** Narration of the command currently being planned (speak paired with an action). */
+  let currentNarration: string | undefined;
   const pushStep = (step: PlanStep) => {
+    if (currentNarration !== undefined && step.kind !== "speak") step = { ...step, narration: currentNarration };
     steps.push(step);
     states.push({ visible: [...visible], offsets: { ...offsets }, camera });
   };
@@ -101,8 +108,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
+  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
   for (const cmd of commands ?? []) {
-    if (cmd.speak !== undefined) {
+    const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
+    currentNarration = hasAction ? cmd.speak : undefined;
+    if (cmd.speak !== undefined && !hasAction) {
       pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false });
     } else if (cmd.draw !== undefined) {
       const ids = resolveIds(cmd.draw, "draw");
@@ -240,6 +250,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     }
   }
 
+  currentNarration = undefined;
   const remaining = allIds.filter((id) => !mentioned.has(id));
   if (remaining.length > 0) {
     makeVisible(remaining);

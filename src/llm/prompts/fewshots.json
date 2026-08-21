@@ -12,22 +12,16 @@
       },
       "commands": [
         { "speak": "Let's build a market diagram and find where the price settles." },
-        { "draw": ["axes"] },
-        { "speak": "Price on the vertical axis, quantity on the horizontal." },
+        { "draw": ["axes"], "speak": "Price on the vertical axis, quantity on the horizontal." },
         { "pause": 0.3 },
-        { "draw": ["demand_curve", "label_D"] },
-        { "speak": "This falling line is demand: as price falls, quantity demanded rises.", "blocking": false },
-        { "point": { "at": { "ref": "demand_curve" }, "gesture": "underline" } },
+        { "draw": ["demand_curve", "label_D"], "speak": "This falling line is demand: as price falls, quantity demanded rises." },
         { "pause": 0.3 },
-        { "draw": ["supply_curve", "label_S"] },
-        { "speak": "And this rising line is supply: higher prices call forth more production." },
+        { "draw": ["supply_curve", "label_S"], "speak": "And this rising line is supply: higher prices call forth more production." },
         { "pause": 0.3 },
-        { "draw": ["equilibrium_point", "guide_lines", "label_E", "label_Pstar", "label_Qstar"] },
-        { "speak": "Where the two lines cross, the market clears — this is the equilibrium.", "blocking": false },
-        { "point": { "at": { "ref": "equilibrium_point" }, "gesture": "circle" } },
+        { "draw": ["equilibrium_point", "guide_lines", "label_E", "label_Pstar", "label_Qstar"], "speak": "Where the two lines cross, the market clears." },
+        { "point": { "at": { "ref": "equilibrium_point" }, "gesture": "circle" }, "speak": "This is the equilibrium." },
         { "pause": 0.5 },
-        { "draw": ["demand_shift_curve", "demand_shift_arrow", "label_D_shift"] },
-        { "speak": "Now demand has increased: the whole curve has shifted to the right.", "blocking": false },
+        { "draw": ["demand_shift_curve", "demand_shift_arrow", "label_D_shift"], "speak": "Now suppose demand increases: the whole curve shifts to the right." },
         { "highlight": { "target": ["demand_shift_curve"], "effect": "pulse" } }
       ]
     }
@@ -61,19 +55,14 @@
       },
       "commands": [
         { "speak": "The choice: operate, or wait. Let's map the decision." },
-        { "draw": ["node_choice", "label_choice"] },
-        { "speak": "This square is the decision we control: operate, or wait.", "blocking": false },
-        { "point": { "at": { "ref": "node_choice" }, "gesture": "tap" } },
+        { "draw": ["node_choice", "label_choice"], "speak": "This square is the decision we control: operate, or wait." },
         { "pause": 0.3 },
-        { "draw": ["edge_choice_surgery", "branchlabel_choice_surgery", "node_surgery", "label_surgery"] },
-        { "speak": "Surgery leads to this circle — a chance node — because the outcome is uncertain." },
+        { "draw": ["edge_choice_surgery", "branchlabel_choice_surgery", "node_surgery", "label_surgery"], "speak": "Surgery leads to a circle — a chance node — because the outcome is uncertain." },
         { "pause": 0.3 },
-        { "draw": ["edge_surgery_ok", "branchlabel_surgery_ok", "node_ok", "label_ok", "payoff_ok", "edge_surgery_comp", "branchlabel_surgery_comp", "node_comp", "label_comp", "payoff_comp"] },
-        { "speak": "With probability 0.85 the operation succeeds; with 0.15 there is a complication.", "blocking": false },
-        { "highlight": { "target": ["payoff_ok", "payoff_comp"], "effect": "circle" } },
+        { "draw": ["edge_surgery_ok", "branchlabel_surgery_ok", "node_ok", "label_ok", "payoff_ok", "edge_surgery_comp", "branchlabel_surgery_comp", "node_comp", "label_comp", "payoff_comp"], "speak": "With probability 0.85 the operation succeeds; with 0.15 there is a complication." },
+        { "highlight": { "target": ["payoff_ok", "payoff_comp"], "effect": "circle" }, "speak": "The payoffs: 9.2 QALYs after recovery, 5.1 after a complication." },
         { "pause": 0.3 },
-        { "draw": ["edge_choice_wait", "branchlabel_choice_wait", "node_wait", "label_wait", "payoff_wait"] },
-        { "speak": "Watchful waiting avoids the risk, at a lower expected payoff." }
+        { "draw": ["edge_choice_wait", "branchlabel_choice_wait", "node_wait", "label_wait", "payoff_wait"], "speak": "Watchful waiting avoids the risk, at a lower expected payoff." }
       ]
     }
   },
@@ -92,16 +81,12 @@
       ],
       "commands": [
         { "speak": "Let's see why the first unit we consume matters more than the sixth." },
-        { "draw": ["ax", "utility", "u_label"] },
-        { "speak": "Total utility rises as we consume more — but the curve keeps flattening.", "blocking": false },
-        { "point": { "at": { "ref": "utility" }, "gesture": "underline" } },
+        { "draw": ["ax", "utility", "u_label"], "speak": "Total utility rises as we consume more — but the curve keeps flattening." },
         { "pause": 0.3 },
-        { "draw": ["p1", "p2"], "parallel": true },
-        { "speak": "Compare these two points: the first two units bring utility to 55, while the next four only lift it to 91.", "blocking": false },
-        { "highlight": { "target": ["p1", "p2"], "effect": "circle" } },
+        { "draw": ["p1", "p2"], "parallel": true, "speak": "The first two units bring utility to 55; the next four only lift it to 91." },
+        { "highlight": { "target": ["p1", "p2"], "effect": "circle" }, "speak": "The same extra unit buys less and less." },
         { "pause": 0.3 },
-        { "draw": ["note"] },
-        { "speak": "That flattening is diminishing marginal utility." }
+        { "draw": ["note"], "speak": "That flattening is diminishing marginal utility." }
       ]
     }
   },
@@ -122,16 +107,12 @@
       ],
       "commands": [
         { "speak": "A Markov model follows people between health states over time." },
-        { "draw": ["healthy", "sick", "dead"], "parallel": true },
-        { "speak": "Three states: healthy, sick — and dead.", "blocking": false },
-        { "highlight": { "target": ["healthy", "sick", "dead"], "effect": "pulse" } },
+        { "draw": ["healthy", "sick", "dead"], "parallel": true, "speak": "Three states: healthy, sick — and dead." },
         { "pause": 0.3 },
-        { "draw": ["h_s", "p_hs", "s_h"] },
-        { "speak": "Each cycle, ten percent of the healthy fall ill — and the sick can recover." },
+        { "draw": ["h_s", "p_hs", "s_h"], "speak": "Each cycle, ten percent of the healthy fall ill — and the sick can recover." },
         { "pause": 0.3 },
-        { "draw": ["s_d", "p_sd", "h_d"] },
-        { "speak": "They can also die, and death is absorbing: no arrows lead back out.", "blocking": false },
-        { "point": { "at": { "ref": "dead" }, "gesture": "circle" } }
+        { "draw": ["s_d", "p_sd", "h_d"], "speak": "They can also die." },
+        { "point": { "at": { "ref": "dead" }, "gesture": "circle" }, "speak": "Death is absorbing: no arrows lead back out." }
       ]
     }
   }

@@ -191,8 +191,7 @@ export function makeTitleCard(opts: TitleCardOptions): Spec {
     elements.push({ id: "card_level", type: "text", text: opts.level, x: 500, y: 305, font_size: 22, style: { opacity: 0.6 } });
   }
   const commands: Spec["commands"] = [
-    { speak: opts.chapter ? `${opts.chapter}. Next: ${opts.next}` : `Next: ${opts.next}`, blocking: false },
-    { draw: elements.map((e) => e.id) },
+    { draw: elements.map((e) => e.id), speak: opts.chapter ? `${opts.chapter}. Next: ${opts.next}` : `Next: ${opts.next}` },
   ];
   commands.push(opts.gate === "click" ? { wait: "click" } : { pause: opts.gap ?? 1 });
   return { elements, commands };

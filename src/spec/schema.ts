@@ -128,10 +128,14 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command. Set EXACTLY ONE verb: speak / draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera. " +
-    "Commands run strictly in sequence; each completes before the next begins (except speak with blocking:false).",
+    "One playback command: ONE action verb (draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (announcement, synthesis). " +
+    "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
-    speak: { type: "string", description: "Narration sentence, spoken aloud and shown as a caption." },
+    speak: {
+      type: "string",
+      description:
+        "Narration sentence, spoken aloud and shown as a caption. Alongside an action verb it narrates that action simultaneously (the preferred style: {\"draw\": [\"supply\"], \"speak\": \"This is the supply curve.\"}). Alone, it is a standalone narration line.",
+    },
     blocking: {
       type: "boolean",
       description: "With speak: false starts the narration and immediately continues to the next command — use it to talk while pointing, highlighting, or drawing.",
@@ -290,15 +294,23 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const VERBS = ["speak", "draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
-    const kinds = VERBS.filter((k) => (cmd as Command)[k] !== undefined);
-    if (kinds.length !== 1) {
-      errors.push(`commands[${i}] must set exactly one verb of ${VERBS.join("/")} (got: ${kinds.join(", ") || "none"})`);
+    const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
+    // One action verb per command; speak may stand alone OR accompany the
+    // action (voice and animation then start together and both must finish).
+    if (actions.length > 1) {
+      errors.push(`commands[${i}] must set at most one action verb of ${ACTION_VERBS.join("/")} (got: ${actions.join(", ")})`);
       continue;
     }
-    const verb = kinds[0];
-    if (cmd.blocking !== undefined && verb !== "speak") errors.push(`commands[${i}]: blocking only applies to speak`);
+    if (actions.length === 0 && cmd.speak === undefined) {
+      errors.push(`commands[${i}] must set a verb: speak, or one of ${ACTION_VERBS.join("/")}`);
+      continue;
+    }
+    const verb = actions[0] ?? "speak";
+    if (cmd.blocking !== undefined && (verb !== "speak" || cmd.speak === undefined)) {
+      errors.push(`commands[${i}]: blocking only applies to a standalone speak (a speak paired with an action always joins both)`);
+    }
     if (cmd.parallel !== undefined && verb !== "draw" && verb !== "erase") errors.push(`commands[${i}]: parallel only applies to draw/erase`);
     if (verb === "move" && !cmd.move!.by && !(cmd.move!.path && cmd.move!.path.length > 0)) {
       errors.push(`commands[${i}]: move needs by ([dx, dy]) or a non-empty path`);

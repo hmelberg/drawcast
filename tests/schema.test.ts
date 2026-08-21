@@ -25,10 +25,11 @@ describe("validateSpec", () => {
     expect(r.ok).toBe(true);
   });
 
-  test("rejects a command mixing speak and draw", () => {
-    const r = validateSpec({ commands: [{ speak: "hi", draw: ["axes"] }] });
+  test("speak paired with draw is a narrated action (valid); two actions are not", () => {
+    expect(validateSpec({ elements: [{ id: "axes", type: "axes" }], commands: [{ speak: "hi", draw: ["axes"] }] }).ok).toBe(true);
+    const r = validateSpec({ commands: [{ draw: ["axes"], pause: 1 }] });
     expect(r.ok).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/exactly one/i);
+    expect(r.errors.join(" ")).toMatch(/at most one action/i);
   });
 
   test("rejects a command with none of speak/draw/pause", () => {
@@ -108,10 +109,10 @@ describe("validateSpec — gesture verbs", () => {
     expect(r.ok).toBe(true);
   });
 
-  test("rejects two verbs on one command", () => {
+  test("rejects two action verbs on one command", () => {
     const r = validateSpec({ ...base, commands: [{ hide: ["a"], show: ["b"] }] });
     expect(r.ok).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/exactly one/i);
+    expect(r.errors.join(" ")).toMatch(/at most one action/i);
   });
 
   test("rejects blocking on a non-speak command", () => {
