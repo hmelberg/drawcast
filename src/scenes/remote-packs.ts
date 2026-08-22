@@ -67,6 +67,21 @@ export async function fetchRemotePackYaml(url: string): Promise<string> {
   return text;
 }
 
+export interface RegisterRemotePackResult {
+  ok: boolean;
+  id?: string;
+  errors: string[];
+  /**
+   * True only for a same-url replace whose fresh registration failed AND
+   * whose restore-of-the-previous-version ALSO failed (or had nothing
+   * cached to restore) — the pack id is now completely unregistered, not
+   * merely "still the old version". Absent/false in every other failure
+   * (including a successful restore) — the pack is still registered under
+   * some working version, just not the one just attempted.
+   */
+  unloaded?: boolean;
+}
+
 /**
  * Parse + register already-fetched pack YAML under the pack's OWN id (from
  * its header) — never a synthesized "remote:<url>" id. That keeps a remote
@@ -86,27 +101,45 @@ export async function fetchRemotePackYaml(url: string): Promise<string> {
  *
  * - id not currently owned → register normally (the common case).
  * - id owned, and a cache entry for this exact (id, url) pair already exists
- *   → this is a legitimate re-register (Refresh, or the Enabled checkbox
- *   flipped back on) of the SAME remote pack: unregister the stale
- *   templates first, then register fresh. This is a real REPLACE, not
- *   registerPack's no-op short-circuit — it's what actually fixes
- *   stale-content-on-refresh.
+ *   → this is a legitimate re-register (Refresh, the Enabled checkbox
+ *   flipped back on, or an ordinary re-Load/re-Add of the same URL) of the
+ *   SAME remote pack: unregister the stale templates first, then register
+ *   fresh. This is a real REPLACE, not registerPack's no-op short-circuit —
+ *   it's what actually fixes stale-content-on-refresh. The replace is
+ *   SELF-RESTORING: if the fresh registration fails, the previously-cached
+ *   yaml is re-registered so the pack is never left silently unregistered
+ *   just because a re-Load/re-Add happened to be reachable from a caller
+ *   (loadAndRegisterRemotePack, main.ts) that has no restore logic of its
+ *   own — only the Refresh handler was hardened with that before; this
+ *   makes the function itself safe for every caller.
  * - id owned by anything else (a different URL, or a built-in/bundled pack
  *   like "physics") → refuse outright, register nothing. `url` is threaded
  *   through purely to make this decision and to prefix error messages — it
  *   never affects the id used for registration.
  */
-export function registerRemotePackYaml(url: string, yaml: string): { ok: boolean; id?: string; errors: string[] } {
+export function registerRemotePackYaml(url: string, yaml: string): RegisterRemotePackResult {
   const { pack, errors } = parsePack(yaml);
   if (!pack) return { ok: false, errors: errors.map((e) => `${url}: ${e}`) };
 
   if (packTemplateIds(pack.id).length > 0) {
     const sameSource = loadRemotePacks().some((e) => e.id === pack.id && e.url === url);
-    if (sameSource) {
-      unregisterPack(pack.id); // drop the stale registration so registerPack below does a real replace, not a no-op
-    } else {
+    if (!sameSource) {
       return { ok: false, id: pack.id, errors: [`pack id "${pack.id}" is already in use — packs must have unique ids`] };
     }
+
+    // Same source replacing itself: grab the cached previous yaml BEFORE
+    // unregistering, so a failed fresh registration can be undone.
+    const prevYaml = loadRemotePacks().find((e) => e.url === url)?.yaml;
+    unregisterPack(pack.id);
+    const fresh = registerPack(pack.id, yaml);
+    if (fresh.ok) return { ok: true, id: pack.id, errors: [] };
+
+    const baseErrors = fresh.errors.map((e) => `${url}: ${e}`);
+    const restored = prevYaml !== undefined && registerPack(pack.id, prevYaml).ok;
+    if (restored) {
+      return { ok: false, id: pack.id, errors: [...baseErrors, "— the previous version was kept"] };
+    }
+    return { ok: false, id: pack.id, unloaded: true, errors: [...baseErrors, "— the pack is now unloaded; re-add it"] };
   }
 
   const r = registerPack(pack.id, yaml);

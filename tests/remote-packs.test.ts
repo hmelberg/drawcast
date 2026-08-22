@@ -174,6 +174,53 @@ describe("registerRemotePackYaml: pack-id collisions across sources (review fix 
     expect(scenes.ray_diagram.layout).toBeDefined();
     expect(scenes.fake_physics_widget).toBeUndefined();
   });
+
+  test("review fix round 2: a same-url replace whose fresh registration fails is SELF-RESTORING — ok:false, unloaded falsy, the previous version stays live and functional", () => {
+    saveRemotePack({ url: "https://example.com/demo.yaml", id: "demo_pack", yaml: REMOTE_YAML, ts: "1", enabled: true });
+    const first = registerRemotePackYaml("https://example.com/demo.yaml", REMOTE_YAML);
+    expect(first.ok).toBe(true);
+    expect(scenes.remote_widget_a.layout).toBeDefined();
+    expect(scenes.remote_widget_b.layout).toBeDefined();
+    const beforeSupplyDemand = scenes.supply_demand;
+
+    // A same-url "refresh" attempt whose new content collides with an
+    // already-registered (built-in) template id — registerPack must fail,
+    // and reachable via the ordinary loadAndRegisterRemotePack path (no
+    // caller-side restore logic there, unlike main.ts's Refresh handler).
+    const badYaml = REMOTE_YAML.replace("template: remote_widget_b", "template: supply_demand");
+    const second = registerRemotePackYaml("https://example.com/demo.yaml", badYaml);
+
+    expect(second.ok).toBe(false);
+    expect(second.unloaded).toBeFalsy();
+    expect(second.errors.join(" ")).toMatch(/previous version was kept/);
+    // The restore worked: both original templates are back, and the
+    // built-in supply_demand this attempt tried to steal was never actually
+    // clobbered (registerPack's own per-pack rollback already guaranteed
+    // that mid-attempt; this asserts the OUTER self-restore too).
+    expect(scenes.remote_widget_a.layout).toBeDefined();
+    expect(scenes.remote_widget_b.layout).toBeDefined();
+    expect(scenes.supply_demand).toBe(beforeSupplyDemand);
+  });
+
+  test("review fix round 2: a same-url replace whose fresh registration AND restore BOTH fail reports unloaded:true and registers nothing", () => {
+    // Simulate a cache that has drifted from what's actually live (e.g.
+    // edited/corrupted out of band) so the restore attempt can genuinely
+    // fail too, not just the fresh one.
+    const live = registerPack("demo_pack", REMOTE_YAML);
+    expect(live.ok).toBe(true);
+    const brokenCachedYaml = "pack: demo_pack\ntitle: Demo Pack\ndescription: header only, no templates\n";
+    saveRemotePack({ url: "https://example.com/demo.yaml", id: "demo_pack", yaml: brokenCachedYaml, ts: "1", enabled: true });
+
+    const badYaml = REMOTE_YAML.replace("template: remote_widget_b", "template: supply_demand");
+    const r = registerRemotePackYaml("https://example.com/demo.yaml", badYaml);
+
+    expect(r.ok).toBe(false);
+    expect(r.unloaded).toBe(true);
+    expect(r.errors.join(" ")).toMatch(/unloaded; re-add it/);
+    expect(scenes.remote_widget_a).toBeUndefined();
+    expect(scenes.remote_widget_b).toBeUndefined();
+    expect(isPackTemplateId("remote_widget_a")).toBe(false);
+  });
 });
 
 describe("isOfficialPackUrl / OFFICIAL_PACK_URL_PREFIX (origin pinning, review fix round 1)", () => {

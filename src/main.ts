@@ -1421,11 +1421,26 @@ async function loadAndRegisterRemotePack(url: string): Promise<void> {
     yaml = await fetchRemotePackYaml(url);
   } catch (err) {
     setStatus(`Pack fetch failed: ${(err as Error).message}`, "error");
+    // The panel/picker can't have gone stale here (nothing was touched before
+    // the fetch failed) but refreshing anyway keeps every failure branch
+    // uniform — review fix round 2.
+    refreshTemplatePicker();
+    refreshRemotePacksPanel();
     return;
   }
   const r = registerRemotePackYaml(url, yaml);
   if (!r.ok) {
+    if (r.unloaded) {
+      // A same-url replace attempt (re-Load/re-Add) whose self-restore also
+      // failed: the pack is now genuinely unregistered even though this
+      // entry's cache still says enabled. Never let the cache lie about
+      // that — flip it off and persist (review fix round 2).
+      const cached = loadRemotePacks().find((e) => e.url === url);
+      if (cached) saveRemotePack({ ...cached, enabled: false });
+    }
     setStatus(`Pack failed to load: ${r.errors.join("; ")}`, "error");
+    refreshTemplatePicker();
+    refreshRemotePacksPanel();
     return;
   }
   saveRemotePack({ url, id: r.id!, yaml, ts: new Date().toISOString(), enabled: true });
