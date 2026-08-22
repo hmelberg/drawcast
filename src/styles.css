@@ -691,3 +691,23 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   max-width: 90%;
 }
 .player-figure:fullscreen .cs-title { font-size: 1.7rem; }
+
+/* ---------- template authoring (M2) ---------- */
+
+.author-dialog { width: min(880px, 92vw); }
+.author-dialog textarea { width: 100%; min-height: 64px; }
+.author-drop { border: 2px dashed var(--line); border-radius: 8px; padding: 10px 14px; font-size: 0.9em; color: var(--muted); }
+.author-thumb { max-height: 120px; max-width: 220px; border-radius: 6px; }
+.author-preview { min-height: 280px; }
+
+/* My templates panel: same row shape as .library-item, plus a non-interactive title
+   (the Library panel's title doubles as its "open" button; My templates needs three
+   separate actions — Improve/Export/Delete — so the title is a plain label instead). */
+.library-title {
+  flex: 1;
+  font-size: 0.92rem;
+  color: var(--steel);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

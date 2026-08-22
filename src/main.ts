@@ -10,6 +10,8 @@ import { buildPartRequest } from "./llm/outline";
 import { missingPlaceholders } from "./llm/prompt";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
 import { MODELS, describeApiError } from "./llm/client";
+import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
+import { isUserTemplateId, registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -34,6 +36,7 @@ import {
   buildImprovementPacket,
   clearLogs,
   deleteDrawing,
+  deleteMyTemplate,
   downloadJson,
   downloadBlob,
   downloadText,
@@ -44,10 +47,12 @@ import {
   loadExemplars,
   loadLibrary,
   loadLogs,
+  loadMyTemplates,
   loadSettings,
   loadUserPrompts,
   migrateLegacyCustomPrompt,
   saveDrawing,
+  saveMyTemplate,
   saveSettings,
   saveUserPrompt,
   setApiKey,
@@ -77,6 +82,11 @@ interface Doc {
 let doc: Doc = initialDoc();
 let session: SessionHandle | null = null;
 let lastLogId: string | null = null;
+
+// Personal templates must be in the registry before anything renders.
+for (const r of registerMyTemplatesAtStartup()) {
+  if (!r.ok) console.warn(`My template "${r.id}" failed to load:`, r.errors.join("; "));
+}
 
 /** First item's spec — the poster, the exemplar target, single-figure back-compat. */
 function firstSpec(d: Doc): Spec {
@@ -284,7 +294,17 @@ const exportVideoBtn = h(
   { class: "small", title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
   "Export video",
 );
+// openAuthorDialog is defined later (template-authoring section, ./llm/author) —
+// a hoisted function declaration, so this early reference is safe.
+const newTemplateBtn = h("button", { title: "Create a reusable template with AI (describe it, optionally paste an image)" }, "✦ New template");
+newTemplateBtn.addEventListener("click", () => openAuthorDialog());
 const libraryList = h("div", { class: "library-list" });
+// My templates panel: the list host + import controls are created here so they
+// can be placed in editorWrap below; refreshMyTemplates() itself lives with the
+// rest of the wiring further down (same split as libraryList/refreshLibrary).
+const myTemplatesList = h("div", { class: "library-list" });
+const myTplImportBtn = h("button", { class: "small" }, "Import template…");
+const myTplImportInput = h("input", { type: "file", accept: ".yaml,.yml", hidden: "" });
 
 // Prompt library: named compiler-prompt variants (Loop 2's UI).
 // The active prompt is what Generate uses; bundled prompts are read-only,
@@ -399,6 +419,7 @@ const editorWrap = h(
       importBtn,
       importInput,
       exportVideoBtn,
+      newTemplateBtn,
       h("span", { class: "toolbar-sep" }),
       h("label", { class: "toolbar-label" }, "Style ", styleSel),
     ),
@@ -417,6 +438,13 @@ const editorWrap = h(
     ),
   ),
   h("details", { class: "panel editor-extra" }, h("summary", {}, "Library"), libraryList),
+  h(
+    "details",
+    { class: "panel editor-extra" },
+    h("summary", {}, "My templates"),
+    h("div", { class: "row" }, myTplImportBtn, myTplImportInput),
+    myTemplatesList,
+  ),
   h(
     "details",
     { class: "panel editor-extra" },
@@ -497,6 +525,187 @@ function populateVoices(): void {
 }
 populateVoices();
 speech.onVoicesChanged(populateVoices);
+
+// ---------- template authoring (M2) ----------
+
+const authorDescEl = h("textarea", { placeholder: 'Describe the reusable figure… e.g. "A titration setup: burette, flask, stand — with adjustable labels"' });
+const authorImgThumb = h("img", { class: "author-thumb", hidden: "", alt: "Reference image" });
+const authorImgClear = h("button", { class: "small", hidden: "" }, "Remove image");
+const authorDrop = h("div", { class: "author-drop" }, "Paste or drop a reference image here (optional) — or ", h("button", { class: "small author-pick" }, "choose a file"));
+const authorImgInput = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", hidden: "" });
+const authorGenBtn = h("button", { class: "primary" }, "Generate template");
+const authorStatus = h("div", { class: "hint" });
+const authorPreviewHost = h("div", { class: "player-figure author-preview" });
+const authorRefineEl = h("textarea", { placeholder: "Refine it… e.g. \"make the flask bigger and add an indicator-color param\"", hidden: "" });
+const authorRefineBtn = h("button", { hidden: "" }, "Refine");
+const authorSaveBtn = h("button", { class: "primary", hidden: "" }, "Save to My templates");
+const authorCloseBtn = h("button", {}, "Close");
+
+const authorDialog = h(
+  "dialog",
+  { class: "author-dialog" },
+  h("h2", {}, "New template"),
+  authorDescEl,
+  h("div", { class: "row" }, authorDrop, authorImgInput, authorImgThumb, authorImgClear),
+  h("div", { class: "row" }, authorGenBtn, authorCloseBtn),
+  authorStatus,
+  authorPreviewHost,
+  h("div", { class: "row" }, authorRefineEl, authorRefineBtn, authorSaveBtn),
+);
+app.appendChild(authorDialog);
+
+let authorImage: AuthorImage | null = null;
+let authorOutcome: AuthorOutcome | null = null;
+let authorImproveId: string | null = null;
+let authorMount: { destroy(): void } | null = null;
+
+function setAuthorImage(img: AuthorImage | null): void {
+  authorImage = img;
+  authorImgThumb.hidden = !img;
+  authorImgClear.hidden = !img;
+  authorDrop.hidden = !!img;
+  if (img) authorImgThumb.src = `data:${img.mediaType};base64,${img.dataBase64}`;
+  else authorImgThumb.removeAttribute("src");
+}
+
+function readImageFile(file: File): Promise<AuthorImage | null> {
+  const ok = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+  if (!ok.includes(file.type)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const url = String(r.result);
+      const comma = url.indexOf(",");
+      resolve({ mediaType: file.type as AuthorImage["mediaType"], dataBase64: url.slice(comma + 1) });
+    };
+    r.onerror = () => resolve(null);
+    r.readAsDataURL(file);
+  });
+}
+
+authorDialog.addEventListener("paste", (e) => {
+  const file = [...(e.clipboardData?.files ?? [])][0];
+  if (file) void readImageFile(file).then(setAuthorImage);
+});
+authorDrop.addEventListener("dragover", (e) => e.preventDefault());
+authorDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (file) void readImageFile(file).then(setAuthorImage);
+});
+authorDrop.querySelector(".author-pick")!.addEventListener("click", () => authorImgInput.click());
+authorImgInput.addEventListener("change", () => {
+  const file = authorImgInput.files?.[0];
+  if (file) void readImageFile(file).then(setAuthorImage);
+});
+authorImgClear.addEventListener("click", () => setAuthorImage(null));
+
+async function renderAuthorPreview(): Promise<void> {
+  authorMount?.destroy();
+  authorMount = null;
+  authorPreviewHost.replaceChildren();
+  const outcomeDoc = authorOutcome?.doc;
+  if (!outcomeDoc || !authorOutcome?.yaml) return;
+  // Preview through the real pipeline: temporarily registered under its id.
+  const reg = registerUserTemplateYaml(authorOutcome.yaml);
+  if (!reg.ok) {
+    authorStatus.textContent = `Preview failed: ${reg.errors.join("; ")}`;
+    return;
+  }
+  const spec = { title: outcomeDoc.title ?? outcomeDoc.template, template: outcomeDoc.template, params: outcomeDoc.examples[0]?.params ?? {} } as unknown as Spec;
+  try {
+    authorMount = await mountPlaylist(authorPreviewHost, singlePlaylist(spec), {
+      style: settings.style,
+      mode: "instant",
+      speed: settings.speed,
+      speech,
+      prefs: playbackPrefs(),
+    });
+  } catch (err) {
+    authorStatus.textContent = `Preview render failed: ${(err as Error).message}`;
+  }
+}
+
+async function runAuthor(description: string, refine: boolean): Promise<void> {
+  const apiKey = requireKey();
+  if (!apiKey) return;
+  if (!description.trim()) return;
+  authorGenBtn.disabled = authorRefineBtn.disabled = true;
+  authorStatus.textContent = "Generating template…";
+  try {
+    const existing = authorImproveId && !refine ? loadMyTemplates().find((t) => t.id === authorImproveId)?.yaml : undefined;
+    authorOutcome = await generateTemplate(description, refine ? null : authorImage, {
+      apiKey,
+      model: modelSel.value,
+      existingYaml: existing,
+      history: refine ? (authorOutcome?.history ?? undefined) : undefined,
+    });
+    const n = authorOutcome.rounds.length;
+    if (authorOutcome.error) {
+      authorStatus.textContent = `${authorOutcome.error} (${n} round${n === 1 ? "" : "s"})`;
+    } else {
+      authorStatus.textContent = `Template "${authorOutcome.doc!.template}" ready after ${n} round${n === 1 ? "" : "s"} — check the preview, refine, or save.`;
+      authorRefineEl.hidden = authorRefineBtn.hidden = authorSaveBtn.hidden = false;
+      await renderAuthorPreview();
+    }
+  } catch (err) {
+    authorStatus.textContent = describeApiError(err);
+  } finally {
+    authorGenBtn.disabled = authorRefineBtn.disabled = false;
+  }
+}
+
+authorGenBtn.addEventListener("click", () => void runAuthor(authorDescEl.value, false));
+authorRefineBtn.addEventListener("click", () => {
+  const t = authorRefineEl.value.trim();
+  if (t) {
+    authorRefineEl.value = "";
+    void runAuthor(t, true);
+  }
+});
+
+authorSaveBtn.addEventListener("click", () => {
+  if (!authorOutcome?.yaml || !authorOutcome.doc) return;
+  const id = authorOutcome.doc.template;
+  const reg = registerUserTemplateYaml(authorOutcome.yaml);
+  if (!reg.ok) {
+    authorStatus.textContent = `Save failed: ${reg.errors.join("; ")}`;
+    return;
+  }
+  saveMyTemplate({ id, yaml: authorOutcome.yaml, ts: new Date().toISOString() });
+  refreshMyTemplates();
+  authorStatus.textContent = `Saved. "${id}" is now in the catalog — try: use the ${id} template.`;
+});
+
+function openAuthorDialog(improve?: { id: string }): void {
+  authorImproveId = improve?.id ?? null;
+  authorOutcome = null;
+  setAuthorImage(null);
+  authorDescEl.value = "";
+  authorStatus.textContent = authorImproveId ? `Improving "${authorImproveId}" — describe what to change.` : "";
+  authorRefineEl.hidden = authorRefineBtn.hidden = authorSaveBtn.hidden = true;
+  authorMount?.destroy();
+  authorMount = null;
+  authorPreviewHost.replaceChildren();
+  (authorDialog.querySelector("h2") as HTMLElement).textContent = authorImproveId ? `Improve template: ${authorImproveId}` : "New template";
+  authorDialog.showModal();
+}
+
+authorCloseBtn.addEventListener("click", () => {
+  authorMount?.destroy();
+  authorMount = null;
+  // The preview registered the draft for real (the preview player re-renders on
+  // replay, so a temporary registration cannot be restored early). Clean up:
+  // a draft that was never saved leaves the registry; an improved template
+  // reverts to its stored version.
+  const draftId = authorOutcome?.doc?.template;
+  if (draftId && isUserTemplateId(draftId)) {
+    const stored = loadMyTemplates().find((t) => t.id === draftId);
+    if (!stored) unregisterUserTemplate(draftId);
+    else registerUserTemplateYaml(stored.yaml);
+  }
+  authorDialog.close();
+});
 
 // ---------- rendering the current document ----------
 
@@ -868,6 +1077,53 @@ saveBtn.addEventListener("click", () => {
   refreshLibrary();
   setStatus(`Saved "${title}" to the library (this browser).`, "ok");
 });
+
+// ---------- my templates ----------
+
+myTplImportBtn.addEventListener("click", () => myTplImportInput.click());
+myTplImportInput.addEventListener("change", () => {
+  const file = myTplImportInput.files?.[0];
+  if (!file) return;
+  void file.text().then((yaml) => {
+    const r = registerUserTemplateYaml(yaml);
+    if (!r.ok) {
+      setStatus(`Template import failed: ${r.errors.join("; ")}`, "error");
+      return;
+    }
+    saveMyTemplate({ id: r.id!, yaml, ts: new Date().toISOString() });
+    refreshMyTemplates();
+    setStatus(`Imported template "${r.id}".`, "ok");
+  });
+  myTplImportInput.value = "";
+});
+
+function refreshMyTemplates(): void {
+  myTemplatesList.replaceChildren();
+  const all = loadMyTemplates();
+  if (all.length === 0) {
+    myTemplatesList.appendChild(h("div", { class: "hint" }, "No templates yet — create one with ✦ New template."));
+    return;
+  }
+  for (const t of all) {
+    const improveBtn = h("button", { class: "small" }, "Improve");
+    improveBtn.addEventListener("click", () => openAuthorDialog({ id: t.id }));
+    const exportBtn2 = h("button", { class: "small", title: "Download this template's YAML" }, "Export");
+    exportBtn2.addEventListener("click", () => {
+      const blob = new Blob([t.yaml], { type: "text/yaml" });
+      const a = h("a", { href: URL.createObjectURL(blob), download: `${t.id}.yaml` });
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    const delBtn2 = h("button", { class: "small" }, "Delete");
+    delBtn2.addEventListener("click", () => {
+      deleteMyTemplate(t.id);
+      unregisterUserTemplate(t.id);
+      refreshMyTemplates();
+    });
+    myTemplatesList.appendChild(h("div", { class: "library-item" }, h("span", { class: "library-title" }, t.id), improveBtn, exportBtn2, delBtn2));
+  }
+}
+refreshMyTemplates();
 
 exportBtn.addEventListener("click", () => {
   const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
