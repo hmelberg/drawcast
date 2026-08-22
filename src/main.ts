@@ -13,6 +13,7 @@ import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
+import { looksLikeAnthropicKey, redeemPassword } from "./keys";
 import {
   fetchOfficialIndex,
   fetchRemotePackYaml,
@@ -1916,7 +1917,30 @@ async function improveActivePrompt(): Promise<void> {
 
 // ---------- settings + misc wiring ----------
 
-keyInput.addEventListener("change", () => setApiKey(keyInput.value.trim()));
+keyInput.addEventListener("change", () => void handleKeyEntry(keyInput.value.trim()));
+
+/**
+ * The key field also accepts the shared password (deliberately unadvertised).
+ * Anything that doesn't look like an Anthropic key is TRIED against the
+ * vending endpoint — the server decides; on failure the text is stored
+ * as-entered, exactly like before. On success BOTH keys are filled at once.
+ */
+async function handleKeyEntry(text: string): Promise<void> {
+  if (text && !looksLikeAnthropicKey(text)) {
+    const vended = await redeemPassword(text);
+    if (vended) {
+      setApiKey(vended.anthropicKey);
+      keyInput.value = vended.anthropicKey;
+      if (vended.googleKey) {
+        setTtsKey(vended.googleKey);
+        ttsKeyInput.value = vended.googleKey;
+      }
+      setStatus("Keys unlocked.", "ok");
+      return;
+    }
+  }
+  setApiKey(text);
+}
 clearKeyBtn.addEventListener("click", () => {
   setApiKey("");
   keyInput.value = "";
