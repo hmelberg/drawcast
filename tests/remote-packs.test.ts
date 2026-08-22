@@ -221,6 +221,33 @@ describe("registerRemotePackYaml: pack-id collisions across sources (review fix 
     expect(scenes.remote_widget_b).toBeUndefined();
     expect(isPackTemplateId("remote_widget_a")).toBe(false);
   });
+
+  test("review fix round 3: a DISABLED cached entry never counts as sameSource — re-enabling it must not evict an unrelated owner of the same id", () => {
+    // Cache a demo_pack entry but leave it DISABLED — i.e. NOT actually
+    // registered right now.
+    saveRemotePack({ url: "https://example.com/demo.yaml", id: "demo_pack", yaml: REMOTE_YAML, ts: "1", enabled: false });
+
+    // Something UNRELATED claims the "demo_pack" id in the meantime — a
+    // different registration entirely (simulating a built-in, or another
+    // remote pack), registered through a route that never touches this
+    // cached entry.
+    const otherOwnerYaml = REMOTE_YAML.replace(/remote_widget_a/g, "other_widget_a").replace(/remote_widget_b/g, "other_widget_b");
+    const other = registerPack("demo_pack", otherOwnerYaml);
+    expect(other.ok).toBe(true);
+
+    // Re-enabling/re-adding the disabled cached entry must NOT be treated
+    // as "replacing itself" just because {id, url} matches — it must
+    // refuse, protecting the unrelated owner's live templates.
+    const r = registerRemotePackYaml("https://example.com/demo.yaml", REMOTE_YAML);
+
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(" ")).toMatch(/already in use/);
+    // The OTHER (unrelated) pack's templates are untouched and still functional.
+    expect(scenes.other_widget_a.layout).toBeDefined();
+    expect(scenes.other_widget_b.layout).toBeDefined();
+    // The disabled entry's own content was never registered.
+    expect(scenes.remote_widget_a).toBeUndefined();
+  });
 });
 
 describe("isOfficialPackUrl / OFFICIAL_PACK_URL_PREFIX (origin pinning, review fix round 1)", () => {

@@ -100,29 +100,37 @@ export interface RegisterRemotePackResult {
  * templates out from under it. So this function pre-checks ownership itself:
  *
  * - id not currently owned → register normally (the common case).
- * - id owned, and a cache entry for this exact (id, url) pair already exists
- *   → this is a legitimate re-register (Refresh, the Enabled checkbox
- *   flipped back on, or an ordinary re-Load/re-Add of the same URL) of the
- *   SAME remote pack: unregister the stale templates first, then register
- *   fresh. This is a real REPLACE, not registerPack's no-op short-circuit —
- *   it's what actually fixes stale-content-on-refresh. The replace is
- *   SELF-RESTORING: if the fresh registration fails, the previously-cached
- *   yaml is re-registered so the pack is never left silently unregistered
- *   just because a re-Load/re-Add happened to be reachable from a caller
- *   (loadAndRegisterRemotePack, main.ts) that has no restore logic of its
- *   own — only the Refresh handler was hardened with that before; this
- *   makes the function itself safe for every caller.
- * - id owned by anything else (a different URL, or a built-in/bundled pack
- *   like "physics") → refuse outright, register nothing. `url` is threaded
- *   through purely to make this decision and to prefix error messages — it
- *   never affects the id used for registration.
+ * - id owned, and an ENABLED cache entry for this exact (id, url) pair
+ *   already exists → this is a legitimate re-register (Refresh, the Enabled
+ *   checkbox flipped back on, or an ordinary re-Load/re-Add of the same
+ *   URL) of the SAME remote pack: unregister the stale templates first,
+ *   then register fresh. This is a real REPLACE, not registerPack's no-op
+ *   short-circuit — it's what actually fixes stale-content-on-refresh. The
+ *   replace is SELF-RESTORING: if the fresh registration fails, the
+ *   previously-cached yaml is re-registered so the pack is never left
+ *   silently unregistered just because a re-Load/re-Add happened to be
+ *   reachable from a caller (loadAndRegisterRemotePack, main.ts) that has
+ *   no restore logic of its own — only the Refresh handler was hardened
+ *   with that before; this makes the function itself safe for every
+ *   caller. The ENABLED requirement matters: a DISABLED cached entry is,
+ *   by definition, not what's actually registered — if some UNRELATED
+ *   registration (a built-in pack, or another remote pack) later claimed
+ *   this same id while the entry sat disabled, matching on {id, url} alone
+ *   would be a false positive, and unregisterPack here would evict that
+ *   unrelated owner's templates instead of this entry's own (review fix
+ *   round 3).
+ * - id owned by anything else (a different URL, a built-in/bundled pack
+ *   like "physics", or a matching {id, url} whose cached entry is
+ *   currently DISABLED) → refuse outright, register nothing. `url` is
+ *   threaded through purely to make this decision and to prefix error
+ *   messages — it never affects the id used for registration.
  */
 export function registerRemotePackYaml(url: string, yaml: string): RegisterRemotePackResult {
   const { pack, errors } = parsePack(yaml);
   if (!pack) return { ok: false, errors: errors.map((e) => `${url}: ${e}`) };
 
   if (packTemplateIds(pack.id).length > 0) {
-    const sameSource = loadRemotePacks().some((e) => e.id === pack.id && e.url === url);
+    const sameSource = loadRemotePacks().some((e) => e.id === pack.id && e.url === url && e.enabled);
     if (!sameSource) {
       return { ok: false, id: pack.id, errors: [`pack id "${pack.id}" is already in use — packs must have unique ids`] };
     }
