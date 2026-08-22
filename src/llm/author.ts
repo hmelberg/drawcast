@@ -15,6 +15,7 @@ import { isUserTemplateId } from "../scenes/my-templates";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintReportText, type LintIssue } from "../lint/lint";
+import { makeBrowserMeasure } from "../render/svg-backend";
 import kitSource from "../scenes/kit.ts?raw";
 import exemplarYaml from "../scenes/cell_diagram/template.yaml?raw";
 import authorPromptSource from "./prompts/author-v1.md?raw";
@@ -159,6 +160,7 @@ function needsAuthorRepair(errors: string[], lintIssues: LintIssue[]): boolean {
 export async function generateTemplate(description: string, image: AuthorImage | null, cfg: AuthorConfig): Promise<AuthorOutcome> {
   const client = makeClient(cfg.apiKey);
   const system = buildAuthorSystem();
+  const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
   const messages: Anthropic.MessageParam[] = [
     ...(cfg.history ?? []),
@@ -172,7 +174,7 @@ export async function generateTemplate(description: string, image: AuthorImage |
     while (true) {
       const roundModel = rounds.length === 0 ? cfg.model : repairModelFor(cfg.model);
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object);
-      const { doc, errors, lintIssues } = processAuthorDoc(json);
+      const { doc, errors, lintIssues } = processAuthorDoc(json, measure);
       rounds.push({ label: rounds.length === 0 ? "initial" : "repair", doc: json, errors, lintIssues, meta });
 
       if (doc && errors.length === 0) {
