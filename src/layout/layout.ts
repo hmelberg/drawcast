@@ -28,6 +28,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   const labelRequests: LabelRequest[] = [];
   const order: string[] = [];
   let seedAnchors: Record<string, Pt> = {};
+  let seedCurveSamples: Record<string, Pt[]> = {};
 
   if (spec.template) {
     const scene = scenes[spec.template];
@@ -42,6 +43,14 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
         labelRequests.push(...sceneLayout.labels);
         order.push(...sceneLayout.order);
         seedAnchors = sceneLayout.anchors;
+        // Scene curves arrive in logical coordinates; tier-2 thinks in the
+        // spec's domain (default 0–100), so map them back before seeding.
+        if (sceneLayout.curveSamples) {
+          const inv = inverseDomainMapping(spec.domain);
+          seedCurveSamples = Object.fromEntries(
+            Object.entries(sceneLayout.curveSamples).map(([id, pts]) => [id, pts.map(inv)]),
+          );
+        }
       } catch (err) {
         warnings.push(`template "${spec.template}" layout failed (${(err as Error).message}) — falling through to tier-2 elements`);
       }
@@ -49,7 +58,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   }
 
   if (spec.elements && spec.elements.length > 0) {
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors);
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples);
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
@@ -147,6 +156,16 @@ export function domainMapping(domain: Spec["domain"]): { toLogical: (p: Pt) => P
     toLogical: ([x, y]) => [sx(x), sy(y)],
     deltaToLogical: ([a, b]) => [a * fx, b * fy],
   };
+}
+
+/** Logical → spec-domain mapping (inverse of tier-2's scales; default domain 0–100). */
+function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
+  const plot = plotArea();
+  const dx = domain?.x ?? [0, 100];
+  const dy = domain?.y ?? [0, 100];
+  const ix = linearScale([plot.x0, plot.x1], dx);
+  const iy = linearScale([plot.y0, plot.y1], dy);
+  return ([x, y]) => [ix(x), iy(y)];
 }
 
 function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): BBox[] {

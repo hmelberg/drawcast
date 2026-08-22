@@ -48,6 +48,8 @@ export function layoutElements(
   elements: SpecElement[],
   domain: { x?: [number, number]; y?: [number, number] } | undefined,
   seedAnchors: Record<string, Pt> = {},
+  /** Scene curves (in the spec's domain space): valid region/intersection references. */
+  seedCurveSamples: Record<string, Pt[]> = {},
 ): Tier2Result {
   const plot = plotArea();
   const domainX: [number, number] = domain?.x ?? [0, 100];
@@ -58,7 +60,7 @@ export function layoutElements(
     domainX,
     domainY,
     domainDeclared: domain !== undefined,
-    curveSamples: new Map(),
+    curveSamples: new Map(Object.entries(seedCurveSamples)),
     nodeRadius: new Map(),
     anchors: { ...seedAnchors },
     warnings: [],

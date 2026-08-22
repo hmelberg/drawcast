@@ -8,6 +8,11 @@ export interface SceneLayout {
   anchors: Record<string, Pt>;
   /** Natural draw order for elements not mentioned in any command. */
   order: string[];
+  /**
+   * Curve polylines in LOGICAL coordinates, keyed by element id. Seeds tier-2
+   * so spec-level region/intersection elements can reference scene curves.
+   */
+  curveSamples?: Record<string, Pt[]>;
 }
 
 /** Scene manifest — data, improvable by Loop 2 without touching code. */

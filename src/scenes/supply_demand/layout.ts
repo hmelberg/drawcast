@@ -60,6 +60,12 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   const labels: LabelRequest[] = [];
   const anchors: Record<string, Pt> = {};
   const order: string[] = [];
+  // Logical polylines for every curve-like stroke, so spec-level regions and
+  // intersections can reference scene curves (seeded into tier-2).
+  const curveSamples: Record<string, Pt[]> = {};
+  const recordCurve = (id: string, domainPts: Pt[]) => {
+    curveSamples[id] = ctx.toLogical(domainPts);
+  };
 
   const push = (d: Drawable) => {
     drawables.push(d);
@@ -86,12 +92,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   const supplyPts = params.supply === null ? null : shapedCurve("increasing", params.supply ?? {});
 
   push(curve("demand_curve", demandPts, COLORS.demand, ctx));
+  recordCurve("demand_curve", demandPts);
   anchors["demand_curve"] = ctx.toLogical([demandPts[demandPts.length - 1]])[0];
   label("label_D", anchors["demand_curve"], "right", params.demand?.label ?? "D", COLORS.demand);
 
   let eq: Pt | null = null;
   if (supplyPts) {
     push(curve("supply_curve", supplyPts, COLORS.supply, ctx));
+    recordCurve("supply_curve", supplyPts);
     anchors["supply_curve"] = ctx.toLogical([supplyPts[supplyPts.length - 1]])[0];
     label("label_S", anchors["supply_curve"], "right", params.supply?.label ?? "S", COLORS.supply);
 
@@ -119,6 +127,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     // drop (not clamp) points shifted past the plot edge, so the curve keeps its slope
     const shifted = base.map(([x, y]): Pt => [x + dx, y]).filter(([x]) => x >= D0 - 1 && x <= D1 + 3);
     push(curve(`${kind}_shift_curve`, shifted, COLORS.shifted, ctx));
+    recordCurve(`${kind}_shift_curve`, shifted);
     const endL = ctx.toLogical([shifted[shifted.length - 1]])[0];
     anchors[`${kind}_shift_curve`] = endL;
     label(`label_${kind === "demand" ? "D" : "S"}_shift`, endL, "right", shift.label ?? (kind === "demand" ? "D′" : "S′"), COLORS.shifted);
@@ -141,6 +150,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     // drop (not clamp) points shifted past the top of the plot, keeping the slope
     const taxed = supplyPts.map(([x, y]): Pt => [x, y + taxAmount]).filter(([, y]) => y <= 98);
     push({ ...curve("tax_supply_curve", taxed, COLORS.supply, ctx), style: defaultStyle({ color: COLORS.supply, strokeWidth: 4.5, dash: true }) });
+    recordCurve("tax_supply_curve", taxed);
     const taxedEndL = ctx.toLogical([taxed[taxed.length - 1]])[0];
     anchors["tax_supply_curve"] = taxedEndL;
     label("label_S_tax", taxedEndL, "above-left", params.tax.label ?? "S + tax", COLORS.supply);
@@ -206,7 +216,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, curveSamples };
 
   function addPriceLine(kind: "ceiling" | "floor", p: number, text: string) {
     const pts = ctx.toLogical([
@@ -222,6 +232,10 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.priceLine),
     });
     anchors[`${kind}_line`] = pts[1];
+    recordCurve(`${kind}_line`, [
+      [D0, p],
+      [D1, p],
+    ]);
     label(`label_${kind}`, pts[1], "above-left", text, COLORS.accent);
   }
 

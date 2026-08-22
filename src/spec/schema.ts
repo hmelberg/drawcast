@@ -78,7 +78,7 @@ const elementSchema = {
       properties: {
         x: { type: "number" },
         y: { type: "number" },
-        intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids; the point is their intersection." },
+        intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
       },
       additionalProperties: false,
     },
@@ -96,7 +96,12 @@ const elementSchema = {
       description: "label: preferred side relative to the attached element. The collision solver may move it.",
     },
     // region
-    between: { type: "array", items: { type: "string" }, description: "region: two curve ids; the region is shaded between them (use x_from/x_to to limit)." },
+    between: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "region: two curve ids — your own curves OR a scene template's (e.g. demand_curve/supply_curve/ceiling_line in supply_demand, curve_<id> in qaly_profiles); the region is shaded between them (use x_from/x_to to limit; 0–100 axis units when no domain is declared).",
+    },
     // annotation
     target: { type: "string", description: "annotation: id of the element to mark (declare the annotation AFTER its target)." },
     kind: {

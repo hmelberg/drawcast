@@ -172,6 +172,8 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
   const sy = linearScale([0, 1.06], [plot.y0, plot.y1]); // headroom above u=1
 
   const drawables: Drawable[] = [];
+  /** Logical polylines per curve id — seeds tier-2 region/intersection references. */
+  const curveSamples: Record<string, Pt[]> = {};
   const labels: LabelRequest[] = [];
   const anchors: Record<string, Pt> = {};
   const order: string[] = [];
@@ -246,6 +248,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       style: defaultStyle({ color: p.color, strokeWidth: 4.5 }),
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.curve),
     });
+    curveSamples[`curve_${p.id}`] = pts;
     // Anchor the label at the last level stretch before the death drop.
     const anchorPt = pts[Math.max(0, pts.length - 3)];
     anchors[`curve_${p.id}`] = anchorPt;
@@ -322,5 +325,5 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, curveSamples };
 }
