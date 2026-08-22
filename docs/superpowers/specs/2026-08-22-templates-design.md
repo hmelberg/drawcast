@@ -121,11 +121,36 @@ lattices/unit cells, parametric helices — plus a **wireframe mode with dashed 
 edges** for polyhedra (cube/prism/pyramid — the geometry-textbook convention; a
 back-face test marks hidden edges, needing no depth sorting at all; idea prompted by
 TomasHubelbauer/svg-3d, which is otherwise behind this design — wireframe-only, no
-occlusion). OUT of scope (unreliable under painter's
-sorting, or SVG-bloat): intersecting surfaces, 3D ribbons/cartoons, large structures.
+occlusion) — and a **protein backbone Cα trace** for small/medium structures: a
+smoothed 3D polyline, per-segment depth sorted, colored by HELIX/SHEET records.
+OUT of scope (unreliable under painter's
+sorting, or SVG-bloat): intersecting surfaces, filled 3D ribbons/cartoons, large
+structures (hemoglobin-scale and up).
+
+**3D standards as parameters** (same principle as SMILES/Newick in 2D): a 3D template's
+input is a standard format, never coordinates invented by the LLM —
+- `pdb_id` → PDB text from RCSB (`files.rcsb.org/download/<id>.pdb` — fixed-column
+  text, HELIX/SHEET records included; CORS `*` verified 2026-08-22; 1CRN = 327 atoms,
+  46 Cα points — comfortably SVG-scale);
+- `compound` name → 3D SDF from PubChem PUG REST
+  (`.../compound/name/<name>/SDF?record_type=3d`; CORS `*` verified 2026-08-22) for
+  ball-and-stick of real small molecules;
+- XYZ (trivial atom-list text) and CIF (crystal unit cells) as later parsers.
+Parsers live in the kit (all are simple text formats); no engine needed for 3D.
+
+**Rotation**: camera {azimuth, elevation} are template params, so v1 rotation =
+discrete viewpoints — a playlist step (or Re-render) redraws the same structure from
+another angle, narrated ("now from the side…"), with zero new player machinery. A
+smooth `rotate` verb is a LATER player addition: rotation is not an affine transform
+of the projection, so it means tweening camera params and re-running the template's
+layout per frame — compatible with video export (which rasterizes per frame anyway)
+but real plumbing; deferred until 3D templates prove their worth.
+
 Not in M1; lands as a kit minor version when the first 3D template is authored
-(chemistry pack is the natural driver). Cross-ref: simple-3d-svg (tscircuit) proves
-the approach at 20 KB but is boxes-only — we implement our own primitives.
+(chemistry pack is the natural driver). Precedents: simple-3d-svg (tscircuit) proves
+3D→SVG at 20 KB but is boxes-only; Zdog (Metafizzy, MIT, widely used) is the mature
+painter's-sort pseudo-3D SVG engine — validation that the approach holds up in
+production, though our primitive set is small enough to implement natively.
 
 ## 4. Engines (lazy, declared, few)
 
