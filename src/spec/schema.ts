@@ -108,7 +108,7 @@ const elementSchema = {
       type: "string",
       enum: ["underline", "box", "circle", "highlight", "strike", "cross"],
       description:
-        "annotation: mark style — underline / box / circle around it / highlight (thick marker sweep BEHIND it, for the key number or word) / strike / cross (for rejected options). Default: underline for text targets, circle otherwise.",
+        "annotation: mark style — underline / box / circle around it / highlight (marker pen BEHIND a TEXT target: the key number or word — never a region or curve) / strike / cross (for rejected options). Default: underline for text targets, circle otherwise.",
     },
     // node / shape
     shape: {

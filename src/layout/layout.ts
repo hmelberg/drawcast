@@ -89,7 +89,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     }
     const leaves = leafDrawables(drawablesForId(drawables, el.target!));
     const textTarget = leaves.length > 0 && leaves.every((d) => d.kind === "text");
-    drawables.push(...annotationDrawables(el, box, textTarget));
+    drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
   const issues = lintLayout(drawables, measure);

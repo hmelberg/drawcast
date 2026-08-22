@@ -36,8 +36,22 @@ export function defaultKind(textTarget: boolean): AnnotationKind {
   return textTarget ? "underline" : "circle";
 }
 
-export function annotationDrawables(el: SpecElement, box: BBox, textTarget: boolean): Drawable[] {
-  const kind = el.kind ?? defaultKind(textTarget);
+/** The marker pen only makes sense on text-sized targets. */
+const MARKER_MAX_H = 80;
+
+export function annotationDrawables(
+  el: SpecElement,
+  box: BBox,
+  textTarget: boolean,
+  onWarn?: (msg: string) => void,
+): Drawable[] {
+  let kind = el.kind ?? defaultKind(textTarget);
+  if (kind === "highlight" && box.h > MARKER_MAX_H) {
+    onWarn?.(
+      `annotation "${el.id}": highlight is a marker pen for text-sized targets — "${el.target}" is far larger, drawing a box outline instead (a region's shading already IS its emphasis)`,
+    );
+    kind = "box";
+  }
   const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
   const x0 = clampX(box.x - PAD);

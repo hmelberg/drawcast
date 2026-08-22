@@ -74,6 +74,26 @@ describe("annotation element — layout", () => {
     expect(leaves[0].kind === "stroke" && leaves[0].style.strokeWidth).toBeGreaterThan(20);
   });
 
+  test("highlight on a LARGE target degrades to a box outline with a warning (marker is for text)", () => {
+    const layout = layoutSpec({
+      domain: { x: [0, 20], y: [0, 180] },
+      elements: [
+        { id: "a", type: "curve", expr: "160-5*x" },
+        { id: "b", type: "curve", expr: "10+5*x" },
+        { id: "wedge", type: "region", between: ["a", "b"], x_from: 0, x_to: 15 },
+        { id: "m", type: "annotation", target: "wedge", kind: "highlight" },
+      ],
+      commands: [],
+    });
+    const leaves = leafDrawables(drawablesForId(layout.drawables, "m"));
+    expect(leaves).toHaveLength(1);
+    const d = leaves[0];
+    // A closed outline, not a hundreds-of-units-thick marker bar.
+    expect(d.kind === "stroke" && d.closed).toBe(true);
+    expect(d.kind === "stroke" && d.style.strokeWidth).toBeLessThan(10);
+    expect(layout.warnings.join(" ")).toMatch(/highlight.*text/i);
+  });
+
   test("strike and cross render OVER text (text layer)", () => {
     const layout = layoutSpec({
       elements: [
