@@ -53,7 +53,7 @@ layout: |
   const cx = 470, cy = 380;
 
   const outer = kit.blob([cx, cy], 375, 285, 0.05, 1);
-  push(kit.area("cytoplasm", outer, C.region1, 0.12));
+  push(kit.area("cytoplasm", outer, C.region1, { opacity: 0.12 }));
   push(kit.stroke("membrane", outer, { closed: true, strokeWidth: 4.5, ms: MS.curve }));
   push(kit.stroke("membrane_inner", kit.blob([cx, cy], 358, 268, 0.05, 1), { closed: true, strokeWidth: 2.5, ms: MS.curve }));
   anchors.membrane = [cx - 190, cy + 245];
@@ -61,9 +61,9 @@ layout: |
 
   if (on.has("nucleus")) {
     const nc = [590, 420];
-    push(kit.area("nucleus_fill", kit.blob(nc, 100, 92, 0.03, 2), C.accent, 0.15));
+    push(kit.area("nucleus_fill", kit.blob(nc, 100, 92, 0.03, 2), C.accent, { opacity: 0.15 }));
     push(kit.stroke("nucleus", kit.blob(nc, 100, 92, 0.03, 2), { closed: true, color: C.accent, strokeWidth: 4, ms: MS.node }));
-    push(kit.area("nucleolus", kit.blob([nc[0] + 22, nc[1] - 12], 26, 24, 0.06, 3), C.accent, 0.5));
+    push(kit.area("nucleolus", kit.blob([nc[0] + 22, nc[1] - 12], 26, 24, 0.06, 3), C.accent, { opacity: 0.5, ms: MS.dot }));
     anchors.nucleus = nc;
     label("label_nucleus", nc, "right", "Nucleus", C.accent);
   }

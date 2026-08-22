@@ -5,7 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
-import { flattenDrawables } from "../src/layout/model";
+import { flattenDrawables, SKETCH_MS } from "../src/layout/model";
 import { layoutFreeBody } from "../src/scenes/free_body/layout";
 import { layoutRingMolecule } from "../src/scenes/ring_molecule/layout";
 import { layoutProteinSecondary } from "../src/scenes/protein_secondary/layout";
@@ -157,5 +157,19 @@ describe("cell_diagram (doc template)", () => {
   test("cell_diagram is registered from a template doc (no TS layout module)", () => {
     expect(scenes.cell_diagram.manifest.status).toBe("ready");
     expect(scenes.cell_diagram.layout).toBeDefined();
+  });
+
+  test("area opacities survive the port (kit.area options object)", () => {
+    const r = layout({});
+    const find = (id: string) => {
+      const d = flattenDrawables(r.drawables).find((d) => d.id === id);
+      if (!d) throw new Error(`no drawable ${id}`);
+      return d;
+    };
+    const opacity = (id: string) => find(id).style.opacity;
+    expect(opacity("cytoplasm")).toBe(0.12);
+    expect(opacity("nucleus_fill")).toBe(0.15);
+    expect(opacity("nucleolus")).toBe(0.5);
+    expect(find("nucleolus").drawOpts.duration).toBe(SKETCH_MS.dot);
   });
 });
