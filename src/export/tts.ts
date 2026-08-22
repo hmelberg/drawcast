@@ -4,6 +4,7 @@
 // browser's speechSynthesis (whose audio cannot be captured).
 
 import { SpeechManager, detectLang } from "../render/speech";
+import { addTtsChars, ttsBudgetError } from "../store";
 
 export interface TtsConfig {
   apiKey: string;
@@ -41,6 +42,9 @@ async function ttsError(res: Response): Promise<Error> {
 }
 
 async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContext): Promise<AudioBuffer> {
+  // Soft monthly cap — applies only when the stored key was vended (shared).
+  const budget = ttsBudgetError();
+  if (budget) throw new Error(budget);
   const voice = VOICES[detectLang(text)];
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
@@ -57,6 +61,7 @@ async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContex
   if (!res.ok) throw await ttsError(res);
   const { audioContent } = (await res.json()) as { audioContent?: string };
   if (!audioContent) throw new Error("the TTS response carried no audio");
+  addTtsChars(text.length);
   const bytes = base64ToBytes(audioContent);
   return audioCtx.decodeAudioData(bytes.buffer as ArrayBuffer);
 }

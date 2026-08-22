@@ -19,6 +19,8 @@ const KEYS = {
   ttsKey: "drawcast.ttskey",
   myTemplates: "drawcast.myTemplates.v1",
   remotePacks: "drawcast.remotePacks.v1",
+  vendedKeys: "drawcast.vendedKeys.v1",
+  usage: "drawcast.usage.v1",
 } as const;
 
 export interface Settings {
@@ -391,4 +393,85 @@ export function buildImprovementPacket(): object {
       "src/scenes/*/manifest.json; the compiler prompt in src/llm/prompts/. " +
       "Untemplated prompt clusters above suggest which scene to author next.",
   };
+}
+
+// ---- Vended-key provenance + monthly usage caps ----
+// The vending endpoint hands out Hans's real keys; these SOFT caps protect the
+// shared quota from accidents (a looping export, a runaway playlist session).
+// They apply PER BROWSER and ONLY to vended keys — a user's own keys are never
+// capped. They are not a security boundary (the raw keys are in localStorage);
+// hard limits belong in the provider consoles (Anthropic workspace spend
+// limit; Google quota caps).
+
+/** Which of the stored keys came from the vending endpoint. */
+export interface VendedFlags {
+  anthropic: boolean;
+  tts: boolean;
+}
+
+export function loadVendedFlags(): VendedFlags {
+  return read<VendedFlags>(KEYS.vendedKeys, { anthropic: false, tts: false });
+}
+
+export function setVendedFlags(f: VendedFlags): void {
+  localStorage.setItem(KEYS.vendedKeys, JSON.stringify(f));
+}
+
+/** Generous per-browser monthly allowances for vended keys. */
+export const ANTHROPIC_MONTHLY_TOKEN_CAP = 2_000_000;
+export const TTS_MONTHLY_CHAR_CAP = 250_000;
+
+interface UsageLedger {
+  /** "YYYY-MM" — the ledger resets when the month changes. */
+  month: string;
+  anthropicTokens: number;
+  ttsChars: number;
+}
+
+function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+export function loadUsage(): UsageLedger {
+  const u = read<UsageLedger>(KEYS.usage, { month: currentMonth(), anthropicTokens: 0, ttsChars: 0 });
+  if (u.month !== currentMonth()) return { month: currentMonth(), anthropicTokens: 0, ttsChars: 0 };
+  return u;
+}
+
+function saveUsage(u: UsageLedger): void {
+  localStorage.setItem(KEYS.usage, JSON.stringify(u));
+}
+
+export function addAnthropicTokens(n: number): void {
+  const u = loadUsage();
+  saveUsage({ ...u, anthropicTokens: u.anthropicTokens + Math.max(0, n) });
+}
+
+export function addTtsChars(n: number): void {
+  const u = loadUsage();
+  saveUsage({ ...u, ttsChars: u.ttsChars + Math.max(0, n) });
+}
+
+/** Null when within budget (or the key is the user's own); else the refusal message. */
+export function anthropicBudgetError(): string | null {
+  if (!loadVendedFlags().anthropic) return null;
+  if (loadUsage().anthropicTokens < ANTHROPIC_MONTHLY_TOKEN_CAP) return null;
+  return `This month's shared-key allowance is used up (${ANTHROPIC_MONTHLY_TOKEN_CAP.toLocaleString("en")} tokens). Add your own Anthropic API key in Settings to continue.`;
+}
+
+export function ttsBudgetError(): string | null {
+  if (!loadVendedFlags().tts) return null;
+  if (loadUsage().ttsChars < TTS_MONTHLY_CHAR_CAP) return null;
+  return `This month's shared-voice allowance is used up (${TTS_MONTHLY_CHAR_CAP.toLocaleString("en")} narration characters). Add your own Google TTS key in Settings to continue.`;
+}
+
+/** One line for the Settings dialog; empty when no vended keys are active. */
+export function usageSummary(): string {
+  const f = loadVendedFlags();
+  if (!f.anthropic && !f.tts) return "";
+  const u = loadUsage();
+  const parts: string[] = [];
+  if (f.anthropic) parts.push(`${u.anthropicTokens.toLocaleString("en")} / ${ANTHROPIC_MONTHLY_TOKEN_CAP.toLocaleString("en")} tokens`);
+  if (f.tts) parts.push(`${u.ttsChars.toLocaleString("en")} / ${TTS_MONTHLY_CHAR_CAP.toLocaleString("en")} voice characters`);
+  return `Shared-key use this month: ${parts.join(" · ")}.`;
 }

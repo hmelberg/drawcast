@@ -5,6 +5,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { extractJson } from "../spec/extract";
+import { addAnthropicTokens, anthropicBudgetError } from "../store";
 
 export const MODELS = [
   { id: "claude-opus-5", label: "Opus 5 — best quality" },
@@ -85,6 +86,9 @@ export async function callForJson(
   messages: Anthropic.MessageParam[],
   outputSchema: object,
 ): Promise<{ json: unknown; raw: string; meta: JsonCallMeta }> {
+  // Soft monthly cap — applies only when the stored key was vended (shared).
+  const budget = anthropicBudgetError();
+  if (budget) throw new Error(budget);
   const t0 = performance.now();
   let response: Anthropic.Message | null = null;
   let structured = true;
@@ -120,6 +124,8 @@ export async function callForJson(
     throw new RefusalError(details?.explanation);
   }
 
+  addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
+
   const raw = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
@@ -146,6 +152,8 @@ export async function callForText(
   system: string | Anthropic.TextBlockParam[],
   messages: Anthropic.MessageParam[],
 ): Promise<{ text: string; ms: number }> {
+  const budget = anthropicBudgetError();
+  if (budget) throw new Error(budget);
   const t0 = performance.now();
   const response = await createMessage(client, model, system, messages, null, true).catch((err) => {
     if (err instanceof Anthropic.BadRequestError) return createMessage(client, model, system, messages, null, false);
@@ -155,6 +163,7 @@ export async function callForText(
     const details = (response as unknown as { stop_details?: { explanation?: string } }).stop_details;
     throw new RefusalError(details?.explanation);
   }
+  addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
   const text = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)

@@ -73,6 +73,9 @@ import {
   saveSettings,
   saveUserPrompt,
   setApiKey,
+  loadVendedFlags,
+  setVendedFlags,
+  usageSummary,
   updateLog,
   worstLoggedCases,
   type LogEntry,
@@ -608,6 +611,7 @@ app.appendChild(main);
 const keyInput = h("input", { type: "password", placeholder: "sk-ant-…", autocomplete: "off" }) as HTMLInputElement;
 keyInput.value = getApiKey();
 const clearKeyBtn = h("button", { class: "small" }, "Clear key");
+const usageNote = h("div", { class: "settings-note" });
 const ttsKeyInput = h("input", { type: "password", placeholder: "AIza…", autocomplete: "off" }) as HTMLInputElement;
 ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
@@ -629,6 +633,7 @@ const dialog = h(
     keyInput,
     h("div", {}, clearKeyBtn),
     h("div", { class: "settings-note" }, "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com."),
+    usageNote,
   ),
   h(
     "div",
@@ -1039,7 +1044,11 @@ function showMode(mode: "player" | "editor"): void {
 
 playerModeBtn.addEventListener("click", () => showMode("player"));
 editorModeBtn.addEventListener("click", () => showMode("editor"));
-settingsBtn.addEventListener("click", () => dialog.showModal());
+settingsBtn.addEventListener("click", () => {
+  usageNote.textContent = usageSummary();
+  usageNote.hidden = usageNote.textContent === "";
+  dialog.showModal();
+});
 
 // ---------- editor actions ----------
 
@@ -1935,17 +1944,23 @@ async function handleKeyEntry(text: string): Promise<void> {
         setTtsKey(vended.googleKey);
         ttsKeyInput.value = vended.googleKey;
       }
+      setVendedFlags({ anthropic: true, tts: vended.googleKey.length > 0 });
       setStatus("Keys unlocked.", "ok");
       return;
     }
   }
   setApiKey(text);
+  setVendedFlags({ ...loadVendedFlags(), anthropic: false });
 }
 clearKeyBtn.addEventListener("click", () => {
   setApiKey("");
   keyInput.value = "";
+  setVendedFlags({ ...loadVendedFlags(), anthropic: false });
 });
-ttsKeyInput.addEventListener("change", () => setTtsKey(ttsKeyInput.value.trim()));
+ttsKeyInput.addEventListener("change", () => {
+  setTtsKey(ttsKeyInput.value.trim());
+  setVendedFlags({ ...loadVendedFlags(), tts: false });
+});
 cloudPlaybackCb.addEventListener("change", () => {
   settings.cloudPlayback = cloudPlaybackCb.checked;
   persist();
@@ -1953,6 +1968,7 @@ cloudPlaybackCb.addEventListener("change", () => {
 clearTtsKeyBtn.addEventListener("click", () => {
   setTtsKey("");
   ttsKeyInput.value = "";
+  setVendedFlags({ ...loadVendedFlags(), tts: false });
 });
 voiceSel.addEventListener("change", () => {
   settings.voiceURI = voiceSel.value || null;
