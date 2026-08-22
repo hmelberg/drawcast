@@ -5,6 +5,7 @@
 
 import { kit } from "./kit";
 import { docToManifest, type TemplateDoc } from "./doc";
+import { getLoadedEngines } from "./engines";
 import type { SceneLayout, SceneManifest, SceneModule } from "./types";
 import type { Pt } from "../layout/model";
 import { SIDE_VALUES } from "../spec/types";
@@ -34,7 +35,7 @@ export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; er
     return { errors: [`template "${doc.template}" failed to compile: ${(err as Error).message}`] };
   }
   const layout = (params: Record<string, unknown>): SceneLayout => {
-    const out = fn(params, kit, {});
+    const out = fn(params, kit, getLoadedEngines(doc.engines ?? []));
     const errs = validateSceneLayout(out);
     if (errs.length > 0) {
       throw new Error(`template "${doc.template}" returned an invalid layout: ${errs[0]}`);

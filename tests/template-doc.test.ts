@@ -65,10 +65,16 @@ describe("validateTemplateDoc", () => {
     expect(validateTemplateDoc(d).errors[0]).toMatch(/newer kit/);
   });
 
-  test("rejects engines in M1", () => {
+  test("known engine is accepted", () => {
     const d = base();
     d.engines = ["smilesdrawer"];
-    expect(validateTemplateDoc(d).errors[0]).toMatch(/M4/);
+    expect(validateTemplateDoc(d).errors).toEqual([]);
+  });
+
+  test("unknown engine name is rejected", () => {
+    const d = base();
+    d.engines = ["rdkit"];
+    expect(validateTemplateDoc(d).errors[0]).toMatch(/unknown engine/);
   });
 
   test("rejects malformed examples", () => {

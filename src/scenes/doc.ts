@@ -3,6 +3,7 @@
 
 import { CORE_SCHEMA, load } from "js-yaml";
 import { KIT_VERSION } from "./kit";
+import { KNOWN_ENGINES } from "./engines";
 import type { SceneManifest } from "./types";
 
 export interface TemplateDoc {
@@ -70,8 +71,16 @@ export function validateTemplateDoc(raw: unknown): DocResult {
       }
     });
   }
-  if (d.engines !== undefined && (!Array.isArray(d.engines) || d.engines.length > 0)) {
-    errors.push("engines are not supported yet (they arrive in M4) — remove the engines field");
+  if (d.engines !== undefined) {
+    if (!Array.isArray(d.engines) || !d.engines.every((e) => typeof e === "string")) {
+      errors.push("engines must be an array of strings");
+    } else {
+      for (const e of d.engines as string[]) {
+        if (!(KNOWN_ENGINES as readonly string[]).includes(e)) {
+          errors.push(`unknown engine "${e}" — known engines: ${KNOWN_ENGINES.join(", ")}`);
+        }
+      }
+    }
   }
   if (d.status === "ready" && (typeof d.layout !== "string" || d.layout.trim() === "")) {
     errors.push("a ready template needs a layout function body");
@@ -89,5 +98,6 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     params_schema: doc.params,
     element_ids: doc.element_ids,
     examples: doc.examples,
+    ...(doc.engines && doc.engines.length > 0 ? { engines: doc.engines } : {}),
   };
 }

@@ -23,6 +23,7 @@ export interface SceneManifest {
   params_schema: object;
   element_ids: Record<string, string>;
   examples: { request: string; params: Record<string, unknown> }[];
+  engines?: string[];
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */
