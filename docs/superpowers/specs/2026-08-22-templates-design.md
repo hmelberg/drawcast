@@ -65,9 +65,11 @@ layout: |                      # JS FUNCTION BODY: (params, kit, engines) => Sce
   authoring model and the containment model.
 - The existing three TS scenes stay as compiled modules for now; the registry accepts
   both shapes (`SceneModule` gains a `source?: TemplateDoc` variant). Porting them to
-  the document format is a later cleanup, not a v1 requirement — but ONE of them
-  (decision_tree or supply_demand) gets a document-format port early as the validation
-  case and the canonical few-shot exemplar.
+  the document format is a later cleanup, not a v1 requirement — but ONE built-in gets
+  a document-format port early as the validation case and the canonical few-shot
+  exemplar — `cell_diagram` (chosen over decision_tree/supply_demand once the
+  2026-08-22 domain scenes existed: it exercises exactly the kit helpers M1 ships —
+  blob, arc, jitter, factories — and needs no imports a function body couldn't have).
 
 ## 2. Runtime: compile, guard, fall through
 

@@ -9,7 +9,6 @@ import { flattenDrawables } from "../src/layout/model";
 import { layoutFreeBody } from "../src/scenes/free_body/layout";
 import { layoutRingMolecule } from "../src/scenes/ring_molecule/layout";
 import { layoutProteinSecondary } from "../src/scenes/protein_secondary/layout";
-import { layoutCellDiagram } from "../src/scenes/cell_diagram/layout";
 
 const NEW_SCENES = ["free_body", "ring_molecule", "protein_secondary", "cell_diagram"] as const;
 
@@ -139,9 +138,11 @@ describe("layoutProteinSecondary", () => {
   });
 });
 
-describe("layoutCellDiagram", () => {
+describe("cell_diagram (doc template)", () => {
+  const layout = (params: Record<string, unknown>) => scenes.cell_diagram.layout!(params);
+
   test("organelle subset draws only what is asked", () => {
-    const r = layoutCellDiagram({ organelles: ["nucleus"] });
+    const r = layout({ organelles: ["nucleus"] });
     const ids = flattenDrawables(r.drawables).map((d) => d.id);
     expect(ids).toContain("nucleus");
     expect(ids).not.toContain("mito");
@@ -149,7 +150,12 @@ describe("layoutCellDiagram", () => {
   });
 
   test("labels: false suppresses name labels", () => {
-    const r = layoutCellDiagram({ labels: false });
+    const r = layout({ labels: false });
     expect(r.labels).toHaveLength(0);
+  });
+
+  test("cell_diagram is registered from a template doc (no TS layout module)", () => {
+    expect(scenes.cell_diagram.manifest.status).toBe("ready");
+    expect(scenes.cell_diagram.layout).toBeDefined();
   });
 });

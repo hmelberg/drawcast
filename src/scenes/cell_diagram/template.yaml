@@ -1,0 +1,125 @@
+template: cell_diagram
+title: Cell cross-section
+version: 2
+kit: 1
+status: ready
+description: >-
+  An animal-cell cross-section: membrane (double line) around cytoplasm, with a
+  selectable set of organelles — nucleus (with nucleolus), mitochondrion (with
+  cristae), endoplasmic reticulum, Golgi apparatus, ribosomes — each labeled
+  with collision-solved leader labels. Choose this scene for requests about
+  cell structure, organelles, 'draw a cell', or explaining what a specific
+  organelle does (include just the relevant organelles and glow/point at them
+  while narrating).
+params:
+  type: object
+  properties:
+    organelles:
+      type: array
+      items:
+        type: string
+        enum: [nucleus, mitochondria, er, golgi, ribosomes]
+      description: "Which organelles to draw. Default: all. For a focused explanation, include only what the narration needs."
+    labels:
+      type: boolean
+      description: "Show organelle name labels (default true). Set false if the narration will name things instead."
+element_ids:
+  membrane / membrane_inner: the double membrane outline
+  cytoplasm: the pale interior fill
+  nucleus / nucleus_fill / nucleolus: the nucleus and its nucleolus
+  mito / cristae: the mitochondrion outline and its inner folds
+  er: endoplasmic reticulum arcs
+  golgi: Golgi stacked arcs
+  ribosomes: the ribosome dots (one group)
+  label_membrane / label_nucleus / label_mito / label_er / label_golgi / label_ribo: the name labels
+examples:
+  - request: "Draw an animal cell with its organelles."
+    params: {}
+  - request: "Explain what mitochondria do."
+    params:
+      organelles: [nucleus, mitochondria]
+      labels: true
+layout: |
+  const on = new Set(params.organelles ?? ["nucleus", "mitochondria", "er", "golgi", "ribosomes"]);
+  const showLabels = params.labels !== false;
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    if (!showLabels) return;
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+  const cx = 470, cy = 380;
+
+  const outer = kit.blob([cx, cy], 375, 285, 0.05, 1);
+  push(kit.area("cytoplasm", outer, C.region1, 0.12));
+  push(kit.stroke("membrane", outer, { closed: true, strokeWidth: 4.5, ms: MS.curve }));
+  push(kit.stroke("membrane_inner", kit.blob([cx, cy], 358, 268, 0.05, 1), { closed: true, strokeWidth: 2.5, ms: MS.curve }));
+  anchors.membrane = [cx - 190, cy + 245];
+  label("label_membrane", [cx - 190, cy + 245], "above-left", "Cell membrane");
+
+  if (on.has("nucleus")) {
+    const nc = [590, 420];
+    push(kit.area("nucleus_fill", kit.blob(nc, 100, 92, 0.03, 2), C.accent, 0.15));
+    push(kit.stroke("nucleus", kit.blob(nc, 100, 92, 0.03, 2), { closed: true, color: C.accent, strokeWidth: 4, ms: MS.node }));
+    push(kit.area("nucleolus", kit.blob([nc[0] + 22, nc[1] - 12], 26, 24, 0.06, 3), C.accent, 0.5));
+    anchors.nucleus = nc;
+    label("label_nucleus", nc, "right", "Nucleus", C.accent);
+  }
+
+  if (on.has("mitochondria")) {
+    const mc = [300, 470];
+    push(kit.stroke("mito", kit.blob(mc, 88, 44, 0.04, 4), { closed: true, color: C.demand, strokeWidth: 3.5, ms: MS.node }));
+    const cristae = [];
+    for (let k = 0; k < 4; k++) {
+      const bx = mc[0] - 48 + k * 30;
+      const pts = [];
+      for (let t = 0; t <= 1; t += 0.12) {
+        const yr = 30 * (1 - Math.abs(k - 1.5) * 0.18);
+        pts.push([bx + 7 * Math.sin(t * Math.PI * 2 + k), mc[1] - yr + 2 * yr * t]);
+      }
+      cristae.push(kit.stroke("crista_" + k, pts, { color: C.demand, strokeWidth: 2.5, ms: MS.guides }));
+    }
+    push(kit.group("cristae", cristae));
+    anchors.mito = mc;
+    label("label_mito", [mc[0], mc[1] - 44], "below", "Mitochondrion", C.demand);
+  }
+
+  if (on.has("er")) {
+    const er = [];
+    for (let k = 0; k < 3; k++) {
+      er.push(kit.stroke("er_" + k, kit.arc([590, 420], 130 + k * 22, Math.PI * 0.75, Math.PI * 1.35), { color: C.supply, strokeWidth: 3, ms: MS.guides }));
+    }
+    push(kit.group("er", er));
+    anchors.er = [428, 300];
+    label("label_er", [428, 292], "above-left", "Endoplasmic reticulum", C.supply, 24);
+  }
+
+  if (on.has("golgi")) {
+    const gg = [];
+    for (let k = 0; k < 4; k++) {
+      gg.push(kit.stroke("golgi_" + k, kit.arc([320, 300 - k * 20], 80 * (1 - k * 0.16), Math.PI * 0.15, Math.PI * 0.85), { color: C.shifted, strokeWidth: 3.5, ms: MS.guides }));
+    }
+    push(kit.group("golgi", gg));
+    anchors.golgi = [320, 320];
+    label("label_golgi", [320, 350], "above", "Golgi apparatus", C.shifted, 24);
+  }
+
+  if (on.has("ribosomes")) {
+    const dots = [], spots = [];
+    for (let k = 0; k < 14; k++) {
+      const th = kit.jitter(k) * Math.PI * 2;
+      const rr = 0.45 + 0.5 * Math.abs(kit.jitter(k + 40));
+      const p = [cx + 340 * rr * Math.cos(th), cy + 250 * rr * Math.sin(th)];
+      if (Math.hypot(p[0] - 590, p[1] - 420) < 130) continue;
+      if (Math.hypot(p[0] - 300, p[1] - 470) < 110) continue;
+      spots.push(p);
+      dots.push(kit.stroke("ribo_" + k, [p], { shapeHint: { type: "circle", c: p, r: 5 }, fill: C.ink, strokeWidth: 2.5, ms: MS.dot }));
+    }
+    push(kit.group("ribosomes", dots));
+    anchors.ribosomes = spots[0] ?? [cx, cy];
+    label("label_ribo", spots[0] ?? [cx, cy], "above-right", "Ribosomes", C.ink, 24);
+  }
+
+  return { drawables, labels, anchors, order };

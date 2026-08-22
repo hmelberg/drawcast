@@ -6,6 +6,7 @@ import type { SceneManifest, SceneModule } from "./types";
 export type { SceneModule } from "./types";
 import { parseTemplateDoc, docToManifest, type TemplateDoc } from "./doc";
 import { compileTemplateDoc } from "./compile";
+import cellDiagramYaml from "./cell_diagram/template.yaml?raw";
 import supplyDemandManifest from "./supply_demand/manifest.json";
 import decisionTreeManifest from "./decision_tree/manifest.json";
 import cepManifest from "./cost_effectiveness_plane/manifest.json";
@@ -20,11 +21,9 @@ import qalyManifest from "./qaly_profiles/manifest.json";
 import freeBodyManifest from "./free_body/manifest.json";
 import ringMoleculeManifest from "./ring_molecule/manifest.json";
 import proteinSecondaryManifest from "./protein_secondary/manifest.json";
-import cellDiagramManifest from "./cell_diagram/manifest.json";
 import { layoutFreeBody, type FreeBodyParams } from "./free_body/layout";
 import { layoutRingMolecule, type RingMoleculeParams } from "./ring_molecule/layout";
 import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_secondary/layout";
-import { layoutCellDiagram, type CellDiagramParams } from "./cell_diagram/layout";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -50,10 +49,6 @@ export const scenes: Record<string, SceneModule> = {
   protein_secondary: {
     manifest: proteinSecondaryManifest as SceneManifest,
     layout: (params) => layoutProteinSecondary(params as ProteinSecondaryParams),
-  },
-  cell_diagram: {
-    manifest: cellDiagramManifest as SceneManifest,
-    layout: (params) => layoutCellDiagram(params as CellDiagramParams),
   },
   cost_effectiveness_plane: { manifest: cepManifest as SceneManifest },
   markov_model: { manifest: markovManifest as SceneManifest },
@@ -109,4 +104,11 @@ export function registerTemplateYaml(yamlText: string): { ok: boolean; errors: s
   const { doc, errors } = parseTemplateDoc(yamlText);
   if (!doc) return { ok: false, errors };
   return registerTemplateDoc(doc);
+}
+
+// Bundled document-format templates. A registration failure here is a build
+// defect — surface it loudly in dev, and the template degrades to a stub.
+{
+  const r = registerTemplateYaml(cellDiagramYaml);
+  if (!r.ok) console.warn("bundled template failed to register:", r.errors);
 }
