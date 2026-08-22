@@ -17,6 +17,7 @@ const KEYS = {
   prompts: "drawcast.prompts.v1",
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
+  myTemplates: "drawcast.myTemplates.v1",
 } as const;
 
 export interface Settings {
@@ -124,6 +125,30 @@ export function saveDrawing(d: SavedDrawing): void {
 
 export function deleteDrawing(id: string): void {
   localStorage.setItem(KEYS.library, JSON.stringify(loadLibrary().filter((x) => x.id !== id)));
+}
+
+// ---- My templates (user-authored TemplateDocs, M2) ----
+
+export interface MyTemplate {
+  /** The doc's template id — one entry per id. */
+  id: string;
+  /** The full template document as YAML (never contains images). */
+  yaml: string;
+  ts: string;
+}
+
+export function loadMyTemplates(): MyTemplate[] {
+  return readArray<MyTemplate>(KEYS.myTemplates);
+}
+
+export function saveMyTemplate(t: MyTemplate): void {
+  const all = loadMyTemplates().filter((x) => x.id !== t.id);
+  all.unshift(t);
+  localStorage.setItem(KEYS.myTemplates, JSON.stringify(all));
+}
+
+export function deleteMyTemplate(id: string): void {
+  localStorage.setItem(KEYS.myTemplates, JSON.stringify(loadMyTemplates().filter((x) => x.id !== id)));
 }
 
 // ---- User prompt library (named compiler-prompt variants, Loop 2's UI) ----
