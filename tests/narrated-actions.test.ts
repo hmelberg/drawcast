@@ -46,6 +46,23 @@ describe("planCommands — narrated action steps", () => {
     );
     expect(plan.steps[1]).toMatchObject({ kind: "highlight", narration: "note this" });
   });
+
+  test("a narrated highlight without explicit duration pulses until the voice ends", () => {
+    const plan = planCommands(
+      [{ draw: ["t"] }, { highlight: { target: ["t"], effect: "glow" }, speak: "about this curve" }] as Command[],
+      ["t"],
+    );
+    expect(plan.steps[1]).toMatchObject({ kind: "highlight", untilNarrationEnd: true });
+  });
+
+  test("an explicit duration keeps the fixed-length behavior even when narrated", () => {
+    const plan = planCommands(
+      [{ draw: ["t"] }, { highlight: { target: ["t"], duration: 2 }, speak: "brief nod" }] as Command[],
+      ["t"],
+    );
+    const step = plan.steps[1] as { untilNarrationEnd?: boolean };
+    expect(step.untilNarrationEnd).toBeUndefined();
+  });
 });
 
 class StubSpeech extends SpeechManager {

@@ -17,7 +17,16 @@ export type PlanStep = (
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
   | { kind: "clear"; ids: string[] }
-  | { kind: "highlight"; ids: string[]; boxes: Record<string, BBox>; effect: HighlightEffect; seconds: number; color?: string }
+  | {
+      kind: "highlight";
+      ids: string[];
+      boxes: Record<string, BBox>;
+      effect: HighlightEffect;
+      seconds: number;
+      color?: string;
+      /** Narrated with no explicit duration: pulse in cycles until the voice ends. */
+      untilNarrationEnd?: boolean;
+    }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
@@ -175,6 +184,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         effect: cmd.highlight.effect ?? "pulse",
         seconds: cmd.highlight.duration ?? 1.5,
         color: cmd.highlight.color,
+        ...(cmd.highlight.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.point !== undefined) {
       const at = cmd.point.at;

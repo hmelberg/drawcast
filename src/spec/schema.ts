@@ -174,11 +174,12 @@ const commandSchema = {
     },
     highlight: {
       type: "object",
-      description: "Temporarily emphasize visible elements, then return to normal. Great right after a speak line that refers to them.",
+      description:
+        "Temporarily emphasize visible elements, then return to normal. With a paired speak and no duration, the effect PULSES FOR AS LONG AS THE SENTENCE — the way to talk about one specific element (a curve, an equilibrium) while it glows.",
       properties: {
         target: idListSchema("Element ids to emphasize."),
-        effect: { type: "string", enum: ["pulse", "circle", "glow"], description: "pulse = throb (default); circle = hand-drawn ring around them; glow = colored halo." },
-        duration: { type: "number", description: "Seconds (default 1.5)." },
+        effect: { type: "string", enum: ["pulse", "circle", "glow"], description: "pulse = throb (default); circle = hand-drawn ring around them; glow = soft halo (red unless color is set)." },
+        duration: { type: "number", description: "Seconds. Omit with a paired speak to let the effect last the whole sentence (default 1.5 otherwise)." },
         color: { type: "string", description: "Emphasis color, CSS color string." },
       },
       required: ["target"],

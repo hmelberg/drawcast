@@ -48,6 +48,8 @@ export class Player {
    * voice; gestures and pauses run UNDER the voice by design.
    */
   private pendingSpeech: Promise<void> | null = null;
+  /** The current narrated step's voice, so effects can follow it (glow-while-speaking). */
+  private narrationVoice: Promise<void> | null = null;
   private ac: AbortController | null = null;
   /** Boundary: number of fully completed steps. */
   private completed = 0;
@@ -229,7 +231,12 @@ export class Player {
         this.mode === "narrated"
           ? this.speech.speak(step.narration, this.speedVal, signal)
           : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.narration) * 0.4), signal);
-      await Promise.all([this.runAction(index, signal), voice]);
+      this.narrationVoice = voice;
+      try {
+        await Promise.all([this.runAction(index, signal), voice]);
+      } finally {
+        this.narrationVoice = null;
+      }
       return;
     }
     return this.runAction(index, signal);
@@ -315,7 +322,17 @@ export class Player {
           }),
         );
         try {
-          await this.progress(step.seconds * 1000, signal, (t) => effects.setHighlight(step.ids, step.effect, t, box, step.color));
+          if (step.untilNarrationEnd && this.narrationVoice) {
+            // Glow-while-speaking: repeat full effect cycles until the voice
+            // ends (each progress cycle is one complete swell/throb).
+            let speaking = true;
+            void this.narrationVoice.finally(() => (speaking = false));
+            while (speaking && !signal.aborted) {
+              await this.progress(step.seconds * 1000, signal, (t) => effects.setHighlight(step.ids, step.effect, t, box, step.color));
+            }
+          } else {
+            await this.progress(step.seconds * 1000, signal, (t) => effects.setHighlight(step.ids, step.effect, t, box, step.color));
+          }
         } finally {
           effects.endHighlight(step.ids);
         }
