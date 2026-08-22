@@ -1,19 +1,20 @@
-// Hand-drawn notation (the rough-notation vocabulary, drawn natively): an
-// annotation element references a target and becomes ordinary stroke
-// drawables computed from the target's laid-out bbox. Because they are plain
-// drawables they animate, export, zoom, scrub, and erase with no special
-// machinery. Runs as a final layout pass — after label placement, so placed
-// labels are valid targets.
+// Permanent punctuation marks, drawn natively: an annotation element
+// references a target and becomes ordinary stroke drawables computed from the
+// target's laid-out bbox — so it animates, exports, zooms, scrubs, and erases
+// with no special machinery. The vocabulary is deliberately small (box /
+// circle / strike / cross): transient emphasis belongs to the highlight verb
+// and the point laser, area emphasis to region shading. Runs as a final
+// layout pass — after label placement, so placed labels are valid targets.
 
 import { CANVAS } from "./canvas";
 import type { BBox } from "./geometry";
-import { COLORS, Z_AREA, Z_STROKE, Z_TEXT, defaultStyle, type Drawable, type Pt } from "./model";
+import { Z_STROKE, Z_TEXT, defaultStyle, type Drawable, type Pt } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { AnnotationKind, SpecElement } from "../spec/types";
 
 const PAD = 6;
-const MARKER_COLOR = COLORS.region1;
 const ANNOTATE_MS = 700;
+const KINDS: AnnotationKind[] = ["box", "circle", "strike", "cross"];
 
 function clampX(x: number): number {
   return Math.min(Math.max(x, 4), CANVAS.w - 4);
@@ -31,13 +32,10 @@ function ellipsePts(cx: number, cy: number, rx: number, ry: number): Pt[] {
   return pts;
 }
 
-/** Default mark per target: text reads best underlined, shapes ringed. */
+/** Default mark per target: text reads best boxed, shapes ringed. */
 export function defaultKind(textTarget: boolean): AnnotationKind {
-  return textTarget ? "underline" : "circle";
+  return textTarget ? "box" : "circle";
 }
-
-/** The marker pen only makes sense on text-sized targets. */
-const MARKER_MAX_H = 80;
 
 export function annotationDrawables(
   el: SpecElement,
@@ -46,13 +44,11 @@ export function annotationDrawables(
   onWarn?: (msg: string) => void,
 ): Drawable[] {
   let kind = el.kind ?? defaultKind(textTarget);
-  if (kind === "highlight" && box.h > MARKER_MAX_H) {
-    onWarn?.(
-      `annotation "${el.id}": highlight is a marker pen for text-sized targets — "${el.target}" is far larger, drawing a box outline instead (a region's shading already IS its emphasis)`,
-    );
-    kind = "box";
+  if (!KINDS.includes(kind)) {
+    // Old specs may carry retired kinds (underline/highlight) — degrade, don't crash.
+    onWarn?.(`annotation "${el.id}": retired/unknown kind "${kind}" — using ${defaultKind(textTarget)}`);
+    kind = defaultKind(textTarget);
   }
-  const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
   const x0 = clampX(box.x - PAD);
   const x1 = clampX(box.x + box.w + PAD);
@@ -60,20 +56,6 @@ export function annotationDrawables(
   const drawOpts = resolveDrawOpts(el.draw, { duration: ANNOTATE_MS });
 
   switch (kind) {
-    case "underline":
-      return [
-        {
-          id: el.id,
-          kind: "stroke",
-          pts: [
-            [x0, clampY(box.y - PAD)],
-            [x1, clampY(box.y - PAD - 2)],
-          ],
-          z: Z_STROKE,
-          style,
-          drawOpts,
-        },
-      ];
     case "box": {
       const y0 = clampY(box.y - PAD - 2);
       const y1 = clampY(box.y + box.h + PAD + 2);
@@ -101,30 +83,11 @@ export function annotationDrawables(
         {
           id: el.id,
           kind: "stroke",
-          pts: ellipsePts(cx, cy, box.w / 2 + PAD + 10, box.h / 2 + PAD + 6),
+          pts: ellipsePts(box.x + box.w / 2, cy, box.w / 2 + PAD + 10, box.h / 2 + PAD + 6),
           closed: true,
           z: Z_STROKE,
           style,
           drawOpts,
-        },
-      ];
-    case "highlight":
-      return [
-        {
-          id: el.id,
-          kind: "stroke",
-          pts: [
-            [x0, clampY(cy - 1)],
-            [x1, clampY(cy + 1)],
-          ],
-          z: Z_AREA, // behind the target — a marker sweep, not a cover
-          style: resolveStyle(el.style, {
-            color: el.style?.color ?? MARKER_COLOR,
-            strokeWidth: Math.max(24, box.h + 10),
-            opacity: el.style?.opacity ?? 0.4,
-            roughness: 0.6,
-          }),
-          drawOpts: resolveDrawOpts(el.draw, { duration: 500 }),
         },
       ];
     case "strike":

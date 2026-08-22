@@ -16,8 +16,12 @@ export type ElementType =
   | "text"
   | "shape";
 
-/** Hand-drawn notation styles (rough-notation vocabulary, drawn natively). */
-export type AnnotationKind = "underline" | "box" | "circle" | "highlight" | "strike" | "cross";
+/**
+ * Permanent punctuation marks, drawn natively: box the answer, strike the
+ * rejected. Transient emphasis belongs to the highlight verb (glow) and the
+ * point laser; area emphasis to region shading.
+ */
+export type AnnotationKind = "box" | "circle" | "strike" | "cross";
 
 export type Side =
   | "above"
@@ -80,7 +84,7 @@ export interface SpecElement {
   // annotation
   /** Id of the element this annotation marks. */
   target?: string;
-  /** Mark style; defaults to underline for text targets, circle otherwise. */
+  /** Mark style; defaults to box for text targets, circle otherwise. */
   kind?: AnnotationKind;
   // node / tier-3 shape
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";

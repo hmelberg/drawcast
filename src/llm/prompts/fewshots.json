@@ -83,7 +83,7 @@
         { "id": "p1", "type": "point", "at": { "x": 2, "y": 55.1 }, "guides": true },
         { "id": "p2", "type": "point", "at": { "x": 6, "y": 90.9 }, "guides": true },
         { "id": "note", "type": "label", "text": "Each extra unit adds less", "attach_to": "p2", "side": "below-right" },
-        { "id": "mark_note", "type": "annotation", "target": "note", "kind": "highlight" }
+        { "id": "mark_note", "type": "annotation", "target": "note", "kind": "box" }
       ],
       "commands": [
         { "speak": "Let's see why the first unit we consume matters more than the sixth." },

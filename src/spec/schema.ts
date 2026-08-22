@@ -106,9 +106,9 @@ const elementSchema = {
     target: { type: "string", description: "annotation: id of the element to mark (declare the annotation AFTER its target)." },
     kind: {
       type: "string",
-      enum: ["underline", "box", "circle", "highlight", "strike", "cross"],
+      enum: ["box", "circle", "strike", "cross"],
       description:
-        "annotation: mark style — underline / box / circle around it / highlight (marker pen BEHIND a TEXT target: the key number or word — never a region or curve) / strike / cross (for rejected options). Default: underline for text targets, circle otherwise.",
+        "annotation: a PERMANENT mark — box or circle the conclusion, strike or cross out a rejected option. Default: box for text targets, circle otherwise. (Temporary attention = the highlight verb with glow, or point; area emphasis = region shading.)",
     },
     // node / shape
     shape: {
