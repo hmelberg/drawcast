@@ -172,11 +172,24 @@ layout: |
   const FS = 32, ROW_Y = 400, GAP = 45, ARROW_LEN = 150;
   const reactants = params.reactants && params.reactants.length > 0 ? params.reactants : ["A"];
   const products = params.products && params.products.length > 0 ? params.products : ["B"];
-  const estW = (s) => String(s).length * FS * 0.6;
-  const sepW = estW(" + ");
-  const rowWidth = (terms) => terms.reduce((sum, t) => sum + estW(t), 0) + sepW * Math.max(0, terms.length - 1);
+  const estW = (s, fontSize) => String(s).length * fontSize * 0.6;
+  const rowWidth = (terms, fontSize, sep) => terms.reduce((sum, t) => sum + estW(t, fontSize), 0) + sep * Math.max(0, terms.length - 1);
 
-  const totalW = rowWidth(reactants) + GAP + ARROW_LEN + GAP + rowWidth(products);
+  // Shrink-to-fit: a routine multi-term equation (e.g. a 3-vs-3 redox
+  // half-reaction) can exceed the canvas at the natural font size. Measure
+  // the natural (FS=32) width FIRST, then scale font size (floored so it
+  // never becomes unreadable), the gaps, and the arrow length by the SAME
+  // factor, so the whole row still centers inside x ∈ [60, 940] instead of
+  // running off the canvas.
+  const naturalSep = estW(" + ", FS);
+  const naturalW = rowWidth(reactants, FS, naturalSep) + GAP + ARROW_LEN + GAP + rowWidth(products, FS, naturalSep);
+  const fit = Math.min(1, 880 / naturalW);
+  const fs = Math.max(16, FS * fit);
+  const gap = GAP * fit;
+  const arrowLen = ARROW_LEN * fit;
+  const sepW = estW(" + ", fs);
+
+  const totalW = rowWidth(reactants, fs, sepW) + gap + arrowLen + gap + rowWidth(products, fs, sepW);
   const startX = 500 - totalW / 2;
 
   const drawables = [], labels = [], anchors = {}, order = [];
@@ -186,11 +199,11 @@ layout: |
     const items = [];
     let x = x0;
     terms.forEach((term, i) => {
-      const w = estW(term);
-      items.push(kit.text(`${idPrefix}_${i}`, [x + w / 2, ROW_Y], term, { fontSize: FS }));
+      const w = estW(term, fs);
+      items.push(kit.text(`${idPrefix}_${i}`, [x + w / 2, ROW_Y], term, { fontSize: fs }));
       x += w;
       if (i < terms.length - 1) {
-        items.push(kit.text(`${idPrefix}_plus_${i}`, [x + sepW / 2, ROW_Y], "+", { fontSize: FS, color: C.guide }));
+        items.push(kit.text(`${idPrefix}_plus_${i}`, [x + sepW / 2, ROW_Y], "+", { fontSize: fs, color: C.guide }));
         x += sepW;
       }
     });
@@ -200,7 +213,7 @@ layout: |
   const rReact = layoutRow(reactants, startX, "reactants");
   push(kit.group("reactants", rReact.items));
 
-  const arrowStartX = rReact.endX + GAP, arrowEndX = arrowStartX + ARROW_LEN;
+  const arrowStartX = rReact.endX + gap, arrowEndX = arrowStartX + arrowLen;
   const arrowChildren = [];
   if (params.reversible) {
     arrowChildren.push(kit.stroke("arrow_fwd", [[arrowStartX, ROW_Y + 7], [arrowEndX, ROW_Y + 7]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.arrow }));
@@ -211,7 +224,7 @@ layout: |
   push(kit.group("arrow", arrowChildren));
   anchors.arrow = [(arrowStartX + arrowEndX) / 2, ROW_Y];
 
-  const rProd = layoutRow(products, arrowEndX + GAP, "products");
+  const rProd = layoutRow(products, arrowEndX + gap, "products");
   push(kit.group("products", rProd.items));
 
   if (params.over) {

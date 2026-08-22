@@ -175,4 +175,25 @@ describe("chemistry pack", () => {
     const ids = flattenDrawables(r.drawables).map((d) => d.id);
     expect(ids.some((id) => /ring_circle/.test(id))).toBe(false);
   });
+
+  test("a routine 3-vs-3 redox equation shrinks to fit instead of running off the canvas", () => {
+    registerPack("chemistry", chemistryYaml);
+    const res = layoutSpec({
+      template: "reaction_scheme",
+      params: {
+        reactants: ["MnO₄⁻", "5 Fe²⁺", "8 H⁺"],
+        products: ["Mn²⁺", "5 Fe³⁺", "4 H₂O"],
+      },
+      elements: [],
+    } as never);
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      const xs = d.kind === "text" ? [d.pos[0]] : d.kind === "stroke" || d.kind === "area" ? d.pts.map((p) => p[0]) : [];
+      for (const x of xs) {
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(1002);
+      }
+    }
+  });
 });
