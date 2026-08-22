@@ -553,6 +553,8 @@ export const kit: SceneKit = {
         const [bx, by, bz] = prim.c;
         const [sx, sy, sz] = prim.size;
         const hx = sx / 2, hy = sy / 2, hz = sz / 2;
+        const qCenter = proj(prim.c);
+        anchors[prim.id] = [qCenter.x, qCenter.y];
         // Six axis-aligned faces, each wound (right-hand rule) so faceNormal
         // matches the listed canonical normal — verified by construction.
         const faces: { normal: Vec3; pts: Vec3[] }[] = [
@@ -586,7 +588,7 @@ export const kit: SceneKit = {
           for (const sy of signs) for (const sz of signs) edges.push({ a: corner(-1, sy, sz), b: corner(1, sy, sz), f1: faceIx(1, sy), f2: faceIx(2, sz) });
           for (const sx of signs) for (const sz of signs) edges.push({ a: corner(sx, -1, sz), b: corner(sx, 1, sz), f1: faceIx(0, sx), f2: faceIx(2, sz) });
           for (const sx of signs) for (const sy of signs) edges.push({ a: corner(sx, sy, -1), b: corner(sx, sy, 1), f1: faceIx(0, sx), f2: faceIx(1, sy) });
-          const nearFace = (faceDepths.length ? Math.min(...faceDepths) : proj(prim.c).depth) - 1e-5;
+          const nearFace = (faceDepths.length ? Math.min(...faceDepths) : qCenter.depth) - 1e-5;
           edges.forEach((e, i) => {
             if (visible[e.f1] || visible[e.f2]) return;
             const qa = proj(e.a), qb = proj(e.b);

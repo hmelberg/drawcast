@@ -139,6 +139,36 @@ describe("kit.project3d", () => {
       const prims = [{ kind: "box3" as const, id: "b", c: [0, 0, 0] as [number, number, number], size: [1, 2, 1] as [number, number, number], hidden_edges: true }];
       expect(JSON.stringify(kit.project3d(cam, prims))).toBe(JSON.stringify(kit.project3d(cam, prims)));
     });
+
+    test("anchors the projected box center, like every other prim kind", () => {
+      const boxRes = kit.project3d(cam, [{ kind: "box3", id: "b", c: [0.4, -0.2, 0.1], size: [1, 1, 1] }]);
+      // A near-zero-radius sphere at the same world point projects to (essentially) the same screen point.
+      const sphereRes = kit.project3d(cam, [{ kind: "sphere", id: "s", c: [0.4, -0.2, 0.1], r: 0.001, shade: false }]);
+      expect(boxRes.anchors.b).toBeDefined();
+      expect(boxRes.anchors.b[0]).toBeCloseTo(sphereRes.anchors.s[0], 4);
+      expect(boxRes.anchors.b[1]).toBeCloseTo(sphereRes.anchors.s[1], 4);
+    });
+  });
+
+  describe("camera.fade with grouped (face3/box3) pieces", () => {
+    test("fades a farther box's face-area opacity more than a nearer box's", () => {
+      const near = kit.project3d(
+        { azimuth: 25, elevation: 15, distance: 10, fade: 0.5 },
+        [
+          { kind: "box3", id: "near", c: [0, 0, 3], size: [1, 1, 1] },
+          { kind: "box3", id: "far", c: [0, 0, -3], size: [1, 1, 1] },
+        ],
+      );
+      const areaOpacity = (id: string) => {
+        const face = flattenDrawables(near.drawables).find((d) => d.id.startsWith(`${id}__f`) && d.id.endsWith("__area"));
+        return face?.kind === "area" ? face.style.opacity : undefined;
+      };
+      const nearOpacity = areaOpacity("near");
+      const farOpacity = areaOpacity("far");
+      expect(nearOpacity).toBeDefined();
+      expect(farOpacity).toBeDefined();
+      expect(farOpacity as number).toBeLessThan(nearOpacity as number);
+    });
   });
 });
 
