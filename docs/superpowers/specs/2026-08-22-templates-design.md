@@ -27,8 +27,9 @@ renamed opportunistically; not a goal in itself.
 
 - Live 3D (WebGL viewers). Verdict from research: bypasses sketchy style, progressive
   drawing, annotation targeting, and SVG video export — "3D island" widgets are off-brand.
-  The 3D-adjacent path that IS on the roadmap: flat projections from real data
-  (PDB HELIX/SHEET → protein strip template).
+  Two 3D-adjacent paths ARE on the roadmap: flat projections from real data
+  (PDB HELIX/SHEET → protein strip template), and **static 3D→SVG projection**
+  (`kit.project3d`, see §3a) — validated by a mini-spike 2026-08-22.
 - Cloud sync / sharing UI. Personal templates live in localStorage; sharing = exporting
   the YAML file. (Note for later: importing a template means running its layout JS —
   when sharing arrives, imports need an explicit confirmation.)
@@ -104,6 +105,24 @@ Two rules the authoring prompt must teach (spike findings):
 2. Repeated micro-strokes (ring bonds, cristae, ribosome dots) go in ONE `group(id)` —
    groups are the narration/annotation beats.
 
+## 3a. kit.project3d — static 3D as flat drawables (later kit addition)
+
+Mini-spike (2026-08-22) validated: a ~100-line projection module (orbit camera
+{azimuth, elevation, distance, fov}; perspective projection; painter's-algorithm depth
+sort over typed primitives sphere/segment/polyline/arrow/billboard-text; bond segments
+split at midpoints and trimmed at sphere surfaces) renders correct, good-looking
+tetrahedral ball-and-stick molecules and 3D vector/axes figures as ordinary flat
+drawables — so progressive drawing, narration targeting, and SVG video export all work
+unchanged. Camera angles are template params (a playlist can redraw the same molecule
+from a second angle as its "rotation").
+
+Reliable scope: ball-and-stick molecules, 3D coordinate geometry/vectors, simple
+lattices/unit cells, parametric helices. OUT of scope (unreliable under painter's
+sorting, or SVG-bloat): intersecting surfaces, 3D ribbons/cartoons, large structures.
+Not in M1; lands as a kit minor version when the first 3D template is authored
+(chemistry pack is the natural driver). Cross-ref: simple-3d-svg (tscircuit) proves
+the approach at 20 KB but is boxes-only — we implement our own primitives.
+
 ## 4. Engines (lazy, declared, few)
 
 - `src/scenes/engines.ts`: registry `name -> () => import(...)`. Enabling a template
@@ -140,6 +159,39 @@ Enabled-set semantics:
 - Loading an external pack executes its layout JS. v1 sources are Hans's own repos plus
   the user's own files; a URL outside the official index gets a confirm dialog naming
   the risk plainly.
+
+## 5a. Template selection at generation time
+
+Four mechanisms, in precedence order (higher wins):
+
+1. **Explicit per-request**: a template picker near the prompt box AND a #tag
+   (`#template:free_body`, with short aliases) via the existing tags vocabulary.
+   Forcing a template puts ONLY that template's full entry in the prompt (the task
+   degrades from "route then fill" to "fill"), and lint enforces
+   `spec.template == forced` as an error (repair-loop eligible).
+2. **Inference (assists, never gates)**: client-side, zero-token matching of the
+   request text against template metadata (description, a new optional `keywords:`
+   field, and `examples[].request` — the same exemplar-matching approach already used
+   for fewshots). Its ONLY effect is choosing which templates get full entries.
+3. **Preference default**: Settings gains a "default domain" (pack multi-select /
+   priority). For a user who always works in economics: their packs' templates are
+   always in the hot set and no #tag is ever needed. Stable preference ⇒ stable prompt
+   prefix ⇒ cache-friendly.
+4. **Core defaults** otherwise.
+
+Catalog structure (activates only above ~10 enabled templates — below that, full
+entries for everything, exactly as today):
+
+- **Compact index, always complete**: one line per ENABLED template (id + one-liner,
+  ~15–25 tokens each), so the model always knows everything available. Plus one line
+  per available-but-disabled pack ("chemistry pack — not enabled"), so the model can
+  suggest enabling it (client may offer one-click enable).
+- **Full entries for the hot set**: forced template ∪ inference shortlist ∪ preference
+  packs ∪ core — typically 3–5 fat entries.
+- **Escalation for the rare miss**: if the model wants an index-only template, it
+  signals via a marker documented in the prompt TEXT (structured outputs can be off —
+  known trap); the client re-calls with that template's full entry. Normal case stays
+  one call.
 
 ## 6. AI authoring pipeline
 
@@ -194,9 +246,10 @@ Editor gains "New template" (and "Improve this template" on an existing one):
   accepts doc-templates, port one built-in as validation + exemplar. Tests.
 - **M2 — authoring**: New/Improve template flow with text+image input, preview,
   repair loop, My templates in localStorage, export/import YAML.
-- **M3 — packs + lazy + catalog-per-enabled**: pack format, Templates panel, in-repo
-  lazy packs, catalog built from enabled set. First domain pack: physics (free-body,
-  ray diagram, wave — zero engine dependencies).
+- **M3 — packs + lazy + selection**: pack format, Templates panel, in-repo lazy packs,
+  catalog built from enabled set; #template tag + picker; preference default domain;
+  two-level catalog + escalation (the >10-templates machinery of §5a). First domain
+  pack: physics (free-body, ray diagram, wave — zero engine dependencies).
 - **M4 — chemistry pack + engine loading**: engines registry, smilesDrawer adapter,
   molecule + reaction-scheme + energy-diagram templates.
 - **M5 — external repo**: drawcast-templates repo + index.json, load-by-URL with
