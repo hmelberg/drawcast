@@ -37,6 +37,10 @@ export interface Settings {
   uiMode: "player" | "editor";
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
+  /** Domain pack ids (M3) currently enabled — loaded and registered at startup. */
+  enabledPacks: string[];
+  /** Enabled pack ids whose templates get a full catalog entry (never summarized). */
+  priorityPacks: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -52,6 +56,8 @@ export const DEFAULT_SETTINGS: Settings = {
   cloudPlayback: true,
   uiMode: "player",
   specFormat: "yaml",
+  enabledPacks: [],
+  priorityPacks: [],
 };
 
 function read<T>(key: string, fallback: T): T {

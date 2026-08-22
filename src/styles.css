@@ -711,3 +711,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Template packs panel (M3): each row stacks a .library-item (title + the two
+   checkboxes) over the pack's description hint. */
+.pack-row + .pack-row { margin-top: 0.5rem; }
+.pack-check { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }

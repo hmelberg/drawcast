@@ -12,6 +12,8 @@ import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm
 import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
+import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, unregisterPack } from "./scenes/packs";
+import { scenes } from "./scenes/registry";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -87,6 +89,14 @@ let lastLogId: string | null = null;
 for (const r of registerMyTemplatesAtStartup()) {
   if (!r.ok) console.warn(`My template "${r.id}" failed to load:`, r.errors.join("; "));
 }
+
+// Domain packs the user previously enabled: load + register async, then
+// refresh the toolbar picker (refreshTemplatePicker is defined below —
+// a hoisted function declaration, so this early reference is safe).
+void ensureEnabledPacks(settings.enabledPacks).then((rs) => {
+  for (const r of rs) if (!r.ok) console.warn(`pack "${r.id}" failed:`, r.errors.join("; "));
+  refreshTemplatePicker();
+});
 
 /** First item's spec — the poster, the exemplar target, single-figure back-compat. */
 function firstSpec(d: Doc): Spec {
@@ -281,6 +291,20 @@ const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
 styleSel.value = settings.style;
 
+// Toolbar template picker (M3): "Auto" lets the AI pick; a specific choice
+// (or a #template= tag, which wins) forces it. Ready templates only — a
+// stub can't render.
+const templateSel = h("select", { class: "cs-bar-select", title: "Force a template (Auto lets the AI choose; #template= in the request overrides this)" });
+function refreshTemplatePicker(): void {
+  const current = templateSel.value;
+  templateSel.replaceChildren(h("option", { value: "" }, "Template: Auto"));
+  for (const [id, mod] of Object.entries(scenes).sort(([a], [b]) => a.localeCompare(b))) {
+    if (mod.manifest.status === "ready") templateSel.appendChild(h("option", { value: id }, id));
+  }
+  if ([...templateSel.options].some((o) => o.value === current)) templateSel.value = current;
+}
+refreshTemplatePicker();
+
 // Examples & library panel
 const exampleSel = h("select", { title: "Bundled examples" });
 examples.forEach((ex, i) => exampleSel.appendChild(h("option", { value: String(i) }, ex.spec.title ?? ex.request)));
@@ -305,6 +329,11 @@ const libraryList = h("div", { class: "library-list" });
 const myTemplatesList = h("div", { class: "library-list" });
 const myTplImportBtn = h("button", { class: "small" }, "Import template…");
 const myTplImportInput = h("input", { type: "file", accept: ".yaml,.yml", hidden: "" });
+
+// Template packs panel (M3): the list host is created here so it can be
+// placed in editorWrap below; refreshTemplatePacksPanel() lives with the
+// rest of the wiring further down, next to My templates.
+const templatePacksList = h("div", { class: "library-list" });
 
 // Prompt library: named compiler-prompt variants (Loop 2's UI).
 // The active prompt is what Generate uses; bundled prompts are read-only,
@@ -422,6 +451,7 @@ const editorWrap = h(
       newTemplateBtn,
       h("span", { class: "toolbar-sep" }),
       h("label", { class: "toolbar-label" }, "Style ", styleSel),
+      templateSel,
     ),
   ),
   statusEl,
@@ -444,6 +474,12 @@ const editorWrap = h(
     h("summary", {}, "My templates"),
     h("div", { class: "row" }, myTplImportBtn, myTplImportInput),
     myTemplatesList,
+  ),
+  h(
+    "details",
+    { class: "panel editor-extra" },
+    h("summary", {}, "Template packs"),
+    templatePacksList,
   ),
   h(
     "details",
@@ -704,6 +740,7 @@ authorSaveBtn.addEventListener("click", () => {
   draftIds.add(id);
   saveMyTemplate({ id, yaml: authorOutcome.yaml, ts: new Date().toISOString() });
   refreshMyTemplates();
+  refreshTemplatePicker();
   authorStatus.textContent = `Saved. "${id}" is now in the catalog — try: use the ${id} template.`;
 });
 
@@ -935,16 +972,29 @@ function logOutcome(prompt: string, outcome: Awaited<ReturnType<typeof generateS
   return logId;
 }
 
+/** True when id names a registered, ready (rendering) template. */
+function isReadyTemplate(id: string): boolean {
+  return scenes[id]?.manifest.status === "ready" && !!scenes[id].layout;
+}
+
 async function generate(): Promise<void> {
   const rawRequest = promptEl.value.trim();
   if (!rawRequest) return;
-  const apiKey = requireKey();
-  if (!apiKey) return;
   const parsed = parseTags(rawRequest);
   if (!parsed.clean) {
     setStatus("The request is only tags — add what to draw.", "error");
     return;
   }
+  // #template=<id> (or the toolbar picker) forces a template — validate BEFORE
+  // requireKey/any API work so a typo'd id never burns the repair budget (or
+  // makes the user add a key just to hit a dead end).
+  const forcedTemplate = parsed.template ?? (templateSel.value || undefined);
+  if (forcedTemplate && !isReadyTemplate(forcedTemplate)) {
+    setStatus(`Unknown template "${forcedTemplate}" — see the Template picker for valid ids.`, "error");
+    return;
+  }
+  const apiKey = requireKey();
+  if (!apiKey) return;
   const brief = buildBrief(parsed.tags);
   generateBtn.disabled = true;
   try {
@@ -952,6 +1002,7 @@ async function generate(): Promise<void> {
       await generateMulti(rawRequest, parsed, brief, apiKey);
       return;
     }
+    const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
     setStatus(`Generating (${settings.model}, prompt ${currentVariant().name})…`);
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
@@ -959,6 +1010,8 @@ async function generate(): Promise<void> {
       variant: currentVariant(),
       exemplars: loadExemplars(),
       brief,
+      forcedTemplate,
+      priorityIds,
     });
     const logId = logOutcome(rawRequest, outcome);
     if (!outcome.spec) {
@@ -1135,6 +1188,7 @@ myTplImportInput.addEventListener("change", () => {
     const replaced = loadMyTemplates().some((t) => t.id === r.id);
     saveMyTemplate({ id: r.id!, yaml, ts: new Date().toISOString() });
     refreshMyTemplates();
+    refreshTemplatePicker();
     setStatus(replaced ? `Imported template "${r.id}" (replaced existing).` : `Imported template "${r.id}".`, "ok");
   });
   myTplImportInput.value = "";
@@ -1157,11 +1211,93 @@ function refreshMyTemplates(): void {
       deleteMyTemplate(t.id);
       unregisterUserTemplate(t.id);
       refreshMyTemplates();
+      refreshTemplatePicker();
     });
     myTemplatesList.appendChild(h("div", { class: "library-item" }, h("span", { class: "library-title" }, t.id), improveBtn, exportBtn2, delBtn2));
   }
 }
 refreshMyTemplates();
+
+// ---------- template packs (M3) ----------
+
+/**
+ * One row per PACK_DEFS entry. Enabling loads + registers the pack (async);
+ * a load/compile failure reverts the checkbox rather than persisting a pack
+ * that isn't actually usable — cleaner than "enabled with a warning" because
+ * settings.enabledPacks then always means "actually registered".
+ */
+function refreshTemplatePacksPanel(): void {
+  templatePacksList.replaceChildren();
+  const defs = Object.values(PACK_DEFS).sort((a, b) => a.title.localeCompare(b.title));
+  if (defs.length === 0) {
+    templatePacksList.appendChild(h("div", { class: "hint" }, "No template packs available."));
+    return;
+  }
+  for (const def of defs) {
+    const enabledCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+    enabledCb.checked = settings.enabledPacks.includes(def.id);
+    const defaultCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+    defaultCb.checked = settings.priorityPacks.includes(def.id);
+    defaultCb.disabled = !enabledCb.checked;
+
+    enabledCb.addEventListener("change", () => {
+      if (enabledCb.checked) {
+        enabledCb.disabled = true;
+        void ensureEnabledPacks([def.id]).then((rs) => {
+          enabledCb.disabled = false;
+          const r = rs[0];
+          if (!r?.ok) {
+            enabledCb.checked = false; // revert — don't persist a pack that failed to load
+            setStatus(`Pack "${def.id}" failed to load: ${r?.errors.join("; ") ?? "unknown error"}`, "error");
+            return;
+          }
+          // Reassign rather than mutate in place: on a first-ever run (nothing in
+          // localStorage yet) loadSettings() returns the literal DEFAULT_SETTINGS
+          // object, and its array fields must never be pushed into.
+          if (!settings.enabledPacks.includes(def.id)) settings.enabledPacks = [...settings.enabledPacks, def.id];
+          persist();
+          defaultCb.disabled = false;
+          refreshTemplatePicker();
+          const n = packTemplateIds(def.id).length;
+          setStatus(`Pack "${def.id}" enabled (${n} template${n === 1 ? "" : "s"}).`, "ok");
+        });
+      } else {
+        unregisterPack(def.id);
+        settings.enabledPacks = settings.enabledPacks.filter((id) => id !== def.id);
+        settings.priorityPacks = settings.priorityPacks.filter((id) => id !== def.id); // a disabled pack can't be a default domain
+        persist();
+        defaultCb.checked = false;
+        defaultCb.disabled = true;
+        refreshTemplatePicker();
+      }
+    });
+
+    defaultCb.addEventListener("change", () => {
+      if (defaultCb.checked) {
+        if (!settings.priorityPacks.includes(def.id)) settings.priorityPacks = [...settings.priorityPacks, def.id];
+      } else {
+        settings.priorityPacks = settings.priorityPacks.filter((id) => id !== def.id);
+      }
+      persist();
+    });
+
+    templatePacksList.appendChild(
+      h(
+        "div",
+        { class: "pack-row" },
+        h(
+          "div",
+          { class: "library-item" },
+          h("span", { class: "library-title" }, def.title),
+          h("label", { class: "pack-check" }, enabledCb, "Enabled"),
+          h("label", { class: "pack-check" }, defaultCb, "Default domain"),
+        ),
+        h("div", { class: "hint" }, def.description),
+      ),
+    );
+  }
+}
+refreshTemplatePacksPanel();
 
 exportBtn.addEventListener("click", () => {
   const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
