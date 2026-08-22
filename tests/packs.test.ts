@@ -1,0 +1,98 @@
+import { beforeEach, describe, expect, test } from "vitest";
+import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
+import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, PACK_DEFS } from "../src/scenes/packs";
+import { scenes } from "../src/scenes/registry";
+import { layoutSpec } from "../src/layout/layout";
+import { flattenDrawables } from "../src/layout/model";
+
+beforeEach(() => unregisterPack("physics"));
+
+describe("parsePack", () => {
+  test("parses header + two ready templates", () => {
+    const { pack, errors } = parsePack(physicsYaml);
+    expect(errors).toEqual([]);
+    expect(pack?.id).toBe("physics");
+    expect(pack?.templates.map((t) => t.template)).toEqual(["ray_diagram", "wave_diagram"]);
+  });
+
+  test("reports YAML errors instead of throwing", () => {
+    const r = parsePack("pack: [broken");
+    expect(r.pack).toBeUndefined();
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+
+  test("missing header doc is an error", () => {
+    const r = parsePack("template: x\nversion: 1\nkit: 1\nstatus: stub\ndescription: d\nparams: {}\nelement_ids: {}\nexamples: []");
+    expect(r.errors[0]).toMatch(/header|pack/);
+  });
+});
+
+describe("registerPack / unregisterPack", () => {
+  test("registers both templates, tracks ownership, unregisters exactly them", () => {
+    const r = registerPack("physics", physicsYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: ["ray_diagram", "wave_diagram"] });
+    expect(scenes.ray_diagram.layout).toBeDefined();
+    expect(isPackTemplateId("ray_diagram")).toBe(true);
+    expect(packTemplateIds("physics")).toEqual(["ray_diagram", "wave_diagram"]);
+    unregisterPack("physics");
+    expect(scenes.ray_diagram).toBeUndefined();
+    expect(scenes.wave_diagram).toBeUndefined();
+    expect(isPackTemplateId("ray_diagram")).toBe(false);
+  });
+
+  test("a pack template colliding with an existing id rolls the WHOLE pack back", () => {
+    const clash = physicsYaml.replace("template: wave_diagram", "template: supply_demand");
+    const before = scenes.supply_demand;
+    const r = registerPack("physics", clash);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => /supply_demand/.test(e))).toBe(true);
+    expect(scenes.supply_demand).toBe(before);   // untouched
+    expect(scenes.ray_diagram).toBeUndefined();  // rolled back
+  });
+
+  test("re-registering an already-registered pack is a no-op success", () => {
+    registerPack("physics", physicsYaml);
+    const r = registerPack("physics", physicsYaml);
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe("physics templates through the real pipeline", () => {
+  test("every example renders with zero warnings and no error lint, deterministically", () => {
+    registerPack("physics", physicsYaml);
+    for (const tid of ["ray_diagram", "wave_diagram"]) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+        for (const d of flattenDrawables(res.drawables)) {
+          if (d.kind === "stroke" || d.kind === "area") {
+            for (const [x, y] of d.pts) {
+              expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+              expect(Math.abs(x)).toBeLessThan(2000);
+              expect(Math.abs(y)).toBeLessThan(2000);
+            }
+          }
+        }
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("virtual-image case draws dashed extensions; real case does not", () => {
+    registerPack("physics", physicsYaml);
+    const real = scenes.ray_diagram.layout!({ focal_length: 10, object_distance: 25 });
+    const virt = scenes.ray_diagram.layout!({ focal_length: 12, object_distance: 7 });
+    expect(flattenDrawables(real.drawables).map((d) => d.id)).not.toContain("ray_parallel_ext");
+    expect(flattenDrawables(virt.drawables).map((d) => d.id)).toContain("ray_parallel_ext");
+    const img = flattenDrawables(virt.drawables).find((d) => d.id === "image");
+    expect(img?.kind === "stroke" && img.style.dash).toBe(true);
+  });
+});
+
+test("PACK_DEFS has physics with a loader", () => {
+  expect(PACK_DEFS.physics.title).toBe("Physics");
+  expect(typeof PACK_DEFS.physics.load).toBe("function");
+});

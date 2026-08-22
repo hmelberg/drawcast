@@ -1,0 +1,176 @@
+pack: physics
+title: Physics
+description: Optics ray diagrams and wave diagrams — classroom physics figures with computed geometry.
+---
+template: ray_diagram
+title: Lens ray diagram
+version: 1
+kit: 1
+status: ready
+description: >-
+  A converging-lens ray diagram with the geometry COMPUTED from the thin-lens
+  equation: object arrow, lens, both focal points, the two principal rays
+  (parallel→focal and center-straight), and the image — real and inverted when
+  the object is outside the focal length, virtual, upright and dashed when
+  inside. Choose this scene for ANY request about lenses, ray diagrams, image
+  formation, real vs virtual images, magnification, or "what happens when the
+  object moves inside the focal length". Vary focal_length and object_distance
+  and the figure re-derives itself.
+params:
+  type: object
+  properties:
+    focal_length:
+      type: number
+      description: "Focal length in arbitrary units (default 10)."
+    object_distance:
+      type: number
+      description: "Object distance from the lens, same units (default 25). Less than focal_length gives a virtual image."
+    object_height:
+      type: number
+      description: "Object height in units (default 6)."
+    show_labels:
+      type: boolean
+      description: "F / object / image labels (default true)."
+element_ids:
+  axis: the optical axis
+  lens: the lens (vertical double-headed arrow)
+  focal_left / focal_right: the focal-point ticks with F labels
+  object: the object arrow
+  ray_parallel: the parallel-then-through-focus principal ray
+  ray_center: the straight-through-center principal ray
+  ray_parallel_ext / ray_center_ext: dashed back-extensions (virtual case only)
+  image: the image arrow (dashed when virtual)
+  label_object / label_image / label_f_left / label_f_right: the labels
+examples:
+  - request: "Draw a ray diagram for a converging lens with the object outside the focal length."
+    params: { focal_length: 10, object_distance: 25, object_height: 6 }
+  - request: "Show why a magnifying glass makes a virtual image when the object is inside the focal length."
+    params: { focal_length: 12, object_distance: 7, object_height: 5 }
+layout: |
+  const f = Math.max(1, params.focal_length ?? 10);
+  const dObj = Math.max(1.2, params.object_distance ?? 25);
+  const hObj = Math.max(1, params.object_height ?? 6);
+  const showLabels = params.show_labels !== false;
+  const virtual = dObj < f;
+  const dImg = (f * dObj) / (dObj - f);           // thin lens; negative when virtual
+  const m = -dImg / dObj;
+  const hImg = m * hObj;
+  // Scale to fit: horizontal span from object to image (or 2f), vertical from heights.
+  // Virtual images always sit FARTHER from the lens than the object (|dImg| > dObj
+  // whenever dObj < f), and the outgoing parallel ray is drawn on to 2f+2 — both
+  // extremes must be inside the horizontal span or the virtual case runs off-canvas.
+  const leftU = virtual ? Math.max(dObj, Math.abs(dImg)) : dObj;
+  const rightU = Math.max(virtual ? 2 * f + 2 : dImg, 2 * f);
+  const sx = 780 / (leftU + rightU);
+  const sy = Math.min(sx, 250 / Math.max(hObj, Math.abs(hImg)));
+  const lensX = 110 + leftU * sx, axisY = 375;
+  const X = (u) => lensX + u * sx;                 // u<0 left of lens
+  const Y = (h) => axisY + h * sy;
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color) => {
+    if (!showLabels) return;
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize: 24 }));
+    order.push(id);
+  };
+  push(kit.stroke("axis", [[70, axisY], [930, axisY]], { strokeWidth: 2.5, color: C.guide, ms: MS.axis }));
+  push(kit.stroke("lens", [[lensX, axisY - 210], [lensX, axisY + 210]], { arrowhead: "both", strokeWidth: 4, ms: MS.axis }));
+  for (const [id, u] of [["focal_left", -f], ["focal_right", f]]) {
+    push(kit.stroke(id, [[X(u), axisY - 9], [X(u), axisY + 9]], { strokeWidth: 3, ms: MS.dot }));
+    label("label_" + id.slice(6), [X(u), axisY - 26], "below", "F");
+  }
+  const tip = [X(-dObj), Y(hObj)];
+  push(kit.stroke("object", [[X(-dObj), axisY], tip], { arrowhead: "end", strokeWidth: 5, color: C.supply, ms: MS.arrow }));
+  anchors.object = tip;
+  label("label_object", [tip[0], tip[1] + 26], "above", "Object", C.supply);
+  const imgTip = [X(dImg), Y(hImg)];
+  // Ray 1: parallel to axis, refracts through far focal point.
+  push(kit.stroke("ray_parallel", virtual
+    ? [tip, [lensX, tip[1]], [X(2 * f + 2), Y(hObj - ((2 * f + 2 - 0) * (hObj - 0)) / f)]]
+    : [tip, [lensX, tip[1]], imgTip], { arrowhead: "end", strokeWidth: 3, color: C.demand, ms: MS.connector }));
+  // Ray 2: straight through the lens center.
+  push(kit.stroke("ray_center", virtual
+    ? [tip, [X(Math.max(2 * f, 1.6 * dObj)), Y(-(hObj / dObj) * Math.max(2 * f, 1.6 * dObj))]]
+    : [tip, imgTip], { arrowhead: "end", strokeWidth: 3, color: C.accent, ms: MS.connector }));
+  if (virtual) {
+    push(kit.stroke("ray_parallel_ext", [[lensX, tip[1]], imgTip], { dash: true, strokeWidth: 2.5, color: C.demand, ms: MS.guides }));
+    push(kit.stroke("ray_center_ext", [tip, imgTip], { dash: true, strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
+  }
+  push(kit.stroke("image", [[X(dImg), axisY], imgTip], { arrowhead: "end", strokeWidth: 5, color: C.ink, dash: virtual, ms: MS.arrow }));
+  anchors.image = imgTip;
+  label("label_image", [imgTip[0], imgTip[1] + (hImg >= 0 ? 26 : -26)], hImg >= 0 ? "above" : "below", virtual ? "Virtual image" : "Real image");
+  return { drawables, labels, anchors, order };
+---
+template: wave_diagram
+title: Wave diagram
+version: 1
+kit: 1
+status: ready
+description: >-
+  A transverse wave with labeled amplitude and wavelength: a sine curve on an
+  axis, a double-headed amplitude arrow, a wavelength bracket between crests,
+  and optional crest/trough labels or a second dashed wave with a phase shift
+  (interference/superposition setups). Choose this scene for requests about
+  waves, wavelength, amplitude, frequency, phase, or interference.
+params:
+  type: object
+  properties:
+    amplitude:
+      type: number
+      description: "Amplitude in units 1–10 (default 5)."
+    cycles:
+      type: number
+      description: "How many wavelengths to draw, 1–5 (default 3)."
+    second_wave_phase_deg:
+      type: number
+      description: "If set, a second dashed wave shifted by this phase (e.g. 180 for destructive interference)."
+    label_parts:
+      type: boolean
+      description: "Label amplitude, wavelength, crest and trough (default true)."
+element_ids:
+  axis: the horizontal axis
+  wave: the main wave curve
+  wave2: the second (dashed) wave when second_wave_phase_deg is set
+  amp_arrow: double-headed amplitude arrow
+  wl_arrow: double-headed wavelength arrow between crests
+  label_amp / label_wl / label_crest / label_trough: the labels
+examples:
+  - request: "Draw a wave and label the wavelength and amplitude."
+    params: { amplitude: 5, cycles: 3 }
+  - request: "Show destructive interference of two waves."
+    params: { amplitude: 4, cycles: 3, second_wave_phase_deg: 180, label_parts: false }
+layout: |
+  const ampU = Math.min(10, Math.max(1, params.amplitude ?? 5));
+  const cycles = Math.min(5, Math.max(1, Math.round(params.cycles ?? 3)));
+  const phase2 = params.second_wave_phase_deg;
+  const labelParts = params.label_parts !== false;
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const x0 = 90, len = 800, midY = 375;
+  const wl = len / cycles;
+  const amp = ampU * 22;
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.stroke("axis", [[x0 - 20, midY], [x0 + len + 30, midY]], { arrowhead: "end", strokeWidth: 2.5, color: C.guide, ms: MS.axis }));
+  push(kit.stroke("wave", kit.wave([x0, midY], len, amp, wl), { strokeWidth: 4.5, color: C.supply, ms: MS.curve }));
+  anchors.wave = [x0 + wl / 4, midY + amp];
+  if (phase2 !== undefined) {
+    const sh = (((phase2 % 360) + 360) % 360) / 360 * wl;
+    const shifted = [];
+    for (let t = 0; t <= len; t += 4) shifted.push([x0 + t, midY + amp * Math.sin(((t - sh) / wl) * 2 * Math.PI)]);
+    push(kit.stroke("wave2", shifted, { strokeWidth: 3.5, color: C.demand, dash: true, ms: MS.curve }));
+  }
+  if (labelParts) {
+    const crestX = x0 + wl / 4;
+    push(kit.stroke("amp_arrow", [[crestX + wl, midY], [crestX + wl, midY + amp]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
+    labels.push(kit.label("label_amp", [crestX + wl + 8, midY + amp / 2], "right", "Amplitude A", { color: C.accent, fontSize: 24 }));
+    order.push("label_amp");
+    push(kit.stroke("wl_arrow", [[crestX, midY + amp + 26], [crestX + wl, midY + amp + 26]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
+    labels.push(kit.label("label_wl", [crestX + wl / 2, midY + amp + 34], "above", "Wavelength λ", { color: C.accent, fontSize: 24 }));
+    order.push("label_wl");
+    labels.push(kit.label("label_crest", [crestX, midY + amp], "above", "Crest", { fontSize: 22 }));
+    order.push("label_crest");
+    labels.push(kit.label("label_trough", [crestX + wl / 2, midY - amp], "below", "Trough", { fontSize: 22 }));
+    order.push("label_trough");
+  }
+  return { drawables, labels, anchors, order };
