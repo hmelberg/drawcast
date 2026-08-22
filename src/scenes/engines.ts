@@ -44,17 +44,19 @@ async function loadSmilesDrawer(): Promise<SmilesEngine> {
       pre.processGraph();
       const vertices = pre.graph.vertices;
       const atoms = vertices.map((v) => ({ x: v.position.x, y: v.position.y, element: v.value.element }));
-      const aromaticIds = new Set<number>();
-      const rings = pre.rings.map((r) => {
-        for (const m of r.members) aromaticIds.add(m);
-        return [...r.members];
-      });
+      // SSSR ring membership — still what the template needs for drawing ring
+      // outlines; whether a given ring is aromatic (for the inner circle) is
+      // derived by the caller from its member bonds' own `aromatic` flags.
+      const rings = pre.rings.map((r) => [...r.members]);
       const orderOf = (bt: string): 1 | 2 | 3 => (bt === "=" ? 2 : bt === "#" ? 3 : 1);
+      // Aromaticity comes straight from the library's own perception
+      // (Edge.isPartOfAromaticRing) — NOT from "both endpoints sit in some
+      // ring", which would also flag saturated rings (e.g. cyclohexane).
       const bonds = pre.graph.edges.map((e) => ({
         a: e.sourceId,
         b: e.targetId,
         order: orderOf(e.bondType),
-        aromatic: aromaticIds.has(e.sourceId) && aromaticIds.has(e.targetId),
+        aromatic: !!e.isPartOfAromaticRing,
       }));
       // Normalize: center at origin, max dimension 1 (y flipped to y-up).
       const xs = atoms.map((a) => a.x), ys = atoms.map((a) => a.y);
@@ -75,7 +77,7 @@ interface SdPreprocessor {
   processGraph(): void;
   graph: {
     vertices: { position: { x: number; y: number }; value: { element: string } }[];
-    edges: { sourceId: number; targetId: number; bondType: string }[];
+    edges: { sourceId: number; targetId: number; bondType: string; isPartOfAromaticRing: boolean }[];
   };
   rings: { members: number[] }[];
 }

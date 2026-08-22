@@ -105,6 +105,24 @@ describe("smilesdrawer engine (real load — node, no DOM)", () => {
     const eng = getLoadedEngines(["smilesdrawer"]).smilesdrawer as SmilesEngine;
     expect(() => eng.layoutSmiles("this is not smiles ((")).toThrow(/parse/i);
   });
+
+  test("cyclohexane (saturated ring) is not aromatic", async () => {
+    await ensureEngines(["smilesdrawer"]);
+    const eng = getLoadedEngines(["smilesdrawer"]).smilesdrawer as SmilesEngine;
+    const mol = eng.layoutSmiles("C1CCCCC1");
+    expect(mol.bonds).toHaveLength(6);
+    expect(mol.bonds.every((b) => b.aromatic === false)).toBe(true);
+    expect(mol.rings).toHaveLength(1);
+    expect(mol.rings[0]).toHaveLength(6);
+  });
+
+  test("benzene (aromatic ring) has every ring bond aromatic", async () => {
+    await ensureEngines(["smilesdrawer"]);
+    const eng = getLoadedEngines(["smilesdrawer"]).smilesdrawer as SmilesEngine;
+    const mol = eng.layoutSmiles("c1ccccc1");
+    expect(mol.bonds).toHaveLength(6);
+    expect(mol.bonds.every((b) => b.aromatic === true)).toBe(true);
+  });
 });
 
 test("KNOWN_ENGINES lists smilesdrawer", () => {
