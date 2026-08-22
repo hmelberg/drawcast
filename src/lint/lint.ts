@@ -3,7 +3,7 @@
 // repair round as structured text.
 
 import { CANVAS } from "../layout/canvas";
-import { bboxOfPts, bboxOfText, boxesOverlap, expandBox, polylineIntersectsBox } from "../layout/geometry";
+import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox } from "../layout/geometry";
 import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
 
@@ -73,12 +73,14 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn): LintIssue
     }
   }
 
-  // label–stroke overlap (leader lines may touch their own label)
+  // label–stroke: a graze is fine by design (soft obstacles + text halo);
+  // only a stroke crossing the label's CORE threatens legibility.
   for (const t of texts) {
-    const box = expandBox(bboxOfText(t, measure), 1);
+    const full = bboxOfText(t, measure);
+    const core = { x: full.x + full.w * 0.2, y: full.y + full.h * 0.25, w: full.w * 0.6, h: full.h * 0.5 };
     for (const s of strokes) {
       if (s.id === `${t.id}_leader`) continue;
-      if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, box)) {
+      if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
         issues.push({
           rule: "overlap-label-stroke",
           ids: [t.id, s.id],

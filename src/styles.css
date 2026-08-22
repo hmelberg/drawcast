@@ -686,8 +686,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--ink);
   text-align: center;
   width: fit-content;
-  padding: 0.15rem 0.4rem 9px;
-  margin: 0.1rem auto 0.15rem;
+  padding: 0 0.4rem;
+  margin: 0.05rem auto 0.1rem;
   max-width: 90%;
 }
 .player-figure:fullscreen .cs-title { font-size: 1.7rem; }

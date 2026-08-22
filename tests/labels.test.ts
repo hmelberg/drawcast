@@ -46,16 +46,54 @@ describe("placeLabels", () => {
     expect(placed.text.lines).toBeUndefined();
   });
 
-  test("when all near candidates are blocked, the label is displaced with a leader line", () => {
-    // Surround the anchor with obstacles so every close candidate collides.
+  test("when all near candidates are blocked by TEXT, the label is displaced with a leader line", () => {
+    // Surround the anchor with hard (text) obstacles so every close candidate collides.
     const obstacles = [];
     for (let dx = -220; dx <= 220; dx += 55) {
       for (let dy = -120; dy <= 120; dy += 30) {
-        obstacles.push({ x: 500 + dx - 27, y: 400 + dy - 15, w: 54, h: 30 });
+        obstacles.push({ box: { x: 500 + dx - 27, y: 400 + dy - 15, w: 54, h: 30 }, solid: true });
       }
     }
     const [placed] = placeLabels([req("l1", [500, 400])], obstacles, heuristicMeasure);
     expect(placed.leader).toBeDefined();
     expect(placed.leader!.pts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("SOFT (stroke) obstacles do not exile the label: it stays near the anchor, no leader", () => {
+    // The same wall of obstacles, but soft — text may sit on a stroke.
+    const obstacles = [];
+    for (let dx = -220; dx <= 220; dx += 55) {
+      for (let dy = -120; dy <= 120; dy += 30) {
+        obstacles.push({ box: { x: 500 + dx - 27, y: 400 + dy - 15, w: 54, h: 30 }, solid: false });
+      }
+    }
+    const [placed] = placeLabels([req("l1", [500, 400])], obstacles, heuristicMeasure);
+    expect(placed.leader).toBeUndefined();
+    const dist = Math.hypot(placed.text.pos[0] - 500, placed.text.pos[1] - 400);
+    expect(dist).toBeLessThan(120);
+  });
+
+  test("a clean nearby spot still beats a soft overlap", () => {
+    // One soft obstacle exactly on the preferred side; the label should take a
+    // clean neighboring side rather than sit on the stroke.
+    const obstacles = [{ box: { x: 505, y: 405, w: 200, h: 80 }, solid: false }];
+    const [placed] = placeLabels([req("l1", [500, 400])], obstacles, heuristicMeasure);
+    const box = bboxOfText(placed.text, heuristicMeasure);
+    expect(boxesOverlap(box, obstacles[0].box)).toBe(false);
+  });
+});
+
+import { makeAxes } from "../src/layout/axes";
+import { plotArea } from "../src/layout/canvas";
+
+describe("axis labels", () => {
+  test("the x-axis label is right-justified at the axis end", () => {
+    const plot = plotArea();
+    const axes = makeAxes("ax", plot, "Apartments (thousands)", "Rent");
+    const xLabel = axes.children.find((c) => c.id === "ax_x_label");
+    expect(xLabel?.kind).toBe("text");
+    if (xLabel?.kind !== "text") return;
+    expect(xLabel.anchor).toBe("end");
+    expect(xLabel.pos[0]).toBeGreaterThanOrEqual(plot.x1);
   });
 });

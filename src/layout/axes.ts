@@ -43,10 +43,12 @@ export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: s
     children.push({
       id: `${id}_x_label`,
       kind: "text",
-      pos: [(plot.x0 + plot.x1) / 2, plot.y0 - 52],
+      // Right-justified at the axis end (textbook style): the strip under the
+      // axis stays free for quantity markings.
+      pos: [plot.x1 + 14, plot.y0 - 52],
       text: xLabel,
       fontSize: 28,
-      anchor: "middle",
+      anchor: "end",
       z: Z_TEXT,
       style: defaultStyle(),
       drawOpts: defaultDrawOpts("instant"),

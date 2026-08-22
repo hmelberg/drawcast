@@ -7,7 +7,7 @@ import type { Spec } from "../spec/types";
 import { lintLayout, type LintIssue } from "../lint/lint";
 import { layoutElements } from "./tier2";
 import { annotationDrawables } from "./annotate";
-import { placeLabels, type LabelRequest } from "./labels";
+import { placeLabels, type LabelRequest, type Obstacle } from "./labels";
 import { bboxOfPts, bboxOfText, expandBox, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
@@ -168,26 +168,28 @@ function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
   return ([x, y]) => [ix(x), iy(y)];
 }
 
-function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): BBox[] {
-  const boxes: BBox[] = [];
+function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): Obstacle[] {
+  const obstacles: Obstacle[] = [];
   for (const d of leafDrawables(drawables)) {
     if (d.kind === "text") {
-      boxes.push(expandBox(bboxOfText(d, measure), 2));
+      // Text is solid: overlapping words are unreadable.
+      obstacles.push({ box: expandBox(bboxOfText(d, measure), 2), solid: true });
     } else if (d.kind === "stroke") {
+      // Strokes/shapes are soft: a label may graze them (the halo keeps it legible).
       if (d.shapeHint?.type === "circle") {
         const { c, r } = d.shapeHint;
-        boxes.push({ x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r });
+        obstacles.push({ box: { x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r }, solid: false });
       } else if (d.shapeHint?.type === "rect") {
-        boxes.push({ x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h });
+        obstacles.push({ box: { x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h }, solid: false });
       } else {
         // Per-segment boxes: keeps long thin curves from blocking half the canvas.
         const pad = d.style.strokeWidth;
         for (let i = 0; i + 1 < d.pts.length; i++) {
-          boxes.push(expandBox(bboxOfPts([d.pts[i], d.pts[i + 1]]), pad));
+          obstacles.push({ box: expandBox(bboxOfPts([d.pts[i], d.pts[i + 1]]), pad), solid: false });
         }
       }
     }
     // areas are not obstacles: region labels belong inside their region
   }
-  return boxes;
+  return obstacles;
 }

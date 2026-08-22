@@ -65,7 +65,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // coordinates (so it can never collide with the drawing).
   if (spec.title) {
     const title = document.createElement("div");
-    title.className = "cs-title squiggle";
+    title.className = "cs-title";
     title.textContent = spec.title;
     figure.appendChild(title);
   }

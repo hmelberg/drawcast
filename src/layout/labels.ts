@@ -1,6 +1,10 @@
-// Greedy label placement: try the preferred side, then the other candidate
-// sides at increasing radii; add a leader line when the label ends up far from
-// its anchor; fall back to the preferred spot (lint will flag it).
+// Greedy label placement with two obstacle tiers: text is SOLID (never
+// overlapped — overlapping words are unreadable), strokes and shapes are SOFT
+// (a label may graze a curve; the text halo keeps it legible). A near spot
+// with a small soft overlap beats a distant clean spot — distance costs a
+// leader line, which is the uglier outcome. Leaders appear only when text
+// collisions force real displacement; fall back to the preferred spot when
+// nothing fits (lint will flag it).
 
 import { CANVAS } from "./canvas";
 import { bboxOfText, boxesOverlap, type BBox } from "./geometry";
@@ -34,6 +38,12 @@ export interface LabelRequest {
 export interface PlacedLabel {
   text: TextDrawable;
   leader?: StrokeDrawable;
+}
+
+export interface Obstacle {
+  box: BBox;
+  /** solid = text: never overlapped. Soft (strokes/shapes) may be grazed. */
+  solid: boolean;
 }
 
 const DIRS: Record<Side, [number, number]> = {
@@ -94,8 +104,17 @@ function clampToCanvas(b: BBox): BBox {
   return { ...b, x, y };
 }
 
-export function placeLabels(requests: LabelRequest[], obstacles: BBox[], measure: MeasureFn): PlacedLabel[] {
-  const blocked: BBox[] = [...obstacles];
+function overlapArea(a: BBox, b: BBox): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/** Rings 0..NEAR_RINGS-1 count as "near the anchor" — no leader needed there. */
+const NEAR_RINGS = 2;
+
+export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], measure: MeasureFn): PlacedLabel[] {
+  const blocked: Obstacle[] = [...obstacles];
   const placed: PlacedLabel[] = [];
 
   for (const req of requests) {
@@ -107,20 +126,31 @@ export function placeLabels(requests: LabelRequest[], obstacles: BBox[], measure
     const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
 
     let chosen: { box: BBox; ringIndex: number } | null = null;
+    let softNear: { box: BBox; ringIndex: number; penalty: number } | null = null;
     outer: for (const [ringIndex, r] of rings.entries()) {
       for (const side of sides) {
         const box = clampToCanvas(candidateBox(req.anchor, side, r, w, h));
-        const collides = blocked.some((o) => boxesOverlap(box, o, 3));
-        if (!collides) {
+        if (blocked.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
+        const penalty = blocked.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
+        if (penalty === 0) {
           chosen = { box, ringIndex };
           break outer;
         }
+        if (ringIndex < NEAR_RINGS && (softNear === null || penalty < softNear.penalty)) {
+          softNear = { box, ringIndex, penalty };
+        }
+      }
+      // No clean spot near the anchor: grazing a stroke here beats being
+      // exiled to a distant clean spot with a leader line.
+      if (ringIndex === NEAR_RINGS - 1 && softNear) {
+        chosen = softNear;
+        break;
       }
     }
 
     // Nothing fits anywhere: keep the preferred spot and let lint report it.
     const finalBox = chosen?.box ?? clampToCanvas(candidateBox(req.anchor, req.side, rings[0], w, h));
-    blocked.push(finalBox);
+    blocked.push({ box: finalBox, solid: true });
 
     const text: TextDrawable = {
       id: req.id,

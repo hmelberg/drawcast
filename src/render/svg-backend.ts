@@ -187,6 +187,12 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     t.setAttribute("x", String(x));
     t.setAttribute("y", String(toSvgY(d.pos[1])));
     t.setAttribute("fill", d.style.color);
+    // Paper-colored halo: text stays legible when it grazes a stroke
+    // (the label solver treats strokes as soft obstacles).
+    t.setAttribute("paint-order", "stroke");
+    t.setAttribute("stroke", "#fffefb");
+    t.setAttribute("stroke-width", "5");
+    t.setAttribute("stroke-linejoin", "round");
     t.setAttribute("font-size", String(d.fontSize));
     t.setAttribute("font-family", SKETCH_FONT);
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
