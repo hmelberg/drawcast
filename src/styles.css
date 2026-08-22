@@ -716,3 +716,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    checkboxes) over the pack's description hint. */
 .pack-row + .pack-row { margin-top: 0.5rem; }
 .pack-check { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+
+/* Remote packs (M5): official-index browse results + loaded remote-pack rows,
+   in the same "Template packs" panel, below the built-in rows. */
+.extra-packs { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); }
+.extra-packs-heading { margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.75rem; }
+.remote-url-input { flex: 1; min-width: 160px; }

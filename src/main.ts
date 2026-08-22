@@ -12,7 +12,15 @@ import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm
 import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
-import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, unregisterPack } from "./scenes/packs";
+import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
+import {
+  fetchOfficialIndex,
+  fetchRemotePackYaml,
+  registerCachedRemotePacksAtStartup,
+  registerRemotePackYaml,
+  unregisterRemotePack,
+  type RemoteIndexEntry,
+} from "./scenes/remote-packs";
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engines";
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
@@ -52,11 +60,14 @@ import {
   loadLibrary,
   loadLogs,
   loadMyTemplates,
+  loadRemotePacks,
   loadSettings,
   loadUserPrompts,
   migrateLegacyCustomPrompt,
+  deleteRemotePack,
   saveDrawing,
   saveMyTemplate,
+  saveRemotePack,
   saveSettings,
   saveUserPrompt,
   setApiKey,
@@ -90,6 +101,15 @@ let lastLogId: string | null = null;
 // Personal templates must be in the registry before anything renders.
 for (const r of registerMyTemplatesAtStartup()) {
   if (!r.ok) console.warn(`My template "${r.id}" failed to load:`, r.errors.join("; "));
+}
+
+// Remote packs (M5): CACHED yaml only — this must NEVER fetch at startup (a
+// slow or dead remote host must not block or flake app startup). A
+// cached-registration failure is kept-and-warned rather than dropped from
+// `enabled` — see registerCachedRemotePacksAtStartup's doc comment for the
+// full ruling (symmetry with M3's retriable-failure rule, not a new one).
+for (const r of registerCachedRemotePacksAtStartup()) {
+  if (!r.ok) console.warn(`Remote pack "${r.url}" failed to register from cache:`, r.errors.join("; "));
 }
 
 // Domain packs the user previously enabled: load + register async, then
@@ -363,6 +383,15 @@ const myTplImportInput = h("input", { type: "file", accept: ".yaml,.yml", hidden
 // rest of the wiring further down, next to My templates.
 const templatePacksList = h("div", { class: "library-list" });
 
+// Extra packs (M5): official-index browse results + loaded remote-pack rows,
+// both hosted in the SAME "Template packs" details panel, below the built-in
+// rows. Wiring lives further down next to refreshTemplatePacksPanel().
+const browseOfficialBtn = h("button", { class: "small" }, "Browse official packs…");
+const officialPacksList = h("div", { class: "library-list" });
+const remoteUrlInput = h("input", { type: "url", placeholder: "https://…/pack.yaml", class: "remote-url-input" }) as HTMLInputElement;
+const loadUrlBtn = h("button", { class: "small" }, "Load");
+const remotePacksList = h("div", { class: "library-list" });
+
 // Prompt library: named compiler-prompt variants (Loop 2's UI).
 // The active prompt is what Generate uses; bundled prompts are read-only,
 // user prompts support the full lifecycle (copy/edit/rename/delete/share).
@@ -508,6 +537,15 @@ const editorWrap = h(
     { class: "panel editor-extra" },
     h("summary", {}, "Template packs"),
     templatePacksList,
+    h(
+      "div",
+      { class: "extra-packs" },
+      h("div", { class: "hint extra-packs-heading" }, "Extra packs"),
+      h("div", { class: "row" }, browseOfficialBtn),
+      officialPacksList,
+      h("div", { class: "row" }, remoteUrlInput, loadUrlBtn),
+      remotePacksList,
+    ),
   ),
   h(
     "details",
@@ -1347,6 +1385,183 @@ function refreshTemplatePacksPanel(): void {
   }
 }
 refreshTemplatePacksPanel();
+
+// ---------- remote packs (M5) ----------
+//
+// Reuses M3's pack machinery end to end: fetchRemotePackYaml gets the bytes,
+// registerRemotePackYaml is the SAME parsePack→registerPack path bundled and
+// My-templates packs use — never a parallel path — so id collisions and
+// all-or-nothing-per-pack rollback come free. This section only handles
+// fetching, the localStorage cache (store.ts's RemotePackEntry trio), and
+// the trust-tier confirm() gate (spec: official index = trusted, skips the
+// dialog; a custom URL always gets it).
+
+/** Fetch → registerRemotePackYaml → cache → refresh, shared by both the
+ * official-index Add flow and the custom-URL Load flow (the only difference
+ * between the two is which one gates on confirm() before calling this). */
+async function loadAndRegisterRemotePack(url: string): Promise<void> {
+  let yaml: string;
+  try {
+    yaml = await fetchRemotePackYaml(url);
+  } catch (err) {
+    setStatus(`Pack fetch failed: ${(err as Error).message}`, "error");
+    return;
+  }
+  const r = registerRemotePackYaml(url, yaml);
+  if (!r.ok) {
+    setStatus(`Pack failed to load: ${r.errors.join("; ")}`, "error");
+    return;
+  }
+  saveRemotePack({ url, id: r.id!, yaml, ts: new Date().toISOString(), enabled: true });
+  refreshTemplatePicker();
+  refreshRemotePacksPanel();
+  setStatus(`Pack "${r.id}" added from ${url}.`, "ok");
+}
+
+browseOfficialBtn.addEventListener("click", () => {
+  browseOfficialBtn.disabled = true;
+  void fetchOfficialIndex()
+    .then((entries) => renderOfficialPacksList(entries))
+    .catch((err) => setStatus(`Official pack index failed to load: ${(err as Error).message}`, "error"))
+    .finally(() => {
+      browseOfficialBtn.disabled = false;
+    });
+});
+
+function renderOfficialPacksList(entries: RemoteIndexEntry[]): void {
+  officialPacksList.replaceChildren();
+  if (entries.length === 0) {
+    officialPacksList.appendChild(h("div", { class: "hint" }, "No official packs listed."));
+    return;
+  }
+  for (const entry of entries) {
+    const addBtn = h("button", { class: "small" }, "Add");
+    addBtn.addEventListener("click", () => {
+      // Official index = trusted tier: Add skips the confirm() gate (unlike
+      // the custom-URL Load button below).
+      addBtn.disabled = true;
+      void loadAndRegisterRemotePack(entry.url).finally(() => {
+        addBtn.disabled = false;
+      });
+    });
+    officialPacksList.appendChild(
+      h("div", { class: "library-item" }, h("span", { class: "library-title" }, entry.title), addBtn),
+    );
+    officialPacksList.appendChild(h("div", { class: "hint" }, entry.description));
+  }
+}
+
+loadUrlBtn.addEventListener("click", () => {
+  const url = remoteUrlInput.value.trim();
+  if (!url) return;
+  // Custom URL = untrusted tier: a pack's templates are JS that runs in this
+  // browser when drawing — plain risk text, native confirm() (spec).
+  const ok = confirm(
+    `This pack's templates contain JavaScript that will run in your browser when drawing. Only load packs from sources you trust. Load "${url}"?`,
+  );
+  if (!ok) return;
+  loadUrlBtn.disabled = true;
+  void loadAndRegisterRemotePack(url).finally(() => {
+    loadUrlBtn.disabled = false;
+  });
+  remoteUrlInput.value = "";
+});
+
+/**
+ * Loaded remote-pack rows. Enabled toggles register/unregister from the
+ * CACHED yaml only (no fetch — the toggle is the same "flip it on/off"
+ * action as the built-in packs panel above, not a refresh). Refresh
+ * re-fetches; on a fetch OR registration failure the cache (and whatever was
+ * live in the registry) is left exactly as it was, only setStatus reports
+ * it — a failed refresh must never leave the user with a broken or missing
+ * pack. Refresh on a currently-DISABLED entry updates the cached yaml/id
+ * without touching the registry (it wasn't registered before Refresh either)
+ * — Refresh must never silently re-enable a pack the user turned off.
+ */
+function refreshRemotePacksPanel(): void {
+  remotePacksList.replaceChildren();
+  const all = loadRemotePacks();
+  if (all.length === 0) {
+    remotePacksList.appendChild(h("div", { class: "hint" }, "No remote packs loaded yet."));
+    return;
+  }
+  for (const entry of all) {
+    const enabledCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+    enabledCb.checked = entry.enabled;
+    enabledCb.addEventListener("change", () => {
+      if (enabledCb.checked) {
+        const r = registerRemotePackYaml(entry.url, entry.yaml);
+        if (!r.ok) {
+          enabledCb.checked = false; // revert — don't persist a pack that failed to register
+          setStatus(`Pack "${entry.id}" failed to register: ${r.errors.join("; ")}`, "error");
+          return;
+        }
+      } else {
+        unregisterRemotePack(entry.url);
+      }
+      saveRemotePack({ ...entry, enabled: enabledCb.checked });
+      refreshTemplatePicker();
+    });
+
+    const refreshBtn = h("button", { class: "small" }, "Refresh");
+    refreshBtn.addEventListener("click", () => {
+      refreshBtn.disabled = true;
+      void fetchRemotePackYaml(entry.url)
+        .then((yaml) => {
+          if (entry.enabled) {
+            unregisterRemotePack(entry.url); // drop the old cached version's ids first
+            const r = registerRemotePackYaml(entry.url, yaml);
+            if (!r.ok) {
+              registerRemotePackYaml(entry.url, entry.yaml); // restore the previously-working version
+              setStatus(`Refresh failed for "${entry.id}": ${r.errors.join("; ")} — keeping the previous version.`, "error");
+              return;
+            }
+            saveRemotePack({ url: entry.url, id: r.id!, yaml, ts: new Date().toISOString(), enabled: true });
+          } else {
+            // Disabled: nothing is registered to touch — just validate the
+            // fetched yaml and refresh the cache (still disabled).
+            const { pack, errors } = parsePack(yaml);
+            if (!pack) {
+              setStatus(`Refresh failed for "${entry.id}": ${errors.join("; ")} — keeping the previous version.`, "error");
+              return;
+            }
+            saveRemotePack({ url: entry.url, id: pack.id, yaml, ts: new Date().toISOString(), enabled: false });
+          }
+          refreshTemplatePicker();
+          refreshRemotePacksPanel();
+          setStatus(`Pack "${entry.id}" refreshed.`, "ok");
+        })
+        .catch((err) => setStatus(`Refresh failed for "${entry.id}": ${(err as Error).message} — keeping the cached version.`, "error"))
+        .finally(() => {
+          refreshBtn.disabled = false;
+        });
+    });
+
+    const removeBtn = h("button", { class: "small" }, "Remove");
+    removeBtn.addEventListener("click", () => {
+      unregisterRemotePack(entry.url);
+      deleteRemotePack(entry.url);
+      refreshTemplatePicker();
+      refreshRemotePacksPanel();
+    });
+
+    remotePacksList.appendChild(
+      h(
+        "div",
+        { class: "pack-row" },
+        h(
+          "div",
+          { class: "library-item" },
+          h("span", { class: "library-title", title: entry.url }, `${entry.id} — ${entry.url}`),
+          h("label", { class: "pack-check" }, enabledCb, "Enabled"),
+          refreshBtn,
+          removeBtn,
+        ),
+      ),
+    );
+  }
+}
+refreshRemotePacksPanel();
 
 exportBtn.addEventListener("click", () => {
   const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";

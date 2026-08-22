@@ -18,6 +18,7 @@ const KEYS = {
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
   myTemplates: "drawcast.myTemplates.v1",
+  remotePacks: "drawcast.remotePacks.v1",
 } as const;
 
 export interface Settings {
@@ -166,6 +167,34 @@ export function saveMyTemplate(t: MyTemplate): void {
 
 export function deleteMyTemplate(id: string): void {
   localStorage.setItem(KEYS.myTemplates, JSON.stringify(loadMyTemplates().filter((x) => x.id !== id)));
+}
+
+// ---- Remote packs (M5): pack YAML fetched from a URL, cached locally ----
+
+export interface RemotePackEntry {
+  /** Where the pack YAML was fetched from — the entry's key (upsert by url). */
+  url: string;
+  /** The pack's own id, from its header — captured at save time so
+   * unregistering never needs to re-parse the cached YAML. */
+  id: string;
+  /** The full pack YAML as last fetched (the local cache Refresh updates). */
+  yaml: string;
+  ts: string;
+  enabled: boolean;
+}
+
+export function loadRemotePacks(): RemotePackEntry[] {
+  return readArray<RemotePackEntry>(KEYS.remotePacks);
+}
+
+export function saveRemotePack(e: RemotePackEntry): void {
+  const all = loadRemotePacks().filter((x) => x.url !== e.url);
+  all.unshift(e);
+  localStorage.setItem(KEYS.remotePacks, JSON.stringify(all));
+}
+
+export function deleteRemotePack(url: string): void {
+  localStorage.setItem(KEYS.remotePacks, JSON.stringify(loadRemotePacks().filter((x) => x.url !== url)));
 }
 
 // ---- User prompt library (named compiler-prompt variants, Loop 2's UI) ----
