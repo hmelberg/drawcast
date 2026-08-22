@@ -115,15 +115,35 @@ const ESCALATION_PROSE =
   "If the best template for the request appears ONLY in the index above, do not guess its parameters: " +
   'return exactly {"need_template": "<id>"} and nothing else; you will receive its full definition.';
 
-/** The scene catalog injected into the compiler prompt ({{CATALOG}}). */
-export function catalogText(opts: CatalogOpts = {}): string {
+/** Preamble for catalogParts().variable — keeps the shortlist visually distinct from the stable hot set. */
+const VARIABLE_PREAMBLE = "Additional likely-relevant template definitions for THIS request:";
+
+/**
+ * Split {{CATALOG}} into a cache-stable part and a request-dependent part
+ * (M5 Task 2 — the churn seam left by M3/M4: below the two-level threshold,
+ * or when forced, the keyword shortlist never runs, so the whole thing is
+ * stable and `variable` is empty (byte-identical to the pre-split catalogText
+ * output — required for prompt-cache pinning, see catalogText below). Above
+ * the threshold, `stable` is built ONLY from configuration that doesn't vary
+ * per free-text request (forced/priority/core + the full index + stubs +
+ * pack lines + escalation prose) — so it can sit in generateSpec's
+ * cache_control prefix and stay byte-identical across different requests
+ * sharing the same forced/priority config. `variable` carries the
+ * keyword-matched shortlist (selectTemplates(request, …), the one part that
+ * genuinely depends on the free-text request) minus anything already
+ * promoted into `stable`, so a full entry never appears twice.
+ */
+export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable: string } {
   const entries = Object.values(scenes);
   const ready = entries.filter((s) => s.manifest.status === "ready");
 
   if (opts.forced) {
     const forcedModule = scenes[opts.forced];
     if (forcedModule && forcedModule.manifest.status === "ready") {
-      return `${fullEntry(forcedModule.manifest)}\n\nYou MUST set "template" to "${opts.forced}" for this request.`;
+      return {
+        stable: `${fullEntry(forcedModule.manifest)}\n\nYou MUST set "template" to "${opts.forced}" for this request.`,
+        variable: "",
+      };
     }
   }
 
@@ -134,26 +154,37 @@ export function catalogText(opts: CatalogOpts = {}): string {
     for (const { manifest } of entries) {
       parts.push(manifest.status === "ready" ? fullEntry(manifest) : stubLine(manifest));
     }
-    return parts.join("\n\n");
+    return { stable: parts.join("\n\n"), variable: "" };
   }
 
   const index = ready.map((s) => `- ${s.manifest.name}: ${firstSentence(s.manifest.description)}`).join("\n");
 
-  const hotIds = dedupe([
-    ...(opts.forced ? [opts.forced] : []),
-    ...selectTemplates(opts.request ?? "", 3),
-    ...(opts.priorityIds ?? []),
-    ...CORE_IDS,
-  ]).filter((id) => scenes[id]?.manifest.status === "ready");
+  // Preference-stable hot set: config only (forced/priority/core), NEVER the
+  // free-text request — that's what keeps `stable` identical across requests
+  // sharing the same forced template / priority packs (the cache_control pin).
+  const stableIds = dedupe([...(opts.forced ? [opts.forced] : []), ...(opts.priorityIds ?? []), ...CORE_IDS]).filter(
+    (id) => scenes[id]?.manifest.status === "ready",
+  );
 
   const stubs = entries.filter((s) => s.manifest.status !== "ready");
   const unregisteredPacks = Object.values(PACK_DEFS).filter((p) => packTemplateIds(p.id).length === 0);
 
-  const parts: string[] = [index];
-  for (const id of hotIds) parts.push(fullEntry(scenes[id].manifest));
-  for (const s of stubs) parts.push(stubLine(s.manifest));
-  for (const p of unregisteredPacks) parts.push(`Pack available but not enabled: ${p.title} — ${p.description}`);
-  parts.push(ESCALATION_PROSE);
+  const stableParts: string[] = [index];
+  for (const id of stableIds) stableParts.push(fullEntry(scenes[id].manifest));
+  for (const s of stubs) stableParts.push(stubLine(s.manifest));
+  for (const p of unregisteredPacks) stableParts.push(`Pack available but not enabled: ${p.title} — ${p.description}`);
+  stableParts.push(ESCALATION_PROSE);
 
-  return parts.join("\n\n");
+  const shortlist = selectTemplates(opts.request ?? "", 3).filter(
+    (id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id),
+  );
+  const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
+
+  return { stable: stableParts.join("\n\n"), variable };
+}
+
+/** The scene catalog injected into the compiler prompt ({{CATALOG}}). */
+export function catalogText(opts: CatalogOpts = {}): string {
+  const { stable, variable } = catalogParts(opts);
+  return stable + (variable ? "\n\n" + variable : "");
 }

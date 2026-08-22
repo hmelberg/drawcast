@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { buildAuthorUserContent, processAuthorDoc, templateDocToYaml } from "../src/llm/author";
+import { buildAuthorUserContent, processAuthorDoc, templateDocToYaml, TEMPLATE_DOC_API_SCHEMA } from "../src/llm/author";
 import { parseTemplateDoc, type TemplateDoc } from "../src/scenes/doc";
 import { scenes } from "../src/scenes/registry";
+import { ensureEngines } from "../src/scenes/engines";
 
 function goodDoc(): TemplateDoc {
   return {
@@ -70,6 +71,49 @@ describe("processAuthorDoc", () => {
     const d = { ...goodDoc(), layout: `return { nope: true };` };
     const r = processAuthorDoc(d);
     expect(r.errors.some((e) => /drawables/.test(e))).toBe(true);
+  });
+});
+
+function goodDocWithEngine(): TemplateDoc {
+  return {
+    template: "author_test_molecule",
+    title: "Test molecule",
+    version: 1,
+    kit: 1,
+    status: "ready",
+    description: "A test molecule figure using the smilesdrawer engine.",
+    params: { type: "object", properties: { smiles: { type: "string" } } },
+    element_ids: { bond_0: "the first bond" },
+    examples: [{ request: "Draw a test molecule.", params: { smiles: "C=C" } }],
+    engines: ["smilesdrawer"],
+    layout:
+      `const mol = engines.smilesdrawer.layoutSmiles(params.smiles ?? "C=C");\n` +
+      `return { drawables: [kit.stroke("bond_0", [[500, 400], [500 + mol.atoms.length, 400]], {})], labels: [], anchors: {}, order: ["bond_0"] };`,
+  };
+}
+
+describe("engines support (M5 Task 2 — authoring side)", () => {
+  test("TEMPLATE_DOC_API_SCHEMA declares a closed engines enum", () => {
+    expect(TEMPLATE_DOC_API_SCHEMA.properties.engines).toEqual({
+      type: "array",
+      items: { type: "string", enum: ["smilesdrawer"] },
+    });
+  });
+
+  test("a doc declaring engines:[smilesdrawer] passes processAuthorDoc once the engine is pre-loaded", async () => {
+    await ensureEngines(["smilesdrawer"]);
+    const r = processAuthorDoc(goodDocWithEngine());
+    expect(r.errors).toEqual([]);
+    expect(r.doc?.engines).toEqual(["smilesdrawer"]);
+    expect(scenes.author_test_molecule).toBeUndefined(); // registry untouched after preview
+  });
+
+  test("its yaml round-trips through parseTemplateDoc with engines intact", () => {
+    const { yaml, error } = templateDocToYaml(goodDocWithEngine());
+    expect(error).toBeUndefined();
+    const back = parseTemplateDoc(yaml!);
+    expect(back.errors).toEqual([]);
+    expect(back.doc?.engines).toEqual(["smilesdrawer"]);
   });
 });
 

@@ -6,7 +6,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
-import { catalogText, detectNeedTemplate } from "../scenes/catalog";
+import { catalogParts, catalogText, detectNeedTemplate } from "../scenes/catalog";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -181,22 +181,27 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // Prompt caching: the schema/catalog/fewshots prefix is sent as a
   // cache_control block, so repair rounds (and any generation within the TTL)
   // skip re-processing ~10k tokens of prompt. Below the catalog's two-level
-  // threshold (src/scenes/catalog.ts) that prefix is byte-stable across
-  // requests. At or above it, the catalog degrades to an index + a
-  // keyword-matched "hot set" (selectTemplates(request, …)), so the prefix
-  // varies with the request's hot set too — a designed tradeoff (spec §5a):
-  // a stable preference (forced template / priority packs) still pins a
-  // stable prefix and full cache reuse; a free-form request trades some cache
-  // hit rate for a smaller, more relevant prompt.
+  // threshold (src/scenes/catalog.ts) catalogParts().variable is always "",
+  // so the prefix is byte-stable across requests. At or above it, catalogParts
+  // splits {{CATALOG}} itself: `stable` (index + forced/priority/core hot set
+  // + stubs + pack lines + escalation, NEVER the free-text request) goes into
+  // the cache_control prefix, while `variable` (the keyword-matched shortlist,
+  // selectTemplates(request, …) minus anything already in `stable`) is
+  // appended to the request-dependent SUFFIX instead — so a stable preference
+  // (forced template / priority packs) still pins a stable prefix and full
+  // cache reuse, while a free-form request's shortlist no longer busts that
+  // cache at all (a strict improvement over the pre-split tradeoff, spec §5a).
+  let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds });
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
-    catalog: catalogText({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds }),
+    catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
   });
+  let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
   let system: Anthropic.TextBlockParam[] = [
     { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
-    ...(blocks.suffix ? [{ type: "text" as const, text: blocks.suffix }] : []),
+    ...(suffixText ? [{ type: "text" as const, text: suffixText }] : []),
   ];
   const schema = apiSchema();
   const measure = makeBrowserMeasure();
@@ -237,15 +242,19 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       const needed = detectNeedTemplate(json);
       if (needed && !escalated && !cfg.forcedTemplate) {
         escalated = true;
+        // forced-mode catalogParts is always all-stable (variable === "") —
+        // the escalation rebuild pins a fully cache-stable prefix too.
+        catalog = catalogParts({ forced: needed });
         blocks = buildSystemBlocks(cfg.variant.source, {
           schema: apiSchema(),
-          catalog: catalogText({ request, forced: needed }),
+          catalog: catalog.stable,
           fewshots: fewshotsText(),
           exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
         });
+        suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
         system = [
           { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
-          ...(blocks.suffix ? [{ type: "text" as const, text: blocks.suffix }] : []),
+          ...(suffixText ? [{ type: "text" as const, text: suffixText }] : []),
         ];
         messages.push(
           { role: "assistant", content: raw },
@@ -294,7 +303,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       spec: best,
       rounds,
       error: describeApiError(err),
-      systemPromptChars: blocks.prefix.length + blocks.suffix.length,
+      systemPromptChars: blocks.prefix.length + suffixText.length,
     };
   }
 
@@ -312,7 +321,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       : best
         ? undefined
         : "The model never produced a valid spec (see rounds).",
-    systemPromptChars: blocks.prefix.length + blocks.suffix.length,
+    systemPromptChars: blocks.prefix.length + suffixText.length,
   };
 }
 

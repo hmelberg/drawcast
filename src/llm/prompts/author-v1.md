@@ -41,6 +41,31 @@ Rules distilled from the built-in templates:
 
 {{KIT_SOURCE}}
 
+## Engines
+
+Some templates need heavy notation machinery beyond the kit — currently just
+molecular layout from a SMILES string. KNOWN_ENGINES, the full and CLOSED set
+of engine names, is currently just: smilesdrawer.
+
+Declare an engine with a top-level "engines" array on the document, e.g.
+`"engines": ["smilesdrawer"]`. Your layout body then receives it pre-loaded as
+the third function argument, `engines`, with one method:
+
+`engines.smilesdrawer.layoutSmiles(smiles)` → a normalized molecule object:
+- `atoms`: array of `{x, y, element}` — 2D coordinates already centered at
+  the origin and scaled so the molecule's max dimension is 1 (y-up);
+  `element` is the atom's symbol ("C", "O", "N", ...). Scale and translate
+  these yourself to place the molecule on the 1000×750 canvas.
+- `bonds`: array of `{a, b, order, aromatic}` — `a`/`b` are indices into
+  `atoms`; `order` is 1, 2, or 3 (single/double/triple); `aromatic` is
+  whether THIS bond is part of an aromatic ring (draw aromatic rings as a
+  single bond plus the ring's inner circle, never alternating double bonds).
+- `rings`: array of rings, each an array of atom indices (SSSR ring
+  membership) — use it to find each ring's center for an inner circle, etc.
+
+Declare an engine ONLY when the figure needs molecular layout from SMILES;
+otherwise omit the "engines" field entirely.
+
 ## A complete exemplar template (YAML form for readability — you return JSON)
 
 {{EXEMPLAR_YAML}}

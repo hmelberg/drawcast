@@ -3,7 +3,7 @@
 // round labels and per-call models the real loop actually produces — not a
 // paraphrase of them. See src/llm/compile.ts / src/llm/author.ts.
 
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 // vi.mock hoists above these imports; keep the factory self-contained (a
 // fresh vi.fn() per mocked export) and drive behavior per-test through the
@@ -20,6 +20,7 @@ vi.mock("../src/llm/client", async (importOriginal) => {
 import { callForJson, type JsonCallMeta } from "../src/llm/client";
 import { generateSpec, repairModelFor, type GenerateConfig, type PromptVariant } from "../src/llm/compile";
 import { generateTemplate, type AuthorConfig } from "../src/llm/author";
+import { registerTemplateDoc, scenes } from "../src/scenes/registry";
 import type { TemplateDoc } from "../src/scenes/doc";
 
 const mockCallForJson = vi.mocked(callForJson);
@@ -156,6 +157,58 @@ describe("generateSpec loop", () => {
     expect(outcome.rounds[0].validationErrors.join(" ")).toMatch(/commands/i);
     expect(outcome.spec).toBeNull();
     expect(outcome.error).toBeDefined();
+  });
+});
+
+describe("generateSpec cache split (M5 Task 2)", () => {
+  // Pushes the ready-template count above TEMPLATE_FULL_THRESHOLD (10) so
+  // catalogText degrades to index + hot-set + escalation, with a
+  // keyword-matched shortlist relocated to the request-dependent suffix
+  // (see src/scenes/catalog.ts's catalogParts / tests/catalog-split.test.ts).
+  const added: string[] = [];
+  function addFiller(id: string): void {
+    const doc: TemplateDoc = {
+      template: id, version: 1, kit: 1, status: "ready",
+      description: `Filler template ${id} for cache-split testing.`,
+      params: {}, element_ids: {},
+      examples: [{ request: `Draw a ${id} filler.`, params: {} }],
+      layout: `return { drawables: [], labels: [], anchors: {}, order: [] };`,
+    };
+    registerTemplateDoc(doc);
+    added.push(id);
+  }
+  // A unique keyword ("qxzzyweeble") that appears in ONLY this template's
+  // description/example, so selectTemplates(request, 3) shortlists exactly
+  // this one id deterministically (no ties with the filler templates, none
+  // of which is in CORE_IDS or cfg.priorityIds either).
+  function addTarget(): void {
+    const doc: TemplateDoc = {
+      template: "csplit_target", version: 1, kit: 1, status: "ready",
+      description: "A csplit_target template about qxzzyweeble structures.",
+      params: {}, element_ids: {},
+      examples: [{ request: "Draw the qxzzyweeble diagram.", params: {} }],
+      layout: `return { drawables: [], labels: [], anchors: {}, order: [] };`,
+    };
+    registerTemplateDoc(doc);
+    added.push("csplit_target");
+  }
+  afterEach(() => {
+    for (const id of added.splice(0)) delete scenes[id];
+  });
+
+  test("above threshold: the cache_control block excludes the shortlisted entry; the non-cached block includes it", async () => {
+    for (let i = 0; i < 8; i++) addFiller(`csplit_filler_${i}`);
+    addTarget();
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+
+    await generateSpec("Draw the qxzzyweeble diagram.", baseCfg());
+
+    const system = mockCallForJson.mock.calls[0][2] as { text: string; cache_control?: unknown }[];
+    expect(system[0].cache_control).toBeDefined();
+    expect(system[0].text).not.toContain("### Scene template: csplit_target (READY");
+    expect(system[1]).toBeDefined();
+    expect(system[1].cache_control).toBeUndefined();
+    expect(system[1].text).toContain("### Scene template: csplit_target (READY");
   });
 });
 
