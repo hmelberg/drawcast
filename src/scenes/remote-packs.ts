@@ -6,9 +6,23 @@
 // (and its tests) apply here for free.
 
 import { loadRemotePacks } from "../store";
-import { parsePack, registerPack, unregisterPack } from "./packs";
+import { packTemplateIds, parsePack, registerPack, unregisterPack } from "./packs";
 
 export const OFFICIAL_INDEX_URL = "https://raw.githubusercontent.com/hmelberg/drawcast-templates/main/index.json";
+
+/**
+ * Trust must derive from the URL itself, not from "this URL happened to be
+ * listed in the index" — a listing is just a pointer, fetched from the same
+ * unauthenticated raw.githubusercontent.com host anyone can query. Anything
+ * NOT under this prefix is untrusted-tier regardless of where the app found
+ * the URL (an index entry, a bookmark, wherever) and must get the same
+ * confirm() gate a pasted custom URL gets.
+ */
+export const OFFICIAL_PACK_URL_PREFIX = "https://raw.githubusercontent.com/hmelberg/drawcast-templates/";
+
+export function isOfficialPackUrl(url: string): boolean {
+  return url.startsWith(OFFICIAL_PACK_URL_PREFIX);
+}
 
 /** Generous for a real pack's YAML, small enough to reject an abusive URL. */
 const MAX_YAML_CHARS = 500_000;
@@ -58,12 +72,43 @@ export async function fetchRemotePackYaml(url: string): Promise<string> {
  * its header) — never a synthesized "remote:<url>" id. That keeps a remote
  * pack indistinguishable from a bundled one once registered: same id space,
  * same collision rule (registerPack refuses a clashing id and rolls the
- * whole pack back), same catalog entry. `url` is only used to prefix error
- * messages — it never affects the id.
+ * whole pack back), same catalog entry.
+ *
+ * `registerPack` itself is idempotent-by-design (re-registering an
+ * already-owned id is a cheap no-op success — see its own comment) — that's
+ * correct for a bundled pack (there is exactly one YAML source per id, ever).
+ * It is WRONG left unguarded for a remote pack, where two DIFFERENT URLs can
+ * each declare the same `pack:` header id: the second URL's registerPack
+ * call would short-circuit to phantom success (reporting the FIRST pack's
+ * template ids as if they were its own), and a later Remove on the second
+ * (phantom) entry would then unregister the FIRST pack's real, live
+ * templates out from under it. So this function pre-checks ownership itself:
+ *
+ * - id not currently owned → register normally (the common case).
+ * - id owned, and a cache entry for this exact (id, url) pair already exists
+ *   → this is a legitimate re-register (Refresh, or the Enabled checkbox
+ *   flipped back on) of the SAME remote pack: unregister the stale
+ *   templates first, then register fresh. This is a real REPLACE, not
+ *   registerPack's no-op short-circuit — it's what actually fixes
+ *   stale-content-on-refresh.
+ * - id owned by anything else (a different URL, or a built-in/bundled pack
+ *   like "physics") → refuse outright, register nothing. `url` is threaded
+ *   through purely to make this decision and to prefix error messages — it
+ *   never affects the id used for registration.
  */
 export function registerRemotePackYaml(url: string, yaml: string): { ok: boolean; id?: string; errors: string[] } {
   const { pack, errors } = parsePack(yaml);
   if (!pack) return { ok: false, errors: errors.map((e) => `${url}: ${e}`) };
+
+  if (packTemplateIds(pack.id).length > 0) {
+    const sameSource = loadRemotePacks().some((e) => e.id === pack.id && e.url === url);
+    if (sameSource) {
+      unregisterPack(pack.id); // drop the stale registration so registerPack below does a real replace, not a no-op
+    } else {
+      return { ok: false, id: pack.id, errors: [`pack id "${pack.id}" is already in use — packs must have unique ids`] };
+    }
+  }
+
   const r = registerPack(pack.id, yaml);
   return { ok: r.ok, id: pack.id, errors: r.ok ? [] : r.errors.map((e) => `${url}: ${e}`) };
 }

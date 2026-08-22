@@ -16,6 +16,7 @@ import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPa
 import {
   fetchOfficialIndex,
   fetchRemotePackYaml,
+  isOfficialPackUrl,
   registerCachedRemotePacksAtStartup,
   registerRemotePackYaml,
   unregisterRemotePack,
@@ -1393,12 +1394,27 @@ refreshTemplatePacksPanel();
 // My-templates packs use — never a parallel path — so id collisions and
 // all-or-nothing-per-pack rollback come free. This section only handles
 // fetching, the localStorage cache (store.ts's RemotePackEntry trio), and
-// the trust-tier confirm() gate (spec: official index = trusted, skips the
-// dialog; a custom URL always gets it).
+// the trust-tier confirm() gate.
+//
+// Trust is derived from the URL itself (isOfficialPackUrl — the
+// raw.githubusercontent.com/hmelberg/drawcast-templates/ prefix), never from
+// "this URL happened to be listed in the index". An index entry is just a
+// pointer the app fetched from an unauthenticated host; if it doesn't
+// actually point under the official prefix, Add routes through the exact
+// same confirm() gate a pasted custom URL gets — it is de-privileged, not
+// refused outright.
 
-/** Fetch → registerRemotePackYaml → cache → refresh, shared by both the
- * official-index Add flow and the custom-URL Load flow (the only difference
- * between the two is which one gates on confirm() before calling this). */
+/** The brief's exact risk text — used verbatim by BOTH gates below (the
+ * custom-URL Load button, and Add on a non-official index entry). */
+function confirmRemotePackLoad(url: string): boolean {
+  return confirm(
+    `This pack's templates contain JavaScript that will run in your browser when drawing. Only load packs from sources you trust. Load "${url}"?`,
+  );
+}
+
+/** Fetch → registerRemotePackYaml → cache → refresh, shared by every entry
+ * point (official Add, de-privileged Add, custom-URL Load) — they differ
+ * only in whether/how they gate on confirm() before calling this. */
 async function loadAndRegisterRemotePack(url: string): Promise<void> {
   let yaml: string;
   try {
@@ -1437,8 +1453,10 @@ function renderOfficialPacksList(entries: RemoteIndexEntry[]): void {
   for (const entry of entries) {
     const addBtn = h("button", { class: "small" }, "Add");
     addBtn.addEventListener("click", () => {
-      // Official index = trusted tier: Add skips the confirm() gate (unlike
-      // the custom-URL Load button below).
+      // Trust comes from the URL, not from being listed here (review fix
+      // round 1): an entry whose url isn't actually under the official
+      // prefix is de-privileged to the SAME confirm() gate Load uses below.
+      if (!isOfficialPackUrl(entry.url) && !confirmRemotePackLoad(entry.url)) return;
       addBtn.disabled = true;
       void loadAndRegisterRemotePack(entry.url).finally(() => {
         addBtn.disabled = false;
@@ -1456,10 +1474,7 @@ loadUrlBtn.addEventListener("click", () => {
   if (!url) return;
   // Custom URL = untrusted tier: a pack's templates are JS that runs in this
   // browser when drawing — plain risk text, native confirm() (spec).
-  const ok = confirm(
-    `This pack's templates contain JavaScript that will run in your browser when drawing. Only load packs from sources you trust. Load "${url}"?`,
-  );
-  if (!ok) return;
+  if (!confirmRemotePackLoad(url)) return;
   loadUrlBtn.disabled = true;
   void loadAndRegisterRemotePack(url).finally(() => {
     loadUrlBtn.disabled = false;
@@ -1512,7 +1527,19 @@ function refreshRemotePacksPanel(): void {
             unregisterRemotePack(entry.url); // drop the old cached version's ids first
             const r = registerRemotePackYaml(entry.url, yaml);
             if (!r.ok) {
-              registerRemotePackYaml(entry.url, entry.yaml); // restore the previously-working version
+              // Restore the previously-working version — but that restore
+              // can ALSO fail (e.g. the old id now collides with something
+              // else registered in the meantime). Never leave the cache
+              // saying `enabled` while the registry has nothing registered
+              // for this pack at all (review fix round 1).
+              const restore = registerRemotePackYaml(entry.url, entry.yaml);
+              if (!restore.ok) {
+                saveRemotePack({ ...entry, enabled: false });
+                refreshTemplatePicker(); // the pack's templates are gone from the registry entirely — drop them from the picker too
+                refreshRemotePacksPanel();
+                setStatus(`Pack "${entry.id}" could not be restored — re-add it.`, "error");
+                return;
+              }
               setStatus(`Refresh failed for "${entry.id}": ${r.errors.join("; ")} — keeping the previous version.`, "error");
               return;
             }

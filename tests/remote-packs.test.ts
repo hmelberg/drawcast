@@ -16,14 +16,17 @@ vi.stubGlobal("fetch", fetchMock);
 import { loadRemotePacks, saveRemotePack, deleteRemotePack } from "../src/store";
 import {
   OFFICIAL_INDEX_URL,
+  OFFICIAL_PACK_URL_PREFIX,
   fetchOfficialIndex,
   fetchRemotePackYaml,
+  isOfficialPackUrl,
   registerRemotePackYaml,
   registerCachedRemotePacksAtStartup,
   unregisterRemotePack,
 } from "../src/scenes/remote-packs";
-import { unregisterPack, isPackTemplateId } from "../src/scenes/packs";
+import { registerPack, unregisterPack, isPackTemplateId } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
+import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
 
 const REMOTE_YAML = `
 pack: demo_pack
@@ -57,10 +60,31 @@ layout: |
   return { drawables: [kit.stroke("dot", [[500, 400]], { shapeHint: { type: "circle", c: [500, 400], r: 10 } })], labels: [], anchors: {}, order: ["dot"] };
 `;
 
+// A remote pack whose header id collides with a BUILT-IN pack's id ("physics").
+const PHYSICS_COLLISION_YAML = `
+pack: physics
+title: Fake Physics
+description: Attempts to claim the built-in physics pack's id.
+---
+template: fake_physics_widget
+version: 1
+kit: 1
+status: ready
+description: A widget.
+params: { type: object }
+element_ids: { dot: the dot }
+examples:
+  - request: "Draw it."
+    params: {}
+layout: |
+  return { drawables: [kit.stroke("dot", [[500, 400]], { shapeHint: { type: "circle", c: [500, 400], r: 10 } })], labels: [], anchors: {}, order: ["dot"] };
+`;
+
 beforeEach(() => {
   mem.clear();
   fetchMock.mockReset();
   unregisterPack("demo_pack");
+  unregisterPack("physics");
 });
 
 describe("store: remote packs", () => {
@@ -94,6 +118,81 @@ describe("registerRemotePackYaml", () => {
     expect(scenes.supply_demand).toBe(before); // untouched
     expect(scenes.remote_widget_a).toBeUndefined(); // rolled back with the rest of the pack
     expect(isPackTemplateId("remote_widget_a")).toBe(false);
+  });
+});
+
+describe("registerRemotePackYaml: pack-id collisions across sources (review fix round 1)", () => {
+  test("a DIFFERENT url claiming an already-owned pack id is refused — the first pack's templates stay live", () => {
+    const first = registerRemotePackYaml("https://example.com/demo.yaml", REMOTE_YAML);
+    expect(first.ok).toBe(true);
+    saveRemotePack({ url: "https://example.com/demo.yaml", id: "demo_pack", yaml: REMOTE_YAML, ts: "1", enabled: true });
+
+    const otherYaml = REMOTE_YAML.replace(/remote_widget_a/g, "remote_widget_c").replace(/remote_widget_b/g, "remote_widget_d");
+    const second = registerRemotePackYaml("https://other.example/demo2.yaml", otherYaml);
+
+    expect(second.ok).toBe(false);
+    expect(second.id).toBe("demo_pack");
+    expect(second.errors.join(" ")).toMatch(/already in use/);
+
+    // The FIRST pack's templates are untouched and still functional — this
+    // is the exact bug the fix closes: registerPack's own idempotent
+    // short-circuit would otherwise report phantom success for the SECOND
+    // url here, and a later Remove on that phantom entry would delete the
+    // FIRST pack's real, live templates.
+    expect(scenes.remote_widget_a.layout).toBeDefined();
+    expect(scenes.remote_widget_b.layout).toBeDefined();
+    expect(scenes.remote_widget_c).toBeUndefined();
+    expect(scenes.remote_widget_d).toBeUndefined();
+  });
+
+  test("the SAME url re-registering the same pack id REPLACES — the new template set is visible, the old one is gone", () => {
+    saveRemotePack({ url: "https://example.com/demo.yaml", id: "demo_pack", yaml: REMOTE_YAML, ts: "1", enabled: true });
+    const first = registerRemotePackYaml("https://example.com/demo.yaml", REMOTE_YAML);
+    expect(first.ok).toBe(true);
+    expect(scenes.remote_widget_a).toBeDefined();
+    expect(scenes.remote_widget_b).toBeDefined();
+
+    const updatedYaml = REMOTE_YAML.replace("template: remote_widget_b", "template: remote_widget_c");
+    const second = registerRemotePackYaml("https://example.com/demo.yaml", updatedYaml);
+
+    expect(second.ok).toBe(true);
+    expect(scenes.remote_widget_a.layout).toBeDefined(); // unchanged template, still there
+    expect(scenes.remote_widget_c.layout).toBeDefined(); // the renamed template is now registered
+    expect(scenes.remote_widget_b).toBeUndefined(); // the old id is truly gone — a real replace, not additive
+  });
+
+  test("a pack id colliding with a registered BUILT-IN pack is refused", () => {
+    const physics = registerPack("physics", physicsYaml);
+    expect(physics.ok).toBe(true);
+
+    const r = registerRemotePackYaml("https://example.com/fake-physics.yaml", PHYSICS_COLLISION_YAML);
+
+    expect(r.ok).toBe(false);
+    expect(r.id).toBe("physics");
+    expect(r.errors.join(" ")).toMatch(/already in use/);
+    // The REAL built-in physics templates are untouched.
+    expect(scenes.ray_diagram.layout).toBeDefined();
+    expect(scenes.fake_physics_widget).toBeUndefined();
+  });
+});
+
+describe("isOfficialPackUrl / OFFICIAL_PACK_URL_PREFIX (origin pinning, review fix round 1)", () => {
+  test("a URL under the official repo's raw prefix is official", () => {
+    expect(isOfficialPackUrl("https://raw.githubusercontent.com/hmelberg/drawcast-templates/main/packs/showcase.yaml")).toBe(true);
+    expect(isOfficialPackUrl(OFFICIAL_INDEX_URL)).toBe(true);
+  });
+
+  test("an https URL that is NOT under the prefix is NOT official, even if it looks similar", () => {
+    expect(isOfficialPackUrl("https://raw.githubusercontent.com/someone-else/drawcast-templates/main/packs/evil.yaml")).toBe(false);
+    expect(isOfficialPackUrl("https://example.com/packs/showcase.yaml")).toBe(false);
+  });
+
+  test("a non-https URL is never official", () => {
+    expect(isOfficialPackUrl("http://raw.githubusercontent.com/hmelberg/drawcast-templates/main/index.json")).toBe(false);
+  });
+
+  test("OFFICIAL_PACK_URL_PREFIX is a prefix of OFFICIAL_INDEX_URL", () => {
+    expect(OFFICIAL_INDEX_URL.startsWith(OFFICIAL_PACK_URL_PREFIX)).toBe(true);
   });
 });
 
