@@ -61,6 +61,85 @@ describe("kit.project3d", () => {
     const cam = { azimuth: 33, elevation: 12, distance: 8 };
     expect(JSON.stringify(kit.project3d(cam, prims))).toBe(JSON.stringify(kit.project3d(cam, prims)));
   });
+
+  describe("sphere shading (default on)", () => {
+    const cam = { azimuth: 20, elevation: 15, distance: 10 };
+
+    test("emits __sh (crescent area, below-right of center) and __hl (highlight, up-left) nearer in order than the base circle", () => {
+      const { drawables, order, anchors } = kit.project3d(cam, [{ kind: "sphere", id: "s", c: [0, 0, 0], r: 1, color: "#204060" }]);
+      expect(order.indexOf("s")).toBeLessThan(order.indexOf("s__sh")); // farther first
+      expect(order.indexOf("s__sh")).toBeLessThan(order.indexOf("s__hl"));
+
+      const base = drawables.find((d) => d.id === "s");
+      const baseC = base && base.kind === "stroke" && base.shapeHint?.type === "circle" ? base.shapeHint.c : [0, 0];
+      const sh = drawables.find((d) => d.id === "s__sh");
+      const hl = drawables.find((d) => d.id === "s__hl");
+      expect(sh?.kind).toBe("area");
+      expect(hl?.kind).toBe("area");
+      const centroidOf = (pts: [number, number][]) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+      if (sh?.kind === "area") {
+        const [cx, cy] = centroidOf(sh.pts);
+        expect(cx).toBeGreaterThan(baseC[0]); // right
+        expect(cy).toBeLessThan(baseC[1]); // below (logical y-up)
+      }
+      if (hl?.kind === "area") {
+        const [cx, cy] = centroidOf(hl.pts);
+        expect(cx).toBeLessThan(baseC[0]); // left
+        expect(cy).toBeGreaterThan(baseC[1]); // above
+      }
+
+      // Drawables only — no anchors for the shading pieces.
+      expect(anchors.s).toBeDefined();
+      expect(anchors["s__sh"]).toBeUndefined();
+      expect(anchors["s__hl"]).toBeUndefined();
+    });
+
+    test("shade: false suppresses both", () => {
+      const { order } = kit.project3d(cam, [{ kind: "sphere", id: "s", c: [0, 0, 0], r: 1, shade: false }]);
+      expect(order).toEqual(["s"]);
+    });
+  });
+
+  describe("face3", () => {
+    test("fill brightness differs between a camera-facing and an oblique face", () => {
+      const cam = { azimuth: 0, elevation: 0, distance: 10 };
+      const facing = kit.project3d(cam, [{ kind: "face3", id: "f", pts: [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]], fill: "#808080" }]);
+      const oblique = kit.project3d(cam, [{ kind: "face3", id: "f", pts: [[-1, -1, -1], [-1, 1, -1], [1, 1, -1], [1, -1, -1]], fill: "#808080" }]);
+      const fillOf = (res: typeof facing) => {
+        const area = flattenDrawables(res.drawables).find((d) => d.id === "f__area");
+        return area?.kind === "area" ? area.style.fill : undefined;
+      };
+      expect(fillOf(facing)).not.toBe(fillOf(oblique));
+    });
+  });
+
+  describe("box3", () => {
+    const cam = { azimuth: 30, elevation: 20, distance: 8 };
+
+    test("emits <=3 visible faces at a generic angle, plus dashed hidden edges when asked", () => {
+      const { order, drawables } = kit.project3d(cam, [{ kind: "box3", id: "b", c: [0, 0, 0], size: [1, 1, 1], hidden_edges: true }]);
+      const faceIds = order.filter((id) => /^b__f\d$/.test(id));
+      expect(faceIds.length).toBeGreaterThan(0);
+      expect(faceIds.length).toBeLessThanOrEqual(3);
+      const edgeIds = order.filter((id) => /^b__e\d+$/.test(id));
+      expect(edgeIds.length).toBeGreaterThan(0);
+      const leaves = flattenDrawables(drawables);
+      for (const id of edgeIds) {
+        const d = leaves.find((l) => l.id === id);
+        expect(d?.kind === "stroke" && d.style.dash).toBe(true);
+      }
+    });
+
+    test("no hidden_edges flag emits no dashed edges", () => {
+      const { order } = kit.project3d(cam, [{ kind: "box3", id: "b", c: [0, 0, 0], size: [1, 1, 1] }]);
+      expect(order.filter((id) => /^b__e\d+$/.test(id))).toEqual([]);
+    });
+
+    test("deterministic", () => {
+      const prims = [{ kind: "box3" as const, id: "b", c: [0, 0, 0] as [number, number, number], size: [1, 2, 1] as [number, number, number], hidden_edges: true }];
+      expect(JSON.stringify(kit.project3d(cam, prims))).toBe(JSON.stringify(kit.project3d(cam, prims)));
+    });
+  });
 });
 
 describe("molecule_3d template", () => {

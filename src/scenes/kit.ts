@@ -90,10 +90,30 @@ export interface Camera3 {
 }
 
 export type Prim3 =
-  | { kind: "sphere"; id: string; c: Vec3; r: number; color?: string; fill?: string; ms?: number }
+  | { kind: "sphere"; id: string; c: Vec3; r: number; color?: string; fill?: string; shade?: boolean; ms?: number }
   | { kind: "seg"; id: string; a: Vec3; b: Vec3; w?: number; color?: string; dash?: boolean; trimA?: number; trimB?: number; ms?: number }
   | { kind: "arrow"; id: string; a: Vec3; b: Vec3; w?: number; color?: string; dash?: boolean; trimA?: number; trimB?: number; ms?: number }
-  | { kind: "text3"; id: string; p: Vec3; text: string; fontSize?: number; color?: string };
+  | { kind: "text3"; id: string; p: Vec3; text: string; fontSize?: number; color?: string }
+  | { kind: "face3"; id: string; pts: Vec3[]; color?: string; fill?: string; opacity?: number; ms?: number }
+  | { kind: "box3"; id: string; c: Vec3; size: Vec3; color?: string; fill?: string; hidden_edges?: boolean };
+
+/**
+ * Lighten/darken a hex color toward white/black. factor 1 → pure white (lighter);
+ * factor 0 → pure black (darker); factor 0.5 → the color unchanged. Used by
+ * project3d's face3 flat-shading (spec §3a).
+ */
+export function shadeColor(hex: string, factor: number): string {
+  const t = Math.max(0, Math.min(1, factor));
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const toward = t < 0.5 ? 0 : 255;
+  const blend = t < 0.5 ? (0.5 - t) * 2 : (t - 0.5) * 2;
+  const mix = (c: number) => Math.round(c + (toward - c) * blend);
+  const hx = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+  return `#${hx(mix(r))}${hx(mix(g))}${hx(mix(b))}`;
+}
 
 export interface SceneKit {
   // ---- factories ----
@@ -135,8 +155,13 @@ export interface SceneKit {
    * midpoint and can be trimmed at sphere surfaces (trimA/trimB, world units)
    * so sticks vanish into balls. Returned `order` is far-to-near — draw in
    * that order so occlusion stays correct during progressive drawing.
-   * Reliable scope: ball-and-stick, 3D vectors/axes, small lattices. Not for
-   * intersecting surfaces or large structures.
+   * Spheres default to `shade: true`: each emits a fixed up-left highlight
+   * and a lower-right crescent shadow (drawables only, no anchors) just
+   * nearer in depth than the sphere itself, so balls read as solid. face3
+   * (a flat 3D polygon) and box3 (an axis-aligned solid, visible faces only,
+   * optional dashed hidden edges) use the same flat-shaded-face lighting.
+   * Reliable scope: ball-and-stick, 3D vectors/axes, small lattices/solids.
+   * Not for intersecting surfaces or large structures.
    */
   project3d(camera: Camera3, prims: Prim3[]): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
   // ---- constants ----
@@ -381,11 +406,36 @@ export const kit: SceneKit = {
       const s = fov / Math.max(0.1, depth);
       return { x: cx + x1 * s, y: cy + y2 * s, s, depth };
     };
+    // Rotate a direction (no translation) by the same orbit camera, to test
+    // face-normal visibility: rotatedZ(v) > 0 means the direction faces the
+    // camera (mirrors proj()'s x1/z1/y2/z2, dropped down to just the sign
+    // that matters).
+    const rotatedZ = (v: Vec3): number => {
+      const z1 = v[0] * Math.sin(az) + v[2] * Math.cos(az);
+      return v[1] * Math.sin(el) + z1 * Math.cos(el);
+    };
     const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     const trim = (a: Vec3, b: Vec3, tA = 0, tB = 0): [Vec3, Vec3] => {
       const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) || 1;
       return [lerp3(a, b, tA / len), lerp3(b, a, tB / len)];
     };
+    // World-space light, fixed regardless of camera (v1 ruling) — used by face3's flat shading.
+    const lightLen = Math.hypot(-0.5, 0.7, 0.5);
+    const LIGHT: Vec3 = [-0.5 / lightLen, 0.7 / lightLen, 0.5 / lightLen];
+    const faceNormal = (pts: Vec3[]): Vec3 => {
+      const [a, b, c] = pts;
+      const e1: Vec3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const e2: Vec3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const nx = e1[1] * e2[2] - e1[2] * e2[1];
+      const ny = e1[2] * e2[0] - e1[0] * e2[2];
+      const nz = e1[0] * e2[1] - e1[1] * e2[0];
+      const len = Math.hypot(nx, ny, nz) || 1;
+      return [nx / len, ny / len, nz / len];
+    };
+    const centroid = (pts: Pt[]): Pt => [
+      pts.reduce((s, p) => s + p[0], 0) / pts.length,
+      pts.reduce((s, p) => s + p[1], 0) / pts.length,
+    ];
 
     interface Piece {
       depth: number;
@@ -394,10 +444,55 @@ export const kit: SceneKit = {
     const pieces: Piece[] = [];
     const anchors: Record<string, Pt> = {};
 
+    // Shared by the face3 prim and by box3's per-visible-face expansion: a flat
+    // 3D polygon becomes a closed outline stroke + a flat-shaded fill area
+    // (grouped under one id — only "area" fills actually paint solid/hachure
+    // in this pipeline, so the fill needs its own leaf), lit by LIGHT in world
+    // space before projection.
+    const buildFacePiece = (
+      id: string,
+      pts3: Vec3[],
+      color: string | undefined,
+      fill: string | undefined,
+      opacity: number | undefined,
+      ms: number | undefined,
+    ): Piece => {
+      const qs = pts3.map(proj);
+      const screenPts: Pt[] = qs.map((q) => [q.x, q.y]);
+      const depth = qs.reduce((s, q) => s + q.depth, 0) / qs.length;
+      const n = faceNormal(pts3);
+      const lit = 0.55 + 0.45 * Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
+      const strokeColor = color ?? COLORS.ink;
+      const baseFill = fill ?? color ?? COLORS.ink;
+      const area: AreaDrawable = {
+        id: `${id}__area`,
+        kind: "area",
+        pts: screenPts,
+        z: Z_STROKE,
+        style: defaultStyle({ fill: shadeColor(baseFill, lit), opacity: opacity ?? 1, strokeWidth: 0 }),
+        drawOpts: defaultDrawOpts("sketch", ms ?? SKETCH_MS.region),
+      };
+      const line: StrokeDrawable = {
+        id: `${id}__line`,
+        kind: "stroke",
+        pts: screenPts,
+        closed: true,
+        z: Z_STROKE,
+        style: defaultStyle({ color: strokeColor, strokeWidth: 3 }),
+        drawOpts: defaultDrawOpts("sketch", ms ?? SKETCH_MS.connector),
+      };
+      anchors[id] = centroid(screenPts);
+      return {
+        depth,
+        drawable: { id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts(), children: [area, line] },
+      };
+    };
+
     for (const prim of prims) {
       if (prim.kind === "sphere") {
         const q = proj(prim.c);
         anchors[prim.id] = [q.x, q.y];
+        const resolvedColor = prim.color ?? COLORS.ink;
         pieces.push({
           depth: q.depth,
           drawable: {
@@ -407,13 +502,107 @@ export const kit: SceneKit = {
             shapeHint: { type: "circle", c: [q.x, q.y], r: prim.r * q.s },
             z: Z_STROKE,
             style: defaultStyle({
-              ...(prim.color !== undefined && { color: prim.color }),
+              color: resolvedColor,
               ...(prim.fill !== undefined && { fill: prim.fill }),
               strokeWidth: 3,
             }),
             drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.node),
           },
         });
+        if (prim.shade !== false) {
+          // Fixed screen-space light, up-left (camera-independent, v1 ruling):
+          // a crescent shadow AREA on the away-from-light side (φ=-45° ± 90°,
+          // pulled 0.45r toward the center) plus a small up-left highlight
+          // ellipse. Both are drawables only (no anchors), immediately
+          // nearer in depth than the sphere's own circle so they paint on
+          // top of it.
+          const R = prim.r * q.s;
+          const SHADOW_CENTER = (-45 * Math.PI) / 180;
+          const a0 = SHADOW_CENTER - Math.PI / 2;
+          const a1 = SHADOW_CENTER + Math.PI / 2;
+          const outer = kit.arc([q.x, q.y], R, a0, a1, 20);
+          const inner = kit.arc([q.x, q.y], R - 0.45 * R, a1, a0, 20);
+          pieces.push({
+            depth: q.depth - 1e-6,
+            drawable: {
+              id: `${prim.id}__sh`,
+              kind: "area",
+              pts: [...outer, ...inner],
+              z: Z_STROKE,
+              style: defaultStyle({ fill: resolvedColor, opacity: 0.22, strokeWidth: 0 }),
+              drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.region),
+            },
+          });
+          const UP_LEFT = (135 * Math.PI) / 180;
+          const hlC: Pt = [q.x + 0.42 * R * Math.cos(UP_LEFT), q.y + 0.42 * R * Math.sin(UP_LEFT)];
+          pieces.push({
+            depth: q.depth - 2e-6,
+            drawable: {
+              id: `${prim.id}__hl`,
+              kind: "area",
+              pts: kit.ellipse(hlC, 0.32 * R, 0.22 * R, 24),
+              z: Z_STROKE,
+              style: defaultStyle({ fill: "#fbf8f1", opacity: 0.55, strokeWidth: 0 }),
+              drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.region),
+            },
+          });
+        }
+      } else if (prim.kind === "face3") {
+        pieces.push(buildFacePiece(prim.id, prim.pts, prim.color, prim.fill, prim.opacity, prim.ms));
+      } else if (prim.kind === "box3") {
+        const [bx, by, bz] = prim.c;
+        const [sx, sy, sz] = prim.size;
+        const hx = sx / 2, hy = sy / 2, hz = sz / 2;
+        // Six axis-aligned faces, each wound (right-hand rule) so faceNormal
+        // matches the listed canonical normal — verified by construction.
+        const faces: { normal: Vec3; pts: Vec3[] }[] = [
+          { normal: [1, 0, 0], pts: [[bx + hx, by - hy, bz - hz], [bx + hx, by + hy, bz - hz], [bx + hx, by + hy, bz + hz], [bx + hx, by - hy, bz + hz]] },
+          { normal: [-1, 0, 0], pts: [[bx - hx, by - hy, bz + hz], [bx - hx, by + hy, bz + hz], [bx - hx, by + hy, bz - hz], [bx - hx, by - hy, bz - hz]] },
+          { normal: [0, 1, 0], pts: [[bx - hx, by + hy, bz - hz], [bx - hx, by + hy, bz + hz], [bx + hx, by + hy, bz + hz], [bx + hx, by + hy, bz - hz]] },
+          { normal: [0, -1, 0], pts: [[bx - hx, by - hy, bz + hz], [bx - hx, by - hy, bz - hz], [bx + hx, by - hy, bz - hz], [bx + hx, by - hy, bz + hz]] },
+          { normal: [0, 0, 1], pts: [[bx - hx, by - hy, bz + hz], [bx + hx, by - hy, bz + hz], [bx + hx, by + hy, bz + hz], [bx - hx, by + hy, bz + hz]] },
+          { normal: [0, 0, -1], pts: [[bx + hx, by - hy, bz - hz], [bx - hx, by - hy, bz - hz], [bx - hx, by + hy, bz - hz], [bx + hx, by + hy, bz - hz]] },
+        ];
+        const visible = faces.map((f) => rotatedZ(f.normal) > 0);
+        const faceDepths: number[] = [];
+        faces.forEach((f, i) => {
+          if (!visible[i]) return;
+          const piece = buildFacePiece(`${prim.id}__f${i}`, f.pts, prim.color, prim.fill, undefined, undefined);
+          faceDepths.push(piece.depth);
+          pieces.push(piece);
+        });
+        if (prim.hidden_edges) {
+          // The 12 box edges, each the intersection of two faces differing
+          // in exactly one axis sign; an edge is hidden only when BOTH its
+          // faces are hidden (the geometry-textbook wireframe cue). Solid
+          // faces would otherwise occlude them completely (they're strictly
+          // behind the box), so — like the sphere's shading — they're
+          // forced just nearer than this box's own visible faces to stay
+          // visible as the classic dashed "X-ray" reference lines.
+          const corner = (sxs: 1 | -1, sys: 1 | -1, szs: 1 | -1): Vec3 => [bx + sxs * hx, by + sys * hy, bz + szs * hz];
+          const faceIx = (axis: 0 | 1 | 2, sign: 1 | -1): number => (axis === 0 ? (sign > 0 ? 0 : 1) : axis === 1 ? (sign > 0 ? 2 : 3) : sign > 0 ? 4 : 5);
+          const signs: (1 | -1)[] = [1, -1];
+          const edges: { a: Vec3; b: Vec3; f1: number; f2: number }[] = [];
+          for (const sy of signs) for (const sz of signs) edges.push({ a: corner(-1, sy, sz), b: corner(1, sy, sz), f1: faceIx(1, sy), f2: faceIx(2, sz) });
+          for (const sx of signs) for (const sz of signs) edges.push({ a: corner(sx, -1, sz), b: corner(sx, 1, sz), f1: faceIx(0, sx), f2: faceIx(2, sz) });
+          for (const sx of signs) for (const sy of signs) edges.push({ a: corner(sx, sy, -1), b: corner(sx, sy, 1), f1: faceIx(0, sx), f2: faceIx(1, sy) });
+          const nearFace = (faceDepths.length ? Math.min(...faceDepths) : proj(prim.c).depth) - 1e-5;
+          edges.forEach((e, i) => {
+            if (visible[e.f1] || visible[e.f2]) return;
+            const qa = proj(e.a), qb = proj(e.b);
+            pieces.push({
+              depth: nearFace - i * 1e-7,
+              drawable: {
+                id: `${prim.id}__e${i}`,
+                kind: "stroke",
+                pts: [[qa.x, qa.y], [qb.x, qb.y]],
+                z: Z_STROKE,
+                style: defaultStyle({ color: prim.color ?? COLORS.guide, strokeWidth: 2, dash: true, opacity: 0.7 }),
+                drawOpts: defaultDrawOpts("sketch", SKETCH_MS.connector),
+              },
+            });
+          });
+        }
       } else if (prim.kind === "seg" || prim.kind === "arrow") {
         const [a, b] = trim(prim.a, prim.b, prim.trimA, prim.trimB);
         const style = defaultStyle({
@@ -473,9 +662,16 @@ export const kit: SceneKit = {
       const depths = pieces.map((p) => p.depth);
       const dMin = Math.min(...depths);
       const span = Math.max(1e-6, Math.max(...depths) - dMin);
+      // Groups (face3) aren't painted directly — only their leaf children
+      // are — so the fade factor has to land on the children's own style.
+      const fadeOne = (d: Drawable, factor: number) => {
+        d.style = { ...d.style, opacity: d.style.opacity * factor };
+      };
       for (const p of pieces) {
         const t = (p.depth - dMin) / span; // 0 = nearest, 1 = farthest
-        p.drawable.style = { ...p.drawable.style, opacity: p.drawable.style.opacity * (1 - fade * t) };
+        const factor = 1 - fade * t;
+        if (p.drawable.kind === "group") p.drawable.children.forEach((c) => fadeOne(c, factor));
+        else fadeOne(p.drawable, factor);
       }
     }
 

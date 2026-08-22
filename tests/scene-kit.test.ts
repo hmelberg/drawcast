@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { kit, KIT_VERSION } from "../src/scenes/kit";
+import { kit, KIT_VERSION, shadeColor } from "../src/scenes/kit";
 
 describe("kit factories", () => {
   test("stroke applies house defaults and options", () => {
@@ -123,6 +123,19 @@ describe("kit parsers", () => {
       { from: "RAS", to: "p53", effect: "inhibits" },
       { from: "X", to: "Y", effect: "converts" },
     ]);
+  });
+});
+
+describe("shadeColor", () => {
+  test("factor 1 is lighter than factor 0.55, which is lighter than factor 0", () => {
+    const channel = (hex: string) => parseInt(hex.slice(1, 3), 16);
+    expect(channel(shadeColor("#808080", 1.0))).toBeGreaterThan(channel(shadeColor("#808080", 0.55)));
+    expect(channel(shadeColor("#808080", 0.55))).toBeGreaterThan(channel(shadeColor("#808080", 0.0)));
+  });
+
+  test("factor 1 is pure white, factor 0 is pure black", () => {
+    expect(shadeColor("#204060", 1.0)).toBe("#ffffff");
+    expect(shadeColor("#204060", 0.0)).toBe("#000000");
   });
 });
 
