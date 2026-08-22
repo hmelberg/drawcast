@@ -11,7 +11,7 @@ import { missingPlaceholders } from "./llm/prompt";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
 import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
-import { isUserTemplateId, registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
+import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -544,7 +544,7 @@ const authorCloseBtn = h("button", {}, "Close");
 const authorDialog = h(
   "dialog",
   { class: "author-dialog" },
-  h("h2", {}, "New template"),
+  h("h3", {}, "New template"),
   authorDescEl,
   h("div", { class: "row" }, authorDrop, authorImgInput, authorImgThumb, authorImgClear),
   h("div", { class: "row" }, authorGenBtn, authorCloseBtn),
@@ -558,6 +558,13 @@ let authorImage: AuthorImage | null = null;
 let authorOutcome: AuthorOutcome | null = null;
 let authorImproveId: string | null = null;
 let authorMount: { destroy(): void } | null = null;
+/** Bumped at the start of every runAuthor() call and in the close handler; an
+ * async continuation that finds it stale on resume (dialog closed or a newer
+ * generation started meanwhile) must not touch the registry, mounts, or status. */
+let authorSeq = 0;
+/** Every template id this dialog session registered a preview under — reverted
+ * or unregistered as a batch when the dialog closes. */
+const draftIds = new Set<string>();
 
 function setAuthorImage(img: AuthorImage | null): void {
   authorImage = img;
@@ -583,46 +590,64 @@ function readImageFile(file: File): Promise<AuthorImage | null> {
   });
 }
 
+/** Read + accept a candidate image, or surface why it was rejected instead of doing nothing. */
+function handleImageFile(file: File): void {
+  void readImageFile(file).then((img) => {
+    if (img) setAuthorImage(img);
+    else authorStatus.textContent = "Couldn't read that image — use PNG, JPEG, WEBP, or GIF.";
+  });
+}
+
 authorDialog.addEventListener("paste", (e) => {
   const file = [...(e.clipboardData?.files ?? [])][0];
-  if (file) void readImageFile(file).then(setAuthorImage);
+  if (file) handleImageFile(file);
 });
 authorDrop.addEventListener("dragover", (e) => e.preventDefault());
 authorDrop.addEventListener("drop", (e) => {
   e.preventDefault();
   const file = e.dataTransfer?.files[0];
-  if (file) void readImageFile(file).then(setAuthorImage);
+  if (file) handleImageFile(file);
 });
 authorDrop.querySelector(".author-pick")!.addEventListener("click", () => authorImgInput.click());
 authorImgInput.addEventListener("change", () => {
   const file = authorImgInput.files?.[0];
-  if (file) void readImageFile(file).then(setAuthorImage);
+  if (file) handleImageFile(file);
 });
 authorImgClear.addEventListener("click", () => setAuthorImage(null));
 
-async function renderAuthorPreview(): Promise<void> {
+async function renderAuthorPreview(seq: number): Promise<void> {
   authorMount?.destroy();
   authorMount = null;
   authorPreviewHost.replaceChildren();
   const outcomeDoc = authorOutcome?.doc;
   if (!outcomeDoc || !authorOutcome?.yaml) return;
-  // Preview through the real pipeline: temporarily registered under its id.
+  // Preview through the real pipeline: registered under its id for real (the
+  // preview player re-renders on replay, so a temporary registration cannot be
+  // restored early). draftIds tracks it so the close handler can revert it.
   const reg = registerUserTemplateYaml(authorOutcome.yaml);
   if (!reg.ok) {
     authorStatus.textContent = `Preview failed: ${reg.errors.join("; ")}`;
     return;
   }
+  draftIds.add(outcomeDoc.template);
   const spec = { title: outcomeDoc.title ?? outcomeDoc.template, template: outcomeDoc.template, params: outcomeDoc.examples[0]?.params ?? {} } as unknown as Spec;
   try {
-    authorMount = await mountPlaylist(authorPreviewHost, singlePlaylist(spec), {
+    const mount = await mountPlaylist(authorPreviewHost, singlePlaylist(spec), {
       style: settings.style,
       mode: "instant",
       speed: settings.speed,
       speech,
       prefs: playbackPrefs(),
     });
+    if (seq !== authorSeq) {
+      // Superseded mid-mount (dialog closed, or a newer generation started) —
+      // never resurrect authorMount for a session that's no longer current.
+      mount.destroy();
+      return;
+    }
+    authorMount = mount;
   } catch (err) {
-    authorStatus.textContent = `Preview render failed: ${(err as Error).message}`;
+    if (seq === authorSeq) authorStatus.textContent = `Preview render failed: ${(err as Error).message}`;
   }
 }
 
@@ -630,28 +655,31 @@ async function runAuthor(description: string, refine: boolean): Promise<void> {
   const apiKey = requireKey();
   if (!apiKey) return;
   if (!description.trim()) return;
+  const seq = ++authorSeq;
   authorGenBtn.disabled = authorRefineBtn.disabled = true;
   authorStatus.textContent = "Generating template…";
   try {
     const existing = authorImproveId && !refine ? loadMyTemplates().find((t) => t.id === authorImproveId)?.yaml : undefined;
-    authorOutcome = await generateTemplate(description, refine ? null : authorImage, {
+    const outcome = await generateTemplate(description, refine ? null : authorImage, {
       apiKey,
       model: modelSel.value,
       existingYaml: existing,
       history: refine ? (authorOutcome?.history ?? undefined) : undefined,
     });
+    if (seq !== authorSeq) return; // dialog closed or a newer generation started meanwhile
+    authorOutcome = outcome;
     const n = authorOutcome.rounds.length;
     if (authorOutcome.error) {
       authorStatus.textContent = `${authorOutcome.error} (${n} round${n === 1 ? "" : "s"})`;
     } else {
       authorStatus.textContent = `Template "${authorOutcome.doc!.template}" ready after ${n} round${n === 1 ? "" : "s"} — check the preview, refine, or save.`;
       authorRefineEl.hidden = authorRefineBtn.hidden = authorSaveBtn.hidden = false;
-      await renderAuthorPreview();
+      await renderAuthorPreview(seq);
     }
   } catch (err) {
-    authorStatus.textContent = describeApiError(err);
+    if (seq === authorSeq) authorStatus.textContent = describeApiError(err);
   } finally {
-    authorGenBtn.disabled = authorRefineBtn.disabled = false;
+    if (seq === authorSeq) authorGenBtn.disabled = authorRefineBtn.disabled = false;
   }
 }
 
@@ -672,6 +700,7 @@ authorSaveBtn.addEventListener("click", () => {
     authorStatus.textContent = `Save failed: ${reg.errors.join("; ")}`;
     return;
   }
+  draftIds.add(id);
   saveMyTemplate({ id, yaml: authorOutcome.yaml, ts: new Date().toISOString() });
   refreshMyTemplates();
   authorStatus.textContent = `Saved. "${id}" is now in the catalog — try: use the ${id} template.`;
@@ -682,29 +711,37 @@ function openAuthorDialog(improve?: { id: string }): void {
   authorOutcome = null;
   setAuthorImage(null);
   authorDescEl.value = "";
+  authorRefineEl.value = "";
   authorStatus.textContent = authorImproveId ? `Improving "${authorImproveId}" — describe what to change.` : "";
   authorRefineEl.hidden = authorRefineBtn.hidden = authorSaveBtn.hidden = true;
   authorMount?.destroy();
   authorMount = null;
   authorPreviewHost.replaceChildren();
-  (authorDialog.querySelector("h2") as HTMLElement).textContent = authorImproveId ? `Improve template: ${authorImproveId}` : "New template";
+  (authorDialog.querySelector("h3") as HTMLElement).textContent = authorImproveId ? `Improve template: ${authorImproveId}` : "New template";
   authorDialog.showModal();
 }
 
-authorCloseBtn.addEventListener("click", () => {
+authorCloseBtn.addEventListener("click", () => authorDialog.close());
+
+// The dialog's native "close" event fires for BOTH the Close button (via
+// .close() above) and ESC (the browser's own cancel→close, which bypasses any
+// click handler entirely) — so all cleanup lives here, not on authorCloseBtn.
+authorDialog.addEventListener("close", () => {
+  // Invalidate any runAuthor()/renderAuthorPreview() continuation still in
+  // flight: it must not register a draft or resurrect authorMount after this.
+  authorSeq++;
   authorMount?.destroy();
   authorMount = null;
-  // The preview registered the draft for real (the preview player re-renders on
-  // replay, so a temporary registration cannot be restored early). Clean up:
-  // a draft that was never saved leaves the registry; an improved template
-  // reverts to its stored version.
-  const draftId = authorOutcome?.doc?.template;
-  if (draftId && isUserTemplateId(draftId)) {
-    const stored = loadMyTemplates().find((t) => t.id === draftId);
-    if (!stored) unregisterUserTemplate(draftId);
+  // Every id this session registered a preview under (draftIds — not just the
+  // current authorOutcome's id, so an earlier draft abandoned mid-session by a
+  // fresh Generate isn't orphaned) reverts to its stored version if one exists,
+  // or is unregistered if this draft was never saved.
+  for (const id of draftIds) {
+    const stored = loadMyTemplates().find((t) => t.id === id);
+    if (!stored) unregisterUserTemplate(id);
     else registerUserTemplateYaml(stored.yaml);
   }
-  authorDialog.close();
+  draftIds.clear();
 });
 
 // ---------- rendering the current document ----------
@@ -1108,12 +1145,7 @@ function refreshMyTemplates(): void {
     const improveBtn = h("button", { class: "small" }, "Improve");
     improveBtn.addEventListener("click", () => openAuthorDialog({ id: t.id }));
     const exportBtn2 = h("button", { class: "small", title: "Download this template's YAML" }, "Export");
-    exportBtn2.addEventListener("click", () => {
-      const blob = new Blob([t.yaml], { type: "text/yaml" });
-      const a = h("a", { href: URL.createObjectURL(blob), download: `${t.id}.yaml` });
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
+    exportBtn2.addEventListener("click", () => downloadBlob(`${t.id}.yaml`, new Blob([t.yaml], { type: "text/yaml" })));
     const delBtn2 = h("button", { class: "small" }, "Delete");
     delBtn2.addEventListener("click", () => {
       deleteMyTemplate(t.id);

@@ -973,6 +973,8 @@ git commit -m "feat: template-authoring UI — New template dialog, refine loop,
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
+**Post-review amendment (fix round 1):** cleanup moved to the dialog's `close` event (covers ESC), all session draft ids tracked and reverted/unregistered, and a generation sequence token guards async continuations against close/regenerate races. Title h3; downloadBlob reused; image-read failures surfaced; refine field reset on open.
+
 ---
 
 ### Task 4: Final verification + push
