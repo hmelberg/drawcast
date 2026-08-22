@@ -6,7 +6,7 @@
 // (and its tests) apply here for free.
 
 import { loadRemotePacks } from "../store";
-import { packTemplateIds, parsePack, registerPack, unregisterPack } from "./packs";
+import { PACK_DEFS, packTemplateIds, parsePack, registerPack, unregisterPack } from "./packs";
 
 export const OFFICIAL_INDEX_URL = "https://raw.githubusercontent.com/hmelberg/drawcast-templates/main/index.json";
 
@@ -17,11 +17,29 @@ export const OFFICIAL_INDEX_URL = "https://raw.githubusercontent.com/hmelberg/dr
  * NOT under this prefix is untrusted-tier regardless of where the app found
  * the URL (an index entry, a bookmark, wherever) and must get the same
  * confirm() gate a pasted custom URL gets.
+ *
+ * Ref-pinned to `main/` (final review, minor #5): a raw.githubusercontent.com
+ * URL encodes the git ref right after the repo name, so an unpinned prefix
+ * would treat ANY ref — a branch, a tag, even `refs/pull/<n>/head` for an
+ * open, unmerged PR on the repo — as equally trusted. Pinning to the one ref
+ * the app actually reads from closes that.
  */
-export const OFFICIAL_PACK_URL_PREFIX = "https://raw.githubusercontent.com/hmelberg/drawcast-templates/";
+export const OFFICIAL_PACK_URL_PREFIX = "https://raw.githubusercontent.com/hmelberg/drawcast-templates/main/";
 
+/**
+ * Normalizes through `new URL(url).href` before the prefix check (final
+ * review, minor #5) so a dot-segment (`.../drawcast-templates/main/../../evil/x`)
+ * can't read as pinned-prefix-shaped text while actually resolving outside
+ * it — `String.prototype.startsWith` has no notion of path segments, `URL`
+ * does. A string that doesn't even parse as a URL is untrusted by
+ * definition, not a crash: caught and treated as false.
+ */
 export function isOfficialPackUrl(url: string): boolean {
-  return url.startsWith(OFFICIAL_PACK_URL_PREFIX);
+  try {
+    return new URL(url).href.startsWith(OFFICIAL_PACK_URL_PREFIX);
+  } catch {
+    return false;
+  }
 }
 
 /** Generous for a real pack's YAML, small enough to reject an abusive URL. */
@@ -124,10 +142,28 @@ export interface RegisterRemotePackResult {
  *   currently DISABLED) → refuse outright, register nothing. `url` is
  *   threaded through purely to make this decision and to prefix error
  *   messages — it never affects the id used for registration.
+ *
+ * Reserved ids (final review, important #1): a header id that is a
+ * PACK_DEFS key is refused UNCONDITIONALLY — even if that built-in isn't
+ * currently registered. Without this, a remote pack can squat a built-in's
+ * id while the built-in is disabled: at startup the CACHED remote entry
+ * registers first (via registerCachedRemotePacksAtStartup, which runs
+ * before the async ensureEnabledPacks built-in load — see main.ts), so by
+ * the time the user enables the real "physics" pack, registerPack's own
+ * idempotent short-circuit (packOwned.has(id) → cheap no-op success) makes
+ * that enable a PHANTOM success: it reports ok:true while every template
+ * id served is still the squatter's, never the genuine built-in's. Checking
+ * PACK_DEFS membership here, ahead of and independent of the packTemplateIds
+ * "currently owned" check below, closes that window regardless of
+ * registration order or state.
  */
 export function registerRemotePackYaml(url: string, yaml: string): RegisterRemotePackResult {
   const { pack, errors } = parsePack(yaml);
   if (!pack) return { ok: false, errors: errors.map((e) => `${url}: ${e}`) };
+
+  if (pack.id in PACK_DEFS) {
+    return { ok: false, id: pack.id, errors: [`pack id "${pack.id}" is reserved for a built-in pack`] };
+  }
 
   if (packTemplateIds(pack.id).length > 0) {
     const sameSource = loadRemotePacks().some((e) => e.id === pack.id && e.url === url && e.enabled);

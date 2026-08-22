@@ -113,6 +113,17 @@ for (const r of registerCachedRemotePacksAtStartup()) {
   if (!r.ok) console.warn(`Remote pack "${r.url}" failed to register from cache:`, r.errors.join("; "));
 }
 
+/**
+ * True when some cached remote-pack entry is enabled AND currently has live
+ * template ids registered — i.e. a remote pack is genuinely occupying
+ * registry space right now, not merely sitting enabled in the cache. Used
+ * only by the startup collision guard directly below (final review,
+ * important #2).
+ */
+function anyRemotePackTemplatesLive(): boolean {
+  return loadRemotePacks().some((e) => e.enabled && packTemplateIds(e.id).length > 0);
+}
+
 // Domain packs the user previously enabled: load + register async, then
 // refresh the toolbar picker and the Template packs panel (both are defined
 // below — hoisted function declarations, so this early reference is safe;
@@ -125,6 +136,27 @@ for (const r of registerCachedRemotePacksAtStartup()) {
 // deterministic registerPack failure (parse/compile/collision) — or an id no
 // longer in PACK_DEFS — drops the setting: retrying that can't help, and an
 // unusable pack would otherwise sit in settings forever.
+//
+// EXCEPT (final review, important #2): a deterministic failure must NOT drop
+// a built-in from settings when it's caused by a template-id collision with
+// a REMOTE pack. registerPack's collision error ("template id ... already
+// exists in the registry") looks identical in EnsurePackResult whether the
+// other claimant is a genuinely-broken built-in or a live remote pack's
+// template that happens to share an id — `retriable` can't tell them apart
+// because remote packs (registered from cache before this async block even
+// starts — see registerCachedRemotePacksAtStartup above) aren't in
+// registerPack's field of view at all. But the remote case IS retriable in
+// spirit: disabling/removing the remote pack, or it losing that id on a
+// later Refresh, clears the collision on the next reload — so dropping the
+// built-in here would silently and PERMANENTLY erase it from settings over
+// a condition that can resolve itself. The heuristic used —
+// anyRemotePackTemplatesLive() — isn't a proof of causation (a built-in
+// broken for an unrelated reason while some unrelated remote pack happens to
+// be live also gets keep-and-warn); that accepted false-keep (loud retry
+// hint via the Template packs panel's "toggle to retry", not a silent drop)
+// is the deliberate trade against the false-drop this closes. No remote pack
+// is live → falls through to the original drop-on-deterministic-failure
+// rule unchanged.
 void ensureEnabledPacks(settings.enabledPacks).then((rs) => {
   let changed = false;
   const failed: string[] = [];
@@ -132,7 +164,7 @@ void ensureEnabledPacks(settings.enabledPacks).then((rs) => {
     if (r.ok) continue;
     console.warn(`pack "${r.id}" failed:`, r.errors.join("; "));
     failed.push(`"${r.id}" (${r.errors.join("; ")})`);
-    if (!r.retriable && settings.enabledPacks.includes(r.id)) {
+    if (!r.retriable && settings.enabledPacks.includes(r.id) && !anyRemotePackTemplatesLive()) {
       settings.enabledPacks = settings.enabledPacks.filter((id) => id !== r.id);
       settings.priorityPacks = settings.priorityPacks.filter((id) => id !== r.id);
       changed = true;
@@ -1260,6 +1292,11 @@ myTplImportInput.addEventListener("change", () => {
   const file = myTplImportInput.files?.[0];
   if (!file) return;
   void file.text().then((yaml) => {
+    // Same plain-risk confirm() gate a custom-URL pack load gets (final
+    // review, important #4) — confirmTemplateImport is defined further down
+    // (hoisted function declaration, so this early reference is safe, same
+    // pattern as openAuthorDialog/setStatus elsewhere in this file).
+    if (!confirmTemplateImport(file.name)) return;
     const r = registerUserTemplateYaml(yaml);
     if (!r.ok) {
       setStatus(`Template import failed: ${r.errors.join("; ")}`, "error");
@@ -1396,19 +1433,38 @@ refreshTemplatePacksPanel();
 // fetching, the localStorage cache (store.ts's RemotePackEntry trio), and
 // the trust-tier confirm() gate.
 //
-// Trust is derived from the URL itself (isOfficialPackUrl — the
-// raw.githubusercontent.com/hmelberg/drawcast-templates/ prefix), never from
+// Trust is derived from the URL itself (isOfficialPackUrl — the ref-pinned
+// raw.githubusercontent.com/hmelberg/drawcast-templates/main/ prefix), never from
 // "this URL happened to be listed in the index". An index entry is just a
 // pointer the app fetched from an unauthenticated host; if it doesn't
 // actually point under the official prefix, Add routes through the exact
 // same confirm() gate a pasted custom URL gets — it is de-privileged, not
 // refused outright.
 
-/** The brief's exact risk text — used verbatim by BOTH gates below (the
- * custom-URL Load button, and Add on a non-official index entry). */
+/**
+ * The one-sentence risk text (final review, minor #6: names the concrete
+ * risk instead of a generic "runs JavaScript" warning) — used verbatim by
+ * BOTH gates below (the custom-URL Load button, and Add on a non-official
+ * index entry). confirmTemplateImport below is the same gate adapted for a
+ * local file instead of a URL (final review, important #4).
+ */
 function confirmRemotePackLoad(url: string): boolean {
   return confirm(
-    `This pack's templates contain JavaScript that will run in your browser when drawing. Only load packs from sources you trust. Load "${url}"?`,
+    `This pack's templates run as JavaScript in your browser and can read any data this page can access, including your stored API key — load "${url}" only if you trust the source.`,
+  );
+}
+
+/**
+ * Same plain-risk gate as confirmRemotePackLoad, for the My-templates file
+ * import (final review, important #4 — the spec pre-committed to this:
+ * "imports need an explicit confirmation"). A locally-picked file is not
+ * inherently more trustworthy than a pasted URL: its `layout` body is the
+ * same JS-in-the-browser risk either way, so it gets the same gate, naming
+ * the file instead of a URL.
+ */
+function confirmTemplateImport(fileName: string): boolean {
+  return confirm(
+    `This template runs as JavaScript in your browser and can read any data this page can access, including your stored API key — import "${fileName}" only if you trust the source.`,
   );
 }
 

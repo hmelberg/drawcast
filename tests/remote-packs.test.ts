@@ -169,8 +169,35 @@ describe("registerRemotePackYaml: pack-id collisions across sources (review fix 
 
     expect(r.ok).toBe(false);
     expect(r.id).toBe("physics");
-    expect(r.errors.join(" ")).toMatch(/already in use/);
+    expect(r.errors.join(" ")).toMatch(/reserved for a built-in pack/);
     // The REAL built-in physics templates are untouched.
+    expect(scenes.ray_diagram.layout).toBeDefined();
+    expect(scenes.fake_physics_widget).toBeUndefined();
+  });
+
+  test("final review, important #1: a pack id reserved by PACK_DEFS is refused even while the built-in is NOT currently registered (squatting-while-disabled)", () => {
+    // The built-in "physics" pack is deliberately NOT registered here — this
+    // is the exact startup ordering that made squatting possible: a cached
+    // remote entry registers before the async built-in load ever runs (see
+    // registerCachedRemotePacksAtStartup / main.ts). Without the PACK_DEFS
+    // check, packTemplateIds("physics") is empty (nothing owns it yet) and
+    // the fake pack would register cleanly under the reserved id.
+    expect(isPackTemplateId("ray_diagram")).toBe(false);
+
+    const r = registerRemotePackYaml("https://example.com/fake-physics.yaml", PHYSICS_COLLISION_YAML);
+
+    expect(r.ok).toBe(false);
+    expect(r.id).toBe("physics");
+    expect(r.errors).toEqual([`pack id "physics" is reserved for a built-in pack`]);
+    expect(scenes.fake_physics_widget).toBeUndefined();
+    expect(isPackTemplateId("physics")).toBe(false); // nothing squatted the id
+
+    // Enabling the REAL built-in afterwards must not be a phantom success —
+    // this is the actual bug the check closes: registerPack's own
+    // idempotent short-circuit would otherwise make a later genuine
+    // registration a silent no-op reporting the squatter's templates.
+    const real = registerPack("physics", physicsYaml);
+    expect(real.ok).toBe(true);
     expect(scenes.ray_diagram.layout).toBeDefined();
     expect(scenes.fake_physics_widget).toBeUndefined();
   });
@@ -267,6 +294,30 @@ describe("isOfficialPackUrl / OFFICIAL_PACK_URL_PREFIX (origin pinning, review f
 
   test("OFFICIAL_PACK_URL_PREFIX is a prefix of OFFICIAL_INDEX_URL", () => {
     expect(OFFICIAL_INDEX_URL.startsWith(OFFICIAL_PACK_URL_PREFIX)).toBe(true);
+  });
+
+  // Final review, minor #5: ref-pinned prefix + URL-normalized check.
+  test("a URL on the same repo but a DIFFERENT ref than the pinned one (main) is not official", () => {
+    expect(isOfficialPackUrl("https://raw.githubusercontent.com/hmelberg/drawcast-templates/dev/packs/x.yaml")).toBe(false);
+  });
+
+  test("a refs/pull URL (an open PR's ref, not the pinned main ref) is not official", () => {
+    expect(isOfficialPackUrl("https://raw.githubusercontent.com/hmelberg/drawcast-templates/refs/pull/1/head/x.yaml")).toBe(false);
+  });
+
+  test("a dot-segment that resolves outside the pinned prefix is not official, even if the raw text looks prefix-shaped", () => {
+    expect(isOfficialPackUrl("https://raw.githubusercontent.com/hmelberg/drawcast-templates/../evil/main/x.yaml")).toBe(false);
+    // The bypass a naive startsWith (no URL normalization) would miss: the
+    // raw string STARTS WITH the pinned prefix textually, but ".." walks the
+    // resolved path back out of it entirely.
+    expect(
+      isOfficialPackUrl("https://raw.githubusercontent.com/hmelberg/drawcast-templates/main/../../evil/x.yaml"),
+    ).toBe(false);
+  });
+
+  test("a string that doesn't parse as a URL is never official (no throw)", () => {
+    expect(() => isOfficialPackUrl("not a url at all")).not.toThrow();
+    expect(isOfficialPackUrl("not a url at all")).toBe(false);
   });
 });
 

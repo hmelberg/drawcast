@@ -3,6 +3,7 @@ import { ENGINE_DEFS, KNOWN_ENGINES, ensureEngines, enginesLoaded, getLoadedEngi
 import { validateTemplateDoc } from "../src/scenes/doc";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
 import type { TemplateDoc } from "../src/scenes/doc";
+import { TEMPLATE_DOC_API_SCHEMA } from "../src/llm/author";
 
 describe("engine registry mechanics (fake engine)", () => {
   beforeEach(() => {
@@ -127,4 +128,18 @@ describe("smilesdrawer engine (real load — node, no DOM)", () => {
 
 test("KNOWN_ENGINES lists smilesdrawer", () => {
   expect(KNOWN_ENGINES).toContain("smilesdrawer");
+});
+
+// Drift tripwire (final review, deferred-upgraded #3): TEMPLATE_DOC_API_SCHEMA's
+// engines enum is a separate, hand-written array literal (author.ts's own
+// comment explains why: the structured-output API needs a fully static
+// schema, so it can't be built from KNOWN_ENGINES at import time) — this is
+// the ONLY thing that would catch the two silently drifting apart if a
+// future engine is added to one and forgotten in the other. `toContain`
+// only ever proved KNOWN_ENGINES had "smilesdrawer" in it; it could never
+// fail from a drift (e.g. the schema enum missing an entry KNOWN_ENGINES
+// has, or the schema enum having an extra one KNOWN_ENGINES doesn't) — set
+// equality is the actual tripwire.
+test("TEMPLATE_DOC_API_SCHEMA's engines enum stays in sync with KNOWN_ENGINES", () => {
+  expect(TEMPLATE_DOC_API_SCHEMA.properties.engines.items.enum).toEqual([...KNOWN_ENGINES]);
 });

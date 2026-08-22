@@ -67,8 +67,9 @@ export const TEMPLATE_DOC_API_SCHEMA = {
     element_ids: { type: "object" },
     // Closed enum (not sourced from KNOWN_ENGINES) — the array literal keeps
     // this object `as const` and matching the API's structured-output
-    // requirement of a fully static schema; engines.test.ts's "KNOWN_ENGINES
-    // lists smilesdrawer" test is the tripwire if the two ever drift.
+    // requirement of a fully static schema; engines.test.ts's "TEMPLATE_DOC_API_SCHEMA's
+    // engines enum stays in sync with KNOWN_ENGINES" test (set equality, not
+    // just toContain) is the tripwire if the two ever drift.
     engines: { type: "array", items: { type: "string", enum: ["smilesdrawer"] } },
     examples: {
       type: "array",
