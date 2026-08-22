@@ -1,0 +1,52 @@
+{
+  "name": "ring_molecule",
+  "status": "ready",
+  "description": "A skeletal chemistry ring (benzene-style hexagon or 5-ring): optional heteroatoms at vertices, alternating aromatic double bonds, and substituents pointing outward. Choose this scene for requests about aromatic rings, benzene/pyridine/furan-style molecules, functional groups on a ring, or simple 'draw molecule X' requests where X is a substituted ring. Skeletal convention: unlabeled vertices are carbons; bonds trim at labeled atoms. Vertex positions are indexed 0 at the top going counter-clockwise.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "ring_size": { "type": "number", "enum": [5, 6], "description": "Default 6." },
+      "atoms": {
+        "type": "array",
+        "items": { "type": ["string", "null"] },
+        "description": "Per-vertex atom symbol (index 0 = top). \"C\" or null = skeletal carbon (no label). E.g. pyridine: [null, null, \"N\", null, null, null]."
+      },
+      "aromatic": { "type": "boolean", "description": "Alternating inner double bonds." },
+      "substituents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "position": { "type": "number", "description": "Vertex index 0..ring_size-1." },
+            "text": { "type": "string", "description": "e.g. \"OH\", \"CH₃\", \"COOH\" (unicode subscripts welcome)." }
+          },
+          "required": ["position", "text"]
+        }
+      },
+      "name": { "type": "string", "description": "Caption under the molecule." }
+    }
+  },
+  "element_ids": {
+    "ring": "the ring bonds (one group)",
+    "double_bonds": "inner aromatic double-bond strokes (when aromatic)",
+    "atom_<i>": "heteroatom symbol at vertex i",
+    "sub_<i>": "substituent at vertex i (spur + text)",
+    "molecule_name": "the caption",
+    "ring_center": "anchor at the ring center (for gestures)"
+  },
+  "examples": [
+    {
+      "request": "Draw benzene.",
+      "params": { "ring_size": 6, "aromatic": true, "name": "Benzene C₆H₆" }
+    },
+    {
+      "request": "Draw phenol with the OH group.",
+      "params": {
+        "ring_size": 6,
+        "aromatic": true,
+        "substituents": [{ "position": 0, "text": "OH" }],
+        "name": "Phenol"
+      }
+    }
+  ]
+}

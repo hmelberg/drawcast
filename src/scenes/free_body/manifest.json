@@ -1,0 +1,76 @@
+{
+  "name": "free_body",
+  "status": "ready",
+  "description": "A physics free-body diagram: a body (box/ball/dot) on flat ground or an incline, with labeled force arrows radiating from its center. Choose this scene for ANY request about forces on an object, free-body diagrams, Newton's laws illustrations, inclined planes, friction/normal/gravity/tension setups, or net force. Angles are degrees with 0 = +x and counter-clockwise positive (y up), so gravity is 270. All geometry (body, ground hatching, incline wedge, angle arc, arrows) is computed for you.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "body": { "type": "string", "enum": ["box", "ball", "dot"], "description": "Default box." },
+      "body_label": { "type": "string", "description": "e.g. \"m = 5 kg\"." },
+      "incline_deg": { "type": "number", "description": "If set (10–40), the body sits on an incline rising to the right; an angle arc with θ is drawn. On an incline the normal force angle is 90 + incline_deg." },
+      "forces": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "Short id used in element ids, e.g. \"gravity\"." },
+            "label": { "type": "string", "description": "e.g. \"F_g = mg\"." },
+            "angle_deg": { "type": "number", "description": "0 = +x, CCW, y-up. Gravity 270, normal on flat ground 90." },
+            "magnitude": { "type": "number", "description": "Relative arrow length 0–1 (default 0.7). Use consistent relative sizes — e.g. friction smaller than gravity." },
+            "color": { "type": "string", "enum": ["red", "blue", "purple", "gray"], "description": "Optional; default ink. Convention: gravity red, normal blue." },
+            "dash": { "type": "boolean", "description": "Dashed arrow (e.g. a component)." }
+          },
+          "required": ["label", "angle_deg"]
+        }
+      },
+      "show_axes": { "type": "boolean", "description": "Dashed x/y axes through the body." },
+      "net_force": {
+        "type": "object",
+        "description": "Optional dashed accent arrow for the net force.",
+        "properties": {
+          "label": { "type": "string" },
+          "angle_deg": { "type": "number" },
+          "magnitude": { "type": "number" }
+        },
+        "required": ["angle_deg"]
+      }
+    }
+  },
+  "element_ids": {
+    "ground / incline": "the ground line or incline wedge",
+    "ground_hatch": "hatching under the ground",
+    "angle_arc / label_angle": "incline angle arc and θ label (incline only)",
+    "body": "the box/ball/dot",
+    "label_body": "its label (when body_label is set)",
+    "axes": "dashed x/y axes (when show_axes)",
+    "force_<id>": "one arrow per force (id from the force's id, else its index)",
+    "label_<id>": "that force's label",
+    "net_force / label_net": "the net-force arrow and label (when net_force is set)"
+  },
+  "examples": [
+    {
+      "request": "Draw a free-body diagram of a box on the ground being pulled to the right.",
+      "params": {
+        "body": "box",
+        "forces": [
+          { "id": "gravity", "label": "F_g", "angle_deg": 270, "magnitude": 0.7, "color": "red" },
+          { "id": "normal", "label": "N", "angle_deg": 90, "magnitude": 0.7, "color": "blue" },
+          { "id": "pull", "label": "F_pull", "angle_deg": 0, "magnitude": 0.8 },
+          { "id": "friction", "label": "f", "angle_deg": 180, "magnitude": 0.45, "color": "gray" }
+        ]
+      }
+    },
+    {
+      "request": "Show the forces on a block on a 30 degree incline.",
+      "params": {
+        "body": "box",
+        "incline_deg": 30,
+        "forces": [
+          { "id": "gravity", "label": "F_g = mg", "angle_deg": 270, "magnitude": 0.8, "color": "red" },
+          { "id": "normal", "label": "N", "angle_deg": 120, "magnitude": 0.65, "color": "blue" },
+          { "id": "friction", "label": "f", "angle_deg": 30, "magnitude": 0.4, "color": "gray" }
+        ]
+      }
+    }
+  ]
+}

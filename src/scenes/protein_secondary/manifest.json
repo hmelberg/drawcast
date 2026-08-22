@@ -1,0 +1,48 @@
+{
+  "name": "protein_secondary",
+  "status": "ready",
+  "description": "A protein secondary-structure strip (textbook shorthand): the chain drawn N → C left to right, α-helices as coils, β-strands as block arrows, loops as thin curves. Choose this scene for requests about protein structure, α-helix vs β-sheet, secondary structure, or explaining how a protein chain folds into structural elements. Accepts either an explicit segment list or a compact ss string of H/E/C runs (H = helix, E = strand, C = coil/loop).",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "segments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "kind": { "type": "string", "enum": ["helix", "sheet", "loop"] },
+            "label": { "type": "string", "description": "e.g. \"α-helix\"." }
+          },
+          "required": ["kind"]
+        },
+        "description": "Explicit segments, left to right. Alternate loops between structural elements."
+      },
+      "ss": { "type": "string", "description": "Compact alternative: e.g. \"CCHHHHHCCEEEECC\". Runs become segments; first helix/strand get labeled automatically." },
+      "title": { "type": "string", "description": "Caption above the strip." }
+    }
+  },
+  "element_ids": {
+    "seg_<i>": "segment i (helix coil / strand arrow / loop curve)",
+    "label_<i>": "its label (when set)",
+    "n_term / c_term": "the N and C terminus letters",
+    "strip_title": "the caption"
+  },
+  "examples": [
+    {
+      "request": "Show a protein with an alpha helix and a beta strand.",
+      "params": {
+        "segments": [
+          { "kind": "loop" },
+          { "kind": "helix", "label": "α-helix" },
+          { "kind": "loop" },
+          { "kind": "sheet", "label": "β-strand" },
+          { "kind": "loop" }
+        ]
+      }
+    },
+    {
+      "request": "Draw the secondary structure CCHHHHHHCCEEEEECC.",
+      "params": { "ss": "CCHHHHHHCCEEEEECC" }
+    }
+  ]
+}

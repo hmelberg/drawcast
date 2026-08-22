@@ -14,6 +14,14 @@ import { layoutSupplyDemand, type SupplyDemandParams } from "./supply_demand/lay
 import { layoutDecisionTree, type DecisionTreeParams } from "./decision_tree/layout";
 import { layoutQalyProfiles, type QalyParams } from "./qaly_profiles/layout";
 import qalyManifest from "./qaly_profiles/manifest.json";
+import freeBodyManifest from "./free_body/manifest.json";
+import ringMoleculeManifest from "./ring_molecule/manifest.json";
+import proteinSecondaryManifest from "./protein_secondary/manifest.json";
+import cellDiagramManifest from "./cell_diagram/manifest.json";
+import { layoutFreeBody, type FreeBodyParams } from "./free_body/layout";
+import { layoutRingMolecule, type RingMoleculeParams } from "./ring_molecule/layout";
+import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_secondary/layout";
+import { layoutCellDiagram, type CellDiagramParams } from "./cell_diagram/layout";
 
 export interface SceneModule {
   manifest: SceneManifest;
@@ -32,6 +40,22 @@ export const scenes: Record<string, SceneModule> = {
   qaly_profiles: {
     manifest: qalyManifest as SceneManifest,
     layout: (params) => layoutQalyProfiles(params as QalyParams),
+  },
+  free_body: {
+    manifest: freeBodyManifest as SceneManifest,
+    layout: (params) => layoutFreeBody(params as FreeBodyParams),
+  },
+  ring_molecule: {
+    manifest: ringMoleculeManifest as SceneManifest,
+    layout: (params) => layoutRingMolecule(params as RingMoleculeParams),
+  },
+  protein_secondary: {
+    manifest: proteinSecondaryManifest as SceneManifest,
+    layout: (params) => layoutProteinSecondary(params as ProteinSecondaryParams),
+  },
+  cell_diagram: {
+    manifest: cellDiagramManifest as SceneManifest,
+    layout: (params) => layoutCellDiagram(params as CellDiagramParams),
   },
   cost_effectiveness_plane: { manifest: cepManifest as SceneManifest },
   markov_model: { manifest: markovManifest as SceneManifest },
