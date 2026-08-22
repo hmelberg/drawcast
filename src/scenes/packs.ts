@@ -28,6 +28,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Molecules drawn from SMILES (via the smilesDrawer engine), reaction schemes, and energy diagrams.",
     load: async () => (await import("./packs/chemistry.yaml?raw")).default,
   },
+  biology: {
+    id: "biology",
+    title: "Biology",
+    description: "Cell-membrane, DNA-helix, and phylogenetic-tree figures — computed geometry, no engines.",
+    load: async () => (await import("./packs/biology.yaml?raw")).default,
+  },
 };
 
 export interface ParsedPack {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
 import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
+import biologyYaml from "../src/scenes/packs/biology.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -225,5 +226,113 @@ describe("chemistry pack", () => {
         expect(x).toBeLessThanOrEqual(1002);
       }
     }
+  });
+});
+
+describe("biology pack", () => {
+  beforeEach(() => unregisterPack("biology"));
+
+  function inBounds(res: ReturnType<typeof layoutSpec>) {
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+          expect(x).toBeGreaterThanOrEqual(-2);
+          expect(x).toBeLessThanOrEqual(1002);
+          expect(y).toBeGreaterThanOrEqual(-2);
+          expect(y).toBeLessThanOrEqual(752);
+        }
+      } else if (d.kind === "text") {
+        expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+      }
+    }
+  }
+
+  test("parses and registers three templates in brief order", () => {
+    const r = registerPack("biology", biologyYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: ["membrane_bilayer", "dna_helix", "phylo_tree"] });
+  });
+
+  test("every biology example renders lint-clean and deterministically, in bounds", () => {
+    registerPack("biology", biologyYaml);
+    for (const tid of ["membrane_bilayer", "dna_helix", "phylo_tree"]) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        inBounds(res);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("phylo_tree: \"((A,B),C);\" yields 3 leaf texts and an edges group", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.phylo_tree.layout!({ newick: "((A,B),C);" });
+    const leafTexts = flattenDrawables(r.drawables).filter((d) => d.kind === "text" && /^leaf_/.test(d.id));
+    expect(leafTexts).toHaveLength(3);
+    expect(leafTexts.map((d) => (d as { text: string }).text).sort()).toEqual(["A", "B", "C"]);
+    const top = r.drawables.find((d) => d.id === "edges");
+    expect(top?.kind).toBe("group");
+  });
+
+  test("phylo_tree: a long leaf name shrinks/ellipsizes but stays on-canvas", () => {
+    registerPack("biology", biologyYaml);
+    const res = layoutSpec({
+      template: "phylo_tree",
+      params: { newick: "(Tyrannosaurus,Micropachycephalosaurus);" },
+      elements: [],
+    } as never);
+    inBounds(res);
+    const leafTexts = flattenDrawables(res.drawables).filter((d) => d.kind === "text" && /^leaf_/.test(d.id)) as { pos: [number, number]; text: string; fontSize: number }[];
+    expect(leafTexts).toHaveLength(2);
+    for (const t of leafTexts) {
+      // exact-position text: pos[0] is the "start" anchor; the rendered
+      // width (heuristic measure) must not push the glyph past the canvas.
+      const w = t.text.length * t.fontSize * 0.52;
+      expect(t.pos[0] + w).toBeLessThanOrEqual(1002);
+      expect(t.fontSize).toBeGreaterThanOrEqual(14);
+    }
+  });
+
+  test("dna_helix: rungs group exists and every rung's two endpoints are > 40 apart in y", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.dna_helix.layout!({});
+    const rungsGroup = r.drawables.find((d) => d.id === "rungs");
+    expect(rungsGroup?.kind).toBe("group");
+    const children = flattenDrawables([rungsGroup!]).filter((d) => d.id !== "rungs" && d.kind === "stroke") as { pts: [number, number][] }[];
+    expect(children.length).toBeGreaterThan(0);
+    for (const c of children) {
+      expect(c.pts).toHaveLength(2);
+      expect(Math.abs(c.pts[0][1] - c.pts[1][1])).toBeGreaterThan(40);
+    }
+  });
+
+  test("dna_helix: show_base_pairs false omits the rungs group and the base-pair label", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.dna_helix.layout!({ show_base_pairs: false });
+    expect(r.drawables.find((d) => d.id === "rungs")).toBeUndefined();
+    expect(r.labels.find((l) => l.id === "label_basepair")).toBeUndefined();
+  });
+
+  test("membrane_bilayer: proteins: [] still renders a pure bilayer (no protein groups)", () => {
+    registerPack("biology", biologyYaml);
+    const res = layoutSpec({ template: "membrane_bilayer", params: { proteins: [] }, elements: [] } as never);
+    inBounds(res);
+    const ids = res.drawables.map((d) => d.id);
+    expect(ids).toContain("lipids");
+    expect(ids.some((id) => /^protein_/.test(id))).toBe(false);
+  });
+
+  test("membrane_bilayer: a declared transport renders a transport_0 arrow, absent otherwise", () => {
+    registerPack("biology", biologyYaml);
+    const withTransport = scenes.membrane_bilayer.layout!({ transports: [{ species: "Na⁺", mode: "active", direction: "out" }] });
+    expect(withTransport.drawables.some((d) => d.id === "transport_0")).toBe(true);
+    const atp = flattenDrawables(withTransport.drawables).find((d) => d.id === "transport_0_atp");
+    expect(atp?.kind).toBe("text");
+    const withoutTransport = scenes.membrane_bilayer.layout!({});
+    expect(withoutTransport.drawables.some((d) => d.id === "transport_0")).toBe(false);
   });
 });

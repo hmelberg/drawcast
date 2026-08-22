@@ -1,0 +1,367 @@
+pack: biology
+title: Biology
+description: Cell-membrane, DNA-helix, and phylogenetic-tree figures — computed geometry, no engines.
+---
+template: membrane_bilayer
+title: Cell membrane (phospholipid bilayer)
+version: 1
+kit: 1
+status: ready
+description: >-
+  A phospholipid bilayer cross-section: two rows of lipids (circular heads
+  outward, wavy tails meeting in the middle) with optional embedded proteins
+  (channel, pump, receptor) and optional transport arrows showing substances
+  crossing the membrane by diffusion or active transport. Choose this for
+  requests about cell membranes, phospholipid bilayers, membrane proteins,
+  membrane transport, diffusion vs. active transport, or osmosis.
+params:
+  type: object
+  properties:
+    width_units:
+      type: number
+      description: "Lipids per leaflet row, 4–12 (default 8)."
+    proteins:
+      type: array
+      items:
+        type: string
+        enum: [channel, pump, receptor]
+      description: "Membrane proteins to embed, left to right (default [channel])."
+    transports:
+      type: array
+      items:
+        type: object
+        properties:
+          species:
+            type: string
+            description: "What's moving, e.g. \"O₂\" or \"Na⁺\"."
+          mode:
+            type: string
+            enum: [diffusion, active]
+            description: "diffusion = passive, no energy (default); active = uses ATP."
+          direction:
+            type: string
+            enum: [in, out]
+            description: "Into the cell or out of it (default out)."
+        required: [species]
+      description: "Substances shown moving across the membrane, each drawn as an arrow through a protein."
+    labels:
+      type: boolean
+      description: "Show protein-type and transport-species name labels (default true)."
+element_ids:
+  lipids: the lipid bilayer — both leaflets' heads and tails (one group)
+  protein_<i>: each embedded membrane protein (channel, pump, or receptor), 0-indexed left to right
+  transport_<i>: each transport arrow through a protein (plus its "ATP" marker when active), 0-indexed
+  label_protein_<i>: the protein-type name label (when labels is true)
+  label_transport_<i>: the transport's species name label (when labels is true)
+examples:
+  - request: "Draw a cell membrane with a channel protein."
+    params: { proteins: ["channel"] }
+  - request: "Show diffusion of O₂ through a membrane channel."
+    params: { proteins: ["channel"], transports: [{ species: "O₂", mode: "diffusion", direction: "in" }] }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const widthUnits = Math.min(12, Math.max(4, Math.round(params.width_units ?? 8)));
+  const proteins = Array.isArray(params.proteins) ? params.proteins : ["channel"];
+  const transports = Array.isArray(params.transports) ? params.transports : [];
+  const showLabels = params.labels !== false;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    if (!showLabels) return;
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const X0 = 110, X1 = 890;
+  const xs = [];
+  for (let i = 0; i < widthUnits; i++) {
+    xs.push(widthUnits > 1 ? X0 + ((X1 - X0) * i) / (widthUnits - 1) : (X0 + X1) / 2);
+  }
+
+  const HEAD_R = 11;
+  const TOP_HEAD_Y = 470, BOT_HEAD_Y = 290;
+  const MID_Y = (TOP_HEAD_Y + BOT_HEAD_Y) / 2;
+  const TAIL_LEN = TOP_HEAD_Y - HEAD_R - MID_Y;
+  const TAIL_AMP = 6, TAIL_WL = 45;
+  const PROT_YB = 255, PROT_YT = 505;
+
+  function pickSlots(n) {
+    if (n <= 0) return [];
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(Math.round(((i + 1) * widthUnits) / (n + 1)));
+    return out.map((v) => Math.min(widthUnits - 1, Math.max(0, v)));
+  }
+
+  const proteinSlots = pickSlots(proteins.length);
+  const usedCols = new Set(proteinSlots);
+
+  let transportXs;
+  if (proteins.length > 0) {
+    transportXs = transports.map((_, i) => xs[proteinSlots[i % proteinSlots.length]]);
+  } else {
+    const tSlots = pickSlots(transports.length);
+    tSlots.forEach((s) => usedCols.add(s));
+    transportXs = tSlots.map((s) => xs[s]);
+  }
+
+  // Vertical wavy tail: kit.wave is horizontal (x = distance, y = wiggle), so
+  // swap roles — the wave's own "t" axis becomes the tail's vertical run and
+  // its sine offset becomes the small horizontal wiggle around x0.
+  function tailPts(x0, y0, dir) {
+    const raw = kit.wave([0, 0], TAIL_LEN, TAIL_AMP, TAIL_WL);
+    return raw.map(([t, s]) => [x0 + s, y0 + dir * t]);
+  }
+
+  const lipidStrokes = [];
+  xs.forEach((x, i) => {
+    if (usedCols.has(i)) return;
+    lipidStrokes.push(kit.stroke(`lipid_${i}_head_top`, [[x, TOP_HEAD_Y]], { shapeHint: { type: "circle", c: [x, TOP_HEAD_Y], r: HEAD_R }, strokeWidth: 2.5, ms: MS.dot }));
+    lipidStrokes.push(kit.stroke(`lipid_${i}_tail_top_a`, tailPts(x - 4, TOP_HEAD_Y - HEAD_R, -1), { strokeWidth: 2, ms: MS.guides }));
+    lipidStrokes.push(kit.stroke(`lipid_${i}_tail_top_b`, tailPts(x + 4, TOP_HEAD_Y - HEAD_R, -1), { strokeWidth: 2, ms: MS.guides }));
+    lipidStrokes.push(kit.stroke(`lipid_${i}_head_bot`, [[x, BOT_HEAD_Y]], { shapeHint: { type: "circle", c: [x, BOT_HEAD_Y], r: HEAD_R }, strokeWidth: 2.5, ms: MS.dot }));
+    lipidStrokes.push(kit.stroke(`lipid_${i}_tail_bot_a`, tailPts(x - 4, BOT_HEAD_Y + HEAD_R, 1), { strokeWidth: 2, ms: MS.guides }));
+    lipidStrokes.push(kit.stroke(`lipid_${i}_tail_bot_b`, tailPts(x + 4, BOT_HEAD_Y + HEAD_R, 1), { strokeWidth: 2, ms: MS.guides }));
+  });
+  push(kit.group("lipids", lipidStrokes));
+  anchors.lipids = [(X0 + X1) / 2, MID_Y];
+
+  // A closed, gently chamfered rectangle — a simple deterministic stand-in
+  // for a "rounded rect" without needing per-corner arc math.
+  function chamferBar(cx, y0, y1, w, r) {
+    const x0 = cx - w / 2, x1 = cx + w / 2;
+    return [
+      [x0, y0 + r], [x0, y1 - r], [x0 + r, y1], [x1 - r, y1],
+      [x1, y1 - r], [x1, y0 + r], [x1 - r, y0], [x0 + r, y0],
+    ];
+  }
+  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  proteins.forEach((type, i) => {
+    const x = xs[proteinSlots[i]];
+    const children = [];
+    if (type === "pump") {
+      const ry = (PROT_YT - PROT_YB) / 2, cy = (PROT_YT + PROT_YB) / 2;
+      children.push(kit.stroke(`protein_${i}_body`, kit.ellipse([x, cy], 28, ry), { closed: true, color: C.accent, strokeWidth: 3.5, ms: MS.node }));
+    } else if (type === "receptor") {
+      const forkY = 460;
+      children.push(kit.stroke(`protein_${i}_stalk`, chamferBar(x, PROT_YB, forkY, 16, 6), { closed: true, color: C.accent, strokeWidth: 3.5, ms: MS.node }));
+      children.push(kit.stroke(`protein_${i}_fork_l`, [[x, forkY], [x - 32, PROT_YT]], { color: C.accent, strokeWidth: 3.5, ms: MS.connector }));
+      children.push(kit.stroke(`protein_${i}_fork_r`, [[x, forkY], [x + 32, PROT_YT]], { color: C.accent, strokeWidth: 3.5, ms: MS.connector }));
+    } else {
+      children.push(kit.stroke(`protein_${i}_bar_l`, chamferBar(x - 17, PROT_YB, PROT_YT, 16, 6), { closed: true, color: C.accent, strokeWidth: 3.5, ms: MS.node }));
+      children.push(kit.stroke(`protein_${i}_bar_r`, chamferBar(x + 17, PROT_YB, PROT_YT, 16, 6), { closed: true, color: C.accent, strokeWidth: 3.5, ms: MS.node }));
+    }
+    push(kit.group(`protein_${i}`, children));
+    anchors[`protein_${i}`] = [x, (PROT_YB + PROT_YT) / 2];
+    label(`label_protein_${i}`, [x, PROT_YT + 6], "above", capitalize(type), C.accent, 22);
+  });
+
+  transports.forEach((tr, i) => {
+    const x = transportXs[i];
+    const mode = tr && tr.mode === "active" ? "active" : "diffusion";
+    const dir = tr && tr.direction === "in" ? "in" : "out";
+    const species = (tr && tr.species) || "X";
+    const yBot = 270, yTop = 490;
+    const pts = dir === "out" ? [[x, yBot], [x, yTop]] : [[x, yTop], [x, yBot]];
+    const strokeColor = mode === "active" ? C.accent : C.guide;
+    const sw = mode === "active" ? 5 : 3;
+    const children = [kit.stroke(`transport_${i}_arrow`, pts, { arrowhead: "end", color: strokeColor, strokeWidth: sw, ms: MS.arrow })];
+    if (mode === "active") {
+      children.push(kit.text(`transport_${i}_atp`, [x + 16, (yBot + yTop) / 2], "ATP", { fontSize: 18, color: C.accent, anchor: "start" }));
+    }
+    push(kit.group(`transport_${i}`, children));
+    const labelAnchor = dir === "out" ? [x, yTop + 8] : [x, yBot - 8];
+    label(`label_transport_${i}`, labelAnchor, dir === "out" ? "above" : "below", species, strokeColor, 22);
+  });
+
+  return { drawables, labels, anchors, order };
+---
+template: dna_helix
+title: DNA double helix
+version: 1
+kit: 1
+status: ready
+description: >-
+  A DNA double helix drawn as two phase-shifted sine strands (the
+  sugar-phosphate backbones) with base-pair rungs connecting them wherever the
+  strands are far apart — the classic look of rungs vanishing at the crossing
+  points. Choose this for requests about DNA structure, the double helix,
+  base pairing, or the sugar-phosphate backbone.
+params:
+  type: object
+  properties:
+    turns:
+      type: number
+      description: "Number of helical turns to draw, 1–4 (default 2)."
+    show_base_pairs:
+      type: boolean
+      description: "Draw the rungs connecting the two strands (default true)."
+    labels:
+      type: boolean
+      description: "Show the backbone/base-pair name labels (default true)."
+element_ids:
+  strand_a / strand_b: the two sugar-phosphate backbone strands
+  rungs: the base-pair rungs connecting the strands (one group; present when show_base_pairs is true)
+  label_backbone: the "Sugar-phosphate backbone" label (when labels is true)
+  label_basepair: the "Base pair" label pointing at one rung (when labels and show_base_pairs are true)
+examples:
+  - request: "Draw a DNA double helix."
+    params: {}
+  - request: "Draw a DNA helix with 3 turns, no labels."
+    params: { turns: 3, labels: false }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const turns = Math.min(4, Math.max(1, Math.round(params.turns ?? 2)));
+  const showBasePairs = params.show_base_pairs !== false;
+  const showLabels = params.labels !== false;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    if (!showLabels) return;
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const X0 = 120, LEN = 760, MID_Y = 375, AMP = 70;
+  const WL = LEN / turns;
+
+  const strandA = kit.wave([X0, MID_Y], LEN, AMP, WL);
+  push(kit.stroke("strand_a", strandA, { color: C.demand, strokeWidth: 5, ms: MS.curve }));
+  anchors.strand_a = strandA[Math.floor(strandA.length / 4)];
+
+  // Second strand: same sine, phase-shifted by half a wavelength (kit.wave
+  // has no phase param, so this mirrors kit.wave's own formula by hand — the
+  // same technique physics/wave_diagram uses for its second interference wave).
+  const strandB = [];
+  for (let t = 0; t <= LEN; t += 4) {
+    strandB.push([X0 + t, MID_Y + AMP * Math.sin((t / WL) * 2 * Math.PI + Math.PI)]);
+  }
+  push(kit.stroke("strand_b", strandB, { color: C.supply, strokeWidth: 5, ms: MS.curve }));
+  anchors.strand_b = strandB[Math.floor(strandB.length / 4)];
+
+  if (showBasePairs) {
+    const rungs = [];
+    let ri = 0, midRung = null;
+    for (let t = 0; t <= LEN; t += 20) {
+      const yA = MID_Y + AMP * Math.sin((t / WL) * 2 * Math.PI);
+      const yB = MID_Y + AMP * Math.sin((t / WL) * 2 * Math.PI + Math.PI);
+      if (Math.abs(yA - yB) > 40) {
+        rungs.push(kit.stroke(`rung_${ri}`, [[X0 + t, yA], [X0 + t, yB]], { color: C.guide, strokeWidth: 2, ms: MS.connector }));
+        if (midRung === null || Math.abs(t - LEN / 2) < Math.abs(midRung.t - LEN / 2)) midRung = { t, pt: [X0 + t, (yA + yB) / 2] };
+        ri++;
+      }
+    }
+    push(kit.group("rungs", rungs));
+    if (midRung) label("label_basepair", midRung.pt, "right", "Base pair", C.guide, 24);
+  }
+
+  label("label_backbone", [X0 + 40, MID_Y + AMP * Math.sin((40 / WL) * 2 * Math.PI)], "above", "Sugar-phosphate backbone", C.demand, 22);
+
+  return { drawables, labels, anchors, order };
+---
+template: phylo_tree
+title: Phylogenetic tree
+version: 1
+kit: 1
+status: ready
+description: >-
+  A rectangular cladogram parsed from a Newick tree string: leaves flush at
+  the right with their names, internal nodes positioned by depth (branch
+  lengths are ignored in v1), right-angle elbow connectors. Choose this for
+  requests about phylogenetic trees, evolutionary relationships, cladograms,
+  or "how are X and Y related".
+params:
+  type: object
+  properties:
+    newick:
+      type: string
+      description: "Newick tree string, e.g. \"((Human,Chimp),(Mouse,Rat),Chicken);\". Branch lengths are parsed but ignored — layout is depth-proportional."
+    title:
+      type: string
+      description: "Caption above the tree."
+element_ids:
+  edges: the parent→child connector lines (one group; right-angle elbows)
+  leaf_<i>: each leaf's name text, 0-indexed left to right as given in the newick string
+  tree_title: the caption (when title is given)
+examples:
+  - request: "Draw a phylogenetic tree of Human, Chimp, Mouse, Rat, and Chicken."
+    params: {}
+  - request: "Draw a phylogenetic tree of felids."
+    params: { newick: "(Dog,(Cat,(Lion,Tiger)));", title: "Felids" }
+layout: |
+  const newick = typeof params.newick === "string" && params.newick.trim() !== ""
+    ? params.newick
+    : "((Human,Chimp),(Mouse,Rat),Chicken);";
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const root = kit.parseNewick(newick);
+
+  const leaves = [];
+  (function collect(n) {
+    if (n.children.length === 0) leaves.push(n);
+    else n.children.forEach(collect);
+  })(root);
+  const numLeaves = Math.max(1, leaves.length);
+  leaves.forEach((leaf, i) => {
+    leaf._y = numLeaves > 1 ? 620 - (i * (620 - 180)) / (numLeaves - 1) : 400;
+  });
+
+  let maxDepth = 0;
+  (function depth(n, d) {
+    if (n.children.length === 0) { maxDepth = Math.max(maxDepth, d); return; }
+    n.children.forEach((c) => depth(c, d + 1));
+  })(root, 0);
+
+  const X_ROOT = 140, X_LEAF = 760;
+  function place(n, d) {
+    if (n.children.length === 0) { n._x = X_LEAF; return; }
+    n.children.forEach((c) => place(c, d + 1));
+    n._x = maxDepth > 0 ? X_ROOT + (d / maxDepth) * (X_LEAF - X_ROOT) : X_ROOT;
+    n._y = n.children.reduce((s, c) => s + c._y, 0) / n.children.length;
+  }
+  place(root, 0);
+
+  const edges = [];
+  let ei = 0;
+  (function walk(n) {
+    n.children.forEach((c) => {
+      edges.push(kit.stroke(`edge_${ei}`, [[n._x, n._y], [c._x, n._y], [c._x, c._y]], { strokeWidth: 3, ms: kit.SKETCH_MS.connector }));
+      ei++;
+      walk(c);
+    });
+  })(root);
+  if (edges.length > 0) {
+    push(kit.group("edges", edges));
+    anchors.edges = [root._x, root._y];
+  }
+
+  // Leaf names are exact-position kit.text (they ARE the tree, not a
+  // repositionable annotation of it) — so unlike a kit.label, nothing here
+  // stops a long name from running past x=1000. Guard it directly: shrink
+  // the font to fit the LONGEST name, and if even the floor size would still
+  // overflow, ellipsize past the width the floor size allows.
+  const FS_BASE = 24, FS_FLOOR = 14, TEXT_X = 775, MARGIN = 15;
+  const availW = kit.CANVAS.w - TEXT_X - MARGIN;
+  const rawMaxLen = Math.max(1, ...leaves.map((l) => (l.name || "").length));
+  const fs = Math.max(FS_FLOOR, Math.min(FS_BASE, availW / (rawMaxLen * 0.52)));
+  const maxCharsAtFloor = Math.max(1, Math.floor(availW / (FS_FLOOR * 0.52)));
+  function displayName(raw, i) {
+    const s = raw || `Taxon ${i + 1}`;
+    if (s.length <= maxCharsAtFloor) return s;
+    return s.slice(0, Math.max(1, maxCharsAtFloor - 1)) + "…";
+  }
+
+  leaves.forEach((leaf, i) => {
+    push(kit.text(`leaf_${i}`, [TEXT_X, leaf._y], displayName(leaf.name, i), { fontSize: fs, anchor: "start" }));
+  });
+
+  if (params.title) {
+    labels.push(kit.label("tree_title", [450, 660], "above", String(params.title), { fontSize: 30 }));
+    order.push("tree_title");
+  }
+
+  return { drawables, labels, anchors, order };
