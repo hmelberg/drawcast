@@ -712,6 +712,10 @@ function openAuthorDialog(improve?: { id: string }): void {
   setAuthorImage(null);
   authorDescEl.value = "";
   authorRefineEl.value = "";
+  // Unconditional: every dialog open starts with live buttons, even if a stale
+  // generation from a previous session is still in flight (its seq-guarded
+  // finally will no-op — see runAuthor — so this can't get re-disabled by it).
+  authorGenBtn.disabled = authorRefineBtn.disabled = false;
   authorStatus.textContent = authorImproveId ? `Improving "${authorImproveId}" — describe what to change.` : "";
   authorRefineEl.hidden = authorRefineBtn.hidden = authorSaveBtn.hidden = true;
   authorMount?.destroy();
