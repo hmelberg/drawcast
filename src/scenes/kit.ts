@@ -82,6 +82,11 @@ export interface Camera3 {
   /** Screen center (defaults 500, 375). */
   cx?: number;
   cy?: number;
+  /**
+   * Atmospheric depth fade 0–1 (default 0): farther primitives render more
+   * transparent — the strongest static 3D cue in a sketchy style.
+   */
+  fade?: number;
 }
 
 export type Prim3 =
@@ -462,6 +467,18 @@ export const kit: SceneKit = {
     }
 
     pieces.sort((a, b) => b.depth - a.depth); // far first — paint back to front
+
+    const fade = Math.min(1, Math.max(0, camera.fade ?? 0));
+    if (fade > 0 && pieces.length > 1) {
+      const depths = pieces.map((p) => p.depth);
+      const dMin = Math.min(...depths);
+      const span = Math.max(1e-6, Math.max(...depths) - dMin);
+      for (const p of pieces) {
+        const t = (p.depth - dMin) / span; // 0 = nearest, 1 = farthest
+        p.drawable.style = { ...p.drawable.style, opacity: p.drawable.style.opacity * (1 - fade * t) };
+      }
+    }
+
     return {
       drawables: pieces.map((p) => p.drawable),
       anchors,

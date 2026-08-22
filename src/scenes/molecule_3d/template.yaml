@@ -110,8 +110,17 @@ layout: |
     });
   });
   const projected = kit.project3d(
-    { azimuth: params.azimuth ?? 28, elevation: params.elevation ?? 18, distance: 6.5, cy: 400 },
+    { azimuth: params.azimuth ?? 32, elevation: params.elevation ?? 16, distance: 4.6, fov: 640, cy: 410, fade: 0.45 },
     prims,
   );
+  const lowestY = Math.min(...Object.values(projected.anchors).map((p) => p[1]));
+  const shadow = kit.stroke("ground_shadow", kit.ellipse([500, lowestY - 48], 150, 26), {
+    closed: true, color: kit.COLORS.guide, strokeWidth: 2, dash: true, opacity: 0.4, ms: kit.SKETCH_MS.guides,
+  });
   const labels = [kit.label("caption", [500, 120], "below", params.name ?? preset.caption, { fontSize: 28 })];
-  return { drawables: projected.drawables, labels, anchors: projected.anchors, order: [...projected.order, "caption"] };
+  return {
+    drawables: [shadow, ...projected.drawables],
+    labels,
+    anchors: projected.anchors,
+    order: ["ground_shadow", ...projected.order, "caption"],
+  };
