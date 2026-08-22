@@ -117,17 +117,19 @@ describe("generateSpec loop", () => {
     expect(secondCallSystem[0].text).toContain("### Scene template: free_body");
   });
 
-  // NOTE vs. the brief's sketch: the brief predicted "outcome error after
-  // repairs" for this case. Reading compile.ts's actual code: `validation.ok`
-  // is computed by validateSpec() BEFORE the forced-template mismatch string
-  // is pushed onto validation.errors, so `ok` never flips to false on a
-  // mismatch alone. A structurally/semantically valid-but-wrong-template spec
-  // still sets `best` (and passes layoutSpec, since it's a real template) —
-  // so the outcome actually carries a non-null spec and no top-level `error`.
-  // The real signal the loop gives for "never satisfied the forced template"
-  // is the mismatch string landing in every round's validationErrors, which
-  // is what this test asserts.
-  test("forced mismatch: forcedTemplate set, model never switches -> repairs exhaust; the mismatch message is recorded every round", async () => {
+  // NOTE vs. the brief's sketch, and vs. this file's own first pass: reading
+  // compile.ts's actual code, `validation.ok` is computed by validateSpec()
+  // BEFORE the forced-template mismatch string is pushed onto
+  // validation.errors, so `ok` never flips to false on a mismatch alone —
+  // a structurally/semantically valid-but-wrong-template spec still sets
+  // `best` (and passes layoutSpec, since it's a real template). Left alone,
+  // that meant the FINAL outcome carried a non-null spec and no top-level
+  // `error` — a silent wrong-template "success". Fixed in generateSpec's
+  // final return (post-loop): when repairs exhaust with best.template !==
+  // cfg.forcedTemplate, outcome.error now names the mismatch explicitly,
+  // while outcome.spec still carries the best-effort (wrong-template) spec
+  // so a caller can choose to use it anyway.
+  test("forced mismatch: forcedTemplate set, model never switches -> repairs exhaust; outcome.error names the mismatch, outcome.spec keeps the best-effort (wrong-template) spec", async () => {
     mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
 
     const outcome = await generateSpec("draw the forces on a block", baseCfg({ forcedTemplate: "free_body", maxRepairs: 1 }));
@@ -139,6 +141,9 @@ describe("generateSpec loop", () => {
     }
     expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
     expect(mockCallForJson.mock.calls[1][1]).toBe(REPAIR_MODEL);
+
+    expect(outcome.error).toMatch(/required template "free_body"/);
+    expect(outcome.spec?.template).toBe("supply_demand"); // best-effort preserved
   });
 
   test("escalation is suppressed when forcedTemplate is set: the marker object is treated as a normal invalid spec, no template-fetch round", async () => {

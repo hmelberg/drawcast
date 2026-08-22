@@ -298,10 +298,20 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     };
   }
 
+  // best-effort: `best` may still carry a template other than the forced
+  // one (validation.ok is computed before the forced-template mismatch
+  // string is appended, so a structurally valid wrong-template spec still
+  // gets kept as `best`) — surface that as a top-level error rather than a
+  // silent success with the wrong template.
+  const forcedMismatch = cfg.forcedTemplate && best && best.template !== cfg.forcedTemplate;
   return {
     spec: best,
     rounds,
-    error: best ? undefined : "The model never produced a valid spec (see rounds).",
+    error: forcedMismatch
+      ? `The model never produced a spec using the required template "${cfg.forcedTemplate}" (returned "${best!.template}") — try again or drop the forced template.`
+      : best
+        ? undefined
+        : "The model never produced a valid spec (see rounds).",
     systemPromptChars: blocks.prefix.length + blocks.suffix.length,
   };
 }

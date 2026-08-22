@@ -186,7 +186,13 @@ export async function generateTemplate(description: string, image: AuthorImage |
           engineErrors.push(`engine load failed: ${(err as Error).message}`);
         });
       }
-      const { doc, errors: docErrors, lintIssues } = processAuthorDoc(json, measure);
+      const { doc, errors: rawDocErrors, lintIssues } = processAuthorDoc(json, measure);
+      // When the engine itself failed to load, processAuthorDoc's own layout
+      // run typically fails too (the layout body needs that engine) — drop
+      // that redundant "layout failed" wording rather than showing the same
+      // underlying failure twice.
+      const docErrors =
+        engineErrors.length > 0 ? rawDocErrors.filter((e) => !e.startsWith("the layout failed on examples[0].params")) : rawDocErrors;
       const errors = [...engineErrors, ...docErrors];
       rounds.push({ label: rounds.length === 0 ? "initial" : "repair", doc: json, errors, lintIssues, meta });
 
