@@ -87,10 +87,17 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   return { drawables, order, issues, warnings };
 }
 
-/** Union bbox of every leaf drawable belonging to one element id, or null. */
+/**
+ * Union bbox of the leaf drawables belonging to one element id, or null.
+ * Leaders and guide lines are excluded: they POINT AT the element, they are
+ * not the element — including them would make annotations and gestures land
+ * on the scaffolding instead of the thing (a label pushed aside by the
+ * collision solver drags a long leader behind it).
+ */
 function unionBBoxForId(drawables: Drawable[], id: string, measure: MeasureFn): BBox | null {
   const boxes: BBox[] = [];
   for (const d of leafDrawables(drawablesForId(drawables, id))) {
+    if (d.id === `${id}_leader` || d.id === `${id}_guides`) continue;
     if (d.kind === "text") {
       boxes.push(bboxOfText(d, measure));
     } else if (d.kind === "stroke" && d.shapeHint?.type === "circle") {

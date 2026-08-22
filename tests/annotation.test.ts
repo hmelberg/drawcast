@@ -99,6 +99,28 @@ describe("annotation element — layout", () => {
     expect(drawablesForId(layout.drawables, "m")).toHaveLength(0);
   });
 
+  test("a label with a leader line: the mark covers the TEXT, not the leader", () => {
+    // The rent-control case: the Shortage label gets pushed aside and tied to
+    // its anchor with a long leader — the marker must hug the text alone.
+    const layout = layoutSpec({
+      template: "supply_demand",
+      params: {
+        equilibrium: { show: true, guides: true },
+        price_ceiling: { label: "Rent control", show_shortage: true },
+      },
+      elements: [{ id: "mark", type: "annotation", target: "label_shortage", kind: "highlight" }],
+      commands: [],
+    });
+    const mark = leafDrawables(drawablesForId(layout.drawables, "mark"))[0];
+    expect(mark.kind).toBe("stroke");
+    if (mark.kind !== "stroke") return;
+    // A text-height marker, not a leader-spanning monster.
+    expect(mark.style.strokeWidth).toBeLessThan(60);
+    const label = leafDrawables(drawablesForId(layout.drawables, "label_shortage")).find((d) => d.kind === "text");
+    const labelY = label && label.kind === "text" ? label.pos[1] : 0;
+    for (const [, y] of mark.pts) expect(Math.abs(y - labelY)).toBeLessThan(30);
+  });
+
   test("annotations can target template ids (drawn after the scene)", () => {
     const layout = layoutSpec({
       template: "supply_demand",
