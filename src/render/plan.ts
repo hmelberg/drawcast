@@ -72,6 +72,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const visibleSet = new Set<string>();
   const offsets: Record<string, Pt> = {};
   let camera: BBox | null = null;
+  /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
+  const lastRevealed = new Map<string, number>();
 
   /** Narration of the command currently being planned (speak paired with an action). */
   let currentNarration: string | undefined;
@@ -117,6 +119,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.draw !== undefined) {
       const ids = resolveIds(cmd.draw, "draw");
       ids.forEach((id) => mentioned.add(id));
+      ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
       pushStep({ kind: "draw", ids, parallel: cmd.parallel === true });
     } else if (cmd.pause !== undefined) {
@@ -126,6 +129,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.show !== undefined) {
       const ids = resolveIds(cmd.show, "show");
       ids.forEach((id) => mentioned.add(id));
+      ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
       pushStep({ kind: "show", ids });
     } else if (cmd.hide !== undefined) {
@@ -143,6 +147,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.clear !== undefined) {
       const keep = new Set(resolveIds(cmd.clear.keep, "clear.keep"));
       const ids = visible.filter((id) => !keep.has(id));
+      // A likely forgotten keep: wiping something revealed only moments ago.
+      for (const id of ids) {
+        const at = lastRevealed.get(id);
+        if (at !== undefined && steps.length - at <= 3) {
+          warnings.push(`clear hides "${id}" — it was just drawn (${steps.length - at} step${steps.length - at === 1 ? "" : "s"} earlier); add it to keep if the story still needs it`);
+        }
+      }
       makeHidden(ids);
       pushStep({ kind: "clear", ids });
     } else if (cmd.highlight !== undefined) {

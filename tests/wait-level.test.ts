@@ -38,6 +38,22 @@ describe("wait verb", () => {
     expect(validateSpec({ ...base, commands: [{ pause: "click" }] }).ok).toBe(true);
   });
 
+  test("clear warns when it wipes an element drawn just beforehand (forgotten keep)", () => {
+    const plan = planCommands(
+      [{ draw: ["a"] }, { draw: ["b"] }, { clear: { keep: ["a"] } }] as Command[],
+      ["a", "b"],
+    );
+    expect(plan.warnings.join(" ")).toMatch(/clear hides "b".*just drawn/);
+  });
+
+  test("clear long after a draw does not warn", () => {
+    const plan = planCommands(
+      [{ draw: ["b"] }, { pause: 1 }, { pause: 1 }, { pause: 1 }, { clear: {} }] as Command[],
+      ["b"],
+    );
+    expect(plan.warnings.join(" ")).not.toMatch(/just drawn/);
+  });
+
   test("planCommands emits a wait step that leaves scene state unchanged", () => {
     const plan = planCommands([{ draw: ["t"] }, { wait: "click" }] as Command[], ["t"]);
     expect(plan.steps[1]).toEqual({ kind: "wait" });
