@@ -75,6 +75,17 @@ describe("parseTags — playlist structure tags", () => {
   });
 });
 
+describe("parseTags — #template", () => {
+  test("#template=free_body is parsed out and exposed", () => {
+    const p = parseTags("show forces #template=free_body");
+    expect(p.template).toBe("free_body");
+    expect(p.clean).toBe("show forces");
+  });
+  test("no template tag yields null", () => {
+    expect(parseTags("plain request").template).toBeNull();
+  });
+});
+
 describe("buildBrief", () => {
   test("no tags produces no brief", () => {
     expect(buildBrief([])).toBe("");

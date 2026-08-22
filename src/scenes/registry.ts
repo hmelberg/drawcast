@@ -57,33 +57,6 @@ export const scenes: Record<string, SceneModule> = {
   generic_axes_diagram: { manifest: genericAxesManifest as SceneManifest },
 };
 
-/** The scene catalog injected into the compiler prompt ({{CATALOG}}). */
-export function sceneCatalogText(): string {
-  const parts: string[] = [];
-  for (const { manifest } of Object.values(scenes)) {
-    if (manifest.status === "ready") {
-      parts.push(
-        `### Scene template: ${manifest.name} (READY — prefer this when it fits)\n` +
-          `${manifest.description}\n` +
-          `Parameter schema:\n${JSON.stringify(manifest.params_schema, null, 1)}\n` +
-          `Element ids your commands can reference:\n` +
-          Object.entries(manifest.element_ids)
-            .map(([id, doc]) => `- ${id}: ${doc}`)
-            .join("\n") +
-          (manifest.examples.length > 0
-            ? `\nExamples:\n` +
-              manifest.examples
-                .map((ex) => `Request: "${ex.request}" → params: ${JSON.stringify(ex.params)}`)
-                .join("\n")
-            : ""),
-      );
-    } else {
-      parts.push(`### Scene template: ${manifest.name} (STUB — do NOT set template to this)\n${manifest.description}`);
-    }
-  }
-  return parts.join("\n\n");
-}
-
 /**
  * Register a template document (spec §1). Ready docs compile to a working
  * scene; a doc whose body fails to compile degrades to a STUB manifest so

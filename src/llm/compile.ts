@@ -6,7 +6,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
-import { sceneCatalogText } from "../scenes/registry";
+import { catalogText, detectNeedTemplate } from "../scenes/catalog";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
@@ -44,7 +44,7 @@ function apiSchema(): object {
 }
 
 export interface GenerationRound {
-  label: "initial" | "schema-repair" | "lint-repair";
+  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch";
   spec: unknown;
   validationErrors: string[];
   lintIssues: LintIssue[];
@@ -70,12 +70,22 @@ export interface GenerateConfig {
    * itself stays clean — it also drives exemplar selection and logging.
    */
   brief?: string;
+  /** #template=<id> — the model must use this template (checked post-validation). */
+  forcedTemplate?: string;
+  /** Template ids to always give a full catalog entry, above the two-level threshold. */
+  priorityIds?: string[];
 }
 
-export function assembleSystemPrompt(request: string, variant: PromptVariant, exemplarPool: Exemplar[]): string {
+export function assembleSystemPrompt(
+  request: string,
+  variant: PromptVariant,
+  exemplarPool: Exemplar[],
+  forcedTemplate?: string,
+  priorityIds?: string[],
+): string {
   return buildSystemPrompt(variant.source, {
     schema: apiSchema(),
-    catalog: sceneCatalogText(),
+    catalog: catalogText({ request, forced: forcedTemplate, priorityIds }),
     fewshots: fewshotsText(),
     exemplars: formatExemplars(selectExemplars(request, exemplarPool, 3)),
   });
@@ -170,13 +180,13 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // Prompt caching: the schema/catalog/fewshots prefix is byte-stable across
   // requests, so it is sent as a cache_control block — repair rounds (and any
   // generation within the TTL) skip re-processing ~10k tokens of prompt.
-  const blocks = buildSystemBlocks(cfg.variant.source, {
+  let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
-    catalog: sceneCatalogText(),
+    catalog: catalogText({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds }),
     fewshots: fewshotsText(),
     exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
   });
-  const system: Anthropic.TextBlockParam[] = [
+  let system: Anthropic.TextBlockParam[] = [
     { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
     ...(blocks.suffix ? [{ type: "text" as const, text: blocks.suffix }] : []),
   ];
@@ -189,14 +199,50 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
   let repairsUsed = 0;
+  let escalated = false;
 
   try {
     while (true) {
-      const label: GenerationRound["label"] = rounds.length === 0 ? "initial" : rounds[rounds.length - 1].validationErrors.length > 0 ? "schema-repair" : "lint-repair";
+      const prevRound = rounds[rounds.length - 1];
+      const label: GenerationRound["label"] =
+        rounds.length === 0
+          ? "initial"
+          : prevRound.label === "template-fetch"
+            ? "initial"
+            : prevRound.validationErrors.length > 0
+              ? "schema-repair"
+              : "lint-repair";
       // The creative first round uses the chosen model; mechanical repairs use a faster one.
       const roundModel = rounds.length === 0 ? cfg.model : repairModelFor(cfg.model);
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema);
+
+      // Escalation (fires at most once): the model asked for a template's full
+      // definition instead of guessing its parameters from the index line.
+      const needed = detectNeedTemplate(json);
+      if (needed && !escalated) {
+        escalated = true;
+        blocks = buildSystemBlocks(cfg.variant.source, {
+          schema: apiSchema(),
+          catalog: catalogText({ request, forced: needed }),
+          fewshots: fewshotsText(),
+          exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
+        });
+        system = [
+          { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
+          ...(blocks.suffix ? [{ type: "text" as const, text: blocks.suffix }] : []),
+        ];
+        messages.push(
+          { role: "assistant", content: raw },
+          { role: "user", content: `Full definition of "${needed}" is now in your instructions. Return the complete spec using it.` },
+        );
+        rounds.push({ label: "template-fetch", spec: json, validationErrors: [], lintIssues: [], meta });
+        continue;
+      }
+
       const validation = validateSpec(json);
+      if (cfg.forcedTemplate && (json as Spec)?.template !== cfg.forcedTemplate) {
+        validation.errors.push(`the request requires template "${cfg.forcedTemplate}" — set "template" to it and use its params`);
+      }
       let lintIssues: LintIssue[] = [];
       if (validation.ok) {
         best = json as Spec;

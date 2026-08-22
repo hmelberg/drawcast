@@ -122,6 +122,12 @@ export const TAGS: TagDef[] = [
     hint: "multi-part drawcast with exactly N parts",
     brief: "",
   },
+  {
+    tag: "template",
+    group: "structure",
+    hint: "force a specific template, e.g. #template=free_body",
+    brief: "",
+  },
 ];
 
 const byName = new Map<string, TagDef>();
@@ -142,6 +148,8 @@ export interface ParsedTags {
   unknown: string[];
   /** Difficulty for stamping into the generated spec. */
   level: "basic" | "advanced" | null;
+  /** Forced template id from #template=<id>; null = not given. */
+  template: string | null;
 }
 
 const TAG_RE = /(^|\s)#([a-zæøå]+(?:=[^\s#]+)?)/gi;
@@ -153,6 +161,7 @@ export function parseTags(text: string): ParsedTags {
   const order: TagDef[] = [];
   let playlist = false;
   let parts: number | null = null;
+  let template: string | null = null;
 
   const clean = text
     .replace(TAG_RE, (whole, lead: string, word: string) => {
@@ -161,6 +170,11 @@ export function parseTags(text: string): ParsedTags {
       if (partsMatch) {
         playlist = true;
         parts = parseInt(partsMatch[1], 10);
+        return lead;
+      }
+      const templateMatch = /^template=(.+)$/.exec(lower);
+      if (templateMatch) {
+        template = templateMatch[1];
         return lead;
       }
       const def = byName.get(lower);
@@ -189,6 +203,7 @@ export function parseTags(text: string): ParsedTags {
     parts,
     unknown,
     level: level === "basic" || level === "advanced" ? level : null,
+    template,
   };
 }
 
