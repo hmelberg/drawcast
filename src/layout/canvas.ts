@@ -1,7 +1,9 @@
 // Fixed logical canvas: 1000×750, Cartesian, y-up, origin bottom-left.
 // The single y-flip to SVG space happens in the backend (see toSvgY), nowhere else.
 
-export const CANVAS = { w: 1000, h: 750 } as const;
+// Frozen: exposed live on `kit` (src/scenes/kit.ts) to compiled template
+// bodies — see the matching note on COLORS in layout/model.ts.
+export const CANVAS = Object.freeze({ w: 1000, h: 750 } as const);
 
 /** Default plot-area margins (logical units) for diagrams with axes. */
 export const PLOT_MARGIN = { left: 120, right: 70, top: 55, bottom: 95 } as const;

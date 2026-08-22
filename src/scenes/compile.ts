@@ -5,17 +5,27 @@
 
 import { kit } from "./kit";
 import { docToManifest, type TemplateDoc } from "./doc";
-import type { SceneLayout, SceneModule } from "./types";
-import { flattenDrawables, type Drawable, type Pt } from "../layout/model";
+import type { SceneLayout, SceneManifest, SceneModule } from "./types";
+import type { Pt } from "../layout/model";
+import { SIDE_VALUES } from "../spec/types";
 
 /** Sane coordinate bound: well beyond the 1000×750 canvas, catches runaways. */
 const COORD_BOUND = 4000;
 
-const SIDES = new Set(["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"]);
+// Derived from the canonical SIDE_VALUES (spec/types.ts), not a hand-copied
+// literal list — Side itself is derived from SIDE_VALUES too, so the two can
+// never drift. Typed as ReadonlySet<string> (not <Side>) because membership
+// here is exactly the runtime check that an untrusted `unknown` IS a Side.
+const SIDES: ReadonlySet<string> = new Set(SIDE_VALUES);
 
 export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; errors: string[] } {
   if (doc.status !== "ready" || !doc.layout) {
-    return { module: { manifest: docToManifest(doc) }, errors: [] };
+    // A "ready" doc with no layout body (only reachable by calling this
+    // directly, bypassing validateTemplateDoc) has nothing to run — report
+    // it as a stub rather than advertising a manifest the app can't back.
+    const manifest: SceneManifest = docToManifest(doc);
+    if (doc.status === "ready" && !doc.layout) manifest.status = "stub";
+    return { module: { manifest }, errors: [] };
   }
   let fn: (params: Record<string, unknown>, kit: unknown, engines: unknown) => unknown;
   try {
@@ -38,6 +48,55 @@ function finitePt(p: unknown): p is Pt {
   return Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[0] as number) <= COORD_BOUND && Math.abs(p[1] as number) <= COORD_BOUND;
 }
 
+/**
+ * Validate one drawable node BEFORE recursing into it — this is what keeps
+ * the guard defensive: a shape check (object, id, kind, pts/pos/text/children)
+ * always runs first, so we never hand an unvalidated `children` array to a
+ * `.forEach`/`.map` the way flattenDrawables (layout/model.ts) does. That
+ * function is meant for already-valid Drawable[] — this guard is exactly
+ * the boundary that has to work on untrusted, possibly-malformed output.
+ *
+ * `allIds` collects every id in the whole tree (top-level AND nested) for
+ * the non-empty/uniqueness check (spec §2); `topIds` collects top-level ids
+ * only, since `order` may only reference top-level drawables/labels (groups
+ * are addressed by their own top-level id, never by a nested child's id —
+ * see how order.push() is used across the per-template layout.ts files).
+ */
+function validateDrawableNode(raw: unknown, errors: string[], allIds: Set<string>, topIds: Set<string>, isTop: boolean): void {
+  if (typeof raw !== "object" || raw === null) {
+    errors.push("every drawable needs a non-empty string id");
+    return;
+  }
+  const d = raw as Record<string, unknown>;
+  if (typeof d.id !== "string" || d.id === "") {
+    errors.push("every drawable needs a non-empty string id");
+    return;
+  }
+  if (allIds.has(d.id)) {
+    errors.push(`duplicate drawable id "${d.id}"`);
+  } else {
+    allIds.add(d.id);
+  }
+  if (isTop) topIds.add(d.id);
+
+  if (d.kind === "stroke" || d.kind === "area") {
+    if (!Array.isArray(d.pts) || !d.pts.every(finitePt)) {
+      errors.push(`drawable "${d.id}": pts must be finite [x, y] pairs within ±${COORD_BOUND} (bounds/finite check)`);
+    }
+  } else if (d.kind === "text") {
+    if (!finitePt(d.pos)) errors.push(`text "${d.id}": pos must be a finite point (bounds/finite check)`);
+    if (typeof d.text !== "string") errors.push(`text "${d.id}": text must be a string`);
+  } else if (d.kind === "group") {
+    if (!Array.isArray(d.children)) {
+      errors.push(`group "${d.id}": children must be an array`);
+    } else {
+      for (const child of d.children) validateDrawableNode(child, errors, allIds, topIds, false);
+    }
+  } else {
+    errors.push(`drawable "${d.id}": unknown kind "${String(d.kind)}"`);
+  }
+}
+
 export function validateSceneLayout(v: unknown): string[] {
   if (typeof v !== "object" || v === null) return ["result must be an object with drawables/labels/anchors/order"];
   const r = v as Record<string, unknown>;
@@ -47,29 +106,9 @@ export function validateSceneLayout(v: unknown): string[] {
   if (!Array.isArray(r.order)) return ["order must be an array"];
 
   const errors: string[] = [];
+  const allIds = new Set<string>();
   const topIds = new Set<string>();
-  for (const d of r.drawables as Drawable[]) {
-    if (typeof d?.id !== "string" || d.id === "") {
-      errors.push("every drawable needs a non-empty string id");
-      continue;
-    }
-    if (topIds.has(d.id)) errors.push(`duplicate drawable id "${d.id}"`);
-    topIds.add(d.id);
-  }
-  for (const d of flattenDrawables((r.drawables as Drawable[]).filter((d) => d && typeof d === "object"))) {
-    if (d.kind === "stroke" || d.kind === "area") {
-      if (!Array.isArray(d.pts) || !d.pts.every(finitePt)) {
-        errors.push(`drawable "${d.id}": pts must be finite [x, y] pairs within ±${COORD_BOUND} (bounds/finite check)`);
-      }
-    } else if (d.kind === "text") {
-      if (!finitePt(d.pos)) errors.push(`text "${d.id}": pos must be a finite point (bounds/finite check)`);
-      if (typeof d.text !== "string") errors.push(`text "${d.id}": text must be a string`);
-    } else if (d.kind === "group") {
-      if (!Array.isArray(d.children)) errors.push(`group "${d.id}": children must be an array`);
-    } else {
-      errors.push(`drawable "${(d as Drawable).id}": unknown kind "${(d as Drawable).kind}"`);
-    }
-  }
+  for (const d of r.drawables as unknown[]) validateDrawableNode(d, errors, allIds, topIds, true);
 
   const labelIds = new Set<string>();
   for (const l of r.labels as { id?: unknown; anchor?: unknown; side?: unknown; text?: unknown }[]) {

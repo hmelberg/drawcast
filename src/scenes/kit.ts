@@ -106,6 +106,11 @@ export interface SceneKit {
   SKETCH_MS: typeof SKETCH_MS;
 }
 
+// `kit` is one shared, live object handed to every compiled template body
+// (src/scenes/compile.ts). It is frozen below (and COLORS/CANVAS/SKETCH_MS
+// are frozen at their source in layout/model.ts and layout/canvas.ts) so a
+// body can never mutate a factory or a constant and poison later renders —
+// `kit.stroke = ...` or `kit.COLORS.ink = "red"` throws instead of sticking.
 export const kit: SceneKit = {
   stroke(id, pts, o = {}) {
     return {
@@ -326,3 +331,5 @@ export const kit: SceneKit = {
   CANVAS,
   SKETCH_MS,
 };
+
+Object.freeze(kit);

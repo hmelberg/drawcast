@@ -23,15 +23,14 @@ export type ElementType =
  */
 export type AnnotationKind = "box" | "circle" | "strike" | "cross";
 
-export type Side =
-  | "above"
-  | "below"
-  | "left"
-  | "right"
-  | "above-left"
-  | "above-right"
-  | "below-left"
-  | "below-right";
+/**
+ * Canonical list — Side is derived from it (not the reverse) so a ninth
+ * side can only ever be added here; every other consumer (e.g. compile.ts's
+ * label-side guard) imports SIDE_VALUES instead of hand-copying the union.
+ */
+export const SIDE_VALUES = ["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"] as const;
+
+export type Side = (typeof SIDE_VALUES)[number];
 
 export interface SpecStyle {
   color?: string;

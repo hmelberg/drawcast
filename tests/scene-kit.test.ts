@@ -43,6 +43,12 @@ describe("kit geometry", () => {
     expect(pts[pts.length - 1][0]).toBeCloseTo(-5);
   });
 
+  test("ellipse returns n points on the rx/ry ellipse", () => {
+    const pts = kit.ellipse([10, 20], 30, 15, 40);
+    expect(pts).toHaveLength(40);
+    for (const [x, y] of pts) expect(Math.hypot((x - 10) / 30, (y - 20) / 15)).toBeCloseTo(1, 6);
+  });
+
   test("blob is closed-ish, deterministic, and wobbles around the ellipse", () => {
     const a = kit.blob([100, 100], 50, 40);
     const b = kit.blob([100, 100], 50, 40);
@@ -125,4 +131,46 @@ test("KIT_VERSION is 1 and constants ride on the kit", () => {
   expect(kit.CANVAS.w).toBe(1000);
   expect(kit.COLORS.ink).toBeDefined();
   expect(kit.SKETCH_MS.stroke).toBeGreaterThan(0);
+});
+
+// M1 review finding #1: `kit` is one live, shared object handed to every
+// compiled template body. Without a runtime freeze, a body could do
+// `kit.COLORS.ink = "red"` or `kit.stroke = ...` and poison every later
+// render app-wide (COLORS/CANVAS/SKETCH_MS are the same objects the rest
+// of the app imports — `as const` only prevents this at the type level).
+describe("kit and its constants are frozen against mutation", () => {
+  test("kit itself is frozen: reassigning a factory throws and leaves it unchanged", () => {
+    expect(Object.isFrozen(kit)).toBe(true);
+    const before = kit.stroke;
+    expect(() => {
+      (kit as any).stroke = () => {
+        throw new Error("a poisoned kit.stroke must never run");
+      };
+    }).toThrow();
+    expect(kit.stroke).toBe(before);
+  });
+
+  test("kit.COLORS, kit.CANVAS, kit.SKETCH_MS are frozen: mutating a member throws and the value is unchanged", () => {
+    expect(Object.isFrozen(kit.COLORS)).toBe(true);
+    expect(Object.isFrozen(kit.CANVAS)).toBe(true);
+    expect(Object.isFrozen(kit.SKETCH_MS)).toBe(true);
+
+    const ink = kit.COLORS.ink;
+    expect(() => {
+      (kit.COLORS as any).ink = "red";
+    }).toThrow();
+    expect(kit.COLORS.ink).toBe(ink);
+
+    const w = kit.CANVAS.w;
+    expect(() => {
+      (kit.CANVAS as any).w = 1;
+    }).toThrow();
+    expect(kit.CANVAS.w).toBe(w);
+
+    const stroke = kit.SKETCH_MS.stroke;
+    expect(() => {
+      (kit.SKETCH_MS as any).stroke = 0;
+    }).toThrow();
+    expect(kit.SKETCH_MS.stroke).toBe(stroke);
+  });
 });

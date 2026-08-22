@@ -68,7 +68,11 @@ export const Z_TEXT = 2;
 
 // Palette (see also src/styles.css). Warm ink on paper; curves get semantic colors.
 export const INK = "#3d3833";
-export const COLORS = {
+// Frozen: this object is exposed live on `kit` to compiled template bodies
+// (src/scenes/kit.ts) — `as const` is type-level only, so without a runtime
+// freeze a body could do `kit.COLORS.ink = "red"` and poison every render
+// app-wide (this is the one shared instance, not a per-call copy).
+export const COLORS = Object.freeze({
   ink: INK,
   demand: "#b5482e",
   supply: "#2f6b8f",
@@ -78,7 +82,7 @@ export const COLORS = {
   region1: "#f2c14e",
   region2: "#87a878",
   regionLoss: "#c96567",
-} as const;
+} as const);
 
 export function defaultStyle(overrides: Partial<ResolvedStyle> = {}): ResolvedStyle {
   return { color: INK, strokeWidth: 3.5, roughness: 1.4, opacity: 1, ...overrides };
@@ -89,7 +93,8 @@ export function defaultStyle(overrides: Partial<ResolvedStyle> = {}): ResolvedSt
  * enough that each element visibly "draws itself"; the speed control scales
  * everything from here.
  */
-export const SKETCH_MS = {
+// Frozen for the same reason as COLORS above — also exposed live on `kit`.
+export const SKETCH_MS = Object.freeze({
   stroke: 1400,
   curve: 2150,
   axis: 1000,
@@ -101,7 +106,7 @@ export const SKETCH_MS = {
   priceLine: 1150,
   arrow: 730,
   text: 400,
-} as const;
+} as const);
 
 export function defaultDrawOpts(mode: "sketch" | "instant" = "sketch", durationMs?: number): DrawResolved {
   return { mode, duration: mode === "instant" ? 0 : (durationMs ?? SKETCH_MS.stroke) };

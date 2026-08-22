@@ -57,6 +57,73 @@ describe("compileTemplateDoc", () => {
     expect(module).toBeUndefined();
     expect(errors.length).toBeGreaterThan(0);
   });
+
+  // M1 review finding #3: a direct call (bypassing validateTemplateDoc) can
+  // hand compileTemplateDoc a doc with status "ready" but no layout body.
+  // The early-return branch must not advertise a "ready" manifest it can't
+  // back with a working layout().
+  test("a ready doc with no layout body compiles to a stub manifest, not a broken ready one", () => {
+    const readyNoLayout = { ...doc(GOOD_BODY), layout: undefined };
+    const { module, errors } = compileTemplateDoc(readyNoLayout);
+    expect(errors).toEqual([]);
+    expect(module?.manifest.status).toBe("stub");
+    expect(module?.layout).toBeUndefined();
+  });
+
+  // M1 review finding #2: the guard's group branch used to dereference
+  // `d.children.forEach` before validating that children was even an array
+  // (via flattenDrawables), so a body returning children: null crashed with
+  // an uncontrolled TypeError instead of throwing the intended validation
+  // Error. These all go through module.layout() (the real guard boundary,
+  // not validateSceneLayout in isolation) so they prove the crash is gone.
+  describe("guard's group branch (finding #2)", () => {
+    test("children: null on a group is a clean validation Error, not a TypeError", () => {
+      const { module } = compileTemplateDoc(
+        doc(`return { drawables: [{ id: "g", kind: "group", children: null }], labels: [], anchors: {}, order: [] };`),
+      );
+      let caught: unknown;
+      try {
+        module!.layout!({});
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      expect(caught).not.toBeInstanceOf(TypeError);
+      expect((caught as Error).message).toMatch(/children/);
+    });
+
+    test("a null element inside a group's children is a clean validation Error, not a TypeError", () => {
+      const { module } = compileTemplateDoc(
+        doc(`return { drawables: [{ id: "g", kind: "group", children: [null] }], labels: [], anchors: {}, order: [] };`),
+      );
+      let caught: unknown;
+      try {
+        module!.layout!({});
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      expect(caught).not.toBeInstanceOf(TypeError);
+    });
+
+    test("an out-of-bounds point nested inside a group is caught, not just at the top level", () => {
+      const { module } = compileTemplateDoc(
+        doc(
+          `return { drawables: [{ id: "g", kind: "group", children: [{ id: "inner", kind: "stroke", pts: [[99999, 0]] }] }], labels: [], anchors: {}, order: [] };`,
+        ),
+      );
+      expect(() => module!.layout!({})).toThrow(/bounds/);
+    });
+
+    test("a duplicate id nested inside a group vs top-level is caught", () => {
+      const { module } = compileTemplateDoc(
+        doc(
+          `return { drawables: [{ id: "dup", kind: "stroke", pts: [[0, 0]] }, { id: "g", kind: "group", children: [{ id: "dup", kind: "stroke", pts: [[1, 1]] }] }], labels: [], anchors: {}, order: [] };`,
+        ),
+      );
+      expect(() => module!.layout!({})).toThrow(/duplicate/);
+    });
+  });
 });
 
 describe("validateSceneLayout", () => {
@@ -81,6 +148,60 @@ describe("validateSceneLayout", () => {
       labels: [],
       anchors: {},
       order: ["a"],
+    });
+    expect(errs[0]).toMatch(/bounds/);
+  });
+
+  // M1 review finding #2: the guard itself must stay defensive — these call
+  // validateSceneLayout directly (not through module.layout()) to prove the
+  // function returns an error array rather than throwing on malformed input.
+  test("a group with children: null does not crash the guard; it returns a clean error", () => {
+    const errs = validateSceneLayout({
+      drawables: [{ id: "g", kind: "group", children: null }],
+      labels: [],
+      anchors: {},
+      order: [],
+    });
+    expect(errs[0]).toMatch(/children/);
+  });
+
+  test("a null element inside a group's children does not crash the guard; it returns a clean error", () => {
+    const errs = validateSceneLayout({
+      drawables: [{ id: "g", kind: "group", children: [null] }],
+      labels: [],
+      anchors: {},
+      order: [],
+    });
+    expect(errs.length).toBeGreaterThan(0);
+  });
+
+  test("ids are checked for non-empty + uniqueness across the whole tree, not just top-level", () => {
+    const dupNested = validateSceneLayout({
+      drawables: [
+        { id: "top", kind: "stroke", pts: [[0, 0]] },
+        { id: "g", kind: "group", children: [{ id: "top", kind: "stroke", pts: [[1, 1]] }] },
+      ],
+      labels: [],
+      anchors: {},
+      order: [],
+    });
+    expect(dupNested[0]).toMatch(/duplicate/);
+
+    const emptyNested = validateSceneLayout({
+      drawables: [{ id: "g", kind: "group", children: [{ id: "", kind: "stroke", pts: [[1, 1]] }] }],
+      labels: [],
+      anchors: {},
+      order: [],
+    });
+    expect(emptyNested[0]).toMatch(/non-empty/);
+  });
+
+  test("an out-of-bounds point nested inside a group is caught", () => {
+    const errs = validateSceneLayout({
+      drawables: [{ id: "g", kind: "group", children: [{ id: "inner", kind: "stroke", pts: [[99999, 0]] }] }],
+      labels: [],
+      anchors: {},
+      order: [],
     });
     expect(errs[0]).toMatch(/bounds/);
   });
