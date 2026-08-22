@@ -79,11 +79,11 @@
 
 ---
 
-## PARKED — the tween (param animation)
+## PARKED — the `animate` command (param animation; renamed from "tween" 2026-08-23, Hans's call — plain verb over animator jargon)
 
-Tasks live in git history (plan versions a5fff86/0adf3c5): seed-pinned sketchy rendering + Player reprojection primitive; the `tween` command (narrated pairing, abort-at-end-state, instant-jump); export timestamp integration. Parked 2026-08-23 by cost/benefit ruling: ~500-700 lines with ~300 in the Player/exporter (the app's most delicate seams) plus a permanent mid-flight-tween invariant on all future player work.
+Tasks live in git history (plan versions a5fff86/0adf3c5): seed-pinned sketchy rendering + Player reprojection primitive; the `animate` command (narrated pairing, abort-at-end-state, instant-jump); export timestamp integration. Parked 2026-08-23 by cost/benefit ruling: ~500-700 lines with ~300 in the Player/exporter (the app's most delicate seams) plus a permanent mid-flight-tween invariant on all future player work.
 
-**First revival use case (Hans, 2026-08-23):** a demand curve that SLIDES right while the voice speaks — `{"tween": {"shift_amount": 1}, "duration": 2, "speak": …}`. Prerequisite when revived: numeric shift params on supply_demand (current shift is qualitative right/left). The tween's true value is 2D param animation in exported videos (traveling waves, object-distance sweeps past the focal point, catalyst overlays) — revive it as its own milestone when that value is wanted, independent of 3D.
+**First revival use case (Hans, 2026-08-23):** a demand curve that SLIDES right while the voice speaks — `{"animate": {"shift_amount": 1}, "duration": 2, "speak": …}`. Prerequisite when revived: numeric shift params on supply_demand (current shift is qualitative right/left). The command's true value is 2D param animation in exported videos (traveling waves, object-distance sweeps past the focal point, catalyst overlays) — revive it as its own milestone when that value is wanted, independent of 3D.
 
 ## Library assessment addendum (2026-08-23, Hans's links)
 
