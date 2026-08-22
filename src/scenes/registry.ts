@@ -4,6 +4,8 @@
 
 import type { SceneManifest, SceneModule } from "./types";
 export type { SceneModule } from "./types";
+import { parseTemplateDoc, docToManifest, type TemplateDoc } from "./doc";
+import { compileTemplateDoc } from "./compile";
 import supplyDemandManifest from "./supply_demand/manifest.json";
 import decisionTreeManifest from "./decision_tree/manifest.json";
 import cepManifest from "./cost_effectiveness_plane/manifest.json";
@@ -85,4 +87,26 @@ export function sceneCatalogText(): string {
     }
   }
   return parts.join("\n\n");
+}
+
+/**
+ * Register a template document (spec §1). Ready docs compile to a working
+ * scene; a doc whose body fails to compile degrades to a STUB manifest so
+ * the catalog still knows it exists (spec §8) — the errors name the problem.
+ */
+export function registerTemplateDoc(doc: TemplateDoc): { ok: boolean; errors: string[] } {
+  const { module, errors } = compileTemplateDoc(doc);
+  if (module) {
+    scenes[doc.template] = module;
+    return { ok: true, errors: [] };
+  }
+  scenes[doc.template] = { manifest: { ...docToManifest(doc), status: "stub" } };
+  return { ok: false, errors };
+}
+
+/** Parse + register in one call — startup, packs (M3), and authoring (M2) use this. */
+export function registerTemplateYaml(yamlText: string): { ok: boolean; errors: string[] } {
+  const { doc, errors } = parseTemplateDoc(yamlText);
+  if (!doc) return { ok: false, errors };
+  return registerTemplateDoc(doc);
 }

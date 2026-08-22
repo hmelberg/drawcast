@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { parseTemplateDoc, validateTemplateDoc, docToManifest } from "../src/scenes/doc";
+import { registerTemplateDoc, registerTemplateYaml, scenes } from "../src/scenes/registry";
 
 const GOOD = `
 template: demo_ring
@@ -85,4 +86,31 @@ test("docToManifest maps fields onto SceneManifest", () => {
   expect(m.params_schema).toEqual(doc.params);
   expect(m.element_ids.ring).toBe("the ring");
   expect(m.examples).toHaveLength(1);
+});
+
+describe("registerTemplateDoc", () => {
+  test("registers a ready doc as a working scene", () => {
+    const r = registerTemplateYaml(GOOD);
+    expect(r.ok).toBe(true);
+    expect(scenes.demo_ring.layout).toBeDefined();
+    const layout = scenes.demo_ring.layout!({ n: 5 });
+    expect(layout.drawables[0].id).toBe("ring");
+    delete scenes.demo_ring; // keep the registry clean for other tests
+  });
+
+  test("a doc that fails to compile registers as a stub", () => {
+    const doc = parseTemplateDoc(GOOD).doc!;
+    const broken = { ...doc, template: "demo_broken", layout: "return {{{" };
+    const r = registerTemplateDoc(broken);
+    expect(r.ok).toBe(false);
+    expect(r.errors[0]).toMatch(/compile/);
+    expect(scenes.demo_broken.manifest.status).toBe("stub");
+    expect(scenes.demo_broken.layout).toBeUndefined();
+    delete scenes.demo_broken;
+  });
+
+  test("invalid yaml never registers", () => {
+    const r = registerTemplateYaml("template: [nope");
+    expect(r.ok).toBe(false);
+  });
 });
