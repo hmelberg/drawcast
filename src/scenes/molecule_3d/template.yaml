@@ -3,6 +3,9 @@ title: 3D molecule (ball-and-stick)
 version: 1
 kit: 1
 status: ready
+model3d:
+  kind: molecule
+  source: preset
 description: >-
   A ball-and-stick molecule drawn in 3D perspective (static viewpoint, flat
   sketchy rendering): preset geometries for methane (tetrahedral), water

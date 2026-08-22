@@ -24,6 +24,8 @@ export interface SceneManifest {
   element_ids: Record<string, string>;
   examples: { request: string; params: Record<string, unknown> }[];
   engines?: string[];
+  /** Explore-in-3D affordance: present when a 3Dmol.js view can be built for this scene. */
+  model3d?: { kind: "molecule"; source: "preset" | "smiles" };
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */

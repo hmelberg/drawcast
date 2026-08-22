@@ -26,6 +26,7 @@ import {
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engines";
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
+import { openModel3d, qualifiesFor3d } from "./ui/model3d";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -895,6 +896,51 @@ authorDialog.addEventListener("close", () => {
   draftIds.clear();
 });
 
+// ---------- explore-in-3D modal ----------
+
+const model3dContainer = h("div", { class: "model3d-container" });
+const model3dCloseBtn = h("button", {}, "Close");
+const model3dDialog = h(
+  "dialog",
+  { class: "model3d-dialog" },
+  h("h3", {}, "Explore in 3D"),
+  model3dContainer,
+  h("div", { class: "row" }, model3dCloseBtn),
+);
+app.appendChild(model3dDialog);
+
+let model3dDestroy: (() => void) | null = null;
+/** Bumped on every open and in the close handler; an openModel3d() continuation
+ * that resolves after the dialog moved on (closed, or a newer item opened it)
+ * must tear itself down instead of resurrecting into a stale container — the
+ * same discipline as the author dialog's authorSeq. */
+let model3dSeq = 0;
+
+function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): void {
+  const seq = ++model3dSeq;
+  model3dDestroy?.();
+  model3dDestroy = null;
+  model3dDialog.showModal();
+  void openModel3d(model3dDialog, model3dContainer, q).then((destroy) => {
+    if (seq !== model3dSeq || !model3dDialog.open) {
+      destroy();
+      return;
+    }
+    model3dDestroy = destroy;
+  });
+}
+
+model3dCloseBtn.addEventListener("click", () => model3dDialog.close());
+
+// Native "close" fires for both the Close button and ESC (which bypasses any
+// click handler) — all cleanup lives here, not on model3dCloseBtn.
+model3dDialog.addEventListener("close", () => {
+  model3dSeq++;
+  model3dDestroy?.();
+  model3dDestroy = null;
+  model3dContainer.replaceChildren();
+});
+
 // ---------- rendering the current document ----------
 
 function persist(): void {
@@ -962,8 +1008,18 @@ async function present(): Promise<void> {
         onTheater: isPlayer ? toggleTheater : undefined,
         trailing: [switchBtn],
       },
-      onItemMounted: (hd) => {
+      onItemMounted: (hd, item) => {
         if (!isPlayer) setLint(hd);
+        // Per-item chrome: the control bar is rebuilt fresh on every item mount
+        // (session.ts), so this only ever appends into the CURRENT bar — no
+        // stale button to remove from a previous item.
+        const q = qualifiesFor3d(item.spec);
+        const bar = host.querySelector<HTMLElement>(".cs-controlbar");
+        if (q && bar) {
+          const model3dBtn = h("button", { class: "cs-bar-btn model3d-btn", title: "Explore this molecule in 3D" }, "⬡ 3D");
+          model3dBtn.addEventListener("click", () => openModel3dDialog(q));
+          bar.appendChild(model3dBtn);
+        }
       },
     });
     if (seq !== presentSeq) {

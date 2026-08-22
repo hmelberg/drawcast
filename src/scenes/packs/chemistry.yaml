@@ -8,6 +8,9 @@ version: 1
 kit: 1
 status: ready
 engines: [smilesdrawer]
+model3d:
+  kind: molecule
+  source: smiles
 description: >-
   A skeletal organic-chemistry structure laid out from a SMILES string via the
   smilesDrawer engine: bonds trimmed at labeled atoms, double/triple bonds as

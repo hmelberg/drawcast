@@ -18,6 +18,8 @@ export interface TemplateDoc {
   element_ids: Record<string, string>;
   examples: { request: string; params: Record<string, unknown> }[];
   engines?: string[];
+  /** Explore-in-3D affordance: present when a 3Dmol.js view can be built for this scene. */
+  model3d?: { kind: "molecule"; source: "preset" | "smiles" };
   /** JS function body: (params, kit, engines) => SceneLayout. Required when ready. */
   layout?: string;
 }
@@ -82,6 +84,17 @@ export function validateTemplateDoc(raw: unknown): DocResult {
       }
     }
   }
+  if (d.model3d !== undefined) {
+    if (typeof d.model3d !== "object" || d.model3d === null || Array.isArray(d.model3d)) {
+      errors.push("model3d must be an object");
+    } else {
+      const m3 = d.model3d as Record<string, unknown>;
+      if (m3.kind !== "molecule") errors.push(`model3d.kind must be "molecule" — got ${JSON.stringify(m3.kind)}`);
+      if (m3.source !== "preset" && m3.source !== "smiles") {
+        errors.push(`model3d.source must be "preset" or "smiles" — got ${JSON.stringify(m3.source)}`);
+      }
+    }
+  }
   if (d.status === "ready" && (typeof d.layout !== "string" || d.layout.trim() === "")) {
     errors.push("a ready template needs a layout function body");
   }
@@ -99,5 +112,6 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     element_ids: doc.element_ids,
     examples: doc.examples,
     ...(doc.engines && doc.engines.length > 0 ? { engines: doc.engines } : {}),
+    ...(doc.model3d ? { model3d: doc.model3d } : {}),
   };
 }
