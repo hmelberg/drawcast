@@ -4,7 +4,7 @@
 
 import { loadMyTemplates } from "../store";
 import { parseTemplateDoc } from "./doc";
-import { registerTemplateYaml, scenes } from "./registry";
+import { registerTemplateDoc, scenes } from "./registry";
 
 /** Ids owned by the user this session. Only these may be re-registered or removed. */
 const userIds = new Set<string>();
@@ -23,8 +23,11 @@ export function registerUserTemplateYaml(yaml: string): { ok: boolean; id?: stri
   if (scenes[doc.template] && !userIds.has(doc.template)) {
     return { ok: false, id: doc.template, errors: [`"${doc.template}" is a built-in (or otherwise existing template) — choose a different template id`] };
   }
-  const r = registerTemplateYaml(yaml);
+  const prev = scenes[doc.template];
+  const r = registerTemplateDoc(doc); // reuse the parsed doc — also kills the double parse
   if (r.ok) userIds.add(doc.template);
+  else if (prev) scenes[doc.template] = prev;
+  else delete scenes[doc.template];
   return { ok: r.ok, id: doc.template, errors: r.errors };
 }
 

@@ -612,6 +612,7 @@ authorDrop.querySelector(".author-pick")!.addEventListener("click", () => author
 authorImgInput.addEventListener("change", () => {
   const file = authorImgInput.files?.[0];
   if (file) handleImageFile(file);
+  authorImgInput.value = "";
 });
 authorImgClear.addEventListener("click", () => setAuthorImage(null));
 
@@ -1131,9 +1132,10 @@ myTplImportInput.addEventListener("change", () => {
       setStatus(`Template import failed: ${r.errors.join("; ")}`, "error");
       return;
     }
+    const replaced = loadMyTemplates().some((t) => t.id === r.id);
     saveMyTemplate({ id: r.id!, yaml, ts: new Date().toISOString() });
     refreshMyTemplates();
-    setStatus(`Imported template "${r.id}".`, "ok");
+    setStatus(replaced ? `Imported template "${r.id}" (replaced existing).` : `Imported template "${r.id}".`, "ok");
   });
   myTplImportInput.value = "";
 });

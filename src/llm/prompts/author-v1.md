@@ -49,6 +49,8 @@ Rules distilled from the built-in templates:
 
 {{BUILTIN_IDS}}
 
+Exception: when revising a template already in this conversation (improve or refine), KEEP its existing id.
+
 ## When the user provides a reference image
 
 Recreate the STRUCTURE — the parts, their arrangement, what connects to what —

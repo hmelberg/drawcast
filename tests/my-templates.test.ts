@@ -72,6 +72,40 @@ describe("registerUserTemplateYaml", () => {
     expect(r.ok).toBe(false);
     expect(r.errors.length).toBeGreaterThan(0);
   });
+
+  test("parse-ok/compile-fail yaml never leaks a stub into the registry", () => {
+    const BROKEN_LAYOUT = USER_YAML.replace(
+      'return { drawables: [kit.stroke("dot", [[500, 400]], { shapeHint: { type: "circle", c: [500, 400], r: 10 } })], labels: [], anchors: {}, order: ["dot"] };',
+      "return {",
+    );
+    expect(scenes.my_test_widget).toBeUndefined();
+    const r = registerUserTemplateYaml(BROKEN_LAYOUT);
+    expect(r.ok).toBe(false);
+    expect(scenes.my_test_widget).toBeUndefined();
+    expect(isUserTemplateId("my_test_widget")).toBe(false);
+  });
+
+  test("a broken re-registration leaves the previously-working user module live", () => {
+    const good = registerUserTemplateYaml(USER_YAML);
+    expect(good.ok).toBe(true);
+    const goodLayout = scenes.my_test_widget.layout;
+    expect(goodLayout).toBeDefined();
+
+    const BROKEN_LAYOUT = USER_YAML.replace(
+      'return { drawables: [kit.stroke("dot", [[500, 400]], { shapeHint: { type: "circle", c: [500, 400], r: 10 } })], labels: [], anchors: {}, order: ["dot"] };',
+      "return {",
+    );
+    const bad = registerUserTemplateYaml(BROKEN_LAYOUT);
+    expect(bad.ok).toBe(false);
+    // The GOOD module must still be live and callable — not overwritten by a stub.
+    expect(scenes.my_test_widget.layout).toBe(goodLayout);
+    expect(isUserTemplateId("my_test_widget")).toBe(true);
+
+    // Retry with the good yaml succeeds.
+    const retry = registerUserTemplateYaml(USER_YAML);
+    expect(retry.ok).toBe(true);
+    expect(scenes.my_test_widget.layout).toBeDefined();
+  });
 });
 
 describe("unregister + startup registration", () => {
