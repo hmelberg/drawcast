@@ -177,9 +177,16 @@ export async function improvePrompt(
 
 export async function generateSpec(request: string, cfg: GenerateConfig): Promise<GenerationOutcome> {
   const client = makeClient(cfg.apiKey);
-  // Prompt caching: the schema/catalog/fewshots prefix is byte-stable across
-  // requests, so it is sent as a cache_control block — repair rounds (and any
-  // generation within the TTL) skip re-processing ~10k tokens of prompt.
+  // Prompt caching: the schema/catalog/fewshots prefix is sent as a
+  // cache_control block, so repair rounds (and any generation within the TTL)
+  // skip re-processing ~10k tokens of prompt. Below the catalog's two-level
+  // threshold (src/scenes/catalog.ts) that prefix is byte-stable across
+  // requests. At or above it, the catalog degrades to an index + a
+  // keyword-matched "hot set" (selectTemplates(request, …)), so the prefix
+  // varies with the request's hot set too — a designed tradeoff (spec §5a):
+  // a stable preference (forced template / priority packs) still pins a
+  // stable prefix and full cache reuse; a free-form request trades some cache
+  // hit rate for a smaller, more relevant prompt.
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
     catalog: catalogText({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds }),
@@ -212,14 +219,22 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
             : prevRound.validationErrors.length > 0
               ? "schema-repair"
               : "lint-repair";
-      // The creative first round uses the chosen model; mechanical repairs use a faster one.
-      const roundModel = rounds.length === 0 ? cfg.model : repairModelFor(cfg.model);
+      // The creative round uses the chosen model; mechanical repairs use a
+      // faster one. "Creative" means label === "initial" — that's every round
+      // that isn't a repair, including the round right after a
+      // template-fetch escalation (the label derivation above already maps
+      // that round back to "initial"), so it must not fall through to the
+      // repair model just because it isn't rounds[0].
+      const roundModel = label === "initial" ? cfg.model : repairModelFor(cfg.model);
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema);
 
       // Escalation (fires at most once): the model asked for a template's full
       // definition instead of guessing its parameters from the index line.
+      // Never for a forced template — the catalog already gives it a full
+      // entry (see assembleSystemPrompt/buildSystemBlocks with `forced`), so
+      // a need_template reply there would just loop.
       const needed = detectNeedTemplate(json);
-      if (needed && !escalated) {
+      if (needed && !escalated && !cfg.forcedTemplate) {
         escalated = true;
         blocks = buildSystemBlocks(cfg.variant.source, {
           schema: apiSchema(),

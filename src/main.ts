@@ -13,6 +13,7 @@ import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, unregisterPack } from "./scenes/packs";
+import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
@@ -92,22 +93,31 @@ for (const r of registerMyTemplatesAtStartup()) {
 
 // Domain packs the user previously enabled: load + register async, then
 // refresh the toolbar picker and the Template packs panel (both are defined
-// below — hoisted function declarations, so this early reference is safe).
-// A pack that fails to load here is the same "revert, don't persist broken
-// state" choice as the interactive Enabled checkbox: drop it from settings
-// so the panel's checkbox doesn't lie about what's actually registered.
+// below — hoisted function declarations, so this early reference is safe;
+// so is setStatus, called from inside the .then() below).
+// Spec §8: "Pack fetch fails → toast; enabled set unchanged." A load()
+// rejection (stale chunk after a deploy, offline, a network hiccup) is
+// transient — the setting stays enabled so a later reload can retry; the
+// Template packs panel reflects the not-yet-registered reality with a "toggle
+// to retry" hint instead (refreshTemplatePacksPanel below). Only a
+// deterministic registerPack failure (parse/compile/collision) — or an id no
+// longer in PACK_DEFS — drops the setting: retrying that can't help, and an
+// unusable pack would otherwise sit in settings forever.
 void ensureEnabledPacks(settings.enabledPacks).then((rs) => {
   let changed = false;
+  const failed: string[] = [];
   for (const r of rs) {
     if (r.ok) continue;
     console.warn(`pack "${r.id}" failed:`, r.errors.join("; "));
-    if (settings.enabledPacks.includes(r.id)) {
+    failed.push(`"${r.id}" (${r.errors.join("; ")})`);
+    if (!r.retriable && settings.enabledPacks.includes(r.id)) {
       settings.enabledPacks = settings.enabledPacks.filter((id) => id !== r.id);
       settings.priorityPacks = settings.priorityPacks.filter((id) => id !== r.id);
       changed = true;
     }
   }
   if (changed) persist();
+  if (failed.length > 0) setStatus(`Pack load failed at startup: ${failed.join("; ")}`, "error");
   refreshTemplatePicker();
   refreshTemplatePacksPanel();
 });
@@ -235,8 +245,11 @@ function acceptSuggestion(tag: string): void {
   const cur = tagPrefixAtCaret();
   if (!cur) return;
   const pos = promptEl.selectionStart ?? promptEl.value.length;
-  // parts=N keeps the caret after the '=' so the number can be typed.
-  const insert = tag === "parts=N" ? "#parts=" : `#${tag} `;
+  // parts=N and template=<id> keep the caret after the '=' so the value can
+  // be typed immediately (both are display-only TAGS entries — the actual
+  // #parts=N / #template=<id> parsing in tags.ts is a separate regex, not
+  // keyed off this literal).
+  const insert = tag === "parts=N" ? "#parts=" : tag === "template=<id>" ? "#template=" : `#${tag} `;
   promptEl.value = promptEl.value.slice(0, cur.start) + insert + promptEl.value.slice(pos);
   const caret = cur.start + insert.length;
   promptEl.setSelectionRange(caret, caret);
@@ -312,8 +325,8 @@ const templateSel = h("select", { class: "cs-bar-select", title: "Force a templa
 function refreshTemplatePicker(): void {
   const current = templateSel.value;
   templateSel.replaceChildren(h("option", { value: "" }, "Template: Auto"));
-  for (const [id, mod] of Object.entries(scenes).sort(([a], [b]) => a.localeCompare(b))) {
-    if (mod.manifest.status === "ready") templateSel.appendChild(h("option", { value: id }, id));
+  for (const id of Object.keys(scenes).sort((a, b) => a.localeCompare(b))) {
+    if (isReadyTemplate(id)) templateSel.appendChild(h("option", { value: id }, id));
   }
   if ([...templateSel.options].some((o) => o.value === current)) templateSel.value = current;
 }
@@ -986,11 +999,6 @@ function logOutcome(prompt: string, outcome: Awaited<ReturnType<typeof generateS
   return logId;
 }
 
-/** True when id names a registered, ready (rendering) template. */
-function isReadyTemplate(id: string): boolean {
-  return scenes[id]?.manifest.status === "ready" && !!scenes[id].layout;
-}
-
 async function generate(): Promise<void> {
   const rawRequest = promptEl.value.trim();
   if (!rawRequest) return;
@@ -1247,10 +1255,14 @@ refreshMyTemplates();
 // ---------- template packs (M3) ----------
 
 /**
- * One row per PACK_DEFS entry. Enabling loads + registers the pack (async);
- * a load/compile failure reverts the checkbox rather than persisting a pack
- * that isn't actually usable — cleaner than "enabled with a warning" because
- * settings.enabledPacks then always means "actually registered".
+ * One row per PACK_DEFS entry. The checkbox always mirrors settings.enabledPacks
+ * (not registration) — interactively enabling loads + registers the pack
+ * (async), and a load/compile failure there reverts the checkbox rather than
+ * persisting a pack that isn't actually usable (a user-initiated action they're
+ * watching, so "just try again" is enough). Startup is different (spec §8: a
+ * pack fetch failure must leave the enabled set unchanged) — a pack can end up
+ * enabled-in-settings but not registered after a transient load failure there,
+ * so this row also shows a retry hint whenever that mismatch holds.
  */
 function refreshTemplatePacksPanel(): void {
   templatePacksList.replaceChildren();
@@ -1265,6 +1277,9 @@ function refreshTemplatePacksPanel(): void {
     const defaultCb = h("input", { type: "checkbox" }) as HTMLInputElement;
     defaultCb.checked = settings.priorityPacks.includes(def.id);
     defaultCb.disabled = !enabledCb.checked;
+    // Enabled in settings but not (yet) registered — a startup load failure
+    // left it that way (spec §8). Toggling off/on retries the load.
+    const notRegistered = enabledCb.checked && packTemplateIds(def.id).length === 0;
 
     enabledCb.addEventListener("change", () => {
       if (enabledCb.checked) {
@@ -1317,6 +1332,7 @@ function refreshTemplatePacksPanel(): void {
           h("span", { class: "library-title" }, def.title),
           h("label", { class: "pack-check" }, enabledCb, "Enabled"),
           h("label", { class: "pack-check" }, defaultCb, "Default domain"),
+          ...(notRegistered ? [h("span", { class: "hint pack-fail-hint" }, "(failed to load — toggle to retry)")] : []),
         ),
         h("div", { class: "hint" }, def.description),
       ),

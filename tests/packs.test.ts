@@ -55,6 +55,14 @@ describe("registerPack / unregisterPack", () => {
     const r = registerPack("physics", physicsYaml);
     expect(r.ok).toBe(true);
   });
+
+  test("a pack whose header parses but that contributes zero templates is rejected, not silently accepted", () => {
+    const r = registerPack("physics", "pack: physics\ntitle: Physics\ndescription: d\n");
+    expect(r.ok).toBe(false);
+    expect(r.templateIds).toEqual([]);
+    expect(r.errors.some((e) => /no templates/i.test(e))).toBe(true);
+    expect(packTemplateIds("physics")).toEqual([]); // never entered packOwned
+  });
 });
 
 describe("physics templates through the real pipeline", () => {
@@ -78,6 +86,24 @@ describe("physics templates through the real pipeline", () => {
       const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
       const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("wave_diagram with cycles=1 stays on-canvas (amp/wavelength bracket no longer runs past x=1000)", () => {
+    registerPack("physics", physicsYaml);
+    const res = layoutSpec({ template: "wave_diagram", params: { amplitude: 5, cycles: 1 }, elements: [] } as never);
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+          expect(Math.abs(x)).toBeLessThan(2000);
+          expect(Math.abs(y)).toBeLessThan(2000);
+          expect(x).toBeGreaterThanOrEqual(0);
+          expect(x).toBeLessThanOrEqual(1002);
+        }
+      }
     }
   });
 

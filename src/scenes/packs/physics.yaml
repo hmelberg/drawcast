@@ -162,11 +162,21 @@ layout: |
   }
   if (labelParts) {
     const crestX = x0 + wl / 4;
-    push(kit.stroke("amp_arrow", [[crestX + wl, midY], [crestX + wl, midY + amp]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
-    labels.push(kit.label("label_amp", [crestX + wl + 8, midY + amp / 2], "right", "Amplitude A", { color: C.accent, fontSize: 24 }));
+    // The wavelength bracket normally spans crest-to-crest (one wavelength on
+    // from the first crest). With few cycles that second crest can land past
+    // the drawn wave — off the fixed-width canvas. When it would, anchor the
+    // bracket along the axis instead: x0 and x0+wl are the same phase (both
+    // ascending zero-crossings), so it is still a true one-wavelength span,
+    // just not crest-to-crest. The amp arrow clamps to the same right edge so
+    // it always lands inside the drawn span too.
+    const wlFits = crestX + wl <= x0 + len;
+    const wlX0 = wlFits ? crestX : x0;
+    const wlX1 = wlFits ? crestX + wl : x0 + wl;
+    push(kit.stroke("amp_arrow", [[wlX1, midY], [wlX1, midY + amp]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
+    labels.push(kit.label("label_amp", [wlX1 + 8, midY + amp / 2], "right", "Amplitude A", { color: C.accent, fontSize: 24 }));
     order.push("label_amp");
-    push(kit.stroke("wl_arrow", [[crestX, midY + amp + 26], [crestX + wl, midY + amp + 26]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
-    labels.push(kit.label("label_wl", [crestX + wl / 2, midY + amp + 34], "above", "Wavelength λ", { color: C.accent, fontSize: 24 }));
+    push(kit.stroke("wl_arrow", [[wlX0, midY + amp + 26], [wlX1, midY + amp + 26]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
+    labels.push(kit.label("label_wl", [(wlX0 + wlX1) / 2, midY + amp + 34], "above", "Wavelength λ", { color: C.accent, fontSize: 24 }));
     order.push("label_wl");
     labels.push(kit.label("label_crest", [crestX, midY + amp], "above", "Crest", { fontSize: 22 }));
     order.push("label_crest");

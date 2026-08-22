@@ -123,7 +123,12 @@ export const TAGS: TagDef[] = [
     brief: "",
   },
   {
-    tag: "template",
+    // "=" in the name (mirrors "parts=N" above) keeps it OUT of byName below,
+    // so a bare #template (no "=") is not silently swallowed as a no-op
+    // recognized tag — it surfaces as unknown, same as bare #parts does.
+    // #template=<id> itself is parsed separately in parseTags (the
+    // templateMatch regex), independent of byName.
+    tag: "template=<id>",
     group: "structure",
     hint: "force a specific template, e.g. #template=free_body",
     brief: "",

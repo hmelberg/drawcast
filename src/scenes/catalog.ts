@@ -16,6 +16,17 @@ export const TEMPLATE_FULL_THRESHOLD = 10;
 /** Always promoted to a full entry once the catalog goes two-level. */
 const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
 
+/**
+ * True when id names a registered, ready (rendering) template — a stub, an
+ * unregistered id, or a ready manifest whose body failed to compile (no
+ * `layout`) all fail this. Shared by the toolbar picker and forced-template
+ * (#template=/picker) validation in main.ts, so both use one definition of
+ * "usable template".
+ */
+export function isReadyTemplate(id: string): boolean {
+  return scenes[id]?.manifest.status === "ready" && !!scenes[id].layout;
+}
+
 export interface CatalogOpts {
   request?: string;
   forced?: string;

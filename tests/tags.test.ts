@@ -84,6 +84,13 @@ describe("parseTags — #template", () => {
   test("no template tag yields null", () => {
     expect(parseTags("plain request").template).toBeNull();
   });
+
+  test("bare #template (no =) is not silently stripped as a no-op — surfaces as unknown, matching bare #parts", () => {
+    const r = parseTags("x #template");
+    expect(r.template).toBeNull();
+    expect(r.unknown).toContain("template");
+    expect(r.clean).toBe("x #template"); // left in the text, same as any other unknown tag
+  });
 });
 
 describe("buildBrief", () => {

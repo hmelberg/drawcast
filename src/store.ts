@@ -63,9 +63,17 @@ export const DEFAULT_SETTINGS: Settings = {
 function read<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
-    // Always a fresh shallow copy — never the literal fallback object — so a
-    // caller mutating a field (e.g. pushing onto an array-valued setting)
-    // can never alias and corrupt the shared default (DEFAULT_SETTINGS).
+    // Always a fresh top-level object — never the literal fallback object —
+    // but NOT a deep copy: on the upgrade path (an older stored blob that
+    // predates a field DEFAULT_SETTINGS later added, e.g. enabledPacks before
+    // M3) `{...fallback, ...parsed}` has no key to overwrite for that field,
+    // so the merged object's array/object-valued field is still the exact
+    // same reference as fallback's (DEFAULT_SETTINGS' own array instance) —
+    // residual aliasing. This is safe only because every caller reassigns
+    // rather than mutates such a field in place (main.ts always does
+    // `settings.x = [...settings.x, id]` or `.filter(...)`, never
+    // `settings.x.push(...)`); a caller that mutated in place would corrupt
+    // the shared DEFAULT_SETTINGS object for every future load.
     return raw ? { ...fallback, ...(JSON.parse(raw) as T) } : { ...fallback };
   } catch {
     return { ...fallback };
