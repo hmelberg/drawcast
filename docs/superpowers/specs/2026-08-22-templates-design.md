@@ -117,7 +117,11 @@ unchanged. Camera angles are template params (a playlist can redraw the same mol
 from a second angle as its "rotation").
 
 Reliable scope: ball-and-stick molecules, 3D coordinate geometry/vectors, simple
-lattices/unit cells, parametric helices. OUT of scope (unreliable under painter's
+lattices/unit cells, parametric helices — plus a **wireframe mode with dashed hidden
+edges** for polyhedra (cube/prism/pyramid — the geometry-textbook convention; a
+back-face test marks hidden edges, needing no depth sorting at all; idea prompted by
+TomasHubelbauer/svg-3d, which is otherwise behind this design — wireframe-only, no
+occlusion). OUT of scope (unreliable under painter's
 sorting, or SVG-bloat): intersecting surfaces, 3D ribbons/cartoons, large structures.
 Not in M1; lands as a kit minor version when the first 3D template is authored
 (chemistry pack is the natural driver). Cross-ref: simple-3d-svg (tscircuit) proves
