@@ -91,11 +91,25 @@ for (const r of registerMyTemplatesAtStartup()) {
 }
 
 // Domain packs the user previously enabled: load + register async, then
-// refresh the toolbar picker (refreshTemplatePicker is defined below —
-// a hoisted function declaration, so this early reference is safe).
+// refresh the toolbar picker and the Template packs panel (both are defined
+// below — hoisted function declarations, so this early reference is safe).
+// A pack that fails to load here is the same "revert, don't persist broken
+// state" choice as the interactive Enabled checkbox: drop it from settings
+// so the panel's checkbox doesn't lie about what's actually registered.
 void ensureEnabledPacks(settings.enabledPacks).then((rs) => {
-  for (const r of rs) if (!r.ok) console.warn(`pack "${r.id}" failed:`, r.errors.join("; "));
+  let changed = false;
+  for (const r of rs) {
+    if (r.ok) continue;
+    console.warn(`pack "${r.id}" failed:`, r.errors.join("; "));
+    if (settings.enabledPacks.includes(r.id)) {
+      settings.enabledPacks = settings.enabledPacks.filter((id) => id !== r.id);
+      settings.priorityPacks = settings.priorityPacks.filter((id) => id !== r.id);
+      changed = true;
+    }
+  }
+  if (changed) persist();
   refreshTemplatePicker();
+  refreshTemplatePacksPanel();
 });
 
 /** First item's spec — the poster, the exemplar target, single-figure back-compat. */
@@ -996,13 +1010,16 @@ async function generate(): Promise<void> {
   const apiKey = requireKey();
   if (!apiKey) return;
   const brief = buildBrief(parsed.tags);
+  // Computed once, before the playlist branch: an explicit selection (the
+  // #template= tag or the toolbar picker) applies to every part of a
+  // playlist too — spec §5a, explicit wins.
+  const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
   generateBtn.disabled = true;
   try {
     if (parsed.playlist) {
-      await generateMulti(rawRequest, parsed, brief, apiKey);
+      await generateMulti(rawRequest, parsed, brief, apiKey, forcedTemplate, priorityIds);
       return;
     }
-    const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
     setStatus(`Generating (${settings.model}, prompt ${currentVariant().name})…`);
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
@@ -1030,7 +1047,14 @@ async function generate(): Promise<void> {
 }
 
 /** #playlist / #parts=N: one outline call, then one ordinary generation per part. */
-async function generateMulti(rawRequest: string, parsed: ParsedTags, brief: string, apiKey: string): Promise<void> {
+async function generateMulti(
+  rawRequest: string,
+  parsed: ParsedTags,
+  brief: string,
+  apiKey: string,
+  forcedTemplate: string | undefined,
+  priorityIds: string[],
+): Promise<void> {
   setStatus(`Outlining a multi-part drawcast (${settings.model})…`);
   let outline;
   try {
@@ -1056,6 +1080,8 @@ async function generateMulti(rawRequest: string, parsed: ParsedTags, brief: stri
         model: settings.model,
         variant: currentVariant(),
         exemplars: loadExemplars(),
+        forcedTemplate,
+        priorityIds,
       }).then((outcome) => {
         finished++;
         setStatus(`Generating ${n} parts in parallel — ${finished}/${n} done…`);

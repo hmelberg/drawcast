@@ -63,9 +63,12 @@ export const DEFAULT_SETTINGS: Settings = {
 function read<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? { ...fallback, ...(JSON.parse(raw) as T) } : fallback;
+    // Always a fresh shallow copy — never the literal fallback object — so a
+    // caller mutating a field (e.g. pushing onto an array-valued setting)
+    // can never alias and corrupt the shared default (DEFAULT_SETTINGS).
+    return raw ? { ...fallback, ...(JSON.parse(raw) as T) } : { ...fallback };
   } catch {
-    return fallback;
+    return { ...fallback };
   }
 }
 
