@@ -113,3 +113,8 @@
 - **Design source:** chat analysis 2026-08-23 + Collingridge 3d-svg pages (validated per-frame recompute + z-reorder; contributed the mutate-don't-rebuild insight → seed pinning; sphere highlights). Our deltas: perspective + depth fade (already shipped), narration-driven timestamped animation (export-deterministic), generalization to any numeric param.
 - **Scope honesty:** T1/T3 carry named investigation steps with acceptance criteria because Player/export internals weren't re-read at plan time — the implementer records file:line anchors in the report and the reviewer checks the investigation's conclusions against source, per this repo's established pattern for DOM-bound seams.
 - **Rulings embedded:** tween start values must be explicit numeric spec params (jump-to-target otherwise, documented); tween without template = warn + no-op; abort ends at target state; silent mode keeps duration.
+
+## Library assessment addendum (2026-08-23, Hans's links)
+
+- tscircuit/simple-3d-svg: boxes-only, flat unlit faces, perspective. Nothing to import; their affine-text caveat confirms our billboard-text ruling.
+- seflless/skewed (MIT): boxes/spheres/cylinders/text with Ambient+Directional lights — validates Task 1's normal·light flat shading. NOT imported: React peer dependency, orthographic-only, renders its own SVG (would bypass sketchy/narration/export). Banked for later: a cylinder prim; per-point planar embedding of 2D templates onto 3D faces (perspective-correct, unlike SVG affine/foreignObject tricks).
