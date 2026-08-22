@@ -24,3 +24,9 @@ export interface SceneManifest {
   element_ids: Record<string, string>;
   examples: { request: string; params: Record<string, unknown> }[];
 }
+
+/** A registered template: manifest always; layout when ready and compiled. */
+export interface SceneModule {
+  manifest: SceneManifest;
+  layout?: (params: Record<string, unknown>) => SceneLayout;
+}

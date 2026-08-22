@@ -2,7 +2,8 @@
 // code (Loop 3 improves it). Stub scenes appear in the catalog so the LLM
 // knows to fall through to tier-2 composition.
 
-import type { SceneLayout, SceneManifest } from "./types";
+import type { SceneManifest, SceneModule } from "./types";
+export type { SceneModule } from "./types";
 import supplyDemandManifest from "./supply_demand/manifest.json";
 import decisionTreeManifest from "./decision_tree/manifest.json";
 import cepManifest from "./cost_effectiveness_plane/manifest.json";
@@ -22,11 +23,6 @@ import { layoutFreeBody, type FreeBodyParams } from "./free_body/layout";
 import { layoutRingMolecule, type RingMoleculeParams } from "./ring_molecule/layout";
 import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_secondary/layout";
 import { layoutCellDiagram, type CellDiagramParams } from "./cell_diagram/layout";
-
-export interface SceneModule {
-  manifest: SceneManifest;
-  layout?: (params: Record<string, unknown>) => SceneLayout;
-}
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
