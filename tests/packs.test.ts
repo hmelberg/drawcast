@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
 import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
-import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, PACK_DEFS } from "../src/scenes/packs";
+import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
@@ -117,6 +117,36 @@ describe("physics templates through the real pipeline", () => {
     expect(flattenDrawables(virt.drawables).map((d) => d.id)).toContain("ray_parallel_ext");
     const img = flattenDrawables(virt.drawables).find((d) => d.id === "image");
     expect(img?.kind === "stroke" && img.style.dash).toBe(true);
+  });
+});
+
+describe("ensureEnabledPacks: retriable split (M3 review debt)", () => {
+  test("a pack-fetch rejection is retriable; a registration-time failure (id collision) is not", async () => {
+    const originalLoad = PACK_DEFS.physics.load;
+    PACK_DEFS.physics.load = () => Promise.reject(new Error("network hiccup"));
+    try {
+      const r = await ensureEnabledPacks(["physics"]);
+      expect(r).toHaveLength(1);
+      expect(r[0].ok).toBe(false);
+      expect(r[0].retriable).toBe(true);
+      expect(r[0].errors.join(" ")).toMatch(/network hiccup/);
+    } finally {
+      PACK_DEFS.physics.load = originalLoad;
+    }
+
+    // Deterministic failure: occupy one of physics's own template ids first
+    // so registerPack's collision check rejects it — not a fetch problem.
+    const prevRayDiagram = scenes.ray_diagram;
+    scenes.ray_diagram = { manifest: { name: "ray_diagram", status: "stub", description: "d", params_schema: {}, element_ids: {}, examples: [] } };
+    try {
+      const r2 = await ensureEnabledPacks(["physics"]);
+      expect(r2).toHaveLength(1);
+      expect(r2[0].ok).toBe(false);
+      expect(r2[0].retriable).toBeFalsy();
+    } finally {
+      if (prevRayDiagram) scenes.ray_diagram = prevRayDiagram;
+      else delete scenes.ray_diagram;
+    }
   });
 });
 

@@ -13,6 +13,7 @@ import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, unregisterPack } from "./scenes/packs";
+import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engines";
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
@@ -696,6 +697,7 @@ async function renderAuthorPreview(seq: number): Promise<void> {
   draftIds.add(outcomeDoc.template);
   const spec = { title: outcomeDoc.title ?? outcomeDoc.template, template: outcomeDoc.template, params: outcomeDoc.examples[0]?.params ?? {} } as unknown as Spec;
   try {
+    await ensureEnginesForTemplate(outcomeDoc.template);
     const mount = await mountPlaylist(authorPreviewHost, singlePlaylist(spec), {
       style: settings.style,
       mode: "instant",
@@ -862,6 +864,11 @@ async function present(): Promise<void> {
       isPlayer ? "✎" : "▶ Player",
     );
     switchBtn.addEventListener("click", () => showMode(isPlayer ? "editor" : "player"));
+    // A failed engine load is reported but never blocks the mount — the
+    // affected template falls through with its own existing warning.
+    await ensureEnginesForSpecs(itemsOf(doc.playlist).map((i) => i.spec)).catch((err) => {
+      setStatus(`Engine load failed: ${(err as Error).message}`, "error");
+    });
     const mounted = await mountPlaylist(host, doc.playlist, {
       style: settings.style,
       mode: settings.mode,

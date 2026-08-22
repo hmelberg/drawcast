@@ -1,0 +1,207 @@
+// Carried loop tests (M3 review debt): drive generateSpec/generateTemplate's
+// call → validate → repair loop with a mocked callForJson, asserting the
+// round labels and per-call models the real loop actually produces — not a
+// paraphrase of them. See src/llm/compile.ts / src/llm/author.ts.
+
+import { beforeEach, describe, expect, test, vi } from "vitest";
+
+// vi.mock hoists above these imports; keep the factory self-contained (a
+// fresh vi.fn() per mocked export) and drive behavior per-test through the
+// vi.mocked(...) accessor below rather than closing over outer variables.
+vi.mock("../src/llm/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/llm/client")>();
+  return {
+    ...actual,
+    makeClient: vi.fn(() => ({}) as ReturnType<typeof actual.makeClient>),
+    callForJson: vi.fn(),
+  };
+});
+
+import { callForJson, type JsonCallMeta } from "../src/llm/client";
+import { generateSpec, repairModelFor, type GenerateConfig, type PromptVariant } from "../src/llm/compile";
+import { generateTemplate, type AuthorConfig } from "../src/llm/author";
+import type { TemplateDoc } from "../src/scenes/doc";
+
+const mockCallForJson = vi.mocked(callForJson);
+
+// Opus tier so repairModelFor(MODEL) actually differs from MODEL — otherwise
+// "the repair round used the repair model" would be true by coincidence.
+const MODEL = "claude-opus-5";
+const REPAIR_MODEL = repairModelFor(MODEL); // "claude-sonnet-5"
+const META: JsonCallMeta = { ms: 1, structuredOutput: true };
+
+function respond(json: unknown) {
+  return { json, raw: JSON.stringify(json), meta: META };
+}
+
+const VARIANT: PromptVariant = {
+  name: "test",
+  source: "SCHEMA:{{SCHEMA}}\nCATALOG:{{CATALOG}}\nFEWSHOTS:{{FEWSHOTS}}\nEXEMPLARS:{{EXEMPLARS}}",
+};
+
+function baseCfg(overrides: Partial<GenerateConfig> = {}): GenerateConfig {
+  return { apiKey: "test-key", model: MODEL, variant: VARIANT, exemplars: [], ...overrides };
+}
+
+// Minimal genuinely-valid specs (checked against validateSpec's actual rules
+// in tests/schema.test.ts: a spec needs template-or-elements + commands;
+// commands may be empty — layoutSpec's geometry never reads commands, so an
+// empty list can't trip a lint issue). params come straight from each
+// template's own manifest example / optional-param defaults, not guessed.
+const VALID_SUPPLY_DEMAND = {
+  title: "t",
+  template: "supply_demand",
+  params: { demand: {}, supply: {}, equilibrium: { show: true, guides: true } },
+  commands: [],
+};
+
+const VALID_FREE_BODY = {
+  title: "t",
+  template: "free_body",
+  params: {}, // free_body's `forces` is `params.forces ?? []` — optional.
+  commands: [],
+};
+
+beforeEach(() => {
+  mockCallForJson.mockReset();
+});
+
+describe("generateSpec loop", () => {
+  test("happy path: one valid response -> single 'initial' round on cfg.model", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.spec?.template).toBe("supply_demand");
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
+  });
+
+  test("schema-repair: invalid then valid -> rounds [initial, schema-repair], repair call on repairModelFor(cfg.model)", async () => {
+    mockCallForJson
+      .mockResolvedValueOnce(respond({ commands: [] })) // neither template nor elements -> semantic error
+      .mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.spec?.template).toBe("supply_demand");
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial", "schema-repair"]);
+    expect(outcome.rounds[0].validationErrors.length).toBeGreaterThan(0);
+    expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
+    expect(mockCallForJson.mock.calls[1][1]).toBe(REPAIR_MODEL);
+  });
+
+  test("escalation: need_template marker then a valid spec for it -> marker round is 'template-fetch', the NEXT round is 'initial' on cfg.model (not the repair model); repair budget untouched", async () => {
+    mockCallForJson
+      .mockResolvedValueOnce(respond({ need_template: "free_body" }))
+      .mockResolvedValueOnce(respond(VALID_FREE_BODY));
+
+    // maxRepairs: 0 proves the escalation round doesn't consume repair budget
+    // (it `continue`s the loop without touching repairsUsed).
+    const outcome = await generateSpec("draw the forces on a block", baseCfg({ maxRepairs: 0 }));
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.spec?.template).toBe("free_body");
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["template-fetch", "initial"]);
+    expect(outcome.rounds[0].validationErrors).toEqual([]);
+    expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
+    // Both calls run on cfg.model: the escalation's re-derived label maps
+    // back to "initial" (never falls through to the repair model just
+    // because it isn't rounds[0]).
+    expect(mockCallForJson.mock.calls[1][1]).toBe(MODEL);
+
+    const secondCallSystem = mockCallForJson.mock.calls[1][2] as { text: string }[];
+    expect(secondCallSystem[0].text).toContain("### Scene template: free_body");
+  });
+
+  // NOTE vs. the brief's sketch: the brief predicted "outcome error after
+  // repairs" for this case. Reading compile.ts's actual code: `validation.ok`
+  // is computed by validateSpec() BEFORE the forced-template mismatch string
+  // is pushed onto validation.errors, so `ok` never flips to false on a
+  // mismatch alone. A structurally/semantically valid-but-wrong-template spec
+  // still sets `best` (and passes layoutSpec, since it's a real template) —
+  // so the outcome actually carries a non-null spec and no top-level `error`.
+  // The real signal the loop gives for "never satisfied the forced template"
+  // is the mismatch string landing in every round's validationErrors, which
+  // is what this test asserts.
+  test("forced mismatch: forcedTemplate set, model never switches -> repairs exhaust; the mismatch message is recorded every round", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+
+    const outcome = await generateSpec("draw the forces on a block", baseCfg({ forcedTemplate: "free_body", maxRepairs: 1 }));
+
+    expect(mockCallForJson).toHaveBeenCalledTimes(2); // model returns the wrong template "twice"
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial", "schema-repair"]);
+    for (const round of outcome.rounds) {
+      expect(round.validationErrors.join(" ")).toMatch(/requires template "free_body"/);
+    }
+    expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
+    expect(mockCallForJson.mock.calls[1][1]).toBe(REPAIR_MODEL);
+  });
+
+  test("escalation is suppressed when forcedTemplate is set: the marker object is treated as a normal invalid spec, no template-fetch round", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond({ need_template: "free_body" }));
+
+    const outcome = await generateSpec("draw the forces on a block", baseCfg({ forcedTemplate: "free_body", maxRepairs: 0 }));
+
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+    expect(outcome.rounds[0].validationErrors.join(" ")).toMatch(/commands/i);
+    expect(outcome.spec).toBeNull();
+    expect(outcome.error).toBeDefined();
+  });
+});
+
+describe("generateTemplate loop", () => {
+  function validDoc(id: string): TemplateDoc {
+    return {
+      template: id,
+      title: "Test ring",
+      version: 1,
+      kit: 1,
+      status: "ready",
+      description: "A test ring figure.",
+      params: { type: "object", properties: { n: { type: "number" } } },
+      element_ids: { ring: "the ring" },
+      examples: [{ request: "Draw a ring.", params: { n: 6 } }],
+      layout: `return { drawables: [kit.stroke("ring", kit.polygon([500, 400], 120, params.n ?? 6), { closed: true })], labels: [], anchors: { ring_center: [500, 400] }, order: ["ring"] };`,
+    };
+  }
+
+  function authorCfg(overrides: Partial<AuthorConfig> = {}): AuthorConfig {
+    return { apiKey: "test-key", model: MODEL, ...overrides };
+  }
+
+  test("happy path: one valid TemplateDoc (no engines) -> yaml + doc, rounds [initial]", async () => {
+    const doc = validDoc("genloop_test_ring_a");
+    mockCallForJson.mockResolvedValueOnce(respond(doc));
+
+    const outcome = await generateTemplate("draw a ring", null, authorCfg());
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.doc?.template).toBe("genloop_test_ring_a");
+    expect(outcome.yaml).toBeTruthy();
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+    expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
+  });
+
+  test("two-round repair: missing layout -> repair -> valid; repair call on repairModelFor(cfg.model)", async () => {
+    const id = "genloop_test_ring_b";
+    const bad = validDoc(id) as unknown as Record<string, unknown>;
+    delete bad.layout; // status "ready" requires a layout body
+
+    mockCallForJson.mockResolvedValueOnce(respond(bad)).mockResolvedValueOnce(respond(validDoc(id)));
+
+    const outcome = await generateTemplate("draw a ring", null, authorCfg());
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.doc?.template).toBe(id);
+    expect(outcome.yaml).toBeTruthy();
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial", "repair"]);
+    expect(outcome.rounds[0].errors.join(" ")).toMatch(/layout/i);
+    expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
+    expect(mockCallForJson.mock.calls[1][1]).toBe(REPAIR_MODEL);
+  });
+});

@@ -7,6 +7,7 @@ import { makeClient, callForJson, callForText, describeApiError, opusTier, type 
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { catalogText, detectNeedTemplate } from "../scenes/catalog";
+import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
@@ -261,6 +262,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       let lintIssues: LintIssue[] = [];
       if (validation.ok) {
         best = json as Spec;
+        // An engine that cannot load becomes a validation error — repair can
+        // switch template, or the round fails visibly (never a silent
+        // fall-through render for a hand-authored spec).
+        if (best.template) {
+          await ensureEnginesForTemplate(best.template).catch((err) => {
+            validation.errors.push(`engine load failed: ${(err as Error).message}`);
+          });
+        }
         try {
           lintIssues = layoutSpec(best, measure).issues;
         } catch (err) {

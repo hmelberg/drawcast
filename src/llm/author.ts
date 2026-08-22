@@ -10,6 +10,7 @@ import { callForJson, describeApiError, makeClient, type JsonCallMeta } from "./
 import { repairModelFor } from "./compile";
 import { parseTemplateDoc, validateTemplateDoc, type TemplateDoc } from "../scenes/doc";
 import { compileTemplateDoc } from "../scenes/compile";
+import { ensureEngines } from "../scenes/engines";
 import { scenes, type SceneModule } from "../scenes/registry";
 import { isUserTemplateId } from "../scenes/my-templates";
 import { layoutSpec } from "../layout/layout";
@@ -174,7 +175,19 @@ export async function generateTemplate(description: string, image: AuthorImage |
     while (true) {
       const roundModel = rounds.length === 0 ? cfg.model : repairModelFor(cfg.model);
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object);
-      const { doc, errors, lintIssues } = processAuthorDoc(json, measure);
+      // Validate first (cheap), await any declared engines BEFORE the full
+      // validate+collision+compile+run chain — processAuthorDoc's own layout
+      // call needs the engine already loaded (getLoadedEngines is sync).
+      // processAuthorDoc re-validates internally; that second pass is cheap.
+      const preValidate = validateTemplateDoc(json);
+      const engineErrors: string[] = [];
+      if (preValidate.doc?.engines && preValidate.doc.engines.length > 0) {
+        await ensureEngines(preValidate.doc.engines).catch((err) => {
+          engineErrors.push(`engine load failed: ${(err as Error).message}`);
+        });
+      }
+      const { doc, errors: docErrors, lintIssues } = processAuthorDoc(json, measure);
+      const errors = [...engineErrors, ...docErrors];
       rounds.push({ label: rounds.length === 0 ? "initial" : "repair", doc: json, errors, lintIssues, meta });
 
       if (doc && errors.length === 0) {
