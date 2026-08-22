@@ -22,6 +22,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Optics ray diagrams and wave diagrams — classroom physics figures with computed geometry.",
     load: async () => (await import("./packs/physics.yaml?raw")).default,
   },
+  chemistry: {
+    id: "chemistry",
+    title: "Chemistry",
+    description: "Molecules drawn from SMILES (via the smilesDrawer engine), reaction schemes, and energy diagrams.",
+    load: async () => (await import("./packs/chemistry.yaml?raw")).default,
+  },
 };
 
 export interface ParsedPack {

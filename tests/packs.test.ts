@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
+import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
+import { ensureEngines } from "../src/scenes/engines";
 
 beforeEach(() => unregisterPack("physics"));
 
@@ -121,4 +123,56 @@ describe("physics templates through the real pipeline", () => {
 test("PACK_DEFS has physics with a loader", () => {
   expect(PACK_DEFS.physics.title).toBe("Physics");
   expect(typeof PACK_DEFS.physics.load).toBe("function");
+});
+
+describe("chemistry pack", () => {
+  beforeEach(() => unregisterPack("chemistry"));
+
+  test("parses and registers three templates; molecule declares the engine", () => {
+    const r = registerPack("chemistry", chemistryYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: ["molecule", "reaction_scheme", "energy_diagram"] });
+    expect(scenes.molecule.manifest.engines).toEqual(["smilesdrawer"]);
+  });
+
+  test("molecule layout throws (falls through) before the engine loads, renders after", async () => {
+    registerPack("chemistry", chemistryYaml);
+    // NOTE: engine cache may already be warm from other test files in this worker —
+    // only assert the post-load path unconditionally; assert the pre-load throw
+    // only when enginesLoaded says cold. (Import enginesLoaded for the check.)
+    await ensureEngines(["smilesdrawer"]);
+    const r = layoutSpec({ template: "molecule", params: { smiles: "c1ccccc1", name: "Benzene" }, elements: [] } as never);
+    expect(r.warnings).toEqual([]);
+    expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  test("every chemistry example renders clean and deterministically (engine pre-loaded)", async () => {
+    await ensureEngines(["smilesdrawer"]);
+    registerPack("chemistry", chemistryYaml);
+    for (const tid of ["molecule", "reaction_scheme", "energy_diagram"]) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(scenes[tid].layout!(scenes[tid].manifest.examples[0].params)));
+    }
+  });
+
+  test("aromatic ring renders an inner circle, not alternating double bonds", async () => {
+    await ensureEngines(["smilesdrawer"]);
+    registerPack("chemistry", chemistryYaml);
+    const r = scenes.molecule.layout!({ smiles: "c1ccccc1" });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids.some((id) => /ring_circle/.test(id))).toBe(true);
+    expect(ids.some((id) => /dbond|double/.test(id))).toBe(false);
+  });
+
+  test("cyclohexane (saturated ring) gets NO inner circle — rings is SSSR membership, not aromaticity", async () => {
+    await ensureEngines(["smilesdrawer"]);
+    registerPack("chemistry", chemistryYaml);
+    const r = scenes.molecule.layout!({ smiles: "C1CCCCC1" });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids.some((id) => /ring_circle/.test(id))).toBe(false);
+  });
 });

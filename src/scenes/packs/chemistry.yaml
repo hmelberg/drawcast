@@ -1,0 +1,355 @@
+pack: chemistry
+title: Chemistry
+description: Molecules drawn from SMILES (via the smilesDrawer engine), reaction schemes, and energy diagrams.
+---
+template: molecule
+title: Molecule from SMILES
+version: 1
+kit: 1
+status: ready
+engines: [smilesdrawer]
+description: >-
+  A skeletal organic-chemistry structure laid out from a SMILES string via the
+  smilesDrawer engine: bonds trimmed at labeled atoms, double/triple bonds as
+  parallel lines, non-carbon atom symbols as exact-position text, and aromatic
+  rings drawn with the classic single-bond + inner-circle convention (never
+  alternating double bonds). Choose this for ANY "draw molecule X" request;
+  supply the standard SMILES for X — you know SMILES for common molecules.
+params:
+  type: object
+  properties:
+    smiles:
+      type: string
+      description: "REQUIRED. Standard SMILES — e.g. aspirin CC(=O)Oc1ccccc1C(=O)O."
+    name:
+      type: string
+      description: "Caption under the molecule."
+    scale:
+      type: number
+      description: "0.5–1.5, default 1."
+  required: [smiles]
+element_ids:
+  bonds: single-bond strokes (one group; the main segment of every bond, including aromatic ones)
+  double_bonds: extra parallel strokes for double/triple bonds (present only when the molecule has any)
+  atoms: exact-position element-symbol text for every non-carbon atom (present only when the molecule has any)
+  ring_circles: inner circles for TRULY aromatic rings only (present only when the molecule has any)
+  molecule_name: the caption under the molecule (when name is given)
+examples:
+  - request: "Draw benzene."
+    params: { smiles: "c1ccccc1", name: "Benzene" }
+  - request: "Draw the structure of aspirin."
+    params: { smiles: "CC(=O)Oc1ccccc1C(=O)O", name: "Aspirin" }
+  - request: "Draw ethene."
+    params: { smiles: "C=C", name: "Ethene" }
+layout: |
+  const eng = engines.smilesdrawer;
+  const mol = eng.layoutSmiles(params.smiles ?? "c1ccccc1");
+  const S = 420 * Math.min(1.5, Math.max(0.5, params.scale ?? 1));
+  const cx = 500, cy = 400;
+  const P = (a) => [cx + a.x * S, cy + a.y * S];
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const TRIM = 12, SHRINK = 0.15, OFFSET = 7;
+  const pts = mol.atoms.map(P);
+  const labeled = mol.atoms.map((a) => a.element !== "C");
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const trimSeg = (a, b, trimA, trimB) => {
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return [lerp(a, b, trimA ? TRIM / d : 0), lerp(b, a, trimB ? TRIM / d : 0)];
+  };
+  const shrinkSeg = (a, b) => [lerp(a, b, SHRINK), lerp(b, a, SHRINK)];
+  // A ring only earns an inner circle when ITS OWN member bonds are aromatic —
+  // mol.rings is SSSR membership for ALL rings (cyclohexane included too), so
+  // "the ring's atoms sit in some ring" is never enough on its own.
+  const ringAromatic = (ring) => {
+    const members = new Set(ring);
+    let total = 0, arom = 0;
+    for (const b of mol.bonds) {
+      if (members.has(b.a) && members.has(b.b)) {
+        total++;
+        if (b.aromatic) arom++;
+      }
+    }
+    return total > 0 && arom / total >= 0.5;
+  };
+
+  const bondLines = [], extraLines = [];
+  mol.bonds.forEach((b, i) => {
+    const [a0, b0] = trimSeg(pts[b.a], pts[b.b], labeled[b.a], labeled[b.b]);
+    bondLines.push(kit.stroke(`bond_${i}`, [a0, b0], { strokeWidth: 4, ms: MS.connector }));
+    // Aromatic bonds render as a single bond + the ring's inner circle — never
+    // alternating double bonds, regardless of the raw bond order.
+    const bOrder = b.aromatic ? 1 : b.order;
+    if (bOrder >= 2) {
+      const offsets = bOrder === 3 ? [OFFSET, -OFFSET] : [OFFSET];
+      offsets.forEach((d, j) => {
+        const [p0, p1] = shrinkSeg(...kit.parallelOffset([a0, b0], d));
+        extraLines.push(kit.stroke(`double_${i}_${j}`, [p0, p1], { strokeWidth: 3.5, ms: MS.connector }));
+      });
+    }
+  });
+
+  const drawables = [], labels = [], anchors = { molecule: [cx, cy] }, order = [];
+  const push = (dd) => { drawables.push(dd); order.push(dd.id); };
+  if (bondLines.length > 0) push(kit.group("bonds", bondLines));
+  if (extraLines.length > 0) push(kit.group("double_bonds", extraLines));
+
+  const ringCircles = [];
+  mol.rings.forEach((ring, i) => {
+    if (!ringAromatic(ring)) return;
+    const members = ring.map((idx) => pts[idx]);
+    const rcx = members.reduce((s, p) => s + p[0], 0) / members.length;
+    const rcy = members.reduce((s, p) => s + p[1], 0) / members.length;
+    const meanR = members.reduce((s, p) => s + Math.hypot(p[0] - rcx, p[1] - rcy), 0) / members.length;
+    ringCircles.push(kit.stroke(`ring_circle_${i}`, kit.ellipse([rcx, rcy], meanR * 0.55, meanR * 0.55), { closed: true, strokeWidth: 3, ms: MS.curve }));
+  });
+  if (ringCircles.length > 0) push(kit.group("ring_circles", ringCircles));
+
+  const atomTexts = [];
+  mol.atoms.forEach((a, i) => {
+    if (a.element === "C") return;
+    atomTexts.push(kit.text(`atom_${i}`, pts[i], a.element, { fontSize: 30, color: C.demand }));
+  });
+  if (atomTexts.length > 0) push(kit.group("atoms", atomTexts));
+
+  if (params.name) {
+    const minY = Math.min(...pts.map((p) => p[1]));
+    labels.push(kit.label("molecule_name", [cx, minY - 40], "below", params.name, { fontSize: 30 }));
+    order.push("molecule_name");
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: reaction_scheme
+title: Chemical reaction scheme
+version: 1
+kit: 1
+status: ready
+description: >-
+  A balanced-equation reaction scheme: reactant formulas, an arrow (single or
+  reversible ⇌), and product formulas, with optional conditions written above
+  or below the arrow (heat, catalyst, pressure). Choose this for requests
+  about chemical equations, reaction schemes, or "show the reaction for X".
+  Formulas are plain text — pass unicode subscripts/superscripts directly
+  (e.g. "CH₄", "2 H₂O", "Fe³⁺").
+params:
+  type: object
+  properties:
+    reactants:
+      type: array
+      items: { type: string }
+      description: "Reactant formulas/names in order, e.g. [\"CH₄\", \"2 O₂\"]."
+    products:
+      type: array
+      items: { type: string }
+      description: "Product formulas/names in order, e.g. [\"CO₂\", \"2 H₂O\"]."
+    over:
+      type: string
+      description: "Condition written above the arrow, e.g. \"Δ\" or \"catalyst\"."
+    under:
+      type: string
+      description: "Condition written below the arrow."
+    reversible:
+      type: boolean
+      description: "Draw a double half-arrow ⇌ instead of a single →."
+    name:
+      type: string
+      description: "Caption under the whole scheme."
+  required: [reactants, products]
+element_ids:
+  reactants: the reactant formulas (one group, "+" signs between them)
+  products: the product formulas (one group, "+" signs between them)
+  arrow: the reaction arrow (single, or two half-arrows when reversible)
+  label_over: the condition written above the arrow (when over is given)
+  label_under: the condition written below the arrow (when under is given)
+  reaction_name: the caption under the scheme (when name is given)
+examples:
+  - request: "Draw the combustion of methane."
+    params: { reactants: ["CH₄", "2 O₂"], products: ["CO₂", "2 H₂O"], over: "Δ", name: "Combustion of methane" }
+  - request: "Show the Haber process for ammonia synthesis."
+    params: { reactants: ["N₂", "3 H₂"], products: ["2 NH₃"], reversible: true, name: "Haber process" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const FS = 32, ROW_Y = 400, GAP = 45, ARROW_LEN = 150;
+  const reactants = params.reactants && params.reactants.length > 0 ? params.reactants : ["A"];
+  const products = params.products && params.products.length > 0 ? params.products : ["B"];
+  const estW = (s) => String(s).length * FS * 0.6;
+  const sepW = estW(" + ");
+  const rowWidth = (terms) => terms.reduce((sum, t) => sum + estW(t), 0) + sepW * Math.max(0, terms.length - 1);
+
+  const totalW = rowWidth(reactants) + GAP + ARROW_LEN + GAP + rowWidth(products);
+  const startX = 500 - totalW / 2;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  function layoutRow(terms, x0, idPrefix) {
+    const items = [];
+    let x = x0;
+    terms.forEach((term, i) => {
+      const w = estW(term);
+      items.push(kit.text(`${idPrefix}_${i}`, [x + w / 2, ROW_Y], term, { fontSize: FS }));
+      x += w;
+      if (i < terms.length - 1) {
+        items.push(kit.text(`${idPrefix}_plus_${i}`, [x + sepW / 2, ROW_Y], "+", { fontSize: FS, color: C.guide }));
+        x += sepW;
+      }
+    });
+    return { items, endX: x };
+  }
+
+  const rReact = layoutRow(reactants, startX, "reactants");
+  push(kit.group("reactants", rReact.items));
+
+  const arrowStartX = rReact.endX + GAP, arrowEndX = arrowStartX + ARROW_LEN;
+  const arrowChildren = [];
+  if (params.reversible) {
+    arrowChildren.push(kit.stroke("arrow_fwd", [[arrowStartX, ROW_Y + 7], [arrowEndX, ROW_Y + 7]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.arrow }));
+    arrowChildren.push(kit.stroke("arrow_rev", [[arrowEndX, ROW_Y - 7], [arrowStartX, ROW_Y - 7]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.arrow }));
+  } else {
+    arrowChildren.push(kit.stroke("arrow_main", [[arrowStartX, ROW_Y], [arrowEndX, ROW_Y]], { arrowhead: "end", strokeWidth: 4, ms: MS.arrow }));
+  }
+  push(kit.group("arrow", arrowChildren));
+  anchors.arrow = [(arrowStartX + arrowEndX) / 2, ROW_Y];
+
+  const rProd = layoutRow(products, arrowEndX + GAP, "products");
+  push(kit.group("products", rProd.items));
+
+  if (params.over) {
+    labels.push(kit.label("label_over", [(arrowStartX + arrowEndX) / 2, ROW_Y + 14], "above", params.over, { fontSize: 26 }));
+    order.push("label_over");
+  }
+  if (params.under) {
+    labels.push(kit.label("label_under", [(arrowStartX + arrowEndX) / 2, ROW_Y - 14], "below", params.under, { fontSize: 24 }));
+    order.push("label_under");
+  }
+  if (params.name) {
+    labels.push(kit.label("reaction_name", [500, ROW_Y - 70], "below", params.name, { fontSize: 28 }));
+    order.push("reaction_name");
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: energy_diagram
+title: Reaction energy diagram
+version: 1
+kit: 1
+status: ready
+description: >-
+  A reaction-coordinate energy diagram: reactant and product energy plateaus
+  joined by a smooth hump through the transition state, with the activation
+  energy (Eₐ) and reaction enthalpy (ΔH) marked as double-headed arrows.
+  Choose this for requests about activation energy, exothermic/endothermic
+  reactions, transition states, or catalysis (set catalyzed to add a second,
+  lower dashed hump showing how a catalyst lowers Eₐ without changing ΔH.)
+params:
+  type: object
+  properties:
+    reactant_level:
+      type: number
+      description: "Reactant energy, 0–10 (default 3)."
+    product_level:
+      type: number
+      description: "Product energy, 0–10 (default 1). Below reactant_level = exothermic."
+    activation_energy:
+      type: number
+      description: "Height of the hump ABOVE reactant_level (default 5)."
+    catalyzed:
+      type: boolean
+      description: "Add a second, lower dashed hump (catalyzed pathway) at half the activation energy."
+    labels:
+      type: boolean
+      description: "Show axis/Eₐ/ΔH/Reactants/Products text (default true)."
+element_ids:
+  axes: the energy (y) and reaction-progress (x) axes
+  reactant_line: the reactant energy plateau
+  product_line: the product energy plateau
+  curve: the main (uncatalyzed) energy hump
+  curve_catalyzed: the lower dashed catalyzed hump (when catalyzed is true)
+  ea_arrow: double-headed arrow spanning the activation energy
+  dh_arrow: double-headed arrow spanning the reaction enthalpy (ΔH)
+  label_ea: the "Eₐ" label
+  label_dh: the "ΔH" label
+  label_reactants: the "Reactants" label
+  label_products: the "Products" label
+examples:
+  - request: "Draw an energy diagram for an exothermic reaction."
+    params: { reactant_level: 3, product_level: 1, activation_energy: 5 }
+  - request: "Show how a catalyst lowers the activation energy."
+    params: { reactant_level: 3, product_level: 1, activation_energy: 6, catalyzed: true }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const X0 = 150, X1 = 900, Y0 = 110, Y1 = 690;
+  const xSpanStart = 220, xSpanEnd = 860;
+  const reactantPlateauEnd = xSpanStart + (xSpanEnd - xSpanStart) * 0.28;
+  const humpEnd = xSpanStart + (xSpanEnd - xSpanStart) * 0.68;
+  const peakX = (reactantPlateauEnd + humpEnd) / 2;
+
+  const reactantLevel = Math.min(10, Math.max(0, params.reactant_level ?? 3));
+  const productLevel = Math.min(10, Math.max(0, params.product_level ?? 1));
+  const ea = Math.max(0.5, params.activation_energy ?? 5);
+  const peakLevel = reactantLevel + ea;
+  const catalyzed = !!params.catalyzed;
+  const catPeakLevel = reactantLevel + ea * 0.5;
+  const showLabels = params.labels !== false;
+
+  const maxLevel = Math.max(1, reactantLevel, productLevel, peakLevel, catalyzed ? catPeakLevel : 0);
+  const scaleY = (Y1 - Y0 - 60) / maxLevel;
+  const levelY = (lvl) => Y0 + lvl * scaleY;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("y_axis", [[X0, Y0], [X0, Y1]], { arrowhead: "end", strokeWidth: 3, color: C.guide, ms: MS.axis }),
+    kit.stroke("x_axis", [[X0, Y0], [X1, Y0]], { arrowhead: "end", strokeWidth: 3, color: C.guide, ms: MS.axis }),
+  ]));
+  if (showLabels) {
+    labels.push(kit.label("label_energy_axis", [X0, Y1], "above", "Energy", { fontSize: 24 }));
+    order.push("label_energy_axis");
+    labels.push(kit.label("label_progress_axis", [(X0 + X1) / 2, Y0], "below", "Reaction progress", { fontSize: 24 }));
+    order.push("label_progress_axis");
+  }
+
+  push(kit.stroke("reactant_line", [[xSpanStart, levelY(reactantLevel)], [reactantPlateauEnd, levelY(reactantLevel)]], { strokeWidth: 4.5, ms: MS.priceLine }));
+  push(kit.stroke("product_line", [[humpEnd, levelY(productLevel)], [xSpanEnd, levelY(productLevel)]], { strokeWidth: 4.5, ms: MS.priceLine }));
+
+  const curvePts = kit.smooth([
+    [reactantPlateauEnd, levelY(reactantLevel)],
+    [peakX, levelY(peakLevel)],
+    [humpEnd, levelY(productLevel)],
+  ], 16);
+  push(kit.stroke("curve", curvePts, { strokeWidth: 4.5, color: C.supply, ms: MS.curve }));
+
+  if (catalyzed) {
+    const catPts = kit.smooth([
+      [reactantPlateauEnd, levelY(reactantLevel)],
+      [peakX, levelY(catPeakLevel)],
+      [humpEnd, levelY(productLevel)],
+    ], 16);
+    push(kit.stroke("curve_catalyzed", catPts, { strokeWidth: 3.5, color: C.accent, dash: true, ms: MS.curve }));
+  }
+
+  const eaX = peakX - 50;
+  push(kit.stroke("ea_arrow", [[eaX, levelY(reactantLevel)], [eaX, levelY(peakLevel)]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
+  anchors.ea_arrow = [eaX, (levelY(reactantLevel) + levelY(peakLevel)) / 2];
+  if (showLabels) {
+    labels.push(kit.label("label_ea", anchors.ea_arrow, "left", "Eₐ", { fontSize: 26, color: C.accent }));
+    order.push("label_ea");
+  }
+
+  const dhX = humpEnd + (xSpanEnd - humpEnd) * 0.35;
+  push(kit.stroke("dh_arrow", [[dhX, levelY(reactantLevel)], [dhX, levelY(productLevel)]], { arrowhead: "both", strokeWidth: 2.5, color: C.demand, ms: MS.guides }));
+  anchors.dh_arrow = [dhX, (levelY(reactantLevel) + levelY(productLevel)) / 2];
+  if (showLabels) {
+    labels.push(kit.label("label_dh", anchors.dh_arrow, "right", "ΔH", { fontSize: 26, color: C.demand }));
+    order.push("label_dh");
+  }
+
+  if (showLabels) {
+    labels.push(kit.label("label_reactants", [(xSpanStart + reactantPlateauEnd) / 2, levelY(reactantLevel) + 18], "above", "Reactants", { fontSize: 24 }));
+    order.push("label_reactants");
+    labels.push(kit.label("label_products", [(humpEnd + xSpanEnd) / 2, levelY(productLevel) + 18], "above", "Products", { fontSize: 24 }));
+    order.push("label_products");
+  }
+
+  return { drawables, labels, anchors, order };
