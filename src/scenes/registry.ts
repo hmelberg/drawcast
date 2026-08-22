@@ -7,6 +7,7 @@ export type { SceneModule } from "./types";
 import { parseTemplateDoc, docToManifest, type TemplateDoc } from "./doc";
 import { compileTemplateDoc } from "./compile";
 import cellDiagramYaml from "./cell_diagram/template.yaml?raw";
+import molecule3dYaml from "./molecule_3d/template.yaml?raw";
 import supplyDemandManifest from "./supply_demand/manifest.json";
 import decisionTreeManifest from "./decision_tree/manifest.json";
 import cepManifest from "./cost_effectiveness_plane/manifest.json";
@@ -81,7 +82,7 @@ export function registerTemplateYaml(yamlText: string): { ok: boolean; errors: s
 
 // Bundled document-format templates. A registration failure here is a build
 // defect — surface it loudly in dev, and the template degrades to a stub.
-{
-  const r = registerTemplateYaml(cellDiagramYaml);
+for (const yaml of [cellDiagramYaml, molecule3dYaml]) {
+  const r = registerTemplateYaml(yaml);
   if (!r.ok) console.warn("bundled template failed to register:", r.errors);
 }

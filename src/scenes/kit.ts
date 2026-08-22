@@ -68,6 +68,28 @@ export interface Edge {
   effect: "activates" | "inhibits" | "converts";
 }
 
+export type Vec3 = [number, number, number];
+
+export interface Camera3 {
+  /** Degrees; orbit around the vertical axis. */
+  azimuth: number;
+  /** Degrees; tilt up/down. */
+  elevation: number;
+  /** World units from the target; smaller = stronger perspective. */
+  distance: number;
+  /** Projection strength (default 900). */
+  fov?: number;
+  /** Screen center (defaults 500, 375). */
+  cx?: number;
+  cy?: number;
+}
+
+export type Prim3 =
+  | { kind: "sphere"; id: string; c: Vec3; r: number; color?: string; fill?: string; ms?: number }
+  | { kind: "seg"; id: string; a: Vec3; b: Vec3; w?: number; color?: string; dash?: boolean; trimA?: number; trimB?: number; ms?: number }
+  | { kind: "arrow"; id: string; a: Vec3; b: Vec3; w?: number; color?: string; dash?: boolean; trimA?: number; trimB?: number; ms?: number }
+  | { kind: "text3"; id: string; p: Vec3; text: string; fontSize?: number; color?: string };
+
 export interface SceneKit {
   // ---- factories ----
   stroke(id: string, pts: Pt[], o?: StrokeOpts): StrokeDrawable;
@@ -100,6 +122,18 @@ export interface SceneKit {
   parseNewick(s: string): NewickNode;
   /** "A -> B; B -| C; X => Y" (activates / inhibits / converts). */
   parseEdgeList(s: string): Edge[];
+  // ---- static 3D → flat drawables (spec §3a; validated by the 2026-08-22 spike) ----
+  /**
+   * Project 3D primitives into ordinary flat drawables: orbit camera
+   * (azimuth/elevation in degrees, distance in world units), perspective
+   * projection, painter's-algorithm depth sort. Bond segments split at their
+   * midpoint and can be trimmed at sphere surfaces (trimA/trimB, world units)
+   * so sticks vanish into balls. Returned `order` is far-to-near — draw in
+   * that order so occlusion stays correct during progressive drawing.
+   * Reliable scope: ball-and-stick, 3D vectors/axes, small lattices. Not for
+   * intersecting surfaces or large structures.
+   */
+  project3d(camera: Camera3, prims: Prim3[]): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
   // ---- constants ----
   COLORS: typeof COLORS;
   CANVAS: typeof CANVAS;
@@ -325,6 +359,114 @@ export const kit: SceneKit = {
       });
     }
     return out;
+  },
+
+  project3d(camera, prims) {
+    const fov = camera.fov ?? 900;
+    const cx = camera.cx ?? 500;
+    const cy = camera.cy ?? 375;
+    const az = (camera.azimuth * Math.PI) / 180;
+    const el = (camera.elevation * Math.PI) / 180;
+    const proj = (p: Vec3): { x: number; y: number; s: number; depth: number } => {
+      const x1 = p[0] * Math.cos(az) - p[2] * Math.sin(az);
+      const z1 = p[0] * Math.sin(az) + p[2] * Math.cos(az);
+      const y2 = p[1] * Math.cos(el) - z1 * Math.sin(el);
+      const z2 = p[1] * Math.sin(el) + z1 * Math.cos(el);
+      const depth = camera.distance - z2;
+      const s = fov / Math.max(0.1, depth);
+      return { x: cx + x1 * s, y: cy + y2 * s, s, depth };
+    };
+    const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    const trim = (a: Vec3, b: Vec3, tA = 0, tB = 0): [Vec3, Vec3] => {
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) || 1;
+      return [lerp3(a, b, tA / len), lerp3(b, a, tB / len)];
+    };
+
+    interface Piece {
+      depth: number;
+      drawable: Drawable;
+    }
+    const pieces: Piece[] = [];
+    const anchors: Record<string, Pt> = {};
+
+    for (const prim of prims) {
+      if (prim.kind === "sphere") {
+        const q = proj(prim.c);
+        anchors[prim.id] = [q.x, q.y];
+        pieces.push({
+          depth: q.depth,
+          drawable: {
+            id: prim.id,
+            kind: "stroke",
+            pts: [[q.x, q.y]],
+            shapeHint: { type: "circle", c: [q.x, q.y], r: prim.r * q.s },
+            z: Z_STROKE,
+            style: defaultStyle({
+              ...(prim.color !== undefined && { color: prim.color }),
+              ...(prim.fill !== undefined && { fill: prim.fill }),
+              strokeWidth: 3,
+            }),
+            drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.node),
+          },
+        });
+      } else if (prim.kind === "seg" || prim.kind === "arrow") {
+        const [a, b] = trim(prim.a, prim.b, prim.trimA, prim.trimB);
+        const style = defaultStyle({
+          ...(prim.color !== undefined && { color: prim.color }),
+          strokeWidth: prim.w ?? 4,
+          ...(prim.dash !== undefined && { dash: prim.dash }),
+        });
+        const opts = defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.connector);
+        if (prim.kind === "arrow") {
+          const qa = proj(a), qb = proj(b);
+          anchors[prim.id] = [qb.x, qb.y];
+          pieces.push({
+            depth: (qa.depth + qb.depth) / 2,
+            drawable: { id: prim.id, kind: "stroke", pts: [[qa.x, qa.y], [qb.x, qb.y]], arrowhead: "end", z: Z_STROKE, style, drawOpts: opts },
+          });
+        } else {
+          // Split at the midpoint so each half sorts near its own end.
+          const mid = lerp3(a, b, 0.5);
+          const halves: [Vec3, Vec3, string][] = [
+            [a, mid, prim.id],
+            [mid, b, `${prim.id}__f`],
+          ];
+          const qm = proj(mid);
+          anchors[prim.id] = [qm.x, qm.y];
+          for (const [u, v, id] of halves) {
+            const qu = proj(u), qv = proj(v);
+            pieces.push({
+              depth: (qu.depth + qv.depth) / 2,
+              drawable: { id, kind: "stroke", pts: [[qu.x, qu.y], [qv.x, qv.y]], z: Z_STROKE, style, drawOpts: opts },
+            });
+          }
+        }
+      } else {
+        const q = proj(prim.p);
+        anchors[prim.id] = [q.x, q.y];
+        pieces.push({
+          depth: q.depth - 1e-6, // labels win ties against their own geometry
+          drawable: {
+            id: prim.id,
+            kind: "text",
+            pos: [q.x, q.y],
+            text: prim.text,
+            fontSize: prim.fontSize ?? 26,
+            anchor: "middle",
+            z: Z_TEXT,
+            style: defaultStyle(prim.color !== undefined ? { color: prim.color } : {}),
+            drawOpts: defaultDrawOpts("instant"),
+          },
+        });
+      }
+    }
+
+    pieces.sort((a, b) => b.depth - a.depth); // far first — paint back to front
+    return {
+      drawables: pieces.map((p) => p.drawable),
+      anchors,
+      order: pieces.map((p) => p.drawable.id),
+    };
   },
 
   COLORS,

@@ -1,0 +1,117 @@
+template: molecule_3d
+title: 3D molecule (ball-and-stick)
+version: 1
+kit: 1
+status: ready
+description: >-
+  A ball-and-stick molecule drawn in 3D perspective (static viewpoint, flat
+  sketchy rendering): preset geometries for methane (tetrahedral), water
+  (bent), ammonia (pyramidal) and CO₂ (linear), with adjustable camera angles.
+  Choose this scene for requests about molecular SHAPE — tetrahedral geometry,
+  bond angles, VSEPR, "show methane in 3D", lone-pair geometry discussions.
+  For flat structural formulas of arbitrary molecules use the chemistry pack's
+  molecule template instead. A playlist can show the same molecule from a
+  second angle by using different azimuth/elevation in the next part.
+params:
+  type: object
+  properties:
+    molecule:
+      type: string
+      enum: [methane, water, ammonia, co2]
+      description: "Which preset geometry (default methane)."
+    azimuth:
+      type: number
+      description: "Camera orbit angle in degrees (default 28)."
+    elevation:
+      type: number
+      description: "Camera tilt in degrees (default 18)."
+    show_labels:
+      type: boolean
+      description: "Element symbols next to the atoms (default true)."
+    name:
+      type: string
+      description: "Caption, e.g. \"Methane CH₄ — tetrahedral, 109.5°\". A sensible default is provided per molecule."
+element_ids:
+  atom_0: the central atom's sphere
+  atom_<i>: the outer atoms' spheres (i = 1…)
+  bond_<i> / bond_<i>__f: the two depth-sorted halves of each stick
+  label_<i>: the element symbol next to atom i (when show_labels)
+  caption: the caption line under the figure
+examples:
+  - request: "Show methane in 3D so the tetrahedral shape is clear."
+    params: { molecule: methane }
+  - request: "Show the bent shape of a water molecule."
+    params: { molecule: water, azimuth: 40 }
+layout: |
+  const PRESETS = {
+    methane: {
+      caption: "Methane CH₄ — tetrahedral, 109.5°",
+      atoms: [
+        { sym: "C", p: [0, 0, 0], r: 0.32, color: kit.COLORS.ink, fill: "#5a544c" },
+        { sym: "H", p: [0.63, 0.63, 0.63], r: 0.2, color: kit.COLORS.supply, fill: "#bcd2e0" },
+        { sym: "H", p: [0.63, -0.63, -0.63], r: 0.2, color: kit.COLORS.supply, fill: "#bcd2e0" },
+        { sym: "H", p: [-0.63, 0.63, -0.63], r: 0.2, color: kit.COLORS.supply, fill: "#bcd2e0" },
+        { sym: "H", p: [-0.63, -0.63, 0.63], r: 0.2, color: kit.COLORS.supply, fill: "#bcd2e0" },
+      ],
+      bonds: [[0, 1], [0, 2], [0, 3], [0, 4]],
+    },
+    water: {
+      caption: "Water H₂O — bent, 104.5°",
+      atoms: [
+        { sym: "O", p: [0, 0, 0], r: 0.3, color: kit.COLORS.demand, fill: "#e8a396" },
+        { sym: "H", p: [0.76, 0.59, 0], r: 0.19, color: kit.COLORS.supply, fill: "#bcd2e0" },
+        { sym: "H", p: [-0.76, 0.59, 0], r: 0.19, color: kit.COLORS.supply, fill: "#bcd2e0" },
+      ],
+      bonds: [[0, 1], [0, 2]],
+    },
+    ammonia: {
+      caption: "Ammonia NH₃ — trigonal pyramid",
+      atoms: [
+        { sym: "N", p: [0, 0.1, 0], r: 0.3, color: kit.COLORS.accent, fill: "#c9b8dd" },
+        { sym: "H", p: [0.94, -0.38, 0], r: 0.19, color: kit.COLORS.supply, fill: "#bcd2e0" },
+        { sym: "H", p: [-0.47, -0.38, 0.81], r: 0.19, color: kit.COLORS.supply, fill: "#bcd2e0" },
+        { sym: "H", p: [-0.47, -0.38, -0.81], r: 0.19, color: kit.COLORS.supply, fill: "#bcd2e0" },
+      ],
+      bonds: [[0, 1], [0, 2], [0, 3]],
+    },
+    co2: {
+      caption: "Carbon dioxide CO₂ — linear, 180°",
+      atoms: [
+        { sym: "C", p: [0, 0, 0], r: 0.3, color: kit.COLORS.ink, fill: "#5a544c" },
+        { sym: "O", p: [1.16, 0, 0], r: 0.28, color: kit.COLORS.demand, fill: "#e8a396" },
+        { sym: "O", p: [-1.16, 0, 0], r: 0.28, color: kit.COLORS.demand, fill: "#e8a396" },
+      ],
+      bonds: [[0, 1], [0, 2]],
+    },
+  };
+  const preset = PRESETS[params.molecule] ?? PRESETS.methane;
+  const showLabels = params.show_labels !== false;
+  const prims = [];
+  preset.atoms.forEach((a, i) => {
+    prims.push({ kind: "sphere", id: "atom_" + i, c: a.p, r: a.r, color: a.color, fill: a.fill });
+    if (showLabels) {
+      const len = Math.hypot(a.p[0], a.p[1], a.p[2]);
+      if (len > 0.01) {
+        const dir = a.p.map((v) => v / len);
+        const off = a.r + 0.34;
+        prims.push({ kind: "text3", id: "label_" + i, p: [a.p[0] + dir[0] * off, a.p[1] + dir[1] * off, a.p[2] + dir[2] * off], text: a.sym, fontSize: 26, color: a.color });
+      } else {
+        // Central atom: the symbol sits ON the sphere in paper color.
+        prims.push({ kind: "text3", id: "label_" + i, p: a.p, text: a.sym, fontSize: 24, color: "#fbf8f1" });
+      }
+    }
+  });
+  preset.bonds.forEach(([f, t], i) => {
+    prims.push({
+      kind: "seg", id: "bond_" + (i + 1),
+      a: preset.atoms[f].p, b: preset.atoms[t].p,
+      w: 5, color: kit.COLORS.guide,
+      trimA: preset.atoms[f].r + 0.04, trimB: preset.atoms[t].r + 0.04,
+    });
+  });
+  const projected = kit.project3d(
+    { azimuth: params.azimuth ?? 28, elevation: params.elevation ?? 18, distance: 6.5, cy: 400 },
+    prims,
+  );
+  const labels = [kit.label("caption", [500, 120], "below", params.name ?? preset.caption, { fontSize: 28 })];
+  return { drawables: projected.drawables, labels, anchors: projected.anchors, order: [...projected.order, "caption"] };

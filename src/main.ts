@@ -83,6 +83,7 @@ import {
   type UserPrompt,
 } from "./store";
 import fewshots from "./llm/prompts/fewshots.json";
+import bundledExamples from "./examples.json";
 
 const settings = loadSettings();
 // Cloud voices for live playback when a TTS key is set (and the toggle is on);
@@ -91,7 +92,9 @@ const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : "")
 speech.setVoice(settings.voiceURI);
 speech.setRate(settings.rate);
 const variants: PromptVariant[] = promptVariants();
-const examples = fewshots as { request: string; spec: Spec }[];
+// The dropdown bundles the LLM fewshots PLUS curated offline examples that
+// never enter the compiler prompt (src/examples.json — template showcases).
+const examples = [...(fewshots as { request: string; spec: Spec }[]), ...(bundledExamples as { request: string; spec: Spec }[])];
 
 interface Doc {
   title: string;
