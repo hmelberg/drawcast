@@ -956,7 +956,10 @@ function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): v
   model3dDialog.showModal();
   void openModel3d(model3dDialog, model3dContainer, q, ac.signal, {
     onMounted: (v) => {
-      if (!ac.signal.aborted) model3dViewer = v;
+      if (!ac.signal.aborted) {
+        model3dViewer = v;
+        v.spin(model3dSpinning); // re-apply any toggle click that landed during the async mount
+      }
     },
   }).then((destroy) => {
     if (ac.signal.aborted) {
