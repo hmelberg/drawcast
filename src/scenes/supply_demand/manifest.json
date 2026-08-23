@@ -18,14 +18,18 @@
         "description": "The demand curve (always drawn).",
         "properties": {
           "steepness": {
-            "type": [
-              "string",
-              "number"
-            ],
-            "enum": [
-              "gentle",
-              "medium",
-              "steep"
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "gentle",
+                  "medium",
+                  "steep"
+                ]
+              },
+              {
+                "type": "number"
+              }
             ],
             "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05. Use a number when the value needs to animate smoothly."
           },
@@ -52,14 +56,18 @@
         "description": "The supply curve. Set to null to draw demand only.",
         "properties": {
           "steepness": {
-            "type": [
-              "string",
-              "number"
-            ],
-            "enum": [
-              "gentle",
-              "medium",
-              "steep"
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "gentle",
+                  "medium",
+                  "steep"
+                ]
+              },
+              {
+                "type": "number"
+              }
             ],
             "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05."
           },
