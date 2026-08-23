@@ -26,7 +26,7 @@ import {
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engines";
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
-import { openModel3d, qualifiesFor3d, type Model3dViewer } from "./ui/model3d";
+import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -910,13 +910,14 @@ authorDialog.addEventListener("close", () => {
 
 const model3dContainer = h("div", { class: "model3d-container" });
 const model3dSpinBtn = h("button", {}, "Pause spin");
+const model3dLabelsBtn = h("button", {}, "Hide labels");
 const model3dCloseBtn = h("button", {}, "Close");
 const model3dDialog = h(
   "dialog",
   { class: "model3d-dialog" },
   h("h3", {}, "Explore in 3D"),
   model3dContainer,
-  h("div", { class: "row" }, model3dSpinBtn, model3dCloseBtn),
+  h("div", { class: "row" }, model3dSpinBtn, model3dLabelsBtn, model3dCloseBtn),
 );
 app.appendChild(model3dDialog);
 
@@ -929,6 +930,13 @@ function setModel3dSpin(on: boolean): void {
   model3dViewer?.spin(on);
 }
 model3dSpinBtn.addEventListener("click", () => setModel3dSpin(!model3dSpinning));
+let model3dLabelsOn = true;
+function setModel3dLabelsState(on: boolean): void {
+  model3dLabelsOn = on;
+  model3dLabelsBtn.textContent = on ? "Hide labels" : "Show labels";
+  if (model3dViewer) setModel3dLabels(model3dViewer, on);
+}
+model3dLabelsBtn.addEventListener("click", () => setModel3dLabelsState(!model3dLabelsOn));
 /**
  * One AbortController per open, held module-level. This is the generation
  * marker for the whole flow — not just a main.ts-side "ignore this result"
@@ -953,12 +961,14 @@ function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): v
   model3dAbort = ac;
   model3dViewer = null;
   setModel3dSpin(true); // every open starts spinning, whatever the last session did
+  setModel3dLabelsState(true); // and with element labels showing
   model3dDialog.showModal();
   void openModel3d(model3dDialog, model3dContainer, q, ac.signal, {
     onMounted: (v) => {
       if (!ac.signal.aborted) {
         model3dViewer = v;
         v.spin(model3dSpinning); // re-apply any toggle click that landed during the async mount
+        setModel3dLabels(v, model3dLabelsOn); // same for the labels toggle (clear-then-add, so never stacked)
       }
     },
   }).then((destroy) => {

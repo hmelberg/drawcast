@@ -103,6 +103,28 @@ export interface Model3dViewer {
   spin(axis: boolean | string): void;
   render(): unknown;
   clear(): unknown;
+  addPropertyLabels(prop: string, sel: Record<string, unknown>, style: Record<string, unknown>): unknown;
+  removeAllLabels(): unknown;
+}
+
+/**
+ * Toggles per-atom element labels on a mounted viewer. Always clears first —
+ * 3Dmol stacks labels, so a bare re-add after a toggle round-trip would pile
+ * a second label onto every atom. Labels are billboarded at each atom's 3D
+ * position by 3Dmol itself, so they track the spin.
+ */
+export function setModel3dLabels(viewer: Model3dViewer, on: boolean): void {
+  viewer.removeAllLabels();
+  if (on) {
+    viewer.addPropertyLabels(
+      "elem",
+      {},
+      // Paper-palette chip: dark ink on a faint warm background so the symbol
+      // reads against any sphere color without hiding the geometry.
+      { fontSize: 13, fontColor: "#3a3630", showBackground: true, backgroundColor: "#fbf8f1", backgroundOpacity: 0.65, alignment: "center" },
+    );
+  }
+  viewer.render();
 }
 export interface Model3dNamespace {
   createViewer(container: HTMLElement, config?: Record<string, unknown>): Model3dViewer;
@@ -214,8 +236,9 @@ async function fetchPubchemSdf(smiles: string, signal: AbortSignal): Promise<str
  * behavior unit-testable against plain object stubs (see tests/model3d.test.ts).
  *
  * `opts.onMounted` fires once after a successful mount — the caller's handle
- * for runtime controls like the spin toggle — and never fires on an aborted,
- * superseded, or failed open.
+ * for runtime controls like the spin and labels toggles — and never fires on
+ * an aborted, superseded, or failed open. A mounted viewer starts spinning
+ * with element labels shown (setModel3dLabels(viewer, true)).
  */
 export async function openModel3d(
   host: HTMLDialogElement,
@@ -251,6 +274,7 @@ export async function openModel3d(
     viewer.zoomTo();
     viewer.render();
     viewer.spin(true);
+    setModel3dLabels(viewer, true); // element labels start on, like the spin — the caller's onMounted re-applies its own state
     opts?.onMounted?.(viewer);
   } catch (err) {
     if (signal.aborted) return destroy; // superseded mid-flight — never touch a container another call may now own

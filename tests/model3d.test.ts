@@ -7,8 +7,10 @@ import {
   qualifiesFor3d,
   resetModel3dCacheForTests,
   resolveModel3dNamespace,
+  setModel3dLabels,
   xyzFromPreset,
   type Model3dNamespace,
+  type Model3dViewer,
 } from "../src/ui/model3d";
 import { validateTemplateDoc, docToManifest } from "../src/scenes/doc";
 import { scenes } from "../src/scenes/registry";
@@ -128,7 +130,7 @@ describe("ensure3dmol", () => {
   test("loads once and caches; returns the resolved namespace", async () => {
     resetModel3dCacheForTests(); // order-independence: don't inherit another test's cached value
     let loads = 0;
-    const fakeNs: Model3dNamespace = { createViewer: () => ({ addModel: () => undefined, setStyle: () => undefined, zoomTo: () => undefined, spin: () => undefined, render: () => undefined, clear: () => undefined }) };
+    const fakeNs: Model3dNamespace = { createViewer: () => ({ addModel: () => undefined, setStyle: () => undefined, zoomTo: () => undefined, spin: () => undefined, render: () => undefined, clear: () => undefined, addPropertyLabels: () => undefined, removeAllLabels: () => undefined }) };
     MODEL3D_DEF.load = async () => {
       loads++;
       return { default: fakeNs };
@@ -263,6 +265,8 @@ describe("openModel3d: abort/guard path (no DOM)", () => {
       render: () => calls.push("render"),
       spin: (on: boolean | string) => calls.push(`spin:${on}`),
       clear: () => calls.push("clear"),
+      addPropertyLabels: (prop: string) => calls.push(`addPropertyLabels:${prop}`),
+      removeAllLabels: () => calls.push("removeAllLabels"),
     };
     MODEL3D_DEF.load = async () => ({ createViewer: () => fakeViewer });
     let mounted: unknown = null;
@@ -290,6 +294,49 @@ describe("openModel3d: abort/guard path (no DOM)", () => {
       },
     });
     expect(mounted).toBe(false);
+  });
+});
+
+// Atom labels in the modal are toggled through setModel3dLabels; a re-apply
+// must REPLACE (clear-then-add), never stack a second label per atom.
+describe("setModel3dLabels", () => {
+  const labelStubViewer = (calls: string[]) =>
+    ({
+      addPropertyLabels: (prop: string) => calls.push(`addPropertyLabels:${prop}`),
+      removeAllLabels: () => calls.push("removeAllLabels"),
+      render: () => calls.push("render"),
+    }) as unknown as Model3dViewer;
+
+  test("on: clears existing labels, adds per-element labels, re-renders — in that order", () => {
+    const calls: string[] = [];
+    setModel3dLabels(labelStubViewer(calls), true);
+    expect(calls).toEqual(["removeAllLabels", "addPropertyLabels:elem", "render"]);
+  });
+
+  test("off: clears labels and re-renders without adding any", () => {
+    const calls: string[] = [];
+    setModel3dLabels(labelStubViewer(calls), false);
+    expect(calls).toEqual(["removeAllLabels", "render"]);
+  });
+
+  test("a successful mount shows element labels by default", async () => {
+    resetModel3dCacheForTests();
+    const container = { replaceChildren: vi.fn() } as unknown as HTMLElement;
+    const host = { open: true } as unknown as HTMLDialogElement;
+    const calls: string[] = [];
+    const fakeViewer = {
+      addModel: () => calls.push("addModel"),
+      setStyle: () => calls.push("setStyle"),
+      zoomTo: () => calls.push("zoomTo"),
+      render: () => calls.push("render"),
+      spin: (on: boolean | string) => calls.push(`spin:${on}`),
+      clear: () => calls.push("clear"),
+      addPropertyLabels: (prop: string) => calls.push(`addPropertyLabels:${prop}`),
+      removeAllLabels: () => calls.push("removeAllLabels"),
+    };
+    MODEL3D_DEF.load = async () => ({ createViewer: () => fakeViewer });
+    await openModel3d(host, container, { kind: "molecule", input: { xyz: xyzFromPreset("methane")! } }, new AbortController().signal);
+    expect(calls).toContain("addPropertyLabels:elem");
   });
 });
 
