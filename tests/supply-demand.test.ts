@@ -157,4 +157,16 @@ describe("numeric curve params (animate prerequisites)", () => {
       expect(at20.order).toContain(id);
     }
   });
+
+  test("extreme shift amounts are clamped, not dropped: layout never throws and the shift curve survives", () => {
+    for (const amount of [150, -150]) {
+      let l: SceneLayout | undefined;
+      expect(() => {
+        l = layoutSupplyDemand({ demand_shift: { amount } });
+      }).not.toThrow();
+      const shifted = l!.curveSamples!["demand_shift_curve"];
+      expect(shifted).toBeDefined();
+      expect(shifted!.length).toBeGreaterThan(0);
+    }
+  });
 });

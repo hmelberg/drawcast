@@ -210,6 +210,24 @@ describe("animate planning", () => {
     expect(missing.warnings.join(" ")).toMatch(/no numeric start value/);
   });
 
+  test("no template with a paired speak: animate still skipped, but the narration survives as its own speak step", () => {
+    const plan = planCommands([{ animate: { a: 1 }, speak: "watch it grow" }], ["axes"], {});
+    expect(plan.steps.some((s) => s.kind === "animate")).toBe(false);
+    expect(plan.warnings.join(" ")).toMatch(/animate requires a scene template/);
+    expect(plan.steps).toContainEqual({ kind: "speak", text: "watch it grow", blocking: true });
+  });
+
+  test("dropped non-numeric animate targets each get their own warning, not just the all-dropped case", () => {
+    const plan = planCommands(
+      [{ animate: { "demand_shift.amount": 20, bad: "nope" } as unknown as Record<string, number> }],
+      ["axes"],
+      { animateBase: base },
+    );
+    expect(plan.warnings).toContain('animate "bad" target is not a number (dropped)');
+    const step = plan.steps.find((s) => s.kind === "animate")!;
+    expect(step).toMatchObject({ targets: { "demand_shift.amount": 20 } });
+  });
+
   test("bbox source switches after an animate", () => {
     const before = { x: 0, y: 0, w: 10, h: 10 };
     const after = { x: 50, y: 0, w: 10, h: 10 };

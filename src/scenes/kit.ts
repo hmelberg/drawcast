@@ -624,6 +624,13 @@ export const kit: SceneKit = {
           { normal: [0, 0, 1], pts: [[bx - hx, by - hy, bz + hz], [bx + hx, by - hy, bz + hz], [bx + hx, by + hy, bz + hz], [bx - hx, by + hy, bz + hz]] },
           { normal: [0, 0, -1], pts: [[bx + hx, by - hy, bz - hz], [bx - hx, by - hy, bz - hz], [bx - hx, by + hy, bz - hz], [bx + hx, by + hy, bz - hz]] },
         ];
+        // Known seam: `visible` (and so which `__f${i}`/`__e${i}` ids exist at
+        // all) is camera-angle-dependent — a template that exposed numeric
+        // camera params to `animate` would see face/edge ids appear and
+        // disappear across visibility boundaries. The player's visible set is
+        // fixed at the animate's starting boundary, so a newly-appearing id
+        // is never in it and stays hidden through the tween. Fine for the
+        // current templates, which don't animate the camera.
         const visible = faces.map((f) => rotatedZ(f.normal) > 0);
         const faceDepths: number[] = [];
         faces.forEach((f, i) => {

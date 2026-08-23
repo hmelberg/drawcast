@@ -124,7 +124,11 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     ["supply", supplyPts, params.supply_shift],
   ] as const) {
     if (!shift || !base) continue;
-    const dx = shift.amount ?? ((shift.direction ?? "right") === "right" ? 15 : -15);
+    // Clamp (never skip): an extreme amount would filter out every shifted
+    // point below and leave `shifted` empty, crashing the last-point lookups
+    // that follow — and the animate machinery depends on these ids staying
+    // stable across every layout call.
+    const dx = Math.max(-93, Math.min(95, shift.amount ?? ((shift.direction ?? "right") === "right" ? 15 : -15)));
     // drop (not clamp) points shifted past the plot edge, so the curve keeps its slope
     const shifted = base.map(([x, y]): Pt => [x + dx, y]).filter(([x]) => x >= D0 - 1 && x <= D1 + 3);
     shiftedDomain[`${kind}_shift_curve`] = shifted;

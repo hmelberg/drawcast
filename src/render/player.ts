@@ -461,12 +461,19 @@ export class Player {
     return new Promise((resolve) => {
       let t = 0;
       let last = performance.now();
+      let lastP = -1;
       const tick = (now: number) => {
         if (signal.aborted) return resolve();
         if (!this.pausedFlag) t += (now - last) * this.speedVal;
         last = now;
         const p = Math.min(t / ms, 1);
-        onTick(p);
+        // Skip onTick while paused holds p unchanged — avoids a busy-loop of
+        // relayouts (e.g. animate's reprojector.frame) firing every rAF for
+        // no visual change. p===1 always gets through so completion fires.
+        if (p !== lastP) {
+          lastP = p;
+          onTick(p);
+        }
         if (p >= 1) return resolve();
         requestAnimationFrame(tick);
       };

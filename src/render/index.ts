@@ -83,11 +83,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const boundaryLayouts = new Map<string, LayoutResult>();
   const layoutFor = (params: Record<string, number>, cache: boolean): LayoutResult => {
     if (Object.keys(params).length === 0) return layout;
-    const key = JSON.stringify(Object.entries(params).sort());
-    const hit = cache ? boundaryLayouts.get(key) : undefined;
+    const key = cache ? JSON.stringify(Object.entries(params).sort()) : undefined;
+    const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
     const l = layoutSpec({ ...spec, params: withOverrides(spec.params, params) }, measure);
-    if (cache) boundaryLayouts.set(key, l);
+    if (key !== undefined) boundaryLayouts.set(key, l);
     return l;
   };
 

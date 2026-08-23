@@ -276,11 +276,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       camera = box;
       pushStep({ kind: "camera", box, seconds: cmd.camera.duration ?? 1.2 });
     } else if (cmd.animate !== undefined) {
-      const targets = Object.fromEntries(
-        Object.entries(cmd.animate).filter(([, v]) => typeof v === "number" && Number.isFinite(v)),
-      ) as Record<string, number>;
+      const targets: Record<string, number> = {};
+      for (const [key, v] of Object.entries(cmd.animate)) {
+        if (typeof v === "number" && Number.isFinite(v)) {
+          targets[key] = v;
+        } else {
+          warnings.push(`animate "${key}" target is not a number (dropped)`);
+        }
+      }
       if (opts.animateBase === undefined || opts.animateBase === null) {
         warnings.push("animate requires a scene template (skipped)");
+        // No template means no animation surface at all, but a paired
+        // narration is still content the story wanted spoken — keep it
+        // rather than silently dropping the sentence with the animate.
+        if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true });
         continue;
       }
       if (Object.keys(targets).length === 0) {

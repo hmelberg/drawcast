@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { Player, type Reprojector } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
@@ -114,5 +114,49 @@ describe("the animate action", () => {
     await player.play();
     expect(commits.length).toBe(2); // the second animate is a no-op in value but must still settle with its own commit
     expect(commits[1]).toEqual({ "demand_shift.amount": 20 });
+  });
+
+  test("commit→applyScene sequencing: an element returned by commit that is visible at the boundary gets finish() called (guards the 'later draws invisible' regression class)", async () => {
+    const finishSpy = vi.fn();
+    const hideSpy = vi.fn();
+    const committedEl: RenderedElement = { id: "foo", durationMs: 0, setProgress() {}, finish: finishSpy, hide: hideSpy };
+    const preElements = new Map<string, RenderedElement>([
+      ["foo", { id: "foo", durationMs: 0, setProgress() {}, finish() {}, hide() {} }],
+    ]);
+    const rp: Reprojector = {
+      frame: () => {},
+      commit: () => new Map<string, RenderedElement>([["foo", committedEl]]),
+    };
+    const plan = planCommands(
+      [{ draw: ["foo"] }, { animate: { "demand_shift.amount": 20 }, duration: 0.02 }],
+      ["foo"],
+      { animateBase: BASE },
+    );
+    const player = new Player(plan, preElements, new StubSpeech(), null, { mode: "silent" });
+    player.reprojector = rp;
+    await player.play();
+    expect(player.state).toBe("done");
+    expect(finishSpy).toHaveBeenCalled();
+    expect(hideSpy).not.toHaveBeenCalled();
+  });
+
+  test("multi-key passthrough: a second animate on a different key still carries the first key's settled value on every frame", async () => {
+    const plan = planCommands(
+      [
+        { animate: { "demand_shift.amount": 20 }, duration: 0.02 },
+        { animate: { "tax.rate": 5 }, duration: 0.05 },
+      ],
+      [],
+      { animateBase: BASE },
+    );
+    const { rp, frames } = makeReprojector();
+    const player = new Player(plan, new Map(), new StubSpeech(), null, { mode: "silent" });
+    player.reprojector = rp;
+    await player.play();
+    const secondKeyFrames = frames.filter((f) => "tax.rate" in f);
+    expect(secondKeyFrames.length).toBeGreaterThan(0);
+    for (const f of secondKeyFrames) {
+      expect(f["demand_shift.amount"]).toBe(20);
+    }
   });
 });
