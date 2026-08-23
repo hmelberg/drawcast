@@ -18,12 +18,16 @@
         "description": "The demand curve (always drawn).",
         "properties": {
           "steepness": {
-            "type": "string",
+            "type": [
+              "string",
+              "number"
+            ],
             "enum": [
               "gentle",
               "medium",
               "steep"
-            ]
+            ],
+            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05. Use a number when the value needs to animate smoothly."
           },
           "curvature": {
             "type": "string",
@@ -48,12 +52,16 @@
         "description": "The supply curve. Set to null to draw demand only.",
         "properties": {
           "steepness": {
-            "type": "string",
+            "type": [
+              "string",
+              "number"
+            ],
             "enum": [
               "gentle",
               "medium",
               "steep"
-            ]
+            ],
+            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05."
           },
           "curvature": {
             "type": "string",
@@ -96,14 +104,19 @@
       },
       "demand_shift": {
         "type": "object",
-        "description": "A shifted demand curve D→D′ with a shift arrow.",
+        "description": "A shifted demand curve D→D′ with a shift arrow. When both demand_shift and supply_shift are set, no new (shifted) equilibrium is drawn — v1 limit.",
         "properties": {
           "direction": {
             "type": "string",
             "enum": [
               "right",
               "left"
-            ]
+            ],
+            "description": "Fallback used only when amount is not set (right = +15, left = -15)."
+          },
+          "amount": {
+            "type": "number",
+            "description": "Signed horizontal shift in domain units (0–100 axis). When set, wins over direction. 0 is legal: the shifted curve coincides exactly with the base curve — the canonical animate start state. Positive = right, negative = left."
           },
           "label": {
             "type": "string",
@@ -113,14 +126,19 @@
       },
       "supply_shift": {
         "type": "object",
-        "description": "A shifted supply curve S→S′ with a shift arrow.",
+        "description": "A shifted supply curve S→S′ with a shift arrow. When both demand_shift and supply_shift are set, no new (shifted) equilibrium is drawn — v1 limit.",
         "properties": {
           "direction": {
             "type": "string",
             "enum": [
               "right",
               "left"
-            ]
+            ],
+            "description": "Fallback used only when amount is not set (right = +15, left = -15)."
+          },
+          "amount": {
+            "type": "number",
+            "description": "Signed horizontal shift in domain units (0–100 axis). When set, wins over direction. 0 is legal: the shifted curve coincides exactly with the base curve — the canonical animate start state. Positive = right, negative = left."
           },
           "label": {
             "type": "string",
@@ -193,8 +211,13 @@
     "label_Pstar": "price-axis label at the equilibrium",
     "label_Qstar": "quantity-axis label at the equilibrium",
     "demand_shift_curve / supply_shift_curve": "the shifted curve (when a shift is set)",
-    "demand_shift_arrow / supply_shift_arrow": "arrow from the old to the new curve",
+    "demand_shift_arrow / supply_shift_arrow": "arrow from the old to the new curve; always present when a shift is set, but has no arrowhead when the shift amount is near 0 (|amount| < 2)",
     "label_D_shift / label_S_shift": "shifted curve label",
+    "shift_equilibrium_point": "dot at the new D–S crossing after a single shift (absent if both demand_shift and supply_shift are set)",
+    "shift_guide_lines": "dashed guides from the shifted equilibrium to both axes",
+    "label_E_shift": "shifted equilibrium label (\"E′\")",
+    "label_P_shift": "price-axis label at the shifted equilibrium (\"P*′\")",
+    "label_Q_shift": "quantity-axis label at the shifted equilibrium (\"Q*′\")",
     "tax_supply_curve": "the S+tax curve (when tax is set)",
     "label_S_tax": "its label",
     "tax_equilibrium_point": "the with-tax equilibrium dot",
@@ -231,6 +254,19 @@
         },
         "price_ceiling": {
           "show_shortage": true
+        }
+      }
+    },
+    {
+      "request": "Show demand increasing and where the new equilibrium lands.",
+      "params": {
+        "demand": {},
+        "supply": {},
+        "equilibrium": {
+          "show": true
+        },
+        "demand_shift": {
+          "amount": 0
         }
       }
     }
