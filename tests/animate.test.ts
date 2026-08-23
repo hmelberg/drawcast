@@ -85,4 +85,34 @@ describe("the animate action", () => {
     await player.play();
     expect(player.state).toBe("done");
   });
+
+  test("abort mid-animate, then scrub to a boundary whose params already match: still commits (a stale mid-tween frame must never be left uncommitted)", async () => {
+    const plan = planCommands([{ animate: { "demand_shift.amount": 20 }, duration: 0.3 }], [], { animateBase: BASE });
+    const { rp, commits } = makeReprojector();
+    const player = new Player(plan, new Map(), new StubSpeech(), null, { mode: "silent" });
+    player.reprojector = rp;
+    const done = player.play();
+    await new Promise((r) => setTimeout(r, 40)); // a few frame ticks into the 300ms animation, nowhere near done
+    player.renderUpTo(0); // appliedParams is still {} here — a naive params-equality check would skip the commit
+    expect(commits.length).toBeGreaterThan(0);
+    expect(commits[commits.length - 1]).toEqual({});
+    await done;
+  });
+
+  test("redundant animate (same target as current params) still ends on a commit, not a trailing frame", async () => {
+    const plan = planCommands(
+      [
+        { animate: { "demand_shift.amount": 20 }, duration: 0.05 },
+        { animate: { "demand_shift.amount": 20 }, duration: 0.05 },
+      ],
+      [],
+      { animateBase: BASE },
+    );
+    const { rp, commits } = makeReprojector();
+    const player = new Player(plan, new Map(), new StubSpeech(), null, { mode: "silent" });
+    player.reprojector = rp;
+    await player.play();
+    expect(commits.length).toBe(2); // the second animate is a no-op in value but must still settle with its own commit
+    expect(commits[1]).toEqual({ "demand_shift.amount": 20 });
+  });
 });

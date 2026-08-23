@@ -64,6 +64,8 @@ export class Player {
   private completed = 0;
   /** Animate params currently reflected on screen (last reprojector.commit call). */
   private appliedParams: Record<string, number> = {};
+  /** True once any reprojector.frame() has run since the last commit — forces the next applyParams to commit even if params compare equal (frame() left the DOM at a live, possibly detached, mid-tween state). */
+  private geometryDirty = false;
   state: PlayerState = "idle";
 
   constructor(
@@ -205,11 +207,18 @@ export class Player {
     return ka.length === kb.length && ka.every((k) => a[k] === b[k]);
   }
 
-  /** Remount at the boundary's params when they differ from what is on screen. */
+  /**
+   * Remount at the boundary's params when they differ from what is on screen,
+   * or when reprojector.frame() has run since the last commit (its mid-tween
+   * DOM state must always be settled by a trailing commit — never left as-is,
+   * even if the boundary's params happen to equal the last committed ones).
+   */
   private applyParams(params: Record<string, number>): void {
-    if (!this.reprojector || Player.sameParams(this.appliedParams, params)) return;
+    if (!this.reprojector) return;
+    if (!this.geometryDirty && Player.sameParams(this.appliedParams, params)) return;
     this.elements = this.reprojector.commit(params);
     this.appliedParams = { ...params };
+    this.geometryDirty = false;
   }
 
   dispose(): void {
@@ -399,6 +408,7 @@ export class Player {
             cur[key] = start === null ? step.targets[key] : start + (step.targets[key] - start) * e;
           }
           rp.frame(cur, visible, before.offsets);
+          this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
         this.applyParams(after);
