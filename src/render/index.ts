@@ -5,6 +5,7 @@
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { LintIssue } from "../lint/lint";
 import type { Spec } from "../spec/types";
+import { withOverrides } from "./params";
 import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager } from "./speech";
@@ -75,9 +76,29 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const measure = makeBrowserMeasure();
   const layout = layoutSpec(spec, measure);
   const bboxes = elementBBoxes(layout, measure);
+
+  // Param-state layouts for the animate command. Boundary layouts (commit,
+  // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
+  // is a distinct param set — caching them would hoard hundreds of layouts).
+  const boundaryLayouts = new Map<string, LayoutResult>();
+  const layoutFor = (params: Record<string, number>, cache: boolean): LayoutResult => {
+    if (Object.keys(params).length === 0) return layout;
+    const key = JSON.stringify(Object.entries(params).sort());
+    const hit = cache ? boundaryLayouts.get(key) : undefined;
+    if (hit) return hit;
+    const l = layoutSpec({ ...spec, params: withOverrides(spec.params, params) }, measure);
+    if (cache) boundaryLayouts.set(key, l);
+    return l;
+  };
+
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
     ...domainMapping(spec.domain),
+    animateBase: spec.template ? spec.params ?? {} : null,
+    bboxesFor: (params) => {
+      const b = elementBBoxes(layoutFor(params, true), measure);
+      return (id) => b.get(id) ?? null;
+    },
   });
 
   const mounted = await renderer.mount(layout, spec, stage);
@@ -91,6 +112,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     { mode: options.mode, speed: options.speed, effects: mounted.effects },
     options.callbacks,
   );
+
+  if (mounted.swapGeometry && mounted.remount) {
+    player.reprojector = {
+      frame: (params, visible, offsets) => mounted.swapGeometry!(layoutFor(params, false), visible, offsets),
+      commit: (params) => mounted.remount!(layoutFor(params, true)),
+    };
+  }
 
   const handle: RenderHandle = {
     timeline: player,

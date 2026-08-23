@@ -15,6 +15,8 @@ description: >-
   For flat structural formulas of arbitrary molecules use the chemistry pack's
   molecule template instead. A playlist can show the same molecule from a
   second angle by using different azimuth/elevation in the next part.
+  Rotate the whole molecule smoothly with the animate command: {"animate":
+  {"azimuth": 240}, "duration": 3} (write the starting azimuth in params).
 params:
   type: object
   properties:
@@ -42,7 +44,7 @@ element_ids:
   caption: the caption line under the figure
 examples:
   - request: "Show methane in 3D so the tetrahedral shape is clear."
-    params: { molecule: methane }
+    params: { molecule: methane, azimuth: 32 }
   - request: "Show the bent shape of a water molecule."
     params: { molecule: water, azimuth: 40 }
 layout: |
