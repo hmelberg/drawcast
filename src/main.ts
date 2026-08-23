@@ -910,20 +910,32 @@ const model3dDialog = h(
 app.appendChild(model3dDialog);
 
 let model3dDestroy: (() => void) | null = null;
-/** Bumped on every open and in the close handler; an openModel3d() continuation
- * that resolves after the dialog moved on (closed, or a newer item opened it)
- * must tear itself down instead of resurrecting into a stale container — the
- * same discipline as the author dialog's authorSeq. */
-let model3dSeq = 0;
+/**
+ * One AbortController per open, held module-level. This is the generation
+ * marker for the whole flow — not just a main.ts-side "ignore this result"
+ * flag: it's threaded into openModel3d(), which forwards it into the PubChem
+ * fetch (so a superseded fetch is actually cancelled, not left to complete
+ * pointlessly) and checks it immediately before mounting a viewer (so a
+ * still-in-flight call that resolves AFTER a newer one has already mounted
+ * can never clobber that newer viewer's container — the bug a plain
+ * "seq !== current" counter here in main.ts could not catch, because that
+ * check only ever ran in main.ts's own .then(), after openModel3d had
+ * already mutated the shared container).
+ */
+let model3dAbort: AbortController | null = null;
 
 function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): void {
-  const seq = ++model3dSeq;
+  // Aborting the previous controller — whether or not the dialog was closed
+  // first — cancels any of ITS still-in-flight work before this one starts.
+  model3dAbort?.abort();
   model3dDestroy?.();
   model3dDestroy = null;
+  const ac = new AbortController();
+  model3dAbort = ac;
   model3dDialog.showModal();
-  void openModel3d(model3dDialog, model3dContainer, q).then((destroy) => {
-    if (seq !== model3dSeq || !model3dDialog.open) {
-      destroy();
+  void openModel3d(model3dDialog, model3dContainer, q, ac.signal).then((destroy) => {
+    if (ac.signal.aborted) {
+      destroy(); // no-op if openModel3d itself never mounted; a safe teardown otherwise
       return;
     }
     model3dDestroy = destroy;
@@ -935,7 +947,8 @@ model3dCloseBtn.addEventListener("click", () => model3dDialog.close());
 // Native "close" fires for both the Close button and ESC (which bypasses any
 // click handler) — all cleanup lives here, not on model3dCloseBtn.
 model3dDialog.addEventListener("close", () => {
-  model3dSeq++;
+  model3dAbort?.abort();
+  model3dAbort = null;
   model3dDestroy?.();
   model3dDestroy = null;
   model3dContainer.replaceChildren();

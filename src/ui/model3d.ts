@@ -8,7 +8,6 @@
 // ensure3dmol() dynamic-imports it on first actual open, same discipline as
 // engines.ts's smiles-drawer chunk.
 
-import { h } from "./dom";
 import { scenes } from "../scenes/registry";
 
 // ---------- qualification ----------
@@ -125,6 +124,16 @@ export const MODEL3D_DEF: { load: () => Promise<unknown> } = { load: () => impor
 
 let cached: Model3dNamespace | null = null;
 
+/**
+ * Test-only: clears the module-level cache so a test can force ensure3dmol()
+ * to actually call its (freshly-stubbed) MODEL3D_DEF.load rather than
+ * silently reusing whatever a PRIOR test in the same file already cached.
+ * Never called from production code.
+ */
+export function resetModel3dCacheForTests(): void {
+  cached = null;
+}
+
 export async function ensure3dmol(): Promise<unknown> {
   if (cached) return cached;
   const mod = await MODEL3D_DEF.load();
@@ -138,9 +147,22 @@ export async function ensure3dmol(): Promise<unknown> {
 
 const PUBCHEM_TIMEOUT_MS = 15000;
 
-async function fetchPubchemSdf(smiles: string): Promise<string> {
+/**
+ * `signal` is the CALLER's per-open AbortSignal (main.ts aborts it on close or
+ * on a newer open superseding this one) — forwarded into an internal
+ * timeout-owning AbortController so the outstanding network request is
+ * actually cancelled, not just ignored on resolution. Manual forwarding
+ * (rather than `AbortSignal.any([signal, timeoutSignal])`) because this
+ * repo's configured DOM lib (TypeScript 5.9's lib.dom.d.ts, ES2022 target)
+ * has no `AbortSignal.any` static — checked directly in lib.dom.d.ts, not
+ * present.
+ */
+async function fetchPubchemSdf(smiles: string, signal: AbortSignal): Promise<string> {
   const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(smiles)}/SDF?record_type=3d`;
   const ac = new AbortController();
+  const forwardAbort = () => ac.abort();
+  if (signal.aborted) forwardAbort();
+  else signal.addEventListener("abort", forwardAbort);
   const timer = setTimeout(() => ac.abort(), PUBCHEM_TIMEOUT_MS);
   try {
     const res = await fetch(url, { signal: ac.signal });
@@ -149,10 +171,17 @@ async function fetchPubchemSdf(smiles: string): Promise<string> {
     if (!text.trim()) throw new Error("PubChem returned no 3D structure for this molecule");
     return text;
   } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") throw new Error("PubChem lookup timed out");
+    if (err instanceof Error && err.name === "AbortError") {
+      // Distinguishes the two abort causes for anyone reading a log — the
+      // caller (openModel3d) never surfaces this text either way once
+      // signal.aborted is true, since that path bails without touching the
+      // container at all.
+      throw new Error(signal.aborted ? "cancelled — superseded or dialog closed" : "PubChem lookup timed out");
+    }
     throw err;
   } finally {
     clearTimeout(timer);
+    signal.removeEventListener("abort", forwardAbort);
   }
 }
 
@@ -160,16 +189,32 @@ async function fetchPubchemSdf(smiles: string): Promise<string> {
 
 /**
  * Resolves the query's input, mounts a 3Dmol viewer into `container`, and
- * returns a destroy function. `host` (the dialog) is checked after each async
- * step — if it was closed (ESC/close button) while a fetch or chunk load was
- * still in flight, this skips mounting a viewer into a container the close
- * handler may already have cleared, and returns a no-op destroy. Any failure
- * (offline, chunk load, PubChem error) replaces `container` with plain
- * failure text — never throws, never leaves the dialog blank with no
- * explanation.
+ * returns a destroy function.
+ *
+ * `signal` is this call's OWN generation marker (main.ts creates one
+ * AbortController per open and aborts the previous one on both close and a
+ * newer open) — it is what actually cancels a still-in-flight PubChem fetch
+ * (see fetchPubchemSdf) AND is checked at TWO points: immediately on entry
+ * (a call that arrives already superseded never touches `container` at
+ * all — not even to show "Loading…") and again immediately before the final
+ * mount (anything async above — chunk load, fetch — could have taken long
+ * enough for this call to have been superseded in the meantime). Both checks
+ * matter: by the time a stale call's promise resolves, a newer call may
+ * already have mounted its own viewer into the same shared container, so
+ * this must never assume it still owns it. `host.open` is kept as a second,
+ * redundant guard on the pre-mount check (defense in depth against any path
+ * that closes the dialog without going through the abort wiring). Any
+ * failure (offline, chunk load, PubChem error) — PROVIDED this call is still
+ * current — replaces `container` with plain failure text: never throws,
+ * never leaves the dialog blank with no explanation.
+ *
+ * Status/error text is written as a bare string via `container.replaceChildren`
+ * (browsers turn a string argument into a Text node) rather than through an
+ * `h()`-built element — this function otherwise has no DOM dependency beyond
+ * whatever `host`/`container` themselves provide, which keeps its abort/guard
+ * behavior unit-testable against plain object stubs (see tests/model3d.test.ts).
  */
-export async function openModel3d(host: HTMLDialogElement, container: HTMLElement, q: Model3dQuery): Promise<() => void> {
-  container.replaceChildren(h("div", { class: "model3d-status" }, "Loading 3D viewer…"));
+export async function openModel3d(host: HTMLDialogElement, container: HTMLElement, q: Model3dQuery, signal: AbortSignal): Promise<() => void> {
   let viewer: Model3dViewer | null = null;
   const destroy = (): void => {
     try {
@@ -180,11 +225,16 @@ export async function openModel3d(host: HTMLDialogElement, container: HTMLElemen
     }
     viewer = null;
   };
+  if (signal.aborted) return destroy; // dead on arrival — never touch the container
+  container.replaceChildren("Loading 3D viewer…");
   try {
     const $3Dmol = (await ensure3dmol()) as Model3dNamespace;
-    const data = "xyz" in q.input ? q.input.xyz : await fetchPubchemSdf(q.input.smiles);
+    const data = "xyz" in q.input ? q.input.xyz : await fetchPubchemSdf(q.input.smiles, signal);
     const format = "xyz" in q.input ? "xyz" : "sdf";
-    if (!host.open) return destroy; // closed while loading — nothing to mount
+    // Immediately before the mount, not before: this is the checkpoint that
+    // matters — anything async above (chunk load, fetch) could have taken
+    // long enough for this call to have been superseded.
+    if (signal.aborted || !host.open) return destroy;
     container.replaceChildren();
     viewer = $3Dmol.createViewer(container, { backgroundColor: "white" });
     viewer.addModel(data, format);
@@ -193,7 +243,8 @@ export async function openModel3d(host: HTMLDialogElement, container: HTMLElemen
     viewer.render();
     viewer.spin(true);
   } catch (err) {
-    container.replaceChildren(h("div", { class: "model3d-error" }, `Couldn't load the 3D view: ${(err as Error).message}`));
+    if (signal.aborted) return destroy; // superseded mid-flight — never touch a container another call may now own
+    container.replaceChildren(`Couldn't load the 3D view: ${(err as Error).message}`);
   }
   return destroy;
 }

@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   ensure3dmol,
   MODEL3D_DEF,
+  openModel3d,
   PRESET_XYZ,
   qualifiesFor3d,
+  resetModel3dCacheForTests,
   resolveModel3dNamespace,
   xyzFromPreset,
   type Model3dNamespace,
@@ -124,6 +126,7 @@ describe("resolveModel3dNamespace (module-shape interop)", () => {
 
 describe("ensure3dmol", () => {
   test("loads once and caches; returns the resolved namespace", async () => {
+    resetModel3dCacheForTests(); // order-independence: don't inherit another test's cached value
     let loads = 0;
     const fakeNs: Model3dNamespace = { createViewer: () => ({ addModel: () => undefined, setStyle: () => undefined, zoomTo: () => undefined, spin: () => undefined, render: () => undefined, clear: () => undefined }) };
     MODEL3D_DEF.load = async () => {
@@ -135,6 +138,116 @@ describe("ensure3dmol", () => {
     expect(a).toBe(fakeNs);
     expect(b).toBe(fakeNs);
     expect(loads).toBe(1);
+  });
+});
+
+// openModel3d's abort/guard-path — the fix for the stale-continuation bug: a
+// still-in-flight call (slow chunk load or PubChem fetch) that resolves AFTER
+// it's been superseded (dialog closed, or reopened for a different item) must
+// never mutate a `container` a newer call may already own. Exercised entirely
+// against plain object stubs (no real HTMLElement/HTMLDialogElement) because
+// this repo's test environment has no DOM (vite.config.ts: environment
+// "node", no jsdom) — openModel3d's guard logic itself has no DOM dependency
+// beyond calling `container.replaceChildren`, which is exactly what's stubbed.
+describe("openModel3d: abort/guard path (no DOM)", () => {
+  const stubContainer = () => ({ replaceChildren: vi.fn() }) as unknown as HTMLElement;
+  const stubHost = (open = true) => ({ open }) as unknown as HTMLDialogElement;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("pre-aborted signal: resolves without ever touching the container or reaching the viewer factory", async () => {
+    const container = stubContainer();
+    const host = stubHost(true);
+    const ac = new AbortController();
+    ac.abort();
+    // Deliberately NOT stubbing MODEL3D_DEF.load/fetch — a correct
+    // implementation must bail before ever needing them.
+    const destroy = await openModel3d(host, container, { kind: "molecule", input: { xyz: xyzFromPreset("methane")! } }, ac.signal);
+    expect(container.replaceChildren).not.toHaveBeenCalled();
+    expect(() => destroy()).not.toThrow(); // tearing down a viewer that was never created must be a safe no-op
+  });
+
+  test("signal aborts after the PubChem fetch resolves but before the pre-mount check: no mount, no second container write", async () => {
+    resetModel3dCacheForTests();
+    const container = stubContainer();
+    const host = stubHost(true);
+    const ac = new AbortController();
+    const createViewer = vi.fn();
+    MODEL3D_DEF.load = async () => ({ createViewer });
+    // The abort fires INSIDE the fetch stub's own resolution — i.e. exactly
+    // "abort after the stubbed fetch resolves, before awaiting openModel3d's
+    // promise": openModel3d is still suspended awaiting this same promise, so
+    // by the time it resumes and reaches `if (signal.aborted ...)`, the abort
+    // has already landed. Mirrors ESC (or a reopen for another item) racing a
+    // slow PubChem response.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        ac.abort();
+        return { ok: true, text: async () => "fake sdf body" } as unknown as Response;
+      }),
+    );
+    const destroy = await openModel3d(host, container, { kind: "molecule", input: { smiles: "c1ccccc1" } }, ac.signal);
+    expect(createViewer).not.toHaveBeenCalled();
+    // Only the initial "Loading…" write — never the pre-mount clear, never an error write.
+    expect(container.replaceChildren).toHaveBeenCalledTimes(1);
+    expect(container.replaceChildren).toHaveBeenCalledWith("Loading 3D viewer…");
+    expect(() => destroy()).not.toThrow();
+  });
+
+  test("the abort actually cancels the outstanding PubChem fetch (not just ignored on resolution)", async () => {
+    resetModel3dCacheForTests();
+    const container = stubContainer();
+    const host = stubHost(true);
+    const ac = new AbortController();
+    MODEL3D_DEF.load = async () => ({ createViewer: vi.fn() });
+    let sawSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      sawSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        // Mirrors real fetch()'s contract: an already-aborted signal rejects
+        // immediately; otherwise reject when "abort" eventually fires.
+        if (sawSignal?.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+        sawSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const openPromise = openModel3d(host, container, { kind: "molecule", input: { smiles: "c1ccccc1" } }, ac.signal);
+    // Let the pending microtasks (ensure3dmol resolving, fetchPubchemSdf
+    // running up to its `await fetch(...)`) actually drain before aborting —
+    // a macrotask boundary guarantees that, since microtasks always finish
+    // before the next macrotask runs. Otherwise this would abort before the
+    // request even started, which the "aborts after the fetch resolves"
+    // test above already covers.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetchMock).toHaveBeenCalled();
+    ac.abort();
+    const destroy = await openPromise;
+    expect(sawSignal?.aborted).toBe(true); // the request-level signal was actually aborted, not left dangling
+    expect(container.replaceChildren).toHaveBeenCalledTimes(1); // just "Loading…" — no mount, no error write
+    expect(() => destroy()).not.toThrow();
+  });
+
+  test("control case (no abort): mounts normally through the same stub wiring, destroy tears the viewer down", async () => {
+    resetModel3dCacheForTests();
+    const container = stubContainer();
+    const host = stubHost(true);
+    const ac = new AbortController();
+    const viewerMethods = { addModel: vi.fn(), setStyle: vi.fn(), zoomTo: vi.fn(), spin: vi.fn(), render: vi.fn(), clear: vi.fn() };
+    const createViewer = vi.fn(() => viewerMethods);
+    MODEL3D_DEF.load = async () => ({ createViewer });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => "fake sdf body" }) as unknown as Response));
+    const destroy = await openModel3d(host, container, { kind: "molecule", input: { smiles: "c1ccccc1" } }, ac.signal);
+    expect(createViewer).toHaveBeenCalledTimes(1);
+    expect(viewerMethods.spin).toHaveBeenCalledWith(true);
+    destroy();
+    expect(viewerMethods.spin).toHaveBeenCalledWith(false);
+    expect(viewerMethods.clear).toHaveBeenCalledTimes(1);
   });
 });
 

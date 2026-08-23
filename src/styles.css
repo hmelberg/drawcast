@@ -713,13 +713,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border-radius: 4px;
   position: relative;
   overflow: hidden;
-}
-.model3d-status, .model3d-error {
+  /* Loading/failure text is written as a bare Text node (no wrapper element —
+     see openModel3d's doc comment), so this styles it directly; once a
+     viewer mounts these rules are inert since 3dmol's own canvas fills the box. */
   padding: 1rem;
   font-size: 0.9rem;
   color: var(--muted);
 }
-.model3d-error { color: var(--ink); }
 
 /* My templates panel: same row shape as .library-item, plus a non-interactive title
    (the Library panel's title doubles as its "open" button; My templates needs three
