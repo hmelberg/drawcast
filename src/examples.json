@@ -8,24 +8,87 @@
         "body": "box",
         "incline_deg": 30,
         "forces": [
-          { "id": "gravity", "label": "F_g = mg", "angle_deg": 270, "magnitude": 0.8, "color": "red" },
-          { "id": "normal", "label": "N", "angle_deg": 120, "magnitude": 0.65, "color": "blue" },
-          { "id": "friction", "label": "f", "angle_deg": 30, "magnitude": 0.4, "color": "gray" }
+          {
+            "id": "gravity",
+            "label": "F_g = mg",
+            "angle_deg": 270,
+            "magnitude": 0.8,
+            "color": "red"
+          },
+          {
+            "id": "normal",
+            "label": "N",
+            "angle_deg": 120,
+            "magnitude": 0.65,
+            "color": "blue"
+          },
+          {
+            "id": "friction",
+            "label": "f",
+            "angle_deg": 30,
+            "magnitude": 0.4,
+            "color": "gray"
+          }
         ]
       },
       "commands": [
-        { "speak": "Let's find every force acting on a crate resting on a ramp." },
-        { "draw": ["incline", "ground_hatch", "angle_arc", "label_angle"], "speak": "The ramp rises at thirty degrees." },
-        { "pause": 0.3 },
-        { "draw": ["body"], "speak": "Here is the crate, sitting still on the slope." },
-        { "pause": 0.3 },
-        { "draw": ["force_gravity", "label_gravity"], "speak": "Gravity pulls it straight down, no matter how the ramp tilts." },
-        { "pause": 0.3 },
-        { "draw": ["force_normal", "label_normal"], "speak": "The ramp pushes back at a right angle to its surface — the normal force." },
-        { "pause": 0.3 },
-        { "draw": ["force_friction", "label_friction"], "speak": "And friction acts up the slope, holding the crate against sliding." },
-        { "pause": 0.5 },
-        { "speak": "Because the crate is at rest, these three forces balance exactly." }
+        {
+          "speak": "Let's find every force acting on a crate resting on a ramp."
+        },
+        {
+          "draw": [
+            "incline",
+            "ground_hatch",
+            "angle_arc",
+            "label_angle"
+          ],
+          "speak": "The ramp rises at thirty degrees."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "body"
+          ],
+          "speak": "Here is the crate, sitting still on the slope."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "force_gravity",
+            "label_gravity"
+          ],
+          "speak": "Gravity pulls it straight down, no matter how the ramp tilts."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "force_normal",
+            "label_normal"
+          ],
+          "speak": "The ramp pushes back at a right angle to its surface — the normal force."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "force_friction",
+            "label_friction"
+          ],
+          "speak": "And friction acts up the slope, holding the crate against sliding."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "speak": "Because the crate is at rest, these three forces balance exactly."
+        }
       ]
     }
   },
@@ -34,14 +97,39 @@
     "spec": {
       "title": "Benzene",
       "template": "ring_molecule",
-      "params": { "ring_size": 6, "aromatic": true, "name": "Benzene C₆H₆" },
+      "params": {
+        "ring_size": 6,
+        "aromatic": true,
+        "name": "Benzene C₆H₆"
+      },
       "commands": [
-        { "speak": "This is benzene, the simplest aromatic ring." },
-        { "draw": ["ring"], "speak": "Six carbon atoms form a perfect hexagon — every unlabeled corner is a carbon." },
-        { "pause": 0.3 },
-        { "draw": ["double_bonds"], "speak": "The inner lines mark alternating double bonds — in reality the electrons are shared evenly around the whole ring." },
-        { "pause": 0.3 },
-        { "draw": ["molecule_name"], "speak": "That shared electron cloud is what makes benzene unusually stable." }
+        {
+          "speak": "This is benzene, the simplest aromatic ring."
+        },
+        {
+          "draw": [
+            "ring"
+          ],
+          "speak": "Six carbon atoms form a perfect hexagon — every unlabeled corner is a carbon."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "double_bonds"
+          ],
+          "speak": "The inner lines mark alternating double bonds — in reality the electrons are shared evenly around the whole ring."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "molecule_name"
+          ],
+          "speak": "That shared electron cloud is what makes benzene unusually stable."
+        }
       ]
     }
   },
@@ -50,37 +138,126 @@
     "spec": {
       "title": "Protein secondary structure",
       "template": "protein_secondary",
-      "params": { "ss": "CCHHHHHHCCEEEEECC" },
+      "params": {
+        "ss": "CCHHHHHHCCEEEEECC"
+      },
       "commands": [
-        { "speak": "A protein chain folds into a few recurring local shapes — its secondary structure." },
-        { "draw": ["n_term", "seg_0"], "speak": "Reading from the N terminus, the chain starts as a flexible loop." },
-        { "pause": 0.3 },
-        { "draw": ["seg_1", "label_1"], "speak": "Then it coils into an alpha helix, held together by hydrogen bonds along the backbone." },
-        { "pause": 0.3 },
-        { "draw": ["seg_2"], "speak": "Another short loop turns the chain around." },
-        { "pause": 0.3 },
-        { "draw": ["seg_3", "label_3"], "speak": "Here it stretches out into a beta strand, drawn as a flat arrow." },
-        { "pause": 0.3 },
-        { "draw": ["seg_4", "c_term"], "speak": "And a final loop carries the chain to the C terminus." }
+        {
+          "speak": "A protein chain folds into a few recurring local shapes — its secondary structure."
+        },
+        {
+          "draw": [
+            "n_term",
+            "seg_0"
+          ],
+          "speak": "Reading from the N terminus, the chain starts as a flexible loop."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "seg_1",
+            "label_1"
+          ],
+          "speak": "Then it coils into an alpha helix, held together by hydrogen bonds along the backbone."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "seg_2"
+          ],
+          "speak": "Another short loop turns the chain around."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "seg_3",
+            "label_3"
+          ],
+          "speak": "Here it stretches out into a beta strand, drawn as a flat arrow."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "seg_4",
+            "c_term"
+          ],
+          "speak": "And a final loop carries the chain to the C terminus."
+        }
       ]
     }
   },
   {
     "request": "Show methane in 3D so the tetrahedral shape is clear.",
+    "title": "Methane in 3D (walk-around)",
+    "playlist": "playlist:\n  title: Methane in 3D\n---\ntitle: Methane in 3D\ntemplate: molecule_3d\nparams: { molecule: methane, azimuth: 32 }\ncommands:\n  - speak: \"Flat drawings hide methane's real shape — so let's look at it in three dimensions.\"\n  - draw: [ground_shadow, atom_0, atom_0__sh, atom_0__hl, label_0]\n    speak: \"One carbon atom sits at the center.\"\n  - pause: 0.3\n  - draw: [bond_1, bond_1__f, bond_2, bond_2__f, bond_3, bond_3__f, bond_4, bond_4__f, atom_1, atom_1__sh, atom_1__hl, atom_2, atom_2__sh, atom_2__hl, atom_3, atom_3__sh, atom_3__hl, atom_4, atom_4__sh, atom_4__hl, label_1, label_2, label_3, label_4]\n    speak: \"Four hydrogens spread out as far from each other as they can — the corners of a tetrahedron.\"\n  - pause: 0.3\n  - draw: [caption]\n    speak: \"Every bond angle is one hundred nine and a half degrees.\"\n---\ntemplate: molecule_3d\nparams: { molecule: methane, azimuth: 122 }\ncommands:\n  - draw: [ground_shadow, bond_1, bond_1__f, bond_2, bond_2__f, bond_3, bond_3__f, bond_4, bond_4__f, atom_0, atom_0__sh, atom_0__hl, atom_1, atom_1__sh, atom_1__hl, atom_2, atom_2__sh, atom_2__hl, atom_3, atom_3__sh, atom_3__hl, atom_4, atom_4__sh, atom_4__hl, label_0, label_1, label_2, label_3, label_4, caption]\n    speak: \"Now let's walk a quarter of the way around it. A different hydrogen comes to the front — but the shape is exactly the same from every side.\"\n---\ntemplate: molecule_3d\nparams: { molecule: methane, azimuth: 212 }\ncommands:\n  - draw: [ground_shadow, bond_1, bond_1__f, bond_2, bond_2__f, bond_3, bond_3__f, bond_4, bond_4__f, atom_0, atom_0__sh, atom_0__hl, atom_1, atom_1__sh, atom_1__hl, atom_2, atom_2__sh, atom_2__hl, atom_3, atom_3__sh, atom_3__hl, atom_4, atom_4__sh, atom_4__hl, label_0, label_1, label_2, label_3, label_4, caption]\n    speak: \"Half-way around now — still the same perfect tetrahedron. To spin it yourself, click the 3D button on this figure.\"\n"
+  },
+  {
+    "request": "Draw the structure of aspirin.",
+    "title": "Aspirin",
+    "packs": [
+      "chemistry"
+    ],
     "spec": {
-      "title": "Methane in 3D",
-      "template": "molecule_3d",
-      "params": { "molecule": "methane" },
+      "title": "Aspirin",
+      "template": "molecule",
+      "params": {
+        "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+        "name": "Aspirin (acetylsalicylic acid)"
+      },
       "commands": [
-        { "speak": "Flat drawings hide methane's real shape — so let's look at it in three dimensions." },
-        { "draw": ["atom_0", "label_0"], "speak": "One carbon atom sits at the center." },
-        { "pause": 0.3 },
         {
-          "draw": ["bond_1", "bond_1__f", "bond_2", "bond_2__f", "bond_3", "bond_3__f", "bond_4", "bond_4__f", "atom_1", "atom_2", "atom_3", "atom_4", "label_1", "label_2", "label_3", "label_4"],
-          "speak": "Four hydrogens spread out as far from each other as they can — the corners of a tetrahedron."
+          "speak": "This is aspirin — one of the oldest medicines still in daily use. Let's build its structure."
         },
-        { "pause": 0.4 },
-        { "draw": ["caption"], "speak": "Every bond angle is exactly one hundred nine and a half degrees — nothing like the ninety degrees a flat drawing suggests." }
+        {
+          "draw": [
+            "bonds"
+          ],
+          "speak": "The skeleton first: every unlabeled corner is a carbon atom."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "ring_circles"
+          ],
+          "speak": "The circle marks the aromatic benzene ring at its core."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "double_bonds"
+          ],
+          "speak": "Two carbon-oxygen double bonds — one in the acid group, one in the ester."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "atoms"
+          ],
+          "speak": "And here are the oxygens: the acid group that makes it aspirin, and the acetyl group that makes it gentle enough to swallow."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "molecule_name"
+          ],
+          "speak": "That's acetylsalicylic acid. Click the 3D button on this figure to explore the real three-dimensional structure."
+        }
       ]
     }
   }

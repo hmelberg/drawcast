@@ -1,7 +1,7 @@
 // kit.project3d and the molecule_3d core template, plus validity of the
 // bundled offline examples (src/examples.json) through the real pipeline.
 
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { kit } from "../src/scenes/kit";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -9,6 +9,9 @@ import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 import bundledExamples from "../src/examples.json";
+import { PACK_DEFS, registerPack } from "../src/scenes/packs";
+import { ensureEngines } from "../src/scenes/engines";
+import { itemsOf, parsePlaylistText } from "../src/playlist/playlist";
 
 describe("kit.project3d", () => {
   test("azimuth 0 / elevation 0: +x lands right of center, +y above, both scaled by fov/distance", () => {
@@ -211,19 +214,54 @@ describe("molecule_3d template", () => {
 });
 
 describe("bundled offline examples (src/examples.json)", () => {
-  for (const ex of bundledExamples as { request: string; spec: Spec }[]) {
-    test(`"${ex.spec.title ?? ex.request}" validates, renders clean, and every drawn id exists`, () => {
-      const v = validateSpec(ex.spec);
-      expect(v.errors).toEqual([]);
-      const res = layoutSpec(ex.spec);
-      expect(res.warnings).toEqual([]);
-      expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
-      const known = new Set(flattenDrawables(res.drawables).map((d) => d.id));
-      for (const cmd of ex.spec.commands ?? []) {
-        const drawn = (cmd as { draw?: string[] }).draw;
-        for (const id of drawn ?? []) {
-          expect(known.has(id), `example draws unknown id "${id}"`).toBe(true);
-        }
+  // Pack-based examples: register their packs + engines up front (the app's
+  // example loader does the same via ensureEnabledPacks; present() ensures
+  // engines).
+  beforeAll(async () => {
+    const needsPacks = new Set(
+      (bundledExamples as { packs?: string[] }[]).flatMap((e) => e.packs ?? []),
+    );
+    for (const id of needsPacks) {
+      const def = PACK_DEFS[id];
+      if (!def) throw new Error(`example declares unknown pack "${id}"`);
+      registerPack(id, await def.load());
+    }
+    if (needsPacks.has("chemistry")) await ensureEngines(["smilesdrawer"]);
+  });
+
+  interface Entry {
+    request: string;
+    title?: string;
+    spec?: Spec;
+    playlist?: string;
+    packs?: string[];
+  }
+
+  function checkSpec(spec: Spec, label: string): void {
+    const v = validateSpec(spec);
+    expect(v.errors, label).toEqual([]);
+    const res = layoutSpec(spec);
+    expect(res.warnings, label).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error"), label).toEqual([]);
+    const known = new Set(flattenDrawables(res.drawables).map((d) => d.id));
+    for (const cmd of spec.commands ?? []) {
+      const drawn = (cmd as { draw?: string[] }).draw;
+      for (const id of drawn ?? []) {
+        expect(known.has(id), `${label} draws unknown id "${id}"`).toBe(true);
+      }
+    }
+  }
+
+  for (const ex of bundledExamples as Entry[]) {
+    test(`"${ex.title ?? ex.spec?.title ?? ex.request}" validates, renders clean, and every drawn id exists`, () => {
+      if (ex.playlist) {
+        const playlist = parsePlaylistText(ex.playlist);
+        const items = itemsOf(playlist);
+        expect(items.length).toBeGreaterThan(0);
+        items.forEach((item, i) => checkSpec(item.spec, `part ${i}`));
+      } else {
+        expect(ex.spec).toBeDefined();
+        checkSpec(ex.spec!, "spec");
       }
     });
   }

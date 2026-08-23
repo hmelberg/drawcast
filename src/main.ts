@@ -95,7 +95,16 @@ speech.setRate(settings.rate);
 const variants: PromptVariant[] = promptVariants();
 // The dropdown bundles the LLM fewshots PLUS curated offline examples that
 // never enter the compiler prompt (src/examples.json — template showcases).
-const examples = [...(fewshots as { request: string; spec: Spec }[]), ...(bundledExamples as { request: string; spec: Spec }[])];
+// A bundled example is either a single spec or a multi-part playlist (YAML
+// text), and may declare packs it needs (enabled on load, like the panel).
+interface BundledExample {
+  request: string;
+  title?: string;
+  spec?: Spec;
+  playlist?: string;
+  packs?: string[];
+}
+const examples: BundledExample[] = [...(fewshots as { request: string; spec: Spec }[]), ...(bundledExamples as BundledExample[])];
 
 interface Doc {
   title: string;
@@ -203,7 +212,8 @@ function docFromSaved(saved: SavedDrawing): Doc {
 function initialDoc(): Doc {
   const saved = loadLibrary()[0];
   if (saved) return docFromSaved(saved);
-  const ex = examples[0];
+  // Fewshots come first in `examples` and always carry a spec.
+  const ex = examples.find((e) => e.spec) as BundledExample & { spec: Spec };
   return { title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
 }
 
@@ -396,7 +406,7 @@ refreshTemplatePicker();
 
 // Examples & library panel
 const exampleSel = h("select", { title: "Bundled examples" });
-examples.forEach((ex, i) => exampleSel.appendChild(h("option", { value: String(i) }, ex.spec.title ?? ex.request)));
+examples.forEach((ex, i) => exampleSel.appendChild(h("option", { value: String(i) }, ex.title ?? ex.spec?.title ?? ex.request)));
 const exampleLoadBtn = h("button", { class: "small" }, "Load example");
 const saveBtn = h("button", { class: "small" }, "Save to library");
 const exportBtn = h("button", { class: "small", title: "Download the current spec as JSON" }, "Download");
@@ -1310,10 +1320,43 @@ blankBtn.addEventListener("click", () => {
   );
 });
 
-exampleLoadBtn.addEventListener("click", () => {
+exampleLoadBtn.addEventListener("click", () => void loadBundledExample());
+
+async function loadBundledExample(): Promise<void> {
   const ex = examples[parseInt(exampleSel.value, 10)] ?? examples[0];
-  setDoc({ title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
-});
+  // Pack-based examples enable their packs exactly like the panel toggle
+  // would, so the catalog, picker and panel stay consistent afterwards.
+  if (ex.packs && ex.packs.length > 0) {
+    const results = await ensureEnabledPacks(ex.packs);
+    const failed = results.filter((r) => !r.ok);
+    if (failed.length > 0) {
+      setStatus(`This example needs the ${failed.map((f) => f.id).join(", ")} pack — loading it failed: ${failed.flatMap((f) => f.errors).join("; ")}`, "error");
+      return;
+    }
+    let changed = false;
+    for (const id of ex.packs) {
+      if (!settings.enabledPacks.includes(id)) {
+        settings.enabledPacks = [...settings.enabledPacks, id];
+        changed = true;
+      }
+    }
+    if (changed) {
+      persist();
+      refreshTemplatePicker();
+      refreshTemplatePacksPanel();
+    }
+  }
+  if (ex.playlist) {
+    try {
+      const playlist = parsePlaylistText(ex.playlist);
+      setDoc({ title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
+    } catch (err) {
+      setStatus(`Example failed to parse: ${(err as Error).message}`, "error");
+    }
+    return;
+  }
+  if (ex.spec) setDoc({ title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
+}
 
 rerenderBtn.addEventListener("click", () => {
   const playlist = readPlaylistText(specArea.value);
