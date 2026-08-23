@@ -40,6 +40,12 @@ export interface Settings {
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
+  /**
+   * Shows the authoring-loop instruments: the 1–5 rating (which only feeds the
+   * improvement packet), the lint list even when clean, and the Data panel.
+   * Off for normal use — "Learn from this" is the user-facing feedback.
+   */
+  developerMode: boolean;
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
   /** Domain pack ids (M3) currently enabled — loaded and registered at startup. */
@@ -61,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cloudPlayback: true,
   uiMode: "player",
   sidebarOpen: true,
+  developerMode: false,
   specFormat: "yaml",
   enabledPacks: [],
   priorityPacks: [],
@@ -318,6 +325,14 @@ export function loadExemplars(): StoredExemplar[] {
 export function addExemplar(ex: StoredExemplar): void {
   const all = loadExemplars();
   all.push(ex);
+  localStorage.setItem(KEYS.exemplars, JSON.stringify(all));
+}
+
+/** Drop one reference by position (the References tab lists them in store order). */
+export function deleteExemplar(index: number): void {
+  const all = loadExemplars();
+  if (index < 0 || index >= all.length) return;
+  all.splice(index, 1);
   localStorage.setItem(KEYS.exemplars, JSON.stringify(all));
 }
 

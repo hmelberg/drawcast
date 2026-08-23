@@ -27,6 +27,7 @@ import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engine
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
+import { createModal, createTabs, dialogHead } from "./ui/modal";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -51,6 +52,7 @@ import {
   buildImprovementPacket,
   clearLogs,
   deleteDrawing,
+  deleteExemplar,
   deleteMyTemplate,
   downloadJson,
   downloadBlob,
@@ -225,16 +227,14 @@ const app = document.getElementById("app")!;
 
 const playerModeBtn = h("button", { class: "mode-btn", title: "Watch the current drawcast" }, "▶ Player");
 const editorModeBtn = h("button", { class: "mode-btn", title: "Create and edit drawcasts" }, "✎ Editor");
-const sidebarBtn = h("button", { class: "icon-btn", title: "Show or hide the library sidebar" }, "◧");
-const menuBtn = h("button", { class: "icon-btn", title: "Menu" }, "☰");
+const menuBtn = h("button", { class: "icon-btn", title: "Show or hide the menu" }, "☰");
 
 app.appendChild(
   h(
     "header",
     { class: "topbar" },
-    h("div", { class: "topbar-left" }, sidebarBtn, h("div", { class: "wordmark squiggle" }, "drawcast")),
+    h("div", { class: "topbar-left" }, menuBtn, h("div", { class: "wordmark squiggle" }, "drawcast")),
     h("div", { class: "mode-toggle" }, playerModeBtn, editorModeBtn),
-    menuBtn,
   ),
 );
 
@@ -271,7 +271,7 @@ const promptEl = h("textarea", {
   placeholder: 'Describe the drawing… e.g. "Show the deadweight loss from a tax, with shaded regions"',
 });
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
-const blankBtn = h("button", { class: "small", title: "Start from a minimal hand-editable spec" }, "✎ New");
+const blankBtn = h("button", { class: "sidebar-new", title: "Start a new drawcast from a minimal hand-editable spec" }, "＋ New drawcast");
 
 // ---------- hashtag directives: chips + autosuggest ----------
 // One vocabulary (TAGS) drives parsing, the chips, and this popup. Tags only
@@ -376,6 +376,16 @@ promptEl.addEventListener("keydown", (e) => {
   }
 });
 
+// Two entries at the bottom of the Template and Instructions pickers open the
+// matching manager instead of selecting anything. Template ids come from the
+// registry and prompt values are "v1"-style names or "user:<uuid>", so these
+// sentinels can never be a real choice.
+const ACTION_NEW = "__new__";
+const ACTION_MANAGE = "__manage__";
+function isActionValue(v: string): boolean {
+  return v === ACTION_NEW || v === ACTION_MANAGE;
+}
+
 // The model choice sits next to the send button: the speed/quality decision
 // happens where generation starts. Repairs always run on a fast model.
 const modelSel = h("select", { title: "Model for generation. Repair rounds always use a fast model." });
@@ -391,27 +401,61 @@ styleSel.value = settings.style;
 // (or a #template= tag, which wins) forces it. Ready templates only — a
 // stub can't render.
 const templateSel = h("select", { title: "Force a template (Auto lets the AI choose; #template= in the request overrides this)" });
+// The last real choice, restored when one of the two action entries is picked:
+// a <select> would otherwise keep showing "✦ New template…" as the selection.
+let templateChoice = "";
 function refreshTemplatePicker(): void {
-  const current = templateSel.value;
+  const current = templateChoice;
   templateSel.replaceChildren(h("option", { value: "" }, "Auto"));
   for (const id of Object.keys(scenes).sort((a, b) => a.localeCompare(b))) {
     if (isReadyTemplate(id)) templateSel.appendChild(h("option", { value: id }, id));
   }
-  if ([...templateSel.options].some((o) => o.value === current)) templateSel.value = current;
+  templateSel.append(
+    h("option", { value: ACTION_NEW }, "✦ New template…"),
+    h("option", { value: ACTION_MANAGE }, "⚙ Manage templates…"),
+  );
+  templateChoice = [...templateSel.options].some((o) => o.value === current && !isActionValue(o.value)) ? current : "";
+  templateSel.value = templateChoice;
 }
 refreshTemplatePicker();
 
-// Examples list (sidebar): clicking an example loads it directly.
-const examplesList = h("div", { class: "library-list" });
-examples.forEach((ex, i) => {
-  const b = h("button", { class: "library-open", title: ex.request ?? "Load this example" }, ex.title ?? ex.spec?.title ?? ex.request);
-  b.addEventListener("click", () => void loadBundledExample(i));
-  examplesList.appendChild(h("div", { class: "library-item" }, b));
+templateSel.addEventListener("change", () => {
+  const picked = templateSel.value;
+  if (!isActionValue(picked)) {
+    templateChoice = picked;
+    return;
+  }
+  templateSel.value = templateChoice; // never leave an action entry showing as the choice
+  openTemplatesModal(picked === ACTION_NEW ? "new" : "list");
 });
+
+// Examples list (sidebar): clicking an example loads it directly. Both sidebar
+// lists honour the one search box above them.
+const examplesList = h("div", { class: "library-list" });
+let sidebarFilter = "";
+
+function matchesFilter(text: string): boolean {
+  return sidebarFilter === "" || text.toLowerCase().includes(sidebarFilter);
+}
+
+function refreshExamples(): void {
+  examplesList.replaceChildren();
+  let shown = 0;
+  examples.forEach((ex, i) => {
+    const label = ex.title ?? ex.spec?.title ?? ex.request;
+    if (!matchesFilter(label)) return;
+    shown++;
+    const b = h("button", { class: "library-open", title: ex.request ?? "Load this example" }, label);
+    b.addEventListener("click", () => void loadBundledExample(i));
+    examplesList.appendChild(h("div", { class: "library-item" }, b));
+  });
+  if (shown === 0) examplesList.appendChild(h("div", { class: "hint" }, "No match."));
+}
+refreshExamples();
 const saveBtn = h("button", { class: "small", title: "Save to the library (this browser)" }, "💾 Save");
-const exportBtn = h("button", { title: "Download the current spec as JSON" }, "⬇ Download spec");
+const exportBtn = h("button", { class: "icon-only", title: "Download the spec as a file" }, "⬇");
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
-const importBtn = h("button", {}, "⬆ Upload spec");
+const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
 const exportVideoBtn = h(
   "button",
   { title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
@@ -420,7 +464,10 @@ const exportVideoBtn = h(
 // openAuthorDialog is defined later (template-authoring section, ./llm/author) —
 // a hoisted function declaration, so this early reference is safe.
 const newTemplateBtn = h("button", { title: "Create a reusable template with AI (describe it, optionally paste an image)" }, "✦ New template");
-newTemplateBtn.addEventListener("click", () => openAuthorDialog());
+newTemplateBtn.addEventListener("click", () => {
+  templatesModal.dialog.close(); // hand over rather than stack (see openTemplatesModal)
+  openAuthorDialog();
+});
 const libraryList = h("div", { class: "library-list" });
 // My templates panel: the list host + import controls are created here so they
 // can be placed in editorWrap below; refreshMyTemplates() itself lives with the
@@ -452,7 +499,8 @@ if (migrated && settings.variant === "custom") {
   saveSettings(settings);
 }
 
-const variantSel = h("select", { title: "Active compiler prompt (used by Generate)" });
+const variantSel = h("select", { title: "The instructions the AI follows when it turns your request into a drawing" });
+const promptList = h("div", { class: "library-list" });
 const promptSource = h("textarea", { class: "prompt-source", spellcheck: "false", "aria-label": "Prompt source" });
 const promptSaveBtn = h("button", { class: "small" }, "Save");
 const promptRenameBtn = h("button", { class: "small" }, "Rename");
@@ -489,6 +537,28 @@ function refreshPromptPanel(): void {
     persist();
   }
   variantSel.value = settings.variant;
+  variantSel.append(
+    h("option", { value: ACTION_NEW }, "✦ New instructions…"),
+    h("option", { value: ACTION_MANAGE }, "⚙ Manage instructions…"),
+  );
+
+  // The modal's list mirrors the picker: clicking a row makes it active.
+  promptList.replaceChildren();
+  const rows: { value: string; label: string; note: string }[] = [
+    ...variants.map((v) => ({ value: v.name, label: v.name, note: "bundled" })),
+    ...loadUserPrompts().map((p) => ({ value: `user:${p.id}`, label: p.name, note: "yours" })),
+  ];
+  for (const r of rows) {
+    const active = r.value === settings.variant;
+    const open = h("button", { class: `library-open${active ? " current" : ""}` }, `${active ? "● " : ""}${r.label}`);
+    open.addEventListener("click", () => {
+      settings.variant = r.value;
+      persist();
+      refreshPromptPanel();
+    });
+    promptList.appendChild(h("div", { class: "library-item" }, open, h("span", { class: "row-note" }, r.note)));
+  }
+
   const up = activeUserPrompt();
   promptSource.value = up ? up.source : currentVariant().source;
   promptSource.readOnly = !up;
@@ -515,13 +585,12 @@ refreshCounts();
 // Preview column
 const previewHost = h("div", { class: "player-figure" });
 const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
-const rerenderBtn = h("button", { class: "small" }, "Re-render");
+const rerenderBtn = h("button", { class: "small", title: "Redraw from the edited text" }, "↻ Re-render");
 const formatSel = h("select", { class: "cs-bar-select", title: "Spec text format (parsing accepts both)" });
 formatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
 formatSel.value = settings.specFormat;
-const lintBox = h("div", {});
 
-const ratingBox = h("span", { class: "rating" });
+const ratingBox = h("span", { class: "rating", hidden: "" });
 const ratingButtons: HTMLButtonElement[] = [];
 for (let n = 1; n <= 5; n++) {
   const b = h("button", { title: `${n}/5 — would use in teaching` }, "★");
@@ -532,11 +601,21 @@ for (let n = 1; n <= 5; n++) {
   ratingButtons.push(b);
   ratingBox.appendChild(b);
 }
-const promoteBtn = h("button", { class: "small", title: "Store (request, spec) as a few-shot exemplar for future generations" }, "☆ Promote to exemplar");
+// The user-facing half of the feedback loop: promoted pairs are injected into
+// every later generation, so this is "teach it my style", not bookkeeping.
+const promoteBtn = h("button", { class: "small", title: "Use this drawing as a style reference for future generations" }, "👍 Learn from this");
+// The lint chip: silent when the drawing is clean, a count when it is not.
+const lintChip = h("button", { class: "lint-chip", hidden: "", title: "Layout warnings — click for details" });
+const lintBox = h("div", { class: "lint-box", hidden: "" });
+let lintOpen = false;
+lintChip.addEventListener("click", () => {
+  lintOpen = !lintOpen;
+  lintBox.hidden = !lintOpen;
+});
 
-// Editor: an xplainer-style workbench — the prompt block (textarea on top,
-// quiet Template/Model selects + Generate below it, phone-friendly), a tiny
-// actions row, then the spec text and the live preview side by side.
+// Editor: the request block on top (textarea, then Generate with the three
+// quiet choices under it), then spec and output side by side, each with its
+// own bar of actions for that pane.
 const editorWrap = h(
   "div",
   { class: "editor-wrap" },
@@ -545,44 +624,84 @@ const editorWrap = h(
     { class: "panel editor-toolbar" },
     h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
+    h("div", { class: "row gen-row" }, generateBtn),
     h(
       "div",
-      { class: "row gen-row" },
+      { class: "row gen-choices" },
       h("label", { class: "quiet-label" }, "Template ", templateSel),
+      h("label", { class: "quiet-label" }, "Instructions ", variantSel),
       h("label", { class: "quiet-label" }, "Model ", modelSel),
-      h("span", { class: "gen-spacer" }),
-      generateBtn,
     ),
-    h("div", { class: "row toolbar-row" }, blankBtn, saveBtn),
   ),
   statusEl,
   h(
     "div",
     { class: "editor-split" },
-    h("div", { class: "panel editor-code" }, specArea, h("div", { class: "row" }, rerenderBtn, formatSel)),
     h(
       "div",
-      { class: "editor-preview" },
+      { class: "panel editor-code" },
+      h(
+        "div",
+        { class: "pane-bar" },
+        formatSel,
+        rerenderBtn,
+        h("span", { class: "pane-spacer" }),
+        saveBtn,
+        exportBtn,
+        importBtn,
+        importInput,
+      ),
+      specArea,
+    ),
+    h(
+      "div",
+      { class: "panel editor-preview" },
+      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), ratingBox, promoteBtn, exportVideoBtn),
       previewHost,
-      h("div", { class: "row" }, h("span", { class: "rating-label" }, "Would use in teaching:"), ratingBox, " ", promoteBtn),
       lintBox,
     ),
   ),
 );
 
-// Left sidebar: the things you open often — saved drawings and examples.
+// ---------- left sidebar: the one menu ----------
+
+const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library and examples" }) as HTMLInputElement;
+const dataRow = h("button", { class: "sidebar-row" }, "📊 Data");
 const sidebar = h(
   "aside",
   { class: "sidebar" },
+  blankBtn,
+  sidebarSearch,
   h("div", { class: "sidebar-section" }, h("h2", { class: "sidebar-heading" }, "📚 Library"), libraryList),
   h("div", { class: "sidebar-section" }, h("h2", { class: "sidebar-heading" }, "✨ Examples"), examplesList),
+  h(
+    "div",
+    { class: "sidebar-tools" },
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "✦ Templates");
+      b.addEventListener("click", () => openTemplatesModal("list"));
+      return b;
+    })(),
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
+      b.addEventListener("click", () => openInstructionsModal());
+      return b;
+    })(),
+    dataRow,
+    h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "❓ Help"),
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "⚙ Settings");
+      b.addEventListener("click", () => openSettings());
+      return b;
+    })(),
+  ),
 );
 const sidebarBackdrop = h("div", { class: "sidebar-backdrop" });
 
 function applySidebar(): void {
   document.body.classList.toggle("sidebar-open", settings.sidebarOpen);
 }
-sidebarBtn.addEventListener("click", () => {
+menuBtn.addEventListener("click", () => {
   settings.sidebarOpen = !settings.sidebarOpen;
   persist();
   applySidebar();
@@ -596,92 +715,145 @@ sidebarBackdrop.addEventListener("click", () => {
 if (window.innerWidth < 940) settings.sidebarOpen = false;
 applySidebar();
 
-// ☰ drawer: occasional actions and power-user panels.
-const settingsBtn = h("button", { class: "drawer-settings", title: "Settings" }, "⚙ Settings");
-const drawerCloseBtn = h("button", { class: "dialog-x", title: "Close menu" }, "✕");
-const drawer = h(
-  "aside",
-  { class: "drawer" },
-  h("div", { class: "drawer-head" }, h("h3", {}, "Menu"), drawerCloseBtn),
-  h("div", { class: "drawer-actions" }, exportBtn, importBtn, importInput, exportVideoBtn, newTemplateBtn),
-  h(
-    "details",
-    { class: "drawer-section" },
-    h("summary", {}, "✦ My templates"),
-    h("div", { class: "row" }, myTplImportBtn, myTplImportInput),
-    myTemplatesList,
-  ),
-  h(
-    "details",
-    { class: "drawer-section" },
-    h("summary", {}, "📦 Template packs"),
-    templatePacksList,
-    h(
-      "div",
-      { class: "extra-packs" },
-      h("div", { class: "hint extra-packs-heading" }, "Extra packs"),
-      h("div", { class: "row" }, browseOfficialBtn),
-      officialPacksList,
-      h("div", { class: "row" }, remoteUrlInput, loadUrlBtn),
-      remotePacksList,
-    ),
-  ),
-  h(
-    "details",
-    { class: "drawer-section" },
-    h("summary", {}, "📝 Prompt"),
-    h("div", { class: "row" }, h("label", {}, "Active ", variantSel)),
-    promptSource,
-    h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
-    h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
-    promptHint,
-  ),
-  h(
-    "details",
-    { class: "drawer-section" },
-    h("summary", {}, "📊 Data"),
-    h("div", { class: "row" }, exemplarCount),
-    h("div", { class: "row" }, exportPacketBtn, clearLogsBtn),
-  ),
-  settingsBtn,
-);
-const drawerBackdrop = h("div", { class: "drawer-backdrop" });
-
-function setDrawer(open: boolean): void {
-  document.body.classList.toggle("drawer-open", open);
-}
-menuBtn.addEventListener("click", () => setDrawer(true));
-drawerCloseBtn.addEventListener("click", () => setDrawer(false));
-drawerBackdrop.addEventListener("click", () => setDrawer(false));
-window.addEventListener("keydown", (e) => {
-  // ESC closes the drawer — unless a modal dialog is open (its own ESC handling wins).
-  if (e.key === "Escape" && !document.querySelector("dialog[open]")) setDrawer(false);
+sidebarSearch.addEventListener("input", () => {
+  sidebarFilter = sidebarSearch.value.trim().toLowerCase();
+  refreshLibrary();
+  refreshExamples();
 });
 
 const main = h("main", {}, sidebar, playerWrap, editorWrap);
-app.append(main, sidebarBackdrop, drawerBackdrop, drawer);
+app.append(main, sidebarBackdrop);
 
-// ---------- dialog chrome: ✕ in the corner + click-outside dismiss ----------
+// ---------- templates modal (create + my templates + packs) ----------
+
+const templatesModal = createModal("✦ Templates", { class: "wide-dialog" });
+const templatesTabs = createTabs([
+  {
+    id: "mine",
+    label: "My templates",
+    panel: h(
+      "div",
+      { class: "tab-panel" },
+      h("div", { class: "hint" }, "Templates you created with AI or imported. They are stored in this browser."),
+      h("div", { class: "row" }, newTemplateBtn, myTplImportBtn, myTplImportInput),
+      myTemplatesList,
+    ),
+  },
+  {
+    id: "packs",
+    label: "Packs",
+    panel: h(
+      "div",
+      { class: "tab-panel" },
+      h("div", { class: "hint" }, "Enable a pack to make its templates available to the AI. Priority packs always get a full catalog entry."),
+      templatePacksList,
+      h(
+        "div",
+        { class: "extra-packs" },
+        h("div", { class: "hint extra-packs-heading" }, "Extra packs"),
+        h("div", { class: "row" }, browseOfficialBtn),
+        officialPacksList,
+        h("div", { class: "row" }, remoteUrlInput, loadUrlBtn),
+        remotePacksList,
+      ),
+    ),
+  },
+]);
+templatesModal.body.appendChild(templatesTabs.el);
+app.appendChild(templatesModal.dialog);
 
 /**
- * Returns a title row with a ✕ close button and (unless backdropCloses is
- * false) makes clicking the dialog's backdrop close it. The bounding-rect
- * check separates backdrop clicks from clicks on the dialog's own padding
- * (both report the dialog element as the event target).
+ * "new" goes straight to the authoring dialog rather than stacking it on top of
+ * this modal: two open <dialog>s make ESC and backdrop clicks ambiguous, and
+ * only the top one would actually close.
  */
-function dialogHead(dlg: HTMLDialogElement, title: string, opts: { backdropCloses?: boolean; onX?: () => void } = {}): HTMLElement {
-  const x = h("button", { class: "dialog-x", title: "Close" }, "✕");
-  x.addEventListener("click", () => (opts.onX ? opts.onX() : dlg.close()));
-  if (opts.backdropCloses !== false) {
-    dlg.addEventListener("click", (e) => {
-      if (e.target !== dlg) return;
-      const r = dlg.getBoundingClientRect();
-      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-      if (!inside) dlg.close();
-    });
+function openTemplatesModal(view: "list" | "new"): void {
+  if (view === "new") {
+    openAuthorDialog();
+    return;
   }
-  return h("div", { class: "dialog-head" }, h("h3", {}, title), x);
+  templatesTabs.show("mine");
+  templatesModal.open();
 }
+
+// ---------- instructions modal (compiler prompt + references) ----------
+
+const referencesList = h("div", { class: "library-list" });
+const instructionsModal = createModal("📝 Instructions", { class: "wide-dialog" });
+const instructionsTabs = createTabs([
+  {
+    id: "instructions",
+    label: "Instructions",
+    panel: h(
+      "div",
+      { class: "tab-panel" },
+      h("div", { class: "hint" }, "What the AI is told before your request. The active one (●) is what Generate uses."),
+      promptList,
+      promptSource,
+      h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
+      h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
+      promptHint,
+    ),
+  },
+  {
+    id: "references",
+    label: "References",
+    panel: h(
+      "div",
+      { class: "tab-panel" },
+      h("div", { class: "hint" }, "Drawings you marked with “👍 Learn from this”. Each one is shown to the AI as an example of what you want."),
+      referencesList,
+    ),
+  },
+]);
+instructionsModal.body.appendChild(instructionsTabs.el);
+app.appendChild(instructionsModal.dialog);
+
+function refreshReferences(): void {
+  referencesList.replaceChildren();
+  const all = loadExemplars();
+  if (all.length === 0) {
+    referencesList.appendChild(h("div", { class: "hint" }, "Nothing yet — press “👍 Learn from this” under a drawing you like."));
+    return;
+  }
+  all.forEach((ex, i) => {
+    const del = h("button", { class: "library-del", title: "Remove this reference" }, "✕");
+    del.addEventListener("click", () => {
+      deleteExemplar(i);
+      refreshReferences();
+      refreshCounts();
+    });
+    referencesList.appendChild(
+      h("div", { class: "library-item" }, h("span", { class: "library-title" }, ex.spec.title ?? ex.prompt), del),
+    );
+  });
+}
+
+function openInstructionsModal(): void {
+  refreshPromptPanel();
+  refreshReferences();
+  instructionsModal.open();
+}
+
+/** "✦ New instructions…" starts from a copy of the active one — the placeholders must survive. */
+function newInstructionsFromActive(): void {
+  instructionsTabs.show("instructions");
+  copyActivePrompt();
+}
+
+// ---------- data modal (developer mode only) ----------
+
+const dataModal = createModal("📊 Data");
+dataModal.body.append(
+  h("div", { class: "hint" }, "The authoring loop's raw material: logged generations and the packet used to improve the bundled instructions."),
+  h("div", { class: "row" }, exemplarCount),
+  h("div", { class: "row" }, exportPacketBtn, clearLogsBtn),
+);
+app.appendChild(dataModal.dialog);
+dataRow.addEventListener("click", () => {
+  refreshCounts();
+  dataModal.open();
+});
 
 // ---------- settings dialog ----------
 
@@ -694,6 +866,8 @@ ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
 const cloudPlaybackCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 cloudPlaybackCb.checked = settings.cloudPlayback;
+const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+developerCb.checked = settings.developerMode;
 const voiceSel = h("select", {});
 const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
@@ -727,8 +901,35 @@ dialog.append(
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
+  h(
+    "div",
+    { class: "settings-field" },
+    h("label", {}, "Advanced"),
+    h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, the full lint list and the Data panel"),
+  ),
 );
 app.appendChild(dialog);
+
+function openSettings(): void {
+  usageNote.textContent = usageSummary();
+  usageNote.hidden = usageNote.textContent === "";
+  dialog.showModal();
+}
+
+/** Developer mode hides the instruments that only feed the authoring loop. */
+function applyDeveloperMode(): void {
+  const on = settings.developerMode;
+  ratingBox.hidden = !on;
+  dataRow.hidden = !on;
+  document.body.classList.toggle("dev-mode", on);
+}
+developerCb.addEventListener("change", () => {
+  settings.developerMode = developerCb.checked;
+  persist();
+  applyDeveloperMode();
+  if (session) setLintFromSession();
+});
+applyDeveloperMode();
 
 function populateVoices(): void {
   const voices = speech.voices();
@@ -1087,13 +1288,11 @@ async function present(): Promise<void> {
   try {
     // Warm the cloud-voice cache so narrated playback starts without stalls.
     if (settings.mode === "narrated") speech.prefetch(playlistSpeakTexts(doc.playlist), settings.speed);
-    // The editor/player switch lives in the control bar too, YouTube-style.
-    const switchBtn = h(
-      "button",
-      { class: "cs-bar-btn", title: isPlayer ? "Open the editor" : "Watch in the player" },
-      isPlayer ? "✎ Edit" : "▶ Player",
-    );
-    switchBtn.addEventListener("click", () => showMode(isPlayer ? "editor" : "player"));
+    // Player mode has no chrome of its own, so the control bar carries the way
+    // back. The editor already has the Player/Editor pill in the topbar — a
+    // second switch there would only crowd the narrow preview bar.
+    const switchBtn = h("button", { class: "cs-bar-btn", title: "Open the editor" }, "✎ Edit");
+    switchBtn.addEventListener("click", () => showMode("editor"));
     // A failed engine load is reported but never blocks the mount — the
     // affected template falls through with its own existing warning.
     await ensureEnginesForSpecs(itemsOf(doc.playlist).map((i) => i.spec)).catch((err) => {
@@ -1110,7 +1309,7 @@ async function present(): Promise<void> {
         speech,
         fullscreenEl: host,
         onTheater: isPlayer ? toggleTheater : undefined,
-        trailing: [switchBtn],
+        trailing: isPlayer ? [switchBtn] : [],
       },
       onItemMounted: (hd, item) => {
         if (!isPlayer) setLint(hd);
@@ -1145,7 +1344,7 @@ function setDoc(next: Doc, statusText?: string): void {
   ratingButtons.forEach((rb) => rb.classList.remove("lit"));
   // Exemplars are (request, single spec) pairs — a multi-part doc has no such pair.
   promoteBtn.disabled = !isSingle(doc.playlist);
-  promoteBtn.textContent = "☆ Promote to exemplar";
+  promoteBtn.textContent = "👍 Learn from this";
   if (statusText) setStatus(statusText, "ok");
   void present();
 }
@@ -1179,18 +1378,50 @@ function docTitleOf(playlist: Playlist, fallback: string): string {
   return playlist.meta.title ?? itemsOf(playlist)[0]?.spec.title ?? fallback;
 }
 
+/** The last rendered handle, so toggling developer mode can redraw the lint. */
+let lastHandle: RenderHandle | null = null;
+
+/**
+ * Lint shows as a chip: nothing at all when the drawing is clean, a count
+ * otherwise, expanding to the list on click. Developer mode also reports a
+ * clean result, since there the absence of warnings is itself information.
+ */
 function setLint(hd: RenderHandle): void {
+  lastHandle = hd;
   lintBox.replaceChildren();
   const issues = hd.layout.issues;
   const warnings = [...hd.layout.warnings, ...hd.plan.warnings];
-  if (issues.length === 0 && warnings.length === 0) {
-    lintBox.appendChild(h("div", { class: "lint-clean" }, "Lint clean ✓"));
+  const total = issues.length + warnings.length;
+  if (total === 0) {
+    lintChip.hidden = !settings.developerMode;
+    lintChip.className = "lint-chip clean";
+    lintChip.textContent = "✓ Lint clean";
+    lintBox.hidden = true;
+    lintOpen = false;
     return;
   }
+  const worst = issues.some((i) => i.severity === "error") ? "error" : "warn";
+  lintChip.hidden = false;
+  lintChip.className = `lint-chip ${worst}`;
+  lintChip.textContent = `⚠ ${total}`;
+  lintChip.title = `${total} layout ${total === 1 ? "warning" : "warnings"} — click for details`;
   const ul = h("ul", { class: "lint-list" });
   for (const i of issues) ul.appendChild(h("li", { class: i.severity }, `${i.rule}: ${i.message}`));
   for (const w of warnings) ul.appendChild(h("li", {}, w));
   lintBox.appendChild(ul);
+  lintBox.hidden = !lintOpen;
+}
+
+function setLintFromSession(): void {
+  if (lastHandle) setLint(lastHandle);
+}
+
+function clearLint(): void {
+  lastHandle = null;
+  lintChip.hidden = true;
+  lintBox.hidden = true;
+  lintBox.replaceChildren();
+  lintOpen = false;
 }
 
 // ---------- mode switching ----------
@@ -1207,12 +1438,6 @@ function showMode(mode: "player" | "editor"): void {
 
 playerModeBtn.addEventListener("click", () => showMode("player"));
 editorModeBtn.addEventListener("click", () => showMode("editor"));
-settingsBtn.addEventListener("click", () => {
-  setDrawer(false);
-  usageNote.textContent = usageSummary();
-  usageNote.hidden = usageNote.textContent === "";
-  dialog.showModal();
-});
 
 // ---------- editor actions ----------
 
@@ -1220,7 +1445,7 @@ function requireKey(): string | null {
   const key = getApiKey();
   if (!key) {
     setStatus("Add your Anthropic API key in Settings to generate with AI. Everything else works without one.", "error");
-    dialog.showModal();
+    openSettings();
     return null;
   }
   return key;
@@ -1262,7 +1487,7 @@ async function generate(): Promise<void> {
   // #template=<id> (or the toolbar picker) forces a template — validate BEFORE
   // requireKey/any API work so a typo'd id never burns the repair budget (or
   // makes the user add a key just to hit a dead end).
-  const forcedTemplate = parsed.template ?? (templateSel.value || undefined);
+  const forcedTemplate = parsed.template ?? (templateChoice || undefined);
   if (forcedTemplate && !isReadyTemplate(forcedTemplate)) {
     setStatus(`Unknown template "${forcedTemplate}" — see the Template picker for valid ids.`, "error");
     return;
@@ -1395,11 +1620,22 @@ const BLANK_SPEC: Spec = {
 };
 
 generateBtn.addEventListener("click", () => void generate());
+// A new drawcast is a clean slate on both sides: the request box empties too
+// (setDoc keeps the old text when the incoming doc has no prompt of its own).
 blankBtn.addEventListener("click", () => {
+  promptEl.value = "";
+  refreshChips();
+  clearLint();
   setDoc(
-    { title: "Untitled drawcast", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
-    "Blank spec loaded — edit the JSON below.",
+    { title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
+    "New drawcast — describe one above, or edit the spec below.",
   );
+  if (window.innerWidth < 940 && settings.sidebarOpen) {
+    settings.sidebarOpen = false; // the overlay would cover what you just cleared
+    persist();
+    applySidebar();
+  }
+  promptEl.focus();
 });
 
 async function loadBundledExample(index: number): Promise<void> {
@@ -1448,18 +1684,21 @@ rerenderBtn.addEventListener("click", () => {
 
 promoteBtn.addEventListener("click", () => {
   addExemplar({ prompt: doc.prompt ?? doc.title, spec: firstSpec(doc), ts: new Date().toISOString() });
-  promoteBtn.textContent = "★ Promoted";
+  promoteBtn.textContent = "✓ Learning from this";
   promoteBtn.disabled = true;
   refreshCounts();
+  refreshReferences();
+  setStatus("Added to your references — the AI will follow this drawing's style from now on. Manage them under Instructions.", "ok");
 });
 
 // ---------- library ----------
 
 function refreshLibrary(): void {
   libraryList.replaceChildren();
-  const items = loadLibrary();
+  const all = loadLibrary(); // newest first: saveDrawing unshifts
+  const items = all.filter((i) => matchesFilter(i.title));
   if (items.length === 0) {
-    libraryList.appendChild(h("div", { class: "hint" }, "Nothing saved yet."));
+    libraryList.appendChild(h("div", { class: "hint" }, all.length === 0 ? "Nothing saved yet." : "No match."));
     return;
   }
   for (const item of items) {
@@ -1933,7 +2172,7 @@ const cancelExport = (): void => {
 // No backdrop dismiss here: a stray outside click must not abort a long
 // render. ✕ and Cancel both mean "abort the export".
 exportDialog.append(
-  dialogHead(exportDialog, "🎬 Export video", { backdropCloses: false, onX: cancelExport }),
+  dialogHead(exportDialog, "🎬 Export video", { backdropCloses: false, onClose: cancelExport }),
   exportStatus,
   exportCanvas,
   h("div", { class: "row" }, exportCloseBtn),
@@ -1965,7 +2204,7 @@ async function runVideoExport(): Promise<void> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
-    dialog.showModal();
+    openSettings();
     return;
   }
   const controller = new AbortController();
@@ -2014,7 +2253,14 @@ function selectUserPrompt(p: UserPrompt): void {
 }
 
 variantSel.addEventListener("change", () => {
-  settings.variant = variantSel.value;
+  const picked = variantSel.value;
+  if (isActionValue(picked)) {
+    variantSel.value = settings.variant; // the action entries select nothing
+    if (picked === ACTION_NEW) void newInstructionsFromActive();
+    openInstructionsModal();
+    return;
+  }
+  settings.variant = picked;
   persist();
   refreshPromptPanel();
 });
@@ -2041,14 +2287,17 @@ promptRenameBtn.addEventListener("click", () => {
   refreshPromptPanel();
 });
 
-promptCopyBtn.addEventListener("click", () => {
+/** A new set of instructions always starts from the active one: the
+ * {{SCHEMA}}/{{CATALOG}}/{{FEWSHOTS}}/{{EXEMPLARS}} placeholders must survive. */
+function copyActivePrompt(): void {
   const up = activeUserPrompt();
   const name = up ? `${up.name} copy` : `${settings.variant} copy`;
   const p: UserPrompt = { id: crypto.randomUUID(), name, source: promptSource.value, ts: new Date().toISOString() };
   saveUserPrompt(p);
   selectUserPrompt(p);
-  setStatus(`Created "${name}" — now the active prompt, edit away.`, "ok");
-});
+  setStatus(`Created "${name}" — now the active instructions, edit away.`, "ok");
+}
+promptCopyBtn.addEventListener("click", copyActivePrompt);
 
 promptDeleteBtn.addEventListener("click", () => {
   const up = activeUserPrompt();

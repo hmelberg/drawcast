@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>drawcast — help</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%8F%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --paper: #f5f1e6;
+        --surface: #fffdf6;
+        --ink: #3d3833;
+        --muted: #8f887c;
+        --line: #d8d2c2;
+        --rust: #b5482e;
+        --steel: #2f6b8f;
+        --ok: #4a7c59;
+        --sketch-font: "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive;
+        --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --mono-font: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--ui-font);
+        font-size: 16px;
+        line-height: 1.55;
+      }
+      .squiggle {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='7' viewBox='0 0 120 7'%3E%3Cpath d='M2 4 Q 12 1 24 4 T 48 4 T 72 3 T 96 5 T 118 3' fill='none' stroke='%23b5482e' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: repeat-x;
+        background-position: left bottom;
+        padding-bottom: 9px;
+      }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 1.6rem 1.4rem 5rem; display: flex; gap: 2.4rem; align-items: flex-start; }
+      nav {
+        position: sticky;
+        top: 1.6rem;
+        width: 210px;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+      }
+      nav a { display: block; color: var(--steel); text-decoration: none; padding: 0.16rem 0; }
+      nav a:hover { color: var(--rust); text-decoration: underline dotted; }
+      nav .nav-head { font-family: var(--sketch-font); font-size: 1.25rem; color: var(--ink); margin: 0 0 0.4rem; }
+      main { flex: 1; min-width: 0; }
+      /* fit-content, or the repeating squiggle runs the full column width. */
+      h1 { font-family: var(--sketch-font); font-weight: 400; font-size: 2.6rem; margin: 0 0 0.2rem; width: fit-content; }
+      h2 {
+        font-family: var(--sketch-font);
+        font-weight: 400;
+        font-size: 1.8rem;
+        margin: 2.4rem 0 0.6rem;
+        scroll-margin-top: 1.4rem;
+      }
+      h3 { font-size: 1.02rem; margin: 1.5rem 0 0.3rem; }
+      p, li { max-width: 68ch; }
+      code, kbd {
+        font-family: var(--mono-font);
+        font-size: 0.86em;
+        background: color-mix(in srgb, var(--steel) 8%, var(--surface));
+        border: 1px solid color-mix(in srgb, var(--steel) 22%, var(--surface));
+        border-radius: 4px;
+        padding: 0.05em 0.35em;
+      }
+      pre {
+        background: var(--surface);
+        border: 1.5px solid var(--line);
+        border-radius: 6px;
+        padding: 0.8rem 1rem;
+        overflow-x: auto;
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+      pre code { background: none; border: none; padding: 0; font-size: inherit; }
+      table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-size: 0.92rem; display: block; overflow-x: auto; }
+      th, td { text-align: left; padding: 0.4rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
+      td code { white-space: nowrap; }
+      .lede { font-size: 1.1rem; color: var(--ink); }
+      .note {
+        background: var(--surface);
+        border: 1.5px solid var(--line);
+        border-left: 4px solid var(--steel);
+        border-radius: 0 6px 6px 0;
+        padding: 0.7rem 1rem;
+        margin: 1rem 0;
+      }
+      .note.warn { border-left-color: var(--rust); }
+      .muted { color: var(--muted); }
+      .back { display: inline-block; margin-bottom: 1.2rem; color: var(--steel); text-decoration: none; font-size: 0.92rem; }
+      .back:hover { color: var(--rust); }
+      footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.88rem; }
+      @media (max-width: 860px) {
+        .wrap { flex-direction: column; gap: 1.2rem; }
+        nav { position: static; width: 100%; columns: 2; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav>
+        <p class="nav-head">Help</p>
+        <a href="#start">Getting started</a>
+        <a href="#modes">Player and editor</a>
+        <a href="#request">Writing a request</a>
+        <a href="#tags">Directives (#tags)</a>
+        <a href="#templates">Templates</a>
+        <a href="#instructions">Instructions &amp; references</a>
+        <a href="#spec">The spec format</a>
+        <a href="#commands">Command reference</a>
+        <a href="#playlists">Multi-part drawcasts</a>
+        <a href="#controls">Player controls</a>
+        <a href="#share">Sharing a drawcast</a>
+        <a href="#video">Video export</a>
+        <a href="#keys">Keys and privacy</a>
+        <a href="#trouble">Troubleshooting</a>
+      </nav>
+
+      <main>
+        <a class="back" href="./index.html">← Back to drawcast</a>
+        <h1 class="squiggle">drawcast</h1>
+        <p class="lede">
+          drawcast turns a sentence into a drawing that draws itself while a voice explains it — a
+          little illustrated lecture instead of a static figure. You describe what you want, the AI
+          writes a spec, and the player performs it stroke by stroke.
+        </p>
+
+        <h2 id="start">Getting started</h2>
+        <ol>
+          <li>Open <strong>✨ Examples</strong> in the sidebar and click one — it loads and you can press play immediately. Nothing needs to be set up for this.</li>
+          <li>To make your own, type what you want in the box at the top and press <strong>Generate with AI</strong>. This needs an Anthropic API key, which you add under <strong>⚙ Settings</strong>.</li>
+          <li>Edit the result as text in the left pane and press <strong>Re-render</strong>, or ask again with a different wording.</li>
+          <li><strong>💾 Save</strong> puts it in your Library (stored in this browser). <strong>+ New drawcast</strong> clears both sides and starts over.</li>
+        </ol>
+        <p>
+          Everything except AI generation works without any key: loading examples, hand-editing specs,
+          playing, and saving to the library.
+        </p>
+
+        <h2 id="modes">Player and editor</h2>
+        <p>
+          The <strong>▶ Player</strong> shows nothing but the drawing — the title is drawn into the
+          figure and the controls fade away while it plays. Press <strong>✎ Edit</strong> at the right
+          end of the control bar to come back to the workbench.
+        </p>
+        <p>
+          The <strong>✎ Editor</strong> has three parts: the request box on top, the spec text on the
+          left, and the live preview on the right. Each pane carries its own buttons — the spec pane
+          handles saving, downloading and uploading the source; the preview pane handles the output
+          (video export, and marking a drawing as a reference).
+        </p>
+
+        <h2 id="request">Writing a request</h2>
+        <p>
+          Write what you want explained, not what you want drawn. drawcast is at its best when the
+          request names one idea and an audience:
+        </p>
+        <pre><code>Show the deadweight loss from a tax, with shaded regions
+
+Explain diminishing marginal utility to a first-year student #basic #short
+
+Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
+        <p>
+          Three quiet choices sit under the Generate button. <strong>Template</strong> forces a
+          particular figure type instead of letting the AI choose. <strong>Instructions</strong>
+          selects which set of authoring rules the AI follows. <strong>Model</strong> trades speed
+          against quality — repair rounds always run on a fast model regardless.
+        </p>
+
+        <h2 id="tags">Directives (#tags)</h2>
+        <p>
+          A <code>#tag</code> anywhere in your request changes what the AI writes. It never changes how
+          the app plays back — speed, narration and mode stay in the controls. Recognised tags are
+          stripped from the text before it is sent; anything else starting with <code>#</code> is left
+          alone and passed through as ordinary words. Type <code>#</code> in the request box to get the
+          list inline.
+        </p>
+        <table>
+          <thead><tr><th>Group</th><th>Tags</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>Length</td><td><code>#veryshort</code> <code>#short</code> <code>#long</code> <code>#verylong</code></td><td>From 2–3 spoken lines up to a 16–24 line deep dive in acts.</td></tr>
+            <tr><td>Level</td><td><code>#basic</code> <code>#advanced</code></td><td>Beginner (no jargon, everyday example) or technical, with assumptions stated. Also stamped on the drawcast as a badge.</td></tr>
+            <tr><td>Language</td><td><code>#norwegian</code> (<code>#nb</code>, <code>#norsk</code>) <code>#english</code> (<code>#en</code>)</td><td>Narration and labels in that language.</td></tr>
+            <tr><td>Teaching</td><td><code>#socratic</code></td><td>Ask → pause → reveal.</td></tr>
+            <tr><td>Pacing</td><td><code>#calm</code></td><td>Unhurried: about a second between beats.</td></tr>
+            <tr><td>Gestures</td><td><code>#rich</code> <code>#nogestures</code></td><td>Generous pointing and highlighting, or none at all.</td></tr>
+            <tr><td>Structure</td><td><code>#click</code></td><td>Wait for a click at act boundaries — good for teaching live.</td></tr>
+            <tr><td>Structure</td><td><code>#playlist</code> <code>#parts=3</code></td><td>Split into a multi-part drawcast; with <code>#parts=N</code> exactly N parts, otherwise the AI picks 2–4.</td></tr>
+            <tr><td>Structure</td><td><code>#template=free_body</code></td><td>Force one template. This beats the Template picker.</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Tags in the same group override each other and the <em>last one wins</em>, so
+          <code>#short … #long</code> gives you a long one. A tag must stand on its own —
+          <code>#parts</code> and <code>#template</code> only work with a value after
+          <code>=</code>. A request made only of tags is refused: there has to be something to draw.
+        </p>
+
+        <h2 id="templates">Templates</h2>
+        <p>
+          A template is a ready-made figure type that computes its own geometry — you supply
+          parameters, it works out where every line goes. Ask for a supply-and-demand diagram and the
+          AI fills in <code>supply_demand</code>'s parameters rather than placing coordinates by hand,
+          which is why those figures come out correct.
+        </p>
+        <p>Built in and always available:</p>
+        <table>
+          <thead><tr><th>Template</th><th>Draws</th></tr></thead>
+          <tbody>
+            <tr><td><code>supply_demand</code></td><td>Price–quantity market diagram: equilibrium, ceilings and floors, taxes, shifts, surplus regions.</td></tr>
+            <tr><td><code>decision_tree</code></td><td>Left-to-right decision tree — decisions square, chance nodes round, terminals triangular, with probabilities and payoffs.</td></tr>
+            <tr><td><code>qaly_profiles</code></td><td>Utility against age or time, one curve per scenario, with the QALYs gained or lost shaded between them.</td></tr>
+            <tr><td><code>free_body</code></td><td>Free-body diagram: a body on ground or an incline with labelled force arrows.</td></tr>
+            <tr><td><code>ring_molecule</code></td><td>Skeletal ring in benzene style, with heteroatoms, aromatic bonds and substituents.</td></tr>
+            <tr><td><code>protein_secondary</code></td><td>Secondary-structure strip from N to C: helices as coils, strands as block arrows.</td></tr>
+            <tr><td><code>cell_diagram</code></td><td>Animal-cell cross-section with selectable organelles and leader labels.</td></tr>
+            <tr><td><code>molecule_3d</code></td><td>Ball-and-stick 3D molecules (methane, water, ammonia, CO₂), rotatable, with an “Explore in 3D” button.</td></tr>
+          </tbody>
+        </table>
+        <p>
+          More arrive in <strong>packs</strong>, which you switch on under <strong>✦ Templates → Packs</strong>:
+          <strong>Physics</strong> (lens ray diagrams, wave diagrams), <strong>Chemistry</strong>
+          (molecules drawn from SMILES, reaction schemes, energy diagrams) and <strong>Biology</strong>
+          (membrane bilayer, DNA helix, phylogenetic trees from a Newick string). Marking a pack as
+          <em>Default domain</em> gives its templates a full entry in what the AI sees, so they get
+          chosen more readily.
+        </p>
+        <p>
+          Anything the templates do not cover is drawn from primitives instead — axes, curves, points,
+          arrows, labels, regions. You are never limited to this list; templates just make the common
+          cases exact.
+        </p>
+        <h3>Making your own</h3>
+        <p>
+          <strong>✦ New template…</strong> (in the Template picker, or in the Templates modal) describes a
+          reusable figure to the AI — in words, or by pasting a reference image — and saves the result
+          under <strong>My templates</strong>. You can refine it, improve it later, and export it as a
+          <code>.yaml</code> file to share.
+        </p>
+        <div class="note warn">
+          <strong>Templates are code.</strong> A template's layout is JavaScript that runs in your
+          browser with access to everything this page can reach, including your stored API key. Import
+          a template file or load a remote pack only from a source you trust — treat a pull request to
+          a template repository as a code review.
+        </div>
+
+        <h2 id="instructions">Instructions and references</h2>
+        <p>
+          <strong>Instructions</strong> are what the AI is told before your request: the rules for how a
+          drawcast should be built, which verbs to use, and how to pace narration. The bundled set is
+          read-only; “Copy to my prompts” makes an editable version, and
+          <strong>Improve with AI</strong> proposes a revision based on your worst logged generations —
+          always saved as a <em>new</em> set, never overwriting.
+        </p>
+        <div class="note">
+          If you edit instructions, the placeholders <code>{{SCHEMA}}</code>, <code>{{CATALOG}}</code>,
+          <code>{{FEWSHOTS}}</code> and <code>{{EXEMPLARS}}</code> must stay in the text. They are
+          filled in at generation time with the spec schema, the template catalogue, the built-in
+          examples, and your own references.
+        </div>
+        <p>
+          <strong>References</strong> are the second tab, and the simplest way to improve your results.
+          Press <strong>👍 Learn from this</strong> under a drawing you like and the pair (your request,
+          the resulting spec) is shown to the AI as an example of what you want from then on. A few
+          good references shift the style of everything generated afterwards. Remove one and its
+          influence disappears with it.
+        </p>
+
+        <h2 id="spec">The spec format</h2>
+        <p>
+          A drawcast is a small document — YAML by default, JSON if you prefer — with a list of
+          commands. You can read and edit it directly; the preview re-renders on
+          <strong>Re-render</strong>.
+        </p>
+        <pre><code>title: Demand increase
+template: supply_demand
+params:
+  demand: { label: D }
+  supply: { label: S }
+  equilibrium: { show: true, guides: true }
+commands:
+  - speak: Let's build a market diagram and find where the price settles.
+  - draw: [axes]
+    speak: Price on the vertical axis, quantity on the horizontal.
+  - pause: 0.3
+  - draw: [demand_curve, label_D]
+    speak: 'This falling line is demand: as price falls, quantity demanded rises.'</code></pre>
+        <p>The top level holds:</p>
+        <table>
+          <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>title</code></td><td>Short title, drawn above the figure.</td></tr>
+            <tr><td><code>template</code></td><td>Which template computes the geometry.</td></tr>
+            <tr><td><code>params</code></td><td>That template's parameters.</td></tr>
+            <tr><td><code>elements</code></td><td>Hand-placed pieces when no template fits: axes, curve, point, arrow, label, region, node, edge, annotation, path, text, shape.</td></tr>
+            <tr><td><code>domain</code></td><td>Coordinate ranges, as <code>{ x: [0, 100], y: [0, 100] }</code>.</td></tr>
+            <tr><td><code>level</code></td><td><code>basic</code> or <code>advanced</code> — shown as a badge.</td></tr>
+            <tr><td><code>commands</code></td><td>The performance itself. The only required field.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          The drawing area is a logical canvas of 1000×750, Cartesian, y-up, with the origin at the
+          bottom left. Any element you never mention in a command is drawn automatically at the end.
+        </p>
+
+        <h2 id="commands">Command reference</h2>
+        <p>
+          Each command does one thing, and may carry a <code>speak</code> line alongside it. When it
+          does, the voice and the action start together and the command ends when both are finished —
+          that is what keeps narration in step with the drawing.
+        </p>
+        <table>
+          <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>speak: "…"</code></td><td>One narrated sentence, also shown as a caption. Add <code>blocking: false</code> to start it and carry on immediately.</td></tr>
+            <tr><td><code>draw: [ids]</code></td><td>Hand-draws those elements in order; <code>parallel: true</code> draws them at once.</td></tr>
+            <tr><td><code>show: [ids]</code> / <code>hide: [ids]</code></td><td>Appear or disappear instantly, no animation. Hidden things can come back.</td></tr>
+            <tr><td><code>erase: [ids]</code></td><td>Un-draws in reverse, then stays hidden.</td></tr>
+            <tr><td><code>clear: {}</code></td><td>Hides everything visible. <code>clear: { keep: [ax, curve] }</code> spares what you list — list <em>everything</em> that should stay.</td></tr>
+            <tr><td><code>pause: 0.5</code></td><td>Silence, in seconds. A beat after a reveal is worth more than it looks.</td></tr>
+            <tr><td><code>wait: click</code></td><td>Stops until the viewer clicks. Auto-resolves in video export.</td></tr>
+            <tr><td><code>point: { at: {ref: id}, gesture: tap }</code></td><td>A pointing gesture — <code>tap</code>, <code>circle</code> or <code>underline</code>. <code>at</code> takes a <code>ref</code> or an <code>x</code>/<code>y</code>.</td></tr>
+            <tr><td><code>highlight: { target: [ids], effect: pulse }</code></td><td>Emphasis: <code>pulse</code>, <code>circle</code> or <code>glow</code>. Paired with a <code>speak</code> and no duration, it lasts the whole sentence.</td></tr>
+            <tr><td><code>move: { target: [ids], by: [dx, dy] }</code></td><td>Slides elements; <code>path</code> for several legs, plus <code>duration</code> and <code>easing</code>. Only the listed elements move.</td></tr>
+            <tr><td><code>camera: { center: {ref: id}, zoom: 2 }</code></td><td>Zooms and pans; <code>reset: true</code> returns to the full view.</td></tr>
+            <tr><td><code>animate: { "demand_shift.amount": 22 }</code></td><td>Smoothly changes template parameters over <code>duration</code> seconds — a curve that visibly slides while the voice explains it. Template specs only.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          Seeking is a control, not a command: drag the progress bar to jump to any point.
+        </p>
+
+        <h2 id="playlists">Multi-part drawcasts</h2>
+        <p>
+          Add <code>#playlist</code> (or <code>#parts=4</code>) to a request and you get a sequence of
+          drawings that play in order, with a title card between parts. In text form it is a stream of
+          YAML documents separated by <code>---</code>, with an optional header:
+        </p>
+        <pre><code>playlist:
+  title: A short course on taxes
+  advance: click     # or auto
+  gap: 1             # seconds between parts when advancing automatically
+  transitions: auto  # auto = title cards between parts, none = straight through
+---
+chapter: Foundations
+---
+title: Supply and demand
+commands: [ … ]
+---
+title: A tax drives a wedge
+level: advanced
+commands: [ … ]</code></pre>
+        <p>
+          A <code>chapter:</code> document groups everything that follows it until the next one. During
+          playback, dots in the control bar jump between parts, <kbd>n</kbd> and <kbd>p</kbd> step
+          forward and back, and the <strong>☰</strong> button opens a list with the chapters.
+        </p>
+
+        <h2 id="controls">Player controls</h2>
+        <table>
+          <thead><tr><th>Control</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td>▶ / ⏸, or a click on the drawing</td><td>Play or pause, like a video.</td></tr>
+            <tr><td>⏮ ⏭</td><td>Step back or forward one command.</td></tr>
+            <tr><td>Progress bar</td><td>Seek — per command, not per second.</td></tr>
+            <tr><td>🔊</td><td>Mute the narration; the timing stays the same, so the drawing still paces itself.</td></tr>
+            <tr><td>Mode</td><td><strong>narrated</strong> speaks; <strong>silent</strong> draws with captions only; <strong>instant</strong> shows the finished figure at once.</td></tr>
+            <tr><td>Speed</td><td>0.5× to 2×.</td></tr>
+            <tr><td>▭ / ⛶</td><td>Theater (wide) and fullscreen.</td></tr>
+            <tr><td>⬡ 3D</td><td>On molecule drawcasts, opens a rotatable 3D model.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">While it plays, the controls and the cursor fade after a few seconds of stillness and return the moment you move the mouse.</p>
+
+        <h2 id="share">Sharing a drawcast</h2>
+        <p>
+          Paste a spec into a Google Doc, share the doc as <em>Anyone with the link can view</em>, and
+          hand out a drawcast link with the document's id after <code>#gdoc=</code>:
+        </p>
+        <pre><code>https://drawcast.app/#gdoc=1AbC…xyz</code></pre>
+        <p>
+          That link opens a player and nothing else — no editor, no AI, no key needed by whoever opens
+          it, and the editor code is never even downloaded. Because the drawcast lives in the doc, you
+          can fix a typo there and everyone's link shows the correction. Options can be appended:
+        </p>
+        <table>
+          <thead><tr><th>Parameter</th><th>Values</th></tr></thead>
+          <tbody>
+            <tr><td><code>&amp;style=sketchy</code></td><td>Hand-drawn instead of clean lines.</td></tr>
+            <tr><td><code>&amp;mode=silent</code></td><td><code>silent</code> or <code>instant</code>; the default is narrated.</td></tr>
+            <tr><td><code>&amp;speed=1.5</code></td><td>Playback speed.</td></tr>
+            <tr><td><code>&amp;advance=auto</code></td><td>Never wait for a click — for a screen that should loop unattended.</td></tr>
+          </tbody>
+        </table>
+        <p>A multi-part drawcast works the same way: put the whole YAML stream in the one document.</p>
+
+        <h2 id="video">Video export</h2>
+        <p>
+          <strong>🎬 Export video</strong> records the drawcast as a narrated 720p WebM file, which
+          YouTube accepts directly (Studio → Create → Upload). A playlist becomes a single video with
+          its title cards included, and <code>wait: click</code> resolves by itself since there is
+          nobody to click.
+        </p>
+        <p>
+          This needs a Google Cloud Text-to-Speech key, added under Settings — browser speech cannot be
+          recorded, so the narration has to be synthesised. The recording happens in your browser in
+          real time, so a three-minute drawcast takes about three minutes.
+        </p>
+
+        <h2 id="keys">Keys and privacy</h2>
+        <p>
+          drawcast has no server of its own. Everything you make lives in this browser's local storage
+          — your library, templates, instructions, references and both API keys — and nothing is
+          uploaded anywhere.
+        </p>
+        <ul>
+          <li><strong>Anthropic API key</strong> — needed only to generate with AI. It is sent directly from your browser to <code>api.anthropic.com</code>, never through anyone else.</li>
+          <li><strong>Google Cloud Text-to-Speech key</strong> — needed for video export, and optionally for nicer voices during normal playback. Sent only to <code>texttospeech.googleapis.com</code>. Google's free tier of roughly a million characters a month covers about a thousand drawcasts.</li>
+        </ul>
+        <p>
+          Because it all lives in one browser, clearing site data erases your work. Use
+          <strong>⬇ Download</strong> to keep a spec as a file, and export templates you care about as
+          <code>.yaml</code>.
+        </p>
+
+        <h2 id="trouble">Troubleshooting</h2>
+        <h3>“Add your Anthropic API key in Settings”</h3>
+        <p>Generation is the only feature that needs a key. Examples, editing, playback and saving all work without one.</p>
+
+        <h3>A label overlaps something, or a piece sits outside the frame</h3>
+        <p>
+          The <strong>⚠</strong> chip above the preview appears when the layout has problems and lists
+          them when clicked. Most are fixed by shortening a label, or by giving the element more room
+          in the spec. When the chip is absent, the layout checked out clean.
+        </p>
+
+        <h3>The drawing ran ahead of the narration</h3>
+        <p>
+          Put the <code>speak</code> on the same command as the action rather than on its own line —
+          paired that way, the command waits for both to finish.
+        </p>
+
+        <h3>Something vanished mid-drawcast</h3>
+        <p>
+          A <code>clear</code> hides everything not named in its <code>keep</code> list. List every
+          element that should survive, or use <code>erase</code> on the few things you actually want
+          gone.
+        </p>
+
+        <h3>The share link says it cannot fetch the document</h3>
+        <p>
+          The Google Doc has to be shared as <em>Anyone with the link can view</em> (Share → General
+          access). A doc restricted to specific people cannot be read by the viewer.
+        </p>
+
+        <h3>The AI ignored my template choice</h3>
+        <p>
+          A <code>#template=</code> directive in the request beats the Template picker. Also check that
+          the template's pack is enabled — a template that is not switched on is not offered to the AI.
+        </p>
+
+        <footer>
+          <p>
+            drawcast — made for teaching. <a href="./index.html">Back to the app</a>.
+          </p>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
