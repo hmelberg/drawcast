@@ -6,6 +6,7 @@
 import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import { readParam } from "./params";
 import type { Command, Easing, HighlightEffect, PointGesture } from "../spec/types";
 
 export type PlanStep = (
@@ -30,6 +31,7 @@ export type PlanStep = (
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
+  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number }
 ) & {
   /** speak paired with an action: voice and action start together, both must finish. */
   narration?: string;
@@ -43,9 +45,11 @@ export interface SceneState {
   offsets: Record<string, Pt>;
   /** Camera viewBox in logical y-up coordinates; null = full canvas. */
   camera: BBox | null;
+  /** Cumulative animate overrides at this boundary (dot paths → numeric value). */
+  params: Record<string, number>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, camera: null };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, camera: null, params: {} };
 
 export interface Plan {
   steps: PlanStep[];
@@ -61,12 +65,16 @@ export interface PlanOptions {
   toLogical?: (p: Pt) => Pt;
   /** Domain-delta → logical-delta mapping for move.by / move.path. */
   deltaToLogical?: (d: Pt) => Pt;
+  /** The spec's `params` when the spec has a template; null/undefined = no template, animate warns + skips. */
+  animateBase?: Record<string, unknown> | null;
+  /** After an animate step, the planner switches its bbox source to this so later steps target post-animate geometry. */
+  bboxesFor?: (params: Record<string, number>) => (id: string) => BBox | null;
 }
 
 const CAMERA_MAX_ZOOM = 8;
 
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
-  const bboxOf = opts.bboxOf ?? (() => null);
+  let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);
   const deltaToLogical = opts.deltaToLogical ?? ((d: Pt) => d);
 
@@ -81,6 +89,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const visibleSet = new Set<string>();
   const offsets: Record<string, Pt> = {};
   let camera: BBox | null = null;
+  let params: Record<string, number> = {};
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
   const lastRevealed = new Map<string, number>();
 
@@ -89,7 +98,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const pushStep = (step: PlanStep) => {
     if (currentNarration !== undefined && step.kind !== "speak") step = { ...step, narration: currentNarration };
     steps.push(step);
-    states.push({ visible: [...visible], offsets: { ...offsets }, camera });
+    states.push({ visible: [...visible], offsets: { ...offsets }, camera, params: { ...params } });
   };
   const makeVisible = (ids: string[]) => {
     for (const id of ids) {
@@ -119,7 +128,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -266,6 +275,27 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       camera = box;
       pushStep({ kind: "camera", box, seconds: cmd.camera.duration ?? 1.2 });
+    } else if (cmd.animate !== undefined) {
+      const targets = Object.fromEntries(
+        Object.entries(cmd.animate).filter(([, v]) => typeof v === "number" && Number.isFinite(v)),
+      ) as Record<string, number>;
+      if (opts.animateBase === undefined || opts.animateBase === null) {
+        warnings.push("animate requires a scene template (skipped)");
+        continue;
+      }
+      if (Object.keys(targets).length === 0) {
+        warnings.push("animate command without numeric targets skipped");
+        continue;
+      }
+      const starts: Record<string, number | null> = {};
+      for (const key of Object.keys(targets)) {
+        const start = params[key] ?? readParam(opts.animateBase, key);
+        starts[key] = start;
+        if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
+      }
+      params = { ...params, ...targets };
+      pushStep({ kind: "animate", targets, starts, seconds: cmd.duration ?? 2 });
+      if (opts.bboxesFor) bboxOf = opts.bboxesFor(params);
     } else {
       warnings.push("command with no recognized verb skipped");
     }
