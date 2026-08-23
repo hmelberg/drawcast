@@ -38,6 +38,8 @@ export interface Settings {
   /** Use the cloud TTS voices for live playback too (when a TTS key is set). */
   cloudPlayback: boolean;
   uiMode: "player" | "editor";
+  /** Editor's left sidebar (Library + Examples) visibility. */
+  sidebarOpen: boolean;
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
   /** Domain pack ids (M3) currently enabled — loaded and registered at startup. */
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theater: false,
   cloudPlayback: true,
   uiMode: "player",
+  sidebarOpen: true,
   specFormat: "yaml",
   enabledPacks: [],
   priorityPacks: [],

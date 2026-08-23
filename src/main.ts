@@ -220,33 +220,30 @@ function initialDoc(): Doc {
 const app = document.getElementById("app")!;
 
 // ---------- topbar with the mode toggle ----------
+// The topbar exists only in editor mode; player mode is chrome-free (the
+// control bar's ✎ Edit button is the way back).
 
 const playerModeBtn = h("button", { class: "mode-btn", title: "Watch the current drawcast" }, "▶ Player");
 const editorModeBtn = h("button", { class: "mode-btn", title: "Create and edit drawcasts" }, "✎ Editor");
-const settingsBtn = h("button", { class: "mode-btn", title: "Settings" }, "⚙");
+const sidebarBtn = h("button", { class: "icon-btn", title: "Show or hide the library sidebar" }, "◧");
+const menuBtn = h("button", { class: "icon-btn", title: "Menu" }, "☰");
 
 app.appendChild(
   h(
     "header",
     { class: "topbar" },
-    h("div", { class: "wordmark squiggle" }, "drawcast"),
+    h("div", { class: "topbar-left" }, sidebarBtn, h("div", { class: "wordmark squiggle" }, "drawcast")),
     h("div", { class: "mode-toggle" }, playerModeBtn, editorModeBtn),
-    settingsBtn,
+    menuBtn,
   ),
 );
 
 // ---------- player mode ----------
 
-// YouTube-like: the video first, the title below it.
-const playerTitle = h("h1", { class: "player-title squiggle" }, doc.title);
+// Just the framed figure: the title renders inside it (cs-title), playback
+// chrome is the control bar, so nothing else is needed on the page.
 const playerHost = h("div", { class: "player-figure" });
-const playerWrap = h(
-  "div",
-  { class: "player-wrap" },
-  playerHost,
-  playerTitle,
-  h("div", { class: "player-hint hint" }, "Click the drawing to play."),
-);
+const playerWrap = h("div", { class: "player-wrap" }, playerHost);
 
 function applyTheater(): void {
   playerWrap.classList.toggle("theater", settings.theater);
@@ -274,7 +271,7 @@ const promptEl = h("textarea", {
   placeholder: 'Describe the drawing… e.g. "Show the deadweight loss from a tax, with shaded regions"',
 });
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
-const blankBtn = h("button", { title: "Start from a minimal hand-editable spec" }, "New blank");
+const blankBtn = h("button", { class: "small", title: "Start from a minimal hand-editable spec" }, "✎ New");
 
 // ---------- hashtag directives: chips + autosuggest ----------
 // One vocabulary (TAGS) drives parsing, the chips, and this popup. Tags only
@@ -379,9 +376,9 @@ promptEl.addEventListener("keydown", (e) => {
   }
 });
 
-// The model choice lives ON the send button (split button): the speed/quality
-// decision happens where generation starts. Repairs always run on a fast model.
-const modelSel = h("select", { class: "gen-model", title: "Model for generation. Repair rounds always use a fast model." });
+// The model choice sits next to the send button: the speed/quality decision
+// happens where generation starts. Repairs always run on a fast model.
+const modelSel = h("select", { title: "Model for generation. Repair rounds always use a fast model." });
 for (const m of MODELS) modelSel.appendChild(h("option", { value: m.id }, m.label));
 modelSel.value = settings.model;
 if (!modelSel.value) modelSel.value = MODELS[0].id;
@@ -393,10 +390,10 @@ styleSel.value = settings.style;
 // Toolbar template picker (M3): "Auto" lets the AI pick; a specific choice
 // (or a #template= tag, which wins) forces it. Ready templates only — a
 // stub can't render.
-const templateSel = h("select", { class: "cs-bar-select", title: "Force a template (Auto lets the AI choose; #template= in the request overrides this)" });
+const templateSel = h("select", { title: "Force a template (Auto lets the AI choose; #template= in the request overrides this)" });
 function refreshTemplatePicker(): void {
   const current = templateSel.value;
-  templateSel.replaceChildren(h("option", { value: "" }, "Template: Auto"));
+  templateSel.replaceChildren(h("option", { value: "" }, "Auto"));
   for (const id of Object.keys(scenes).sort((a, b) => a.localeCompare(b))) {
     if (isReadyTemplate(id)) templateSel.appendChild(h("option", { value: id }, id));
   }
@@ -404,18 +401,21 @@ function refreshTemplatePicker(): void {
 }
 refreshTemplatePicker();
 
-// Examples & library panel
-const exampleSel = h("select", { title: "Bundled examples" });
-examples.forEach((ex, i) => exampleSel.appendChild(h("option", { value: String(i) }, ex.title ?? ex.spec?.title ?? ex.request)));
-const exampleLoadBtn = h("button", { class: "small" }, "Load example");
-const saveBtn = h("button", { class: "small" }, "Save to library");
-const exportBtn = h("button", { class: "small", title: "Download the current spec as JSON" }, "Download");
+// Examples list (sidebar): clicking an example loads it directly.
+const examplesList = h("div", { class: "library-list" });
+examples.forEach((ex, i) => {
+  const b = h("button", { class: "library-open", title: ex.request ?? "Load this example" }, ex.title ?? ex.spec?.title ?? ex.request);
+  b.addEventListener("click", () => void loadBundledExample(i));
+  examplesList.appendChild(h("div", { class: "library-item" }, b));
+});
+const saveBtn = h("button", { class: "small", title: "Save to the library (this browser)" }, "💾 Save");
+const exportBtn = h("button", { title: "Download the current spec as JSON" }, "⬇ Download spec");
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
-const importBtn = h("button", { class: "small" }, "Upload spec");
+const importBtn = h("button", {}, "⬆ Upload spec");
 const exportVideoBtn = h(
   "button",
-  { class: "small", title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
-  "Export video",
+  { title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
+  "🎬 Export video",
 );
 // openAuthorDialog is defined later (template-authoring section, ./llm/author) —
 // a hoisted function declaration, so this early reference is safe.
@@ -534,33 +534,26 @@ for (let n = 1; n <= 5; n++) {
 }
 const promoteBtn = h("button", { class: "small", title: "Store (request, spec) as a few-shot exemplar for future generations" }, "☆ Promote to exemplar");
 
-// Editor: an xplainer-style workbench — one compact toolbar, then the spec
-// text and the live preview side by side. Everything secondary collapses.
+// Editor: an xplainer-style workbench — the prompt block (textarea on top,
+// quiet Template/Model selects + Generate below it, phone-friendly), a tiny
+// actions row, then the spec text and the live preview side by side.
 const editorWrap = h(
   "div",
   { class: "editor-wrap" },
   h(
     "div",
     { class: "panel editor-toolbar" },
-    h("div", { class: "row prompt-row" }, promptEl, h("div", { class: "gen-split" }, generateBtn, modelSel), tagSuggest),
+    h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
     h(
       "div",
-      { class: "row toolbar-row" },
-      exampleSel,
-      exampleLoadBtn,
-      blankBtn,
-      h("span", { class: "toolbar-sep" }),
-      saveBtn,
-      exportBtn,
-      importBtn,
-      importInput,
-      exportVideoBtn,
-      newTemplateBtn,
-      h("span", { class: "toolbar-sep" }),
-      h("label", { class: "toolbar-label" }, "Style ", styleSel),
-      templateSel,
+      { class: "row gen-row" },
+      h("label", { class: "quiet-label" }, "Template ", templateSel),
+      h("label", { class: "quiet-label" }, "Model ", modelSel),
+      h("span", { class: "gen-spacer" }),
+      generateBtn,
     ),
+    h("div", { class: "row toolbar-row" }, blankBtn, saveBtn),
   ),
   statusEl,
   h(
@@ -575,18 +568,53 @@ const editorWrap = h(
       lintBox,
     ),
   ),
-  h("details", { class: "panel editor-extra" }, h("summary", {}, "Library"), libraryList),
+);
+
+// Left sidebar: the things you open often — saved drawings and examples.
+const sidebar = h(
+  "aside",
+  { class: "sidebar" },
+  h("div", { class: "sidebar-section" }, h("h2", { class: "sidebar-heading" }, "📚 Library"), libraryList),
+  h("div", { class: "sidebar-section" }, h("h2", { class: "sidebar-heading" }, "✨ Examples"), examplesList),
+);
+const sidebarBackdrop = h("div", { class: "sidebar-backdrop" });
+
+function applySidebar(): void {
+  document.body.classList.toggle("sidebar-open", settings.sidebarOpen);
+}
+sidebarBtn.addEventListener("click", () => {
+  settings.sidebarOpen = !settings.sidebarOpen;
+  persist();
+  applySidebar();
+});
+sidebarBackdrop.addEventListener("click", () => {
+  settings.sidebarOpen = false;
+  persist();
+  applySidebar();
+});
+// Phones never boot with the overlay covering the editor (not persisted).
+if (window.innerWidth < 940) settings.sidebarOpen = false;
+applySidebar();
+
+// ☰ drawer: occasional actions and power-user panels.
+const settingsBtn = h("button", { class: "drawer-settings", title: "Settings" }, "⚙ Settings");
+const drawerCloseBtn = h("button", { class: "dialog-x", title: "Close menu" }, "✕");
+const drawer = h(
+  "aside",
+  { class: "drawer" },
+  h("div", { class: "drawer-head" }, h("h3", {}, "Menu"), drawerCloseBtn),
+  h("div", { class: "drawer-actions" }, exportBtn, importBtn, importInput, exportVideoBtn, newTemplateBtn),
   h(
     "details",
-    { class: "panel editor-extra" },
-    h("summary", {}, "My templates"),
+    { class: "drawer-section" },
+    h("summary", {}, "✦ My templates"),
     h("div", { class: "row" }, myTplImportBtn, myTplImportInput),
     myTemplatesList,
   ),
   h(
     "details",
-    { class: "panel editor-extra" },
-    h("summary", {}, "Template packs"),
+    { class: "drawer-section" },
+    h("summary", {}, "📦 Template packs"),
     templatePacksList,
     h(
       "div",
@@ -600,8 +628,8 @@ const editorWrap = h(
   ),
   h(
     "details",
-    { class: "panel editor-extra" },
-    h("summary", {}, "Prompt"),
+    { class: "drawer-section" },
+    h("summary", {}, "📝 Prompt"),
     h("div", { class: "row" }, h("label", {}, "Active ", variantSel)),
     promptSource,
     h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
@@ -610,15 +638,50 @@ const editorWrap = h(
   ),
   h(
     "details",
-    { class: "panel editor-extra" },
-    h("summary", {}, "Data"),
+    { class: "drawer-section" },
+    h("summary", {}, "📊 Data"),
     h("div", { class: "row" }, exemplarCount),
     h("div", { class: "row" }, exportPacketBtn, clearLogsBtn),
   ),
+  settingsBtn,
 );
+const drawerBackdrop = h("div", { class: "drawer-backdrop" });
 
-const main = h("main", {}, playerWrap, editorWrap);
-app.appendChild(main);
+function setDrawer(open: boolean): void {
+  document.body.classList.toggle("drawer-open", open);
+}
+menuBtn.addEventListener("click", () => setDrawer(true));
+drawerCloseBtn.addEventListener("click", () => setDrawer(false));
+drawerBackdrop.addEventListener("click", () => setDrawer(false));
+window.addEventListener("keydown", (e) => {
+  // ESC closes the drawer — unless a modal dialog is open (its own ESC handling wins).
+  if (e.key === "Escape" && !document.querySelector("dialog[open]")) setDrawer(false);
+});
+
+const main = h("main", {}, sidebar, playerWrap, editorWrap);
+app.append(main, sidebarBackdrop, drawerBackdrop, drawer);
+
+// ---------- dialog chrome: ✕ in the corner + click-outside dismiss ----------
+
+/**
+ * Returns a title row with a ✕ close button and (unless backdropCloses is
+ * false) makes clicking the dialog's backdrop close it. The bounding-rect
+ * check separates backdrop clicks from clicks on the dialog's own padding
+ * (both report the dialog element as the event target).
+ */
+function dialogHead(dlg: HTMLDialogElement, title: string, opts: { backdropCloses?: boolean; onX?: () => void } = {}): HTMLElement {
+  const x = h("button", { class: "dialog-x", title: "Close" }, "✕");
+  x.addEventListener("click", () => (opts.onX ? opts.onX() : dlg.close()));
+  if (opts.backdropCloses !== false) {
+    dlg.addEventListener("click", (e) => {
+      if (e.target !== dlg) return;
+      const r = dlg.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!inside) dlg.close();
+    });
+  }
+  return h("div", { class: "dialog-head" }, h("h3", {}, title), x);
+}
 
 // ---------- settings dialog ----------
 
@@ -636,10 +699,10 @@ const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
 rateSel.value = String(settings.rate);
 
-const dialog = h(
-  "dialog",
-  {},
-  h("h3", {}, "Settings"),
+const dialog = h("dialog", {});
+dialog.append(
+  dialogHead(dialog, "Settings"),
+  h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel),
   h(
     "div",
     { class: "settings-field" },
@@ -664,10 +727,8 @@ const dialog = h(
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
-  h("div", {}, h("button", { class: "primary small" }, "Close")),
 );
 app.appendChild(dialog);
-dialog.querySelector("button.primary")!.addEventListener("click", () => dialog.close());
 
 function populateVoices(): void {
   const voices = speech.voices();
@@ -694,15 +755,13 @@ const authorPreviewHost = h("div", { class: "player-figure author-preview" });
 const authorRefineEl = h("textarea", { placeholder: "Refine it… e.g. \"make the flask bigger and add an indicator-color param\"", hidden: "" });
 const authorRefineBtn = h("button", { hidden: "" }, "Refine");
 const authorSaveBtn = h("button", { class: "primary", hidden: "" }, "Save to My templates");
-const authorCloseBtn = h("button", {}, "Close");
 
-const authorDialog = h(
-  "dialog",
-  { class: "author-dialog" },
-  h("h3", {}, "New template"),
+const authorDialog = h("dialog", { class: "author-dialog" });
+authorDialog.append(
+  dialogHead(authorDialog, "✦ New template"),
   authorDescEl,
   h("div", { class: "row" }, authorDrop, authorImgInput, authorImgThumb, authorImgClear),
-  h("div", { class: "row" }, authorGenBtn, authorCloseBtn),
+  h("div", { class: "row" }, authorGenBtn),
   authorStatus,
   authorPreviewHost,
   h("div", { class: "row" }, authorRefineEl, authorRefineBtn, authorSaveBtn),
@@ -879,15 +938,13 @@ function openAuthorDialog(improve?: { id: string }): void {
   authorMount?.destroy();
   authorMount = null;
   authorPreviewHost.replaceChildren();
-  (authorDialog.querySelector("h3") as HTMLElement).textContent = authorImproveId ? `Improve template: ${authorImproveId}` : "New template";
+  (authorDialog.querySelector("h3") as HTMLElement).textContent = authorImproveId ? `✦ Improve template: ${authorImproveId}` : "✦ New template";
   authorDialog.showModal();
 }
 
-authorCloseBtn.addEventListener("click", () => authorDialog.close());
-
-// The dialog's native "close" event fires for BOTH the Close button (via
-// .close() above) and ESC (the browser's own cancel→close, which bypasses any
-// click handler entirely) — so all cleanup lives here, not on authorCloseBtn.
+// The dialog's native "close" event fires for the ✕ button, backdrop clicks
+// (both via .close()) AND ESC (the browser's own cancel→close, which bypasses
+// any click handler entirely) — so all cleanup lives here.
 authorDialog.addEventListener("close", () => {
   // Invalidate any runAuthor()/renderAuthorPreview() continuation still in
   // flight: it must not register a draft or resurrect authorMount after this.
@@ -911,13 +968,11 @@ authorDialog.addEventListener("close", () => {
 const model3dContainer = h("div", { class: "model3d-container" });
 const model3dSpinBtn = h("button", {}, "Pause spin");
 const model3dLabelsBtn = h("button", {}, "Hide labels");
-const model3dCloseBtn = h("button", {}, "Close");
-const model3dDialog = h(
-  "dialog",
-  { class: "model3d-dialog" },
-  h("h3", {}, "Explore in 3D"),
+const model3dDialog = h("dialog", { class: "model3d-dialog" });
+model3dDialog.append(
+  dialogHead(model3dDialog, "⬡ Explore in 3D"),
   model3dContainer,
-  h("div", { class: "row" }, model3dSpinBtn, model3dLabelsBtn, model3dCloseBtn),
+  h("div", { class: "row" }, model3dSpinBtn, model3dLabelsBtn),
 );
 app.appendChild(model3dDialog);
 
@@ -980,10 +1035,8 @@ function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): v
   });
 }
 
-model3dCloseBtn.addEventListener("click", () => model3dDialog.close());
-
-// Native "close" fires for both the Close button and ESC (which bypasses any
-// click handler) — all cleanup lives here, not on model3dCloseBtn.
+// Native "close" fires for the ✕ button, backdrop clicks and ESC (which
+// bypasses any click handler) — all cleanup lives here.
 model3dDialog.addEventListener("close", () => {
   model3dAbort?.abort();
   model3dAbort = null;
@@ -1030,7 +1083,6 @@ async function present(): Promise<void> {
   session?.destroy();
   session = null;
   host.replaceChildren();
-  playerTitle.textContent = doc.title;
   document.title = `${doc.title} — drawcast`;
   try {
     // Warm the cloud-voice cache so narrated playback starts without stalls.
@@ -1039,7 +1091,7 @@ async function present(): Promise<void> {
     const switchBtn = h(
       "button",
       { class: "cs-bar-btn", title: isPlayer ? "Open the editor" : "Watch in the player" },
-      isPlayer ? "✎" : "▶ Player",
+      isPlayer ? "✎ Edit" : "▶ Player",
     );
     switchBtn.addEventListener("click", () => showMode(isPlayer ? "editor" : "player"));
     // A failed engine load is reported but never blocks the mount — the
@@ -1156,6 +1208,7 @@ function showMode(mode: "player" | "editor"): void {
 playerModeBtn.addEventListener("click", () => showMode("player"));
 editorModeBtn.addEventListener("click", () => showMode("editor"));
 settingsBtn.addEventListener("click", () => {
+  setDrawer(false);
   usageNote.textContent = usageSummary();
   usageNote.hidden = usageNote.textContent === "";
   dialog.showModal();
@@ -1349,10 +1402,8 @@ blankBtn.addEventListener("click", () => {
   );
 });
 
-exampleLoadBtn.addEventListener("click", () => void loadBundledExample());
-
-async function loadBundledExample(): Promise<void> {
-  const ex = examples[parseInt(exampleSel.value, 10)] ?? examples[0];
+async function loadBundledExample(index: number): Promise<void> {
+  const ex = examples[index] ?? examples[0];
   // Pack-based examples enable their packs exactly like the panel toggle
   // would, so the catalog, picker and panel stay consistent afterwards.
   if (ex.packs && ex.packs.length > 0) {
@@ -1873,10 +1924,16 @@ const exportStatus = h("div", { class: "hint" });
 const exportCloseBtn = h("button", { class: "small" }, "Cancel");
 // Offscreen but laid out: path measurement needs rendered geometry.
 const exportStage = h("div", { class: "export-offscreen" });
-const exportDialog = h(
-  "dialog",
-  { class: "export-dialog" },
-  h("h3", {}, "Export video"),
+const exportDialog = h("dialog", { class: "export-dialog" });
+let exportAbort: AbortController | null = null;
+const cancelExport = (): void => {
+  exportAbort?.abort();
+  exportDialog.close();
+};
+// No backdrop dismiss here: a stray outside click must not abort a long
+// render. ✕ and Cancel both mean "abort the export".
+exportDialog.append(
+  dialogHead(exportDialog, "🎬 Export video", { backdropCloses: false, onX: cancelExport }),
   exportStatus,
   exportCanvas,
   h("div", { class: "row" }, exportCloseBtn),
@@ -1884,11 +1941,7 @@ const exportDialog = h(
 );
 app.appendChild(exportDialog);
 
-let exportAbort: AbortController | null = null;
-exportCloseBtn.addEventListener("click", () => {
-  exportAbort?.abort();
-  exportDialog.close();
-});
+exportCloseBtn.addEventListener("click", cancelExport);
 
 /**
  * The specs a video export plays, in order: items with the same title cards a

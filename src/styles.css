@@ -48,13 +48,25 @@ body {
   padding: 0.9rem 1.4rem 0.5rem;
   max-width: 1500px;
   margin: 0 auto;
-  transition: opacity 0.35s ease;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
 }
 
 .wordmark {
   font-family: var(--sketch-font);
   font-size: 2rem;
   letter-spacing: 0.01em;
+}
+
+/* Phones: the mode pill and the two round buttons need the full width. */
+@media (max-width: 560px) {
+  .topbar { padding: 0.6rem 0.8rem 0.4rem; gap: 0.5rem; }
+  .wordmark { display: none; }
+  main { padding: 0 0.8rem 3rem; }
 }
 
 .mode-toggle {
@@ -79,11 +91,17 @@ body {
   background: var(--rust);
   color: #fff;
 }
-.topbar > .mode-btn { /* the settings gear sits outside the pill */
+/* The sidebar toggle and the ☰ menu button, pill-shaped like the gear was. */
+.icon-btn {
   border: 1.5px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
+  padding: 0.35rem 0.75rem;
+  font-size: 1.02rem;
+  cursor: pointer;
+  color: var(--ink);
 }
+.icon-btn:hover { border-color: var(--muted); }
 
 /* ---------- mode visibility ---------- */
 
@@ -96,10 +114,18 @@ main {
 body.mode-player .editor-wrap { display: none; }
 body.mode-editor .player-wrap { display: none; }
 
-/* Focus mode: while playing in player mode, the chrome fades away. */
-body.mode-player.is-playing .topbar,
-body.mode-player.is-playing .player-hint { opacity: 0.08; }
-body.mode-player.is-playing .topbar:hover { opacity: 1; }
+/* Player mode is chrome-free: no topbar, no sidebar — just the figure. The
+   control bar's ✎ Edit button is the way back. */
+body.mode-player .topbar,
+body.mode-player .sidebar { display: none; }
+body.mode-player main { padding-top: 1.6rem; }
+
+/* The editor lays the sidebar next to the workbench. */
+body.mode-editor main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+}
 
 /* ---------- player mode ---------- */
 
@@ -113,15 +139,6 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
 }
 .player-wrap.theater { width: min(1220px, 98vw); }
 
-/* Title below the video, like a watch page. */
-.player-title {
-  font-family: var(--sketch-font);
-  font-weight: 400;
-  font-size: 1.5rem;
-  margin: 0.7rem 0 0.1rem;
-  align-self: flex-start;
-}
-
 .player-figure {
   background: var(--surface);
   border: 1.5px solid var(--line);
@@ -129,8 +146,6 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
   box-shadow: 0 2px 8px rgba(61, 56, 51, 0.09);
   padding: 0.5rem 0.6rem 0.3rem;
 }
-
-.player-hint { margin-top: 0.35rem; transition: opacity 0.35s ease; }
 
 /* Fullscreen: the figure fills the screen, letterboxed on paper. */
 .player-figure:fullscreen {
@@ -151,6 +166,8 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
 /* ---------- editor mode (xplainer-style workbench) ---------- */
 
 .editor-wrap {
+  flex: 1;
+  min-width: 0;
   max-width: 1280px;
   margin: 0 auto;
   display: flex;
@@ -160,17 +177,33 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
 
 .editor-toolbar { padding: 0.7rem 0.9rem; }
 .editor-toolbar .row { margin-top: 0; }
-.editor-toolbar .prompt-row { flex-wrap: nowrap; margin-bottom: 0.55rem; }
+.editor-toolbar .prompt-row { margin-bottom: 0.55rem; }
 .editor-toolbar .prompt-row textarea {
   flex: 1;
-  min-height: 44px;
-  height: 44px;
+  min-height: 52px;
+  height: 52px;
 }
+/* Quiet per-generation choices left, the primary action right; wraps on phones. */
+.gen-row { margin-bottom: 0.55rem; }
+.gen-spacer { flex: 1; }
+.quiet-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.quiet-label select {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink);
+  max-width: 11.5rem;
+}
+.quiet-label select:hover { border-color: var(--line); background: #fff; }
 .toolbar-row { row-gap: 0.4rem; }
-.toolbar-row button, .toolbar-row select { font-size: 0.85rem; padding: 0.3rem 0.55rem; }
-.toolbar-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 0.35rem; }
-.toolbar-label { color: var(--muted); font-size: 0.85rem; }
-.toolbar-label > select { margin-left: 0.2rem; }
+.toolbar-row button { font-size: 0.85rem; padding: 0.3rem 0.55rem; }
 
 .editor-split {
   display: grid;
@@ -192,11 +225,124 @@ body.mode-player.is-playing .topbar:hover { opacity: 1; }
   min-width: 0;
 }
 
-.editor-extra > summary {
+/* ---------- left sidebar: Library + Examples ---------- */
+
+.sidebar {
+  display: none;
+  width: 232px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0.6rem;
+  max-height: calc(100vh - 1.2rem);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 0.8rem 0.9rem;
+  box-shadow: 0 1px 3px rgba(61, 56, 51, 0.07);
+}
+body.mode-editor.sidebar-open .sidebar { display: block; }
+
+.sidebar-heading {
+  font-family: var(--sketch-font);
+  font-weight: 400;
+  font-size: 1.15rem;
+  margin: 0;
+}
+.sidebar-section + .sidebar-section {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.sidebar .library-list { margin-top: 0.4rem; }
+
+.sidebar-backdrop { display: none; }
+@media (max-width: 940px) {
+  body.mode-editor.sidebar-open .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 45;
+    width: min(280px, 85vw);
+    max-height: none;
+    border-radius: 0 8px 8px 0;
+    border-left: none;
+  }
+  body.mode-editor.sidebar-open .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: rgba(61, 56, 51, 0.35);
+  }
+}
+
+/* ---------- ☰ drawer: occasional actions + power-user panels ---------- */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(340px, 92vw);
+  background: var(--surface);
+  border-left: 1.5px solid var(--line);
+  box-shadow: -8px 0 22px rgba(61, 56, 51, 0.18);
+  padding: 0.9rem 1rem 1.2rem;
+  overflow-y: auto;
+  transform: translateX(105%);
+  transition: transform 0.22s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+body.drawer-open .drawer { transform: none; }
+.drawer-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(61, 56, 51, 0.35);
+}
+body.drawer-open .drawer-backdrop { display: block; }
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.drawer-head h3 {
+  font-family: var(--sketch-font);
+  font-weight: 400;
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.drawer-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+.drawer-actions button { text-align: left; }
+
+.drawer-section {
+  border-top: 1px solid var(--line);
+  padding-top: 0.7rem;
+}
+.drawer-section > summary {
   font-family: var(--sketch-font);
   font-size: 1.15rem;
   cursor: pointer;
   color: var(--ink);
+}
+
+.drawer-settings {
+  margin-top: auto;
+  text-align: left;
 }
 
 .panel {
@@ -437,6 +583,25 @@ dialog {
 }
 dialog::backdrop { background: rgba(61, 56, 51, 0.35); }
 dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8rem; font-size: 1.4rem; }
+
+/* Shared modal chrome: title row with a ✕ in the corner (Windows-style). */
+.dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+.dialog-head h3 { margin: 0; }
+.dialog-x {
+  border: none;
+  background: none;
+  font-size: 1.05rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+}
+.dialog-x:hover { color: var(--ink); }
 .settings-field { margin-bottom: 0.9rem; }
 .settings-field label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
 .settings-field input[type="password"], .settings-field select { width: 100%; }
@@ -659,24 +824,6 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .pl-badge-basic { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--surface)); }
 .pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
-
-/* ---------- split send button: Generate + model choice ---------- */
-
-.gen-split { display: flex; align-items: stretch; flex-shrink: 0; }
-.gen-split button.primary {
-  border-radius: 5px 0 0 5px;
-  border-right: none;
-}
-.gen-model {
-  border-radius: 0 5px 5px 0;
-  border-color: var(--rust);
-  background: color-mix(in srgb, var(--rust) 8%, #fff);
-  color: var(--rust);
-  font-size: 0.82rem;
-  font-weight: 600;
-  max-width: 12.5rem;
-}
-.gen-model:hover { border-color: #9c3d26; }
 
 /* ---------- figure title (centered, above the drawing) ---------- */
 
