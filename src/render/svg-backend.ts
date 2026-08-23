@@ -195,9 +195,9 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
     g.appendChild(p);
     return;
   }
-  const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
-  const filled = !!(d.style.fill || gradPaint);
+  const filled = !!(d.style.fill || d.style.fillGradient);
   if (d.shapeHint?.type === "circle") {
+    const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
     const { c, r } = d.shapeHint;
     const p = plainPath(circlePath(c[0], toSvgY(c[1]), r), d.style, filled);
     if (filled) p.setAttribute("fill", gradPaint ?? d.style.fill!);

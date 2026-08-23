@@ -156,15 +156,17 @@ export interface SceneKit {
    * midpoint and can be trimmed at sphere surfaces (trimA/trimB, world units)
    * so sticks vanish into balls. Returned `order` is far-to-near — draw in
    * that order so occlusion stays correct during progressive drawing.
-   * Spheres default to `shade: true`: the ball is ONE circle whose radial-
-   * gradient fill is lit from up-left (bright core toward the light, darkened
-   * limb) — volumetric with no extra drawables. `style: "wire"` draws the
-   * textbook wireframe instead: outline plus equator, front half solid
-   * (`id__eq`), back half dashed (`id__eqb`), no fill. face3
-   * (a flat 3D polygon) and box3 (an axis-aligned solid, visible faces only,
-   * optional dashed hidden edges) use the same flat-shaded-face lighting.
-   * Reliable scope: ball-and-stick, 3D vectors/axes, small lattices/solids.
-   * Not for intersecting surfaces or large structures.
+   * Spheres default to `shade: true`: the ball is ONE circle whose
+   * radial-gradient fill (base color: `fill`, else a light tint of the
+   * stroke color; 6-digit hex colors shade best) is lit from up-left (bright
+   * core toward the light, darkened limb) — volumetric with no extra
+   * drawables. `style: "wire"` draws the textbook wireframe instead: outline
+   * plus equator, front half solid (`id__eq`), back half dashed (`id__eqb`),
+   * no fill. face3 (a flat 3D polygon) and box3 (an axis-aligned solid,
+   * visible faces only, optional dashed hidden edges) use the same
+   * flat-shaded-face lighting. Reliable scope: ball-and-stick, 3D
+   * vectors/axes, small lattices/solids. Not for intersecting surfaces or
+   * large structures.
    */
   project3d(camera: Camera3, prims: Prim3[]): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
   // ---- constants ----
