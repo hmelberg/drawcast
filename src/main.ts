@@ -614,8 +614,49 @@ lintChip.addEventListener("click", () => {
 });
 
 // Editor: the request block on top (textarea, then Generate with the three
-// quiet choices under it), then spec and output side by side, each with its
-// own bar of actions for that pane.
+// quiet choices folded away behind a "…" next to it), then spec and output
+// side by side, each with its own bar of actions for that pane.
+const genChoices = h(
+  "div",
+  { class: "row gen-choices", id: "gen-choices", hidden: "" },
+  h("label", { class: "quiet-label" }, "Template ", templateSel),
+  h("label", { class: "quiet-label" }, "Instructions ", variantSel),
+  h("label", { class: "quiet-label" }, "Model ", modelSel),
+);
+const choicesBtn = h("button", {
+  class: "choices-toggle",
+  "aria-expanded": "false",
+  "aria-controls": "gen-choices",
+}, "…");
+
+/**
+ * Folded away, the three selects are invisible — so the button carries what
+ * they say, and goes accented when the template is pinned (the one choice that
+ * silently changes every generation).
+ */
+function refreshChoicesToggle(): void {
+  const tpl = templateChoice === "" ? "Auto" : templateChoice;
+  const model = MODELS.find((m) => m.id === modelSel.value)?.label ?? modelSel.value;
+  const prompt = variantSel.options[variantSel.selectedIndex]?.textContent ?? settings.variant;
+  choicesBtn.title = `Template: ${tpl} · Instructions: ${prompt} · Model: ${model}`;
+  choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
+}
+
+function applyChoicesOpen(): void {
+  genChoices.hidden = !settings.choicesOpen;
+  choicesBtn.setAttribute("aria-expanded", String(settings.choicesOpen));
+  refreshChoicesToggle();
+}
+choicesBtn.addEventListener("click", () => {
+  settings.choicesOpen = !settings.choicesOpen;
+  persist();
+  applyChoicesOpen();
+});
+for (const sel of [templateSel, variantSel, modelSel]) {
+  sel.addEventListener("change", refreshChoicesToggle);
+}
+applyChoicesOpen();
+
 const editorWrap = h(
   "div",
   { class: "editor-wrap" },
@@ -624,14 +665,8 @@ const editorWrap = h(
     { class: "panel editor-toolbar" },
     h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
-    h("div", { class: "row gen-row" }, generateBtn),
-    h(
-      "div",
-      { class: "row gen-choices" },
-      h("label", { class: "quiet-label" }, "Template ", templateSel),
-      h("label", { class: "quiet-label" }, "Instructions ", variantSel),
-      h("label", { class: "quiet-label" }, "Model ", modelSel),
-    ),
+    h("div", { class: "row gen-row" }, choicesBtn, generateBtn),
+    genChoices,
   ),
   statusEl,
   h(

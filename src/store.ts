@@ -40,6 +40,8 @@ export interface Settings {
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
+  /** The Template/Instructions/Model row under Generate, folded away by default. */
+  choicesOpen: boolean;
   /**
    * Shows the authoring-loop instruments: the 1–5 rating (which only feeds the
    * improvement packet), the lint list even when clean, and the Data panel.
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cloudPlayback: true,
   uiMode: "player",
   sidebarOpen: true,
+  choicesOpen: false,
   developerMode: false,
   specFormat: "yaml",
   enabledPacks: [],

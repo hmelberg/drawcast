@@ -187,9 +187,23 @@ body.mode-editor main {
   min-height: 96px;
   max-height: 40vh;
 }
-/* Generate on its own line, the three quiet choices right-justified beneath it. */
+/* Generate on its own line; the three choices stay folded behind the "…" next
+   to it until asked for (they are set-once settings, not per-request work). */
 .gen-row { justify-content: flex-end; margin-bottom: 0.4rem; }
-.gen-choices { justify-content: flex-end; column-gap: 0.9rem; row-gap: 0.35rem; }
+.gen-choices { justify-content: flex-end; column-gap: 0.9rem; row-gap: 0.35rem; margin-top: 0.4rem; }
+.choices-toggle {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0.35rem 0.6rem;
+  border-radius: 5px;
+}
+.choices-toggle:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); color: var(--ink); }
+.choices-toggle[aria-expanded="true"] { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, var(--surface)); }
+/* A pinned template changes every generation — say so while it is out of sight. */
+.choices-toggle.has-choice { color: var(--rust); }
 .quiet-label {
   color: var(--muted);
   font-size: 0.85rem;
@@ -263,11 +277,15 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 
 .sidebar-search { width: 100%; font-size: 0.85rem; padding: 0.3rem 0.5rem; }
 
+/* Section headings read at the same size as the tool rows below them — one
+   menu, one type scale. */
 .sidebar-heading {
-  font-family: var(--sketch-font);
-  font-weight: 400;
-  font-size: 1.15rem;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--ink);
   margin: 0;
+  padding: 0.3rem 0.35rem;
 }
 .sidebar-section + .sidebar-section {
   margin-top: 0.6rem;
@@ -409,7 +427,9 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 .editor-status.error { color: var(--loss); font-weight: 600; }
 .editor-status.ok { color: var(--ok); }
 
-.panel textarea {
+/* Every textarea, panel or dialog: a bare UA textarea is 20 columns by two
+   rows, which is nowhere near the text any of these hold. */
+textarea {
   width: 100%;
   min-height: 64px;
   resize: vertical;
@@ -422,13 +442,15 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   color: var(--ink);
 }
 
-.panel textarea.prompt-source,
-.panel textarea.spec-json {
+textarea.prompt-source,
+textarea.spec-json {
   font-family: var(--mono-font);
   font-size: 0.78rem;
   min-height: 180px;
 }
-.panel textarea.spec-json { min-height: 260px; }
+textarea.spec-json { min-height: 260px; }
+/* The instructions source is the longest text in the app — give it room. */
+textarea.prompt-source { min-height: 17rem; }
 
 .library-list { margin-top: 0.7rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .library-item { display: flex; align-items: center; gap: 0.4rem; }
@@ -887,7 +909,6 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* ---------- template authoring (M2) ---------- */
 
 .author-dialog { width: min(880px, 92vw); }
-.author-dialog textarea { width: 100%; min-height: 64px; }
 .author-drop { border: 2px dashed var(--line); border-radius: 8px; padding: 10px 14px; font-size: 0.9em; color: var(--muted); }
 .author-thumb { max-height: 120px; max-width: 220px; border-radius: 6px; }
 .author-preview { min-height: 280px; }
