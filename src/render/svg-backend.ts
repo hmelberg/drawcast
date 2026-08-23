@@ -11,6 +11,7 @@ import {
   leafDrawables,
   type AreaDrawable,
   type Drawable,
+  type GradientSpec,
   type Pt,
   type StrokeDrawable,
 } from "../layout/model";
@@ -64,6 +65,46 @@ function hashSeed(id: string): number {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0) % 2147483646 + 1;
+}
+
+/**
+ * Pure attribute construction for an SVG <radialGradient>, split from the DOM
+ * assembly so it stays unit-testable in the node test environment.
+ */
+export function radialGradientParts(g: GradientSpec): { attrs: Record<string, string>; stops: Record<string, string>[] } {
+  const attrs: Record<string, string> = {};
+  if (g.fx !== undefined) attrs.fx = String(g.fx);
+  if (g.fy !== undefined) attrs.fy = String(g.fy);
+  attrs.r = String(g.r ?? 0.5);
+  const stops = g.stops.map((s) => {
+    const stop: Record<string, string> = { offset: `${+(s.offset * 100).toFixed(1)}%`, "stop-color": s.color };
+    if (s.opacity !== undefined) stop["stop-opacity"] = String(s.opacity);
+    return stop;
+  });
+  return { attrs, stops };
+}
+
+// Paint-server ids are looked up document-wide, and several SVGs can share a
+// page (viewer + a re-render + export cloning) — a monotone counter keeps
+// every gradient id unique for the session.
+let gradSeq = 0;
+
+/** Builds the <radialGradient> INSIDE the leaf's own <g> (a paint server is
+ * referenced by id, not by position, so it needn't live in <defs>) — this way
+ * it serializes with the element, which is what the video exporter clones. */
+function appendRadialGradient(g: SVGGElement, spec: GradientSpec): string {
+  const id = `csg${++gradSeq}`;
+  const parts = radialGradientParts(spec);
+  const el = document.createElementNS(SVG_NS, "radialGradient");
+  el.setAttribute("id", id);
+  for (const [k, v] of Object.entries(parts.attrs)) el.setAttribute(k, v);
+  for (const s of parts.stops) {
+    const stop = document.createElementNS(SVG_NS, "stop");
+    for (const [k, v] of Object.entries(s)) stop.setAttribute(k, v);
+    el.appendChild(stop);
+  }
+  g.appendChild(el);
+  return `url(#${id})`;
 }
 
 function pathFromPts(pts: Pt[], closed?: boolean): string {
@@ -154,11 +195,12 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
     g.appendChild(p);
     return;
   }
-  const filled = !!d.style.fill;
+  const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
+  const filled = !!(d.style.fill || gradPaint);
   if (d.shapeHint?.type === "circle") {
     const { c, r } = d.shapeHint;
     const p = plainPath(circlePath(c[0], toSvgY(c[1]), r), d.style, filled);
-    if (filled) p.setAttribute("fill", d.style.fill!);
+    if (filled) p.setAttribute("fill", gradPaint ?? d.style.fill!);
     g.appendChild(p);
   } else if (d.shapeHint?.type === "rect") {
     const { x, y, w, h: rh } = d.shapeHint;
@@ -231,7 +273,8 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
   const opts = roughOpts(d);
   if (d.shapeHint?.type === "circle") {
     const { c, r } = d.shapeHint;
-    const node = rc.circle(c[0], toSvgY(c[1]), r * 2, d.style.fill ? { ...opts, fill: d.style.fill, fillStyle: "solid" } : opts);
+    const fillPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill;
+    const node = rc.circle(c[0], toSvgY(c[1]), r * 2, fillPaint ? { ...opts, fill: fillPaint, fillStyle: "solid" } : opts);
     g.appendChild(node);
   } else if (d.shapeHint?.type === "rect") {
     const node = rc.rectangle(d.shapeHint.x, toSvgY(d.shapeHint.y + d.shapeHint.h), d.shapeHint.w, d.shapeHint.h, opts);
