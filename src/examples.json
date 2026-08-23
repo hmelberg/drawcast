@@ -318,6 +318,30 @@
           "speak": "Where the two lines cross is equilibrium — the price and quantity the market settles on."
         },
         {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "demand_shift_curve",
+            "label_D_shift",
+            "demand_shift_arrow"
+          ],
+          "speak": "Here's a copy of the demand curve — right now it sits exactly on top of the original."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "shift_equilibrium_point",
+            "shift_guide_lines",
+            "label_E_shift",
+            "label_P_shift",
+            "label_Q_shift"
+          ],
+          "speak": "Its equilibrium starts right where today's market already clears."
+        },
+        {
           "pause": 0.5
         },
         {
@@ -331,17 +355,6 @@
           "pause": 0.3
         },
         {
-          "draw": [
-            "shift_equilibrium_point",
-            "shift_guide_lines",
-            "label_E_shift"
-          ],
-          "speak": "Where it crosses supply, both price and quantity have risen."
-        },
-        {
-          "pause": 0.3
-        },
-        {
           "highlight": {
             "target": [
               "equilibrium_point",
@@ -349,7 +362,7 @@
             ],
             "effect": "glow"
           },
-          "speak": "Compare the two dots: rising demand pushes both price and quantity up."
+          "speak": "Where it crosses supply, both price and quantity have risen — compare the old and new equilibrium."
         }
       ]
     }
