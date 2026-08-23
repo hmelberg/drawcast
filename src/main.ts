@@ -26,7 +26,7 @@ import {
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engines";
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
-import { openModel3d, qualifiesFor3d } from "./ui/model3d";
+import { openModel3d, qualifiesFor3d, type Model3dViewer } from "./ui/model3d";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
@@ -909,17 +909,26 @@ authorDialog.addEventListener("close", () => {
 // ---------- explore-in-3D modal ----------
 
 const model3dContainer = h("div", { class: "model3d-container" });
+const model3dSpinBtn = h("button", {}, "Pause spin");
 const model3dCloseBtn = h("button", {}, "Close");
 const model3dDialog = h(
   "dialog",
   { class: "model3d-dialog" },
   h("h3", {}, "Explore in 3D"),
   model3dContainer,
-  h("div", { class: "row" }, model3dCloseBtn),
+  h("div", { class: "row" }, model3dSpinBtn, model3dCloseBtn),
 );
 app.appendChild(model3dDialog);
 
 let model3dDestroy: (() => void) | null = null;
+let model3dViewer: Model3dViewer | null = null;
+let model3dSpinning = true;
+function setModel3dSpin(on: boolean): void {
+  model3dSpinning = on;
+  model3dSpinBtn.textContent = on ? "Pause spin" : "Spin";
+  model3dViewer?.spin(on);
+}
+model3dSpinBtn.addEventListener("click", () => setModel3dSpin(!model3dSpinning));
 /**
  * One AbortController per open, held module-level. This is the generation
  * marker for the whole flow — not just a main.ts-side "ignore this result"
@@ -942,8 +951,14 @@ function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): v
   model3dDestroy = null;
   const ac = new AbortController();
   model3dAbort = ac;
+  model3dViewer = null;
+  setModel3dSpin(true); // every open starts spinning, whatever the last session did
   model3dDialog.showModal();
-  void openModel3d(model3dDialog, model3dContainer, q, ac.signal).then((destroy) => {
+  void openModel3d(model3dDialog, model3dContainer, q, ac.signal, {
+    onMounted: (v) => {
+      if (!ac.signal.aborted) model3dViewer = v;
+    },
+  }).then((destroy) => {
     if (ac.signal.aborted) {
       destroy(); // no-op if openModel3d itself never mounted; a safe teardown otherwise
       return;
@@ -961,6 +976,7 @@ model3dDialog.addEventListener("close", () => {
   model3dAbort = null;
   model3dDestroy?.();
   model3dDestroy = null;
+  model3dViewer = null;
   model3dContainer.replaceChildren();
 });
 

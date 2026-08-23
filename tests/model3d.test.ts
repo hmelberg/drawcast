@@ -249,6 +249,48 @@ describe("openModel3d: abort/guard path (no DOM)", () => {
     expect(viewerMethods.spin).toHaveBeenCalledWith(false);
     expect(viewerMethods.clear).toHaveBeenCalledTimes(1);
   });
+
+  test("onMounted delivers the viewer after a successful mount", async () => {
+    resetModel3dCacheForTests();
+    const container = stubContainer();
+    const host = stubHost(true);
+    const ac = new AbortController();
+    const calls: string[] = [];
+    const fakeViewer = {
+      addModel: () => calls.push("addModel"),
+      setStyle: () => calls.push("setStyle"),
+      zoomTo: () => calls.push("zoomTo"),
+      render: () => calls.push("render"),
+      spin: (on: boolean | string) => calls.push(`spin:${on}`),
+      clear: () => calls.push("clear"),
+    };
+    MODEL3D_DEF.load = async () => ({ createViewer: () => fakeViewer });
+    let mounted: unknown = null;
+    await openModel3d(host, container, { kind: "molecule", input: { xyz: xyzFromPreset("methane")! } }, ac.signal, {
+      onMounted: (v) => {
+        mounted = v;
+      },
+    });
+    expect(mounted).toBe(fakeViewer);
+    expect(calls).toContain("spin:true");
+  });
+
+  test("onMounted is NOT called when the open was already superseded", async () => {
+    resetModel3dCacheForTests();
+    const container = stubContainer();
+    const host = stubHost(true);
+    const ac = new AbortController();
+    ac.abort();
+    // Deliberately NOT stubbing MODEL3D_DEF.load — a correct implementation
+    // must bail before ever reaching the viewer factory.
+    let mounted = false;
+    await openModel3d(host, container, { kind: "molecule", input: { xyz: xyzFromPreset("methane")! } }, ac.signal, {
+      onMounted: () => {
+        mounted = true;
+      },
+    });
+    expect(mounted).toBe(false);
+  });
 });
 
 describe("doc validation with model3d", () => {

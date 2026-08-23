@@ -212,8 +212,18 @@ async function fetchPubchemSdf(smiles: string, signal: AbortSignal): Promise<str
  * `h()`-built element — this function otherwise has no DOM dependency beyond
  * whatever `host`/`container` themselves provide, which keeps its abort/guard
  * behavior unit-testable against plain object stubs (see tests/model3d.test.ts).
+ *
+ * `opts.onMounted` fires once after a successful mount — the caller's handle
+ * for runtime controls like the spin toggle — and never fires on an aborted,
+ * superseded, or failed open.
  */
-export async function openModel3d(host: HTMLDialogElement, container: HTMLElement, q: Model3dQuery, signal: AbortSignal): Promise<() => void> {
+export async function openModel3d(
+  host: HTMLDialogElement,
+  container: HTMLElement,
+  q: Model3dQuery,
+  signal: AbortSignal,
+  opts?: { onMounted?: (viewer: Model3dViewer) => void },
+): Promise<() => void> {
   let viewer: Model3dViewer | null = null;
   const destroy = (): void => {
     try {
@@ -241,6 +251,7 @@ export async function openModel3d(host: HTMLDialogElement, container: HTMLElemen
     viewer.zoomTo();
     viewer.render();
     viewer.spin(true);
+    opts?.onMounted?.(viewer);
   } catch (err) {
     if (signal.aborted) return destroy; // superseded mid-flight — never touch a container another call may now own
     container.replaceChildren(`Couldn't load the 3D view: ${(err as Error).message}`);
