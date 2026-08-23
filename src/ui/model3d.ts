@@ -152,10 +152,9 @@ const PUBCHEM_TIMEOUT_MS = 15000;
  * on a newer open superseding this one) — forwarded into an internal
  * timeout-owning AbortController so the outstanding network request is
  * actually cancelled, not just ignored on resolution. Manual forwarding
- * (rather than `AbortSignal.any([signal, timeoutSignal])`) because this
- * repo's configured DOM lib (TypeScript 5.9's lib.dom.d.ts, ES2022 target)
- * has no `AbortSignal.any` static — checked directly in lib.dom.d.ts, not
- * present.
+ * (rather than `AbortSignal.any([signal, AbortSignal.timeout(...)])`) is
+ * kept for explicit listener cleanup — AbortSignal.any is available in
+ * TypeScript 5.9's lib.dom.d.ts (ES2022 target) and would also work.
  */
 async function fetchPubchemSdf(smiles: string, signal: AbortSignal): Promise<string> {
   const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(smiles)}/SDF?record_type=3d`;

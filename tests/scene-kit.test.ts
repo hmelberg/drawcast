@@ -137,6 +137,11 @@ describe("shadeColor", () => {
     expect(shadeColor("#204060", 1.0)).toBe("#ffffff");
     expect(shadeColor("#204060", 0.0)).toBe("#000000");
   });
+
+  test("non-6-digit-hex input returns unchanged", () => {
+    expect(shadeColor("red", 0.8)).toBe("red");
+    expect(shadeColor("#abc", 0.8)).toBe("#abc");
+  });
 });
 
 test("KIT_VERSION is 1 and constants ride on the kit", () => {

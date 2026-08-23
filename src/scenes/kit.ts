@@ -108,6 +108,7 @@ export function shadeColor(hex: string, factor: number): string {
   const r = parseInt(clean.slice(0, 2), 16);
   const g = parseInt(clean.slice(2, 4), 16);
   const b = parseInt(clean.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex;
   const toward = t < 0.5 ? 0 : 255;
   const blend = t < 0.5 ? (0.5 - t) * 2 : (t - 0.5) * 2;
   const mix = (c: number) => Math.round(c + (toward - c) * blend);
