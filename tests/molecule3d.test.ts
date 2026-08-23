@@ -68,38 +68,59 @@ describe("kit.project3d", () => {
   describe("sphere shading (default on)", () => {
     const cam = { azimuth: 20, elevation: 15, distance: 10 };
 
-    test("emits __sh (crescent area, below-right of center) and __hl (highlight, up-left) nearer in order than the base circle", () => {
-      const { drawables, order, anchors } = kit.project3d(cam, [{ kind: "sphere", id: "s", c: [0, 0, 0], r: 1, color: "#204060" }]);
-      expect(order.indexOf("s")).toBeLessThan(order.indexOf("s__sh")); // farther first
-      expect(order.indexOf("s__sh")).toBeLessThan(order.indexOf("s__hl"));
-
-      const base = drawables.find((d) => d.id === "s");
-      const baseC = base && base.kind === "stroke" && base.shapeHint?.type === "circle" ? base.shapeHint.c : [0, 0];
-      const sh = drawables.find((d) => d.id === "s__sh");
-      const hl = drawables.find((d) => d.id === "s__hl");
-      expect(sh?.kind).toBe("area");
-      expect(hl?.kind).toBe("area");
-      const centroidOf = (pts: [number, number][]) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
-      if (sh?.kind === "area") {
-        const [cx, cy] = centroidOf(sh.pts);
-        expect(cx).toBeGreaterThan(baseC[0]); // right
-        expect(cy).toBeLessThan(baseC[1]); // below (logical y-up)
-      }
-      if (hl?.kind === "area") {
-        const [cx, cy] = centroidOf(hl.pts);
-        expect(cx).toBeLessThan(baseC[0]); // left
-        expect(cy).toBeGreaterThan(baseC[1]); // above
-      }
-
-      // Drawables only — no anchors for the shading pieces.
-      expect(anchors.s).toBeDefined();
-      expect(anchors["s__sh"]).toBeUndefined();
-      expect(anchors["s__hl"]).toBeUndefined();
+    test("shaded sphere is ONE drawable with a radial-gradient fill — no __sh/__hl overlay pieces", () => {
+      const { drawables, order, anchors } = kit.project3d(cam, [
+        { kind: "sphere", id: "s", c: [0, 0, 0], r: 1, fill: "#bcd2e0" },
+      ]);
+      expect(order).toEqual(["s"]);
+      expect(anchors["s"]).toBeDefined();
+      const s = drawables[0];
+      expect(s.style.fill).toBe("#bcd2e0");
+      const grad = s.style.fillGradient!;
+      expect(grad.stops).toHaveLength(3);
+      expect(grad.stops[1].color).toBe("#bcd2e0"); // mid stop = the base color itself
+      expect(grad.fx!).toBeLessThan(0.5); // highlight up-left (SVG y-down)
+      expect(grad.fy!).toBeLessThan(0.5);
     });
 
-    test("shade: false suppresses both", () => {
-      const { order } = kit.project3d(cam, [{ kind: "sphere", id: "s", c: [0, 0, 0], r: 1, shade: false }]);
+    test("shade: false keeps a flat fill and no gradient", () => {
+      const { drawables, order } = kit.project3d(cam, [
+        { kind: "sphere", id: "s", c: [0, 0, 0], r: 1, fill: "#bcd2e0", shade: false },
+      ]);
       expect(order).toEqual(["s"]);
+      expect(drawables[0].style.fill).toBe("#bcd2e0");
+      expect(drawables[0].style.fillGradient).toBeUndefined();
+    });
+
+    test("shaded sphere without an explicit fill shades a light tint of its stroke color", () => {
+      const { drawables } = kit.project3d(cam, [
+        { kind: "sphere", id: "s", c: [0, 0, 0], r: 1, color: "#5a544c" },
+      ]);
+      expect(drawables[0].style.fill).toBeDefined();
+      expect(drawables[0].style.fillGradient).toBeDefined();
+      expect(drawables[0].style.fillGradient!.stops[1].color).toBe(drawables[0].style.fill);
+    });
+
+    test("wire sphere: outline + solid front equator + dashed back equator, no fill", () => {
+      const { drawables, order, anchors } = kit.project3d(cam, [
+        { kind: "sphere", id: "s", c: [0, 0, 0], r: 1, style: "wire" },
+      ]);
+      expect(order).toContain("s");
+      expect(order).toContain("s__eq");
+      expect(order).toContain("s__eqb");
+      // Painter's order (far → near): back half behind the circle, front half on top.
+      expect(order.indexOf("s__eqb")).toBeLessThan(order.indexOf("s"));
+      expect(order.indexOf("s")).toBeLessThan(order.indexOf("s__eq"));
+      const outline = drawables.find((d) => d.id === "s")!;
+      const front = drawables.find((d) => d.id === "s__eq")!;
+      const back = drawables.find((d) => d.id === "s__eqb")!;
+      expect(outline.style.fill).toBeUndefined();
+      expect(outline.style.fillGradient).toBeUndefined();
+      expect(front.style.dash).toBeFalsy();
+      expect(back.style.dash).toBe(true);
+      // Only the sphere itself gets an anchor.
+      expect(anchors["s__eq"]).toBeUndefined();
+      expect(anchors["s__eqb"]).toBeUndefined();
     });
   });
 

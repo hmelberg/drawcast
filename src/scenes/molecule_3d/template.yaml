@@ -1,6 +1,6 @@
 template: molecule_3d
 title: 3D molecule (ball-and-stick)
-version: 1
+version: 2
 kit: 1
 status: ready
 model3d:
@@ -91,7 +91,7 @@ layout: |
   const showLabels = params.show_labels !== false;
   const prims = [];
   preset.atoms.forEach((a, i) => {
-    prims.push({ kind: "sphere", id: "atom_" + i, c: a.p, r: a.r, color: a.color, fill: a.fill });
+    prims.push({ kind: "sphere", id: "atom_" + i, c: a.p, r: a.r, color: a.color, fill: a.fill, ms: 420 });
     if (showLabels) {
       const len = Math.hypot(a.p[0], a.p[1], a.p[2]);
       if (len > 0.01) {
@@ -108,7 +108,7 @@ layout: |
     prims.push({
       kind: "seg", id: "bond_" + (i + 1),
       a: preset.atoms[f].p, b: preset.atoms[t].p,
-      w: 5, color: kit.COLORS.guide,
+      w: 5, color: kit.COLORS.guide, ms: 320,
       trimA: preset.atoms[f].r + 0.04, trimB: preset.atoms[t].r + 0.04,
     });
   });

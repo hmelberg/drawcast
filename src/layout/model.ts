@@ -3,9 +3,25 @@
 
 export type Pt = [number, number];
 
+/**
+ * Radial-gradient fill in SVG objectBoundingBox coordinates. When set on a
+ * circle-hinted stroke drawable, both renderers paint the fill with this
+ * gradient instead of the flat `fill` (keep `fill` set too — it is the base
+ * color the gradient shades, and the fallback paint). SVG is y-down here:
+ * an up-left highlight means fx, fy < 0.5.
+ */
+export interface GradientSpec {
+  stops: { offset: number; color: string; opacity?: number }[];
+  fx?: number;
+  fy?: number;
+  /** Radius in unit bbox coords (default 0.5; > 0.5 softens the limb). */
+  r?: number;
+}
+
 export interface ResolvedStyle {
   color: string;
   fill?: string;
+  fillGradient?: GradientSpec;
   strokeWidth: number;
   dash?: boolean;
   roughness: number;

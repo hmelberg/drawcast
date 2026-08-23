@@ -90,7 +90,7 @@ export interface Camera3 {
 }
 
 export type Prim3 =
-  | { kind: "sphere"; id: string; c: Vec3; r: number; color?: string; fill?: string; shade?: boolean; ms?: number }
+  | { kind: "sphere"; id: string; c: Vec3; r: number; color?: string; fill?: string; shade?: boolean; style?: "solid" | "wire"; ms?: number }
   | { kind: "seg"; id: string; a: Vec3; b: Vec3; w?: number; color?: string; dash?: boolean; trimA?: number; trimB?: number; ms?: number }
   | { kind: "arrow"; id: string; a: Vec3; b: Vec3; w?: number; color?: string; dash?: boolean; trimA?: number; trimB?: number; ms?: number }
   | { kind: "text3"; id: string; p: Vec3; text: string; fontSize?: number; color?: string }
@@ -100,7 +100,7 @@ export type Prim3 =
 /**
  * Lighten/darken a hex color toward white/black. factor 1 → pure white (lighter);
  * factor 0 → pure black (darker); factor 0.5 → the color unchanged. Used by
- * project3d's face3 flat-shading (spec §3a).
+ * project3d's face3 flat-shading AND the sphere gradient stops (spec §3a).
  */
 export function shadeColor(hex: string, factor: number): string {
   const t = Math.max(0, Math.min(1, factor));
@@ -156,13 +156,17 @@ export interface SceneKit {
    * midpoint and can be trimmed at sphere surfaces (trimA/trimB, world units)
    * so sticks vanish into balls. Returned `order` is far-to-near — draw in
    * that order so occlusion stays correct during progressive drawing.
-   * Spheres default to `shade: true`: each emits a fixed up-left highlight
-   * and a lower-right crescent shadow (drawables only, no anchors) just
-   * nearer in depth than the sphere itself, so balls read as solid. face3
-   * (a flat 3D polygon) and box3 (an axis-aligned solid, visible faces only,
-   * optional dashed hidden edges) use the same flat-shaded-face lighting.
-   * Reliable scope: ball-and-stick, 3D vectors/axes, small lattices/solids.
-   * Not for intersecting surfaces or large structures.
+   * Spheres default to `shade: true`: the ball is ONE circle whose
+   * radial-gradient fill (base color: `fill`, else a light tint of the
+   * stroke color; 6-digit hex colors shade best) is lit from up-left (bright
+   * core toward the light, darkened limb) — volumetric with no extra
+   * drawables. `style: "wire"` draws the textbook wireframe instead: outline
+   * plus equator, front half solid (`id__eq`), back half dashed (`id__eqb`),
+   * no fill. face3 (a flat 3D polygon) and box3 (an axis-aligned solid,
+   * visible faces only, optional dashed hidden edges) use the same
+   * flat-shaded-face lighting. Reliable scope: ball-and-stick, 3D
+   * vectors/axes, small lattices/solids. Not for intersecting surfaces or
+   * large structures.
    */
   project3d(camera: Camera3, prims: Prim3[]): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
   // ---- constants ----
@@ -494,57 +498,111 @@ export const kit: SceneKit = {
         const q = proj(prim.c);
         anchors[prim.id] = [q.x, q.y];
         const resolvedColor = prim.color ?? COLORS.ink;
-        pieces.push({
-          depth: q.depth,
-          drawable: {
-            id: prim.id,
-            kind: "stroke",
-            pts: [[q.x, q.y]],
-            shapeHint: { type: "circle", c: [q.x, q.y], r: prim.r * q.s },
-            z: Z_STROKE,
-            style: defaultStyle({
-              color: resolvedColor,
-              ...(prim.fill !== undefined && { fill: prim.fill }),
-              strokeWidth: 3,
-            }),
-            drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.node),
-          },
-        });
-        if (prim.shade !== false) {
-          // Fixed screen-space light, up-left (camera-independent, v1 ruling):
-          // a crescent shadow AREA on the away-from-light side (φ=-45° ± 90°,
-          // pulled 0.45r toward the center) plus a small up-left highlight
-          // ellipse. Both are drawables only (no anchors), immediately
-          // nearer in depth than the sphere's own circle so they paint on
-          // top of it.
-          const R = prim.r * q.s;
-          const SHADOW_CENTER = (-45 * Math.PI) / 180;
-          const a0 = SHADOW_CENTER - Math.PI / 2;
-          const a1 = SHADOW_CENTER + Math.PI / 2;
-          const outer = kit.arc([q.x, q.y], R, a0, a1, 20);
-          const inner = kit.arc([q.x, q.y], R - 0.45 * R, a1, a0, 20);
+        if (prim.style === "wire") {
+          // Textbook wireframe: outline circle + the world-space equator,
+          // front half solid, back half dashed — the geometry-class "this is
+          // a sphere" cue. No fill at all.
           pieces.push({
-            depth: q.depth - 1e-6,
+            depth: q.depth,
             drawable: {
-              id: `${prim.id}__sh`,
-              kind: "area",
-              pts: [...outer, ...inner],
+              id: prim.id,
+              kind: "stroke",
+              pts: [[q.x, q.y]],
+              shapeHint: { type: "circle", c: [q.x, q.y], r: prim.r * q.s },
               z: Z_STROKE,
-              style: defaultStyle({ fill: resolvedColor, opacity: 0.22, strokeWidth: 0 }),
-              drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.region),
+              style: defaultStyle({ color: resolvedColor, strokeWidth: 3 }),
+              drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.node),
             },
           });
-          const UP_LEFT = (135 * Math.PI) / 180;
-          const hlC: Pt = [q.x + 0.42 * R * Math.cos(UP_LEFT), q.y + 0.42 * R * Math.sin(UP_LEFT)];
+          // Sample the equator (world-space horizontal circle through the
+          // center), classify each point front/back against the center's own
+          // depth, and keep the LONGEST run of each class — in general
+          // position the equator crosses the silhouette exactly twice, so
+          // that IS the front and the back half; a degenerate edge-on camera
+          // just gets a partial arc, which still reads correctly.
+          const N = 48;
+          const samples = Array.from({ length: N }, (_, i) => {
+            const t = (i / N) * 2 * Math.PI;
+            const p = proj([prim.c[0] + prim.r * Math.cos(t), prim.c[1], prim.c[2] + prim.r * Math.sin(t)]);
+            return { pt: [p.x, p.y] as Pt, back: p.depth > q.depth };
+          });
+          const boundary = samples.findIndex((s, i) => s.back !== samples[(i + N - 1) % N].back);
+          const ordered = boundary <= 0 ? samples : [...samples.slice(boundary), ...samples.slice(0, boundary)];
+          const runs: { back: boolean; pts: Pt[] }[] = [];
+          for (const s of ordered) {
+            const last = runs[runs.length - 1];
+            if (last && last.back === s.back) last.pts.push(s.pt);
+            else runs.push({ back: s.back, pts: [s.pt] });
+          }
+          // Bridge each run to the start of the next so the halves meet at the silhouette.
+          runs.forEach((r, i) => {
+            const next = runs[(i + 1) % runs.length];
+            if (next !== r) r.pts.push(next.pts[0]);
+          });
+          const longest = (back: boolean) =>
+            runs.filter((r) => r.back === back && r.pts.length >= 2).sort((a, b) => b.pts.length - a.pts.length)[0];
+          const front = longest(false);
+          const back = longest(true);
+          if (back) {
+            pieces.push({
+              depth: q.depth + 1e-6,
+              drawable: {
+                id: `${prim.id}__eqb`,
+                kind: "stroke",
+                pts: back.pts,
+                z: Z_STROKE,
+                style: defaultStyle({ color: resolvedColor, strokeWidth: 2, dash: true, opacity: 0.65 }),
+                drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.guides),
+              },
+            });
+          }
+          if (front) {
+            pieces.push({
+              depth: q.depth - 1e-6,
+              drawable: {
+                id: `${prim.id}__eq`,
+                kind: "stroke",
+                pts: front.pts,
+                z: Z_STROKE,
+                style: defaultStyle({ color: resolvedColor, strokeWidth: 2.5 }),
+                drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.guides),
+              },
+            });
+          }
+        } else {
+          // Solid ball: ONE circle whose radial-gradient fill carries the
+          // volume — bright core offset toward the fixed up-left light,
+          // darkened limb (screen-space light, camera-independent, matching
+          // the previous crescent convention). No overlay drawables, so the
+          // ball is complete the instant its circle finishes drawing.
+          const base = prim.fill ?? shadeColor(resolvedColor, 0.85);
+          const shaded = prim.shade !== false;
           pieces.push({
-            depth: q.depth - 2e-6,
+            depth: q.depth,
             drawable: {
-              id: `${prim.id}__hl`,
-              kind: "area",
-              pts: kit.ellipse(hlC, 0.32 * R, 0.22 * R, 24),
+              id: prim.id,
+              kind: "stroke",
+              pts: [[q.x, q.y]],
+              shapeHint: { type: "circle", c: [q.x, q.y], r: prim.r * q.s },
               z: Z_STROKE,
-              style: defaultStyle({ fill: "#fbf8f1", opacity: 0.55, strokeWidth: 0 }),
-              drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.region),
+              style: defaultStyle({
+                color: resolvedColor,
+                ...((prim.fill !== undefined || shaded) && { fill: base }),
+                ...(shaded && {
+                  fillGradient: {
+                    fx: 0.32,
+                    fy: 0.3,
+                    r: 0.75,
+                    stops: [
+                      { offset: 0, color: shadeColor(base, 0.78) },
+                      { offset: 0.55, color: base },
+                      { offset: 1, color: shadeColor(base, 0.3) },
+                    ],
+                  },
+                }),
+                strokeWidth: 3,
+              }),
+              drawOpts: defaultDrawOpts("sketch", prim.ms ?? SKETCH_MS.node),
             },
           });
         }
