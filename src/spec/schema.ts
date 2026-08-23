@@ -141,7 +141,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (announcement, synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (announcement, synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -225,6 +225,13 @@ const commandSchema = {
       },
       additionalProperties: false,
     },
+    animate: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs.",
+    },
+    duration: { type: "number", description: "With animate: seconds the animation takes (default 2)." },
   },
   additionalProperties: false,
 };
@@ -256,7 +263,7 @@ export const specSchema = {
       type: "array",
       items: commandSchema,
       description:
-        "The playback sequence: narration (speak), drawing (draw/pause), and gesture verbs (highlight/point/move/show/hide/erase/clear/camera). " +
+        "The playback sequence: narration (speak), drawing (draw/pause), and gesture verbs (highlight/point/move/show/hide/erase/clear/camera/animate). " +
         "Elements not mentioned in any draw/show/hide/erase command are drawn at the end automatically.",
     },
   },
@@ -308,7 +315,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the
@@ -337,6 +344,16 @@ function semanticErrors(spec: Spec): string[] {
     }
     if (verb === "camera" && !cmd.camera!.reset && cmd.camera!.center === undefined && cmd.camera!.zoom === undefined) {
       errors.push(`commands[${i}]: camera needs center, zoom, or reset:true`);
+    }
+    if (verb === "animate") {
+      const entries = Object.entries(cmd.animate!);
+      if (entries.length === 0) errors.push(`commands[${i}]: animate needs at least one param target`);
+      for (const [k, v] of entries) {
+        if (typeof v !== "number" || !Number.isFinite(v)) errors.push(`commands[${i}]: animate "${k}" must be a finite number`);
+      }
+    }
+    if (cmd.duration !== undefined && verb !== "animate") {
+      errors.push(`commands[${i}]: duration only applies to animate (other verbs carry their own duration fields)`);
     }
   }
 

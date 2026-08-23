@@ -175,6 +175,10 @@ export interface Command {
   move?: MoveArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
+  /** Smoothly animate numeric template params to target values (dot paths into params). */
+  animate?: Record<string, number>;
+  /** With animate: seconds the animation takes (default 2). */
+  duration?: number;
 }
 
 export interface Spec {

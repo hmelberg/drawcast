@@ -16,9 +16,9 @@ const STEEPNESS: Record<string, number> = { gentle: 0.55, medium: 1, steep: 1.5 
 export function qualitativeShape(
   direction: "increasing" | "decreasing" | "flat" | "vertical",
   curvature: "linear" | "convex" | "concave" = "linear",
-  steepness: "gentle" | "medium" | "steep" = "medium",
+  steepness: "gentle" | "medium" | "steep" | number = "medium",
 ): Pt[] {
-  const k = STEEPNESS[steepness] ?? 1;
+  const k = Math.max(0.05, typeof steepness === "number" ? steepness : STEEPNESS[steepness] ?? 1);
   const pts: Pt[] = [];
   const lo = Math.max(0.06, 0.5 - 0.42 * k);
   const hi = Math.min(0.94, 0.5 + 0.42 * k);

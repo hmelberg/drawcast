@@ -594,20 +594,33 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       overlay.setAttribute("class", "cs-overlay");
       svg.append(layers[0], layers[1], layers[2], overlay);
 
-      // Paint order: z layer, then IR order within the layer.
-      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>();
-      for (const id of layout.order) {
-        const parts = drawablesForId(layout.drawables, id);
-        const leaves = leafDrawables(parts);
-        const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[] = [];
-        for (const leaf of leaves) {
-          const g = drawLeaf(rc, leaf);
-          const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
-          layers[z].appendChild(g);
-          entry.push({ g, leaf });
+      // Paint order: z layer, then IR order within the layer. Extracted so
+      // swapGeometry/remount can rebuild nodes for a new layout without
+      // duplicating the loop.
+      const buildNodes = (
+        l: LayoutResult,
+        into: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
+        visible?: ReadonlySet<string>,
+        offsets?: Record<string, Pt>,
+      ) => {
+        for (const id of l.order) {
+          if (visible && !visible.has(id)) continue;
+          const parts = drawablesForId(l.drawables, id);
+          const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[] = [];
+          for (const leaf of leafDrawables(parts)) {
+            const g = drawLeaf(rc, leaf);
+            const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
+            const [dx, dy] = offsets?.[id] ?? [0, 0];
+            if (dx !== 0 || dy !== 0) g.setAttribute("transform", `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+            layers[z].appendChild(g);
+            entry.push({ g, leaf });
+          }
+          into.set(id, entry);
         }
-        leafNodes.set(id, entry);
-      }
+      };
+
+      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>();
+      buildNodes(layout, leafNodes);
 
       container.appendChild(svg);
       nudgeTextsIntoCanvas(svg);
@@ -625,6 +638,25 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         elements,
         effects: makeEffects(svg, overlay, leafNodes, rc),
         destroy: () => svg.remove(),
+        swapGeometry: (l, visible, offsets) => {
+          layers[0].replaceChildren();
+          layers[1].replaceChildren();
+          layers[2].replaceChildren();
+          buildNodes(l, new Map(), visible, offsets); // throwaway map: no handles, effects keep the mount-time nodes
+        },
+        remount: (l) => {
+          layers[0].replaceChildren();
+          layers[1].replaceChildren();
+          layers[2].replaceChildren();
+          leafNodes.clear();
+          buildNodes(l, leafNodes);
+          nudgeTextsIntoCanvas(svg);
+          const els = new Map<string, RenderedElement>();
+          for (const [id, entry] of leafNodes) {
+            els.set(id, new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g)));
+          }
+          return els;
+        },
       };
     },
   };

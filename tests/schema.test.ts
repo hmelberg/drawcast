@@ -136,4 +136,31 @@ describe("validateSpec — gesture verbs", () => {
     const r = validateSpec({ ...base, commands: [{ camera: {} }] });
     expect(r.ok).toBe(false);
   });
+
+  test("animate command validates: numeric targets, duration only with animate", () => {
+    const ok = validateSpec({
+      template: "supply_demand",
+      params: { demand_shift: { amount: 0 } },
+      commands: [{ animate: { "demand_shift.amount": 20 }, duration: 3, speak: "watch it slide" }],
+    });
+    expect(ok.ok).toBe(true);
+    const badValue = validateSpec({
+      template: "supply_demand",
+      params: {},
+      commands: [{ animate: { "demand_shift.amount": "right" as unknown as number } }],
+    });
+    expect(badValue.ok).toBe(false);
+    const strayDuration = validateSpec({
+      template: "supply_demand",
+      params: {},
+      commands: [{ draw: ["axes"], duration: 2 }],
+    });
+    expect(strayDuration.ok).toBe(false);
+    const twoVerbs = validateSpec({
+      template: "supply_demand",
+      params: {},
+      commands: [{ animate: { a: 1 }, draw: ["axes"] }],
+    });
+    expect(twoVerbs.ok).toBe(false);
+  });
 });

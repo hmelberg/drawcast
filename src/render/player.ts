@@ -16,6 +16,13 @@ import { SpeechManager } from "./speech";
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
 
+export interface Reprojector {
+  /** Cheap per-frame swap at interpolated params. */
+  frame(params: Record<string, number>, visible: ReadonlySet<string>, offsets: Record<string, Pt>): void;
+  /** Full remount at settled params; returns the new element handles. */
+  commit(params: Record<string, number>): Map<string, RenderedElement>;
+}
+
 export interface PlayerCallbacks {
   onState?(state: PlayerState): void;
   onStep?(completed: number, total: number): void;
@@ -38,6 +45,8 @@ export class Player {
    * wait degrades to a short pause so a bare Player never deadlocks.
    */
   inputGate: ((signal: AbortSignal) => Promise<void>) | null = null;
+  /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
+  reprojector: Reprojector | null = null;
 
   private mode: PlaybackMode;
   private speedVal: number;
@@ -53,6 +62,10 @@ export class Player {
   private ac: AbortController | null = null;
   /** Boundary: number of fully completed steps. */
   private completed = 0;
+  /** Animate params currently reflected on screen (last reprojector.commit call). */
+  private appliedParams: Record<string, number> = {};
+  /** True once any reprojector.frame() has run since the last commit — forces the next applyParams to commit even if params compare equal (frame() left the DOM at a live, possibly detached, mid-tween state). */
+  private geometryDirty = false;
   state: PlayerState = "idle";
 
   constructor(
@@ -160,15 +173,8 @@ export class Player {
   renderUpTo(n: number): void {
     this.abortRun();
     const scene = this.stateAt(n);
-    const visible = new Set(scene.visible);
-    for (const [id, el] of this.elements) {
-      const [dx, dy] = scene.offsets[id] ?? [0, 0];
-      el.setOffset?.(dx, dy);
-      if (visible.has(id)) el.finish();
-      else el.hide();
-    }
-    this.effects?.setPointer(null);
-    this.effects?.setCamera(scene.camera);
+    this.applyParams(scene.params);
+    this.applyScene(scene);
     this.completed = n;
     // Show the most recent narration line at this boundary.
     let caption = "";
@@ -180,6 +186,39 @@ export class Player {
     this.setCaption(caption);
     this.callbacks.onStep?.(this.completed, this.plan.steps.length);
     this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
+  }
+
+  /** Apply a scene's visibility/offsets/pointer/camera to the currently mounted elements. */
+  private applyScene(scene: SceneState): void {
+    const visible = new Set(scene.visible);
+    for (const [id, el] of this.elements) {
+      const [dx, dy] = scene.offsets[id] ?? [0, 0];
+      el.setOffset?.(dx, dy);
+      if (visible.has(id)) el.finish();
+      else el.hide();
+    }
+    this.effects?.setPointer(null);
+    this.effects?.setCamera(scene.camera);
+  }
+
+  private static sameParams(a: Record<string, number>, b: Record<string, number>): boolean {
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => a[k] === b[k]);
+  }
+
+  /**
+   * Remount at the boundary's params when they differ from what is on screen,
+   * or when reprojector.frame() has run since the last commit (its mid-tween
+   * DOM state must always be settled by a trailing commit — never left as-is,
+   * even if the boundary's params happen to equal the last committed ones).
+   */
+  private applyParams(params: Record<string, number>): void {
+    if (!this.reprojector) return;
+    if (!this.geometryDirty && Player.sameParams(this.appliedParams, params)) return;
+    this.elements = this.reprojector.commit(params);
+    this.appliedParams = { ...params };
+    this.geometryDirty = false;
   }
 
   dispose(): void {
@@ -351,6 +390,31 @@ export class Player {
         }
         return;
       }
+      case "animate": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        const rp = this.reprojector;
+        const after = this.plan.states[index].params;
+        if (!rp) {
+          // No reprojection surface (headless tests, degraded backends): keep the pacing.
+          return this.waitScaled(step.seconds * 1000, signal);
+        }
+        const visible = new Set(before.visible);
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const e = t * t * (3 - 2 * t); // smoothstep
+          const cur: Record<string, number> = { ...before.params };
+          for (const key of Object.keys(step.targets)) {
+            const start = step.starts[key];
+            cur[key] = start === null ? step.targets[key] : start + (step.targets[key] - start) * e;
+          }
+          rp.frame(cur, visible, before.offsets);
+          this.geometryDirty = true;
+        });
+        if (signal.aborted) return; // a scrub's renderUpTo owns the state now
+        this.applyParams(after);
+        this.applyScene(this.plan.states[index]);
+        return;
+      }
       case "move": {
         const els = this.els(step.ids).filter((el) => el.setOffset);
         const bases = new Map<string, Pt>(els.map((el): [string, Pt] => [el.id, before.offsets[el.id] ?? [0, 0]]));
@@ -397,12 +461,19 @@ export class Player {
     return new Promise((resolve) => {
       let t = 0;
       let last = performance.now();
+      let lastP = -1;
       const tick = (now: number) => {
         if (signal.aborted) return resolve();
         if (!this.pausedFlag) t += (now - last) * this.speedVal;
         last = now;
         const p = Math.min(t / ms, 1);
-        onTick(p);
+        // Skip onTick while paused holds p unchanged — avoids a busy-loop of
+        // relayouts (e.g. animate's reprojector.frame) firing every rAF for
+        // no visual change. p===1 always gets through so completion fires.
+        if (p !== lastP) {
+          lastP = p;
+          onTick(p);
+        }
         if (p >= 1) return resolve();
         requestAnimationFrame(tick);
       };

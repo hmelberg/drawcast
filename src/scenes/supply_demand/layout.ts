@@ -21,7 +21,7 @@ import type { LabelRequest } from "../../layout/labels";
 import type { SceneLayout } from "../types";
 
 export interface CurveParams {
-  steepness?: "gentle" | "medium" | "steep";
+  steepness?: "gentle" | "medium" | "steep" | number;
   curvature?: "linear" | "convex" | "concave";
   label?: string;
 }
@@ -33,8 +33,8 @@ export interface SupplyDemandParams {
   /** null = draw no supply curve */
   supply?: CurveParams | null;
   equilibrium?: { show?: boolean; label?: string; guides?: boolean; q_label?: string; p_label?: string };
-  demand_shift?: { direction?: "right" | "left"; label?: string };
-  supply_shift?: { direction?: "right" | "left"; label?: string };
+  demand_shift?: { direction?: "right" | "left"; amount?: number; label?: string };
+  supply_shift?: { direction?: "right" | "left"; amount?: number; label?: string };
   tax?: { show_deadweight_loss?: boolean; label?: string };
   price_ceiling?: { label?: string; show_shortage?: boolean };
   price_floor?: { label?: string; show_surplus?: boolean };
@@ -118,14 +118,20 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   }
 
   // Shifted curves
+  const shiftedDomain: Record<string, Pt[]> = {};
   for (const [kind, base, shift] of [
     ["demand", demandPts, params.demand_shift],
     ["supply", supplyPts, params.supply_shift],
   ] as const) {
     if (!shift || !base) continue;
-    const dx = (shift.direction ?? "right") === "right" ? 15 : -15;
+    // Clamp (never skip): an extreme amount would filter out every shifted
+    // point below and leave `shifted` empty, crashing the last-point lookups
+    // that follow — and the animate machinery depends on these ids staying
+    // stable across every layout call.
+    const dx = Math.max(-93, Math.min(95, shift.amount ?? ((shift.direction ?? "right") === "right" ? 15 : -15)));
     // drop (not clamp) points shifted past the plot edge, so the curve keeps its slope
     const shifted = base.map(([x, y]): Pt => [x + dx, y]).filter(([x]) => x >= D0 - 1 && x <= D1 + 3);
+    shiftedDomain[`${kind}_shift_curve`] = shifted;
     push(curve(`${kind}_shift_curve`, shifted, COLORS.shifted, ctx));
     recordCurve(`${kind}_shift_curve`, shifted);
     const endL = ctx.toLogical([shifted[shifted.length - 1]])[0];
@@ -137,11 +143,28 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       id: `${kind}_shift_arrow`,
       kind: "stroke",
       pts: [midBase, midShifted],
-      arrowhead: "end",
       z: Z_STROKE,
       style: defaultStyle({ color: COLORS.guide, strokeWidth: 3 }),
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.arrow),
+      ...(Math.abs(dx) >= 2 ? { arrowhead: "end" as const } : {}),
     });
+  }
+
+  // New equilibrium after a single shift: E' glides as the curve slides.
+  const shifts = [params.demand_shift, params.supply_shift].filter(Boolean);
+  if (shifts.length === 1 && supplyPts && params.equilibrium?.show !== false) {
+    const eqS = params.demand_shift
+      ? intersectPolylines(shiftedDomain["demand_shift_curve"]!, supplyPts)
+      : intersectPolylines(demandPts, shiftedDomain["supply_shift_curve"]!);
+    if (eqS) {
+      const eqSL = ctx.toLogical([eqS])[0];
+      push(guides("shift_guide_lines", eqS, ctx, plot));
+      push(dot("shift_equilibrium_point", eqSL));
+      anchors["shift_equilibrium_point"] = eqSL;
+      label("label_E_shift", eqSL, "above-right", "E′");
+      label("label_P_shift", [plot.x0, eqSL[1]], "left", "P*′");
+      label("label_Q_shift", [eqSL[0], plot.y0], "below", "Q*′");
+    }
   }
 
   // Tax: supply shifts up; new equilibrium; deadweight-loss triangle.

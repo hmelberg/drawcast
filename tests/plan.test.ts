@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { planCommands, type PlanStep } from "../src/render/plan";
+import { planCommands, INITIAL_STATE, type PlanStep } from "../src/render/plan";
 import { CANVAS } from "../src/layout/canvas";
 
 const allIds = ["axes", "demand_curve", "label_D", "supply_curve"];
@@ -175,5 +175,79 @@ describe("camera", () => {
     const plan = planCommands([{ camera: { zoom: 2 } }, { camera: { reset: true } }], []);
     expect(plan.states[0].camera).not.toBeNull();
     expect(plan.states[1].camera).toBeNull();
+  });
+});
+
+describe("animate planning", () => {
+  const base = { demand_shift: { amount: 0 }, azimuth: 32 };
+
+  test("step carries targets, starts from animateBase, default duration 2", () => {
+    const plan = planCommands([{ animate: { "demand_shift.amount": 20 } }], ["axes"], { animateBase: base });
+    const step = plan.steps.find((s) => s.kind === "animate")!;
+    expect(step).toMatchObject({ kind: "animate", targets: { "demand_shift.amount": 20 }, starts: { "demand_shift.amount": 0 }, seconds: 2 });
+  });
+
+  test("cumulative: a second animate starts from the first's target; states carry params", () => {
+    const plan = planCommands(
+      [{ animate: { azimuth: 120 } }, { animate: { azimuth: 240 } }],
+      ["axes"],
+      { animateBase: base },
+    );
+    const steps = plan.steps.filter((s) => s.kind === "animate");
+    expect(steps[1]).toMatchObject({ starts: { azimuth: 120 } });
+    const idx = plan.steps.indexOf(steps[1]);
+    expect(plan.states[idx].params).toEqual({ azimuth: 240 });
+    expect(INITIAL_STATE.params).toEqual({});
+  });
+
+  test("no template → warn + no step; missing numeric start → null start + warning", () => {
+    const none = planCommands([{ animate: { a: 1 } }], ["axes"], {});
+    expect(none.steps.some((s) => s.kind === "animate")).toBe(false);
+    expect(none.warnings.join(" ")).toMatch(/animate requires a scene template/);
+    const missing = planCommands([{ animate: { "tax.rate": 5 } }], ["axes"], { animateBase: base });
+    const step = missing.steps.find((s) => s.kind === "animate")!;
+    expect(step).toMatchObject({ starts: { "tax.rate": null } });
+    expect(missing.warnings.join(" ")).toMatch(/no numeric start value/);
+  });
+
+  test("no template with a paired speak: animate still skipped, but the narration survives as its own speak step", () => {
+    const plan = planCommands([{ animate: { a: 1 }, speak: "watch it grow" }], ["axes"], {});
+    expect(plan.steps.some((s) => s.kind === "animate")).toBe(false);
+    expect(plan.warnings.join(" ")).toMatch(/animate requires a scene template/);
+    expect(plan.steps).toContainEqual({ kind: "speak", text: "watch it grow", blocking: true });
+  });
+
+  test("dropped non-numeric animate targets each get their own warning, not just the all-dropped case", () => {
+    const plan = planCommands(
+      [{ animate: { "demand_shift.amount": 20, bad: "nope" } as unknown as Record<string, number> }],
+      ["axes"],
+      { animateBase: base },
+    );
+    expect(plan.warnings).toContain('animate "bad" target is not a number (dropped)');
+    const step = plan.steps.find((s) => s.kind === "animate")!;
+    expect(step).toMatchObject({ targets: { "demand_shift.amount": 20 } });
+  });
+
+  test("bbox source switches after an animate", () => {
+    const before = { x: 0, y: 0, w: 10, h: 10 };
+    const after = { x: 50, y: 0, w: 10, h: 10 };
+    const plan = planCommands(
+      [
+        { draw: ["dot"] },
+        { highlight: { target: ["dot"] } },
+        { animate: { "demand_shift.amount": 20 } },
+        { highlight: { target: ["dot"] } },
+      ],
+      ["dot"],
+      { animateBase: base, bboxOf: () => before, bboxesFor: () => () => after },
+    );
+    const highlights = plan.steps.filter((s) => s.kind === "highlight");
+    expect(highlights[0].boxes["dot"]).toEqual(before);
+    expect(highlights[1].boxes["dot"]).toEqual(after);
+  });
+
+  test("narrated animate gets the narration pairing", () => {
+    const plan = planCommands([{ animate: { azimuth: 90 }, speak: "spin" }], [], { animateBase: base });
+    expect(plan.steps[0].narration).toBe("spin");
   });
 });

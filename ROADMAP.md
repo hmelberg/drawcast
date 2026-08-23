@@ -44,6 +44,20 @@ ROADMAP for that record.
   the editor presents YAML by default with a JSON toggle. The engine and LLM
   stay JSON — YAML is a lossless conversion layer (`src/spec/text.ts`).
 
+## Done since fork
+
+- **`animate` command** (2026-08-23): tweens numeric template params by
+  re-running layout per frame — cheap geometry swaps during the tween
+  (`Reprojector.frame`) and a full remount to settle on commit
+  (`Reprojector.commit`), smoothstep easing, boundary-exact param state per
+  scene so scrubbing across the animate boundary is exact and the spec
+  itself is never mutated. Ships with a numeric `demand`/`supply.steepness`
+  and a continuous `demand_shift`/`supply_shift.amount` (plus the shift
+  equilibrium) in `supply_demand`, and the bundled "Demand shift, animated"
+  example. 536/536 tests pass; the DOM-only swap/remount path (the one seam
+  no test harness reaches) was checked by a manual visual gate — see
+  `.superpowers/sdd/2026-08-23-animate-command/task-7-report.md`.
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future
@@ -68,8 +82,11 @@ ROADMAP for that record.
 - `pages: [{elements, commands}]` — true multi-scene drawcasts with per-page
   layout and lint; the player concatenates page plans with transitions.
 - Time-proportional seek bar (estimate from speech + draw durations).
-- `morph` (semantic move: param change + re-layout + tween) on the M5
-  diff/tween machinery — the honest "shift the demand curve".
+- `morph`: spec-diff tweening for untemplated specs — no template param to
+  drive, so it has to re-layout from a diffed spec and interpolate. Remains
+  open; buildable on the same reprojection primitive `animate` introduced
+  (see Done). The templated case — "shift the demand curve" by animating a
+  param — already shipped as `animate`.
 
 ## Deliberately left in `draw` (the frozen lab)
 

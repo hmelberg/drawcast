@@ -48,6 +48,20 @@ export interface MountResult {
   elements: Map<string, RenderedElement>;
   effects?: BackendEffects;
   destroy(): void;
+  /**
+   * Per-frame geometry swap for the animate command: rebuild the drawable
+   * nodes from a new layout at FULL progress, restricted to `visible` ids,
+   * applying `offsets` (logical y-up). The svg element, camera viewBox, and
+   * gesture overlay are untouched. Creates NO element handles and does NO
+   * measurement — it must stay cheap enough for 30–60 fps.
+   */
+  swapGeometry?(layout: LayoutResult, visible: ReadonlySet<string>, offsets: Record<string, Pt>): void;
+  /**
+   * Full re-mount of a new layout into the same svg: rebuilds nodes AND
+   * element handles (measurement included; handles start hidden exactly like
+   * after mount). Gesture effects stay wired. Returns the new element map.
+   */
+  remount?(layout: LayoutResult): Map<string, RenderedElement>;
 }
 
 export interface BackendModule {

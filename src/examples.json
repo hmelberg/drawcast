@@ -260,5 +260,111 @@
         }
       ]
     }
+  },
+  {
+    "request": "Show demand shifting right and animate the new equilibrium.",
+    "spec": {
+      "title": "Demand shift, animated",
+      "template": "supply_demand",
+      "params": {
+        "demand": {
+          "steepness": 1
+        },
+        "demand_shift": {
+          "amount": 0
+        }
+      },
+      "commands": [
+        {
+          "speak": "Let's watch a market adjust when demand shifts."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Quantity sits on the horizontal axis, price on the vertical."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "This downward-sloping line is demand: as price falls, buyers want more."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "This upward-sloping line is supply: higher prices draw out more sellers."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar",
+            "label_Qstar"
+          ],
+          "speak": "Where the two lines cross is equilibrium — the price and quantity the market settles on."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "demand_shift_curve",
+            "label_D_shift",
+            "demand_shift_arrow"
+          ],
+          "speak": "Here's a copy of the demand curve — right now it sits exactly on top of the original."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "shift_equilibrium_point",
+            "shift_guide_lines",
+            "label_E_shift",
+            "label_P_shift",
+            "label_Q_shift"
+          ],
+          "speak": "Its equilibrium starts right where today's market already clears."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "animate": {
+            "demand_shift.amount": 22
+          },
+          "duration": 3,
+          "speak": "Now incomes rise — at every price, buyers want more, so the whole curve slides to the right."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "equilibrium_point",
+              "shift_equilibrium_point"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Where it crosses supply, both price and quantity have risen — compare the old and new equilibrium."
+        }
+      ]
+    }
   }
 ]
