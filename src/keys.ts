@@ -14,10 +14,14 @@ export function looksLikeAnthropicKey(text: string): boolean {
 
 /**
  * Endpoints tried in order. Same-origin covers the Netlify deploy (and
- * `netlify dev`); add the absolute Netlify URL here when serving from
- * GitHub Pages, e.g. "https://<site>.netlify.app/.netlify/functions/keys".
+ * `netlify dev`); the absolute URL covers the GitHub Pages deploy, which
+ * calls the drawcast.app function cross-origin (its CORS allowlist has
+ * hmelberg.github.io).
  */
-export const VENDING_ENDPOINTS = ["/.netlify/functions/keys"];
+export const VENDING_ENDPOINTS = [
+  "/.netlify/functions/keys",
+  "https://drawcast.app/.netlify/functions/keys",
+];
 
 /**
  * Try to exchange `password` for the real keys. Returns null on any failure
