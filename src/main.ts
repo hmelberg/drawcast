@@ -1415,11 +1415,12 @@ async function present(): Promise<void> {
 
 /** Render a version WITHOUT recording it — arrows navigate, they never mutate. */
 function showVersion(index: number): void {
-  stack = viewAt(stack, index);
-  const v = currentVersion(stack);
+  const target = viewAt(stack, index);
+  const v = currentVersion(target);
   if (!v) return;
   const playlist = readPlaylistText(v.text);
-  if (!playlist) return; // readPlaylistText already reported why
+  if (!playlist) return; // readPlaylistText already reported why; cursor never moved
+  stack = target;
   restoring = true;
   try {
     specArea.value = v.text;
