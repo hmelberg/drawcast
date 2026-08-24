@@ -79,6 +79,8 @@ export interface GenerateConfig {
   forcedTemplate?: string;
   /** Template ids to always give a full catalog entry, above the two-level threshold. */
   priorityIds?: string[];
+  /** Template ids to hide from the catalog entirely (host embeds exclude e.g. molecule_3d). */
+  excludeIds?: string[];
 }
 
 /** A repair round is warranted only for real problems — warn-level lint is cosmetic. */
@@ -180,7 +182,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // (forced template / priority packs) still pins a stable prefix and full
   // cache reuse, while a free-form request's shortlist no longer busts that
   // cache at all (a strict improvement over the pre-split tradeoff, spec §5a).
-  let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds });
+  let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds });
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
     catalog: catalog.stable,
@@ -230,7 +232,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         escalated = true;
         // forced-mode catalogParts is always all-stable (variable === "") —
         // the escalation rebuild pins a fully cache-stable prefix too.
-        catalog = catalogParts({ forced: needed });
+        catalog = catalogParts({ forced: needed, excludeIds: cfg.excludeIds });
         blocks = buildSystemBlocks(cfg.variant.source, {
           schema: apiSchema(),
           catalog: catalog.stable,

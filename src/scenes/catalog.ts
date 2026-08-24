@@ -42,6 +42,8 @@ export interface CatalogOpts {
   request?: string;
   forced?: string;
   priorityIds?: string[];
+  /** Template ids to hide from the catalog entirely (host embeds exclude e.g. molecule_3d). */
+  excludeIds?: string[];
 }
 
 function fullEntry(manifest: SceneManifest): string {
@@ -145,10 +147,11 @@ const VARIABLE_PREAMBLE = "Additional likely-relevant template definitions for T
  * promoted into `stable`, so a full entry never appears twice.
  */
 export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable: string } {
-  const entries = Object.values(scenes);
+  const excluded = new Set(opts.excludeIds ?? []);
+  const entries = Object.values(scenes).filter((s) => !excluded.has(s.manifest.name));
   const ready = entries.filter((s) => s.manifest.status === "ready");
 
-  if (opts.forced) {
+  if (opts.forced && !excluded.has(opts.forced)) {
     const forcedModule = scenes[opts.forced];
     if (forcedModule && forcedModule.manifest.status === "ready") {
       return {
@@ -174,7 +177,7 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   // free-text request — that's what keeps `stable` identical across requests
   // sharing the same forced template / priority packs (the cache_control pin).
   const stableIds = dedupe([...(opts.forced ? [opts.forced] : []), ...(opts.priorityIds ?? []), ...CORE_IDS]).filter(
-    (id) => scenes[id]?.manifest.status === "ready",
+    (id) => scenes[id]?.manifest.status === "ready" && !excluded.has(id),
   );
 
   const stubs = entries.filter((s) => s.manifest.status !== "ready");
@@ -187,7 +190,7 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   stableParts.push(ESCALATION_PROSE);
 
   const shortlist = selectTemplates(opts.request ?? "", 3).filter(
-    (id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id),
+    (id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id),
   );
   const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
 
