@@ -5,6 +5,7 @@
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { LintIssue } from "../lint/lint";
 import type { Spec } from "../spec/types";
+import { ensureFigureStyles } from "./figure-style";
 import { withOverrides } from "./params";
 import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
@@ -53,6 +54,7 @@ function ensureFonts(): Promise<void> {
 }
 
 export async function render(spec: Spec, container: HTMLElement, options: RenderOptions = {}): Promise<RenderHandle> {
+  ensureFigureStyles();
   await ensureFonts();
   const renderer = rendererFor(options.style ?? "sketchy");
 
