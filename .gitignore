@@ -3,3 +3,8 @@ dist/
 .DS_Store
 *.local
 .netlify/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
