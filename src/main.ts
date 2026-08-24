@@ -2599,6 +2599,7 @@ clearLogsBtn.addEventListener("click", () => {
 // ---------- boot ----------
 
 specArea.value = formatPlaylist(doc.playlist, isSingle(doc.playlist) ? settings.specFormat : "yaml");
+stack = seedStack(specArea.value, doc.prompt ?? doc.title);
 if (doc.prompt) promptEl.value = doc.prompt;
 refreshChips();
 showMode(settings.uiMode);
