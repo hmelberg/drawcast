@@ -90,6 +90,7 @@ import {
 } from "./store";
 import { currentUser, DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut } from "./google/auth";
 import { openSpec, saveSpec } from "./google/drive";
+import { uploadVideo, type UploadMeta } from "./google/youtube";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
@@ -516,6 +517,8 @@ const exportVideoBtn = h(
   { title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
   "🎬 Export video",
 );
+const uploadYtBtn = h("button", { class: "small", title: "Upload the video to your YouTube channel" }, "▶ YouTube");
+uploadYtBtn.hidden = !googleConfigured();
 // openAuthorDialog is defined later (template-authoring section, ./llm/author) —
 // a hoisted function declaration, so this early reference is safe.
 const newTemplateBtn = h("button", { title: "Create a reusable template with AI (describe it, optionally paste an image)" }, "✦ New template");
@@ -748,7 +751,7 @@ const editorWrap = h(
     h(
       "div",
       { class: "panel editor-preview" },
-      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), ratingBox, promoteBtn, exportVideoBtn),
+      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), ratingBox, promoteBtn, exportVideoBtn, uploadYtBtn),
       previewHost,
       lintBox,
     ),
@@ -2641,6 +2644,75 @@ async function runVideoExport(): Promise<void> {
   downloadBlob(`${base}.webm`, blob);
   exportStatus.textContent = "Done — the narrated WebM was downloaded.";
   exportCloseBtn.textContent = "Close";
+}
+
+// ---------- upload to YouTube ----------
+
+const ytTitle = h("input", { type: "text", class: "yt-field", "aria-label": "Video title" }) as HTMLInputElement;
+const ytDesc = h("textarea", { class: "yt-field", rows: "3", "aria-label": "Video description" }) as HTMLTextAreaElement;
+const ytPrivacy = h("select", { class: "yt-field", "aria-label": "Visibility" }) as HTMLSelectElement;
+for (const [v, label] of [["private", "Private"], ["unlisted", "Unlisted"], ["public", "Public"]]) {
+  ytPrivacy.appendChild(h("option", { value: v }, label));
+}
+const ytGo = h("button", { class: "primary" }, "Upload");
+const ytStatus = h("div", { class: "hint" });
+const ytDialog = h("dialog", { class: "yt-dialog" }) as HTMLDialogElement;
+ytDialog.append(
+  dialogHead(ytDialog, "▶ Upload to YouTube"),
+  h("label", { class: "quiet-label" }, "Title ", ytTitle),
+  h("label", { class: "quiet-label" }, "Description ", ytDesc),
+  h("label", { class: "quiet-label" }, "Visibility ", ytPrivacy),
+  h(
+    "div",
+    { class: "yt-warning" },
+    "YouTube locks videos uploaded through its API to private until the app has passed YouTube's compliance audit, which drawcast has not yet. " +
+      "Your video will arrive on your own channel, private, whatever you choose above.",
+  ),
+  h("div", { class: "row" }, ytGo),
+  ytStatus,
+);
+app.appendChild(ytDialog);
+
+uploadYtBtn.addEventListener("click", () => {
+  ytTitle.value = doc.title;
+  ytDesc.value = "Made with drawcast.";
+  ytPrivacy.value = "private";
+  ytStatus.textContent = "";
+  ytGo.disabled = false;
+  ytDialog.showModal();
+});
+
+ytGo.addEventListener("click", () => void runYoutubeUpload());
+async function runYoutubeUpload(): Promise<void> {
+  const meta: UploadMeta = {
+    title: ytTitle.value.trim() || doc.title,
+    description: ytDesc.value,
+    privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"],
+  };
+  ytGo.disabled = true;
+  // Rendering reuses the export dialog for its own progress, so close ours
+  // first — two modal <dialog>s at once leaves the second inert.
+  ytDialog.close();
+  const blob = await renderVideoBlob();
+  if (!blob) return; // renderVideoBlob already reported why
+  const controller = new AbortController();
+  exportAbort = controller;
+  try {
+    exportStatus.textContent = "Uploading to YouTube…";
+    const res = await uploadVideo(blob, meta, {
+      onProgress: (f) => (exportStatus.textContent = `Uploading to YouTube… ${Math.round(f * 100)}%`),
+      signal: controller.signal,
+    });
+    if (!res) {
+      exportStatus.textContent = "YouTube sign-in was cancelled — nothing was uploaded.";
+    } else {
+      exportStatus.textContent = `Uploaded (private): https://youtu.be/${res.videoId}`;
+    }
+  } catch (err) {
+    exportStatus.textContent = `Upload failed: ${(err as Error).message}`;
+  } finally {
+    exportCloseBtn.textContent = "Close";
+  }
 }
 
 // ---------- prompt library ----------
