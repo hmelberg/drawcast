@@ -40,7 +40,7 @@ element_ids:
   ray_center: the straight-through-center principal ray
   ray_parallel_ext / ray_center_ext: dashed back-extensions (virtual case only)
   image: the image arrow (dashed when virtual)
-  label_object / label_image / label_f_left / label_f_right: the labels
+  label_object / label_image / label_left / label_right: the labels (label_left and label_right are the two F labels)
 examples:
   - request: "Draw a ray diagram for a converging lens with the object outside the focal length."
     params: { focal_length: 10, object_distance: 25, object_height: 6 }

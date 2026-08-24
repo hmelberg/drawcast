@@ -254,7 +254,12 @@ layout: |
       }
     }
     push(kit.group("rungs", rungs));
-    if (midRung) label("label_basepair", midRung.pt, "right", "Base pair", C.guide, 24);
+    // Above the band, not beside the rung: the middle of the helix is where
+    // the rungs are densest, so a "right"-side label there lands across its
+    // three neighbours (lint: label sits on stroke). Anchoring at the top of
+    // the band, directly over the middle rung, keeps the pointing sense and
+    // puts the text in free canvas.
+    if (midRung) label("label_basepair", [midRung.pt[0], MID_Y + AMP + 8], "above", "Base pair", C.guide, 24);
   }
 
   label("label_backbone", [X0 + 40, MID_Y + AMP * Math.sin((40 / WL) * 2 * Math.PI)], "above", "Sugar-phosphate backbone", C.demand, 22);

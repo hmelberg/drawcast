@@ -366,5 +366,647 @@
         }
       ]
     }
+  },
+  {
+    "request": "Draw a decision tree comparing surgery with medication, with probabilities and QALYs.",
+    "spec": {
+      "title": "Surgery or medication?",
+      "template": "decision_tree",
+      "params": {
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "Treatment choice",
+          "children": [
+            {
+              "label": "Surgery",
+              "node": {
+                "id": "surgery",
+                "type": "chance",
+                "label": "Surgery",
+                "children": [
+                  {
+                    "label": "Success",
+                    "probability": 0.9,
+                    "node": {
+                      "id": "s_ok",
+                      "type": "terminal",
+                      "label": "Full recovery",
+                      "payoff": 9.5
+                    }
+                  },
+                  {
+                    "label": "Complication",
+                    "probability": 0.1,
+                    "node": {
+                      "id": "s_bad",
+                      "type": "terminal",
+                      "label": "Complication",
+                      "payoff": 4
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Medication",
+              "node": {
+                "id": "med",
+                "type": "chance",
+                "label": "Medication",
+                "children": [
+                  {
+                    "label": "Works",
+                    "probability": 0.7,
+                    "node": {
+                      "id": "m_ok",
+                      "type": "terminal",
+                      "label": "Controlled",
+                      "payoff": 7.5
+                    }
+                  },
+                  {
+                    "label": "Fails",
+                    "probability": 0.3,
+                    "node": {
+                      "id": "m_bad",
+                      "type": "terminal",
+                      "label": "Still ill",
+                      "payoff": 5
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "commands": [
+        {
+          "speak": "Let's work out which treatment we should expect to give the patient more good years."
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "The square is the choice we control: surgery or medication."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_choice_surgery",
+            "branchlabel_choice_surgery",
+            "node_surgery",
+            "label_surgery"
+          ],
+          "speak": "Take surgery first. The circle means what happens next is chance, not choice."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_surgery_s_ok",
+            "branchlabel_surgery_s_ok",
+            "node_s_ok",
+            "label_s_ok",
+            "payoff_s_ok"
+          ],
+          "speak": "Nine times in ten it works, and the patient gains nine and a half quality-adjusted life years."
+        },
+        {
+          "draw": [
+            "edge_surgery_s_bad",
+            "branchlabel_surgery_s_bad",
+            "node_s_bad",
+            "label_s_bad",
+            "payoff_s_bad"
+          ],
+          "speak": "One time in ten there's a complication, and only four."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "edge_choice_med",
+            "branchlabel_choice_med",
+            "node_med",
+            "label_med"
+          ],
+          "speak": "Medication is a gamble too, just a gentler one."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_med_m_ok",
+            "branchlabel_med_m_ok",
+            "node_m_ok",
+            "label_m_ok",
+            "payoff_m_ok",
+            "edge_med_m_bad",
+            "branchlabel_med_m_bad",
+            "node_m_bad",
+            "label_m_bad",
+            "payoff_m_bad"
+          ],
+          "speak": "Seven times in ten the disease is controlled at seven and a half years; otherwise five."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_surgery"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Now fold the tree back: nine point five times nought point nine, plus four times nought point one, is eight point nine five for surgery."
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_med"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The same sum for medication gives six point seven five."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "speak": "Surgery wins on expected QALYs — and that number, not the best case, is what we weigh against its cost."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the QALYs gained from a treatment compared with no treatment.",
+    "spec": {
+      "title": "QALYs gained",
+      "template": "qaly_profiles",
+      "params": {
+        "profiles": [
+          {
+            "id": "without",
+            "label": "Without treatment",
+            "waypoints": [
+              {
+                "t": 0,
+                "u": 0.92
+              },
+              {
+                "t": 45,
+                "u": 0.85
+              },
+              {
+                "t": 45,
+                "u": 0.4,
+                "step": true
+              },
+              {
+                "t": 65,
+                "u": 0.28
+              }
+            ],
+            "death_at": 70
+          },
+          {
+            "id": "with",
+            "label": "With treatment",
+            "waypoints": [
+              {
+                "t": 0,
+                "u": 0.92
+              },
+              {
+                "t": 45,
+                "u": 0.85
+              },
+              {
+                "t": 45,
+                "u": 0.25,
+                "step": true
+              },
+              {
+                "t": 48,
+                "u": 0.75
+              },
+              {
+                "t": 75,
+                "u": 0.6
+              }
+            ],
+            "death_at": 82
+          }
+        ],
+        "shade_between": {
+          "a": "with",
+          "b": "without"
+        }
+      },
+      "commands": [
+        {
+          "speak": "A QALY is a year of life weighted by how good that year is. Let's see what a treatment buys."
+        },
+        {
+          "draw": [
+            "axes",
+            "full_health_line"
+          ],
+          "speak": "Age runs across, quality of life up: one is perfect health, zero is death."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "curve_without",
+            "label_without"
+          ],
+          "speak": "Without treatment, this patient falls ill at forty-five and declines until seventy."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "curve_with",
+            "label_with"
+          ],
+          "speak": "With treatment the story changes — but look closely at what happens first."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "loss_regions",
+            "label_loss"
+          ],
+          "speak": "The red sliver is real: the first months of treatment are worse than no treatment at all."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "gain_regions",
+            "label_gain"
+          ],
+          "speak": "Then the patient recovers to a better level, and lives twelve years longer."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "gain_regions"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The green area minus the red one is the QALYs gained — the whole benefit in a single number."
+        },
+        {
+          "speak": "Divide the cost of the treatment by that area and you have the cost per QALY."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Explain what mitochondria do.",
+    "spec": {
+      "title": "Mitochondria",
+      "template": "cell_diagram",
+      "params": {
+        "organelles": [
+          "nucleus",
+          "mitochondria"
+        ],
+        "labels": true
+      },
+      "commands": [
+        {
+          "speak": "Let's find the part of the cell that turns food into usable energy."
+        },
+        {
+          "draw": [
+            "membrane",
+            "membrane_inner",
+            "cytoplasm",
+            "label_membrane"
+          ],
+          "speak": "Here's an animal cell, wrapped in a double-layered membrane."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "nucleus",
+            "nucleus_fill",
+            "nucleolus",
+            "label_nucleus"
+          ],
+          "speak": "The nucleus holds the instructions — but it doesn't power anything."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "mito",
+            "label_mito"
+          ],
+          "speak": "This bean-shaped compartment is a mitochondrion, and this is where the energy comes from."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "cristae"
+          ],
+          "speak": "Its inner membrane folds back and forth into ridges called cristae."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "cristae"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Those folds pack a huge working surface into a tiny space — and the energy reactions happen on that surface."
+        },
+        {
+          "speak": "More folds mean more power, which is why a heart muscle cell is crowded with mitochondria."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show why a magnifying glass makes a virtual image.",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "A magnifying glass",
+      "template": "ray_diagram",
+      "params": {
+        "focal_length": 12,
+        "object_distance": 7,
+        "object_height": 5,
+        "show_labels": true
+      },
+      "commands": [
+        {
+          "speak": "A magnifying glass makes things look bigger — let's see where that bigger picture actually is."
+        },
+        {
+          "draw": [
+            "axis",
+            "lens"
+          ],
+          "speak": "Here's the lens, seen edge-on, with the optical axis running through its centre."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "focal_left",
+            "focal_right",
+            "label_left",
+            "label_right"
+          ],
+          "speak": "Each F marks a focal point, twelve centimetres out on either side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "object",
+            "label_object"
+          ],
+          "speak": "Now put the object just seven centimetres away — closer than the focal point."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "ray_parallel"
+          ],
+          "speak": "One ray leaves the tip parallel to the axis, and the lens bends it through the far focal point."
+        },
+        {
+          "draw": [
+            "ray_center"
+          ],
+          "speak": "A second goes straight through the centre, undeflected."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "speak": "Notice the problem: after the lens the two rays spread apart. They never cross, so there is no picture to catch on a screen."
+        },
+        {
+          "draw": [
+            "ray_parallel_ext",
+            "ray_center_ext"
+          ],
+          "speak": "So we trace them backwards instead, dashed, to where they seem to come from."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "image",
+            "label_image"
+          ],
+          "speak": "There they meet: an upright, magnified, virtual image — behind the glass, on the same side as the object."
+        },
+        {
+          "highlight": {
+            "target": [
+              "image",
+              "object"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That is the whole trick of a magnifying glass: your eye is fooled into seeing this larger version."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show how a catalyst lowers the activation energy.",
+    "packs": [
+      "chemistry"
+    ],
+    "spec": {
+      "title": "What a catalyst does",
+      "template": "energy_diagram",
+      "params": {
+        "reactant_level": 3,
+        "product_level": 1,
+        "activation_energy": 6,
+        "catalyzed": true,
+        "labels": true
+      },
+      "commands": [
+        {
+          "speak": "A catalyst speeds a reaction up without being used up. Let's see how, on an energy diagram."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Energy runs up the side; across the bottom is the progress of the reaction."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "reactant_line",
+            "label_reactants"
+          ],
+          "speak": "We start here, with the reactants."
+        },
+        {
+          "draw": [
+            "product_line",
+            "label_products"
+          ],
+          "speak": "And we end lower down, with the products — energy is released."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "curve"
+          ],
+          "speak": "But the molecules cannot slide straight down: first they must climb over this hump."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "ea_arrow",
+            "label_ea"
+          ],
+          "speak": "That climb is the activation energy — the reason a mixture can sit unreacted for years."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "curve_catalyzed"
+          ],
+          "speak": "A catalyst opens a different route over the barrier, a lower one."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_catalyzed"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Now far more molecules have enough energy to get across, so the reaction runs much faster."
+        },
+        {
+          "draw": [
+            "dh_arrow",
+            "label_dh"
+          ],
+          "speak": "And look what did not change: the drop from reactants to products is exactly the same."
+        },
+        {
+          "speak": "A catalyst changes the road, never the destination."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw the DNA double helix and explain base pairing.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "The double helix",
+      "template": "dna_helix",
+      "params": {
+        "turns": 2,
+        "show_base_pairs": true,
+        "labels": true
+      },
+      "commands": [
+        {
+          "speak": "DNA stores your genetic instructions in a shape worth drawing carefully."
+        },
+        {
+          "draw": [
+            "strand_a"
+          ],
+          "speak": "One strand of sugar and phosphate winds through space like a spiral staircase rail."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "strand_b",
+            "label_backbone"
+          ],
+          "speak": "A second rail runs alongside it, half a turn out of step."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "rungs",
+            "label_basepair"
+          ],
+          "speak": "Between them sit the base pairs: A always with T, C always with G."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "rungs"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Each rung is one letter of the code, and the pairing rule means either rail alone can rebuild the other."
+        },
+        {
+          "speak": "That is why the helix can be unzipped and copied — the shape is the mechanism."
+        }
+      ]
+    }
   }
 ]
