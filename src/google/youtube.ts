@@ -1,7 +1,10 @@
-// Resumable upload to the user's own channel. Chunking is not an optimisation:
-// fetch() exposes no upload-progress event, so a single PUT of a 50 MB blob
-// would show a frozen bar for the entire upload. Per-chunk PUTs give a progress
-// tick each time one lands, and make a mid-upload failure resumable.
+// Upload to the user's own channel over YouTube's resumable protocol. The
+// chunking is not an optimisation: fetch() exposes no upload-progress event, so
+// a single PUT of a 50 MB blob would show a frozen bar for the entire upload.
+// Per-chunk PUTs give a progress tick each time one lands. Resuming an
+// interrupted upload is NOT implemented — the session URI stays inside this
+// function and there is no resume parameter, so a failure mid-upload means
+// starting over from the first chunk.
 
 import { YOUTUBE_SCOPE, requireScope } from "./auth";
 

@@ -88,7 +88,7 @@ import {
   type SavedDrawing,
   type UserPrompt,
 } from "./store";
-import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
+import { DRIVE_SCOPE, YOUTUBE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
 import { openSpec, saveSpec } from "./google/drive";
 import { uploadVideo, type UploadMeta } from "./google/youtube";
 import fewshots from "./llm/prompts/fewshots.json";
@@ -2710,6 +2710,21 @@ async function runYoutubeUpload(): Promise<void> {
     privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"],
   };
   ytGo.disabled = true;
+  // Consent FIRST, while this click's transient user activation is still
+  // alive. Rendering records the drawcast in real time — minutes for a long
+  // one — and activation lapses after about five seconds, so a popup opened
+  // on the far side of the render is blocked by the browser and the user is
+  // told "sign-in was cancelled" after all that work. uploadVideo's own
+  // requireScope then finds this token in the cache and prompts nobody.
+  // (The session cannot be opened this early instead: starting a resumable
+  // upload needs X-Upload-Content-Length, i.e. the finished blob's size.)
+  const token = await requireScope(YOUTUBE_SCOPE);
+  refreshAccountRow();
+  if (!token) {
+    ytStatus.textContent = "YouTube sign-in was cancelled — nothing was uploaded.";
+    ytGo.disabled = false;
+    return;
+  }
   // Rendering reuses the export dialog for its own progress, so close ours
   // first — two modal <dialog>s at once leaves the second inert.
   ytDialog.close();
@@ -2724,12 +2739,15 @@ async function runYoutubeUpload(): Promise<void> {
       signal: controller.signal,
     });
     if (!res) {
+      // Only reachable if the grant above expired during a very long render.
       exportStatus.textContent = "YouTube sign-in was cancelled — nothing was uploaded.";
     } else {
       exportStatus.textContent = `Uploaded (private): https://youtu.be/${res.videoId}`;
     }
   } catch (err) {
-    exportStatus.textContent = `Upload failed: ${(err as Error).message}`;
+    // Cancel aborts the fetch, which throws — that is the user's own doing,
+    // not a failure. Same check the render half makes.
+    if (!controller.signal.aborted) exportStatus.textContent = `Upload failed: ${(err as Error).message}`;
   } finally {
     exportCloseBtn.textContent = "Close";
   }
