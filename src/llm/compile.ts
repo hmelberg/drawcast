@@ -5,7 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import { ensureEnginesForTemplate } from "../scenes/engines";
@@ -188,10 +188,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
   });
   let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
-  let system: Anthropic.TextBlockParam[] = [
-    { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
-    ...(suffixText ? [{ type: "text" as const, text: suffixText }] : []),
-  ];
+  let system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
   const schema = apiSchema();
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
@@ -241,10 +238,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
         });
         suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
-        system = [
-          { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
-          ...(suffixText ? [{ type: "text" as const, text: suffixText }] : []),
-        ];
+        system = systemBlocks(blocks.prefix, suffixText);
         messages.push(
           { role: "assistant", content: raw },
           { role: "user", content: `Full definition of "${needed}" is now in your instructions. Return the complete spec using it.` },

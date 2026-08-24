@@ -35,6 +35,25 @@ export function buildSystemBlocks(variantSource: string, parts: PromptParts): { 
   };
 }
 
+/**
+ * Assemble the system blocks for one API call: the cached prefix first, then
+ * the request-dependent tail.
+ *
+ * Blocks whose text is only whitespace are DROPPED. The API rejects them
+ * outright ("system: text content blocks must contain non-whitespace text"),
+ * and the suffix collapses to exactly that whenever the prompt source ends
+ * with {{EXEMPLARS}} and there are no exemplars to fill it with — the slice
+ * keeps the trailing newline, so `suffix` is "\n": whitespace, but truthy, so
+ * a plain `suffix ? …` guard sails straight past it. That is every revise
+ * call, which passes no exemplars by design.
+ */
+export function systemBlocks(prefix: string, suffix: string): { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] {
+  const blocks: { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] = [];
+  if (prefix.trim()) blocks.push({ type: "text", text: prefix, cache_control: { type: "ephemeral" } });
+  if (suffix.trim()) blocks.push({ type: "text", text: suffix });
+  return blocks;
+}
+
 /** The placeholders every compiler prompt must carry; filled in at generation time. */
 export const PROMPT_PLACEHOLDERS = ["{{SCHEMA}}", "{{CATALOG}}", "{{FEWSHOTS}}", "{{EXEMPLARS}}"] as const;
 

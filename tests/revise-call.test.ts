@@ -85,3 +85,26 @@ describe("reviseDocument", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("system blocks", () => {
+  // Live 400 from Hans's smoke test, 2026-08-24:
+  // "system: text content blocks must contain non-whitespace text".
+  // buildSystemBlocks splits the prompt at {{EXEMPLARS}}, which sits at the end
+  // of compiler-v1.md, so with no exemplars the suffix is exactly "\n" —
+  // whitespace, but truthy, so the old `suffixText ? …` guard shipped it.
+  test("never sends a whitespace-only block, which the API rejects", async () => {
+    replies = [GOOD];
+    await reviseDocument(GOOD, "make the curve steeper", cfg());
+    const blocks = calls[0].system as { text: string }[];
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const b of blocks) expect(b.text.trim()).not.toBe("");
+  });
+
+  test("the cached prefix is still sent, and still carries cache_control", async () => {
+    replies = [GOOD];
+    await reviseDocument(GOOD, "steeper", cfg());
+    const blocks = calls[0].system as { text: string; cache_control?: unknown }[];
+    expect(blocks[0].cache_control).toEqual({ type: "ephemeral" });
+    expect(blocks[0].text).toContain("{");
+  });
+});

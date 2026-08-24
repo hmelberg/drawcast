@@ -10,7 +10,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
-import { buildSystemBlocks, stripFence } from "./prompt";
+import { buildSystemBlocks, stripFence, systemBlocks } from "./prompt";
 import { validateSpec } from "../spec/schema";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
@@ -120,10 +120,9 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     exemplars: "",
   });
   const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
-  const system: Anthropic.TextBlockParam[] = [
-    { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
-    ...(suffixText ? [{ type: "text" as const, text: suffixText }] : []),
-  ];
+  // systemBlocks drops a whitespace-only tail. Passing no exemplars leaves the
+  // suffix as just the newline after {{EXEMPLARS}}, which the API rejects.
+  const system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: buildReviseUser(docText, instruction) }];
   const rounds: ReviseRound[] = [];
