@@ -53,3 +53,23 @@ export default async (req: Request): Promise<Response> => {
 
   return new Response(JSON.stringify({ anthropicKey, googleKey: googleKey ?? "" }), { status: 200, headers });
 };
+
+/**
+ * No `path` here on purpose: src/keys.ts posts to the default
+ * /.netlify/functions/keys URL, and setting a path would move the endpoint.
+ *
+ * The rate limit is what stops the shared password from being guessed at line
+ * speed. Netlify enforces it at the edge, before this function runs, and
+ * across all instances — an in-process counter would reset on every cold
+ * start. The cross-origin GitHub Pages deploy spends TWO requests per attempt
+ * (a CORS preflight plus the POST), so the limit is set high enough that even
+ * doubled it leaves ~20 honest attempts an hour.
+ */
+export const config = {
+  rateLimit: {
+    windowSize: 60 * 60,
+    windowLimit: 40,
+    aggregateBy: "ip",
+    action: "rate_limit",
+  },
+} as const;

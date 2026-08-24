@@ -60,3 +60,20 @@ describe("redeemPassword", () => {
     expect(await redeemPassword("pw", ["/x"], fetchReturning(200, { nope: true }))).toBeNull();
   });
 });
+
+describe("vending endpoint hardening", () => {
+  test("declares a per-IP rate limit so the password cannot be brute-forced", async () => {
+    const { config } = await import("../netlify/functions/keys.mts");
+    expect(config?.rateLimit).toBeDefined();
+    expect(config.rateLimit.aggregateBy).toBe("ip");
+    expect(config.rateLimit.windowSize).toBeGreaterThanOrEqual(600);
+    expect(config.rateLimit.windowLimit).toBeGreaterThan(0);
+    expect(config.rateLimit.windowLimit).toBeLessThanOrEqual(60);
+  });
+
+  test("does not override the default function path the client calls", async () => {
+    // src/keys.ts posts to /.netlify/functions/keys; a `path` here would move it.
+    const { config } = await import("../netlify/functions/keys.mts");
+    expect(config.path).toBeUndefined();
+  });
+});
