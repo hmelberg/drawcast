@@ -16,6 +16,12 @@ function addFake(id: string): void {
   registerTemplateDoc(doc);
   added.push(id);
 }
+/** Registers throwaway templates until the catalog is in its two-level regime — whatever the threshold and the built-in library currently are. */
+function fillPastThreshold(): void {
+  const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+  for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFake(`fake_${i}`);
+}
+
 afterEach(() => {
   for (const id of added.splice(0)) delete scenes[id];
 });
@@ -38,7 +44,7 @@ describe("catalogText below the threshold", () => {
 
 describe("catalogText above the threshold", () => {
   test("complete index + hot-set full entries + escalation prose", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);   // pushes ready count past 10
+    fillPastThreshold();
     const t = catalogText({ request: "Draw the fake_3 thing." });
     for (let i = 0; i < 8; i++) expect(t).toContain(`- fake_${i}:`);   // index complete
     expect(t).toContain("- free_body:");
@@ -49,13 +55,13 @@ describe("catalogText above the threshold", () => {
   });
 
   test("priorityIds join the hot set", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const t = catalogText({ request: "unrelated words entirely", priorityIds: ["fake_6"] });
     expect(t).toContain("### Scene template: fake_6 (READY");
   });
 
   test("unregistered packs get an availability line", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const t = catalogText({ request: "x" });
     expect(t).toMatch(/Pack available but not enabled: Physics/);
   });
@@ -82,6 +88,8 @@ describe("detectNeedTemplate", () => {
   });
 });
 
-test("threshold is 10", () => {
-  expect(TEMPLATE_FULL_THRESHOLD).toBe(10);
+// Deliberate value, not incidental: it sits above the default library so the
+// out-of-the-box catalog stays fully expanded (tests/pack-defaults.test.ts).
+test("threshold is 20", () => {
+  expect(TEMPLATE_FULL_THRESHOLD).toBe(20);
 });

@@ -21,7 +21,10 @@ import { callForJson, type JsonCallMeta } from "../src/llm/client";
 import { generateSpec, repairModelFor, type GenerateConfig, type PromptVariant } from "../src/llm/compile";
 import { generateTemplate, type AuthorConfig } from "../src/llm/author";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
+import { TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
 import type { TemplateDoc } from "../src/scenes/doc";
+import type { Exemplar } from "../src/llm/prompt";
+import type { Spec } from "../src/spec/types";
 
 const mockCallForJson = vi.mocked(callForJson);
 
@@ -161,7 +164,7 @@ describe("generateSpec loop", () => {
 });
 
 describe("generateSpec cache split (M5 Task 2)", () => {
-  // Pushes the ready-template count above TEMPLATE_FULL_THRESHOLD (10) so
+  // Pushes the ready-template count above TEMPLATE_FULL_THRESHOLD so
   // catalogText degrades to index + hot-set + escalation, with a
   // keyword-matched shortlist relocated to the request-dependent suffix
   // (see src/scenes/catalog.ts's catalogParts / tests/catalog-split.test.ts).
@@ -176,6 +179,11 @@ describe("generateSpec cache split (M5 Task 2)", () => {
     };
     registerTemplateDoc(doc);
     added.push(id);
+  }
+  /** Enough fillers to put the catalog in its two-level regime, whatever the threshold is. */
+  function fillPastThreshold(): void {
+    const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+    for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFiller(`csplit_filler_${i}`);
   }
   // A unique keyword ("qxzzyweeble") that appears in ONLY this template's
   // description/example, so selectTemplates(request, 3) shortlists exactly
@@ -197,7 +205,7 @@ describe("generateSpec cache split (M5 Task 2)", () => {
   });
 
   test("above threshold: the cache_control block excludes the shortlisted entry; the non-cached block includes it", async () => {
-    for (let i = 0; i < 8; i++) addFiller(`csplit_filler_${i}`);
+    fillPastThreshold();
     addTarget();
     mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
 
@@ -261,5 +269,38 @@ describe("generateTemplate loop", () => {
     expect(outcome.rounds[0].errors.join(" ")).toMatch(/layout/i);
     expect(mockCallForJson.mock.calls[0][1]).toBe(MODEL);
     expect(mockCallForJson.mock.calls[1][1]).toBe(REPAIR_MODEL);
+  });
+});
+
+describe("generateSpec exemplar pool", () => {
+  // {{EXEMPLARS}} is fed by two pools (src/llm/exemplars.ts): the user's own
+  // promoted references and the curated bundled showcases. The user's win.
+  const RAMP = "Show the forces on a crate resting on a ramp.";
+  const BUNDLED: Exemplar[] = [{ prompt: RAMP, spec: VALID_FREE_BODY as unknown as Spec }];
+
+  function promptTextOfCall(i: number): string {
+    return (mockCallForJson.mock.calls[i][2] as { text: string }[]).map((b) => b.text).join("\n");
+  }
+
+  test("a bundled showcase fills the exemplar slot when the user library has no match", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_FREE_BODY));
+
+    await generateSpec("show the forces on a crate", baseCfg({ bundledExemplars: BUNDLED }));
+
+    expect(promptTextOfCall(0)).toContain("### Exemplar 1");
+    expect(promptTextOfCall(0)).toContain(RAMP);
+  });
+
+  test("the user's own references keep the slots — a bundled showcase never displaces them", async () => {
+    const user: Exemplar[] = [1, 2, 3].map((i) => ({
+      prompt: `forces on a crate, version ${i}`,
+      spec: VALID_FREE_BODY as unknown as Spec,
+    }));
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_FREE_BODY));
+
+    await generateSpec("show the forces on a crate", baseCfg({ exemplars: user, bundledExemplars: BUNDLED }));
+
+    expect(promptTextOfCall(0)).toContain("forces on a crate, version 1");
+    expect(promptTextOfCall(0)).not.toContain(RAMP);
   });
 });

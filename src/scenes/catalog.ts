@@ -11,7 +11,18 @@ import { scenes } from "./registry";
 import type { SceneManifest } from "./types";
 import { PACK_DEFS, packTemplateIds } from "./packs";
 
-export const TEMPLATE_FULL_THRESHOLD = 10;
+/**
+ * Where the catalog degrades from "full entry for everything" to
+ * index + hot set. Set above the default library (16 ready: 8 built-ins +
+ * 8 from the three bundled packs, all enabled by default) so the out-of-the-box
+ * configuration keeps every parameter schema in front of the model. Measured
+ * cost of that reach: ~11.7k tokens of catalog vs ~8.4k for the built-ins
+ * alone — and it buys back a fully cache-stable prefix (no per-request
+ * keyword shortlist) plus no need_template round-trips, each of which rebuilds
+ * a fresh, uncached prefix. The two-level machinery stays as the safety valve
+ * for user templates and remote packs pushing past this.
+ */
+export const TEMPLATE_FULL_THRESHOLD = 20;
 
 /** Always promoted to a full entry once the catalog goes two-level. */
 const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];

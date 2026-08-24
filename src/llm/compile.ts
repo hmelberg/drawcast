@@ -5,8 +5,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildSystemBlocks, buildSystemPrompt, formatExemplars, missingPlaceholders, selectExemplars, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
-import { catalogParts, catalogText, detectNeedTemplate } from "../scenes/catalog";
+import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { pickExemplars } from "./exemplars";
+import { catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -64,7 +65,10 @@ export interface GenerateConfig {
   apiKey: string;
   model: string;
   variant: PromptVariant;
+  /** The user's own promoted references ("Learn from this"). These win the exemplar slots. */
   exemplars: Exemplar[];
+  /** Curated bundled showcases, used only for the slots `exemplars` leaves empty (src/examples.json). */
+  bundledExemplars?: Exemplar[];
   maxRepairs?: number;
   /**
    * Directing brief from #tags, appended to the user message only. The request
@@ -75,21 +79,6 @@ export interface GenerateConfig {
   forcedTemplate?: string;
   /** Template ids to always give a full catalog entry, above the two-level threshold. */
   priorityIds?: string[];
-}
-
-export function assembleSystemPrompt(
-  request: string,
-  variant: PromptVariant,
-  exemplarPool: Exemplar[],
-  forcedTemplate?: string,
-  priorityIds?: string[],
-): string {
-  return buildSystemPrompt(variant.source, {
-    schema: apiSchema(),
-    catalog: catalogText({ request, forced: forcedTemplate, priorityIds }),
-    fewshots: fewshotsText(),
-    exemplars: formatExemplars(selectExemplars(request, exemplarPool, 3)),
-  });
 }
 
 /** A repair round is warranted only for real problems — warn-level lint is cosmetic. */
@@ -196,7 +185,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     schema: apiSchema(),
     catalog: catalog.stable,
     fewshots: fewshotsText(),
-    exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
+    exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
   });
   let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
   let system: Anthropic.TextBlockParam[] = [
@@ -237,7 +226,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       // Escalation (fires at most once): the model asked for a template's full
       // definition instead of guessing its parameters from the index line.
       // Never for a forced template — the catalog already gives it a full
-      // entry (see assembleSystemPrompt/buildSystemBlocks with `forced`), so
+      // entry (see buildSystemBlocks with `forced`), so
       // a need_template reply there would just loop.
       const needed = detectNeedTemplate(json);
       if (needed && !escalated && !cfg.forcedTemplate) {
@@ -249,7 +238,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           schema: apiSchema(),
           catalog: catalog.stable,
           fewshots: fewshotsText(),
-          exemplars: formatExemplars(selectExemplars(request, cfg.exemplars, 3)),
+          exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
         });
         suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
         system = [

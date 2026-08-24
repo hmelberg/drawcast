@@ -21,6 +21,7 @@ const KEYS = {
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
   usage: "drawcast.usage.v1",
+  packsUpgrade: "drawcast.packsDefault.v1", // one-shot flag, see loadSettings
 } as const;
 
 export interface Settings {
@@ -72,7 +73,16 @@ export const DEFAULT_SETTINGS: Settings = {
   choicesOpen: false,
   developerMode: false,
   specFormat: "yaml",
-  enabledPacks: [],
+  // Every built-in pack, on. A pack that is off is invisible to the compiler
+  // (its templates are not in the catalog at all), so a chemistry request
+  // silently degrades to hand-composed primitives instead of the SMILES
+  // layout that exists — while the whole catalog still fits under the
+  // two-level threshold, so nothing is paid for the reach. Remote packs
+  // stay opt-in: those are code, these are bundled. Literal ids, not
+  // Object.keys(PACK_DEFS) — store.ts is imported by the viewer, and reaching
+  // into scenes/packs.ts would drag the whole scene registry into that chunk.
+  // tests/pack-defaults.test.ts pins this list against PACK_DEFS instead.
+  enabledPacks: ["physics", "chemistry", "biology"],
   priorityPacks: [],
 };
 
@@ -107,7 +117,31 @@ function readArray<T>(key: string): T[] {
 }
 
 export function loadSettings(): Settings {
-  return read(KEYS.settings, DEFAULT_SETTINGS);
+  const s = read(KEYS.settings, DEFAULT_SETTINGS);
+  // One-time upgrade: the bundled packs moved from opt-in to baseline
+  // (DEFAULT_SETTINGS.enabledPacks). A settings blob stored before that keeps
+  // its own list, which `{...fallback, ...parsed}` leaves untouched — so union
+  // the defaults in exactly once, remembered by a flag rather than by
+  // comparing lists, otherwise every deliberate un-toggle would be undone on
+  // the next load. Anything the user had enabled (remote packs included) rides
+  // along unchanged.
+  // Guarded like read()/readArray(): the viewer calls loadSettings in
+  // environments without storage at all, where it must degrade to the
+  // defaults rather than throw.
+  try {
+    if (!localStorage.getItem(KEYS.packsUpgrade)) {
+      localStorage.setItem(KEYS.packsUpgrade, "1");
+      const merged = [...new Set([...s.enabledPacks, ...DEFAULT_SETTINGS.enabledPacks])];
+      if (merged.length !== s.enabledPacks.length) {
+        const upgraded = { ...s, enabledPacks: merged };
+        saveSettings(upgraded);
+        return upgraded;
+      }
+    }
+  } catch {
+    /* no storage — the defaults already carry the packs */
+  }
+  return s;
 }
 
 export function saveSettings(s: Settings): void {

@@ -6,7 +6,7 @@
 // parts joined — see tests/catalog.test.ts, kept green unmodified.
 
 import { afterEach, describe, expect, test } from "vitest";
-import { catalogParts, catalogText } from "../src/scenes/catalog";
+import { catalogParts, catalogText, TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
 import { scenes, registerTemplateDoc } from "../src/scenes/registry";
 import type { TemplateDoc } from "../src/scenes/doc";
 
@@ -22,6 +22,12 @@ function addFake(id: string): void {
   registerTemplateDoc(doc);
   added.push(id);
 }
+/** Registers throwaway templates until the catalog is in its two-level regime — whatever the threshold and the built-in library currently are. */
+function fillPastThreshold(): void {
+  const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+  for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFake(`fake_${i}`);
+}
+
 afterEach(() => {
   for (const id of added.splice(0)) delete scenes[id];
 });
@@ -42,7 +48,7 @@ describe("catalogParts forced (below or above threshold)", () => {
   });
 
   test("stays all-stable once the catalog is above threshold too", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const parts = catalogParts({ forced: "free_body", request: "irrelevant text" });
     expect(parts.variable).toBe("");
     expect(parts.stable).toContain("### Scene template: free_body (READY");
@@ -52,7 +58,7 @@ describe("catalogParts forced (below or above threshold)", () => {
 
 describe("catalogParts above the threshold", () => {
   test("stable is preference-stable across different requests (does not depend on opts.request)", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const a = catalogParts({ request: "Draw the fake_3 thing." });
     const b = catalogParts({ request: "Draw the fake_5 thing." });
     expect(a.stable).toBe(b.stable);
@@ -62,7 +68,7 @@ describe("catalogParts above the threshold", () => {
   });
 
   test("variable carries the shortlisted entry (not already in stable), with the one-line preamble", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const parts = catalogParts({ request: "Draw the fake_3 thing." });
     expect(parts.variable).toContain("Additional likely-relevant template definitions for THIS request:");
     expect(parts.variable).toContain("### Scene template: fake_3 (READY");
@@ -70,7 +76,7 @@ describe("catalogParts above the threshold", () => {
   });
 
   test("priorityIds promote an id into stable, so it's never duplicated into variable", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const parts = catalogParts({ request: "Draw the fake_6 thing.", priorityIds: ["fake_6"] });
     expect(parts.stable).toContain("### Scene template: fake_6 (READY");
     // fake_6's own full entry must appear exactly once across stable+variable.
@@ -79,7 +85,7 @@ describe("catalogParts above the threshold", () => {
   });
 
   test("catalogText(opts) equals stable + variable joined", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const request = "Draw the fake_3 thing.";
     const parts = catalogParts({ request });
     const joined = parts.stable + (parts.variable ? "\n\n" + parts.variable : "");
@@ -87,7 +93,7 @@ describe("catalogParts above the threshold", () => {
   });
 
   test("no keyword match yields an empty variable even above threshold", () => {
-    for (let i = 0; i < 8; i++) addFake(`fake_${i}`);
+    fillPastThreshold();
     const parts = catalogParts({ request: "zzz qqq" });
     expect(parts.variable).toBe("");
   });

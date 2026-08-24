@@ -8,6 +8,7 @@ import { type RenderHandle, type RenderStyle } from "./render";
 import { generateOutline, generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
 import { buildPartRequest } from "./llm/outline";
 import { missingPlaceholders } from "./llm/prompt";
+import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
 import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
@@ -107,6 +108,21 @@ interface BundledExample {
   packs?: string[];
 }
 const examples: BundledExample[] = [...(fewshots as { request: string; spec: Spec }[]), ...(bundledExamples as BundledExample[])];
+
+/**
+ * The curated bundled examples as exemplars — they fill the {{EXEMPLARS}}
+ * slots a user's own reference library leaves empty (src/llm/exemplars.ts).
+ * Recomputed per generation, never cached: which templates are ready changes
+ * as packs load and user templates come and go, and an exemplar built on an
+ * absent template must not reach the prompt. The fewshots are excluded on
+ * purpose — they are already in the prompt via {{FEWSHOTS}}.
+ */
+function bundledExemplarPool(): { prompt: string; spec: Spec }[] {
+  return usableExemplars(
+    (bundledExamples as BundledExample[]).map((e) => ({ prompt: e.request, spec: e.spec })),
+    isReadyTemplate,
+  );
+}
 
 interface Doc {
   title: string;
@@ -1545,7 +1561,8 @@ async function generate(): Promise<void> {
       apiKey,
       model: settings.model,
       variant: currentVariant(),
-      exemplars: loadExemplars(),
+      exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
+      bundledExemplars: bundledExemplarPool(),
       brief,
       forcedTemplate,
       priorityIds,
@@ -1599,7 +1616,8 @@ async function generateMulti(
         apiKey,
         model: settings.model,
         variant: currentVariant(),
-        exemplars: loadExemplars(),
+        exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
+        bundledExemplars: bundledExemplarPool(),
         forcedTemplate,
         priorityIds,
       }).then((outcome) => {
