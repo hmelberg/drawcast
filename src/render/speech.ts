@@ -38,6 +38,20 @@ export function detectLang(text: string): "en" | "nb" {
   return hits >= 1 && !/\b(the|and|is|of|with|as)\b/i.test(text) ? "nb" : "en";
 }
 
+/**
+ * The structural contract the Player needs from narration (speak/cancel/
+ * pause/resume). SpeechManager and its subclasses satisfy it; host apps
+ * embedding the engine (xplainer) pass their own adapter so exactly one TTS
+ * pipeline is authoritative.
+ */
+export interface SpeechLike {
+  /** Speak one utterance; resolves when it ends (or its fallback wait does). */
+  speak(text: string, speedMultiplier: number, signal?: AbortSignal): Promise<void>;
+  cancel(): void;
+  pause(): void;
+  resume(): void;
+}
+
 export class SpeechManager {
   private synth: SpeechSynthesis | null;
   private voiceURI: string | null = null;

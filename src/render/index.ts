@@ -8,7 +8,7 @@ import type { Spec } from "../spec/types";
 import { withOverrides } from "./params";
 import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
-import { SpeechManager } from "./speech";
+import { SpeechManager, type SpeechLike } from "./speech";
 import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 
 export type { RenderStyle } from "./svg-backend";
@@ -17,7 +17,7 @@ export interface RenderOptions {
   style?: RenderStyle;
   mode?: PlaybackMode;
   speed?: number;
-  speech?: SpeechManager;
+  speech?: SpeechLike;
   callbacks?: PlayerCallbacks;
 }
 

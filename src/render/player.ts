@@ -12,7 +12,7 @@ import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxe
 import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import { SpeechManager } from "./speech";
+import { SpeechManager, type SpeechLike } from "./speech";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -35,7 +35,7 @@ const CLEAR_MS = 550;
 export class Player {
   private plan: Plan;
   private elements: Map<string, RenderedElement>;
-  private speech: SpeechManager;
+  private speech: SpeechLike;
   private captionEl: HTMLElement | null;
   private effects: BackendEffects | null;
   /** Settable after construction (the UI wires its controls in later). */
@@ -72,7 +72,7 @@ export class Player {
   constructor(
     plan: Plan,
     elements: Map<string, RenderedElement>,
-    speech: SpeechManager,
+    speech: SpeechLike,
     captionEl: HTMLElement | null,
     opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects } = {},
     callbacks: PlayerCallbacks = {},
