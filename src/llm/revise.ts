@@ -8,12 +8,17 @@
 // document loaded from the library, a bundled example, or a #gdoc= share, and
 // its cost does not grow every round.
 
+import type Anthropic from "@anthropic-ai/sdk";
 import { itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
-import { stripFence } from "./prompt";
+import { buildSystemBlocks, stripFence } from "./prompt";
 import { validateSpec } from "../spec/schema";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
-import type { LintIssue } from "../lint/lint";
+import { lintReportText, type LintIssue } from "../lint/lint";
+import { callForText, describeApiError, makeClient } from "./client";
+import { apiSchema, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
+import { catalogParts } from "../scenes/catalog";
+import { ensureEnginesForTemplate } from "../scenes/engines";
 
 export function buildReviseUser(docText: string, instruction: string): string {
   return [
@@ -62,4 +67,114 @@ export function checkPlaylist(playlist: Playlist, measure: MeasureFn = heuristic
     }
   }
   return { errors, lintIssues };
+}
+
+export interface ReviseConfig {
+  apiKey: string;
+  model: string;
+  /** The active compiler prompt — the same one Generate uses, so the cached prefix is reused. */
+  variant: PromptVariant;
+  /** Priority packs from settings; templates in the document are added automatically. */
+  priorityIds?: string[];
+  maxRepairs?: number;
+}
+
+export interface ReviseRound {
+  label: "initial" | "repair";
+  text: string;
+  errors: string[];
+  lintIssues: LintIssue[];
+  ms: number;
+}
+
+export interface ReviseOutcome {
+  playlist: Playlist | null;
+  /** The accepted document text, exactly as returned (fence stripped). */
+  text: string | null;
+  rounds: ReviseRound[];
+  error?: string;
+}
+
+/** Template ids used anywhere in the document — they need FULL catalog entries, not index stubs. */
+function templatesIn(playlist: Playlist): string[] {
+  return [...new Set(itemsOf(playlist).map((i) => i.spec.template).filter((t): t is string => !!t))];
+}
+
+export async function reviseDocument(docText: string, instruction: string, cfg: ReviseConfig): Promise<ReviseOutcome> {
+  const parsedNow = parseReviseReply(docText);
+  if (!parsedNow.playlist) {
+    return { playlist: null, text: null, rounds: [], error: `the current document is unreadable: ${parsedNow.error}` };
+  }
+
+  // Same system blocks as generation, including the cache_control prefix, so a
+  // revise right after a generate reuses the warm ~10k-token cached prompt.
+  // Exemplars are deliberately empty: pickExemplars teaches request -> spec
+  // authoring, and a revision already has a spec in front of it.
+  const priorityIds = [...new Set([...(cfg.priorityIds ?? []), ...templatesIn(parsedNow.playlist)])];
+  const catalog = catalogParts({ request: instruction, priorityIds });
+  const blocks = buildSystemBlocks(cfg.variant.source, {
+    schema: apiSchema(),
+    catalog: catalog.stable,
+    fewshots: fewshotsText(),
+    exemplars: "",
+  });
+  const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
+  const system: Anthropic.TextBlockParam[] = [
+    { type: "text", text: blocks.prefix, cache_control: { type: "ephemeral" } },
+    ...(suffixText ? [{ type: "text" as const, text: suffixText }] : []),
+  ];
+
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: buildReviseUser(docText, instruction) }];
+  const rounds: ReviseRound[] = [];
+  const maxRepairs = cfg.maxRepairs ?? 2;
+  let repairsUsed = 0;
+  let best: { playlist: Playlist; text: string } | null = null;
+  const client = makeClient(cfg.apiKey);
+
+  try {
+    while (true) {
+      const label: ReviseRound["label"] = rounds.length === 0 ? "initial" : "repair";
+      const model = label === "initial" ? cfg.model : repairModelFor(cfg.model);
+      const { text: raw, ms } = await callForText(client, model, system, messages);
+      const cleaned = stripFence(raw);
+      const parsed = parseReviseReply(raw);
+
+      let errors: string[] = [];
+      let lintIssues: LintIssue[] = [];
+      if (!parsed.playlist) {
+        errors = [parsed.error!];
+      } else {
+        // Engines must be loaded before layout — layoutSpec reads them synchronously.
+        for (const id of templatesIn(parsed.playlist)) {
+          await ensureEnginesForTemplate(id).catch((err) => {
+            errors.push(`engine load failed for "${id}": ${(err as Error).message}`);
+          });
+        }
+        const checked = checkPlaylist(parsed.playlist);
+        errors = [...errors, ...checked.errors];
+        lintIssues = checked.lintIssues;
+        if (errors.length === 0) best = { playlist: parsed.playlist, text: cleaned };
+      }
+      rounds.push({ label, text: cleaned, errors, lintIssues, ms });
+
+      if (!needsRepair(errors, lintIssues) || repairsUsed >= maxRepairs) break;
+      repairsUsed++;
+
+      const lintErrors = lintIssues.filter((i) => i.severity === "error");
+      const feedback =
+        errors.length > 0
+          ? `The revised document failed validation:\n${errors.join("\n")}\n\nReturn the corrected COMPLETE document, in the same shape.`
+          : `The revised figure has visual problems:\n${lintReportText(lintErrors)}\n\nReturn the corrected COMPLETE document, in the same shape. Typical fixes: different label sides, shorter texts, fewer overlapping elements.`;
+      messages.push({ role: "assistant", content: raw }, { role: "user", content: feedback });
+    }
+  } catch (err) {
+    return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err) };
+  }
+
+  return {
+    playlist: best?.playlist ?? null,
+    text: best?.text ?? null,
+    rounds,
+    error: best ? undefined : (rounds[rounds.length - 1]?.errors[0] ?? "The model never produced a usable document."),
+  };
 }

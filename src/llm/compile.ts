@@ -38,8 +38,8 @@ export function fewshotsText(): string {
     .join("\n\n");
 }
 
-/** Schema copy for the API's structured-output constraint. */
-function apiSchema(): object {
+/** Schema copy for the API's structured-output constraint, and for the prompt's {{SCHEMA}}. */
+export function apiSchema(): object {
   const copy = JSON.parse(JSON.stringify(specSchema)) as Record<string, unknown>;
   delete copy.$schema;
   return copy;
