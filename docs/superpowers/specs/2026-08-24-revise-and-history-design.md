@@ -28,7 +28,49 @@ and the library (`src/store.ts` §"Drawing library").*
 - **Cloud sync.** History is localStorage, this browser — same as the library it
   replaces.
 
-## 1. Three origins, two buttons
+## 0. Phasing — what is actually being built
+
+Evaluated 2026-08-24 with Hans, after the design was complete: the two halves of
+this spec have very different returns, so only the first is being built now.
+
+**Phase 1 — build now.** Revise (§2), an in-memory session version stack (§4),
+and auto-save in place. Purely additive: a Revise bug returns a bad spec, and
+nothing that works today changes shape. Small enough to be worth doing on
+speculation.
+
+**Phase 2 — deferred.** Persisted versions, the storage split, eviction,
+migration, star, rename, and the three-origin state machine (§1, §3, §5). This is
+*library management*, and it earns out only if drawcasts accumulate into a corpus
+that gets re-opened. That fact does not exist yet — drawcast is five days past the
+fork and still in heavy feature development. It is also the only subtractive part
+of the spec: it replaces a working persistence layer and migrates real saved data,
+where a bug loses work.
+
+**The trigger.** Build phase 2 when the sidebar has become a list that actually
+gets scrolled and re-opened. Until then, undo-for-revise — the thing phase 2 was
+originally justified by — costs ~120 lines of in-memory stack instead of a
+persistence rewrite.
+
+Building storage twice is normally an argument against phasing, but not here: the
+standing rule for this repo is no backwards compatibility while there are no users
+(replace and delete rather than migrate), which already prices the second pass as
+cheap.
+
+### Phase 1 substitutions
+
+| spec section | phase 2 as designed | phase 1 instead |
+|---|---|---|
+| §1 origins | `demo`/`opened`/`owned`, boot offers Generate | unchanged boot (`initialDoc`); **Generate always present, Revise appears whenever a document is loaded**; arrows hidden until there are ≥2 versions |
+| §3 storage | index + per-entry version blobs, caps, eviction, migration | **no `store.ts` change at all** — `Doc` gains a stable `id`, and `saveDrawing` already replaces by id (`store.ts:188`), so passing it auto-saves in place |
+| §3 persistence | 10 versions per entry, on disk | current version only; the version stack is in memory, capped at 20, gone on reload |
+| §5 sidebar | History panel, rename, star, hover actions | unchanged Library panel; `💾 Save` is removed as redundant |
+
+Copy-on-write still applies in phase 1: Generate creates a library entry
+immediately, a loaded example or `#gdoc=` share creates nothing until the first
+revise or manual re-render. Auto-save fires on generate, revise **and** manual
+re-render, which is what makes `💾 Save` redundant.
+
+## 1. Three origins, two buttons *(phase 2)*
 
 `Doc` gains `origin` and `entryId`. The primary button follows **how the document
 arrived**, not what is on screen:
@@ -55,7 +97,7 @@ forks it into your history, which is the same rule that forks a revised example.
 Generate is unreachable while a document is `opened` or `owned`. New is the way
 back to it — one click, deliberately.
 
-## 2. The revise call
+## 2. The revise call *(phase 1)*
 
 New module `src/llm/revise.ts`, sitting beside `compile.ts` the way `author.ts`
 and `outline.ts` already do, importing `repairModelFor`/`needsRepair` from it.
@@ -128,7 +170,7 @@ sibling for revisions rather than being contorted: one `LogEntry` per revise,
 the document is applied, exactly as `generate()` does, so the rating stars target
 the revision you just made.
 
-## 3. Versions and storage
+## 3. Versions and storage *(§3 storage shapes are phase 2; the version rules below apply to both phases)*
 
 Two localStorage shapes, replacing `KEYS.library`:
 
@@ -211,7 +253,7 @@ existing `SavedDrawing` becomes a `HistoryEntry` plus a `VersionStack` holding o
 `drawcast.library.v1` key is then removed. Hans has his own saved drawings in this
 browser; they must survive.
 
-## 4. Viewing versus restoring
+## 4. Viewing versus restoring *(phase 1, over the in-memory stack)*
 
 **The arrows navigate. A button commits. Neither deletes.**
 
@@ -239,7 +281,7 @@ age-based 10-cap, which is predictable.
 The counter shows position among stored versions (`2/5`); the counter's `title`
 shows that version's label and timestamp.
 
-## 5. The sidebar: History
+## 5. The sidebar: History *(phase 2)*
 
 "Library" becomes **History**. Rows sort starred-first then newest; the existing
 search filter (`matchesFilter`) is unchanged. Actions appear on hover:
@@ -254,17 +296,26 @@ blob. `💾 Save` is removed — saving is automatic. Export/import stay as they
 
 ## 6. Files and boundaries
 
+**Phase 1:**
+
 | | |
 |---|---|
 | new | `src/history.ts` — pure version-stack logic: push, coalesce, cap, restore, cursor. No DOM, no storage. |
 | new | `src/llm/revise.ts` — `buildReviseUser`, `reviseDocument`. |
+| edit | `src/main.ts` — the Revise action and button visibility, arrows + viewing bar, stable `Doc.id`, auto-save, `💾 Save` removed; wiring at **both** `doc` assignment sites. |
+| edit | `src/styles.css` — viewing bar, history control. |
+
+**Phase 2 adds:**
+
+| | |
+|---|---|
 | new | `src/ui/history-panel.ts` — the sidebar list, rename/star/delete rows. |
 | edit | `src/store.ts` — index + per-entry version blobs, eviction, migration; `SavedDrawing` API removed. |
-| edit | `src/main.ts` — origins and button mode, the Revise action, viewing bar, wiring at **both** `doc` assignment sites. |
-| edit | `src/styles.css` — viewing bar, hover row actions, history control. |
+| edit | `src/main.ts` — origins and button mode. |
 
-`main.ts` is 2503 lines, so the sidebar panel moves **out** rather than in —
-the same split `src/ui/controls.ts` and `src/ui/modal.ts` already use.
+`main.ts` is 2503 lines, so when phase 2 lands the sidebar panel moves **out**
+rather than in — the same split `src/ui/controls.ts` and `src/ui/modal.ts`
+already use.
 
 **Implementation trap:** `doc` is assigned in two places, not one — `setDoc()`
 (`main.ts:1389`) and the `rerenderBtn` handler (`main.ts:1733`), which writes
@@ -283,9 +334,9 @@ Vitest, `tests/*.ts`, localStorage stubbed as `tests/my-templates.test.ts` and
   fenced reply parses; a multi-document reply keeps header and chapter entries;
   an unparseable reply errors with the document left untouched; a reply whose item
   3 fails validation produces repair feedback naming item 3.
-- `tests/store-history.test.ts` — index/stack round-trip; 100-entry cap skips
-  starred; `QuotaExceededError` evicts oldest unstarred and retries; migration
-  from a `drawcast.library.v1` blob.
+- `tests/store-history.test.ts` *(phase 2)* — index/stack round-trip; 100-entry cap
+  skips starred; `QuotaExceededError` evicts oldest unstarred and retries;
+  migration from a `drawcast.library.v1` blob.
 
 Then the full suite.
 
