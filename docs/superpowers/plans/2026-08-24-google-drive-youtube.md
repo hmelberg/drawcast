@@ -80,7 +80,7 @@ The request only *opens* a session — it uploads no bytes and creates no video.
 
 **Files:**
 - Create: `src/google/auth.ts`
-- Test: `tests/google-auth.test.ts`
+- Test: `tests/google-auth.test.ts`, `tests/no-bundled-secrets.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -293,11 +293,49 @@ async function fetchEmail(token: string): Promise<void> {
 Run: `npx vitest run tests/google-auth.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Full suite, type check, commit**
+- [ ] **Step 5: Add the bundled-secret tripwire**
+
+This task introduces the first two `VITE_` vars in the project. Vite inlines
+every `VITE_*` var into the public bundle as a literal string, and
+`src/store.ts:152,161` already read `VITE_ANTHROPIC_API_KEY` and
+`VITE_GOOGLE_TTS_KEY` as local-dev fallbacks. Nothing sets them today (verified:
+no `VITE_` appears in `.github/workflows/deploy.yml`, `netlify.toml`, or
+`.env.example`), but the next person adding a Google var by analogy could set
+one and publish a paid API key to a static site. Fail the build instead:
+
+```ts
+// tests/no-bundled-secrets.test.ts
+import { describe, expect, test } from "vitest";
+
+// Vite inlines every VITE_* var into the client bundle as a literal string, so
+// a secret behind that prefix is published, not configured. The Anthropic and
+// TTS keys are vended by netlify/functions/keys.mts precisely to avoid that —
+// setting the VITE_ fallbacks in a build environment would silently defeat it.
+describe("no secret is compiled into the bundle", () => {
+  test.each(["VITE_ANTHROPIC_API_KEY", "VITE_GOOGLE_TTS_KEY"])("%s is not defined at build time", (name) => {
+    expect(import.meta.env[name as keyof ImportMetaEnv]).toBeUndefined();
+  });
+
+  test("the two Google vars that ARE public stay public-only — no secret material", () => {
+    // A client id ends in .apps.googleusercontent.com and an API key starts
+    // "AIza". Neither is secret. This asserts the shape so a private key or an
+    // Anthropic key pasted into the wrong var fails the build loudly.
+    const id = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+    if (id) expect(id.endsWith(".apps.googleusercontent.com")).toBe(true);
+    const key = import.meta.env.VITE_GOOGLE_PICKER_KEY as string | undefined;
+    if (key) expect(key.startsWith("AIza")).toBe(true);
+  });
+});
+```
+
+`npm test` runs before `npm run build` in `.github/workflows/deploy.yml`, so
+this fails the deploy rather than shipping the key.
+
+- [ ] **Step 6: Full suite, type check, commit**
 
 ```bash
 npx vitest run && npx tsc --noEmit
-git add src/google/auth.ts tests/google-auth.test.ts
+git add src/google/auth.ts tests/google-auth.test.ts tests/no-bundled-secrets.test.ts
 git commit -m "Add the lazy Google sign-in gate, with tokens held in memory only"
 ```
 
