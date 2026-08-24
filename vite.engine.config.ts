@@ -5,6 +5,7 @@ import { defineConfig } from "vite";
 // wholesale into any host (xplainer copies it to vendor/drawcast/).
 export default defineConfig({
   base: "./",
+  publicDir: false,
   build: {
     target: "es2022",
     outDir: "dist-engine",
