@@ -12,6 +12,8 @@ import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
 import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
+import { reviseDocument, type ReviseOutcome } from "./llm/revise";
+import { currentVersion, emptyStack, pushManualEdit, pushVersion, seedStack, type Stack } from "./history";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
 import { looksLikeAnthropicKey, redeemPassword } from "./keys";
@@ -133,6 +135,9 @@ interface Doc {
 }
 
 let doc: Doc = initialDoc();
+let stack: Stack = emptyStack();
+/** Set while an arrow step is being applied, so restoring a version does not record a manual edit. */
+let restoring = false;
 let session: SessionHandle | null = null;
 let lastLogId: string | null = null;
 
@@ -290,6 +295,7 @@ const promptEl = h("textarea", {
   placeholder: 'Describe the drawing… e.g. "Show the deadweight loss from a tax, with shaded regions"',
 });
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
+const reviseBtn = h("button", { class: "primary", title: "Change the current drawcast with AI" }, "Revise with AI");
 const blankBtn = h("button", { class: "sidebar-new", title: "Start a new drawcast from a minimal hand-editable spec" }, "＋ New drawcast");
 
 // ---------- hashtag directives: chips + autosuggest ----------
@@ -683,7 +689,7 @@ const editorWrap = h(
     { class: "panel editor-toolbar" },
     h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
-    h("div", { class: "row gen-row" }, choicesBtn, generateBtn),
+    h("div", { class: "row gen-row" }, choicesBtn, generateBtn, reviseBtn),
     genChoices,
   ),
   statusEl,
@@ -1387,10 +1393,18 @@ async function present(): Promise<void> {
   }
 }
 
-function setDoc(next: Doc, statusText?: string): void {
+/** Filled in by Task 6: reflects `stack` onto the ◀ ▶ arrows and their surrounding UI. */
+function applyHistoryUi(): void { /* body added in Task 6 */ }
+
+function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
   doc = next;
   lastLogId = null; // ratings apply to generations only
   specArea.value = formatPlaylist(doc.playlist, settings.specFormat);
+  // A new document starts a new history; only generate/generateMulti/revise pass
+  // `version` to append onto the existing one instead of reseeding it.
+  if (version) stack = pushVersion(stack, { text: specArea.value, label: version.label, kind: version.kind, ts: new Date().toISOString() });
+  else stack = seedStack(specArea.value, doc.prompt ?? doc.title);
+  applyHistoryUi();
   promptEl.value = doc.prompt ?? promptEl.value;
   refreshChips();
   ratingButtons.forEach((rb) => rb.classList.remove("lit"));
@@ -1547,6 +1561,30 @@ function logOutcome(prompt: string, outcome: Awaited<ReturnType<typeof generateS
   return logId;
 }
 
+/** Log one revision; returns the log id. Mirrors generateMulti's convention of naming the sub-request in `prompt`. */
+function logRevision(instruction: string, outcome: ReviseOutcome): string {
+  const logId = crypto.randomUUID();
+  appendLog({
+    id: logId,
+    ts: new Date().toISOString(),
+    prompt: `${doc.prompt ?? doc.title} ⟶ revise: ${instruction}`,
+    config: { model: settings.model, promptVariant: currentVariant().name, specVersion: SPEC_VERSION },
+    rounds: outcome.rounds.map((r) => ({
+      label: r.label,
+      validationErrors: r.errors,
+      lintCount: r.lintIssues.length,
+      ms: Math.round(r.ms),
+      structuredOutput: false,
+    })),
+    spec: outcome.playlist ? (itemsOf(outcome.playlist)[0]?.spec ?? null) : null, // LogEntry.spec is Spec | null, not optional
+    lintIssues: [],
+    warnings: [],
+    error: outcome.error,
+  });
+  refreshCounts();
+  return logId;
+}
+
 async function generate(): Promise<void> {
   const rawRequest = promptEl.value.trim();
   if (!rawRequest) return;
@@ -1596,6 +1634,7 @@ async function generate(): Promise<void> {
     setDoc(
       { id: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
+      { label: rawRequest, kind: "generate" },
     );
     autosave();
     lastLogId = logId; // after setDoc, so the rating stars target this generation
@@ -1603,6 +1642,52 @@ async function generate(): Promise<void> {
     generateBtn.disabled = false;
   }
 }
+
+async function revise(): Promise<void> {
+  const instruction = promptEl.value.trim();
+  if (!instruction) {
+    setStatus("Describe the change you want, then press Revise.", "error");
+    return;
+  }
+  const apiKey = requireKey();
+  if (!apiKey) return;
+  // The TEXTAREA is the source, not `doc` — hand-edits you have not re-rendered
+  // still ride along into the revision, so the label must not pretend otherwise.
+  const docText = specArea.value;
+  const dirty = docText !== currentVersion(stack)?.text;
+  const label = dirty ? `${instruction} (+ manual edits)` : instruction;
+
+  reviseBtn.disabled = true;
+  try {
+    setStatus(`Revising (${settings.model}, prompt ${currentVariant().name})…`);
+    const outcome = await reviseDocument(docText, instruction, {
+      apiKey,
+      model: settings.model,
+      variant: currentVariant(),
+      priorityIds: settings.priorityPacks.flatMap((p) => packTemplateIds(p)),
+    });
+    const logId = logRevision(instruction, outcome);
+    if (!outcome.playlist) {
+      setStatus(outcome.error ?? "Revision failed.", "error");
+      return;
+    }
+    // doc.prompt is deliberately NOT replaced: it stays the original request, so
+    // exemplars, the log and "👍 Learn from this" keep pairing original request -> current spec.
+    setDoc(
+      { id: doc.id, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      `Revised: ${instruction}`,
+      { label, kind: "revise" },
+    );
+    lastLogId = logId; // after setDoc, so the rating stars target this revision
+    autosave();
+    promptEl.value = ""; // consumed — and an empty box makes Generate inert
+    refreshChips();
+  } finally {
+    reviseBtn.disabled = false;
+  }
+}
+
+reviseBtn.addEventListener("click", () => void revise());
 
 /** #playlist / #parts=N: one outline call, then one ordinary generation per part. */
 async function generateMulti(
@@ -1674,6 +1759,7 @@ async function generateMulti(
     failedParts.length > 0
       ? `Generated ${specs.length}/${n} parts (part${failedParts.length > 1 ? "s" : ""} ${failedParts.join(", ")} failed).`
       : `Generated a ${specs.length}-part drawcast.`,
+    { label: rawRequest, kind: "generate" },
   );
   autosave();
 }
@@ -1756,6 +1842,8 @@ rerenderBtn.addEventListener("click", () => {
   // Same document, edited in place — carry the id forward so autosave() below
   // replaces this entry instead of minting a second one (copy-on-write).
   doc = { id: doc.id, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+  if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
+  applyHistoryUi();
   setStatus("Re-rendered from edited spec.", "ok");
   void present();
   autosave();
