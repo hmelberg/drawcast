@@ -50,12 +50,22 @@ export class DrawcastFigure extends Base {
     try {
       const loaded = await loadSpecText(text);
       if (loaded.errors.length > 0) throw new Error(loaded.errors.join("; "));
-      this.handle = await render(loaded.spec, this, { style: attrs.look, mode: attrs.mode, speed: attrs.speed });
-      if (attrs.autoplay) void this.handle.timeline.play();
+      const handle = await render(loaded.spec, this, { style: attrs.look, mode: attrs.mode, speed: attrs.speed });
+      // The element may have been disconnected while the awaits above were
+      // pending. disconnectedCallback ran while `handle` was still null (a
+      // no-op), so without this guard the fresh handle would be assigned to
+      // a torn-down element and its timeline/effects would never be
+      // destroyed. Destroy it immediately instead and skip autoplay.
+      if (!this.isConnected) {
+        handle.destroy();
+        return;
+      }
+      this.handle = handle;
+      if (attrs.autoplay) void this.handle.timeline.play().catch(() => {});
     } catch (err) {
       const pre = document.createElement("pre");
       pre.style.cssText = "color:#b91c1c;font-size:0.85rem;white-space:pre-wrap;";
-      pre.textContent = "drawcast-figure: " + (err as Error).message;
+      pre.textContent = "drawcast-figure: " + (err instanceof Error ? err.message : String(err));
       this.appendChild(pre);
     }
   }
