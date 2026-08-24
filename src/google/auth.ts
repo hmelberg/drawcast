@@ -136,14 +136,25 @@ export async function requireScope(scope: Scope): Promise<string | null> {
   });
 }
 
-/** Best-effort identity for the sidebar row. A failure here must not fail the action. */
+/**
+ * Marks the grant signed-in and best-effort attaches an email for the sidebar
+ * row. `user` is set here EITHER way — with a real email on success, or ""
+ * on failure — because a live token with `user` left null would make the row
+ * fall back to its signed-out label with no way to reach sign-out (a
+ * privacy-extension-blocked userinfo call must not orphan the grant it
+ * belongs to). The sidebar then shows a generic "Signed in" label when the
+ * email is "".
+ */
 async function fetchEmail(token: string): Promise<void> {
   try {
     const r = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: `Bearer ${token}` } });
-    if (!r.ok) return;
+    if (!r.ok) {
+      user = { email: "" };
+      return;
+    }
     const j = (await r.json()) as { email?: string };
-    if (j.email) user = { email: j.email };
+    user = { email: j.email ?? "" };
   } catch {
-    /* the sidebar just shows "Signed in" without an address */
+    user = { email: "" };
   }
 }

@@ -2032,7 +2032,9 @@ promoteBtn.addEventListener("click", () => {
 function refreshAccountRow(): void {
   if (!accountRow) return;
   const u = currentUser();
-  accountRow.textContent = u ? `☁ ${u.email} — sign out` : "☁ Sign in with Google";
+  // A grant with no email on file (userinfo blocked or failed) is still a
+  // grant — the row must still offer sign-out, just with a generic label.
+  accountRow.textContent = u ? (u.email ? `☁ ${u.email} — sign out` : "☁ Signed in — sign out") : "☁ Sign in with Google";
   accountRow.hidden = !googleConfigured();
 }
 
