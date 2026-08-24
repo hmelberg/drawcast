@@ -9,6 +9,7 @@ import type { Plan, SceneState } from "./plan";
 import { INITIAL_STATE } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
+import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { SpeechManager } from "./speech";
@@ -310,11 +311,12 @@ export class Player {
         await this.narrationBarrier();
         if (signal.aborted) return;
         const els = this.els(step.ids);
+        const ms = this.paced(els, step, 1);
         if (step.parallel) {
-          await Promise.all(els.map((el) => this.animateRange(el, 0, 1, el.durationMs, signal)));
+          await Promise.all(els.map((el, i) => this.animateRange(el, 0, 1, ms[i], signal)));
         } else {
-          for (const el of els) {
-            await this.animateRange(el, 0, 1, el.durationMs, signal);
+          for (const [i, el] of els.entries()) {
+            await this.animateRange(el, 0, 1, ms[i], signal);
             if (signal.aborted) return;
           }
         }
@@ -332,11 +334,12 @@ export class Player {
         await this.narrationBarrier();
         if (signal.aborted) return;
         const els = this.els(step.ids);
+        const ms = this.paced(els, step, ERASE_SPEED);
         if (step.parallel) {
-          await Promise.all(els.map((el) => this.animateRange(el, 1, 0, el.durationMs * ERASE_SPEED, signal)));
+          await Promise.all(els.map((el, i) => this.animateRange(el, 1, 0, ms[i], signal)));
         } else {
-          for (const el of els) {
-            await this.animateRange(el, 1, 0, el.durationMs * ERASE_SPEED, signal);
+          for (const [i, el] of els.entries()) {
+            await this.animateRange(el, 1, 0, ms[i], signal);
             if (signal.aborted) return;
           }
         }
@@ -438,6 +441,19 @@ export class Player {
         return;
       }
     }
+  }
+
+  /**
+   * Per-element durations for one draw/erase step, capped so the whole step
+   * fits its budget (src/render/pacing.ts). `speedFactor` is the verb's own
+   * multiplier (erase runs faster than draw) and applies before the cap, so
+   * the budget always means wall-clock.
+   */
+  private paced(els: RenderedElement[], step: { parallel?: boolean; narration?: string }, speedFactor: number): number[] {
+    return pacedDurations(
+      els.map((el) => el.durationMs * speedFactor),
+      { narrated: step.narration !== undefined, parallel: !!step.parallel },
+    );
   }
 
   /** Reveal/erase an element by animating its progress from `from` to `to`. */
