@@ -1464,10 +1464,19 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
   doc = next;
   lastLogId = null; // ratings apply to generations only
   specArea.value = formatPlaylist(doc.playlist, settings.specFormat);
-  // A new document starts a new history; only generate/generateMulti/revise pass
-  // `version` to append onto the existing one instead of reseeding it.
-  if (version) stack = pushVersion(stack, { text: specArea.value, label: version.label, kind: version.kind, ts: new Date().toISOString() });
-  else stack = seedStack(specArea.value, doc.prompt ?? doc.title);
+  // A new document starts a new history. Generate hands us a brand-new drawcast
+  // (`id: null`, and autosave() mints it its own library row straight after), so
+  // its stack is RESEEDED: appending it to the outgoing document's stack would
+  // leave the arrows spanning two unrelated drawcasts, and ◀ + Restore would then
+  // autosave the previous document's text into the new one's row. A revise is the
+  // only action that stays inside the same document, so it alone pushes.
+  if (version?.kind === "revise") {
+    stack = pushVersion(stack, { text: specArea.value, label: version.label, kind: "revise", ts: new Date().toISOString() });
+  } else {
+    // `||`, not `??`: ＋ New drawcast passes prompt: "", and a version labelled
+    // with the empty string names nothing in the counter's tooltip.
+    stack = seedStack(specArea.value, version?.label || doc.prompt || doc.title, version?.kind ?? "loaded");
+  }
   applyHistoryUi();
   promptEl.value = doc.prompt ?? promptEl.value;
   refreshChips();
@@ -1631,7 +1640,7 @@ function logRevision(instruction: string, outcome: ReviseOutcome): string {
   appendLog({
     id: logId,
     ts: new Date().toISOString(),
-    prompt: `${doc.prompt ?? doc.title} ⟶ revise: ${instruction}`,
+    prompt: `${doc.prompt || doc.title} ⟶ revise: ${instruction}`,
     config: { model: settings.model, promptVariant: currentVariant().name, specVersion: SPEC_VERSION },
     rounds: outcome.rounds.map((r) => ({
       label: r.label,
@@ -2663,7 +2672,7 @@ clearLogsBtn.addEventListener("click", () => {
 // ---------- boot ----------
 
 specArea.value = formatPlaylist(doc.playlist, isSingle(doc.playlist) ? settings.specFormat : "yaml");
-stack = seedStack(specArea.value, doc.prompt ?? doc.title);
+stack = seedStack(specArea.value, doc.prompt || doc.title);
 applyHistoryUi();
 if (doc.prompt) promptEl.value = doc.prompt;
 refreshChips();
