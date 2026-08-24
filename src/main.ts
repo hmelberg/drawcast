@@ -1415,11 +1415,34 @@ async function present(): Promise<void> {
 
 /** Render a version WITHOUT recording it — arrows navigate, they never mutate. */
 function showVersion(index: number): void {
-  const target = viewAt(stack, index);
-  const v = currentVersion(target);
+  const v = currentVersion(viewAt(stack, index));
   if (!v) return;
+  // Stepping back FROM the newest version overwrites the textarea, and a
+  // programmatic assignment also wipes its native undo stack — so an un-rendered
+  // hand-edit would be gone with no way back. Seal it as a version instead: the
+  // edit becomes history rather than a casualty. (The read-only lock only applies
+  // once you are ALREADY viewing, which is why this case exists at all.)
+  if (atNewest(stack) && specArea.value !== currentVersion(stack)?.text) {
+    stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
+  }
+  // The click handlers computed `index` before the seal ran, and sealing may
+  // append — which at the 20-version cap also trims from the front and shifts
+  // every index. So the target is re-located by IDENTITY: pushVersion rebuilds
+  // the array but keeps the element references.
+  const at = stack.versions.indexOf(v);
+  if (at < 0) {
+    // Only reachable if the seal coalesced into the very version we targeted
+    // (i.e. it was the newest manual one) — the cursor is already where it
+    // belongs, so there is nothing to render, just a longer counter to show.
+    applyHistoryUi();
+    return;
+  }
+  const target = viewAt(stack, at);
   const playlist = readPlaylistText(v.text);
-  if (!playlist) return; // readPlaylistText already reported why; cursor never moved
+  if (!playlist) {
+    applyHistoryUi(); // readPlaylistText already reported why; cursor never moved
+    return;
+  }
   stack = target;
   restoring = true;
   try {
@@ -1456,8 +1479,12 @@ latestBtn.addEventListener("click", () => showVersion(stack.versions.length - 1)
 restoreBtn.addEventListener("click", () => {
   stack = restoreViewed(stack, new Date().toISOString());
   showVersion(stack.versions.length - 1);
-  autosave();
   setStatus(currentVersion(stack)?.label ?? "Restored an earlier version", "ok");
+  autosave(); // after the status line, so a save failure is what you are left reading
+  // Unconditional: restoreViewed has already moved the cursor, so if showVersion
+  // bailed out the counter, viewing bar, read-only lock and button label would
+  // otherwise keep describing the cursor we left behind.
+  applyHistoryUi();
 });
 
 function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
