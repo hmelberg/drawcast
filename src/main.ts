@@ -125,6 +125,8 @@ function bundledExemplarPool(): { prompt: string; spec: Spec }[] {
 }
 
 interface Doc {
+  /** The library entry this document belongs to; null until the first change (copy-on-write). */
+  id: string | null;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -219,12 +221,12 @@ function firstSpec(d: Doc): Spec {
 function docFromSaved(saved: SavedDrawing): Doc {
   if (saved.playlist) {
     try {
-      return { title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
+      return { id: saved.id, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -232,7 +234,8 @@ function initialDoc(): Doc {
   if (saved) return docFromSaved(saved);
   // Fewshots come first in `examples` and always carry a spec.
   const ex = examples.find((e) => e.spec) as BundledExample & { spec: Spec };
-  return { title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
+  // An untouched bundled example is not yours until you change it (copy-on-write).
+  return { id: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
 }
 
 const app = document.getElementById("app")!;
@@ -468,7 +471,6 @@ function refreshExamples(): void {
   if (shown === 0) examplesList.appendChild(h("div", { class: "hint" }, "No match."));
 }
 refreshExamples();
-const saveBtn = h("button", { class: "small", title: "Save to the library (this browser)" }, "💾 Save");
 const exportBtn = h("button", { class: "icon-only", title: "Download the spec as a file" }, "⬇");
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
 const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
@@ -697,7 +699,6 @@ const editorWrap = h(
         formatSel,
         rerenderBtn,
         h("span", { class: "pane-spacer" }),
-        saveBtn,
         exportBtn,
         importBtn,
         importInput,
@@ -1400,6 +1401,25 @@ function setDoc(next: Doc, statusText?: string): void {
   void present();
 }
 
+/**
+ * Copy-on-write persistence: the first change to a document mints its library
+ * id, and every later change replaces that same entry (saveDrawing filters by
+ * id before unshifting). Loading an example or a share saves nothing until you
+ * change it.
+ */
+function autosave(): void {
+  doc.id ??= crypto.randomUUID();
+  saveDrawing({
+    id: doc.id,
+    title: doc.title,
+    prompt: doc.prompt,
+    spec: firstSpec(doc),
+    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+    ts: new Date().toISOString(),
+  });
+  refreshLibrary();
+}
+
 /** Parse + validate playlist text; returns null after reporting the first problem. */
 function readPlaylistText(text: string): Playlist | null {
   let playlist: Playlist;
@@ -1574,9 +1594,10 @@ async function generate(): Promise<void> {
     }
     if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
     setDoc(
-      { title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
+      { id: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
     );
+    autosave();
     lastLogId = logId; // after setDoc, so the rating stars target this generation
   } finally {
     generateBtn.disabled = false;
@@ -1649,11 +1670,12 @@ async function generateMulti(
     warnings: [],
   };
   setDoc(
-    { title: outline.title, prompt: rawRequest, playlist },
+    { id: null, title: outline.title, prompt: rawRequest, playlist },
     failedParts.length > 0
       ? `Generated ${specs.length}/${n} parts (part${failedParts.length > 1 ? "s" : ""} ${failedParts.join(", ")} failed).`
       : `Generated a ${specs.length}-part drawcast.`,
   );
+  autosave();
 }
 
 const BLANK_SPEC: Spec = {
@@ -1680,7 +1702,7 @@ blankBtn.addEventListener("click", () => {
   refreshChips();
   clearLint();
   setDoc(
-    { title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
+    { id: null, title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
     "New drawcast — describe one above, or edit the spec below.",
   );
   if (window.innerWidth < 940 && settings.sidebarOpen) {
@@ -1718,21 +1740,25 @@ async function loadBundledExample(index: number): Promise<void> {
   if (ex.playlist) {
     try {
       const playlist = parsePlaylistText(ex.playlist);
-      setDoc({ title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
+      // Untouched bundled example: not yours until you change it (copy-on-write).
+      setDoc({ id: null, title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
     } catch (err) {
       setStatus(`Example failed to parse: ${(err as Error).message}`, "error");
     }
     return;
   }
-  if (ex.spec) setDoc({ title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
+  if (ex.spec) setDoc({ id: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
 }
 
 rerenderBtn.addEventListener("click", () => {
   const playlist = readPlaylistText(specArea.value);
   if (!playlist) return;
-  doc = { title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+  // Same document, edited in place — carry the id forward so autosave() below
+  // replaces this entry instead of minting a second one (copy-on-write).
+  doc = { id: doc.id, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   setStatus("Re-rendered from edited spec.", "ok");
   void present();
+  autosave();
 });
 
 promoteBtn.addEventListener("click", () => {
@@ -1767,20 +1793,6 @@ function refreshLibrary(): void {
   }
 }
 refreshLibrary();
-
-saveBtn.addEventListener("click", () => {
-  const title = doc.title;
-  saveDrawing({
-    id: crypto.randomUUID(),
-    title,
-    prompt: doc.prompt,
-    spec: firstSpec(doc),
-    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
-    ts: new Date().toISOString(),
-  });
-  refreshLibrary();
-  setStatus(`Saved "${title}" to the library (this browser).`, "ok");
-});
 
 // ---------- my templates ----------
 
@@ -2176,7 +2188,8 @@ importInput.addEventListener("change", () => {
       if (maybe && typeof maybe === "object" && maybe.spec) {
         const inner = maybe.playlist ?? JSON.stringify(maybe.spec);
         const playlist = readPlaylistText(inner);
-        if (playlist) setDoc({ title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
+        // An uploaded file is a shared document, not yours until you change it (copy-on-write).
+        if (playlist) setDoc({ id: null, title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
         return;
       }
     } catch {
@@ -2184,7 +2197,7 @@ importInput.addEventListener("change", () => {
     }
     const playlist = readPlaylistText(text);
     if (!playlist) return;
-    setDoc({ title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
+    setDoc({ id: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
   });
 });
 
