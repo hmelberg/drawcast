@@ -7,6 +7,8 @@
 
 import { beforeAll, describe, expect, test } from "vitest";
 import bundledExamples from "../src/examples.json";
+import fewshots from "../src/llm/prompts/fewshots.json";
+import { scenes } from "../src/scenes/registry";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
@@ -45,6 +47,20 @@ beforeAll(async () => {
 describe("bundled examples stay exemplary", () => {
   test("every example carries either a spec or a playlist", () => {
     for (const ex of examples) expect(specsOf(ex).length, ex.request).toBeGreaterThan(0);
+  });
+
+  // Coverage is complete as of this commit — every template a fresh install
+  // offers has a worked example. Adding a template to a bundled pack without
+  // one is what this catches: the Examples list is how a user meets it, and
+  // the exemplar pool is how the model learns to reach for it.
+  test("every ready template has an example or a fewshot", () => {
+    const covered = new Set(
+      [...cases.map(([, spec]) => spec), ...(fewshots as { spec: Spec }[]).map((f) => f.spec)].map((s) => s.template).filter(Boolean),
+    );
+    const ready = Object.values(scenes)
+      .filter((s) => s.manifest.status === "ready")
+      .map((s) => s.manifest.name);
+    expect(ready.filter((id) => !covered.has(id))).toEqual([]);
   });
 
   test.each(cases)("%s — validates, lays out, and every command id resolves", (_req, spec) => {

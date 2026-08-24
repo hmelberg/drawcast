@@ -292,7 +292,25 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   padding-top: 0.7rem;
   border-top: 1px solid var(--line);
 }
-.sidebar .library-list { margin-top: 0.35rem; }
+/* Each list scrolls inside its own box rather than growing the menu: the
+   Library and the Examples list both keep the tool rows (Templates /
+   Instructions / Help / Settings) in view no matter how long they get. The
+   scrollbar is deliberately quiet — thin, ink-tinted, transparent track — and
+   overscroll-behavior keeps a flick from scrolling the page behind it. */
+.sidebar .library-list {
+  margin-top: 0.35rem;
+  max-height: 13rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 22%, transparent) transparent;
+}
+.sidebar .library-list::-webkit-scrollbar { width: 6px; }
+.sidebar .library-list::-webkit-scrollbar-track { background: transparent; }
+.sidebar .library-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+  border-radius: 3px;
+}
 
 /* The tool rows sit at the foot of the panel, each opening one modal. */
 .sidebar-tools {
@@ -468,12 +486,28 @@ textarea.prompt-source { min-height: 17rem; }
   white-space: nowrap;
 }
 .library-open:hover { color: var(--rust); text-decoration: underline dotted; }
+/* Deleting is destructive and rarely what you came for, so the ✕ stays
+   invisible — and unclickable, or an off-target click would still hit it —
+   until the pointer is on that row. It keeps its space in the layout so rows
+   don't shift on hover. Keyboard users reveal it by tabbing to it; on touch,
+   where there is no hover at all, it is simply always visible. */
 .library-del {
   border: none;
   background: none;
   color: var(--muted);
   cursor: pointer;
   padding: 0.1rem 0.3rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.library-item:hover .library-del,
+.library-del:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .library-del { opacity: 1; pointer-events: auto; }
 }
 .library-del:hover { color: var(--loss); }
 

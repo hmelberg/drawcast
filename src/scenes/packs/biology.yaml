@@ -168,7 +168,12 @@ layout: |
     const sw = mode === "active" ? 5 : 3;
     const children = [kit.stroke(`transport_${i}_arrow`, pts, { arrowhead: "end", color: strokeColor, strokeWidth: sw, ms: MS.arrow })];
     if (mode === "active") {
-      children.push(kit.text(`transport_${i}_atp`, [x + 16, (yBot + yTop) / 2], "ATP", { fontSize: 18, color: C.accent, anchor: "start" }));
+      // Beside the arrow's TAIL, clear of the membrane band: mid-height put it
+      // inside the protein it passes through (a pump body is an ellipse of
+      // rx 28 about x, so x + 16 was always on top of it). The tail end is
+      // also the opposite end from label_transport_<i>, which sits at the head.
+      const atpY = dir === "out" ? yBot - 22 : yTop + 22;
+      children.push(kit.text(`transport_${i}_atp`, [x + 16, atpY], "ATP", { fontSize: 18, color: C.accent, anchor: "start" }));
     }
     push(kit.group(`transport_${i}`, children));
     const labelAnchor = dir === "out" ? [x, yTop + 8] : [x, yBot - 8];

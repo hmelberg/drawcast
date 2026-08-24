@@ -1008,5 +1008,309 @@
         }
       ]
     }
+  },
+  {
+    "request": "Explain what wavelength and amplitude mean.",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "Wavelength and amplitude",
+      "template": "wave_diagram",
+      "params": {
+        "amplitude": 5,
+        "cycles": 3,
+        "label_parts": true
+      },
+      "commands": [
+        {
+          "speak": "Two numbers describe almost any wave. Let's read them straight off the picture."
+        },
+        {
+          "draw": [
+            "axis"
+          ],
+          "speak": "This line is the resting position — where the water, or the air, sits undisturbed."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "wave"
+          ],
+          "speak": "The wave rises above it and dips below it, over and over."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "label_crest",
+            "label_trough"
+          ],
+          "speak": "The high points are crests, the low points troughs."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "amp_arrow",
+            "label_amp"
+          ],
+          "speak": "Amplitude is the height from rest up to a crest — how strong the wave is. Louder sound, taller amplitude."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "wl_arrow",
+            "label_wl"
+          ],
+          "speak": "Wavelength is the distance from one crest to the next — the length of one full repeat."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "wl_arrow"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Squeeze the wavelength and the wave repeats more often each second: that is a higher frequency, and a higher pitch."
+        },
+        {
+          "speak": "Amplitude is how big, wavelength is how often — and they are independent of each other."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw the combustion of methane.",
+    "packs": [
+      "chemistry"
+    ],
+    "spec": {
+      "title": "Burning methane",
+      "template": "reaction_scheme",
+      "params": {
+        "reactants": [
+          "CH₄",
+          "2 O₂"
+        ],
+        "products": [
+          "CO₂",
+          "2 H₂O"
+        ],
+        "over": "Δ"
+      },
+      "commands": [
+        {
+          "speak": "When natural gas burns, atoms are rearranged — never created or destroyed. Let's check that."
+        },
+        {
+          "draw": [
+            "reactants"
+          ],
+          "speak": "We start with one methane molecule and two oxygen molecules."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "arrow",
+            "label_over"
+          ],
+          "speak": "A spark supplies the heat that gets the reaction going."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "products"
+          ],
+          "speak": "Out comes carbon dioxide and two waters."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "reactants",
+              "products"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Now count: one carbon each side, four hydrogens each side, four oxygens each side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "speak": "That balance is what makes it an equation rather than a story — and it is why the coefficients cannot be chosen freely."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Compare diffusion and active transport across a cell membrane.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "Two ways across a membrane",
+      "template": "membrane_bilayer",
+      "params": {
+        "proteins": [
+          "channel",
+          "pump"
+        ],
+        "transports": [
+          {
+            "species": "O₂",
+            "mode": "diffusion",
+            "direction": "in"
+          },
+          {
+            "species": "Na⁺",
+            "mode": "active",
+            "direction": "out"
+          }
+        ],
+        "labels": true
+      },
+      "commands": [
+        {
+          "speak": "Some things drift into a cell for free. Others have to be pushed, and pushing costs energy."
+        },
+        {
+          "draw": [
+            "lipids"
+          ],
+          "speak": "The membrane is two rows of phospholipids: water-loving heads facing out, oily tails meeting in the middle."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "protein_0",
+            "label_protein_0"
+          ],
+          "speak": "This protein is a channel — an open pore through the oily middle."
+        },
+        {
+          "draw": [
+            "transport_0",
+            "label_transport_0"
+          ],
+          "speak": "Oxygen is plentiful outside and scarce inside, so it simply drifts down that difference. No energy needed."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "protein_1",
+            "label_protein_1"
+          ],
+          "speak": "This one is a pump, and it works the other way round."
+        },
+        {
+          "draw": [
+            "transport_1",
+            "label_transport_1"
+          ],
+          "speak": "It drives sodium out even though sodium is already scarcer outside — uphill, against the gradient."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "transport_1"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That is why the pump burns ATP: going downhill is free, going uphill is not."
+        },
+        {
+          "speak": "Same membrane, same direction of travel — the difference is whether the gradient helps you or fights you."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How are humans, chimps, mice, rats and chickens related?",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "A vertebrate cladogram",
+      "template": "phylo_tree",
+      "params": {
+        "newick": "((Human,Chimp),(Mouse,Rat),Chicken);"
+      },
+      "commands": [
+        {
+          "speak": "A family tree of species reads from the tips inwards. Let's read this one."
+        },
+        {
+          "draw": [
+            "leaf_0",
+            "leaf_1",
+            "leaf_2",
+            "leaf_3",
+            "leaf_4"
+          ],
+          "speak": "Five living species sit at the tips — nobody here is descended from anybody else here."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "edges"
+          ],
+          "speak": "Every fork behind them is a common ancestor that split into two lines."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "leaf_0",
+              "leaf_1"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Human and chimp meet at the shallowest fork, so their shared ancestor is the most recent."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "leaf_4"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The chicken branches off deepest, further back in time than any of the others."
+        },
+        {
+          "speak": "Read the forks, not the drawing order: closeness on this tree means a more recent ancestor, not looking alike."
+        }
+      ]
+    }
   }
 ]
