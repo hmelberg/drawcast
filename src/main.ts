@@ -88,7 +88,7 @@ import {
   type SavedDrawing,
   type UserPrompt,
 } from "./store";
-import { currentUser, DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut } from "./google/auth";
+import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
 import { openSpec, saveSpec } from "./google/drive";
 import { uploadVideo, type UploadMeta } from "./google/youtube";
 import fewshots from "./llm/prompts/fewshots.json";
@@ -2034,15 +2034,15 @@ promoteBtn.addEventListener("click", () => {
 
 function refreshAccountRow(): void {
   if (!accountRow) return;
-  const u = currentUser();
-  // A grant with no email on file (userinfo blocked or failed) is still a
-  // grant — the row must still offer sign-out, just with a generic label.
-  accountRow.textContent = u ? (u.email ? `☁ ${u.email} — sign out` : "☁ Signed in — sign out") : "☁ Sign in with Google";
+  // No email is shown: reading one needs an `openid`/`email` scope this app
+  // never asks for. What the row must guarantee is that a live grant always
+  // offers sign-out.
+  accountRow.textContent = signedIn() ? "☁ Signed in — sign out" : "☁ Sign in with Google";
   accountRow.hidden = !googleConfigured();
 }
 
 async function toggleAccount(): Promise<void> {
-  if (currentUser()) {
+  if (signedIn()) {
     signOut();
     setStatus("Signed out of Google.", "ok");
   } else {

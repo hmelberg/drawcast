@@ -26,6 +26,24 @@ describe("token store", () => {
     expect(s.get(DRIVE_SCOPE)).toBeNull(); // 59s left — inside the margin
   });
 
+  test("tokens() lists what sign-out has to revoke, each token once", () => {
+    const s = makeTokenStore(() => 0);
+    s.put(DRIVE_SCOPE, "tok-a", 3600);
+    s.put(YOUTUBE_SCOPE, "tok-b", 3600);
+    expect(s.tokens().sort()).toEqual(["tok-a", "tok-b"]);
+    // Re-granting a scope replaces its entry rather than accumulating one.
+    s.put(DRIVE_SCOPE, "tok-b", 3600);
+    expect(s.tokens()).toEqual(["tok-b"]);
+  });
+
+  test("tokens() reports a token the expiry margin would already refuse — sign-out still revokes it", () => {
+    let now = 1_000_000;
+    const s = makeTokenStore(() => now);
+    s.put(DRIVE_SCOPE, "tok-a", 3600);
+    now += (3600 - 30) * 1000; // inside the 60s margin, so get() would hand out nothing
+    expect(s.tokens()).toEqual(["tok-a"]);
+  });
+
   test("clear() forgets every scope", () => {
     const s = makeTokenStore(() => 0);
     s.put(DRIVE_SCOPE, "tok-a", 3600);

@@ -55,6 +55,8 @@ export async function saveSpec(text: string, name: string, fileId: string | null
 /** Loaded on first use only. */
 let pickerReady: Promise<void> | null = null;
 function loadPicker(): Promise<void> {
+  // Drop the memo if the load fails, so one transient network blip does not
+  // make Open permanently unavailable for the rest of the page's life.
   pickerReady ??= new Promise<void>((resolve, reject) => {
     const s = document.createElement("script");
     s.src = "https://apis.google.com/js/api.js";
@@ -62,6 +64,9 @@ function loadPicker(): Promise<void> {
     s.onload = () => (window as unknown as { gapi: any }).gapi.load("picker", { callback: () => resolve() });
     s.onerror = () => reject(new Error("could not load the Google file picker"));
     document.head.appendChild(s);
+  }).catch((err: unknown) => {
+    pickerReady = null;
+    throw err;
   });
   return pickerReady;
 }

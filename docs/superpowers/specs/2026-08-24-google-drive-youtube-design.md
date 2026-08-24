@@ -96,8 +96,9 @@ interface Grant { token: string; expiresAt: number }
 /** The lazy sign-in gate. Resolves with a token, or null when the user declines. */
 export function requireScope(scope: Scope): Promise<string | null>;
 
-/** Signed-in identity for the sidebar row, or null. Cleared by signOut(). */
-export function currentUser(): { email: string } | null;
+/** True once a scope has been granted this session — drives the sidebar row. */
+export function signedIn(): boolean;
+/** Revokes every held token with Google, then forgets them. */
 export function signOut(): void;
 ```
 
@@ -191,8 +192,10 @@ Upload" instruction.
 `⬇ ⬆`.
 
 **Sidebar** — an account row at the bottom of `sidebar-tools`, reading
-`Sign in with Google` or the signed-in email with a sign-out control. Matches
-where askstat puts its account row.
+`☁ Sign in with Google` or `☁ Signed in — sign out`. Matches where askstat puts
+its account row. It shows no email: the address lives behind an `openid`/`email`
+scope, and this app requests `drive.file` and `youtube.upload` only — asking for
+a third scope purely to letter a sidebar row is not a trade worth making.
 
 `Doc` gains `driveFileId: string | null`, set by Save, carried by `setDoc` and
 the re-render path exactly as `id` is, and reset to `null` whenever a different

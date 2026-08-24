@@ -17,6 +17,8 @@ const EXPIRY_MARGIN_S = 60;
 export interface TokenStore {
   get(scope: Scope): string | null;
   put(scope: Scope, token: string, expiresInSeconds: number): void;
+  /** Every distinct token held, expired or not — sign-out revokes these. */
+  tokens(): string[];
   clear(): void;
 }
 
@@ -36,6 +38,9 @@ export function makeTokenStore(now: () => number = Date.now): TokenStore {
     put(scope, token, expiresInSeconds) {
       grants.set(scope, { token, expiresAt: now() + expiresInSeconds * 1000 });
     },
+    tokens() {
+      return [...new Set([...grants.values()].map((g) => g.token))];
+    },
     clear() {
       grants.clear();
     },
@@ -43,7 +48,14 @@ export function makeTokenStore(now: () => number = Date.now): TokenStore {
 }
 
 const store = makeTokenStore();
-let user: { email: string } | null = null;
+/**
+ * Signed-in marker for the sidebar row. There is no email: `userinfo` needs an
+ * `openid`/`email` token and this app requests neither — `drive.file` and
+ * `youtube.upload` are all it will ever ask for. The invariant that matters is
+ * that a live token always leaves sign-out reachable, so this is set by the
+ * grant itself rather than by anything that could fail after it.
+ */
+let granted = false;
 
 // import.meta.env has no repo-local vite-env.d.ts declaring ImportMetaEnv, so
 // index through a cast rather than `keyof ImportMetaEnv`.
@@ -73,18 +85,39 @@ export function pickerConfigured(): boolean {
   return clientId() !== "" && pickerKey() !== "";
 }
 
-export function currentUser(): { email: string } | null {
-  return user;
+/** True once any scope has been granted this session. Cleared by signOut(). */
+export function signedIn(): boolean {
+  return granted;
 }
 
+/**
+ * Forget every token AND tell Google to invalidate it. Forgetting alone would
+ * make the label a lie: `requestAccessToken({prompt:""})` re-acquires silently
+ * from the still-live Google session, so sign-out → sign-in would round-trip
+ * back in with no interaction and no way to actually let go of the grant.
+ */
 export function signOut(): void {
+  for (const token of store.tokens()) revoke(token);
   store.clear();
-  user = null;
+  granted = false;
+}
+
+/** Best effort: GIS may never have loaded, and a failed revoke must not throw. */
+function revoke(token: string): void {
+  try {
+    const oauth2 = (window as unknown as { google?: { accounts?: { oauth2?: { revoke?: (t: string, cb: () => void) => void } } } }).google?.accounts?.oauth2;
+    oauth2?.revoke?.(token, () => {});
+  } catch {
+    /* the local token is dropped either way — that is the part we control */
+  }
 }
 
 /** Loaded on first use only — a user who never signs in pays nothing at boot. */
 let gsiReady: Promise<void> | null = null;
 function loadGsi(): Promise<void> {
+  // The memo must not retain a REJECTED promise: one flaky script load would
+  // otherwise disable Google for the life of the page, and every retry would
+  // be reported to the user as "sign-in was cancelled".
   gsiReady ??= new Promise<void>((resolve, reject) => {
     const s = document.createElement("script");
     s.src = "https://accounts.google.com/gsi/client";
@@ -92,6 +125,9 @@ function loadGsi(): Promise<void> {
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("could not load Google sign-in"));
     document.head.appendChild(s);
+  }).catch((err: unknown) => {
+    gsiReady = null;
+    throw err;
   });
   return gsiReady;
 }
@@ -122,10 +158,10 @@ export async function requireScope(scope: Scope): Promise<string | null> {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId(),
       scope,
-      callback: async (res: TokenResponse) => {
+      callback: (res: TokenResponse) => {
         if (!res.access_token) return resolve(null);
         store.put(scope, res.access_token, res.expires_in ?? 3600);
-        await fetchEmail(res.access_token);
+        granted = true; // set with the token itself: a live grant always keeps sign-out reachable
         resolve(res.access_token);
       },
       error_callback: () => resolve(null),
@@ -134,27 +170,4 @@ export async function requireScope(scope: Scope): Promise<string | null> {
     // live session — the silent re-acquire that replaces a stored refresh token.
     client.requestAccessToken({ prompt: "" });
   });
-}
-
-/**
- * Marks the grant signed-in and best-effort attaches an email for the sidebar
- * row. `user` is set here EITHER way — with a real email on success, or ""
- * on failure — because a live token with `user` left null would make the row
- * fall back to its signed-out label with no way to reach sign-out (a
- * privacy-extension-blocked userinfo call must not orphan the grant it
- * belongs to). The sidebar then shows a generic "Signed in" label when the
- * email is "".
- */
-async function fetchEmail(token: string): Promise<void> {
-  try {
-    const r = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: `Bearer ${token}` } });
-    if (!r.ok) {
-      user = { email: "" };
-      return;
-    }
-    const j = (await r.json()) as { email?: string };
-    user = { email: j.email ?? "" };
-  } catch {
-    user = { email: "" };
-  }
 }
