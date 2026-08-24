@@ -19,6 +19,7 @@ import { callForText, describeApiError, makeClient } from "./client";
 import { apiSchema, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForTemplate } from "../scenes/engines";
+import { makeBrowserMeasure } from "../render/svg-backend";
 
 export function buildReviseUser(docText: string, instruction: string): string {
   return [
@@ -130,6 +131,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   let repairsUsed = 0;
   let best: { playlist: Playlist; text: string } | null = null;
   const client = makeClient(cfg.apiKey);
+  const measure = makeBrowserMeasure();
 
   try {
     while (true) {
@@ -150,7 +152,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
             errors.push(`engine load failed for "${id}": ${(err as Error).message}`);
           });
         }
-        const checked = checkPlaylist(parsed.playlist);
+        const checked = checkPlaylist(parsed.playlist, measure);
         errors = [...errors, ...checked.errors];
         lintIssues = checked.lintIssues;
         if (errors.length === 0) best = { playlist: parsed.playlist, text: cleaned };
