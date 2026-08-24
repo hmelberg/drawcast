@@ -4,6 +4,7 @@
 
 import { hierarchy, tree } from "d3-hierarchy";
 import { CANVAS } from "../../layout/canvas";
+import { heuristicMeasure } from "../../layout/measure";
 import {
   COLORS,
   Z_STROKE,
@@ -91,8 +92,15 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
     drawables.push(nodeDrawable(id, node.type, c));
     order.push(id);
 
+    // A node's label may sit near the branch that ARRIVES at it — otherwise
+    // it drifts sideways to dodge its own incoming edge and lands in the space
+    // the branch labels need (the "Medication" label ending up 90 units right
+    // of its own circle was what pushed "Symptoms resolve (p=0.7)" off its
+    // branch). The node shape itself stays an obstacle: a label allowed to
+    // ignore that lands on top of the square.
+    const own = n.parent ? [`edge_${n.parent.data.cleanId}_${cleanId}`] : [];
     if (node.type === "terminal") {
-      labels.push(labelReq(`label_${cleanId}`, c, "above-right", node.label, 26));
+      labels.push(labelReq(`label_${cleanId}`, c, "above-right", node.label, 26, COLORS.ink, own));
       order.push(`label_${cleanId}`);
       const b = n.data.branch;
       const payoff = node.payoff ?? b?.payoff;
@@ -101,11 +109,11 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
         const parts: string[] = [];
         if (payoff !== undefined) parts.push(String(payoff));
         if (cost !== undefined) parts.push(`cost ${cost}`);
-        labels.push(labelReq(`payoff_${cleanId}`, [c[0] + 42, c[1]], "right", parts.join(", "), 26, COLORS.supply));
+        labels.push(labelReq(`payoff_${cleanId}`, [c[0] + 42, c[1]], "right", parts.join(", "), 26, COLORS.supply, own));
         order.push(`payoff_${cleanId}`);
       }
     } else {
-      labels.push(labelReq(`label_${cleanId}`, [c[0], c[1] + nodeRadius(node.type)], "above", node.label, 26));
+      labels.push(labelReq(`label_${cleanId}`, [c[0], c[1] + nodeRadius(node.type)], "above", node.label, 26, COLORS.ink, own));
       order.push(`label_${cleanId}`);
     }
   }
@@ -143,12 +151,51 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
     if (parts.length > 0) {
       const text = branch?.probability !== undefined && branch.label ? `${branch.label} (p=${branch.probability})` : parts.join(" ");
       const labelId = `branchlabel_${parent.data.cleanId}_${n.data.cleanId}`;
-      labels.push(labelReq(labelId, mid, "above", text, 24, COLORS.guide));
+      // Outside the fan, never inside it: an up-going branch takes its label
+      // above its edge, a down-going one below. Labelling every branch "above"
+      // puts the lower sibling's text in the wedge between the two edges —
+      // the tightest space in the whole figure, and about five characters
+      // wide before it lands on the other branch. A near-horizontal branch
+      // (an only child) has no wedge to avoid, so it keeps "above".
+      const diagonal = Math.abs(uy) > HORIZONTAL_UY;
+      const side: LabelRequest["side"] = uy < -HORIZONTAL_UY ? "below" : "above";
+      // Along the branch, but past its midpoint: at the parent end every
+      // sibling branch converges and the parent's own label sits just above
+      // the node, so that is the busiest spot in the figure. BRANCH_LABEL_T of
+      // the way out, the fan has opened and each label has its own room.
+      const at: Pt = [from[0] + (to[0] - from[0]) * BRANCH_LABEL_T, from[1] + (to[1] - from[1]) * BRANCH_LABEL_T];
+      // Only a diagonal branch waives its own edge: its bounding box is the
+      // whole wedge, a poor stand-in for the thin line. A horizontal branch's
+      // box IS the line, so keeping it as an obstacle is what lifts the label
+      // clear of it (the middle branch of a three-way fan).
+      labels.push(labelReq(labelId, at, side, text, branchFontSize(text, Math.abs(to[0] - from[0])), COLORS.guide, diagonal ? [id] : undefined));
       order.push(labelId);
     }
   }
 
   return { drawables, labels, anchors, positions, order };
+}
+
+/** How far along its branch a label sits (0 = parent end, 1 = child end). */
+const BRANCH_LABEL_T = 0.62;
+
+/** Below this |uy| a branch is treated as horizontal — no wedge to stay out of. */
+const HORIZONTAL_UY = 0.08;
+
+const BRANCH_FONT = 24;
+const BRANCH_FONT_MIN = 15;
+
+/**
+ * A branch label lives over its own branch, so the branch's horizontal span is
+ * all the room it has: past that it reaches into the next column of nodes.
+ * 24 is the ceiling, not the size — long text shrinks to fit (the same bargain
+ * phylo_tree strikes with long leaf names) rather than colliding.
+ */
+function branchFontSize(text: string, span: number): number {
+  const room = Math.max(40, span - 24); // clear of the node at each end
+  const natural = heuristicMeasure(text, BRANCH_FONT).w;
+  if (natural <= room) return BRANCH_FONT;
+  return Math.max(BRANCH_FONT_MIN, Math.floor((BRANCH_FONT * room) / natural));
 }
 
 function nodeDrawable(id: string, type: TreeNode["type"], c: Pt): StrokeDrawable {
@@ -191,7 +238,15 @@ function nodeDrawable(id: string, type: TreeNode["type"], c: Pt): StrokeDrawable
   };
 }
 
-function labelReq(id: string, anchor: Pt, side: LabelRequest["side"], text: string, fontSize: number, color: string = COLORS.ink): LabelRequest {
+function labelReq(
+  id: string,
+  anchor: Pt,
+  side: LabelRequest["side"],
+  text: string,
+  fontSize: number,
+  color: string = COLORS.ink,
+  ignore?: string[],
+): LabelRequest {
   return {
     id,
     anchor,
@@ -200,5 +255,6 @@ function labelReq(id: string, anchor: Pt, side: LabelRequest["side"], text: stri
     fontSize,
     style: defaultStyle({ color }),
     drawOpts: defaultDrawOpts("instant"),
+    ignore,
   };
 }

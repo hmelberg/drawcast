@@ -416,7 +416,7 @@
                 "label": "Medication",
                 "children": [
                   {
-                    "label": "Works",
+                    "label": "Controlled",
                     "probability": 0.7,
                     "node": {
                       "id": "m_ok",
@@ -426,7 +426,7 @@
                     }
                   },
                   {
-                    "label": "Fails",
+                    "label": "Not controlled",
                     "probability": 0.3,
                     "node": {
                       "id": "m_bad",

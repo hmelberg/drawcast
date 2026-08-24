@@ -168,24 +168,38 @@ function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
   return ([x, y]) => [ix(x), iy(y)];
 }
 
+/** Longest stroke segment kept as a single obstacle box before subdividing. */
+const SEG_MAX = 48;
+
 function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): Obstacle[] {
   const obstacles: Obstacle[] = [];
   for (const d of leafDrawables(drawables)) {
     if (d.kind === "text") {
       // Text is solid: overlapping words are unreadable.
-      obstacles.push({ box: expandBox(bboxOfText(d, measure), 2), solid: true });
+      obstacles.push({ box: expandBox(bboxOfText(d, measure), 2), solid: true, id: d.id });
     } else if (d.kind === "stroke") {
       // Strokes/shapes are soft: a label may graze them (the halo keeps it legible).
       if (d.shapeHint?.type === "circle") {
         const { c, r } = d.shapeHint;
-        obstacles.push({ box: { x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r }, solid: false });
+        obstacles.push({ box: { x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r }, solid: false, id: d.id });
       } else if (d.shapeHint?.type === "rect") {
-        obstacles.push({ box: { x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h }, solid: false });
+        obstacles.push({ box: { x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h }, solid: false, id: d.id });
       } else {
-        // Per-segment boxes: keeps long thin curves from blocking half the canvas.
+        // Per-segment boxes: keeps long thin curves from blocking half the
+        // canvas — and LONG segments are subdivided, because one box around a
+        // long diagonal is a lie: it claims the entire wedge the line crosses,
+        // so every spot near that line scores a penalty and the least-bad one
+        // ends up being ON it. Chopped into SEG_MAX pieces the boxes hug the
+        // stroke instead.
         const pad = d.style.strokeWidth;
         for (let i = 0; i + 1 < d.pts.length; i++) {
-          obstacles.push({ box: expandBox(bboxOfPts([d.pts[i], d.pts[i + 1]]), pad), solid: false });
+          const [a, b] = [d.pts[i], d.pts[i + 1]];
+          const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / SEG_MAX));
+          for (let k = 0; k < steps; k++) {
+            const p0: Pt = [a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps];
+            const p1: Pt = [a[0] + ((b[0] - a[0]) * (k + 1)) / steps, a[1] + ((b[1] - a[1]) * (k + 1)) / steps];
+            obstacles.push({ box: expandBox(bboxOfPts([p0, p1]), pad), solid: false, id: d.id });
+          }
         }
       }
     }

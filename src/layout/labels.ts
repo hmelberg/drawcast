@@ -33,6 +33,16 @@ export interface LabelRequest {
   fontSize: number;
   style: ResolvedStyle;
   drawOpts: DrawResolved;
+  /**
+   * Drawable ids this label may sit on — the very thing it names. A stroke's
+   * obstacle box is its bounding rectangle, so a DIAGONAL line blocks the
+   * whole wedge it spans: a label at the midpoint of a branch overlaps its own
+   * branch from every side, never scores a clean spot, and gets pushed
+   * somewhere arbitrary by the soft-penalty tie-break. Opt in and the label
+   * competes only against everything else. Purely opt-in — a request without
+   * it is placed exactly as before.
+   */
+  ignore?: string[];
 }
 
 export interface PlacedLabel {
@@ -44,6 +54,8 @@ export interface Obstacle {
   box: BBox;
   /** solid = text: never overlapped. Soft (strokes/shapes) may be grazed. */
   solid: boolean;
+  /** The drawable this box came from, so a label can ignore its own (see LabelRequest.ignore). */
+  id?: string;
 }
 
 const DIRS: Record<Side, [number, number]> = {
@@ -121,6 +133,8 @@ export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], mea
     const lines = wrapLines(req.text, req.fontSize, measure);
     const w = Math.max(...lines.map((line) => measure(line, req.fontSize).w));
     const h = lines.length * req.fontSize * LINE_HEIGHT;
+    const ignored = req.ignore && req.ignore.length > 0 ? new Set(req.ignore) : null;
+    const inPlay = ignored ? blocked.filter((o) => o.id === undefined || !ignored.has(o.id)) : blocked;
     const sides: Side[] = [req.side, ...FALLBACK_ORDER.filter((s) => s !== req.side)];
     const r0 = 10 + req.fontSize * 0.55;
     const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
@@ -130,8 +144,8 @@ export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], mea
     outer: for (const [ringIndex, r] of rings.entries()) {
       for (const side of sides) {
         const box = clampToCanvas(candidateBox(req.anchor, side, r, w, h));
-        if (blocked.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
-        const penalty = blocked.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
+        if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
+        const penalty = inPlay.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
         if (penalty === 0) {
           chosen = { box, ringIndex };
           break outer;
