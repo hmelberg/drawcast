@@ -8,6 +8,24 @@
 // deploy calls cross-origin, so allow the known origins explicitly.
 
 import { createHash, timingSafeEqual } from "node:crypto";
+import { checkFailureBudget, recordFailure } from "../lib/rate-limit.mts";
+
+/** Injected so the vending logic and the limiter can be tested apart. */
+export interface KeysDeps {
+  checkBudget: (id: string) => Promise<{ allowed: boolean; retryAfterSeconds: number }>;
+  recordFailure: (id: string) => Promise<void>;
+  clientIp: (req: Request) => string;
+}
+
+/**
+ * Netlify sets x-nf-client-connection-ip itself and a client cannot forge it.
+ * x-forwarded-for CAN be forged, so it is deliberately not a fallback —
+ * honouring it would let one attacker rotate through fake IPs to dodge the
+ * budget entirely.
+ */
+export function defaultClientIp(req: Request): string {
+  return req.headers.get("x-nf-client-connection-ip") ?? "";
+}
 
 const ALLOWED_ORIGINS = ["https://hmelberg.github.io", "http://localhost:5173", "http://localhost:8888"];
 
@@ -27,7 +45,7 @@ function passwordMatches(supplied: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-export default async (req: Request): Promise<Response> => {
+export async function handleKeysRequest(req: Request, deps: KeysDeps): Promise<Response> {
   const headers = { ...corsHeaders(req), "content-type": "application/json" };
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (req.method !== "POST") return new Response(JSON.stringify({ error: "method" }), { status: 405, headers });
@@ -39,6 +57,16 @@ export default async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: "vending disabled" }), { status: 503, headers });
   }
 
+  // Budget check first: a throttled caller never reaches the comparison.
+  const ip = deps.clientIp(req);
+  const budget = await deps.checkBudget(ip);
+  if (!budget.allowed) {
+    return new Response(JSON.stringify({ error: "rate limited" }), {
+      status: 429,
+      headers: { ...headers, "Retry-After": String(budget.retryAfterSeconds) },
+    });
+  }
+
   let password = "";
   try {
     const body = (await req.json()) as { password?: unknown };
@@ -48,28 +76,27 @@ export default async (req: Request): Promise<Response> => {
   }
 
   if (!password || !passwordMatches(password, expected)) {
+    // Only failures are charged, so knowing the password never locks you out.
+    await deps.recordFailure(ip);
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers });
   }
 
   return new Response(JSON.stringify({ anthropicKey, googleKey: googleKey ?? "" }), { status: 200, headers });
-};
+}
+
+export default async (req: Request): Promise<Response> =>
+  handleKeysRequest(req, {
+    checkBudget: (id) => checkFailureBudget(id),
+    recordFailure: (id) => recordFailure(id),
+    clientIp: defaultClientIp,
+  });
 
 /**
- * No `path` here on purpose: src/keys.ts posts to the default
- * /.netlify/functions/keys URL, and setting a path would move the endpoint.
+ * No `config` export at all: src/keys.ts posts to the default
+ * /.netlify/functions/keys URL, and setting a `path` would move the endpoint.
  *
- * The rate limit is what stops the shared password from being guessed at line
- * speed. Netlify enforces it at the edge, before this function runs, and
- * across all instances — an in-process counter would reset on every cold
- * start. The cross-origin GitHub Pages deploy spends TWO requests per attempt
- * (a CORS preflight plus the POST), so the limit is set high enough that even
- * doubled it leaves ~20 honest attempts an hour.
+ * Netlify's built-in `config.rateLimit` was tried here first. It is in the
+ * type definitions but does nothing on these sites — measured 2026-08-24
+ * against xplainer, 75 consecutive wrong passwords all returned 401 and never
+ * 429 — so the limit lives in the handler instead, backed by Blobs.
  */
-export const config = {
-  rateLimit: {
-    windowSize: 60 * 60,
-    windowLimit: 40,
-    aggregateBy: "ip",
-    action: "rate_limit",
-  },
-} as const;

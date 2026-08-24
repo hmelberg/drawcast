@@ -62,18 +62,63 @@ describe("redeemPassword", () => {
 });
 
 describe("vending endpoint hardening", () => {
-  test("declares a per-IP rate limit so the password cannot be brute-forced", async () => {
-    const { config } = await import("../netlify/functions/keys.mts");
-    expect(config?.rateLimit).toBeDefined();
-    expect(config.rateLimit.aggregateBy).toBe("ip");
-    expect(config.rateLimit.windowSize).toBeGreaterThanOrEqual(600);
-    expect(config.rateLimit.windowLimit).toBeGreaterThan(0);
-    expect(config.rateLimit.windowLimit).toBeLessThanOrEqual(60);
+  const CONFIGURED = { DRAWCAST_PASSWORD: "open-sesame", ANTHROPIC_API_KEY: "sk-ant-real", GOOGLE_API_KEY: "g-real" };
+
+  function withEnv(vars: Record<string, string>, fn: () => Promise<void>) {
+    const saved = { ...process.env };
+    Object.assign(process.env, vars);
+    return fn().finally(() => {
+      for (const k of Object.keys(vars)) delete process.env[k];
+      Object.assign(process.env, saved);
+    });
+  }
+
+  const allowAll = () => ({
+    checkBudget: async () => ({ allowed: true, retryAfterSeconds: 0 }),
+    recordFailure: async () => {},
+    clientIp: () => "1.2.3.4",
   });
 
-  test("does not override the default function path the client calls", async () => {
-    // src/keys.ts posts to /.netlify/functions/keys; a `path` here would move it.
-    const { config } = await import("../netlify/functions/keys.mts");
-    expect(config.path).toBeUndefined();
+  function post(body: unknown) {
+    return new Request("https://drawcast.app/.netlify/functions/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  test("a caller out of budget gets 429 and never reaches the comparison", async () => {
+    const { handleKeysRequest } = await import("../netlify/functions/keys.mts");
+    await withEnv(CONFIGURED, async () => {
+      const res = await handleKeysRequest(post({ password: "open-sesame" }), {
+        ...allowAll(),
+        checkBudget: async () => ({ allowed: false, retryAfterSeconds: 900 }),
+      });
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).toBe("900");
+    });
+  });
+
+  test("wrong passwords are charged, correct ones are not", async () => {
+    const { handleKeysRequest } = await import("../netlify/functions/keys.mts");
+    await withEnv(CONFIGURED, async () => {
+      const charged: string[] = [];
+      const deps = { ...allowAll(), recordFailure: async (ip: string) => { charged.push(ip); } };
+      await handleKeysRequest(post({ password: "wrong" }), deps);
+      expect(charged).toEqual(["1.2.3.4"]);
+      const ok = await handleKeysRequest(post({ password: "open-sesame" }), deps);
+      expect(ok.status).toBe(200);
+      expect(charged).toEqual(["1.2.3.4"]); // unchanged: success costs nothing
+    });
+  });
+
+  test("the client IP comes from the platform header, never a spoofable one", async () => {
+    const { defaultClientIp } = await import("../netlify/functions/keys.mts");
+    const real = new Request("https://drawcast.app/x", {
+      headers: { "x-nf-client-connection-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" },
+    });
+    expect(defaultClientIp(real)).toBe("9.9.9.9");
+    const spoof = new Request("https://drawcast.app/x", { headers: { "x-forwarded-for": "1.1.1.1" } });
+    expect(defaultClientIp(spoof)).toBe("");
   });
 });
