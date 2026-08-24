@@ -122,10 +122,10 @@ export async function requireScope(scope: Scope): Promise<string | null> {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId(),
       scope,
-      callback: (res: TokenResponse) => {
+      callback: async (res: TokenResponse) => {
         if (!res.access_token) return resolve(null);
         store.put(scope, res.access_token, res.expires_in ?? 3600);
-        void fetchEmail(res.access_token);
+        await fetchEmail(res.access_token);
         resolve(res.access_token);
       },
       error_callback: () => resolve(null),
