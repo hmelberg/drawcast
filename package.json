@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:engine": "tsc && vite build --config vite.engine.config.ts && node scripts/check-engine-build.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
