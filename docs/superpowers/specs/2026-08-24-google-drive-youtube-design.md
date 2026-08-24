@@ -238,32 +238,62 @@ Pure and node-testable, no network:
 
 The network paths get a manual gate, as the video export already does.
 
-## 8. Primary risk
+## 8. Primary risk — probed 2026-08-24, mostly resolved
 
-**Browser CORS on the YouTube resumable endpoint.** Google APIs support CORS
-broadly and this is the documented browser flow, but it has not been verified
-from this origin. It is the one assumption that would invalidate §1: if the
-upload endpoint rejects browser requests, the choice is a Netlify proxy (with
-its bandwidth and timeout costs) or no upload at all.
+**Browser CORS on the upload endpoints: CONFIRMED WORKING.** A credential-free
+preflight from `Origin: https://hmelberg.github.io` returns, on both endpoints:
 
-**Mitigation: prove it before building anything else.** The first task is a
-throwaway spike that starts a resumable session and sends one chunk from
-`localhost:5173`. If it fails, the design returns for revision rather than the
-plan continuing.
+```
+HTTP/2 200
+access-control-allow-origin:  https://hmelberg.github.io
+access-control-allow-methods: GET,HEAD,OPTIONS,PATCH,POST,PUT
+access-control-allow-headers: authorization,content-type,
+                              x-upload-content-length,x-upload-content-type
+```
+
+Google echoes the exact origin and allows exactly the headers the resumable
+session start needs, plus `PUT` for the chunks. The no-server design in §1
+stands; a Netlify proxy is not required.
+
+**One sub-risk remains: can the browser READ the `Location` header?** The
+resumable session URI arrives in `Location`, and a browser can only read a
+response header that appears in `Access-Control-Expose-Headers`. An
+unauthenticated probe returns:
+
+```
+HTTP/2 401
+access-control-expose-headers: Content-Length, Date, Server, Transfer-Encoding,
+                               X-GUploader-UploadID, X-Google-Trace, vary,
+                               www-authenticate
+```
+
+`Location` is absent — but so is the header itself on a 401, so this is
+inconclusive rather than negative. It cannot be settled without a real token.
+
+**Fallback if `Location` proves unreadable:** switch YouTube to
+`uploadType=multipart`, a single request needing no session URI. Cost: no
+progress ticks and no resume, so a failed upload restarts from zero. Drive is
+unaffected either way — it already uses multipart and needs no `Location`.
+
+**Remaining spike, narrowed:** with a real token, start one resumable session
+and confirm `response.headers.get("Location")` is non-null in the browser. That
+is now a single assertion, not an open-ended investigation.
 
 ### Build order
 
 The spike gates only YouTube, and Drive carries none of its risk — so the order
 is deliberate rather than incidental:
 
-1. **CORS spike** (throwaway). Answers whether §1 survives.
+1. **`Location`-header check** (throwaway, one assertion — the broader CORS
+   question is already answered in §8).
 2. **`auth.ts` + Drive open/save.** Non-sensitive scope, no verification, no
    audit, no CORS question — this half is usable by everyone the day it ships,
    and it exercises the auth gate that YouTube then reuses.
 3. **YouTube upload.** Builds on a proven auth module and a proven transport.
 
-If the spike fails, steps 2 and 3 decouple cleanly: Drive still ships, and
-YouTube returns to design with a Netlify-proxy option on the table.
+If the check fails, steps 2 and 3 decouple cleanly: Drive is unaffected and
+still ships, and YouTube falls back to multipart upload — losing progress and
+resume, but not the feature.
 
 ## 9. Known limits, accepted
 
