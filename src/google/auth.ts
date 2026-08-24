@@ -111,7 +111,11 @@ export async function requireScope(scope: Scope): Promise<string | null> {
   const cached = store.get(scope);
   if (cached) return cached;
   if (!googleConfigured()) return null;
-  await loadGsi();
+  try {
+    await loadGsi();
+  } catch {
+    return null; // blocked or offline — the caller reports it the same as a decline
+  }
 
   return new Promise<string | null>((resolve) => {
     const google = (window as unknown as { google: any }).google;

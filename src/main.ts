@@ -88,6 +88,8 @@ import {
   type SavedDrawing,
   type UserPrompt,
 } from "./store";
+import { currentUser, DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut } from "./google/auth";
+import { openSpec, saveSpec } from "./google/drive";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
@@ -129,6 +131,8 @@ function bundledExemplarPool(): { prompt: string; spec: Spec }[] {
 interface Doc {
   /** The library entry this document belongs to; null until the first change (copy-on-write). */
   id: string | null;
+  /** The Drive file this document was saved to this session; null otherwise. In memory only. */
+  driveFileId: string | null;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -228,12 +232,12 @@ function firstSpec(d: Doc): Spec {
 function docFromSaved(saved: SavedDrawing): Doc {
   if (saved.playlist) {
     try {
-      return { id: saved.id, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
+      return { id: saved.id, driveFileId: null, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -242,7 +246,7 @@ function initialDoc(): Doc {
   // Fewshots come first in `examples` and always carry a spec.
   const ex = examples.find((e) => e.spec) as BundledExample & { spec: Spec };
   // An untouched bundled example is not yours until you change it (copy-on-write).
-  return { id: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
+  return { id: null, driveFileId: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
 }
 
 const app = document.getElementById("app")!;
@@ -501,6 +505,12 @@ refreshExamples();
 const exportBtn = h("button", { class: "icon-only", title: "Download the spec as a file" }, "⬇");
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
 const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
+const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
+const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
+// A capability without its credential does not advertise itself (spec §6).
+// Open needs the Picker's own developer key; Save does not.
+driveOpenBtn.hidden = !pickerConfigured();
+driveSaveBtn.hidden = !googleConfigured();
 const exportVideoBtn = h(
   "button",
   { title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
@@ -730,6 +740,8 @@ const editorWrap = h(
         exportBtn,
         importBtn,
         importInput,
+        driveOpenBtn,
+        driveSaveBtn,
       ),
       specArea,
     ),
@@ -747,6 +759,10 @@ const editorWrap = h(
 
 const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library and examples" }) as HTMLInputElement;
 const dataRow = h("button", { class: "sidebar-row" }, "📊 Data");
+// Declared here, ABOVE the sidebar, not near refreshAccountRow(): the IIFE
+// below that assigns it runs during module initialisation, before a `let`
+// declared further down in the file would leave its temporal dead zone.
+let accountRow: HTMLButtonElement | null = null;
 const sidebar = h(
   "aside",
   { class: "sidebar" },
@@ -769,6 +785,13 @@ const sidebar = h(
     })(),
     dataRow,
     h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "❓ Help"),
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "☁ Sign in with Google");
+      accountRow = b;
+      b.addEventListener("click", () => void toggleAccount());
+      b.hidden = !googleConfigured();
+      return b;
+    })(),
     (() => {
       const b = h("button", { class: "sidebar-row" }, "⚙ Settings");
       b.addEventListener("click", () => openSettings());
@@ -1449,7 +1472,7 @@ function showVersion(index: number): void {
   restoring = true;
   try {
     specArea.value = v.text;
-    doc = { id: doc.id, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
     void present();
   } finally {
     restoring = false;
@@ -1772,7 +1795,7 @@ async function generate(): Promise<void> {
     }
     if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
     setDoc(
-      { id: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
+      { id: null, driveFileId: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
       { label: rawRequest, kind: "generate" },
     );
@@ -1814,7 +1837,10 @@ async function revise(): Promise<void> {
     // doc.prompt is deliberately NOT replaced: it stays the original request, so
     // exemplars, the log and "👍 Learn from this" keep pairing original request -> current spec.
     setDoc(
-      { id: doc.id, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      // Same document, edited in place by AI (same as a manual re-render) — carry
+      // driveFileId forward too, or a Save right after a Revise would litter
+      // Drive with a second copy of the file the earlier Save already created.
+      { id: doc.id, driveFileId: doc.driveFileId, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       `Revised: ${instruction}`,
       { label, kind: "revise" },
     );
@@ -1895,7 +1921,7 @@ async function generateMulti(
     warnings: [],
   };
   setDoc(
-    { id: null, title: outline.title, prompt: rawRequest, playlist },
+    { id: null, driveFileId: null, title: outline.title, prompt: rawRequest, playlist },
     failedParts.length > 0
       ? `Generated ${specs.length}/${n} parts (part${failedParts.length > 1 ? "s" : ""} ${failedParts.join(", ")} failed).`
       : `Generated a ${specs.length}-part drawcast.`,
@@ -1929,7 +1955,7 @@ blankBtn.addEventListener("click", () => {
   refreshChips();
   clearLint();
   setDoc(
-    { id: null, title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
+    { id: null, driveFileId: null, title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
     "New drawcast — describe one above, or edit the spec below.",
   );
   if (window.innerWidth < 940 && settings.sidebarOpen) {
@@ -1969,13 +1995,13 @@ async function loadBundledExample(index: number): Promise<void> {
     try {
       const playlist = parsePlaylistText(ex.playlist);
       // Untouched bundled example: not yours until you change it (copy-on-write).
-      setDoc({ id: null, title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
+      setDoc({ id: null, driveFileId: null, title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
     } catch (err) {
       setStatus(`Example failed to parse: ${(err as Error).message}`, "error");
     }
     return;
   }
-  if (ex.spec) setDoc({ id: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
+  if (ex.spec) setDoc({ id: null, driveFileId: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
 }
 
 rerenderBtn.addEventListener("click", () => {
@@ -1983,7 +2009,7 @@ rerenderBtn.addEventListener("click", () => {
   if (!playlist) return;
   // Same document, edited in place — carry the id forward so autosave() below
   // replaces this entry instead of minting a second one (copy-on-write).
-  doc = { id: doc.id, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   setStatus("Re-rendered from edited spec.", "ok");
@@ -2000,6 +2026,26 @@ promoteBtn.addEventListener("click", () => {
   refreshReferences();
   setStatus("Added to your references — the AI will follow this drawing's style from now on. Manage them under Instructions.", "ok");
 });
+
+// ---------- account ----------
+
+function refreshAccountRow(): void {
+  if (!accountRow) return;
+  const u = currentUser();
+  accountRow.textContent = u ? `☁ ${u.email} — sign out` : "☁ Sign in with Google";
+  accountRow.hidden = !googleConfigured();
+}
+
+async function toggleAccount(): Promise<void> {
+  if (currentUser()) {
+    signOut();
+    setStatus("Signed out of Google.", "ok");
+  } else {
+    const token = await requireScope(DRIVE_SCOPE);
+    setStatus(token ? "Signed in to Google." : "Google sign-in was cancelled.", token ? "ok" : "error");
+  }
+  refreshAccountRow();
+}
 
 // ---------- library ----------
 
@@ -2027,6 +2073,7 @@ function refreshLibrary(): void {
   }
 }
 refreshLibrary();
+refreshAccountRow();
 
 // ---------- my templates ----------
 
@@ -2426,7 +2473,7 @@ importInput.addEventListener("change", () => {
         const inner = maybe.playlist ?? JSON.stringify(maybe.spec);
         const playlist = readPlaylistText(inner);
         // An uploaded file is a shared document, not yours until you change it (copy-on-write).
-        if (playlist) setDoc({ id: null, title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
+        if (playlist) setDoc({ id: null, driveFileId: null, title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
         return;
       }
     } catch {
@@ -2434,9 +2481,53 @@ importInput.addEventListener("change", () => {
     }
     const playlist = readPlaylistText(text);
     if (!playlist) return;
-    setDoc({ id: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
+    setDoc({ id: null, driveFileId: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
   });
 });
+
+driveSaveBtn.addEventListener("click", () => void saveToDrive());
+async function saveToDrive(): Promise<void> {
+  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  driveSaveBtn.disabled = true;
+  try {
+    setStatus("Saving to Drive…");
+    const res = await saveSpec(specArea.value, `${base}.yaml`, doc.driveFileId);
+    if (!res) {
+      setStatus("Drive sign-in was cancelled — nothing was saved.", "error");
+      return;
+    }
+    doc.driveFileId = res.fileId;
+    refreshAccountRow();
+    setStatus(`Saved "${base}.yaml" to your Google Drive.`, "ok");
+  } catch (err) {
+    setStatus(`Drive save failed: ${(err as Error).message}`, "error");
+  } finally {
+    driveSaveBtn.disabled = false;
+  }
+}
+
+driveOpenBtn.addEventListener("click", () => void openFromDrive());
+async function openFromDrive(): Promise<void> {
+  driveOpenBtn.disabled = true;
+  try {
+    const picked = await openSpec();
+    if (!picked) return; // cancelled, or sign-in declined — say nothing
+    const playlist = readPlaylistText(picked.text);
+    if (!playlist) return; // readPlaylistText already reported why
+    setDoc({
+      id: null, // copy-on-write: opening creates no library entry until you change it
+      driveFileId: null, // a NEW Save should not overwrite the file you opened
+      title: docTitleOf(playlist, picked.name.replace(/\.(ya?ml|json)$/i, "")),
+      prompt: "",
+      playlist,
+    }, `Opened "${picked.name}" from Drive.`);
+    refreshAccountRow();
+  } catch (err) {
+    setStatus(`Drive open failed: ${(err as Error).message}`, "error");
+  } finally {
+    driveOpenBtn.disabled = false;
+  }
+}
 
 formatSel.addEventListener("change", () => {
   const next = formatSel.value as SpecFormat;
