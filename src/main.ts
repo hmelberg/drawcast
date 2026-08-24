@@ -2492,18 +2492,31 @@ importInput.addEventListener("change", () => {
 
 driveSaveBtn.addEventListener("click", () => void saveToDrive());
 async function saveToDrive(): Promise<void> {
-  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  // Everything this save is ABOUT is captured at click time. The first Save
+  // opens a consent popup and the page stays interactive behind it, so `doc`
+  // may be a different document by the time the await resolves — and writing
+  // file A's id onto document B would make B's next Save overwrite A.
+  const target = doc;
+  const base = target.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  // The textarea holds YAML for a playlist and the chosen format otherwise
+  // (same rule as ⬇ Download), so the extension and the MIME type follow it.
+  const format: SpecFormat = isSingle(target.playlist) ? settings.specFormat : "yaml";
+  const name = `${base}.${format}`;
+  const mimeType = format === "json" ? "application/json" : "text/yaml";
   driveSaveBtn.disabled = true;
   try {
     setStatus("Saving to Drive…");
-    const res = await saveSpec(specArea.value, `${base}.yaml`, doc.driveFileId);
+    const res = await saveSpec(specArea.value, name, mimeType, target.driveFileId);
     if (!res) {
       setStatus("Drive sign-in was cancelled — nothing was saved.", "error");
       return;
     }
-    doc.driveFileId = res.fileId;
+    // Only if that document is still the open one: otherwise the id belongs to
+    // a document nobody is looking at, and dropping it merely costs the next
+    // Save of it a new Drive file.
+    if (doc === target) doc.driveFileId = res.fileId;
     refreshAccountRow();
-    setStatus(`Saved "${base}.yaml" to your Google Drive.`, "ok");
+    setStatus(`Saved "${name}" to your Google Drive.`, "ok");
   } catch (err) {
     setStatus(`Drive save failed: ${(err as Error).message}`, "error");
   } finally {
@@ -2513,10 +2526,17 @@ async function saveToDrive(): Promise<void> {
 
 driveOpenBtn.addEventListener("click", () => void openFromDrive());
 async function openFromDrive(): Promise<void> {
+  // Same in-flight guard as every other document-loading path — checked twice
+  // on purpose: once before the picker opens, and again once it resolves,
+  // because the consent popup and the chooser both leave the page interactive
+  // long enough to press Revise. A revise that resolves after this setDoc
+  // would write the old document's text into the Drive document's identity.
+  if (blockedByAi("opening from Drive")) return;
   driveOpenBtn.disabled = true;
   try {
     const picked = await openSpec();
     if (!picked) return; // cancelled, or sign-in declined — say nothing
+    if (blockedByAi("opening from Drive")) return;
     const playlist = readPlaylistText(picked.text);
     if (!playlist) return; // readPlaylistText already reported why
     setDoc({

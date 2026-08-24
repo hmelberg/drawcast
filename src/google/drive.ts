@@ -26,28 +26,27 @@ export function multipartBody(metadata: DriveMeta, content: string, boundary: st
 /**
  * Create the file, or update the one we created before. Passing the previous
  * fileId is what stops a second Save from littering Drive with copies.
+ *
+ * BOTH paths are multipart, deliberately. `uploadType=media` sends content
+ * only and silently drops the metadata, so a PATCH through it would leave a
+ * retitled drawcast saved under its old name while the status line claimed the
+ * new one. Carrying the metadata part on the update keeps the name Drive holds
+ * equal to the name the user was told about.
  */
-export async function saveSpec(text: string, name: string, fileId: string | null): Promise<{ fileId: string } | null> {
+export async function saveSpec(text: string, name: string, mimeType: string, fileId: string | null): Promise<{ fileId: string } | null> {
   const token = await requireScope(DRIVE_SCOPE);
   if (!token) return null;
 
-  if (fileId) {
-    const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "text/yaml" },
-      body: text,
-    });
-    if (!r.ok) throw new Error(`Drive update failed (${r.status}): ${await r.text()}`);
-    return { fileId };
-  }
-
   const boundary = `drawcast-${crypto.randomUUID()}`;
-  const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-    method: "POST",
+  const url = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart`
+    : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+  const r = await fetch(url, {
+    method: fileId ? "PATCH" : "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
-    body: multipartBody({ name, mimeType: "text/yaml" }, text, boundary),
+    body: multipartBody({ name, mimeType }, text, boundary),
   });
-  if (!r.ok) throw new Error(`Drive save failed (${r.status}): ${await r.text()}`);
+  if (!r.ok) throw new Error(`Drive ${fileId ? "update" : "save"} failed (${r.status}): ${await r.text()}`);
   const j = (await r.json()) as { id: string };
   return { fileId: j.id };
 }

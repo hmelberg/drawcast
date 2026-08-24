@@ -17,6 +17,15 @@ describe("multipartBody", () => {
     expect(body.lastIndexOf("--BOUND--")).toBe(body.length - "--BOUND--".length);
   });
 
+  test("a JSON spec is described as JSON on both the metadata and the content part", () => {
+    // Save follows settings.specFormat, so the name and the MIME type have to
+    // follow it too — a .json file announced as text/yaml is a lie Drive keeps.
+    const body = multipartBody({ name: "supply.json", mimeType: "application/json" }, '{"id":"x"}', "BOUND");
+    expect(body).toContain('"name":"supply.json"');
+    expect(body).toContain('"mimeType":"application/json"');
+    expect(body).toContain("--BOUND\r\nContent-Type: application/json\r\n\r\n{\"id\":\"x\"}");
+  });
+
   test("a spec with no trailing newline still closes cleanly", () => {
     const body = multipartBody({ name: "x.yaml", mimeType: "text/yaml" }, "title: X", "B");
     expect(body.endsWith("\r\n--B--")).toBe(true);
