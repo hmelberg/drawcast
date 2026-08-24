@@ -2595,13 +2595,18 @@ function exportSequence(playlist: Playlist): Spec[] {
   return seq;
 }
 
-exportVideoBtn.addEventListener("click", () => void runVideoExport());
-async function runVideoExport(): Promise<void> {
+/**
+ * Render + encode the current drawcast to a WebM, with the export dialog open
+ * for progress. Returns null when the key is missing, the user cancelled, or
+ * the export failed — in every one of those cases the status line already says
+ * why, so callers just return.
+ */
+async function renderVideoBlob(): Promise<Blob | null> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
     openSettings();
-    return;
+    return null;
   }
   const controller = new AbortController();
   exportAbort = controller;
@@ -2611,29 +2616,31 @@ async function runVideoExport(): Promise<void> {
   exportDialog.showModal();
   exportVideoBtn.disabled = true;
   try {
-    const blob = await exportVideo(
+    return await exportVideo(
       exportSequence(doc.playlist),
       { ttsKey, style: settings.style, rate: settings.rate },
-      {
-        onStatus: (t) => (exportStatus.textContent = t),
-        canvas: exportCanvas,
-        workbench: exportStage,
-        signal: controller.signal,
-      },
+      { onStatus: (t) => (exportStatus.textContent = t), canvas: exportCanvas, workbench: exportStage, signal: controller.signal },
     );
-    const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-    downloadBlob(`${base}.webm`, blob);
-    exportStatus.textContent = "Done — the narrated WebM was downloaded. YouTube accepts WebM uploads directly (Studio → Create → Upload).";
-    exportCloseBtn.textContent = "Close";
   } catch (err) {
     if (!controller.signal.aborted) {
       exportStatus.textContent = `Export failed: ${(err as Error).message}`;
       exportCloseBtn.textContent = "Close";
     }
+    return null;
   } finally {
     exportStage.replaceChildren();
     exportVideoBtn.disabled = false;
   }
+}
+
+exportVideoBtn.addEventListener("click", () => void runVideoExport());
+async function runVideoExport(): Promise<void> {
+  const blob = await renderVideoBlob();
+  if (!blob) return;
+  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  downloadBlob(`${base}.webm`, blob);
+  exportStatus.textContent = "Done — the narrated WebM was downloaded.";
+  exportCloseBtn.textContent = "Close";
 }
 
 // ---------- prompt library ----------
