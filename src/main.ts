@@ -1531,14 +1531,23 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
  */
 function autosave(): void {
   doc.id ??= crypto.randomUUID();
-  saveDrawing({
-    id: doc.id,
-    title: doc.title,
-    prompt: doc.prompt,
-    spec: firstSpec(doc),
-    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
-    ts: new Date().toISOString(),
-  });
+  try {
+    saveDrawing({
+      id: doc.id,
+      title: doc.title,
+      prompt: doc.prompt,
+      spec: firstSpec(doc),
+      playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+      ts: new Date().toISOString(),
+    });
+  } catch (err) {
+    // saveDrawing is an unguarded localStorage.setItem, so a full origin throws
+    // QuotaExceededError straight through its caller — which in revise() landed
+    // BEFORE the request box was cleared and surfaced as an unhandled rejection,
+    // leaving the status reading "Revised: …" with nothing on disk. Say so
+    // instead. Making room automatically (eviction) is phase 2, deliberately.
+    setStatus(`Could not save: ${(err as Error).message}`, "error");
+  }
   refreshLibrary();
 }
 
