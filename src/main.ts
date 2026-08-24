@@ -1658,6 +1658,29 @@ function logRevision(instruction: string, outcome: ReviseOutcome): string {
   return logId;
 }
 
+/**
+ * True while a Generate or Revise call is in flight. Both write a whole document
+ * on resolve, so anything that swaps the document underneath them silently loses
+ * work: Generate then Revise writes a revision of the OLD document into the newly
+ * minted library row, and opening a library row / an example / a new drawcast mid
+ * revise lets the resolving revise autosave over the entry just opened. One flag
+ * closes all of it — the two buttons go down together, and the load paths refuse.
+ */
+let aiBusy = false;
+
+function setAiBusy(busy: boolean): void {
+  aiBusy = busy;
+  generateBtn.disabled = busy;
+  reviseBtn.disabled = busy;
+}
+
+/** Guard for the document-loading paths: true (and says so) when a call is in flight. */
+function blockedByAi(what: string): boolean {
+  if (!aiBusy) return false;
+  setStatus(`An AI call is still running — wait for it to finish before ${what}.`, "error");
+  return true;
+}
+
 async function generate(): Promise<void> {
   const rawRequest = promptEl.value.trim();
   if (!rawRequest) return;
@@ -1681,7 +1704,7 @@ async function generate(): Promise<void> {
   // #template= tag or the toolbar picker) applies to every part of a
   // playlist too — spec §5a, explicit wins.
   const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
-  generateBtn.disabled = true;
+  setAiBusy(true);
   try {
     if (parsed.playlist) {
       await generateMulti(rawRequest, parsed, brief, apiKey, forcedTemplate, priorityIds);
@@ -1712,7 +1735,7 @@ async function generate(): Promise<void> {
     autosave();
     lastLogId = logId; // after setDoc, so the rating stars target this generation
   } finally {
-    generateBtn.disabled = false;
+    setAiBusy(false);
   }
 }
 
@@ -1730,7 +1753,7 @@ async function revise(): Promise<void> {
   const dirty = docText !== currentVersion(stack)?.text;
   const label = dirty ? `${instruction} (+ manual edits)` : instruction;
 
-  reviseBtn.disabled = true;
+  setAiBusy(true);
   try {
     setStatus(`Revising (${settings.model}, prompt ${currentVariant().name})…`);
     const outcome = await reviseDocument(docText, instruction, {
@@ -1756,7 +1779,7 @@ async function revise(): Promise<void> {
     promptEl.value = ""; // consumed — and an empty box makes Generate inert
     refreshChips();
   } finally {
-    reviseBtn.disabled = false;
+    setAiBusy(false);
   }
 }
 
@@ -1857,6 +1880,7 @@ generateBtn.addEventListener("click", () => void generate());
 // A new drawcast is a clean slate on both sides: the request box empties too
 // (setDoc keeps the old text when the incoming doc has no prompt of its own).
 blankBtn.addEventListener("click", () => {
+  if (blockedByAi("starting a new drawcast")) return;
   promptEl.value = "";
   refreshChips();
   clearLint();
@@ -1873,6 +1897,7 @@ blankBtn.addEventListener("click", () => {
 });
 
 async function loadBundledExample(index: number): Promise<void> {
+  if (blockedByAi("opening an example")) return;
   const ex = examples[index] ?? examples[0];
   // Pack-based examples enable their packs exactly like the panel toggle
   // would, so the catalog, picker and panel stay consistent afterwards.
@@ -1944,7 +1969,10 @@ function refreshLibrary(): void {
   for (const item of items) {
     const label = item.playlist ? `${item.title} ▤` : item.title;
     const openBtn = h("button", { class: "library-open", title: item.playlist ? "Load this playlist" : "Load this drawing" }, label);
-    openBtn.addEventListener("click", () => setDoc(docFromSaved(item), "Loaded from library."));
+    openBtn.addEventListener("click", () => {
+      if (blockedByAi("opening another drawcast")) return;
+      setDoc(docFromSaved(item), "Loaded from library.");
+    });
     const delBtn = h("button", { class: "library-del", title: "Delete from library" }, "✕");
     delBtn.addEventListener("click", () => {
       deleteDrawing(item.id);
@@ -2343,6 +2371,9 @@ importInput.addEventListener("change", () => {
   if (!file) return;
   void file.text().then((text) => {
     importInput.value = "";
+    // Same in-flight guard as the other document-loading paths: an upload that
+    // lands mid-revise would be overwritten by the revise that resolves after it.
+    if (blockedByAi("uploading a document")) return;
     // A saved-drawing JSON export ({title, spec, …}) still opens: unwrap it first.
     try {
       const maybe = JSON.parse(text) as Partial<SavedDrawing>;
