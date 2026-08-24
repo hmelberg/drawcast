@@ -5,6 +5,12 @@ import { describe, expect, test } from "vitest";
 // TTS keys are vended by netlify/functions/keys.mts precisely to avoid that —
 // setting the VITE_ fallbacks in a build environment would silently defeat it.
 //
+// This is a build gate, not just a unit test, so it has to run on every path
+// that builds: `npm test` precedes `npm run build` in both
+// .github/workflows/deploy.yml (Pages) and netlify.toml's build command
+// (Netlify — the deploy that actually holds the paid keys). Adding a third
+// build path means adding the suite to it.
+//
 // This repo has no vite-env.d.ts declaring ImportMetaEnv, so index through a
 // cast rather than `keyof ImportMetaEnv` — that keeps `npx tsc --noEmit` clean
 // on the very test meant to protect the build.

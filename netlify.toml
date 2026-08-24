@@ -1,4 +1,9 @@
 # Netlify build settings (Git-based deploys build on Netlify's servers).
+# `npm test` runs first so tests/no-bundled-secrets.test.ts gates THIS deploy
+# too: Netlify is the environment that actually holds ANTHROPIC_API_KEY and
+# GOOGLE_API_KEY, so it is the one where a VITE_-prefixed slip would publish a
+# paid key. Building without the suite would leave the tripwire running only
+# where there is nothing to trip over.
 [build]
-  command = "npm run build"
+  command = "npm test && npm run build"
   publish = "dist"

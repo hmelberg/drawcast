@@ -26,7 +26,15 @@ jobs:
       # switch back to `npm ci` + cache once a fresh package-lock.json is committed.
       - run: npm install
       - run: npm test
+      # Actions secrets reach a step only when that step names them. Without
+      # this block VITE_GOOGLE_CLIENT_ID is empty in the Pages bundle and every
+      # ☁/▶ button hides itself. Secrets that do not exist yet interpolate to
+      # the empty string, i.e. exactly today's behaviour, so this is safe to
+      # land before they are configured.
       - run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_PICKER_KEY: ${{ secrets.VITE_GOOGLE_PICKER_KEY }}
       - uses: actions/configure-pages@v5
         with:
           # First run on a fresh repo: create the Pages site (source: GitHub Actions).
