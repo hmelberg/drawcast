@@ -140,6 +140,8 @@ let stack: Stack = emptyStack();
 let restoring = false;
 let session: SessionHandle | null = null;
 let lastLogId: string | null = null;
+/** Set once the current document has been promoted to a reference, so re-enabling the button never re-arms it. */
+let promoted = false;
 
 // Personal templates must be in the registry before anything renders.
 for (const r of registerMyTemplatesAtStartup()) {
@@ -1471,6 +1473,13 @@ function applyHistoryUi(): void {
   specArea.readOnly = viewing;
   rerenderBtn.disabled = viewing;
   reviseBtn.textContent = viewing ? "Revise from here" : "Revise with AI";
+  // Both of these target `lastLogId` — the log entry for the NEWEST version — so
+  // while you are viewing an older one they would record against a spec that is
+  // not on screen. Ratings feed the prompt-improvement loop, which makes that a
+  // corrupted signal rather than a cosmetic slip.
+  ratingButtons.forEach((rb) => (rb.disabled = viewing));
+  // Exemplars are (request, single spec) pairs — a multi-part doc has no such pair.
+  promoteBtn.disabled = viewing || promoted || !isSingle(doc.playlist);
 }
 
 histPrev.addEventListener("click", () => showVersion(stack.cursor - 1));
@@ -1490,6 +1499,7 @@ restoreBtn.addEventListener("click", () => {
 function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
   doc = next;
   lastLogId = null; // ratings apply to generations only
+  promoted = false; // before applyHistoryUi(), which reads it
   specArea.value = formatPlaylist(doc.playlist, settings.specFormat);
   // A new document starts a new history. Generate hands us a brand-new drawcast
   // (`id: null`, and autosave() mints it its own library row straight after), so
@@ -1508,9 +1518,7 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
   promptEl.value = doc.prompt ?? promptEl.value;
   refreshChips();
   ratingButtons.forEach((rb) => rb.classList.remove("lit"));
-  // Exemplars are (request, single spec) pairs — a multi-part doc has no such pair.
-  promoteBtn.disabled = !isSingle(doc.playlist);
-  promoteBtn.textContent = "👍 Learn from this";
+  promoteBtn.textContent = "👍 Learn from this"; // applyHistoryUi() above owns .disabled
   if (statusText) setStatus(statusText, "ok");
   void present();
 }
@@ -1975,8 +1983,9 @@ rerenderBtn.addEventListener("click", () => {
 });
 
 promoteBtn.addEventListener("click", () => {
-  addExemplar({ prompt: doc.prompt ?? doc.title, spec: firstSpec(doc), ts: new Date().toISOString() });
+  addExemplar({ prompt: doc.prompt || doc.title, spec: firstSpec(doc), ts: new Date().toISOString() });
   promoteBtn.textContent = "✓ Learning from this";
+  promoted = true; // so stepping away and back does not re-arm it
   promoteBtn.disabled = true;
   refreshCounts();
   refreshReferences();
