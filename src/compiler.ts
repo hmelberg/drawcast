@@ -39,12 +39,16 @@ export interface CompiledFigure {
  */
 export async function compileFigure(request: string, opts: CompileFigureOptions): Promise<CompiledFigure> {
   await ensureEnabledPacks(Object.keys(PACK_DEFS));
+  const bundledPool: ExemplarCandidate[] = (bundledExamples as { request: string; spec?: Spec }[]).map((e) => ({
+    prompt: e.request,
+    spec: e.spec,
+  }));
   const outcome = await generateSpec(request, {
     apiKey: opts.apiKey,
     model: opts.model ?? DEFAULT_MODEL,
     variant: promptVariants()[0],
     exemplars: [],
-    bundledExemplars: usableExemplars(bundledExamples as unknown as ExemplarCandidate[], isReadyTemplate),
+    bundledExemplars: usableExemplars(bundledPool, isReadyTemplate),
     maxRepairs: opts.maxRepairs,
     excludeIds: HOST_EXCLUDED_TEMPLATES,
   });
