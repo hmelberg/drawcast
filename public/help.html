@@ -153,9 +153,10 @@
           The <strong>✎ Editor</strong> has three parts: the request box on top, the spec text on the
           left, and the live preview on the right. Each pane carries its own buttons — the spec pane
           handles re-rendering, downloading and uploading the source; the preview pane handles the output
-          (video export, and marking a drawing as a reference). Signed in with Google, the spec pane also
-          gets <strong>☁ Open</strong> and <strong>☁ Save</strong>, which read and write that same spec
-          straight to your Google Drive.
+          (video export, and marking a drawing as a reference). Where drawcast has been given a Google
+          client id, the spec pane also gets <strong>☁ Open</strong> and <strong>☁ Save</strong>, which
+          read and write that same spec straight to your Google Drive — the first click is what asks you
+          to sign in.
         </p>
 
         <h2 id="request">Writing a request</h2>
@@ -408,9 +409,10 @@ commands: [ … ]</code></pre>
           <strong>🎬 Export video</strong> records the drawcast as a narrated 720p WebM file, which
           YouTube accepts directly (Studio → Create → Upload). A playlist becomes a single video with
           its title cards included, and <code>wait: click</code> resolves by itself since there is
-          nobody to click. Signed in with Google, <strong>▶ YouTube</strong> uploads that same file to
-          your channel straight from drawcast — but every upload lands private, whatever visibility you
-          pick, until drawcast has passed YouTube's compliance audit.
+          nobody to click. Where drawcast has been given a Google client id, <strong>▶ YouTube</strong>
+          uploads that same file to your channel straight from drawcast — it asks you to sign in when you
+          press Upload — but every upload lands private, whatever visibility you pick, until drawcast has
+          passed YouTube's compliance audit.
         </p>
         <p>
           This needs a Google Cloud Text-to-Speech key, added under Settings — browser speech cannot be

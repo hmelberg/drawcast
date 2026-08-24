@@ -979,6 +979,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .extra-packs { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); }
 .extra-packs-heading { margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.75rem; }
 
+.remote-url-input { flex: 1; min-width: 160px; }
+
 /* ---------- YouTube upload dialog ---------- */
 
 .yt-dialog .yt-field { width: 100%; }
@@ -991,4 +993,3 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border: 1px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
   background: color-mix(in srgb, #9c6b1f 10%, var(--surface));
 }
-.remote-url-input { flex: 1; min-width: 160px; }
