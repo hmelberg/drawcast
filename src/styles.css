@@ -225,6 +225,26 @@ body.mode-editor main {
   .gen-row, .gen-choices { justify-content: flex-start; }
 }
 
+/* ---------- version history: ◀ ▶ arrows and the viewing bar ---------- */
+
+.hist-nav { display: inline-flex; align-items: center; gap: 2px; margin-right: auto; }
+.hist-counter { min-width: 3.2em; font-variant-numeric: tabular-nums; cursor: default; }
+
+/* Same amber recipe as .lint-chip.warn (this file has no warning token). */
+.view-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: #9c6b1f;
+  border: 1px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
+  background: color-mix(in srgb, #9c6b1f 10%, var(--surface));
+}
+.spec-json[readonly] { opacity: 0.75; }
+
 /* Both panes are one grid row, so they end on the same line however tall the
    figure is; the spec textarea grows to fill its column. */
 .editor-split {

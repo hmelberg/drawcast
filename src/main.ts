@@ -13,7 +13,7 @@ import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm
 import { MODELS, describeApiError } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
-import { currentVersion, emptyStack, pushManualEdit, pushVersion, seedStack, type Stack } from "./history";
+import { atNewest, currentVersion, emptyStack, pushManualEdit, pushVersion, restoreViewed, seedStack, viewAt, type Stack } from "./history";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
 import { looksLikeAnthropicKey, redeemPassword } from "./keys";
@@ -297,6 +297,25 @@ const promptEl = h("textarea", {
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
 const reviseBtn = h("button", { class: "primary", title: "Change the current drawcast with AI" }, "Revise with AI");
 const blankBtn = h("button", { class: "sidebar-new", title: "Start a new drawcast from a minimal hand-editable spec" }, "＋ New drawcast");
+
+// ---------- version history: the ◀ ▶ arrows and the viewing bar ----------
+// Arrows navigate, Restore commits, neither ever deletes — see history.ts.
+
+const histPrev = h("button", { class: "small", title: "Previous version" }, "◀");
+const histCounter = h("button", { class: "small hist-counter" }, "1/1");
+const histNext = h("button", { class: "small", title: "Next version" }, "▶");
+const histNav = h("span", { class: "hist-nav", hidden: "" }, histPrev, histCounter, histNext);
+
+const restoreBtn = h("button", { class: "small" }, "Restore");
+const latestBtn = h("button", { class: "small" }, "Latest ▸");
+const viewBar = h(
+  "div",
+  { class: "view-bar", hidden: "" },
+  h("span", {}, "Viewing an older version"),
+  h("span", { class: "pane-spacer" }),
+  restoreBtn,
+  latestBtn,
+);
 
 // ---------- hashtag directives: chips + autosuggest ----------
 // One vocabulary (TAGS) drives parsing, the chips, and this popup. Tags only
@@ -689,7 +708,8 @@ const editorWrap = h(
     { class: "panel editor-toolbar" },
     h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
-    h("div", { class: "row gen-row" }, choicesBtn, generateBtn, reviseBtn),
+    viewBar,
+    h("div", { class: "row gen-row" }, choicesBtn, histNav, generateBtn, reviseBtn),
     genChoices,
   ),
   statusEl,
@@ -1393,8 +1413,51 @@ async function present(): Promise<void> {
   }
 }
 
-/** Filled in by Task 6: reflects `stack` onto the ◀ ▶ arrows and their surrounding UI. */
-function applyHistoryUi(): void { /* body added in Task 6 */ }
+/** Render a version WITHOUT recording it — arrows navigate, they never mutate. */
+function showVersion(index: number): void {
+  stack = viewAt(stack, index);
+  const v = currentVersion(stack);
+  if (!v) return;
+  const playlist = readPlaylistText(v.text);
+  if (!playlist) return; // readPlaylistText already reported why
+  restoring = true;
+  try {
+    specArea.value = v.text;
+    doc = { id: doc.id, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+    void present();
+  } finally {
+    restoring = false;
+  }
+  applyHistoryUi();
+}
+
+/** Reflects `stack` onto the ◀ ▶ arrows and their surrounding UI. */
+function applyHistoryUi(): void {
+  const n = stack.versions.length;
+  const viewing = !atNewest(stack);
+  histNav.hidden = n < 2;
+  histCounter.textContent = `${stack.cursor + 1}/${n}`;
+  const v = currentVersion(stack);
+  histCounter.title = v ? `${v.label}${v.from ? ` · from "${v.from}"` : ""}` : "";
+  histPrev.disabled = stack.cursor <= 0;
+  histNext.disabled = atNewest(stack);
+  viewBar.hidden = !viewing;
+  // While viewing, editing has nowhere to land — lock the pane rather than let
+  // hand-edits vanish on the next arrow press.
+  specArea.readOnly = viewing;
+  rerenderBtn.disabled = viewing;
+  reviseBtn.textContent = viewing ? "Revise from here" : "Revise with AI";
+}
+
+histPrev.addEventListener("click", () => showVersion(stack.cursor - 1));
+histNext.addEventListener("click", () => showVersion(stack.cursor + 1));
+latestBtn.addEventListener("click", () => showVersion(stack.versions.length - 1));
+restoreBtn.addEventListener("click", () => {
+  stack = restoreViewed(stack, new Date().toISOString());
+  showVersion(stack.versions.length - 1);
+  autosave();
+  setStatus(currentVersion(stack)?.label ?? "Restored an earlier version", "ok");
+});
 
 function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
   doc = next;
@@ -2600,6 +2663,7 @@ clearLogsBtn.addEventListener("click", () => {
 
 specArea.value = formatPlaylist(doc.playlist, isSingle(doc.playlist) ? settings.specFormat : "yaml");
 stack = seedStack(specArea.value, doc.prompt ?? doc.title);
+applyHistoryUi();
 if (doc.prompt) promptEl.value = doc.prompt;
 refreshChips();
 showMode(settings.uiMode);
