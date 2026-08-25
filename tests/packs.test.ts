@@ -542,4 +542,22 @@ describe("evidence pack", () => {
     expect(shade.pts.every(([x]) => x >= meanX - 1)).toBe(true);
     expect(curveAnchor).toBeDefined();
   });
+
+  test("distribution_curve: right_skew ticks reflect the curve's own asymmetric spread, not the normal kind's", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.distribution_curve.layout!({ kind: "right_skew" });
+    const curve = flattenDrawables(r.drawables).find((d) => d.id === "curve") as { pts: [number, number][] };
+    // Find the curve's own peak (highest drawn point) without relying on any internal constant.
+    let peak = curve.pts[0];
+    for (const p of curve.pts) if (p[1] > peak[1]) peak = p;
+    const plusOne = r.anchors.sd_tick_2 as [number, number]; // index 2 of [-2,-1,1,2] is +1σ
+    const minusOne = r.anchors.sd_tick_1 as [number, number]; // index 1 is -1σ
+    const distPlus = Math.abs(plusOne[0] - peak[0]);
+    const distMinus = Math.abs(minusOne[0] - peak[0]);
+    // A right-skewed curve has a long right tail (bigger sigma there): the +1σ
+    // tick should sit farther from the peak than the -1σ tick, not equidistant
+    // (equidistant would mean the ticks were still using the normal kind's
+    // single shared S instead of this curve's own asymmetric spread).
+    expect(distPlus).toBeGreaterThan(distMinus);
+  });
 });

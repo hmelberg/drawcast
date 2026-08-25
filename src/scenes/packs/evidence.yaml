@@ -264,7 +264,11 @@ layout: |
   const nullVal = typeof params.null_line === "number" && Number.isFinite(params.null_line) ? params.null_line : (isLog ? 1 : 0);
 
   const studiesRaw = Array.isArray(params.studies) ? params.studies.slice(0, 8) : [];
-  const studies = (studiesRaw.length >= 2 ? studiesRaw : [
+  // Only fall back to a fully canned pair when the caller supplied NO real
+  // studies at all — a single real study (schema wants 2+, but a caller
+  // might still send one) renders as its own one-row plot instead of being
+  // silently swapped out for unrelated placeholder data.
+  const studies = (studiesRaw.length > 0 ? studiesRaw : [
     { label: "Study A", est: 0.8, lo: 0.6, hi: 1.05 },
     { label: "Study B", est: 0.65, lo: 0.5, hi: 0.85 },
   ]).map((s, i) => {
@@ -578,9 +582,19 @@ layout: |
     order.push(id);
   };
 
+  // Duplicate compartment codes (e.g. two "S"s) would otherwise both slugify
+  // to the same box_<slug> id and collide — suffix repeats to keep every id
+  // unique.
+  const slugCounts = {};
+  function uniqueSlug(code) {
+    const base = slugify(code);
+    const n = (slugCounts[base] = (slugCounts[base] || 0) + 1);
+    return n === 1 ? base : base + "_" + n;
+  }
+
   const W = 150, H = 90;
   compartmentsIn.forEach((code, i) => {
-    const slug = slugify(code);
+    const slug = uniqueSlug(code);
     const c = positions[code];
     const pts = [[c[0] - W / 2, c[1] - H / 2], [c[0] + W / 2, c[1] - H / 2], [c[0] + W / 2, c[1] + H / 2], [c[0] - W / 2, c[1] + H / 2]];
     push(kit.stroke("box_" + slug, pts, { closed: true, shapeHint: { type: "rect", x: c[0] - W / 2, y: c[1] - H / 2, w: W, h: H }, color: C.ink, strokeWidth: 4, ms: MS.node }));
@@ -714,9 +728,21 @@ layout: |
       return Math.exp(-(d * d) / (2 * sig * sig));
     };
   }
-  const rightSkewFn = asymFn(34, 9, 24);
-  const leftSkewFn = asymFn(66, 24, 9);
+  const RIGHT_SKEW_SIG = { left: 9, right: 24 };
+  const LEFT_SKEW_SIG = { left: 24, right: 9 };
+  const rightSkewFn = asymFn(34, RIGHT_SKEW_SIG.left, RIGHT_SKEW_SIG.right);
+  const leftSkewFn = asymFn(66, LEFT_SKEW_SIG.left, LEFT_SKEW_SIG.right);
   const curveFn = kind === "right_skew" ? rightSkewFn : kind === "left_skew" ? leftSkewFn : normalFn;
+  // The "1 SD" step size on each side of the fixed mean (world x = MEAN_X),
+  // matching whichever piece of the ACTIVE curve is drawn on that side —
+  // normal is uniform (sigL=sigR=S); a skewed kind reuses the EXACT sigL/sigR
+  // asymFn built its curve with, so every tick/shade boundary below is a
+  // genuine multiple of this curve's own spread, never the normal kind's S.
+  // Picked by sign relative to the mean (not by literal position vs. the
+  // curve's peak): the mean can sit on either side of the peak, but "one SD
+  // to the right of the mean" always means the curve's right-hand spread,
+  // and "to the left" always means its left-hand spread.
+  const sigma = kind === "right_skew" ? RIGHT_SKEW_SIG : kind === "left_skew" ? LEFT_SKEW_SIG : { left: S, right: S };
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
@@ -732,7 +758,13 @@ layout: |
   push(kit.stroke("curve", curvePts, { color: C.ink, strokeWidth: 4.5, ms: MS.curve }));
   anchors.curve = curvePts[curvePts.length - 1];
 
-  const domainSDMax = (100 - MEAN_X) / S;
+  // How many SDs (on a given side) fit before the sampled curve's own domain
+  // edge (world x 0/100) — per side, since a skewed curve's left/right SD
+  // step sizes differ, so the same SD count reaches a different world-x
+  // distance on each side.
+  function domainSDMax(sig, dir) {
+    return dir === "right" ? (100 - MEAN_X) / sig : MEAN_X / sig;
+  }
 
   function shadeArea(id, wFrom, wTo, color) {
     const N = 36;
@@ -751,17 +783,26 @@ layout: |
   const shadeParam = params.shade && typeof params.shade === "object" ? params.shade : null;
   if (shadeParam) {
     const side = shadeParam.side === "lower" || shadeParam.side === "two" ? shadeParam.side : "upper";
-    const from = Math.min(domainSDMax, Math.max(0, typeof shadeParam.from === "number" ? shadeParam.from : 1));
-    const toRaw = typeof shadeParam.to === "number" ? shadeParam.to : domainSDMax;
-    const to = Math.min(domainSDMax, Math.max(from, toRaw));
+    // "two" shades both tails using the SAME from/to SD count on each side
+    // (so "beyond ±1.96σ" stays one meaningful number) — clamped against
+    // whichever side's own domain runs out first, so neither shaded region
+    // is asked to sample past the curve's sampled edge.
+    const domMax = side === "upper"
+      ? domainSDMax(sigma.right, "right")
+      : side === "lower"
+        ? domainSDMax(sigma.left, "left")
+        : Math.min(domainSDMax(sigma.right, "right"), domainSDMax(sigma.left, "left"));
+    const from = Math.min(domMax, Math.max(0, typeof shadeParam.from === "number" ? shadeParam.from : 1));
+    const toRaw = typeof shadeParam.to === "number" ? shadeParam.to : domMax;
+    const to = Math.min(domMax, Math.max(from, toRaw));
 
     if (side === "upper") {
-      shadeArea("shade", MEAN_X + from * S, MEAN_X + to * S, C.region1);
+      shadeArea("shade", MEAN_X + from * sigma.right, MEAN_X + to * sigma.right, C.region1);
     } else if (side === "lower") {
-      shadeArea("shade", MEAN_X - to * S, MEAN_X - from * S, C.region1);
+      shadeArea("shade", MEAN_X - to * sigma.left, MEAN_X - from * sigma.left, C.region1);
     } else {
-      shadeArea("shade", MEAN_X + from * S, MEAN_X + to * S, C.region1);
-      shadeArea("shade2", MEAN_X - to * S, MEAN_X - from * S, C.region1);
+      shadeArea("shade", MEAN_X + from * sigma.right, MEAN_X + to * sigma.right, C.region1);
+      shadeArea("shade2", MEAN_X - to * sigma.left, MEAN_X - from * sigma.left, C.region1);
     }
 
     const labelText = typeof shadeParam.label === "string" && shadeParam.label.trim() !== ""
@@ -772,8 +813,8 @@ layout: |
     const labelX = side === "two"
       ? sx(MEAN_X)
       : side === "lower"
-        ? sx(MEAN_X - ((from + to) / 2) * S)
-        : sx(MEAN_X + ((from + to) / 2) * S);
+        ? sx(MEAN_X - ((from + to) / 2) * sigma.left)
+        : sx(MEAN_X + ((from + to) / 2) * sigma.right);
     label("shade_label", [labelX, plot.y1 + 18], "above", labelText, C.ink, 19);
   }
 
@@ -788,7 +829,7 @@ layout: |
 
   if (showTicks) {
     [-2, -1, 1, 2].forEach((sd, i) => {
-      const wx = MEAN_X + sd * S;
+      const wx = MEAN_X + sd * (sd > 0 ? sigma.right : sigma.left);
       const xpx = sx(wx);
       const text = sd + sdLabel;
       push(kit.group("sd_tick_" + i, [
