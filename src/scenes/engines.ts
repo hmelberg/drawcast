@@ -91,12 +91,90 @@ interface SdPreprocessor {
 
 export interface MathJaxEngine {
   /** TeX → flat drawing-ready geometry. Height-normalized: `h` = 1 for an "x"-height-ish
-   *  baseline row; caller scales. Glyph outlines are CLOSED polylines (sampled from the
-   *  SVG font paths); rules (fraction bars etc.) come back as 4-pt rectangles. */
+   *  baseline row; caller scales.
+   *
+   *  One `outlines` entry per FILLED SHAPE, not per ring: `pts` is the outer boundary
+   *  (a CLOSED polyline sampled from the SVG font path) and `holes` are its counters —
+   *  the enclosed rings of "b", "8", "0". Fill the shape with fill-rule evenodd
+   *  (kit.area's `holes` option does exactly this) and the counters stay open; ignore
+   *  `holes` and they paint solid. Rings are grouped per source glyph `<path>` and
+   *  classified by containment, so a glyph whose parts are disjoint rather than nested
+   *  ("=" — two bars) yields one entry PER PART, each hole-free. Rules (fraction bars,
+   *  \sqrt and \overline overbars) come back as 4-pt rectangles with no holes. */
   layoutTeX(tex: string, opts?: { display?: boolean }): {
-    outlines: { pts: [number, number][] }[];
+    outlines: { pts: [number, number][]; holes?: [number, number][][] }[];
     w: number; h: number;
   };
+}
+
+/** Crossing-number point-in-ring; rings from a font never self-intersect, so
+ *  one probe point settles containment for a whole ring. */
+function pointInRing(p: [number, number], ring: [number, number][]): boolean {
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
+function ringBox(ring: [number, number][]): { x0: number; y0: number; x1: number; y1: number } {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  return { x0, y0, x1, y1 };
+}
+
+/**
+ * Split one glyph's rings into filled shapes and their counters. Depth = how
+ * many sibling rings enclose a ring; even depth is a filled shape, odd depth
+ * is a hole of its immediate (smallest) container. Fonts never nest deeper
+ * than one level, but the parity rule stays correct if one ever does — and it
+ * needs no winding information, which the flattened polylines have lost.
+ */
+function groupRings(rings: [number, number][][]): { pts: [number, number][]; holes?: [number, number][][] }[] {
+  if (rings.length === 1) return [{ pts: rings[0] }];
+  const boxes = rings.map(ringBox);
+  const contains = (j: number, i: number): boolean => {
+    const [a, b] = [boxes[j], boxes[i]];
+    if (b.x0 < a.x0 || b.x1 > a.x1 || b.y0 < a.y0 || b.y1 > a.y1) return false;
+    return pointInRing(rings[i][0], rings[j]);
+  };
+  const parent = rings.map((_, i) => {
+    let best = -1;
+    for (let j = 0; j < rings.length; j++) {
+      if (j === i || !contains(j, i)) continue;
+      const span = (b: number) => (boxes[b].x1 - boxes[b].x0) * (boxes[b].y1 - boxes[b].y0);
+      if (best === -1 || span(j) < span(best)) best = j;
+    }
+    return best;
+  });
+  const depth = rings.map((_, i) => {
+    let n = 0;
+    for (let p = parent[i]; p !== -1; p = parent[p]) n++;
+    return n;
+  });
+
+  const out: { pts: [number, number][]; holes?: [number, number][][] }[] = [];
+  const slot = new Map<number, number>();
+  rings.forEach((r, i) => {
+    if (depth[i] % 2 === 0) {
+      slot.set(i, out.length);
+      out.push({ pts: r });
+    }
+  });
+  rings.forEach((r, i) => {
+    if (depth[i] % 2 === 0) return;
+    const at = slot.get(parent[i]);
+    if (at === undefined) return;               // unreachable: an odd-depth ring always has an even-depth parent
+    (out[at].holes ??= []).push(r);
+  });
+  return out;
 }
 
 /** 2×3 affine, SVG's own order: x' = ax + cy + e, y' = bx + dy + f. */
@@ -159,7 +237,9 @@ async function loadMathJax(): Promise<MathJaxEngine> {
 
   const isElement = (n: LiteNode): n is LiteElement => adaptor.kind(n) !== "#text";
 
-  const collect = (node: LiteElement, parent: Mat, rings: [number, number][][]): void => {
+  // One entry per source <path>/<rect> — the grouping that says which rings
+  // belong to the same glyph, and so which of them are that glyph's counters.
+  const collect = (node: LiteElement, parent: Mat, groups: [number, number][][][]): void => {
     const err = adaptor.getAttribute(node, "data-mjx-error");
     // MathJax draws parse errors as a giant labelled box rather than throwing —
     // for a figure that is worse than nothing, so surface it like a parse failure.
@@ -168,18 +248,17 @@ async function loadMathJax(): Promise<MathJaxEngine> {
     const m = tf ? mulMat(parent, parseTransform(tf)) : parent;
     const at = (x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
     if (adaptor.kind(node) === "path") {
-      for (const ring of sampleSvgPath(adaptor.getAttribute(node, "d") || "")) {
-        rings.push(ring.map(([x, y]) => at(x, y)));
-      }
+      const rings = sampleSvgPath(adaptor.getAttribute(node, "d") || "").map((ring) => ring.map(([x, y]) => at(x, y)));
+      if (rings.length > 0) groups.push(rings);
     } else if (adaptor.kind(node) === "rect") {
       // Rules (fraction bars, \sqrt and \overline overbars) — 4 corners.
       const n = (a: string) => Number(adaptor.getAttribute(node, a) || 0);
       const x = n("x"), y = n("y"), w = n("width"), h = n("height");
-      if (w > 0 && h > 0) rings.push([at(x, y), at(x + w, y), at(x + w, y + h), at(x, y + h)]);
+      if (w > 0 && h > 0) groups.push([[at(x, y), at(x + w, y), at(x + w, y + h), at(x, y + h)]]);
     }
     // <line> (table/menclose borders) and <text> (unknown-font fallbacks) are
     // strokes and glyphs we cannot sample — skipped rather than faked.
-    for (const child of adaptor.childNodes(node)) if (isElement(child)) collect(child, m, rings);
+    for (const child of adaptor.childNodes(node)) if (isElement(child)) collect(child, m, groups);
   };
 
   return {
@@ -188,15 +267,18 @@ async function loadMathJax(): Promise<MathJaxEngine> {
       const svg = adaptor.tags(container, "svg")[0];
       if (!svg) throw new Error("MathJax produced no SVG");
       const [vx, , vw, vh] = (adaptor.getAttribute(svg, "viewBox") || "0 0 0 0").split(/[\s,]+/).map(Number);
-      const rings: [number, number][][] = [];
-      collect(svg, IDENTITY, rings);
+      const groups: [number, number][][][] = [];
+      collect(svg, IDENTITY, groups);
       // The walk stays in SVG's y-down user space (the root <g> carries the
       // scale(1,-1) that flips MathJax's y-up layout), so flip back here. The
       // viewBox's left edge becomes x = 0; y = 0 is already the baseline.
+      // Normalizing before grouping keeps the containment test in the same
+      // space as the points it returns (an affine map preserves containment
+      // either way, so this is only about not doing it twice).
+      const norm = (ring: [number, number][]): [number, number][] =>
+        ring.map(([x, y]) => [(x - vx) / unitsPerEx, -y / unitsPerEx] as [number, number]);
       return {
-        outlines: rings.map((pts) => ({
-          pts: pts.map(([x, y]) => [(x - vx) / unitsPerEx, -y / unitsPerEx] as [number, number]),
-        })),
+        outlines: groups.flatMap((rings) => groupRings(rings.map(norm))),
         w: vw / unitsPerEx,
         h: vh / unitsPerEx,
       };

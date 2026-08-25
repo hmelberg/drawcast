@@ -159,3 +159,86 @@ describe("mathjax engine (real load — node, no DOM)", () => {
     expect(JSON.stringify(eng.layoutTeX("\\sqrt{x+1}"))).toBe(JSON.stringify(eng.layoutTeX("\\sqrt{x+1}")));
   });
 });
+
+// A glyph's SVG path is several subpaths: the outer boundary plus the counters
+// (the enclosed holes of "b", "8", "0"). Returned flat they are indistinguishable
+// from separate shapes, and a consumer that fills every ring paints the counters
+// shut. The engine groups them per source <path> so `holes` says which is which.
+describe("mathjax counters (holes)", () => {
+  const inside = (p: Pt, ring: Pt[]) => {
+    let hit = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) hit = !hit;
+    }
+    return hit;
+  };
+
+  test("'8' is ONE outline carrying its TWO counters as holes", async () => {
+    const eng = await mathjax();
+    const { outlines } = eng.layoutTeX("8");
+    expect(outlines).toHaveLength(1);
+    expect(outlines[0].holes).toHaveLength(2);
+    const outer = outlines[0].pts;
+    const ob = box(outer);
+    for (const hole of outlines[0].holes!) {
+      expect(hole.length).toBeGreaterThanOrEqual(3);
+      expect(finite(hole)).toBe(true);
+      const hb = box(hole);
+      expect(hb.x0).toBeGreaterThan(ob.x0);
+      expect(hb.x1).toBeLessThan(ob.x1);
+      expect(hb.y0).toBeGreaterThan(ob.y0);
+      expect(hb.y1).toBeLessThan(ob.y1);
+      // ... and it really is enclosed, not merely bbox-nested.
+      expect(inside(hole[0], outer)).toBe(true);
+    }
+    // The two counters are stacked, not the same ring twice.
+    const [a, b] = outlines[0].holes!.map(box);
+    expect(Math.min(a.y0, b.y0)).toBeLessThan(Math.max(a.y0, b.y0) - 1e-6);
+  });
+
+  test("'b' and '0' each keep exactly one counter", async () => {
+    const eng = await mathjax();
+    for (const ch of ["b", "0"]) {
+      const { outlines } = eng.layoutTeX(ch);
+      expect(outlines, ch).toHaveLength(1);
+      expect(outlines[0].holes, ch).toHaveLength(1);
+      expect(inside(outlines[0].holes![0][0], outlines[0].pts), ch).toBe(true);
+    }
+  });
+
+  test("a glyph with no counter reports no holes", async () => {
+    const eng = await mathjax();
+    const { outlines } = eng.layoutTeX("x");
+    expect(outlines).toHaveLength(1);
+    expect(outlines[0].holes ?? []).toEqual([]);
+  });
+
+  test("disjoint parts of one glyph stay separate outlines, not holes of each other", async () => {
+    const eng = await mathjax();
+    // "=" is two bars; neither encloses the other, so neither may become a hole.
+    const { outlines } = eng.layoutTeX("=");
+    expect(outlines).toHaveLength(2);
+    for (const o of outlines) expect(o.holes ?? []).toEqual([]);
+  });
+
+  test("no ring is lost or duplicated by the grouping", async () => {
+    const eng = await mathjax();
+    const { outlines } = eng.layoutTeX("ax^2+bx+c=0", { display: true });
+    const rings = outlines.reduce((n, o) => n + 1 + (o.holes?.length ?? 0), 0);
+    // a(+counter), x, 2, +, b(+counter), x, +, c, = (two bars), 0(+counter)
+    expect(rings).toBe(14);
+    expect(outlines).toHaveLength(11);
+    expect(outlines.filter((o) => (o.holes?.length ?? 0) > 0)).toHaveLength(3);
+  });
+
+  test("a fraction rule is a plain 4-point rectangle — never a hole of anything", async () => {
+    const eng = await mathjax();
+    const { outlines, w } = eng.layoutTeX("\\frac{a}{b}");
+    const rects = outlines.filter((o) => o.pts.length === 4 && box(o.pts).x1 - box(o.pts).x0 > w / 2);
+    expect(rects).toHaveLength(1);
+    expect(rects[0].holes ?? []).toEqual([]);
+    // "a" and "b" both have counters, so exactly two outlines carry holes.
+    expect(outlines.filter((o) => (o.holes?.length ?? 0) > 0)).toHaveLength(2);
+  });
+});

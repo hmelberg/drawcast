@@ -84,6 +84,12 @@ function validateDrawableNode(raw: unknown, errors: string[], allIds: Set<string
     if (!Array.isArray(d.pts) || !d.pts.every(finitePt)) {
       errors.push(`drawable "${d.id}": pts must be finite [x, y] pairs within ±${COORD_BOUND} (bounds/finite check)`);
     }
+    // An area's holes (glyph counters) carry coordinates too — same bound.
+    if (d.kind === "area" && d.holes !== undefined) {
+      if (!Array.isArray(d.holes) || !d.holes.every((h) => Array.isArray(h) && h.every(finitePt))) {
+        errors.push(`drawable "${d.id}": holes must be rings of finite [x, y] pairs within ±${COORD_BOUND} (bounds/finite check)`);
+      }
+    }
   } else if (d.kind === "text") {
     if (!finitePt(d.pos)) errors.push(`text "${d.id}": pos must be a finite point (bounds/finite check)`);
     if (typeof d.text !== "string") errors.push(`text "${d.id}": text must be a string`);

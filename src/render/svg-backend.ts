@@ -142,6 +142,54 @@ function dashedPathFromPts(pts: Pt[], dash = 11, gap = 9): string {
   return parts.join(" ");
 }
 
+/**
+ * True when an area is an EXACT filled shape rather than a shaded region:
+ * one crisp path in both render styles. Any hole implies it — rough.js's
+ * hachure polygon has no way to express one.
+ */
+export function isExactArea(d: Pick<AreaDrawable, "holes" | "precise">): boolean {
+  return d.precise === true || (d.holes?.length ?? 0) > 0;
+}
+
+/**
+ * Path data for an exact area: the outer ring plus one closed subpath per
+ * hole. Filled with fill-rule evenodd (see exactAreaAttrs), so an enclosed
+ * subpath reads as a counter and a disjoint one as a second blot — which is
+ * also why a hole needs no winding fix-up. Rings under 3 points enclose
+ * nothing and are dropped rather than emitted as stubs.
+ */
+export function areaPathData(d: Pick<AreaDrawable, "pts" | "holes">): string {
+  const rings = [d.pts, ...(d.holes ?? [])].filter((r) => r.length >= 3);
+  return rings.map((r) => pathFromPts(r, true)).join(" ");
+}
+
+/**
+ * The full attribute set for an exact area's <path>. Deliberately fill-only:
+ * a letterform gets the same "precise" treatment TEXT gets — no stroke to
+ * fatten the stems, and no fill-opacity knock-down (the 0.45 that makes a
+ * shaded region read as a wash makes an equation read as washed out).
+ */
+export function exactAreaAttrs(d: AreaDrawable): Record<string, string> {
+  const attrs: Record<string, string> = {
+    d: areaPathData(d),
+    fill: d.style.fill ?? d.style.color,
+    "fill-rule": "evenodd",
+    stroke: "none",
+  };
+  if (d.style.opacity < 1) attrs.opacity = String(d.style.opacity);
+  return attrs;
+}
+
+/** Marks a fill-only exact path so the emphasis clone leaves it fill-only. */
+const EXACT_ATTR = "data-exact-fill";
+
+function exactAreaPath(d: AreaDrawable): SVGPathElement {
+  const p = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  for (const [k, v] of Object.entries(exactAreaAttrs(d))) p.setAttribute(k, v);
+  p.setAttribute(EXACT_ATTR, "1");
+  return p;
+}
+
 function arrowheadPts(pts: Pt[], at: "end" | "start"): [Pt, Pt, Pt] | null {
   if (pts.length < 2) return null;
   const [tip, prev] = at === "end" ? [pts[pts.length - 1], pts[pts.length - 2]] : [pts[0], pts[1]];
@@ -188,6 +236,10 @@ function plainPath(d: string, style: { color: string; strokeWidth: number; fill?
 
 function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "text" }>): void {
   if (d.kind === "area") {
+    if (isExactArea(d)) {
+      g.appendChild(exactAreaPath(d));
+      return;
+    }
     const p = plainPath(pathFromPts(d.pts, true), { ...d.style, strokeWidth: 1.5 }, true);
     p.setAttribute("fill", d.style.fill ?? d.style.color);
     p.setAttribute("fill-opacity", "0.45");
@@ -260,6 +312,12 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     return g;
   }
   if (d.kind === "area") {
+    // An exact area is exact in BOTH styles: hachure at gap 5.5 across a 54 px
+    // glyph stem is one or two wobbling strokes, which is what "grainy" was.
+    if (isExactArea(d)) {
+      g.appendChild(exactAreaPath(d));
+      return g;
+    }
     // Dense, heavy hachure — thin sparse fills read as unshaded on some screens.
     const node = rc.polygon(
       d.pts.map(([x, y]) => [x, toSvgY(y)]),
@@ -444,8 +502,12 @@ function emphasisClone(g: SVGGElement, color: string, glow: boolean): SVGGElemen
   c.style.opacity = "0";
   c.style.pointerEvents = "none";
   for (const p of Array.from(c.querySelectorAll("path"))) {
-    p.setAttribute("stroke", color);
     if ((p.getAttribute("fill") ?? "none") !== "none") p.setAttribute("fill", color);
+    // An exact area (a letterform) stays fill-only: a 4.5 px echo stroke
+    // around a glyph welds its counters shut. Everything else — rough.js's own
+    // solid-fill paths included — keeps the bolder echo it has always had.
+    if (p.hasAttribute(EXACT_ATTR)) continue;
+    p.setAttribute("stroke", color);
     const w = parseFloat(p.getAttribute("stroke-width") ?? "3") || 3;
     p.setAttribute("stroke-width", String(w + 1.5));
   }

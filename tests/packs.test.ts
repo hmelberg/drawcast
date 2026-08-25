@@ -891,6 +891,109 @@ describe("mathlogic pack", () => {
     }
   });
 
+  // The user-visible defect this fixes: equations rendered blurry/grainy with
+  // the counters of "b"/"p"/"8"/"0" painted solid. Cause was one solid,
+  // hachure-filled kit.area per RING; the fix is one exact, hole-carrying
+  // filled shape per glyph.
+  describe("equation_steps renders glyphs as exact filled shapes", () => {
+    const polyArea = (pts: [number, number][]) => {
+      let a = 0;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1];
+      return Math.abs(a) / 2;
+    };
+    const bboxArea = (pts: [number, number][]) => {
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
+    };
+    const areasOf = (r: SceneLayout) =>
+      flattenDrawables(r.drawables).filter((d) => d.kind === "area") as {
+        id: string; pts: [number, number][]; holes?: [number, number][][]; precise?: boolean; style: { opacity: number; fill?: string };
+      }[];
+
+    test("one drawable per glyph, with its counters as real holes — not N solid rings", async () => {
+      await ensureEngines(["mathjax"]);
+      registerPack("mathlogic", mathlogicYaml);
+      const r = scenes.equation_steps.layout!({ steps: [{ tex: "80" }] });
+      const areas = areasOf(r);
+      // Old behaviour: 3 independent ink areas (8's outer + its two counters
+      // were separate rings, plus 0's outer and counter = 5). Now: 2 glyphs.
+      expect(areas).toHaveLength(2);
+      expect(areas.map((a) => a.holes?.length ?? 0)).toEqual([2, 1]);
+      for (const a of areas) {
+        expect(a.precise).toBe(true);
+        expect(a.style.opacity).toBe(1);
+        expect(a.style.fill).toBe(COLORS.ink);
+      }
+    });
+
+    test("the counters stay wide open at the 54 px step height", async () => {
+      await ensureEngines(["mathjax"]);
+      registerPack("mathlogic", mathlogicYaml);
+      const r = scenes.equation_steps.layout!({ steps: [{ tex: "0" }] });
+      const [zero] = areasOf(r);
+      const hole = zero.holes![0];
+      // A counter that survives is a real, visible hole: at least a tenth of
+      // the glyph's own filled area, and several logical units across.
+      expect(polyArea(hole) / polyArea(zero.pts)).toBeGreaterThan(0.1);
+      const xs = hole.map((p) => p[0]), ys = hole.map((p) => p[1]);
+      expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(4);
+      expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(8);
+    });
+
+    test("simplification never distorts a letterform: fill ratio matches the full-resolution outline", async () => {
+      await ensureEngines(["mathjax"]);
+      registerPack("mathlogic", mathlogicYaml);
+      const eng = (await import("../src/scenes/engines")).getLoadedEngines(["mathjax"]).mathjax as {
+        layoutTeX(t: string, o?: { display?: boolean }): { outlines: { pts: [number, number][]; holes?: [number, number][][] }[] };
+      };
+      for (const tex of ["x", "8", "b"]) {
+        const truth = eng.layoutTeX(tex, { display: true }).outlines[0];
+        const drawn = areasOf(scenes.equation_steps.layout!({ steps: [{ tex }] }))[0];
+        // area/bbox-area is invariant under the uniform scale + translate the
+        // template applies, so it compares SHAPE, not size.
+        expect(polyArea(drawn.pts) / bboxArea(drawn.pts), tex).toBeCloseTo(polyArea(truth.pts) / bboxArea(truth.pts), 2);
+        expect(drawn.pts.length, tex).toBeGreaterThanOrEqual(12);
+      }
+    });
+
+    test("under fill-rule evenodd the counter is paper and the bowl around it is ink", async () => {
+      await ensureEngines(["mathjax"]);
+      registerPack("mathlogic", mathlogicYaml);
+      const inRing = (p: [number, number], ring: [number, number][]) => {
+        let hit = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          const [xi, yi] = ring[i], [xj, yj] = ring[j];
+          if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) hit = !hit;
+        }
+        return hit;
+      };
+      // Evenodd paints a point iff an ODD number of the path's subpaths contain it.
+      const painted = (p: [number, number], a: { pts: [number, number][]; holes?: [number, number][][] }) =>
+        [a.pts, ...(a.holes ?? [])].filter((r) => inRing(p, r)).length % 2 === 1;
+
+      for (const tex of ["8", "0", "b", "p"]) {
+        const glyph = areasOf(scenes.equation_steps.layout!({ steps: [{ tex }] }))[0];
+        const hole = glyph.holes![0];
+        const hx = (Math.min(...hole.map((p) => p[0])) + Math.max(...hole.map((p) => p[0]))) / 2;
+        const hy0 = Math.min(...hole.map((p) => p[1])), hy1 = Math.max(...hole.map((p) => p[1]));
+        expect(painted([hx, (hy0 + hy1) / 2], glyph), `${tex}: counter`).toBe(false);
+        // ... and the bowl wall above that counter still is ink.
+        const top = Math.max(...glyph.pts.filter((p) => Math.abs(p[0] - hx) < 1).map((p) => p[1]), hy1 + 2);
+        expect(painted([hx, (hy1 + top) / 2], glyph), `${tex}: bowl wall`).toBe(true);
+      }
+    });
+
+    test("the quadratic formula stays cheap: exact paths, not tens of thousands of points", async () => {
+      await ensureEngines(["mathjax"]);
+      registerPack("mathlogic", mathlogicYaml);
+      const params = scenes.equation_steps.manifest.examples[0].params;
+      const areas = areasOf(scenes.equation_steps.layout!(params));
+      const points = areas.reduce((n, a) => n + a.pts.length + (a.holes ?? []).reduce((m, h) => m + h.length, 0), 0);
+      expect(points).toBeLessThan(2500);
+      expect(areas.length).toBeLessThan(80);
+    });
+  });
+
   test("truth_table: \"(A AND B) OR NOT A\" over A,B yields T,T,F,T in binary row order", () => {
     registerPack("mathlogic", mathlogicYaml);
     const r = scenes.truth_table.layout!({ variables: ["A", "B"], expression: "(A AND B) OR NOT A" });

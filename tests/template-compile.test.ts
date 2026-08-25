@@ -196,6 +196,32 @@ describe("validateSceneLayout", () => {
     expect(emptyNested[0]).toMatch(/non-empty/);
   });
 
+  test("an area's holes carry coordinates too — they are bounds-checked like pts", () => {
+    const ok = validateSceneLayout({
+      drawables: [{ id: "a", kind: "area", pts: [[0, 0], [10, 0], [10, 10]], holes: [[[1, 1], [2, 1], [2, 2]]] }],
+      labels: [],
+      anchors: {},
+      order: ["a"],
+    });
+    expect(ok).toEqual([]);
+
+    const runaway = validateSceneLayout({
+      drawables: [{ id: "a", kind: "area", pts: [[0, 0], [10, 0], [10, 10]], holes: [[[99999, 1], [2, 1], [2, 2]]] }],
+      labels: [],
+      anchors: {},
+      order: ["a"],
+    });
+    expect(runaway[0]).toMatch(/bounds/);
+
+    const notRings = validateSceneLayout({
+      drawables: [{ id: "a", kind: "area", pts: [[0, 0], [10, 0], [10, 10]], holes: [[0, 0]] }],
+      labels: [],
+      anchors: {},
+      order: ["a"],
+    });
+    expect(notRings.length).toBeGreaterThan(0);
+  });
+
   test("an out-of-bounds point nested inside a group is caught", () => {
     const errs = validateSceneLayout({
       drawables: [{ id: "g", kind: "group", children: [{ id: "inner", kind: "stroke", pts: [[99999, 0]] }] }],

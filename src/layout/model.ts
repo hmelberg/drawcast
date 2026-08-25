@@ -57,6 +57,20 @@ export interface StrokeDrawable extends BaseDrawable {
 export interface AreaDrawable extends BaseDrawable {
   kind: "area";
   pts: Pt[];
+  /**
+   * Rings punched out of `pts`: the counters of a letterform (the hole in a
+   * "b", the two in an "8"). Painted as extra subpaths of the SAME path with
+   * `fill-rule: evenodd`, so an enclosed ring becomes a hole. Implies
+   * `precise` — a hachured rough.js polygon cannot express a hole at all.
+   */
+  holes?: Pt[][];
+  /**
+   * Paint this area as ONE exact filled path — no roughening, no hachure, no
+   * knocked-down fill opacity — in BOTH render styles. For shapes whose
+   * silhouette IS the meaning: glyph outlines above all, which at ~54 px read
+   * as grain and blur under the hand-drawn region fill.
+   */
+  precise?: boolean;
 }
 
 export interface TextDrawable extends BaseDrawable {

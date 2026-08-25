@@ -24,6 +24,22 @@ describe("kit factories", () => {
     expect(l.anchor).toEqual([1, 2]);
   });
 
+  test("area takes counters and an exact-fill flag; plain regions are unchanged", () => {
+    const outer: Pt[] = [[0, 0], [100, 0], [100, 100], [0, 100]];
+    const hole: Pt[] = [[20, 20], [40, 20], [40, 40], [20, 40]];
+    const glyph = kit.area("g", outer, "#3d3833", { holes: [hole], precise: true });
+    expect(glyph.holes).toEqual([hole]);
+    expect(glyph.precise).toBe(true);
+    // A letterform is ink, not a wash: precise defaults to full strength.
+    expect(glyph.style.opacity).toBe(1);
+    expect(kit.area("g2", outer, "#000", { precise: true, opacity: 0.6 }).style.opacity).toBe(0.6);
+
+    const region = kit.area("r", outer, "gold");
+    expect(region.holes).toBeUndefined();
+    expect(region.precise).toBeUndefined();
+    expect(region.style.opacity).toBe(0.35);
+  });
+
   test("group wraps children", () => {
     const g = kit.group("g", [kit.stroke("g_1", [[0, 0], [1, 1]])]);
     expect(g.kind).toBe("group");

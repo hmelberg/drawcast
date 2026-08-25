@@ -939,8 +939,8 @@ engines: [mathjax]
 description: >-
   Handwritten math: an equation or a short derivation revealed line by line —
   choose for ANY request to show a formula, identity, or algebra steps. Each
-  step is typeset via MathJax and rendered as hand-sketched filled glyph
-  shapes, stacked top to bottom, with an optional short note beside each one.
+  step is typeset via MathJax and drawn as exact filled glyph shapes (counters
+  and all), stacked top to bottom, with an optional short note beside each one.
 params:
   type: object
   properties:
@@ -977,28 +977,73 @@ examples:
         - tex: "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}"
           note: "Solve for x."
 layout: |
-  // MathJax glyph outlines are dense CLOSED rings (~400+ pts for a single
-  // italic letter) and glyph counters (the hole in an "a" or "0") come back
-  // as their OWN ring with no hole relationship to the outer ring. Per the
-  // engine's own consumer notes we accept filled counters: every ring is
-  // decimated to <=~55 points (keeping first/last) and emitted as its own
-  // kit.area(..., ink, {opacity:0.9}) — a counter renders as solid ink
-  // rather than a true hole. At the 54px step height used here this reads
-  // fine for algebra (digits/letters stay legible; only rare glyphs with a
-  // fully enclosed counter, e.g. "8", would lose the hole).
+  // Letterforms are the one thing that must NOT be sketched: at the 54px step
+  // height a hachure fill or a roughened outline reads as grain, and a glyph
+  // ring filled on its own paints the counter of a "b"/"p"/"8" shut. So each
+  // glyph becomes ONE kit.area with precise:true (exact filled path, no
+  // roughening, full-strength ink, identical in both render styles) carrying
+  // its counters in `holes` — which is exactly the shape engines.mathjax.
+  // layoutTeX now returns.
+  //
+  // The engine's rings are dense (~400 pts for one italic letter). They are
+  // simplified AFTER scaling, by perpendicular distance with a sub-pixel
+  // tolerance, so the saving is provably invisible: no kept point ever moves,
+  // and no dropped point sat more than TOL logical units off the line that
+  // replaces it. (The old fixed-stride decimation had no error bound at all —
+  // it clipped whichever curve extremes fell between strides.)
   const C = kit.COLORS;
+  const MS = kit.SKETCH_MS;
   const stepsIn = Array.isArray(params.steps) ? params.steps.filter((s) => s && typeof s.tex === "string" && s.tex.trim() !== "").slice(0, 4) : [];
   const steps = stepsIn.length > 0 ? stepsIn : [{ tex: "x = x" }];
   const n = steps.length;
 
-  function decimate(pts) {
-    const MAXP = 55;
-    if (pts.length <= MAXP) return pts;
-    const stride = Math.ceil(pts.length / MAXP);
-    const out = [pts[0]];
-    for (let i = stride; i < pts.length - 1; i += stride) out.push(pts[i]);
-    out.push(pts[pts.length - 1]);
+  const TOL = 0.25;
+
+  // Ramer–Douglas–Peucker on an open polyline; iterative, so a 400-point ring
+  // cannot blow the stack.
+  function rdp(pts) {
+    const len = pts.length;
+    if (len <= 2) return pts;
+    const keep = new Array(len).fill(false);
+    keep[0] = true;
+    keep[len - 1] = true;
+    const stack = [[0, len - 1]];
+    while (stack.length > 0) {
+      const seg = stack.pop();
+      const a = seg[0], b = seg[1];
+      if (b <= a + 1) continue;
+      const ax = pts[a][0], ay = pts[a][1];
+      const dx = pts[b][0] - ax, dy = pts[b][1] - ay;
+      const base = Math.sqrt(dx * dx + dy * dy);
+      let best = -1, bestD = TOL;
+      for (let i = a + 1; i < b; i++) {
+        const px = pts[i][0] - ax, py = pts[i][1] - ay;
+        const d = base > 1e-9 ? Math.abs(px * dy - py * dx) / base : Math.sqrt(px * px + py * py);
+        if (d > bestD) { bestD = d; best = i; }
+      }
+      if (best >= 0) { keep[best] = true; stack.push([a, best]); stack.push([best, b]); }
+    }
+    const out = [];
+    for (let i = 0; i < len; i++) if (keep[i]) out.push(pts[i]);
     return out;
+  }
+
+  // A closed ring has no natural endpoints, so anchor it at point 0 and the
+  // point farthest from it and simplify the two arcs between them — anchoring
+  // at 0 and its NEIGHBOUR (the last point) would leave RDP a near-zero
+  // baseline and simplify nothing.
+  function simplifyRing(ring) {
+    if (ring.length <= 4) return ring;
+    let far = 0, farD = -1;
+    for (let i = 1; i < ring.length; i++) {
+      const dx = ring[i][0] - ring[0][0], dy = ring[i][1] - ring[0][1];
+      const d = dx * dx + dy * dy;
+      if (d > farD) { farD = d; far = i; }
+    }
+    const head = rdp(ring.slice(0, far + 1));
+    const tail = rdp(ring.slice(far).concat([ring[0]]));
+    const out = head.concat(tail.slice(1, tail.length - 1));
+    return out.length >= 3 ? out : ring;
   }
 
   const STEP_H = 54, GAP = 40;
@@ -1037,9 +1082,10 @@ layout: |
     const tx = (x) => 500 + (x - midX) * scale;
     const ty = (y) => bottom + (y - minY) * scale;
 
+    const place = (ring) => simplifyRing(ring.map((p) => [tx(p[0]), ty(p[1])]));
     const children = outlines.map((o, j) => {
-      const pts = decimate(o.pts).map((p) => [tx(p[0]), ty(p[1])]);
-      return kit.area("step_" + i + "__g" + j, pts, C.ink, { opacity: 0.9 });
+      const holes = (o.holes || []).map(place).filter((h) => h.length >= 3);
+      return kit.area("step_" + i + "__g" + j, place(o.pts), C.ink, { holes: holes, precise: true, ms: MS.text });
     });
     push(kit.group("step_" + i, children));
     anchors["step_" + i] = [500, (top + bottom) / 2];

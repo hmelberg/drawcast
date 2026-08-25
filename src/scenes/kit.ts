@@ -178,7 +178,17 @@ export function shadeColor(hex: string, factor: number): string {
 export interface SceneKit {
   // ---- factories ----
   stroke(id: string, pts: Pt[], o?: StrokeOpts): StrokeDrawable;
-  area(id: string, pts: Pt[], fill: string, o?: { opacity?: number; ms?: number }): AreaDrawable;
+  /**
+   * A filled shape. By default a soft shaded REGION (opacity 0.35, hand-drawn
+   * hachure in the sketchy style) — the usual "shade this area" job.
+   *
+   * `precise: true` switches it to an EXACT filled shape instead: one crisp
+   * path, no roughening, no hachure, full-strength ink, identical in both
+   * render styles — for shapes whose silhouette IS the meaning (glyph
+   * outlines above all). `holes` punches counters out of it (the hole in a
+   * "b", the two in an "8") using fill-rule evenodd, and implies `precise`.
+   */
+  area(id: string, pts: Pt[], fill: string, o?: { opacity?: number; ms?: number; holes?: Pt[][]; precise?: boolean }): AreaDrawable;
   text(id: string, pos: Pt, s: string, o?: TextOpts): TextDrawable;
   label(id: string, anchor: Pt, side: Side, s: string, o?: { fontSize?: number; color?: string }): LabelRequest;
   group(id: string, children: Drawable[]): GroupDrawable;
@@ -423,12 +433,17 @@ export const kit: SceneKit = {
     };
   },
   area(id, pts, fill, o = {}) {
+    const holes = o.holes && o.holes.length > 0 ? o.holes : undefined;
+    const precise = o.precise === true || holes !== undefined ? true : undefined;
     return {
       id,
       kind: "area",
       pts,
+      ...(holes !== undefined && { holes }),
+      ...(precise !== undefined && { precise }),
       z: Z_AREA,
-      style: defaultStyle({ fill, opacity: o.opacity ?? 0.35, strokeWidth: 0 }),
+      // A shaded region is a wash (0.35); an exact shape is ink (1).
+      style: defaultStyle({ fill, opacity: o.opacity ?? (precise ? 1 : 0.35), strokeWidth: 0 }),
       drawOpts: defaultDrawOpts("sketch", o.ms ?? SKETCH_MS.region),
     };
   },
