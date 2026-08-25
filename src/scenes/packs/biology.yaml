@@ -479,13 +479,18 @@ layout: |
   });
 
   function edgeColor(effect) { return effect === "inhibits" ? C.regionLoss : effect === "converts" ? C.guide : C.ink; }
-  const SHORTEN = 64;
+  // Per-node-type boundary shapes for edgeArrow's trim (matches each type's
+  // drawn shape above) — a "process" node has no shape, so it only gets a
+  // small breathing gap, same magnitude as a shape trim's own gap.
+  const SHAPE_BY_TYPE = { protein: { ellipse: [64, 30] }, gene: { rect: [104, 46] }, metabolite: { ellipse: [30, 30] }, process: 3 };
+  function shapeFor(name) { return SHAPE_BY_TYPE[typeOf(name)]; }
   parsed.forEach((e, i) => {
     const from = positions[e.from], to = positions[e.to];
     if (!from || !to) return;
     const id = "edge_" + i;
     const opts = {
-      shorten: SHORTEN,
+      shortenStart: shapeFor(e.from),
+      shortenEnd: shapeFor(e.to),
       head: e.effect === "inhibits" ? "bar" : "arrow",
       dash: e.effect === "converts",
       color: edgeColor(e.effect),
@@ -774,7 +779,7 @@ layout: |
     const color = hl ? C.accent : C.ink;
     const strokeWidth = hl ? 5 : 3;
     const id = "link_" + i;
-    const { drawables: linkDrawables } = kit.edgeArrow(id, from, to, { shorten: 60, color, strokeWidth, ms: MS.connector });
+    const { drawables: linkDrawables } = kit.edgeArrow(id, from, to, { shorten: { ellipse: [58, 28] }, color, strokeWidth, ms: MS.connector });
     linkDrawables.forEach(push);
     anchors[id] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
   });

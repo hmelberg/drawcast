@@ -804,6 +804,29 @@ describe("evidence pack", () => {
     );
   });
 
+  test("causal_dag: a diagonal edge (confounder to exposure) trims to the node ellipse's true boundary, never starting inside the halo", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.causal_dag.layout!({
+      nodes: [
+        { name: "Coffee", role: "exposure" },
+        { name: "Heart disease", role: "outcome" },
+        { name: "Stress", role: "confounder" },
+      ],
+      edges: "Coffee -> Heart disease; Stress -> Coffee; Stress -> Heart disease",
+    });
+    const flat = flattenDrawables(r.drawables);
+    const stressC = r.anchors.node_stress as [number, number];
+    const edge1 = flat.find((d) => d.id === "edge_1") as { pts: [number, number][] }; // Stress -> Coffee: a genuinely diagonal approach
+    const start = edge1.pts[0];
+    const dist = Math.hypot(start[0] - stressC[0], start[1] - stressC[1]);
+    // The halo ellipse is rx=60, ry=30 — its true boundary along ANY
+    // direction is between 30 and 60, plus the ~3px gap. A flat scalar (the
+    // old `shorten: 46`) could land inside the ellipse for a steep approach
+    // or too far outside it for a shallow one; this must land in between.
+    expect(dist).toBeGreaterThanOrEqual(33);
+    expect(dist).toBeLessThanOrEqual(63);
+  });
+
   test("sir_compartments: chain boxes are 150x90 rects, with n-1 flow arrows between them", () => {
     registerPack("evidence", evidenceYaml);
     const r = scenes.sir_compartments.layout!({ compartments: ["S", "E", "I", "R"] });
@@ -816,6 +839,43 @@ describe("evidence pack", () => {
     expect(ids).toContain("flow_1");
     expect(ids).toContain("flow_2");
     expect(ids).not.toContain("flow_3");
+  });
+
+  test("argument_map: a premise-to-premise support link (numeric `supports`) trims to both premise boxes' rect boundary, not their centers", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const r = scenes.argument_map.layout!({
+      conclusion: "The ground is wet.",
+      premises: [{ text: "It rained." }, { text: "If it rains, the ground gets wet.", supports: 0 }],
+    });
+    const flat = flattenDrawables(r.drawables);
+    const premise0 = r.anchors.premise_0 as [number, number]; // target
+    const premise1 = r.anchors.premise_1 as [number, number]; // source
+    const link1 = flat.find((d) => d.id === "link_1") as { pts: [number, number][] };
+    const start = link1.pts[0];
+    const tip = link1.pts[link1.pts.length - 1];
+    // Both premise boxes are the same width, so a horizontal link trims by
+    // exactly the same amount at both ends: well short of the source/target
+    // center, and hugging the box, not floating off toward the other end.
+    const startDist = Math.hypot(start[0] - premise1[0], start[1] - premise1[1]);
+    const tipDist = Math.hypot(tip[0] - premise0[0], tip[1] - premise0[1]);
+    expect(startDist).toBeCloseTo(tipDist, 6);
+    expect(startDist).toBeGreaterThan(100);
+    expect(startDist).toBeLessThan(200);
+  });
+
+  test("sir_compartments: the in-box code label is ~1/3 of the box height (bold against the 4px stroke); the full name is a smaller caption below", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.sir_compartments.layout!({ compartments: ["S", "E", "I", "R"] });
+    const flat = flattenDrawables(r.drawables);
+    const code = flat.find((d) => d.id === "box_code_s") as { text: string; fontSize: number } | undefined;
+    expect(code?.text).toBe("S");
+    // Box height is 90; a label sized to ~1/3 of that (30) reads bold next
+    // to the box's own 4px stroke instead of thin and washed out.
+    expect(code?.fontSize).toBeGreaterThanOrEqual(28);
+    expect(code?.fontSize).toBeLessThanOrEqual(32);
+    const name = r.labels.find((l) => l.id === "box_name_s");
+    expect(name?.text).toBe("Susceptible");
+    expect(name?.fontSize).toBeLessThan(code!.fontSize);
   });
 
   test("distribution_curve: shade=upper shades the RIGHT tail only", () => {
@@ -889,6 +949,33 @@ describe("mathlogic pack", () => {
       const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     }
+  });
+
+  test("argument_map: support links trim to each box's true rect boundary — not the center, and no longer all converging on one shared pixel", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const r = scenes.argument_map.layout!({
+      conclusion: "The ground is wet.",
+      premises: [{ text: "If it rains, the ground gets wet." }, { text: "It is raining." }],
+    });
+    const flat = flattenDrawables(r.drawables);
+    const premise0 = r.anchors.premise_0 as [number, number];
+    const conclusion = r.anchors.conclusion_box as [number, number];
+    const link0 = flat.find((d) => d.id === "link_0") as { pts: [number, number][] };
+    const link1 = flat.find((d) => d.id === "link_1") as { pts: [number, number][] };
+    const start = link0.pts[0];
+    const tip0 = link0.pts[link0.pts.length - 1];
+    const tip1 = link1.pts[link1.pts.length - 1];
+    // Starts clear of the premise box's own center (trimmed to its rect
+    // boundary) but still hugs the box, not floating off toward the target.
+    const startDist = Math.hypot(start[0] - premise0[0], start[1] - premise0[1]);
+    expect(startDist).toBeGreaterThan(40);
+    expect(startDist).toBeLessThan(200);
+    // Tips land near the conclusion box's true top edge — a different point
+    // per premise (its own incidence angle), not the one shared pixel a
+    // hardcoded "top-center" anchor used to force.
+    expect(Math.hypot(tip0[0] - conclusion[0], tip0[1] - conclusion[1])).toBeGreaterThan(30);
+    expect(Math.hypot(tip1[0] - conclusion[0], tip1[1] - conclusion[1])).toBeGreaterThan(30);
+    expect(tip0[0]).not.toBeCloseTo(tip1[0], 0);
   });
 
   // The user-visible defect this fixes: equations rendered blurry/grainy with

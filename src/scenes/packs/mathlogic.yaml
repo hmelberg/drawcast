@@ -903,25 +903,30 @@ layout: |
     const objection = p.objection === true;
     let targetIdx = "conclusion";
     if (typeof p.supports === "number" && p.supports !== i && p.supports >= 0 && p.supports < n) targetIdx = p.supports;
-    let from = [premiseCenters[i][0], ROW_Y + premiseHalfH[i]];
-    let to, curve;
+    // True box centers in, boxes' own rect shapes trim the ends — no more
+    // manually picking "left edge or right edge" by hand: the kit finds the
+    // exact boundary point along whatever direction this particular link
+    // approaches from.
+    const from = premiseCenters[i];
+    const fromShape = { rect: [boxW, premiseHalfH[i] * 2] };
+    let to, toShape, curve;
     if (targetIdx === "conclusion") {
-      to = [CONC_CX, CONC_CY - CONC_H / 2];
+      to = [CONC_CX, CONC_CY];
+      toShape = { rect: [CONC_W, CONC_H] };
       curve = (i - (n - 1) / 2) * 0.06;
     } else {
-      const tc = premiseCenters[targetIdx];
-      const dir = tc[0] >= premiseCenters[i][0] ? 1 : -1;
-      from = [premiseCenters[i][0] + (dir * boxW) / 2, ROW_Y];
-      to = [tc[0] - (dir * boxW) / 2, ROW_Y];
+      to = premiseCenters[targetIdx];
+      toShape = { rect: [boxW, premiseHalfH[targetIdx] * 2] };
       curve = 0.35;
     }
     const id = "link_" + i;
     const opts = objection
-      ? { curve: curve, head: "bar", color: C.demand, strokeWidth: 3.5, ms: MS.connector }
-      : { curve: curve, head: "arrow", color: C.ink, strokeWidth: 3.5, ms: MS.connector };
+      ? { curve: curve, head: "bar", color: C.demand, strokeWidth: 3.5, ms: MS.connector, shortenStart: fromShape, shortenEnd: toShape }
+      : { curve: curve, head: "arrow", color: C.ink, strokeWidth: 3.5, ms: MS.connector, shortenStart: fromShape, shortenEnd: toShape };
     const linked = kit.edgeArrow(id, from, to, opts);
     linked.drawables.forEach(push);
-    anchors[id] = to;
+    const tipPts = linked.drawables[0].pts;
+    anchors[id] = tipPts[tipPts.length - 1];
   });
 
   if (typeof params.title === "string" && params.title.trim() !== "") {

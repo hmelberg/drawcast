@@ -2,11 +2,15 @@
 // Layout bodies cannot import anything; every helper they need lives here.
 // The doc comments double as the authoring-prompt documentation (M2).
 //
-// Two rules every layout must follow:
+// Three rules every layout must follow:
 // 1. Text that IS geometry (atom symbols, termini) = kit.text (exact position);
 //    text that NAMES things = kit.label (the collision solver may move it).
 // 2. Repeated micro-strokes (bonds, dots, hatching) go in ONE kit.group —
 //    groups are the narration/annotation beats.
+// 3. A label placed INSIDE a shape should read at roughly 1/3 of that
+//    shape's height — the sketchy hand-drawn font renders thin at small
+//    sizes, and undersized text looks weak next to the shape's own bold,
+//    rough stroke.
 
 import { compileExpression } from "../spec/expression";
 import { CANVAS } from "../layout/canvas";
@@ -119,6 +123,17 @@ export interface TableOpts {
   ms?: number;
 }
 
+/**
+ * How far to trim an edgeArrow endpoint before drawing it. A plain number
+ * trims exactly that many px (old behavior, unchanged — no added gap).
+ * `{ ellipse: [rx, ry] }` / `{ rect: [w, h] }` instead treats that shape as
+ * CENTERED ON THE ENDPOINT and trims to its exact boundary along the edge's
+ * direction, plus a small ~3px breathing gap — for a node that isn't a
+ * circle, so the line starts at the node's true silhouette instead of a
+ * scalar guess.
+ */
+export type EdgeTrim = number | { ellipse: [number, number] } | { rect: [number, number] };
+
 export interface EdgeArrowOpts {
   /** 0 = straight; ± = bow, as a fraction of segment length (e.g. 0.25). */
   curve?: number;
@@ -130,8 +145,17 @@ export interface EdgeArrowOpts {
   strokeWidth?: number;
   ms?: number;
   dash?: boolean;
-  /** Trim this many px off BOTH ends (e.g. a node's radius) before drawing. */
-  shorten?: number;
+  /**
+   * Trim BOTH ends before drawing (e.g. a node's radius) — overridden per
+   * end by `shortenStart`/`shortenEnd`. See EdgeTrim. Curved edges (`curve`
+   * set) trim along the STRAIGHT chord direction, not the bowed path — an
+   * accepted approximation.
+   */
+  shorten?: EdgeTrim;
+  /** Trim just the `from` end; falls back to `shorten` when omitted. */
+  shortenStart?: EdgeTrim;
+  /** Trim just the `to` end; falls back to `shorten` when omitted. */
+  shortenEnd?: EdgeTrim;
 }
 
 export interface StampOpts {
@@ -273,9 +297,15 @@ export interface SceneKit {
    * the line by `curve` × length. `head: "arrow"` (default) sets the main
    * stroke's own arrowhead; `"bar"` (⊣, inhibition) and `"circle"` (○,
    * catalysis) instead add one extra stroke, `${id}__head`, at the `to`
-   * end; `"none"` adds nothing. `shorten` trims both ends first (e.g. so
-   * the line starts/ends at a node's edge, not its center). `selfLoop`
-   * draws a loop above `from` and ignores `to` entirely.
+   * end; `"none"` adds nothing. `shorten`/`shortenStart`/`shortenEnd` trim
+   * the ends first so the line starts/ends at a node's edge, not its
+   * center: a plain number trims that many px (exact); `{ ellipse: [rx,
+   * ry] }` or `{ rect: [w, h] }` trims to that shape's true boundary
+   * (centered on the endpoint) along the edge's direction, plus a small
+   * breathing gap — use this for any node that isn't a circle, so an edge
+   * never starts inside the node or lets its arrowhead puncture the
+   * target. `selfLoop` draws a loop above `from` and ignores `to` entirely
+   * (and `shorten*` — the loop always starts/ends exactly at `from`).
    */
   edgeArrow(id: string, from: Pt, to: Pt, o?: EdgeArrowOpts): { drawables: Drawable[]; order: string[] };
   /**
@@ -406,6 +436,35 @@ const STAMPS_DATA: Record<string, StampDef> = {
   },
 };
 export const STAMPS: Record<string, StampDef> = Object.freeze(STAMPS_DATA);
+
+// A shape trim adds this much clearance beyond the shape's own boundary —
+// enough that a hand-sketched line reads as "just outside" rather than
+// touching, without visibly detaching from the node. Plain-number shorten
+// gets no gap (exact, for backward compatibility).
+const EDGE_TRIM_GAP = 3;
+
+/**
+ * edgeArrow's `shorten`/`shortenStart`/`shortenEnd`: a plain number trims
+ * exactly that many px (old behavior, unchanged). A shape is treated as
+ * centered on the endpoint; (ux, uy) is the edge's own unit direction (sign
+ * doesn't matter — both ends of a straight chord share the same |ux|,|uy|).
+ * Ellipse: r = 1 / sqrt((ux/rx)² + (uy/ry)²) — the ellipse-boundary
+ * parametric-radius formula along a direction. Rect: r = min of the two
+ * axis-aligned slab distances, (w/2)/|ux| and (h/2)/|uy|, guarding a zero
+ * component (edge parallel to that axis) as unconstrained.
+ */
+function edgeTrimAmount(spec: EdgeTrim, ux: number, uy: number): number {
+  if (typeof spec === "number") return spec;
+  if ("ellipse" in spec) {
+    const [rx, ry] = spec.ellipse;
+    const denom = Math.hypot(ux / rx, uy / ry) || 1e-9;
+    return 1 / denom + EDGE_TRIM_GAP;
+  }
+  const [w, h] = spec.rect;
+  const slabX = ux !== 0 ? w / 2 / Math.abs(ux) : Infinity;
+  const slabY = uy !== 0 ? h / 2 / Math.abs(uy) : Infinity;
+  return Math.min(slabX, slabY) + EDGE_TRIM_GAP;
+}
 
 // `kit` is one shared, live object handed to every compiled template body
 // (src/scenes/compile.ts). It is frozen below (and COLORS/CANVAS/SKETCH_MS
@@ -1126,7 +1185,6 @@ export const kit: SceneKit = {
     const strokeWidth = o.strokeWidth ?? 3.5;
     const ms = o.ms ?? SKETCH_MS.connector;
     const head = o.head ?? "arrow";
-    const shorten = o.shorten ?? 0;
 
     let pathPts: Pt[];
     let tip: Pt;
@@ -1145,8 +1203,13 @@ export const kit: SceneKit = {
       const dx0 = to[0] - from[0], dy0 = to[1] - from[1];
       const len0 = Math.hypot(dx0, dy0) || 1;
       const ux = dx0 / len0, uy = dy0 / len0;
-      const a: Pt = [from[0] + ux * shorten, from[1] + uy * shorten];
-      const b: Pt = [to[0] - ux * shorten, to[1] - uy * shorten];
+      // Shape trims are computed along this straight chord direction even
+      // when `curve` bows the drawn path afterward — an accepted
+      // approximation (see EdgeArrowOpts.shorten doc).
+      const startTrim = edgeTrimAmount(o.shortenStart ?? o.shorten ?? 0, ux, uy);
+      const endTrim = edgeTrimAmount(o.shortenEnd ?? o.shorten ?? 0, ux, uy);
+      const a: Pt = [from[0] + ux * startTrim, from[1] + uy * startTrim];
+      const b: Pt = [to[0] - ux * endTrim, to[1] - uy * endTrim];
       const curve = o.curve ?? 0;
       if (curve) {
         const bl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;

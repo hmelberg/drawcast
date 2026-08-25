@@ -2147,19 +2147,19 @@
           "speak": "An SEIR model splits an epidemic into four stages people move through."
         },
         {
-          "draw": ["box_s", "box_label_s"],
+          "draw": ["box_s", "box_code_s", "box_name_s"],
           "speak": "Everyone starts susceptible — able to catch the disease."
         },
         {
-          "draw": ["flow_0", "rate_0", "box_e", "box_label_e"],
+          "draw": ["flow_0", "rate_0", "box_e", "box_code_e", "box_name_e"],
           "speak": "Exposure moves people into the E box — infected, but not yet infectious themselves."
         },
         {
-          "draw": ["flow_1", "rate_1", "box_i", "box_label_i"],
+          "draw": ["flow_1", "rate_1", "box_i", "box_code_i", "box_name_i"],
           "speak": "After an incubation period, they become infectious and can spread the disease onward."
         },
         {
-          "draw": ["flow_2", "rate_2", "box_r", "box_label_r"],
+          "draw": ["flow_2", "rate_2", "box_r", "box_code_r", "box_name_r"],
           "speak": "Eventually they recover."
         },
         {

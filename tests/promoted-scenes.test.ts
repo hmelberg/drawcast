@@ -228,7 +228,7 @@ describe("layoutMarkovModel", () => {
     }
   });
 
-  test("transition arrows are shortened well clear of both state centers", () => {
+  test("transition arrows trim to the state ellipse's true boundary (RX=78/RY=44, plus a small gap) — never less than the ry bound, never more than the rx bound", () => {
     const r = layoutMarkovModel(wellSickDead);
     const t0 = flattenDrawables(r.drawables).find((d) => d.id === "t_0") as StrokeDrawable;
     expect(t0).toBeDefined();
@@ -236,8 +236,14 @@ describe("layoutMarkovModel", () => {
     const to = r.anchors["state_sick"];
     const first = t0.pts[0];
     const last = t0.pts[t0.pts.length - 1];
-    expect(Math.hypot(first[0] - from[0], first[1] - from[1])).toBeGreaterThanOrEqual(60);
-    expect(Math.hypot(last[0] - to[0], last[1] - to[1])).toBeGreaterThanOrEqual(60);
+    // Shape-aware trim (kit.edgeArrow's `shorten: { ellipse: [78, 44] }`) is
+    // never smaller than the ellipse's minor-axis bound (44 + ~3px gap) and
+    // never larger than its major-axis bound (78 + ~3px gap) — a plain
+    // scalar shorten couldn't guarantee either edge of that range.
+    expect(Math.hypot(first[0] - from[0], first[1] - from[1])).toBeGreaterThanOrEqual(46);
+    expect(Math.hypot(first[0] - from[0], first[1] - from[1])).toBeLessThanOrEqual(82);
+    expect(Math.hypot(last[0] - to[0], last[1] - to[1])).toBeGreaterThanOrEqual(46);
+    expect(Math.hypot(last[0] - to[0], last[1] - to[1])).toBeLessThanOrEqual(82);
   });
 
   test("self-loop drawables are present for every state named in self_loops", () => {

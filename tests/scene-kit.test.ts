@@ -330,6 +330,55 @@ describe("kit.edgeArrow", () => {
     const midY = s.pts[Math.floor(s.pts.length / 2)][1];
     expect(Math.abs(midY)).toBeGreaterThan(1);
   });
+
+  test("shorten: {ellipse} trims to the ellipse's exact boundary — horizontal, vertical, and 45° approaches", () => {
+    // rx=60, ry=30; closed form r = 1 / sqrt((ux/rx)^2 + (uy/ry)^2), plus the ~3px breathing gap.
+    const horiz = kit.edgeArrow("e", [0, 0], [200, 0], { shorten: { ellipse: [60, 30] }, head: "none" }).drawables[0] as any;
+    expect(horiz.pts[0][0]).toBeCloseTo(63, 5); // rx(60) + gap(3)
+    expect(horiz.pts[0][1]).toBeCloseTo(0, 5);
+    expect(horiz.pts[horiz.pts.length - 1][0]).toBeCloseTo(200 - 63, 5);
+
+    const vert = kit.edgeArrow("e", [0, 0], [0, 200], { shorten: { ellipse: [60, 30] }, head: "none" }).drawables[0] as any;
+    expect(vert.pts[0][1]).toBeCloseTo(33, 5); // ry(30) + gap(3)
+    expect(vert.pts[vert.pts.length - 1][1]).toBeCloseTo(200 - 33, 5);
+
+    const diag = kit.edgeArrow("e", [0, 0], [200, 200], { shorten: { ellipse: [60, 30] }, head: "none" }).drawables[0] as any;
+    const startDist = Math.hypot(diag.pts[0][0], diag.pts[0][1]);
+    // Between the 33 (vertical) and 63 (horizontal) trims — the ellipse is narrower in y.
+    expect(startDist).toBeCloseTo(40.947331922020545, 5);
+    expect(startDist).toBeGreaterThan(33);
+    expect(startDist).toBeLessThan(63);
+  });
+
+  test("shorten: {rect} trims to the rect's exact boundary (min of the two slab distances)", () => {
+    // w=150, h=90.
+    const horiz = kit.edgeArrow("e", [0, 0], [300, 0], { shorten: { rect: [150, 90] }, head: "none" }).drawables[0] as any;
+    expect(horiz.pts[0][0]).toBeCloseTo(78, 5); // w/2(75) + gap(3)
+
+    const vert = kit.edgeArrow("e", [0, 0], [0, 300], { shorten: { rect: [150, 90] }, head: "none" }).drawables[0] as any;
+    expect(vert.pts[0][1]).toBeCloseTo(48, 5); // h/2(45) + gap(3)
+
+    const diag = kit.edgeArrow("e", [0, 0], [300, 300], { shorten: { rect: [150, 90] }, head: "none" }).drawables[0] as any;
+    const startDist = Math.hypot(diag.pts[0][0], diag.pts[0][1]);
+    expect(startDist).toBeCloseTo(66.63961030678928, 5);
+  });
+
+  test("shortenStart/shortenEnd trim each end independently, mixing a shape and a plain number", () => {
+    const s = kit.edgeArrow("e", [0, 0], [200, 0], {
+      shortenStart: { ellipse: [60, 30] },
+      shortenEnd: 10,
+      head: "none",
+    }).drawables[0] as any;
+    expect(s.pts[0][0]).toBeCloseTo(63, 5); // ellipse horizontal trim + gap
+    expect(s.pts[s.pts.length - 1][0]).toBeCloseTo(190, 5); // plain number: no gap added
+  });
+
+  test("plain-number shorten stays byte-identical to the pre-shape behavior (no breathing gap added)", () => {
+    const { drawables } = kit.edgeArrow("e", [0, 0], [100, 0], { shorten: 46, head: "none" });
+    const s = drawables[0] as any;
+    expect(s.pts[0]).toEqual([46, 0]);
+    expect(s.pts[s.pts.length - 1]).toEqual([54, 0]);
+  });
 });
 
 describe("kit.angleMark", () => {

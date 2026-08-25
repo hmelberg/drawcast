@@ -488,7 +488,7 @@ layout: |
     const color = backdoor ? C.regionLoss : C.ink;
     const strokeWidth = backdoor ? 4.5 : 3.5;
     const id = "edge_" + i;
-    const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, { shorten: 46, color, strokeWidth, ms: MS.connector });
+    const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, { shorten: { ellipse: [60, 30] }, color, strokeWidth, ms: MS.connector });
     edgeDrawables.forEach(push);
     const mainPts = edgeDrawables[0].pts;
     anchors[id] = [(mainPts[0][0] + mainPts[mainPts.length - 1][0]) / 2, (mainPts[0][1] + mainPts[mainPts.length - 1][1]) / 2];
@@ -540,7 +540,8 @@ params:
       description: "A curved return arrow below the chain, e.g. waning immunity from R back to S."
 element_ids:
   box_<name>: a compartment box
-  box_label_<name>: its full name, inside the box
+  box_code_<name>: the compartment's short code, inside the box
+  box_name_<name>: its full descriptive name, below the box
   flow_<i>: the i-th flow arrow (compartments[i] -> compartments[i+1])
   rate_<i>: that flow's rate label
   loop: the optional curved return arrow, present when show_loop is set
@@ -599,18 +600,20 @@ layout: |
     const pts = [[c[0] - W / 2, c[1] - H / 2], [c[0] + W / 2, c[1] - H / 2], [c[0] + W / 2, c[1] + H / 2], [c[0] - W / 2, c[1] + H / 2]];
     push(kit.stroke("box_" + slug, pts, { closed: true, shapeHint: { type: "rect", x: c[0] - W / 2, y: c[1] - H / 2, w: W, h: H }, color: C.ink, strokeWidth: 4, ms: MS.node }));
     anchors["box_" + slug] = c;
-    push(kit.text("box_label_" + slug, c, fullLabel(i, code), { fontSize: 19 }));
+    // The code (S/E/I/R…) reads big and bold inside the box — sized to
+    // ~1/3 of the box's height so it holds its own against the 4px stroke.
+    // The full descriptive name is a smaller caption below.
+    push(kit.text("box_code_" + slug, c, String(code), { fontSize: 30 }));
+    label("box_name_" + slug, [c[0], c[1] - H / 2 - 8], "below", fullLabel(i, code), C.guide, 20);
   });
 
   for (let i = 0; i < n - 1; i++) {
     const a = positions[compartmentsIn[i]];
     const b = positions[compartmentsIn[i + 1]];
-    const from = [a[0] + W / 2, a[1]];
-    const to = [b[0] - W / 2, b[1]];
     const id = "flow_" + i;
-    const { drawables: flowDrawables } = kit.edgeArrow(id, from, to, { strokeWidth: 5.5, color: C.ink, ms: MS.arrow, shorten: 6 });
+    const { drawables: flowDrawables } = kit.edgeArrow(id, a, b, { strokeWidth: 5.5, color: C.ink, ms: MS.arrow, shorten: { rect: [W, H] } });
     flowDrawables.forEach(push);
-    const midX = (from[0] + to[0]) / 2, midY = (from[1] + to[1]) / 2;
+    const midX = (a[0] + b[0]) / 2, midY = (a[1] + b[1]) / 2;
     anchors[id] = [midX, midY];
     const rateText = ratesIn[i] || DEFAULT_RATES[i % DEFAULT_RATES.length];
     label("rate_" + i, [midX, CHAIN_Y + H / 2 + 30], "above", rateText, C.accent, 22);

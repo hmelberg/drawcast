@@ -36,6 +36,9 @@ Rules distilled from the built-in templates:
    params object must render a good default figure.
 4. Where a standard notation exists, take it as the param (kit.parseSS,
    kit.parseNewick, kit.parseEdgeList) instead of inventing structure.
+5. A label placed INSIDE a shape should read at roughly 1/3 of that shape's
+   height — the sketchy font renders thin at small sizes, and undersized
+   text looks weak next to the shape's own bold, rough stroke.
 
 ## The kit (this is the complete API available to your body)
 

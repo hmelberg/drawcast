@@ -44,8 +44,7 @@ export interface MarkovParams {
 const BOX = { x: 140, y: 200, w: 720, h: 360 };
 const RX = 78;
 const RY = 44;
-const SHORTEN = 80;
-const REVERSE_CURVE = 0.18;
+const REVERSE_CURVE = 0.12;
 /** Perpendicular nudge (px) off an edge's own line, for its label anchor or a self-loop's own anchor point. */
 const LABEL_OFFSET = 26;
 
@@ -119,7 +118,9 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
         ms: SKETCH_MS.node,
       }),
     );
-    push(kit.text(`state_label_${slug}`, c, name, { fontSize: 22 }));
+    // ~1/3 of the ellipse's height (2*RY=88) — a small font reads thin
+    // against the 3.5px halo stroke; this holds its own against it.
+    push(kit.text(`state_label_${slug}`, c, name, { fontSize: 28 }));
   });
 
   params.transitions.forEach((t, i) => {
@@ -129,7 +130,7 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
     const hasReverse = params.transitions.some((o) => o.from === t.to && o.to === t.from);
     const id = `t_${i}`;
     const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, {
-      shorten: SHORTEN,
+      shorten: { ellipse: [RX, RY] },
       curve: hasReverse ? REVERSE_CURVE : 0,
     });
     edgeDrawables.forEach(push);
