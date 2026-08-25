@@ -19,7 +19,9 @@ description: >-
   a sequence of chess moves. `plies_shown` is NUMERIC and ANIMATABLE:
   animate it from 0 to moves.length (write the starting value, e.g.
   `plies_shown: 0`, explicitly in params) to replay the line move by move,
-  narrating each beat, with the newest move drawn as an arrow as it lands.
+  narrating each beat, with the newest move drawn as an arrow as it lands —
+  each animated ply glides the moving piece (and, for a capture, fades the
+  captured one) rather than teleporting it.
 params:
   type: object
   properties:
@@ -32,7 +34,7 @@ params:
       description: "A line of moves in Standard Algebraic Notation (SAN), played from `fen` (or the start position) — e.g. [\"e4\", \"e5\", \"Nf3\"]. An illegal move throws, naming the offending SAN; a malformed fen throws too."
     plies_shown:
       type: number
-      description: "How many plies of `moves` to show, as a NUMERIC count (floored) — default all of them (moves.length). 0 shows the position at `fen` before any move. Clamped to [0, moves.length]. Animate this across an `animate` command to replay the line move by move."
+      description: "How many plies of `moves` to show, as a NUMERIC count — the integer part selects the position (floored); default all of them (moves.length). 0 shows the position at `fen` before any move. Clamped to [0, moves.length]. A fractional value glides the next ply's piece (and a captured piece's fade) into place — exactly what `animate` produces as it eases plies_shown from one integer to the next, so animating this across an `animate` command replays the line move by move as a glide, not a teleport."
     arrows:
       type: array
       items:
@@ -55,7 +57,7 @@ params:
 element_ids:
   board: the 8x8 board's grid lines
   sq_<file><rank>: a dark square's shade fill (one per dark square, e.g. sq_a1)
-  piece_<file><rank>: the piece glyph on that square in the currently shown position — present for every square occupied in the starting position or ever visited by `moves` (empty text on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated)
+  piece_<file><rank>: the piece glyph on that square in the currently shown position — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (empty text on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving glyph gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
   move_arrow: an arrow along the most recently played move currently shown (demand color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown
   arrow_<i>: a static annotation arrow from arrows[i] (accent color)
   hl_<sq>: a shaded highlight on highlights[i]
@@ -105,7 +107,21 @@ layout: |
   const plies = movesRaw.length > 0 ? engines.chess.replay(fen, movesRaw) : [];
   const maxPlies = plies.length;
   const rawShown = typeof params.plies_shown === "number" && Number.isFinite(params.plies_shown) ? params.plies_shown : maxPlies;
-  const shown = Math.max(0, Math.min(maxPlies, Math.floor(rawShown)));
+  // Fractional-ply glide: clamp FIRST, then floor — equivalent to the old
+  // clamp(floor(rawShown)) for every real rawShown (maxPlies is always an
+  // integer), but it also gives us `plyT`, the fraction left over after
+  // flooring (named plyT, not t, because `t` below is already the board's
+  // own kit.table() result). `plyT` is 0 for every integer plies_shown AND
+  // once clamped to maxPlies — the byte-identical-to-before regression pin
+  // depends on that, since plyT===0 below always falls through to the plain
+  // per-square lookup, never the glide/fade/lift branch. `animate`'s own
+  // smoothstep easing on the plies_shown PARAM itself (src/render/player.ts)
+  // is what shapes how `plyT` advances over wall-clock time — this layout
+  // only ever sees the already-eased value, so `plyT` is used as a plain
+  // linear lerp fraction below, with no second easing layered on top.
+  const clampedRaw = Math.max(0, Math.min(maxPlies, rawShown));
+  const shown = Math.floor(clampedRaw);
+  const plyT = clampedRaw - shown;
 
   const positionFen = shown > 0 ? plies[shown - 1].fenAfter : fen;
   const board = engines.chess.board(positionFen); // also validates a bare fen with no moves.
@@ -150,6 +166,22 @@ layout: |
     const bc = "abcdefgh".indexOf(sq[0]);
     const br = 8 - Number(sq[1]);
     return boardRC(br, bc); // boardRC is its own inverse.
+  }
+
+  // Castling detection, for the fractional-ply glide below: chess.js's own
+  // `ply.from`/`ply.to` record only the KING's squares for "O-O"/"O-O-O"
+  // (verbose move objects don't surface the rook's squares directly), so the
+  // rook's own from/to are derived here from the king's rank (= the SAN's
+  // own color/side — rank "1" is White's back rank, "8" is Black's) and
+  // whether it's king- or queenside. Detected by SAN rather than any
+  // engine flag, per the plan: chess.js suffixes a trailing "+"/"#" for
+  // check/mate, so that's stripped first. Returns null for every other move.
+  function castleRook(ply) {
+    const san = ply.san.replace(/[+#]/g, "");
+    if (san !== "O-O" && san !== "O-O-O") return null;
+    const rank = ply.from[1];
+    const kingside = san === "O-O";
+    return { from: (kingside ? "h" : "a") + rank, to: (kingside ? "f" : "d") + rank };
   }
 
   const drawables = [], labels = [], anchors = {}, order = [];
@@ -231,7 +263,50 @@ layout: |
       if (startBoard[br][bc]) touched.add(squareId(br, bc));
     }
   }
-  for (const ply of plies) { touched.add(ply.from); touched.add(ply.to); }
+  for (const ply of plies) {
+    touched.add(ply.from);
+    touched.add(ply.to);
+    // A castling ply's `from`/`to` are only the king's squares (see
+    // castleRook above) — the rook's own from/to need adding explicitly so
+    // their ids exist even on a custom FEN where the rook didn't start on
+    // its usual corner (the standard start already covers a1/h1/a8/h8 via
+    // startBoard above, but not necessarily the RESULT squares d1/f1/d8/f8).
+    const rook = castleRook(ply);
+    if (rook) { touched.add(rook.from); touched.add(rook.to); }
+  }
+
+  // Fractional-ply glide (plyT in (0,1), see the `plyT` derivation above):
+  // the ply about to land — plies[shown], i.e. ply number shown+1 — draws as
+  // a glide instead of a teleport. Two small per-square override maps, built
+  // once per render and consulted in the per-square loop below:
+  //   glide: sq -> { toSq, lift } for a square whose piece is IN FLIGHT.
+  //     The mover keeps its DEPARTURE square's id (piece_<from>) for the
+  //     whole tween and slides toward the destination center in a straight
+  //     line — knights included, so a knight's glide cuts across the board
+  //     rather than tracing an L; that reads fine at this scale and keeps
+  //     one scheme for every piece. Castling adds a SECOND entry, for the
+  //     rook, computed the same way. At plyT===0 this map is never even
+  //     built (see below), which is what keeps every integer plies_shown
+  //     byte-identical to before this feature existed.
+  //   fade: sq -> opacity for a square whose PRE-move occupant should fade
+  //     out rather than vanish — only set for a real capture, at the
+  //     destination square (`to`). En passant is punted: chess.js flags it
+  //     as a capture, but the actual captured pawn sits on a DIFFERENT
+  //     square than `to` (same file as `to`, same rank as `from`) — this
+  //     scheme never touches that square, so an en-passant victim just
+  //     disappears at the integer boundary, unfaded, exactly like before.
+  //     (`to` itself is empty in that case, so computing a fade entry for it
+  //     is harmless — there is no glyph there to visibly fade.)
+  const glide = new Map();
+  const fade = new Map();
+  if (plyT > 0) {
+    const nextPly = plies[shown];
+    const lift = 1 + 0.1 * 4 * plyT * (1 - plyT); // parabolic, peaks at +10% when plyT=0.5
+    glide.set(nextPly.from, { toSq: nextPly.to, lift });
+    if (nextPly.capture) fade.set(nextPly.to, 1 - plyT);
+    const rook = castleRook(nextPly);
+    if (rook) glide.set(rook.from, { toSq: rook.to, lift });
+  }
 
   [...touched].sort().forEach((sq) => {
     const [r, c] = rcOfSquare(sq);
@@ -240,8 +315,18 @@ layout: |
     const glyph = cell ? GLYPHS[cell.color][cell.piece] : "";
     const id = "piece_" + sq;
     const [cx, cy] = cellPos(r, c);
-    const piecePos = [cx, cy - PIECE_Y_NUDGE];
-    push(kit.text(id, piecePos, glyph, { fontSize: PIECE_FONT_SIZE, anchor: "middle" }));
+    let piecePos = [cx, cy - PIECE_Y_NUDGE];
+    let fontSize = PIECE_FONT_SIZE;
+    const inFlight = glide.get(sq);
+    if (inFlight) {
+      const [tx, ty] = squarePos(inFlight.toSq);
+      const lx = cx + (tx - cx) * plyT;
+      const ly = cy + (ty - cy) * plyT;
+      piecePos = [lx, ly - PIECE_Y_NUDGE];
+      fontSize = PIECE_FONT_SIZE * inFlight.lift;
+    }
+    const opacity = fade.get(sq);
+    push(kit.text(id, piecePos, glyph, { fontSize, anchor: "middle", ...(opacity !== undefined && { opacity }) }));
     anchors[id] = piecePos;
   });
 

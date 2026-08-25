@@ -1339,6 +1339,137 @@ describe("games pack", () => {
     const idsNoCoords = flattenDrawables(noCoords.drawables).map((d) => d.id);
     expect(idsNoCoords.some((id) => id.startsWith("coord_"))).toBe(false);
   });
+
+  // Regression pin for the fractional-ply glide feature: integer
+  // `plies_shown` (and the no-`plies_shown` default) must render
+  // BYTE-IDENTICAL output to before that feature existed. Hashes captured
+  // from the implementation immediately prior to adding glide support (t=0
+  // for every integer boundary is required to fall through to the exact
+  // same per-square lookup as before — no glide/fade/lift branch taken).
+  test("plies_shown at every integer (and the implicit default) renders byte-identical output to before fractional-ply glide was added", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const moves = ["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6", "Qxf7#"];
+    const crypto = await import("node:crypto");
+    const hashOf = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
+    const EXPECTED: Record<number, string> = {
+      0: "87e21e8e8009e7c30c077f28a2c186c4d7fff0ef102203c1d21b22f71cb26777",
+      1: "1c6087c65db5581edbdecec2de7fd9902e52942f22d9530c00d32533c3e6ab2a",
+      2: "5403bd62d961eaa06eb85cc0b1932072192851f533d349fe05f33b1c5cceff39",
+      3: "6d3b19f86fe883e2f8e6dc93ae9feeebfa520b9263373b63491dd9a51bbf000f",
+      4: "b1afd1e9bbf29206dee6e26df80fef6e1e5e290f540a28954db23c11dc474ebf",
+      5: "347e6cd2d831bfc45b383c3289340e44ccaea3cd9f1e9bdbd35ba92623c5849b",
+      6: "2c0ca55b925d86861a1a03638ba5d619f4be6db00b3341da6ccc5df590a1d9ab",
+      7: "5990eb249445bf5567d5760d58d16b528e2e2c7535624dec4df61a9a6695357f",
+    };
+    for (let i = 0; i <= moves.length; i++) {
+      const r = scenes.chess_board.layout!({ moves, plies_shown: i });
+      expect(hashOf(r)).toBe(EXPECTED[i]);
+    }
+    const r0 = scenes.chess_board.layout!({});
+    expect(hashOf(r0)).toBe("2430b57daf0f3ff25f43b1824aec9fcd6bceb94f53837f9400ad7eaf588c947e");
+  });
+
+  test("fractional plies_shown glides the moving piece in a straight line: 0.5 into 1.e4 sits the e-pawn strictly between e2 and e4, x unchanged", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const before = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0 });
+    const after = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1 });
+    const mid = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 });
+    const e2 = (before.anchors.piece_e2 as [number, number]);
+    const e4 = (after.anchors.piece_e4 as [number, number]);
+    const flat = flattenDrawables(mid.drawables);
+    // The mover still carries the DEPARTURE square's id mid-glide.
+    const movingPiece = flat.find((d) => d.id === "piece_e2") as { pos: [number, number]; text: string };
+    expect(movingPiece.text).toBe("♙");
+    expect(movingPiece.pos[0]).toBeCloseTo(e2[0], 6); // same file: x unchanged
+    expect(movingPiece.pos[0]).toBeCloseTo(e4[0], 6);
+    expect(movingPiece.pos[1]).toBeGreaterThan(Math.min(e2[1], e4[1]));
+    expect(movingPiece.pos[1]).toBeLessThan(Math.max(e2[1], e4[1]));
+    // Halfway is the exact midpoint (linear lerp; animate's own smoothstep
+    // easing already shaped how t itself advances over wall-clock time).
+    expect(movingPiece.pos[1]).toBeCloseTo((e2[1] + e4[1]) / 2, 6);
+    // Destination square shows nothing yet (e4 was empty before this move).
+    const e4mid = flat.find((d) => d.id === "piece_e4") as { text: string };
+    expect(e4mid.text).toBe("");
+  });
+
+  test("mid-move lift: the moving glyph's fontSize peaks +10% at t=0.5 and returns to normal at the integer boundaries", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const q1 = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.25 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
+    const mid = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
+    const q3 = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.75 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
+    const base = 52; // PIECE_FONT_SIZE
+    expect(mid.fontSize).toBeCloseTo(base * 1.1, 6); // parabola peak at t=0.5
+    expect(q1.fontSize).toBeCloseTo(base * (1 + 0.1 * 4 * 0.25 * 0.75), 6);
+    expect(q3.fontSize).toBeCloseTo(q1.fontSize, 6); // symmetric around t=0.5
+    expect(q1.fontSize).toBeLessThan(mid.fontSize);
+    // Integer boundaries: no lift at all.
+    const atStart = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
+    expect(atStart.fontSize).toBe(base);
+  });
+
+  test("capture ply fades the captured piece's opacity 1 -> 0 over t, at its own square, while the capturing piece glides in", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    // 1.e4 d5 2.exd5 — ply index 2 (0-based) is the capture "exd5".
+    const moves = ["e4", "d5", "exd5"];
+    const q1 = scenes.chess_board.layout!({ moves, plies_shown: 2.25 });
+    const q3 = scenes.chess_board.layout!({ moves, plies_shown: 2.75 });
+    const victimQ1 = flattenDrawables(q1.drawables).find((d) => d.id === "piece_d5") as { text: string; style: { opacity: number } };
+    const victimQ3 = flattenDrawables(q3.drawables).find((d) => d.id === "piece_d5") as { text: string; style: { opacity: number } };
+    expect(victimQ1.text).toBe("♟"); // the captured black pawn is still on d5, fading.
+    expect(victimQ3.text).toBe("♟");
+    expect(victimQ1.style.opacity).toBeCloseTo(0.75, 6); // 1 - t
+    expect(victimQ3.style.opacity).toBeCloseTo(0.25, 6);
+    expect(victimQ3.style.opacity).toBeLessThan(victimQ1.style.opacity);
+    // The capturing pawn is gliding in on the departure square's id.
+    const moverQ1 = flattenDrawables(q1.drawables).find((d) => d.id === "piece_e4") as { text: string };
+    expect(moverQ1.text).toBe("♙");
+    // At the integer boundary after the capture, the victim is fully gone
+    // (plain per-square lookup — no fade artifact left behind).
+    const after = scenes.chess_board.layout!({ moves, plies_shown: 3 });
+    const victimAfter = flattenDrawables(after.drawables).find((d) => d.id === "piece_d5") as { text: string; style: { opacity: number } };
+    expect(victimAfter.text).toBe("♙"); // the white pawn now occupies d5.
+    expect(victimAfter.style.opacity).toBe(1);
+  });
+
+  test("castling (O-O) glides BOTH the king and the rook, using squares derived from the king's own move + side", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    // A short, legal kingside-castle line for White: the Italian setup.
+    const moves = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "O-O"];
+    const before = scenes.chess_board.layout!({ moves, plies_shown: 6 });
+    const after = scenes.chess_board.layout!({ moves, plies_shown: 7 });
+    const mid = scenes.chess_board.layout!({ moves, plies_shown: 6.5 });
+    const flat = flattenDrawables(mid.drawables);
+
+    const king = flat.find((d) => d.id === "piece_e1") as { pos: [number, number]; text: string; fontSize: number };
+    const rook = flat.find((d) => d.id === "piece_h1") as { pos: [number, number]; text: string; fontSize: number };
+    expect(king.text).toBe("♔");
+    expect(rook.text).toBe("♖");
+
+    const kingFrom = before.anchors.piece_e1 as [number, number];
+    const kingTo = after.anchors.piece_g1 as [number, number];
+    const rookFrom = before.anchors.piece_h1 as [number, number];
+    const rookTo = after.anchors.piece_f1 as [number, number];
+
+    expect(king.pos[0]).toBeCloseTo((kingFrom[0] + kingTo[0]) / 2, 6);
+    expect(king.pos[1]).toBeCloseTo((kingFrom[1] + kingTo[1]) / 2, 6);
+    expect(rook.pos[0]).toBeCloseTo((rookFrom[0] + rookTo[0]) / 2, 6);
+    expect(rook.pos[1]).toBeCloseTo((rookFrom[1] + rookTo[1]) / 2, 6);
+    // Both lifted the same amount (t=0.5 peak) since one ply moves both.
+    expect(king.fontSize).toBeCloseTo(52 * 1.1, 6);
+    expect(rook.fontSize).toBeCloseTo(52 * 1.1, 6);
+
+    // After the full ply: king on g1, rook on f1, e1/h1 vacated.
+    const flatAfter = flattenDrawables(after.drawables);
+    expect((flatAfter.find((d) => d.id === "piece_g1") as { text: string }).text).toBe("♔");
+    expect((flatAfter.find((d) => d.id === "piece_f1") as { text: string }).text).toBe("♖");
+    expect((flatAfter.find((d) => d.id === "piece_e1") as { text: string }).text).toBe("");
+    expect((flatAfter.find((d) => d.id === "piece_h1") as { text: string }).text).toBe("");
+  });
 });
 
 const MAPS_TEMPLATE_IDS = ["world_map"];

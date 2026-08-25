@@ -54,6 +54,10 @@ export interface TextOpts {
   fontSize?: number;
   color?: string;
   anchor?: "start" | "middle" | "end";
+  /** Fade a text glyph (e.g. a captured chess piece mid-animate). The IR
+   *  (TextDrawable extends BaseDrawable -> style: ResolvedStyle) already
+   *  carries opacity; this was the missing plumbing to set it from a template. */
+  opacity?: number;
 }
 
 export interface NewickNode {
@@ -515,7 +519,10 @@ export const kit: SceneKit = {
       fontSize: o.fontSize ?? 28,
       anchor: o.anchor ?? "middle",
       z: Z_TEXT,
-      style: defaultStyle(o.color !== undefined ? { color: o.color } : {}),
+      style: defaultStyle({
+        ...(o.color !== undefined && { color: o.color }),
+        ...(o.opacity !== undefined && { opacity: o.opacity }),
+      }),
       drawOpts: defaultDrawOpts("instant"),
     };
   },
