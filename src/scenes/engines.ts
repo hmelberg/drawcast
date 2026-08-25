@@ -404,11 +404,15 @@ async function loadChess(): Promise<ChessEngine> {
 
 export interface GeoEngine {
   /** Natural Earth projection of countries-110m fitted to a w×h box (y-up, origin bottom-left).
-   *  `countries("all")` → every country outline; `countries(["Norway","Sweden"])` → just those
-   *  (name match on the world-atlas `properties.name`, case-insensitive; unknown names are
-   *  reported in `missing`, not thrown). Rings become polylines (closed). Requested names are
-   *  de-duplicated case-insensitively — `["Norway","Norway"]` yields one Norway shape and an
-   *  empty `missing`, not a phantom "missing" entry for the name that was in fact found. */
+   *  `countries("all")` → every country outline, the projection fit to the WHOLE WORLD
+   *  FeatureCollection. `countries(["Norway","Sweden"])` → just those, but the projection is
+   *  fit to the UNION of only the matched countries (`fitExtent` with a ~4%-of-min(w,h)
+   *  margin) — not the whole world — so a small focus selection fills the frame instead of
+   *  sitting at its true, tiny share of a world-fitted box. (Name match on the world-atlas
+   *  `properties.name`, case-insensitive; unknown names are reported in `missing`, not
+   *  thrown.) Rings become polylines (closed). Requested names are de-duplicated
+   *  case-insensitively — `["Norway","Norway"]` yields one Norway shape and an empty
+   *  `missing`, not a phantom "missing" entry for the name that was in fact found. */
   countries(names: string[] | "all", o?: { w?: number; h?: number }): {
     shapes: { name: string; rings: [number, number][][] }[];
     missing: string[];
@@ -431,9 +435,10 @@ function ringsOfGeometry(geom: Geometry): Position[][] {
  *  yields a 177-entry FeatureCollection keyed by `properties.name`; every geometry is a
  *  Polygon or MultiPolygon (never Point/LineString at this resolution). d3-geo is y-down
  *  (SVG convention) — drawcast is y-up, so every projected y is flipped as `h - y` after
- *  `fitSize`. Projected points that fall outside the projection's clip (rare at world scale
- *  with geoNaturalEarth1, which has no hard clip circle) come back null from `projection()`
- *  and are dropped rather than faked. */
+ *  fitting the projection (`fitSize` for "all", `fitExtent` with a margin for a focus
+ *  selection — see `countries` below). Projected points that fall outside the projection's
+ *  clip (rare at world scale with geoNaturalEarth1, which has no hard clip circle) come back
+ *  null from `projection()` and are dropped rather than faked. */
 async function loadGeo(): Promise<GeoEngine> {
   const [{ geoNaturalEarth1, geoPath }, { feature }, atlas] = await Promise.all([
     import("d3-geo"),
@@ -451,8 +456,6 @@ async function loadGeo(): Promise<GeoEngine> {
   return {
     countries(names, o = {}) {
       const w = o.w ?? 1000, h = o.h ?? 750;
-      const projection = geoNaturalEarth1().fitSize([w, h], fc);
-      const path = geoPath(projection);
       const all = names === "all";
       // De-dupe requested names case-insensitively (keeping first-seen casing)
       // BEFORE building `missing`: fc.features has exactly one entry per
@@ -469,15 +472,46 @@ async function loadGeo(): Promise<GeoEngine> {
       }
       const missing = all ? [] : [...requested];
 
+      // Which features this call will actually draw/centroid — computed
+      // BEFORE the projection is built so a focus selection can be fit to
+      // just its own union rather than the whole world. Dataset order is
+      // preserved (matches fc.features), same as the old single-pass loop.
+      const matched = all
+        ? fc.features
+        : fc.features.filter((f) => {
+            const idx = missing.findIndex((n) => n.toLowerCase() === f.properties.name.toLowerCase());
+            if (idx === -1) return false;
+            missing.splice(idx, 1);
+            return true;
+          });
+
+      const projection = geoNaturalEarth1();
+      if (all) {
+        projection.fitSize([w, h], fc);
+      } else if (matched.length > 0) {
+        // Focus mode: fit to the UNION of only the matched countries (not
+        // the whole world) so a small selection — e.g. the Nordics — fills
+        // the frame instead of sitting at its true, tiny share of a
+        // world-fitted box. A small margin (~4% of the shorter side) keeps
+        // outlines off the very edge.
+        const pad = Math.min(w, h) * 0.04;
+        const selectionFc: FeatureCollection<Polygon | MultiPolygon, CountryProps> = {
+          type: "FeatureCollection",
+          features: matched,
+        };
+        projection.fitExtent([[pad, pad], [w - pad, h - pad]], selectionFc);
+      } else {
+        // Nothing matched at all (every requested name is unknown) — no
+        // shape will be drawn either way, but keep the projection
+        // well-defined (fitExtent on an empty collection is degenerate).
+        projection.fitSize([w, h], fc);
+      }
+      const path = geoPath(projection);
+
       const shapes: { name: string; rings: Ring[] }[] = [];
       const centroids: Record<string, [number, number]> = {};
-      for (const f of fc.features) {
+      for (const f of matched) {
         const name = f.properties.name;
-        if (!all) {
-          const idx = missing.findIndex((n) => n.toLowerCase() === name.toLowerCase());
-          if (idx === -1) continue;
-          missing.splice(idx, 1);
-        }
         const rings: Ring[] = ringsOfGeometry(f.geometry)
           .map((ring) => {
             const pts: Ring = [];

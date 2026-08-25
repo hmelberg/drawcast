@@ -195,7 +195,13 @@ layout: |
     anchors[dotId] = pos;
     const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label : shape.name;
     const labelId = "marker_label_" + i;
-    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: 20 }));
+    // fontSize 18, not 20: a focus-mode map (Fix: geo engine fit) now fills
+    // the frame instead of floating at world scale, so several capital
+    // labels in a tight regional cluster (e.g. the Nordics) sit close
+    // enough together and to neighboring borders that a slightly smaller
+    // label footprint is what keeps them clean — still well above the
+    // font-floor (14) for legibility.
+    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: 18 }));
     order.push(labelId);
   });
 

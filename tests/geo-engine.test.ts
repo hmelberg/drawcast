@@ -121,4 +121,42 @@ describe("geo engine (real load — node, no DOM)", () => {
     const b = eng.countries(["Norway", "Sweden"]);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
+
+  function bounds(shapes: { rings: [number, number][][] }[]) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const s of shapes) {
+      for (const ring of s.rings) {
+        for (const [x, y] of ring) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  // Regression: a small focus selection used to be projected at its true
+  // (tiny) share of a WORLD-fitted box, drawing a postage-stamp map with
+  // acres of white space around it. Focus mode now fits the projection to
+  // just the union of the requested countries, so a small selection fills
+  // most of the frame.
+  test("focus mode fits the projection to just the requested countries — the union fills most of the box, not a sliver of a world-fitted one", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const { shapes } = eng.countries(["Norway", "Sweden"], { w, h });
+    const { minX, minY, maxX, maxY } = bounds(shapes);
+    const spanX = (maxX - minX) / w;
+    const spanY = (maxY - minY) / h;
+    expect(Math.max(spanX, spanY)).toBeGreaterThan(0.55);
+  });
+
+  test('world mode ("all") is unaffected by the focus fit change: the whole world still spans nearly the full box width', async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const { shapes } = eng.countries("all", { w, h });
+    const { minX, maxX } = bounds(shapes);
+    expect((maxX - minX) / w).toBeGreaterThan(0.9);
+  });
 });
