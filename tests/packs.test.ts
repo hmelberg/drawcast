@@ -1264,6 +1264,43 @@ describe("games pack", () => {
     expect(coordA.pos[1]).toBeCloseTo(65 - 31, 6); // Y0 - 31, no fontSize-based nudge applied.
   });
 
+  // The fractional-ply glide lifts the moving glyph (games.yaml:
+  // `lift = 1 + 0.1 * 4 * plyT * (1 - plyT)`, peaking at +10% when
+  // plyT === 0.5). Pin that the grown glyph still fits its square: a piece
+  // that outgrows the cell reads as spilling onto its neighbours mid-move.
+  // Every number is measured from the layout itself — cell size, the optical
+  // nudge, both font sizes — so the pin follows the constants rather than
+  // freezing today's 58 / 63.8 / 77.5 into the test.
+  test("a piece's glyph box fits inside its cell both at rest and at the mid-glide lift peak", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const rest = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0 }).drawables);
+    // c1 is a dark square (so sq_c1 exists) and holds a piece in the start
+    // position — its shade drawable gives the exact cell box.
+    const sqC1 = rest.find((d) => d.id === "sq_c1") as { pts: [number, number][] };
+    const xs = sqC1.pts.map(([x]) => x);
+    const ys = sqC1.pts.map(([, y]) => y);
+    const cell = Math.max(...xs) - Math.min(...xs);
+    expect(cell).toBeCloseTo(Math.max(...ys) - Math.min(...ys), 6); // cells are square
+    const cellCy = (Math.max(...ys) + Math.min(...ys)) / 2;
+
+    const restPiece = rest.find((d) => d.id === "piece_c1") as { pos: [number, number]; fontSize: number; text: string };
+    expect(restPiece.text).not.toBe("");
+    const nudge = restPiece.pos[1] - cellCy; // the optical push up pinned above
+
+    // plyT 0.5 is the lift's peak; the mover keeps its DEPARTURE square's id.
+    const mid = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 }).drawables);
+    const glidePiece = mid.find((d) => d.id === "piece_e2") as { fontSize: number };
+    expect(glidePiece.fontSize).toBeGreaterThan(restPiece.fontSize); // the lift is real
+
+    // The glyph's nominal box is its em square, centered on the anchor and
+    // shifted by the nudge: half a font size plus the nudge has to stay
+    // inside half a cell, or the box crosses the square's edge.
+    for (const fontSize of [restPiece.fontSize, glidePiece.fontSize]) {
+      expect(fontSize / 2 + Math.abs(nudge)).toBeLessThanOrEqual(cell / 2);
+    }
+  });
+
   test('plies_shown: 1 on ["e4"] moves the e2 pawn text to e4 and emits move_arrow', async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
@@ -1721,6 +1758,25 @@ describe("maps pack", () => {
     const norwayCentroidAnchor = raw.anchors.country_norway as [number, number];
     const marker0Anchor = raw.anchors.marker_0 as [number, number];
     expect(marker0Anchor).toEqual(norwayCentroidAnchor);
+  });
+
+  // The mixing test above puts `country` and `at` on SEPARATE marker objects.
+  // One object carrying BOTH has its own documented rule (maps.yaml: "`at`
+  // takes priority over `country` ... it is the more precise of the two"),
+  // which nothing pinned until now.
+  test("a single marker carrying BOTH `at` and `country` uses `at`, not the country's centroid", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const stockholm: [number, number] = [18.07, 59.33];
+    const focus = ["Norway", "Sweden"];
+    const both = scenes.world_map.layout!({ focus, markers: [{ at: stockholm, country: "Norway" }] });
+    const atOnly = scenes.world_map.layout!({ focus, markers: [{ at: stockholm }] });
+    const countryOnly = scenes.world_map.layout!({ focus, markers: [{ country: "Norway" }] });
+    expect(both.anchors.marker_0).toEqual(atOnly.anchors.marker_0);
+    expect(both.anchors.marker_0).not.toEqual(countryOnly.anchors.marker_0);
+    // The default label text follows the same branch — the `at` fallback is
+    // the coordinate pair, never the country's own dataset name.
+    expect(both.labels.find((l) => l.id === "marker_label_0")?.text).toBe("18.07, 59.33");
   });
 
   test("world mode (no focus) draws many countries, no graticule, and stays clean with no params", async () => {

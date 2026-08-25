@@ -166,8 +166,10 @@ export function areaPathData(d: Pick<AreaDrawable, "pts" | "holes">): string {
 /**
  * The full attribute set for an exact area's <path>. Deliberately fill-only:
  * a letterform gets the same "precise" treatment TEXT gets — no stroke to
- * fatten the stems, and no fill-opacity knock-down (the 0.45 that makes a
- * shaded region read as a wash makes an equation read as washed out).
+ * fatten the stems, and no fill-opacity knock-down at all — the wash that
+ * makes a shaded region read as a region makes an equation read as washed
+ * out, so an exact area paints at full strength (its own `opacity`, below,
+ * is the only thing that may soften it).
  */
 export function exactAreaAttrs(d: AreaDrawable): Record<string, string> {
   const attrs: Record<string, string> = {
@@ -242,7 +244,14 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
     }
     const p = plainPath(pathFromPts(d.pts, true), { ...d.style, strokeWidth: 1.5 }, true);
     p.setAttribute("fill", d.style.fill ?? d.style.color);
-    p.setAttribute("fill-opacity", "0.45");
+    // No extra fill-opacity knock-down here: the region's wash is carried by
+    // its own `opacity` (kit.area's default 0.35, or whatever the template
+    // asked for). A second, hardcoded knock-down was invisible at rest — the
+    // draw reveal overwrites fill-opacity the moment the element is drawn —
+    // and surfaced ONLY on animate's cheap tween frames, which build fresh
+    // nodes and attach no handles: every shaded region went pale for the
+    // length of a tween and snapped back at settle (the chess board's dark
+    // squares losing their green while a piece glided).
     p.setAttribute("opacity", String(d.style.opacity));
     g.appendChild(p);
     return;
@@ -371,7 +380,12 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
       },
     };
   }
-  let paths: { el: SVGPathElement; len: number; hasFill: boolean }[] | null = null;
+  // `fillOpacity` is the path's OWN authored fill-opacity (null = nothing to
+  // fade). The reveal multiplies it rather than replacing it, so a fully
+  // revealed path lands back on exactly the value a freshly built node
+  // carries — the invariant animate's cheap tween frames depend on (see
+  // swapGeometry).
+  let paths: { el: SVGPathElement; len: number; fillOpacity: number | null }[] | null = null;
   let total = 0;
   const ensure = () => {
     if (paths) return;
@@ -379,8 +393,10 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
     for (const p of Array.from(g.querySelectorAll("path"))) {
       const len = p.getTotalLength();
       // Solid fills are not hidden by dash-offset; fade them with progress.
-      const hasFill = (p.getAttribute("fill") ?? "none") !== "none";
-      paths.push({ el: p, len, hasFill });
+      const authored = Number(p.getAttribute("fill-opacity") ?? "1");
+      const fillOpacity =
+        (p.getAttribute("fill") ?? "none") === "none" ? null : Number.isFinite(authored) ? authored : 1;
+      paths.push({ el: p, len, fillOpacity });
       total += len;
     }
   };
@@ -388,19 +404,19 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
     durationMs: leaf.drawOpts.duration,
     prepare: () => {
       ensure();
-      for (const { el, len, hasFill } of paths!) {
+      for (const { el, len, fillOpacity } of paths!) {
         el.style.strokeDasharray = `${len}`;
         el.style.strokeDashoffset = `${len}`;
-        if (hasFill) el.style.fillOpacity = "0";
+        if (fillOpacity !== null) el.style.fillOpacity = "0";
       }
     },
     setProgress: (t) => {
       ensure();
       let elapsed = t * total;
-      for (const { el, len, hasFill } of paths!) {
+      for (const { el, len, fillOpacity } of paths!) {
         const local = Math.min(Math.max(elapsed, 0), len);
         el.style.strokeDashoffset = `${len - local}`;
-        if (hasFill) el.style.fillOpacity = String(len > 0 ? local / len : t);
+        if (fillOpacity !== null) el.style.fillOpacity = String(fillOpacity * (len > 0 ? local / len : t));
         elapsed -= len;
       }
     },
@@ -700,6 +716,13 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         elements,
         effects: makeEffects(svg, overlay, leafNodes, rc),
         destroy: () => svg.remove(),
+        // A tween frame runs every rAF tick, so it rebuilds nodes and attaches
+        // NO handles — no getTotalLength, no prepare/setProgress. That is only
+        // correct while a freshly built node ALREADY looks fully drawn: any
+        // paint a leaf builder hides behind a value the draw reveal later
+        // overwrites (a knocked-down fill-opacity, say) would show up here as
+        // a flicker for the whole tween. Keep the two in step — makeLeafHandle
+        // ends its reveal on the node's own authored values.
         swapGeometry: (l, visible, offsets) => {
           layers[0].replaceChildren();
           layers[1].replaceChildren();

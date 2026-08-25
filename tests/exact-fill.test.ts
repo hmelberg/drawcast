@@ -64,8 +64,8 @@ describe("exactAreaAttrs", () => {
     expect(a["fill-rule"]).toBe("evenodd");
     expect(a.fill).toBe("#3d3833");
     expect(a.stroke).toBe("none");
-    // No fill-opacity knock-down: 0.45 (the shaded-region look) is what made
-    // equations read as washed out in the clean style.
+    // No fill-opacity knock-down at all: a softened fill (the shaded-region
+    // look) is what made equations read as washed out in the clean style.
     expect(a["fill-opacity"]).toBeUndefined();
     expect(a.d).toBe(areaPathData(area({ holes: [square(20, 20, 20)] })));
   });
