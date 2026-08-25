@@ -369,6 +369,18 @@ interface LeafHandle {
 
 function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
   if (leaf.kind === "text") {
+    // KNOWN, DELIBERATE mismatch: the reveal ends on `base`, but drawLeaf has
+    // ALREADY put opacity="base" on the <text> itself, so a settled
+    // translucent text paints at base² while a freshly built node (an animate
+    // tween frame, which attaches no handles — see swapGeometry) paints it at
+    // base. Text with opacity < 1 therefore looks brighter mid-tween than at
+    // rest. Left alone on purpose: the fix is `g.style.opacity = String(t)`,
+    // making the group's fade a pure 0→1 multiplier over the node's own
+    // authored value — exactly the pattern the area branch below now follows —
+    // but it would also brighten the depth-faded labels the 3D scenes rely on
+    // (src/scenes/kit.ts multiplies leaf opacity by a depth factor), an
+    // unrelated visual change. Apply that one-liner if the mid-tween
+    // brightening ever matters, and re-check the 3D scenes when you do.
     return {
       durationMs: leaf.drawOpts.duration,
       prepare: () => {
