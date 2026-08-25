@@ -1224,11 +1224,22 @@ describe("mathlogic pack", () => {
     // The camera auto-frames from the plotted content's own extent (kit ->
     // reach -> distance/fov), independently of azimuth/elevation — this
     // sweeps the full orbit range (what `animate azimuth_deg` walks through
-    // live) for all three kinds and asserts it never goes out-of-canvas.
-    test("stays lint-clean across the whole orbit range, for every plot kind", () => {
+    // live) for all three kinds. Asserts ZERO lint issues at ANY severity
+    // (not the shared `inBounds` helper, which filters to error-severity
+    // only and so would silently pass a warn-severity overlap-label-stroke
+    // — exactly the defect class this test exists to catch). Deliberately
+    // includes the corner a review found failing pre-fix: an elongated
+    // curve (helix — its vertical extent is ~6x its horizontal one) at
+    // exact cardinal azimuths (0/90/180/270) with near-zero elevation,
+    // where a short axis's label used to graze the long vertical axis's
+    // own stroke. Re-verified clean with a much denser sweep (5-degree
+    // azimuth steps x 11 elevations x 10 param variations = 7920 cases,
+    // 0 failures) during development; this in-suite version stays modest
+    // for run time.
+    test("stays lint-clean — zero issues at any severity — across the whole orbit range, for every plot kind", () => {
       registerPack("mathlogic", mathlogicYaml);
       const azimuths = [0, 45, 90, 135, 180, 225, 270, 315];
-      const elevations = [-45, 0, 22, 80];
+      const elevations = [-45, -22, 0, 22, 80];
       const kinds: Record<string, unknown>[] = [
         { surface: "x^2 - y^2" },
         { curve: { x_expr: "cos(t)", y_expr: "sin(t)", z_expr: "t/6", t_min: 0, t_max: 12 * Math.PI } },
@@ -1237,8 +1248,19 @@ describe("mathlogic pack", () => {
       for (const base of kinds) {
         for (const azimuth_deg of azimuths) {
           for (const elevation_deg of elevations) {
-            const res = layoutSpec({ template: "plot3d", params: { ...base, azimuth_deg, elevation_deg }, elements: [] } as never);
-            inBounds(res);
+            const params = { ...base, azimuth_deg, elevation_deg };
+            const res = layoutSpec({ template: "plot3d", params, elements: [] } as never);
+            expect(res.issues, JSON.stringify(params)).toEqual([]);
+            expect(res.warnings, JSON.stringify(params)).toEqual([]);
+            for (const d of flattenDrawables(res.drawables)) {
+              if (d.kind === "stroke" || d.kind === "area") {
+                for (const [x, y] of d.pts) {
+                  expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+                }
+              } else if (d.kind === "text") {
+                expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+              }
+            }
           }
         }
       }

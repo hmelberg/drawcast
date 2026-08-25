@@ -1397,21 +1397,44 @@ layout: |
   // still gets flagged. EXTRA_GAP pushes every anchor a fixed margin PAST
   // its own tip/marker (not just up to a floor) so that grazing case can't
   // happen at all, floor included for the near-zero-length degenerate case.
+  //
+  // That radial push alone still leaves the anchor sitting EXACTLY ON the
+  // (extended) axis line — the solver's own placement then nudges it in one
+  // of 8 discrete compass directions, which at some screen angles (an axis
+  // running diagonally, not near-horizontal/vertical) is nearly PARALLEL to
+  // the line rather than away from it, so the label can still clip the line
+  // further along (reproduced empirically: grid_n=2, azimuth 125-145,
+  // elevation -45 — axis_z_label grazing its own axis_z). Fix: nudge the
+  // anchor OFF the line too, by a fixed margin perpendicular to it, so even
+  // the closest point on the label's box to the line has real clearance
+  // regardless of which compass side the solver ends up choosing.
   const MIN_ANCHOR_R = 95;
   const EXTRA_GAP = 45;
+  const PERP_GAP = 22;
   function anchorFor(p2d) {
     const dx = p2d[0] - CX, dy = p2d[1] - CY;
     const d = Math.hypot(dx, dy);
     if (d < 1e-6) return { anchor: [CX, CY + MIN_ANCHOR_R], side: "above" };
     const targetR = Math.max(MIN_ANCHOR_R, d + EXTRA_GAP);
     const k = targetR / d;
-    return { anchor: [CX + dx * k, CY + dy * k], side: sideFromDir(dx, dy) };
+    const ux = dx / d, uy = dy / d; // unit vector along the tip's own direction
+    const px = -uy, py = ux; // rotated 90deg — perpendicular to it
+    return {
+      anchor: [CX + dx * k + px * PERP_GAP, CY + dy * k + py * PERP_GAP],
+      side: sideFromDir(dx, dy),
+    };
   }
-  const axisIds = axisSpecs.map((ax) => ax.id);
+  // Each axis label ignores ONLY its own axis stroke (the decision_tree
+  // precedent: a label may sit on the stroke of the thing it names) — NOT
+  // the other two axes. Ignoring all three used to let the solver treat a
+  // genuinely different, often much LONGER axis as a free pass, so it
+  // would happily park a short axis's label right on top of axis_z's own
+  // stroke elsewhere along its path (a real, avoidable obstacle, not the
+  // "two axes meet at the origin" case self-ignore exists for).
   const labels = [];
   axisSpecs.forEach((ax) => {
     const { anchor, side } = anchorFor(projected.anchors[ax.id]);
-    labels.push({ ...kit.label(ax.id + "_label", anchor, side, ax.label, { fontSize: 24, color: C.guide }), ignore: axisIds });
+    labels.push({ ...kit.label(ax.id + "_label", anchor, side, ax.label, { fontSize: 24, color: C.guide }), ignore: [ax.id] });
   });
   if (kind === "points") {
     pointsWorld.forEach((pt, i) => {
