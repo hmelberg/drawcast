@@ -1125,3 +1125,340 @@ layout: |
   }
 
   return { drawables, labels: labels, anchors, order };
+---
+template: plot3d
+title: 3D math plot (wireframe surface, parametric curve, points)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A 3D math plot in orbit-camera perspective: a wireframe surface z = f(x, y)
+  (NOT a filled/shaded surface — a hand-sketched grid of lines, like a wire
+  mesh model), a parametric space curve (x(t), y(t), z(t)) such as a helix,
+  or a handful of labeled points in 3-space. Choose this scene for ANY
+  request about a 3D surface, saddle, bowl, wireframe, mesh, parametric
+  curve, helix, spiral in 3D, or plotting points in three dimensions.
+  azimuth_deg and elevation_deg are NUMERIC and ANIMATE smoothly — this is
+  the marquee move for this template: animate azimuth_deg by 90-150 to orbit
+  smoothly around the plot ("walk around it"), e.g. {"animate": {
+  "azimuth_deg": 155 }, "duration": 3}. The vertical axis is z (the
+  function's/curve's third coordinate); x and y are the other two — this
+  matches ordinary math notation, even though internally the plot orbits
+  around a world y-up axis.
+params:
+  type: object
+  properties:
+    surface:
+      type: string
+      description: "f(x, y) expression, e.g. \"x^2 - y^2\" for a saddle. Sampled on a grid_n x grid_n grid over domain x,y and drawn as row/column wireframe polylines. z is auto-scaled from the sampled min/max so ANY expression (however large its range) fits the plot — you never need to pre-scale it yourself."
+    curve:
+      type: object
+      properties:
+        x_expr: { type: string, description: "x(t) expression." }
+        y_expr: { type: string, description: "y(t) expression." }
+        z_expr: { type: string, description: "z(t) expression." }
+        t_min: { type: number, description: "default 0." }
+        t_max: { type: number, description: "default 2*PI (~6.283). For a helix over several turns use a larger multiple of PI, e.g. 12*PI ~= 37.7." }
+        samples: { type: number, description: "points along the curve, default 200." }
+      description: "A parametric space curve (x(t), y(t), z(t)), e.g. a helix: { x_expr: \"cos(t)\", y_expr: \"sin(t)\", z_expr: \"t/6\", t_max: 37.7 }. Coordinates are NOT auto-scaled (unlike surface) — pick expressions that stay in a reasonable range, roughly single digits."
+    points:
+      type: array
+      items:
+        type: object
+        properties:
+          at: { type: array, items: { type: number }, minItems: 3, maxItems: 3, description: "[x, y, z]." }
+          label: { type: string }
+        required: [at]
+      description: "A handful of labeled points in 3-space, each drawn as a small sphere."
+    domain:
+      type: array
+      items: { type: number }
+      minItems: 2
+      maxItems: 2
+      description: "[min, max] world-unit range for both x and y of a surface (default [-1, 1]). Does not affect curve/points."
+    grid_n:
+      type: number
+      description: "Surface grid resolution per axis, 2-20 (default 12) — 12 gives 12 row + 12 column wireframe polylines."
+    azimuth_deg:
+      type: number
+      description: "Camera orbit angle in degrees (default 35). Numeric and ANIMATES — the marquee move: animate this to orbit around the plot."
+    elevation_deg:
+      type: number
+      description: "Camera tilt in degrees (default 22). Numeric and animates."
+    distance:
+      type: number
+      description: "Camera distance override in world units. Usually leave unset — the camera auto-frames whatever is plotted."
+    axis_labels:
+      type: object
+      properties:
+        x: { type: string }
+        y: { type: string }
+        z: { type: string }
+      description: "Override the default \"x\"/\"y\"/\"z\" axis label text."
+    title:
+      type: string
+element_ids:
+  axis_x / axis_y / axis_z: the three coordinate axes (arrows from the origin), with axis_x_label / axis_y_label / axis_z_label alongside their tips
+  wire_row_<i> / wire_col_<i>: the surface's row/column wireframe polylines (i = 0…grid_n-1), present when a surface is drawn
+  curve: the parametric curve's single polyline, present when a curve is drawn
+  pt_<i> / pt_label_<i>: a point's marker sphere and its label (label present only when given), present when points are drawn
+  title: the figure title, when set
+examples:
+  - request: "Show the saddle surface z = x squared minus y squared in 3D."
+    params: { surface: "x^2 - y^2" }
+  - request: "Draw a 3D helix."
+    params: { curve: { x_expr: "cos(t)", y_expr: "sin(t)", z_expr: "t/6", t_min: 0, t_max: 37.7 } }
+layout: |
+  // ---- world-coordinate convention (deliberate, documented) ----
+  // project3d's orbit camera treats world Y as "up" (azimuth spins around Y;
+  // elevation tilts toward/away from it) and world X/Z as the horizontal
+  // plane. Ordinary math notation instead treats z as "up" (a surface
+  // z = f(x, y) rises in z; a helix's z-expr is its riser). Rather than
+  // fight that, every math (x, y, z) triple in this template is converted
+  // to world coordinates ONCE via toWorld(): world = [x, z, y] — math z
+  // becomes world Y (vertical on screen), math y becomes world Z (depth).
+  // Every element ID keeps its ordinary math meaning (axis_z is labeled
+  // "z" and points straight up on screen); only the internal world tuple
+  // is transposed.
+  function toWorld(mx, my, mz) { return [mx, mz, my]; }
+
+  // project3d's own camera-space projection (kit.ts project3d, same formula
+  // verbatim) — needed because project3d's "seg" primitive always splits
+  // into two pieces per call (for its own mid-split depth sort), so a
+  // grid_n=12 wireframe would explode into (12-1)*2*12*2 ~= 528 drawables
+  // instead of the 24 row/column polylines this template promises. Axes and
+  // point markers stay well inside project3d's reliable scope (single-piece
+  // arrow/sphere prims) and go through it directly; the wireframe surface
+  // and the parametric curve are projected by hand with this identical
+  // formula instead, each becoming ONE kit.stroke polyline.
+  function proj3(camera, p) {
+    const az = (camera.azimuth * Math.PI) / 180;
+    const el = (camera.elevation * Math.PI) / 180;
+    const x1 = p[0] * Math.cos(az) - p[2] * Math.sin(az);
+    const z1 = p[0] * Math.sin(az) + p[2] * Math.cos(az);
+    const y2 = p[1] * Math.cos(el) - z1 * Math.sin(el);
+    const z2 = p[1] * Math.sin(el) + z1 * Math.cos(el);
+    const depth = camera.distance - z2;
+    const s = (camera.fov ?? 900) / Math.max(0.1, depth);
+    const cx = camera.cx ?? 500, cy = camera.cy ?? 375;
+    return { x: cx + x1 * s, y: cy + y2 * s, depth };
+  }
+  function projectPolyline(camera, worldPts) {
+    const qs = worldPts.map((p) => proj3(camera, p));
+    return { pts: qs.map((q) => [q.x, q.y]), depth: qs.reduce((s, q) => s + q.depth, 0) / qs.length };
+  }
+
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+
+  const hasSurface = typeof params.surface === "string" && params.surface.trim() !== "";
+  const curveIn = params.curve && typeof params.curve === "object" ? params.curve : null;
+  const hasCurve = !!curveIn && typeof curveIn.x_expr === "string" && typeof curveIn.y_expr === "string" && typeof curveIn.z_expr === "string";
+  const hasPoints = Array.isArray(params.points) && params.points.length > 0;
+  // "Exactly one" is the documented contract; if a caller supplies more than
+  // one, surface wins over curve wins over points (priority order, not a
+  // merge) — simplest predictable rule. If none are given at all, default
+  // to the saddle so the template is never an empty scene.
+  const kind = hasSurface ? "surface" : hasCurve ? "curve" : hasPoints ? "points" : "surface";
+  const surfaceExpr = hasSurface ? params.surface : "x^2 - y^2";
+
+  const domain = Array.isArray(params.domain) && params.domain.length === 2 &&
+    Number.isFinite(params.domain[0]) && Number.isFinite(params.domain[1]) && params.domain[0] < params.domain[1]
+    ? params.domain : [-1, 1];
+  let gridN = Number.isFinite(params.grid_n) ? Math.round(params.grid_n) : 12;
+  gridN = Math.max(2, Math.min(20, gridN));
+
+  // ---- build raw world-space content for the active kind (camera-independent) ----
+  let gridWorld = null; // gridWorld[i][j], i = y-index (row), j = x-index (col)
+  let gridXs = null;
+  let curveWorld = null;
+  let pointsWorld = null; // [{ w, label }]
+  const contentPts = [];
+
+  if (kind === "surface") {
+    const f = kit.expr(surfaceExpr, ["x", "y"]);
+    const [d0, d1] = domain;
+    const step = (d1 - d0) / (gridN - 1);
+    gridXs = Array.from({ length: gridN }, (_, i) => d0 + step * i);
+    const raw = gridXs.map((y) => gridXs.map((x) => {
+      const z = f({ x, y });
+      return Number.isFinite(z) ? z : 0;
+    }));
+    let zMin = Infinity, zMax = -Infinity;
+    raw.forEach((row) => row.forEach((z) => { zMin = Math.min(zMin, z); zMax = Math.max(zMax, z); }));
+    const zSpan = zMax - zMin;
+    const zHalf = (d1 - d0) / 2; // surface's world "height" matches its domain's own scale
+    const zNorm = (z) => (zSpan < 1e-9 ? 0 : ((z - zMin) / zSpan - 0.5) * 2 * zHalf);
+    gridWorld = raw.map((row, i) => row.map((z, j) => {
+      const w = toWorld(gridXs[j], gridXs[i], zNorm(z));
+      contentPts.push(w);
+      return w;
+    }));
+  } else if (kind === "curve") {
+    const xf = kit.expr(curveIn.x_expr, ["t"]);
+    const yf = kit.expr(curveIn.y_expr, ["t"]);
+    const zf = kit.expr(curveIn.z_expr, ["t"]);
+    const tMin = Number.isFinite(curveIn.t_min) ? curveIn.t_min : 0;
+    const tMax = Number.isFinite(curveIn.t_max) ? curveIn.t_max : 2 * Math.PI;
+    let samples = Number.isFinite(curveIn.samples) ? Math.round(curveIn.samples) : 200;
+    samples = Math.max(2, Math.min(1000, samples));
+    curveWorld = [];
+    for (let k = 0; k < samples; k++) {
+      const t = tMin + (tMax - tMin) * (k / (samples - 1));
+      const x = xf({ t }), y = yf({ t }), z = zf({ t });
+      const w = toWorld(Number.isFinite(x) ? x : 0, Number.isFinite(y) ? y : 0, Number.isFinite(z) ? z : 0);
+      curveWorld.push(w);
+      contentPts.push(w);
+    }
+  } else {
+    pointsWorld = params.points.map((p) => {
+      const at = p && Array.isArray(p.at) && p.at.length === 3 && p.at.every(Number.isFinite) ? p.at : [0, 0, 0];
+      const w = toWorld(at[0], at[1], at[2]);
+      contentPts.push(w);
+      return { w, label: p && typeof p.label === "string" && p.label.trim() !== "" ? p.label : null };
+    });
+  }
+
+  // ---- axes: one length per world axis, hugging the content's own extent ----
+  const reachOn = (k) => contentPts.reduce((m, p) => Math.max(m, Math.abs(p[k])), 0);
+  const lenX = Math.max(1, reachOn(0) * 1.4);
+  const lenVert = Math.max(1, reachOn(1) * 1.4); // world Y = math z
+  const lenDepth = Math.max(1, reachOn(2) * 1.4); // world Z = math y
+  // Camera reach: the corner of the axis box, a safe (slightly conservative)
+  // bound for how far anything in the scene can be from the origin.
+  const reach = Math.hypot(lenX, lenVert, lenDepth);
+
+  const azimuthDeg = Number.isFinite(params.azimuth_deg) ? params.azimuth_deg : 35;
+  const elevationDeg = Number.isFinite(params.elevation_deg) ? params.elevation_deg : 22;
+  const DIST_FACTOR = 4;
+  const distance = Number.isFinite(params.distance) && params.distance > 0 ? params.distance : reach * DIST_FACTOR;
+  // fov set so a point at radius `reach`, at zero depth offset, lands
+  // PX_PER_UNIT px from center — independent of distance, so a distance
+  // override still frames the same way (distance only changes how strong
+  // the perspective/foreshortening feels).
+  const PX_PER_UNIT = 190;
+  const fov = (PX_PER_UNIT * distance) / reach;
+  const CX = 500, CY = 350;
+  const camera = { azimuth: azimuthDeg, elevation: elevationDeg, distance, fov, cx: CX, cy: CY };
+
+  const axisLabelsIn = params.axis_labels && typeof params.axis_labels === "object" ? params.axis_labels : {};
+  const axisSpecs = [
+    { id: "axis_x", dir: [1, 0, 0], len: lenX, label: typeof axisLabelsIn.x === "string" && axisLabelsIn.x.trim() !== "" ? axisLabelsIn.x : "x" },
+    { id: "axis_y", dir: [0, 0, 1], len: lenDepth, label: typeof axisLabelsIn.y === "string" && axisLabelsIn.y.trim() !== "" ? axisLabelsIn.y : "y" },
+    { id: "axis_z", dir: [0, 1, 0], len: lenVert, label: typeof axisLabelsIn.z === "string" && axisLabelsIn.z.trim() !== "" ? axisLabelsIn.z : "z" },
+  ];
+
+  // ---- axes + points batch: squarely in project3d's reliable scope (single-piece arrow/sphere prims) ----
+  const prims = [];
+  const depthRef = {}; // id -> world Vec3 used to recompute this prim's depth for the merge below
+  axisSpecs.forEach((ax) => {
+    const tip = [ax.dir[0] * ax.len, ax.dir[1] * ax.len, ax.dir[2] * ax.len];
+    prims.push({ kind: "arrow", id: ax.id, a: [0, 0, 0], b: tip, w: 3, color: C.guide, ms: MS.axis });
+    depthRef[ax.id] = [tip[0] / 2, tip[1] / 2, tip[2] / 2];
+  });
+  const ptR = Math.max(0.05, reach * 0.035);
+  if (kind === "points") {
+    pointsWorld.forEach((pt, i) => {
+      const id = "pt_" + i;
+      prims.push({ kind: "sphere", id, c: pt.w, r: ptR, color: C.accent, ms: MS.node });
+      depthRef[id] = pt.w;
+    });
+  }
+  const projected = kit.project3d(camera, prims);
+
+  // ---- labels: NOT projected as fixed text3 geometry (an axis label offset
+  // just past its own tip very often oversat that same short stroke, or a
+  // nearby wire once the wireframe got dense — a 12x12 grid comes close to
+  // filling the frame at many camera angles). Route every label through the
+  // real collision solver instead (kit.label -> layout/labels.ts): it tries
+  // 8 sides at growing rings and treats strokes as soft obstacles, exactly
+  // the "text that NAMES things" case from kit's own top-of-file rule.
+  // `ignore` opts each label out of penalizing the axis(es) it may
+  // legitimately sit near (two axes meeting at a short, near-origin arrow
+  // under some projections is normal, not a defect).
+  function sideFromDir(dx, dy) {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < 0.35 * ay) return dy >= 0 ? "above" : "below";
+    if (ay < 0.35 * ax) return dx >= 0 ? "right" : "left";
+    if (dx >= 0 && dy >= 0) return "above-right";
+    if (dx >= 0 && dy < 0) return "below-right";
+    if (dx < 0 && dy >= 0) return "above-left";
+    return "below-left";
+  }
+  // Orbit views often foreshorten one axis nearly to zero screen length (the
+  // camera looking almost straight down it) — its raw tip then lands right
+  // in the origin cluster where every axis and the densest part of a
+  // wireframe all meet, too close for even 8-sided search to escape. Give
+  // every label anchor a SCREEN-SPACE floor radius from the origin (which
+  // always projects to [CX, CY] — proj3(0,0,0) is a fixed point of the
+  // camera) along its own true direction. `ignore` (below) only steers the
+  // SOLVER away from penalizing a label for grazing its own marker/axis —
+  // the FINAL lint pass is a separate, independent check that has no idea
+  // what was ignored, so a solver-chosen spot that grazes its own marker
+  // still gets flagged. EXTRA_GAP pushes every anchor a fixed margin PAST
+  // its own tip/marker (not just up to a floor) so that grazing case can't
+  // happen at all, floor included for the near-zero-length degenerate case.
+  const MIN_ANCHOR_R = 95;
+  const EXTRA_GAP = 45;
+  function anchorFor(p2d) {
+    const dx = p2d[0] - CX, dy = p2d[1] - CY;
+    const d = Math.hypot(dx, dy);
+    if (d < 1e-6) return { anchor: [CX, CY + MIN_ANCHOR_R], side: "above" };
+    const targetR = Math.max(MIN_ANCHOR_R, d + EXTRA_GAP);
+    const k = targetR / d;
+    return { anchor: [CX + dx * k, CY + dy * k], side: sideFromDir(dx, dy) };
+  }
+  const axisIds = axisSpecs.map((ax) => ax.id);
+  const labels = [];
+  axisSpecs.forEach((ax) => {
+    const { anchor, side } = anchorFor(projected.anchors[ax.id]);
+    labels.push({ ...kit.label(ax.id + "_label", anchor, side, ax.label, { fontSize: 24, color: C.guide }), ignore: axisIds });
+  });
+  if (kind === "points") {
+    pointsWorld.forEach((pt, i) => {
+      if (!pt.label) return;
+      const id = "pt_" + i;
+      const { anchor, side } = anchorFor(projected.anchors[id]);
+      labels.push({ ...kit.label("pt_label_" + i, anchor, side, pt.label, { fontSize: 20, color: C.ink }), ignore: [id] });
+    });
+  }
+
+  // ---- wireframe / curve: hand-projected, one polyline per row/column/curve ----
+  const manual = [];
+  if (kind === "surface") {
+    for (let i = 0; i < gridN; i++) {
+      const rowPts = gridXs.map((_, j) => gridWorld[i][j]);
+      const { pts, depth } = projectPolyline(camera, rowPts);
+      manual.push({ id: "wire_row_" + i, depth, drawable: kit.stroke("wire_row_" + i, pts, { color: C.ink, strokeWidth: 3, ms: MS.stroke }) });
+    }
+    for (let j = 0; j < gridN; j++) {
+      const colPts = gridXs.map((_, i) => gridWorld[i][j]);
+      const { pts, depth } = projectPolyline(camera, colPts);
+      manual.push({ id: "wire_col_" + j, depth, drawable: kit.stroke("wire_col_" + j, pts, { color: C.supply, strokeWidth: 3, ms: MS.stroke }) });
+    }
+  } else if (kind === "curve") {
+    const { pts, depth } = projectPolyline(camera, curveWorld);
+    manual.push({ id: "curve", depth, drawable: kit.stroke("curve", pts, { color: C.demand, strokeWidth: 4, ms: MS.curve }) });
+  }
+
+  // ---- merge project3d's own (already-correct) pieces with the manual ones into ONE painter's-order list ----
+  const merged = projected.drawables
+    .map((d) => ({ id: d.id, depth: proj3(camera, depthRef[d.id]).depth, drawable: d }))
+    .concat(manual);
+  merged.sort((a, b) => b.depth - a.depth); // far first, matching project3d's own convention
+
+  const drawables = merged.map((m) => m.drawable);
+  // Labels always paint last (on top) — they're read, not occluded; the
+  // same convention molecule_3d uses for its caption.
+  let order = merged.map((m) => m.id).concat(labels.map((l) => l.id));
+  const anchors = Object.assign({}, projected.anchors);
+  if (kind === "curve") {
+    const curvePts = manual[0].drawable.pts;
+    anchors.curve = curvePts[Math.floor(curvePts.length / 2)];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    labels.push(kit.label("title", [CX, 60], "below", params.title, { fontSize: 28 }));
+    order = order.concat(["title"]);
+  }
+
+  return { drawables, labels, anchors, order };

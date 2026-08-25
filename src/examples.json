@@ -2834,6 +2834,138 @@
     }
   },
   {
+    "request": "Show the saddle surface z = x squared minus y squared, and walk around it in 3D.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "The saddle surface z = x² − y²",
+      "template": "plot3d",
+      "params": {
+        "surface": "x^2 - y^2",
+        "azimuth_deg": 35
+      },
+      "commands": [
+        {
+          "speak": "A wireframe lets us see a 3D surface without it hiding what's behind it."
+        },
+        {
+          "draw": [
+            "axis_x",
+            "axis_y",
+            "axis_z",
+            "axis_x_label",
+            "axis_y_label",
+            "axis_z_label"
+          ],
+          "speak": "Here are the x, y and z axes."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "wire_row_0",
+            "wire_row_1",
+            "wire_row_2",
+            "wire_row_3",
+            "wire_row_4",
+            "wire_row_5",
+            "wire_row_6",
+            "wire_row_7",
+            "wire_row_8",
+            "wire_row_9",
+            "wire_row_10",
+            "wire_row_11",
+            "wire_col_0",
+            "wire_col_1",
+            "wire_col_2",
+            "wire_col_3",
+            "wire_col_4",
+            "wire_col_5",
+            "wire_col_6",
+            "wire_col_7",
+            "wire_col_8",
+            "wire_col_9",
+            "wire_col_10",
+            "wire_col_11"
+          ],
+          "speak": "This is the saddle surface z equals x squared minus y squared — it curves up along one direction and down along the other."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "animate": {
+            "azimuth_deg": 95
+          },
+          "duration": 1.8,
+          "speak": "From this side, the surface rises on both arms toward us."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 155
+          },
+          "duration": 1.8,
+          "speak": "Now watch the ridge become a valley as we come around to the other side."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a 3D helix.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "A helix in 3D",
+      "template": "plot3d",
+      "params": {
+        "curve": {
+          "x_expr": "cos(t)",
+          "y_expr": "sin(t)",
+          "z_expr": "t/6",
+          "t_min": 0,
+          "t_max": 37.69911184307752,
+          "samples": 200
+        },
+        "azimuth_deg": 35
+      },
+      "commands": [
+        {
+          "speak": "A helix is a curve that spirals steadily upward, like a spring or a strand of DNA's backbone."
+        },
+        {
+          "draw": [
+            "axis_x",
+            "axis_y",
+            "axis_z",
+            "axis_x_label",
+            "axis_y_label",
+            "axis_z_label"
+          ],
+          "speak": "Here are the x, y and z axes."
+        },
+        {
+          "draw": [
+            "curve"
+          ],
+          "speak": "As the angle t sweeps around and around, x is cosine t, y is sine t, and z climbs steadily as t over six."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "animate": {
+            "azimuth_deg": 155
+          },
+          "duration": 3,
+          "speak": "Let's orbit around it to see the spiral from every side."
+        }
+      ]
+    }
+  },
+  {
     "request": "Draw a series circuit with a battery, a bulb and a switch.",
     "packs": [
       "physics"

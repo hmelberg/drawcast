@@ -915,7 +915,7 @@ describe("evidence pack", () => {
 describe("mathlogic pack", () => {
   beforeEach(() => unregisterPack("mathlogic"));
 
-  const TEMPLATE_IDS = ["venn_diagram", "unit_circle", "number_line", "geometry_figure", "truth_table", "argument_map", "equation_steps"];
+  const TEMPLATE_IDS = ["venn_diagram", "unit_circle", "number_line", "geometry_figure", "truth_table", "argument_map", "equation_steps", "plot3d"];
 
   function inBounds(res: ReturnType<typeof layoutSpec>) {
     expect(res.warnings).toEqual([]);
@@ -931,7 +931,7 @@ describe("mathlogic pack", () => {
     }
   }
 
-  test("registers all seven templates in brief order", () => {
+  test("registers all eight templates in brief order", () => {
     const r = registerPack("mathlogic", mathlogicYaml);
     expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
     expect(scenes.equation_steps.manifest.engines).toEqual(["mathjax"]);
@@ -1154,6 +1154,95 @@ describe("mathlogic pack", () => {
     expect(ids3).toContain("shade_abc");
     expect(ids3).toContain("shade_outside");
     expect(ids3).not.toContain("shade_ab");
+  });
+
+  describe("plot3d", () => {
+    test("saddle surface emits 2×grid_n wire polylines, all points finite and within the canvas", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const r = scenes.plot3d.layout!({ surface: "x^2 - y^2" });
+      const flat = flattenDrawables(r.drawables);
+      const wires = flat.filter((d) => /^wire_(row|col)_\d+$/.test(d.id)) as { id: string; pts: [number, number][] }[];
+      expect(wires).toHaveLength(24); // grid_n defaults to 12 -> 12 rows + 12 cols
+      for (const w of wires) {
+        expect(w.pts.length).toBeGreaterThan(1);
+        for (const [x, y] of w.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+          expect(x).toBeGreaterThanOrEqual(0);
+          expect(x).toBeLessThanOrEqual(1000);
+          expect(y).toBeGreaterThanOrEqual(0);
+          expect(y).toBeLessThanOrEqual(750);
+        }
+      }
+    });
+
+    test("z-autoscale keeps a wild expression (100*x, unscaled it would run far off any sane canvas) fully in bounds", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const res = layoutSpec({ template: "plot3d", params: { surface: "100*x" }, elements: [] } as never);
+      inBounds(res);
+    });
+
+    test("azimuth 35 vs 125 produce different projected geometry — proof the camera is animatable", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const a = scenes.plot3d.layout!({ surface: "x^2 - y^2", azimuth_deg: 35 });
+      const b = scenes.plot3d.layout!({ surface: "x^2 - y^2", azimuth_deg: 125 });
+      const wireA = flattenDrawables(a.drawables).find((d) => d.id === "wire_row_0") as { pts: [number, number][] };
+      const wireB = flattenDrawables(b.drawables).find((d) => d.id === "wire_row_0") as { pts: [number, number][] };
+      expect(wireA.pts).not.toEqual(wireB.pts);
+    });
+
+    test("a parametric helix samples ~samples points into one polyline", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const r = scenes.plot3d.layout!({
+        curve: { x_expr: "cos(t)", y_expr: "sin(t)", z_expr: "t/6", t_min: 0, t_max: 12 * Math.PI, samples: 150 },
+      });
+      const curve = flattenDrawables(r.drawables).find((d) => d.id === "curve") as { pts: [number, number][] } | undefined;
+      expect(curve).toBeDefined();
+      expect(curve!.pts).toHaveLength(150);
+    });
+
+    test("points render a marker + label per entry, label optional per point", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const r = scenes.plot3d.layout!({ points: [{ at: [0.5, 0.5, 0.5], label: "P" }, { at: [-0.5, -0.5, -0.5] }] });
+      const drawableIds = flattenDrawables(r.drawables).map((d) => d.id);
+      const labelIds = r.labels.map((l) => l.id);
+      expect(drawableIds).toContain("pt_0");
+      expect(drawableIds).toContain("pt_1");
+      // Labels go through the collision solver (kit.label), not fixed 3D
+      // text geometry — they live in `labels`, not `drawables`, until the
+      // outer layoutSpec pipeline places them.
+      expect(labelIds).toContain("pt_label_0");
+      expect(labelIds).not.toContain("pt_label_1");
+      expect(r.order).toContain("pt_label_0");
+    });
+
+    test("a malformed expression throws inside layout, so the pipeline falls through to tier-2 instead of crashing", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const res = layoutSpec({ template: "plot3d", params: { surface: "x + " }, elements: [] } as never);
+      expect(res.warnings.some((w) => /layout failed/.test(w))).toBe(true);
+    });
+
+    // The camera auto-frames from the plotted content's own extent (kit ->
+    // reach -> distance/fov), independently of azimuth/elevation — this
+    // sweeps the full orbit range (what `animate azimuth_deg` walks through
+    // live) for all three kinds and asserts it never goes out-of-canvas.
+    test("stays lint-clean across the whole orbit range, for every plot kind", () => {
+      registerPack("mathlogic", mathlogicYaml);
+      const azimuths = [0, 45, 90, 135, 180, 225, 270, 315];
+      const elevations = [-45, 0, 22, 80];
+      const kinds: Record<string, unknown>[] = [
+        { surface: "x^2 - y^2" },
+        { curve: { x_expr: "cos(t)", y_expr: "sin(t)", z_expr: "t/6", t_min: 0, t_max: 12 * Math.PI } },
+        { points: [{ at: [0.6, 0.6, 0.6], label: "A" }, { at: [-0.6, 0.4, -0.5], label: "B" }] },
+      ];
+      for (const base of kinds) {
+        for (const azimuth_deg of azimuths) {
+          for (const elevation_deg of elevations) {
+            const res = layoutSpec({ template: "plot3d", params: { ...base, azimuth_deg, elevation_deg }, elements: [] } as never);
+            inBounds(res);
+          }
+        }
+      }
+    });
   });
 });
 
