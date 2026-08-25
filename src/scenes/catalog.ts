@@ -13,16 +13,16 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
 
 /**
  * Where the catalog degrades from "full entry for everything" to
- * index + hot set. Set above the default library (16 ready: 8 built-ins +
- * 8 from the three bundled packs, all enabled by default) so the out-of-the-box
- * configuration keeps every parameter schema in front of the model. Measured
- * cost of that reach: ~11.7k tokens of catalog vs ~8.4k for the built-ins
- * alone — and it buys back a fully cache-stable prefix (no per-request
- * keyword shortlist) plus no need_template round-trips, each of which rebuilds
- * a fresh, uncached prefix. The two-level machinery stays as the safety valve
- * for user templates and remote packs pushing past this.
+ * index + hot set. The default library now spans the bundled academic packs
+ * (built-ins + the physics/chemistry/biology domain packs, all enabled by
+ * default) — set well above that count so the out-of-the-box configuration
+ * keeps every parameter schema in front of the model. That buys back a fully
+ * cache-stable prefix (no per-request keyword shortlist) plus no
+ * need_template round-trips, each of which rebuilds a fresh, uncached
+ * prefix. The two-level machinery stays as the safety valve for user
+ * templates and remote packs pushing past this threshold.
  */
-export const TEMPLATE_FULL_THRESHOLD = 20;
+export const TEMPLATE_FULL_THRESHOLD = 50;
 
 /** Always promoted to a full entry once the catalog goes two-level. */
 const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];

@@ -1,8 +1,131 @@
 {
   "name": "generic_axes_diagram",
-  "status": "stub",
-  "description": "Any single-panel curve diagram that is not a supply/demand market: production functions, utility curves, cost curves, dose-response, diminishing returns. NOT IMPLEMENTED YET — compose it with tier-2 elements instead: an axes element with the right labels, curve elements (qualitative direction/curvature/steepness, or an expr like '80*(1 - exp(-0.05*x))' for diminishing marginal returns), optional point elements, and labels attached to the curves.",
-  "params_schema": { "type": "object", "properties": {} },
-  "element_ids": {},
-  "examples": []
+  "status": "ready",
+  "description": "Any single-panel curve diagram that is not a supply/demand market: production functions, cost/utility curves, dose-response, growth/decay, diminishing returns. Choose this scene for ANY single-curve or multi-curve (up to 4) plot against generic axes. Curves are qualitative shapes (linear_up/linear_down/convex_up/concave_down/s_curve/u_shape/bell) or an exact expression y=f(x); points, vertical/horizontal reference lines, and a shaded region between two curves (or under one) are all optional. All geometry is computed for you.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "x_label": { "type": "string" },
+      "y_label": { "type": "string" },
+      "title": { "type": "string" },
+      "curves": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Custom element id for this curve; default \"curve_<i>\"."
+            },
+            "label": { "type": "string" },
+            "expression": {
+              "type": "string",
+              "description": "y = f(x) over x ∈ [0, 100], e.g. \"80*(1 - exp(-0.05*x))\". Wins over `shape` when both are set."
+            },
+            "shape": {
+              "type": "string",
+              "enum": ["linear_up", "linear_down", "convex_up", "concave_down", "s_curve", "u_shape", "bell"],
+              "description": "A canned qualitative shape, used when `expression` is not set. Default \"linear_up\"."
+            },
+            "color": {
+              "type": "string",
+              "enum": ["ink", "demand", "supply", "accent", "shifted"]
+            }
+          }
+        },
+        "description": "1–4 curves, each y = f(x) over x ∈ [0, 100]."
+      },
+      "points": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "label": { "type": "string" }
+          },
+          "required": ["x", "y", "label"]
+        }
+      },
+      "vlines": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "label": { "type": "string" }
+          },
+          "required": ["x"]
+        }
+      },
+      "hlines": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "y": { "type": "number" },
+            "label": { "type": "string" }
+          },
+          "required": ["y"]
+        }
+      },
+      "shade": {
+        "type": "object",
+        "description": "Shade a region under one curve or between two curves, over [x_from, x_to]. Set exactly one of `between`/`under`.",
+        "properties": {
+          "between": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "Indices into `curves` of the two curves to shade between."
+          },
+          "under": {
+            "type": "number",
+            "description": "Index into `curves` of the curve to shade under, down to y = 0."
+          },
+          "x_from": { "type": "number" },
+          "x_to": { "type": "number" }
+        },
+        "required": ["x_from", "x_to"]
+      }
+    },
+    "required": ["x_label", "y_label", "curves"]
+  },
+  "element_ids": {
+    "axes": "the L-shaped coordinate axes",
+    "x_label": "x-axis caption",
+    "y_label": "y-axis caption",
+    "curve_<i>": "curve i (or its own `id`, when set)",
+    "label_<curve id>": "that curve's label, when it has one",
+    "point_<i>": "marker for points[i]",
+    "point_label_<i>": "its label",
+    "vline_<i>": "vertical reference line for vlines[i]",
+    "hline_<i>": "horizontal reference line for hlines[i]",
+    "shade": "shaded region, when `shade` is set",
+    "title": "figure title, when set"
+  },
+  "examples": [
+    {
+      "request": "Draw a production function with diminishing returns.",
+      "params": {
+        "x_label": "Labor (L)",
+        "y_label": "Output (Q)",
+        "title": "Diminishing returns to labor",
+        "curves": [{ "shape": "concave_down", "label": "Q = f(L)" }],
+        "points": [{ "x": 70, "y": 62, "label": "Diminishing returns set in" }]
+      }
+    },
+    {
+      "request": "Draw a dose-response curve and mark the half-maximal dose.",
+      "params": {
+        "x_label": "Dose",
+        "y_label": "Response",
+        "curves": [{ "shape": "s_curve", "label": "Response" }],
+        "vlines": [{ "x": 50, "label": "EC50" }]
+      }
+    }
+  ]
 }

@@ -1,8 +1,103 @@
 {
   "name": "two_by_two_table",
-  "status": "stub",
-  "description": "A 2×2 table (e.g. test result × disease status for sensitivity/specificity). NOT IMPLEMENTED YET — compose it with tier-3 elements instead: four shape elements (shape 'rect', each about 220×140, arranged around the canvas center, e.g. lower-left corners at (280,330), (500,330), (280,190), (500,190)), text elements inside each cell (TP/FP/FN/TN), and text elements outside for the row/column headers. Remember: logical canvas is 1000×750, y-up.",
-  "params_schema": { "type": "object", "properties": {} },
-  "element_ids": {},
-  "examples": []
+  "status": "ready",
+  "description": "A 2×2 contingency table — test result × disease status, treatment × outcome, a payoff matrix, a confusion matrix, any two-binary-factor comparison. Choose this scene for ANY request about sensitivity/specificity, a confusion matrix (TP/FP/FN/TN), a 2×2 payoff/game matrix, or comparing two categorical variables in a grid. All geometry is computed for you; you only choose the labels, cell values, and which cell (if any) to highlight.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "row_label": {
+        "type": "string",
+        "description": "Caption for the row axis, e.g. \"Test result\"."
+      },
+      "col_label": {
+        "type": "string",
+        "description": "Caption for the column axis, e.g. \"Disease status\"."
+      },
+      "row_values": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "The two row category names, top row first."
+      },
+      "col_values": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "The two column category names, left column first."
+      },
+      "cells": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "2×2 cell values, row-major: cells[row][col]. Row 0 = top, column 0 = left."
+      },
+      "cell_notes": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": { "type": ["string", "null"] }
+        },
+        "description": "Optional small sub-text under a cell's main value (e.g. a count under a label), same [row][col] shape as cells."
+      },
+      "highlight": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "description": "[row, col] pairs (0 or 1 each) to shade — e.g. [[0, 0]] to highlight the true-positive cell."
+      },
+      "title": {
+        "type": "string"
+      }
+    },
+    "required": ["row_label", "col_label", "row_values", "col_values", "cells"]
+  },
+  "element_ids": {
+    "grid": "the 2×2 grid lines",
+    "cell_0_0": "top-left cell (row 0, col 0)",
+    "cell_0_1": "top-right cell (row 0, col 1)",
+    "cell_1_0": "bottom-left cell (row 1, col 0)",
+    "cell_1_1": "bottom-right cell (row 1, col 1)",
+    "row_header_0 / row_header_1": "the row category labels",
+    "col_header_0 / col_header_1": "the column category labels",
+    "row_title": "caption for the row axis (row_label)",
+    "col_title": "caption for the column axis (col_label)",
+    "title": "figure title, when set",
+    "hl_<r>_<c>": "shaded highlight behind one cell, e.g. hl_0_0 — present only for cells named in `highlight`"
+  },
+  "examples": [
+    {
+      "request": "Show a 2×2 table for a diagnostic test versus disease status.",
+      "params": {
+        "row_label": "Test result",
+        "col_label": "Disease status",
+        "row_values": ["Positive", "Negative"],
+        "col_values": ["Present", "Absent"],
+        "cells": [["TP", "FP"], ["FN", "TN"]],
+        "title": "Test vs. disease"
+      }
+    },
+    {
+      "request": "Draw a 2×2 payoff table for a simple game and highlight the outcome where both players defect.",
+      "params": {
+        "row_label": "Player A",
+        "col_label": "Player B",
+        "row_values": ["Cooperate", "Defect"],
+        "col_values": ["Cooperate", "Defect"],
+        "cells": [["3, 3", "0, 5"], ["5, 0", "1, 1"]],
+        "highlight": [[1, 1]]
+      }
+    }
+  ]
 }

@@ -25,6 +25,9 @@ import proteinSecondaryManifest from "./protein_secondary/manifest.json";
 import { layoutFreeBody, type FreeBodyParams } from "./free_body/layout";
 import { layoutRingMolecule, type RingMoleculeParams } from "./ring_molecule/layout";
 import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_secondary/layout";
+import { layoutTwoByTwoTable, type TwoByTwoParams } from "./two_by_two_table/layout";
+import { layoutTimeline, type TimelineParams } from "./timeline/layout";
+import { layoutGenericAxes, type GenericAxesParams } from "./generic_axes_diagram/layout";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -53,9 +56,18 @@ export const scenes: Record<string, SceneModule> = {
   },
   cost_effectiveness_plane: { manifest: cepManifest as SceneManifest },
   markov_model: { manifest: markovManifest as SceneManifest },
-  two_by_two_table: { manifest: twoByTwoManifest as SceneManifest },
-  timeline: { manifest: timelineManifest as SceneManifest },
-  generic_axes_diagram: { manifest: genericAxesManifest as SceneManifest },
+  two_by_two_table: {
+    manifest: twoByTwoManifest as SceneManifest,
+    layout: (params) => layoutTwoByTwoTable(params as unknown as TwoByTwoParams),
+  },
+  timeline: {
+    manifest: timelineManifest as SceneManifest,
+    layout: (params) => layoutTimeline(params as unknown as TimelineParams),
+  },
+  generic_axes_diagram: {
+    manifest: genericAxesManifest as SceneManifest,
+    layout: (params) => layoutGenericAxes(params as unknown as GenericAxesParams),
+  },
 };
 
 /**

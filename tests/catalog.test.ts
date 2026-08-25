@@ -90,6 +90,6 @@ describe("detectNeedTemplate", () => {
 
 // Deliberate value, not incidental: it sits above the default library so the
 // out-of-the-box catalog stays fully expanded (tests/pack-defaults.test.ts).
-test("threshold is 20", () => {
-  expect(TEMPLATE_FULL_THRESHOLD).toBe(20);
+test("threshold is 50", () => {
+  expect(TEMPLATE_FULL_THRESHOLD).toBe(50);
 });

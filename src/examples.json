@@ -1312,5 +1312,168 @@
         }
       ]
     }
+  },
+  {
+    "request": "Show sensitivity and specificity in a 2×2 test-versus-disease table.",
+    "spec": {
+      "title": "Sensitivity and specificity",
+      "template": "two_by_two_table",
+      "params": {
+        "row_label": "Test result",
+        "col_label": "Disease status",
+        "row_values": ["Positive", "Negative"],
+        "col_values": ["Present", "Absent"],
+        "cells": [["TP", "FP"], ["FN", "TN"]]
+      },
+      "commands": [
+        {
+          "speak": "Sensitivity and specificity both come from the same 2×2 table — test result against true disease status."
+        },
+        {
+          "draw": ["grid", "row_header_0", "row_header_1", "col_header_0", "col_header_1", "row_title", "col_title"],
+          "speak": "Rows are the test result; columns are whether the patient truly has the disease."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_0_0"],
+          "speak": "True positive — the test is positive, and the patient really has the disease."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_0_1"],
+          "speak": "False positive — a positive test, but no disease."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_1_0"],
+          "speak": "False negative — the test misses a real case."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_1_1"],
+          "speak": "And true negative, where the test correctly clears a healthy patient."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": { "target": ["cell_0_0", "cell_1_0"], "effect": "glow" },
+          "speak": "Sensitivity looks at this whole disease-present column: true positives over true positives plus false negatives."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": { "target": ["cell_1_1", "cell_0_1"], "effect": "glow" },
+          "speak": "Specificity looks at the disease-absent column the same way: true negatives over true negatives plus false positives."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a timeline of a research project.",
+    "spec": {
+      "title": "Research project timeline",
+      "template": "timeline",
+      "params": {
+        "title": "Research project timeline",
+        "start_label": "Project start",
+        "end_label": "Today",
+        "milestones": [
+          { "label": "Protocol approved" },
+          { "label": "Data collection" },
+          { "label": "Analysis" },
+          { "label": "Manuscript submitted", "emphasize": true }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Here's how a typical research project unfolds, from kickoff to publication."
+        },
+        {
+          "draw": ["line"],
+          "speak": "The timeline runs from the project's start to where things stand today."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["dot_0", "label_0"],
+          "speak": "First, the protocol is approved and the team is ready to begin."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["dot_1", "label_1"],
+          "speak": "Then data collection — usually the longest stretch."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["dot_2", "label_2"],
+          "speak": "The analysis is where the findings actually take shape."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["dot_3", "label_3"],
+          "speak": "And finally, the manuscript goes out for submission."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["title"],
+          "speak": "Four milestones, one straight line from question to publication."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a production function with diminishing returns.",
+    "spec": {
+      "title": "Diminishing returns to labor",
+      "template": "generic_axes_diagram",
+      "params": {
+        "title": "Diminishing returns to labor",
+        "x_label": "Labor (L)",
+        "y_label": "Output (Q)",
+        "curves": [{ "shape": "concave_down", "label": "Q = f(L)" }]
+      },
+      "commands": [
+        {
+          "speak": "As you add more labor to a fixed amount of capital, output keeps rising — but each extra worker adds less than the last."
+        },
+        {
+          "draw": ["axes", "x_label", "y_label"],
+          "speak": "Labor along the bottom, total output up the side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["curve_0", "label_curve_0"],
+          "speak": "The production function climbs steeply at first, then flattens out."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["title"],
+          "speak": "That flattening is diminishing returns: the curve is concave, even though output never falls."
+        }
+      ]
+    }
   }
 ]

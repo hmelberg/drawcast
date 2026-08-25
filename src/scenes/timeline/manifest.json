@@ -1,8 +1,75 @@
 {
   "name": "timeline",
-  "status": "stub",
-  "description": "A horizontal timeline with ordered milestones. NOT IMPLEMENTED YET — compose it with tier-2/3 elements instead: a path element for the horizontal line (e.g. points [[100,375],[900,375]]), an arrow at the end if desired, point-like shape elements (small circles) at evenly spaced x positions for the milestones, and label elements attached to them, alternating side 'above'/'below' to avoid collisions.",
-  "params_schema": { "type": "object", "properties": {} },
-  "element_ids": {},
-  "examples": []
+  "status": "ready",
+  "description": "A horizontal timeline with 2–8 ordered milestones. Choose this scene for ANY request about a sequence of events over time — a project plan, a patient care pathway, a historical sequence, a study or trial timeline. All spacing and label placement is computed for you; set `emphasize` on a milestone to call it out.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "start_label": {
+        "type": "string",
+        "description": "Small caption at the left end of the line, e.g. \"Diagnosis\"."
+      },
+      "end_label": {
+        "type": "string",
+        "description": "Small caption at the right end of the line, e.g. \"Today\"."
+      },
+      "milestones": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string" },
+            "sublabel": {
+              "type": "string",
+              "description": "Short secondary text shown alongside the label."
+            },
+            "emphasize": {
+              "type": "boolean",
+              "description": "Draws this milestone larger, in the accent color."
+            }
+          },
+          "required": ["label"]
+        },
+        "description": "2–8 ordered milestones, left to right."
+      }
+    },
+    "required": ["milestones"]
+  },
+  "element_ids": {
+    "line": "the horizontal timeline arrow (with start_label/end_label captions when set)",
+    "dot_<i>": "the marker for milestone i (0-indexed, left to right)",
+    "label_<i>": "milestone i's label (and sublabel, when set)",
+    "title": "figure title, when set"
+  },
+  "examples": [
+    {
+      "request": "Draw a timeline of a research project from kickoff to the final report.",
+      "params": {
+        "title": "Project timeline",
+        "milestones": [
+          { "label": "Kickoff" },
+          { "label": "Data collection" },
+          { "label": "Analysis" },
+          { "label": "Report", "emphasize": true }
+        ]
+      }
+    },
+    {
+      "request": "Show a timeline from diagnosis to follow-up, with treatment as the key event.",
+      "params": {
+        "start_label": "Diagnosis",
+        "end_label": "Follow-up",
+        "milestones": [
+          { "label": "Referral" },
+          { "label": "Treatment starts", "emphasize": true },
+          { "label": "Recovery" }
+        ]
+      }
+    }
+  ]
 }
