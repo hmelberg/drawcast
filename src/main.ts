@@ -1083,6 +1083,8 @@ let authorMount: { destroy(): void } | null = null;
  * async continuation that finds it stale on resume (dialog closed or a newer
  * generation started meanwhile) must not touch the registry, mounts, or status. */
 let authorSeq = 0;
+/** In-flight authoring call, so closing the dialog stops paying for it. */
+let authorAbort: AbortController | null = null;
 /** Every template id this dialog session registered a preview under — reverted
  * or unregistered as a batch when the dialog closes. */
 const draftIds = new Set<string>();
@@ -1179,8 +1181,15 @@ async function runAuthor(description: string, refine: boolean): Promise<void> {
   if (!apiKey) return;
   if (!description.trim()) return;
   const seq = ++authorSeq;
-  authorGenBtn.disabled = authorRefineBtn.disabled = true;
+  // Generate stays live as this dialog's Cancel, the same as the editor's.
+  // Refine goes down: it would continue a conversation that is still being written.
+  authorRefineBtn.disabled = true;
+  authorGenBtn.textContent = "Cancel";
+  authorGenBtn.classList.add("cancelling");
   authorStatus.textContent = "Generating template…";
+  authorAbort?.abort(); // a second Generate replaces the first, it does not race it
+  const controller = new AbortController();
+  authorAbort = controller;
   try {
     const existing = authorImproveId && !refine ? loadMyTemplates().find((t) => t.id === authorImproveId)?.yaml : undefined;
     const outcome = await generateTemplate(description, refine ? null : authorImage, {
@@ -1188,6 +1197,12 @@ async function runAuthor(description: string, refine: boolean): Promise<void> {
       model: modelSel.value,
       existingYaml: existing,
       history: refine ? (authorOutcome?.history ?? undefined) : undefined,
+      signal: controller.signal,
+      onProgress: ({ round, text }) => {
+        if (seq !== authorSeq) return;
+        const where = round > 1 ? ` (repair ${round - 1})` : "";
+        authorStatus.textContent = `Generating template${where}… ${text.length.toLocaleString()} characters`;
+      },
     });
     if (seq !== authorSeq) return; // dialog closed or a newer generation started meanwhile
     authorOutcome = outcome;
@@ -1202,11 +1217,23 @@ async function runAuthor(description: string, refine: boolean): Promise<void> {
   } catch (err) {
     if (seq === authorSeq) authorStatus.textContent = describeApiError(err);
   } finally {
-    if (seq === authorSeq) authorGenBtn.disabled = authorRefineBtn.disabled = false;
+    if (authorAbort === controller) authorAbort = null;
+    if (seq === authorSeq) {
+      authorRefineBtn.disabled = false;
+      authorGenBtn.textContent = "Generate template";
+      authorGenBtn.classList.remove("cancelling");
+    }
   }
 }
 
-authorGenBtn.addEventListener("click", () => void runAuthor(authorDescEl.value, false));
+authorGenBtn.addEventListener("click", () => {
+  if (authorAbort) {
+    authorAbort.abort();
+    authorStatus.textContent = "Cancelling…";
+    return;
+  }
+  void runAuthor(authorDescEl.value, false);
+});
 authorRefineBtn.addEventListener("click", () => {
   const t = authorRefineEl.value.trim();
   if (t) {
@@ -1240,6 +1267,8 @@ function openAuthorDialog(improve?: { id: string }): void {
   // generation from a previous session is still in flight (its seq-guarded
   // finally will no-op — see runAuthor — so this can't get re-disabled by it).
   authorGenBtn.disabled = authorRefineBtn.disabled = false;
+  authorGenBtn.textContent = "Generate template";
+  authorGenBtn.classList.remove("cancelling");
   authorStatus.textContent = authorImproveId ? `Improving "${authorImproveId}" — describe what to change.` : "";
   authorRefineEl.hidden = authorRefineBtn.hidden = authorSaveBtn.hidden = true;
   authorMount?.destroy();
@@ -1256,6 +1285,10 @@ authorDialog.addEventListener("close", () => {
   // Invalidate any runAuthor()/renderAuthorPreview() continuation still in
   // flight: it must not register a draft or resurrect authorMount after this.
   authorSeq++;
+  // And stop the call itself — the seq guard only silences the reply, the
+  // request would otherwise keep running (and billing) with nowhere to land.
+  authorAbort?.abort();
+  authorAbort = null;
   authorMount?.destroy();
   authorMount = null;
   // Every id this session registered a preview under (draftIds — not just the
@@ -1737,11 +1770,89 @@ function logRevision(instruction: string, outcome: ReviseOutcome): string {
  * closes all of it — the two buttons go down together, and the load paths refuse.
  */
 let aiBusy = false;
+/** Aborts whatever call is in flight. Null exactly when `aiBusy` is false. */
+let aiAbort: AbortController | null = null;
 
-function setAiBusy(busy: boolean): void {
+function setAiBusy(busy: boolean, controller: AbortController | null = null): void {
   aiBusy = busy;
-  generateBtn.disabled = busy;
+  aiAbort = busy ? controller : null;
   reviseBtn.disabled = busy;
+  // Generate deliberately stays ENABLED while busy — it IS the cancel button.
+  // One button, one place: the thing that started the call stops it.
+  generateBtn.textContent = busy ? "Cancel" : "Generate with AI";
+  generateBtn.classList.toggle("cancelling", busy);
+  generateBtn.title = busy ? "Stop this AI call (Esc)" : "";
+}
+
+function cancelAi(): void {
+  if (!aiAbort) return;
+  aiAbort.abort();
+  setStatus("Cancelling…");
+}
+
+// ---------- the live status line ----------
+// A generation is 15–60 seconds of nothing without this: elapsed time proves
+// the app is alive, the character count proves the model is writing, and the
+// phase names the round so a repair does not read as a hang.
+
+let aiTicker: number | null = null;
+let aiStartedAt = 0;
+let aiLabel = "";
+let aiPhase = "";
+let aiChars = 0;
+
+function renderAiStatus(): void {
+  const secs = Math.round((performance.now() - aiStartedAt) / 1000);
+  const parts = [`${aiLabel}… ${secs}s`];
+  if (aiChars > 0) parts.push(`${aiChars.toLocaleString()} characters`);
+  if (aiPhase) parts.push(aiPhase);
+  setStatus(parts.join(" · "));
+}
+
+function startAiStatus(label: string, phase = ""): void {
+  aiLabel = label;
+  aiPhase = phase;
+  aiChars = 0;
+  aiStartedAt = performance.now();
+  renderAiStatus();
+  aiTicker = window.setInterval(renderAiStatus, 1000);
+}
+
+function stopAiStatus(): void {
+  if (aiTicker !== null) window.clearInterval(aiTicker);
+  aiTicker = null;
+}
+
+/** How a round's label reads in the status line. Round 1 has nothing to add. */
+function phaseText(label: string, round: number): string {
+  if (label === "template-fetch") return "fetching a template";
+  if (label === "initial") return round > 1 ? `attempt ${round}` : "";
+  return `repair ${round - 1}`;
+}
+
+// ---------- the spec pane during a call ----------
+// The model's own text goes into the pane while it writes, so the wait has
+// something to watch. The pane's previous contents are held so a cancel or a
+// failure puts them back untouched.
+
+let specBeforeStream: string | null = null;
+
+function streamIntoSpec(text: string): void {
+  if (specBeforeStream === null) {
+    specBeforeStream = specArea.value;
+    specArea.readOnly = true;
+    specArea.classList.add("streaming");
+  }
+  specArea.value = text;
+  specArea.scrollTop = specArea.scrollHeight;
+}
+
+/** `restore` puts the pre-call text back — for a cancel or a failure, not a success. */
+function endSpecStream(restore: boolean): void {
+  if (specBeforeStream !== null && restore) specArea.value = specBeforeStream;
+  specBeforeStream = null;
+  specArea.classList.remove("streaming");
+  applyHistoryUi(); // owns readOnly (it is also the version-viewing lock)
 }
 
 /** Guard for the document-loading paths: true (and says so) when a call is in flight. */
@@ -1774,13 +1885,14 @@ async function generate(): Promise<void> {
   // #template= tag or the toolbar picker) applies to every part of a
   // playlist too — spec §5a, explicit wins.
   const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
-  setAiBusy(true);
+  const controller = new AbortController();
+  setAiBusy(true, controller);
   try {
     if (parsed.playlist) {
-      await generateMulti(rawRequest, parsed, brief, apiKey, forcedTemplate, priorityIds);
+      await generateMulti(rawRequest, parsed, brief, apiKey, forcedTemplate, priorityIds, controller.signal);
       return;
     }
-    setStatus(`Generating (${settings.model}, prompt ${currentVariant().name})…`);
+    startAiStatus("Generating");
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
       model: settings.model,
@@ -1790,12 +1902,23 @@ async function generate(): Promise<void> {
       brief,
       forcedTemplate,
       priorityIds,
+      signal: controller.signal,
+      onProgress: ({ label, round, text }) => {
+        aiChars = text.length;
+        aiPhase = phaseText(label, round);
+        streamIntoSpec(text);
+        renderAiStatus();
+      },
     });
+    stopAiStatus();
     const logId = logOutcome(rawRequest, outcome);
     if (!outcome.spec) {
-      setStatus(outcome.error ?? "Generation failed.", "error");
+      endSpecStream(true);
+      // You asked for it — a cancel is not a failure, so it is not red.
+      setStatus(outcome.error ?? "Generation failed.", controller.signal.aborted ? "info" : "error");
       return;
     }
+    endSpecStream(false); // setDoc below writes the formatted spec over it
     if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
     setDoc(
       { id: null, driveFileId: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
@@ -1805,6 +1928,10 @@ async function generate(): Promise<void> {
     autosave();
     lastLogId = logId; // after setDoc, so the rating stars target this generation
   } finally {
+    // Unconditional, in this order: an early return above (or a throw) must not
+    // leave the ticker running, the pane locked, or the button saying Cancel.
+    stopAiStatus();
+    endSpecStream(true);
     setAiBusy(false);
   }
 }
@@ -1823,20 +1950,31 @@ async function revise(): Promise<void> {
   const dirty = docText !== currentVersion(stack)?.text;
   const label = dirty ? `${instruction} (+ manual edits)` : instruction;
 
-  setAiBusy(true);
+  const controller = new AbortController();
+  setAiBusy(true, controller);
   try {
-    setStatus(`Revising (${settings.model}, prompt ${currentVariant().name})…`);
+    startAiStatus("Revising");
     const outcome = await reviseDocument(docText, instruction, {
       apiKey,
       model: settings.model,
       variant: currentVariant(),
       priorityIds: settings.priorityPacks.flatMap((p) => packTemplateIds(p)),
+      signal: controller.signal,
+      onProgress: ({ label, round, text }) => {
+        aiChars = text.length;
+        aiPhase = phaseText(label === "repair" ? "lint-repair" : label, round);
+        streamIntoSpec(text);
+        renderAiStatus();
+      },
     });
+    stopAiStatus();
     const logId = logRevision(instruction, outcome);
     if (!outcome.playlist) {
-      setStatus(outcome.error ?? "Revision failed.", "error");
+      endSpecStream(true);
+      setStatus(outcome.error ?? "Revision failed.", controller.signal.aborted ? "info" : "error");
       return;
     }
+    endSpecStream(false);
     // doc.prompt is deliberately NOT replaced: it stays the original request, so
     // exemplars, the log and "👍 Learn from this" keep pairing original request -> current spec.
     setDoc(
@@ -1852,6 +1990,8 @@ async function revise(): Promise<void> {
     promptEl.value = ""; // consumed — and an empty box makes Generate inert
     refreshChips();
   } finally {
+    stopAiStatus();
+    endSpecStream(true);
     setAiBusy(false);
   }
 }
@@ -1866,13 +2006,18 @@ async function generateMulti(
   apiKey: string,
   forcedTemplate: string | undefined,
   priorityIds: string[],
+  signal: AbortSignal,
 ): Promise<void> {
-  setStatus(`Outlining a multi-part drawcast (${settings.model})…`);
+  // No spec streaming here: the parts generate in parallel, and N models
+  // writing into one pane would interleave into nonsense. The counter below
+  // is this path's progress signal.
+  startAiStatus("Outlining a multi-part drawcast");
   let outline;
   try {
-    outline = await generateOutline(parsed.clean, { apiKey, model: settings.model }, parsed.parts);
+    outline = await generateOutline(parsed.clean, { apiKey, model: settings.model }, parsed.parts, signal);
   } catch (err) {
-    setStatus(`Outline failed: ${describeApiError(err)}`, "error");
+    if (signal.aborted) setStatus("Cancelled.");
+    else setStatus(`Outline failed: ${describeApiError(err)}`, "error");
     return;
   }
   if (!outline) {
@@ -1884,7 +2029,9 @@ async function generateMulti(
   // other's specs), so they generate in parallel: N parts in ~one part's time.
   const n = outline.parts.length;
   let finished = 0;
-  setStatus(`Generating ${n} parts in parallel (${settings.model})…`);
+  aiLabel = `Generating ${n} parts in parallel`;
+  aiPhase = `0/${n} done`;
+  renderAiStatus();
   const outcomes = await Promise.all(
     outline.parts.map((part, i) =>
       generateSpec(buildPartRequest(parsed.clean, outline, i, brief), {
@@ -1895,9 +2042,11 @@ async function generateMulti(
         bundledExemplars: bundledExemplarPool(),
         forcedTemplate,
         priorityIds,
+        signal,
       }).then((outcome) => {
         finished++;
-        setStatus(`Generating ${n} parts in parallel — ${finished}/${n} done…`);
+        aiPhase = `${finished}/${n} done`;
+        renderAiStatus();
         logOutcome(`${rawRequest} [part ${i + 1}: ${part.title}]`, outcome);
         return outcome;
       }),
@@ -1915,7 +2064,8 @@ async function generateMulti(
     specs.push(outcome.spec);
   });
   if (specs.length === 0) {
-    setStatus(`Every part failed: ${outcomes[0]?.error ?? "no spec"}`, "error");
+    if (signal.aborted) setStatus("Cancelled.");
+    else setStatus(`Every part failed: ${outcomes[0]?.error ?? "no spec"}`, "error");
     return;
   }
   const playlist: Playlist = {
@@ -1949,7 +2099,18 @@ const BLANK_SPEC: Spec = {
   ],
 };
 
-generateBtn.addEventListener("click", () => void generate());
+generateBtn.addEventListener("click", () => {
+  if (aiBusy) return cancelAi();
+  void generate();
+});
+
+// Esc cancels too — but only when nothing modal is open, where Esc already
+// means "close this dialog" (the browser fires it there first).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !aiBusy) return;
+  if (document.querySelector("dialog[open]")) return;
+  cancelAi();
+});
 // A new drawcast is a clean slate on both sides: the request box empties too
 // (setDoc keeps the old text when the incoming doc has no prompt of its own).
 blankBtn.addEventListener("click", () => {

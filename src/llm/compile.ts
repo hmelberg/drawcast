@@ -53,6 +53,16 @@ export interface GenerationRound {
   meta: JsonCallMeta;
 }
 
+/** What the model is writing, right now — the UI's only view into a round in flight. */
+export interface GenerationProgress {
+  /** Same labels as GenerationRound, so the status line can name the phase. */
+  label: GenerationRound["label"];
+  /** 1-based, counting every round including escalation ("repair 2 of 3"). */
+  round: number;
+  /** Everything written this round so far, not just the latest delta. */
+  text: string;
+}
+
 export interface GenerationOutcome {
   spec: Spec | null;
   rounds: GenerationRound[];
@@ -81,6 +91,10 @@ export interface GenerateConfig {
   priorityIds?: string[];
   /** Template ids to hide from the catalog entirely (host embeds exclude e.g. molecule_3d). */
   excludeIds?: string[];
+  /** Cancels the generation, whichever round is in flight. */
+  signal?: AbortSignal;
+  /** Called as the model writes, once per streamed delta. */
+  onProgress?: (progress: GenerationProgress) => void;
 }
 
 /** A repair round is warranted only for real problems — warn-level lint is cosmetic. */
@@ -220,7 +234,16 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       // that round back to "initial"), so it must not fall through to the
       // repair model just because it isn't rounds[0].
       const roundModel = label === "initial" ? cfg.model : repairModelFor(cfg.model);
-      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema);
+      // Repairs are mechanical in the same sense that picks the faster model
+      // above: "here are the errors, fix them" needs no deliberation, so they
+      // also run at low effort. The creative round is left at the model's own
+      // default — that judgment is the product.
+      const round = rounds.length + 1;
+      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema, {
+        signal: cfg.signal,
+        effort: label === "initial" ? undefined : "low",
+        onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
+      });
 
       // Escalation (fires at most once): the model asked for a template's full
       // definition instead of guessing its parameters from the index line.
@@ -311,9 +334,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
 }
 
 /** The outline call for #playlist / #parts=N. Throws on API errors; null when the model's outline is unusable. */
-export async function generateOutline(request: string, cfg: { apiKey: string; model: string }, parts: number | null): Promise<Outline | null> {
+export async function generateOutline(
+  request: string,
+  cfg: { apiKey: string; model: string },
+  parts: number | null,
+  signal?: AbortSignal,
+): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
   const { system, user } = buildOutlineMessages(request, parts);
-  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object);
+  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal });
   return normalizeOutline(json);
 }

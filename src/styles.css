@@ -244,6 +244,20 @@ body.mode-editor main {
   background: color-mix(in srgb, #9c6b1f 10%, var(--surface));
 }
 .spec-json[readonly] { opacity: 0.75; }
+/* While the model writes into the pane: dimmer than a normal read-only lock,
+   with a live left edge, so it reads as "being written" and not as "yours". */
+.spec-json.streaming {
+  opacity: 0.6;
+  border-left: 3px solid var(--rust);
+  animation: spec-streaming 1.6s ease-in-out infinite;
+}
+@keyframes spec-streaming {
+  0%, 100% { border-left-color: var(--rust); }
+  50% { border-left-color: color-mix(in srgb, var(--rust) 25%, var(--surface)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spec-json.streaming { animation: none; }
+}
 
 /* Both panes are one grid row, so they end on the same line however tall the
    figure is; the spec textarea grows to fill its column. */
@@ -557,6 +571,16 @@ button.primary {
   font-weight: 600;
 }
 button.primary:hover { background: #9c3d26; }
+
+/* Generate becomes Cancel while a call is in flight: same button, quieted, so
+   the accent colour never reads as "the thing you want to press again". */
+button.primary.cancelling {
+  background: transparent;
+  border-color: var(--muted);
+  color: var(--ink);
+  font-weight: 500;
+}
+button.primary.cancelling:hover { background: rgba(0, 0, 0, 0.04); border-color: var(--rust); color: var(--rust); }
 
 button.small { padding: 0.25rem 0.5rem; font-size: 0.82rem; }
 button:disabled { opacity: 0.5; cursor: default; }

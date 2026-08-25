@@ -42,6 +42,21 @@ export function opusTier(model: string): boolean {
   return model.startsWith("claude-opus-5") || model.startsWith("claude-fable");
 }
 
+/** Per-call knobs: cancellation, live text, and the effort dial repairs turn down. */
+export interface CallOpts {
+  /** Aborts the request in flight — the SDK throws APIUserAbortError. */
+  signal?: AbortSignal;
+  /** Each text delta plus the running snapshot, as the model writes it. */
+  onDelta?: (delta: string, snapshot: string) => void;
+  /** output_config.effort. Omitted means the model's default (high). */
+  effort?: "low" | "medium" | "high";
+}
+
+/**
+ * Every call streams. Not for the incremental text alone — a streamed request
+ * is also the one an AbortSignal can cut off mid-flight, and the one whose
+ * progress the UI can show instead of a frozen status line.
+ */
 async function createMessage(
   client: Anthropic,
   model: string,
@@ -49,27 +64,41 @@ async function createMessage(
   messages: Anthropic.MessageParam[],
   outputSchema: object | null,
   useFallbacks: boolean,
+  opts: CallOpts,
 ): Promise<Anthropic.Message> {
+  const outputConfig = {
+    ...(outputSchema ? { format: { type: "json_schema" as const, schema: outputSchema as Record<string, unknown> } } : {}),
+    ...(opts.effort ? { effort: opts.effort } : {}),
+  };
   const base = {
     model,
     max_tokens: 16000,
     system,
     messages,
-    ...(outputSchema
-      ? { output_config: { format: { type: "json_schema" as const, schema: outputSchema as Record<string, unknown> } } }
-      : {}),
+    ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
   };
+  const requestOptions = { signal: opts.signal };
+  // The two branches are kept apart rather than joined into one `stream`
+  // variable: MessageStream and BetaMessageStream have incompatible `.on`
+  // overloads, so a union of them is not callable.
   if (useFallbacks && opusTier(model)) {
     // Server-side refusal fallbacks, scalar "default" form (routes by refusal
     // category). Enabled by default for the Opus-5 tier; a 400 falls back to a
     // plain request below.
-    return (await client.beta.messages.create({
-      ...base,
-      betas: ["server-side-fallback-2026-07-01"],
-      ...({ fallbacks: "default" } as object),
-    })) as unknown as Anthropic.Message;
+    const stream = client.beta.messages.stream(
+      {
+        ...base,
+        betas: ["server-side-fallback-2026-07-01"],
+        ...({ fallbacks: "default" } as object),
+      } as never,
+      requestOptions,
+    );
+    if (opts.onDelta) stream.on("text", opts.onDelta);
+    return (await stream.finalMessage()) as unknown as Anthropic.Message;
   }
-  return client.messages.create(base);
+  const stream = client.messages.stream(base, requestOptions);
+  if (opts.onDelta) stream.on("text", opts.onDelta);
+  return await stream.finalMessage();
 }
 
 // Learned per session: the structured-output grammar rejects our spec schema
@@ -85,6 +114,7 @@ export async function callForJson(
   system: string | Anthropic.TextBlockParam[],
   messages: Anthropic.MessageParam[],
   outputSchema: object,
+  opts: CallOpts = {},
 ): Promise<{ json: unknown; raw: string; meta: JsonCallMeta }> {
   // Soft monthly cap — applies only when the stored key was vended (shared).
   const budget = anthropicBudgetError();
@@ -98,7 +128,7 @@ export async function callForJson(
     const useSchema = featureBroken.structuredOutput ? null : outputSchema;
     const useFallbacks = !featureBroken.fallbacks;
     try {
-      response = await createMessage(client, model, system, messages, useSchema, useFallbacks);
+      response = await createMessage(client, model, system, messages, useSchema, useFallbacks, opts);
       structured = useSchema !== null;
     } catch (err) {
       lastError = err;
@@ -151,12 +181,13 @@ export async function callForText(
   model: string,
   system: string | Anthropic.TextBlockParam[],
   messages: Anthropic.MessageParam[],
+  opts: CallOpts = {},
 ): Promise<{ text: string; ms: number }> {
   const budget = anthropicBudgetError();
   if (budget) throw new Error(budget);
   const t0 = performance.now();
-  const response = await createMessage(client, model, system, messages, null, true).catch((err) => {
-    if (err instanceof Anthropic.BadRequestError) return createMessage(client, model, system, messages, null, false);
+  const response = await createMessage(client, model, system, messages, null, true, opts).catch((err) => {
+    if (err instanceof Anthropic.BadRequestError) return createMessage(client, model, system, messages, null, false, opts);
     throw err;
   });
   if (response.stop_reason === "refusal") {
@@ -176,6 +207,9 @@ export { extractJson };
 /** Human-readable message for the UI. */
 export function describeApiError(err: unknown): string {
   if (err instanceof RefusalError) return `Refused: ${err.message}`;
+  // Before the APIError checks below — a user abort is one of them, and it is
+  // not a failure to report as one.
+  if (err instanceof Anthropic.APIUserAbortError) return "Cancelled.";
   if (err instanceof Anthropic.AuthenticationError) return "Invalid API key (401). Check Settings.";
   if (err instanceof Anthropic.RateLimitError) return "Rate limited (429). Wait a moment and try again.";
   if (err instanceof Anthropic.BadRequestError) return `Bad request (400): ${err.message}`;

@@ -51,6 +51,10 @@ export interface AuthorConfig {
   existingYaml?: string;
   /** Refine mode: prior authoring conversation to continue. */
   history?: Anthropic.MessageParam[];
+  /** Cancels the authoring call, whichever round is in flight. */
+  signal?: AbortSignal;
+  /** Called as the model writes the template document. */
+  onProgress?: (progress: { round: number; text: string }) => void;
 }
 
 /** Closed shape for structured outputs; the open params object may 400 — callForJson falls back. */
@@ -179,8 +183,13 @@ export async function generateTemplate(description: string, image: AuthorImage |
 
   try {
     while (true) {
-      const roundModel = rounds.length === 0 ? cfg.model : repairModelFor(cfg.model);
-      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object);
+      const isRepair = rounds.length > 0;
+      const roundModel = isRepair ? repairModelFor(cfg.model) : cfg.model;
+      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object, {
+        signal: cfg.signal,
+        effort: isRepair ? "low" : undefined,
+        onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ round: rounds.length + 1, text })),
+      });
       // Validate first (cheap), await any declared engines BEFORE the full
       // validate+collision+compile+run chain — processAuthorDoc's own layout
       // call needs the engine already loaded (getLoadedEngines is sync).

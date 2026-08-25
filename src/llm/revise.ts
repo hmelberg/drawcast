@@ -78,6 +78,10 @@ export interface ReviseConfig {
   /** Priority packs from settings; templates in the document are added automatically. */
   priorityIds?: string[];
   maxRepairs?: number;
+  /** Cancels the revision, whichever round is in flight. */
+  signal?: AbortSignal;
+  /** Called as the model rewrites the document, once per streamed delta. */
+  onProgress?: (progress: { label: ReviseRound["label"]; round: number; text: string }) => void;
 }
 
 export interface ReviseRound {
@@ -136,7 +140,12 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     while (true) {
       const label: ReviseRound["label"] = rounds.length === 0 ? "initial" : "repair";
       const model = label === "initial" ? cfg.model : repairModelFor(cfg.model);
-      const { text: raw, ms } = await callForText(client, model, system, messages);
+      const round = rounds.length + 1;
+      const { text: raw, ms } = await callForText(client, model, system, messages, {
+        signal: cfg.signal,
+        effort: label === "initial" ? undefined : "low",
+        onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
+      });
       const cleaned = stripFence(raw);
       const parsed = parseReviseReply(raw);
 
