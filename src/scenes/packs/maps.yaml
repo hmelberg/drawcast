@@ -95,6 +95,64 @@ layout: |
   const fitNames = [...focusRaw, ...highlightRaw];
   const { shapes, missing, centroids } = engines.geo.countries(requestNames, { w: FIT.w, h: FIT.h, fitNames });
 
+  // Map accuracy is a later phase (see ROADMAP) — for now, every drawn ring
+  // is run through kit.smooth (Catmull-Rom) before stroking, in BOTH world
+  // and focus modes, so a country's corners round pleasantly instead of
+  // reading as a raw polygon. Two knobs keep the point count sane across a
+  // whole-world render (~250+ rings): SMOOTH_MAX_RING skips a ring that's
+  // already dense enough to look smooth on its own (Canada/Russia/Antarctica
+  // etc. at 110m resolution top out around 200-550 points — smoothing those
+  // further buys nothing visible for a lot more path data), and
+  // SMOOTH_SAMPLES (kit.smooth's own `per` — samples generated PER INPUT
+  // SEGMENT) is 4, the low end of a "4-6 looks pleasant" range, chosen
+  // because it's applied across every ring at once rather than to one
+  // hand-picked shape. Measured against the real dataset: world mode goes
+  // from ~10.4k raw points (already capped at >=8pt rings, below) to ~33k
+  // smoothed — a real but bounded cost, not an unbounded blow-up. Applied to
+  // the RAW ring (before the `off()` translate into FIT-box coordinates) —
+  // translation doesn't change point count or spline shape, only where it
+  // ultimately sits, so this order is just simpler to read.
+  //
+  // Known limitation (acceptable for a "smooth now" pass): kit.smooth treats
+  // its input as an OPEN curve (it clamps by duplicating the first/last
+  // points, rather than wrapping around) — a ring is actually CLOSED (the
+  // engine repeats the first point as the last, world-atlas convention; the
+  // stroke itself is closed via SVG "Z"), so the seam where the ring
+  // "starts" gets one un-smoothed corner rather than a fully periodic
+  // round-trip. At one corner out of a whole country's outline this reads as
+  // negligible; a truly periodic Catmull-Rom would need a new kit.ts
+  // primitive, out of scope for a smoothing pass that's explicitly a
+  // placeholder ahead of the accuracy upgrade.
+  const SMOOTH_MAX_RING = 120;
+  const SMOOTH_SAMPLES = 4;
+  // Catmull-Rom can overshoot the convex hull of its control points — usually
+  // invisible mid-ring, but world mode's projection is fit flush to the FULL
+  // [0,FIT.w]x[0,FIT.h] box with no margin (unlike focus mode's fitExtent,
+  // which already pads ~4%), so a ring vertex right at the world's own edge
+  // (Antarctica's southern rim, the antimeridian seam) can overshoot a hair
+  // past 0 or FIT.w/FIT.h. Clamped back into the fit box after smoothing —
+  // this only ever touches the rare overshoot vertex, not the shape's
+  // general roundness.
+  function smoothRing(ring) {
+    const sm = ring.length >= 4 && ring.length <= SMOOTH_MAX_RING ? kit.smooth(ring, SMOOTH_SAMPLES) : ring;
+    return sm.map(([x, y]) => [Math.max(0, Math.min(FIT.w, x)), Math.max(0, Math.min(FIT.h, y))]);
+  }
+  // Memoized per shape (by dataset name) so the country-outline loop and the
+  // highlight loop below draw from the EXACT SAME smoothed geometry — a
+  // highlight fill must trace its country's own outline, not a separately
+  // (and possibly differently) smoothed copy of it, or the fill would show
+  // as a halo mismatch against the stroke.
+  const smoothedRingsCache = new Map();
+  function smoothedRings(shape) {
+    const key = shape.name.toLowerCase();
+    let sm = smoothedRingsCache.get(key);
+    if (!sm) {
+      sm = shape.rings.map(smoothRing);
+      smoothedRingsCache.set(key, sm);
+    }
+    return sm;
+  }
+
   function findShape(name) {
     const key = name.toLowerCase();
     return shapes.find((s) => s.name.toLowerCase() === key);
@@ -136,7 +194,11 @@ layout: |
   const drawnKeys = new Set();
   for (const shape of shapes) {
     if (isFocus && !focusKeys.has(shape.name.toLowerCase())) continue; // requested only for its centroid (highlight/marker), not drawn
-    const rings = isFocus ? shape.rings : shape.rings.filter((r) => r.length >= 8); // world mode: drop slivers, keep the drawable count sane
+    const smoothed = smoothedRings(shape); // one smoothed ring per RAW ring, same order/count
+    // The size cap (world mode only) is measured on the RAW ring — a
+    // sliver's raw point count is what makes it visually insignificant, not
+    // however many points smoothing happens to expand it to.
+    const rings = isFocus ? smoothed : shape.rings.map((r, i) => (r.length >= 8 ? smoothed[i] : null)).filter((r) => r !== null); // world mode: drop slivers, keep the drawable count sane
     if (rings.length === 0) continue;
     const id = "country_" + slug(shape.name);
     const children = rings.map((ring, i) =>
@@ -180,7 +242,10 @@ layout: |
       continue;
     }
     const id = "hl_" + slug(shape.name);
-    push(kit.area(id, shape.rings[0].map(off), C.region2, { opacity: 0.3 }));
+    // The SAME smoothed ring the outline loop above drew (memoized in
+    // smoothedRings) — never a separately-smoothed copy, or the fill would
+    // trace slightly different geometry than its own outline (a halo).
+    push(kit.area(id, smoothedRings(shape)[0].map(off), C.region2, { opacity: 0.3 }));
     const c = centroids[shape.name];
     if (c) anchors[id] = off(c);
   }

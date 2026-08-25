@@ -11,7 +11,7 @@ import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplate
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables, COLORS } from "../src/layout/model";
-import { ensureEngines } from "../src/scenes/engines";
+import { ensureEngines, getLoadedEngines, type GeoEngine } from "../src/scenes/engines";
 import type { SceneLayout } from "../src/scenes/types";
 
 beforeEach(() => unregisterPack("physics"));
@@ -1666,5 +1666,41 @@ describe("maps pack", () => {
     const title = res.drawables.find((d) => d.id === "title") as { kind: string; text?: string } | undefined;
     expect(title?.kind).toBe("text");
     expect(title?.text).toBe("Norway");
+  });
+
+  test("country rings are Catmull-Rom smoothed before stroking: more points than the raw ring, still fully in canvas bounds", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const geo = getLoadedEngines(["geo"]).geo as GeoEngine;
+    const raw = geo.countries(["Norway"]).shapes[0].rings;
+    const res = scenes.world_map.layout!({ focus: ["Norway"] });
+    const flat = flattenDrawables(res.drawables);
+    const smoothedRings = raw.map((_, i) => flat.find((d) => d.id === "country_norway__ring" + i) as { pts: [number, number][] });
+    expect(smoothedRings.every(Boolean)).toBe(true);
+    smoothedRings.forEach((ring, i) => {
+      // Every raw Norway ring (18, 50, 12, 8 points) is well under the
+      // smoothing size cap, so every one of them actually gets smoothed —
+      // more output points than input.
+      expect(ring.pts.length).toBeGreaterThan(raw[i].length);
+      for (const [x, y] of ring.pts) {
+        expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(1000);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(750);
+      }
+    });
+  });
+
+  test("a highlight fill uses the EXACT SAME smoothed ring as the country's own outline (no halo mismatch)", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({ focus: ["Norway"], highlight: ["Norway"] });
+    const flat = flattenDrawables(res.drawables);
+    const outline = flat.find((d) => d.id === "country_norway__ring0") as { pts: [number, number][] };
+    const highlight = flat.find((d) => d.id === "hl_norway") as { pts: [number, number][] };
+    expect(outline).toBeDefined();
+    expect(highlight).toBeDefined();
+    expect(highlight.pts).toEqual(outline.pts);
   });
 });

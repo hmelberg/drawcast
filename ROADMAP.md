@@ -96,6 +96,18 @@ ROADMAP for that record.
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 
+- **Map accuracy** (follow-up to the 2026-08-25 ring smoothing in
+  `maps.yaml`): load `world-atlas/countries-50m.json` in **focus mode**
+  only — the whole-world view stays on `countries-110m` (its extra detail
+  wouldn't survive being drawn at that scale, and it's what keeps the
+  world-mode point budget sane). Composes with, doesn't replace, the
+  Catmull-Rom smoothing (`kit.smooth`) already in place — 50m rings are
+  themselves more angular before smoothing than a real coastline, just
+  finer-grained than 110m's. `countries-50m.json` is ~700KB (vs 110m's
+  ~108KB), so it needs the same lazy-load-on-first-use treatment `geo`
+  already gets in `src/scenes/engines.ts`, fetched only when `focus` is
+  actually requested.
+
 ## Phase C — structure
 
 - `pages: [{elements, commands}]` — true multi-scene drawcasts with per-page
