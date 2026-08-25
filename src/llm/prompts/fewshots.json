@@ -97,28 +97,30 @@
     }
   },
   {
-    "request": "Draw a Markov model with Healthy, Sick and Dead states.",
+    "request": "Show a client sending a request to a server that queries a database.",
     "spec": {
-      "title": "Three-state Markov model",
+      "title": "Client-server request flow",
       "elements": [
-        { "id": "healthy", "type": "node", "shape": "circle", "text": "Healthy" },
-        { "id": "sick", "type": "node", "shape": "circle", "text": "Sick" },
-        { "id": "dead", "type": "node", "shape": "circle", "text": "Dead" },
-        { "id": "h_s", "type": "arrow", "from": { "ref": "healthy" }, "to": { "ref": "sick" }, "curved": true },
-        { "id": "s_h", "type": "arrow", "from": { "ref": "sick" }, "to": { "ref": "healthy" }, "curved": true },
-        { "id": "s_d", "type": "arrow", "from": { "ref": "sick" }, "to": { "ref": "dead" }, "curved": true },
-        { "id": "h_d", "type": "arrow", "from": { "ref": "healthy" }, "to": { "ref": "dead" }, "curved": true },
-        { "id": "p_hs", "type": "label", "text": "0.10", "attach_to": "h_s", "side": "above" },
-        { "id": "p_sd", "type": "label", "text": "0.05", "attach_to": "s_d", "side": "right" }
+        { "id": "client", "type": "node", "shape": "rect", "text": "Client" },
+        { "id": "server", "type": "node", "shape": "rect", "text": "Server" },
+        { "id": "db", "type": "node", "shape": "rect", "text": "Database" },
+        { "id": "req", "type": "arrow", "from": { "ref": "client" }, "to": { "ref": "server" }, "curved": true },
+        { "id": "resp", "type": "arrow", "from": { "ref": "server" }, "to": { "ref": "client" }, "curved": true },
+        { "id": "query", "type": "arrow", "from": { "ref": "server" }, "to": { "ref": "db" }, "curved": true },
+        { "id": "rows", "type": "arrow", "from": { "ref": "db" }, "to": { "ref": "server" }, "curved": true },
+        { "id": "label_req", "type": "label", "text": "GET /profile", "attach_to": "req", "side": "above" },
+        { "id": "label_query", "type": "label", "text": "SELECT * FROM users", "attach_to": "query", "side": "above" }
       ],
       "commands": [
-        { "speak": "A Markov model follows people between health states over time." },
-        { "draw": ["healthy", "sick", "dead"], "parallel": true, "speak": "Three states: healthy, sick — and dead." },
+        { "speak": "A web request usually passes through three parts before an answer comes back." },
+        { "draw": ["client", "server", "db"], "parallel": true, "speak": "The client, the server, and its database." },
         { "pause": 0.3 },
-        { "draw": ["h_s", "p_hs", "s_h"], "speak": "Each cycle, ten percent of the healthy fall ill — and the sick can recover." },
+        { "draw": ["req", "label_req"], "speak": "The client asks the server for a page." },
         { "pause": 0.3 },
-        { "draw": ["s_d", "p_sd", "h_d"], "speak": "They can also die." },
-        { "point": { "at": { "ref": "dead" }, "gesture": "circle" }, "speak": "Death is absorbing: no arrows lead back out." }
+        { "draw": ["query", "label_query"], "speak": "The server, in turn, queries the database for the data it needs." },
+        { "pause": 0.3 },
+        { "draw": ["rows", "resp"], "speak": "The database returns rows, and the server sends its response back to the client." },
+        { "point": { "at": { "ref": "server" }, "gesture": "circle" }, "speak": "The server sits in the middle, coordinating both sides." }
       ]
     }
   }

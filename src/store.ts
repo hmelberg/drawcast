@@ -21,7 +21,16 @@ const KEYS = {
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
   usage: "drawcast.usage.v1",
-  packsUpgrade: "drawcast.packsDefault.v1", // one-shot flag, see loadSettings
+  // One-shot flag, see loadSettings. Bumped to v2 on 2026-08-25: the default
+  // pack set grew again (economics/evidence/mathlogic joined
+  // physics/chemistry/biology), and browsers that already ran the v1 upgrade
+  // have the v1 key set, so the v1 flag alone would never let them see this
+  // second union. Re-running the union under a new flag is safe — it only
+  // ever adds ids, riding along any pack the user enabled themselves or that
+  // came from a remote source, and a pack the user deliberately turned off
+  // gets re-enabled once (accepted: no back-compat guarantee here, see
+  // feedback_no_backwards_compat).
+  packsUpgrade: "drawcast.packsDefault.v2",
 } as const;
 
 export interface Settings {
@@ -125,6 +134,10 @@ export function loadSettings(): Settings {
   // comparing lists, otherwise every deliberate un-toggle would be undone on
   // the next load. Anything the user had enabled (remote packs included) rides
   // along unchanged.
+  // KEYS.packsUpgrade's value gets bumped (v1 -> v2 -> ...) whenever
+  // DEFAULT_SETTINGS.enabledPacks grows again — a browser that already ran an
+  // older version of this upgrade has the older flag set, so only a new flag
+  // key re-triggers the union for it.
   // Guarded like read()/readArray(): the viewer calls loadSettings in
   // environments without storage at all, where it must degrade to the
   // defaults rather than throw.
