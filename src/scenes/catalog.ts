@@ -162,11 +162,23 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   }
 
   if (ready.length <= TEMPLATE_FULL_THRESHOLD) {
-    // Legacy path: byte-identical to the pre-M3 sceneCatalogText() output —
-    // required for prompt-cache stability. Do not touch separators/ordering.
+    // Legacy path: byte-identical to the pre-M3 sceneCatalogText() output
+    // when every bundled pack is registered — required for prompt-cache
+    // stability, so separators/ordering above this point stay untouched.
+    // A default-off pack (games/maps — see DEFAULT_OFF_PACKS in ./packs)
+    // stays unregistered until a user opts in, and the model has no other
+    // way to learn it exists while the catalog sits below the two-level
+    // threshold (the "Pack available but not enabled" line otherwise only
+    // renders in the two-level branch below) — so append one such line per
+    // unregistered pack here too. This does perturb the byte-identical
+    // guarantee, but only in a config with an unregistered pack; a cache
+    // pinned to a fully-enabled config is unaffected.
     const parts: string[] = [];
     for (const { manifest } of entries) {
       parts.push(manifest.status === "ready" ? fullEntry(manifest) : stubLine(manifest));
+    }
+    for (const p of Object.values(PACK_DEFS).filter((def) => packTemplateIds(def.id).length === 0)) {
+      parts.push(`Pack available but not enabled: ${p.title} — ${p.description}`);
     }
     return { stable: parts.join("\n\n"), variable: "" };
   }

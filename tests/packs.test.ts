@@ -5,7 +5,8 @@ import biologyYaml from "../src/scenes/packs/biology.yaml?raw";
 import economicsYaml from "../src/scenes/packs/economics.yaml?raw";
 import evidenceYaml from "../src/scenes/packs/evidence.yaml?raw";
 import mathlogicYaml from "../src/scenes/packs/mathlogic.yaml?raw";
-import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
+import gamesYaml from "../src/scenes/packs/games.yaml?raw";
+import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables, COLORS } from "../src/layout/model";
@@ -962,5 +963,132 @@ describe("mathlogic pack", () => {
     expect(ids3).toContain("shade_abc");
     expect(ids3).toContain("shade_outside");
     expect(ids3).not.toContain("shade_ab");
+  });
+});
+
+const GAMES_TEMPLATE_IDS = ["chess_board"];
+
+describe("games pack", () => {
+  beforeEach(() => unregisterPack("games"));
+
+  function inBounds(res: ReturnType<typeof layoutSpec>) {
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+        }
+      } else if (d.kind === "text") {
+        expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+      }
+    }
+  }
+
+  test("registers chess_board; it declares the chess engine, and games is a default-off pack", () => {
+    const r = registerPack("games", gamesYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: GAMES_TEMPLATE_IDS });
+    expect(scenes.chess_board.manifest.engines).toEqual(["chess"]);
+    expect(DEFAULT_OFF_PACKS.has("games")).toBe(true);
+  });
+
+  test("start position (no moves) renders exactly 32 piece texts, no fallback warnings", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = layoutSpec({ template: "chess_board", params: {}, elements: [] } as never);
+    inBounds(res);
+    const pieceTexts = flattenDrawables(res.drawables).filter((d) => d.kind === "text" && d.id.startsWith("piece_"));
+    expect(pieceTexts).toHaveLength(32);
+    expect(pieceTexts.every((d) => (d as { text: string }).text !== "")).toBe(true);
+    // Corners: a8 black rook, h1 white rook, per the engine's own board() contract.
+    expect((flattenDrawables(res.drawables).find((d) => d.id === "piece_a8") as { text: string }).text).toBe("♜");
+    expect((flattenDrawables(res.drawables).find((d) => d.id === "piece_h1") as { text: string }).text).toBe("♖");
+  });
+
+  test('plies_shown: 1 on ["e4"] moves the e2 pawn text to e4 and emits move_arrow', async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const r = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1 });
+    const flat = flattenDrawables(r.drawables);
+    const e2 = flat.find((d) => d.id === "piece_e2") as { text: string };
+    const e4 = flat.find((d) => d.id === "piece_e4") as { text: string };
+    expect(e2.text).toBe("");
+    expect(e4.text).toBe("♙");
+    const arrow = flat.find((d) => d.id === "move_arrow") as { pts: [number, number][] } | undefined;
+    expect(arrow).toBeDefined();
+    // The arrow actually points from e2 toward e4 (not the shown===0 degenerate case).
+    expect(arrow!.pts[0][1]).toBeLessThan(arrow!.pts[arrow!.pts.length - 1][1]);
+  });
+
+  test("plies_shown clamps to [0, moves.length] and defaults to the full line", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const full = scenes.chess_board.layout!({ moves: ["e4", "e5"] });
+    const clampedHigh = scenes.chess_board.layout!({ moves: ["e4", "e5"], plies_shown: 99 });
+    const clampedLow = scenes.chess_board.layout!({ moves: ["e4", "e5"], plies_shown: -3 });
+    expect(JSON.stringify(full)).toBe(JSON.stringify(clampedHigh));
+    const e2Low = flattenDrawables(clampedLow.drawables).find((d) => d.id === "piece_e2") as { text: string };
+    expect(e2Low.text).toBe("♙"); // plies_shown clamped to 0: nothing played yet.
+  });
+
+  test("illegal SAN throws, naming the offending move", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    expect(() => scenes.chess_board.layout!({ moves: ["e9"] })).toThrow(/e9/);
+    expect(() => scenes.chess_board.layout!({ moves: ["e4", "e5", "e5"] })).toThrow(/e5/);
+  });
+
+  test("invalid fen throws, naming the defect, even with no moves", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    expect(() => scenes.chess_board.layout!({ fen: "not a fen at all" })).toThrow();
+  });
+
+  test("orientation: piece_e2 sits low-right in White's view, high-left when flipped (both traced from the engine's own board row/col)", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const white = scenes.chess_board.layout!({});
+    const black = scenes.chess_board.layout!({ flip: true });
+    const CX = 500, CY = 375; // board center: X0 + 260, Y0 + 260 with X0=240, Y0=115.
+    const posW = white.anchors.piece_e2 as [number, number];
+    const posB = black.anchors.piece_e2 as [number, number];
+    expect(posW[1]).toBeLessThan(CY); // White's view: e2 low (near White's own side)...
+    expect(posW[0]).toBeGreaterThan(CX); // ...and right of center (file e is east of d).
+    expect(posB[1]).toBeGreaterThan(CY); // Flipped: the SAME square sits high...
+    expect(posB[0]).toBeLessThan(CX); // ...and left of center.
+  });
+
+  test("every games example renders finite, no fallback warnings, no error-severity lint, and is deterministic (chess engine pre-loaded)", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    for (const tid of GAMES_TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        inBounds(res);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("highlights are deduped, arrows/coords are toggleable", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const withExtras = scenes.chess_board.layout!({
+      highlights: ["d5", "d5", "zz"],
+      arrows: [{ from: "d1", to: "d5" }],
+      coords: true,
+    });
+    const idsExtras = flattenDrawables(withExtras.drawables).map((d) => d.id);
+    expect(idsExtras.filter((id) => id === "hl_d5")).toHaveLength(1);
+    expect(idsExtras).not.toContain("hl_zz");
+    expect(idsExtras).toContain("arrow_0");
+    expect(idsExtras).toContain("coord_a");
+    expect(idsExtras).toContain("coord_1");
+
+    const noCoords = scenes.chess_board.layout!({ coords: false });
+    const idsNoCoords = flattenDrawables(noCoords.drawables).map((d) => d.id);
+    expect(idsNoCoords.some((id) => id.startsWith("coord_"))).toBe(false);
   });
 });

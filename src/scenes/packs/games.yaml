@@ -1,0 +1,263 @@
+pack: games
+title: Games
+description: Chess positions and replayed lines from FEN and SAN — boards, move arrows, square highlights.
+---
+template: chess_board
+title: Chess board (FEN / SAN)
+version: 1
+kit: 2
+status: ready
+engines: [chess]
+description: >-
+  A chess board rendered from a FEN position and, optionally, a line of
+  moves in Standard Algebraic Notation (SAN) played out via the chess
+  engine: an 8x8 board with shaded dark squares, Unicode piece glyphs, an
+  arrow along the most recently played move, optional static annotation
+  arrows and highlighted squares, and file/rank coordinates. Choose this
+  scene for ANY request about a chess position, a FEN diagram, a chess
+  opening, a chess line, a chess puzzle or tactic, a checkmate, or replaying
+  a sequence of chess moves. `plies_shown` is NUMERIC and ANIMATABLE:
+  animate it from 0 to moves.length (write the starting value, e.g.
+  `plies_shown: 0`, explicitly in params) to replay the line move by move,
+  narrating each beat, with the newest move drawn as an arrow as it lands.
+params:
+  type: object
+  properties:
+    fen:
+      type: string
+      description: "Starting position in FEN notation. Default: the standard starting position."
+    moves:
+      type: array
+      items: { type: string }
+      description: "A line of moves in Standard Algebraic Notation (SAN), played from `fen` (or the start position) — e.g. [\"e4\", \"e5\", \"Nf3\"]. An illegal move throws, naming the offending SAN; a malformed fen throws too."
+    plies_shown:
+      type: number
+      description: "How many plies of `moves` to show, as a NUMERIC count (floored) — default all of them (moves.length). 0 shows the position at `fen` before any move. Clamped to [0, moves.length]. Animate this across an `animate` command to replay the line move by move."
+    arrows:
+      type: array
+      items:
+        type: object
+        properties:
+          from: { type: string, description: "Algebraic square, e.g. \"e2\"." }
+          to: { type: string, description: "Algebraic square, e.g. \"e4\"." }
+        required: [from, to]
+      description: "Static annotation arrows (threats, plans) drawn in accent color, independent of the played line."
+    highlights:
+      type: array
+      items: { type: string }
+      description: "Algebraic squares to shade, e.g. [\"d5\", \"e4\"] — outposts, weak squares, key files."
+    flip:
+      type: boolean
+      description: "Show the board from Black's point of view (rank 1 at top, files mirrored). Default false (White's view)."
+    coords:
+      type: boolean
+      description: "Show file letters (a-h) and rank numbers (1-8) around the board. Default true."
+element_ids:
+  board: the 8x8 board's grid lines
+  sq_<file><rank>: a dark square's shade fill (one per dark square, e.g. sq_a1)
+  piece_<file><rank>: the piece glyph on that square in the currently shown position — present for every square occupied in the starting position or ever visited by `moves` (empty text on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated)
+  move_arrow: an arrow along the most recently played move currently shown (demand color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown
+  arrow_<i>: a static annotation arrow from arrows[i] (accent color)
+  hl_<sq>: a shaded highlight on highlights[i]
+  coord_<k>: a file letter (a-h) or rank number (1-8) around the board, when coords is true
+examples:
+  - request: "Draw the starting chess position."
+    params: {}
+  - request: "Show the opening 1. e4 e5 2. Nf3 Nc6 3. Bb5, with the last move as an arrow."
+    params: { moves: ["e4", "e5", "Nf3", "Nc6", "Bb5"] }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+
+  // Board geometry: a 520x520 board centered on the canvas.
+  const BOARD = 520;
+  const X0 = (kit.CANVAS.w - BOARD) / 2;
+  const Y0 = (kit.CANVAS.h - BOARD) / 2;
+  const CELL = BOARD / 8;
+
+  const flip = params.flip === true;
+  const showCoords = params.coords !== false;
+  const fen = typeof params.fen === "string" && params.fen.trim() !== "" ? params.fen : undefined;
+  const movesRaw = Array.isArray(params.moves) ? params.moves.map(String) : [];
+
+  // Play the WHOLE line up front. This both validates every SAN (an
+  // illegal move — or a malformed fen — throws naming the offending
+  // move/fen; that throw propagates out of this layout function, and
+  // layoutSpec's own catch turns it into the standard fall-through
+  // warning) and tells us every square the line will EVER touch,
+  // independent of plies_shown — needed below so `animate`-ing
+  // plies_shown never needs an element id that did not already exist.
+  const plies = movesRaw.length > 0 ? engines.chess.replay(fen, movesRaw) : [];
+  const maxPlies = plies.length;
+  const rawShown = typeof params.plies_shown === "number" && Number.isFinite(params.plies_shown) ? params.plies_shown : maxPlies;
+  const shown = Math.max(0, Math.min(maxPlies, Math.floor(rawShown)));
+
+  const positionFen = shown > 0 ? plies[shown - 1].fenAfter : fen;
+  const board = engines.chess.board(positionFen); // also validates a bare fen with no moves.
+  const startBoard = movesRaw.length > 0 ? engines.chess.board(fen) : board;
+
+  // Square <-> board-array mapping, verified both ways:
+  //
+  //   The engine's board(): row 0 = rank 8, row 7 = rank 1; col 0 = file a,
+  //   col 7 = file h. kit.table: row 0 = TOP, row 7 = BOTTOM (y-up); col 0 =
+  //   LEFT, col 7 = RIGHT.
+  //
+  //   Not flipped (White's view, the default): the engine's top-to-bottom
+  //   order (rank 8 -> rank 1) already matches the table's top-to-bottom
+  //   order, and its left-to-right order (file a -> file h) already
+  //   matches the table's left-to-right order — table row r / col c IS
+  //   board row r / col c, the identity map.
+  //
+  //   Flipped (Black's view): the WHOLE board turns 180 degrees — rank 1
+  //   sits at the top, file h sits on the left — so table row r / col c is
+  //   board row (7 - r) / col (7 - c). boardRC below is its own inverse
+  //   either way (applying it twice cancels), which is used to go from a
+  //   square back to a table cell too.
+  //
+  //   A square's file/rank name depends only on its OWN board row/col,
+  //   never on orientation: file = "abcdefgh"[boardCol], rank = 8 - boardRow.
+  //
+  //   Trace e2 (file e = col 4, rank 2 -> boardRow 6, boardCol 4 — row 6 is
+  //   White's pawn rank, per the engine's own board() contract):
+  //     not flipped: table r=6 (2nd row from the BOTTOM), c=4 (5th col from
+  //       the LEFT) — e2 sits low and right-of-center: exactly where
+  //       White's e-pawn starts when White is at the bottom. Correct.
+  //     flipped:      r = 7-6 = 1 (2nd row from the TOP), c = 7-4 = 3 (4th
+  //       col from the LEFT) — e2 sits high and left-of-center: exactly
+  //       where White's e-pawn starts once the board is spun for Black's
+  //       view. Correct.
+  function boardRC(r, c) { return flip ? [7 - r, 7 - c] : [r, c]; }
+  function fileOf(bc) { return "abcdefgh"[bc]; }
+  function rankOf(br) { return 8 - br; }
+  function squareId(br, bc) { return fileOf(bc) + rankOf(br); }
+  function validSquare(sq) { return typeof sq === "string" && /^[a-h][1-8]$/.test(sq); }
+  function rcOfSquare(sq) {
+    const bc = "abcdefgh".indexOf(sq[0]);
+    const br = 8 - Number(sq[1]);
+    return boardRC(br, bc); // boardRC is its own inverse.
+  }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const t = kit.table("board", { x: X0, y: Y0, w: BOARD, h: BOARD, rows: 8, cols: 8 });
+  const gridGroup = t.drawables[0];
+  gridGroup.id = "board";
+  push(gridGroup);
+  anchors.board = [X0 + BOARD / 2, Y0 + BOARD / 2];
+
+  function cellPos(r, c) { return t.anchors["board__c" + r + "_" + c]; }
+  function squarePos(sq) { const [r, c] = rcOfSquare(sq); return cellPos(r, c); }
+
+  // Dark squares: (r + c) odd is dark on EITHER orientation — the 180-degree
+  // flip subtracts both r and c from 7 (an odd number), so the sum's parity
+  // is unchanged, and it is computed directly on table coordinates.
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if ((r + c) % 2 !== 1) continue;
+      const [br, bc] = boardRC(r, c);
+      const id = "sq_" + squareId(br, bc);
+      const [cx, cy] = cellPos(r, c);
+      const h = CELL / 2;
+      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.guide, { opacity: 0.35 }));
+      anchors[id] = [cx, cy];
+    }
+  }
+
+  // Highlighted squares (deduped, invalid ones dropped), shaded over the
+  // dark/light squares.
+  const seenHl = new Set();
+  const highlightSquares = (Array.isArray(params.highlights) ? params.highlights : []).filter(
+    (s) => validSquare(s) && !seenHl.has(s) && seenHl.add(s),
+  );
+  highlightSquares.forEach((sq) => {
+    const [r, c] = rcOfSquare(sq);
+    const [cx, cy] = cellPos(r, c);
+    const h = CELL / 2;
+    const id = "hl_" + sq;
+    push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.region1));
+    anchors[id] = [cx, cy];
+  });
+
+  // Pieces: a STABLE id per square the game ever touches — every square
+  // occupied in the starting position, plus every ply's from/to square —
+  // so the same id exists at every plies_shown value (text is "" on a
+  // touched-but-currently-empty square) and `animate` can move a piece's
+  // text onto a square that started empty instead of needing a brand new
+  // element to appear mid-animation.
+  const GLYPHS = {
+    w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
+    b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
+  };
+  const touched = new Set();
+  for (let br = 0; br < 8; br++) {
+    for (let bc = 0; bc < 8; bc++) {
+      if (startBoard[br][bc]) touched.add(squareId(br, bc));
+    }
+  }
+  for (const ply of plies) { touched.add(ply.from); touched.add(ply.to); }
+
+  [...touched].sort().forEach((sq) => {
+    const [r, c] = rcOfSquare(sq);
+    const [br, bc] = boardRC(r, c);
+    const cell = board[br][bc];
+    const glyph = cell ? GLYPHS[cell.color][cell.piece] : "";
+    const id = "piece_" + sq;
+    const [cx, cy] = cellPos(r, c);
+    push(kit.text(id, [cx, cy], glyph, { fontSize: 44, anchor: "middle" }));
+    anchors[id] = [cx, cy];
+  });
+
+  // Last-move arrow: present whenever the line has any moves at all (so it
+  // can be animated in smoothly), collapsed to a zero-length segment at the
+  // board's own center — a point no piece ever anchors on — before the
+  // first ply is shown.
+  if (maxPlies > 0) {
+    const boardCenter = [X0 + BOARD / 2, Y0 + BOARD / 2];
+    let from = boardCenter, to = boardCenter;
+    if (shown > 0) {
+      const last = plies[shown - 1];
+      from = squarePos(last.from);
+      to = squarePos(last.to);
+    }
+    const { drawables: arrowDrawables } = kit.edgeArrow("move_arrow", from, to, {
+      color: C.demand, strokeWidth: 4, shorten: 22, ms: MS.connector,
+    });
+    arrowDrawables.forEach(push);
+    anchors.move_arrow = to;
+  }
+
+  // Static annotation arrows.
+  (Array.isArray(params.arrows) ? params.arrows : []).slice(0, 12).forEach((a, i) => {
+    if (!a || !validSquare(a.from) || !validSquare(a.to)) return;
+    const from = squarePos(a.from), to = squarePos(a.to);
+    const id = "arrow_" + i;
+    const { drawables: arrowDrawables } = kit.edgeArrow(id, from, to, {
+      color: C.accent, strokeWidth: 3.5, shorten: 22, ms: MS.connector,
+    });
+    arrowDrawables.forEach(push);
+    anchors[id] = to;
+  });
+
+  // File letters below the board, rank numbers to its left — both outside
+  // the grid, so they never contest a square's own content.
+  if (showCoords) {
+    const FS = 20;
+    for (let c = 0; c < 8; c++) {
+      const file = fileOf(boardRC(0, c)[1]);
+      const id = "coord_" + file;
+      const [cx] = cellPos(0, c);
+      const pos = [cx, Y0 - 26];
+      push(kit.text(id, pos, file, { fontSize: FS, color: C.guide, anchor: "middle" }));
+      anchors[id] = pos;
+    }
+    for (let r = 0; r < 8; r++) {
+      const rank = rankOf(boardRC(r, 0)[0]);
+      const id = "coord_" + rank;
+      const [, cy] = cellPos(r, 0);
+      const pos = [X0 - 22, cy];
+      push(kit.text(id, pos, String(rank), { fontSize: FS, color: C.guide, anchor: "end" }));
+      anchors[id] = pos;
+    }
+  }
+
+  return { drawables, labels, anchors, order };

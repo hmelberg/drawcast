@@ -3062,5 +3062,85 @@
         }
       ]
     }
+  },
+  {
+    "request": "Show the Scholar's Mate.",
+    "title": "Scholar's Mate",
+    "packs": [
+      "games"
+    ],
+    "spec": {
+      "title": "Scholar's Mate",
+      "template": "chess_board",
+      "params": {
+        "moves": ["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6", "Qxf7#"],
+        "plies_shown": 0,
+        "coords": false
+      },
+      "commands": [
+        {
+          "draw": [
+            "board",
+            "sq_b8", "sq_d8", "sq_f8", "sq_h8",
+            "sq_a7", "sq_c7", "sq_e7", "sq_g7",
+            "sq_b6", "sq_d6", "sq_f6", "sq_h6",
+            "sq_a5", "sq_c5", "sq_e5", "sq_g5",
+            "sq_b4", "sq_d4", "sq_f4", "sq_h4",
+            "sq_a3", "sq_c3", "sq_e3", "sq_g3",
+            "sq_b2", "sq_d2", "sq_f2", "sq_h2",
+            "sq_a1", "sq_c1", "sq_e1", "sq_g1",
+            "piece_a1", "piece_a2", "piece_a7", "piece_a8",
+            "piece_b1", "piece_b2", "piece_b7", "piece_b8",
+            "piece_c1", "piece_c2", "piece_c4", "piece_c6", "piece_c7", "piece_c8",
+            "piece_d1", "piece_d2", "piece_d7", "piece_d8",
+            "piece_e1", "piece_e2", "piece_e4", "piece_e5", "piece_e7", "piece_e8",
+            "piece_f1", "piece_f2", "piece_f6", "piece_f7", "piece_f8",
+            "piece_g1", "piece_g2", "piece_g7", "piece_g8",
+            "piece_h1", "piece_h2", "piece_h5", "piece_h7", "piece_h8",
+            "move_arrow"
+          ],
+          "speak": "Here's the opening position — a fresh game of chess."
+        },
+        {
+          "animate": { "plies_shown": 1 },
+          "duration": 1.3,
+          "speak": "1. e4 — White opens with the king's pawn."
+        },
+        {
+          "animate": { "plies_shown": 2 },
+          "duration": 1.3,
+          "speak": "e5 — Black mirrors it."
+        },
+        {
+          "animate": { "plies_shown": 3 },
+          "duration": 1.3,
+          "speak": "Bc4 — the bishop takes aim at f7, Black's weakest square."
+        },
+        {
+          "animate": { "plies_shown": 4 },
+          "duration": 1.3,
+          "speak": "Nc6 — Black develops a knight and defends e5."
+        },
+        {
+          "animate": { "plies_shown": 5 },
+          "duration": 1.3,
+          "speak": "Qh5 — the queen joins the attack, eyeing f7."
+        },
+        {
+          "animate": { "plies_shown": 6 },
+          "duration": 1.3,
+          "speak": "Nf6, attacking the queen — but missing the real threat."
+        },
+        {
+          "animate": { "plies_shown": 7 },
+          "duration": 1.6,
+          "speak": "Qxf7 checkmate! The queen captures on f7, and there's no escape."
+        },
+        {
+          "highlight": { "target": "piece_f7", "effect": "glow" },
+          "speak": "This is Scholar's mate — the fastest common checkmate in chess."
+        }
+      ]
+    }
   }
 ]

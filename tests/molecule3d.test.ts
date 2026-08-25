@@ -249,6 +249,7 @@ describe("bundled offline examples (src/examples.json)", () => {
     }
     if (needsPacks.has("chemistry")) await ensureEngines(["smilesdrawer"]);
     if (needsPacks.has("mathlogic")) await ensureEngines(["mathjax"]);
+    if (needsPacks.has("games")) await ensureEngines(["chess"]);
   });
 
   interface Entry {
