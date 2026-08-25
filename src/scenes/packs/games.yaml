@@ -59,9 +59,9 @@ element_ids:
   board: the 8x8 board — its light-square ground plus the grid lines
   sq_<file><rank>: a dark square's fill (one per dark square, e.g. sq_a1); the light squares are part of `board`
   piece_<file><rank>: the drawn piece on that square in the currently shown position — a filled silhouette with an ink outline — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (an empty group on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving piece gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
-  move_arrow: an arrow along the most recently played move currently shown (demand color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown
-  arrow_<i>: a static annotation arrow from arrows[i] (accent color)
-  hl_<sq>: a shaded highlight on highlights[i]
+  move_arrow: an arrow along the most recently played move currently shown (demand color, over a paper casing so it separates from either square color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown
+  arrow_<i>: a static annotation arrow from arrows[i] (accent color, over the same paper casing)
+  hl_<sq>: a marked square from highlights[i] — a bright wash inside an ink frame, so it reads on a dark and a light square alike
   coord_<k>: a file letter (a-h) or rank number (1-8) around the board, when coords is true
 examples:
   - request: "Draw the starting chess position."
@@ -243,10 +243,29 @@ layout: |
     }
   }
 
-  // Highlighted squares (deduped, invalid ones dropped), shaded over the
-  // dark/light squares. Opacity 0.5 rather than kit.area's 0.35 default: the
-  // squares underneath are now opaque color instead of bare paper, and a
-  // 0.35 yellow wash over the cream light square barely registered.
+  // Highlighted squares (deduped, invalid ones dropped): a bright wash plus
+  // an ink frame, BOTH as exact areas so a piece standing on the square paints
+  // straight over them (areas share one z layer and pieces come later in
+  // `order`).
+  //
+  // Why not just a yellow wash. The shipped version — region1 at 0.5 over the
+  // square — separated from the plain square by only 1.39:1 (dark) and 1.20:1
+  // (light) in WCAG relative luminance. That difference is carried almost
+  // entirely by HUE, yellow against green: the classic pair that collapses on
+  // a dim or low-gamut screen and for a red-green colorblind viewer.
+  //
+  // And no fill alone can fix the light square. Raising the wash's lightness
+  // helps the dark square (C.boardHighlight at full opacity is 2.28:1 against
+  // boardDark, comfortably past 1.8:1) but boardLight is already at luminance
+  // 0.845 — even PURE WHITE only reaches 1.17:1 against it. Going darker
+  // instead needs luminance <= 0.135 to clear 1.8:1 against BOTH squares, and
+  // a fill that dark would bury the ink-filled black pieces standing on it
+  // (they would drop to ~2:1). Hence the frame: ink around the square's edge
+  // is 9.88:1 against boardLight and 3.67:1 against boardDark, so the marked
+  // square is separated by luminance on either color, by construction. It is
+  // drawn as ONE area with the inner square punched out as a hole, which
+  // `kit.area` renders as an exact evenodd ring.
+  const HL_FRAME = 5;
   const seenHl = new Set();
   const highlightSquares = (Array.isArray(params.highlights) ? params.highlights : []).filter(
     (s) => validSquare(s) && !seenHl.has(s) && seenHl.add(s),
@@ -254,9 +273,12 @@ layout: |
   highlightSquares.forEach((sq) => {
     const [r, c] = rcOfSquare(sq);
     const [cx, cy] = cellPos(r, c);
-    const h = CELL / 2;
     const id = "hl_" + sq;
-    push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.region1, { opacity: 0.5 }));
+    const box = (m) => [[cx - m, cy - m], [cx + m, cy - m], [cx + m, cy + m], [cx - m, cy + m]];
+    push(kit.group(id, [
+      kit.area(id + "__fill", box(CELL / 2), C.boardHighlight, { precise: true, ms: SCAFFOLD_MS }),
+      kit.area(id + "__frame", box(CELL / 2), C.ink, { holes: [box(CELL / 2 - HL_FRAME)], ms: SCAFFOLD_MS }),
+    ]));
     anchors[id] = [cx, cy];
   });
 
@@ -500,6 +522,32 @@ layout: |
     anchors[id] = at;
   });
 
+  /**
+   * An arrow with a paper CASING under it — the cartographer's halo: a wider
+   * stroke in C.paper laid down first, then the colored arrow on top of it,
+   * both as children of one group carrying the arrow's own element id (so a
+   * draw list naming `move_arrow` or `arrow_0` still gets both, exactly as it
+   * did when an arrow was a single stroke).
+   *
+   * Why: demand (the move arrow) is only 1.69:1 against boardDark in WCAG
+   * relative luminance, and accent (annotation arrows) 1.55:1 — red and
+   * purple on green, the classic weak pair, separated mostly by hue. Rather
+   * than repaint two shared palette colors for one template, the casing
+   * guarantees the arrow is never adjacent to the green at all: against the
+   * paper casing, demand is 5.16:1 and accent 4.74:1, on either square. On a
+   * light square the casing itself is nearly invisible (1.13:1 against
+   * boardLight) and simply does no harm — demand was already 4.55:1 there.
+   *
+   * The casing draws at the scaffold budget rather than the arrow's own: it
+   * is packaging for the beat, not the beat.
+   */
+  function arrowWithHalo(id, from, to, color, strokeWidth) {
+    const geom = { shorten: 22 };
+    const halo = kit.edgeArrow(id + "__halo", from, to, { ...geom, color: C.paper, strokeWidth: strokeWidth + 3.5, ms: SCAFFOLD_MS });
+    const line = kit.edgeArrow(id + "__line", from, to, { ...geom, color, strokeWidth, ms: MS.connector });
+    return kit.group(id, [...halo.drawables, ...line.drawables]);
+  }
+
   // Last-move arrow: present whenever the line has any moves at all (so it
   // can be animated in smoothly), collapsed to a zero-length segment at the
   // board's own center — a point no piece ever anchors on — before the
@@ -512,10 +560,7 @@ layout: |
       from = squarePos(last.from);
       to = squarePos(last.to);
     }
-    const { drawables: arrowDrawables } = kit.edgeArrow("move_arrow", from, to, {
-      color: C.demand, strokeWidth: 4, shorten: 22, ms: MS.connector,
-    });
-    arrowDrawables.forEach(push);
+    push(arrowWithHalo("move_arrow", from, to, C.demand, 4));
     anchors.move_arrow = to;
   }
 
@@ -524,10 +569,7 @@ layout: |
     if (!a || !validSquare(a.from) || !validSquare(a.to)) return;
     const from = squarePos(a.from), to = squarePos(a.to);
     const id = "arrow_" + i;
-    const { drawables: arrowDrawables } = kit.edgeArrow(id, from, to, {
-      color: C.accent, strokeWidth: 3.5, shorten: 22, ms: MS.connector,
-    });
-    arrowDrawables.forEach(push);
+    push(arrowWithHalo(id, from, to, C.accent, 3.5));
     anchors[id] = to;
   });
 

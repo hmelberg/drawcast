@@ -134,6 +134,26 @@ export const COLORS = Object.freeze({
    */
   boardDark: "#7d9a5e",
   boardLight: "#efeed9",
+  /**
+   * The marked-square wash on a chess board: region1 blended 40% toward
+   * `paper`, i.e. region1's hue at a much higher lightness (relative
+   * luminance 0.71 vs region1's own 0.58).
+   *
+   * Tuned against the two board tones above, because hue alone is not a
+   * signal. region1 at 0.5 over the squares separated by only 1.39:1 from
+   * boardDark and 1.20:1 from boardLight — the difference was carried almost
+   * entirely by yellow-vs-green hue, which collapses on a dim or low-gamut
+   * screen and for a red-green colorblind viewer. At full opacity this color
+   * is 2.28:1 against boardDark. It CANNOT clear 1.8:1 against boardLight,
+   * and neither can any other lightening color: pure white against
+   * boardLight is 1.17:1, a hard ceiling. Going the other way (a fill dark
+   * enough to be 1.8:1 BELOW boardLight and 1.8:1 below boardDark too) needs
+   * luminance <= 0.135, which would bury the ink-filled black pieces
+   * standing on it. So the light-square case is carried by an ink frame
+   * around the square instead (9.88:1 against boardLight, 3.67:1 against
+   * boardDark) — see the highlight block in packs/games.yaml.
+   */
+  boardHighlight: "#f6d891",
 } as const);
 
 export function defaultStyle(overrides: Partial<ResolvedStyle> = {}): ResolvedStyle {

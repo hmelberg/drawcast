@@ -1446,10 +1446,12 @@ describe("games pack", () => {
     expect(Math.max(...ground.pts.map(([x]) => x)) - Math.min(...ground.pts.map(([x]) => x))).toBeCloseTo(620, 6);
     const gridLine = flat.find((d) => d.id === "board__grid_h8") as { drawOpts: { duration: number } };
     expect(gridLine.drawOpts.duration).toBe(420);
-    // The move arrow (the narrated, central content) keeps its normal pace.
+    // The move arrow (the narrated, central content) keeps its normal pace;
+    // its paper casing is packaging, so it draws at the scaffold budget.
     const arrow = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1 });
-    const arrowLeaf = flattenDrawables(arrow.drawables).find((d) => d.id.startsWith("move_arrow")) as { drawOpts: { duration: number } };
-    expect(arrowLeaf.drawOpts.duration).toBe(850); // kit.SKETCH_MS.connector, unchanged.
+    const arrowFlat = flattenDrawables(arrow.drawables);
+    expect((arrowFlat.find((d) => d.id === "move_arrow__line") as { drawOpts: { duration: number } }).drawOpts.duration).toBe(850); // kit.SKETCH_MS.connector, unchanged.
+    expect((arrowFlat.find((d) => d.id === "move_arrow__halo") as { drawOpts: { duration: number } }).drawOpts.duration).toBe(420);
   });
 
   // THE definitive centering test, and the reason the pieces stopped being
@@ -1519,7 +1521,7 @@ describe("games pack", () => {
     expect(r.drawables.find((d) => d.id === "piece_e2")).toMatchObject({ kind: "group", children: [] });
     expect(chessPieceAt(flat, "e2")).toBeNull();
     expect(chessPieceAt(flat, "e4")).toMatchObject({ kind: "p", side: "w" });
-    const arrow = flat.find((d) => d.id === "move_arrow") as { pts: [number, number][] } | undefined;
+    const arrow = flat.find((d) => d.id === "move_arrow__line") as { pts: [number, number][] } | undefined;
     expect(arrow).toBeDefined();
     // The arrow actually points from e2 toward e4 (not the shown===0 degenerate case).
     expect(arrow!.pts[0][1]).toBeLessThan(arrow!.pts[arrow!.pts.length - 1][1]);
@@ -1577,6 +1579,95 @@ describe("games pack", () => {
     }
   });
 
+  // Contrast review, 2026-08-25: on the new green board both annotation layers
+  // separated from the squares by HUE almost alone — yellow-on-green for the
+  // highlight (1.39:1 against boardDark, 1.20:1 against boardLight in WCAG
+  // relative luminance) and red/purple-on-green for the arrows (1.69:1 and
+  // 1.55:1 against boardDark). Both collapse on a dim or low-gamut screen and
+  // for a red-green colorblind viewer. These two pins hold the structural fix
+  // in place; the measured numbers live in the palette comment in
+  // src/layout/model.ts and in the games.yaml blocks.
+  const relLum = (hex: string): number => {
+    const ch = (v: number) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+    const n = parseInt(hex.slice(1), 16);
+    return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255);
+  };
+  const contrast = (a: string, b: string): number => {
+    const [hi, lo] = [relLum(a), relLum(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  test("a highlighted square separates from BOTH square colors by luminance, not hue: a bright wash inside an ink frame", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = scenes.chess_board.layout!({ highlights: ["d5"] });
+    const flat = flattenDrawables(res.drawables);
+    const fill = flat.find((d) => d.id === "hl_d5__fill") as { style: { fill: string; opacity: number }; precise?: boolean };
+    const frame = flat.find((d) => d.id === "hl_d5__frame") as { style: { fill: string; opacity: number }; holes?: [number, number][][]; pts: [number, number][] };
+    expect(fill.style.fill).toBe(COLORS.boardHighlight);
+    expect(fill.style.opacity).toBe(1); // an opaque wash, so the number below is exact rather than a composite
+    expect(fill.precise).toBe(true);
+    expect(frame.style.fill).toBe(COLORS.ink);
+    expect(frame.holes).toHaveLength(1); // a ring: the square with its inside punched out
+
+    // The wash carries the DARK square...
+    expect(contrast(COLORS.boardHighlight, COLORS.boardDark)).toBeGreaterThanOrEqual(1.8);
+    // ...and the frame carries BOTH, which is what makes the light square work
+    // at all: no lightening color can reach 1.8:1 against boardLight — pure
+    // white only manages 1.17:1 — so a wash alone is mathematically incapable
+    // of it, and a fill dark enough to clear 1.8:1 both ways would bury the
+    // ink-filled black pieces standing on the square.
+    expect(contrast(COLORS.ink, COLORS.boardDark)).toBeGreaterThanOrEqual(1.8);
+    expect(contrast(COLORS.ink, COLORS.boardLight)).toBeGreaterThanOrEqual(1.8);
+    expect(contrast("#ffffff", COLORS.boardLight)).toBeLessThan(1.8); // the ceiling that forces the frame
+    // Black pieces still read on the marked square (the reason it isn't dark).
+    expect(contrast(COLORS.ink, COLORS.boardHighlight)).toBeGreaterThanOrEqual(4.5);
+
+    // The frame is an AREA, not a stroke, so it shares the z layer with the
+    // squares and a piece standing on the square paints over it.
+    expect((flat.find((d) => d.id === "hl_d5__frame") as { kind: string }).kind).toBe("area");
+  });
+
+  test("every arrow on the board is laid over a wider paper casing, so it never sits directly on a green square", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1, arrows: [{ from: "d1", to: "d5" }] });
+    const flat = flattenDrawables(res.drawables);
+    for (const [id, color, width] of [["move_arrow", COLORS.demand, 4], ["arrow_0", COLORS.accent, 3.5]] as const) {
+      // The element id is unchanged — it is now a group holding casing + line,
+      // so every existing draw list keeps addressing it and gets both.
+      expect(res.drawables.find((d) => d.id === id), id).toMatchObject({ kind: "group" });
+      const halo = flat.find((d) => d.id === `${id}__halo`) as { pts: [number, number][]; style: { color: string; strokeWidth: number } };
+      const line = flat.find((d) => d.id === `${id}__line`) as { pts: [number, number][]; style: { color: string; strokeWidth: number } };
+      expect(halo, id).toBeDefined();
+      expect(halo.style.color, id).toBe(COLORS.paper);
+      expect(line.style.color, id).toBe(color);
+      expect(line.style.strokeWidth, id).toBe(width);
+      expect(halo.style.strokeWidth, id).toBeGreaterThan(line.style.strokeWidth); // a casing, i.e. wider
+      expect(halo.pts, id).toEqual(line.pts); // exactly the same path, so it reads as one arrow
+      // Casing UNDER the line: same z, and drawablesForId preserves array order.
+      const ids = flat.map((d) => d.id);
+      expect(ids.indexOf(`${id}__halo`), id).toBeLessThan(ids.indexOf(`${id}__line`));
+    }
+    // What the casing buys: the arrow colors never touch the weak pair again.
+    expect(contrast(COLORS.demand, COLORS.boardDark)).toBeLessThan(1.8); // the finding
+    expect(contrast(COLORS.accent, COLORS.boardDark)).toBeLessThan(1.8);
+    expect(contrast(COLORS.demand, COLORS.paper)).toBeGreaterThanOrEqual(4.5); // the fix
+    expect(contrast(COLORS.accent, COLORS.paper)).toBeGreaterThanOrEqual(4.5);
+
+    // Neither the casings nor the highlight frames trip lint — the same bar
+    // the bundled-examples gate holds every showcase figure to (not one issue,
+    // not even a warning). A casing shares the arrow's exact pts, so it adds
+    // no new geometry for the out-of-canvas or label-stroke rules to catch.
+    const linted = layoutSpec({
+      template: "chess_board",
+      params: { moves: ["e4", "e5", "Bc4"], highlights: ["f7", "d4"], arrows: [{ from: "c4", to: "f7" }], coords: true },
+      elements: [],
+    } as never);
+    expect(linted.warnings).toEqual([]);
+    expect(linted.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
+  });
+
   test("highlights are deduped, arrows/coords are toggleable", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
@@ -1618,15 +1709,19 @@ describe("games pack", () => {
     // falls through to the exact same plain per-square lookup and never takes
     // the glide/fade/lift branch. Recaptured once before, for the
     // fontSize 52->58 / y-nudge correction, for the same kind of reason.
+    // Recaptured again for the contrast fix (a paper casing under the move
+    // arrow). Note the no-moves DEFAULT hash below did NOT move: with no line
+    // there is no arrow and no highlight, so the fix is provably scoped to
+    // exactly the two annotation layers it was meant to touch.
     const EXPECTED: Record<number, string> = {
-      0: "b2438f9289ce949ab05fde1d98a79935d0846b54e2a9d39902c7cdb6ff790583",
-      1: "024654218a23d9aeb56d53fe4e6d6da0aaf42bcadc43e35eead769db8c850c07",
-      2: "11211d83a3c04d2eab06d18190f0f474a5adfb69f022563e56cc37f822db6a35",
-      3: "e3083d248ff063cf1aa0175075c847ce23e4f3c25d3dab4454a5d1cf15cf11bb",
-      4: "dc000d9d0c9c585ce6cc24cd11107106b8b362468b3f1ea299925774253865b3",
-      5: "c6a9e0185a2e31a079e2a49f7d6cc4519da7136ab634f5aeb4c04dac0f6f7781",
-      6: "56e3598dfa7b2d8dffc598e5c0c3189544fa1d867b3a6ee1eb58733195625324",
-      7: "0504cdb341fc2c0aaddbf67689b68b6d103b59162fc574191a552c2bf79ea3ad",
+      0: "be198cfda0948da388fbe9a3e17044a0ec723138e8ec65c7b7e170c17302449c",
+      1: "edaf1ac508bdbbd8eb313fce79604ff576601601ea1e227c17fa9b35cd0f65e7",
+      2: "fa6cd92d7dc17809327bc7e078759081a3c0d8c758fec45bff556438bdaa9843",
+      3: "dcc39456fa7894bda92a5b88e005d57ba461e8ce7b01021a5683972bfc281d91",
+      4: "2b81e7c196e1d75aae1a3b4eecb7e8f96cdfb97785c525975f9195df0c1375ee",
+      5: "cbca058d80e4fdfdf3d2776e539eaf78cfa04f4cfbee6611602d4ddd44931c23",
+      6: "98cf3731b3c4e47a576ddcd5c65053de0f46b7b6832a0c9f85c599cd362ae7ef",
+      7: "e51c3d81090f53ed9d420b166aa66b8dbcdd7abd44f0fe01a773a7e20e9063af",
     };
     for (let i = 0; i <= moves.length; i++) {
       const r = scenes.chess_board.layout!({ moves, plies_shown: i });
