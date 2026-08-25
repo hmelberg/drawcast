@@ -2292,7 +2292,7 @@
     }
   },
   {
-    "request": "Show the unit circle at a 30 degree angle, and animate it sweeping all the way around.",
+    "request": "Show the unit circle at a 30 degree angle, and animate it sweeping forward to 330 degrees.",
     "packs": [
       "mathlogic"
     ],
@@ -2351,10 +2351,10 @@
         },
         {
           "animate": {
-            "angle_deg": 390
+            "angle_deg": 330
           },
           "duration": 3,
-          "speak": "Watch as the angle sweeps all the way around the circle, back to where it started."
+          "speak": "Watch as the angle sweeps forward, almost all the way around the circle, to 330 degrees."
         }
       ]
     }

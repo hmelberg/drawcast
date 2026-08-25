@@ -221,7 +221,7 @@ params:
   properties:
     angle_deg:
       type: number
-      description: "The angle in degrees, measured counterclockwise from the positive x-axis (default 45). Any real number — negative and > 360 both wrap correctly."
+      description: "The angle in degrees, measured counterclockwise from the positive x-axis (default 45). Any real number — negative and > 360 both wrap correctly. Note: an animate that crosses a multiple of 360 (e.g. 350 -> 370) resets angle_arc/angle_label to their start rather than sweeping past a full turn — point/radius/sin_line/cos_line/coords_label stay continuous through that crossing regardless, so avoid animate targets straddling a 360 boundary if the arc mark itself must stay visually continuous."
     show:
       type: array
       items:
