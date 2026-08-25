@@ -4,6 +4,7 @@ import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
 import biologyYaml from "../src/scenes/packs/biology.yaml?raw";
 import economicsYaml from "../src/scenes/packs/economics.yaml?raw";
 import evidenceYaml from "../src/scenes/packs/evidence.yaml?raw";
+import mathlogicYaml from "../src/scenes/packs/mathlogic.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -559,5 +560,93 @@ describe("evidence pack", () => {
     // (equidistant would mean the ticks were still using the normal kind's
     // single shared S instead of this curve's own asymmetric spread).
     expect(distPlus).toBeGreaterThan(distMinus);
+  });
+});
+
+describe("mathlogic pack", () => {
+  beforeEach(() => unregisterPack("mathlogic"));
+
+  const TEMPLATE_IDS = ["venn_diagram", "unit_circle", "number_line", "geometry_figure", "truth_table", "argument_map", "equation_steps"];
+
+  function inBounds(res: ReturnType<typeof layoutSpec>) {
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+        }
+      } else if (d.kind === "text") {
+        expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+      }
+    }
+  }
+
+  test("registers all seven templates in brief order", () => {
+    const r = registerPack("mathlogic", mathlogicYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+    expect(scenes.equation_steps.manifest.engines).toEqual(["mathjax"]);
+  });
+
+  test("every mathlogic example renders finite, no fallback warnings, no error-severity lint, and is deterministic (mathjax pre-loaded)", async () => {
+    await ensureEngines(["mathjax"]);
+    registerPack("mathlogic", mathlogicYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        inBounds(res);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("truth_table: \"(A AND B) OR NOT A\" over A,B yields T,T,F,T in binary row order", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const r = scenes.truth_table.layout!({ variables: ["A", "B"], expression: "(A AND B) OR NOT A" });
+    const flat = flattenDrawables(r.drawables);
+    const cell = (row: number) => (flat.find((d) => d.id === `grid__c${row}_2`) as { text: string }).text;
+    // Rows count up in binary with A as the most-significant bit: (F,F) (F,T) (T,F) (T,T).
+    expect([cell(0), cell(1), cell(2), cell(3)]).toEqual(["T", "T", "F", "T"]);
+  });
+
+  test("truth_table: IMPLIES is right-associative — \"A IMPLIES B IMPLIES C\" parses as A IMPLIES (B IMPLIES C)", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const r = scenes.truth_table.layout!({ variables: ["A", "B", "C"], expression: "A IMPLIES B IMPLIES C" });
+    const flat = flattenDrawables(r.drawables);
+    const cell = (row: number) => (flat.find((d) => d.id === `grid__c${row}_3`) as { text: string }).text;
+    // Row order (A slowest): 0=(F,F,F) 1=(F,F,T) 2=(F,T,F) 3=(F,T,T) 4=(T,F,F) 5=(T,F,T) 6=(T,T,F) 7=(T,T,T).
+    // Right-assoc A→(B→C): only row 6 (T,T,F) is false. Left-assoc (A→B)→C would instead make row 2 false —
+    // row 2 is the one case where the two associations disagree, so asserting it is "T" proves right-assoc.
+    expect(cell(2)).toBe("T");
+    expect([cell(0), cell(1), cell(3), cell(4), cell(5), cell(6), cell(7)]).toEqual(["T", "T", "T", "T", "T", "F", "T"]);
+  });
+
+  test("unit_circle: at 30° the point sits at exactly (cos30, sin30) scaled by the radius, and the coords label reads the 2-dec values", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const r = scenes.unit_circle.layout!({ angle_deg: 30 });
+    const point = r.anchors.point as [number, number];
+    const O = r.anchors.circle as [number, number];
+    const R = 240;
+    expect(point[0]).toBeCloseTo(O[0] + R * Math.cos(Math.PI / 6), 6);
+    expect(point[1]).toBeCloseTo(O[1] + R * Math.sin(Math.PI / 6), 6);
+    const coordsText = r.labels.find((l) => l.id === "coords_label")?.text;
+    expect(coordsText).toBe("(0.87, 0.50)");
+  });
+
+  test("venn_diagram: shading only the requested region keys produces exactly those shade_<k> ids", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const r = scenes.venn_diagram.layout!({ sets: [{ label: "A" }, { label: "B" }], shade: ["ab"] });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids).toContain("shade_ab");
+    expect(ids).not.toContain("shade_a");
+    expect(ids).not.toContain("shade_b");
+    expect(ids).not.toContain("shade_outside");
+    const r3 = scenes.venn_diagram.layout!({ sets: [{ label: "A" }, { label: "B" }, { label: "C" }], shade: ["abc", "outside"] });
+    const ids3 = flattenDrawables(r3.drawables).map((d) => d.id);
+    expect(ids3).toContain("shade_abc");
+    expect(ids3).toContain("shade_outside");
+    expect(ids3).not.toContain("shade_ab");
   });
 });

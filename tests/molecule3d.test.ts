@@ -248,6 +248,7 @@ describe("bundled offline examples (src/examples.json)", () => {
       registerPack(id, await def.load());
     }
     if (needsPacks.has("chemistry")) await ensureEngines(["smilesdrawer"]);
+    if (needsPacks.has("mathlogic")) await ensureEngines(["mathjax"]);
   });
 
   interface Entry {

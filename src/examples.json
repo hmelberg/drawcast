@@ -2229,5 +2229,441 @@
         }
       ]
     }
+  },
+  {
+    "request": "Draw a Venn diagram of two sets and shade their intersection.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Two sets and their intersection",
+      "template": "venn_diagram",
+      "params": {
+        "sets": [
+          {
+            "label": "A"
+          },
+          {
+            "label": "B"
+          }
+        ],
+        "shade": [
+          "ab"
+        ],
+        "overlap_labels": {
+          "ab": "A ∩ B"
+        }
+      },
+      "commands": [
+        {
+          "speak": "Let's look at two overlapping sets."
+        },
+        {
+          "draw": [
+            "universe"
+          ],
+          "speak": "Everything inside this box is our universe — everything we're considering."
+        },
+        {
+          "draw": [
+            "set_0",
+            "set_label_0"
+          ],
+          "speak": "This circle is set A."
+        },
+        {
+          "draw": [
+            "set_1",
+            "set_label_1"
+          ],
+          "speak": "And this one is set B."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "shade_ab",
+            "region_label_ab"
+          ],
+          "speak": "Where they overlap is A intersect B — elements that belong to both sets."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the unit circle at a 30 degree angle, and animate it sweeping all the way around.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "The unit circle at 30°",
+      "template": "unit_circle",
+      "params": {
+        "angle_deg": 30
+      },
+      "commands": [
+        {
+          "speak": "Let's explore the unit circle."
+        },
+        {
+          "draw": [
+            "x_axis",
+            "y_axis",
+            "circle"
+          ],
+          "speak": "Here's a circle of radius one, centered at the origin."
+        },
+        {
+          "draw": [
+            "radius",
+            "point"
+          ],
+          "speak": "This radius reaches out to a point on the circle, at an angle of 30 degrees."
+        },
+        {
+          "draw": [
+            "angle_arc",
+            "angle_label"
+          ],
+          "speak": "That's the angle theta, measured from the positive x-axis."
+        },
+        {
+          "draw": [
+            "cos_line"
+          ],
+          "speak": "The horizontal distance to the point is its cosine."
+        },
+        {
+          "draw": [
+            "sin_line"
+          ],
+          "speak": "And the vertical distance is its sine."
+        },
+        {
+          "draw": [
+            "coords_label"
+          ],
+          "speak": "Together they give the point's exact coordinates."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "animate": {
+            "angle_deg": 390
+          },
+          "duration": 3,
+          "speak": "Watch as the angle sweeps all the way around the circle, back to where it started."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the solution to x is greater than 1 on a number line.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Solving x > 1",
+      "template": "number_line",
+      "params": {
+        "min": 0,
+        "max": 5,
+        "points": [
+          {
+            "at": 1,
+            "label": "1",
+            "open": true
+          }
+        ],
+        "intervals": [
+          {
+            "from": 1,
+            "to": 5,
+            "open_from": true,
+            "label": "x > 1"
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Let's solve x is greater than 1 on a number line."
+        },
+        {
+          "draw": [
+            "line",
+            "tick_0",
+            "tick_1",
+            "tick_2",
+            "tick_3",
+            "tick_4",
+            "tick_5"
+          ],
+          "speak": "Here's our number line, from zero to five."
+        },
+        {
+          "draw": [
+            "pt_0",
+            "pt_0_label"
+          ],
+          "speak": "At 1, we draw an open circle, since x can't equal 1 itself — just be greater than it."
+        },
+        {
+          "draw": [
+            "interval_0",
+            "interval_0_label"
+          ],
+          "speak": "Everything to the right is shaded: every value greater than 1 solves the inequality."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Prove Thales' theorem: an angle inscribed in a semicircle is a right angle.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Thales' theorem",
+      "template": "geometry_figure",
+      "params": {
+        "kind": "circle_theorem",
+        "vertex_labels": [
+          "C",
+          "A",
+          "B"
+        ],
+        "angle_labels": [
+          "90°"
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Let's prove Thales' theorem."
+        },
+        {
+          "draw": [
+            "circle"
+          ],
+          "speak": "Take any circle, and draw a diameter across it."
+        },
+        {
+          "draw": [
+            "side_0"
+          ],
+          "speak": "This is the diameter, from A to B."
+        },
+        {
+          "draw": [
+            "vertex_label_1",
+            "vertex_label_2"
+          ],
+          "speak": "Label its two ends A and B."
+        },
+        {
+          "draw": [
+            "side_1",
+            "side_2",
+            "vertex_label_0"
+          ],
+          "speak": "Now pick any point C on the circle, and connect it to both ends of the diameter."
+        },
+        {
+          "draw": [
+            "angle_0",
+            "angle_label_0"
+          ],
+          "speak": "No matter where C sits on the circle, the angle at C is always a right angle — that's Thales' theorem."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Make a truth table for (A AND B) OR NOT A.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Truth table: (A AND B) OR NOT A",
+      "template": "truth_table",
+      "params": {
+        "variables": [
+          "A",
+          "B"
+        ],
+        "expression": "(A AND B) OR NOT A"
+      },
+      "commands": [
+        {
+          "speak": "Let's build a truth table for (A and B) or not A."
+        },
+        {
+          "draw": [
+            "grid",
+            "var_headers",
+            "expr_header"
+          ],
+          "speak": "Two variables, A and B — and here's our expression as the header."
+        },
+        {
+          "draw": [
+            "grid__c0_0",
+            "grid__c0_1",
+            "grid__c1_0",
+            "grid__c1_1",
+            "grid__c2_0",
+            "grid__c2_1",
+            "grid__c3_0",
+            "grid__c3_1"
+          ],
+          "speak": "Every combination of true and false for A and B, one row each."
+        },
+        {
+          "draw": [
+            "grid__c0_2",
+            "true_row_0"
+          ],
+          "speak": "When A and B are both false, A and B is false — but not A is true, so the whole expression is true."
+        },
+        {
+          "draw": [
+            "grid__c1_2",
+            "true_row_1"
+          ],
+          "speak": "Same story here."
+        },
+        {
+          "draw": [
+            "grid__c2_2"
+          ],
+          "speak": "But when A is true and B is false, both halves fail, and the expression is false."
+        },
+        {
+          "draw": [
+            "grid__c3_2",
+            "true_row_3"
+          ],
+          "speak": "And when both are true, A and B alone makes it true."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a modus ponens argument map: if it rains the ground gets wet, and it is raining, so the ground is wet.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Modus ponens",
+      "template": "argument_map",
+      "params": {
+        "conclusion": "The ground is wet.",
+        "premises": [
+          {
+            "text": "If it rains, the ground gets wet."
+          },
+          {
+            "text": "It is raining."
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Let's map out a classic argument: modus ponens."
+        },
+        {
+          "draw": [
+            "premise_0"
+          ],
+          "speak": "Our first premise: if it rains, the ground gets wet."
+        },
+        {
+          "draw": [
+            "premise_1"
+          ],
+          "speak": "Our second premise: it is raining."
+        },
+        {
+          "draw": [
+            "conclusion_box",
+            "conclusion_text_0"
+          ],
+          "speak": "So we conclude: the ground is wet."
+        },
+        {
+          "draw": [
+            "link_0",
+            "link_1"
+          ],
+          "speak": "Both premises support the conclusion — together, they guarantee it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the quadratic formula.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "The quadratic formula",
+      "template": "equation_steps",
+      "params": {
+        "title": "The quadratic formula",
+        "steps": [
+          {
+            "tex": "ax^2+bx+c=0",
+            "note": "The general quadratic equation."
+          },
+          {
+            "tex": "a\\left(x+\\frac{b}{2a}\\right)^2=\\frac{b^2-4ac}{4a}",
+            "note": "Complete the square."
+          },
+          {
+            "tex": "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}",
+            "note": "Solve for x."
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Let's derive the quadratic formula, step by step."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "We start with the general form of a quadratic equation."
+        },
+        {
+          "draw": [
+            "step_0",
+            "note_0"
+          ],
+          "speak": "Here it is: a x squared, plus b x, plus c, equals zero."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "step_1",
+            "note_1"
+          ],
+          "speak": "Completing the square gets us here."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "step_2",
+            "note_2"
+          ],
+          "speak": "And solving for x gives us the quadratic formula."
+        }
+      ]
+    }
   }
 ]

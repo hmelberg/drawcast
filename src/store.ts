@@ -82,7 +82,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Object.keys(PACK_DEFS) — store.ts is imported by the viewer, and reaching
   // into scenes/packs.ts would drag the whole scene registry into that chunk.
   // tests/pack-defaults.test.ts pins this list against PACK_DEFS instead.
-  enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence"],
+  enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic"],
   priorityPacks: [],
 };
 

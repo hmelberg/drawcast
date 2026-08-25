@@ -1,0 +1,1069 @@
+pack: mathlogic
+title: Math & logic
+description: Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations.
+---
+template: venn_diagram
+title: Venn / Euler diagram
+version: 1
+kit: 2
+status: ready
+description: >-
+  A Venn or Euler set diagram: two or three overlapping circles (or, in
+  containment mode, one small circle entirely inside a larger one — an Euler
+  "All A are B" diagram), an optional universe box, region labels, and
+  approximate shading of any requested region. Choose this scene for ANY
+  request about a Venn diagram, Euler diagram, sets, set intersection, set
+  union, overlapping categories, or "all X are Y" style set containment.
+params:
+  type: object
+  properties:
+    sets:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        type: object
+        properties:
+          label: { type: string }
+          only_label:
+            type: string
+            description: "Label for this set's own region (the part of it outside every other set)."
+        required: [label]
+      description: "Two or three sets, in order. In containment mode sets[0] is the inner (subset) circle, sets[1] the outer one."
+    overlap_labels:
+      type: object
+      properties:
+        ab: { type: string }
+        bc: { type: string }
+        ac: { type: string }
+        abc: { type: string }
+        outside: { type: string }
+      description: "Labels for the overlap/outside regions, by key. ab/bc/ac/abc only apply with 3 sets except ab, which also names the full intersection with 2 sets."
+    shade:
+      type: array
+      items:
+        type: string
+        enum: [a, b, c, ab, bc, ac, abc, outside]
+      description: "Which regions to approximately shade."
+    universe_box:
+      type: boolean
+      description: "Draw a rectangle around everything, representing the universal set (default true)."
+    mode:
+      type: string
+      enum: [overlap, containment]
+      description: "overlap (default): circles overlap in the usual Venn layout. containment: exactly 2 sets, sets[0] drawn entirely inside sets[1] — the Euler diagram for \"all A are B\"."
+    title:
+      type: string
+element_ids:
+  universe: the rectangle representing the universal set, present when universe_box
+  set_<i>: the circle for sets[i]
+  set_label_<i>: its name label
+  region_label_<k>: a region's label (k = a/b/c for a set's own-only region from its only_label, or ab/bc/ac/abc/outside from overlap_labels), present only when that label is supplied
+  shade_<k>: approximate shading for region k, present only for keys in `shade`
+  title: figure title, when set
+examples:
+  - request: "Draw a Venn diagram of two sets and shade their intersection."
+    params:
+      sets: [{ label: "A" }, { label: "B" }]
+      shade: ["ab"]
+      overlap_labels: { ab: "A ∩ B" }
+  - request: "Show that all squares are rectangles with an Euler diagram."
+    params:
+      mode: "containment"
+      sets: [{ label: "Squares" }, { label: "Rectangles" }]
+layout: |
+  // Shading is an APPROXIMATION: the true lens-shaped intersection has no
+  // simple closed-form polygon here, so each shaded region is one kit.blob
+  // dropped at that region's approximate centroid rather than an exact
+  // boundary fill — enough to gesture at "this area", not a precise cutout.
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const setsIn = Array.isArray(params.sets) ? params.sets.slice(0, 3) : [];
+  const sets = setsIn.length >= 2 ? setsIn : [{ label: "A" }, { label: "B" }];
+  const n = Math.min(3, Math.max(2, sets.length));
+  const mode = params.mode === "containment" && n === 2 ? "containment" : "overlap";
+  const showUniverse = params.universe_box !== false;
+  const shadeList = Array.isArray(params.shade) ? [...new Set(params.shade.filter((s) => typeof s === "string"))] : [];
+  const overlapLabels = params.overlap_labels && typeof params.overlap_labels === "object" ? params.overlap_labels : {};
+
+  let centers, radii;
+  if (mode === "containment") {
+    centers = [[500, 340], [500, 400]];
+    radii = [90, 210];
+  } else if (n === 3) {
+    centers = [[500, 470], [390, 300], [610, 300]];
+    radii = [170, 170, 170];
+  } else {
+    centers = [[380, 375], [620, 375]];
+    radii = [170, 170];
+  }
+
+  const G = [centers.reduce((s, c) => s + c[0], 0) / n, centers.reduce((s, c) => s + c[1], 0) / n];
+
+  function dirOf(from, to) {
+    const dx = to[0] - from[0], dy = to[1] - from[1];
+    const len = Math.hypot(dx, dy) || 1;
+    return [dx / len, dy / len];
+  }
+  function sideFromDir(dx, dy) {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < 0.35 * ay) return dy >= 0 ? "above" : "below";
+    if (ay < 0.35 * ax) return dx >= 0 ? "right" : "left";
+    if (dx >= 0 && dy >= 0) return "above-right";
+    if (dx >= 0 && dy < 0) return "below-right";
+    if (dx < 0 && dy >= 0) return "above-left";
+    return "below-left";
+  }
+  function onlyCentroid(i) {
+    const [dx, dy] = dirOf(G, centers[i]);
+    return [centers[i][0] + dx * radii[i] * 0.55, centers[i][1] + dy * radii[i] * 0.55];
+  }
+  function pairCentroid(i, j) {
+    const mid = [(centers[i][0] + centers[j][0]) / 2, (centers[i][1] + centers[j][1]) / 2];
+    if (n === 2) return mid;
+    const k = [0, 1, 2].find((x) => x !== i && x !== j);
+    const [dx, dy] = dirOf(centers[k], mid);
+    return [mid[0] + dx * 40, mid[1] + dy * 40];
+  }
+  function tripleCentroid() { return G; }
+
+  let boxX0 = Infinity, boxY0 = Infinity, boxX1 = -Infinity, boxY1 = -Infinity;
+  centers.forEach((c, i) => {
+    boxX0 = Math.min(boxX0, c[0] - radii[i]);
+    boxX1 = Math.max(boxX1, c[0] + radii[i]);
+    boxY0 = Math.min(boxY0, c[1] - radii[i]);
+    boxY1 = Math.max(boxY1, c[1] + radii[i]);
+  });
+  boxX0 -= 80; boxY0 -= 80; boxX1 += 80; boxY1 += 80;
+  function outsideCentroid() { return [boxX0 + (boxX1 - boxX0) * 0.12, boxY1 - (boxY1 - boxY0) * 0.12]; }
+
+  const KEY_MAP = n === 3
+    ? { a: () => onlyCentroid(0), b: () => onlyCentroid(1), c: () => onlyCentroid(2), ab: () => pairCentroid(0, 1), ac: () => pairCentroid(0, 2), bc: () => pairCentroid(1, 2), abc: () => tripleCentroid(), outside: () => outsideCentroid() }
+    : { a: () => onlyCentroid(0), b: () => onlyCentroid(1), ab: () => pairCentroid(0, 1), outside: () => outsideCentroid() };
+
+  function blobSizeFor(k) {
+    if (k === "a" || k === "b" || k === "c") {
+      const r = radii[{ a: 0, b: 1, c: 2 }[k]];
+      const rx = Math.min(55, r * 0.38);
+      return [rx, rx * 0.75];
+    }
+    const r = Math.min(...radii);
+    const rx = Math.min(44, r * 0.3);
+    return [rx, rx * 0.75];
+  }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
+
+  if (showUniverse) {
+    const pts = [[boxX0, boxY0], [boxX1, boxY0], [boxX1, boxY1], [boxX0, boxY1]];
+    push(kit.stroke("universe", pts, { closed: true, color: C.guide, strokeWidth: 2.5, ms: MS.stroke }));
+    anchors.universe = [(boxX0 + boxX1) / 2, boxY1];
+  }
+
+  sets.slice(0, n).forEach((s, i) => {
+    const c = centers[i], r = radii[i];
+    push(kit.stroke("set_" + i, kit.ellipse(c, r, r, 64), { closed: true, color: C.ink, strokeWidth: 4, ms: MS.node }));
+    anchors["set_" + i] = c;
+    const [dx, dy] = dirOf(G, c);
+    const boundaryPt = [c[0] + dx * r, c[1] + dy * r];
+    const text = s && typeof s.label === "string" && s.label.trim() !== "" ? s.label : String.fromCharCode(65 + i);
+    label("set_label_" + i, boundaryPt, sideFromDir(dx, dy), text, C.ink, 24);
+  });
+
+  shadeList.forEach((k) => {
+    if (!KEY_MAP[k]) return;
+    const c = KEY_MAP[k]();
+    const [rx, ry] = blobSizeFor(k);
+    push(kit.area("shade_" + k, kit.blob(c, rx, ry, 0.08, k.length, 40), C.region1, { opacity: 0.35 }));
+    anchors["shade_" + k] = c;
+  });
+
+  ["a", "b", "c"].forEach((k, i) => {
+    if (!KEY_MAP[k]) return;
+    const s = sets[i];
+    const text = s && typeof s.only_label === "string" && s.only_label.trim() !== "" ? s.only_label : null;
+    if (!text) return;
+    const c = KEY_MAP[k]();
+    push(kit.text("region_label_" + k, c, text, { fontSize: 19 }));
+    anchors["region_label_" + k] = c;
+  });
+  ["ab", "ac", "bc", "abc", "outside"].forEach((k) => {
+    if (!KEY_MAP[k]) return;
+    const text = typeof overlapLabels[k] === "string" && overlapLabels[k].trim() !== "" ? overlapLabels[k] : null;
+    if (!text) return;
+    const c = KEY_MAP[k]();
+    push(kit.text("region_label_" + k, c, text, { fontSize: 19 }));
+    anchors["region_label_" + k] = c;
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [(boxX0 + boxX1) / 2, Math.min(730, boxY1 + 46)], params.title, { fontSize: 28 }));
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: unit_circle
+title: Unit circle (sine and cosine)
+version: 1
+kit: 2
+status: ready
+description: >-
+  The unit circle: a radius to a point at the given angle, with its sine
+  (dashed vertical drop) and cosine (horizontal drop) projections, a small
+  arc marking the angle at the origin, and the point's exact (cos θ, sin θ)
+  coordinates. Choose this scene for ANY request about the unit circle,
+  sine, cosine, radians or degrees on a circle, or how an angle's coordinates
+  relate to its sine and cosine. angle_deg is numeric and ANIMATES smoothly —
+  tween it to sweep the point around the circle.
+params:
+  type: object
+  properties:
+    angle_deg:
+      type: number
+      description: "The angle in degrees, measured counterclockwise from the positive x-axis (default 45). Any real number — negative and > 360 both wrap correctly."
+    show:
+      type: array
+      items:
+        type: string
+        enum: [sin, cos, tan, coords, arc]
+      description: "Which parts to draw (default sin, cos, arc, coords). \"tan\" is accepted but currently has no dedicated geometry of its own."
+    quadrant_labels:
+      type: boolean
+      description: "Label the four quadrants I-IV (default false)."
+element_ids:
+  circle: the unit circle (drawn at radius 240 for legibility)
+  x_axis: the horizontal axis
+  y_axis: the vertical axis
+  radius: the line from the origin to the point
+  point: the dot at (cos θ, sin θ) on the circle
+  sin_line: the dashed vertical drop to the point, with its "sin θ" label, present when shown
+  cos_line: the horizontal drop to the point, with its "cos θ" label, present when shown
+  angle_arc: the small arc at the origin marking θ, present when shown
+  angle_label: its "θ" label, present when shown
+  coords_label: the point's "(cos θ, sin θ)" label with actual values, present when shown
+examples:
+  - request: "Show the unit circle at a 30 degree angle, and animate it sweeping all the way around."
+    params:
+      angle_deg: 30
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const angleDeg = typeof params.angle_deg === "number" && Number.isFinite(params.angle_deg) ? params.angle_deg : 45;
+  const theta = (angleDeg * Math.PI) / 180;
+  const showList = Array.isArray(params.show) && params.show.length > 0 ? params.show : ["sin", "cos", "arc", "coords"];
+  const showSet = new Set(showList);
+  const quadrantLabels = params.quadrant_labels === true;
+
+  function sideFromDir(dx, dy) {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < 0.35 * ay) return dy >= 0 ? "above" : "below";
+    if (ay < 0.35 * ax) return dx >= 0 ? "right" : "left";
+    if (dx >= 0 && dy >= 0) return "above-right";
+    if (dx >= 0 && dy < 0) return "below-right";
+    if (dx < 0 && dy >= 0) return "above-left";
+    return "below-left";
+  }
+
+  const O = [500, 380], R = 240;
+  const cosV = Math.cos(theta), sinV = Math.sin(theta);
+  const point = [O[0] + R * cosV, O[1] + R * sinV];
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
+
+  push(kit.stroke("x_axis", [[O[0] - R - 45, O[1]], [O[0] + R + 45, O[1]]], { arrowhead: "both", color: C.guide, strokeWidth: 2.5, ms: MS.axis }));
+  push(kit.stroke("y_axis", [[O[0], O[1] - R - 45], [O[0], O[1] + R + 45]], { arrowhead: "both", color: C.guide, strokeWidth: 2.5, ms: MS.axis }));
+  push(kit.stroke("circle", kit.ellipse(O, R, R, 72), { closed: true, color: C.ink, strokeWidth: 4, ms: MS.node }));
+  anchors.circle = O;
+
+  push(kit.stroke("radius", [O, point], { color: C.ink, strokeWidth: 4, ms: MS.connector }));
+  anchors.radius = point;
+
+  push(kit.stroke("point", [point], { shapeHint: { type: "circle", c: point, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+  anchors.point = point;
+
+  if (showSet.has("cos")) {
+    const foot = [O[0], point[1]];
+    const midX = (foot[0] + point[0]) / 2;
+    const labelY = point[1] + (sinV >= 0 ? 28 : -28);
+    const children = [
+      kit.stroke("cos_line__seg", [foot, point], { color: C.supply, strokeWidth: 3.5, ms: MS.connector }),
+      kit.text("cos_line__text", [midX, labelY], "cos θ", { fontSize: 18, color: C.supply }),
+    ];
+    push(kit.group("cos_line", children));
+    anchors.cos_line = foot;
+  }
+  if (showSet.has("sin")) {
+    const foot = [point[0], O[1]];
+    const farX = O[0] + (R + 30) * (cosV >= 0 ? 1 : -1);
+    const midY = (foot[1] + point[1]) / 2;
+    const children = [
+      kit.stroke("sin_line__seg", [foot, point], { color: C.demand, strokeWidth: 3.5, dash: true, ms: MS.connector }),
+      kit.text("sin_line__text", [farX, midY], "sin θ", { fontSize: 18, color: C.demand, anchor: cosV >= 0 ? "start" : "end" }),
+    ];
+    push(kit.group("sin_line", children));
+    anchors.sin_line = foot;
+  }
+  if (showSet.has("arc")) {
+    const arcR = 42;
+    push(kit.angleMark("angle_arc", O, 0, theta, arcR, { color: C.accent }));
+    anchors.angle_arc = O;
+    const mid = theta / 2;
+    const labelAnchor = [O[0] + (arcR + 14) * Math.cos(mid), O[1] + (arcR + 14) * Math.sin(mid)];
+    label("angle_label", labelAnchor, sideFromDir(Math.cos(mid), Math.sin(mid)), "θ", C.accent, 20);
+  }
+  if (showSet.has("coords")) {
+    const text = "(" + cosV.toFixed(2) + ", " + sinV.toFixed(2) + ")";
+    const dx = cosV >= 0 ? 1 : -1, dy = sinV >= 0 ? 1 : -1;
+    label("coords_label", point, sideFromDir(dx, dy), text, C.ink, 19);
+  }
+  if (quadrantLabels) {
+    const qr = R + 75;
+    [[1, 1, "I"], [-1, 1, "II"], [-1, -1, "III"], [1, -1, "IV"]].forEach(([sx, sy, name], i) => {
+      push(kit.text("quadrant_" + i, [O[0] + sx * qr * 0.66, O[1] + sy * qr * 0.66], name, { fontSize: 18, color: C.guide }));
+    });
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: number_line
+title: Number line
+version: 1
+kit: 2
+status: ready
+description: >-
+  A number line: ticks and numerals from min to max, optional points
+  (open/closed circles for strict/non-strict endpoints), shaded intervals
+  (a thick overlay marking a solution range), and curved "hop" arrows for
+  addition/subtraction. Choose this scene for ANY request about a number
+  line, an inequality, an interval, a solution set on the real line, or
+  showing addition/subtraction as a jump along a number line.
+params:
+  type: object
+  properties:
+    min:
+      type: number
+      description: "Left end of the line (default -5)."
+    max:
+      type: number
+      description: "Right end of the line (default 5)."
+    step:
+      type: number
+      description: "Spacing between tick numerals (default 1)."
+    points:
+      type: array
+      items:
+        type: object
+        properties:
+          at: { type: number }
+          label: { type: string }
+          open:
+            type: boolean
+            description: "Open (unfilled) circle for a strict inequality endpoint; filled (default) for non-strict / inclusion."
+        required: [at]
+    intervals:
+      type: array
+      items:
+        type: object
+        properties:
+          from: { type: number }
+          to: { type: number }
+          open_from: { type: boolean }
+          open_to: { type: boolean }
+          label: { type: string }
+        required: [from, to]
+      description: "A shaded solution range, e.g. for an inequality."
+    arrow_ops:
+      type: array
+      items:
+        type: object
+        properties:
+          from: { type: number }
+          to: { type: number }
+          label: { type: string }
+        required: [from, to]
+      description: "Curved hop arrows, e.g. to show +3 or -2 as a jump."
+element_ids:
+  line: the number line itself
+  tick_<v>: a tick mark + numeral at value v
+  pt_<i>: marker for points[i], with its label when given
+  interval_<i>: shaded overlay for intervals[i], with its label when given
+  hop_<i>: curved hop arrow for arrow_ops[i], with its label when given
+examples:
+  - request: "Show the solution to x is greater than 1 on a number line."
+    params:
+      points: [{ at: 1, label: "1", open: true }]
+      intervals: [{ from: 1, to: 5, open_from: true, label: "x > 1" }]
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const min = typeof params.min === "number" && Number.isFinite(params.min) ? params.min : -5;
+  const maxRaw = typeof params.max === "number" && Number.isFinite(params.max) ? params.max : min + 10;
+  const max = maxRaw > min ? maxRaw : min + 10;
+  const step = typeof params.step === "number" && params.step > 0 ? params.step : 1;
+
+  const X0 = 120, X1 = 880, Y = 375;
+  const sx = (v) => X0 + ((v - min) / (max - min)) * (X1 - X0);
+  function vid(v) {
+    const r = Math.round(v * 1000) / 1000;
+    return (r < 0 ? "neg" : "") + String(Math.abs(r)).replace(".", "_");
+  }
+  function fmt(v) { return String(Math.round(v * 1000) / 1000); }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
+
+  push(kit.stroke("line", [[X0 - 18, Y], [X1 + 18, Y]], { arrowhead: "both", color: C.ink, strokeWidth: 4, ms: MS.axis }));
+  anchors.line = [X1 + 18, Y];
+
+  for (let v = min; v <= max + 1e-9; v += step) {
+    const x = sx(v);
+    const id = "tick_" + vid(v);
+    const children = [
+      kit.stroke(id + "__mark", [[x, Y - 9], [x, Y + 9]], { color: C.guide, strokeWidth: 2.5, ms: MS.stroke }),
+      kit.text(id + "__num", [x, Y - 32], fmt(v), { fontSize: 18, color: C.guide }),
+    ];
+    push(kit.group(id, children));
+    anchors[id] = [x, Y];
+  }
+
+  const points = Array.isArray(params.points) ? params.points.slice(0, 12) : [];
+  points.forEach((p, i) => {
+    const at = typeof p.at === "number" ? Math.max(min, Math.min(max, p.at)) : min;
+    const x = sx(at);
+    const open = p.open === true;
+    const id = "pt_" + i;
+    const opts = { shapeHint: { type: "circle", c: [x, Y], r: 8 }, strokeWidth: 3, color: C.ink, ms: MS.dot };
+    if (!open) opts.fill = C.ink;
+    push(kit.stroke(id, [[x, Y]], opts));
+    anchors[id] = [x, Y];
+    if (typeof p.label === "string" && p.label.trim() !== "") {
+      label(id + "_label", [x, Y], "above", p.label, C.ink, 20);
+    }
+  });
+
+  const intervals = Array.isArray(params.intervals) ? params.intervals.slice(0, 8) : [];
+  intervals.forEach((iv, i) => {
+    const from = typeof iv.from === "number" ? Math.max(min, Math.min(max, iv.from)) : min;
+    const to = typeof iv.to === "number" ? Math.max(min, Math.min(max, iv.to)) : max;
+    const x0 = sx(Math.min(from, to)), x1 = sx(Math.max(from, to));
+    const id = "interval_" + i;
+    const children = [kit.stroke(id + "__seg", [[x0, Y], [x1, Y]], { color: C.accent, strokeWidth: 9, ms: MS.curve })];
+    if (iv.open_from) children.push(kit.stroke(id + "__ofrom", [[x0, Y]], { shapeHint: { type: "circle", c: [x0, Y], r: 9 }, strokeWidth: 3, color: C.accent, ms: MS.dot }));
+    if (iv.open_to) children.push(kit.stroke(id + "__oto", [[x1, Y]], { shapeHint: { type: "circle", c: [x1, Y], r: 9 }, strokeWidth: 3, color: C.accent, ms: MS.dot }));
+    push(kit.group(id, children));
+    anchors[id] = [(x0 + x1) / 2, Y];
+    if (typeof iv.label === "string" && iv.label.trim() !== "") {
+      label(id + "_label", [(x0 + x1) / 2, Y + 8], "above", iv.label, C.accent, 20);
+    }
+  });
+
+  const arrowOps = Array.isArray(params.arrow_ops) ? params.arrow_ops.slice(0, 6) : [];
+  arrowOps.forEach((op, i) => {
+    const from = typeof op.from === "number" ? Math.max(min, Math.min(max, op.from)) : min;
+    const to = typeof op.to === "number" ? Math.max(min, Math.min(max, op.to)) : max;
+    const a = [sx(from), Y + 18], b = [sx(to), Y + 18];
+    const id = "hop_" + i;
+    const { drawables: hopDrawables } = kit.edgeArrow(id, a, b, { curve: 0.5, color: C.accent, strokeWidth: 3, ms: MS.arrow });
+    hopDrawables.forEach(push);
+    const mid = hopDrawables[0].pts[Math.floor(hopDrawables[0].pts.length / 2)];
+    anchors[id] = mid;
+    if (typeof op.label === "string" && op.label.trim() !== "") {
+      label(id + "_label", mid, "above", op.label, C.accent, 20);
+    }
+  });
+
+  return { drawables, labels, anchors, order };
+---
+template: geometry_figure
+title: Labeled geometry figure
+version: 1
+kit: 2
+status: ready
+description: >-
+  A labeled geometry figure: a triangle (scalene, right, or isosceles) or an
+  inscribed triangle demonstrating Thales' theorem (a right angle inscribed
+  in a semicircle), with vertex/side/angle labels, angle-mark arcs or a
+  right-angle square, and congruent-side tick marks. Choose this scene for
+  ANY request about a triangle, right triangle, isosceles triangle, the
+  Pythagorean theorem's setup figure, congruent triangles/sides, angle
+  marking, or Thales' / the inscribed-angle theorem.
+params:
+  type: object
+  properties:
+    kind:
+      type: string
+      enum: [triangle, right_triangle, isosceles, circle_theorem]
+      description: "Default \"triangle\" (a generic scalene triangle). circle_theorem draws Thales' theorem: a triangle inscribed on a circle's diameter."
+    vertex_labels:
+      type: array
+      items: { type: string }
+      description: "Names for the 3 vertices, default [A, B, C]."
+    side_labels:
+      type: array
+      items: { type: string }
+      description: "Labels for the 3 sides, side_labels[i] on the side OPPOSITE vertex i."
+    angle_labels:
+      type: array
+      items: {}
+      description: "Labels (strings or numbers, e.g. \"α\" or 90) for marked angles, angle_labels[i] at vertex i."
+    mark_angles:
+      type: array
+      items: { type: integer, enum: [0, 1, 2] }
+      description: "Which vertices get an angle-mark arc."
+    congruent_sides:
+      type: array
+      items:
+        type: array
+        items: { type: integer, enum: [0, 1, 2] }
+        minItems: 2
+        maxItems: 2
+      description: "Pairs of side indices to mark as congruent with matching tick counts, e.g. [[0,1]]."
+    right_angle_at:
+      type: integer
+      enum: [0, 1, 2]
+      description: "Which vertex gets the right-angle square mark instead of an arc. Defaults to 0 for right_triangle and circle_theorem."
+    hypotenuse_label:
+      type: string
+      description: "Label for the side opposite right_angle_at (the hypotenuse); takes priority over side_labels for that side."
+element_ids:
+  side_<i>: the side opposite vertex i, with its label (from side_labels[i] or hypotenuse_label) when given
+  vertex_label_<i>: vertex i's name
+  angle_<i>: the angle mark at vertex i (arc, or a square if it is right_angle_at), present for vertices in mark_angles or right_angle_at
+  angle_label_<i>: its numeric/letter label, present when angle_labels[i] is given
+  ticks_<i>: congruence tick marks on side i, present for sides named in congruent_sides
+  circle: the circumscribing circle, present only for kind circle_theorem
+examples:
+  - request: "Prove Thales' theorem: an angle inscribed in a semicircle is a right angle."
+    params:
+      kind: "circle_theorem"
+      vertex_labels: ["C", "A", "B"]
+      angle_labels: ["90°"]
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const KIND = ["triangle", "right_triangle", "isosceles", "circle_theorem"].includes(params.kind) ? params.kind : "triangle";
+
+  let V, circleInfo = null;
+  if (KIND === "right_triangle") {
+    V = [[200, 180], [760, 180], [200, 560]];
+  } else if (KIND === "isosceles") {
+    V = [[500, 560], [240, 180], [760, 180]];
+  } else if (KIND === "circle_theorem") {
+    const O = [500, 375], r = 220;
+    circleInfo = { O: O, r: r };
+    const ang = (130 * Math.PI) / 180;
+    V = [[O[0] + r * Math.cos(ang), O[1] + r * Math.sin(ang)], [O[0] - r, O[1]], [O[0] + r, O[1]]];
+  } else {
+    V = [[220, 200], [820, 240], [520, 580]];
+  }
+
+  let rightAngleAt = typeof params.right_angle_at === "number" && params.right_angle_at >= 0 && params.right_angle_at <= 2 ? Math.round(params.right_angle_at) : null;
+  if (rightAngleAt === null && (KIND === "right_triangle" || KIND === "circle_theorem")) rightAngleAt = 0;
+  const markAngles = Array.isArray(params.mark_angles) ? [...new Set(params.mark_angles.filter((i) => i === 0 || i === 1 || i === 2))] : [];
+  const angleSet = new Set(markAngles);
+  if (rightAngleAt !== null) angleSet.add(rightAngleAt);
+
+  const vertexLabels = Array.isArray(params.vertex_labels) && params.vertex_labels.length >= 3 ? params.vertex_labels : ["A", "B", "C"];
+  const sideLabels = Array.isArray(params.side_labels) ? params.side_labels : [];
+  const angleLabels = Array.isArray(params.angle_labels) ? params.angle_labels : [];
+  const congruentSides = Array.isArray(params.congruent_sides) ? params.congruent_sides.slice(0, 4) : [];
+  const hypotenuseLabel = typeof params.hypotenuse_label === "string" && params.hypotenuse_label.trim() !== "" ? params.hypotenuse_label : null;
+
+  const centroid = [(V[0][0] + V[1][0] + V[2][0]) / 3, (V[0][1] + V[1][1] + V[2][1]) / 3];
+  function normalizeDiff(d) {
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return d;
+  }
+  function sideFromDir(dx, dy) {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < 0.35 * ay) return dy >= 0 ? "above" : "below";
+    if (ay < 0.35 * ax) return dx >= 0 ? "right" : "left";
+    if (dx >= 0 && dy >= 0) return "above-right";
+    if (dx >= 0 && dy < 0) return "below-right";
+    if (dx < 0 && dy >= 0) return "above-left";
+    return "below-left";
+  }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
+
+  if (circleInfo) {
+    push(kit.stroke("circle", kit.ellipse(circleInfo.O, circleInfo.r, circleInfo.r, 72), { closed: true, color: C.guide, strokeWidth: 3, ms: MS.node }));
+    anchors.circle = circleInfo.O;
+  }
+
+  const OPP = [[1, 2], [0, 2], [0, 1]];
+  for (let i = 0; i < 3; i++) {
+    const a = OPP[i][0], b = OPP[i][1];
+    const p0 = V[a], p1 = V[b];
+    const children = [kit.stroke("side_" + i + "__seg", [p0, p1], { color: C.ink, strokeWidth: 4, ms: MS.curve })];
+    const text = i === rightAngleAt && hypotenuseLabel ? hypotenuseLabel : (typeof sideLabels[i] === "string" || typeof sideLabels[i] === "number" ? String(sideLabels[i]) : null);
+    if (text) {
+      const mid = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2];
+      const dx = mid[0] - centroid[0], dy = mid[1] - centroid[1];
+      const len = Math.hypot(dx, dy) || 1;
+      const pos = [mid[0] + (dx / len) * 22, mid[1] + (dy / len) * 22];
+      children.push(kit.text("side_" + i + "__text", pos, text, { fontSize: 21, color: C.ink }));
+    }
+    push(kit.group("side_" + i, children));
+    anchors["side_" + i] = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2];
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const p = V[i];
+    const dx = p[0] - centroid[0], dy = p[1] - centroid[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const anchor = [p[0] + (dx / len) * 14, p[1] + (dy / len) * 14];
+    const text = typeof vertexLabels[i] === "string" && vertexLabels[i].trim() !== "" ? vertexLabels[i] : String.fromCharCode(65 + i);
+    label("vertex_label_" + i, anchor, sideFromDir(dx, dy), text, C.ink, 24);
+  }
+
+  angleSet.forEach((i) => {
+    const others = OPP[i];
+    const p = V[i], p1 = V[others[0]], p2 = V[others[1]];
+    const a1 = Math.atan2(p1[1] - p[1], p1[0] - p[0]);
+    const a2 = Math.atan2(p2[1] - p[1], p2[0] - p[0]);
+    const d = normalizeDiff(a2 - a1);
+    const ordered = d >= 0 ? [a1, a1 + d] : [a2, a2 - d];
+    const isRight = i === rightAngleAt;
+    push(kit.angleMark("angle_" + i, p, ordered[0], ordered[1], 36, { right: isRight, color: C.accent }));
+    anchors["angle_" + i] = p;
+    const labelText = typeof angleLabels[i] === "string" || typeof angleLabels[i] === "number" ? String(angleLabels[i]) : null;
+    if (labelText) {
+      const mid = (ordered[0] + ordered[1]) / 2;
+      const anchorPt = [p[0] + 54 * Math.cos(mid), p[1] + 54 * Math.sin(mid)];
+      label("angle_label_" + i, anchorPt, sideFromDir(Math.cos(mid), Math.sin(mid)), labelText, C.accent, 20);
+    }
+  });
+
+  congruentSides.forEach((pair, gi) => {
+    if (!Array.isArray(pair) || pair.length !== 2) return;
+    const i = pair[0], j = pair[1];
+    if (![0, 1, 2].includes(i) || ![0, 1, 2].includes(j)) return;
+    [i, j].forEach((sIdx) => {
+      const a = OPP[sIdx][0], b = OPP[sIdx][1];
+      const ticks = kit.tickMarks(V[a], V[b], gi + 1, 16);
+      const children = ticks.map((seg, k) => kit.stroke("ticks_" + sIdx + "__t" + k, seg, { color: C.ink, strokeWidth: 3, ms: MS.stroke }));
+      push(kit.group("ticks_" + sIdx, children));
+      anchors["ticks_" + sIdx] = [(V[a][0] + V[b][0]) / 2, (V[a][1] + V[b][1]) / 2];
+    });
+  });
+
+  return { drawables, labels, anchors, order };
+---
+template: truth_table
+title: Truth table
+version: 1
+kit: 2
+status: ready
+description: >-
+  A propositional-logic truth table: one row per combination of truth values
+  for 2-3 variables (in binary order), columns for each variable and the
+  expression's value, with true rows shaded. Supports AND, OR, NOT, XOR and
+  IMPLIES with parentheses. Choose this scene for ANY request about a truth
+  table, propositional/Boolean logic, AND/OR/NOT/XOR/IMPLIES, or checking
+  whether a logical formula is a tautology.
+params:
+  type: object
+  properties:
+    variables:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items: { type: string }
+      description: "Variable names, e.g. [\"A\",\"B\"] (default) or [\"A\",\"B\",\"C\"]."
+    expression:
+      type: string
+      description: "A formula over the variables using AND, OR, NOT, XOR, IMPLIES and parentheses, e.g. \"(A AND B) OR NOT A\". T and F are also valid literals. IMPLIES is right-associative; precedence is NOT > AND > OR/XOR > IMPLIES."
+    highlight_true:
+      type: boolean
+      description: "Shade rows where the expression is true (default true)."
+    title:
+      type: string
+element_ids:
+  grid: the table's grid lines
+  grid__c<r>_<c>: each cell's value text ("T"/"F"), r/c 0-indexed, the last column being the expression's result
+  expr_header: the header above the result column, showing the expression
+  title: figure title, when set
+examples:
+  - request: "Make a truth table for (A AND B) OR NOT A."
+    params:
+      variables: ["A", "B"]
+      expression: "(A AND B) OR NOT A"
+layout: |
+  // Tiny recursive-descent boolean evaluator. Precedence NOT > AND > OR/XOR >
+  // IMPLIES; IMPLIES is right-associative. Throws on any malformed/unknown
+  // token so layoutSpec's catch degrades to the tier-2 fall-through.
+  function evalExpr(exprStr, env) {
+    const toks = String(exprStr).toUpperCase().match(/[A-Z]+|[()]/g) || [];
+    let i = 0;
+    const peek = () => toks[i];
+    const next = () => toks[i++];
+    function atom() {
+      const t = next();
+      if (t === "(") { const v = implies(); if (next() !== ")") throw new Error("expr: expected )"); return v; }
+      if (t === "T") return true;
+      if (t === "F") return false;
+      if (t !== undefined && Object.prototype.hasOwnProperty.call(env, t)) return env[t];
+      throw new Error("expr: unknown token " + t);
+    }
+    function notExpr() { if (peek() === "NOT") { next(); return !notExpr(); } return atom(); }
+    function andExpr() { let v = notExpr(); while (peek() === "AND") { next(); const r = notExpr(); v = v && r; } return v; }
+    function orExpr() { let v = andExpr(); while (peek() === "OR" || peek() === "XOR") { const op = next(); const r = andExpr(); v = op === "OR" ? (v || r) : (v !== r); } return v; }
+    function implies() { const v = orExpr(); if (peek() === "IMPLIES") { next(); const r = implies(); return !v || r; } return v; }
+    const result = implies();
+    if (i !== toks.length) throw new Error("expr: unexpected trailing tokens");
+    return result;
+  }
+
+  const C = kit.COLORS;
+  const variables = Array.isArray(params.variables) && params.variables.length >= 2 ? params.variables.slice(0, 3).map(String) : ["A", "B"];
+  const nVars = variables.length;
+  const expression = typeof params.expression === "string" && params.expression.trim() !== "" ? params.expression : variables.join(" AND ");
+  const highlightTrue = params.highlight_true !== false;
+
+  const rows = Math.pow(2, nVars);
+  const cols = nVars + 1;
+  const W = 520, H = 320;
+  const X0 = 500 - W / 2, Y0 = 140;
+  const cellW = W / cols, cellH = H / rows;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const t = kit.table("grid", { x: X0, y: Y0, w: W, h: H, rows: rows, cols: cols });
+  const gridGroup = t.drawables[0];
+  gridGroup.id = "grid";
+  push(gridGroup);
+  anchors.grid = [500, Y0 + H / 2];
+
+  const rowResults = [];
+  for (let r = 0; r < rows; r++) {
+    const env = {};
+    for (let k = 0; k < nVars; k++) {
+      const bit = (r >> (nVars - 1 - k)) & 1;
+      env[variables[k]] = bit === 1;
+    }
+    let result;
+    try {
+      result = evalExpr(expression, env);
+    } catch (err) {
+      throw new Error("truth_table: " + err.message);
+    }
+    rowResults.push(result);
+    for (let c = 0; c < nVars; c++) {
+      const anchor = t.anchors["grid__c" + r + "_" + c];
+      push(kit.text("grid__c" + r + "_" + c, anchor, env[variables[c]] ? "T" : "F", { fontSize: 22, color: C.guide }));
+    }
+    const resAnchor = t.anchors["grid__c" + r + "_" + nVars];
+    push(kit.text("grid__c" + r + "_" + nVars, resAnchor, result ? "T" : "F", { fontSize: 26, color: C.ink }));
+  }
+
+  if (highlightTrue) {
+    rowResults.forEach((v, r) => {
+      if (!v) return;
+      const rowTop = Y0 + H - cellH * r;
+      const rowBottom = rowTop - cellH;
+      push(kit.area("true_row_" + r, [[X0, rowBottom], [X0 + W, rowBottom], [X0 + W, rowTop], [X0, rowTop]], C.region2, { opacity: 0.25 }));
+    });
+  }
+
+  const varHeaderChildren = variables.map((v, c) => kit.text("var_header_" + c, [X0 + cellW * (c + 0.5), Y0 + H + 34], v, { fontSize: 20, color: C.guide }));
+  push(kit.group("var_headers", varHeaderChildren));
+
+  push(kit.text("expr_header", [X0 + cellW * (nVars + 0.5), Y0 + H + 34], expression, { fontSize: 19, color: C.ink }));
+  anchors.expr_header = [X0 + cellW * (nVars + 0.5), Y0 + H + 34];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, Y0 + H + 90], params.title, { fontSize: 28 }));
+  }
+
+  return { drawables, labels: labels, anchors, order };
+---
+template: argument_map
+title: Argument map
+version: 1
+kit: 2
+status: ready
+description: >-
+  An informal-logic argument map: a conclusion box at the top, its premises
+  in a row below with arrows of support (plain arrowhead) or objection (bar
+  head, in the demand color) pointing up at it or at another premise. Choose
+  this scene for ANY request about an argument map, premises and a
+  conclusion, informal logic, modus ponens/tollens, or mapping out the
+  structure of a reasoned argument or debate.
+params:
+  type: object
+  properties:
+    conclusion:
+      type: string
+      description: "REQUIRED. The argument's conclusion."
+    premises:
+      type: array
+      minItems: 1
+      maxItems: 5
+      items:
+        type: object
+        properties:
+          text: { type: string }
+          supports:
+            description: "What this premise supports: another premise's index, or \"conclusion\" (default)."
+          objection:
+            type: boolean
+            description: "Draw this link as an objection (bar head, demand color) instead of support (default false)."
+        required: [text]
+    title:
+      type: string
+  required: [conclusion]
+element_ids:
+  conclusion_box: the conclusion's box
+  conclusion_text_<line>: its wrapped text lines
+  premise_<i>: premises[i]'s box, with its wrapped text lines
+  link_<i>: the arrow from premises[i] to its target
+  title: figure title, when set
+examples:
+  - request: "Draw a modus ponens argument map: if it rains the ground gets wet, and it is raining, so the ground is wet."
+    params:
+      conclusion: "The ground is wet."
+      premises:
+        - { text: "If it rains, the ground gets wet." }
+        - { text: "It is raining." }
+layout: |
+  function wrapText(text, maxChars) {
+    const words = String(text).split(/\s+/).filter(Boolean);
+    const lines = [];
+    let cur = "";
+    for (const w of words) {
+      const cand = cur ? cur + " " + w : w;
+      if (cur && cand.length > maxChars) { lines.push(cur); cur = w; }
+      else cur = cand;
+    }
+    if (cur) lines.push(cur);
+    return lines.length ? lines : [String(text)];
+  }
+
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const conclusion = typeof params.conclusion === "string" && params.conclusion.trim() !== "" ? params.conclusion : "Conclusion";
+  const premisesIn = Array.isArray(params.premises) ? params.premises.slice(0, 5) : [];
+  const premises = premisesIn.length > 0 ? premisesIn : [{ text: "Premise 1" }];
+  const n = premises.length;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const CONC_CX = 500, CONC_CY = 600, CONC_W = 420;
+  const conclLines = wrapText(conclusion, 28);
+  const CONC_H = 44 + conclLines.length * 32;
+  const conclBoxPts = [
+    [CONC_CX - CONC_W / 2, CONC_CY - CONC_H / 2], [CONC_CX + CONC_W / 2, CONC_CY - CONC_H / 2],
+    [CONC_CX + CONC_W / 2, CONC_CY + CONC_H / 2], [CONC_CX - CONC_W / 2, CONC_CY + CONC_H / 2],
+  ];
+  push(kit.stroke("conclusion_box", conclBoxPts, { closed: true, color: C.ink, strokeWidth: 4, ms: MS.node }));
+  anchors.conclusion_box = [CONC_CX, CONC_CY];
+  conclLines.forEach((line, k) => {
+    const y = CONC_CY + ((conclLines.length - 1) / 2 - k) * 32;
+    push(kit.text("conclusion_text_" + k, [CONC_CX, y], line, { fontSize: 22 }));
+  });
+
+  const ROW_Y = 190, ROW_X0 = 60, ROW_X1 = 940, GAP = 30;
+  const boxW = Math.min(320, (ROW_X1 - ROW_X0 - (n - 1) * GAP) / n);
+  const totalRowW = boxW * n + GAP * (n - 1);
+  const rowStartX = 500 - totalRowW / 2;
+
+  const premiseCenters = [];
+  const premiseHalfH = [];
+  premises.forEach((p, i) => {
+    const cx = rowStartX + boxW / 2 + i * (boxW + GAP);
+    const text = typeof p.text === "string" && p.text.trim() !== "" ? p.text : "Premise " + (i + 1);
+    const lines = wrapText(text, 22);
+    const h = 36 + lines.length * 28;
+    premiseCenters.push([cx, ROW_Y]);
+    premiseHalfH.push(h / 2);
+    const boxPts = [[cx - boxW / 2, ROW_Y - h / 2], [cx + boxW / 2, ROW_Y - h / 2], [cx + boxW / 2, ROW_Y + h / 2], [cx - boxW / 2, ROW_Y + h / 2]];
+    const children = [kit.stroke("premise_" + i + "__box", boxPts, { closed: true, color: C.ink, strokeWidth: 3.5, ms: MS.node })];
+    lines.forEach((line, k) => {
+      const y = ROW_Y + ((lines.length - 1) / 2 - k) * 26;
+      children.push(kit.text("premise_" + i + "__text_" + k, [cx, y], line, { fontSize: 18 }));
+    });
+    push(kit.group("premise_" + i, children));
+    anchors["premise_" + i] = [cx, ROW_Y];
+  });
+
+  premises.forEach((p, i) => {
+    const objection = p.objection === true;
+    let targetIdx = "conclusion";
+    if (typeof p.supports === "number" && p.supports !== i && p.supports >= 0 && p.supports < n) targetIdx = p.supports;
+    let from = [premiseCenters[i][0], ROW_Y + premiseHalfH[i]];
+    let to, curve;
+    if (targetIdx === "conclusion") {
+      to = [CONC_CX, CONC_CY - CONC_H / 2];
+      curve = (i - (n - 1) / 2) * 0.06;
+    } else {
+      const tc = premiseCenters[targetIdx];
+      const dir = tc[0] >= premiseCenters[i][0] ? 1 : -1;
+      from = [premiseCenters[i][0] + (dir * boxW) / 2, ROW_Y];
+      to = [tc[0] - (dir * boxW) / 2, ROW_Y];
+      curve = 0.35;
+    }
+    const id = "link_" + i;
+    const opts = objection
+      ? { curve: curve, head: "bar", color: C.demand, strokeWidth: 3.5, ms: MS.connector }
+      : { curve: curve, head: "arrow", color: C.ink, strokeWidth: 3.5, ms: MS.connector };
+    const linked = kit.edgeArrow(id, from, to, opts);
+    linked.drawables.forEach(push);
+    anchors[id] = to;
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 700], params.title, { fontSize: 28 }));
+  }
+
+  return { drawables, labels: labels, anchors, order };
+---
+template: equation_steps
+title: Handwritten equation steps
+version: 1
+kit: 2
+status: ready
+engines: [mathjax]
+description: >-
+  Handwritten math: an equation or a short derivation revealed line by line —
+  choose for ANY request to show a formula, identity, or algebra steps. Each
+  step is typeset via MathJax and rendered as hand-sketched filled glyph
+  shapes, stacked top to bottom, with an optional short note beside each one.
+params:
+  type: object
+  properties:
+    steps:
+      type: array
+      minItems: 1
+      maxItems: 4
+      items:
+        type: object
+        properties:
+          tex:
+            type: string
+            description: "REQUIRED. A LaTeX math expression (no surrounding $ or \\[ \\])."
+          note:
+            type: string
+            description: "A short guide note shown to the right of this step."
+        required: [tex]
+    title:
+      type: string
+  required: [steps]
+element_ids:
+  step_<i>: steps[i]'s typeset glyphs (one group of filled shapes)
+  note_<i>: its guide note, present when given
+  title: figure title, when set
+examples:
+  - request: "Show the quadratic formula."
+    params:
+      title: "The quadratic formula"
+      steps:
+        - tex: "ax^2+bx+c=0"
+          note: "The general quadratic equation."
+        - tex: "a\\left(x+\\frac{b}{2a}\\right)^2=\\frac{b^2-4ac}{4a}"
+          note: "Complete the square."
+        - tex: "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}"
+          note: "Solve for x."
+layout: |
+  // MathJax glyph outlines are dense CLOSED rings (~400+ pts for a single
+  // italic letter) and glyph counters (the hole in an "a" or "0") come back
+  // as their OWN ring with no hole relationship to the outer ring. Per the
+  // engine's own consumer notes we accept filled counters: every ring is
+  // decimated to <=~55 points (keeping first/last) and emitted as its own
+  // kit.area(..., ink, {opacity:0.9}) — a counter renders as solid ink
+  // rather than a true hole. At the 54px step height used here this reads
+  // fine for algebra (digits/letters stay legible; only rare glyphs with a
+  // fully enclosed counter, e.g. "8", would lose the hole).
+  const C = kit.COLORS;
+  const stepsIn = Array.isArray(params.steps) ? params.steps.filter((s) => s && typeof s.tex === "string" && s.tex.trim() !== "").slice(0, 4) : [];
+  const steps = stepsIn.length > 0 ? stepsIn : [{ tex: "x = x" }];
+  const n = steps.length;
+
+  function decimate(pts) {
+    const MAXP = 55;
+    if (pts.length <= MAXP) return pts;
+    const stride = Math.ceil(pts.length / MAXP);
+    const out = [pts[0]];
+    for (let i = stride; i < pts.length - 1; i += stride) out.push(pts[i]);
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
+  const STEP_H = 54, GAP = 40;
+  const totalH = n * STEP_H + (n - 1) * GAP;
+  const topY = 375 + totalH / 2;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  steps.forEach((step, i) => {
+    let laid;
+    try {
+      laid = engines.mathjax.layoutTeX(step.tex, { display: true });
+    } catch (err) {
+      throw new Error("equation_steps: bad TeX in step " + i + ": " + err.message);
+    }
+    const outlines = laid.outlines;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const o of outlines) {
+      for (const p of o.pts) {
+        if (p[0] < minX) minX = p[0];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] < minY) minY = p[1];
+        if (p[1] > maxY) maxY = p[1];
+      }
+    }
+    if (!(maxY > minY) || !(maxX >= minX)) throw new Error("equation_steps: degenerate glyph geometry in step " + i);
+    let scale = STEP_H / (maxY - minY);
+    const scaledW = (maxX - minX) * scale;
+    const MAX_W = 900;
+    if (scaledW > MAX_W) scale *= MAX_W / scaledW;
+
+    const top = topY - i * (STEP_H + GAP);
+    const bottom = top - STEP_H;
+    const midX = (minX + maxX) / 2;
+    const tx = (x) => 500 + (x - midX) * scale;
+    const ty = (y) => bottom + (y - minY) * scale;
+
+    const children = outlines.map((o, j) => {
+      const pts = decimate(o.pts).map((p) => [tx(p[0]), ty(p[1])]);
+      return kit.area("step_" + i + "__g" + j, pts, C.ink, { opacity: 0.9 });
+    });
+    push(kit.group("step_" + i, children));
+    anchors["step_" + i] = [500, (top + bottom) / 2];
+
+    if (typeof step.note === "string" && step.note.trim() !== "") {
+      // Wrap and clamp: a wide step leaves little margin before the canvas
+      // edge, and the note text length is arbitrary user input, so the note
+      // both wraps at a modest character width AND has its x-position
+      // clamped so its widest line never runs past the canvas.
+      const words = step.note.trim().split(/\s+/).filter(Boolean);
+      const maxChars = 20;
+      const lines = [];
+      let cur = "";
+      for (const w of words) {
+        const cand = cur ? cur + " " + w : w;
+        if (cur && cand.length > maxChars) { lines.push(cur); cur = w; } else cur = cand;
+      }
+      if (cur) lines.push(cur);
+      const noteFS = 16;
+      const lineW = Math.max(...lines.map((l) => l.length)) * noteFS * 0.52;
+      const naturalX = 500 + (maxX - midX) * scale + 24;
+      const rightX = Math.min(naturalX, 992 - lineW);
+      const midY = (top + bottom) / 2;
+      const noteChildren = lines.map((line, k) => kit.text("note_" + i + "__l" + k, [rightX, midY + (((lines.length - 1) / 2 - k) * (noteFS * 1.5))], line, { fontSize: noteFS, color: C.guide, anchor: "start" }));
+      push(kit.group("note_" + i, noteChildren));
+      anchors["note_" + i] = [rightX, midY];
+    }
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, topY + 55], params.title, { fontSize: 28 }));
+  }
+
+  return { drawables, labels: labels, anchors, order };

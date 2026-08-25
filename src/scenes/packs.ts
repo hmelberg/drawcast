@@ -46,6 +46,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Survival curves, forest plots, causal DAGs, epidemic compartments and distribution curves — the figures of clinical and epidemiological papers.",
     load: async () => (await import("./packs/evidence.yaml?raw")).default,
   },
+  mathlogic: {
+    id: "mathlogic",
+    title: "Math & logic",
+    description: "Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations.",
+    load: async () => (await import("./packs/mathlogic.yaml?raw")).default,
+  },
 };
 
 export interface ParsedPack {
