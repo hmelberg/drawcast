@@ -12,9 +12,16 @@
 // untouched and only catches the outliers (27s of rungs, 26s of lipids, 11s of
 // aspirin bonds). Silent steps get less: with no sentence running, a long draw
 // is just dead air.
+//
+// Scaffold principle, 2026-08-25: silent steps are background by definition —
+// an unnarrated draw is, by construction, never the thing a sentence is
+// carrying, so it should read as brisk setup rather than a step that merely
+// falls short of the narrated cap. Tightened from 2000ms to 1200ms on that
+// basis (a deliberate product choice, not a re-measurement of the corpus —
+// the narrated 3500ms above is still the corpus-measured p90 cap).
 
 export const DRAW_BUDGET_MS = 3500;
-export const SILENT_DRAW_BUDGET_MS = 2000;
+export const SILENT_DRAW_BUDGET_MS = 1200;
 
 export interface PacingOpts {
   /** The step carries a `speak` — the voice covers a longer draw. */
