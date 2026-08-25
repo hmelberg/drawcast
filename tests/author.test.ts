@@ -96,7 +96,7 @@ describe("engines support (M5 Task 2 — authoring side)", () => {
   test("TEMPLATE_DOC_API_SCHEMA declares a closed engines enum", () => {
     expect(TEMPLATE_DOC_API_SCHEMA.properties.engines).toEqual({
       type: "array",
-      items: { type: "string", enum: ["smilesdrawer"] },
+      items: { type: "string", enum: ["smilesdrawer", "mathjax"] },
     });
   });
 

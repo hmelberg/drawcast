@@ -62,6 +62,12 @@ describe("doc validation with engines", () => {
     expect(v.doc?.engines).toEqual(["smilesdrawer"]);
   });
 
+  test("mathjax is a known engine too", () => {
+    const v = validateTemplateDoc(base(["mathjax"]));
+    expect(v.errors).toEqual([]);
+    expect(v.doc?.engines).toEqual(["mathjax"]);
+  });
+
   test("unknown engine rejected by name", () => {
     const v = validateTemplateDoc(base(["rdkit"]));
     expect(v.errors[0]).toMatch(/unknown engine "rdkit"/);
@@ -126,8 +132,9 @@ describe("smilesdrawer engine (real load — node, no DOM)", () => {
   });
 });
 
-test("KNOWN_ENGINES lists smilesdrawer", () => {
+test("KNOWN_ENGINES lists smilesdrawer and mathjax", () => {
   expect(KNOWN_ENGINES).toContain("smilesdrawer");
+  expect(KNOWN_ENGINES).toContain("mathjax");
 });
 
 // Drift tripwire (final review, deferred-upgraded #3): TEMPLATE_DOC_API_SCHEMA's
