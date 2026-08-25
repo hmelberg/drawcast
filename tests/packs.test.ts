@@ -10,6 +10,7 @@ import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
 import { ensureEngines } from "../src/scenes/engines";
+import type { SceneLayout } from "../src/scenes/types";
 
 beforeEach(() => unregisterPack("physics"));
 
@@ -633,6 +634,33 @@ describe("mathlogic pack", () => {
     expect(point[1]).toBeCloseTo(O[1] + R * Math.sin(Math.PI / 6), 6);
     const coordsText = r.labels.find((l) => l.id === "coords_label")?.text;
     expect(coordsText).toBe("(0.87, 0.50)");
+  });
+
+  test("unit_circle: angle_arc normalizes its sweep — 390° matches 30° exactly (not a full turn plus 30°), and a negative angle sweeps the long way to the equivalent position instead of backwards", () => {
+    registerPack("mathlogic", mathlogicYaml);
+    const arcR = 42;
+    const base = scenes.unit_circle.layout!({ angle_deg: 30 });
+    const wrapped = scenes.unit_circle.layout!({ angle_deg: 390 });
+    const arcOf = (r: SceneLayout) => flattenDrawables(r.drawables).find((d) => d.id === "angle_arc") as { pts: [number, number][] };
+    const arcBase = arcOf(base);
+    const arcWrapped = arcOf(wrapped);
+    // If the arc's sweep used raw theta (unnormalized), 390° (theta ≈ 6.807 rad)
+    // would sweep more than a full turn past 30° and produce a completely
+    // different set of points — exact equality with the 30° case is only
+    // possible once the sweep is wrapped into [0, 360).
+    expect(arcWrapped.pts).toEqual(arcBase.pts);
+    const labelOf = (r: SceneLayout) => r.labels.find((l) => l.id === "angle_label")?.anchor;
+    expect(labelOf(wrapped)).toEqual(labelOf(base));
+
+    const neg = scenes.unit_circle.layout!({ angle_deg: -30 });
+    const arcNeg = arcOf(neg);
+    const O = base.anchors.circle as [number, number];
+    const last = arcNeg.pts[arcNeg.pts.length - 1];
+    // -30° normalizes to 330° (the long way around from 0, forward-only), not
+    // a backwards sweep — the arc's LAST point still lands at the -30°/330°
+    // position on the circle.
+    expect(last[0]).toBeCloseTo(O[0] + arcR * Math.cos((330 * Math.PI) / 180), 6);
+    expect(last[1]).toBeCloseTo(O[1] + arcR * Math.sin((330 * Math.PI) / 180), 6);
   });
 
   test("venn_diagram: shading only the requested region keys produces exactly those shade_<k> ids", () => {

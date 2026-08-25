@@ -306,10 +306,17 @@ layout: |
     anchors.sin_line = foot;
   }
   if (showSet.has("arc")) {
+    // kit.angleMark/kit.arc interpolate a0->a1 LINEARLY (no modular wrap of
+    // their own), unlike point/radius/sin/cos which use cos/sin and so wrap
+    // for free. A raw theta past +-2*PI would sweep the arc more than once
+    // around (or backwards for a negative angle) — normalize into [0, 2*PI)
+    // just for the arc/label geometry, leaving the trig-based elements on
+    // the raw theta above.
     const arcR = 42;
-    push(kit.angleMark("angle_arc", O, 0, theta, arcR, { color: C.accent }));
+    const arcTheta = (((angleDeg % 360) + 360) % 360) * (Math.PI / 180);
+    push(kit.angleMark("angle_arc", O, 0, arcTheta, arcR, { color: C.accent }));
     anchors.angle_arc = O;
-    const mid = theta / 2;
+    const mid = arcTheta / 2;
     const labelAnchor = [O[0] + (arcR + 14) * Math.cos(mid), O[1] + (arcR + 14) * Math.sin(mid)];
     label("angle_label", labelAnchor, sideFromDir(Math.cos(mid), Math.sin(mid)), "θ", C.accent, 20);
   }
