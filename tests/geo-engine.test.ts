@@ -21,9 +21,12 @@ describe("geo engine (real load — node, no DOM)", () => {
     const allPts = shapes[0].rings.flat();
     expect(allPts.length).toBeGreaterThanOrEqual(30);
     expect(allFinite(allPts)).toBe(true);
-    // rings are closed (first point repeats as last, world-atlas convention)
+    // rings are closed (first point repeats as last, world-atlas convention) —
+    // projection is a pure function, so the repeated raw [lon,lat] projects to
+    // the exact same [x,y] both times.
     for (const ring of shapes[0].rings) {
       expect(ring.length).toBeGreaterThanOrEqual(4);
+      expect(ring[0]).toEqual(ring[ring.length - 1]);
     }
     const c = centroids.Norway;
     expect(c).toBeDefined();
@@ -51,6 +54,25 @@ describe("geo engine (real load — node, no DOM)", () => {
   test("a mix of known and unknown names splits between shapes and missing", async () => {
     const eng = await geo();
     const { shapes, missing } = eng.countries(["Norway", "Atlantis"]);
+    expect(shapes.map((s) => s.name)).toEqual(["Norway"]);
+    expect(missing).toEqual(["Atlantis"]);
+  });
+
+  // Regression: fc.features has exactly one entry per country, so matching
+  // used to do only one missing.splice() per feature — a duplicate VALID
+  // request left a phantom leftover in `missing` for a name that was in fact
+  // found. Requested names are now de-duplicated case-insensitively up front.
+  test("a duplicate valid name is de-duplicated: one shape, empty missing", async () => {
+    const eng = await geo();
+    const { shapes, missing } = eng.countries(["Norway", "Norway"]);
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0].name).toBe("Norway");
+    expect(missing).toEqual([]);
+  });
+
+  test("a duplicate valid name mixed with case variants and a duplicate unknown name still resolves correctly", async () => {
+    const eng = await geo();
+    const { shapes, missing } = eng.countries(["Norway", "norway", "Atlantis", "Atlantis"]);
     expect(shapes.map((s) => s.name)).toEqual(["Norway"]);
     expect(missing).toEqual(["Atlantis"]);
   });

@@ -324,7 +324,9 @@ export interface GeoEngine {
   /** Natural Earth projection of countries-110m fitted to a w×h box (y-up, origin bottom-left).
    *  `countries("all")` → every country outline; `countries(["Norway","Sweden"])` → just those
    *  (name match on the world-atlas `properties.name`, case-insensitive; unknown names are
-   *  reported in `missing`, not thrown). Rings become polylines (closed). */
+   *  reported in `missing`, not thrown). Rings become polylines (closed). Requested names are
+   *  de-duplicated case-insensitively — `["Norway","Norway"]` yields one Norway shape and an
+   *  empty `missing`, not a phantom "missing" entry for the name that was in fact found. */
   countries(names: string[] | "all", o?: { w?: number; h?: number }): {
     shapes: { name: string; rings: [number, number][][] }[];
     missing: string[];
@@ -370,7 +372,20 @@ async function loadGeo(): Promise<GeoEngine> {
       const projection = geoNaturalEarth1().fitSize([w, h], fc);
       const path = geoPath(projection);
       const all = names === "all";
-      const missing = all ? [] : [...names];
+      // De-dupe requested names case-insensitively (keeping first-seen casing)
+      // BEFORE building `missing`: fc.features has exactly one entry per
+      // country, so a repeated request (["Norway","Norway"]) would otherwise
+      // only ever get ONE splice out of `missing`, leaving a false leftover
+      // entry for a name that was in fact found.
+      const requested: string[] = [];
+      if (!all) {
+        const seen = new Set<string>();
+        for (const n of names) {
+          const key = n.toLowerCase();
+          if (!seen.has(key)) { seen.add(key); requested.push(n); }
+        }
+      }
+      const missing = all ? [] : [...requested];
 
       const shapes: { name: string; rings: Ring[] }[] = [];
       const centroids: Record<string, [number, number]> = {};
