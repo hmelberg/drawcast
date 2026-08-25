@@ -16,12 +16,14 @@
 // The dynamic import defers that resolution to call time, after every
 // module has finished its own top-level evaluation.
 
-// Type-only import: erased at compile time, so mathjax-full stays entirely
-// inside the lazy chunk that loadMathJax's dynamic imports create.
+// Type-only imports: erased at compile time, so mathjax-full/topojson stay
+// entirely inside the lazy chunks their loaders' dynamic imports create.
 import type { LiteElement, LiteNode } from "mathjax-full/js/adaptors/lite/Element.js";
+import type { Topology, GeometryCollection } from "topojson-specification";
+import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
 import { sampleSvgPath } from "./svgpath";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -318,10 +320,91 @@ async function loadChess(): Promise<ChessEngine> {
   };
 }
 
+export interface GeoEngine {
+  /** Natural Earth projection of countries-110m fitted to a w×h box (y-up, origin bottom-left).
+   *  `countries("all")` → every country outline; `countries(["Norway","Sweden"])` → just those
+   *  (name match on the world-atlas `properties.name`, case-insensitive; unknown names are
+   *  reported in `missing`, not thrown). Rings become polylines (closed). */
+  countries(names: string[] | "all", o?: { w?: number; h?: number }): {
+    shapes: { name: string; rings: [number, number][][] }[];
+    missing: string[];
+    /** projected centroid per shape, for labels/markers */
+    centroids: Record<string, [number, number]>;
+  };
+}
+
+type Ring = [number, number][];
+type CountryProps = { name: string };
+
+/** Only the two geometry shapes world-atlas's countries-110m ever emits. */
+function ringsOfGeometry(geom: Geometry): Position[][] {
+  if (geom.type === "Polygon") return geom.coordinates;
+  if (geom.type === "MultiPolygon") return geom.coordinates.flat();
+  return [];
+}
+
+/** Verified against world-atlas@2 countries-110m.json + topojson-client@3.1: `feature()`
+ *  yields a 177-entry FeatureCollection keyed by `properties.name`; every geometry is a
+ *  Polygon or MultiPolygon (never Point/LineString at this resolution). d3-geo is y-down
+ *  (SVG convention) — drawcast is y-up, so every projected y is flipped as `h - y` after
+ *  `fitSize`. Projected points that fall outside the projection's clip (rare at world scale
+ *  with geoNaturalEarth1, which has no hard clip circle) come back null from `projection()`
+ *  and are dropped rather than faked. */
+async function loadGeo(): Promise<GeoEngine> {
+  const [{ geoNaturalEarth1, geoPath }, { feature }, atlas] = await Promise.all([
+    import("d3-geo"),
+    import("topojson-client"),
+    import("world-atlas/countries-110m.json"),
+  ]);
+  // world-atlas ships plain JSON with no .d.ts of its own — treat it as the
+  // opaque TopoJSON topology topojson-client's feature() expects.
+  const topology = atlas.default as unknown as Topology<{ countries: GeometryCollection<CountryProps> }>;
+  const fc: FeatureCollection<Polygon | MultiPolygon, CountryProps> = feature(
+    topology,
+    topology.objects.countries,
+  ) as FeatureCollection<Polygon | MultiPolygon, CountryProps>;
+
+  return {
+    countries(names, o = {}) {
+      const w = o.w ?? 1000, h = o.h ?? 750;
+      const projection = geoNaturalEarth1().fitSize([w, h], fc);
+      const path = geoPath(projection);
+      const all = names === "all";
+      const missing = all ? [] : [...names];
+
+      const shapes: { name: string; rings: Ring[] }[] = [];
+      const centroids: Record<string, [number, number]> = {};
+      for (const f of fc.features) {
+        const name = f.properties.name;
+        if (!all) {
+          const idx = missing.findIndex((n) => n.toLowerCase() === name.toLowerCase());
+          if (idx === -1) continue;
+          missing.splice(idx, 1);
+        }
+        const rings: Ring[] = ringsOfGeometry(f.geometry)
+          .map((ring) => {
+            const pts: Ring = [];
+            for (const [lon, lat] of ring) {
+              const p = projection([lon, lat]);
+              if (p) pts.push([p[0], h - p[1]]);
+            }
+            return pts;
+          })
+          .filter((ring) => ring.length > 0);
+        shapes.push({ name, rings });
+        const [cx, cy] = path.centroid(f);
+        centroids[name] = [cx, h - cy];
+      }
+      return { shapes, missing, centroids };
+    },
+  };
+}
+
 export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   smilesdrawer: { load: loadSmilesDrawer },
   mathjax: { load: loadMathJax },
   chess: { load: loadChess },
+  geo: { load: loadGeo },
 };
 
 const cache = new Map<string, unknown>();
