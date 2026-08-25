@@ -112,6 +112,28 @@ export const COLORS = Object.freeze({
   region1: "#f2c14e",
   region2: "#87a878",
   regionLoss: "#c96567",
+  /**
+   * A bright warm white for shapes that must read as "unfilled" ON TOP of a
+   * tinted ground — a white chess piece on a green board, a knock-out counter
+   * inside a filled shape. Deliberately a shade brighter than the app's own
+   * paper ground (--paper #f5f1e6 in styles.css): a filled shape painted in
+   * exactly the page's background is invisible the moment anything tinted sits
+   * underneath it, which is the only situation this color is for.
+   */
+  paper: "#fdfbf5",
+  /**
+   * Chess-board squares. Started from chess.com's own pair (dark #739552,
+   * light #ebecd0 — the board the user pointed at) and nudged toward this
+   * app's warm, paper-toned palette so the board doesn't read as a foreign
+   * screenshot dropped into a sketchbook: the dark is lightened and warmed
+   * about a third of the way toward COLORS.region2 (#87a878, the muted sage
+   * this board used to be shaded with), the light warmed about 40% of the way
+   * toward the paper ground (#f5f1e6). Both stay far enough apart in value
+   * that demand (the move arrow), region1 (square highlights) and accent
+   * (annotation arrows) all still read clearly on either square.
+   */
+  boardDark: "#7d9a5e",
+  boardLight: "#efeed9",
 } as const);
 
 export function defaultStyle(overrides: Partial<ResolvedStyle> = {}): ResolvedStyle {
