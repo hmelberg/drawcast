@@ -108,6 +108,47 @@ async function paintFrame(ctx: CanvasRenderingContext2D, svgText: string, fontSt
   }
 }
 
+/** The visibility surface visibilityPauser needs from document. */
+export interface VisibilityDoc {
+  hidden: boolean;
+  addEventListener(type: "visibilitychange", listener: () => void): void;
+  removeEventListener(type: "visibilitychange", listener: () => void): void;
+}
+
+/**
+ * Pause the recording while the tab is hidden: rAF stops in hidden tabs, so
+ * the replay freezes while MediaRecorder would keep recording wall-clock
+ * time — the export would be full of frozen stretches. Resume is deferred one
+ * frame so the player's rAF loop absorbs the hidden stretch into its `last`
+ * timestamp while still paused; resuming synchronously would advance the
+ * animation by the whole hidden span in a single tick.
+ */
+export function visibilityPauser(
+  doc: VisibilityDoc,
+  hooks: { pause(): void; resume(): void },
+  defer: (cb: () => void) => void = (cb) => requestAnimationFrame(() => cb()),
+): () => void {
+  let paused = false;
+  const onChange = (): void => {
+    if (doc.hidden) {
+      if (!paused) {
+        paused = true;
+        hooks.pause();
+      }
+    } else if (paused) {
+      defer(() => {
+        if (!doc.hidden && paused) {
+          paused = false;
+          hooks.resume();
+        }
+      });
+    }
+  };
+  doc.addEventListener("visibilitychange", onChange);
+  onChange(); // an export started in a hidden tab must not record frozen frames
+  return () => doc.removeEventListener("visibilitychange", onChange);
+}
+
 export interface ExportConfig {
   ttsKey: string;
   style: RenderStyle;
@@ -139,6 +180,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
   if (!ctx) throw new Error("canvas 2D is unavailable");
   const audioCtx = new AudioContext();
   let handle: Awaited<ReturnType<typeof render>> | null = null;
+  let stopVisibility: (() => void) | null = null;
   try {
     const buffers = await synthesizeAll(
       { apiKey: cfg.ttsKey, rate: cfg.rate },
@@ -184,6 +226,30 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     const frameLoop = runFrameLoop();
 
     recorder.start(1000);
+    // The export runs without a modal now, so nothing stops the user from
+    // switching tabs mid-recording; freeze everything until they return.
+    let resumeTarget: Awaited<ReturnType<typeof render>> | null = null;
+    stopVisibility = visibilityPauser(document, {
+      pause: () => {
+        // Remember the handle only when its timeline is actually playing:
+        // play() on a finished player restarts it from step 0 — hiding the tab
+        // during the recording tail must not replay the item into the video.
+        resumeTarget = handle?.timeline.state === "playing" ? handle : null;
+        handle?.timeline.pause();
+        if (recorder.state === "recording") recorder.pause();
+        if (audioCtx.state === "running") void audioCtx.suspend();
+        hooks.onStatus("Paused — recording continues when this tab is visible again…");
+      },
+      resume: () => {
+        if (audioCtx.state === "suspended") void audioCtx.resume();
+        if (recorder.state === "paused") recorder.resume();
+        // Only re-play a timeline this pause froze: a handle mounted while the
+        // tab was hidden is already playing and must not be started twice.
+        if (resumeTarget && resumeTarget === handle) void resumeTarget.timeline.play();
+        resumeTarget = null;
+        hooks.onStatus("Recording — resumed…");
+      },
+    });
     const onAbort = () => handle?.timeline.dispose();
     signal.addEventListener("abort", onAbort);
     try {
@@ -218,6 +284,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     if (paintError) throw paintError;
     return new Blob(chunks, { type: mime ?? "video/webm" });
   } finally {
+    stopVisibility?.();
     handle?.destroy();
     void audioCtx.close();
   }

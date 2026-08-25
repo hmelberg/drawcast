@@ -88,6 +88,20 @@ ROADMAP for that record.
   (see Done). The templated case — "shift the demand curve" by animating a
   param — already shipped as `animate`.
 
+- **Faster-than-real-time video export** (WebCodecs): step the player on a
+  virtual clock — all wall-clock coupling sits in the player's `progress()` /
+  `waitScaled()`, and the test suite already drives the player on a stubbed
+  rAF, so the seam exists — render the soundtrack in one OfflineAudioContext
+  pass from the known TTS buffer durations, encode with VideoEncoder /
+  AudioEncoder, and mux with a small library (webm-muxer). Rasterization
+  (~10–20 ms/frame) becomes the bottleneck, so expect 3–10× faster rather
+  than instant; skip re-rasterizing frames whose serialized SVG is unchanged.
+  Risks: silent pacing drift from any missed wall-clock wait (only visible by
+  watching the output), AudioEncoder support outside Chrome/Firefox, and a
+  second export path to maintain unless the real-time one is dropped. The
+  background export (progress chip + pause-on-hidden-tab, 2026-08-25) covers
+  the usability gap meanwhile.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and

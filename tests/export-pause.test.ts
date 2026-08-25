@@ -48,13 +48,13 @@ describe("visibilityPauser", () => {
     expect(calls).toEqual(["pause", "resume"]);
   });
 
-  test("hiding again before the deferred resume runs skips the resume", () => {
+  test("hiding again before the deferred resume runs skips the resume and stays paused", () => {
     const { doc, calls, runDeferred } = harness();
     doc.setHidden(true);
     doc.setHidden(false);
-    doc.setHidden(true); // back to hidden before the frame fires
+    doc.setHidden(true); // back to hidden before the frame fires; still paused throughout
     runDeferred();
-    expect(calls).toEqual(["pause", "pause"]);
+    expect(calls).toEqual(["pause"]);
   });
 
   test("a visibility event while already visible resumes nothing", () => {
@@ -62,6 +62,14 @@ describe("visibilityPauser", () => {
     doc.setHidden(false);
     runDeferred();
     expect(calls).toEqual([]);
+  });
+
+  test("a tab already hidden at attach pauses immediately", () => {
+    const doc = new FakeDoc();
+    doc.hidden = true;
+    const calls: string[] = [];
+    visibilityPauser(doc, { pause: () => calls.push("pause"), resume: () => calls.push("resume") }, () => {});
+    expect(calls).toEqual(["pause"]);
   });
 
   test("stop() detaches — later visibility changes touch nothing", () => {

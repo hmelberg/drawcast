@@ -740,16 +740,35 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 
 .hint { color: var(--muted); font-size: 0.85rem; }
 
-/* ---------- video export dialog ---------- */
+/* ---------- background video export ---------- */
 
-.export-dialog { max-width: 46rem; }
-.export-canvas {
-  width: 100%;
-  margin-top: 0.6rem;
-  background: var(--paper);
+/* Progress chip in the output pane bar while an export records/uploads. */
+.export-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 24rem;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.25rem 0.1rem 0.55rem;
+  border-radius: 999px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
 }
+.export-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pane-bar .export-chip .chip-x {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.82rem;
+  padding: 0 0.2rem;
+}
+.pane-bar .export-chip .chip-x:hover { color: var(--loss); }
 /* Rendered (so geometry can be measured) but out of sight. */
 .export-offscreen {
   position: absolute;

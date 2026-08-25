@@ -519,6 +519,12 @@ const exportVideoBtn = h(
 );
 const uploadYtBtn = h("button", { class: "small", title: "Upload the video to your YouTube channel" }, "▶ YouTube");
 uploadYtBtn.hidden = !googleConfigured();
+// Background-export progress chip: the render/upload runs without a modal, so
+// this chip in the pane bar is the only visible trace — status text + cancel.
+// (Created here with its pane-bar siblings; wired in the video-export section.)
+const exportChipText = h("span", { class: "export-chip-text" });
+const exportChipCancel = h("button", { class: "chip-x", title: "Cancel the export", "aria-label": "Cancel the export" }, "✕");
+const exportChip = h("span", { class: "export-chip", hidden: "" }, "🎬 ", exportChipText, exportChipCancel);
 // openAuthorDialog is defined later (template-authoring section, ./llm/author) —
 // a hoisted function declaration, so this early reference is safe.
 const newTemplateBtn = h("button", { title: "Create a reusable template with AI (describe it, optionally paste an image)" }, "✦ New template");
@@ -751,7 +757,7 @@ const editorWrap = h(
     h(
       "div",
       { class: "panel editor-preview" },
-      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), ratingBox, promoteBtn, exportVideoBtn, uploadYtBtn),
+      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), ratingBox, promoteBtn, exportVideoBtn, uploadYtBtn, exportChip),
       previewHost,
       lintBox,
     ),
@@ -2738,29 +2744,29 @@ formatSel.addEventListener("change", () => {
 
 // ---------- video export ----------
 
-const exportCanvas = h("canvas", { class: "export-canvas" }) as HTMLCanvasElement;
-const exportStatus = h("div", { class: "hint" });
-const exportCloseBtn = h("button", { class: "small" }, "Cancel");
+// The export runs in the background — no modal, the app stays usable — so the
+// recording canvas and the replay stage both live offscreen in the app body.
 // Offscreen but laid out: path measurement needs rendered geometry.
-const exportStage = h("div", { class: "export-offscreen" });
-const exportDialog = h("dialog", { class: "export-dialog" });
-let exportAbort: AbortController | null = null;
-const cancelExport = (): void => {
-  exportAbort?.abort();
-  exportDialog.close();
-};
-// No backdrop dismiss here: a stray outside click must not abort a long
-// render. ✕ and Cancel both mean "abort the export".
-exportDialog.append(
-  dialogHead(exportDialog, "🎬 Export video", { backdropCloses: false, onClose: cancelExport }),
-  exportStatus,
-  exportCanvas,
-  h("div", { class: "row" }, exportCloseBtn),
-  exportStage,
-);
-app.appendChild(exportDialog);
+const exportCanvas = h("canvas") as HTMLCanvasElement;
+const exportStage = h("div");
+app.appendChild(h("div", { class: "export-offscreen" }, exportCanvas, exportStage));
 
-exportCloseBtn.addEventListener("click", cancelExport);
+let exportAbort: AbortController | null = null;
+exportChipCancel.addEventListener("click", () => exportAbort?.abort());
+
+/** Show the chip and freeze the two entry buttons while one export runs. */
+function beginExport(status: string): void {
+  exportChipText.textContent = status;
+  exportChip.hidden = false;
+  exportVideoBtn.disabled = true;
+  uploadYtBtn.disabled = true;
+}
+function endExport(): void {
+  exportChip.hidden = true;
+  exportVideoBtn.disabled = false;
+  uploadYtBtn.disabled = false;
+  exportAbort = null;
+}
 
 /**
  * The specs a video export plays, in order: items with the same title cards a
@@ -2780,10 +2786,10 @@ function exportSequence(playlist: Playlist): Spec[] {
 }
 
 /**
- * Render + encode the current drawcast to a WebM, with the export dialog open
- * for progress. Returns null when the key is missing, the user cancelled, or
- * the export failed — in every one of those cases the status line already says
- * why, so callers just return.
+ * Render + encode the current drawcast to a WebM in the background, progress
+ * on the export chip. Returns null when the key is missing, the user
+ * cancelled, or the export failed — in every one of those cases the status
+ * line already says why, so callers just return.
  */
 async function renderVideoBlob(): Promise<Blob | null> {
   const ttsKey = getTtsKey();
@@ -2795,36 +2801,33 @@ async function renderVideoBlob(): Promise<Blob | null> {
   const controller = new AbortController();
   exportAbort = controller;
   exportStage.replaceChildren();
-  exportCloseBtn.textContent = "Cancel";
-  exportStatus.textContent = "Preparing…";
-  exportDialog.showModal();
-  exportVideoBtn.disabled = true;
   try {
     return await exportVideo(
       exportSequence(doc.playlist),
       { ttsKey, style: settings.style, rate: settings.rate },
-      { onStatus: (t) => (exportStatus.textContent = t), canvas: exportCanvas, workbench: exportStage, signal: controller.signal },
+      { onStatus: (t) => (exportChipText.textContent = t), canvas: exportCanvas, workbench: exportStage, signal: controller.signal },
     );
   } catch (err) {
-    if (!controller.signal.aborted) {
-      exportStatus.textContent = `Export failed: ${(err as Error).message}`;
-      exportCloseBtn.textContent = "Close";
-    }
+    if (controller.signal.aborted) setStatus("Video export cancelled.");
+    else setStatus(`Export failed: ${(err as Error).message}`, "error");
     return null;
   } finally {
     exportStage.replaceChildren();
-    exportVideoBtn.disabled = false;
   }
 }
 
 exportVideoBtn.addEventListener("click", () => void runVideoExport());
 async function runVideoExport(): Promise<void> {
-  const blob = await renderVideoBlob();
-  if (!blob) return;
-  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-  downloadBlob(`${base}.webm`, blob);
-  exportStatus.textContent = "Done — the narrated WebM was downloaded.";
-  exportCloseBtn.textContent = "Close";
+  beginExport("Preparing…");
+  try {
+    const blob = await renderVideoBlob();
+    if (!blob) return;
+    const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+    downloadBlob(`${base}.webm`, blob);
+    setStatus(`Done — "${base}.webm" was downloaded.`, "ok");
+  } finally {
+    endExport();
+  }
 }
 
 // ---------- upload to YouTube ----------
@@ -2886,31 +2889,35 @@ async function runYoutubeUpload(): Promise<void> {
     ytGo.disabled = false;
     return;
   }
-  // Rendering reuses the export dialog for its own progress, so close ours
-  // first — two modal <dialog>s at once leaves the second inert.
+  // The render and upload both run in the background — close the metadata
+  // dialog and let the export chip carry progress from here.
   ytDialog.close();
-  const blob = await renderVideoBlob();
-  if (!blob) return; // renderVideoBlob already reported why
-  const controller = new AbortController();
-  exportAbort = controller;
+  beginExport("Preparing…");
   try {
-    exportStatus.textContent = "Uploading to YouTube…";
-    const res = await uploadVideo(blob, meta, {
-      onProgress: (f) => (exportStatus.textContent = `Uploading to YouTube… ${Math.round(f * 100)}%`),
-      signal: controller.signal,
-    });
-    if (!res) {
-      // Only reachable if the grant above expired during a very long render.
-      exportStatus.textContent = "YouTube sign-in was cancelled — nothing was uploaded.";
-    } else {
-      exportStatus.textContent = `Uploaded (private): https://youtu.be/${res.videoId}`;
+    const blob = await renderVideoBlob();
+    if (!blob) return; // renderVideoBlob already reported why
+    const controller = new AbortController();
+    exportAbort = controller;
+    exportChipText.textContent = "Uploading to YouTube…";
+    try {
+      const res = await uploadVideo(blob, meta, {
+        onProgress: (f) => (exportChipText.textContent = `Uploading to YouTube… ${Math.round(f * 100)}%`),
+        signal: controller.signal,
+      });
+      if (!res) {
+        // Only reachable if the grant above expired during a very long render.
+        setStatus("YouTube sign-in was cancelled — nothing was uploaded.", "error");
+      } else {
+        setStatus(`Uploaded (private): https://youtu.be/${res.videoId}`, "ok");
+      }
+    } catch (err) {
+      // Cancel aborts the fetch, which throws — that is the user's own doing,
+      // not a failure. Same check the render half makes.
+      if (controller.signal.aborted) setStatus("YouTube upload cancelled.");
+      else setStatus(`Upload failed: ${(err as Error).message}`, "error");
     }
-  } catch (err) {
-    // Cancel aborts the fetch, which throws — that is the user's own doing,
-    // not a failure. Same check the render half makes.
-    if (!controller.signal.aborted) exportStatus.textContent = `Upload failed: ${(err as Error).message}`;
   } finally {
-    exportCloseBtn.textContent = "Close";
+    endExport();
   }
 }
 
