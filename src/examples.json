@@ -3142,5 +3142,58 @@
         }
       ]
     }
+  },
+  {
+    "request": "Where are the Nordic countries?",
+    "title": "The Nordic countries",
+    "packs": [
+      "maps"
+    ],
+    "spec": {
+      "title": "The Nordic countries",
+      "template": "world_map",
+      "params": {
+        "focus": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
+        "highlight": ["Norway"],
+        "markers": [
+          { "country": "Norway", "label": "Oslo" },
+          { "country": "Sweden", "label": "Stockholm" },
+          { "country": "Denmark", "label": "Copenhagen" },
+          { "country": "Finland", "label": "Helsinki" },
+          { "country": "Iceland", "label": "Reykjavik" }
+        ],
+        "title": "The Nordic countries"
+      },
+      "commands": [
+        {
+          "speak": "Let's find the Nordic countries — Norway, Sweden, Denmark, Finland and Iceland."
+        },
+        {
+          "draw": ["graticule", "country_norway", "country_sweden", "country_denmark", "country_finland", "country_iceland"],
+          "speak": "Here they are, cropped in from the world map so they fill the frame."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["hl_norway"],
+          "speak": "Norway traces the western coast, its fjord-cut edge shading in."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["marker_0", "marker_label_0", "marker_1", "marker_label_1", "marker_2", "marker_label_2", "marker_3", "marker_label_3", "marker_4", "marker_label_4"],
+          "speak": "Their capitals: Oslo, Stockholm, Copenhagen, Helsinki and Reykjavik."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["title"],
+          "speak": "Five countries, one shared region at the top of Europe."
+        }
+      ]
+    }
   }
 ]

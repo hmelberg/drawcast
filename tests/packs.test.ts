@@ -6,6 +6,7 @@ import economicsYaml from "../src/scenes/packs/economics.yaml?raw";
 import evidenceYaml from "../src/scenes/packs/evidence.yaml?raw";
 import mathlogicYaml from "../src/scenes/packs/mathlogic.yaml?raw";
 import gamesYaml from "../src/scenes/packs/games.yaml?raw";
+import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -1090,5 +1091,132 @@ describe("games pack", () => {
     const noCoords = scenes.chess_board.layout!({ coords: false });
     const idsNoCoords = flattenDrawables(noCoords.drawables).map((d) => d.id);
     expect(idsNoCoords.some((id) => id.startsWith("coord_"))).toBe(false);
+  });
+});
+
+const MAPS_TEMPLATE_IDS = ["world_map"];
+
+describe("maps pack", () => {
+  beforeEach(() => unregisterPack("maps"));
+
+  function inBounds(res: ReturnType<typeof layoutSpec>) {
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+          expect(x).toBeGreaterThanOrEqual(0);
+          expect(x).toBeLessThanOrEqual(1000);
+          expect(y).toBeGreaterThanOrEqual(0);
+          expect(y).toBeLessThanOrEqual(750);
+        }
+      } else if (d.kind === "text") {
+        expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+      }
+    }
+  }
+
+  test("registers world_map; it declares the geo engine, and maps is a default-off pack", () => {
+    const r = registerPack("maps", mapsYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: MAPS_TEMPLATE_IDS });
+    expect(scenes.world_map.manifest.engines).toEqual(["geo"]);
+    expect(DEFAULT_OFF_PACKS.has("maps")).toBe(true);
+  });
+
+  test("focus: [Norway, Sweden] yields 2+ in-canvas country strokes", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = layoutSpec({ template: "world_map", params: { focus: ["Norway", "Sweden"] }, elements: [] } as never);
+    inBounds(res);
+    const flat = flattenDrawables(res.drawables);
+    const countryStrokes = flat.filter((d) => d.kind === "stroke" && d.id.startsWith("country_"));
+    expect(countryStrokes.length).toBeGreaterThanOrEqual(2);
+    expect(flat.some((d) => d.id === "country_norway")).toBe(true);
+    expect(flat.some((d) => d.id === "country_sweden")).toBe(true);
+    // Only the focused countries are drawn — not the whole world.
+    const countryGroupIds = res.drawables.filter((d) => d.id.startsWith("country_")).map((d) => d.id);
+    expect(countryGroupIds.sort()).toEqual(["country_norway", "country_sweden"]);
+  });
+
+  test("highlight adds a region2 area fill for the highlighted country", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = layoutSpec({ template: "world_map", params: { focus: ["Norway", "Sweden"], highlight: ["Norway"] }, elements: [] } as never);
+    inBounds(res);
+    const area = res.drawables.find((d) => d.id === "hl_norway");
+    expect(area).toBeDefined();
+    expect(area!.kind).toBe("area");
+  });
+
+  test("an unknown country name in focus yields a missing_note drawable naming it", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({ focus: ["Norway", "Wakanda"] });
+    const note = res.drawables.find((d) => d.id === "missing_note") as { kind: string; text?: string } | undefined;
+    expect(note).toBeDefined();
+    expect(note!.kind).toBe("text");
+    expect(note!.text).toMatch(/Wakanda/);
+  });
+
+  test("an unknown marker country also yields missing_note, and a known one draws a dot + label", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({
+      focus: ["Norway"],
+      markers: [{ country: "Norway", label: "Oslo" }, { country: "Atlantis" }],
+    });
+    const flat = flattenDrawables(res.drawables);
+    expect(flat.some((d) => d.id === "marker_0")).toBe(true);
+    const label = res.labels.find((l) => l.id === "marker_label_0");
+    expect(label?.text).toBe("Oslo");
+    const note = res.drawables.find((d) => d.id === "missing_note") as { text?: string } | undefined;
+    expect(note?.text).toMatch(/Atlantis/);
+  });
+
+  test("world mode (no focus) draws many countries, no graticule, and stays clean with no params", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = layoutSpec({ template: "world_map", params: {}, elements: [] } as never);
+    inBounds(res);
+    const countryGroups = res.drawables.filter((d) => d.id.startsWith("country_"));
+    expect(countryGroups.length).toBeGreaterThan(100);
+    expect(res.drawables.some((d) => d.id === "graticule")).toBe(false);
+    expect(res.drawables.some((d) => d.id === "missing_note")).toBe(false);
+  });
+
+  test("focus mode draws a graticule frame; world mode ring strokes carry the guide color and duration", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const focused = scenes.world_map.layout!({ focus: ["Norway"] });
+    expect(focused.drawables.some((d) => d.id === "graticule")).toBe(true);
+
+    const world = scenes.world_map.layout!({});
+    const oneRing = flattenDrawables(world.drawables).find((d) => d.kind === "stroke" && d.id.startsWith("country_")) as { style: { color: string }; drawOpts: { duration: number } };
+    expect(oneRing.style.color).toBe(COLORS.guide);
+    expect(oneRing.drawOpts.duration).toBe(900); // kit.SKETCH_MS.guides
+  });
+
+  test("every maps example renders finite, no fallback warnings, no error-severity lint, and is deterministic (geo engine pre-loaded)", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    for (const tid of MAPS_TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        inBounds(res);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("title renders as a fixed text element when set", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({ focus: ["Norway"], title: "Norway" });
+    const title = res.drawables.find((d) => d.id === "title") as { kind: string; text?: string } | undefined;
+    expect(title?.kind).toBe("text");
+    expect(title?.text).toBe("Norway");
   });
 });

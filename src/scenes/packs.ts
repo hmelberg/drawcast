@@ -58,6 +58,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Chess positions and replayed lines from FEN and SAN — boards, move arrows, square highlights.",
     load: async () => (await import("./packs/games.yaml?raw")).default,
   },
+  maps: {
+    id: "maps",
+    title: "Maps",
+    description: "Hand-sketched world maps: country outlines, highlights and labeled markers.",
+    load: async () => (await import("./packs/maps.yaml?raw")).default,
+  },
 };
 
 /**
@@ -67,9 +73,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
  * chemistry/biology/economics/mathlogic) — they render fine and are one
  * toggle away, but a user has to reach for them. Unenabled, they still show
  * up in the catalog as "Pack available but not enabled" lines (see
- * catalogText in ./catalog) so the model knows they exist. "maps" is not a
- * PACK_DEFS entry yet — it arrives in a later task; the set names it now so
- * this decision only needs writing once.
+ * catalogText in ./catalog) so the model knows they exist.
  */
 export const DEFAULT_OFF_PACKS: ReadonlySet<string> = new Set(["games", "maps"]);
 

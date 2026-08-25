@@ -1,0 +1,191 @@
+pack: maps
+title: Maps
+description: "Hand-sketched world maps: country outlines, highlights and labeled markers."
+---
+template: world_map
+title: World map (country outlines)
+version: 1
+kit: 2
+status: ready
+engines: [geo]
+description: >-
+  A hand-sketched map drawn from real country boundaries via the geo engine
+  (Natural Earth outlines, d3-geo projected): the whole world, or a small set
+  of named countries cropped to fill the frame. Choose this scene for ANY
+  request to draw or name a map, a country, a region, the world, geography, a
+  continent (Europe, Africa, Asia...), a group of countries (the Nordics,
+  the EU, Scandinavia...), or to outline, locate, highlight or mark a place
+  on a map. `focus` narrows the map to just the named countries; omit it for
+  a whole-world outline. `highlight` shades one or more of the drawn
+  countries; `markers` drops a labeled dot at a country's centroid (e.g. a
+  capital city). An unrecognized country name is skipped and listed in a
+  small "Unknown: ..." note rather than failing the whole figure.
+params:
+  type: object
+  properties:
+    focus:
+      type: array
+      items: { type: string }
+      description: "Country names to draw, cropped to fill the frame (matched case-insensitively against the dataset's own English names, e.g. \"Norway\"). Omit for the whole world."
+    highlight:
+      type: array
+      items: { type: string }
+      description: "Subset of the drawn countries (world or focus) to shade with a low-opacity area fill — call attention to one or more countries."
+    markers:
+      type: array
+      items:
+        type: object
+        properties:
+          country: { type: string, description: "A drawn or known country name — the dot lands on its centroid." }
+          label: { type: string, description: "Text next to the dot, e.g. a capital city. Defaults to the country name." }
+        required: [country]
+      description: "A small dot at each country's centroid, with a label."
+    title:
+      type: string
+element_ids:
+  country_<slug>: a drawn country's outline (one group of ring strokes per country; slug = the dataset's own name, lowercased, non-alphanumeric runs -> "_")
+  hl_<slug>: a highlighted country's low-opacity area fill (its outer ring)
+  marker_<i>: a small dot at markers[i]'s country centroid
+  marker_label_<i>: markers[i]'s label
+  graticule: a light frame around the map, present in focus mode only
+  missing_note: "small guide text listing any unrecognized country names (\"Unknown: X, Y\"), present only when there are any"
+  title: figure title, when set
+examples:
+  - request: "Draw a world map."
+    params: {}
+  - request: "Show France, Germany and Spain on a map."
+    params: { focus: ["France", "Germany", "Spain"], highlight: ["France"] }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+
+  // Fit box: 880x560 at (60,120) inside the 1000x750 canvas, leaving room
+  // above for a title and below for a small "Unknown: ..." note.
+  const FIT = { x: 60, y: 120, w: 880, h: 560 };
+  const off = (p) => [p[0] + FIT.x, p[1] + FIT.y];
+
+  // Deterministic id fragment from the DATASET's own country name (never the
+  // caller's casing) — same country always gets the same id, whichever mode
+  // drew it and however the caller spelled the request.
+  function slug(name) {
+    return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const focusRaw = (Array.isArray(params.focus) ? params.focus : []).filter((n) => typeof n === "string" && n.trim() !== "");
+  const isFocus = focusRaw.length > 0;
+  const highlightRaw = (Array.isArray(params.highlight) ? params.highlight : []).filter((n) => typeof n === "string" && n.trim() !== "");
+  const markersInput = Array.isArray(params.markers) ? params.markers : [];
+  const markerCountries = markersInput
+    .filter((m) => m && typeof m.country === "string" && m.country.trim() !== "")
+    .map((m) => m.country);
+
+  // ONE engine call: "all" for the whole world, or every name any part of
+  // this request could need a shape/centroid for (focus + highlight +
+  // marker countries) — the engine dedupes case-insensitively on its own.
+  const requestNames = isFocus ? [...focusRaw, ...highlightRaw, ...markerCountries] : "all";
+  const { shapes, missing, centroids } = engines.geo.countries(requestNames, { w: FIT.w, h: FIT.h });
+
+  function findShape(name) {
+    const key = name.toLowerCase();
+    return shapes.find((s) => s.name.toLowerCase() === key);
+  }
+
+  // Every name this request could not resolve, in first-seen order,
+  // deduped case-insensitively — world mode never gets a `missing` entry
+  // from the engine itself (it always asks for "all"), so highlight/marker
+  // names are checked by hand against what "all" actually returned.
+  const unknown = new Map(); // lowercase -> first-seen original casing
+  const noteUnknown = (name) => {
+    const key = name.toLowerCase();
+    if (!unknown.has(key)) unknown.set(key, name);
+  };
+  missing.forEach(noteUnknown);
+  if (!isFocus) {
+    for (const name of [...highlightRaw, ...markerCountries]) {
+      if (!findShape(name)) noteUnknown(name);
+    }
+  }
+
+  // Focus mode: a light frame marks the crop, since only a few countries
+  // float in an otherwise-empty box with no world context around them.
+  if (isFocus) {
+    const fx0 = FIT.x, fy0 = FIT.y, fx1 = FIT.x + FIT.w, fy1 = FIT.y + FIT.h;
+    push(kit.stroke("graticule", [[fx0, fy0], [fx1, fy0], [fx1, fy1], [fx0, fy1]], {
+      closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides,
+    }));
+  }
+
+  // Country outlines. Iterate `shapes` (the engine's own dataset order) so
+  // ids and draw order never depend on how the caller listed names.
+  const focusKeys = new Set(focusRaw.map((n) => n.toLowerCase()));
+  for (const shape of shapes) {
+    if (isFocus && !focusKeys.has(shape.name.toLowerCase())) continue; // requested only for its centroid (highlight/marker), not drawn
+    const rings = isFocus ? shape.rings : shape.rings.filter((r) => r.length >= 8); // world mode: drop slivers, keep the drawable count sane
+    if (rings.length === 0) continue;
+    const id = "country_" + slug(shape.name);
+    const children = rings.map((ring, i) =>
+      kit.stroke(id + "__ring" + i, ring.map(off), {
+        closed: true,
+        color: isFocus ? C.ink : C.guide,
+        strokeWidth: isFocus ? 3.5 : 1.5,
+        ms: isFocus ? MS.stroke : MS.guides,
+      }),
+    );
+    push(kit.group(id, children));
+    const c = centroids[shape.name];
+    if (c) anchors[id] = off(c);
+  }
+
+  // Highlights: subset of the drawn countries, shaded with a low-opacity
+  // area fill over the shape's outer ring. Deduped case-insensitively.
+  const seenHl = new Set();
+  for (const name of highlightRaw) {
+    const key = name.toLowerCase();
+    if (seenHl.has(key)) continue;
+    seenHl.add(key);
+    const shape = findShape(name);
+    if (!shape || shape.rings.length === 0) continue;
+    const id = "hl_" + slug(shape.name);
+    push(kit.area(id, shape.rings[0].map(off), C.region2, { opacity: 0.3 }));
+    const c = centroids[shape.name];
+    if (c) anchors[id] = off(c);
+  }
+
+  // Markers: a small diamond dot at the country's centroid plus a label
+  // (defaults to the country name), placed by the label solver so it steps
+  // around other labels/strokes. Index tracks markersInput directly so a
+  // caller can always predict marker_<i> / marker_label_<i> from its own
+  // markers array position.
+  markersInput.forEach((m, i) => {
+    if (!m || typeof m.country !== "string" || m.country.trim() === "") return;
+    const shape = findShape(m.country);
+    const c = shape && centroids[shape.name];
+    if (!c) return; // unresolved — already recorded in `unknown` above
+    const pos = off(c);
+    const dotId = "marker_" + i;
+    push(kit.stroke(dotId, kit.polygon(pos, 7, 4, Math.PI / 4), {
+      closed: true, color: C.accent, fill: C.accent, strokeWidth: 2, ms: MS.dot,
+    }));
+    anchors[dotId] = pos;
+    const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label : shape.name;
+    const labelId = "marker_label_" + i;
+    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: 20 }));
+    order.push(labelId);
+  });
+
+  // Unrecognized names: there is no dedicated warning channel in a scene
+  // layout, so they surface as a small on-canvas note instead of vanishing
+  // silently.
+  if (unknown.size > 0) {
+    push(kit.text("missing_note", [500, 40], "Unknown: " + [...unknown.values()].join(", "), {
+      fontSize: 18, color: C.guide,
+    }));
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 715], params.title, { fontSize: 30 }));
+  }
+
+  return { drawables, labels, anchors, order };

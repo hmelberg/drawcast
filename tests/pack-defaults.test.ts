@@ -53,5 +53,6 @@ describe("the default catalog", () => {
   test("a default-off pack still surfaces as available-but-not-enabled", () => {
     const t = catalogText({ request: "draw a chess board" });
     expect(t).toContain("Pack available but not enabled: Games");
+    expect(t).toContain("Pack available but not enabled: Maps");
   });
 });
