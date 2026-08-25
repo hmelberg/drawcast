@@ -1196,7 +1196,7 @@ describe("games pack", () => {
     expect((flattenDrawables(res.drawables).find((d) => d.id === "piece_h1") as { text: string }).text).toBe("♖");
   });
 
-  test("board fills more of the canvas (620x620, up from 520x520) and pieces grew with it (fontSize 52, up from 44)", async () => {
+  test("board fills more of the canvas (620x620, up from 520x520) and pieces grew with it (fontSize 58, up from 52)", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const res = scenes.chess_board.layout!({});
@@ -1209,7 +1209,7 @@ describe("games pack", () => {
     // centered in the 750-tall canvas): (750 - 620) / 2 = 65.
     expect(grid!.pts[0][1]).toBeCloseTo(65, 6);
     const piece = flat.find((d) => d.id === "piece_a1") as { fontSize: number };
-    expect(piece.fontSize).toBe(52);
+    expect(piece.fontSize).toBe(58); // ~0.75 of the 77.5px cell (BOARD/8) — still clears it.
   });
 
   test("dark squares use region2 (muted green) at 0.5 opacity, not the old muddy guide-at-0.35, and the board scaffold (grid + squares) draws at the smallest named budget", async () => {
@@ -1229,14 +1229,25 @@ describe("games pack", () => {
     expect(arrowLeaf.drawOpts.duration).toBe(850); // kit.SKETCH_MS.connector, unchanged.
   });
 
-  // Regression: SVG dominant-baseline "central" (src/render/svg-backend.ts)
-  // centers on the FONT's ascent/descent metrics, not a Unicode chess
-  // glyph's own ink — these glyphs sit within roughly the lower two-thirds
-  // of their em box, so they read as floating high in their square. The
-  // piece text position is nudged DOWN (a smaller y-up value) by exactly
-  // 0.35 * fontSize from the cell's own center to compensate; coord labels
-  // (plain digits/letters) get no such nudge.
-  test("piece glyphs are nudged down from the cell center by exactly 0.35 * fontSize for optical centering; coord labels are not nudged", async () => {
+  // Regression: SVG dominant-baseline "central" (src/render/svg-backend.ts,
+  // applied to every <text> before the clean/sketchy split, so both backends
+  // get it) is a font-METRICS baseline — roughly (fontAscent - fontDescent)/2
+  // above the alphabetic baseline — not an ink-based one. A previous round
+  // assumed Unicode chess glyphs sit in the "lower two-thirds" of their em
+  // box and pushed the text DOWN by 0.35 * fontSize to compensate; that
+  // diagnosis had the direction backwards. Measured directly (rasterize the
+  // actual SVG text at the production font stack/size, scan pixel rows for
+  // ink, compare the ink bounding box's center to the `central`-baseline
+  // anchor): across all 12 piece glyphs the ink center sits only
+  // ~0.09-0.11 * fontSize BELOW the anchor, not above — "central" already
+  // comes close on its own, and the old 0.35-down nudge was compounding a
+  // small existing low bias into a large one (0.35 + ~0.1 ≈ 0.45 * fontSize
+  // too low — ~23px at the old fontSize 52 — matching the "sitting between
+  // two squares" report). The corrected nudge is a SMALL push UP (a larger
+  // y-up value) by 0.1 * fontSize. Coord labels (plain digits/letters) get no
+  // nudge: the same pixel measurement on "a"-"h"/"1"-"8" shows well under 1px
+  // of bias at their fontSize, negligible.
+  test("piece glyphs are nudged up from the cell center by exactly 0.1 * fontSize for optical centering; coord labels are not nudged", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const res = scenes.chess_board.layout!({});
@@ -1246,7 +1257,7 @@ describe("games pack", () => {
     const sqA1 = flat.find((d) => d.id === "sq_a1") as { pts: [number, number][] };
     const cellCy = sqA1.pts.reduce((sum, [, y]) => sum + y, 0) / sqA1.pts.length;
     const piece = flat.find((d) => d.id === "piece_a1") as { pos: [number, number]; fontSize: number };
-    expect(piece.pos[1]).toBeCloseTo(cellCy - 0.35 * piece.fontSize, 6);
+    expect(piece.pos[1]).toBeCloseTo(cellCy + 0.1 * piece.fontSize, 6);
     // coord_a (a file letter, drawn only with coords !== false) sits at its
     // own fixed offset from the board edge, independent of any glyph nudge.
     const coordA = flat.find((d) => d.id === "coord_a") as { pos: [number, number] };
@@ -1352,22 +1363,30 @@ describe("games pack", () => {
     const moves = ["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6", "Qxf7#"];
     const crypto = await import("node:crypto");
     const hashOf = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
+    // Hashes recaptured after the fontSize 52->58 / PIECE_Y_NUDGE
+    // 0.35-down->0.1-up correction (see the nudge derivation comment in
+    // games.yaml and the "piece glyphs are nudged up..." test above) — that
+    // change moves every piece's absolute position/fontSize, so the hashes
+    // themselves change, but the INVARIANT this test protects (plyT===0 at
+    // every integer boundary falls through to the exact same plain
+    // per-square lookup, never the glide/fade/lift branch) is untouched by
+    // it and still holds.
     const EXPECTED: Record<number, string> = {
-      0: "87e21e8e8009e7c30c077f28a2c186c4d7fff0ef102203c1d21b22f71cb26777",
-      1: "1c6087c65db5581edbdecec2de7fd9902e52942f22d9530c00d32533c3e6ab2a",
-      2: "5403bd62d961eaa06eb85cc0b1932072192851f533d349fe05f33b1c5cceff39",
-      3: "6d3b19f86fe883e2f8e6dc93ae9feeebfa520b9263373b63491dd9a51bbf000f",
-      4: "b1afd1e9bbf29206dee6e26df80fef6e1e5e290f540a28954db23c11dc474ebf",
-      5: "347e6cd2d831bfc45b383c3289340e44ccaea3cd9f1e9bdbd35ba92623c5849b",
-      6: "2c0ca55b925d86861a1a03638ba5d619f4be6db00b3341da6ccc5df590a1d9ab",
-      7: "5990eb249445bf5567d5760d58d16b528e2e2c7535624dec4df61a9a6695357f",
+      0: "dd58ae701cfdcb8527ef04fdc2e6699cf589ed2a38081fb87c3d0e9b86030cef",
+      1: "f7f50e7c1bbc486195d613333e2ffd5c61a925d620a281ed282b1baff7685c5b",
+      2: "2e3f896ce9dc40664bb4d1b47e694ee2c1067455b2fa4c59580d604cf8340703",
+      3: "180e8fdce7643e2da3d57e55bf3837cc114c2d66791f9b538d5974fac8a25467",
+      4: "c622e15efb69ff03faa8e2fd58422e62f9dbbdd765041bfe735009241e3476f7",
+      5: "9da9e1907d32342c1c77e40c1e9a2cdb0a03200117ed62ed8696fc9ef484739b",
+      6: "d8d898ebe49787f402b3cbd0c5c42abed840b58075d5241794b67eaac148e517",
+      7: "15151b4606b3fa0052a177efc5deadb5b6e9c2cb3ef47d2a10b5f0f7557d5a0e",
     };
     for (let i = 0; i <= moves.length; i++) {
       const r = scenes.chess_board.layout!({ moves, plies_shown: i });
       expect(hashOf(r)).toBe(EXPECTED[i]);
     }
     const r0 = scenes.chess_board.layout!({});
-    expect(hashOf(r0)).toBe("2430b57daf0f3ff25f43b1824aec9fcd6bceb94f53837f9400ad7eaf588c947e");
+    expect(hashOf(r0)).toBe("62a8077e6bb0b1f702c1c683e313434d4c082faa3581b8160126723d78fa144e");
   });
 
   test("fractional plies_shown glides the moving piece in a straight line: 0.5 into 1.e4 sits the e-pawn strictly between e2 and e4, x unchanged", async () => {
@@ -1400,7 +1419,7 @@ describe("games pack", () => {
     const q1 = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.25 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
     const mid = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
     const q3 = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.75 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
-    const base = 52; // PIECE_FONT_SIZE
+    const base = 58; // PIECE_FONT_SIZE
     expect(mid.fontSize).toBeCloseTo(base * 1.1, 6); // parabola peak at t=0.5
     expect(q1.fontSize).toBeCloseTo(base * (1 + 0.1 * 4 * 0.25 * 0.75), 6);
     expect(q3.fontSize).toBeCloseTo(q1.fontSize, 6); // symmetric around t=0.5
@@ -1460,8 +1479,8 @@ describe("games pack", () => {
     expect(rook.pos[0]).toBeCloseTo((rookFrom[0] + rookTo[0]) / 2, 6);
     expect(rook.pos[1]).toBeCloseTo((rookFrom[1] + rookTo[1]) / 2, 6);
     // Both lifted the same amount (t=0.5 peak) since one ply moves both.
-    expect(king.fontSize).toBeCloseTo(52 * 1.1, 6);
-    expect(rook.fontSize).toBeCloseTo(52 * 1.1, 6);
+    expect(king.fontSize).toBeCloseTo(58 * 1.1, 6);
+    expect(rook.fontSize).toBeCloseTo(58 * 1.1, 6);
 
     // After the full ply: king on g1, rook on f1, e1/h1 vacated.
     const flatAfter = flattenDrawables(after.drawables);

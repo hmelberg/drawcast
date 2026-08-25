@@ -243,20 +243,35 @@ layout: |
     w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
     b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
   };
-  const PIECE_FONT_SIZE = 52; // grown with the board (44 at BOARD=520).
-  // Unicode chess glyphs (♔♕♖♗♘♙ / ♚♛♜♝♞♟) sit visibly HIGH in their cell
-  // even though the SVG backend already sets `dominant-baseline: "central"`
-  // on every <text> (src/render/svg-backend.ts) — that baseline centers on
-  // the FONT's own ascent/descent metrics, not a particular glyph's ink, and
-  // these symbol glyphs are drawn within roughly the lower two-thirds of
-  // their em box, so the font-metric center sits well above their visual
-  // (inked) center. Nudging the text position DOWN by ~0.35x the font size
-  // brings the piece's ink to the square's optical center (verified by eye
-  // against a rendered board). The plain digit/letter coord labels below do
-  // NOT get this nudge: ordinary Latin/digit glyphs sit close enough to the
-  // font's central baseline already — the offset is specific to these
-  // symbol glyphs' unusual internal placement, not a general baseline bug.
-  const PIECE_Y_NUDGE = PIECE_FONT_SIZE * 0.35;
+  const PIECE_FONT_SIZE = 58; // grown again (52 -> 58; 44 at the original
+  // BOARD=520) — the cell is BOARD/8 = 77.5px, so 58 is ~0.75 of a cell and
+  // still clears it with room to spare.
+  //
+  // Unicode chess glyphs (♔♕♖♗♘♙ / ♚♛♜♝♞♟) are drawn with `dominant-baseline:
+  // "central"` (src/render/svg-backend.ts — set on every <text>, BEFORE the
+  // clean/sketchy split, so both backends get it identically). "central" is
+  // a font-METRICS baseline — for this font stack it sits (fontAscent -
+  // fontDescent)/2 above the alphabetic baseline — not an ink-based one. A
+  // previous round diagnosed pieces as sitting too HIGH, assumed these
+  // glyphs' ink sits in the "lower two-thirds" of their em box, and nudged
+  // the text DOWN by 0.35x fontSize to compensate. That direction was wrong.
+  //
+  // Measured directly instead of assumed: rasterize the actual SVG output
+  // (production font stack, production font size) to a canvas, scan pixel
+  // rows for ink per glyph, and compare the ink bounding box's own vertical
+  // center to the `dominant-baseline: "central"` anchor line. Across all 12
+  // piece glyphs, with NO manual nudge, the ink center sits only
+  // ~0.09-0.11x fontSize BELOW the anchor (not above) — "central" already
+  // lands close on its own, just slightly low. The old 0.35x-DOWN nudge was
+  // compounding that small low bias into a large one (0.35 down + the
+  // built-in ~0.1 low bias = ~0.45x fontSize too low, ~23px at the old
+  // fontSize 52) — exactly the "pieces sitting between two squares" symptom.
+  // The correct nudge is a SMALL push UP (a larger y-up value): 0.1x
+  // fontSize. Plain digit/letter coord labels below still get NO nudge: the
+  // same pixel measurement on "a"-"h"/"1"-"8" shows well under 1px of bias
+  // at their font size (excluding "g", whose own descender is real ink, not
+  // measurement noise) — negligible, unlike the ~0.1x fontSize seen here.
+  const PIECE_Y_NUDGE = PIECE_FONT_SIZE * 0.1;
   const touched = new Set();
   for (let br = 0; br < 8; br++) {
     for (let bc = 0; bc < 8; bc++) {
@@ -315,14 +330,14 @@ layout: |
     const glyph = cell ? GLYPHS[cell.color][cell.piece] : "";
     const id = "piece_" + sq;
     const [cx, cy] = cellPos(r, c);
-    let piecePos = [cx, cy - PIECE_Y_NUDGE];
+    let piecePos = [cx, cy + PIECE_Y_NUDGE];
     let fontSize = PIECE_FONT_SIZE;
     const inFlight = glide.get(sq);
     if (inFlight) {
       const [tx, ty] = squarePos(inFlight.toSq);
       const lx = cx + (tx - cx) * plyT;
       const ly = cy + (ty - cy) * plyT;
-      piecePos = [lx, ly - PIECE_Y_NUDGE];
+      piecePos = [lx, ly + PIECE_Y_NUDGE];
       fontSize = PIECE_FONT_SIZE * inFlight.lift;
     }
     const opacity = fade.get(sq);
