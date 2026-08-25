@@ -214,21 +214,77 @@ export interface ChessEngine {
   }[];
 }
 
+const isFenDigit = (ch: string) => ch >= "0" && ch <= "9";
+
+/** A close port of chess.js@1.4.0's own `validateFen`, with exactly one rule
+ *  relaxed: a color may have ZERO kings (a diagram-only position — e.g. a lone
+ *  king for a king-and-pawn endgame figure) — but never more than one.
+ *
+ *  This is a full re-derivation, not a wrapper around chess.js's own
+ *  `validateFen` plus a check on its returned message: that function
+ *  short-circuits on the FIRST failing criterion (king presence is criterion
+ *  10 of 11, checked white-then-black, each with its own early return), so
+ *  pattern-matching its message text cannot tell whether a missing king was
+ *  the ONLY problem. Verified concretely against the installed package:
+ *  "kk6/8/8/8/8/8/8/8 b - - 0 1" (two black kings, no white king) reports only
+ *  "missing white king" — the too-many-black-kings problem is never reached —
+ *  and "P7/8/8/8/8/8/8/K7 w - - 0 1" (a pawn on rank 8) reports only "missing
+ *  black king" — criterion 11 (pawns on the back rank) is never reached
+ *  either. Every criterion below is therefore evaluated independently, in
+ *  chess.js's own order, rather than chained through its early returns.
+ *  Returns an error string, or null when the FEN (bar king *count*) is
+ *  well-formed. */
+function checkFenForBoard(fen: string): string | null {
+  const tokens = fen.split(/\s+/);
+  if (tokens.length !== 6) return "Invalid FEN: must contain six space-delimited fields";
+  const moveNumber = parseInt(tokens[5], 10);
+  if (isNaN(moveNumber) || moveNumber <= 0) return "Invalid FEN: move number must be a positive integer";
+  const halfMoves = parseInt(tokens[4], 10);
+  if (isNaN(halfMoves) || halfMoves < 0) return "Invalid FEN: half move counter number must be a non-negative integer";
+  if (!/^(-|[abcdefgh][36])$/.test(tokens[3])) return "Invalid FEN: en-passant square is invalid";
+  if (/[^kKqQ-]/.test(tokens[2])) return "Invalid FEN: castling availability is invalid";
+  if (!/^(w|b)$/.test(tokens[1])) return "Invalid FEN: side-to-move is invalid";
+  const rows = tokens[0].split("/");
+  if (rows.length !== 8) return "Invalid FEN: piece data does not contain 8 '/'-delimited rows";
+  for (const row of rows) {
+    let sum = 0, prevWasDigit = false;
+    for (const ch of row) {
+      if (isFenDigit(ch)) {
+        if (prevWasDigit) return "Invalid FEN: piece data is invalid (consecutive number)";
+        sum += Number(ch);
+        prevWasDigit = true;
+      } else {
+        if (!/^[prnbqkPRNBQK]$/.test(ch)) return "Invalid FEN: piece data is invalid (invalid piece)";
+        sum += 1;
+        prevWasDigit = false;
+      }
+    }
+    if (sum !== 8) return "Invalid FEN: piece data is invalid (too many squares in rank)";
+  }
+  if ((tokens[3][1] === "3" && tokens[1] === "w") || (tokens[3][1] === "6" && tokens[1] === "b")) {
+    return "Invalid FEN: illegal en-passant square";
+  }
+  for (const [color, re] of [["white", /K/g], ["black", /k/g]] as const) {
+    if ((tokens[0].match(re) || []).length > 1) return `Invalid FEN: too many ${color} kings`;
+  }
+  if (Array.from(rows[0] + rows[7]).some((ch) => ch.toUpperCase() === "P")) {
+    return "Invalid FEN: some pawns are on the edge rows";
+  }
+  return null;
+}
+
 /** Verified against chess.js@1.4.0: named `Chess` export, board() rank-8-first, verbose move(). */
 async function loadChess(): Promise<ChessEngine> {
-  const { Chess, validateFen } = await import("chess.js");
+  const { Chess } = await import("chess.js");
 
-  // chess.js's own FEN validation demands both kings present — reasonable for
-  // a game, too strict for a diagram that just wants to show a bare position
-  // (e.g. a lone king for a king-and-pawn endgame figure). Only that one
-  // criterion is relaxed; every other malformed-FEN case still throws.
   const load = (fen?: string): InstanceType<typeof Chess> => {
     if (fen === undefined) return new Chess();
-    const v = validateFen(fen);
-    if (!v.ok) {
-      const err = v.error ?? "unspecified";
-      if (!/missing (white|black) king/.test(err)) throw new Error(err);
-    }
+    const err = checkFenForBoard(fen);
+    if (err) throw new Error(err);
+    // Our own check above already enforces every structural criterion
+    // chess.js's validateFen would (row/field shape, piece characters, king
+    // COUNT); skipValidation here only bypasses chess.js re-checking king
+    // PRESENCE, which is the one rule we deliberately relaxed.
     return new Chess(fen, { skipValidation: true });
   };
 

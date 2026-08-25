@@ -38,6 +38,21 @@ describe("chess engine (real load — node, no DOM)", () => {
     expect(() => eng.board("8/8/8/8/8/8/8/KX6 w - - 0 1")).toThrow(); // invalid piece letter
   });
 
+  test("board() still rejects a FEN whose real defect hides behind a missing-king report", async () => {
+    // Regression: chess.js's own validateFen short-circuits on the FIRST
+    // failing criterion, so these two both stop at a king-presence complaint
+    // and never reach the OTHER real problem. A relaxation that only trusts
+    // that first message (rather than independently checking every
+    // criterion) would silently let both of these load.
+    const eng = await chess();
+    // Two black kings, no white king — reports only "missing white king";
+    // the too-many-black-kings defect is real and must still throw.
+    expect(() => eng.board("kk6/8/8/8/8/8/8/8 b - - 0 1")).toThrow(/king/i);
+    // A pawn on the back rank, no black king — reports only "missing black
+    // king"; the back-rank-pawn defect (criterion 11) is real and must still throw.
+    expect(() => eng.board("P7/8/8/8/8/8/8/K7 w - - 0 1")).toThrow(/pawn/i);
+  });
+
   test("replay(undefined, [e4, e5, Nf3]) returns one entry per ply, first is e2->e4", async () => {
     const eng = await chess();
     const plies = eng.replay(undefined, ["e4", "e5", "Nf3"]);
@@ -67,6 +82,15 @@ describe("chess engine (real load — node, no DOM)", () => {
   test("replay throws on an illegal move, naming the offending SAN", async () => {
     const eng = await chess();
     expect(() => eng.replay(undefined, ["e5"])).toThrow(/e5/);
+  });
+
+  test("replay throws naming the offending SAN even mid-sequence", async () => {
+    const eng = await chess();
+    // e4 and e5 are both legal (White's, then Black's, opening pawn push);
+    // the third "e5" is White's move again, and e5 is occupied by Black's
+    // own pawn with no way for White to reach it — illegal. The error must
+    // name THIS "e5", the offending third move, not the two legal ones before it.
+    expect(() => eng.replay(undefined, ["e4", "e5", "e5"])).toThrow(/e5/);
   });
 
   test("replay honors a supplied starting fen rather than always starting fresh", async () => {
