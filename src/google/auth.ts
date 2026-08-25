@@ -158,6 +158,12 @@ export async function requireScope(scope: Scope): Promise<string | null> {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId(),
       scope,
+      // Defaults to true, which folds every previously granted scope into the
+      // new request — and Google refuses youtube.upload and drive.file in one
+      // authorization ("scopes that cannot be requested together", 400). Each
+      // request must stand alone; the store above already keeps one token per
+      // scope, so nothing here ever needs a multi-scope token.
+      include_granted_scopes: false,
       callback: (res: TokenResponse) => {
         if (!res.access_token) return resolve(null);
         store.put(scope, res.access_token, res.expires_in ?? 3600);
