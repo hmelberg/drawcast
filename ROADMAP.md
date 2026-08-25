@@ -58,6 +58,25 @@ ROADMAP for that record.
   no test harness reaches) was checked by a manual visual gate — see
   `.superpowers/sdd/2026-08-23-animate-command/task-7-report.md`.
 
+- **Science packs** (2026-08-25): five stub templates promoted to ready
+  (`two_by_two_table`, `timeline`, `generic_axes_diagram`, `markov_model`,
+  `cost_effectiveness_plane` — real layout + manifest, no more fall-through);
+  five new domain packs (`economics`, `evidence` epidemiology, `mathlogic`,
+  plus `games` chess boards/replayed lines and `maps` sketched country
+  outlines) and 7 more science-fill templates appended to the existing
+  physics/chemistry/biology packs — 31 new ready templates in all. Three new
+  lazy engines back them (`mathjax` TeX→SVG for handwritten equations,
+  `chess` for FEN/SAN boards and move validation, `geo` for d3-geo/topojson
+  country shapes), plus sceneKit v2 (`KIT_VERSION = 2` in `src/scenes/kit.ts`)
+  giving layout bodies the extra stdlib these packs needed. `games` and
+  `maps` sit outside the academic default and stay opt-in
+  (`DEFAULT_OFF_PACKS`); the other six packs are on by default, and
+  `TEMPLATE_FULL_THRESHOLD` moved 20→50 so every one of them still gets a
+  full catalog entry with no index-only degradation. 1061/1061 tests pass;
+  `npm run build` and `npm run build:engine` (dist-engine + its check
+  script) both green — see
+  `.superpowers/sdd/2026-08-25-science-packs/task-13-report.md`.
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future

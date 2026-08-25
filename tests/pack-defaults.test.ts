@@ -55,4 +55,16 @@ describe("the default catalog", () => {
     expect(t).toContain("Pack available but not enabled: Games");
     expect(t).toContain("Pack available but not enabled: Maps");
   });
+
+  // Measured at Task 13 (2026-08-25), default packs enabled (economics,
+  // evidence, mathlogic, physics, chemistry, biology; games/maps off), 45
+  // ready templates: catalogText({request:""}).length = 118582 chars, or
+  // ~29646 tokens at chars/4. The bounds below are a coarse regression
+  // guard, not a pin — re-measure and update this comment (not the bound)
+  // if a future pack round moves the number meaningfully.
+  test("the default catalog stays within a sane budget", () => {
+    const size = catalogText({ request: "" }).length;
+    expect(size).toBeGreaterThan(50_000);
+    expect(size).toBeLessThan(250_000);
+  });
 });
