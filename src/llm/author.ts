@@ -74,7 +74,7 @@ export const TEMPLATE_DOC_API_SCHEMA = {
     // requirement of a fully static schema; engines.test.ts's "TEMPLATE_DOC_API_SCHEMA's
     // engines enum stays in sync with KNOWN_ENGINES" test (set equality, not
     // just toContain) is the tripwire if the two ever drift.
-    engines: { type: "array", items: { type: "string", enum: ["smilesdrawer", "mathjax"] } },
+    engines: { type: "array", items: { type: "string", enum: ["smilesdrawer", "mathjax", "chess"] } },
     examples: {
       type: "array",
       items: {

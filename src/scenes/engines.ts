@@ -21,7 +21,7 @@
 import type { LiteElement, LiteNode } from "mathjax-full/js/adaptors/lite/Element.js";
 import { sampleSvgPath } from "./svgpath";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -202,9 +202,70 @@ async function loadMathJax(): Promise<MathJaxEngine> {
   };
 }
 
+export interface ChessEngine {
+  /** FEN (or omitted → start position) → 8×8 board, rank 8 first (row 0 = rank 8 = Black's back rank).
+   *  Cells: null or { piece: "k"|"q"|"r"|"b"|"n"|"p"; color: "w"|"b" }. Throws on invalid FEN. */
+  board(fen?: string): ({ piece: string; color: string } | null)[][];
+  /** Play SAN moves from fen/start; returns one entry per ply with the position AFTER the ply.
+   *  Throws on an illegal move naming the offending SAN. */
+  replay(fen: string | undefined, sans: string[]): {
+    san: string; from: string; to: string; piece: string; capture: boolean; check: boolean; mate: boolean;
+    fenAfter: string;
+  }[];
+}
+
+/** Verified against chess.js@1.4.0: named `Chess` export, board() rank-8-first, verbose move(). */
+async function loadChess(): Promise<ChessEngine> {
+  const { Chess, validateFen } = await import("chess.js");
+
+  // chess.js's own FEN validation demands both kings present — reasonable for
+  // a game, too strict for a diagram that just wants to show a bare position
+  // (e.g. a lone king for a king-and-pawn endgame figure). Only that one
+  // criterion is relaxed; every other malformed-FEN case still throws.
+  const load = (fen?: string): InstanceType<typeof Chess> => {
+    if (fen === undefined) return new Chess();
+    const v = validateFen(fen);
+    if (!v.ok) {
+      const err = v.error ?? "unspecified";
+      if (!/missing (white|black) king/.test(err)) throw new Error(err);
+    }
+    return new Chess(fen, { skipValidation: true });
+  };
+
+  return {
+    board(fen) {
+      return load(fen).board().map((row) =>
+        row.map((cell) => (cell ? { piece: cell.type, color: cell.color } : null)),
+      );
+    },
+    replay(fen, sans) {
+      const game = load(fen);
+      return sans.map((san) => {
+        let m;
+        try {
+          m = game.move(san);
+        } catch {
+          throw new Error(`illegal move "${san}"`);
+        }
+        return {
+          san: m.san,
+          from: m.from,
+          to: m.to,
+          piece: m.piece,
+          capture: !!m.captured,
+          check: game.isCheck(),
+          mate: game.isCheckmate(),
+          fenAfter: game.fen(),
+        };
+      });
+    },
+  };
+}
+
 export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   smilesdrawer: { load: loadSmilesDrawer },
   mathjax: { load: loadMathJax },
+  chess: { load: loadChess },
 };
 
 const cache = new Map<string, unknown>();
