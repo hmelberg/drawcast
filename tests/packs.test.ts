@@ -8,18 +8,18 @@ import mathlogicYaml from "../src/scenes/packs/mathlogic.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
-import { flattenDrawables } from "../src/layout/model";
+import { flattenDrawables, COLORS } from "../src/layout/model";
 import { ensureEngines } from "../src/scenes/engines";
 import type { SceneLayout } from "../src/scenes/types";
 
 beforeEach(() => unregisterPack("physics"));
 
 describe("parsePack", () => {
-  test("parses header + two ready templates", () => {
+  test("parses header + four ready templates", () => {
     const { pack, errors } = parsePack(physicsYaml);
     expect(errors).toEqual([]);
     expect(pack?.id).toBe("physics");
-    expect(pack?.templates.map((t) => t.template)).toEqual(["ray_diagram", "wave_diagram"]);
+    expect(pack?.templates.map((t) => t.template)).toEqual(["ray_diagram", "wave_diagram", "circuit_diagram", "projectile_motion"]);
   });
 
   test("reports YAML errors instead of throwing", () => {
@@ -34,13 +34,15 @@ describe("parsePack", () => {
   });
 });
 
+const PHYSICS_TEMPLATE_IDS = ["ray_diagram", "wave_diagram", "circuit_diagram", "projectile_motion"];
+
 describe("registerPack / unregisterPack", () => {
-  test("registers both templates, tracks ownership, unregisters exactly them", () => {
+  test("registers all four templates, tracks ownership, unregisters exactly them", () => {
     const r = registerPack("physics", physicsYaml);
-    expect(r).toMatchObject({ ok: true, templateIds: ["ray_diagram", "wave_diagram"] });
+    expect(r).toMatchObject({ ok: true, templateIds: PHYSICS_TEMPLATE_IDS });
     expect(scenes.ray_diagram.layout).toBeDefined();
     expect(isPackTemplateId("ray_diagram")).toBe(true);
-    expect(packTemplateIds("physics")).toEqual(["ray_diagram", "wave_diagram"]);
+    expect(packTemplateIds("physics")).toEqual(PHYSICS_TEMPLATE_IDS);
     unregisterPack("physics");
     expect(scenes.ray_diagram).toBeUndefined();
     expect(scenes.wave_diagram).toBeUndefined();
@@ -75,7 +77,7 @@ describe("registerPack / unregisterPack", () => {
 describe("physics templates through the real pipeline", () => {
   test("every example renders with zero warnings and no error lint, deterministically", () => {
     registerPack("physics", physicsYaml);
-    for (const tid of ["ray_diagram", "wave_diagram"]) {
+    for (const tid of PHYSICS_TEMPLATE_IDS) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
         expect(res.warnings).toEqual([]);
@@ -123,6 +125,109 @@ describe("physics templates through the real pipeline", () => {
     const img = flattenDrawables(virt.drawables).find((d) => d.id === "image");
     expect(img?.kind === "stroke" && img.style.dash).toBe(true);
   });
+
+  test("circuit_diagram (series): the top wire ends at a spliced component's left anchor and resumes at its right anchor — never runs under it", () => {
+    registerPack("physics", physicsYaml);
+    const r = scenes.circuit_diagram.layout!({
+      topology: "series",
+      components: [{ type: "battery" }, { type: "resistor" }, { type: "bulb" }],
+    });
+    const flat = flattenDrawables(r.drawables);
+    const resistorLeadStart = (flat.find((d) => d.id === "comp_1__0") as { pts: [number, number][] }).pts[0];
+    const resistorLeadEnd = (flat.find((d) => d.id === "comp_1__0") as { pts: [number, number][] }).pts.slice(-1)[0];
+    const wireBefore = flat.find((d) => d.id === "wire__top_1") as { pts: [number, number][] };
+    const wireAfter = flat.find((d) => d.id === "wire__top_2") as { pts: [number, number][] };
+    // The resistor's own two lead endpoints ARE its left/right anchors (a zigzag stroke from (-1,0) to (1,0)).
+    expect(wireBefore.pts.slice(-1)[0]).toEqual(resistorLeadStart);
+    expect(wireAfter.pts[0]).toEqual(resistorLeadEnd);
+  });
+
+  test("circuit_diagram: the battery always sits bottom-center regardless of its position in `components`, and current flows clockwise from its + (left) terminal", () => {
+    registerPack("physics", physicsYaml);
+    const r = scenes.circuit_diagram.layout!({
+      topology: "series",
+      components: [{ type: "resistor" }, { type: "bulb" }, { type: "battery" }],
+    });
+    expect(r.anchors["comp_2"]).toEqual([500, 200]); // CX, YB
+    const flat = flattenDrawables(r.drawables);
+    const batteryLeft = (flat.find((d) => d.id === "comp_2__0") as { pts: [number, number][] }).pts[0];
+    // current_2 is the bottom-left arrow, on the wire between the battery's left (+)
+    // anchor and BL: it must point AWAY from the battery (decreasing x, toward BL).
+    const current2 = flat.find((d) => d.id === "current_2") as { pts: [number, number][]; arrowhead?: string };
+    expect(current2.pts[0][0]).toBeGreaterThan(current2.pts[1][0]);
+    expect(current2.pts[0][0]).toBeLessThanOrEqual(batteryLeft[0]);
+    expect(current2.arrowhead).toBe("end");
+    // Left rail current points up (BL -> TL): increasing y.
+    const current0 = flat.find((d) => d.id === "current_0") as { pts: [number, number][] };
+    expect(current0.pts[1][1]).toBeGreaterThan(current0.pts[0][1]);
+    // Right rail current points down (TR -> BR): decreasing y.
+    const current1 = flat.find((d) => d.id === "current_1") as { pts: [number, number][] };
+    expect(current1.pts[1][1]).toBeLessThan(current1.pts[0][1]);
+  });
+
+  test("circuit_diagram (parallel): one rung per non-battery component, each with its own top+bottom wire stub", () => {
+    registerPack("physics", physicsYaml);
+    const r = scenes.circuit_diagram.layout!({
+      topology: "parallel",
+      components: [{ type: "battery" }, { type: "resistor" }, { type: "bulb" }, { type: "switch" }],
+    });
+    const flat = flattenDrawables(r.drawables);
+    for (const i of [1, 2, 3]) {
+      expect(flat.some((d) => d.id === `wire__rung_top_${i}`)).toBe(true);
+      expect(flat.some((d) => d.id === `wire__rung_bot_${i}`)).toBe(true);
+      expect(flat.some((d) => d.id === `comp_${i}`)).toBe(true);
+    }
+    expect(flat.some((d) => d.id === "wire__top")).toBe(true); // one unbroken top rail
+  });
+
+  test("projectile_motion: the apex velocity vector is purely horizontal (zero vertical component)", () => {
+    registerPack("physics", physicsYaml);
+    const r = scenes.projectile_motion.layout!({ speed: 7, angle_deg: 50 });
+    const flat = flattenDrawables(r.drawables);
+    const vApexArrow = flat.find((d) => d.id === "v_apex__arrow") as { pts: [number, number][] };
+    expect(vApexArrow.pts[0][1]).toBeCloseTo(vApexArrow.pts[1][1], 6);
+    expect(vApexArrow.pts[1][0]).toBeGreaterThan(vApexArrow.pts[0][0]); // points forward (+x)
+  });
+
+  test("projectile_motion: the parabola matches real kinematics (g=10) — apex height and range from the closed-form formulas", () => {
+    registerPack("physics", physicsYaml);
+    const speed = 6, angleDeg = 30;
+    const r = scenes.projectile_motion.layout!({ speed, angle_deg: angleDeg });
+    const th = (angleDeg * Math.PI) / 180;
+    const g = 10;
+    const R = (speed * speed * Math.sin(2 * th)) / g;
+    const H = ((speed * Math.sin(th)) * (speed * Math.sin(th))) / (2 * g);
+    const flat = flattenDrawables(r.drawables);
+    const path = flat.find((d) => d.id === "path") as { pts: [number, number][] };
+    const groundLine = flat.find((d) => d.id === "ground__line") as { pts: [number, number][] };
+    const groundY = groundLine.pts[0][1];
+    const launchX = path.pts[0][0];
+    const landX = path.pts.slice(-1)[0][0];
+    const apexY = Math.max(...path.pts.map((p) => p[1]));
+    // Same fit-to-canvas scale S applies uniformly to both axes, so the drawn
+    // aspect ratio (height-scaled / width-scaled) must equal the true H/R ratio.
+    const drawnRange = landX - launchX;
+    const drawnHeight = apexY - groundY;
+    // 3 dp tolerance: apexY is the max of 60 discretely SAMPLED points (kit.sample),
+    // which slightly undershoots the true continuous peak — a real, expected
+    // discretization artifact, not a precision bug in the formula itself.
+    expect(drawnHeight / drawnRange).toBeCloseTo(H / R, 3);
+  });
+
+  test("projectile_motion: the ground hatch is present and sits at/below the ground line", () => {
+    registerPack("physics", physicsYaml);
+    const r = scenes.projectile_motion.layout!({});
+    const groundGroup = r.drawables.find((d) => d.id === "ground");
+    expect(groundGroup?.kind).toBe("group");
+    const flat = flattenDrawables(r.drawables);
+    const hatchTicks = flat.filter((d) => d.id.startsWith("ground__hatch")) as { pts: [number, number][] }[];
+    const line = flat.find((d) => d.id === "ground__line") as { pts: [number, number][] };
+    const groundY = line.pts[0][1];
+    expect(hatchTicks.length).toBeGreaterThan(0);
+    for (const tick of hatchTicks) {
+      expect(tick.pts[1][1]).toBeLessThanOrEqual(groundY + 0.001);
+    }
+  });
 });
 
 describe("ensureEnabledPacks: retriable split (M3 review debt)", () => {
@@ -160,12 +265,14 @@ test("PACK_DEFS has physics with a loader", () => {
   expect(typeof PACK_DEFS.physics.load).toBe("function");
 });
 
+const CHEMISTRY_TEMPLATE_IDS = ["molecule", "reaction_scheme", "energy_diagram", "lewis_dot", "lab_apparatus"];
+
 describe("chemistry pack", () => {
   beforeEach(() => unregisterPack("chemistry"));
 
-  test("parses and registers three templates; molecule declares the engine", () => {
+  test("parses and registers five templates; molecule declares the engine", () => {
     const r = registerPack("chemistry", chemistryYaml);
-    expect(r).toMatchObject({ ok: true, templateIds: ["molecule", "reaction_scheme", "energy_diagram"] });
+    expect(r).toMatchObject({ ok: true, templateIds: CHEMISTRY_TEMPLATE_IDS });
     expect(scenes.molecule.manifest.engines).toEqual(["smilesdrawer"]);
   });
 
@@ -183,7 +290,7 @@ describe("chemistry pack", () => {
   test("every chemistry example renders clean and deterministically (engine pre-loaded)", async () => {
     await ensureEngines(["smilesdrawer"]);
     registerPack("chemistry", chemistryYaml);
-    for (const tid of ["molecule", "reaction_scheme", "energy_diagram"]) {
+    for (const tid of CHEMISTRY_TEMPLATE_IDS) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
         expect(res.warnings).toEqual([]);
@@ -231,6 +338,95 @@ describe("chemistry pack", () => {
       }
     }
   });
+
+  test("lewis_dot: lone-pair counts per atom match the real electron structure", () => {
+    registerPack("chemistry", chemistryYaml);
+    function lpCount(molecule: string, atomIdx: number) {
+      const r = scenes.lewis_dot.layout!({ molecule });
+      return r.drawables.filter((d) => d.id.startsWith(`lp_${atomIdx}_`)).length;
+    }
+    expect(lpCount("H2O", 0)).toBe(2); // O
+    expect(lpCount("NH3", 0)).toBe(1); // N
+    expect(lpCount("CO2", 0)).toBe(2); // left O, double bond
+    expect(lpCount("CO2", 2)).toBe(2); // right O, double bond
+    expect(lpCount("N2", 0)).toBe(1);
+    expect(lpCount("N2", 1)).toBe(1);
+    expect(lpCount("HCl", 1)).toBe(3); // Cl
+    expect(lpCount("HCl", 0)).toBe(0); // H
+    expect(lpCount("O2", 0)).toBe(2);
+    expect(lpCount("CH4", 0)).toBe(0); // C: 4 bonds, full octet, no lone pairs
+    expect(lpCount("NaCl", 1)).toBe(4); // Cl-, full octet
+    expect(lpCount("NaCl", 0)).toBe(0); // Na+, no valence electrons left
+  });
+
+  test("lewis_dot: bond order controls the number of parallel strokes (single/double/triple)", () => {
+    registerPack("chemistry", chemistryYaml);
+    const single = flattenDrawables(scenes.lewis_dot.layout!({ molecule: "HCl" }).drawables).filter((d) => d.id.startsWith("bond_0__"));
+    const double = flattenDrawables(scenes.lewis_dot.layout!({ molecule: "O2" }).drawables).filter((d) => d.id.startsWith("bond_0__"));
+    const triple = flattenDrawables(scenes.lewis_dot.layout!({ molecule: "N2" }).drawables).filter((d) => d.id.startsWith("bond_0__"));
+    expect(single).toHaveLength(1);
+    expect(double).toHaveLength(2);
+    expect(triple).toHaveLength(3);
+  });
+
+  test("lewis_dot: NaCl has no bond stroke at all (ionic, not covalent)", () => {
+    registerPack("chemistry", chemistryYaml);
+    const r = scenes.lewis_dot.layout!({ molecule: "NaCl" });
+    expect(r.drawables.some((d) => d.id.startsWith("bond_"))).toBe(false);
+  });
+
+  test("lewis_dot: show_charges draws NaCl's ionic brackets only for NaCl, and only when requested", () => {
+    registerPack("chemistry", chemistryYaml);
+    const withCharges = scenes.lewis_dot.layout!({ molecule: "NaCl", show_charges: true });
+    expect(withCharges.drawables.some((d) => d.id === "charge_0")).toBe(true);
+    expect(withCharges.drawables.some((d) => d.id === "charge_1")).toBe(true);
+    const noCharges = scenes.lewis_dot.layout!({ molecule: "NaCl", show_charges: false });
+    expect(noCharges.drawables.some((d) => d.id.startsWith("charge_"))).toBe(false);
+    const waterWithCharges = scenes.lewis_dot.layout!({ molecule: "H2O", show_charges: true });
+    expect(waterWithCharges.drawables.some((d) => d.id.startsWith("charge_"))).toBe(false);
+  });
+
+  test("lab_apparatus: each of the three setups draws exactly app_0 and app_1, plus its own structural extras", () => {
+    registerPack("chemistry", chemistryYaml);
+    const titration = scenes.lab_apparatus.layout!({ setup: "titration" });
+    expect(titration.drawables.some((d) => d.id === "app_0")).toBe(true);
+    expect(titration.drawables.some((d) => d.id === "app_1")).toBe(true);
+    expect(titration.drawables.some((d) => d.id === "stand")).toBe(true);
+    expect(titration.drawables.some((d) => d.id === "funnel")).toBe(false);
+
+    const heating = scenes.lab_apparatus.layout!({ setup: "heating" });
+    expect(heating.drawables.some((d) => d.id === "app_0")).toBe(true);
+    expect(heating.drawables.some((d) => d.id === "app_1")).toBe(true);
+    expect(heating.drawables.some((d) => d.id === "stand")).toBe(true);
+    expect(heating.drawables.some((d) => d.id === "ring")).toBe(true);
+
+    const filtration = scenes.lab_apparatus.layout!({ setup: "filtration" });
+    expect(filtration.drawables.some((d) => d.id === "app_0")).toBe(true);
+    expect(filtration.drawables.some((d) => d.id === "app_1")).toBe(true);
+    expect(filtration.drawables.some((d) => d.id === "funnel")).toBe(true);
+    expect(filtration.drawables.some((d) => d.id === "stand")).toBe(false);
+  });
+
+  test("lab_apparatus: indicator_color maps to the documented fill, and \"clear\" omits the liquid entirely", () => {
+    registerPack("chemistry", chemistryYaml);
+    const pink = scenes.lab_apparatus.layout!({ setup: "titration", indicator_color: "pink" });
+    const pinkLiquid = flattenDrawables(pink.drawables).find((d) => d.id === "liquid") as { style: { fill?: string } };
+    expect(pinkLiquid.style.fill).toBe(COLORS.regionLoss);
+
+    const blue = scenes.lab_apparatus.layout!({ setup: "titration", indicator_color: "blue" });
+    const blueLiquid = flattenDrawables(blue.drawables).find((d) => d.id === "liquid") as { style: { fill?: string } };
+    expect(blueLiquid.style.fill).toBe(COLORS.supply);
+
+    const clear = scenes.lab_apparatus.layout!({ setup: "titration", indicator_color: "clear" });
+    expect(clear.drawables.some((d) => d.id === "liquid")).toBe(false);
+  });
+
+  test("lab_apparatus: labels[] produce leader labels pointing at app_0/app_1 in order", () => {
+    registerPack("chemistry", chemistryYaml);
+    const r = scenes.lab_apparatus.layout!({ setup: "heating", labels: ["Bunsen burner", "Beaker"] });
+    expect(r.labels.map((l) => l.id)).toEqual(["label_0", "label_1"]);
+    expect(r.labels.map((l) => l.text)).toEqual(["Bunsen burner", "Beaker"]);
+  });
 });
 
 describe("biology pack", () => {
@@ -254,14 +450,16 @@ describe("biology pack", () => {
     }
   }
 
-  test("parses and registers three templates in brief order", () => {
+  const BIOLOGY_TEMPLATE_IDS = ["membrane_bilayer", "dna_helix", "phylo_tree", "pathway", "punnett_square", "food_web"];
+
+  test("parses and registers six templates in brief order", () => {
     const r = registerPack("biology", biologyYaml);
-    expect(r).toMatchObject({ ok: true, templateIds: ["membrane_bilayer", "dna_helix", "phylo_tree"] });
+    expect(r).toMatchObject({ ok: true, templateIds: BIOLOGY_TEMPLATE_IDS });
   });
 
   test("every biology example renders lint-clean and deterministically, in bounds", () => {
     registerPack("biology", biologyYaml);
-    for (const tid of ["membrane_bilayer", "dna_helix", "phylo_tree"]) {
+    for (const tid of BIOLOGY_TEMPLATE_IDS) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
         inBounds(res);
@@ -338,6 +536,94 @@ describe("biology pack", () => {
     expect(atp?.kind).toBe("text");
     const withoutTransport = scenes.membrane_bilayer.layout!({});
     expect(withoutTransport.drawables.some((d) => d.id === "transport_0")).toBe(false);
+  });
+
+  test("pathway: -> draws a plain arrowhead, -| draws a bar (inhibits), => draws a dashed arrow (converts)", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.pathway.layout!({ edges: "A -> B; C -| D; E => F" });
+    const flat = flattenDrawables(r.drawables);
+    const edge0 = flat.find((d) => d.id === "edge_0") as { arrowhead?: string; style: { dash?: boolean } };
+    expect(edge0.arrowhead).toBe("end");
+    expect(edge0.style.dash).toBeFalsy();
+    expect(flat.some((d) => d.id === "edge_1__head")).toBe(true); // the inhibition bar
+    const edge2 = flat.find((d) => d.id === "edge_2") as { style: { dash?: boolean } };
+    expect(edge2.style.dash).toBe(true);
+  });
+
+  test("pathway: node shape follows node_types (protein ellipse, gene rect, metabolite circle); process nodes have no shape at all", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.pathway.layout!({
+      edges: "P -> G; G -> M; M -> X",
+      node_types: { P: "protein", G: "gene", M: "metabolite", X: "process" },
+    });
+    expect(r.drawables.some((d) => d.id === "node_p")).toBe(true);
+    expect(r.drawables.some((d) => d.id === "node_g")).toBe(true);
+    expect(r.drawables.some((d) => d.id === "node_m")).toBe(true);
+    expect(r.drawables.some((d) => d.id === "node_x")).toBe(false); // process: no shape
+    expect(r.labels.some((l) => l.id === "node_label_x")).toBe(true); // but the label still exists
+  });
+
+  test("punnett_square: Aa x Aa gives genotypes AA/Aa/Aa/aa (dominant allele first) and a 3:1 phenotype ratio by default", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.punnett_square.layout!({ parent1: "Aa", parent2: "Aa" });
+    const flat = flattenDrawables(r.drawables);
+    const cell = (r0: number, c0: number) => (flat.find((d) => d.id === `grid__c${r0}_${c0}`) as { text: string }).text;
+    const cells = [cell(0, 0), cell(0, 1), cell(1, 0), cell(1, 1)].sort();
+    expect(cells).toEqual(["AA", "Aa", "Aa", "aa"]);
+    // Uppercase-first: a mixed-case genotype must never be written lowercase-then-uppercase.
+    for (const g of cells) if (g[0] !== g[1]) expect(g[0]).toBe(g[0].toUpperCase());
+    const ratio = flat.find((d) => d.id === "ratio") as { text: string };
+    expect(ratio.text).toBe("3 : 1");
+  });
+
+  test("punnett_square: highlight null switches to a genotype-count ratio (1:2:1 for Aa x Aa)", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.punnett_square.layout!({ parent1: "Aa", parent2: "Aa", highlight: null });
+    const flat = flattenDrawables(r.drawables);
+    const ratio = flat.find((d) => d.id === "ratio") as { text: string };
+    expect(ratio.text).toBe("1 : 2 : 1 genotypes");
+    expect(flat.some((d) => d.id.startsWith("hl_"))).toBe(false);
+  });
+
+  test("punnett_square: a test cross (Aa x aa) highlights 2 recessive cells by default (1:1 reduced ratio)", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.punnett_square.layout!({ parent1: "Aa", parent2: "aa" });
+    const flat = flattenDrawables(r.drawables);
+    const hl = flat.filter((d) => d.id.startsWith("hl_"));
+    expect(hl).toHaveLength(2); // 2 of the 4 cells are fully recessive (aa)
+    const ratio = flat.find((d) => d.id === "ratio") as { text: string };
+    expect(ratio.text).toBe("1 : 1");
+  });
+
+  test("food_web: producers sit at the lowest y (bottom band) and every link points from lower y to higher y (up the trophic bands)", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.food_web.layout!({});
+    const flat = flattenDrawables(r.drawables);
+    const grassY = (r.anchors.org_grass as [number, number])[1];
+    const rabbitY = (r.anchors.org_rabbit as [number, number])[1];
+    const hawkY = (r.anchors.org_hawk as [number, number])[1];
+    expect(grassY).toBeLessThan(rabbitY);
+    expect(rabbitY).toBeLessThan(hawkY);
+    const links = flat.filter((d) => /^link_\d+$/.test(d.id)) as { pts: [number, number][] }[];
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.pts.slice(-1)[0][1]).toBeGreaterThan(link.pts[0][1]); // "eaten by" arrow always goes upward
+    }
+  });
+
+  test("food_web: highlight tints only links touching that organism", () => {
+    registerPack("biology", biologyYaml);
+    const r = scenes.food_web.layout!({
+      organisms: [{ name: "Grass", level: "producer" }, { name: "Rabbit", level: "primary" }, { name: "Mouse", level: "primary" }, { name: "Fox", level: "secondary" }],
+      links: "Grass -> Rabbit; Grass -> Mouse; Rabbit -> Fox",
+      highlight: "Rabbit",
+    });
+    const flat = flattenDrawables(r.drawables);
+    const link0 = flat.find((d) => d.id === "link_0") as { style: { color: string } }; // Grass -> Rabbit: touches highlight
+    const link1 = flat.find((d) => d.id === "link_1") as { style: { color: string } }; // Grass -> Mouse: does not
+    const link2 = flat.find((d) => d.id === "link_2") as { style: { color: string } }; // Rabbit -> Fox: touches highlight
+    expect(link0.style.color).not.toBe(link1.style.color);
+    expect(link2.style.color).toBe(link0.style.color);
   });
 });
 

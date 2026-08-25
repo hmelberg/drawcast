@@ -2665,5 +2665,402 @@
         }
       ]
     }
+  },
+  {
+    "request": "Draw a series circuit with a battery, a bulb and a switch.",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "A simple series circuit",
+      "template": "circuit_diagram",
+      "params": {
+        "topology": "series",
+        "components": [
+          { "type": "battery" },
+          { "type": "bulb", "label": "Lamp" },
+          { "type": "switch" }
+        ],
+        "show_current": true
+      },
+      "commands": [
+        {
+          "speak": "Let's build a simple series circuit and watch the current flow around it."
+        },
+        {
+          "draw": [
+            "wire"
+          ],
+          "speak": "Here's the loop of wire the current will travel around."
+        },
+        {
+          "draw": [
+            "comp_0",
+            "comp_label_0"
+          ],
+          "speak": "The battery always sits in the bottom wire — it's what drives the current."
+        },
+        {
+          "draw": [
+            "comp_1",
+            "comp_label_1"
+          ],
+          "speak": "In series, the lamp is spliced right into the loop."
+        },
+        {
+          "draw": [
+            "comp_2",
+            "comp_label_2"
+          ],
+          "speak": "And so is the switch — open it, and the whole loop breaks."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "current_0",
+            "current_1",
+            "current_2",
+            "current_3"
+          ],
+          "speak": "Conventional current flows clockwise, out of the battery's positive terminal, through every component in turn, and back in the negative side."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show projectile motion at 45 degrees.",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "Projectile motion at 45°",
+      "template": "projectile_motion",
+      "params": {
+        "speed": 6,
+        "angle_deg": 45
+      },
+      "commands": [
+        {
+          "speak": "Let's launch a projectile and trace out its path."
+        },
+        {
+          "draw": [
+            "ground"
+          ],
+          "speak": "Here's the ground it launches from and lands on."
+        },
+        {
+          "draw": [
+            "path"
+          ],
+          "speak": "Ignoring air resistance, gravity bends its path into a perfect parabola."
+        },
+        {
+          "draw": [
+            "v0"
+          ],
+          "speak": "It leaves the ground at this velocity, angled up and to the right."
+        },
+        {
+          "draw": [
+            "v_apex",
+            "apex_label"
+          ],
+          "speak": "At the very top, all the vertical motion is gone — the velocity is purely horizontal."
+        },
+        {
+          "draw": [
+            "v_land"
+          ],
+          "speak": "By the time it lands, it's moving just as fast as it launched, mirrored below the horizontal."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "animate": {
+            "angle_deg": 68
+          },
+          "duration": 3,
+          "speak": "Now watch what happens as we steepen the launch angle: the same speed sends it higher, but not as far."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw the MAPK-style pathway EGFR to RAS to ERK, with p53 inhibiting the cell cycle.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "A simplified MAPK cascade",
+      "template": "pathway",
+      "params": {
+        "edges": "EGFR -> RAS; RAS -> ERK; p53 -| cell cycle",
+        "title": "A simplified MAPK cascade"
+      },
+      "commands": [
+        {
+          "speak": "Cells relay outside signals inward through chains of proteins that switch each other on or off."
+        },
+        {
+          "draw": [
+            "node_egfr",
+            "node_label_egfr"
+          ],
+          "speak": "It starts at the cell surface, with a receptor like EGFR."
+        },
+        {
+          "draw": [
+            "edge_0",
+            "node_ras",
+            "node_label_ras"
+          ],
+          "speak": "EGFR activates RAS, the next protein in the chain."
+        },
+        {
+          "draw": [
+            "edge_1",
+            "node_erk",
+            "node_label_erk"
+          ],
+          "speak": "RAS in turn activates ERK, which goes on to switch on genes for cell division."
+        },
+        {
+          "draw": [
+            "node_p53",
+            "node_label_p53",
+            "edge_2",
+            "node_cell_cycle",
+            "node_label_cell_cycle"
+          ],
+          "speak": "Meanwhile p53, the cell's damage sensor, can inhibit the cell cycle directly — the bar-headed arrow means 'blocks', not 'activates'."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Together, this is a simplified MAPK cascade — one of the most common signaling motifs in biology."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Cross two heterozygous parents in a Punnett square.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "A monohybrid cross",
+      "template": "punnett_square",
+      "params": {
+        "parent1": "Aa",
+        "parent2": "Aa"
+      },
+      "commands": [
+        {
+          "speak": "Let's cross two heterozygous parents and predict their offspring."
+        },
+        {
+          "draw": [
+            "grid"
+          ],
+          "speak": "A Punnett square lays out every possible combination of the parents' alleles."
+        },
+        {
+          "draw": [
+            "grid__ch0",
+            "grid__ch1",
+            "grid__rh0",
+            "grid__rh1",
+            "parent1_label",
+            "parent2_label"
+          ],
+          "speak": "Each parent is heterozygous, Aa, so each contributes either an A gamete or an a gamete."
+        },
+        {
+          "draw": [
+            "grid__c0_0",
+            "grid__c0_1",
+            "grid__c1_0",
+            "grid__c1_1"
+          ],
+          "speak": "Combining them gives four possible offspring genotypes: AA, Aa, Aa, and aa."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "hl_1_1"
+          ],
+          "speak": "Only the aa offspring shows the recessive trait — every other combination carries at least one dominant allele."
+        },
+        {
+          "draw": [
+            "ratio"
+          ],
+          "speak": "That's the classic 3 to 1 ratio of dominant to recessive phenotypes."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a food web with grass, rabbits, mice, foxes and hawks.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "A grassland food web",
+      "template": "food_web",
+      "params": {},
+      "commands": [
+        {
+          "speak": "Energy flows up through an ecosystem in a food web, from producers to predators."
+        },
+        {
+          "draw": [
+            "band_label_0",
+            "band_label_1",
+            "band_label_2",
+            "band_label_3"
+          ],
+          "speak": "We'll lay it out in bands: producers at the bottom, rising through primary and secondary consumers to apex predators at the top."
+        },
+        {
+          "draw": [
+            "org_grass"
+          ],
+          "speak": "Grass is a producer — it makes its own energy from sunlight."
+        },
+        {
+          "draw": [
+            "org_rabbit",
+            "org_mouse"
+          ],
+          "speak": "Rabbits and mice are primary consumers: they eat the grass."
+        },
+        {
+          "draw": [
+            "org_fox"
+          ],
+          "speak": "A fox is a secondary consumer, eating the rabbits and mice."
+        },
+        {
+          "draw": [
+            "org_hawk"
+          ],
+          "speak": "And a hawk sits at the top as an apex predator."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "link_0",
+            "link_1",
+            "link_2",
+            "link_3",
+            "link_4",
+            "link_5"
+          ],
+          "speak": "Each arrow points from prey to predator — from what's eaten, up to what eats it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw the Lewis structure of water.",
+    "packs": [
+      "chemistry"
+    ],
+    "spec": {
+      "title": "Lewis structure of water",
+      "template": "lewis_dot",
+      "params": {
+        "molecule": "H2O"
+      },
+      "commands": [
+        {
+          "speak": "Water's Lewis structure shows exactly how its electrons are shared and held."
+        },
+        {
+          "draw": [
+            "atom_0"
+          ],
+          "speak": "Oxygen sits at the center, with six valence electrons of its own."
+        },
+        {
+          "draw": [
+            "atom_1",
+            "atom_2",
+            "bond_0",
+            "bond_1"
+          ],
+          "speak": "It forms one single bond with each hydrogen, sharing one electron pair per bond."
+        },
+        {
+          "draw": [
+            "lp_0_0",
+            "lp_0_1"
+          ],
+          "speak": "That leaves oxygen with two lone pairs of its own — electrons that aren't shared, and the reason water's shape is bent rather than straight."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show a titration setup with a pink indicator.",
+    "packs": [
+      "chemistry"
+    ],
+    "spec": {
+      "title": "A titration setup",
+      "template": "lab_apparatus",
+      "params": {
+        "setup": "titration",
+        "indicator_color": "pink",
+        "labels": [
+          "Burette",
+          "Flask"
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Titration measures exactly how much of one solution it takes to react with another."
+        },
+        {
+          "draw": [
+            "stand"
+          ],
+          "speak": "A retort stand holds everything steady."
+        },
+        {
+          "draw": [
+            "app_0",
+            "label_0"
+          ],
+          "speak": "The burette, clamped above, delivers titrant one measured drop at a time."
+        },
+        {
+          "draw": [
+            "app_1",
+            "label_1"
+          ],
+          "speak": "Below it sits the flask, holding the solution being tested."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "liquid"
+          ],
+          "speak": "A few drops of indicator turn the solution pink right at the endpoint — the signal to stop adding titrant."
+        }
+      ]
+    }
   }
 ]

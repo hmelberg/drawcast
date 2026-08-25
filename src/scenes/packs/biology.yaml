@@ -375,3 +375,408 @@ layout: |
   }
 
   return { drawables, labels, anchors, order };
+---
+template: pathway
+title: Signaling / metabolic pathway
+version: 1
+kit: 2
+status: ready
+description: >-
+  A signaling or metabolic pathway diagram parsed from a kit.parseEdgeList
+  string: nodes (protein ellipses, gene rectangles, metabolite circles, or
+  plain-text processes) laid out left-to-right by dependency layer, connected
+  by arrows that activate (->), bars that inhibit (-|), or dashed arrows that
+  convert (=>). Choose this scene for ANY request about a signaling pathway,
+  a metabolic pathway, gene regulation, a protein activating or inhibiting
+  another, a signal cascade (e.g. EGFR/RAS/ERK, MAPK), or a pathway diagram
+  in general.
+params:
+  type: object
+  properties:
+    edges:
+      type: string
+      description: >-
+        kit.parseEdgeList notation: "EGFR -> RAS; RAS -> ERK; p53 -| cell
+        cycle" (-> activates, -| inhibits, => converts). Default: a
+        3-node MAPK-style cascade.
+    node_types:
+      type: object
+      additionalProperties:
+        type: string
+        enum: [protein, gene, metabolite, process]
+      description: >-
+        Maps a node name to its shape: protein = rounded ellipse (default for
+        any node not listed here), gene = rectangle, metabolite = small
+        circle, process = plain text with no shape.
+    title:
+      type: string
+element_ids:
+  node_<slug>: a node's shape (ellipse/rect/circle; absent for "process" nodes, which have no shape)
+  node_label_<slug>: the node's name label
+  edge_<i>: the i-th parsed edge's connector (arrow, bar, or dashed arrow)
+  title: figure title, when set
+examples:
+  - request: "Draw the MAPK-style pathway EGFR to RAS to ERK, with p53 inhibiting the cell cycle."
+    params:
+      edges: "EGFR -> RAS; RAS -> ERK; p53 -| cell cycle"
+      title: "A simplified MAPK cascade"
+  - request: "Draw a metabolic pathway converting glucose to pyruvate, activated by insulin."
+    params:
+      edges: "insulin -> glycolysis; glucose => pyruvate"
+      node_types: { glucose: metabolite, pyruvate: metabolite, insulin: protein, glycolysis: process }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  function slugify(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, "_") || "n"; }
+  const TYPES = ["protein", "gene", "metabolite", "process"];
+  const TYPE_COLOR = { protein: C.accent, gene: C.demand, metabolite: C.supply, process: C.guide };
+  const typesIn = params.node_types && typeof params.node_types === "object" ? params.node_types : {};
+  function typeOf(name) { return TYPES.includes(typesIn[name]) ? typesIn[name] : "protein"; }
+
+  const edgesStr = typeof params.edges === "string" && params.edges.trim() !== ""
+    ? params.edges
+    : "EGFR -> RAS; RAS -> ERK; p53 -| cell cycle";
+  const parsed = kit.parseEdgeList(edgesStr).slice(0, 24);
+
+  const nodeNames = [];
+  const seen = {};
+  function addNode(name) { if (!seen[name]) { seen[name] = true; nodeNames.push(name); } }
+  parsed.forEach((e) => { addNode(e.from); addNode(e.to); });
+  Object.keys(typesIn).forEach(addNode);
+  if (nodeNames.length === 0) addNode("Node 1");
+
+  const X0 = 110, Y0 = 140, W = 780, H = 470;
+  const positions = kit.layoutNodes(nodeNames, parsed.map((e) => ({ from: e.from, to: e.to })), { style: "layered", x: X0, y: Y0, w: W, h: H });
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  nodeNames.forEach((name) => {
+    const c = positions[name];
+    if (!c) return;
+    const slug = slugify(name);
+    const type = typeOf(name);
+    const color = TYPE_COLOR[type];
+    let halfH = 0;
+    if (type === "protein") {
+      push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", kit.ellipse(c, 64, 30), { closed: true, color, strokeWidth: 3, ms: MS.node })]));
+      halfH = 30;
+    } else if (type === "gene") {
+      const w2 = 104, h2 = 46;
+      const rectPts = [[c[0] - w2 / 2, c[1] - h2 / 2], [c[0] + w2 / 2, c[1] - h2 / 2], [c[0] + w2 / 2, c[1] + h2 / 2], [c[0] - w2 / 2, c[1] + h2 / 2]];
+      push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", rectPts, { closed: true, color, strokeWidth: 3, ms: MS.node })]));
+      halfH = h2 / 2;
+    } else if (type === "metabolite") {
+      push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", kit.ellipse(c, 30, 30), { closed: true, color, strokeWidth: 3, ms: MS.node })]));
+      halfH = 30;
+    }
+    anchors["node_" + slug] = c;
+    const fontSize = name.length > 12 ? 16 : 19;
+    label("node_label_" + slug, [c[0], c[1] + halfH + 8], "above", name, color, fontSize);
+  });
+
+  function edgeColor(effect) { return effect === "inhibits" ? C.regionLoss : effect === "converts" ? C.guide : C.ink; }
+  const SHORTEN = 64;
+  parsed.forEach((e, i) => {
+    const from = positions[e.from], to = positions[e.to];
+    if (!from || !to) return;
+    const id = "edge_" + i;
+    const opts = {
+      shorten: SHORTEN,
+      head: e.effect === "inhibits" ? "bar" : "arrow",
+      dash: e.effect === "converts",
+      color: edgeColor(e.effect),
+      strokeWidth: 3.5,
+      ms: MS.connector,
+    };
+    const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, opts);
+    edgeDrawables.forEach(push);
+    anchors[id] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 80], params.title, { fontSize: 28 }));
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: punnett_square
+title: Punnett square
+version: 1
+kit: 2
+status: ready
+description: >-
+  A 2x2 Punnett square for a monohybrid genetic cross: each parent's two
+  alleles become the row/column gamete headers, every cell shows the
+  resulting offspring genotype with the dominant (uppercase) allele written
+  first, cells sharing the dominant or recessive phenotype are shaded
+  together, and a reduced ratio caption sits under the grid ("3 : 1" for the
+  classic Aa x Aa cross counting phenotypes, or "1 : 2 : 1 genotypes" when
+  no phenotype is highlighted). Choose this scene for ANY request about a
+  Punnett square, a genetic cross, dominant and recessive alleles, genotype
+  vs phenotype ratios, heterozygous or homozygous parents, or Mendelian
+  inheritance.
+params:
+  type: object
+  properties:
+    parent1:
+      type: string
+      description: "Parent 1's two-letter genotype, e.g. \"Aa\" (default \"Aa\")."
+    parent2:
+      type: string
+      description: "Parent 2's two-letter genotype, e.g. \"Aa\" (default \"Aa\")."
+    trait:
+      type: object
+      properties:
+        dominant: { type: string }
+        recessive: { type: string }
+      description: "Trait names for the dominant/recessive alleles, e.g. { dominant: \"brown eyes\", recessive: \"blue eyes\" } — appended to the ratio caption."
+    highlight:
+      type: string
+      enum: [dominant, recessive]
+      description: "Which phenotype's cells to shade (default \"recessive\"); pass null to shade nothing and show a genotype-count ratio instead."
+    show_ratio:
+      type: boolean
+      description: "Show the ratio caption under the grid (default true)."
+element_ids:
+  grid: the 2x2 grid lines (a group)
+  "grid__c<r>_<c>": each cell's offspring-genotype text (row 0 = top; kit.table's own ids)
+  "grid__ch<c> / grid__rh<r>": the column/row gamete-letter headers
+  parent1_label: parent 1's caption above the column headers
+  parent2_label: parent 2's caption left of the row headers
+  hl_<r>_<c>: shaded region behind a highlighted-phenotype cell, present only for those cells when highlight is set
+  ratio: the ratio caption under the grid, when show_ratio
+examples:
+  - request: "Cross two heterozygous parents in a Punnett square."
+    params: { parent1: "Aa", parent2: "Aa" }
+  - request: "Cross a heterozygous parent with a homozygous recessive parent and highlight the dominant phenotype."
+    params: { parent1: "Aa", parent2: "aa", highlight: "dominant", trait: { dominant: "brown eyes", recessive: "blue eyes" } }
+layout: |
+  const C = kit.COLORS;
+  function normParent(p) { return typeof p === "string" && /^[A-Za-z]{2}$/.test(p) ? p : "Aa"; }
+  const parent1 = normParent(params.parent1);
+  const parent2 = normParent(params.parent2);
+  const g1 = [parent1[0], parent1[1]];
+  const g2 = [parent2[0], parent2[1]];
+
+  function combine(a, b) {
+    const arr = [a, b];
+    arr.sort((x, y) => {
+      const xu = x === x.toUpperCase(), yu = y === y.toUpperCase();
+      if (xu !== yu) return xu ? -1 : 1;
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+    return arr.join("");
+  }
+  const cells = [
+    [combine(g1[0], g2[0]), combine(g1[1], g2[0])],
+    [combine(g1[0], g2[1]), combine(g1[1], g2[1])],
+  ];
+  const isDominant = (g) => g[0] === g[0].toUpperCase();
+
+  const highlight = params.highlight === "dominant" ? "dominant" : (params.highlight === null || params.highlight === false) ? null : "recessive";
+  const showRatio = params.show_ratio !== false;
+
+  const CX = 500, CY = 390, W = 340, H = 260;
+  const X0 = CX - W / 2, Y0 = CY - H / 2;
+  const cellW = W / 2, cellH = H / 2;
+  const FS = 28;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+
+  const t = kit.table("grid", { x: X0, y: Y0, w: W, h: H, rows: 2, cols: 2, cells, colHeaders: g1, rowHeaders: g2, fontSize: FS, headerColor: C.guide });
+  t.drawables[0].id = "grid";
+  t.order[0] = "grid";
+  t.drawables.forEach((d) => drawables.push(d));
+  order.push(...t.order);
+  anchors.grid = [CX, CY];
+  Object.assign(anchors, t.anchors);
+
+  function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+  function reduceRatio(counts) {
+    if (counts.some((n) => n === 0)) return counts.slice();
+    let g = counts[0];
+    for (let k = 1; k < counts.length; k++) g = gcd(g, counts[k]);
+    return counts.map((n) => n / g);
+  }
+
+  if (highlight) {
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        const g = cells[r][c];
+        const matches = highlight === "dominant" ? isDominant(g) : !isDominant(g);
+        if (!matches) continue;
+        const left = X0 + cellW * c, right = left + cellW;
+        const top = Y0 + H - cellH * r, bottom = top - cellH;
+        const id = "hl_" + r + "_" + c;
+        drawables.push(kit.area(id, [[left, bottom], [right, bottom], [right, top], [left, top]], C.region1));
+        order.push(id);
+        anchors[id] = [(left + right) / 2, (top + bottom) / 2];
+      }
+    }
+  }
+
+  let ratioText;
+  if (highlight) {
+    let dom = 0, rec = 0;
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        if (isDominant(cells[r][c])) dom++; else rec++;
+      }
+    }
+    const reduced = reduceRatio([dom, rec]);
+    ratioText = reduced[0] + " : " + reduced[1];
+    if (params.trait && typeof params.trait.dominant === "string" && typeof params.trait.recessive === "string") {
+      ratioText += " (" + params.trait.dominant + " : " + params.trait.recessive + ")";
+    }
+  } else {
+    const genoOrder = [];
+    const counts = {};
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        const g = cells[r][c];
+        if (counts[g] === undefined) { counts[g] = 0; genoOrder.push(g); }
+        counts[g]++;
+      }
+    }
+    const reduced = reduceRatio(genoOrder.map((g) => counts[g]));
+    ratioText = reduced.join(" : ") + " genotypes";
+  }
+
+  if (showRatio) {
+    drawables.push(kit.text("ratio", [CX, Y0 - 55], ratioText, { fontSize: 26 }));
+    order.push("ratio");
+  }
+
+  drawables.push(kit.text("parent1_label", [CX, Y0 + H + 105], "Parent 1 (" + parent1 + ")", { fontSize: 22, color: C.guide }));
+  order.push("parent1_label");
+  drawables.push(kit.text("parent2_label", [X0 - 105, CY], "Parent 2 (" + parent2 + ")", { fontSize: 22, color: C.guide, anchor: "end" }));
+  order.push("parent2_label");
+
+  return { drawables, labels, anchors, order };
+---
+template: food_web
+title: Food web
+version: 1
+kit: 2
+status: ready
+description: >-
+  A food web laid out in horizontal trophic bands, producers at the bottom
+  rising through primary and secondary consumers to apex predators at the
+  top: each organism is a name in an ellipse halo, and each link in "grass ->
+  rabbit" notation (A is eaten by B) draws an arrow from A up to B, following
+  energy flow up the food chain. An organism named in `highlight` gets its
+  direct links tinted. Choose this scene for ANY request about a food web, a
+  food chain, trophic levels, producers and consumers, predator-prey
+  relationships, or "what eats what" in an ecosystem.
+params:
+  type: object
+  properties:
+    organisms:
+      type: array
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          level:
+            type: string
+            enum: [producer, primary, secondary, apex]
+            description: "Trophic level; unspecified/other levels default to primary consumer."
+        required: [name]
+      description: "The organisms in the web (default: a grass/rabbit/mouse/fox/hawk web)."
+    links:
+      type: string
+      description: "kit.parseEdgeList notation, \"grass -> rabbit; rabbit -> fox\" — A -> B means A is eaten by B."
+    highlight:
+      type: string
+      description: "An organism's name; tints its direct links (predator and prey links both)."
+element_ids:
+  org_<slug>: an organism's name in its ellipse halo (one group)
+  link_<i>: the i-th parsed link's upward arrow (A eaten by B, drawn from A to B)
+  band_label_<k>: the trophic-band caption (k = 0 producers, 1 primary, 2 secondary, 3 apex)
+examples:
+  - request: "Draw a food web with grass, rabbits, mice, foxes and hawks."
+    params: {}
+  - request: "Draw a food web and highlight what happens to the fox's links."
+    params:
+      organisms:
+        - { name: "Grass", level: "producer" }
+        - { name: "Rabbit", level: "primary" }
+        - { name: "Fox", level: "secondary" }
+      links: "Grass -> Rabbit; Rabbit -> Fox"
+      highlight: "Fox"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  function slugify(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, "_") || "n"; }
+  const LEVELS = ["producer", "primary", "secondary", "apex"];
+  const LEVEL_Y = { producer: 140, primary: 320, secondary: 480, apex: 630 };
+  const LEVEL_COLOR = { producer: C.region2, primary: C.accent, secondary: C.demand, apex: C.regionLoss };
+  const LEVEL_TITLE = { producer: "Producers", primary: "Primary consumers", secondary: "Secondary consumers", apex: "Apex predators" };
+
+  const defaultOrganisms = [
+    { name: "Grass", level: "producer" },
+    { name: "Rabbit", level: "primary" },
+    { name: "Mouse", level: "primary" },
+    { name: "Fox", level: "secondary" },
+    { name: "Hawk", level: "apex" },
+  ];
+  const orgsIn = Array.isArray(params.organisms) ? params.organisms.slice(0, 16).filter((o) => o && typeof o.name === "string" && o.name.trim() !== "") : [];
+  const organisms = orgsIn.length > 0 ? orgsIn : defaultOrganisms;
+  function normLevel(l) { return LEVELS.indexOf(l) >= 0 ? l : "primary"; }
+
+  const linksStr = typeof params.links === "string" && params.links.trim() !== ""
+    ? params.links
+    : "Grass -> Rabbit; Grass -> Mouse; Rabbit -> Fox; Mouse -> Fox; Rabbit -> Hawk; Mouse -> Hawk";
+  const parsed = kit.parseEdgeList(linksStr).slice(0, 40);
+  const highlightName = typeof params.highlight === "string" ? params.highlight : undefined;
+
+  const X_MIN = 420, X_MAX = 900;
+  const byLevel = { producer: [], primary: [], secondary: [], apex: [] };
+  organisms.forEach((o) => byLevel[normLevel(o.level)].push(o));
+
+  const positions = {};
+  LEVELS.forEach((lvl) => {
+    const list = byLevel[lvl];
+    const m = list.length;
+    list.forEach((o, i) => {
+      const x = m <= 1 ? (X_MIN + X_MAX) / 2 : X_MIN + ((X_MAX - X_MIN) * i) / (m - 1);
+      positions[o.name] = [x, LEVEL_Y[lvl]];
+    });
+  });
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  LEVELS.forEach((lvl, k) => {
+    push(kit.text("band_label_" + k, [90, LEVEL_Y[lvl]], LEVEL_TITLE[lvl], { fontSize: 20, color: C.guide, anchor: "start" }));
+  });
+
+  organisms.forEach((o) => {
+    const pos = positions[o.name];
+    if (!pos) return;
+    const lvl = normLevel(o.level);
+    const color = LEVEL_COLOR[lvl];
+    const slug = slugify(o.name);
+    const fontSize = o.name.length > 10 ? 16 : 19;
+    const halo = kit.stroke("org_" + slug + "__halo", kit.ellipse(pos, 58, 28), { closed: true, color, strokeWidth: 3, ms: MS.node });
+    const text = kit.text("org_" + slug + "__text", pos, o.name, { fontSize, color });
+    push(kit.group("org_" + slug, [halo, text]));
+    anchors["org_" + slug] = pos;
+  });
+
+  parsed.forEach((e, i) => {
+    const from = positions[e.from], to = positions[e.to];
+    if (!from || !to) return;
+    const hl = highlightName !== undefined && (e.from === highlightName || e.to === highlightName);
+    const color = hl ? C.accent : C.ink;
+    const strokeWidth = hl ? 5 : 3;
+    const id = "link_" + i;
+    const { drawables: linkDrawables } = kit.edgeArrow(id, from, to, { shorten: 60, color, strokeWidth, ms: MS.connector });
+    linkDrawables.forEach(push);
+    anchors[id] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+  });
+
+  return { drawables, labels, anchors, order };

@@ -184,3 +184,313 @@ layout: |
     order.push("label_trough");
   }
   return { drawables, labels, anchors, order };
+---
+template: circuit_diagram
+title: Electric circuit diagram
+version: 1
+kit: 2
+status: ready
+description: >-
+  A rectangular electric-circuit loop built from component pictograms
+  (resistor zigzag, battery long/short plates, bulb circled X, switch, and
+  capacitor plates): in series every component is spliced one after another
+  along the top wire; in parallel the loop opens 2-3 separate rungs between
+  the top and bottom rails so each component gets its own branch. The battery
+  always sits centered in the bottom wire regardless of where it appears in
+  the component list. Small arrowheads along the rails show the direction of
+  conventional current, clockwise starting from the battery's + terminal,
+  when requested. Choose this scene for ANY request about a circuit diagram,
+  an electric circuit, a resistor, a battery, a light bulb, a switch, a
+  capacitor, series vs parallel circuits, or the direction of conventional
+  current.
+params:
+  type: object
+  properties:
+    topology:
+      type: string
+      enum: [series, parallel]
+      description: "Loop topology (default \"series\")."
+    components:
+      type: array
+      minItems: 2
+      maxItems: 5
+      items:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: [resistor, battery, bulb, switch, capacitor]
+          label:
+            type: string
+            description: "Caption under/beside the component (default: its type name)."
+        required: [type]
+      description: >-
+        2-5 components in the loop, in order. Exactly one battery is
+        recommended; it is always drawn centered in the bottom wire
+        regardless of its position in this list. The remaining components are
+        spliced along the top wire (series) or become the parallel rungs
+        between the rails (parallel), in list order.
+    show_current:
+      type: boolean
+      description: "Small arrowheads on the rails showing current direction, clockwise from the battery's + terminal (default true)."
+element_ids:
+  wire: the rectangular loop's plain wire segments — rails, top/bottom wire, and any rung stubs (one group)
+  comp_<i>: the i-th entry in `components`, as a pictogram (i = its index in the `components` array, not draw order)
+  comp_label_<i>: comp_<i>'s caption
+  current_<i>: a small current-direction arrowhead on a wire segment, present only when show_current
+examples:
+  - request: "Draw a series circuit with a battery, a bulb and a switch."
+    params:
+      topology: series
+      components:
+        - { type: battery }
+        - { type: bulb, label: "Lamp" }
+        - { type: switch }
+  - request: "Draw two resistors in parallel with a battery."
+    params:
+      topology: parallel
+      components:
+        - { type: battery }
+        - { type: resistor, label: "R1" }
+        - { type: resistor, label: "R2" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const VALID_TYPES = ["resistor", "battery", "bulb", "switch", "capacitor"];
+  const topology = params.topology === "parallel" ? "parallel" : "series";
+  const showCurrent = params.show_current !== false;
+  const rawComponents = Array.isArray(params.components) ? params.components.filter((c) => c && typeof c === "object").slice(0, 5) : [];
+  const componentsIn = rawComponents.length >= 2 ? rawComponents : [{ type: "battery" }, { type: "resistor" }, { type: "bulb" }];
+  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const normalized = componentsIn.map((c) => ({
+    type: VALID_TYPES.includes(c.type) ? c.type : "resistor",
+    label: typeof c.label === "string" && c.label.trim() !== "" ? c.label : undefined,
+  }));
+  const batteryIdx = normalized.findIndex((c) => c.type === "battery");
+  const othersIdx = normalized.map((c, i) => i).filter((i) => i !== batteryIdx);
+
+  const X0 = 150, X1 = 850, YB = 200, YT = 550, CX = (X0 + X1) / 2, CY = (YB + YT) / 2;
+  const SCALE = 42;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const compAt = {};
+  const compAnchors = {};
+  const n = othersIdx.length;
+  othersIdx.forEach((origI, k) => {
+    const x = n > 0 ? X0 + ((X1 - X0) * (k + 0.5)) / n : CX;
+    const at = topology === "parallel" ? [x, CY] : [x, YT];
+    const rot = topology === "parallel" ? Math.PI / 2 : 0;
+    const st = kit.stamp(normalized[origI].type, at, { scale: SCALE, rot, idPrefix: "comp_" + origI });
+    push(kit.group("comp_" + origI, st.drawables));
+    compAt[origI] = at;
+    compAnchors[origI] = st.anchors;
+    anchors["comp_" + origI] = at;
+  });
+
+  let batteryAnchors = null;
+  if (batteryIdx >= 0) {
+    const st = kit.stamp("battery", [CX, YB], { scale: SCALE, rot: 0, idPrefix: "comp_" + batteryIdx });
+    push(kit.group("comp_" + batteryIdx, st.drawables));
+    compAt[batteryIdx] = [CX, YB];
+    batteryAnchors = st.anchors;
+    anchors["comp_" + batteryIdx] = [CX, YB];
+  }
+
+  normalized.forEach((c, i) => {
+    const text = c.label || capitalize(c.type);
+    if (i === batteryIdx) {
+      label("comp_label_" + i, [CX, YB - 6], "below", text, undefined, 22);
+    } else if (topology === "parallel") {
+      label("comp_label_" + i, compAt[i], "right", text, undefined, 22);
+    } else {
+      label("comp_label_" + i, [compAt[i][0], YT + 6], "above", text, undefined, 22);
+    }
+  });
+
+  const wireChildren = [];
+  wireChildren.push(kit.stroke("wire__left", [[X0, YB], [X0, YT]], { strokeWidth: 3, ms: MS.stroke }));
+  wireChildren.push(kit.stroke("wire__right", [[X1, YB], [X1, YT]], { strokeWidth: 3, ms: MS.stroke }));
+
+  if (batteryAnchors) {
+    wireChildren.push(kit.stroke("wire__bl", [[X0, YB], batteryAnchors.left], { strokeWidth: 3, ms: MS.stroke }));
+    wireChildren.push(kit.stroke("wire__br", [batteryAnchors.right, [X1, YB]], { strokeWidth: 3, ms: MS.stroke }));
+  } else {
+    wireChildren.push(kit.stroke("wire__bottom", [[X0, YB], [X1, YB]], { strokeWidth: 3, ms: MS.stroke }));
+  }
+
+  if (topology === "parallel") {
+    wireChildren.push(kit.stroke("wire__top", [[X0, YT], [X1, YT]], { strokeWidth: 3, ms: MS.stroke }));
+    othersIdx.forEach((origI) => {
+      const x = compAt[origI][0];
+      const a = compAnchors[origI];
+      wireChildren.push(kit.stroke("wire__rung_top_" + origI, [[x, YT], a.right], { strokeWidth: 3, ms: MS.stroke }));
+      wireChildren.push(kit.stroke("wire__rung_bot_" + origI, [[x, YB], a.left], { strokeWidth: 3, ms: MS.stroke }));
+    });
+  } else {
+    let prevPt = [X0, YT];
+    othersIdx.forEach((origI) => {
+      const a = compAnchors[origI];
+      wireChildren.push(kit.stroke("wire__top_" + origI, [prevPt, a.left], { strokeWidth: 3, ms: MS.stroke }));
+      prevPt = a.right;
+    });
+    wireChildren.push(kit.stroke("wire__top_end", [prevPt, [X1, YT]], { strokeWidth: 3, ms: MS.stroke }));
+  }
+  push(kit.group("wire", wireChildren));
+  anchors.wire = [CX, CY];
+
+  if (showCurrent) {
+    function arrowSeg(a, b, len) {
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L;
+      const half = Math.min(len, L * 0.7) / 2;
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      return [[mx - ux * half, my - uy * half], [mx + ux * half, my + uy * half]];
+    }
+    let ci = 0;
+    push(kit.stroke("current_" + ci, arrowSeg([X0, YB], [X0, YT], 55), { arrowhead: "end", strokeWidth: 3, color: C.accent, ms: MS.arrow })); ci++;
+    push(kit.stroke("current_" + ci, arrowSeg([X1, YT], [X1, YB], 55), { arrowhead: "end", strokeWidth: 3, color: C.accent, ms: MS.arrow })); ci++;
+    if (batteryAnchors) {
+      push(kit.stroke("current_" + ci, arrowSeg(batteryAnchors.left, [X0, YB], 55), { arrowhead: "end", strokeWidth: 3, color: C.accent, ms: MS.arrow })); ci++;
+      push(kit.stroke("current_" + ci, arrowSeg([X1, YB], batteryAnchors.right, 55), { arrowhead: "end", strokeWidth: 3, color: C.accent, ms: MS.arrow })); ci++;
+    } else {
+      push(kit.stroke("current_" + ci, arrowSeg([X1, YB], [X0, YB], 55), { arrowhead: "end", strokeWidth: 3, color: C.accent, ms: MS.arrow })); ci++;
+    }
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: projectile_motion
+title: Projectile motion trajectory
+version: 1
+kit: 2
+status: ready
+description: >-
+  A projectile's parabolic trajectory computed from real kinematics (g = 10):
+  launched at a given speed and angle, the path is sampled from the exact
+  closed-form y(x), with velocity-vector arrows at launch, apex (horizontal
+  only — vertical velocity is zero at the top) and landing, optional dashed
+  horizontal/vertical component arrows, and a hatched ground line. speed and
+  angle_deg are plain numeric params, so an `animate` command can sweep either
+  one smoothly and the whole parabola, apex and vectors re-derive themselves
+  frame by frame. Choose this scene for ANY request about projectile motion,
+  trajectory, range, a launch angle, time of flight, or the height/velocity
+  of a thrown or fired object (ignoring air resistance).
+params:
+  type: object
+  properties:
+    speed:
+      type: number
+      description: "Launch speed, 1-10 arbitrary units (default 6)."
+    angle_deg:
+      type: number
+      description: "Launch angle above the horizontal, 5-85 degrees (default 45). Animatable."
+    show_vectors:
+      type: boolean
+      description: "Velocity arrows at launch, apex and landing (default true)."
+    show_components:
+      type: boolean
+      description: "Dashed horizontal/vertical component arrows at launch and landing, when show_vectors is also true (default false)."
+    label_apex:
+      type: boolean
+      description: "Label the apex point (default true)."
+element_ids:
+  ground: the ground line and hatching (one group)
+  path: the trajectory parabola
+  v0 / v_apex / v_land: the velocity-vector arrows at launch, apex (horizontal only) and landing, present when show_vectors
+  vx_<k> / vy_<k>: dashed horizontal/vertical component arrows (k=0 launch, k=1 landing), present when show_vectors and show_components
+  apex_label: the "Apex" caption, present when label_apex
+examples:
+  - request: "Show projectile motion at 45 degrees."
+    params: { speed: 6, angle_deg: 45 }
+  - request: "Show the horizontal and vertical velocity components of a projectile launched at a steep angle."
+    params: { speed: 8, angle_deg: 70, show_components: true }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const speed = Math.min(10, Math.max(1, params.speed ?? 6));
+  const angleDeg = Math.min(85, Math.max(5, params.angle_deg ?? 45));
+  const showVectors = params.show_vectors !== false;
+  const showComponents = showVectors && params.show_components === true;
+  const labelApex = params.label_apex !== false;
+
+  const g = 10;
+  const th = (angleDeg * Math.PI) / 180;
+  const cosT = Math.cos(th), sinT = Math.sin(th);
+  const R = (speed * speed * Math.sin(2 * th)) / g;
+  const H = (speed * sinT) * (speed * sinT) / (2 * g);
+
+  const X0 = 120, groundY = 200;
+  const availW = 650, availH = 430;
+  const S = Math.min(availW / Math.max(R, 0.001), availH / Math.max(H, 0.001));
+  const worldToScreen = (wx, wy) => [X0 + wx * S, groundY + wy * S];
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const landingX = X0 + R * S;
+  const groundX0 = X0 - 40, groundX1 = landingX + 40;
+  const groundChildren = [kit.stroke("ground__line", [[groundX0, groundY], [groundX1, groundY]], { strokeWidth: 3, color: C.guide, ms: MS.axis })];
+  kit.hatch([groundX0, groundY], [groundX1, groundY], 22, 16, -1).forEach(([a, b], i) => {
+    groundChildren.push(kit.stroke("ground__hatch" + i, [a, b], { strokeWidth: 2, color: C.guide, ms: MS.guides }));
+  });
+  push(kit.group("ground", groundChildren));
+
+  const fn = (x) => x * Math.tan(th) - (g * x * x) / (2 * speed * speed * cosT * cosT);
+  const rawPts = kit.sample(fn, 0, R, 60);
+  const pathPts = rawPts.map(([wx, wy]) => worldToScreen(wx, wy));
+  push(kit.stroke("path", pathPts, { strokeWidth: 4, color: C.supply, ms: MS.curve }));
+  anchors.path = pathPts[Math.floor(pathPts.length / 2)];
+
+  const launchPt = worldToScreen(0, 0);
+  const apexPt = worldToScreen(R / 2, H);
+  const landPt = worldToScreen(R, 0);
+  anchors.apex_label = apexPt;
+
+  if (showVectors) {
+    const mag2len = (m) => 24 + m * 10;
+
+    const v0Len = mag2len(speed);
+    const v0Tip = [launchPt[0] + v0Len * cosT, launchPt[1] + v0Len * sinT];
+    push(kit.group("v0", [
+      kit.stroke("v0__arrow", [launchPt, v0Tip], { arrowhead: "end", strokeWidth: 4, color: C.demand, ms: MS.arrow }),
+      kit.text("v0__label", [v0Tip[0] - sinT * 20, v0Tip[1] + cosT * 20], "v₀", { fontSize: 20, color: C.demand }),
+    ]));
+    anchors.v0 = v0Tip;
+
+    const vApexLen = mag2len(speed * cosT);
+    const vApexTip = [apexPt[0] + vApexLen, apexPt[1]];
+    push(kit.group("v_apex", [
+      kit.stroke("v_apex__arrow", [apexPt, vApexTip], { arrowhead: "end", strokeWidth: 4, color: C.demand, ms: MS.arrow }),
+      kit.text("v_apex__label", [vApexTip[0] + 12, vApexTip[1] + 18], "v", { fontSize: 20, color: C.demand }),
+    ]));
+    anchors.v_apex = vApexTip;
+
+    const vLandLen = mag2len(speed);
+    const vLandTip = [landPt[0] + vLandLen * cosT, landPt[1] - vLandLen * sinT];
+    push(kit.group("v_land", [
+      kit.stroke("v_land__arrow", [landPt, vLandTip], { arrowhead: "end", strokeWidth: 4, color: C.demand, ms: MS.arrow }),
+      kit.text("v_land__label", [vLandTip[0] + 14 * cosT, vLandTip[1] - 14 * sinT], "v", { fontSize: 20, color: C.demand }),
+    ]));
+    anchors.v_land = vLandTip;
+
+    if (showComponents) {
+      const vxLen = mag2len(speed * cosT);
+      const vyLen = mag2len(speed * sinT);
+      push(kit.stroke("vx_0", [launchPt, [launchPt[0] + vxLen, launchPt[1]]], { arrowhead: "end", strokeWidth: 2.5, color: C.guide, dash: true, ms: MS.guides }));
+      push(kit.stroke("vy_0", [launchPt, [launchPt[0], launchPt[1] + vyLen]], { arrowhead: "end", strokeWidth: 2.5, color: C.guide, dash: true, ms: MS.guides }));
+      push(kit.stroke("vx_1", [landPt, [landPt[0] + vxLen, landPt[1]]], { arrowhead: "end", strokeWidth: 2.5, color: C.guide, dash: true, ms: MS.guides }));
+      push(kit.stroke("vy_1", [landPt, [landPt[0], landPt[1] - vyLen]], { arrowhead: "end", strokeWidth: 2.5, color: C.guide, dash: true, ms: MS.guides }));
+    }
+  }
+
+  if (labelApex) {
+    labels.push(kit.label("apex_label", apexPt, "above", "Apex", { fontSize: 22 }));
+    order.push("apex_label");
+  }
+
+  return { drawables, labels, anchors, order };
