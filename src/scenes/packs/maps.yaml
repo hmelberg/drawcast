@@ -17,9 +17,12 @@ description: >-
   the EU, Scandinavia...), or to outline, locate, highlight or mark a place
   on a map. `focus` narrows the map to just the named countries; omit it for
   a whole-world outline. `highlight` shades one or more of the drawn
-  countries; `markers` drops a labeled dot at a country's centroid (e.g. a
-  capital city). An unrecognized country name is skipped and listed in a
-  small "Unknown: ..." note rather than failing the whole figure.
+  countries; `markers` drops a labeled dot either at an EXACT [lon, lat]
+  (`at` — use for any specific place: a capital, a city, a landmark) or at a
+  country's own centroid (`country` — use only to mark a whole country; its
+  centroid is its geometric middle, rarely anywhere near that country's own
+  capital). An unrecognized country name is skipped and listed in a small
+  "Unknown: ..." note rather than failing the whole figure.
 params:
   type: object
   properties:
@@ -36,16 +39,21 @@ params:
       items:
         type: object
         properties:
-          country: { type: string, description: "A drawn or known country name — the dot lands on its centroid." }
-          label: { type: string, description: "Text next to the dot, e.g. a capital city. Defaults to the country name." }
-        required: [country]
-      description: "A small dot at each country's centroid, with a label. In focus mode the map is cropped to `focus`+`highlight` only — a marker country far outside that view (e.g. a Japan marker on a Nordics map) is skipped rather than drawn at an implausible off-frame point, and listed in missing_note as \"Outside view: ...\"."
+          at:
+            type: array
+            items: { type: number }
+            minItems: 2
+            maxItems: 2
+            description: "Exact [longitude, latitude] — the dot lands EXACTLY there. Use this for any specific PLACE: a capital, a city, a landmark. You already know most capitals' coordinates (e.g. Oslo is roughly [10.75, 59.91]) — give them directly rather than falling back to `country`, which lands on the country's CENTROID (its geometric middle), not the city."
+          country: { type: string, description: "A drawn or known country name — the dot lands on the country's CENTROID (its geometric middle). Use this only to mark a whole COUNTRY (e.g. \"call out France\"); a capital or city is rarely anywhere near its own country's centroid — use `at` for those instead." }
+          label: { type: string, description: "Text next to the dot, e.g. a capital city's name. Defaults to the country name when using `country`, or to the coordinate pair when using `at`." }
+      description: "A small labeled dot: either `at` an EXACT [lon, lat] (use for cities/capitals/landmarks — give the coordinates directly) or at a `country`'s centroid (use only to mark a whole country). In focus mode the map is cropped to `focus`+`highlight` only — a marker whose position falls outside that view (an off-focus country's centroid, or an `at` point outside the crop) is skipped rather than drawn at an implausible off-frame point, and listed in missing_note as \"Outside view: ...\"."
     title:
       type: string
 element_ids:
   country_<slug>: a drawn country's outline (one group of ring strokes per country; slug = the dataset's own name, lowercased, non-alphanumeric runs -> "_")
   hl_<slug>: a highlighted country's low-opacity area fill (its outer ring)
-  marker_<i>: a small dot at markers[i]'s country centroid, absent when that marker is unresolved or outside the cropped view
+  marker_<i>: a small dot at markers[i]'s exact `at` position or its `country`'s centroid, absent when that marker is unresolved or outside the cropped view
   marker_label_<i>: markers[i]'s label, absent under the same conditions as marker_<i>
   graticule: a light frame around the map, present in focus mode only
   missing_note: "small guide text listing unrecognized country names (\"Unknown: X, Y\"), real-but-not-drawn highlight names (\"Not drawn: X, Y\"), and/or marker countries outside the cropped view (\"Outside view: X, Y\"), present only when there are any"
@@ -81,6 +89,18 @@ layout: |
     .filter((m) => m && typeof m.country === "string" && m.country.trim() !== "")
     .map((m) => m.country);
 
+  // Markers using `at` (an exact [lon,lat]) instead of `country` — collected
+  // up front so every `at` point can be projected through the SAME engine
+  // call (same rotation + fit) as the country shapes/centroids below, via
+  // the geo engine's own `points`/`projectedPoints` — exactly how centroids
+  // already ride that one call. A malformed `at` (not exactly two finite
+  // numbers) is treated like an unresolved marker: silently skipped, no
+  // note (mirrors an empty/missing `country` today).
+  function validAt(m) {
+    return !!m && Array.isArray(m.at) && m.at.length === 2 && Number.isFinite(m.at[0]) && Number.isFinite(m.at[1]);
+  }
+  const atPoints = markersInput.filter(validAt).map((m) => [m.at[0], m.at[1]]);
+
   // ONE engine call: "all" for the whole world, or every name any part of
   // this request could need a shape/centroid for (focus + highlight +
   // marker countries) — the engine dedupes case-insensitively on its own.
@@ -93,7 +113,11 @@ layout: |
   // focus. Ignored by the engine in world mode.
   const requestNames = isFocus ? [...focusRaw, ...highlightRaw, ...markerCountries] : "all";
   const fitNames = [...focusRaw, ...highlightRaw];
-  const { shapes, missing, centroids } = engines.geo.countries(requestNames, { w: FIT.w, h: FIT.h, fitNames });
+  const { shapes, missing, centroids, projectedPoints } = engines.geo.countries(requestNames, { w: FIT.w, h: FIT.h, fitNames, points: atPoints });
+  // markersInput index -> its own position in atPoints/projectedPoints
+  // (built in the exact same filter order as atPoints above).
+  const atProjIndex = new Map();
+  { let k = 0; markersInput.forEach((m, i) => { if (validAt(m)) atProjIndex.set(i, k++); }); }
 
   // Map accuracy is a later phase (see ROADMAP) — for now, every drawn ring
   // is run through kit.smooth (Catmull-Rom) before stroking, in BOTH world
@@ -265,19 +289,37 @@ layout: |
     if (!outside.has(key)) outside.set(key, name);
   };
 
-  // Markers: a small diamond dot at the country's centroid plus a label
-  // (defaults to the country name), placed by the label solver so it steps
-  // around other labels/strokes. Index tracks markersInput directly so a
-  // caller can always predict marker_<i> / marker_label_<i> from its own
+  // Markers: a small diamond dot at either an exact `at` position or a
+  // `country`'s centroid, plus a label, placed by the label solver so it
+  // steps around other labels/strokes. Index tracks markersInput directly so
+  // a caller can always predict marker_<i> / marker_label_<i> from its own
   // markers array position — a skipped (unresolved or out-of-view) marker
   // simply leaves that index's ids absent, same as an unresolved one today.
   markersInput.forEach((m, i) => {
-    if (!m || typeof m.country !== "string" || m.country.trim() === "") return;
-    const shape = findShape(m.country);
-    const c = shape && centroids[shape.name];
-    if (!c) return; // unresolved — already recorded in `unknown` above
+    if (!m) return;
+    let c, defaultText;
+    if (validAt(m)) {
+      // `at` takes priority over `country` on an item that somehow carries
+      // both — it is the more precise of the two. Its own projected point
+      // came back from the SAME engine call (same rotation + fit) as every
+      // country shape/centroid, via projectedPoints (see atProjIndex above).
+      const p = projectedPoints[atProjIndex.get(i)];
+      if (!p) return; // the projection genuinely couldn't place it (rare — see the geo engine's own doc)
+      c = p;
+      // Prefer the caller's own label as the identifying text (an "Outside
+      // view: Tokyo" note reads far better than raw coordinates); fall back
+      // to the coordinate pair only when no label was given.
+      defaultText = typeof m.label === "string" && m.label.trim() !== "" ? m.label : m.at[0] + ", " + m.at[1];
+    } else if (typeof m.country === "string" && m.country.trim() !== "") {
+      const shape = findShape(m.country);
+      c = shape && centroids[shape.name];
+      if (!c) return; // unresolved — already recorded in `unknown` above
+      defaultText = shape.name; // unchanged: always the country's own dataset name, never the label.
+    } else {
+      return; // neither `at` nor `country` given
+    }
     if (c[0] < 0 || c[0] > FIT.w || c[1] < 0 || c[1] > FIT.h) {
-      noteOutside(shape.name);
+      noteOutside(defaultText);
       return;
     }
     const pos = off(c);
@@ -286,7 +328,7 @@ layout: |
       closed: true, color: C.accent, fill: C.accent, strokeWidth: 2, ms: MS.dot,
     }));
     anchors[dotId] = pos;
-    const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label : shape.name;
+    const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label : defaultText;
     const labelId = "marker_label_" + i;
     // fontSize 16, not 20: a focus-mode map (Fix: geo engine fit) now fills
     // the frame instead of floating at world scale, so several capital

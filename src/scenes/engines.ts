@@ -425,15 +425,28 @@ export interface GeoEngine {
    *  from the focus set: a marker across the globe shrinks everything else to fit it in too).
    *  Defaults to `names` (today's behavior) when omitted or empty; ignored in `"all"` mode.
    *
+   *  `o.points` projects an arbitrary list of EXACT [lon, lat] pairs (a capital city, say —
+   *  not a country's centroid) through the identical projection used for the shapes/centroids
+   *  above: same rotation (antimeridian-safe) and same fitExtent/fitSize, so an exact point
+   *  lands consistently with the country outlines it's shown against. Returned in
+   *  `projectedPoints`, same order/length as `o.points`, y-flipped like every other returned
+   *  coordinate. `geoNaturalEarth1` has no hard clip circle, so a point far from the fit set
+   *  normally still comes back a real (if far out-of-box) coordinate rather than null — null is
+   *  reserved for the rare case the projection genuinely can't place a point. Omitted/empty
+   *  `o.points` yields an empty `projectedPoints`.
+   *
    *  (Name match on the world-atlas `properties.name`, case-insensitive; unknown names are
    *  reported in `missing`, not thrown.) Rings become polylines (closed). Requested names are
    *  de-duplicated case-insensitively — `["Norway","Norway"]` yields one Norway shape and an
    *  empty `missing`, not a phantom "missing" entry for the name that was in fact found. */
-  countries(names: string[] | "all", o?: { w?: number; h?: number; fitNames?: string[] }): {
+  countries(names: string[] | "all", o?: { w?: number; h?: number; fitNames?: string[]; points?: [number, number][] }): {
     shapes: { name: string; rings: [number, number][][] }[];
     missing: string[];
     /** projected centroid per shape, for labels/markers */
     centroids: Record<string, [number, number]>;
+    /** `o.points`, each projected through the SAME projection as shapes/centroids (same
+     *  rotation + fit), y-flipped; null when the projection can't place a given point. */
+    projectedPoints: ([number, number] | null)[];
   };
 }
 
@@ -549,6 +562,15 @@ async function loadGeo(): Promise<GeoEngine> {
       }
       const path = geoPath(projection);
 
+      // o.points: exact [lon,lat] pairs (a capital city, not a country's
+      // centroid) projected through this SAME already-rotated, already-fit
+      // projection — same treatment as every ring point above (y-flipped,
+      // null passed through untouched rather than fabricated).
+      const projectedPoints: ([number, number] | null)[] = (o.points ?? []).map(([lon, lat]) => {
+        const p = projection([lon, lat]);
+        return p ? [p[0], h - p[1]] : null;
+      });
+
       const shapes: { name: string; rings: Ring[] }[] = [];
       const centroids: Record<string, [number, number]> = {};
       for (const f of matched) {
@@ -567,7 +589,7 @@ async function loadGeo(): Promise<GeoEngine> {
         const [cx, cy] = path.centroid(f);
         centroids[name] = [cx, h - cy];
       }
-      return { shapes, missing, centroids };
+      return { shapes, missing, centroids, projectedPoints };
     },
   };
 }

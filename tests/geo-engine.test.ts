@@ -249,4 +249,51 @@ describe("geo engine (real load — node, no DOM)", () => {
     const withoutFitNames = eng.countries("all", { w, h });
     expect(JSON.stringify(withFitNames)).toBe(JSON.stringify(withoutFitNames));
   });
+
+  test("o.points is empty/omitted by default: projectedPoints is an empty array, not undefined", async () => {
+    const eng = await geo();
+    const { projectedPoints } = eng.countries(["Norway"], { w: 1000, h: 750 });
+    expect(projectedPoints).toEqual([]);
+  });
+
+  // Regression target for the "capitals at country centroids" bug: a marker
+  // needs to land at its OWN exact lon/lat, not a country's centroid. o.points
+  // is projected through the exact SAME projection (same rotation + fit) as
+  // the shapes/centroids above, so it lands consistently with them.
+  test("o.points projects an exact lon/lat through the SAME projection as the shapes — Oslo (focus Norway) lands inside the box, in Norway's own southern portion", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const { shapes, projectedPoints } = eng.countries(["Norway"], { w, h, points: [[10.75, 59.91]] });
+    expect(projectedPoints).toHaveLength(1);
+    const oslo = projectedPoints[0];
+    expect(oslo).not.toBeNull();
+    const [ox, oy] = oslo!;
+    expect(ox).toBeGreaterThanOrEqual(0);
+    expect(ox).toBeLessThanOrEqual(w);
+    expect(oy).toBeGreaterThanOrEqual(0);
+    expect(oy).toBeLessThanOrEqual(h);
+    // Norway's own ring bbox (y-up: north = larger y) — Oslo, near Norway's
+    // south coast, must sit in the LOWER (southern) half of that bbox, not
+    // at the country's geometric centroid (which sits much further north,
+    // mid-country — the bug this whole feature fixes).
+    const { minY, maxY } = bounds(shapes);
+    expect(oy).toBeLessThan((minY + maxY) / 2);
+  });
+
+  // Pin the actual (rather than assumed) out-of-view behavior: geoNaturalEarth1
+  // has no hard clip circle (see the class doc above), so a point nowhere near
+  // the fit set does NOT come back null — it comes back a real, finite
+  // coordinate, just far outside the [0,w]x[0,h] box.
+  test("a point on the far side of the world from the fit set returns a real, finite coordinate far outside the box (not null — geoNaturalEarth1 has no hard clip circle)", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    // Roughly antipodal to Norway's own fit-rotation center.
+    const { projectedPoints } = eng.countries(["Norway"], { w, h, points: [[-170, -60]] });
+    expect(projectedPoints).toHaveLength(1);
+    const p = projectedPoints[0];
+    expect(p).not.toBeNull();
+    const [x, y] = p!;
+    expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+    expect(x < 0 || x > w || y < 0 || y > h).toBe(true);
+  });
 });

@@ -1641,6 +1641,88 @@ describe("maps pack", () => {
     expect(note?.text).toMatch(/Atlantis/);
   });
 
+  // Regression target for "capitals land at the country's centroid, not the
+  // city" (a country's geometric middle is rarely anywhere near its own
+  // capital) — `at` places the dot at an EXACT [lon,lat] instead, projected
+  // through the identical engine call (same rotation + fit) as everything
+  // else on the map.
+  test("an `at` marker renders its dot at the EXACT projected position (matches the geo engine's own projectedPoints), not the country's centroid", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const geoEng = getLoadedEngines(["geo"]).geo as GeoEngine;
+    const oslo: [number, number] = [10.75, 59.91];
+    const res = scenes.world_map.layout!({ focus: ["Norway"], markers: [{ at: oslo, label: "Oslo" }] });
+    const flat = flattenDrawables(res.drawables);
+    expect(flat.some((d) => d.id === "marker_0")).toBe(true);
+    const label = res.labels.find((l) => l.id === "marker_label_0");
+    expect(label?.text).toBe("Oslo");
+
+    // Independently ask the engine for the SAME projection (same focus, same
+    // FIT box) and confirm the dot's anchor matches its own projectedPoints
+    // output exactly (modulo the layout's off() translate into FIT-box
+    // canvas coordinates).
+    const FIT = { x: 60, y: 120, w: 880, h: 560 };
+    const { projectedPoints } = geoEng.countries(["Norway"], { w: FIT.w, h: FIT.h, fitNames: ["Norway"], points: [oslo] });
+    const [px, py] = projectedPoints[0]!;
+    const anchor = res.anchors.marker_0 as [number, number];
+    expect(anchor[0]).toBeCloseTo(px + FIT.x, 6);
+    expect(anchor[1]).toBeCloseTo(py + FIT.y, 6);
+
+    // Not at Norway's own centroid — Oslo sits well south of Norway's
+    // geometric middle (Norway stretches far north of it).
+    const centroidAnchor = res.anchors.country_norway as [number, number];
+    expect(anchor[1]).toBeLessThan(centroidAnchor[1]);
+  });
+
+  test("an `at` marker with no `label` falls back to the coordinate pair as its text", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({ focus: ["Norway"], markers: [{ at: [10.75, 59.91] }] });
+    const label = res.labels.find((l) => l.id === "marker_label_0");
+    expect(label?.text).toBe("10.75, 59.91");
+  });
+
+  // Off-box `at` points ride the SAME "Outside view:" missing_note path as
+  // an off-focus `country` marker (see the Japan test above) — skipped
+  // rather than drawn at an implausible off-frame point.
+  test("an `at` point outside the cropped focus view is skipped and reported via the same 'Outside view' note as an off-focus country marker", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({
+      focus: ["Norway", "Sweden"],
+      markers: [{ at: [139.69, 35.68], label: "Tokyo" }], // Tokyo — nowhere near the Nordics crop
+    });
+    const flat = flattenDrawables(res.drawables);
+    expect(flat.some((d) => d.id === "marker_0")).toBe(false);
+    expect(flat.some((d) => d.id === "marker_label_0")).toBe(false);
+    const note = res.drawables.find((d) => d.id === "missing_note") as { text?: string } | undefined;
+    expect(note?.text).toMatch(/Outside view: Tokyo/);
+  });
+
+  test("markers mixing `country` and `at` together lay out clean — the `country` marker still lands exactly on its centroid, unaffected by `at`", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const mixedParams = {
+      focus: ["Norway", "Sweden"],
+      markers: [
+        { country: "Norway", label: "Norway (whole country)" },
+        { at: [18.07, 59.33], label: "Stockholm" },
+      ],
+    };
+    const res = layoutSpec({ template: "world_map", params: mixedParams, elements: [] } as never);
+    inBounds(res);
+    const flat = flattenDrawables(res.drawables);
+    expect(flat.some((d) => d.id === "marker_0")).toBe(true);
+    expect(flat.some((d) => d.id === "marker_1")).toBe(true);
+    expect(res.drawables.some((d) => d.id === "missing_note")).toBe(false);
+    // layoutSpec's own LayoutResult carries no `anchors` — go straight to the
+    // scene's raw layout (same params) for that.
+    const raw = scenes.world_map.layout!(mixedParams);
+    const norwayCentroidAnchor = raw.anchors.country_norway as [number, number];
+    const marker0Anchor = raw.anchors.marker_0 as [number, number];
+    expect(marker0Anchor).toEqual(norwayCentroidAnchor);
+  });
+
   test("world mode (no focus) draws many countries, no graticule, and stays clean with no params", async () => {
     await ensureEngines(["geo"]);
     registerPack("maps", mapsYaml);

@@ -3323,11 +3323,11 @@
         "focus": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
         "highlight": ["Norway"],
         "markers": [
-          { "country": "Norway", "label": "Oslo" },
-          { "country": "Sweden", "label": "Stockholm" },
-          { "country": "Denmark", "label": "Copenhagen" },
-          { "country": "Finland", "label": "Helsinki" },
-          { "country": "Iceland", "label": "Reykjavik" }
+          { "at": [10.75, 59.91], "label": "Oslo" },
+          { "at": [18.07, 59.33], "label": "Stockholm" },
+          { "at": [12.57, 55.68], "label": "Copenhagen" },
+          { "at": [24.94, 60.17], "label": "Helsinki" },
+          { "at": [-21.94, 64.15], "label": "Reykjavik" }
         ],
         "title": "The Nordic countries"
       },
