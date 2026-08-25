@@ -40,6 +40,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Consumer choice, PPF, cost curves, payoff matrices and AD-AS — micro and macro teaching figures with computed geometry.",
     load: async () => (await import("./packs/economics.yaml?raw")).default,
   },
+  evidence: {
+    id: "evidence",
+    title: "Evidence & epidemiology",
+    description: "Survival curves, forest plots, causal DAGs, epidemic compartments and distribution curves — the figures of clinical and epidemiological papers.",
+    load: async () => (await import("./packs/evidence.yaml?raw")).default,
+  },
 };
 
 export interface ParsedPack {

@@ -3,6 +3,7 @@ import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
 import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
 import biologyYaml from "../src/scenes/packs/biology.yaml?raw";
 import economicsYaml from "../src/scenes/packs/economics.yaml?raw";
+import evidenceYaml from "../src/scenes/packs/evidence.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -415,5 +416,130 @@ describe("economics pack", () => {
     const ids = flattenDrawables(r.drawables).map((d) => d.id);
     expect(ids).toContain("q_star");
     expect(ids).toContain("shade");
+  });
+});
+
+describe("evidence pack", () => {
+  beforeEach(() => unregisterPack("evidence"));
+
+  const TEMPLATE_IDS = ["survival_curve", "forest_plot", "causal_dag", "sir_compartments", "distribution_curve"];
+
+  function inBounds(res: ReturnType<typeof layoutSpec>) {
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+        }
+      } else if (d.kind === "text") {
+        expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+      }
+    }
+  }
+
+  test("registers all five templates in brief order", () => {
+    const r = registerPack("evidence", evidenceYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every evidence example renders finite, no fallback warnings, no error-severity lint, and is deterministic", () => {
+    registerPack("evidence", evidenceYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        inBounds(res);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("survival_curve: a KM step function is right-continuous and non-increasing", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.survival_curve.layout!({
+      arms: [{ label: "Treatment", survival: [1, 0.9, 0.7, 0.7, 0.4] }],
+    });
+    const arm = flattenDrawables(r.drawables).find((d) => d.id === "arm_0");
+    expect(arm?.kind).toBe("stroke");
+    const pts = (arm as { pts: [number, number][] }).pts;
+    // Walking left to right, y (survival) must never increase — a step function only drops.
+    let prevY = Infinity;
+    let prevX = -Infinity;
+    for (const [x, y] of pts) {
+      expect(x).toBeGreaterThanOrEqual(prevX);
+      expect(y).toBeLessThanOrEqual(prevY + 1e-9);
+      prevX = x;
+      prevY = y;
+    }
+  });
+
+  test("forest_plot: ratio measures (RR/OR/HR) position studies on a LOG scale, not linear", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.forest_plot.layout!({
+      measure: "RR",
+      studies: [
+        { label: "A", est: 1, lo: 0.8, hi: 1.25 },
+        { label: "B", est: 2, lo: 1.6, hi: 2.5 },
+        { label: "C", est: 4, lo: 3.2, hi: 5 },
+      ],
+    });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    const studyX = (i: number) => (r.anchors[`study_${i}`] as [number, number])[0];
+    const dAB = studyX(1) - studyX(0);
+    const dBC = studyX(2) - studyX(1);
+    // ln(2)-ln(1) === ln(4)-ln(2), so equal-ratio steps land equally spaced on a log axis —
+    // a linear axis would instead place C twice as far from B as B is from A.
+    expect(Math.abs(dAB - dBC)).toBeLessThan(1);
+    expect(ids).toContain("null_line");
+  });
+
+  test("causal_dag: highlight_backdoor tints only edges touching a confounder", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.causal_dag.layout!({
+      nodes: [
+        { name: "Coffee", role: "exposure" },
+        { name: "Heart disease", role: "outcome" },
+        { name: "Stress", role: "confounder" },
+      ],
+      edges: "Coffee -> Heart disease; Stress -> Coffee; Stress -> Heart disease",
+      highlight_backdoor: true,
+    });
+    const flat = flattenDrawables(r.drawables);
+    const exposureToOutcome = flat.find((d) => d.id === "edge_0");
+    const confounderEdge = flat.find((d) => d.id === "edge_1");
+    expect(exposureToOutcome && "style" in exposureToOutcome ? exposureToOutcome.style.color : undefined).not.toBe(
+      confounderEdge && "style" in confounderEdge ? confounderEdge.style.color : undefined,
+    );
+  });
+
+  test("sir_compartments: chain boxes are 150x90 rects, with n-1 flow arrows between them", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.sir_compartments.layout!({ compartments: ["S", "E", "I", "R"] });
+    const flat = flattenDrawables(r.drawables);
+    const box = flat.find((d) => d.id === "box_s");
+    expect(box?.kind).toBe("stroke");
+    expect((box as { shapeHint?: { type: string; w: number; h: number } }).shapeHint).toMatchObject({ type: "rect", w: 150, h: 90 });
+    const ids = flat.map((d) => d.id);
+    expect(ids).toContain("flow_0");
+    expect(ids).toContain("flow_1");
+    expect(ids).toContain("flow_2");
+    expect(ids).not.toContain("flow_3");
+  });
+
+  test("distribution_curve: shade=upper shades the RIGHT tail only", () => {
+    registerPack("evidence", evidenceYaml);
+    const r = scenes.distribution_curve.layout!({ shade: { from: 1.96, side: "upper" } });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids).toContain("shade");
+    expect(ids).not.toContain("shade2");
+    const shade = flattenDrawables(r.drawables).find((d) => d.id === "shade") as { pts: [number, number][] };
+    const curveAnchor = r.anchors.curve as [number, number];
+    // Every shaded point should sit at or to the right of the curve's own right edge minus a margin —
+    // i.e. in the right tail, not spilling across the mean.
+    const meanX = r.anchors.mean_line[0];
+    expect(shade.pts.every(([x]) => x >= meanX - 1)).toBe(true);
+    expect(curveAnchor).toBeDefined();
   });
 });

@@ -1,0 +1,806 @@
+pack: evidence
+title: Evidence & epidemiology
+description: Survival curves, forest plots, causal DAGs, epidemic compartments and distribution curves — the figures of clinical and epidemiological papers.
+---
+template: survival_curve
+title: Survival curve (Kaplan-Meier)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A Kaplan-Meier survival curve: one to three right-continuous step functions
+  (the classic KM staircase — a flat segment at the current survival
+  proportion, then a vertical drop at each event time), optional censoring
+  tick marks on the flat segments, and dashed median-survival guides where
+  each arm's curve crosses 50% survival. Choose this scene for ANY request
+  about survival analysis, Kaplan-Meier curves, a survival curve, time-to-
+  event data, censoring, median survival, or comparing survival between
+  treatment arms or groups.
+params:
+  type: object
+  properties:
+    arms:
+      type: array
+      minItems: 1
+      maxItems: 3
+      items:
+        type: object
+        properties:
+          label:
+            type: string
+          color:
+            type: string
+            enum: [supply, demand, accent]
+            description: "Optional; default cycles demand, supply, accent by arm order."
+          survival:
+            type: array
+            items: { type: number }
+            description: "Survival proportions, one per time tick, non-increasing; the first SHOULD be 1.0 (everyone alive at t=0)."
+        required: [label, survival]
+      description: "One to three survival arms to compare."
+    time_label:
+      type: string
+      description: "Default \"Months\"."
+    censor_ticks:
+      type: array
+      items:
+        type: object
+        properties:
+          arm: { type: integer, description: "Index into `arms`." }
+          at: { type: integer, description: "Time-tick index on that arm's survival array where a subject was censored." }
+        required: [arm, at]
+      description: "Small tick marks on an arm's flat segment marking a censored observation."
+    show_median:
+      type: boolean
+      description: "Show dashed guides at 50% survival down to each arm's median crossing (default true)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (one group with both axis lines and their captions)
+  arm_<i>: the right-continuous step-function curve for arms[i]
+  arm_label_<i>: its label
+  median_line: dashed guides at 50% survival to each arm's median crossing, present when show_median and at least one arm crosses 50%
+  censor_<i>: tick mark for censor_ticks[i]
+  title: figure title, when set
+examples:
+  - request: "Draw a Kaplan-Meier survival curve comparing two treatment arms."
+    params:
+      arms:
+        - { label: "Treatment", survival: [1, 0.92, 0.8, 0.68, 0.6, 0.55] }
+        - { label: "Control", survival: [1, 0.85, 0.62, 0.45, 0.32, 0.25] }
+  - request: "Show a survival curve with censored patients marked."
+    params:
+      arms:
+        - { label: "Cohort", survival: [1, 0.95, 0.88, 0.8, 0.8, 0.7] }
+      censor_ticks: [{ arm: 0, at: 3 }, { arm: 0, at: 4 }]
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const ARM_COLORS = ["demand", "supply", "accent"];
+  const armsRaw = Array.isArray(params.arms) ? params.arms.slice(0, 3) : [];
+  const arms = armsRaw.length > 0 ? armsRaw : [{ label: "Arm 1", survival: [1, 0.9, 0.75, 0.6, 0.5, 0.4] }];
+  const timeLabel = typeof params.time_label === "string" && params.time_label.trim() !== "" ? params.time_label : "Months";
+  const showMedian = params.show_median !== false;
+
+  const plot = { x0: 120, y0: 110, x1: 930, y1: 630 };
+  const maxLen = Math.max(2, ...arms.map((a) => (Array.isArray(a.survival) ? a.survival.length : 0)));
+  const xDomainMax = maxLen - 1;
+  const sx = (i) => plot.x0 + (i / xDomainMax) * (plot.x1 - plot.x0);
+  const sy = (v) => plot.y0 + Math.max(0, Math.min(1, v)) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], timeLabel, { fontSize: 26, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Survival", { fontSize: 26, anchor: "start" }),
+  ];
+  push(kit.group("axes", axesChildren));
+
+  // Right-continuous, non-increasing per arm: a value below the previous one
+  // (or a bad/missing entry) is clamped down to it, so the drawn staircase
+  // can only ever hold flat or drop — never step back up.
+  const clampedArms = arms.map((a) => {
+    const raw = Array.isArray(a.survival) && a.survival.length > 0 ? a.survival : [1];
+    const out = [];
+    let prev = 1;
+    for (let k = 0; k < raw.length; k++) {
+      const v = typeof raw[k] === "number" && Number.isFinite(raw[k]) ? raw[k] : prev;
+      const clamped = Math.max(0, Math.min(prev, v));
+      out.push(clamped);
+      prev = clamped;
+    }
+    return out;
+  });
+
+  function armColor(a, i) {
+    return C[a.color === "supply" || a.color === "demand" || a.color === "accent" ? a.color : ARM_COLORS[i % ARM_COLORS.length]];
+  }
+
+  const crossings = [];
+  arms.forEach((a, i) => {
+    const s = clampedArms[i];
+    const color = armColor(a, i);
+    const pts = [[sx(0), sy(s[0])]];
+    for (let k = 1; k < s.length; k++) {
+      pts.push([sx(k), sy(s[k - 1])]);
+      pts.push([sx(k), sy(s[k])]);
+    }
+    const lastIdx = s.length - 1;
+    if (lastIdx < xDomainMax) pts.push([sx(xDomainMax), sy(s[lastIdx])]);
+    const id = "arm_" + i;
+    push(kit.stroke(id, pts, { color, strokeWidth: 4.5, ms: MS.curve }));
+    anchors[id] = pts[pts.length - 1];
+    label("arm_label_" + i, pts[pts.length - 1], "right", a.label || "Arm " + (i + 1), color, 20);
+
+    let crossIdx = -1;
+    for (let k = 0; k < s.length; k++) {
+      if (s[k] <= 0.5) { crossIdx = k; break; }
+    }
+    if (crossIdx >= 0) crossings.push({ x: sx(crossIdx) });
+  });
+
+  if (showMedian && crossings.length > 0) {
+    const y05 = sy(0.5);
+    const maxX = Math.max(...crossings.map((c) => c.x));
+    const children = [kit.stroke("median_line__h", [[plot.x0, y05], [maxX, y05]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides })];
+    crossings.forEach((c, i) => {
+      children.push(kit.stroke("median_line__v" + i, [[c.x, y05], [c.x, plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    });
+    push(kit.group("median_line", children));
+    anchors.median_line = [maxX, y05];
+  }
+
+  (Array.isArray(params.censor_ticks) ? params.censor_ticks : []).slice(0, 30).forEach((ct, i) => {
+    const armIdx = typeof ct.arm === "number" ? ct.arm : -1;
+    const arm = arms[armIdx];
+    const s = clampedArms[armIdx];
+    if (!arm || !s) return;
+    const atIdx = typeof ct.at === "number" ? Math.max(0, Math.min(xDomainMax, Math.round(ct.at))) : -1;
+    if (atIdx < 0) return;
+    const sIdx = Math.min(atIdx, s.length - 1);
+    const x = sx(atIdx), y = sy(s[sIdx]);
+    const color = armColor(arm, armIdx);
+    const id = "censor_" + i;
+    push(kit.stroke(id, [[x, y - 11], [x, y + 11]], { color, strokeWidth: 3, ms: MS.stroke }));
+    anchors[id] = [x, y];
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 68], params.title, { fontSize: 30 }));
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: forest_plot
+title: Forest plot (meta-analysis)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A meta-analysis forest plot: one row per study with a square point-
+  estimate marker (sized by weight) and a horizontal confidence-interval
+  whisker, a dashed null-effect reference line, and an optional pooled
+  estimate drawn as a diamond spanning its own confidence interval. Ratio
+  measures (risk ratio, odds ratio, hazard ratio) are positioned on a LOG
+  scale so equal fold-changes are equally spaced, with the null line at 1;
+  mean-difference is positioned on a linear scale with the null line at 0.
+  Choose this scene for ANY request about a forest plot, meta-analysis,
+  pooled estimate, pooled effect, confidence interval, risk ratio, odds
+  ratio, hazard ratio, mean difference, heterogeneity, or combining evidence
+  across studies.
+params:
+  type: object
+  properties:
+    measure:
+      type: string
+      enum: [RR, OR, HR, MD]
+      description: "Effect measure (default RR). RR/OR/HR are ratio measures plotted on a log scale; MD (mean difference) is plotted on a linear scale."
+    studies:
+      type: array
+      minItems: 2
+      maxItems: 8
+      items:
+        type: object
+        properties:
+          label: { type: string }
+          est: { type: number }
+          lo: { type: number, description: "Lower bound of the confidence interval." }
+          hi: { type: number, description: "Upper bound of the confidence interval." }
+          weight:
+            type: number
+            description: "1-10, sizes the square marker (default mid-weight)."
+        required: [label, est, lo, hi]
+    pooled:
+      type: object
+      properties:
+        est: { type: number }
+        lo: { type: number }
+        hi: { type: number }
+      required: [est, lo, hi]
+      description: "The pooled effect estimate, drawn as a diamond."
+    null_line:
+      type: number
+      description: "Where the reference (no-effect) line sits — default 1 for ratio measures, 0 for MD."
+    title:
+      type: string
+element_ids:
+  null_line: dashed vertical reference line at the null effect
+  study_<i>: square point-estimate marker for studies[i], sized by weight
+  ci_<i>: its horizontal confidence-interval whisker
+  study_label_<i>: its study-name label, left column
+  est_label_<i>: its "est [lo, hi]" text, right column
+  pooled: the pooled-estimate diamond, present when `pooled` is set
+  pooled_label: the pooled diamond's name + "est [lo, hi]" text, present when `pooled` is set
+  axis: the horizontal value axis with tick labels
+  title: figure title, when set
+examples:
+  - request: "Draw a meta-analysis forest plot pooling four studies of a treatment's risk ratio."
+    params:
+      measure: "RR"
+      studies:
+        - { label: "Anderson 2015", est: 0.82, lo: 0.63, hi: 1.07, weight: 6 }
+        - { label: "Bianchi 2017", est: 0.71, lo: 0.55, hi: 0.92, weight: 8 }
+        - { label: "Carter 2019", est: 0.9, lo: 0.68, hi: 1.19, weight: 5 }
+        - { label: "Diallo 2021", est: 0.65, lo: 0.48, hi: 0.88, weight: 7 }
+      pooled: { est: 0.76, lo: 0.65, hi: 0.89 }
+      title: "Risk of relapse: pooled analysis"
+  - request: "Show a forest plot of mean differences from three trials."
+    params:
+      measure: "MD"
+      studies:
+        - { label: "Trial 1", est: -2.1, lo: -4.0, hi: -0.2, weight: 5 }
+        - { label: "Trial 2", est: -1.4, lo: -3.1, hi: 0.3, weight: 4 }
+        - { label: "Trial 3", est: -3.0, lo: -5.2, hi: -0.8, weight: 6 }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const measure = ["RR", "OR", "HR", "MD"].includes(params.measure) ? params.measure : "RR";
+  const isLog = measure !== "MD";
+  const nullVal = typeof params.null_line === "number" && Number.isFinite(params.null_line) ? params.null_line : (isLog ? 1 : 0);
+
+  const studiesRaw = Array.isArray(params.studies) ? params.studies.slice(0, 8) : [];
+  const studies = (studiesRaw.length >= 2 ? studiesRaw : [
+    { label: "Study A", est: 0.8, lo: 0.6, hi: 1.05 },
+    { label: "Study B", est: 0.65, lo: 0.5, hi: 0.85 },
+  ]).map((s, i) => {
+    const est = typeof s.est === "number" && Number.isFinite(s.est) ? s.est : nullVal;
+    const lo = typeof s.lo === "number" && Number.isFinite(s.lo) ? s.lo : est * (isLog ? 0.75 : 1) - (isLog ? 0 : 1);
+    const hi = typeof s.hi === "number" && Number.isFinite(s.hi) ? s.hi : est * (isLog ? 1.3 : 1) + (isLog ? 0 : 1);
+    const weight = Math.min(10, Math.max(1, typeof s.weight === "number" && Number.isFinite(s.weight) ? s.weight : 5));
+    const label = typeof s.label === "string" && s.label.trim() !== "" ? s.label : "Study " + (i + 1);
+    return { label, est, lo, hi, weight };
+  });
+  const pooledIn = params.pooled && typeof params.pooled.est === "number" && typeof params.pooled.lo === "number" && typeof params.pooled.hi === "number" ? params.pooled : null;
+
+  const toDomain = (v) => (isLog ? Math.log(Math.max(1e-6, v)) : v);
+  const domainVals = [toDomain(nullVal)];
+  studies.forEach((s) => { domainVals.push(toDomain(s.lo), toDomain(s.hi), toDomain(s.est)); });
+  if (pooledIn) domainVals.push(toDomain(pooledIn.lo), toDomain(pooledIn.hi), toDomain(pooledIn.est));
+  let dMin = Math.min(...domainVals), dMax = Math.max(...domainVals);
+  const span = dMax - dMin;
+  const pad = span > 1e-9 ? span * 0.15 : (isLog ? 0.35 : 1);
+  dMin -= pad; dMax += pad;
+  const denom = (dMax - dMin) || 1;
+
+  const PLOT = { x0: 400, x1: 740 };
+  const LABEL_X = 250;
+  const EST_X = 770;
+  const TOP_ROW_Y = 630;
+  const LOW_ROW_Y = 300;
+  const POOLED_Y = 190;
+  const AXIS_Y = 110;
+  const TITLE_Y = 715;
+
+  const xOf = (v) => PLOT.x0 + ((toDomain(v) - dMin) / denom) * (PLOT.x1 - PLOT.x0);
+
+  const rowsN = studies.length;
+  const rowSpacing = rowsN > 1 ? (TOP_ROW_Y - LOW_ROW_Y) / (rowsN - 1) : 0;
+  const rowY = (i) => TOP_ROW_Y - i * rowSpacing;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const nullPx = xOf(nullVal);
+  push(kit.stroke("null_line", [[nullPx, AXIS_Y + 15], [nullPx, TOP_ROW_Y + 40]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+  anchors.null_line = [nullPx, TOP_ROW_Y + 40];
+
+  studies.forEach((s, i) => {
+    const y = rowY(i);
+    const estPx = xOf(s.est), loPx = xOf(s.lo), hiPx = xOf(s.hi);
+    const halfSize = 6 + ((s.weight - 1) / 9) * 12;
+    push(kit.stroke("ci_" + i, [[loPx, y - 6], [loPx, y + 6], [loPx, y], [hiPx, y], [hiPx, y - 6], [hiPx, y + 6]], { color: C.ink, strokeWidth: 2.5, ms: MS.stroke }));
+    push(kit.stroke("study_" + i, kit.polygon([estPx, y], halfSize, 4, Math.PI / 4), { closed: true, color: C.ink, fill: C.ink, strokeWidth: 2, ms: MS.dot }));
+    anchors["study_" + i] = [estPx, y];
+    push(kit.text("study_label_" + i, [LABEL_X, y], s.label, { fontSize: 19, anchor: "end" }));
+    push(kit.text("est_label_" + i, [EST_X, y], s.est.toFixed(2) + " [" + s.lo.toFixed(2) + ", " + s.hi.toFixed(2) + "]", { fontSize: 17, anchor: "start" }));
+  });
+
+  if (pooledIn) {
+    const estPx = xOf(pooledIn.est), loPx = xOf(pooledIn.lo), hiPx = xOf(pooledIn.hi);
+    const halfH = 15;
+    push(kit.stroke("pooled", [[loPx, POOLED_Y], [estPx, POOLED_Y + halfH], [hiPx, POOLED_Y], [estPx, POOLED_Y - halfH]], { closed: true, color: C.accent, fill: C.accent, strokeWidth: 2.5, ms: MS.dot }));
+    anchors.pooled = [estPx, POOLED_Y];
+    const estStr = pooledIn.est.toFixed(2) + " [" + pooledIn.lo.toFixed(2) + ", " + pooledIn.hi.toFixed(2) + "]";
+    push(kit.group("pooled_label", [
+      kit.text("pooled_label__name", [LABEL_X, POOLED_Y], "Pooled", { fontSize: 19, anchor: "end", color: C.accent }),
+      kit.text("pooled_label__stats", [EST_X, POOLED_Y], estStr, { fontSize: 17, anchor: "start", color: C.accent }),
+    ]));
+    anchors.pooled_label = [(LABEL_X + EST_X) / 2, POOLED_Y];
+  }
+
+  const minOriginal = isLog ? Math.exp(dMin) : dMin;
+  const maxOriginal = isLog ? Math.exp(dMax) : dMax;
+  const axisChildren = [
+    kit.stroke("axis__line", [[PLOT.x0 - 15, AXIS_Y], [PLOT.x1 + 15, AXIS_Y]], { color: C.ink, strokeWidth: 3, ms: MS.axis }),
+    kit.stroke("axis__tick_min", [[PLOT.x0, AXIS_Y - 8], [PLOT.x0, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
+    kit.text("axis__tick_min_label", [PLOT.x0, AXIS_Y - 26], minOriginal.toFixed(2), { fontSize: 16, color: C.guide }),
+    kit.stroke("axis__tick_null", [[nullPx, AXIS_Y - 8], [nullPx, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
+    kit.text("axis__tick_null_label", [nullPx, AXIS_Y - 26], String(nullVal), { fontSize: 16, color: C.guide }),
+    kit.stroke("axis__tick_max", [[PLOT.x1, AXIS_Y - 8], [PLOT.x1, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
+    kit.text("axis__tick_max_label", [PLOT.x1, AXIS_Y - 26], maxOriginal.toFixed(2), { fontSize: 16, color: C.guide }),
+    kit.text("axis__caption", [(PLOT.x0 + PLOT.x1) / 2, AXIS_Y - 52], measure + (isLog ? " (log scale)" : " (linear scale)"), { fontSize: 17, color: C.guide }),
+  ];
+  push(kit.group("axis", axisChildren));
+  anchors.axis = [(PLOT.x0 + PLOT.x1) / 2, AXIS_Y];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, TITLE_Y], params.title, { fontSize: 28 }));
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: causal_dag
+title: Causal DAG (directed acyclic graph)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A causal directed acyclic graph (DAG): an exposure node far left, an
+  outcome node far right, and any confounders (banded above the exposure-
+  outcome line), mediators (sitting on that line, between exposure and
+  outcome), and colliders (banded below), connected by straight causal
+  arrows. Optionally tints the confounder's edges to highlight the backdoor
+  path it opens. Choose this scene for ANY request about a causal diagram,
+  causal DAG, confounder, confounding, collider, collider bias, mediator,
+  mediation, backdoor path, or the causal structure behind an exposure-
+  outcome relationship.
+params:
+  type: object
+  properties:
+    nodes:
+      type: array
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          role:
+            type: string
+            enum: [exposure, outcome, confounder, collider, mediator]
+            description: "Determines placement; unspecified/other roles are placed as mediators."
+        required: [name]
+    edges:
+      type: string
+      description: "kit.parseEdgeList notation, e.g. \"Coffee -> Heart disease; Stress -> Coffee; Stress -> Heart disease\". Only -> is meaningful for a causal DAG."
+    highlight_backdoor:
+      type: boolean
+      description: "Tint edges touching a confounder to flag the backdoor path it opens (default false)."
+    title:
+      type: string
+element_ids:
+  node_<slug>: a node (ellipse halo + its name), one per entry in `nodes`
+  edge_<i>: the i-th parsed edge's arrow
+  title: figure title, when set
+examples:
+  - request: "Show how a confounder biases the effect of coffee on heart disease."
+    params:
+      nodes:
+        - { name: "Coffee", role: "exposure" }
+        - { name: "Heart disease", role: "outcome" }
+        - { name: "Stress", role: "confounder" }
+      edges: "Coffee -> Heart disease; Stress -> Coffee; Stress -> Heart disease"
+      highlight_backdoor: true
+      title: "Confounding by stress"
+  - request: "Draw a causal DAG with a mediator between exposure and outcome."
+    params:
+      nodes:
+        - { name: "Exercise", role: "exposure" }
+        - { name: "Mortality", role: "outcome" }
+        - { name: "Fitness", role: "mediator" }
+      edges: "Exercise -> Fitness; Fitness -> Mortality; Exercise -> Mortality"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  function slugify(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, "_") || "n"; }
+  const ROLES = ["exposure", "outcome", "confounder", "collider", "mediator"];
+  const ROLE_COLOR = { exposure: C.demand, outcome: C.supply, confounder: C.accent, collider: C.regionLoss, mediator: C.shifted };
+  function normalizedRole(r) { return ROLES.indexOf(r) >= 0 ? r : "mediator"; }
+
+  const nodesIn = Array.isArray(params.nodes)
+    ? params.nodes.slice(0, 12).filter((n) => n && typeof n.name === "string" && n.name.trim() !== "")
+    : [];
+
+  const MID_Y = 375;
+  const EXPOSURE_X = 150, OUTCOME_X = 850;
+  const BAND_Y = { confounder: MID_Y + 165, collider: MID_Y - 165, mediator: MID_Y };
+  const BAND_X_MIN = 320, BAND_X_MAX = 680;
+
+  const positions = {};
+  const bands = { exposure: [], outcome: [], confounder: [], collider: [], mediator: [] };
+  nodesIn.forEach((n) => { bands[normalizedRole(n.role)].push(n); });
+
+  function spreadVertical(list, x, yMin, yMax) {
+    const m = list.length;
+    list.forEach((n, i) => {
+      const y = m <= 1 ? (yMin + yMax) / 2 : yMin + ((yMax - yMin) * i) / (m - 1);
+      positions[n.name] = [x, y];
+    });
+  }
+  function spreadHorizontal(list, y, xMin, xMax) {
+    const m = list.length;
+    list.forEach((n, i) => {
+      const x = m <= 1 ? (xMin + xMax) / 2 : xMin + ((xMax - xMin) * i) / (m - 1);
+      positions[n.name] = [x, y];
+    });
+  }
+  spreadVertical(bands.exposure, EXPOSURE_X, MID_Y - 70, MID_Y + 70);
+  spreadVertical(bands.outcome, OUTCOME_X, MID_Y - 70, MID_Y + 70);
+  spreadHorizontal(bands.confounder, BAND_Y.confounder, BAND_X_MIN, BAND_X_MAX);
+  spreadHorizontal(bands.collider, BAND_Y.collider, BAND_X_MIN, BAND_X_MAX);
+  spreadHorizontal(bands.mediator, BAND_Y.mediator, BAND_X_MIN, BAND_X_MAX);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  nodesIn.forEach((n) => {
+    const c = positions[n.name];
+    if (!c) return;
+    const role = normalizedRole(n.role);
+    const color = ROLE_COLOR[role];
+    const slug = slugify(n.name);
+    const fontSize = n.name.length > 10 ? 15 : 19;
+    const halo = kit.stroke("node_" + slug + "__halo", kit.ellipse(c, 60, 30), { closed: true, color, strokeWidth: 3, ms: MS.node });
+    const text = kit.text("node_" + slug + "__text", c, n.name, { fontSize, color });
+    push(kit.group("node_" + slug, [halo, text]));
+    anchors["node_" + slug] = c;
+  });
+
+  function roleOf(name) {
+    const found = nodesIn.find((n) => n.name === name);
+    return found ? normalizedRole(found.role) : "mediator";
+  }
+
+  const highlightBackdoor = params.highlight_backdoor === true;
+  const edgesStr = typeof params.edges === "string" ? params.edges : "";
+  const parsed = kit.parseEdgeList(edgesStr);
+  parsed.slice(0, 40).forEach((e, i) => {
+    const from = positions[e.from];
+    const to = positions[e.to];
+    if (!from || !to) return;
+    const backdoor = highlightBackdoor && (roleOf(e.from) === "confounder" || roleOf(e.to) === "confounder");
+    const color = backdoor ? C.regionLoss : C.ink;
+    const strokeWidth = backdoor ? 4.5 : 3.5;
+    const id = "edge_" + i;
+    const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, { shorten: 46, color, strokeWidth, ms: MS.connector });
+    edgeDrawables.forEach(push);
+    const mainPts = edgeDrawables[0].pts;
+    anchors[id] = [(mainPts[0][0] + mainPts[mainPts.length - 1][0]) / 2, (mainPts[0][1] + mainPts[mainPts.length - 1][1]) / 2];
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 715], params.title, { fontSize: 30 }));
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: sir_compartments
+title: Epidemic compartment model (SIR / SEIR)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A compartmental epidemic model (SIR, SEIR, or another variant): boxes for
+  each compartment in a left-to-right chain, connected by rate-labeled flow
+  arrows, with an optional curved return arrow beneath the chain (e.g. waning
+  immunity flowing back from Recovered to Susceptible). Choose this scene for
+  ANY request about an SIR model, SEIR model, epidemic compartment model,
+  susceptible-infectious-recovered, disease transmission dynamics, basic
+  reproduction number context, or compartmental modeling of an epidemic.
+params:
+  type: object
+  properties:
+    compartments:
+      type: array
+      minItems: 2
+      maxItems: 5
+      items: { type: string }
+      description: "Single-letter or short-word compartment codes in flow order, e.g. [\"S\",\"E\",\"I\",\"R\"] for SEIR (default [\"S\",\"I\",\"R\"])."
+    labels:
+      type: array
+      items: { type: string }
+      description: "Full compartment names, same order as `compartments` (default: Susceptible/Exposed/Infectious/Recovered/Deceased by code)."
+    rates:
+      type: array
+      items: { type: string }
+      description: "Rate label over each arrow, one per flow (default β then γ, then σ/μ/δ for longer chains)."
+    show_loop:
+      type: object
+      properties:
+        from: { type: string }
+        to: { type: string }
+        label: { type: string }
+      required: [from, to]
+      description: "A curved return arrow below the chain, e.g. waning immunity from R back to S."
+element_ids:
+  box_<name>: a compartment box
+  box_label_<name>: its full name, inside the box
+  flow_<i>: the i-th flow arrow (compartments[i] -> compartments[i+1])
+  rate_<i>: that flow's rate label
+  loop: the optional curved return arrow, present when show_loop is set
+  loop_label: its label
+examples:
+  - request: "Draw an SIR model of an epidemic."
+    params: {}
+  - request: "Show an SEIR model with waning immunity looping back from recovered to susceptible."
+    params:
+      compartments: ["S", "E", "I", "R"]
+      rates: ["β·S·I", "σ·E", "γ·I"]
+      show_loop: { from: "R", to: "S", label: "Waning immunity" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  function slugify(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, "_") || "c"; }
+  const DEFAULT_FULL = { s: "Susceptible", e: "Exposed", i: "Infectious", r: "Recovered", d: "Deceased" };
+  const DEFAULT_RATES = ["β", "γ", "σ", "μ", "δ"];
+
+  const compartmentsIn = Array.isArray(params.compartments) && params.compartments.length >= 2
+    ? params.compartments.slice(0, 5).map(String)
+    : ["S", "I", "R"];
+  const n = compartmentsIn.length;
+  const labelsIn = Array.isArray(params.labels) ? params.labels.map(String) : [];
+  const ratesIn = Array.isArray(params.rates) ? params.rates.map(String) : [];
+
+  function fullLabel(i, code) {
+    if (typeof labelsIn[i] === "string" && labelsIn[i].trim() !== "") return labelsIn[i];
+    const key = String(code).toLowerCase();
+    return DEFAULT_FULL[key] || String(code);
+  }
+
+  const CHAIN_Y = 400;
+  const positions = kit.layoutNodes(compartmentsIn, [], { style: "chain", x: 80, y: 395, w: 840, h: 10 });
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const W = 150, H = 90;
+  compartmentsIn.forEach((code, i) => {
+    const slug = slugify(code);
+    const c = positions[code];
+    const pts = [[c[0] - W / 2, c[1] - H / 2], [c[0] + W / 2, c[1] - H / 2], [c[0] + W / 2, c[1] + H / 2], [c[0] - W / 2, c[1] + H / 2]];
+    push(kit.stroke("box_" + slug, pts, { closed: true, shapeHint: { type: "rect", x: c[0] - W / 2, y: c[1] - H / 2, w: W, h: H }, color: C.ink, strokeWidth: 4, ms: MS.node }));
+    anchors["box_" + slug] = c;
+    push(kit.text("box_label_" + slug, c, fullLabel(i, code), { fontSize: 19 }));
+  });
+
+  for (let i = 0; i < n - 1; i++) {
+    const a = positions[compartmentsIn[i]];
+    const b = positions[compartmentsIn[i + 1]];
+    const from = [a[0] + W / 2, a[1]];
+    const to = [b[0] - W / 2, b[1]];
+    const id = "flow_" + i;
+    const { drawables: flowDrawables } = kit.edgeArrow(id, from, to, { strokeWidth: 5.5, color: C.ink, ms: MS.arrow, shorten: 6 });
+    flowDrawables.forEach(push);
+    const midX = (from[0] + to[0]) / 2, midY = (from[1] + to[1]) / 2;
+    anchors[id] = [midX, midY];
+    const rateText = ratesIn[i] || DEFAULT_RATES[i % DEFAULT_RATES.length];
+    label("rate_" + i, [midX, CHAIN_Y + H / 2 + 30], "above", rateText, C.accent, 22);
+  }
+
+  const loopParam = params.show_loop && typeof params.show_loop === "object" ? params.show_loop : null;
+  if (
+    loopParam &&
+    typeof loopParam.from === "string" &&
+    typeof loopParam.to === "string" &&
+    positions[loopParam.from] &&
+    positions[loopParam.to] &&
+    loopParam.from !== loopParam.to
+  ) {
+    const a = positions[loopParam.from];
+    const b = positions[loopParam.to];
+    const fromPt = [a[0], a[1] - H / 2];
+    const toPt = [b[0], b[1] - H / 2];
+    const dirSign = (toPt[0] - fromPt[0]) >= 0 ? 1 : -1;
+    const curveVal = -dirSign * 0.35;
+    const { drawables: loopDrawables } = kit.edgeArrow("loop", fromPt, toPt, { curve: curveVal, strokeWidth: 3.5, color: C.guide, ms: MS.connector, shorten: 8 });
+    loopDrawables.forEach(push);
+    const mainPts = loopDrawables[0].pts;
+    let lowest = mainPts[0];
+    for (const p of mainPts) { if (p[1] < lowest[1]) lowest = p; }
+    anchors.loop = lowest;
+    const loopText = typeof loopParam.label === "string" && loopParam.label.trim() !== "" ? loopParam.label : "Waning immunity";
+    label("loop_label", lowest, "below", loopText, C.guide, 20);
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: distribution_curve
+title: Probability distribution curve
+version: 1
+kit: 2
+status: ready
+description: >-
+  A probability distribution curve — a normal (Gaussian) bell curve, or a
+  right- or left-skewed curve — with a dashed mean guide, optional tick marks
+  at ±1 and ±2 standard deviations, and an optional shaded tail (upper,
+  lower, or both/two-sided) with a percentage or probability label. Choose
+  this scene for ANY request about a normal distribution, bell curve,
+  probability distribution, standard deviation, z-score, p-value, a
+  statistical significance threshold, a critical region, a skewed
+  distribution, or shading the tail(s) of a distribution.
+params:
+  type: object
+  properties:
+    kind:
+      type: string
+      enum: [normal, right_skew, left_skew]
+      description: "Default \"normal\"."
+    mean_label:
+      type: string
+      description: "Default \"μ\"."
+    sd_label:
+      type: string
+      description: "Default \"σ\"."
+    shade:
+      type: object
+      properties:
+        from:
+          type: number
+          description: "Standard deviations from the mean where shading starts, e.g. 1.96."
+        to:
+          type: number
+          description: "Standard deviations from the mean where shading ends (default: the edge of the curve)."
+        side:
+          type: string
+          enum: [upper, lower, two]
+          description: "upper shades the right tail from `from` SDs upward; lower shades the left tail; two shades both tails symmetrically (default upper)."
+        label:
+          type: string
+          description: "e.g. \"2.5%\"."
+    show_sd_ticks:
+      type: boolean
+      description: "Tick marks at ±1σ and ±2σ (default true)."
+    title:
+      type: string
+element_ids:
+  axis: the horizontal value axis
+  curve: the sampled distribution curve
+  shade: the shaded tail region, present when `shade` is set
+  shade2: the second (mirrored) shaded tail, present only when shade.side is "two"
+  shade_label: the shaded region's label, present when `shade` is set
+  mean_line: dashed guide at the mean, with its label
+  sd_tick_<i>: tick mark at ±1σ/±2σ, present when show_sd_ticks
+  title: figure title, when set
+examples:
+  - request: "Explain a p-value cutoff of 0.05, two-sided, with a normal curve."
+    params:
+      shade: { from: 1.96, side: "two", label: "2.5% each tail" }
+      title: "Two-sided significance at α = 0.05"
+  - request: "Draw a right-skewed distribution."
+    params: { kind: "right_skew" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const kind = params.kind === "right_skew" || params.kind === "left_skew" ? params.kind : "normal";
+  const meanLabel = typeof params.mean_label === "string" && params.mean_label.trim() !== "" ? params.mean_label : "μ";
+  const sdLabel = typeof params.sd_label === "string" && params.sd_label.trim() !== "" ? params.sd_label : "σ";
+  const showTicks = params.show_sd_ticks !== false;
+
+  const plot = { x0: 110, y0: 160, x1: 890, y1: 600 };
+  const MEAN_X = 50, S = 14;
+  const sx = (wx) => plot.x0 + (wx / 100) * (plot.x1 - plot.x0);
+  const sy = (density) => plot.y0 + Math.max(0, density) * (plot.y1 - plot.y0);
+
+  const bellExpr = kit.expr("exp(-((x-50)^2)/2/s^2)", ["x", "s"]);
+  const normalFn = (x) => bellExpr({ x, s: S });
+  function asymFn(peakX, sigL, sigR) {
+    return (x) => {
+      const sig = x <= peakX ? sigL : sigR;
+      const d = x - peakX;
+      return Math.exp(-(d * d) / (2 * sig * sig));
+    };
+  }
+  const rightSkewFn = asymFn(34, 9, 24);
+  const leftSkewFn = asymFn(66, 24, 9);
+  const curveFn = kind === "right_skew" ? rightSkewFn : kind === "left_skew" ? leftSkewFn : normalFn;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  push(kit.stroke("axis", [[plot.x0 - 10, plot.y0], [plot.x1 + 20, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }));
+  anchors.axis = [plot.x1 + 20, plot.y0];
+
+  const curvePts = kit.sample(curveFn, 0, 100, 100).map(([x, y]) => [sx(x), sy(y)]);
+  push(kit.stroke("curve", curvePts, { color: C.ink, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.curve = curvePts[curvePts.length - 1];
+
+  const domainSDMax = (100 - MEAN_X) / S;
+
+  function shadeArea(id, wFrom, wTo, color) {
+    const N = 36;
+    const top = [];
+    for (let k = 0; k <= N; k++) {
+      const wx = wFrom + ((wTo - wFrom) * k) / N;
+      top.push([sx(wx), sy(curveFn(wx))]);
+    }
+    const pts = top.concat([[sx(wTo), plot.y0], [sx(wFrom), plot.y0]]);
+    push(kit.area(id, pts, color));
+    let cx = 0, cy = 0;
+    for (const p of pts) { cx += p[0]; cy += p[1]; }
+    anchors[id] = [cx / pts.length, cy / pts.length];
+  }
+
+  const shadeParam = params.shade && typeof params.shade === "object" ? params.shade : null;
+  if (shadeParam) {
+    const side = shadeParam.side === "lower" || shadeParam.side === "two" ? shadeParam.side : "upper";
+    const from = Math.min(domainSDMax, Math.max(0, typeof shadeParam.from === "number" ? shadeParam.from : 1));
+    const toRaw = typeof shadeParam.to === "number" ? shadeParam.to : domainSDMax;
+    const to = Math.min(domainSDMax, Math.max(from, toRaw));
+
+    if (side === "upper") {
+      shadeArea("shade", MEAN_X + from * S, MEAN_X + to * S, C.region1);
+    } else if (side === "lower") {
+      shadeArea("shade", MEAN_X - to * S, MEAN_X - from * S, C.region1);
+    } else {
+      shadeArea("shade", MEAN_X + from * S, MEAN_X + to * S, C.region1);
+      shadeArea("shade2", MEAN_X - to * S, MEAN_X - from * S, C.region1);
+    }
+
+    const labelText = typeof shadeParam.label === "string" && shadeParam.label.trim() !== ""
+      ? shadeParam.label
+      : side === "two"
+        ? "beyond ±" + from + sdLabel
+        : "beyond " + (side === "lower" ? "−" : "") + from + sdLabel;
+    const labelX = side === "two"
+      ? sx(MEAN_X)
+      : side === "lower"
+        ? sx(MEAN_X - ((from + to) / 2) * S)
+        : sx(MEAN_X + ((from + to) / 2) * S);
+    label("shade_label", [labelX, plot.y1 + 18], "above", labelText, C.ink, 19);
+  }
+
+  const meanHeight = curveFn(MEAN_X);
+  const meanTopPx = sy(meanHeight);
+  const meanXpx = sx(MEAN_X);
+  push(kit.group("mean_line", [
+    kit.stroke("mean_line__line", [[meanXpx, plot.y0], [meanXpx, meanTopPx]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+    kit.text("mean_line__text", [meanXpx, meanTopPx + 24], meanLabel, { fontSize: 22, color: C.guide }),
+  ]));
+  anchors.mean_line = [meanXpx, meanTopPx];
+
+  if (showTicks) {
+    [-2, -1, 1, 2].forEach((sd, i) => {
+      const wx = MEAN_X + sd * S;
+      const xpx = sx(wx);
+      const text = sd + sdLabel;
+      push(kit.group("sd_tick_" + i, [
+        kit.stroke("sd_tick_" + i + "__mark", [[xpx, plot.y0 - 9], [xpx, plot.y0 + 9]], { color: C.guide, strokeWidth: 2.5, ms: MS.stroke }),
+        kit.text("sd_tick_" + i + "__text", [xpx, plot.y0 - 26], text, { fontSize: 16, color: C.guide }),
+      ]));
+      anchors["sd_tick_" + i] = [xpx, plot.y0];
+    });
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 70], params.title, { fontSize: 30 }));
+  }
+
+  return { drawables, labels, anchors, order };

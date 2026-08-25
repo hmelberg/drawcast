@@ -1940,5 +1940,294 @@
         }
       ]
     }
+  },
+  {
+    "request": "Compare survival on treatment versus control.",
+    "packs": ["evidence"],
+    "spec": {
+      "title": "Kaplan-Meier survival: treatment vs control",
+      "template": "survival_curve",
+      "params": {
+        "arms": [
+          { "label": "Treatment", "survival": [1, 0.94, 0.85, 0.78, 0.72, 0.68] },
+          { "label": "Control", "survival": [1, 0.82, 0.6, 0.44, 0.33, 0.25] }
+        ],
+        "censor_ticks": [{ "arm": 0, "at": 4 }],
+        "title": "Survival by treatment arm"
+      },
+      "commands": [
+        {
+          "speak": "Let's compare how long patients survive on treatment versus control."
+        },
+        {
+          "draw": ["axes"],
+          "speak": "Time along the bottom, the proportion still surviving up the side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["arm_0", "arm_label_0"],
+          "speak": "This staircase is the treatment arm — each drop marks patients who didn't make it to the next checkpoint."
+        },
+        {
+          "draw": ["arm_1", "arm_label_1"],
+          "speak": "This lower curve is the control arm — it falls faster and further."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["censor_0"],
+          "speak": "This tick mark is a censored patient — one who left the study early, without an event."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["median_line"],
+          "speak": "Follow the dashed line at fifty percent survival: the control arm crosses it, giving its median survival time."
+        },
+        {
+          "highlight": {
+            "target": ["arm_0", "arm_1"],
+            "effect": "glow"
+          },
+          "speak": "Treatment's curve stays clearly above control's the whole way through."
+        },
+        {
+          "draw": ["title"],
+          "speak": "The gap between the two curves is the treatment effect."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a meta-analysis forest plot pooling four studies.",
+    "packs": ["evidence"],
+    "spec": {
+      "title": "Pooling four trials in a forest plot",
+      "template": "forest_plot",
+      "params": {
+        "measure": "RR",
+        "studies": [
+          { "label": "Anderson 2015", "est": 0.82, "lo": 0.63, "hi": 1.07, "weight": 6 },
+          { "label": "Bianchi 2017", "est": 0.71, "lo": 0.55, "hi": 0.92, "weight": 8 },
+          { "label": "Carter 2019", "est": 0.9, "lo": 0.68, "hi": 1.19, "weight": 5 },
+          { "label": "Diallo 2021", "est": 0.65, "lo": 0.48, "hi": 0.88, "weight": 7 }
+        ],
+        "pooled": { "est": 0.76, "lo": 0.65, "hi": 0.89 },
+        "title": "Risk of relapse: pooled analysis"
+      },
+      "commands": [
+        {
+          "speak": "Four trials tested the same treatment. Let's combine their evidence into one meta-analysis."
+        },
+        {
+          "draw": ["axis"],
+          "speak": "Risk ratio sits on a log scale, so equal fold-changes are equally spaced — one means no effect."
+        },
+        {
+          "draw": ["null_line"],
+          "speak": "This dashed line marks a risk ratio of one: no difference between treatment and control."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["ci_0", "study_0", "study_label_0", "est_label_0"],
+          "speak": "Anderson's trial found a risk ratio below one, but its interval crosses the line — not significant on its own."
+        },
+        {
+          "draw": ["ci_1", "study_1", "study_label_1", "est_label_1"],
+          "speak": "Bianchi's larger trial — the bigger square — found a clearer reduction in risk."
+        },
+        {
+          "draw": ["ci_2", "study_2", "study_label_2", "est_label_2"],
+          "speak": "Carter's trial leans the same direction but is smaller and less precise."
+        },
+        {
+          "draw": ["ci_3", "study_3", "study_label_3", "est_label_3"],
+          "speak": "Diallo's trial shows the strongest effect."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": ["pooled", "pooled_label"],
+          "speak": "Pooling all four — weighting the larger trials more — gives this diamond, spanning the pooled confidence interval."
+        },
+        {
+          "highlight": {
+            "target": ["pooled"],
+            "effect": "glow"
+          },
+          "speak": "The whole diamond sits left of the null line: together, the evidence supports a real reduction in risk."
+        },
+        {
+          "draw": ["title"],
+          "speak": "Every trial, and the pooled estimate, in one figure."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show how a confounder biases the effect of coffee on heart disease.",
+    "packs": ["evidence"],
+    "spec": {
+      "title": "Confounding in a causal DAG",
+      "template": "causal_dag",
+      "params": {
+        "nodes": [
+          { "name": "Coffee", "role": "exposure" },
+          { "name": "Heart disease", "role": "outcome" },
+          { "name": "Stress", "role": "confounder" }
+        ],
+        "edges": "Coffee -> Heart disease; Stress -> Coffee; Stress -> Heart disease",
+        "highlight_backdoor": true,
+        "title": "Confounding by stress"
+      },
+      "commands": [
+        {
+          "speak": "Coffee drinkers often have worse heart-disease outcomes — but is coffee really the cause?"
+        },
+        {
+          "draw": ["node_coffee"],
+          "speak": "Here's our exposure: coffee consumption."
+        },
+        {
+          "draw": ["node_heart_disease"],
+          "speak": "And our outcome: heart disease."
+        },
+        {
+          "draw": ["edge_0"],
+          "speak": "The naive story is a direct arrow from coffee straight to heart disease."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["node_stress"],
+          "speak": "But stress causes people to drink more coffee — and stress itself raises heart-disease risk."
+        },
+        {
+          "draw": ["edge_1", "edge_2"],
+          "speak": "Stress points to BOTH coffee and heart disease — that's a classic confounder."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": ["edge_1", "edge_2"],
+            "effect": "glow"
+          },
+          "speak": "These two tinted arrows are the backdoor path: stress creates an association between coffee and heart disease even if coffee does nothing at all."
+        },
+        {
+          "draw": ["title"],
+          "speak": "Without adjusting for stress, we'd wrongly blame the coffee."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw an SEIR model of an epidemic with waning immunity.",
+    "packs": ["evidence"],
+    "spec": {
+      "title": "An SEIR epidemic model",
+      "template": "sir_compartments",
+      "params": {
+        "compartments": ["S", "E", "I", "R"],
+        "rates": ["β·S·I", "σ·E", "γ·I"],
+        "show_loop": { "from": "R", "to": "S", "label": "Waning immunity" }
+      },
+      "commands": [
+        {
+          "speak": "An SEIR model splits an epidemic into four stages people move through."
+        },
+        {
+          "draw": ["box_s", "box_label_s"],
+          "speak": "Everyone starts susceptible — able to catch the disease."
+        },
+        {
+          "draw": ["flow_0", "rate_0", "box_e", "box_label_e"],
+          "speak": "Exposure moves people into the E box — infected, but not yet infectious themselves."
+        },
+        {
+          "draw": ["flow_1", "rate_1", "box_i", "box_label_i"],
+          "speak": "After an incubation period, they become infectious and can spread the disease onward."
+        },
+        {
+          "draw": ["flow_2", "rate_2", "box_r", "box_label_r"],
+          "speak": "Eventually they recover."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["loop", "loop_label"],
+          "speak": "This curved arrow is waning immunity — some recovered people slowly become susceptible again."
+        },
+        {
+          "highlight": {
+            "target": ["flow_1"],
+            "effect": "glow"
+          },
+          "speak": "The rate of that exposed-to-infectious step is what makes an epidemic explosive or slow."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Explain a p-value cutoff of 0.05, two-sided.",
+    "packs": ["evidence"],
+    "spec": {
+      "title": "Two-sided significance at 0.05",
+      "template": "distribution_curve",
+      "params": {
+        "shade": { "from": 1.96, "side": "two", "label": "2.5% each tail" },
+        "title": "Two-sided significance at α = 0.05"
+      },
+      "commands": [
+        {
+          "speak": "A p-value cutoff of 0.05, two-sided, means we split five percent of the area between both tails of the curve."
+        },
+        {
+          "draw": ["axis", "curve"],
+          "speak": "This is the normal distribution of a test statistic under the null hypothesis — no real effect."
+        },
+        {
+          "draw": ["mean_line"],
+          "speak": "Its center, the mean, is where we'd expect the statistic to land if nothing were going on."
+        },
+        {
+          "draw": ["sd_tick_0", "sd_tick_1", "sd_tick_2", "sd_tick_3"],
+          "speak": "Marked here in standard deviations from that center."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["shade", "shade2"],
+          "speak": "We shade the most extreme five percent — two and a half percent in each tail, beyond about 1.96 standard deviations."
+        },
+        {
+          "draw": ["shade_label"],
+          "speak": "A result landing in either shaded region is considered too unlikely to happen by chance alone."
+        },
+        {
+          "highlight": {
+            "target": ["shade", "shade2"],
+            "effect": "glow"
+          },
+          "speak": "Land in the white middle, and we fail to reject the null. Land in the shade, and we call it significant."
+        },
+        {
+          "draw": ["title"],
+          "speak": "Same logic underlies almost every significance test in this field."
+        }
+      ]
+    }
   }
 ]
