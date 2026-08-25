@@ -1,0 +1,792 @@
+pack: economics
+title: Economics
+description: Consumer choice, PPF, cost curves, payoff matrices and AD-AS — micro and macro teaching figures with computed geometry.
+---
+template: indifference_budget
+title: Consumer choice (indifference curves & budget line)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A consumer-choice diagram: a straight budget line (income split between two
+  goods at their prices), one to three Cobb-Douglas indifference curves
+  (below, at, and above the utility-maximizing bundle), and the optimal
+  bundle where the budget line is tangent to the highest attainable
+  indifference curve, with dashed guides down to both axes. Choose this scene
+  for ANY request about consumer choice, indifference curves, budget
+  constraints or budget lines, marginal rate of substitution, Cobb-Douglas
+  utility, or "what bundle maximizes utility". income, price_x and price_y
+  are numeric and animate smoothly — tween them to show the budget line
+  pivoting or sliding and the optimum sliding along with it.
+params:
+  type: object
+  properties:
+    income:
+      type: number
+      description: "The consumer's income/budget (default 100)."
+    price_x:
+      type: number
+      description: "Price per unit of the x-axis good (default 2)."
+    price_y:
+      type: number
+      description: "Price per unit of the y-axis good (default 1)."
+    preference:
+      type: string
+      enum: [balanced, x_leaning, y_leaning]
+      description: "Cobb-Douglas exponent on the x-good: balanced=0.5 (default), x_leaning=0.7 (prefers the x-good), y_leaning=0.3 (prefers the y-good)."
+    curves:
+      type: integer
+      enum: [1, 2, 3]
+      description: "How many indifference curves to draw (default 3): 1 draws just the utility-maximizing curve; 2 adds a lower, attainable curve; 3 adds a higher, unattainable one too."
+    show_optimum:
+      type: boolean
+      description: "Show the optimal-bundle dot and its dashed guides to both axes (default true)."
+    x_good:
+      type: string
+      description: "Label for the good on the x-axis (default \"Good X\")."
+    y_good:
+      type: string
+      description: "Label for the good on the y-axis (default \"Good Y\")."
+element_ids:
+  axes: the coordinate axes (one group with both axis lines and their captions)
+  budget_line: the straight budget line from (0, income/price_y) to (income/price_x, 0)
+  label_budget: the budget line's label
+  ic_1 / ic_2 / ic_3: the indifference curve(s) actually drawn, in order below/at/above the optimum (only as many as `curves` requests)
+  label_ic_1 / label_ic_2 / label_ic_3: each drawn curve's label
+  optimum: dot at the utility-maximizing bundle (x* = alpha*income/price_x, y* = (1-alpha)*income/price_y), present when show_optimum
+  optimum_label: the optimum's label
+  guide_x: dashed vertical guide from the optimum down to the x-axis, present when show_optimum
+  guide_y: dashed horizontal guide from the optimum to the y-axis, present when show_optimum
+examples:
+  - request: "Draw a consumer's indifference curves and budget line, and show the optimal bundle."
+    params: {}
+  - request: "Show how a consumer chooses between food and housing."
+    params: { preference: "x_leaning", x_good: "Food", y_good: "Housing" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const income = Math.max(1, params.income ?? 100);
+  const priceX = Math.max(0.01, params.price_x ?? 2);
+  const priceY = Math.max(0.01, params.price_y ?? 1);
+  const pref = params.preference === "x_leaning" ? "x_leaning" : params.preference === "y_leaning" ? "y_leaning" : "balanced";
+  const alpha = pref === "x_leaning" ? 0.7 : pref === "y_leaning" ? 0.3 : 0.5;
+  const curveCount = Math.min(3, Math.max(1, Math.round(params.curves ?? 3)));
+  const showOptimum = params.show_optimum !== false;
+  const xGood = typeof params.x_good === "string" && params.x_good.trim() !== "" ? params.x_good : "Good X";
+  const yGood = typeof params.y_good === "string" && params.y_good.trim() !== "" ? params.y_good : "Good Y";
+
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const xInt = income / priceX;
+  const yInt = income / priceY;
+  const xStar = alpha * xInt;
+  const yStar = (1 - alpha) * yInt;
+  const worldXMax = xInt * 1.3;
+  const worldYMax = yInt * 1.3;
+  const sx = (v) => plot.x0 + (v / worldXMax) * (plot.x1 - plot.x0);
+  const sy = (v) => plot.y0 + (v / worldYMax) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xGood, { fontSize: 26, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yGood, { fontSize: 26, anchor: "start" }),
+  ];
+  push(kit.group("axes", axesChildren));
+
+  const budgetPts = [[sx(0), sy(yInt)], [sx(xInt), sy(0)]];
+  push(kit.stroke("budget_line", budgetPts, { color: C.ink, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.budget_line = budgetPts[1];
+  label("label_budget", budgetPts[1], "below-right", "Budget line", C.ink, 20);
+
+  const uAt = Math.pow(xStar, alpha) * Math.pow(yStar, 1 - alpha);
+  const U = { below: uAt * 0.6, at: uAt, above: uAt * 1.55 };
+  const LEVEL_STYLE = {
+    below: { color: C.supply, dash: false, text: "Attainable" },
+    at: { color: C.accent, dash: false, text: "Optimum U" },
+    above: { color: C.guide, dash: true, text: "Unattainable" },
+  };
+  const levels = curveCount === 1 ? ["at"] : curveCount === 2 ? ["below", "at"] : ["below", "at", "above"];
+
+  function icWorldPts(u) {
+    const raw = kit.sample((x) => Math.pow(u / Math.pow(x, alpha), 1 / (1 - alpha)), worldXMax * 0.015, worldXMax * 0.98, 70);
+    return raw.filter(([x, y]) => y >= 0 && y <= worldYMax * 0.97);
+  }
+
+  levels.forEach((lvl, i) => {
+    const id = "ic_" + (i + 1);
+    const world = icWorldPts(U[lvl]);
+    const pts = world.length > 1 ? world.map(([x, y]) => [sx(x), sy(y)]) : [[sx(xStar), sy(yStar)], [sx(xStar) + 1, sy(yStar)]];
+    const st = LEVEL_STYLE[lvl];
+    push(kit.stroke(id, pts, { color: st.color, strokeWidth: lvl === "at" ? 4.5 : 3.5, dash: st.dash, ms: MS.curve }));
+    anchors[id] = pts[pts.length - 1];
+    label("label_" + id, anchors[id], "right", st.text, st.color, 19);
+  });
+
+  if (showOptimum) {
+    const opt = [sx(xStar), sy(yStar)];
+    push(kit.stroke("guide_x", [[opt[0], plot.y0], opt], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    push(kit.stroke("guide_y", [[plot.x0, opt[1]], opt], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    push(kit.stroke("optimum", [opt], { shapeHint: { type: "circle", c: opt, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+    anchors.optimum = opt;
+    label("optimum_label", opt, "above-right", "Optimum", C.ink, 22);
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: ppf
+title: Production possibilities frontier
+version: 1
+kit: 2
+status: ready
+description: >-
+  A production possibilities frontier (PPF) between two goods: a bowed-out
+  (concave, increasing-opportunity-cost) or straight-line (constant-
+  opportunity-cost) curve from the y-axis intercept to the x-axis intercept,
+  the attainable region shaded underneath it, and optional labeled points
+  that are efficient (on the frontier), inefficient (inside it, wasting
+  resources), or unattainable (outside it, beyond current capacity). Choose
+  this scene for ANY request about the production possibilities frontier,
+  PPF, production possibilities curve, opportunity cost, scarcity,
+  productive efficiency, or a classic "guns and butter" tradeoff.
+params:
+  type: object
+  properties:
+    good_x:
+      type: string
+      description: "Label for the good on the x-axis (default \"Good X\")."
+    good_y:
+      type: string
+      description: "Label for the good on the y-axis (default \"Good Y\")."
+    bowed:
+      type: boolean
+      description: "Concave, bowed-out frontier from increasing opportunity cost (default true); false draws a straight-line frontier (constant opportunity cost)."
+    points:
+      type: array
+      items:
+        type: object
+        properties:
+          x_share:
+            type: number
+            description: "0-1: how far along the frontier, from the y-intercept (0) to the x-intercept (1), this point's direction from the origin is taken from."
+          label:
+            type: string
+          kind:
+            type: string
+            enum: [efficient, inefficient, unattainable]
+            description: "efficient (default) sits ON the frontier; inefficient sits inside it (feasible but wasteful); unattainable sits outside it (infeasible)."
+        required: [x_share, label]
+      description: "Labeled reference points relative to the frontier."
+    shade_attainable:
+      type: boolean
+      description: "Shade the attainable region under the frontier (default true)."
+element_ids:
+  axes: the coordinate axes (one group with both axis lines and their captions)
+  frontier: the production possibilities frontier curve
+  attainable: the shaded attainable region under the frontier, present when shade_attainable
+  pt_<i>: marker for points[i]
+  pt_label_<i>: its label
+examples:
+  - request: "Draw a production possibilities frontier for guns and butter."
+    params: { good_x: "Guns", good_y: "Butter" }
+  - request: "Show a production possibilities frontier with an unattainable combination of healthcare and education."
+    params: { good_x: "Healthcare", good_y: "Education", points: [{ x_share: 0.5, label: "Unattainable mix", kind: "unattainable" }] }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const goodX = typeof params.good_x === "string" && params.good_x.trim() !== "" ? params.good_x : "Good X";
+  const goodY = typeof params.good_y === "string" && params.good_y.trim() !== "" ? params.good_y : "Good Y";
+  const bowed = params.bowed !== false;
+  const shadeAttainable = params.shade_attainable !== false;
+  const pointsIn = Array.isArray(params.points) ? params.points.slice(0, 6) : [];
+
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const R = 90;
+  const worldMax = R * 1.35;
+  const sx = (v) => plot.x0 + (v / worldMax) * (plot.x1 - plot.x0);
+  const sy = (v) => plot.y0 + (v / worldMax) * (plot.y1 - plot.y0);
+
+  function curveWorldPt(s) {
+    const share = Math.min(1, Math.max(0, typeof s === "number" ? s : 0.5));
+    if (bowed) {
+      const theta = (1 - share) * (Math.PI / 2);
+      return [R * Math.cos(theta), R * Math.sin(theta)];
+    }
+    return [R * share, R * (1 - share)];
+  }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], goodX, { fontSize: 26, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], goodY, { fontSize: 26, anchor: "start" }),
+  ];
+  push(kit.group("axes", axesChildren));
+
+  const frontierWorld = bowed ? kit.arc([0, 0], R, Math.PI / 2, 0, 48) : [[0, R], [R, 0]];
+  push(kit.stroke("frontier", frontierWorld.map(([x, y]) => [sx(x), sy(y)]), { color: C.ink, strokeWidth: 4.5, ms: MS.curve }));
+  const midFrontier = frontierWorld[Math.floor(frontierWorld.length / 2)];
+  anchors.frontier = [sx(midFrontier[0]), sy(midFrontier[1])];
+
+  if (shadeAttainable) {
+    const shadeWorld = frontierWorld.concat([[0, 0]]);
+    const shadePts = shadeWorld.map(([x, y]) => [sx(x), sy(y)]);
+    push(kit.area("attainable", shadePts, C.region1));
+    let cx = 0, cy = 0;
+    for (const p of shadePts) { cx += p[0]; cy += p[1]; }
+    anchors.attainable = [cx / shadePts.length, cy / shadePts.length];
+  }
+
+  pointsIn.forEach((p, i) => {
+    const s = p && typeof p.x_share === "number" ? p.x_share : 0.5;
+    const kind = p && p.kind === "inefficient" ? "inefficient" : p && p.kind === "unattainable" ? "unattainable" : "efficient";
+    const factor = kind === "inefficient" ? 0.6 : kind === "unattainable" ? 1.25 : 1;
+    const base = curveWorldPt(s);
+    const world = [base[0] * factor, base[1] * factor];
+    const logical = [sx(world[0]), sy(world[1])];
+    const color = kind === "efficient" ? C.ink : kind === "inefficient" ? C.accent : C.regionLoss;
+    const id = "pt_" + i;
+    push(kit.stroke(id, [logical], { shapeHint: { type: "circle", c: logical, r: 7 }, strokeWidth: 3, fill: color, ms: MS.dot }));
+    anchors[id] = logical;
+    const text = p && typeof p.label === "string" && p.label.trim() !== "" ? p.label : "Point " + (i + 1);
+    label("pt_label_" + i, logical, "above-right", text, color, 20);
+  });
+
+  return { drawables, labels, anchors, order };
+---
+template: firm_cost_curves
+title: Firm cost curves (competition & monopoly)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A firm's short-run cost curves — marginal cost (MC), average total cost
+  (ATC), average variable cost (AVC) — computed from fixed reference
+  expressions, with either a price-taking competitive firm's horizontal
+  price line and profit-maximizing quantity (where P = MC), or a
+  monopolist's downward demand and marginal-revenue curves with its
+  profit-maximizing quantity (where MR = MC) and, on request, the
+  deadweight-loss triangle versus the competitive outcome. Choose this scene
+  for ANY request about marginal cost, average total cost, average variable
+  cost, marginal revenue, a firm's profit-maximizing quantity, perfect
+  competition, monopoly pricing, or monopoly deadweight loss.
+params:
+  type: object
+  properties:
+    mode:
+      type: string
+      enum: [competition, monopoly]
+      description: "A price-taking competitive firm, or a single-price monopolist. Default competition."
+    show:
+      type: array
+      items:
+        type: string
+        enum: [mc, atc, avc, mr, demand, price_line]
+      description: "Which curves/lines to draw. Default per mode: competition -> mc, atc, avc, price_line; monopoly -> mc, atc, demand, mr."
+    price:
+      type: number
+      description: "Market price for a competitive firm, 0-100 (default 55). Numeric and animates smoothly."
+    shade:
+      type: string
+      enum: [profit, loss, deadweight]
+      description: "Shade a profit/loss rectangle at the profit-maximizing quantity (either mode), or, monopoly only, the deadweight-loss triangle between demand and MC from the monopoly quantity to the competitive quantity. Omit for no shading."
+element_ids:
+  axes: the coordinate axes (one group with both axis lines and their captions)
+  mc / atc / avc / demand / mr: the curves currently in `show`
+  price_line: the horizontal market-price line (competition), present when in `show`
+  q_star: dot at the profit-maximizing quantity
+  p_star: dashed guide from q_star to the price axis
+  shade: the shaded profit/loss rectangle or deadweight-loss triangle, when `shade` is set and computable
+  label_mc / label_atc / label_avc / label_demand / label_mr / label_price_line / label_q_star / label_p_star / label_shade: curve and marker labels
+examples:
+  - request: "Draw a competitive firm's marginal and average cost curves."
+    params: {}
+  - request: "Show a monopolist's profit-maximizing quantity and the resulting deadweight loss."
+    params: { mode: "monopoly", shade: "deadweight" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const mcExpr = kit.expr("0.06*(x-30)^2 + 12", ["x"]);
+  const atcExpr = kit.expr("0.04*(x-45)^2 + 22", ["x"]);
+  const avcExpr = kit.expr("0.04*(x-45)^2 + 14", ["x"]);
+  const demandExpr = kit.expr("90 - 0.8*x", ["x"]);
+  const mrExpr = kit.expr("90 - 1.6*x", ["x"]);
+  const mc = (x) => mcExpr({ x });
+  const atc = (x) => atcExpr({ x });
+  const avc = (x) => avcExpr({ x });
+  const demandFn = (x) => demandExpr({ x });
+  const mrFn = (x) => mrExpr({ x });
+
+  function findCrossing(f, g, x0, x1, n) {
+    let prevX = x0, prevDiff = f(x0) - g(x0);
+    if (prevDiff === 0) return prevX;
+    for (let i = 1; i <= n; i++) {
+      const x = x0 + ((x1 - x0) * i) / n;
+      const diff = f(x) - g(x);
+      if (diff === 0) return x;
+      if ((prevDiff < 0 && diff > 0) || (prevDiff > 0 && diff < 0)) {
+        const t = prevDiff / (prevDiff - diff);
+        return prevX + (x - prevX) * t;
+      }
+      prevX = x;
+      prevDiff = diff;
+    }
+    return null;
+  }
+
+  const mode = params.mode === "monopoly" ? "monopoly" : "competition";
+  const defaultShow = mode === "monopoly" ? ["mc", "atc", "demand", "mr"] : ["mc", "atc", "avc", "price_line"];
+  const showList = Array.isArray(params.show) && params.show.length > 0 ? params.show : defaultShow;
+  const showSet = new Set(showList);
+  const price = Math.min(100, Math.max(0, typeof params.price === "number" ? params.price : 55));
+  const shadeParam = params.shade === "profit" || params.shade === "loss" || params.shade === "deadweight" ? params.shade : null;
+
+  let qStar = null, pStar = null, qCompetitive = null;
+  if (mode === "monopoly") {
+    qStar = findCrossing(mc, mrFn, 0.5, 100, 500);
+    if (qStar !== null) pStar = demandFn(qStar);
+    qCompetitive = findCrossing(mc, demandFn, 0.5, 100, 500);
+  } else {
+    qStar = findCrossing(mc, () => price, 30, 100, 500);
+    if (qStar !== null) pStar = price;
+  }
+
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const sx = (v) => plot.x0 + (v / 100) * (plot.x1 - plot.x0);
+  const sy = (v) => plot.y0 + (v / 100) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Quantity (Q)", { fontSize: 26, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Price / cost", { fontSize: 26, anchor: "start" }),
+  ];
+  push(kit.group("axes", axesChildren));
+
+  function sampledLogical(fn) {
+    const raw = kit.sample(fn, 0.5, 100, 90);
+    return raw.filter(([x, y]) => y >= 0 && y <= 98).map(([x, y]) => [sx(x), sy(y)]);
+  }
+
+  const CURVES = {
+    mc: { fn: mc, color: C.accent, dash: false, name: "MC" },
+    atc: { fn: atc, color: C.supply, dash: false, name: "ATC" },
+    avc: { fn: avc, color: C.shifted, dash: false, name: "AVC" },
+    demand: { fn: demandFn, color: C.demand, dash: false, name: "Demand" },
+    mr: { fn: mrFn, color: C.demand, dash: true, name: "MR" },
+  };
+
+  ["mc", "atc", "avc", "demand", "mr"].forEach((key) => {
+    if (!showSet.has(key)) return;
+    const def = CURVES[key];
+    const pts = sampledLogical(def.fn);
+    if (pts.length < 2) return;
+    push(kit.stroke(key, pts, { color: def.color, strokeWidth: 4, dash: def.dash, ms: MS.curve }));
+    anchors[key] = pts[pts.length - 1];
+    label("label_" + key, anchors[key], "right", def.name, def.color, 20);
+  });
+
+  if (showSet.has("price_line")) {
+    const yL = sy(price);
+    const pts = [[sx(0.5), yL], [sx(99.5), yL]];
+    push(kit.stroke("price_line", pts, { color: C.accent, dash: true, strokeWidth: 3.5, ms: MS.priceLine }));
+    anchors.price_line = pts[1];
+    label("label_price_line", pts[1], "above-left", "Price", C.accent, 20);
+  }
+
+  if (qStar !== null && pStar !== null) {
+    const qL = sx(qStar), pL = sy(pStar);
+    push(kit.stroke("q_star", [[qL, pL]], { shapeHint: { type: "circle", c: [qL, pL], r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+    anchors.q_star = [qL, pL];
+    label("label_q_star", [qL, pL], "above-right", mode === "monopoly" ? "Q* (MR=MC)" : "Q* (P=MC)", C.ink, 19);
+    push(kit.stroke("p_star", [[plot.x0, pL], [qL, pL]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    anchors.p_star = [plot.x0, pL];
+    label("label_p_star", [plot.x0, pL], "left", "P*", C.guide, 19);
+  }
+
+  if (shadeParam === "profit" || shadeParam === "loss") {
+    if (qStar !== null && pStar !== null) {
+      const atcAtQ = atc(qStar);
+      const top = Math.max(pStar, atcAtQ);
+      const bottom = Math.min(pStar, atcAtQ);
+      if (top - bottom > 0.5 && qStar > 0.5) {
+        const rectWorld = [[0, bottom], [qStar, bottom], [qStar, top], [0, top]];
+        const color = shadeParam === "profit" ? C.region1 : C.regionLoss;
+        const rectPts = rectWorld.map(([x, y]) => [sx(x), sy(y)]);
+        push(kit.area("shade", rectPts, color));
+        anchors.shade = [sx(qStar / 2), sy((top + bottom) / 2)];
+        label("label_shade", anchors.shade, "above", shadeParam === "profit" ? "Profit" : "Loss", color, 20);
+      }
+    }
+  } else if (shadeParam === "deadweight" && mode === "monopoly" && qStar !== null && qCompetitive !== null && qCompetitive > qStar + 0.5) {
+    const N = 30;
+    const upper = [], lower = [];
+    for (let i = 0; i <= N; i++) {
+      const x = qStar + ((qCompetitive - qStar) * i) / N;
+      upper.push([x, demandFn(x)]);
+      lower.push([x, mc(x)]);
+    }
+    const regionWorld = upper.concat(lower.reverse());
+    const regionPts = regionWorld.map(([x, y]) => [sx(Math.min(100, Math.max(0, x))), sy(Math.min(100, Math.max(0, y)))]);
+    push(kit.area("shade", regionPts, C.regionLoss));
+    let cx = 0, cy = 0;
+    for (const p of regionPts) { cx += p[0]; cy += p[1]; }
+    anchors.shade = [cx / regionPts.length, cy / regionPts.length];
+    label("label_shade", anchors.shade, "above", "Deadweight loss", C.regionLoss, 20);
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: payoff_matrix
+title: Payoff matrix (2x2 game)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A 2x2 game-theory payoff matrix: each cell shows both players' payoffs as
+  "row, col", with best-response payoffs underlined per column (the row
+  player's) and per row (the column player's) — the classic underlining
+  method — and, by default, the pure-strategy Nash equilibrium cell(s)
+  shaded, computed by checking that both payoffs are mutual best responses.
+  Choose this scene for ANY request about game theory, a payoff matrix, the
+  prisoner's dilemma, Nash equilibrium, a dominant strategy, best response,
+  or any two-player simultaneous-move game.
+params:
+  type: object
+  properties:
+    row_player:
+      type: string
+      description: "Name of the row player (default \"Player 1\")."
+    col_player:
+      type: string
+      description: "Name of the column player (default \"Player 2\")."
+    row_strategies:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+      description: "The row player's two strategy names, top row first."
+    col_strategies:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+      description: "The column player's two strategy names, left column first."
+    payoffs:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { type: number }
+      description: "Row-major 2x2 payoffs: payoffs[row][col] = [row player's payoff, column player's payoff]."
+    highlight_equilibrium:
+      type: boolean
+      description: "Shade the pure-strategy Nash equilibrium cell(s), computed by a best-response check (default true)."
+    title:
+      type: string
+element_ids:
+  grid: the 2x2 grid lines
+  cell_0_0 / cell_0_1 / cell_1_0 / cell_1_1: each cell (a group holding its payoff text and any best-response underline strokes)
+  nash_<r>_<c>: shaded region behind a pure-strategy Nash equilibrium cell, present only for such cells when highlight_equilibrium
+  row_label_0 / row_label_1: the row strategy names
+  col_label_0 / col_label_1: the column strategy names
+  row_player_label / col_player_label: the two players' names
+  title: figure title, when set
+examples:
+  - request: "Draw the prisoner's dilemma payoff matrix and highlight the Nash equilibrium."
+    params:
+      row_player: "Suspect A"
+      col_player: "Suspect B"
+      row_strategies: ["Cooperate", "Defect"]
+      col_strategies: ["Cooperate", "Defect"]
+      payoffs: [[[3, 3], [0, 5]], [[5, 0], [1, 1]]]
+      title: "Prisoner's Dilemma"
+  - request: "Draw a stag hunt game and show both Nash equilibria."
+    params:
+      row_player: "Hunter 1"
+      col_player: "Hunter 2"
+      row_strategies: ["Stag", "Hare"]
+      col_strategies: ["Stag", "Hare"]
+      payoffs: [[[4, 4], [0, 3]], [[3, 0], [2, 2]]]
+      title: "Stag Hunt"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const rowPlayer = typeof params.row_player === "string" && params.row_player.trim() !== "" ? params.row_player : "Player 1";
+  const colPlayer = typeof params.col_player === "string" && params.col_player.trim() !== "" ? params.col_player : "Player 2";
+  const rowStrat = Array.isArray(params.row_strategies) && params.row_strategies.length >= 2 ? [String(params.row_strategies[0]), String(params.row_strategies[1])] : ["Strategy A", "Strategy B"];
+  const colStrat = Array.isArray(params.col_strategies) && params.col_strategies.length >= 2 ? [String(params.col_strategies[0]), String(params.col_strategies[1])] : ["Strategy A", "Strategy B"];
+  const rawPayoffs = Array.isArray(params.payoffs) ? params.payoffs : [];
+  function cellPayoff(r, c) {
+    const row = rawPayoffs[r];
+    const cell = row && row[c];
+    if (Array.isArray(cell) && typeof cell[0] === "number" && typeof cell[1] === "number") return [cell[0], cell[1]];
+    return [0, 0];
+  }
+  const payoffs = [[cellPayoff(0, 0), cellPayoff(0, 1)], [cellPayoff(1, 0), cellPayoff(1, 1)]];
+  const highlightEq = params.highlight_equilibrium !== false;
+
+  function isRowBest(r, c) {
+    const other = 1 - r;
+    return payoffs[r][c][0] >= payoffs[other][c][0];
+  }
+  function isColBest(r, c) {
+    const other = 1 - c;
+    return payoffs[r][c][1] >= payoffs[r][other][1];
+  }
+  const nashCells = [];
+  for (let r = 0; r < 2; r++) {
+    for (let c = 0; c < 2; c++) {
+      if (isRowBest(r, c) && isColBest(r, c)) nashCells.push([r, c]);
+    }
+  }
+
+  const CX = 500, CY = 360, W = 460, H = 300;
+  const X0 = CX - W / 2, Y0 = CY - H / 2;
+  const CELL_W = W / 2, CELL_H = H / 2;
+  const rowY = (r) => Y0 + H - CELL_H * (r + 0.5);
+  const colX = (c) => X0 + CELL_W * (c + 0.5);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const t = kit.table("grid", { x: X0, y: Y0, w: W, h: H, rows: 2, cols: 2 });
+  const gridGroup = t.drawables[0];
+  gridGroup.id = "grid";
+  push(gridGroup);
+  anchors.grid = [CX, CY];
+
+  const FS = 32;
+  for (let r = 0; r < 2; r++) {
+    for (let c = 0; c < 2; c++) {
+      const center = t.anchors["grid__c" + r + "_" + c] || [colX(c), rowY(r)];
+      const rowVal = payoffs[r][c][0];
+      const colVal = payoffs[r][c][1];
+      const leftStr = String(rowVal);
+      const rightStr = String(colVal);
+      const sep = ", ";
+      const cellText = leftStr + sep + rightStr;
+      const measureW = (s) => s.length * FS * 0.52;
+      const wL = measureW(leftStr), wSep = measureW(sep), wR = measureW(rightStr);
+      const totalW = wL + wSep + wR;
+      const leftEdge = center[0] - totalW / 2;
+      const yUnderline = center[1] - FS * 0.5;
+      const children = [kit.text("cell_" + r + "_" + c + "__val", center, cellText, { fontSize: FS })];
+      if (isRowBest(r, c)) {
+        children.push(kit.stroke("cell_" + r + "_" + c + "__ul_row", [[leftEdge, yUnderline], [leftEdge + wL, yUnderline]], { strokeWidth: 2.5, color: C.ink, ms: MS.stroke }));
+      }
+      if (isColBest(r, c)) {
+        const rStart = leftEdge + wL + wSep;
+        children.push(kit.stroke("cell_" + r + "_" + c + "__ul_col", [[rStart, yUnderline], [rStart + wR, yUnderline]], { strokeWidth: 2.5, color: C.ink, ms: MS.stroke }));
+      }
+      push(kit.group("cell_" + r + "_" + c, children));
+      anchors["cell_" + r + "_" + c] = center;
+    }
+  }
+
+  if (highlightEq) {
+    nashCells.forEach((rc) => {
+      const r = rc[0], c = rc[1];
+      const left = X0 + CELL_W * c, right = left + CELL_W;
+      const top = Y0 + H - CELL_H * r, bottom = top - CELL_H;
+      const id = "nash_" + r + "_" + c;
+      push(kit.area(id, [[left, bottom], [right, bottom], [right, top], [left, top]], C.region1));
+      anchors[id] = [(left + right) / 2, (top + bottom) / 2];
+    });
+  }
+
+  for (let r = 0; r < 2; r++) {
+    const id = "row_label_" + r;
+    push(kit.text(id, [X0 - 30, rowY(r)], rowStrat[r], { fontSize: 22, color: C.guide, anchor: "end" }));
+    anchors[id] = [X0 - 30, rowY(r)];
+  }
+  for (let c = 0; c < 2; c++) {
+    const id = "col_label_" + c;
+    push(kit.text(id, [colX(c), Y0 + H + 40], colStrat[c], { fontSize: 22, color: C.guide }));
+    anchors[id] = [colX(c), Y0 + H + 40];
+  }
+
+  push(kit.text("row_player_label", [X0 - 30, rowY(0) + 52], rowPlayer, { fontSize: 24, color: C.guide, anchor: "end" }));
+  anchors.row_player_label = [X0 - 30, rowY(0) + 52];
+  push(kit.text("col_player_label", [CX, Y0 + H + 85], colPlayer, { fontSize: 24, color: C.guide }));
+  anchors.col_player_label = [CX, Y0 + H + 85];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [CX, Y0 + H + 130], params.title, { fontSize: 30 }));
+    anchors.title = [CX, Y0 + H + 130];
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: ad_as
+title: Aggregate demand - aggregate supply
+version: 1
+kit: 2
+status: ready
+description: >-
+  A macroeconomic aggregate demand-aggregate supply (AD-AS) diagram: a
+  downward-sloping AD curve, an upward-sloping AS curve, their equilibrium
+  (price level and real GDP) with dashed guides, an optional shift of either
+  curve (with a shift arrow between old and new, in the `shifted` color, and
+  the new equilibrium), and an optional vertical long-run aggregate supply
+  (LRAS) guide at potential output. Choose this scene for ANY request about
+  aggregate demand, aggregate supply, the AD-AS model, the price level, real
+  GDP, an inflationary or recessionary shock, or an expansionary/
+  contractionary demand or supply shift. shift.amount is numeric and
+  animates smoothly — tween it to show the curve sliding and the equilibrium
+  moving with it.
+params:
+  type: object
+  properties:
+    shift:
+      type: object
+      description: "A shift of AD or AS, with a shift arrow and the new equilibrium."
+      properties:
+        curve:
+          type: string
+          enum: [ad, as]
+        direction:
+          type: string
+          enum: [left, right]
+        amount:
+          type: number
+          description: "Magnitude of the shift, 0-30 (default 18)."
+      required: [curve]
+    show_lras:
+      type: boolean
+      description: "Draw a vertical long-run aggregate supply guide at potential output (default false)."
+    x_label:
+      type: string
+      description: "Default \"Real GDP\"."
+    y_label:
+      type: string
+      description: "Default \"Price level\"."
+element_ids:
+  axes: the coordinate axes (one group with both axis lines and their captions)
+  ad: the aggregate demand curve
+  as: the aggregate supply curve
+  lras: vertical long-run aggregate supply guide, present when show_lras
+  ad_shifted / as_shifted: the shifted curve, present when shift.curve names it
+  shift_arrow: arrow from the old curve to the shifted one, present when shift is set
+  eq: dot at the original AD-AS equilibrium
+  guides: dashed guides from eq to both axes
+  eq_new: dot at the new equilibrium after a shift, present when shift is set
+  label_ad / label_as / label_ad_shifted / label_as_shifted / label_eq / label_eq_new / label_lras: labels
+examples:
+  - request: "Draw an aggregate demand and aggregate supply diagram."
+    params: {}
+  - request: "Show aggregate supply increasing, with the long-run aggregate supply marked."
+    params: { shift: { curve: "as", direction: "right", amount: 15 }, show_lras: true }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const xLabel = typeof params.x_label === "string" && params.x_label.trim() !== "" ? params.x_label : "Real GDP";
+  const yLabel = typeof params.y_label === "string" && params.y_label.trim() !== "" ? params.y_label : "Price level";
+  const showLras = params.show_lras === true;
+  const shift = params.shift && (params.shift.curve === "ad" || params.shift.curve === "as") ? params.shift : null;
+
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const sx = (v) => plot.x0 + (v / 100) * (plot.x1 - plot.x0);
+  const sy = (v) => plot.y0 + (v / 100) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xLabel, { fontSize: 26, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLabel, { fontSize: 26, anchor: "start" }),
+  ];
+  push(kit.group("axes", axesChildren));
+
+  const D0 = 4, D1 = 96;
+  const adPts = [], asPts = [];
+  for (let x = D0; x <= D1; x += 2) {
+    adPts.push([x, 100 - x]);
+    asPts.push([x, x]);
+  }
+
+  push(kit.stroke("ad", adPts.map(([x, y]) => [sx(x), sy(y)]), { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.ad = [sx(adPts[adPts.length - 1][0]), sy(adPts[adPts.length - 1][1])];
+  label("label_ad", anchors.ad, "right", "AD", C.demand, 22);
+
+  push(kit.stroke("as", asPts.map(([x, y]) => [sx(x), sy(y)]), { color: C.supply, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.as = [sx(asPts[asPts.length - 1][0]), sy(asPts[asPts.length - 1][1])];
+  label("label_as", anchors.as, "right", "AS", C.supply, 22);
+
+  const eqX = 50, eqY = 50;
+  const eqL = [sx(eqX), sy(eqY)];
+  push(kit.stroke("guides", [[plot.x0, eqL[1]], eqL, [eqL[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+  push(kit.stroke("eq", [eqL], { shapeHint: { type: "circle", c: eqL, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+  anchors.eq = eqL;
+  label("label_eq", eqL, "above-right", "E", C.ink, 22);
+
+  if (showLras) {
+    const lrasX = sx(eqX);
+    push(kit.stroke("lras", [[lrasX, plot.y0], [lrasX, plot.y1]], { color: C.guide, dash: true, strokeWidth: 3, ms: MS.guides }));
+    anchors.lras = [lrasX, plot.y1];
+    label("label_lras", [lrasX, plot.y1 + 10], "above", "LRAS (potential output)", C.guide, 18);
+  }
+
+  if (shift) {
+    const magnitude = Math.min(30, Math.max(0, typeof shift.amount === "number" ? shift.amount : 18));
+    const dir = shift.direction === "left" ? -1 : 1;
+    const dx = dir * magnitude;
+    let eqX2, eqY2;
+    if (shift.curve === "ad") {
+      const shiftedRaw = adPts.map(([x, y]) => [x + dx, y]).filter(([x]) => x >= 1 && x <= 99);
+      const logicalPts = shiftedRaw.length >= 2 ? shiftedRaw.map(([x, y]) => [sx(x), sy(y)]) : [eqL, [eqL[0] + 1, eqL[1]]];
+      push(kit.stroke("ad_shifted", logicalPts, { color: C.shifted, strokeWidth: 4.5, ms: MS.curve }));
+      anchors.ad_shifted = logicalPts[logicalPts.length - 1];
+      label("label_ad_shifted", anchors.ad_shifted, "right", "AD′", C.shifted, 20);
+      eqX2 = (100 + dx) / 2;
+      eqY2 = eqX2;
+      const midBase = adPts[Math.floor(adPts.length / 2)];
+      const midShift = [midBase[0] + dx, midBase[1]];
+      push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
+    } else {
+      const shiftedRaw = asPts.map(([x, y]) => [x + dx, y]).filter(([x]) => x >= 1 && x <= 99);
+      const logicalPts = shiftedRaw.length >= 2 ? shiftedRaw.map(([x, y]) => [sx(x), sy(y)]) : [eqL, [eqL[0] + 1, eqL[1]]];
+      push(kit.stroke("as_shifted", logicalPts, { color: C.shifted, strokeWidth: 4.5, ms: MS.curve }));
+      anchors.as_shifted = logicalPts[logicalPts.length - 1];
+      label("label_as_shifted", anchors.as_shifted, "right", "AS′", C.shifted, 20);
+      eqX2 = (100 + dx) / 2;
+      eqY2 = eqX2 - dx;
+      const midBase = asPts[Math.floor(asPts.length / 2)];
+      const midShift = [midBase[0] + dx, midBase[1]];
+      push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
+    }
+    const eq2L = [sx(eqX2), sy(eqY2)];
+    push(kit.stroke("eq_new", [eq2L], { shapeHint: { type: "circle", c: eq2L, r: 7 }, strokeWidth: 3, fill: C.shifted, ms: MS.dot }));
+    anchors.eq_new = eq2L;
+    label("label_eq_new", eq2L, "below-right", "E′", C.shifted, 20);
+  }
+
+  return { drawables, labels, anchors, order };

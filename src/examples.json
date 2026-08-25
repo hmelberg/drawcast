@@ -1608,5 +1608,337 @@
         }
       ]
     }
+  },
+  {
+    "request": "Draw the prisoner's dilemma and show the Nash equilibrium.",
+    "packs": ["economics"],
+    "spec": {
+      "title": "The Prisoner's Dilemma",
+      "template": "payoff_matrix",
+      "params": {
+        "row_player": "Suspect A",
+        "col_player": "Suspect B",
+        "row_strategies": ["Cooperate", "Defect"],
+        "col_strategies": ["Cooperate", "Defect"],
+        "payoffs": [[[3, 3], [0, 5]], [[5, 0], [1, 1]]],
+        "title": "Prisoner's Dilemma"
+      },
+      "commands": [
+        {
+          "speak": "Two suspects are questioned separately. Let's see why they might both confess, even though staying silent would serve them better."
+        },
+        {
+          "draw": ["grid", "row_label_0", "row_label_1", "col_label_0", "col_label_1", "row_player_label", "col_player_label"],
+          "speak": "Each suspect can cooperate with their partner by staying silent, or defect by confessing."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_0_0"],
+          "speak": "If both stay silent, they each get a light sentence — a payoff of three."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_0_1", "cell_1_0"],
+          "parallel": true,
+          "speak": "But if one confesses while the other stays silent, the confessor goes free and the other takes the fall."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["cell_1_1"],
+          "speak": "If both confess, they both do worse than if they had cooperated."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": ["nash_1_1"],
+          "speak": "Look at the underlines: confessing is the best response no matter what the other suspect does."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": ["cell_1_1"],
+            "effect": "glow"
+          },
+          "speak": "That makes mutual confession the Nash equilibrium — even though silence would have left them both better off."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show how a consumer chooses the bundle that maximizes their utility.",
+    "packs": ["economics"],
+    "spec": {
+      "title": "Finding the consumer's optimum",
+      "template": "indifference_budget",
+      "params": {
+        "income": 100,
+        "price_x": 2,
+        "price_y": 1,
+        "x_good": "Coffee",
+        "y_good": "Books"
+      },
+      "commands": [
+        {
+          "speak": "A consumer has a fixed budget and two things to spend it on. Let's find the combination that makes them happiest."
+        },
+        {
+          "draw": ["axes"],
+          "speak": "Coffee along the bottom, books up the side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["budget_line", "label_budget"],
+          "speak": "The budget line marks every combination they can just afford."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["ic_1", "label_ic_1"],
+          "speak": "This lower curve is attainable, but there's room to do better without spending more."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["ic_2", "label_ic_2"],
+          "speak": "This curve just touches the budget line — every point on it gives the same satisfaction."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["ic_3", "label_ic_3"],
+          "speak": "This higher curve would feel even better, but it's out of reach at this budget."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": ["optimum", "guide_x", "guide_y", "optimum_label"],
+          "speak": "The optimum sits exactly where the budget line just touches the highest curve they can reach."
+        },
+        {
+          "highlight": {
+            "target": ["optimum"],
+            "effect": "glow"
+          },
+          "speak": "Move spending either direction from that point, and total satisfaction only falls."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Draw a production possibilities frontier with an unattainable combination of goods.",
+    "packs": ["economics"],
+    "spec": {
+      "title": "Guns, butter, and the frontier of the possible",
+      "template": "ppf",
+      "params": {
+        "good_x": "Guns",
+        "good_y": "Butter",
+        "points": [
+          {
+            "x_share": 0.5,
+            "label": "Beyond current capacity",
+            "kind": "unattainable"
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "An economy can only produce so much with the resources it has. Let's see what the frontier of possibility looks like."
+        },
+        {
+          "draw": ["axes"],
+          "speak": "Guns along the bottom, butter up the side — the classic tradeoff."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["frontier"],
+          "speak": "This bowed curve is the production possibilities frontier: every point on it uses every resource fully."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["attainable"],
+          "speak": "Everything underneath it is attainable with today's resources and technology."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": ["pt_0", "pt_label_0"],
+          "speak": "But this combination sits outside the frontier — it would take more resources than the economy actually has."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": ["frontier"],
+            "effect": "glow"
+          },
+          "speak": "To reach it, the whole frontier would have to shift outward first — more resources, better technology, or both."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the deadweight loss created by a monopoly.",
+    "packs": ["economics"],
+    "spec": {
+      "title": "Monopoly and deadweight loss",
+      "template": "firm_cost_curves",
+      "params": {
+        "mode": "monopoly",
+        "shade": "deadweight"
+      },
+      "commands": [
+        {
+          "speak": "A monopolist restricts output to raise its price — and that costs society more than it gains the firm. Let's see the loss."
+        },
+        {
+          "draw": ["axes"],
+          "speak": "Quantity runs along the bottom, price and cost up the side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["mc", "label_mc"],
+          "speak": "This rising curve is marginal cost — what one more unit costs to produce."
+        },
+        {
+          "draw": ["atc", "label_atc"],
+          "speak": "This is average total cost, fixed costs and all, spread over output."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["demand", "label_demand"],
+          "speak": "Demand shows what price the market will bear at each quantity."
+        },
+        {
+          "draw": ["mr", "label_mr"],
+          "speak": "Marginal revenue falls twice as fast — selling one more unit means a lower price on every unit sold."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": ["q_star", "p_star", "label_q_star", "label_p_star"],
+          "speak": "The monopolist produces where marginal revenue equals marginal cost, then charges whatever price demand allows at that quantity."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["shade", "label_shade"],
+          "speak": "A competitive market would have kept producing further, out to where price equals marginal cost."
+        },
+        {
+          "highlight": {
+            "target": ["shade"],
+            "effect": "glow"
+          },
+          "speak": "This triangle is the deadweight loss: trades that would have benefited both buyer and seller, but never happen."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show aggregate demand shifting right and animate the new equilibrium.",
+    "packs": ["economics"],
+    "spec": {
+      "title": "An aggregate demand shock, animated",
+      "template": "ad_as",
+      "params": {
+        "shift": {
+          "curve": "ad",
+          "direction": "right",
+          "amount": 0
+        }
+      },
+      "commands": [
+        {
+          "speak": "Let's watch the economy adjust when aggregate demand rises."
+        },
+        {
+          "draw": ["axes"],
+          "speak": "Real GDP along the bottom, the price level up the side."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["ad", "label_ad"],
+          "speak": "This downward-sloping line is aggregate demand."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["as", "label_as"],
+          "speak": "This upward-sloping line is aggregate supply."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["eq", "guides", "label_eq"],
+          "speak": "Where they cross is the economy's equilibrium — its price level and output today."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["ad_shifted", "label_ad_shifted", "shift_arrow"],
+          "speak": "Here's a copy of aggregate demand — right now it sits exactly on top of the original."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["eq_new", "label_eq_new"],
+          "speak": "Its equilibrium starts right on top of today's."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "animate": {
+            "shift.amount": 24
+          },
+          "duration": 3,
+          "speak": "Now suppose spending rises across the economy — the whole AD curve slides to the right."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": ["eq", "eq_new"],
+            "effect": "glow"
+          },
+          "speak": "Compare old and new: both output and the price level have risen — the signature of a demand-driven expansion."
+        }
+      ]
+    }
   }
 ]

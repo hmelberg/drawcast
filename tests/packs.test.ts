@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
 import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
 import biologyYaml from "../src/scenes/packs/biology.yaml?raw";
+import economicsYaml from "../src/scenes/packs/economics.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -334,5 +335,85 @@ describe("biology pack", () => {
     expect(atp?.kind).toBe("text");
     const withoutTransport = scenes.membrane_bilayer.layout!({});
     expect(withoutTransport.drawables.some((d) => d.id === "transport_0")).toBe(false);
+  });
+});
+
+describe("economics pack", () => {
+  beforeEach(() => unregisterPack("economics"));
+
+  const TEMPLATE_IDS = ["indifference_budget", "ppf", "firm_cost_curves", "payoff_matrix", "ad_as"];
+
+  function inBounds(res: ReturnType<typeof layoutSpec>) {
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+    for (const d of flattenDrawables(res.drawables)) {
+      if (d.kind === "stroke" || d.kind === "area") {
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+        }
+      } else if (d.kind === "text") {
+        expect(Number.isFinite(d.pos[0]) && Number.isFinite(d.pos[1])).toBe(true);
+      }
+    }
+  }
+
+  test("registers all five templates in brief order", () => {
+    const r = registerPack("economics", economicsYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every economics example renders finite, no fallback warnings, no error-severity lint", () => {
+    registerPack("economics", economicsYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        inBounds(res);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("payoff_matrix: prisoner's dilemma has exactly one pure Nash equilibrium, at (defect, defect)", () => {
+    registerPack("economics", economicsYaml);
+    const r = scenes.payoff_matrix.layout!({
+      row_strategies: ["Cooperate", "Defect"],
+      col_strategies: ["Cooperate", "Defect"],
+      payoffs: [
+        [[3, 3], [0, 5]],
+        [[5, 0], [1, 1]],
+      ],
+    });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids).toContain("nash_1_1");
+    expect(ids).not.toContain("nash_0_0");
+    expect(ids).not.toContain("nash_0_1");
+    expect(ids).not.toContain("nash_1_0");
+  });
+
+  test("payoff_matrix: a stag-hunt matrix has TWO pure Nash equilibria", () => {
+    registerPack("economics", economicsYaml);
+    const r = scenes.payoff_matrix.layout!({
+      row_strategies: ["Stag", "Hare"],
+      col_strategies: ["Stag", "Hare"],
+      payoffs: [
+        [[4, 4], [0, 3]],
+        [[3, 0], [2, 2]],
+      ],
+    });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids).toContain("nash_0_0");
+    expect(ids).toContain("nash_1_1");
+    expect(ids).not.toContain("nash_0_1");
+    expect(ids).not.toContain("nash_1_0");
+  });
+
+  test("firm_cost_curves: monopoly q* (MC=MR) sits strictly below the competitive q (MC=demand)", () => {
+    registerPack("economics", economicsYaml);
+    const r = scenes.firm_cost_curves.layout!({ mode: "monopoly", shade: "deadweight" });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    expect(ids).toContain("q_star");
+    expect(ids).toContain("shade");
   });
 });

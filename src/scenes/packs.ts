@@ -34,6 +34,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Cell-membrane, DNA-helix, and phylogenetic-tree figures — computed geometry, no engines.",
     load: async () => (await import("./packs/biology.yaml?raw")).default,
   },
+  economics: {
+    id: "economics",
+    title: "Economics",
+    description: "Consumer choice, PPF, cost curves, payoff matrices and AD-AS — micro and macro teaching figures with computed geometry.",
+    load: async () => (await import("./packs/economics.yaml?raw")).default,
+  },
 };
 
 export interface ParsedPack {
