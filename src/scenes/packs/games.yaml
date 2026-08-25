@@ -11,7 +11,8 @@ engines: [chess]
 description: >-
   A chess board rendered from a FEN position and, optionally, a line of
   moves in Standard Algebraic Notation (SAN) played out via the chess
-  engine: an 8x8 board with shaded dark squares, Unicode piece glyphs, an
+  engine: a green-and-cream 8x8 board with drawn Staunton piece
+  silhouettes, an
   arrow along the most recently played move, optional static annotation
   arrows and highlighted squares, and file/rank coordinates. Choose this
   scene for ANY request about a chess position, a FEN diagram, a chess
@@ -55,9 +56,9 @@ params:
       type: boolean
       description: "Show file letters (a-h) and rank numbers (1-8) around the board. Default true."
 element_ids:
-  board: the 8x8 board's grid lines
-  sq_<file><rank>: a dark square's shade fill (one per dark square, e.g. sq_a1)
-  piece_<file><rank>: the piece glyph on that square in the currently shown position — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (empty text on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving glyph gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
+  board: the 8x8 board — its light-square ground plus the grid lines
+  sq_<file><rank>: a dark square's fill (one per dark square, e.g. sq_a1); the light squares are part of `board`
+  piece_<file><rank>: the drawn piece on that square in the currently shown position — a filled silhouette with an ink outline — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (an empty group on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving piece gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
   move_arrow: an arrow along the most recently played move currently shown (demand color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown
   arrow_<i>: a static annotation arrow from arrows[i] (accent color)
   hl_<sq>: a shaded highlight on highlights[i]
@@ -81,15 +82,16 @@ layout: |
   const Y0 = (kit.CANVAS.h - BOARD) / 2;
   const CELL = BOARD / 8;
 
-  // The board itself — grid, dark squares, coordinate labels, and the
+  // The board itself — grid, ground, dark squares, coordinate labels, and the
   // starting piece array — is scaffold: it establishes the setting but
   // isn't what the narration is about, so it should appear near-instantly.
-  // Text (piece glyphs, coord labels) is already always instant (kit.text
-  // has no `ms`/`instant` knob at all — see kit.ts). Grid/square strokes
-  // and area fills default to SKETCH_MS.stroke/region (1400/1300ms); here
-  // they're pinned to the smallest named budget instead. The move arrow and
-  // any pieces that move during a replayed line keep their normal pace
-  // (MS.connector) below — THAT is the part the narration is about.
+  // Coord labels are text, and text is always instant (kit.text has no
+  // `ms`/`instant` knob at all — see kit.ts). Everything else here is strokes
+  // and area fills, which default to SKETCH_MS.stroke/region (1400/1300ms);
+  // all of them — the pieces' own fills and outlines included — are pinned to
+  // the smallest named budget instead, so a 32-piece opening array still sets
+  // itself up briskly. The move arrow keeps its normal pace (MS.connector)
+  // below — THAT is the part the narration is about.
   const SCAFFOLD_MS = MS.dot;
 
   const flip = params.flip === true;
@@ -189,8 +191,30 @@ layout: |
 
   const t = kit.table("board", { x: X0, y: Y0, w: BOARD, h: BOARD, rows: 8, cols: 8, ms: SCAFFOLD_MS });
   const gridGroup = t.drawables[0];
-  gridGroup.id = "board";
-  push(gridGroup);
+
+  // The `board` element carries BOTH the light ground and the grid lines.
+  //
+  // A chess.com board paints two square colors, not one — the light squares
+  // are a warm cream, not the bare page. The obvious encoding (a second
+  // `sq_<light>` element per light square) would silently break every scene
+  // that already exists: a draw list naming only the 32 DARK squares (the
+  // bundled Scholar's Mate does exactly that) would leave 32 brand-new
+  // elements undrawn, i.e. invisible. One ground rectangle inside `board`
+  // instead gives the light squares their color the moment the board itself
+  // is drawn, and leaves the element-id surface untouched.
+  //
+  // Both square fills are `precise`: an exact, full-strength shape in BOTH
+  // render styles. A hachured wash over a 620px ground is a field of scribble
+  // rather than a board, and the hand-drawn character of the figure is carried
+  // by the grid lines, the piece outlines, the arrows and the coordinate
+  // lettering — all of which still sketch.
+  const ground = kit.area(
+    "board__ground",
+    [[X0, Y0], [X0 + BOARD, Y0], [X0 + BOARD, Y0 + BOARD], [X0, Y0 + BOARD]],
+    C.boardLight,
+    { precise: true, ms: SCAFFOLD_MS },
+  );
+  push(kit.group("board", [ground, ...gridGroup.children]));
   anchors.board = [X0 + BOARD / 2, Y0 + BOARD / 2];
 
   function cellPos(r, c) { return t.anchors["board__c" + r + "_" + c]; }
@@ -200,12 +224,13 @@ layout: |
   // flip subtracts both r and c from 7 (an odd number), so the sum's parity
   // is unchanged, and it is computed directly on table coordinates.
   //
-  // Color: region2 (a muted green, chess.com-like) rather than the old
-  // muddy COLORS.guide-at-0.35 — guide is a low-contrast neutral meant for
-  // scaffolding lines, not a board's own identity, and it read as dull/gray.
-  // region2 at 0.5 keeps demand (the move arrow), region1 (highlights) and
-  // accent (markers/annotation arrows) all clearly legible against it —
-  // none of those are green, so nothing new competes for attention.
+  // Color: C.boardDark over C.boardLight — chess.com's own pair, warmed
+  // toward this app's paper-toned palette (see COLORS in src/layout/model.ts
+  // for the exact derivation). Painted at full opacity, like a real board:
+  // the previous 0.5-opacity green let the page show through and read as a
+  // shaded diagram rather than a board. demand (the move arrow), region1
+  // (highlights) and accent (annotation arrows) are all non-green and stay
+  // clearly legible on either square.
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
       if ((r + c) % 2 !== 1) continue;
@@ -213,13 +238,15 @@ layout: |
       const id = "sq_" + squareId(br, bc);
       const [cx, cy] = cellPos(r, c);
       const h = CELL / 2;
-      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.region2, { opacity: 0.5, ms: SCAFFOLD_MS }));
+      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.boardDark, { precise: true, ms: SCAFFOLD_MS }));
       anchors[id] = [cx, cy];
     }
   }
 
   // Highlighted squares (deduped, invalid ones dropped), shaded over the
-  // dark/light squares.
+  // dark/light squares. Opacity 0.5 rather than kit.area's 0.35 default: the
+  // squares underneath are now opaque color instead of bare paper, and a
+  // 0.35 yellow wash over the cream light square barely registered.
   const seenHl = new Set();
   const highlightSquares = (Array.isArray(params.highlights) ? params.highlights : []).filter(
     (s) => validSquare(s) && !seenHl.has(s) && seenHl.add(s),
@@ -229,49 +256,172 @@ layout: |
     const [cx, cy] = cellPos(r, c);
     const h = CELL / 2;
     const id = "hl_" + sq;
-    push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.region1));
+    push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.region1, { opacity: 0.5 }));
     anchors[id] = [cx, cy];
   });
 
-  // Pieces: a STABLE id per square the game ever touches — every square
-  // occupied in the starting position, plus every ply's from/to square —
-  // so the same id exists at every plies_shown value (text is "" on a
-  // touched-but-currently-empty square) and `animate` can move a piece's
-  // text onto a square that started empty instead of needing a brand new
-  // element to appear mid-animation.
-  const GLYPHS = {
-    w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
-    b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
+  // ---- Piece silhouettes ---------------------------------------------------
+  //
+  // Pieces get a STABLE id per square the game ever touches — every square
+  // occupied in the starting position, plus every ply's from/to square — so
+  // the same id exists at every plies_shown value (an EMPTY group on a
+  // touched-but-currently-empty square) and `animate` can move a piece onto a
+  // square that started empty instead of needing a brand new element to appear
+  // mid-animation.
+  //
+  // Pieces are DRAWN shapes, not Unicode glyphs (♔♕♖♗♘♙ / ♚♛♜♝♞♟). The glyphs
+  // were thin, depended on whatever chess font the reader happened to have,
+  // and — the reason they finally had to go — could only be centered through
+  // SVG's `dominant-baseline: "central"`, a font-METRICS line with no fixed
+  // relation to where a glyph's ink sits. That cost this template two rounds
+  // of hand-measured y-nudges in opposite directions. A drawn silhouette has
+  // a bounding box of its own, so "centered in the square" is arithmetic.
+  //
+  // Data convention (the STAMPS convention in kit.ts): a unit box, x/y in
+  // [-1, 1], y-up, every piece standing on its base plate at y = -1. These
+  // are FILLED rings rather than stroke stamps, so they live here as
+  // template-local data instead of in the shared stamp library.
+  //
+  // Five of the six pieces are left-right symmetric, so they are authored as
+  // a RIGHT-HAND PROFILE — apex first, on the axis (x = 0), then down the
+  // right side to the base's right corner — and `sym` mirrors it into a
+  // closed ring. Symmetry is then exact by construction, and each table is
+  // half the size to read. Only the knight, which faces left, is a full ring.
+  //
+  //     sym(profile) = profile ++ reverse(profile without the apex) mirrored
+  //
+  // `marks` are detail strokes drawn ON TOP of the fill in the CONTRASTING
+  // color (ink on a white piece, paper on a black one) — the bishop's slit,
+  // the knight's eye and mouth, the crown bands. They are not holes: a hole
+  // shows the SQUARE through, which vanishes whenever the square and the
+  // piece are close in value (a white bishop on a light square), whereas a
+  // contrasting stroke reads on every combination.
+  const sym = (profile) => [...profile, ...profile.slice(1).reverse().map(([x, y]) => [-x, y])];
+
+  const PIECES = {
+    // Pawn: ball, collar, flaring skirt. Shortest piece on the board.
+    p: {
+      h: 0.76,
+      ring: sym([
+        [0, 0.90], [0.13, 0.87], [0.23, 0.79], [0.29, 0.66], [0.28, 0.53], [0.21, 0.42], // ball
+        [0.13, 0.35], [0.11, 0.28],                                                       // neck
+        [0.28, 0.23], [0.28, 0.16], [0.17, 0.09],                                         // collar
+        [0.21, -0.28], [0.31, -0.56], [0.39, -0.73],                                      // skirt
+        [0.56, -0.81], [0.58, -1.00],                                                     // base plate
+      ]),
+      marks: [],
+    },
+    // Rook: a crenellated tower — three merlons (the center one straddles the
+    // axis, so the profile starts on top of it), then a waisted shaft.
+    r: {
+      h: 0.84,
+      ring: sym([
+        [0, 1.00], [0.13, 1.00], [0.13, 0.80], [0.29, 0.80], [0.29, 1.00], [0.47, 1.00], // crenellations
+        [0.47, 0.68], [0.55, 0.62], [0.55, 0.50], [0.42, 0.42],                           // collar under them
+        [0.36, 0.10], [0.35, -0.28],                                                      // shaft
+        [0.42, -0.56], [0.50, -0.74], [0.62, -0.82], [0.64, -1.00],                       // flare + base
+      ]),
+      marks: [],
+    },
+    // Knight: a horse head facing LEFT, the one hand-traced full ring. What
+    // makes it read as a horse rather than a blob is the CONCAVE throat — the
+    // front of the neck rises almost straight, then cuts sharply out and up to
+    // a muzzle sitting HIGH on the left — plus two ears with a notch between
+    // them and a zigzag mane down the back. A smooth convex left side (the
+    // first attempt) reads as a flame or a chess pawn's ghost, not a head.
+    n: {
+      h: 0.88,
+      ring: [
+        [-0.62, -1.00], [-0.60, -0.80], [-0.38, -0.72],                   // base plate + plinth step
+        [-0.29, -0.46], [-0.33, -0.10],                                   // front of the neck, near-vertical
+        [-0.48, 0.02], [-0.66, 0.08],                                     // throat cutting out, jaw
+        [-0.79, 0.17], [-0.80, 0.32],                                     // squared-off muzzle front (leftmost)
+        [-0.68, 0.45], [-0.50, 0.43], [-0.30, 0.55], [-0.12, 0.68],       // top of the muzzle, the stop, forehead
+        [0.00, 0.96], [0.10, 0.74], [0.22, 1.00], [0.30, 0.70],           // front ear, notch, back ear, poll
+        [0.44, 0.44], [0.36, 0.28], [0.50, 0.10], [0.40, -0.12], [0.52, -0.34], // mane
+        [0.46, -0.58], [0.46, -0.74], [0.60, -0.80], [0.62, -1.00],       // back of the neck + base plate
+      ],
+      marks: [
+        [[-0.44, 0.30], [-0.38, 0.36], [-0.32, 0.30], [-0.38, 0.24], [-0.44, 0.30]], // eye
+        [[-0.76, 0.22], [-0.64, 0.17]],                                              // mouth
+      ],
+    },
+    // Bishop: ball finial, mitre, collar, stem — plus the mitre's slit.
+    b: {
+      h: 0.92,
+      ring: sym([
+        [0, 1.00], [0.075, 0.965], [0.095, 0.905], [0.06, 0.855],           // finial + its neck
+        [0.13, 0.79], [0.23, 0.64], [0.31, 0.43], [0.35, 0.26], [0.31, 0.15], [0.20, 0.10], // mitre, widest low
+        [0.38, 0.05], [0.38, -0.04], [0.24, -0.11],                         // collar
+        [0.24, -0.42], [0.34, -0.63], [0.42, -0.77], [0.57, -0.84], [0.59, -1.00], // stem + base
+      ]),
+      marks: [[[-0.14, 0.60], [0.10, 0.36]]], // the slit across the mitre
+    },
+    // Queen: a five-pointed coronet (center point on the axis) over a band.
+    q: {
+      h: 0.94,
+      ring: sym([
+        [0, 1.00], [0.10, 0.78], [0.20, 0.93], [0.30, 0.72], [0.42, 0.85],  // coronet points
+        [0.46, 0.60], [0.44, 0.46], [0.34, 0.38],                            // band
+        [0.37, 0.29], [0.24, 0.21],                                          // collar
+        [0.26, -0.16], [0.34, -0.44], [0.44, -0.64], [0.52, -0.78], [0.62, -0.84], [0.64, -1.00],
+      ]),
+      marks: [[[-0.42, 0.53], [0.42, 0.53]]], // the coronet's band line
+    },
+    // King: the cross on top is part of the silhouette (its flat top straddles
+    // the axis), then the crown, band, collar, stem, base. Tallest piece.
+    k: {
+      h: 1,
+      ring: sym([
+        [0, 1.00], [0.07, 1.00], [0.07, 0.86], [0.21, 0.86], [0.21, 0.74], [0.07, 0.74], [0.07, 0.58], // cross
+        [0.19, 0.54], [0.31, 0.68], [0.44, 0.46],                            // crown
+        [0.48, 0.32], [0.45, 0.20], [0.36, 0.13],                            // band
+        [0.38, 0.04], [0.25, -0.04],                                         // collar
+        [0.27, -0.34], [0.35, -0.56], [0.45, -0.72], [0.63, -0.87], [0.65, -1.00],
+      ]),
+      marks: [[[-0.44, 0.26], [0.44, 0.26]]], // the crown's band line
+    },
   };
-  const PIECE_FONT_SIZE = 58; // grown again (52 -> 58; 44 at the original
-  // BOARD=520) — the cell is BOARD/8 = 77.5px, so 58 is ~0.75 of a cell and
-  // still clears it with room to spare.
-  //
-  // Unicode chess glyphs (♔♕♖♗♘♙ / ♚♛♜♝♞♟) are drawn with `dominant-baseline:
-  // "central"` (src/render/svg-backend.ts — set on every <text>, BEFORE the
-  // clean/sketchy split, so both backends get it identically). "central" is
-  // a font-METRICS baseline — for this font stack it sits (fontAscent -
-  // fontDescent)/2 above the alphabetic baseline — not an ink-based one. A
-  // previous round diagnosed pieces as sitting too HIGH, assumed these
-  // glyphs' ink sits in the "lower two-thirds" of their em box, and nudged
-  // the text DOWN by 0.35x fontSize to compensate. That direction was wrong.
-  //
-  // Measured directly instead of assumed: rasterize the actual SVG output
-  // (production font stack, production font size) to a canvas, scan pixel
-  // rows for ink per glyph, and compare the ink bounding box's own vertical
-  // center to the `dominant-baseline: "central"` anchor line. Across all 12
-  // piece glyphs, with NO manual nudge, the ink center sits only
-  // ~0.09-0.11x fontSize BELOW the anchor (not above) — "central" already
-  // lands close on its own, just slightly low. The old 0.35x-DOWN nudge was
-  // compounding that small low bias into a large one (0.35 down + the
-  // built-in ~0.1 low bias = ~0.45x fontSize too low, ~23px at the old
-  // fontSize 52) — exactly the "pieces sitting between two squares" symptom.
-  // The correct nudge is a SMALL push UP (a larger y-up value): 0.1x
-  // fontSize. Plain digit/letter coord labels below still get NO nudge: the
-  // same pixel measurement on "a"-"h"/"1"-"8" shows well under 1px of bias
-  // at their font size (excluding "g", whose own descender is real ink, not
-  // measurement noise) — negligible, unlike the ~0.1x fontSize seen here.
-  const PIECE_Y_NUDGE = PIECE_FONT_SIZE * 0.1;
+
+  // Sizing: the KING — the tallest piece — is 80% of the cell (77.5 * 0.8 =
+  // 62px), and every other kind is a fixed fraction of that, roughly the
+  // proportions of a real set (a pawn is not a king's height). Bases stay
+  // within a few px of each other across the back rank, so a rank still reads
+  // as one row, and pawns — the shortest — never stand next to a king.
+  const KING_H = CELL * 0.8;
+
+  // Piece bounding boxes, computed ONCE from the unit-box data: a piece is
+  // placed by its own geometry, with no font metrics anywhere in the chain.
+  for (const def of Object.values(PIECES)) {
+    const xs = def.ring.map(([x]) => x), ys = def.ring.map(([, y]) => y);
+    def.box = { cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2, h: Math.max(...ys) - Math.min(...ys) };
+  }
+
+  /**
+   * One piece's drawables, as a kit.group carrying the square's own id, so
+   * every draw list, glide, highlight and command keeps addressing
+   * `piece_<square>` exactly as it did when a piece was a single text.
+   * `at` is the CENTER the silhouette's bounding box lands on; `lift` scales
+   * the shape about that center (the mid-glide hop); `opacity` fades the whole
+   * piece (a captured piece dissolving under the piece that takes it).
+   */
+  function pieceGroup(id, cell, at, lift, opacity) {
+    const def = PIECES[cell.piece];
+    const s = (KING_H * def.h * lift) / def.box.h;
+    const place = (pts) => pts.map(([x, y]) => [at[0] + (x - def.box.cx) * s, at[1] + (y - def.box.cy) * s]);
+    const white = cell.color === "w";
+    const fade = opacity !== undefined ? { opacity } : {};
+    const ring = place(def.ring);
+    const children = [
+      kit.area(id + "__fill", ring, white ? C.paper : C.ink, { precise: true, ms: SCAFFOLD_MS, ...fade }),
+      kit.stroke(id + "__edge", ring, { closed: true, color: C.ink, strokeWidth: 2.2, ms: SCAFFOLD_MS, ...fade }),
+    ];
+    def.marks.forEach((mark, i) => {
+      children.push(kit.stroke(id + "__mark" + i, place(mark), { color: white ? C.ink : C.paper, strokeWidth: 1.8, ms: SCAFFOLD_MS, ...fade }));
+    });
+    return kit.group(id, children);
+  }
+
   const touched = new Set();
   for (let br = 0; br < 8; br++) {
     for (let bc = 0; bc < 8; bc++) {
@@ -305,13 +455,16 @@ layout: |
   //     byte-identical to before this feature existed.
   //   fade: sq -> opacity for a square whose PRE-move occupant should fade
   //     out rather than vanish — only set for a real capture, at the
-  //     destination square (`to`). En passant is punted: chess.js flags it
+  //     destination square (`to`). Applied to the whole piece group: the
+  //     filled silhouette AND its outline and detail strokes all carry the
+  //     same opacity, so a captured piece dissolves instead of leaving a
+  //     floating contour behind. En passant is punted: chess.js flags it
   //     as a capture, but the actual captured pawn sits on a DIFFERENT
   //     square than `to` (same file as `to`, same rank as `from`) — this
   //     scheme never touches that square, so an en-passant victim just
   //     disappears at the integer boundary, unfaded, exactly like before.
   //     (`to` itself is empty in that case, so computing a fade entry for it
-  //     is harmless — there is no glyph there to visibly fade.)
+  //     is harmless — there is no piece there to visibly fade.)
   const glide = new Map();
   const fade = new Map();
   if (plyT > 0) {
@@ -323,26 +476,28 @@ layout: |
     if (rook) glide.set(rook.from, { toSq: rook.to, lift });
   }
 
+  // A square's piece is placed by its silhouette's own bounding-box center,
+  // straight onto the cell's center — no nudge of any kind. A touched-but-
+  // currently-empty square still emits its group, with no children: the id
+  // exists at every plies_shown (so `animate` never needs an element that did
+  // not already exist) and simply paints nothing.
   [...touched].sort().forEach((sq) => {
     const [r, c] = rcOfSquare(sq);
     const [br, bc] = boardRC(r, c);
     const cell = board[br][bc];
-    const glyph = cell ? GLYPHS[cell.color][cell.piece] : "";
     const id = "piece_" + sq;
     const [cx, cy] = cellPos(r, c);
-    let piecePos = [cx, cy + PIECE_Y_NUDGE];
-    let fontSize = PIECE_FONT_SIZE;
+    let at = [cx, cy];
+    let lift = 1;
     const inFlight = glide.get(sq);
     if (inFlight) {
       const [tx, ty] = squarePos(inFlight.toSq);
-      const lx = cx + (tx - cx) * plyT;
-      const ly = cy + (ty - cy) * plyT;
-      piecePos = [lx, ly + PIECE_Y_NUDGE];
-      fontSize = PIECE_FONT_SIZE * inFlight.lift;
+      at = [cx + (tx - cx) * plyT, cy + (ty - cy) * plyT];
+      lift = inFlight.lift;
     }
     const opacity = fade.get(sq);
-    push(kit.text(id, piecePos, glyph, { fontSize, anchor: "middle", ...(opacity !== undefined && { opacity }) }));
-    anchors[id] = piecePos;
+    push(cell ? pieceGroup(id, cell, at, lift, opacity) : kit.group(id, []));
+    anchors[id] = at;
   });
 
   // Last-move arrow: present whenever the line has any moves at all (so it

@@ -10,7 +10,7 @@ import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
-import { flattenDrawables, COLORS } from "../src/layout/model";
+import { flattenDrawables, COLORS, type Drawable } from "../src/layout/model";
 import { ensureEngines, getLoadedEngines, type GeoEngine } from "../src/scenes/engines";
 import type { SceneLayout } from "../src/scenes/types";
 
@@ -1270,6 +1270,75 @@ describe("mathlogic pack", () => {
 
 const GAMES_TEMPLATE_IDS = ["chess_board"];
 
+// ---- chess pieces: drawn silhouettes, read back without any font metrics ----
+//
+// A piece is a kit.group per square holding a `precise` filled area (the
+// silhouette's own closed ring) plus an ink outline stroke of the same ring,
+// so these helpers identify a piece from GEOMETRY alone: its fill color says
+// which side it belongs to, and its silhouette height — each kind is scaled to
+// its own fixed fraction of the king's — says which kind it is. That is the
+// whole point of the redesign: nothing about a piece depends on a Unicode
+// glyph existing, or on where a font's "central" baseline happens to sit.
+const CHESS_CELL = 620 / 8; // BOARD / 8, per games.yaml
+const CHESS_KING_H = 0.8 * CHESS_CELL; // the tallest piece is 80% of a cell
+/** Silhouette height as a fraction of the king's — one distinct value per kind. */
+const CHESS_KIND_HEIGHT: Record<string, number> = { k: 1, q: 0.94, b: 0.92, n: 0.88, r: 0.84, p: 0.76 };
+
+interface ChessPiece {
+  kind: string;
+  side: "w" | "b";
+  center: [number, number];
+  height: number;
+  width: number;
+  fill: string;
+  outlinePts: [number, number][];
+  opacity: number;
+}
+
+/**
+ * The piece standing on `sq`, read off its drawables, or null for an empty
+ * square. `lift` is the mid-glide scale the caller expects (1 at rest), since
+ * a piece in flight is scaled about its own center and its height is then that
+ * much larger than its kind's resting height.
+ */
+function chessPieceAt(flat: Drawable[], sq: string, lift = 1): ChessPiece | null {
+  const fill = flat.find((d) => d.id === `piece_${sq}__fill`) as
+    | { pts: [number, number][]; style: { fill?: string; opacity: number } }
+    | undefined;
+  if (!fill) return null;
+  const xs = fill.pts.map(([x]) => x);
+  const ys = fill.pts.map(([, y]) => y);
+  const height = Math.max(...ys) - Math.min(...ys);
+  const width = Math.max(...xs) - Math.min(...xs);
+  const kind =
+    Object.keys(CHESS_KIND_HEIGHT).find((k) => Math.abs(CHESS_KIND_HEIGHT[k] * CHESS_KING_H * lift - height) < 0.5) ?? "?";
+  return {
+    kind,
+    side: fill.style.fill === COLORS.paper ? "w" : "b",
+    center: [(Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2],
+    height,
+    width,
+    fill: fill.style.fill!,
+    outlinePts: fill.pts,
+    opacity: fill.style.opacity,
+  };
+}
+
+/**
+ * Where a square's center IS, derived from the board's own geometry rather
+ * than from anything the template reports — the independent yardstick the
+ * centering test measures against. BOARD 620 centered on the 1000x750 canvas;
+ * table row 0 is the TOP row, so y-up counts rows down from the top edge.
+ */
+function chessCellCenter(sq: string, flip = false): [number, number] {
+  const bc = "abcdefgh".indexOf(sq[0]);
+  const br = 8 - Number(sq[1]);
+  const [r, c] = flip ? [7 - br, 7 - bc] : [br, bc];
+  const X0 = (1000 - 620) / 2;
+  const Y0 = (750 - 620) / 2;
+  return [X0 + (c + 0.5) * CHESS_CELL, Y0 + 620 - (r + 0.5) * CHESS_CELL];
+}
+
 describe("games pack", () => {
   beforeEach(() => unregisterPack("games"));
 
@@ -1294,20 +1363,35 @@ describe("games pack", () => {
     expect(DEFAULT_OFF_PACKS.has("games")).toBe(true);
   });
 
-  test("start position (no moves) renders exactly 32 piece texts, no fallback warnings", async () => {
+  test("start position renders exactly 32 piece GROUPS — a precise filled silhouette plus an ink outline each, white pieces paper-filled and black pieces ink-filled", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const res = layoutSpec({ template: "chess_board", params: {}, elements: [] } as never);
     inBounds(res);
-    const pieceTexts = flattenDrawables(res.drawables).filter((d) => d.kind === "text" && d.id.startsWith("piece_"));
-    expect(pieceTexts).toHaveLength(32);
-    expect(pieceTexts.every((d) => (d as { text: string }).text !== "")).toBe(true);
+    // No piece is text any more — that is the whole redesign.
+    expect(flattenDrawables(res.drawables).filter((d) => d.kind === "text" && d.id.startsWith("piece_"))).toEqual([]);
+    const pieceGroups = res.drawables.filter((d) => d.kind === "group" && /^piece_[a-h][1-8]$/.test(d.id));
+    expect(pieceGroups).toHaveLength(32);
+    const flat = flattenDrawables(res.drawables);
+    for (const g of pieceGroups) {
+      const fill = flat.find((d) => d.id === `${g.id}__fill`) as { kind: string; precise?: boolean; pts: unknown[] };
+      const edge = flat.find((d) => d.id === `${g.id}__edge`) as { kind: string; closed?: boolean; style: { color: string } };
+      expect(fill.kind, g.id).toBe("area");
+      expect(fill.precise, g.id).toBe(true); // exact silhouette in BOTH render styles
+      expect(fill.pts.length, g.id).toBeGreaterThanOrEqual(20);
+      expect(edge.kind, g.id).toBe("stroke");
+      expect(edge.closed, g.id).toBe(true);
+      expect(edge.style.color, g.id).toBe(COLORS.ink);
+    }
     // Corners: a8 black rook, h1 white rook, per the engine's own board() contract.
-    expect((flattenDrawables(res.drawables).find((d) => d.id === "piece_a8") as { text: string }).text).toBe("♜");
-    expect((flattenDrawables(res.drawables).find((d) => d.id === "piece_h1") as { text: string }).text).toBe("♖");
+    expect(chessPieceAt(flat, "a8")).toMatchObject({ kind: "r", side: "b", fill: COLORS.ink });
+    expect(chessPieceAt(flat, "h1")).toMatchObject({ kind: "r", side: "w", fill: COLORS.paper });
+    // The full back rank, read purely off silhouette heights.
+    expect(["a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"].map((sq) => chessPieceAt(flat, sq)!.kind).join("")).toBe("rnbqkbnr");
+    expect(["a2", "h7"].map((sq) => chessPieceAt(flat, sq)!.kind)).toEqual(["p", "p"]);
   });
 
-  test("board fills more of the canvas (620x620, up from 520x520) and pieces grew with it (fontSize 58, up from 52)", async () => {
+  test("board fills more of the canvas (620x620, up from 520x520) and the tallest piece is 80% of a cell", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const res = scenes.chess_board.layout!({});
@@ -1319,19 +1403,47 @@ describe("games pack", () => {
     // The board's own bottom edge sits 65 logical units above y=0 (BOARD=620,
     // centered in the 750-tall canvas): (750 - 620) / 2 = 65.
     expect(grid!.pts[0][1]).toBeCloseTo(65, 6);
-    const piece = flat.find((d) => d.id === "piece_a1") as { fontSize: number };
-    expect(piece.fontSize).toBe(58); // ~0.75 of the 77.5px cell (BOARD/8) — still clears it.
+    // The king — the tallest piece — is exactly 80% of the 77.5px cell, and
+    // every other kind is a fixed fraction of it (a pawn is not a king's
+    // height; bases stay close enough that a back rank reads as one row).
+    expect(chessPieceAt(flat, "e1")!.height).toBeCloseTo(0.8 * CHESS_CELL, 6);
+    for (const sq of ["a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1", "a2"]) {
+      const p = chessPieceAt(flat, sq)!;
+      expect(p.height, sq).toBeGreaterThanOrEqual(0.7 * 0.8 * CHESS_CELL);
+      expect(p.height, sq).toBeLessThanOrEqual(0.8 * CHESS_CELL);
+      expect(p.width, sq).toBeLessThan(CHESS_CELL); // never spills onto a neighbour
+    }
   });
 
-  test("dark squares use region2 (muted green) at 0.5 opacity, not the old muddy guide-at-0.35, and the board scaffold (grid + squares) draws at the smallest named budget", async () => {
+  test("squares are chess.com's green board: dark boardDark, light boardLight, both exact full-opacity fills, and the scaffold draws at the smallest named budget", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const res = scenes.chess_board.layout!({});
     const flat = flattenDrawables(res.drawables);
-    const sqA1 = flat.find((d) => d.id === "sq_a1") as { style: { fill: string; opacity: number }; drawOpts: { duration: number } };
-    expect(sqA1.style.fill).toBe(COLORS.region2);
-    expect(sqA1.style.opacity).toBe(0.5);
+    const sqA1 = flat.find((d) => d.id === "sq_a1") as {
+      style: { fill: string; opacity: number };
+      precise?: boolean;
+      drawOpts: { duration: number };
+    };
+    expect(sqA1.style.fill).toBe(COLORS.boardDark);
+    expect(sqA1.style.opacity).toBe(1);
+    expect(sqA1.precise).toBe(true);
     expect(sqA1.drawOpts.duration).toBe(420); // kit.SKETCH_MS.dot — the scaffold's near-instant budget.
+    // The light squares are the `board` element's own ground: one exact
+    // boardLight area under the whole grid, so every existing sq_<dark>
+    // element id survives untouched (the bundled example's draw list names
+    // exactly the 32 dark ones) while both square colors are now painted.
+    const ground = flat.find((d) => d.id === "board__ground") as {
+      kind: string;
+      style: { fill: string; opacity: number };
+      precise?: boolean;
+      pts: [number, number][];
+    };
+    expect(ground.kind).toBe("area");
+    expect(ground.style.fill).toBe(COLORS.boardLight);
+    expect(ground.style.opacity).toBe(1);
+    expect(ground.precise).toBe(true);
+    expect(Math.max(...ground.pts.map(([x]) => x)) - Math.min(...ground.pts.map(([x]) => x))).toBeCloseTo(620, 6);
     const gridLine = flat.find((d) => d.id === "board__grid_h8") as { drawOpts: { duration: number } };
     expect(gridLine.drawOpts.duration).toBe(420);
     // The move arrow (the narrated, central content) keeps its normal pace.
@@ -1340,49 +1452,41 @@ describe("games pack", () => {
     expect(arrowLeaf.drawOpts.duration).toBe(850); // kit.SKETCH_MS.connector, unchanged.
   });
 
-  // Regression: SVG dominant-baseline "central" (src/render/svg-backend.ts,
-  // applied to every <text> before the clean/sketchy split, so both backends
-  // get it) is a font-METRICS baseline — roughly (fontAscent - fontDescent)/2
-  // above the alphabetic baseline — not an ink-based one. A previous round
-  // assumed Unicode chess glyphs sit in the "lower two-thirds" of their em
-  // box and pushed the text DOWN by 0.35 * fontSize to compensate; that
-  // diagnosis had the direction backwards. Measured directly (rasterize the
-  // actual SVG text at the production font stack/size, scan pixel rows for
-  // ink, compare the ink bounding box's center to the `central`-baseline
-  // anchor): across all 12 piece glyphs the ink center sits only
-  // ~0.09-0.11 * fontSize BELOW the anchor, not above — "central" already
-  // comes close on its own, and the old 0.35-down nudge was compounding a
-  // small existing low bias into a large one (0.35 + ~0.1 ≈ 0.45 * fontSize
-  // too low — ~23px at the old fontSize 52 — matching the "sitting between
-  // two squares" report). The corrected nudge is a SMALL push UP (a larger
-  // y-up value) by 0.1 * fontSize. Coord labels (plain digits/letters) get no
-  // nudge: the same pixel measurement on "a"-"h"/"1"-"8" shows well under 1px
-  // of bias at their fontSize, negligible.
-  test("piece glyphs are nudged up from the cell center by exactly 0.1 * fontSize for optical centering; coord labels are not nudged", async () => {
+  // THE definitive centering test, and the reason the pieces stopped being
+  // Unicode text at all. The old glyphs were centered by SVG's
+  // `dominant-baseline: "central"`, a font-METRICS line that has nothing to do
+  // with where a glyph's ink actually sits — which is how the pieces once ended
+  // up ~0.45 * fontSize too low, "sitting between two squares", and how a
+  // hand-measured 0.1 * fontSize nudge came to be pinned here. A drawn
+  // silhouette has no metrics to argue with: its own bounding box IS the piece,
+  // so "centered in the square" is checkable exactly, in both orientations, with
+  // the cell center derived independently from the board's geometry.
+  test("every piece's silhouette is geometrically centered on its own square — exactly, in both orientations, with no nudge of any kind", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
-    const res = scenes.chess_board.layout!({});
-    const flat = flattenDrawables(res.drawables);
-    // sq_a1 anchors to the exact cell center (no nudge) — piece_a1 shares
-    // that same cell, so the vertical gap between them is exactly the nudge.
-    const sqA1 = flat.find((d) => d.id === "sq_a1") as { pts: [number, number][] };
-    const cellCy = sqA1.pts.reduce((sum, [, y]) => sum + y, 0) / sqA1.pts.length;
-    const piece = flat.find((d) => d.id === "piece_a1") as { pos: [number, number]; fontSize: number };
-    expect(piece.pos[1]).toBeCloseTo(cellCy + 0.1 * piece.fontSize, 6);
+    for (const flip of [false, true]) {
+      const flat = flattenDrawables(scenes.chess_board.layout!({ flip }).drawables);
+      const occupied = ["a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1", "a2", "e2", "d7", "a8", "e8", "h8"];
+      for (const sq of occupied) {
+        const piece = chessPieceAt(flat, sq)!;
+        const [cx, cy] = chessCellCenter(sq, flip);
+        expect(piece.center[0], `${sq} x (flip=${flip})`).toBeCloseTo(cx, 9);
+        expect(piece.center[1], `${sq} y (flip=${flip})`).toBeCloseTo(cy, 9);
+      }
+    }
     // coord_a (a file letter, drawn only with coords !== false) sits at its
-    // own fixed offset from the board edge, independent of any glyph nudge.
-    const coordA = flat.find((d) => d.id === "coord_a") as { pos: [number, number] };
-    expect(coordA.pos[1]).toBeCloseTo(65 - 31, 6); // Y0 - 31, no fontSize-based nudge applied.
+    // own fixed offset from the board edge, unchanged by the piece redesign.
+    const coordA = flattenDrawables(scenes.chess_board.layout!({}).drawables).find((d) => d.id === "coord_a") as { pos: [number, number] };
+    expect(coordA.pos[1]).toBeCloseTo(65 - 31, 6); // Y0 - 31
   });
 
-  // The fractional-ply glide lifts the moving glyph (games.yaml:
+  // The fractional-ply glide lifts the moving piece (games.yaml:
   // `lift = 1 + 0.1 * 4 * plyT * (1 - plyT)`, peaking at +10% when
-  // plyT === 0.5). Pin that the grown glyph still fits its square: a piece
-  // that outgrows the cell reads as spilling onto its neighbours mid-move.
-  // Every number is measured from the layout itself — cell size, the optical
-  // nudge, both font sizes — so the pin follows the constants rather than
-  // freezing today's 58 / 63.8 / 77.5 into the test.
-  test("a piece's glyph box fits inside its cell both at rest and at the mid-glide lift peak", async () => {
+  // plyT === 0.5): the silhouette's own points scale about its center. Pin
+  // that the grown shape still fits its square — a piece that outgrows the
+  // cell reads as spilling onto its neighbours mid-move — measuring the real
+  // bounding box rather than a font's nominal em square.
+  test("a piece's silhouette fits inside its cell both at rest and at the mid-glide lift peak", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const rest = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0 }).drawables);
@@ -1393,34 +1497,28 @@ describe("games pack", () => {
     const ys = sqC1.pts.map(([, y]) => y);
     const cell = Math.max(...xs) - Math.min(...xs);
     expect(cell).toBeCloseTo(Math.max(...ys) - Math.min(...ys), 6); // cells are square
-    const cellCy = (Math.max(...ys) + Math.min(...ys)) / 2;
 
-    const restPiece = rest.find((d) => d.id === "piece_c1") as { pos: [number, number]; fontSize: number; text: string };
-    expect(restPiece.text).not.toBe("");
-    const nudge = restPiece.pos[1] - cellCy; // the optical push up pinned above
-
-    // plyT 0.5 is the lift's peak; the mover keeps its DEPARTURE square's id.
+    const restPiece = chessPieceAt(rest, "e2")!;
     const mid = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 }).drawables);
-    const glidePiece = mid.find((d) => d.id === "piece_e2") as { fontSize: number };
-    expect(glidePiece.fontSize).toBeGreaterThan(restPiece.fontSize); // the lift is real
+    const glidePiece = chessPieceAt(mid, "e2", 1.1)!; // the mover keeps its DEPARTURE square's id
+    expect(glidePiece.height).toBeGreaterThan(restPiece.height); // the lift is real
 
-    // The glyph's nominal box is its em square, centered on the anchor and
-    // shifted by the nudge: half a font size plus the nudge has to stay
-    // inside half a cell, or the box crosses the square's edge.
-    for (const fontSize of [restPiece.fontSize, glidePiece.fontSize]) {
-      expect(fontSize / 2 + Math.abs(nudge)).toBeLessThanOrEqual(cell / 2);
+    for (const p of [restPiece, glidePiece]) {
+      expect(p.height).toBeLessThanOrEqual(cell);
+      expect(p.width).toBeLessThanOrEqual(cell);
     }
   });
 
-  test('plies_shown: 1 on ["e4"] moves the e2 pawn text to e4 and emits move_arrow', async () => {
+  test('plies_shown: 1 on ["e4"] moves the e2 pawn to e4 and emits move_arrow', async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const r = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1 });
     const flat = flattenDrawables(r.drawables);
-    const e2 = flat.find((d) => d.id === "piece_e2") as { text: string };
-    const e4 = flat.find((d) => d.id === "piece_e4") as { text: string };
-    expect(e2.text).toBe("");
-    expect(e4.text).toBe("♙");
+    // The vacated square keeps its id (an empty group), so `animate` never
+    // needs an element that did not already exist — it just draws nothing.
+    expect(r.drawables.find((d) => d.id === "piece_e2")).toMatchObject({ kind: "group", children: [] });
+    expect(chessPieceAt(flat, "e2")).toBeNull();
+    expect(chessPieceAt(flat, "e4")).toMatchObject({ kind: "p", side: "w" });
     const arrow = flat.find((d) => d.id === "move_arrow") as { pts: [number, number][] } | undefined;
     expect(arrow).toBeDefined();
     // The arrow actually points from e2 toward e4 (not the shown===0 degenerate case).
@@ -1434,8 +1532,8 @@ describe("games pack", () => {
     const clampedHigh = scenes.chess_board.layout!({ moves: ["e4", "e5"], plies_shown: 99 });
     const clampedLow = scenes.chess_board.layout!({ moves: ["e4", "e5"], plies_shown: -3 });
     expect(JSON.stringify(full)).toBe(JSON.stringify(clampedHigh));
-    const e2Low = flattenDrawables(clampedLow.drawables).find((d) => d.id === "piece_e2") as { text: string };
-    expect(e2Low.text).toBe("♙"); // plies_shown clamped to 0: nothing played yet.
+    // plies_shown clamped to 0: nothing played yet, the white pawn still on e2.
+    expect(chessPieceAt(flattenDrawables(clampedLow.drawables), "e2")).toMatchObject({ kind: "p", side: "w" });
   });
 
   test("illegal SAN throws, naming the offending move", async () => {
@@ -1511,30 +1609,31 @@ describe("games pack", () => {
     const moves = ["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6", "Qxf7#"];
     const crypto = await import("node:crypto");
     const hashOf = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
-    // Hashes recaptured after the fontSize 52->58 / PIECE_Y_NUDGE
-    // 0.35-down->0.1-up correction (see the nudge derivation comment in
-    // games.yaml and the "piece glyphs are nudged up..." test above) — that
-    // change moves every piece's absolute position/fontSize, so the hashes
-    // themselves change, but the INVARIANT this test protects (plyT===0 at
-    // every integer boundary falls through to the exact same plain
-    // per-square lookup, never the glide/fade/lift branch) is untouched by
-    // it and still holds.
+    // Hashes recaptured for the drawn-silhouette redesign (Unicode piece text
+    // -> a kit.group per square holding a precise filled ring plus its ink
+    // outline, and the chess.com green board). That rewrites every piece
+    // drawable and both square fills, so the hashes themselves necessarily
+    // change — but the INVARIANT this test protects is self-relative and
+    // untouched by it: at every integer boundary plyT === 0, so the layout
+    // falls through to the exact same plain per-square lookup and never takes
+    // the glide/fade/lift branch. Recaptured once before, for the
+    // fontSize 52->58 / y-nudge correction, for the same kind of reason.
     const EXPECTED: Record<number, string> = {
-      0: "dd58ae701cfdcb8527ef04fdc2e6699cf589ed2a38081fb87c3d0e9b86030cef",
-      1: "f7f50e7c1bbc486195d613333e2ffd5c61a925d620a281ed282b1baff7685c5b",
-      2: "2e3f896ce9dc40664bb4d1b47e694ee2c1067455b2fa4c59580d604cf8340703",
-      3: "180e8fdce7643e2da3d57e55bf3837cc114c2d66791f9b538d5974fac8a25467",
-      4: "c622e15efb69ff03faa8e2fd58422e62f9dbbdd765041bfe735009241e3476f7",
-      5: "9da9e1907d32342c1c77e40c1e9a2cdb0a03200117ed62ed8696fc9ef484739b",
-      6: "d8d898ebe49787f402b3cbd0c5c42abed840b58075d5241794b67eaac148e517",
-      7: "15151b4606b3fa0052a177efc5deadb5b6e9c2cb3ef47d2a10b5f0f7557d5a0e",
+      0: "b2438f9289ce949ab05fde1d98a79935d0846b54e2a9d39902c7cdb6ff790583",
+      1: "024654218a23d9aeb56d53fe4e6d6da0aaf42bcadc43e35eead769db8c850c07",
+      2: "11211d83a3c04d2eab06d18190f0f474a5adfb69f022563e56cc37f822db6a35",
+      3: "e3083d248ff063cf1aa0175075c847ce23e4f3c25d3dab4454a5d1cf15cf11bb",
+      4: "dc000d9d0c9c585ce6cc24cd11107106b8b362468b3f1ea299925774253865b3",
+      5: "c6a9e0185a2e31a079e2a49f7d6cc4519da7136ab634f5aeb4c04dac0f6f7781",
+      6: "56e3598dfa7b2d8dffc598e5c0c3189544fa1d867b3a6ee1eb58733195625324",
+      7: "0504cdb341fc2c0aaddbf67689b68b6d103b59162fc574191a552c2bf79ea3ad",
     };
     for (let i = 0; i <= moves.length; i++) {
       const r = scenes.chess_board.layout!({ moves, plies_shown: i });
       expect(hashOf(r)).toBe(EXPECTED[i]);
     }
     const r0 = scenes.chess_board.layout!({});
-    expect(hashOf(r0)).toBe("62a8077e6bb0b1f702c1c683e313434d4c082faa3581b8160126723d78fa144e");
+    expect(hashOf(r0)).toBe("b74467b293d3bf7f6d5a0813b9535cfe2fb46fe475ba055406c80beae4cfe872");
   });
 
   test("fractional plies_shown glides the moving piece in a straight line: 0.5 into 1.e4 sits the e-pawn strictly between e2 and e4, x unchanged", async () => {
@@ -1546,60 +1645,62 @@ describe("games pack", () => {
     const e2 = (before.anchors.piece_e2 as [number, number]);
     const e4 = (after.anchors.piece_e4 as [number, number]);
     const flat = flattenDrawables(mid.drawables);
-    // The mover still carries the DEPARTURE square's id mid-glide.
-    const movingPiece = flat.find((d) => d.id === "piece_e2") as { pos: [number, number]; text: string };
-    expect(movingPiece.text).toBe("♙");
-    expect(movingPiece.pos[0]).toBeCloseTo(e2[0], 6); // same file: x unchanged
-    expect(movingPiece.pos[0]).toBeCloseTo(e4[0], 6);
-    expect(movingPiece.pos[1]).toBeGreaterThan(Math.min(e2[1], e4[1]));
-    expect(movingPiece.pos[1]).toBeLessThan(Math.max(e2[1], e4[1]));
+    // The mover still carries the DEPARTURE square's id mid-glide — and its
+    // WHOLE geometry travels: fill ring, outline and detail strokes together.
+    const movingPiece = chessPieceAt(flat, "e2", 1.1)!; // lift peak at t=0.5
+    expect(movingPiece).toMatchObject({ kind: "p", side: "w" });
+    expect(movingPiece.center[0]).toBeCloseTo(e2[0], 6); // same file: x unchanged
+    expect(movingPiece.center[0]).toBeCloseTo(e4[0], 6);
+    expect(movingPiece.center[1]).toBeGreaterThan(Math.min(e2[1], e4[1]));
+    expect(movingPiece.center[1]).toBeLessThan(Math.max(e2[1], e4[1]));
     // Halfway is the exact midpoint (linear lerp; animate's own smoothstep
     // easing already shaped how t itself advances over wall-clock time).
-    expect(movingPiece.pos[1]).toBeCloseTo((e2[1] + e4[1]) / 2, 6);
+    expect(movingPiece.center[1]).toBeCloseTo((e2[1] + e4[1]) / 2, 6);
+    // The outline stroke rides along with the fill, point for point.
+    const edge = flat.find((d) => d.id === "piece_e2__edge") as { pts: [number, number][] };
+    expect(edge.pts).toEqual(movingPiece.outlinePts);
     // Destination square shows nothing yet (e4 was empty before this move).
-    const e4mid = flat.find((d) => d.id === "piece_e4") as { text: string };
-    expect(e4mid.text).toBe("");
+    expect(chessPieceAt(flat, "e4")).toBeNull();
   });
 
-  test("mid-move lift: the moving glyph's fontSize peaks +10% at t=0.5 and returns to normal at the integer boundaries", async () => {
+  test("mid-move lift: the moving silhouette scales +10% about its own center at t=0.5 and returns to normal at the integer boundaries", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
-    const q1 = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.25 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
-    const mid = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
-    const q3 = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.75 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
-    const base = 58; // PIECE_FONT_SIZE
-    expect(mid.fontSize).toBeCloseTo(base * 1.1, 6); // parabola peak at t=0.5
-    expect(q1.fontSize).toBeCloseTo(base * (1 + 0.1 * 4 * 0.25 * 0.75), 6);
-    expect(q3.fontSize).toBeCloseTo(q1.fontSize, 6); // symmetric around t=0.5
-    expect(q1.fontSize).toBeLessThan(mid.fontSize);
-    // Integer boundaries: no lift at all.
-    const atStart = flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0 }).drawables).find((d) => d.id === "piece_e2") as { fontSize: number };
-    expect(atStart.fontSize).toBe(base);
+    const at = (plies_shown: number) => chessPieceAt(flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown }).drawables), "e2")!;
+    const base = 0.76 * 0.8 * CHESS_CELL; // a pawn at rest
+    expect(at(0).height).toBeCloseTo(base, 6);
+    expect(at(0.5).height).toBeCloseTo(base * 1.1, 6); // parabola peak at t=0.5
+    expect(at(0.25).height).toBeCloseTo(base * (1 + 0.1 * 4 * 0.25 * 0.75), 6);
+    expect(at(0.75).height).toBeCloseTo(at(0.25).height, 6); // symmetric around t=0.5
+    expect(at(0.25).height).toBeLessThan(at(0.5).height);
+    // The lift scales about the piece's OWN center: width grows in step, and
+    // the center itself stays exactly on the glide path (checked above).
+    expect(at(0.5).width / at(0).width).toBeCloseTo(1.1, 6);
   });
 
-  test("capture ply fades the captured piece's opacity 1 -> 0 over t, at its own square, while the capturing piece glides in", async () => {
+  test("capture ply fades the captured piece's fill AND outline 1 -> 0 over t, at its own square, while the capturing piece glides in", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     // 1.e4 d5 2.exd5 — ply index 2 (0-based) is the capture "exd5".
     const moves = ["e4", "d5", "exd5"];
-    const q1 = scenes.chess_board.layout!({ moves, plies_shown: 2.25 });
-    const q3 = scenes.chess_board.layout!({ moves, plies_shown: 2.75 });
-    const victimQ1 = flattenDrawables(q1.drawables).find((d) => d.id === "piece_d5") as { text: string; style: { opacity: number } };
-    const victimQ3 = flattenDrawables(q3.drawables).find((d) => d.id === "piece_d5") as { text: string; style: { opacity: number } };
-    expect(victimQ1.text).toBe("♟"); // the captured black pawn is still on d5, fading.
-    expect(victimQ3.text).toBe("♟");
-    expect(victimQ1.style.opacity).toBeCloseTo(0.75, 6); // 1 - t
-    expect(victimQ3.style.opacity).toBeCloseTo(0.25, 6);
-    expect(victimQ3.style.opacity).toBeLessThan(victimQ1.style.opacity);
+    const q1 = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2.25 }).drawables);
+    const q3 = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2.75 }).drawables);
+    const victimQ1 = chessPieceAt(q1, "d5")!;
+    const victimQ3 = chessPieceAt(q3, "d5")!;
+    expect(victimQ1).toMatchObject({ kind: "p", side: "b" }); // still on d5, fading
+    expect(victimQ3).toMatchObject({ kind: "p", side: "b" });
+    expect(victimQ1.opacity).toBeCloseTo(0.75, 6); // 1 - t
+    expect(victimQ3.opacity).toBeCloseTo(0.25, 6);
+    expect(victimQ3.opacity).toBeLessThan(victimQ1.opacity);
+    // The outline fades with the fill — StrokeOpts carries opacity, so the
+    // whole piece dissolves rather than leaving a floating contour behind.
+    expect((q1.find((d) => d.id === "piece_d5__edge") as { style: { opacity: number } }).style.opacity).toBeCloseTo(0.75, 6);
     // The capturing pawn is gliding in on the departure square's id.
-    const moverQ1 = flattenDrawables(q1.drawables).find((d) => d.id === "piece_e4") as { text: string };
-    expect(moverQ1.text).toBe("♙");
+    expect(chessPieceAt(q1, "e4", 1 + 0.1 * 4 * 0.25 * 0.75)).toMatchObject({ kind: "p", side: "w" });
     // At the integer boundary after the capture, the victim is fully gone
     // (plain per-square lookup — no fade artifact left behind).
-    const after = scenes.chess_board.layout!({ moves, plies_shown: 3 });
-    const victimAfter = flattenDrawables(after.drawables).find((d) => d.id === "piece_d5") as { text: string; style: { opacity: number } };
-    expect(victimAfter.text).toBe("♙"); // the white pawn now occupies d5.
-    expect(victimAfter.style.opacity).toBe(1);
+    const after = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 3 }).drawables);
+    expect(chessPieceAt(after, "d5")).toMatchObject({ kind: "p", side: "w", opacity: 1 }); // white pawn now on d5
   });
 
   test("castling (O-O) glides BOTH the king and the rook, using squares derived from the king's own move + side", async () => {
@@ -1612,30 +1713,30 @@ describe("games pack", () => {
     const mid = scenes.chess_board.layout!({ moves, plies_shown: 6.5 });
     const flat = flattenDrawables(mid.drawables);
 
-    const king = flat.find((d) => d.id === "piece_e1") as { pos: [number, number]; text: string; fontSize: number };
-    const rook = flat.find((d) => d.id === "piece_h1") as { pos: [number, number]; text: string; fontSize: number };
-    expect(king.text).toBe("♔");
-    expect(rook.text).toBe("♖");
+    const king = chessPieceAt(flat, "e1", 1.1)!;
+    const rook = chessPieceAt(flat, "h1", 1.1)!;
+    expect(king).toMatchObject({ kind: "k", side: "w" });
+    expect(rook).toMatchObject({ kind: "r", side: "w" });
 
     const kingFrom = before.anchors.piece_e1 as [number, number];
     const kingTo = after.anchors.piece_g1 as [number, number];
     const rookFrom = before.anchors.piece_h1 as [number, number];
     const rookTo = after.anchors.piece_f1 as [number, number];
 
-    expect(king.pos[0]).toBeCloseTo((kingFrom[0] + kingTo[0]) / 2, 6);
-    expect(king.pos[1]).toBeCloseTo((kingFrom[1] + kingTo[1]) / 2, 6);
-    expect(rook.pos[0]).toBeCloseTo((rookFrom[0] + rookTo[0]) / 2, 6);
-    expect(rook.pos[1]).toBeCloseTo((rookFrom[1] + rookTo[1]) / 2, 6);
+    expect(king.center[0]).toBeCloseTo((kingFrom[0] + kingTo[0]) / 2, 6);
+    expect(king.center[1]).toBeCloseTo((kingFrom[1] + kingTo[1]) / 2, 6);
+    expect(rook.center[0]).toBeCloseTo((rookFrom[0] + rookTo[0]) / 2, 6);
+    expect(rook.center[1]).toBeCloseTo((rookFrom[1] + rookTo[1]) / 2, 6);
     // Both lifted the same amount (t=0.5 peak) since one ply moves both.
-    expect(king.fontSize).toBeCloseTo(58 * 1.1, 6);
-    expect(rook.fontSize).toBeCloseTo(58 * 1.1, 6);
+    expect(king.height).toBeCloseTo(1 * 0.8 * CHESS_CELL * 1.1, 6);
+    expect(rook.height).toBeCloseTo(0.84 * 0.8 * CHESS_CELL * 1.1, 6);
 
     // After the full ply: king on g1, rook on f1, e1/h1 vacated.
     const flatAfter = flattenDrawables(after.drawables);
-    expect((flatAfter.find((d) => d.id === "piece_g1") as { text: string }).text).toBe("♔");
-    expect((flatAfter.find((d) => d.id === "piece_f1") as { text: string }).text).toBe("♖");
-    expect((flatAfter.find((d) => d.id === "piece_e1") as { text: string }).text).toBe("");
-    expect((flatAfter.find((d) => d.id === "piece_h1") as { text: string }).text).toBe("");
+    expect(chessPieceAt(flatAfter, "g1")).toMatchObject({ kind: "k", side: "w" });
+    expect(chessPieceAt(flatAfter, "f1")).toMatchObject({ kind: "r", side: "w" });
+    expect(chessPieceAt(flatAfter, "e1")).toBeNull();
+    expect(chessPieceAt(flatAfter, "h1")).toBeNull();
   });
 });
 
