@@ -68,11 +68,27 @@ examples:
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
 
-  // Board geometry: a 520x520 board centered on the canvas.
-  const BOARD = 520;
+  // Board geometry: a 620x620 board centered on the canvas (grown from the
+  // original 520x520 — the board should fill most of the 1000x750 frame,
+  // not float in a sea of margin). X0/Y0 stay derived from BOARD so the
+  // board is always centered whatever size it is; 65 logical units of
+  // margin above and below is still comfortably enough for the
+  // coordinate labels (well inside the canvas, never near y=0/y=750).
+  const BOARD = 620;
   const X0 = (kit.CANVAS.w - BOARD) / 2;
   const Y0 = (kit.CANVAS.h - BOARD) / 2;
   const CELL = BOARD / 8;
+
+  // The board itself — grid, dark squares, coordinate labels, and the
+  // starting piece array — is scaffold: it establishes the setting but
+  // isn't what the narration is about, so it should appear near-instantly.
+  // Text (piece glyphs, coord labels) is already always instant (kit.text
+  // has no `ms`/`instant` knob at all — see kit.ts). Grid/square strokes
+  // and area fills default to SKETCH_MS.stroke/region (1400/1300ms); here
+  // they're pinned to the smallest named budget instead. The move arrow and
+  // any pieces that move during a replayed line keep their normal pace
+  // (MS.connector) below — THAT is the part the narration is about.
+  const SCAFFOLD_MS = MS.dot;
 
   const flip = params.flip === true;
   const showCoords = params.coords !== false;
@@ -139,7 +155,7 @@ layout: |
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
-  const t = kit.table("board", { x: X0, y: Y0, w: BOARD, h: BOARD, rows: 8, cols: 8 });
+  const t = kit.table("board", { x: X0, y: Y0, w: BOARD, h: BOARD, rows: 8, cols: 8, ms: SCAFFOLD_MS });
   const gridGroup = t.drawables[0];
   gridGroup.id = "board";
   push(gridGroup);
@@ -151,6 +167,13 @@ layout: |
   // Dark squares: (r + c) odd is dark on EITHER orientation — the 180-degree
   // flip subtracts both r and c from 7 (an odd number), so the sum's parity
   // is unchanged, and it is computed directly on table coordinates.
+  //
+  // Color: region2 (a muted green, chess.com-like) rather than the old
+  // muddy COLORS.guide-at-0.35 — guide is a low-contrast neutral meant for
+  // scaffolding lines, not a board's own identity, and it read as dull/gray.
+  // region2 at 0.5 keeps demand (the move arrow), region1 (highlights) and
+  // accent (markers/annotation arrows) all clearly legible against it —
+  // none of those are green, so nothing new competes for attention.
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
       if ((r + c) % 2 !== 1) continue;
@@ -158,7 +181,7 @@ layout: |
       const id = "sq_" + squareId(br, bc);
       const [cx, cy] = cellPos(r, c);
       const h = CELL / 2;
-      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.guide, { opacity: 0.35 }));
+      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.region2, { opacity: 0.5, ms: SCAFFOLD_MS }));
       anchors[id] = [cx, cy];
     }
   }
@@ -188,6 +211,20 @@ layout: |
     w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
     b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
   };
+  const PIECE_FONT_SIZE = 52; // grown with the board (44 at BOARD=520).
+  // Unicode chess glyphs (♔♕♖♗♘♙ / ♚♛♜♝♞♟) sit visibly HIGH in their cell
+  // even though the SVG backend already sets `dominant-baseline: "central"`
+  // on every <text> (src/render/svg-backend.ts) — that baseline centers on
+  // the FONT's own ascent/descent metrics, not a particular glyph's ink, and
+  // these symbol glyphs are drawn within roughly the lower two-thirds of
+  // their em box, so the font-metric center sits well above their visual
+  // (inked) center. Nudging the text position DOWN by ~0.35x the font size
+  // brings the piece's ink to the square's optical center (verified by eye
+  // against a rendered board). The plain digit/letter coord labels below do
+  // NOT get this nudge: ordinary Latin/digit glyphs sit close enough to the
+  // font's central baseline already — the offset is specific to these
+  // symbol glyphs' unusual internal placement, not a general baseline bug.
+  const PIECE_Y_NUDGE = PIECE_FONT_SIZE * 0.35;
   const touched = new Set();
   for (let br = 0; br < 8; br++) {
     for (let bc = 0; bc < 8; bc++) {
@@ -203,8 +240,9 @@ layout: |
     const glyph = cell ? GLYPHS[cell.color][cell.piece] : "";
     const id = "piece_" + sq;
     const [cx, cy] = cellPos(r, c);
-    push(kit.text(id, [cx, cy], glyph, { fontSize: 44, anchor: "middle" }));
-    anchors[id] = [cx, cy];
+    const piecePos = [cx, cy - PIECE_Y_NUDGE];
+    push(kit.text(id, piecePos, glyph, { fontSize: PIECE_FONT_SIZE, anchor: "middle" }));
+    anchors[id] = piecePos;
   });
 
   // Last-move arrow: present whenever the line has any moves at all (so it
@@ -239,14 +277,17 @@ layout: |
   });
 
   // File letters below the board, rank numbers to its left — both outside
-  // the grid, so they never contest a square's own content.
+  // the grid, so they never contest a square's own content. No y-nudge
+  // here (unlike the pieces above): plain digit/letter glyphs already sit
+  // close to the font's central baseline, so dominant-baseline: "central"
+  // centers them well enough on its own.
   if (showCoords) {
-    const FS = 20;
+    const FS = 24; // grown with the board (20 at BOARD=520).
     for (let c = 0; c < 8; c++) {
       const file = fileOf(boardRC(0, c)[1]);
       const id = "coord_" + file;
       const [cx] = cellPos(0, c);
-      const pos = [cx, Y0 - 26];
+      const pos = [cx, Y0 - 31];
       push(kit.text(id, pos, file, { fontSize: FS, color: C.guide, anchor: "middle" }));
       anchors[id] = pos;
     }
@@ -254,7 +295,7 @@ layout: |
       const rank = rankOf(boardRC(r, 0)[0]);
       const id = "coord_" + rank;
       const [, cy] = cellPos(r, 0);
-      const pos = [X0 - 22, cy];
+      const pos = [X0 - 26, cy];
       push(kit.text(id, pos, String(rank), { fontSize: FS, color: C.guide, anchor: "end" }));
       anchors[id] = pos;
     }

@@ -1109,6 +1109,63 @@ describe("games pack", () => {
     expect((flattenDrawables(res.drawables).find((d) => d.id === "piece_h1") as { text: string }).text).toBe("♖");
   });
 
+  test("board fills more of the canvas (620x620, up from 520x520) and pieces grew with it (fontSize 52, up from 44)", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = scenes.chess_board.layout!({});
+    const flat = flattenDrawables(res.drawables);
+    // grid_h8 is the BOTTOM horizontal grid line (r=0 is the top row's own
+    // top edge; r=rows=8 is the bottom edge — see kit.table's rowY/grid loop).
+    const grid = flat.find((d) => d.id === "board__grid_h8") as { pts: [number, number][] } | undefined;
+    expect(grid).toBeDefined();
+    // The board's own bottom edge sits 65 logical units above y=0 (BOARD=620,
+    // centered in the 750-tall canvas): (750 - 620) / 2 = 65.
+    expect(grid!.pts[0][1]).toBeCloseTo(65, 6);
+    const piece = flat.find((d) => d.id === "piece_a1") as { fontSize: number };
+    expect(piece.fontSize).toBe(52);
+  });
+
+  test("dark squares use region2 (muted green) at 0.5 opacity, not the old muddy guide-at-0.35, and the board scaffold (grid + squares) draws at the smallest named budget", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = scenes.chess_board.layout!({});
+    const flat = flattenDrawables(res.drawables);
+    const sqA1 = flat.find((d) => d.id === "sq_a1") as { style: { fill: string; opacity: number }; drawOpts: { duration: number } };
+    expect(sqA1.style.fill).toBe(COLORS.region2);
+    expect(sqA1.style.opacity).toBe(0.5);
+    expect(sqA1.drawOpts.duration).toBe(420); // kit.SKETCH_MS.dot — the scaffold's near-instant budget.
+    const gridLine = flat.find((d) => d.id === "board__grid_h8") as { drawOpts: { duration: number } };
+    expect(gridLine.drawOpts.duration).toBe(420);
+    // The move arrow (the narrated, central content) keeps its normal pace.
+    const arrow = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1 });
+    const arrowLeaf = flattenDrawables(arrow.drawables).find((d) => d.id.startsWith("move_arrow")) as { drawOpts: { duration: number } };
+    expect(arrowLeaf.drawOpts.duration).toBe(850); // kit.SKETCH_MS.connector, unchanged.
+  });
+
+  // Regression: SVG dominant-baseline "central" (src/render/svg-backend.ts)
+  // centers on the FONT's ascent/descent metrics, not a Unicode chess
+  // glyph's own ink — these glyphs sit within roughly the lower two-thirds
+  // of their em box, so they read as floating high in their square. The
+  // piece text position is nudged DOWN (a smaller y-up value) by exactly
+  // 0.35 * fontSize from the cell's own center to compensate; coord labels
+  // (plain digits/letters) get no such nudge.
+  test("piece glyphs are nudged down from the cell center by exactly 0.35 * fontSize for optical centering; coord labels are not nudged", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = scenes.chess_board.layout!({});
+    const flat = flattenDrawables(res.drawables);
+    // sq_a1 anchors to the exact cell center (no nudge) — piece_a1 shares
+    // that same cell, so the vertical gap between them is exactly the nudge.
+    const sqA1 = flat.find((d) => d.id === "sq_a1") as { pts: [number, number][] };
+    const cellCy = sqA1.pts.reduce((sum, [, y]) => sum + y, 0) / sqA1.pts.length;
+    const piece = flat.find((d) => d.id === "piece_a1") as { pos: [number, number]; fontSize: number };
+    expect(piece.pos[1]).toBeCloseTo(cellCy - 0.35 * piece.fontSize, 6);
+    // coord_a (a file letter, drawn only with coords !== false) sits at its
+    // own fixed offset from the board edge, independent of any glyph nudge.
+    const coordA = flat.find((d) => d.id === "coord_a") as { pos: [number, number] };
+    expect(coordA.pos[1]).toBeCloseTo(65 - 31, 6); // Y0 - 31, no fontSize-based nudge applied.
+  });
+
   test('plies_shown: 1 on ["e4"] moves the e2 pawn text to e4 and emits move_arrow', async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
@@ -1153,7 +1210,7 @@ describe("games pack", () => {
     registerPack("games", gamesYaml);
     const white = scenes.chess_board.layout!({});
     const black = scenes.chess_board.layout!({ flip: true });
-    const CX = 500, CY = 375; // board center: X0 + 260, Y0 + 260 with X0=240, Y0=115.
+    const CX = 500, CY = 375; // board center: X0 + 310, Y0 + 310 with X0=190, Y0=65 (BOARD=620) — always the canvas center regardless of board size, since X0/Y0 are derived to center it.
     const posW = white.anchors.piece_e2 as [number, number];
     const posB = black.anchors.piece_e2 as [number, number];
     expect(posW[1]).toBeLessThan(CY); // White's view: e2 low (near White's own side)...
