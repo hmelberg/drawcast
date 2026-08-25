@@ -72,7 +72,7 @@ ROADMAP for that record.
   `maps` sit outside the academic default and stay opt-in
   (`DEFAULT_OFF_PACKS`); the other six packs are on by default, and
   `TEMPLATE_FULL_THRESHOLD` moved 20→50 so every one of them still gets a
-  full catalog entry with no index-only degradation. 1061/1061 tests pass;
+  full catalog entry with no index-only degradation. 1062/1062 tests pass;
   `npm run build` and `npm run build:engine` (dist-engine + its check
   script) both green — see
   `.superpowers/sdd/2026-08-25-science-packs/task-13-report.md`.
