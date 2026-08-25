@@ -1299,6 +1299,47 @@ describe("maps pack", () => {
     expect(countryGroupIds.sort()).toEqual(["country_norway", "country_sweden"]);
   });
 
+  // Regression: a marker country far outside `focus` (Japan, on a Nordics
+  // map) used to dilute the fit — the SAME "world_map draws tiny" bug the
+  // geo engine's fitExtent fix addresses, just triggered by a marker
+  // instead of a focus list. The fit is now restricted to focus+highlight
+  // only (see fitNames in engines.ts); a marker that lands outside that
+  // cropped view is skipped and reported, not drawn at an implausible
+  // off-frame point.
+  test("a marker far outside focus (Japan on a Nordics map) doesn't dilute the fit, and is skipped with an 'Outside view' note instead of drawn off-frame", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = layoutSpec({
+      template: "world_map",
+      params: {
+        focus: ["Norway", "Sweden"],
+        markers: [{ country: "Norway", label: "Oslo" }, { country: "Sweden", label: "Stockholm" }, { country: "Japan" }],
+      },
+      elements: [],
+    } as never);
+    inBounds(res);
+    const flat = flattenDrawables(res.drawables);
+    const countryPts = flat
+      .filter((d) => d.kind === "stroke" && d.id.startsWith("country_"))
+      .flatMap((d) => (d as { pts: [number, number][] }).pts);
+    const xs = countryPts.map(([x]) => x);
+    // Fit box is 880 wide (see FIT in maps.yaml) — undiluted, Norway+Sweden
+    // should span a large share of it (measured ~422/880 ~ 48%), same
+    // order of magnitude as the Norway+Sweden-only case elsewhere in this
+    // file. Diluted by Japan (measured directly in engines.ts's own test),
+    // the same pair collapses to well under half this.
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(350);
+    // Norway's and Sweden's own markers (in view) still render normally.
+    expect(flat.some((d) => d.id === "marker_0")).toBe(true);
+    expect(flat.some((d) => d.id === "marker_1")).toBe(true);
+    // Japan's marker (index 2) is skipped — not drawn at a wild off-frame
+    // point — and reported by name instead of silently vanishing.
+    expect(flat.some((d) => d.id === "marker_2")).toBe(false);
+    expect(flat.some((d) => d.id === "marker_label_2")).toBe(false);
+    const note = res.drawables.find((d) => d.id === "missing_note") as { text?: string } | undefined;
+    expect(note?.text).toMatch(/Outside view: Japan/);
+  });
+
   test("highlight adds a region2 area fill for the highlighted country", async () => {
     await ensureEngines(["geo"]);
     registerPack("maps", mapsYaml);

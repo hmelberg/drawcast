@@ -39,16 +39,16 @@ params:
           country: { type: string, description: "A drawn or known country name — the dot lands on its centroid." }
           label: { type: string, description: "Text next to the dot, e.g. a capital city. Defaults to the country name." }
         required: [country]
-      description: "A small dot at each country's centroid, with a label."
+      description: "A small dot at each country's centroid, with a label. In focus mode the map is cropped to `focus`+`highlight` only — a marker country far outside that view (e.g. a Japan marker on a Nordics map) is skipped rather than drawn at an implausible off-frame point, and listed in missing_note as \"Outside view: ...\"."
     title:
       type: string
 element_ids:
   country_<slug>: a drawn country's outline (one group of ring strokes per country; slug = the dataset's own name, lowercased, non-alphanumeric runs -> "_")
   hl_<slug>: a highlighted country's low-opacity area fill (its outer ring)
-  marker_<i>: a small dot at markers[i]'s country centroid
-  marker_label_<i>: markers[i]'s label
+  marker_<i>: a small dot at markers[i]'s country centroid, absent when that marker is unresolved or outside the cropped view
+  marker_label_<i>: markers[i]'s label, absent under the same conditions as marker_<i>
   graticule: a light frame around the map, present in focus mode only
-  missing_note: "small guide text listing unrecognized country names (\"Unknown: X, Y\") and/or real-but-not-drawn highlight names (\"Not drawn: X, Y\"), present only when there are any"
+  missing_note: "small guide text listing unrecognized country names (\"Unknown: X, Y\"), real-but-not-drawn highlight names (\"Not drawn: X, Y\"), and/or marker countries outside the cropped view (\"Outside view: X, Y\"), present only when there are any"
   title: figure title, when set
 examples:
   - request: "Draw a world map."
@@ -84,8 +84,16 @@ layout: |
   // ONE engine call: "all" for the whole world, or every name any part of
   // this request could need a shape/centroid for (focus + highlight +
   // marker countries) — the engine dedupes case-insensitively on its own.
+  // `fitNames` restricts what the PROJECTION is fit to (focus + highlight —
+  // highlight is documented as always a subset of the drawn countries) so a
+  // `markers`-only country far from the focus set (e.g. a Japan marker on a
+  // Nordics map) still gets a resolvable centroid without dragging the fit
+  // box out to include it and shrinking everything else back down — the
+  // exact "world_map draws tiny" bug, reproduced for markers instead of
+  // focus. Ignored by the engine in world mode.
   const requestNames = isFocus ? [...focusRaw, ...highlightRaw, ...markerCountries] : "all";
-  const { shapes, missing, centroids } = engines.geo.countries(requestNames, { w: FIT.w, h: FIT.h });
+  const fitNames = [...focusRaw, ...highlightRaw];
+  const { shapes, missing, centroids } = engines.geo.countries(requestNames, { w: FIT.w, h: FIT.h, fitNames });
 
   function findShape(name) {
     const key = name.toLowerCase();
@@ -177,16 +185,36 @@ layout: |
     if (c) anchors[id] = off(c);
   }
 
+  // Every marker country whose centroid resolved but landed outside the
+  // fit box — the engine still projects it (using the SAME projection as
+  // everything else, fit to focus+highlight only — see fitNames above), so
+  // a country nowhere near the focus set (a Japan marker on a Nordics map)
+  // comes back at wildly off-frame coordinates rather than a plausible
+  // on-canvas point. Drawing it would either silently clip or, worse, land
+  // it somewhere arbitrary-looking inside the frame; skipping it and
+  // saying so is the honest outcome — the same "point at a note, don't
+  // fake a picture" treatment as `unknown`/`notDrawn` above.
+  const outside = new Map(); // lowercase -> first-seen original casing
+  const noteOutside = (name) => {
+    const key = name.toLowerCase();
+    if (!outside.has(key)) outside.set(key, name);
+  };
+
   // Markers: a small diamond dot at the country's centroid plus a label
   // (defaults to the country name), placed by the label solver so it steps
   // around other labels/strokes. Index tracks markersInput directly so a
   // caller can always predict marker_<i> / marker_label_<i> from its own
-  // markers array position.
+  // markers array position — a skipped (unresolved or out-of-view) marker
+  // simply leaves that index's ids absent, same as an unresolved one today.
   markersInput.forEach((m, i) => {
     if (!m || typeof m.country !== "string" || m.country.trim() === "") return;
     const shape = findShape(m.country);
     const c = shape && centroids[shape.name];
     if (!c) return; // unresolved — already recorded in `unknown` above
+    if (c[0] < 0 || c[0] > FIT.w || c[1] < 0 || c[1] > FIT.h) {
+      noteOutside(shape.name);
+      return;
+    }
     const pos = off(c);
     const dotId = "marker_" + i;
     push(kit.stroke(dotId, kit.polygon(pos, 7, 4, Math.PI / 4), {
@@ -195,23 +223,28 @@ layout: |
     anchors[dotId] = pos;
     const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label : shape.name;
     const labelId = "marker_label_" + i;
-    // fontSize 18, not 20: a focus-mode map (Fix: geo engine fit) now fills
+    // fontSize 16, not 20: a focus-mode map (Fix: geo engine fit) now fills
     // the frame instead of floating at world scale, so several capital
     // labels in a tight regional cluster (e.g. the Nordics) sit close
-    // enough together and to neighboring borders that a slightly smaller
-    // label footprint is what keeps them clean — still well above the
-    // font-floor (14) for legibility.
-    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: 18 }));
+    // enough together and to neighboring borders that a smaller label
+    // footprint is what keeps them clean — the antimeridian rotation fix
+    // (centering the projection on the selection's own centroid longitude)
+    // shifts coordinates enough that 18 alone wasn't always enough margin
+    // either. 16 still sits safely above the font-floor (14) for legibility.
+    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: 16 }));
     order.push(labelId);
   });
 
-  // Unrecognized and real-but-not-drawn names: there is no dedicated
-  // warning channel in a scene layout, so both surface as a small
-  // on-canvas note instead of vanishing (unrecognized) or silently
-  // filling with no outline (not drawn — see the highlight loop above).
+  // Unrecognized, real-but-not-drawn, and off-frame marker names: there is
+  // no dedicated warning channel in a scene layout, so all three surface as
+  // a small on-canvas note instead of vanishing (unrecognized), silently
+  // filling with no outline (not drawn — see the highlight loop above), or
+  // landing at an implausible off-frame point (outside view — see the
+  // markers loop above).
   const noteParts = [];
   if (unknown.size > 0) noteParts.push("Unknown: " + [...unknown.values()].join(", "));
   if (notDrawn.size > 0) noteParts.push("Not drawn: " + [...notDrawn.values()].join(", "));
+  if (outside.size > 0) noteParts.push("Outside view: " + [...outside.values()].join(", "));
   if (noteParts.length > 0) {
     push(kit.text("missing_note", [500, 40], noteParts.join("  —  "), {
       fontSize: 18, color: C.guide,

@@ -408,12 +408,28 @@ export interface GeoEngine {
    *  FeatureCollection. `countries(["Norway","Sweden"])` → just those, but the projection is
    *  fit to the UNION of only the matched countries (`fitExtent` with a ~4%-of-min(w,h)
    *  margin) — not the whole world — so a small focus selection fills the frame instead of
-   *  sitting at its true, tiny share of a world-fitted box. (Name match on the world-atlas
-   *  `properties.name`, case-insensitive; unknown names are reported in `missing`, not
-   *  thrown.) Rings become polylines (closed). Requested names are de-duplicated
-   *  case-insensitively — `["Norway","Norway"]` yields one Norway shape and an empty
-   *  `missing`, not a phantom "missing" entry for the name that was in fact found. */
-  countries(names: string[] | "all", o?: { w?: number; h?: number }): {
+   *  sitting at its true, tiny share of a world-fitted box.
+   *
+   *  Antimeridian-safe: before `fitExtent`, the projection is ROTATED so the fit set's own
+   *  spherical centroid longitude (`geoCentroid`, which unwraps ±180° correctly — unlike an
+   *  arithmetic mean of raw longitudes) sits at the projection's center. Without this, a
+   *  selection straddling ±180° (Fiji, Russia, the Aleutians) has raw longitudes at both
+   *  extremes of the [-180,180] range, so the naive bounding box spans nearly the whole
+   *  projected width no matter how compact the country actually is on the globe — collapsing
+   *  it to a sliver once that width is scaled to fit the box. Rotating moves the seam to the
+   *  fit set's own antipode, away from any of its geometry. World mode is never rotated.
+   *
+   *  `o.fitNames` lets the FIT use a smaller/different name set than the shapes/centroids
+   *  actually returned — e.g. fit to `focus` + `highlight` only, while still resolving a
+   *  `markers`-only country's centroid (which would otherwise dilute the fit if it were far
+   *  from the focus set: a marker across the globe shrinks everything else to fit it in too).
+   *  Defaults to `names` (today's behavior) when omitted or empty; ignored in `"all"` mode.
+   *
+   *  (Name match on the world-atlas `properties.name`, case-insensitive; unknown names are
+   *  reported in `missing`, not thrown.) Rings become polylines (closed). Requested names are
+   *  de-duplicated case-insensitively — `["Norway","Norway"]` yields one Norway shape and an
+   *  empty `missing`, not a phantom "missing" entry for the name that was in fact found. */
+  countries(names: string[] | "all", o?: { w?: number; h?: number; fitNames?: string[] }): {
     shapes: { name: string; rings: [number, number][][] }[];
     missing: string[];
     /** projected centroid per shape, for labels/markers */
@@ -440,7 +456,7 @@ function ringsOfGeometry(geom: Geometry): Position[][] {
  *  clip (rare at world scale with geoNaturalEarth1, which has no hard clip circle) come back
  *  null from `projection()` and are dropped rather than faked. */
 async function loadGeo(): Promise<GeoEngine> {
-  const [{ geoNaturalEarth1, geoPath }, { feature }, atlas] = await Promise.all([
+  const [{ geoNaturalEarth1, geoPath, geoCentroid }, { feature }, atlas] = await Promise.all([
     import("d3-geo"),
     import("topojson-client"),
     import("world-atlas/countries-110m.json"),
@@ -485,25 +501,50 @@ async function loadGeo(): Promise<GeoEngine> {
             return true;
           });
 
+      // The set the projection is actually FIT to — independent of `matched`
+      // (which decides what gets a shape/centroid). `o.fitNames`, when given
+      // a non-empty list, restricts fitting to just those names (matched
+      // against the full dataset, not just `matched`, so it's self-contained
+      // even if a caller's fitNames isn't a strict subset of `names`) — e.g.
+      // fit to `focus`+`highlight` only, while a `markers`-only country far
+      // away still gets resolved (via `matched`/`centroids` below) without
+      // dragging the fit box out to include it. Omitted/empty fitNames falls
+      // back to `matched` itself (today's behavior, and every existing
+      // caller).
+      let fitMatched = matched;
+      if (!all && o.fitNames && o.fitNames.length > 0) {
+        const fitKeys = new Set(o.fitNames.map((n) => n.toLowerCase()));
+        const restricted = fc.features.filter((f) => fitKeys.has(f.properties.name.toLowerCase()));
+        if (restricted.length > 0) fitMatched = restricted;
+      }
+
       const projection = geoNaturalEarth1();
       if (all) {
         projection.fitSize([w, h], fc);
-      } else if (matched.length > 0) {
-        // Focus mode: fit to the UNION of only the matched countries (not
-        // the whole world) so a small selection — e.g. the Nordics — fills
-        // the frame instead of sitting at its true, tiny share of a
-        // world-fitted box. A small margin (~4% of the shorter side) keeps
-        // outlines off the very edge.
-        const pad = Math.min(w, h) * 0.04;
-        const selectionFc: FeatureCollection<Polygon | MultiPolygon, CountryProps> = {
+      } else if (fitMatched.length > 0) {
+        // Focus mode: fit to the UNION of only the fit set (not the whole
+        // world) so a small selection — e.g. the Nordics — fills the frame
+        // instead of sitting at its true, tiny share of a world-fitted box.
+        const fitFc: FeatureCollection<Polygon | MultiPolygon, CountryProps> = {
           type: "FeatureCollection",
-          features: matched,
+          features: fitMatched,
         };
-        projection.fitExtent([[pad, pad], [w - pad, h - pad]], selectionFc);
+        // Antimeridian-safe: rotate the sphere so the fit set's own
+        // spherical centroid longitude sits at the projection's center
+        // BEFORE fitExtent measures its bounds — see the interface doc
+        // above for why (a raw-longitude bounding box is wrong for a
+        // selection straddling ±180°, e.g. Fiji or Russia).
+        const [lon0] = geoCentroid(fitFc);
+        projection.rotate([-lon0, 0]);
+        // A small margin (~4% of the shorter side) keeps outlines off the
+        // very edge.
+        const pad = Math.min(w, h) * 0.04;
+        projection.fitExtent([[pad, pad], [w - pad, h - pad]], fitFc);
       } else {
-        // Nothing matched at all (every requested name is unknown) — no
-        // shape will be drawn either way, but keep the projection
-        // well-defined (fitExtent on an empty collection is degenerate).
+        // Nothing to fit to (every requested name is unknown, or fitNames
+        // matched nothing) — no shape will be drawn either way, but keep
+        // the projection well-defined (fitExtent on an empty collection is
+        // degenerate).
         projection.fitSize([w, h], fc);
       }
       const path = geoPath(projection);

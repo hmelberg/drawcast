@@ -137,19 +137,25 @@ describe("geo engine (real load — node, no DOM)", () => {
     return { minX, minY, maxX, maxY };
   }
 
+  function spans(shapes: { rings: [number, number][][] }[], w: number, h: number) {
+    const { minX, minY, maxX, maxY } = bounds(shapes);
+    return { spanX: (maxX - minX) / w, spanY: (maxY - minY) / h };
+  }
+
   // Regression: a small focus selection used to be projected at its true
   // (tiny) share of a WORLD-fitted box, drawing a postage-stamp map with
   // acres of white space around it. Focus mode now fits the projection to
   // just the union of the requested countries, so a small selection fills
-  // most of the frame.
-  test("focus mode fits the projection to just the requested countries — the union fills most of the box, not a sliver of a world-fitted one", async () => {
+  // most of the frame. Math.min (not Math.max) of the two spans: a country
+  // that's wide but flat (or tall but narrow) can legitimately fail one
+  // axis and still be a correct, non-collapsed fit — see the Russia/Chile
+  // tests below — but BOTH axes collapsing is the bug this guards against.
+  test("focus mode fits the projection to just the requested countries — the union fills most of the box in both dimensions, not a sliver of a world-fitted one", async () => {
     const eng = await geo();
     const w = 1000, h = 750;
     const { shapes } = eng.countries(["Norway", "Sweden"], { w, h });
-    const { minX, minY, maxX, maxY } = bounds(shapes);
-    const spanX = (maxX - minX) / w;
-    const spanY = (maxY - minY) / h;
-    expect(Math.max(spanX, spanY)).toBeGreaterThan(0.55);
+    const { spanX, spanY } = spans(shapes, w, h);
+    expect(Math.min(spanX, spanY)).toBeGreaterThan(0.5); // measured ~0.565/0.920
   });
 
   test('world mode ("all") is unaffected by the focus fit change: the whole world still spans nearly the full box width', async () => {
@@ -158,5 +164,89 @@ describe("geo engine (real load — node, no DOM)", () => {
     const { shapes } = eng.countries("all", { w, h });
     const { minX, maxX } = bounds(shapes);
     expect((maxX - minX) / w).toBeGreaterThan(0.9);
+  });
+
+  // Regression (antimeridian): a MultiPolygon straddling +/-180 deg has raw
+  // longitudes at both extremes of the range, so a naive bounding box spans
+  // nearly the whole projected width no matter how compact the country
+  // actually is — collapsing the OTHER dimension to a sliver once that
+  // width gets scaled to fit the box. Before the fix, Fiji measured
+  // spanX=0.94/spanY=0.009 (a flat horizontal line) and Russia measured
+  // spanX=0.94/spanY=0.18. Both dimensions must now be substantial for a
+  // roughly-compact country (Fiji); Russia is checked separately below
+  // because it is genuinely wide-and-flat on the globe, not a bug.
+  test("antimeridian: Fiji (straddles +/-180 deg) fits in both dimensions, not just one", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const { shapes, missing } = eng.countries(["Fiji"], { w, h });
+    expect(missing).toEqual([]);
+    const { spanX, spanY } = spans(shapes, w, h);
+    expect(Math.min(spanX, spanY)).toBeGreaterThan(0.5); // measured ~0.755/0.920
+  });
+
+  // Russia is genuinely wide-and-flat on the globe (~9000km E-W, much less
+  // N-S) — a single global "both spans > X" floor would be wrong for it
+  // even with antimeridian handling fully correct, so it's asserted per
+  // axis against its own true aspect ratio instead of Fiji's shared floor:
+  // spanX close to the box's full width (it's the widest thing in view),
+  // and spanY clearly OUT of "collapsed sliver" territory (measured 0.18
+  // before the fix; 0.373 after — genuinely tall enough to read as a
+  // country, not a line).
+  test("antimeridian: Russia (straddles +/-180 deg, genuinely wide-and-flat) is wide but not collapsed to a sliver", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const { shapes, missing } = eng.countries(["Russia"], { w, h });
+    expect(missing).toEqual([]);
+    const { spanX, spanY } = spans(shapes, w, h);
+    expect(spanX).toBeGreaterThan(0.8);
+    expect(spanY).toBeGreaterThan(0.3);
+  });
+
+  // Sanity check for the "per-case, not one global floor" design above: a
+  // genuinely tall-thin country (Chile) is EXPECTED to fail a wide spanX —
+  // that's correct, not a regression — so only its tall dimension is
+  // asserted.
+  test("a genuinely tall-thin country (Chile) is expected to have a narrow spanX — no global floor should demand otherwise", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const { shapes, missing } = eng.countries(["Chile"], { w, h });
+    expect(missing).toEqual([]);
+    const { spanY } = spans(shapes, w, h);
+    expect(spanY).toBeGreaterThan(0.85); // measured ~0.920
+  });
+
+  // Regression (fit dilution): a name resolved for its centroid only (e.g.
+  // a marker far from the focus set) must not drag the FIT box out to
+  // include it — that's the same "world_map draws tiny" collapse, just
+  // triggered by a marker instead of a focus list.
+  test("fitNames isolates the fit from names that are resolved but not meant to be fit — a distant name in `names` but not `fitNames` doesn't dilute it", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const diluted = eng.countries(["Norway", "Sweden", "Japan"], { w, h });
+    const dilutedSpan = spans(diluted.shapes.filter((s) => s.name !== "Japan"), w, h);
+    // Without fitNames, Japan (on the other side of the globe) IS part of
+    // the fit set — Norway+Sweden collapse, reproducing the original bug.
+    expect(Math.max(dilutedSpan.spanX, dilutedSpan.spanY)).toBeLessThan(0.3);
+
+    const isolated = eng.countries(["Norway", "Sweden", "Japan"], { w, h, fitNames: ["Norway", "Sweden"] });
+    const isolatedSpan = spans(isolated.shapes.filter((s) => s.name !== "Japan"), w, h);
+    expect(Math.min(isolatedSpan.spanX, isolatedSpan.spanY)).toBeGreaterThan(0.5);
+    // fitNames restricts the FIT, not what gets resolved: Japan still gets
+    // a real shape/centroid from the SAME (Nordics-fit) projection — just
+    // one that lands far outside the [0,w]x[0,h] box, since Japan is
+    // nowhere near where the projection was actually fit to.
+    const japan = isolated.shapes.find((s) => s.name === "Japan");
+    expect(japan).toBeDefined();
+    const jc = isolated.centroids.Japan;
+    expect(jc).toBeDefined();
+    expect(jc[0] < 0 || jc[0] > w || jc[1] < 0 || jc[1] > h).toBe(true);
+  });
+
+  test("fitNames is ignored in world mode (fitSize on the whole world either way)", async () => {
+    const eng = await geo();
+    const w = 1000, h = 750;
+    const withFitNames = eng.countries("all", { w, h, fitNames: ["Norway"] });
+    const withoutFitNames = eng.countries("all", { w, h });
+    expect(JSON.stringify(withFitNames)).toBe(JSON.stringify(withoutFitNames));
   });
 });
