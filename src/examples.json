@@ -2667,6 +2667,173 @@
     }
   },
   {
+    "request": "Explain E = mc^2.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "E = mc²",
+      "template": "equation_steps",
+      "params": {
+        "title": "E = mc²",
+        "steps": [
+          {
+            "tex": "E = mc^2",
+            "note": "Energy equals mass times the speed of light, squared."
+          },
+          {
+            "tex": "c^2 \\approx 9\\times10^{16}",
+            "note": "c² alone is a huge number — about 90 quadrillion (m/s)²."
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Let's unpack Einstein's most famous equation."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Mass-energy equivalence."
+        },
+        {
+          "draw": [
+            "step_0",
+            "note_0"
+          ],
+          "speak": "E is energy, m is mass, and c is the speed of light — about three hundred million meters per second."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "step_1",
+            "note_1"
+          ],
+          "speak": "Squaring c makes this multiplier enormous, so even a tiny mass converts into a huge amount of energy."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show Euler's identity.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Euler's identity",
+      "template": "equation_steps",
+      "params": {
+        "title": "Euler's identity",
+        "steps": [
+          {
+            "tex": "e^{ix} = \\cos x + i\\sin x",
+            "note": "Euler's formula — links the exponential to rotation."
+          },
+          {
+            "tex": "e^{i\\pi} = \\cos\\pi + i\\sin\\pi = -1",
+            "note": "Set x = π: cos π = -1, sin π = 0."
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "note": "Rearranged: five constants, one equation."
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "This is often called the most beautiful equation in mathematics."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Euler's identity."
+        },
+        {
+          "draw": [
+            "step_0",
+            "note_0"
+          ],
+          "speak": "Euler's formula: e to the i x equals cosine x plus i sine x — it links exponentials to rotation around a circle."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "step_1",
+            "note_1"
+          ],
+          "speak": "Set x to pi: cosine of pi is minus one, and sine of pi is zero."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "step_2",
+            "note_2"
+          ],
+          "speak": "That leaves e to the i pi, plus one, equals zero — five fundamental constants, e, i, pi, one and zero, meeting in a single equation."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Explain Bayes' theorem.",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Bayes' theorem",
+      "template": "equation_steps",
+      "params": {
+        "title": "Bayes' theorem",
+        "steps": [
+          {
+            "tex": "P(A\\mid B) = \\frac{P(B\\mid A)\\,P(A)}{P(B)}",
+            "note": "The probability of A, given that B happened."
+          },
+          {
+            "tex": "P(D\\mid T) = \\frac{P(T\\mid D)\\,P(D)}{P(T)}",
+            "note": "D = has the disease, T = tests positive."
+          }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "Bayes' theorem updates a belief once new evidence comes in."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Bayes' theorem."
+        },
+        {
+          "draw": [
+            "step_0",
+            "note_0"
+          ],
+          "speak": "The probability of A given B equals the probability of B given A, times the probability of A, divided by the probability of B."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "step_1",
+            "note_1"
+          ],
+          "speak": "In a diagnostic test: the chance you actually have the disease given a positive result equals how likely a positive test is when you're sick, times how common the disease is, divided by how likely a positive result is overall — posterior equals likelihood times prior, divided by evidence."
+        }
+      ]
+    }
+  },
+  {
     "request": "Draw a series circuit with a battery, a bulb and a switch.",
     "packs": [
       "physics"
