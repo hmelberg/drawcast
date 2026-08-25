@@ -1159,6 +1159,35 @@ describe("maps pack", () => {
     expect(note!.text).toMatch(/Wakanda/);
   });
 
+  test("highlighting a real country that isn't drawn (not in focus) is skipped, not filled without an outline — reported as 'Not drawn'", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    const res = scenes.world_map.layout!({ focus: ["Norway"], highlight: ["Germany"] });
+    const flat = flattenDrawables(res.drawables);
+    expect(flat.some((d) => d.id === "hl_germany")).toBe(false);
+    expect(flat.some((d) => d.id.startsWith("country_germany"))).toBe(false);
+    const note = res.drawables.find((d) => d.id === "missing_note") as { kind: string; text?: string } | undefined;
+    expect(note).toBeDefined();
+    expect(note!.text).toMatch(/Not drawn: Germany/);
+    // Germany was never flagged "Unknown" — it's a real country, just not drawn here.
+    expect(note!.text).not.toMatch(/Unknown/);
+  });
+
+  test("world mode: highlighting a country whose rings all fall below the drawable-count cap is also 'Not drawn', not a floating fill", async () => {
+    await ensureEngines(["geo"]);
+    registerPack("maps", mapsYaml);
+    // At this fit box size, Luxembourg's rings are all under the 8-point
+    // world-mode cap, so it never gets a country_ outline even though it is
+    // a real, resolvable country — the same "not drawn" bucket as a
+    // focus-mode exclusion, not a special case.
+    const res = scenes.world_map.layout!({ highlight: ["Luxembourg"] });
+    const flat = flattenDrawables(res.drawables);
+    expect(flat.some((d) => d.id === "hl_luxembourg")).toBe(false);
+    expect(flat.some((d) => d.id.startsWith("country_luxembourg"))).toBe(false);
+    const note = res.drawables.find((d) => d.id === "missing_note") as { text?: string } | undefined;
+    expect(note?.text).toMatch(/Not drawn: Luxembourg/);
+  });
+
   test("an unknown marker country also yields missing_note, and a known one draws a dot + label", async () => {
     await ensureEngines(["geo"]);
     registerPack("maps", mapsYaml);

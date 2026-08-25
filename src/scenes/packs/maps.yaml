@@ -30,7 +30,7 @@ params:
     highlight:
       type: array
       items: { type: string }
-      description: "Subset of the drawn countries (world or focus) to shade with a low-opacity area fill — call attention to one or more countries."
+      description: "Subset of the drawn countries (world or focus) to shade with a low-opacity area fill — call attention to one or more countries. A real country name that wasn't drawn (e.g. not in `focus`) is skipped, not filled without an outline, and listed in missing_note as \"Not drawn: ...\"."
     markers:
       type: array
       items:
@@ -48,7 +48,7 @@ element_ids:
   marker_<i>: a small dot at markers[i]'s country centroid
   marker_label_<i>: markers[i]'s label
   graticule: a light frame around the map, present in focus mode only
-  missing_note: "small guide text listing any unrecognized country names (\"Unknown: X, Y\"), present only when there are any"
+  missing_note: "small guide text listing unrecognized country names (\"Unknown: X, Y\") and/or real-but-not-drawn highlight names (\"Not drawn: X, Y\"), present only when there are any"
   title: figure title, when set
 examples:
   - request: "Draw a world map."
@@ -119,7 +119,13 @@ layout: |
 
   // Country outlines. Iterate `shapes` (the engine's own dataset order) so
   // ids and draw order never depend on how the caller listed names.
+  // `drawnKeys` is the ground truth for "actually has an outline on this
+  // figure" — used below so `highlight` never shades a country with no
+  // outline of its own (a floating tint): a real country that fails EITHER
+  // the focus filter OR (world mode) the ring-size cap is "not drawn", not
+  // silently filled anyway.
   const focusKeys = new Set(focusRaw.map((n) => n.toLowerCase()));
+  const drawnKeys = new Set();
   for (const shape of shapes) {
     if (isFocus && !focusKeys.has(shape.name.toLowerCase())) continue; // requested only for its centroid (highlight/marker), not drawn
     const rings = isFocus ? shape.rings : shape.rings.filter((r) => r.length >= 8); // world mode: drop slivers, keep the drawable count sane
@@ -134,19 +140,37 @@ layout: |
       }),
     );
     push(kit.group(id, children));
+    drawnKeys.add(shape.name.toLowerCase());
     const c = centroids[shape.name];
     if (c) anchors[id] = off(c);
   }
 
-  // Highlights: subset of the drawn countries, shaded with a low-opacity
-  // area fill over the shape's outer ring. Deduped case-insensitively.
+  // Every real country named in `highlight` that isn't in `drawnKeys` —
+  // recognized, but not on this figure. Reported separately from `unknown`
+  // (which is names the dataset itself doesn't recognize at all).
+  const notDrawn = new Map(); // lowercase -> first-seen original casing
+  const noteNotDrawn = (name) => {
+    const key = name.toLowerCase();
+    if (!notDrawn.has(key)) notDrawn.set(key, name);
+  };
+
+  // Highlights: subset of the DRAWN countries only, shaded with a
+  // low-opacity area fill over the shape's outer ring. Deduped
+  // case-insensitively. `markers` deliberately has no such restriction —
+  // its own params doc says "a drawn OR known country name" — a marker on
+  // a country whose outline isn't shown is a normal, intended use (e.g. a
+  // capital called out without drawing its whole country).
   const seenHl = new Set();
   for (const name of highlightRaw) {
     const key = name.toLowerCase();
     if (seenHl.has(key)) continue;
     seenHl.add(key);
     const shape = findShape(name);
-    if (!shape || shape.rings.length === 0) continue;
+    if (!shape) continue; // unrecognized — already recorded in `unknown` above
+    if (!drawnKeys.has(shape.name.toLowerCase())) {
+      noteNotDrawn(name);
+      continue;
+    }
     const id = "hl_" + slug(shape.name);
     push(kit.area(id, shape.rings[0].map(off), C.region2, { opacity: 0.3 }));
     const c = centroids[shape.name];
@@ -175,11 +199,15 @@ layout: |
     order.push(labelId);
   });
 
-  // Unrecognized names: there is no dedicated warning channel in a scene
-  // layout, so they surface as a small on-canvas note instead of vanishing
-  // silently.
-  if (unknown.size > 0) {
-    push(kit.text("missing_note", [500, 40], "Unknown: " + [...unknown.values()].join(", "), {
+  // Unrecognized and real-but-not-drawn names: there is no dedicated
+  // warning channel in a scene layout, so both surface as a small
+  // on-canvas note instead of vanishing (unrecognized) or silently
+  // filling with no outline (not drawn — see the highlight loop above).
+  const noteParts = [];
+  if (unknown.size > 0) noteParts.push("Unknown: " + [...unknown.values()].join(", "));
+  if (notDrawn.size > 0) noteParts.push("Not drawn: " + [...notDrawn.values()].join(", "));
+  if (noteParts.length > 0) {
+    push(kit.text("missing_note", [500, 40], noteParts.join("  —  "), {
       fontSize: 18, color: C.guide,
     }));
   }
