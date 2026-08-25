@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { kit, KIT_VERSION, shadeColor } from "../src/scenes/kit";
+import type { Pt } from "../src/layout/model";
 
 describe("kit factories", () => {
   test("stroke applies house defaults and options", () => {
@@ -144,8 +145,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 1 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(1);
+test("KIT_VERSION is 2 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(2);
   expect(kit.CANVAS.w).toBe(1000);
   expect(kit.COLORS.ink).toBeDefined();
   expect(kit.SKETCH_MS.stroke).toBeGreaterThan(0);
@@ -190,5 +191,200 @@ describe("kit and its constants are frozen against mutation", () => {
       (kit.SKETCH_MS as any).stroke = 0;
     }).toThrow();
     expect(kit.SKETCH_MS.stroke).toBe(stroke);
+  });
+});
+
+// ---- kit v2 -----------------------------------------------------------
+
+describe("kit.expr", () => {
+  test("compiles and evaluates an arithmetic expression string", () => {
+    const f = kit.expr("100 - 0.5*x", ["x"]);
+    expect(f({ x: 20 })).toBeCloseTo(90);
+    expect(f({ x: 0 })).toBeCloseTo(100);
+  });
+});
+
+describe("kit.sample", () => {
+  test("samples fn(x) over [x0,x1] into n finite points, first at x0", () => {
+    const pts = kit.sample((x) => x * x, 0, 2);
+    expect(pts).toHaveLength(60);
+    expect(pts.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))).toBe(true);
+    expect(pts[0]).toEqual([0, 0]);
+    expect(pts[pts.length - 1][0]).toBeCloseTo(2);
+    expect(pts[pts.length - 1][1]).toBeCloseTo(4);
+  });
+
+  test("skips non-finite outputs (e.g. a pole) instead of emitting NaN/Infinity points", () => {
+    const pts = kit.sample((x) => 1 / x, -1, 1, 11);
+    expect(pts.length).toBeLessThan(11);
+    expect(pts.every(([, y]) => Number.isFinite(y))).toBe(true);
+  });
+});
+
+describe("kit.table", () => {
+  test("2x2 with headers: grid + 4 cell anchors at centers, row 0 on top", () => {
+    const t = kit.table("t", {
+      x: 100, y: 100, w: 200, h: 100, rows: 2, cols: 2,
+      cells: [["a", "b"], ["c", null]],
+      rowHeaders: ["R0", "R1"],
+      colHeaders: ["C0", "C1"],
+    });
+    expect(t.order).toContain("t__grid");
+    const grid = t.drawables.find((d) => d.id === "t__grid");
+    expect(grid?.kind).toBe("group");
+
+    for (const id of ["t__c0_0", "t__c0_1", "t__c1_0", "t__c1_1"]) {
+      expect(t.anchors[id]).toBeDefined();
+    }
+    // row 0 is the TOP row: y-up means a higher y value.
+    expect(t.anchors["t__c0_0"][1]).toBeGreaterThan(t.anchors["t__c1_0"][1]);
+    // columns still line up left-to-right.
+    expect(t.anchors["t__c0_0"][0]).toBeLessThan(t.anchors["t__c0_1"][0]);
+
+    // non-null cells get text drawables...
+    expect(t.drawables.some((d) => d.id === "t__c0_0" && d.kind === "text")).toBe(true);
+    // ...null cells stay anchor-only, no drawable.
+    expect(t.drawables.some((d) => d.id === "t__c1_1")).toBe(false);
+
+    // headers are drawn outside the grid box.
+    const rh0 = t.drawables.find((d) => d.id === "t__rh0") as any;
+    expect(rh0.pos[0]).toBeLessThan(100); // left of x
+    const ch0 = t.drawables.find((d) => d.id === "t__ch0") as any;
+    expect(ch0.pos[1]).toBeGreaterThan(200); // above y+h
+  });
+});
+
+describe("kit.layoutNodes", () => {
+  test("chain of 3 is evenly spaced and inside the box", () => {
+    const pos = kit.layoutNodes(["a", "b", "c"], [], { style: "chain", x: 0, y: 0, w: 300, h: 100 });
+    const xs = ["a", "b", "c"].map((n) => pos[n][0]);
+    expect(xs[0]).toBeLessThan(xs[1]);
+    expect(xs[1]).toBeLessThan(xs[2]);
+    expect(xs[1] - xs[0]).toBeCloseTo(xs[2] - xs[1]);
+    for (const n of ["a", "b", "c"]) {
+      const [x, y] = pos[n];
+      expect(x).toBeGreaterThan(0);
+      expect(x).toBeLessThan(300);
+      expect(y).toBeGreaterThan(0);
+      expect(y).toBeLessThan(100);
+    }
+  });
+
+  test("layered puts a node's successor strictly to its right", () => {
+    const pos = kit.layoutNodes(
+      ["a", "b", "c"],
+      [{ from: "a", to: "b" }, { from: "b", to: "c" }],
+      { style: "layered", x: 0, y: 0, w: 300, h: 150 },
+    );
+    expect(pos.b[0]).toBeGreaterThan(pos.a[0]);
+    expect(pos.c[0]).toBeGreaterThan(pos.b[0]);
+  });
+
+  test("circle places nodes on a ring around the box center", () => {
+    const pos = kit.layoutNodes(["a", "b", "c", "d"], [], { style: "circle", x: 0, y: 0, w: 200, h: 200 });
+    const c: Pt = [100, 100];
+    const radii = Object.values(pos).map(([x, y]) => Math.hypot(x - c[0], y - c[1]));
+    for (const r of radii) expect(r).toBeCloseTo(radii[0], 6);
+  });
+});
+
+describe("kit.edgeArrow", () => {
+  test("default head draws an arrowhead on the main stroke", () => {
+    const { drawables, order } = kit.edgeArrow("e", [0, 0], [100, 0]);
+    expect(order).toEqual(["e"]);
+    expect((drawables[0] as any).arrowhead).toBe("end");
+  });
+
+  test("head: 'bar' emits a __head drawable", () => {
+    const { drawables, order } = kit.edgeArrow("e", [0, 0], [100, 0], { head: "bar" });
+    expect(order).toContain("e__head");
+    expect(drawables.some((d) => d.id === "e__head")).toBe(true);
+  });
+
+  test("shorten moves both endpoints inward", () => {
+    const { drawables } = kit.edgeArrow("e", [0, 0], [100, 0], { shorten: 10, head: "none" });
+    const s = drawables[0] as any;
+    expect(s.pts[0]).toEqual([10, 0]);
+    expect(s.pts[s.pts.length - 1]).toEqual([90, 0]);
+  });
+
+  test("curve bows the path off the straight line", () => {
+    const { drawables } = kit.edgeArrow("e", [0, 0], [100, 0], { curve: 0.25, head: "none" });
+    const s = drawables[0] as any;
+    const midY = s.pts[Math.floor(s.pts.length / 2)][1];
+    expect(Math.abs(midY)).toBeGreaterThan(1);
+  });
+});
+
+describe("kit.angleMark", () => {
+  test("arc variant follows the arc from a0 to a1", () => {
+    const m = kit.angleMark("m", [0, 0], 0, Math.PI / 2, 20);
+    expect(m.pts.length).toBeGreaterThan(3);
+    expect(m.pts[0][0]).toBeCloseTo(20);
+    expect(m.pts[m.pts.length - 1][1]).toBeCloseTo(20);
+  });
+
+  test("right-angle variant returns a 3-pt polyline forming the square corner", () => {
+    const m = kit.angleMark("m", [0, 0], 0, Math.PI / 2, 20, { right: true });
+    expect(m.pts).toHaveLength(3);
+    expect(m.pts[0]).toEqual([20, 0]);
+    expect(m.pts[2][0]).toBeCloseTo(0, 6);
+    expect(m.pts[2][1]).toBeCloseTo(20, 6);
+  });
+});
+
+describe("kit.tickMarks", () => {
+  test("n ticks cross the midpoint region, perpendicular to the segment", () => {
+    const segs = kit.tickMarks([0, 0], [100, 0], 3);
+    expect(segs).toHaveLength(3);
+    for (const [p0, p1] of segs) {
+      // perpendicular to a horizontal line means the tick is vertical.
+      expect(p0[0]).toBeCloseTo(p1[0]);
+      expect(Math.abs(p0[1] - p1[1])).toBeGreaterThan(0);
+      // clustered near the midpoint (x = 50).
+      expect(p0[0]).toBeGreaterThan(30);
+      expect(p0[0]).toBeLessThan(70);
+    }
+  });
+});
+
+describe("kit.stamp and kit.STAMPS", () => {
+  test("resistor returns drawables within the unit box scaled, and both anchors", () => {
+    const at: Pt = [500, 400];
+    const scale = 40;
+    const r = kit.stamp("resistor", at, { scale });
+    expect(r.anchors.left).toBeDefined();
+    expect(r.anchors.right).toBeDefined();
+    expect(r.anchors.left[0]).toBeLessThan(r.anchors.right[0]);
+    for (const d of r.drawables) {
+      if (d.kind !== "stroke") continue;
+      for (const [x, y] of d.pts) {
+        expect(Math.abs(x - at[0])).toBeLessThanOrEqual(scale + 1e-6);
+        expect(Math.abs(y - at[1])).toBeLessThanOrEqual(scale + 1e-6);
+      }
+    }
+  });
+
+  test("every STAMPS name round-trips through stamp() with finite coordinates", () => {
+    for (const name of Object.keys(kit.STAMPS)) {
+      const r = kit.stamp(name, [500, 400]);
+      expect(r.drawables.length).toBeGreaterThan(0);
+      expect(Object.keys(r.anchors).length).toBeGreaterThan(0);
+      for (const d of r.drawables) {
+        if (d.kind !== "stroke") continue;
+        for (const [x, y] of d.pts) {
+          expect(Number.isFinite(x)).toBe(true);
+          expect(Number.isFinite(y)).toBe(true);
+        }
+      }
+      for (const p of Object.values(r.anchors)) {
+        expect(Number.isFinite(p[0])).toBe(true);
+        expect(Number.isFinite(p[1])).toBe(true);
+      }
+    }
+  });
+
+  test("STAMPS is frozen", () => {
+    expect(Object.isFrozen(kit.STAMPS)).toBe(true);
   });
 });

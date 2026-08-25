@@ -1,4 +1,4 @@
-// sceneKit v1 — the stdlib handed to template layout bodies as `kit`.
+// sceneKit v2 — the stdlib handed to template layout bodies as `kit`.
 // Layout bodies cannot import anything; every helper they need lives here.
 // The doc comments double as the authoring-prompt documentation (M2).
 //
@@ -8,6 +8,7 @@
 // 2. Repeated micro-strokes (bonds, dots, hatching) go in ONE kit.group —
 //    groups are the narration/annotation beats.
 
+import { compileExpression } from "../spec/expression";
 import { CANVAS } from "../layout/canvas";
 import {
   COLORS,
@@ -28,7 +29,7 @@ import {
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 1;
+export const KIT_VERSION = 2;
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -96,6 +97,64 @@ export type Prim3 =
   | { kind: "text3"; id: string; p: Vec3; text: string; fontSize?: number; color?: string }
   | { kind: "face3"; id: string; pts: Vec3[]; color?: string; fill?: string; opacity?: number; ms?: number }
   | { kind: "box3"; id: string; c: Vec3; size: Vec3; color?: string; fill?: string; hidden_edges?: boolean };
+
+// ---- kit v2: tables, graph layout, geometry markup, stamps ----
+
+export interface TableOpts {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rows: number;
+  cols: number;
+  /** Row-major cell text; null (or a short row/missing cell) means empty. */
+  cells?: (string | null)[][];
+  /** Drawn OUTSIDE the grid, to the left of each row, guide color by default. */
+  rowHeaders?: string[];
+  /** Drawn OUTSIDE the grid, above each column, guide color by default. */
+  colHeaders?: string[];
+  fontSize?: number;
+  color?: string;
+  headerColor?: string;
+  ms?: number;
+}
+
+export interface EdgeArrowOpts {
+  /** 0 = straight; ± = bow, as a fraction of segment length (e.g. 0.25). */
+  curve?: number;
+  /** "bar" = inhibition ⊣, "circle" = catalysis ○. Default "arrow". */
+  head?: "arrow" | "bar" | "circle" | "none";
+  /** Draw a loop (arc above `from`) instead of a path to `to` — `to` is ignored. */
+  selfLoop?: boolean;
+  color?: string;
+  strokeWidth?: number;
+  ms?: number;
+  dash?: boolean;
+  /** Trim this many px off BOTH ends (e.g. a node's radius) before drawing. */
+  shorten?: number;
+}
+
+export interface StampOpts {
+  /** Half-width in px the unit box scales to (default 40). */
+  scale?: number;
+  /** Rotation in radians, applied around `at` after scaling. */
+  rot?: number;
+  color?: string;
+  strokeWidth?: number;
+  ms?: number;
+  /** Prefix for generated stroke ids (default: the stamp name). */
+  idPrefix?: string;
+}
+
+/**
+ * One pictogram: a handful of polylines in a unit box (x, y ∈ [-1, 1],
+ * y-up) plus named connection points in the same coordinates — `stamp()`
+ * scales, rotates and translates both into logical canvas units.
+ */
+export interface StampDef {
+  strokes: number[][][];
+  anchors: Record<string, [number, number]>;
+}
 
 /**
  * Lighten/darken a hex color toward white/black. factor 1 → pure white (lighter);
@@ -169,11 +228,174 @@ export interface SceneKit {
    * large structures.
    */
   project3d(camera: Camera3, prims: Prim3[]): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
+  // ---- kit v2: expressions, tables, graph layout, geometry markup, stamps ----
+  /** Compile an arithmetic expression string (spec/expression.ts) into a fast evaluator closure. */
+  expr(src: string, variables: string[]): (env: Record<string, number>) => number;
+  /** Sample fn(x) over [x0,x1] into n points (default 60), evenly spaced; non-finite outputs are skipped, so a pole just leaves a gap instead of a NaN point. */
+  sample(fn: (x: number) => number, x0: number, x1: number, n?: number): Pt[];
+  /**
+   * A rows×cols grid inside {x,y,w,h} (x,y = lower-left corner, like every
+   * other box in this kit). y-up means row 0 — the TOP row — sits at the
+   * HIGH end of the box, not y=0. Cell anchors are recorded at every cell's
+   * center even when the cell is empty (a `null` in `cells`, or omitted
+   * entirely), so a caller can drop a stamp or a custom drawable into a
+   * blank cell. rowHeaders/colHeaders sit just outside the grid box.
+   */
+  table(id: string, o: TableOpts): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
+  /**
+   * Node positions for a small graph, no drawables. "chain": evenly spaced
+   * left→right along the box's midline. "circle": an evenly spaced ring
+   * inscribed in the box. "layered": longest-path layering (a node's layer
+   * = 1 + the deepest of its predecessors' layers, 0 for sources) — layers
+   * advance left→right, and within a layer nodes spread out vertically.
+   * Deterministic: always processes `nodes`/`edges` in the given order, no
+   * randomness, so a cycle just breaks at whichever back-edge is visited
+   * first rather than looping forever.
+   */
+  layoutNodes(
+    nodes: string[],
+    edges: { from: string; to: string }[],
+    o: { style: "chain" | "circle" | "layered"; x: number; y: number; w: number; h: number },
+  ): Record<string, Pt>;
+  /**
+   * A connector from `from` to `to`: straight when `curve` is 0/omitted,
+   * else bowed through a Catmull–Rom control point offset perpendicular to
+   * the line by `curve` × length. `head: "arrow"` (default) sets the main
+   * stroke's own arrowhead; `"bar"` (⊣, inhibition) and `"circle"` (○,
+   * catalysis) instead add one extra stroke, `${id}__head`, at the `to`
+   * end; `"none"` adds nothing. `shorten` trims both ends first (e.g. so
+   * the line starts/ends at a node's edge, not its center). `selfLoop`
+   * draws a loop above `from` and ignores `to` entirely.
+   */
+  edgeArrow(id: string, from: Pt, to: Pt, o?: EdgeArrowOpts): { drawables: Drawable[]; order: string[] };
+  /**
+   * A geometry angle mark at `vertex` between rays at a0 and a1 (radians,
+   * CCW, y-up). Default draws the arc between them; `right: true` instead
+   * draws the small square corner mark (a 3-point polyline) that means
+   * "this angle is 90°".
+   */
+  angleMark(id: string, vertex: Pt, a0: number, a1: number, r: number, o?: { right?: boolean; color?: string; ms?: number }): StrokeDrawable;
+  /** n short congruence ticks crossing the midpoint of from→to, perpendicular to it (segments marked "these are equal"). */
+  tickMarks(from: Pt, to: Pt, n: number, len?: number): [Pt, Pt][];
+  /**
+   * Draw a named pictogram from `STAMPS` at `at`: its unit-box polylines
+   * (x, y ∈ [-1,1], y-up) are scaled by `scale` (default 40 = half-width
+   * px), rotated by `rot` radians, then translated to `at`. Named anchors
+   * (e.g. a resistor's `left`/`right` leads) go through the same transform
+   * so a caller can wire stamps together.
+   */
+  stamp(name: string, at: Pt, o?: StampOpts): { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[] };
+  /** Stamp library v1: resistor, battery, bulb, switch, capacitor, flask, beaker, burette, test_tube, bunsen, person. */
+  STAMPS: Record<string, StampDef>;
   // ---- constants ----
   COLORS: typeof COLORS;
   CANVAS: typeof CANVAS;
   SKETCH_MS: typeof SKETCH_MS;
 }
+
+// ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
+// Two tiny local builders keep the coordinate literals below readable —
+// they are not part of the kit surface, just data-entry sugar.
+const circlePts = (r: number, n: number, cx = 0, cy = 0): number[][] => {
+  const pts: number[][] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = (i / n) * 2 * Math.PI;
+    pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
+  }
+  return pts;
+};
+const zigzagPts = (x0: number, x1: number, peaks: number, amp: number): number[][] => {
+  const pts: number[][] = [[x0, 0]];
+  for (let i = 1; i <= peaks; i++) {
+    pts.push([x0 + ((x1 - x0) * i) / (peaks + 1), i % 2 === 1 ? amp : -amp]);
+  }
+  pts.push([x1, 0]);
+  return pts;
+};
+
+const STAMPS_DATA: Record<string, StampDef> = {
+  resistor: {
+    strokes: [[[-1, 0], ...zigzagPts(-0.55, 0.55, 5, 0.5), [1, 0]]],
+    anchors: { left: [-1, 0], right: [1, 0] },
+  },
+  battery: {
+    strokes: [
+      [[-1, 0], [-0.15, 0]],
+      [[-0.15, -0.5], [-0.15, 0.5]],
+      [[0.15, -0.25], [0.15, 0.25]],
+      [[0.15, 0], [1, 0]],
+    ],
+    anchors: { left: [-1, 0], right: [1, 0] },
+  },
+  bulb: {
+    strokes: [
+      [[-1, 0], [-0.7, 0]],
+      circlePts(0.7, 20),
+      [[-0.45, -0.45], [0.45, 0.45]],
+      [[-0.45, 0.45], [0.45, -0.45]],
+      [[0.7, 0], [1, 0]],
+    ],
+    anchors: { left: [-1, 0], right: [1, 0] },
+  },
+  switch: {
+    strokes: [
+      [[-1, 0], [-0.55, 0]],
+      [[-0.55, 0], [0.4, 0.5]],
+      [[0.55, 0], [1, 0]],
+      circlePts(0.05, 8, -0.55, 0),
+    ],
+    anchors: { left: [-1, 0], right: [1, 0] },
+  },
+  capacitor: {
+    strokes: [
+      [[-1, 0], [-0.12, 0]],
+      [[-0.12, -0.5], [-0.12, 0.5]],
+      [[0.12, -0.5], [0.12, 0.5]],
+      [[0.12, 0], [1, 0]],
+    ],
+    anchors: { left: [-1, 0], right: [1, 0] },
+  },
+  flask: {
+    strokes: [
+      [[-0.18, 1], [-0.18, 0.3], [-0.85, -0.9], [-0.7, -1], [0.7, -1], [0.85, -0.9], [0.18, 0.3], [0.18, 1]],
+    ],
+    anchors: { mouth: [0, 1], base: [0, -1] },
+  },
+  beaker: {
+    strokes: [[[-0.75, 1], [-0.75, -1], [0.75, -1], [0.75, 0.85], [0.9, 1]]],
+    anchors: { mouth: [0, 1], base: [0, -1] },
+  },
+  burette: {
+    strokes: [
+      [[-0.18, 1], [-0.18, -0.6], [0, -1], [0.18, -0.6], [0.18, 1]],
+      [[-0.4, -0.4], [0.4, -0.4]],
+    ],
+    anchors: { top: [0, 1], tip: [0, -1] },
+  },
+  test_tube: {
+    strokes: [[[-0.4, 1], [-0.4, -0.5], [-0.28, -0.85], [0, -1], [0.28, -0.85], [0.4, -0.5], [0.4, 1]]],
+    anchors: { mouth: [0, 1], base: [0, -1] },
+  },
+  bunsen: {
+    strokes: [
+      [[-0.35, -1], [-0.35, 0.15], [0.35, 0.15], [0.35, -1]],
+      [[-0.55, -1], [0.55, -1]],
+      [[0, 0.15], [-0.2, 0.55], [0, 1], [0.2, 0.55], [0, 0.15]],
+    ],
+    anchors: { top: [0, 1], base: [0, -1] },
+  },
+  person: {
+    strokes: [
+      circlePts(0.22, 12, 0, 0.78),
+      [[0, 0.56], [0, -0.2]],
+      [[-0.4, 0.25], [0, 0.05], [0.4, 0.25]],
+      [[0, -0.2], [-0.3, -1]],
+      [[0, -0.2], [0.3, -1]],
+    ],
+    anchors: { head: [0, 1], base: [0, -1] },
+  },
+};
+export const STAMPS: Record<string, StampDef> = Object.freeze(STAMPS_DATA);
 
 // `kit` is one shared, live object handed to every compiled template body
 // (src/scenes/compile.ts). It is frozen below (and COLORS/CANVAS/SKETCH_MS
@@ -749,6 +971,266 @@ export const kit: SceneKit = {
       order: pieces.map((p) => p.drawable.id),
     };
   },
+
+  expr(src, variables) {
+    return compileExpression(src, variables);
+  },
+  sample(fn, x0, x1, n = 60) {
+    const pts: Pt[] = [];
+    for (let i = 0; i < n; i++) {
+      const x = n <= 1 ? x0 : x0 + ((x1 - x0) * i) / (n - 1);
+      const y = fn(x);
+      if (Number.isFinite(x) && Number.isFinite(y)) pts.push([x, y]);
+    }
+    return pts;
+  },
+
+  table(id, o) {
+    const { x, y, w, h, rows, cols } = o;
+    const fontSize = o.fontSize ?? 24;
+    const color = o.color ?? COLORS.ink;
+    const headerColor = o.headerColor ?? COLORS.guide;
+    const ms = o.ms ?? SKETCH_MS.stroke;
+    const cellW = w / cols;
+    const cellH = h / rows;
+    // Row 0 is the TOP row: y-up means it sits at the HIGH end of the box.
+    const rowY = (r: number) => y + h - cellH * (r + 0.5);
+    const colX = (c: number) => x + cellW * (c + 0.5);
+
+    const gridChildren: Drawable[] = [];
+    for (let r = 0; r <= rows; r++) {
+      const yy = y + h - cellH * r;
+      gridChildren.push(this.stroke(`${id}__grid_h${r}`, [[x, yy], [x + w, yy]], { color, ms }));
+    }
+    for (let c = 0; c <= cols; c++) {
+      const xx = x + cellW * c;
+      gridChildren.push(this.stroke(`${id}__grid_v${c}`, [[xx, y], [xx, y + h]], { color, ms }));
+    }
+
+    const drawables: Drawable[] = [this.group(`${id}__grid`, gridChildren)];
+    const order: string[] = [`${id}__grid`];
+    const anchors: Record<string, Pt> = {};
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const p: Pt = [colX(c), rowY(r)];
+        const cellId = `${id}__c${r}_${c}`;
+        anchors[cellId] = p;
+        const text = o.cells?.[r]?.[c];
+        if (text != null) {
+          drawables.push(this.text(cellId, p, text, { fontSize, color }));
+          order.push(cellId);
+        }
+      }
+    }
+
+    const pad = Math.min(cellW, cellH) * 0.6 + fontSize * 0.5;
+    o.rowHeaders?.forEach((text, r) => {
+      if (r >= rows) return;
+      const hid = `${id}__rh${r}`;
+      drawables.push(this.text(hid, [x - pad, rowY(r)], text, { fontSize, color: headerColor, anchor: "end" }));
+      order.push(hid);
+    });
+    o.colHeaders?.forEach((text, c) => {
+      if (c >= cols) return;
+      const hid = `${id}__ch${c}`;
+      drawables.push(this.text(hid, [colX(c), y + h + pad], text, { fontSize, color: headerColor }));
+      order.push(hid);
+    });
+
+    return { drawables, anchors, order };
+  },
+
+  layoutNodes(nodes, edges, o) {
+    const { style, x, y, w, h } = o;
+    const positions: Record<string, Pt> = {};
+
+    if (style === "chain") {
+      const n = nodes.length;
+      nodes.forEach((name, i) => {
+        const px = n <= 1 ? x + w / 2 : x + (w * (i + 0.5)) / n;
+        positions[name] = [px, y + h / 2];
+      });
+    } else if (style === "circle") {
+      const n = nodes.length;
+      const r = (Math.min(w, h) / 2) * 0.82;
+      const c: Pt = [x + w / 2, y + h / 2];
+      const ring = this.polygon(c, r, Math.max(n, 1));
+      nodes.forEach((name, i) => {
+        positions[name] = ring[i];
+      });
+    } else {
+      // layered: longest-path layering, deterministic on input order — a
+      // node's layer is 1 + the deepest of its predecessors' layers (0 for
+      // sources), which guarantees every edge points to a strictly higher
+      // layer. `visiting` breaks a cycle at whichever back-edge is hit
+      // first instead of recursing forever.
+      const incoming = new Map<string, string[]>();
+      nodes.forEach((n) => incoming.set(n, []));
+      for (const e of edges) {
+        if (!incoming.has(e.to)) continue;
+        incoming.get(e.to)!.push(e.from);
+      }
+      const layerOf = new Map<string, number>();
+      const visiting = new Set<string>();
+      const layerFor = (name: string): number => {
+        const known = layerOf.get(name);
+        if (known !== undefined) return known;
+        if (visiting.has(name)) return 0;
+        visiting.add(name);
+        let layer = 0;
+        for (const p of incoming.get(name) ?? []) {
+          if (!incoming.has(p)) continue;
+          layer = Math.max(layer, layerFor(p) + 1);
+        }
+        visiting.delete(name);
+        layerOf.set(name, layer);
+        return layer;
+      };
+      nodes.forEach((n) => layerFor(n));
+
+      const layerCount = 1 + Math.max(0, ...nodes.map((n) => layerOf.get(n) ?? 0));
+      const byLayer: string[][] = Array.from({ length: layerCount }, () => []);
+      nodes.forEach((n) => byLayer[layerOf.get(n) ?? 0].push(n));
+
+      byLayer.forEach((group, li) => {
+        const cx = layerCount <= 1 ? x + w / 2 : x + (w * (li + 0.5)) / layerCount;
+        const m = group.length;
+        group.forEach((name, gi) => {
+          const cy = m <= 1 ? y + h / 2 : y + (h * (gi + 0.5)) / m;
+          positions[name] = [cx, cy];
+        });
+      });
+    }
+
+    return positions;
+  },
+
+  edgeArrow(id, from, to, o = {}) {
+    const color = o.color ?? COLORS.ink;
+    const strokeWidth = o.strokeWidth ?? 3.5;
+    const ms = o.ms ?? SKETCH_MS.connector;
+    const head = o.head ?? "arrow";
+    const shorten = o.shorten ?? 0;
+
+    let pathPts: Pt[];
+    let tip: Pt;
+    let tipDir: Pt;
+
+    if (o.selfLoop) {
+      const r = Math.max(18, Math.abs(o.curve ?? 0.4) * 120);
+      const c: Pt = [from[0], from[1] + r];
+      pathPts = this.arc(c, r, -Math.PI / 2 - 1.3, -Math.PI / 2 + 1.3, 32);
+      tip = pathPts[pathPts.length - 1];
+      const prev = pathPts[pathPts.length - 2] ?? pathPts[0];
+      const dx = tip[0] - prev[0], dy = tip[1] - prev[1];
+      const dl = Math.hypot(dx, dy) || 1;
+      tipDir = [dx / dl, dy / dl];
+    } else {
+      const dx0 = to[0] - from[0], dy0 = to[1] - from[1];
+      const len0 = Math.hypot(dx0, dy0) || 1;
+      const ux = dx0 / len0, uy = dy0 / len0;
+      const a: Pt = [from[0] + ux * shorten, from[1] + uy * shorten];
+      const b: Pt = [to[0] - ux * shorten, to[1] - uy * shorten];
+      const curve = o.curve ?? 0;
+      if (curve) {
+        const bl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const bux = (b[0] - a[0]) / bl, buy = (b[1] - a[1]) / bl;
+        const nx = -buy, ny = bux;
+        const mid: Pt = [(a[0] + b[0]) / 2 + nx * curve * bl, (a[1] + b[1]) / 2 + ny * curve * bl];
+        pathPts = this.smooth([a, mid, b], 10);
+      } else {
+        pathPts = [a, b];
+      }
+      tip = b;
+      tipDir = [ux, uy];
+    }
+
+    const drawables: Drawable[] = [];
+    const order: string[] = [];
+    const strokeOpts: StrokeOpts = { color, strokeWidth, ms, ...(o.dash !== undefined && { dash: o.dash }) };
+    if (head === "arrow") strokeOpts.arrowhead = "end";
+    drawables.push(this.stroke(id, pathPts, strokeOpts));
+    order.push(id);
+
+    if (head === "bar") {
+      const nx = -tipDir[1], ny = tipDir[0];
+      const half = 7;
+      const barPts: Pt[] = [
+        [tip[0] + nx * half, tip[1] + ny * half],
+        [tip[0] - nx * half, tip[1] - ny * half],
+      ];
+      drawables.push(this.stroke(`${id}__head`, barPts, { color, strokeWidth, ms }));
+      order.push(`${id}__head`);
+    } else if (head === "circle") {
+      const r = 9;
+      const c: Pt = [tip[0] - tipDir[0] * r, tip[1] - tipDir[1] * r];
+      drawables.push(this.stroke(`${id}__head`, this.ellipse(c, r, r, 20), { closed: true, color, strokeWidth, ms }));
+      order.push(`${id}__head`);
+    }
+
+    return { drawables, order };
+  },
+
+  angleMark(id, vertex, a0, a1, r, o = {}) {
+    const color = o.color ?? COLORS.ink;
+    const ms = o.ms ?? SKETCH_MS.guides;
+    if (o.right) {
+      const d0: Pt = [vertex[0] + r * Math.cos(a0), vertex[1] + r * Math.sin(a0)];
+      const d1: Pt = [vertex[0] + r * Math.cos(a1), vertex[1] + r * Math.sin(a1)];
+      const corner: Pt = [d0[0] + (d1[0] - vertex[0]), d0[1] + (d1[1] - vertex[1])];
+      return this.stroke(id, [d0, corner, d1], { color, ms });
+    }
+    return this.stroke(id, this.arc(vertex, r, a0, a1, 20), { color, ms });
+  },
+
+  tickMarks(from, to, n, len = 16) {
+    const dx = to[0] - from[0], dy = to[1] - from[1];
+    const dlen = Math.hypot(dx, dy) || 1;
+    const ux = dx / dlen, uy = dy / dlen;
+    const nx = -uy, ny = ux;
+    const mid: Pt = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+    const spacing = len * 0.55;
+    const segs: [Pt, Pt][] = [];
+    for (let i = 0; i < n; i++) {
+      const off = (i - (n - 1) / 2) * spacing;
+      const c: Pt = [mid[0] + ux * off, mid[1] + uy * off];
+      segs.push([
+        [c[0] + nx * (len / 2), c[1] + ny * (len / 2)],
+        [c[0] - nx * (len / 2), c[1] - ny * (len / 2)],
+      ]);
+    }
+    return segs;
+  },
+
+  stamp(name, at, o = {}) {
+    const def = STAMPS[name];
+    if (!def) throw new Error(`stamp: unknown name "${name}"`);
+    const scale = o.scale ?? 40;
+    const rot = o.rot ?? 0;
+    const color = o.color ?? COLORS.ink;
+    const strokeWidth = o.strokeWidth ?? 3;
+    const ms = o.ms ?? SKETCH_MS.stroke;
+    const prefix = o.idPrefix ?? name;
+    const cosR = Math.cos(rot), sinR = Math.sin(rot);
+    const transform = (p: number[]): Pt => {
+      const sx = p[0] * scale, sy = p[1] * scale;
+      return [at[0] + sx * cosR - sy * sinR, at[1] + sx * sinR + sy * cosR];
+    };
+
+    const drawables: Drawable[] = [];
+    const order: string[] = [];
+    def.strokes.forEach((poly, i) => {
+      const sid = `${prefix}__${i}`;
+      drawables.push(this.stroke(sid, poly.map(transform), { color, strokeWidth, ms }));
+      order.push(sid);
+    });
+    const anchors: Record<string, Pt> = {};
+    for (const [k, v] of Object.entries(def.anchors)) anchors[k] = transform(v);
+
+    return { drawables, anchors, order };
+  },
+  STAMPS,
 
   COLORS,
   CANVAS,
