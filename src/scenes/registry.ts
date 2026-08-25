@@ -28,6 +28,8 @@ import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_s
 import { layoutTwoByTwoTable, type TwoByTwoParams } from "./two_by_two_table/layout";
 import { layoutTimeline, type TimelineParams } from "./timeline/layout";
 import { layoutGenericAxes, type GenericAxesParams } from "./generic_axes_diagram/layout";
+import { layoutMarkovModel, type MarkovParams } from "./markov_model/layout";
+import { layoutCostEffectivenessPlane, type CEParams } from "./cost_effectiveness_plane/layout";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -54,8 +56,14 @@ export const scenes: Record<string, SceneModule> = {
     manifest: proteinSecondaryManifest as SceneManifest,
     layout: (params) => layoutProteinSecondary(params as ProteinSecondaryParams),
   },
-  cost_effectiveness_plane: { manifest: cepManifest as SceneManifest },
-  markov_model: { manifest: markovManifest as SceneManifest },
+  cost_effectiveness_plane: {
+    manifest: cepManifest as SceneManifest,
+    layout: (params) => layoutCostEffectivenessPlane(params as unknown as CEParams),
+  },
+  markov_model: {
+    manifest: markovManifest as SceneManifest,
+    layout: (params) => layoutMarkovModel(params as unknown as MarkovParams),
+  },
   two_by_two_table: {
     manifest: twoByTwoManifest as SceneManifest,
     layout: (params) => layoutTwoByTwoTable(params as unknown as TwoByTwoParams),

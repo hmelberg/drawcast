@@ -1,8 +1,84 @@
 {
   "name": "markov_model",
-  "status": "stub",
-  "description": "A state-transition (Markov) diagram: health states as circles with transition arrows, including self-loops for staying. NOT IMPLEMENTED YET — compose it with tier-2 elements instead: one node element per state (shape 'circle', text = state name), arrow elements between them (curved: true looks good for two-way transitions), and labels attached to the arrows for transition probabilities. Node positions are computed automatically.",
-  "params_schema": { "type": "object", "properties": {} },
-  "element_ids": {},
-  "examples": []
+  "status": "ready",
+  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\". Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All node placement is computed for you (a ring for 3+ states, a horizontal pair for 2); a state that no transition ever leaves renders as absorbing (plain ink, no color) automatically.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "states": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 2,
+        "maxItems": 6,
+        "description": "2–6 state names, in the order they should be laid out."
+      },
+      "transitions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string" },
+            "to": { "type": "string" },
+            "label": { "type": "string", "description": "Transition probability/rate caption, e.g. \"0.10\"." }
+          },
+          "required": ["from", "to"]
+        },
+        "description": "Directed transitions between states named in `states`."
+      },
+      "self_loops": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "State names that also have a \"stay\" probability — drawn with a small loop above the state."
+      },
+      "layout": {
+        "type": "string",
+        "enum": ["circle", "chain"],
+        "description": "Node arrangement. Default: circle for 3+ states, chain for exactly 2."
+      },
+      "highlight_state": {
+        "type": "string",
+        "description": "One state name (must be in `states`) to highlight with a tinted halo behind it."
+      },
+      "title": { "type": "string" }
+    },
+    "required": ["states", "transitions"]
+  },
+  "element_ids": {
+    "state_<slug>": "the ellipse for one state (slug: the state name, lowercased, non-alphanumeric characters replaced with _)",
+    "state_label_<slug>": "the state's name, centered inside its ellipse",
+    "t_<i>": "transition arrow i (0-indexed, in `transitions` order) — bowed automatically when the reverse transition also exists",
+    "t_label_<i>": "transition i's probability/rate label, when set",
+    "loop_<slug>": "the self-loop arc for a state named in `self_loops`",
+    "hl_<slug>": "tinted halo behind the state named by `highlight_state` — present only when set",
+    "title": "figure title, when set"
+  },
+  "examples": [
+    {
+      "request": "Draw a three-state Markov model: Well, Sick, Dead, with Well and Sick able to stay or transition, and Dead absorbing.",
+      "params": {
+        "title": "Three-state Markov model",
+        "states": ["Well", "Sick", "Dead"],
+        "transitions": [
+          { "from": "Well", "to": "Sick", "label": "0.10" },
+          { "from": "Sick", "to": "Well", "label": "0.30" },
+          { "from": "Sick", "to": "Dead", "label": "0.05" },
+          { "from": "Well", "to": "Dead", "label": "0.01" }
+        ],
+        "self_loops": ["Well", "Sick"]
+      }
+    },
+    {
+      "request": "Draw a two-state Markov chain for a machine that's either working or broken, with a repair rate and a breakdown rate.",
+      "params": {
+        "title": "Machine reliability",
+        "states": ["Working", "Broken"],
+        "transitions": [
+          { "from": "Working", "to": "Broken", "label": "0.08" },
+          { "from": "Broken", "to": "Working", "label": "0.6" }
+        ],
+        "layout": "chain",
+        "highlight_state": "Broken"
+      }
+    }
+  ]
 }

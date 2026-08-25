@@ -16,6 +16,17 @@ function addFake(id: string): void {
   registerTemplateDoc(doc);
   added.push(id);
 }
+/** markov_model/cost_effectiveness_plane were the last built-in stubs (now promoted to ready) — register a throwaway one so the STUB rendering itself still has a pin. */
+function addFakeStub(id: string): void {
+  const doc: TemplateDoc = {
+    template: id, version: 1, kit: 1, status: "stub",
+    description: `Fake ${id} stub. Second sentence.`,
+    params: {}, element_ids: {},
+    examples: [],
+  };
+  registerTemplateDoc(doc);
+  added.push(id);
+}
 /** Registers throwaway templates until the catalog is in its two-level regime — whatever the threshold and the built-in library currently are. */
 function fillPastThreshold(): void {
   const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
@@ -28,6 +39,7 @@ afterEach(() => {
 
 describe("catalogText below the threshold", () => {
   test("matches the legacy full-entry format (no index, no escalation)", () => {
+    addFakeStub("fake_stub_pin");
     const t = catalogText();
     expect(t).toContain("### Scene template: supply_demand (READY");
     expect(t).toContain("STUB — do NOT set template");

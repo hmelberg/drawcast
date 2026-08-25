@@ -1,8 +1,13 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
+import { scenes } from "../src/scenes/registry";
 
 describe("layoutSpec", () => {
+  afterEach(() => {
+    delete scenes.temp_stub_scene;
+  });
+
   test("templated spec produces scene drawables plus placed labels", () => {
     const r = layoutSpec({ template: "supply_demand", params: {}, commands: [{ draw: ["axes"] }] });
     expect(r.order).toContain("axes");
@@ -23,8 +28,14 @@ describe("layoutSpec", () => {
   });
 
   test("stub template falls through gracefully", () => {
+    // markov_model/cost_effectiveness_plane were the last built-in stubs
+    // (promoted to ready templates); register a throwaway stub here instead
+    // of relying on a real template staying unimplemented forever.
+    scenes.temp_stub_scene = {
+      manifest: { name: "temp_stub_scene", status: "stub", description: "test-only stub", params_schema: {}, element_ids: {}, examples: [] },
+    };
     const r = layoutSpec({
-      template: "markov_model",
+      template: "temp_stub_scene",
       elements: [{ id: "healthy", type: "node", shape: "circle", text: "Healthy" }],
       commands: [{ draw: ["healthy"] }],
     });

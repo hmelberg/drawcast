@@ -1475,5 +1475,138 @@
         }
       ]
     }
+  },
+  {
+    "request": "Draw a three-state Markov model: Well, Sick, Dead.",
+    "spec": {
+      "title": "Three-state Markov model",
+      "template": "markov_model",
+      "params": {
+        "title": "Three-state Markov model",
+        "states": ["Well", "Sick", "Dead"],
+        "transitions": [
+          { "from": "Well", "to": "Sick", "label": "0.10" },
+          { "from": "Sick", "to": "Well", "label": "0.30" },
+          { "from": "Sick", "to": "Dead", "label": "0.05" },
+          { "from": "Well", "to": "Dead", "label": "0.01" }
+        ],
+        "self_loops": ["Well", "Sick"]
+      },
+      "commands": [
+        {
+          "speak": "A Markov model follows people between health states over repeated cycles."
+        },
+        {
+          "draw": ["state_well", "state_label_well", "state_sick", "state_label_sick", "state_dead", "state_label_dead"],
+          "parallel": true,
+          "speak": "Three states: well, sick, and dead."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["loop_well", "loop_sick"],
+          "parallel": true,
+          "speak": "Well and sick are both transient — you can stay in either from one cycle to the next."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["t_0", "t_label_0"],
+          "speak": "Ten percent of the time, someone well becomes sick."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["t_1", "t_label_1"],
+          "speak": "And thirty percent of the time, someone sick recovers to well."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["t_2", "t_label_2", "t_3", "t_label_3"],
+          "parallel": true,
+          "speak": "Both states can also lead to death, at their own separate rates."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": { "target": ["state_dead"], "effect": "glow" },
+          "speak": "Death is absorbing: once you arrive, no arrow leads back out."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["title"],
+          "speak": "That's the whole cycle: well, sick, and the one state nobody leaves."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show two treatments on a cost-effectiveness plane with a WTP threshold of 30,000 per QALY.",
+    "spec": {
+      "title": "Two treatments vs. standard care",
+      "template": "cost_effectiveness_plane",
+      "params": {
+        "title": "Two treatments vs. standard care",
+        "wtp_threshold": 30000,
+        "points": [
+          { "label": "New drug", "effect": 0.4, "cost": 8000, "emphasize": true },
+          { "label": "Surgery", "effect": 0.7, "cost": 32000 }
+        ]
+      },
+      "commands": [
+        {
+          "speak": "A cost-effectiveness plane compares treatments by both their cost and their effect at once."
+        },
+        {
+          "draw": ["x_axis", "y_axis"],
+          "parallel": true,
+          "speak": "Effect runs left to right, cost runs bottom to top, both zeroed on the comparator."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["q_ne", "q_nw", "q_se", "q_sw"],
+          "parallel": true,
+          "speak": "Each quadrant tells a different story: costing more or less, working better or worse."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["wtp_line", "wtp_label"],
+          "speak": "This dashed line is what we're willing to pay: thirty thousand per QALY gained."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["pt_0", "pt_label_0"],
+          "speak": "The new drug adds a little effect for a modest cost — well under the threshold."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["pt_1", "pt_label_1"],
+          "speak": "Surgery adds more effect, but costs far more than the threshold allows."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": ["title"],
+          "speak": "Same plane, two very different value propositions."
+        }
+      ]
+    }
   }
 ]
