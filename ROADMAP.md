@@ -77,6 +77,32 @@ ROADMAP for that record.
   script) both green — see
   `.superpowers/sdd/2026-08-25-science-packs/task-13-report.md`.
 
+## Template policy — when a figure earns a template
+
+Freehand (tier-2, often on `generic_axes_diagram`) is genuinely good at
+"axes + one or two hand-shaped curves + labels" — the Phillips-curve
+example proves it. A dedicated template must earn its catalog weight
+(~500 cached prompt tokens + one more routing candidate each). Build one
+only when at least one of these holds:
+
+1. **Geometry encodes domain correctness lint can't check** — log scales,
+   right-continuous steps, tangency conditions, exact intersections.
+2. **Dense or repetitive structure** — the model would have to emit
+   hundreds of coordinates (icon grids, boards, staffs).
+3. **A standard notation is the natural input** — SMILES, FEN, Newick.
+4. **Animation carries real teaching value** — numeric params + honest
+   per-frame recomputation is template-only.
+5. **The figure recurs constantly in the target literature** — worth
+   deterministic, correct-by-construction output.
+
+Otherwise trust freehand. Templates are a floor, not a cage: tier-2
+elements can still be layered on top of a template's exported curves
+(`curveSamples`), and the model can always fall through to composition.
+Decided 2026-08-26 after the "does it hurt to have many templates?"
+discussion; the two managed risks are shoehorning (kept in check by honest
+"Choose this for…" scoping and the fall-through) and catalog weight (the
+two-level catalog above `TEMPLATE_FULL_THRESHOLD`).
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future

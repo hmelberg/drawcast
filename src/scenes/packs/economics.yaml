@@ -1,6 +1,6 @@
 pack: economics
 title: Economics
-description: Consumer choice, PPF, cost curves, payoff matrices and AD-AS — micro and macro teaching figures with computed geometry.
+description: Consumer choice, PPF, cost curves, payoff matrices and extensive-form game trees — micro and game-theory teaching figures with computed geometry.
 ---
 template: indifference_budget
 title: Consumer choice (indifference curves & budget line)
@@ -641,152 +641,219 @@ layout: |
 
   return { drawables, labels, anchors, order };
 ---
-template: ad_as
-title: Aggregate demand - aggregate supply
+template: game_tree
+title: Game tree (extensive form)
 version: 1
 kit: 2
 status: ready
 description: >-
-  A macroeconomic aggregate demand-aggregate supply (AD-AS) diagram: a
-  downward-sloping AD curve, an upward-sloping AS curve, their equilibrium
-  (price level and real GDP) with dashed guides, an optional shift of either
-  curve (with a shift arrow between old and new, in the `shifted` color, and
-  the new equilibrium), and an optional vertical long-run aggregate supply
-  (LRAS) guide at potential output. Choose this scene for ANY request about
-  aggregate demand, aggregate supply, the AD-AS model, the price level, real
-  GDP, an inflationary or recessionary shock, or an expansionary/
-  contractionary demand or supply shift. shift.amount is numeric and
-  animates smoothly — tween it to show the curve sliding and the equilibrium
-  moving with it.
+  An extensive-form game tree: the first mover at the root, actions as
+  labeled branches, either payoff pairs "(a, b)" at the leaves or a
+  second-mover node with its own branches (up to three levels, three
+  actions per node), plus optional backward-induction solving that
+  highlights each player's best reply and boxes the subgame-perfect
+  outcome. Defaults to the classic entry game (Out, or In followed by
+  Fight/Accommodate — the non-credible-threat lesson). Choose this scene
+  for ANY request about sequential games, extensive form, game trees,
+  backward induction, subgame-perfect equilibrium, credible or
+  non-credible threats, or first-mover advantage.
 params:
   type: object
   properties:
-    shift:
+    players:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: string }
+      description: "The two players' names, e.g. [\"Entrant\", \"Incumbent\"]."
+    root:
       type: object
-      description: "A shift of AD or AS, with a shift arrow and the new equilibrium."
+      description: "The tree: { player: 0|1, actions: [...] }. Each action is { label, payoffs: [p0, p1] } for a leaf OR { label, player, actions } for a further node. Depth max 3, max 3 actions per node. payoffs[0] always belongs to players[0]."
       properties:
-        curve:
-          type: string
-          enum: [ad, as]
-        direction:
-          type: string
-          enum: [left, right]
-        amount:
-          type: number
-          description: "Magnitude of the shift, 0-30 (default 18)."
-      required: [curve]
-    show_lras:
+        player: { type: integer, enum: [0, 1] }
+        actions:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              payoffs:
+                type: array
+                items: { type: number }
+                minItems: 2
+                maxItems: 2
+              player: { type: integer, enum: [0, 1] }
+              actions: { type: array }
+            required: [label]
+    solve:
       type: boolean
-      description: "Draw a vertical long-run aggregate supply guide at potential output (default false)."
-    x_label:
+      description: "Backward induction: highlight each node's best action and box the subgame-perfect outcome (default false)."
+    title:
       type: string
-      description: "Default \"Real GDP\"."
-    y_label:
-      type: string
-      description: "Default \"Price level\"."
 element_ids:
-  axes: the coordinate axes (one group with both axis lines and their captions)
-  ad: the aggregate demand curve
-  as: the aggregate supply curve
-  lras: vertical long-run aggregate supply guide, present when show_lras
-  ad_shifted / as_shifted: the shifted curve, present when shift.curve names it
-  shift_arrow: arrow from the old curve to the shifted one, present when shift is set
-  eq: dot at the original AD-AS equilibrium
-  guides: dashed guides from eq to both axes
-  eq_new: dot at the new equilibrium after a shift, present when shift is set
-  label_ad / label_as / label_ad_shifted / label_as_shifted / label_eq / label_eq_new / label_lras: labels
+  node_r: the root node (with its player number)
+  node_<path>: an internal node, path = action indices from the root joined by _ (e.g. node_1)
+  edge_<path>: the branch leading to that node/leaf, with its action label
+  payoff_<path>: "the payoff pair at a leaf, e.g. payoff_1_0"
+  legend: who is player 1 and 2 (a group)
+  solution: the backward-induction marks — thick accent overlays on best replies plus a box around the equilibrium payoffs (a group, when solve)
+  title: figure title, when set
 examples:
-  - request: "Draw an aggregate demand and aggregate supply diagram."
-    params: {}
-  - request: "Show aggregate supply increasing, with the long-run aggregate supply marked."
-    params: { shift: { curve: "as", direction: "right", amount: 15 }, show_lras: true }
+  - request: "Draw the entry game and solve it by backward induction."
+    params:
+      solve: true
+      title: "The entry game"
+  - request: "Show a sequential game where the second mover's threat is not credible."
+    params:
+      players: ["Challenger", "Champion"]
+      solve: true
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
-  const xLabel = typeof params.x_label === "string" && params.x_label.trim() !== "" ? params.x_label : "Real GDP";
-  const yLabel = typeof params.y_label === "string" && params.y_label.trim() !== "" ? params.y_label : "Price level";
-  const showLras = params.show_lras === true;
-  const shift = params.shift && (params.shift.curve === "ad" || params.shift.curve === "as") ? params.shift : null;
+  const playersIn = Array.isArray(params.players) ? params.players : [];
+  const players = [
+    typeof playersIn[0] === "string" && playersIn[0].trim() !== "" ? playersIn[0].trim() : "Entrant",
+    typeof playersIn[1] === "string" && playersIn[1].trim() !== "" ? playersIn[1].trim() : "Incumbent",
+  ];
+  const DEFAULT_ROOT = {
+    player: 0,
+    actions: [
+      { label: "Out", payoffs: [0, 2] },
+      { label: "In", player: 1, actions: [
+        { label: "Fight", payoffs: [-1, -1] },
+        { label: "Accommodate", payoffs: [1, 1] },
+      ] },
+    ],
+  };
+  // Sanitize recursively: cap depth 3 and branching 3; anything malformed
+  // becomes a (0, 0) leaf rather than a crash.
+  const sane = (n, depth, fallbackPlayer) => {
+    if (typeof n !== "object" || n === null) return { player: fallbackPlayer, actions: [{ label: "a", payoffs: [0, 0] }] };
+    const player = n.player === 1 ? 1 : 0;
+    const acts = (Array.isArray(n.actions) ? n.actions.slice(0, 3) : []).map((a, i) => {
+      const label = typeof (a && a.label) === "string" && a.label.trim() !== "" ? a.label.trim() : "a" + (i + 1);
+      if (a && Array.isArray(a.actions) && depth < 3) {
+        const child = sane(a, depth + 1, 1 - player);
+        return { label, node: child };
+      }
+      const p = Array.isArray(a && a.payoffs) ? a.payoffs : [0, 0];
+      const p0 = Number.isFinite(p[0]) ? p[0] : 0;
+      const p1 = Number.isFinite(p[1]) ? p[1] : 0;
+      return { label, payoffs: [p0, p1] };
+    });
+    return { player, actions: acts.length > 0 ? acts : [{ label: "a", payoffs: [0, 0] }] };
+  };
+  const root = sane(typeof params.root === "object" && params.root !== null ? params.root : DEFAULT_ROOT, 1, 0);
+  const doSolve = params.solve === true;
 
-  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
-  const sx = (v) => plot.x0 + (v / 100) * (plot.x1 - plot.x0);
-  const sy = (v) => plot.y0 + (v / 100) * (plot.y1 - plot.y0);
+  // Positions: leaves get evenly spaced vertical slots (top-down in action
+  // order), internal nodes sit at the mean of their children.
+  const X0 = 160, XSTEP = 225, YTOP = 620, YBOT = 170;
+  let nLeaves = 0;
+  const countLeaves = (n) => { for (const a of n.actions) { if (a.node) countLeaves(a.node); else nLeaves++; } };
+  countLeaves(root);
+  const yStep = nLeaves > 1 ? (YTOP - YBOT) / (nLeaves - 1) : 0;
+  let slot = 0;
+  const place = (n, depth) => {
+    n.x = X0 + depth * XSTEP;
+    const childYs = [];
+    for (const a of n.actions) {
+      if (a.node) { place(a.node, depth + 1); childYs.push(a.node.y); }
+      else { a.x = X0 + (depth + 1) * XSTEP; a.y = nLeaves > 1 ? YTOP - slot * yStep : (YTOP + YBOT) / 2; slot++; childYs.push(a.y); }
+    }
+    n.y = childYs.reduce((s2, v) => s2 + v, 0) / childYs.length;
+  };
+  place(root, 0);
+
+  // Backward induction: best action per node by that node's own payoff.
+  const chosen = new Set();
+  const value = (n, path) => {
+    let best = -1, bestVal = -Infinity, vals = [];
+    n.actions.forEach((a, i) => {
+      const v = a.node ? value(a.node, path + "_" + i) : a.payoffs;
+      vals.push(v);
+      if (v[n.player] > bestVal) { bestVal = v[n.player]; best = i; }
+    });
+    chosen.add((path + "_" + best).replace(/^_/, ""));
+    return vals[best];
+  };
+  let eqPath = null;
+  if (doSolve) {
+    value(root, "");
+    // Follow the chosen edges from the root to find the equilibrium leaf.
+    let n = root, path = "";
+    while (n) {
+      let next = null;
+      n.actions.forEach((a, i) => {
+        const p = (path + "_" + i).replace(/^_/, "");
+        if (chosen.has(p)) { eqPath = p; next = a.node ? { n: a.node, p } : null; if (!a.node) eqPath = p; }
+      });
+      if (next) { n = next.n; path = next.p; } else break;
+    }
+  }
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  const label = (id, anchor, side, text, color, fontSize) => {
-    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
-    order.push(id);
+  const R = 24;
+  const solutionChildren = [];
+
+  const drawNode = (n, id) => {
+    push(kit.group(id, [
+      kit.stroke(id + "__c", kit.ellipse([n.x, n.y], R, R), { closed: true, fill: C.paper, strokeWidth: 3.5, ms: MS.node }),
+      kit.text(id + "__p", [n.x, n.y], String(n.player + 1), { fontSize: 22, color: n.player === 0 ? C.demand : C.supply }),
+    ]));
+    anchors[id] = [n.x, n.y];
   };
+  const walk = (n, id, path) => {
+    drawNode(n, id);
+    n.actions.forEach((a, i) => {
+      const p = (path + "_" + i).replace(/^_/, "");
+      const tx = a.node ? a.node.x : a.x, ty = a.node ? a.node.y : a.y;
+      const dx = tx - n.x, dy = ty - n.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      const from = [n.x + ux * (R + 4), n.y + uy * (R + 4)];
+      const to = a.node ? [tx - ux * (R + 4), ty - uy * (R + 4)] : [tx - 10, ty];
+      const eid = "edge_" + p;
+      // Action label above the branch midpoint, pushed off the line.
+      const mx = (from[0] + to[0]) / 2 - uy * 20, my = (from[1] + to[1]) / 2 + ux * 20 + 4;
+      push(kit.group(eid, [
+        kit.stroke(eid + "__l", [from, to], { strokeWidth: 3, ms: MS.connector }),
+        kit.text(eid + "__t", [mx, my], a.label, { fontSize: 17 }),
+      ]));
+      anchors[eid] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+      if (doSolve && chosen.has(p)) {
+        solutionChildren.push(kit.stroke("sol__" + p, [from, to], { color: C.accent, strokeWidth: 6, opacity: 0.45, ms: MS.connector }));
+      }
+      if (a.node) {
+        walk(a.node, "node_" + p, p);
+      } else {
+        const pid = "payoff_" + p;
+        push(kit.text(pid, [a.x + 4, a.y], "(" + a.payoffs[0] + ", " + a.payoffs[1] + ")", { fontSize: 20, anchor: "start" }));
+        anchors[pid] = [a.x + 4, a.y];
+        if (doSolve && eqPath === p) {
+          // Box the equilibrium payoffs with real clearance — the lint pads
+          // text boxes, so a snug frame reads as "text sits on stroke".
+          const tw = ("(" + a.payoffs[0] + ", " + a.payoffs[1] + ")").length * 11;
+          solutionChildren.push(kit.stroke("sol__box", [[a.x - 14, a.y - 32], [a.x + tw + 18, a.y - 32], [a.x + tw + 18, a.y + 32], [a.x - 14, a.y + 32]], { closed: true, color: C.accent, strokeWidth: 2.5, ms: MS.stroke }));
+        }
+      }
+    });
+  };
+  walk(root, "node_r", "");
 
-  const axesChildren = [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xLabel, { fontSize: 26, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLabel, { fontSize: 26, anchor: "start" }),
-  ];
-  push(kit.group("axes", axesChildren));
+  push(kit.group("legend", [
+    kit.text("legend__1", [150, 700], "1 = " + players[0], { fontSize: 18, anchor: "start", color: C.demand }),
+    kit.text("legend__2", [150, 672], "2 = " + players[1], { fontSize: 18, anchor: "start", color: C.supply }),
+  ]));
+  anchors.legend = [150, 700];
 
-  const D0 = 4, D1 = 96;
-  const adPts = [], asPts = [];
-  for (let x = D0; x <= D1; x += 2) {
-    adPts.push([x, 100 - x]);
-    asPts.push([x, x]);
+  if (doSolve && solutionChildren.length > 0) {
+    push(kit.group("solution", solutionChildren));
+    anchors.solution = anchors["node_r"];
   }
 
-  push(kit.stroke("ad", adPts.map(([x, y]) => [sx(x), sy(y)]), { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
-  anchors.ad = [sx(adPts[adPts.length - 1][0]), sy(adPts[adPts.length - 1][1])];
-  label("label_ad", anchors.ad, "right", "AD", C.demand, 22);
-
-  push(kit.stroke("as", asPts.map(([x, y]) => [sx(x), sy(y)]), { color: C.supply, strokeWidth: 4.5, ms: MS.curve }));
-  anchors.as = [sx(asPts[asPts.length - 1][0]), sy(asPts[asPts.length - 1][1])];
-  label("label_as", anchors.as, "right", "AS", C.supply, 22);
-
-  const eqX = 50, eqY = 50;
-  const eqL = [sx(eqX), sy(eqY)];
-  push(kit.stroke("guides", [[plot.x0, eqL[1]], eqL, [eqL[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
-  push(kit.stroke("eq", [eqL], { shapeHint: { type: "circle", c: eqL, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
-  anchors.eq = eqL;
-  label("label_eq", eqL, "above-right", "E", C.ink, 22);
-
-  if (showLras) {
-    const lrasX = sx(eqX);
-    push(kit.stroke("lras", [[lrasX, plot.y0], [lrasX, plot.y1]], { color: C.guide, dash: true, strokeWidth: 3, ms: MS.guides }));
-    anchors.lras = [lrasX, plot.y1];
-    label("label_lras", [lrasX, plot.y1 + 10], "above", "LRAS (potential output)", C.guide, 18);
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [620, 700], params.title, { fontSize: 28 }));
   }
-
-  if (shift) {
-    const magnitude = Math.min(30, Math.max(0, typeof shift.amount === "number" ? shift.amount : 18));
-    const dir = shift.direction === "left" ? -1 : 1;
-    const dx = dir * magnitude;
-    let eqX2, eqY2;
-    if (shift.curve === "ad") {
-      const shiftedRaw = adPts.map(([x, y]) => [x + dx, y]).filter(([x]) => x >= 1 && x <= 99);
-      const logicalPts = shiftedRaw.length >= 2 ? shiftedRaw.map(([x, y]) => [sx(x), sy(y)]) : [eqL, [eqL[0] + 1, eqL[1]]];
-      push(kit.stroke("ad_shifted", logicalPts, { color: C.shifted, strokeWidth: 4.5, ms: MS.curve }));
-      anchors.ad_shifted = logicalPts[logicalPts.length - 1];
-      label("label_ad_shifted", anchors.ad_shifted, "right", "AD′", C.shifted, 20);
-      eqX2 = (100 + dx) / 2;
-      eqY2 = eqX2;
-      const midBase = adPts[Math.floor(adPts.length / 2)];
-      const midShift = [midBase[0] + dx, midBase[1]];
-      push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
-    } else {
-      const shiftedRaw = asPts.map(([x, y]) => [x + dx, y]).filter(([x]) => x >= 1 && x <= 99);
-      const logicalPts = shiftedRaw.length >= 2 ? shiftedRaw.map(([x, y]) => [sx(x), sy(y)]) : [eqL, [eqL[0] + 1, eqL[1]]];
-      push(kit.stroke("as_shifted", logicalPts, { color: C.shifted, strokeWidth: 4.5, ms: MS.curve }));
-      anchors.as_shifted = logicalPts[logicalPts.length - 1];
-      label("label_as_shifted", anchors.as_shifted, "right", "AS′", C.shifted, 20);
-      eqX2 = (100 + dx) / 2;
-      eqY2 = eqX2 - dx;
-      const midBase = asPts[Math.floor(asPts.length / 2)];
-      const midShift = [midBase[0] + dx, midBase[1]];
-      push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
-    }
-    const eq2L = [sx(eqX2), sy(eqY2)];
-    push(kit.stroke("eq_new", [eq2L], { shapeHint: { type: "circle", c: eq2L, r: 7 }, strokeWidth: 3, fill: C.shifted, ms: MS.dot }));
-    anchors.eq_new = eq2L;
-    label("label_eq_new", eq2L, "below-right", "E′", C.shifted, 20);
-  }
-
   return { drawables, labels, anchors, order };

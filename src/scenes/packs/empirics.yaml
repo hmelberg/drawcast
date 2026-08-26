@@ -1,0 +1,629 @@
+pack: empirics
+title: Empirical methods
+description: Event-study plots, difference-in-differences trends, regression discontinuity, binned scatters and Lorenz curves — the figures of modern applied economics.
+---
+template: event_study
+title: Event-study plot
+version: 1
+kit: 2
+status: ready
+description: >-
+  An event-study plot: estimated coefficients as dots with confidence-
+  interval whiskers at each event time, a dashed zero line, a dashed
+  vertical treatment line, the reference period pinned at zero, flat (or
+  deliberately violated) pre-trends, and a post-treatment effect that can
+  be immediate or ramp up. The signature figure of modern applied
+  economics. Choose this scene for ANY request about event studies,
+  dynamic difference-in-differences coefficients, pre-trends or
+  pre-trend tests, treatment-effect dynamics around a policy change, or
+  coefficient-with-confidence-interval plots over event time.
+params:
+  type: object
+  properties:
+    periods_pre:
+      type: integer
+      description: "Event times before treatment, 2-8 (default 5)."
+    periods_post:
+      type: integer
+      description: "Event times from treatment on, 2-8 (default 5)."
+    effect:
+      type: number
+      description: "Post-treatment effect size, -3..3 (default 1)."
+    ramp:
+      type: boolean
+      description: "Effect grows linearly over post periods instead of jumping (default false)."
+    pre_trend:
+      type: number
+      description: "Slope of a pre-trend VIOLATION, -0.5..0.5 (default 0 = clean flat pre-trends)."
+    ci:
+      type: number
+      description: "Confidence-interval half-width, 0.1-1 (default 0.35)."
+    y_label:
+      type: string
+      description: "Default \"Effect\"."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  zero_line: dashed horizontal line at zero
+  treat_line: dashed vertical line where treatment begins (with its caption)
+  coef_<i>: coefficient dot + CI whisker at event time i (a group, in time order from the earliest)
+  title: figure title, when set
+examples:
+  - request: "Draw an event-study plot with flat pre-trends and a clear treatment effect."
+    params:
+      title: "Event study"
+  - request: "Show an event study where the pre-trends are violated."
+    params:
+      pre_trend: 0.25
+      title: "When pre-trends fail"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const nPre = clamp(Math.round(num(params.periods_pre, 5)), 2, 8);
+  const nPost = clamp(Math.round(num(params.periods_post, 5)), 2, 8);
+  const effect = clamp(num(params.effect, 1), -3, 3);
+  const ramp = params.ramp === true;
+  const preTrend = clamp(num(params.pre_trend, 0), -0.5, 0.5);
+  const ci = clamp(num(params.ci, 0.35), 0.1, 1);
+  const yLab = typeof params.y_label === "string" && params.y_label.trim() !== "" ? params.y_label.trim() : "Effect";
+
+  // Reference period t = -1 is exactly zero (the normalization every event
+  // study uses); other periods get a small deterministic wobble.
+  const coef = (t) => {
+    if (t === -1) return 0;
+    const wob = 0.07 * kit.jitter(t + 17);
+    if (t < 0) return preTrend * (t + 1) + wob;
+    return effect * (ramp ? (t + 1) / nPost : 1) + wob;
+  };
+  const ts = [];
+  for (let t = -nPre; t < nPost; t++) ts.push(t);
+  const vals = ts.map((t) => coef(t));
+  const wick = (t) => ci * (1 + 0.05 * Math.abs(t));
+  let lo = 0, hi = 0;
+  ts.forEach((t, i) => { lo = Math.min(lo, vals[i] - wick(t)); hi = Math.max(hi, vals[i] + wick(t)); });
+  const span = Math.max(1, hi - lo) * 1.25;
+  const mid = (hi + lo) / 2;
+
+  const plot = { x0: 120, y0: 130, x1: 910, y1: 620 };
+  const X = (t) => plot.x0 + ((t + nPre + 0.5) / (nPre + nPost)) * (plot.x1 - plot.x0);
+  const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Event time", { fontSize: 22, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLab, { fontSize: 22, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  push(kit.stroke("zero_line", [[plot.x0, Y(0)], [plot.x1, Y(0)]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+  anchors.zero_line = [plot.x0 + 60, Y(0)];
+  const vlineX = (X(-1) + X(0)) / 2; // between the reference period and t=0
+
+  push(kit.group("treat_line", [
+    kit.stroke("treat__v", [[vlineX, plot.y0], [vlineX, plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+    kit.text("treat__t", [vlineX + 8, plot.y1 - 12], "Treatment", { fontSize: 17, anchor: "start", color: C.shifted }),
+  ]));
+  anchors.treat_line = [vlineX, (plot.y0 + plot.y1) / 2];
+
+  ts.forEach((t, i) => {
+    const x = X(t), v = vals[i], w = wick(t);
+    const color = t < 0 ? C.supply : C.demand;
+    const id = "coef_" + i;
+    push(kit.group(id, [
+      kit.stroke(id + "__w", [[x, Y(v - w)], [x, Y(v + w)]], { color, strokeWidth: 2.5, ms: MS.dot }),
+      kit.stroke(id + "__c1", [[x - 6, Y(v - w)], [x + 6, Y(v - w)]], { color, strokeWidth: 2.5, ms: 120 }),
+      kit.stroke(id + "__c2", [[x - 6, Y(v + w)], [x + 6, Y(v + w)]], { color, strokeWidth: 2.5, ms: 120 }),
+      kit.stroke(id + "__d", kit.ellipse([x, Y(v)], 5.5, 5.5, 12), { closed: true, fill: color, color, ms: MS.dot }),
+    ]));
+    anchors[id] = [x, Y(v)];
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: did_trends
+title: Difference-in-differences trends
+version: 1
+kit: 2
+status: ready
+description: >-
+  The difference-in-differences picture: treated and control group outcome
+  lines over time moving in parallel before a policy, a dashed vertical
+  line at the policy date, the treated line diverging afterwards, a dashed
+  counterfactual continuing the parallel path, and an effect arrow between
+  counterfactual and actual at the end. Choose this scene for ANY request
+  about difference-in-differences, DiD, parallel trends, treated vs control
+  groups over time, policy evaluation with before/after comparison, or
+  counterfactual outcome paths.
+params:
+  type: object
+  properties:
+    effect:
+      type: number
+      description: "Divergence between treated and counterfactual at the end, -4..4 (default 1.8)."
+    treat_at:
+      type: number
+      description: "Policy time on the 0-10 axis, 2-8 (default 5)."
+    group_labels:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: string }
+      description: "Names for [treated, control] (default [\"Treated\", \"Control\"])."
+    show_counterfactual:
+      type: boolean
+      description: "Dashed continuation of the treated group's parallel path (default true)."
+    y_label:
+      type: string
+      description: "Default \"Outcome\"."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  control_line: the control group's line with its end label
+  treated_line: the treated group's line with its end label
+  treat_line: dashed vertical line at the policy date (with caption)
+  counterfactual: the dashed counterfactual path with its end label (when show_counterfactual)
+  effect_arrow: double arrow between counterfactual and actual at the end, with caption
+  title: figure title, when set
+examples:
+  - request: "Draw a difference-in-differences chart with parallel pre-trends."
+    params:
+      title: "Difference-in-differences"
+  - request: "Show a DiD where the policy HURT the treated group."
+    params:
+      effect: -1.5
+      title: "A harmful policy"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const effect = clamp(num(params.effect, 1.8), -4, 4);
+  const treatAt = clamp(num(params.treat_at, 5), 2, 8);
+  const gl = Array.isArray(params.group_labels) ? params.group_labels : [];
+  const nameT = typeof gl[0] === "string" && gl[0].trim() !== "" ? gl[0].trim() : "Treated";
+  const nameC = typeof gl[1] === "string" && gl[1].trim() !== "" ? gl[1].trim() : "Control";
+  const showCf = params.show_counterfactual !== false;
+  const yLab = typeof params.y_label === "string" && params.y_label.trim() !== "" ? params.y_label.trim() : "Outcome";
+
+  const GAP = 1.3;
+  const control = (x) => 2 + 0.22 * x + 0.1 * Math.sin(x * 1.7);
+  const cf = (x) => control(x) + GAP;
+  const treated = (x) => cf(x) + (x > treatAt ? (effect * (x - treatAt)) / (10 - treatAt) : 0);
+  let yMin = Infinity, yMax = -Infinity;
+  for (let x = 0; x <= 10; x += 0.5) {
+    for (const v of [control(x), treated(x), cf(x)]) { yMin = Math.min(yMin, v); yMax = Math.max(yMax, v); }
+  }
+  const span = (yMax - yMin) * 1.35;
+  const mid = (yMax + yMin) / 2;
+  const plot = { x0: 120, y0: 130, x1: 850, y1: 620 };
+  const X = (x) => plot.x0 + (x / 10.4) * (plot.x1 - plot.x0);
+  const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
+  const sample = (fn, a, b) => {
+    const pts = [];
+    for (let i = 0; i <= 50; i++) { const x = a + ((b - a) * i) / 50; pts.push([X(x), Y(fn(x))]); }
+    return pts;
+  };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Time", { fontSize: 22, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLab, { fontSize: 22, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  push(kit.group("treat_line", [
+    kit.stroke("treatv__l", [[X(treatAt), plot.y0], [X(treatAt), plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+    kit.text("treatv__t", [X(treatAt) + 8, plot.y1 - 12], "Policy", { fontSize: 17, anchor: "start", color: C.shifted }),
+  ]));
+  anchors.treat_line = [X(treatAt), (plot.y0 + plot.y1) / 2];
+
+  // A near-zero (or negative) effect can land the two line ends on top of
+  // each other — dodge the end labels apart when the pixel gap is small.
+  const yT = Y(treated(10)), yC = Y(control(10));
+  let dT = 0, dC = 0;
+  if (Math.abs(yT - yC) < 46) {
+    const push2 = (46 - Math.abs(yT - yC)) / 2;
+    if (yT >= yC) { dT = push2; dC = -push2; } else { dT = -push2; dC = push2; }
+  }
+  const cPts = sample(control, 0, 10);
+  push(kit.group("control_line", [
+    kit.stroke("control__l", cPts, { color: C.supply, strokeWidth: 4, ms: MS.curve }),
+    kit.text("control__t", [cPts[cPts.length - 1][0] + 12, cPts[cPts.length - 1][1] + dC], nameC, { fontSize: 19, anchor: "start", color: C.supply }),
+  ]));
+  anchors.control_line = cPts[Math.floor(cPts.length / 2)];
+
+  const tPts = sample(treated, 0, 10);
+  push(kit.group("treated_line", [
+    kit.stroke("treated__l", tPts, { color: C.demand, strokeWidth: 4.5, ms: MS.curve }),
+    kit.text("treated__t", [tPts[tPts.length - 1][0] + 12, tPts[tPts.length - 1][1] + dT], nameT, { fontSize: 19, anchor: "start", color: C.demand }),
+  ]));
+  anchors.treated_line = tPts[Math.floor(tPts.length / 2)];
+
+  if (showCf) {
+    const fPts = sample(cf, treatAt, 10);
+    push(kit.group("counterfactual", [
+      kit.stroke("cf__l", fPts, { color: C.guide, dash: true, strokeWidth: 3, ms: MS.curve }),
+      kit.text("cf__t", [fPts[fPts.length - 1][0] + 12, fPts[fPts.length - 1][1] - (effect > 0 ? 24 : -24)], "Counterfactual", { fontSize: 16, anchor: "start", color: C.guide }),
+    ]));
+    anchors.counterfactual = fPts[Math.floor(fPts.length / 2)];
+    const xa = 9.5;
+    push(kit.group("effect_arrow", [
+      kit.stroke("effect__a", [[X(xa), Y(cf(xa))], [X(xa), Y(treated(xa))]], { arrowhead: "both", color: C.accent, strokeWidth: 3, ms: MS.connector }),
+      kit.text("effect__t", [X(xa) - 14, (Y(cf(xa)) + Y(treated(xa))) / 2], "Effect", { fontSize: 18, anchor: "end", color: C.accent }),
+    ]));
+    anchors.effect_arrow = [X(xa), (Y(cf(xa)) + Y(treated(xa))) / 2];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: rd_plot
+title: Regression discontinuity plot
+version: 1
+kit: 2
+status: ready
+description: >-
+  A regression-discontinuity plot: binned scatter dots on both sides of a
+  cutoff, separate fitted lines left and right, a dashed vertical line at
+  the cutoff, and a bracket marking the jump — the treatment effect.
+  Choose this scene for ANY request about regression discontinuity, RD or
+  RDD designs, cutoffs and running variables, thresholds that assign
+  treatment (test scores, age limits, income lines), or the jump at a
+  discontinuity.
+params:
+  type: object
+  properties:
+    jump:
+      type: number
+      description: "The discontinuity at the cutoff, -4..4 (default 2)."
+    slope:
+      type: number
+      description: "Underlying slope, -0.5..0.5 (default 0.22)."
+    curvature:
+      type: number
+      description: "Underlying curvature, -0.03..0.03 (default 0.012)."
+    noise:
+      type: number
+      description: "Vertical scatter of the binned dots, 0-1 (default 0.32)."
+    x_label:
+      type: string
+      description: "The running variable (default \"Running variable\")."
+    cutoff_label:
+      type: string
+      description: "Caption on the cutoff line (default \"Cutoff\")."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  dots_left: binned scatter dots left of the cutoff (a group; dots_right likewise)
+  dots_right: binned dots right of the cutoff
+  fit_left: fitted line left of the cutoff (fit_right likewise)
+  fit_right: fitted line right of the cutoff
+  cutoff_line: dashed vertical line at the cutoff (with caption)
+  jump_bracket: double arrow marking the jump, with its caption
+  title: figure title, when set
+examples:
+  - request: "Draw a regression discontinuity plot with a clear jump at the cutoff."
+    params:
+      title: "Regression discontinuity"
+  - request: "Show an RD design where crossing the threshold lowers the outcome."
+    params:
+      jump: -1.8
+      title: "A penalty at the threshold"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const jump = clamp(num(params.jump, 2), -4, 4);
+  const slope = clamp(num(params.slope, 0.22), -0.5, 0.5);
+  const curv = clamp(num(params.curvature, 0.012), -0.03, 0.03);
+  const noise = clamp(num(params.noise, 0.32), 0, 1);
+  const xLab = typeof params.x_label === "string" && params.x_label.trim() !== "" ? params.x_label.trim() : "Running variable";
+  const cutLab = typeof params.cutoff_label === "string" && params.cutoff_label.trim() !== "" ? params.cutoff_label.trim() : "Cutoff";
+
+  const f = (x) => 3 + slope * x + curv * x * x + (x >= 0 ? jump : 0);
+  let yMin = Infinity, yMax = -Infinity;
+  for (let x = -10; x <= 10; x += 0.5) { yMin = Math.min(yMin, f(x) - noise); yMax = Math.max(yMax, f(x) + noise); }
+  const span = (yMax - yMin) * 1.3;
+  const mid = (yMax + yMin) / 2;
+  const plot = { x0: 120, y0: 130, x1: 900, y1: 620 };
+  const X = (x) => plot.x0 + ((x + 10) / 20.5) * (plot.x1 - plot.x0);
+  const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xLab, { fontSize: 22, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Outcome", { fontSize: 22, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const mkDots = (id, a, b, color) => {
+    const children = [];
+    for (let i = 0; i < 14; i++) {
+      const x = a + ((b - a) * (i + 0.5)) / 14;
+      const y = f(x) + noise * kit.jitter(i + (a < 0 ? 3 : 41));
+      children.push(kit.stroke(id + "__d" + i, kit.ellipse([X(x), Y(y)], 4.5, 4.5, 10), { closed: true, fill: color, color, ms: 70 }));
+    }
+    push(kit.group(id, children));
+    anchors[id] = [X((a + b) / 2), Y(f((a + b) / 2))];
+  };
+  mkDots("dots_left", -10, -0.3, C.supply);
+  mkDots("dots_right", 0.3, 10, C.demand);
+
+  const fitPts = (a, b) => {
+    const pts = [];
+    for (let i = 0; i <= 30; i++) { const x = a + ((b - a) * i) / 30; pts.push([X(x), Y(f(x))]); }
+    return pts;
+  };
+  push(kit.stroke("fit_left", fitPts(-10, -0.15), { strokeWidth: 4, ms: MS.curve }));
+  anchors.fit_left = [X(-5), Y(f(-5))];
+  push(kit.stroke("fit_right", fitPts(0.15, 10), { strokeWidth: 4, ms: MS.curve }));
+  anchors.fit_right = [X(5), Y(f(5))];
+
+  push(kit.group("cutoff_line", [
+    kit.stroke("cutoff__l", [[X(0), plot.y0], [X(0), plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+    kit.text("cutoff__t", [X(0) + 8, plot.y1 - 12], cutLab, { fontSize: 17, anchor: "start", color: C.shifted }),
+  ]));
+  anchors.cutoff_line = [X(0), (plot.y0 + plot.y1) / 2];
+
+  const yLo = Y(f(-0.001)), yHi = Y(f(0.001));
+  push(kit.group("jump_bracket", [
+    kit.stroke("jump__a", [[X(0.7), yLo], [X(0.7), yHi]], { arrowhead: "both", color: C.accent, strokeWidth: 3, ms: MS.connector }),
+    kit.text("jump__t", [X(0.7) + 12, (yLo + yHi) / 2], "Effect", { fontSize: 18, anchor: "start", color: C.accent }),
+  ]));
+  anchors.jump_bracket = [X(0.7), (yLo + yHi) / 2];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: binscatter
+title: Binned scatter plot
+version: 1
+kit: 2
+status: ready
+description: >-
+  A binned scatter plot: the workhorse figure for showing a relationship
+  between two variables — raw data averaged into equal-sized bins so the
+  shape emerges, with a fitted curve through them. Relationship shapes:
+  rising, falling, concave, convex, U-shaped, or none. Choose this scene
+  for ANY request about a binned scatter or binscatter, the correlation or
+  relationship between two variables, a scatter plot with a fitted or
+  regression line, or income/education/health gradient figures.
+params:
+  type: object
+  properties:
+    relationship:
+      type: string
+      enum: [linear_up, linear_down, concave, convex, u_shape, none]
+      description: "Shape of the underlying relationship (default linear_up)."
+    noise:
+      type: number
+      description: "Vertical scatter of the bin dots, 0-1 (default 0.35)."
+    show_fit:
+      type: boolean
+      description: "Fitted curve through the bins (default true)."
+    x_label:
+      type: string
+      description: "Default \"X\"."
+    y_label:
+      type: string
+      description: "Default \"Y\"."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  dots: the binned dots (a group)
+  fit: the fitted curve (when show_fit)
+  title: figure title, when set
+examples:
+  - request: "Draw a binned scatter showing a positive relationship."
+    params:
+      x_label: "Years of schooling"
+      y_label: "Log earnings"
+      title: "The education gradient"
+  - request: "Show a U-shaped binscatter."
+    params:
+      relationship: u_shape
+      title: "A U-shaped relationship"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const SHAPES = {
+    linear_up: (x) => 1.5 + 0.55 * x,
+    linear_down: (x) => 7 - 0.55 * x,
+    concave: (x) => 7 * Math.sqrt(x / 10),
+    convex: (x) => 0.6 + 6.4 * Math.pow(x / 10, 2),
+    u_shape: (x) => 2 + 4.5 * Math.pow((x - 5) / 5, 2),
+    none: () => 4,
+  };
+  const rel = typeof params.relationship === "string" && SHAPES[params.relationship] ? params.relationship : "linear_up";
+  const g = SHAPES[rel];
+  const noise = clamp(num(params.noise, 0.35), 0, 1);
+  const showFit = params.show_fit !== false;
+  const xLab = typeof params.x_label === "string" && params.x_label.trim() !== "" ? params.x_label.trim() : "X";
+  const yLab = typeof params.y_label === "string" && params.y_label.trim() !== "" ? params.y_label.trim() : "Y";
+
+  let yMin = Infinity, yMax = -Infinity;
+  for (let x = 0; x <= 10; x += 0.25) { yMin = Math.min(yMin, g(x) - noise); yMax = Math.max(yMax, g(x) + noise); }
+  const span = Math.max(1.5, yMax - yMin) * 1.3;
+  const mid = (yMax + yMin) / 2;
+  const plot = { x0: 120, y0: 130, x1: 900, y1: 620 };
+  const X = (x) => plot.x0 + (x / 10.4) * (plot.x1 - plot.x0);
+  const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xLab, { fontSize: 22, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLab, { fontSize: 22, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const dotChildren = [];
+  for (let i = 0; i < 20; i++) {
+    const x = ((i + 0.5) / 20) * 10;
+    const y = g(x) + noise * kit.jitter(i + 7);
+    dotChildren.push(kit.stroke("dots__d" + i, kit.ellipse([X(x), Y(y)], 5, 5, 10), { closed: true, fill: C.supply, color: C.supply, ms: 70 }));
+  }
+  push(kit.group("dots", dotChildren));
+  anchors.dots = [X(5), Y(g(5))];
+
+  if (showFit) {
+    const pts = [];
+    for (let i = 0; i <= 40; i++) { const x = (10 * i) / 40; pts.push([X(x), Y(g(x))]); }
+    push(kit.stroke("fit", pts, { color: C.demand, strokeWidth: 4, ms: MS.curve }));
+    anchors.fit = [X(5), Y(g(5))];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: lorenz_curve
+title: Lorenz curve & Gini
+version: 1
+kit: 2
+status: ready
+description: >-
+  A Lorenz curve: cumulative share of income against cumulative share of
+  the population, the 45-degree line of perfect equality, the sagging
+  Lorenz curve, the shaded area between them whose relative size IS the
+  Gini coefficient (printed as a caption), and an optional second curve for
+  comparing two countries or years. Choose this scene for ANY request
+  about inequality, the Lorenz curve, the Gini coefficient or index,
+  income or wealth distribution shares, "the top X% own Y%", or comparing
+  inequality between countries or over time.
+params:
+  type: object
+  properties:
+    gini:
+      type: number
+      description: "Gini coefficient of the main curve, 0.05-0.85 (default 0.4)."
+    compare_gini:
+      type: number
+      description: "Optional second curve's Gini, for comparison (dashed)."
+    labels:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: string }
+      description: "Names for [main, comparison] curves when comparing (e.g. [\"Norway\", \"Brazil\"])."
+    shade:
+      type: boolean
+      description: "Shade the Gini area between equality and the main curve (default true)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  equality: the 45-degree line of perfect equality
+  lorenz: the main Lorenz curve
+  lorenz2: the comparison curve (dashed, when compare_gini)
+  gini_area: the shaded area between equality and the main curve (when shade)
+  gini_caption: "\"Gini = 0.40\" printed under the curve"
+  label_equality: caption on the equality line
+  label_lorenz: caption on the main curve (label_lorenz2 for the comparison)
+  title: figure title, when set
+examples:
+  - request: "Draw a Lorenz curve and show what the Gini coefficient measures."
+    params:
+      title: "The Lorenz curve"
+  - request: "Compare inequality in two countries with Lorenz curves."
+    params:
+      gini: 0.27
+      compare_gini: 0.53
+      labels: ["Norway", "Brazil"]
+      title: "Two countries, two curves"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const gini = clamp(num(params.gini, 0.4), 0.05, 0.85);
+  const gini2 = Number.isFinite(params.compare_gini) ? clamp(params.compare_gini, 0.05, 0.85) : null;
+  const names = Array.isArray(params.labels) ? params.labels : [];
+  const name1 = typeof names[0] === "string" && names[0].trim() !== "" ? names[0].trim() : "Lorenz curve";
+  const name2 = typeof names[1] === "string" && names[1].trim() !== "" ? names[1].trim() : "Comparison";
+  const shade = params.shade !== false;
+
+  // L(p) = p^a gives Gini = (a-1)/(a+1) exactly, so a = (1+G)/(1-G).
+  const curveFor = (G) => { const a = (1 + G) / (1 - G); return (p) => Math.pow(p, a); };
+  const L1 = curveFor(gini);
+
+  const plot = { x0: 210, y0: 120, x1: 760, y1: 630 };
+  const X = (p) => plot.x0 + p * (plot.x1 - plot.x0);
+  const Y = (v) => plot.y0 + v * (plot.y1 - plot.y0);
+  const curvePts = (L) => {
+    const pts = [];
+    for (let i = 0; i <= 50; i++) { const p = i / 50; pts.push([X(p), Y(L(p))]); }
+    return pts;
+  };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 18, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 18]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [(plot.x0 + plot.x1) / 2, plot.y0 - 42], "Share of population", { fontSize: 21 }),
+    kit.text("axes__y_label", [plot.x0 - 26, plot.y1 + 24], "Share of income", { fontSize: 21, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const pts1 = curvePts(L1);
+  if (shade) {
+    const diag = [];
+    for (let i = 0; i <= 50; i++) { const p = i / 50; diag.push([X(p), Y(p)]); }
+    push(kit.area("gini_area", [...diag, ...pts1.slice().reverse()], C.region1, { opacity: 0.3 }));
+    anchors.gini_area = [X(0.5), (Y(0.5) + Y(L1(0.5))) / 2];
+  }
+  push(kit.stroke("equality", [[X(0), Y(0)], [X(1), Y(1)]], { color: C.guide, dash: true, strokeWidth: 3, ms: MS.curve }));
+  anchors.equality = [X(0.5), Y(0.5)];
+  label("label_equality", [X(0.4), Y(0.4)], "above", "Perfect equality", C.guide, 17);
+
+  push(kit.stroke("lorenz", pts1, { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.lorenz = [X(0.6), Y(L1(0.6))];
+  label("label_lorenz", [X(0.66), Y(L1(0.66))], "below", gini2 !== null ? name1 : "Lorenz curve", C.demand, 17);
+
+  if (gini2 !== null) {
+    const L2 = curveFor(gini2);
+    push(kit.stroke("lorenz2", curvePts(L2), { color: C.accent, dash: true, strokeWidth: 4, ms: MS.curve }));
+    anchors.lorenz2 = [X(0.6), Y(L2(0.6))];
+    label("label_lorenz2", [X(0.78), Y(L2(0.78))], "below", name2, C.accent, 17);
+  }
+
+  push(kit.text("gini_caption", [X(0.8), Y(0.14)], "Gini = " + gini.toFixed(2), { fontSize: 21 }));
+  anchors.gini_caption = [X(0.8), Y(0.14)];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };

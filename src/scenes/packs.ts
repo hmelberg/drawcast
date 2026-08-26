@@ -58,6 +58,24 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Icon arrays for absolute risk, ECG rhythm strips, the heart's double circulation, neurons, and screening/lead-time-bias timelines.",
     load: async () => (await import("./packs/medicine.yaml?raw")).default,
   },
+  macro: {
+    id: "macro",
+    title: "Macroeconomics",
+    description: "IS-LM, the Solow growth model and AD-AS — the macro teaching canon with computed intersections and shift arrows.",
+    load: async () => (await import("./packs/macro.yaml?raw")).default,
+  },
+  empirics: {
+    id: "empirics",
+    title: "Empirical methods",
+    description: "Event-study plots, difference-in-differences trends, regression discontinuity, binned scatters and Lorenz curves — the figures of modern applied economics.",
+    load: async () => (await import("./packs/empirics.yaml?raw")).default,
+  },
+  hta: {
+    id: "hta",
+    title: "Health technology assessment",
+    description: "Cost-effectiveness acceptability curves and tornado diagrams — the sensitivity-analysis figures of economic evaluation.",
+    load: async () => (await import("./packs/hta.yaml?raw")).default,
+  },
   games: {
     id: "games",
     title: "Games",

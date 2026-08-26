@@ -7,6 +7,9 @@ import evidenceYaml from "../src/scenes/packs/evidence.yaml?raw";
 import mathlogicYaml from "../src/scenes/packs/mathlogic.yaml?raw";
 import gamesYaml from "../src/scenes/packs/games.yaml?raw";
 import medicineYaml from "../src/scenes/packs/medicine.yaml?raw";
+import macroYaml from "../src/scenes/packs/macro.yaml?raw";
+import empiricsYaml from "../src/scenes/packs/empirics.yaml?raw";
+import htaYaml from "../src/scenes/packs/hta.yaml?raw";
 import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
@@ -633,7 +636,7 @@ describe("biology pack", () => {
 describe("economics pack", () => {
   beforeEach(() => unregisterPack("economics"));
 
-  const TEMPLATE_IDS = ["indifference_budget", "ppf", "firm_cost_curves", "payoff_matrix", "ad_as"];
+  const TEMPLATE_IDS = ["indifference_budget", "ppf", "firm_cost_curves", "payoff_matrix", "game_tree"];
 
   function inBounds(res: ReturnType<typeof layoutSpec>) {
     expect(res.warnings).toEqual([]);
@@ -2347,5 +2350,218 @@ describe("medicine pack", () => {
     };
     expect(span("survival_1")).toBeGreaterThan(span("survival_0"));
     expect(flattenDrawables(r.drawables).map((d) => d.id)).toContain("lead_time");
+  });
+});
+
+describe("game_tree (economics pack)", () => {
+  beforeEach(() => unregisterPack("economics"));
+
+  test("default entry game solves to In + Accommodate — the threat to Fight is not credible", () => {
+    registerPack("economics", economicsYaml);
+    const r = scenes.game_tree.layout!({ solve: true });
+    const flat = flattenDrawables(r.drawables);
+    const ids = flat.map((d) => d.id);
+    expect(ids).toEqual(expect.arrayContaining(["node_r", "node_1", "edge_0", "edge_1", "edge_1_0", "edge_1_1", "payoff_0", "payoff_1_0", "payoff_1_1", "solution"]));
+    // Backward induction marks In (edge 1) and Accommodate (edge 1_1), never Fight.
+    const solIds = ids.filter((id) => id.startsWith("sol__"));
+    expect(solIds).toContain("sol__1");
+    expect(solIds).toContain("sol__1_1");
+    expect(solIds).not.toContain("sol__1_0");
+    expect(solIds).toContain("sol__box"); // the (1, 1) outcome gets boxed
+  });
+
+  test("without solve there are no solution marks; payoffs render as pairs", () => {
+    registerPack("economics", economicsYaml);
+    const r = scenes.game_tree.layout!({});
+    const flat = flattenDrawables(r.drawables);
+    expect(flat.map((d) => d.id)).not.toContain("solution");
+    const p = flat.find((d) => d.id === "payoff_1_1") as { text: string };
+    expect(p.text).toBe("(1, 1)");
+  });
+});
+
+describe("macro pack", () => {
+  beforeEach(() => unregisterPack("macro"));
+
+  const TEMPLATE_IDS = ["is_lm", "solow_growth", "ad_as"];
+
+  test("registers is_lm, solow_growth and the relocated ad_as", () => {
+    const r = registerPack("macro", macroYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every macro example renders finite, no fallback warnings, no error lint, deterministically", () => {
+    registerPack("macro", macroYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+        for (const d of flattenDrawables(res.drawables)) {
+          if (d.kind === "stroke" || d.kind === "area") {
+            for (const [x, y] of d.pts) expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+          }
+        }
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("is_lm: a fiscal expansion moves the equilibrium to higher Y AND higher r", () => {
+    registerPack("macro", macroYaml);
+    const r = scenes.is_lm.layout!({ is_shift: 20 });
+    const eq = r.anchors.eq as [number, number];
+    const eq2 = r.anchors.eq2 as [number, number];
+    expect(eq2[0]).toBeGreaterThan(eq[0]); // higher output
+    expect(eq2[1]).toBeGreaterThan(eq[1]); // higher interest rate (y-up)
+    expect(flattenDrawables(r.drawables).map((d) => d.id)).toContain("is_shifted");
+  });
+
+  test("solow_growth: a higher savings rate moves the steady state k* right", () => {
+    registerPack("macro", macroYaml);
+    const low = scenes.solow_growth.layout!({ savings: 0.2 });
+    const high = scenes.solow_growth.layout!({ savings: 0.4 });
+    expect((high.anchors.steady as [number, number])[0]).toBeGreaterThan((low.anchors.steady as [number, number])[0]);
+  });
+});
+
+describe("empirics pack", () => {
+  beforeEach(() => unregisterPack("empirics"));
+
+  const TEMPLATE_IDS = ["event_study", "did_trends", "rd_plot", "binscatter", "lorenz_curve"];
+
+  test("registers all five templates in order", () => {
+    const r = registerPack("empirics", empiricsYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every empirics example renders finite, no fallback warnings, no error lint, deterministically", () => {
+    registerPack("empirics", empiricsYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("event_study: the reference period t=-1 sits exactly on the zero line; clean pre-trends hug it", () => {
+    registerPack("empirics", empiricsYaml);
+    const r = scenes.event_study.layout!({});
+    const flat = flattenDrawables(r.drawables);
+    const zero = flat.find((d) => d.id === "zero_line") as { pts: [number, number][] };
+    const zeroY = zero.pts[0][1];
+    // t=-1 is coef_(nPre-1) = coef_4 with the default 5 pre-periods.
+    const ref = r.anchors.coef_4 as [number, number];
+    expect(Math.abs(ref[1] - zeroY)).toBeLessThan(0.5);
+    // Post coefficients sit clearly above zero (positive default effect, y-up).
+    const post = r.anchors.coef_7 as [number, number];
+    expect(post[1]).toBeGreaterThan(zeroY + 30);
+  });
+
+  test("did_trends: pre-policy gap is constant (parallel trends) and the effect opens only after the policy", () => {
+    registerPack("empirics", empiricsYaml);
+    const r = scenes.did_trends.layout!({ effect: 2 });
+    const flat = flattenDrawables(r.drawables);
+    const treated = flat.find((d) => d.id === "treated__l") as { pts: [number, number][] };
+    const control = flat.find((d) => d.id === "control__l") as { pts: [number, number][] };
+    const gapAt = (frac: number) => {
+      const i = Math.floor(treated.pts.length * frac);
+      return treated.pts[i][1] - control.pts[i][1];
+    };
+    expect(Math.abs(gapAt(0.1) - gapAt(0.4))).toBeLessThan(2); // parallel before
+    expect(gapAt(0.95)).toBeGreaterThan(gapAt(0.1) + 30); // diverged after
+  });
+
+  test("rd_plot: the fitted lines jump at the cutoff by the requested amount and direction", () => {
+    registerPack("empirics", empiricsYaml);
+    const up = scenes.rd_plot.layout!({ jump: 2 });
+    const flat = flattenDrawables(up.drawables);
+    const left = flat.find((d) => d.id === "fit_left") as { pts: [number, number][] };
+    const right = flat.find((d) => d.id === "fit_right") as { pts: [number, number][] };
+    const leftEnd = left.pts[left.pts.length - 1][1];
+    const rightStart = right.pts[0][1];
+    expect(rightStart).toBeGreaterThan(leftEnd + 20); // jumps UP (y-up)
+    const down = scenes.rd_plot.layout!({ jump: -2 });
+    const flatD = flattenDrawables(down.drawables);
+    const leftD = flatD.find((d) => d.id === "fit_left") as { pts: [number, number][] };
+    const rightD = flatD.find((d) => d.id === "fit_right") as { pts: [number, number][] };
+    expect(rightD.pts[0][1]).toBeLessThan(leftD.pts[leftD.pts.length - 1][1] - 20);
+  });
+
+  test("lorenz_curve: a higher Gini sags the curve further below the diagonal", () => {
+    registerPack("empirics", empiricsYaml);
+    const r = scenes.lorenz_curve.layout!({ gini: 0.27, compare_gini: 0.53 });
+    const flat = flattenDrawables(r.drawables);
+    const c1 = flat.find((d) => d.id === "lorenz") as { pts: [number, number][] };
+    const c2 = flat.find((d) => d.id === "lorenz2") as { pts: [number, number][] };
+    const midY = (c: { pts: [number, number][] }) => c.pts[Math.floor(c.pts.length / 2)][1];
+    expect(midY(c2)).toBeLessThan(midY(c1)); // more unequal = deeper sag (y-up)
+    const caption = flat.find((d) => d.id === "gini_caption") as { text: string };
+    expect(caption.text).toBe("Gini = 0.27");
+  });
+});
+
+describe("hta pack", () => {
+  beforeEach(() => unregisterPack("hta"));
+
+  const TEMPLATE_IDS = ["ceac", "tornado_diagram"];
+
+  test("registers ceac and tornado_diagram", () => {
+    const r = registerPack("hta", htaYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every hta example renders finite, no fallback warnings, no error lint, deterministically", () => {
+    registerPack("hta", htaYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("ceac: default curves cross at the shared midpoint's 50% point", () => {
+    registerPack("hta", htaYaml);
+    const r = scenes.ceac.layout!({});
+    const flat = flattenDrawables(r.drawables);
+    const c0 = flat.find((d) => d.id === "curve_0") as { pts: [number, number][] };
+    const c1 = flat.find((d) => d.id === "curve_1") as { pts: [number, number][] };
+    const half = flat.find((d) => d.id === "half_line") as { pts: [number, number][] };
+    // At the midpoint both probabilities are 0.5 — both curves touch the half line there.
+    const mid = Math.floor(c0.pts.length * (30 / 100));
+    expect(Math.abs(c0.pts[mid][1] - half.pts[0][1])).toBeLessThan(8);
+    expect(Math.abs(c1.pts[mid][1] - half.pts[0][1])).toBeLessThan(8);
+    // The rising curve ends high, the falling one ends low.
+    expect(c0.pts[c0.pts.length - 1][1]).toBeGreaterThan(c1.pts[c1.pts.length - 1][1]);
+  });
+
+  test("tornado_diagram: bars sort widest-first from the top, split at the base case", () => {
+    registerPack("hta", htaYaml);
+    const r = scenes.tornado_diagram.layout!({
+      bars: [
+        { label: "Small", low: -2, high: 3 },
+        { label: "Huge", low: -50, high: 60 },
+        { label: "Medium", low: -20, high: 15 },
+      ],
+    });
+    const flat = flattenDrawables(r.drawables);
+    const labelAt = (i: number) => (flat.find((d) => d.id === "bar_label_" + i) as { text: string }).text;
+    expect(labelAt(0)).toBe("Huge");
+    expect(labelAt(1)).toBe("Medium");
+    expect(labelAt(2)).toBe("Small");
+    // Row 0 (widest) sits highest (y-up).
+    expect((r.anchors.bar_0 as [number, number])[1]).toBeGreaterThan((r.anchors.bar_1 as [number, number])[1]);
   });
 });

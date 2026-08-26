@@ -1,0 +1,265 @@
+pack: hta
+title: Health technology assessment
+description: Cost-effectiveness acceptability curves and tornado diagrams — the sensitivity-analysis figures of economic evaluation.
+---
+template: ceac
+title: Cost-effectiveness acceptability curve
+version: 1
+kit: 2
+status: ready
+description: >-
+  A cost-effectiveness acceptability curve (CEAC): the probability that
+  each strategy is cost-effective (y, 0 to 1) against the willingness-to-
+  pay threshold per QALY (x, in $1000s), one smooth curve per strategy
+  (typically the new treatment rising and the comparator falling, crossing
+  where they are equally likely), a dashed 50% line, and dashed markers at
+  conventional thresholds. Choose this scene for ANY request about CEACs,
+  acceptability curves, probabilistic sensitivity analysis summaries, the
+  probability a treatment is cost-effective, or willingness-to-pay
+  thresholds per QALY.
+params:
+  type: object
+  properties:
+    strategies:
+      type: array
+      minItems: 1
+      maxItems: 3
+      items:
+        type: object
+        properties:
+          label: { type: string }
+          midpoint:
+            type: number
+            description: "WTP (in $1000s) where this strategy's probability crosses 0.5 (default 30)."
+          width:
+            type: number
+            description: "How gradually the curve turns, 4-40 (default 12)."
+          rising:
+            type: boolean
+            description: "true = probability rises with WTP (a more effective, costlier option); false = falls (default true)."
+        required: [label]
+      description: "Default: a rising \"New treatment\" and a falling \"Standard care\" crossing at 30."
+    thresholds:
+      type: array
+      maxItems: 3
+      items: { type: number }
+      description: "Dashed vertical markers at conventional WTP values in $1000s (default [30])."
+    x_max:
+      type: number
+      description: "Right end of the WTP axis in $1000s, 40-200 (default 100)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  half_line: dashed horizontal line at probability 0.5
+  curve_<i>: the acceptability curve for strategies[i]
+  curve_label_<i>: its label
+  threshold_<i>: dashed vertical marker at thresholds[i] with its dollar caption
+  title: figure title, when set
+examples:
+  - request: "Draw a cost-effectiveness acceptability curve for a new treatment versus standard care."
+    params:
+      title: "Acceptability curve"
+  - request: "Show a CEAC where the new drug only becomes likely cost-effective above $50,000 per QALY."
+    params:
+      strategies:
+        - { label: "New drug", midpoint: 50 }
+        - { label: "Standard care", midpoint: 50, rising: false }
+      thresholds: [30, 50]
+      title: "An expensive drug"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const xMax = clamp(num(params.x_max, 100), 40, 200);
+  const rawS = Array.isArray(params.strategies) && params.strategies.length > 0 ? params.strategies.slice(0, 3) : [
+    { label: "New treatment", midpoint: 30, rising: true },
+    { label: "Standard care", midpoint: 30, rising: false },
+  ];
+  const strategies = rawS.map((st, i) => ({
+    label: typeof (st && st.label) === "string" && st.label.trim() !== "" ? st.label.trim() : "Strategy " + (i + 1),
+    midpoint: clamp(num(st && st.midpoint, 30), 0, xMax),
+    width: clamp(num(st && st.width, 12), 4, 40),
+    rising: (st && st.rising) !== false,
+  }));
+  const thresholds = (Array.isArray(params.thresholds) ? params.thresholds : [30]).filter((t) => Number.isFinite(t) && t > 0 && t < xMax).slice(0, 3);
+
+  const plot = { x0: 130, y0: 130, x1: 880, y1: 610 };
+  const X = (w) => plot.x0 + (w / (xMax * 1.04)) * (plot.x1 - plot.x0);
+  const Y = (p) => plot.y0 + p * (plot.y1 - plot.y0);
+  const prob = (st, w) => {
+    const p = 1 / (1 + Math.exp(-(w - st.midpoint) / st.width));
+    return st.rising ? p : 1 - p;
+  };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Willingness to pay per QALY ($1000s)", { fontSize: 20, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 34], "Probability cost-effective", { fontSize: 20, anchor: "start" }),
+    kit.text("axes__y1", [plot.x0 - 14, Y(1)], "1", { fontSize: 18, anchor: "end", color: C.guide }),
+    kit.text("axes__y05", [plot.x0 - 14, Y(0.5)], "0.5", { fontSize: 18, anchor: "end", color: C.guide }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  push(kit.stroke("half_line", [[plot.x0, Y(0.5)], [plot.x1, Y(0.5)]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+  anchors.half_line = [plot.x0 + 60, Y(0.5)];
+
+  thresholds.forEach((t, i) => {
+    const id = "threshold_" + i;
+    push(kit.group(id, [
+      kit.stroke(id + "__l", [[X(t), plot.y0], [X(t), plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.text(id + "__t", [X(t) + 7, plot.y1 - 12], "$" + Math.round(t) + "k", { fontSize: 17, anchor: "start", color: C.shifted }),
+    ]));
+    anchors[id] = [X(t), (plot.y0 + plot.y1) / 2];
+  });
+
+  const STRAT_COLORS = [C.demand, C.supply, C.accent];
+  strategies.forEach((st, i) => {
+    const pts = [];
+    for (let j = 0; j <= 60; j++) { const w = (xMax * j) / 60; pts.push([X(w), Y(prob(st, w))]); }
+    const id = "curve_" + i;
+    push(kit.stroke(id, pts, { color: STRAT_COLORS[i], strokeWidth: 4.5, ms: MS.curve }));
+    anchors[id] = pts[Math.floor(pts.length / 2)];
+    label("curve_label_" + i, pts[pts.length - 1], "right", st.label, STRAT_COLORS[i], 18);
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: tornado_diagram
+title: Tornado diagram
+version: 1
+kit: 2
+status: ready
+description: >-
+  A tornado diagram for one-way sensitivity analysis: horizontal bars, one
+  per uncertain parameter, showing how far the result swings when that
+  parameter moves from its low to its high value, sorted widest on top (the
+  tornado shape), split in two colors at the dashed base-case line. Choose
+  this scene for ANY request about tornado diagrams, one-way or univariate
+  sensitivity analysis, which parameter drives the result, or the
+  robustness of a cost-effectiveness or business-case result.
+params:
+  type: object
+  properties:
+    bars:
+      type: array
+      minItems: 2
+      maxItems: 8
+      items:
+        type: object
+        properties:
+          label:
+            type: string
+            description: "Parameter name — keep under ~22 characters."
+          low: { type: number }
+          high: { type: number }
+        required: [label, low, high]
+      description: "One entry per parameter; sorted by swing automatically. Default: a five-parameter cost-effectiveness example."
+    base:
+      type: number
+      description: "Base-case result where the bars pivot (default 0)."
+    x_label:
+      type: string
+      description: "Default \"Net monetary benefit\"."
+    show_values:
+      type: boolean
+      description: "Print the low/high values at the bar ends (default false)."
+    title:
+      type: string
+element_ids:
+  axes: the horizontal result axis (a group with caption)
+  base_line: dashed vertical base-case line with its caption
+  bar_<i>: the i-th widest bar (two colored halves + outline, a group)
+  bar_label_<i>: its parameter name on the left
+  title: figure title, when set
+examples:
+  - request: "Draw a tornado diagram for a cost-effectiveness analysis."
+    params:
+      title: "What drives the result?"
+  - request: "Tornado diagram: effectiveness swings the result from -50 to 60, price from -35 to 30, adherence from -20 to 15."
+    params:
+      bars:
+        - { label: "Effectiveness", low: -50, high: 60 }
+        - { label: "Price", low: -35, high: 30 }
+        - { label: "Adherence", low: -20, high: 15 }
+      show_values: true
+      title: "Three uncertainties"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const base = num(params.base, 0);
+  const rawBars = Array.isArray(params.bars) && params.bars.length >= 2 ? params.bars.slice(0, 8) : [
+    { label: "Effect size", low: -40, high: 55 },
+    { label: "Drug price", low: -30, high: 25 },
+    { label: "Utility weight", low: -15, high: 18 },
+    { label: "Discount rate", low: -8, high: 10 },
+    { label: "Admin cost", low: -4, high: 5 },
+  ];
+  const bars = rawBars
+    .map((b, i) => ({
+      label: typeof (b && b.label) === "string" && b.label.trim() !== "" ? b.label.trim() : "Parameter " + (i + 1),
+      low: Math.min(num(b && b.low, base - 1), num(b && b.high, base + 1)),
+      high: Math.max(num(b && b.low, base - 1), num(b && b.high, base + 1)),
+    }))
+    .sort((a, b) => (b.high - b.low) - (a.high - a.low));
+  const showValues = params.show_values === true;
+  const xLab = typeof params.x_label === "string" && params.x_label.trim() !== "" ? params.x_label.trim() : "Net monetary benefit";
+
+  let xMin = base, xMax = base;
+  for (const b of bars) { xMin = Math.min(xMin, b.low); xMax = Math.max(xMax, b.high); }
+  const pad = Math.max(1, (xMax - xMin) * 0.1);
+  xMin -= pad; xMax += pad;
+  const plot = { x0: 260, y0: 120, x1: 900 };
+  const X = (v) => plot.x0 + ((v - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  const rowY = (i) => 580 - i * Math.min(72, 440 / Math.max(1, bars.length - 1));
+  const H = 17;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 48], xLab, { fontSize: 21, anchor: "end" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const topY = rowY(0) + H + 26;
+  push(kit.group("base_line", [
+    kit.stroke("base__l", [[X(base), plot.y0], [X(base), topY]], { color: C.ink, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+    kit.text("base__t", [X(base), topY + 18], "Base case", { fontSize: 17, color: C.ink }),
+  ]));
+  anchors.base_line = [X(base), (plot.y0 + topY) / 2];
+
+  bars.forEach((b, i) => {
+    const y = rowY(i);
+    const id = "bar_" + i;
+    const children = [
+      kit.area(id + "__lo", [[X(b.low), y - H], [X(base), y - H], [X(base), y + H], [X(b.low), y + H]], C.supply, { opacity: 0.55 }),
+      kit.area(id + "__hi", [[X(base), y - H], [X(b.high), y - H], [X(b.high), y + H], [X(base), y + H]], C.demand, { opacity: 0.55 }),
+      kit.stroke(id + "__box", [[X(b.low), y - H], [X(b.high), y - H], [X(b.high), y + H], [X(b.low), y + H]], { closed: true, strokeWidth: 2.5, ms: MS.stroke }),
+    ];
+    if (showValues) {
+      children.push(kit.text(id + "__vl", [X(b.low) - 8, y], String(b.low), { fontSize: 15, anchor: "end", color: C.guide }));
+      children.push(kit.text(id + "__vh", [X(b.high) + 8, y], String(b.high), { fontSize: 15, anchor: "start", color: C.guide }));
+    }
+    push(kit.group(id, children));
+    anchors[id] = [X((b.low + b.high) / 2), y];
+    push(kit.text("bar_label_" + i, [showValues ? X(b.low) - 52 : X(b.low) - 10, y], b.label, { fontSize: 17, anchor: "end" }));
+    anchors["bar_label_" + i] = [plot.x0 - 100, y];
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [560, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };

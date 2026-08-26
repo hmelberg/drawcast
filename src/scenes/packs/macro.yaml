@@ -1,0 +1,421 @@
+pack: macro
+title: Macroeconomics
+description: IS-LM, the Solow growth model and AD-AS — the macro teaching canon with computed intersections and shift arrows.
+---
+template: is_lm
+title: IS-LM
+version: 1
+kit: 2
+status: ready
+description: >-
+  The IS-LM diagram: output (Y) against the interest rate (r), a
+  downward-sloping IS curve and an upward-sloping LM curve with their
+  equilibrium computed exactly, dashed guides to both axes, and optional
+  fiscal (IS) or monetary (LM) shifts drawn with a shift arrow and the new
+  equilibrium. Choose this scene for ANY request about IS-LM, the goods and
+  money markets together, fiscal policy or government spending shifting IS,
+  monetary policy shifting LM, interest rates and output jointly, or the
+  Keynesian short-run equilibrium.
+params:
+  type: object
+  properties:
+    is_shift:
+      type: number
+      description: "Horizontal IS shift in output units, -30..30 (positive = fiscal expansion, rightward; default 0)."
+    lm_shift:
+      type: number
+      description: "Horizontal LM shift in output units, -30..30 (positive = monetary expansion, rightward; default 0)."
+    show_equilibrium:
+      type: boolean
+      description: "Equilibrium dot with dashed guides to both axes and Y*/r* captions (default true)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  is_curve: the IS curve with its end label
+  lm_curve: the LM curve with its end label
+  is_shifted: the shifted IS curve + shift arrow (a group, when is_shift ≠ 0)
+  lm_shifted: the shifted LM curve + shift arrow (a group, when lm_shift ≠ 0)
+  eq: the original equilibrium (dot + dashed guides + Y*/r* captions, a group)
+  eq2: the new equilibrium after the shift (a group, when shifted)
+  title: figure title, when set
+examples:
+  - request: "Draw the IS-LM diagram with its equilibrium."
+    params:
+      title: "IS-LM equilibrium"
+  - request: "Show a fiscal expansion in the IS-LM model."
+    params:
+      is_shift: 20
+      title: "Fiscal expansion"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isShift = clamp(num(params.is_shift, 0), -30, 30);
+  const lmShift = clamp(num(params.lm_shift, 0), -30, 30);
+  const showEq = params.show_equilibrium !== false;
+
+  const plot = { x0: 130, y0: 120, x1: 880, y1: 620 };
+  const XV = (Y) => plot.x0 + (Y / 110) * (plot.x1 - plot.x0);
+  const YR = (r) => plot.y0 + (r / 11) * (plot.y1 - plot.y0);
+  // IS: r = 9 - 0.08(Y - shift). LM: r = 0.5 + 0.07(Y - shift).
+  const isR = (Y, s) => 9 - 0.08 * (Y - s);
+  const lmR = (Y, s) => 0.5 + 0.07 * (Y - s);
+  const cross = (sIs, sLm) => {
+    const Y = (8.5 + 0.08 * sIs + 0.07 * sLm) / 0.15;
+    return { Y, r: isR(Y, sIs) };
+  };
+  const linePts = (fn, s) => {
+    const pts = [];
+    for (let Y = 8; Y <= 100; Y += 4) {
+      const r = fn(Y, s);
+      if (r >= 0.2 && r <= 10.5) pts.push([XV(Y), YR(r)]);
+    }
+    return pts;
+  };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Output (Y)", { fontSize: 24, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Interest rate (r)", { fontSize: 24, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const isPts = linePts(isR, 0);
+  push(kit.group("is_curve", [
+    kit.stroke("is__line", isPts, { color: C.demand, strokeWidth: 4.5, ms: MS.curve }),
+    kit.text("is__t", [isPts[isPts.length - 1][0] + 14, isPts[isPts.length - 1][1] - 4], "IS", { fontSize: 24, anchor: "start", color: C.demand }),
+  ]));
+  anchors.is_curve = isPts[Math.floor(isPts.length / 2)];
+  const lmPts = linePts(lmR, 0);
+  push(kit.group("lm_curve", [
+    kit.stroke("lm__line", lmPts, { color: C.supply, strokeWidth: 4.5, ms: MS.curve }),
+    kit.text("lm__t", [lmPts[lmPts.length - 1][0] + 14, lmPts[lmPts.length - 1][1]], "LM", { fontSize: 24, anchor: "start", color: C.supply }),
+  ]));
+  anchors.lm_curve = lmPts[Math.floor(lmPts.length / 2)];
+
+  const eq0 = cross(0, 0);
+  const eqGroup = (id, eq, starPrefix, color) => {
+    const x = XV(eq.Y), y = YR(eq.r);
+    push(kit.group(id, [
+      kit.stroke(id + "__vx", [[x, y], [x, plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.stroke(id + "__hy", [[x, y], [plot.x0, y]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.stroke(id + "__dot", kit.ellipse([x, y], 6, 6, 14), { closed: true, fill: color, color, ms: MS.dot }),
+      kit.text(id + "__ty", [x, plot.y0 - 26], "Y" + starPrefix, { fontSize: 19, color }),
+      kit.text(id + "__tr", [plot.x0 - 14, y], "r" + starPrefix, { fontSize: 19, anchor: "end", color }),
+    ]));
+    anchors[id] = [x, y];
+  };
+  if (showEq) eqGroup("eq", eq0, "*", C.ink);
+
+  const shifted = (id, fn, s, baseMid, color, letter) => {
+    const pts = linePts(fn, s);
+    const midOld = baseMid;
+    const midNew = pts[Math.floor(pts.length / 2)];
+    push(kit.group(id, [
+      kit.stroke(id + "__line", pts, { color: C.shifted, strokeWidth: 4, ms: MS.curve }),
+      kit.stroke(id + "__arrow", [[midOld[0], midOld[1]], [midNew[0] - (midNew[0] - midOld[0]) * 0.15, midNew[1] - (midNew[1] - midOld[1]) * 0.15]], { arrowhead: "end", color: C.shifted, strokeWidth: 3, ms: MS.arrow }),
+      kit.text(id + "__t", [pts[pts.length - 1][0] + 14, pts[pts.length - 1][1] + (letter === "IS" ? -30 : 28)], letter + "'", { fontSize: 22, anchor: "start", color: C.shifted }),
+    ]));
+    anchors[id] = midNew;
+  };
+  if (isShift !== 0) shifted("is_shifted", isR, isShift, isPts[Math.floor(isPts.length / 2)], C.shifted, "IS");
+  if (lmShift !== 0) shifted("lm_shifted", lmR, lmShift, lmPts[Math.floor(lmPts.length / 2)], C.shifted, "LM");
+  if (showEq && (isShift !== 0 || lmShift !== 0)) eqGroup("eq2", cross(isShift, lmShift), "**", C.accent);
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: solow_growth
+title: Solow growth model
+version: 1
+kit: 2
+status: ready
+description: >-
+  The Solow growth diagram: capital per worker (k) against output per
+  worker, with the production function f(k), the savings/investment curve
+  s·f(k), the break-even investment line (n+δ)k, the steady state k*
+  computed exactly where they cross, and an optional consumption gap arrow
+  between output and savings at k*. savings and depreciation are numeric,
+  so `animate` can slide the savings rate and honestly move the steady
+  state. Choose this scene for ANY request about the Solow model, economic
+  growth theory, steady-state capital, savings and investment per worker,
+  capital accumulation and depreciation, or why saving more raises the
+  level but not the long-run growth rate.
+params:
+  type: object
+  properties:
+    savings:
+      type: number
+      description: "Savings rate s, 0.05-0.6 (default 0.3)."
+    depreciation:
+      type: number
+      description: "Break-even rate n+δ, 0.05-0.3 (default 0.15)."
+    alpha:
+      type: number
+      description: "Capital share α in f(k)=k^α, 0.2-0.5 (default 0.33)."
+    show_output:
+      type: boolean
+      description: "Draw the production function f(k) above the savings curve (default true)."
+    show_steady:
+      type: boolean
+      description: "Mark the steady state k* with a dashed guide (default true)."
+    show_consumption:
+      type: boolean
+      description: "Vertical consumption arrow between f(k*) and s·f(k*) (default false; needs show_output)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  output: the production function f(k) with its end label (when show_output)
+  savings_curve: the s·f(k) curve with its end label
+  breakeven: the (n+δ)k line with its end label
+  steady: the steady state (dot, dashed guide to the axis, k* caption; a group, when show_steady)
+  consumption_arrow: the consumption gap arrow at k* (a group, when show_consumption)
+  title: figure title, when set
+examples:
+  - request: "Draw the Solow growth model with its steady state."
+    params:
+      title: "The Solow model"
+  - request: "Show consumption as the gap between output and savings in the Solow diagram."
+    params:
+      show_consumption: true
+      title: "Who eats the output?"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const s = clamp(num(params.savings, 0.3), 0.05, 0.6);
+  const d = clamp(num(params.depreciation, 0.15), 0.05, 0.3);
+  const alpha = clamp(num(params.alpha, 0.33), 0.2, 0.5);
+  const showOutput = params.show_output !== false;
+  const showSteady = params.show_steady !== false;
+  const showCons = params.show_consumption === true && showOutput;
+
+  const f = (k) => Math.pow(k, alpha);
+  const kMax = 10;
+  const kStar = Math.pow(s / d, 1 / (1 - alpha));
+  const yMax = Math.max(f(kMax), d * kMax) * 1.12;
+  const plot = { x0: 130, y0: 120, x1: 880, y1: 620 };
+  const XK = (k) => plot.x0 + (k / (kMax * 1.05)) * (plot.x1 - plot.x0);
+  const YY = (y) => plot.y0 + (y / yMax) * (plot.y1 - plot.y0);
+  const sample = (fn) => {
+    const pts = [];
+    for (let i = 0; i <= 60; i++) { const k = (kMax * i) / 60; pts.push([XK(k), YY(fn(k))]); }
+    return pts;
+  };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (dd) => { drawables.push(dd); order.push(dd.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Capital per worker (k)", { fontSize: 22, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Output per worker", { fontSize: 22, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const endLabel = (id, pts, text, color, dy) =>
+    kit.text(id, [pts[pts.length - 1][0] + 12, pts[pts.length - 1][1] + dy], text, { fontSize: 19, anchor: "start", color });
+
+  if (showOutput) {
+    const pts = sample(f);
+    push(kit.group("output", [
+      kit.stroke("output__line", pts, { strokeWidth: 4, ms: MS.curve }),
+      endLabel("output__t", pts, "f(k)", C.ink, 0),
+    ]));
+    anchors.output = pts[Math.floor(pts.length / 2)];
+  }
+  const sPts = sample((k) => s * f(k));
+  push(kit.group("savings_curve", [
+    kit.stroke("savings__line", sPts, { color: C.supply, strokeWidth: 4.5, ms: MS.curve }),
+    endLabel("savings__t", sPts, "s·f(k)", C.supply, 0),
+  ]));
+  anchors.savings_curve = sPts[Math.floor(sPts.length / 2)];
+  const bPts = sample((k) => d * k);
+  push(kit.group("breakeven", [
+    kit.stroke("breakeven__line", bPts, { color: C.demand, strokeWidth: 4, ms: MS.curve }),
+    endLabel("breakeven__t", bPts, "(n+δ)k", C.demand, 26),
+  ]));
+  anchors.breakeven = bPts[Math.floor(bPts.length / 2)];
+
+  if (showSteady && kStar <= kMax) {
+    const x = XK(kStar), y = YY(s * f(kStar));
+    push(kit.group("steady", [
+      kit.stroke("steady__v", [[x, y], [x, plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.stroke("steady__dot", kit.ellipse([x, y], 6, 6, 14), { closed: true, fill: C.ink, ms: MS.dot }),
+      kit.text("steady__t", [x, plot.y0 - 26], "k*", { fontSize: 20 }),
+    ]));
+    anchors.steady = [x, y];
+  }
+
+  if (showCons && kStar <= kMax) {
+    const x = XK(kStar);
+    push(kit.group("consumption_arrow", [
+      kit.stroke("cons__a", [[x, YY(s * f(kStar)) + 6], [x, YY(f(kStar)) - 6]], { arrowhead: "both", color: C.accent, strokeWidth: 3, ms: MS.connector }),
+      kit.text("cons__t", [x + 14, (YY(s * f(kStar)) + YY(f(kStar))) / 2], "Consumption", { fontSize: 18, anchor: "start", color: C.accent }),
+    ]));
+    anchors.consumption_arrow = [x, (YY(s * f(kStar)) + YY(f(kStar))) / 2];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: ad_as
+title: Aggregate demand - aggregate supply
+version: 1
+kit: 2
+status: ready
+description: >-
+  A macroeconomic aggregate demand-aggregate supply (AD-AS) diagram: a
+  downward-sloping AD curve, an upward-sloping AS curve, their equilibrium
+  (price level and real GDP) with dashed guides, an optional shift of either
+  curve (with a shift arrow between old and new, in the `shifted` color, and
+  the new equilibrium), and an optional vertical long-run aggregate supply
+  (LRAS) guide at potential output. Choose this scene for ANY request about
+  aggregate demand, aggregate supply, the AD-AS model, the price level, real
+  GDP, an inflationary or recessionary shock, or an expansionary/
+  contractionary demand or supply shift. shift.amount is numeric and
+  animates smoothly — tween it to show the curve sliding and the equilibrium
+  moving with it.
+params:
+  type: object
+  properties:
+    shift:
+      type: object
+      description: "A shift of AD or AS, with a shift arrow and the new equilibrium."
+      properties:
+        curve:
+          type: string
+          enum: [ad, as]
+        direction:
+          type: string
+          enum: [left, right]
+        amount:
+          type: number
+          description: "Magnitude of the shift, 0-30 (default 18)."
+      required: [curve]
+    show_lras:
+      type: boolean
+      description: "Draw a vertical long-run aggregate supply guide at potential output (default false)."
+    x_label:
+      type: string
+      description: "Default \"Real GDP\"."
+    y_label:
+      type: string
+      description: "Default \"Price level\"."
+element_ids:
+  axes: the coordinate axes (one group with both axis lines and their captions)
+  ad: the aggregate demand curve
+  as: the aggregate supply curve
+  lras: vertical long-run aggregate supply guide, present when show_lras
+  ad_shifted / as_shifted: the shifted curve, present when shift.curve names it
+  shift_arrow: arrow from the old curve to the shifted one, present when shift is set
+  eq: dot at the original AD-AS equilibrium
+  guides: dashed guides from eq to both axes
+  eq_new: dot at the new equilibrium after a shift, present when shift is set
+  label_ad / label_as / label_ad_shifted / label_as_shifted / label_eq / label_eq_new / label_lras: labels
+examples:
+  - request: "Draw an aggregate demand and aggregate supply diagram."
+    params: {}
+  - request: "Show aggregate supply increasing, with the long-run aggregate supply marked."
+    params: { shift: { curve: "as", direction: "right", amount: 15 }, show_lras: true }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const xLabel = typeof params.x_label === "string" && params.x_label.trim() !== "" ? params.x_label : "Real GDP";
+  const yLabel = typeof params.y_label === "string" && params.y_label.trim() !== "" ? params.y_label : "Price level";
+  const showLras = params.show_lras === true;
+  const shift = params.shift && (params.shift.curve === "ad" || params.shift.curve === "as") ? params.shift : null;
+
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const sx = (v) => plot.x0 + (v / 100) * (plot.x1 - plot.x0);
+  const sy = (v) => plot.y0 + (v / 100) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xLabel, { fontSize: 26, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLabel, { fontSize: 26, anchor: "start" }),
+  ];
+  push(kit.group("axes", axesChildren));
+
+  const D0 = 4, D1 = 96;
+  const adPts = [], asPts = [];
+  for (let x = D0; x <= D1; x += 2) {
+    adPts.push([x, 100 - x]);
+    asPts.push([x, x]);
+  }
+
+  push(kit.stroke("ad", adPts.map(([x, y]) => [sx(x), sy(y)]), { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.ad = [sx(adPts[adPts.length - 1][0]), sy(adPts[adPts.length - 1][1])];
+  label("label_ad", anchors.ad, "right", "AD", C.demand, 22);
+
+  push(kit.stroke("as", asPts.map(([x, y]) => [sx(x), sy(y)]), { color: C.supply, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.as = [sx(asPts[asPts.length - 1][0]), sy(asPts[asPts.length - 1][1])];
+  label("label_as", anchors.as, "right", "AS", C.supply, 22);
+
+  const eqX = 50, eqY = 50;
+  const eqL = [sx(eqX), sy(eqY)];
+  push(kit.stroke("guides", [[plot.x0, eqL[1]], eqL, [eqL[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+  push(kit.stroke("eq", [eqL], { shapeHint: { type: "circle", c: eqL, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+  anchors.eq = eqL;
+  label("label_eq", eqL, "above-right", "E", C.ink, 22);
+
+  if (showLras) {
+    const lrasX = sx(eqX);
+    push(kit.stroke("lras", [[lrasX, plot.y0], [lrasX, plot.y1]], { color: C.guide, dash: true, strokeWidth: 3, ms: MS.guides }));
+    anchors.lras = [lrasX, plot.y1];
+    label("label_lras", [lrasX, plot.y1 + 10], "above", "LRAS (potential output)", C.guide, 18);
+  }
+
+  if (shift) {
+    const magnitude = Math.min(30, Math.max(0, typeof shift.amount === "number" ? shift.amount : 18));
+    const dir = shift.direction === "left" ? -1 : 1;
+    const dx = dir * magnitude;
+    let eqX2, eqY2;
+    if (shift.curve === "ad") {
+      const shiftedRaw = adPts.map(([x, y]) => [x + dx, y]).filter(([x]) => x >= 1 && x <= 99);
+      const logicalPts = shiftedRaw.length >= 2 ? shiftedRaw.map(([x, y]) => [sx(x), sy(y)]) : [eqL, [eqL[0] + 1, eqL[1]]];
+      push(kit.stroke("ad_shifted", logicalPts, { color: C.shifted, strokeWidth: 4.5, ms: MS.curve }));
+      anchors.ad_shifted = logicalPts[logicalPts.length - 1];
+      label("label_ad_shifted", anchors.ad_shifted, "right", "AD′", C.shifted, 20);
+      eqX2 = (100 + dx) / 2;
+      eqY2 = eqX2;
+      const midBase = adPts[Math.floor(adPts.length / 2)];
+      const midShift = [midBase[0] + dx, midBase[1]];
+      push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
+    } else {
+      const shiftedRaw = asPts.map(([x, y]) => [x + dx, y]).filter(([x]) => x >= 1 && x <= 99);
+      const logicalPts = shiftedRaw.length >= 2 ? shiftedRaw.map(([x, y]) => [sx(x), sy(y)]) : [eqL, [eqL[0] + 1, eqL[1]]];
+      push(kit.stroke("as_shifted", logicalPts, { color: C.shifted, strokeWidth: 4.5, ms: MS.curve }));
+      anchors.as_shifted = logicalPts[logicalPts.length - 1];
+      label("label_as_shifted", anchors.as_shifted, "right", "AS′", C.shifted, 20);
+      eqX2 = (100 + dx) / 2;
+      eqY2 = eqX2 - dx;
+      const midBase = asPts[Math.floor(asPts.length / 2)];
+      const midShift = [midBase[0] + dx, midBase[1]];
+      push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
+    }
+    const eq2L = [sx(eqX2), sy(eqY2)];
+    push(kit.stroke("eq_new", [eq2L], { shapeHint: { type: "circle", c: eq2L, r: 7 }, strokeWidth: 3, fill: C.shifted, ms: MS.dot }));
+    anchors.eq_new = eq2L;
+    label("label_eq_new", eq2L, "below-right", "E′", C.shifted, 20);
+  }
+
+  return { drawables, labels, anchors, order };

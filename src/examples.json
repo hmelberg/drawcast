@@ -1864,7 +1864,7 @@
   },
   {
     "request": "Show aggregate demand shifting right and animate the new equilibrium.",
-    "packs": ["economics"],
+    "packs": ["macro"],
     "spec": {
       "title": "An aggregate demand shock, animated",
       "template": "ad_as",
@@ -3941,6 +3941,217 @@
         { "draw": ["collecting", "label_collecting", "arrow_6"], "speak": "And the collecting duct makes the final decision — how much water to keep — on orders from a hormone that answers to your thirst." },
         { "draw": ["urine_arrow", "label_urine"], "speak": "Of one hundred and eighty litres filtered, less than two actually leave. You brew a bathtub every day — and quietly un-brew ninety-nine percent of it." },
         { "draw": ["title"] }
+      ]
+    }
+  },
+  {
+    "request": "How do economists check whether a policy actually worked?",
+    "packs": ["empirics"],
+    "spec": {
+      "title": "The event study",
+      "template": "event_study",
+      "params": { "title": "An event study" },
+      "commands": [
+        { "draw": ["axes", "zero_line"], "speak": "Every month a study claims some policy worked. Before believing one, economists look at a picture like this — and the part that matters is not where you'd think." },
+        { "draw": ["treat_line"], "speak": "A policy switches on here." },
+        { "draw": ["coef_0", "coef_1", "coef_2", "coef_3", "coef_4"], "speak": "Each dot is the estimated difference between affected and unaffected groups in one period — whiskers for the uncertainty. Before the policy, the dots hug zero." },
+        { "draw": ["coef_5", "coef_6", "coef_7", "coef_8", "coef_9"], "speak": "After it, they jump — and stay up." },
+        { "pause": 0.3 },
+        { "highlight": { "target": ["coef_0", "coef_1", "coef_2", "coef_3"], "effect": "glow" }, "speak": "Here is the quiet surprise: the left half is the evidence. Flat pre-treatment dots say the groups were on the same path — so the jump can be pinned on the policy." },
+        { "draw": ["title"], "speak": "No flat left half, no causal claim. That is why referees look left before they look right." }
+      ]
+    }
+  },
+  {
+    "request": "How do you measure the effect of something against what never happened?",
+    "packs": ["empirics"],
+    "spec": {
+      "title": "Difference-in-differences",
+      "template": "did_trends",
+      "params": { "title": "Difference-in-differences" },
+      "commands": [
+        { "draw": ["axes"], "speak": "The effect of a policy is the gap between what happened and what would have happened without it. Half of that pair is unobservable — yet economists measure it anyway." },
+        { "draw": ["control_line"], "speak": "Start with a group the policy never touched." },
+        { "draw": ["treated_line", "treat_line"], "speak": "The treated group runs parallel to it — until the policy hits, and the two paths part ways." },
+        { "pause": 0.3 },
+        { "draw": ["counterfactual"], "speak": "Now the trick: borrow the control group's path to sketch the treated group's missing future — the dashed road not taken." },
+        { "draw": ["effect_arrow"], "speak": "The gap between the dashed line and reality is the effect. The untouched group stands in for the world that never happened." },
+        { "draw": ["title"], "speak": "Difference-in-differences: subtract the change you'd have seen anyway from the change you saw." }
+      ]
+    }
+  },
+  {
+    "request": "Why do arbitrary cutoffs make economists happy?",
+    "packs": ["empirics"],
+    "spec": {
+      "title": "Regression discontinuity",
+      "template": "rd_plot",
+      "params": { "title": "Regression discontinuity" },
+      "commands": [
+        { "draw": ["axes", "cutoff_line"], "speak": "A scholarship at exactly 85 points. Medicine at exactly age 65. Arbitrary lines — and secretly, gifts to science." },
+        { "draw": ["dots_left"], "speak": "People just below the cutoff miss the treatment." },
+        { "draw": ["dots_right"], "speak": "People just above it get it. But someone at 84.9 and someone at 85.1 are, for all practical purposes, the same person." },
+        { "pause": 0.3 },
+        { "draw": ["fit_left", "fit_right"], "speak": "So near the line, the cutoff has quietly run a randomized experiment — and any jump between the two fitted curves belongs to the treatment." },
+        { "draw": ["jump_bracket"], "speak": "This gap is the effect — no laboratory required." },
+        { "draw": ["title"], "speak": "Regression discontinuity: causal evidence found lying around in bureaucratic rules." }
+      ]
+    }
+  },
+  {
+    "request": "Does more schooling really mean higher pay? Show me the data.",
+    "packs": ["empirics"],
+    "spec": {
+      "title": "The education gradient",
+      "template": "binscatter",
+      "params": {
+        "x_label": "Years of schooling",
+        "y_label": "Log earnings",
+        "title": "The education gradient"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Does school pay? A dataset with a hundred thousand people should answer that — but plotted raw, it's an unreadable cloud." },
+        { "draw": ["dots"], "speak": "So economists bin: sort everyone by schooling, cut them into twenty equal groups, and plot each group's average. Twenty dots — and suddenly there's a shape." },
+        { "pause": 0.3 },
+        { "draw": ["fit"], "speak": "The fitted line makes it precise: each extra year of schooling lines up with roughly the same percentage bump in earnings." },
+        { "highlight": { "target": ["dots"], "effect": "glow" }, "speak": "The surprise is how much the averaging reveals: patterns invisible in a hundred thousand points appear in twenty." },
+        { "draw": ["title"], "speak": "The binned scatter — the workhorse chart of modern applied economics." }
+      ]
+    }
+  },
+  {
+    "request": "How can one number describe a whole country's inequality?",
+    "packs": ["empirics"],
+    "spec": {
+      "title": "Lorenz and Gini",
+      "template": "lorenz_curve",
+      "params": {
+        "gini": 0.27,
+        "compare_gini": 0.53,
+        "labels": ["Norway", "Brazil"],
+        "title": "Two countries, two curves"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Line up a country's people from poorest to richest and ask, as you walk the line: what share of all income have we passed so far?" },
+        { "draw": ["equality", "label_equality"], "speak": "If everyone earned the same, the answer would climb along this diagonal — twenty percent of the people, twenty percent of the income." },
+        { "draw": ["lorenz", "label_lorenz"], "speak": "A real country sags below it: in Norway, the poorer half holds well under half the income." },
+        { "draw": ["lorenz2", "label_lorenz2"], "speak": "And the deeper the sag, the more unequal the country — Brazil's curve hangs far lower." },
+        { "pause": 0.3 },
+        { "draw": ["gini_area", "gini_caption"], "speak": "The shaded area between diagonal and curve, as a share of the whole triangle, is the Gini coefficient — a nation's entire income distribution folded into one number between zero and one." },
+        { "draw": ["title"], "speak": "Zero would be perfect equality; one, a single person with everything. Most countries live between 0.25 and 0.55." }
+      ]
+    }
+  },
+  {
+    "request": "Show what government spending does to interest rates in the IS-LM model.",
+    "packs": ["macro"],
+    "spec": {
+      "title": "IS-LM and fiscal policy",
+      "template": "is_lm",
+      "params": {
+        "is_shift": 20,
+        "title": "A fiscal expansion"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "When a government spends big, does the economy grow, or do interest rates just rise? This diagram answers: both — and says how much of each." },
+        { "draw": ["is_curve"], "speak": "The IS curve collects every combination of output and interest rate where the goods market balances — lower rates, more investment, more output." },
+        { "draw": ["lm_curve"], "speak": "The LM curve does the same for money: more output means more demand for money, pushing rates up." },
+        { "draw": ["eq"], "speak": "Where they cross, both markets clear at once." },
+        { "pause": 0.3 },
+        { "draw": ["is_shifted"], "speak": "Now the government spends: the IS curve slides right." },
+        { "draw": ["eq2"], "speak": "Output rises — but climbing along the LM curve, so interest rates rise too, crowding out some private investment on the way." },
+        { "draw": ["title"], "speak": "A curiosity: the most famous Keynesian diagram was never drawn by Keynes — John Hicks sketched it in 1937 to summarize him, and the summary conquered the textbooks." }
+      ]
+    }
+  },
+  {
+    "request": "If a country saves more, will it grow faster forever?",
+    "packs": ["macro"],
+    "spec": {
+      "title": "The Solow model",
+      "template": "solow_growth",
+      "params": {
+        "savings": 0.3,
+        "show_consumption": true,
+        "title": "The Solow model"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Save more, invest more, grow richer forever — it sounds obvious. The Solow model says: only half right, and the half that fails is the interesting one." },
+        { "draw": ["output"], "speak": "Output per worker rises with capital per worker — but flattens, because each extra machine helps less than the last." },
+        { "draw": ["savings_curve"], "speak": "A fixed slice of output is saved and invested — the same curve, scaled down." },
+        { "draw": ["breakeven"], "speak": "Meanwhile depreciation and population growth eat capital at a steady rate — a straight line that never flattens." },
+        { "pause": 0.3 },
+        { "draw": ["steady"], "speak": "Where saving just covers the erosion, capital stops growing: the steady state. Beyond it, the straight line outruns the flattening curve — always." },
+        { "draw": ["consumption_arrow"], "speak": "What's left between output and saving is consumption — what the machines are ultimately for." },
+        { "draw": ["title"], "speak": "So saving more buys a richer steady state, not faster growth forever. In the long run, only new ideas — better technology — keep growth alive.", "delivery": "grave" }
+      ]
+    }
+  },
+  {
+    "request": "Why do threats so often fail? Solve the entry game.",
+    "packs": ["economics"],
+    "spec": {
+      "title": "The entry game",
+      "template": "game_tree",
+      "params": {
+        "solve": true,
+        "title": "The entry game"
+      },
+      "commands": [
+        { "draw": ["legend", "node_r"], "speak": "A monopolist growls: enter my market and I'll start a price war. Scary — until you draw the game and read it backwards." },
+        { "draw": ["edge_0", "payoff_0"], "speak": "The entrant can stay out: nothing gained, and the incumbent keeps its comfortable two." },
+        { "draw": ["edge_1", "node_1"], "speak": "Or enter — handing the next move to the incumbent." },
+        { "draw": ["edge_1_0", "payoff_1_0"], "speak": "Fight, and the price war costs BOTH of them — minus one each." },
+        { "draw": ["edge_1_1", "payoff_1_1"], "speak": "Accommodate, and they share the market at one apiece." },
+        { "pause": 0.3 },
+        { "draw": ["solution"], "speak": "Now read backwards from the end: if entry ever happens, the incumbent prefers one to minus one — it accommodates. Knowing that, the entrant walks in. The war never comes.", "delivery": "grave" },
+        { "draw": ["title"], "speak": "The threat failed because carrying it out would hurt the threatener — backward induction calls that bluff. Credible deterrence needs commitment, not growling." }
+      ]
+    }
+  },
+  {
+    "request": "Is the new drug worth its price? Show the acceptability curve.",
+    "packs": ["hta"],
+    "spec": {
+      "title": "The acceptability curve",
+      "template": "ceac",
+      "params": {
+        "strategies": [
+          { "label": "New drug", "midpoint": 50 },
+          { "label": "Standard care", "midpoint": 50, "rising": false }
+        ],
+        "thresholds": [30, 50],
+        "title": "An expensive drug"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Is the new drug worth it? Committees want a yes or a no — this curve insists the honest answer is a probability that depends on the price of health." },
+        { "draw": ["half_line"], "speak": "Every input — effect, cost, side effects — is uncertain, so the analysis is run thousands of times with the dice rolled each time." },
+        { "draw": ["curve_0", "curve_label_0"], "speak": "The curve reads: at each willingness to pay per healthy year, in what share of those runs does the new drug win?" },
+        { "draw": ["curve_1", "curve_label_1"], "speak": "Standard care holds the mirror image." },
+        { "pause": 0.3 },
+        { "draw": ["threshold_0"], "speak": "At thirty thousand per healthy year — a common benchmark — the new drug wins in well under half the runs." },
+        { "draw": ["threshold_1"], "speak": "Only near fifty thousand does it become the better bet more often than not." },
+        { "draw": ["title"], "speak": "So the same drug is a poor buy in one country and a fair one in another — the evidence didn't change, the price of health did." }
+      ]
+    }
+  },
+  {
+    "request": "Which uncertain number should we worry about most? Draw a tornado diagram.",
+    "packs": ["hta"],
+    "spec": {
+      "title": "The tornado diagram",
+      "template": "tornado_diagram",
+      "params": {
+        "title": "What drives the result?"
+      },
+      "commands": [
+        { "draw": ["axes", "base_line"], "speak": "A cost-effectiveness result rests on a dozen uncertain numbers. Before trusting it — or funding another study — ask which of them can actually overturn it." },
+        { "draw": ["bar_label_0", "bar_0"], "speak": "Take each parameter in turn, push it from its lowest plausible value to its highest, and record how far the result swings. The effect estimate swings it enormously — both ways across the base case." },
+        { "draw": ["bar_label_1", "bar_1"], "speak": "The drug's price matters too." },
+        { "draw": ["bar_label_2", "bar_2", "bar_label_3", "bar_3", "bar_label_4", "bar_4"], "speak": "And then the swings shrink fast — utility weights, discount rates, admin costs barely move it. Sorted widest first, the bars form the tornado." },
+        { "pause": 0.3 },
+        { "highlight": { "target": ["bar_0"], "effect": "glow" }, "speak": "The near-universal surprise: one or two bars dominate everything. Most of the uncertainty budget lives at the top of the funnel." },
+        { "draw": ["title"], "speak": "So read tornados before commissioning research: the top bar tells you which study is worth paying for." }
       ]
     }
   }
