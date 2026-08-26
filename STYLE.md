@@ -21,6 +21,35 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-08-26 — Color by role; explain in passing; skip the obvious; rules are defaults
+
+Hans: "Use colors on different types of elements and objects. Assume people
+are intelligent so avoid emphasising things that are very obvious. focus on
+non-intuitive or surprising conclusions. At the same time one may need to
+explain things but in a way that is more like part of a sentence or a
+comment a sidebar, not like 'here is an important statement: bla bla'.
+Another issue: in general few rules are absolute, use and follow rules and
+advice based on your judgement and relevance to the topic/question."
+
+Distilled, four rules — all graduated straight into the prompt (the same
+commit that adds this entry):
+
+1. **Color by role** — each conceptual TYPE of element gets its own palette
+   color, used consistently; color is information, not decoration. New
+   `## Color` section in the prompt spells out the house palette as hex
+   values the model can put on tier-2/3 elements.
+2. **Explain in passing, never by announcement** — explanations live inside
+   the sentence doing the work, or as a brief aside; "It is important to
+   note" / "Notice that" signposting is banned by name.
+3. **Assume an intelligent viewer** — no words or highlights spent on the
+   self-evident; the aha rule now explicitly prefers the non-intuitive
+   conclusion, the one that runs against what a smart viewer would guess.
+   (Kin to the one-surprise mandate below, but distinct: the surprise is a
+   retellable fact, this is about which *insight* is worth building to.)
+4. **Defaults, not laws** — the prompt's rulebook now closes by saying the
+   rules are defaults to be weighed against the topic and request; only the
+   output contract is absolute.
+
 ### 2026-08-26 — Open with a question or a purpose statement; always deliver one surprise
 
 Hans: "the examples should start with a question or a statement like
@@ -83,6 +112,14 @@ From `src/llm/prompts/compiler-v1.md`:
   with actual numbers and carry it through the figure.
 - **Annotation as punctuation**: box/circle the answer, strike the rejected
   option, at the moment of insight; 1–2 per figure.
+- **Color by role**: one palette color per conceptual type, consistent
+  across the figure; the house palette is listed as hex values.
+- **Explain in passing**: explanation as a clause or brief aside in the
+  working sentence; signposted emphasis banned by name.
+- **Intelligent viewer / non-intuitive aha**: no ceremony on the obvious;
+  prefer the insight the viewer would not have guessed.
+- **Defaults, not laws**: apply every rule by judgment and relevance;
+  only the JSON output contract is absolute.
 
 From `src/llm/tags.ts` (all opt-in unless noted):
 

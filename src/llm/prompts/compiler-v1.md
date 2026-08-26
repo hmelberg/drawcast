@@ -16,6 +16,10 @@ The logical canvas is 1000 × 750 units, Cartesian, **(0,0) is bottom-left; y in
 
 Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 100], "y": [0, 100]}`); curve `expr` and point coordinates are then in those units.
 
+## Color
+
+**Color by role.** Give each TYPE of thing in the figure its own color, and keep it consistent: structure and neutral text stay the default ink `#3d3833`; each conceptual role gets one color, reused wherever that role appears. The house palette (warm, sketchbook-toned): `#b5482e` (warm red) and `#2f6b8f` (steel blue) for two contrasted things (demand/supply, before/after, treatment/control), `#d0865f` for a shifted or derived version of the red, `#8a5fa8` (violet) as a third voice, `#8f887c` for guides and construction lines, and the fills `#f2c14e` / `#87a878` / `#c96567` for gain / neutral / loss regions. Set `color` on tier-2/3 elements (`fill` for regions), and give a label its element's color when it names a colored thing. Color is information, not decoration — two curves of the same kind share a color, two curves playing different roles never do, and six colors used once each is noise. Scene templates color themselves; this rule is for what you compose.
+
 ## Narration and drawing commands (a key feature)
 
 `commands` is the storyboard, and its heart is **narrated actions**: put `speak` ON the action command, and the voice and the drawing start together — like a lecturer talking while sketching. The command ends when BOTH finish, so words and strokes never drift apart. Rules:
@@ -34,7 +38,8 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 - **animate** changes NUMERIC template params smoothly while the paired speak lands: `{"animate": {"demand_shift.amount": 25}, "duration": 3, "speak": "As incomes rise, demand grows…"}`. The whole figure re-computes every frame, so intersections, guide lines, and shaded regions move honestly — a sliding demand curve drags its new equilibrium along the supply curve; steepening demand shrinks a tax's deadweight-loss triangle. Keys are dot paths into params. Always write the STARTING value explicitly in params (e.g. `demand_shift: {amount: 0}` so the primed curve starts on the original); only numeric params animate, and only on template specs. One or two animate beats per figure at the moments of change; draw the elements first, animate them after.
 - **Annotate the conclusion — permanent punctuation.** An `annotation` element is a hand-drawn mark that STAYS: `{"id": "mark1", "type": "annotation", "target": "eq_label", "kind": "box"}` — box or circle the answer, `strike`/`cross` out a rejected option (declare it AFTER its target, draw it at the moment of insight, narrated: `{"draw": ["mark1"], "speak": "So this is our answer."}`). Everything temporary belongs to the gesture verbs instead: glow or laser for attention, region shading for areas — never annotate a region. At most 1–2 annotations per figure.
 - **Explain step by step, through an example.** Ground the explanation early in one concrete example with actual numbers ("a $10 tax", "utility drops from 0.9 to 0.6") and carry that example through the figure — a concrete case is the best hook. Define each term the moment its element is drawn, skip no step of the reasoning, and never speak about something not yet on the canvas. Currency: use $ by default; if the request uses another currency (kr, €, £), keep the request's.
-- **Make it land.** Identify the one insight — the sentence the viewer could not have said before watching — build so every beat converges on its reveal, and end with a one-line synthesis that names what the viewer can now see.
+- **Explain in passing, never by announcement.** Weave each explanation into the sentence doing the work — a clause, a brief aside ("— that's the marginal cost —"), a comment dropped while the ink lands. Never signpost: no "It is important to note", "Notice that", "Here we see", "This is crucial". The gesture and the glow already say where to look; the sentence's job is the idea itself. Assume an intelligent viewer: spend words and emphasis on the step they would NOT have seen coming, and let the obvious pass without ceremony — a highlight on something self-evident teaches them to ignore your highlights.
+- **Make it land.** Identify the one insight — the sentence the viewer could not have said before watching — and prefer the non-intuitive one: the conclusion that runs against what a smart viewer would have guessed is worth more than a tidy restatement of the setup. Build so every beat converges on its reveal, and end with a one-line synthesis that names what the viewer can now see.
 - **Choose one enrichment, or none.** If (and only if) it genuinely fits the topic, weave in ONE brief enrichment moment — why it matters, a real debate, a historical note, an empirical number, or a strengths-and-weaknesses aside. Skip it when nothing earns its place; never stuff several. Only include claims, people, and numbers you are confident are real.
 
 Gesture verbs, for teaching moves after elements are on screen (all id lists accept one or many ids):
@@ -48,6 +53,8 @@ Gesture verbs, for teaching moves after elements are on screen (all id lists acc
 - `camera`: `{"camera": {"center": {"ref": "dwl_region"}, "zoom": 2}}` — zoom into a detail; `{"camera": {"reset": true}}` returns to the full view.
 
 Directing tips: give the narrated-gesture treatment to the elements that carry the argument (2–4 per figure lands; a gesture on literally every element exhausts). Use `erase` to remove scaffolding you no longer need (construction lines, a rejected case).
+
+The rules above are defaults, not laws — tuned for the common case, not for every topic. Weigh each against the actual subject and request, and depart deliberately when the material calls for it. Only the output contract is absolute: a valid spec, JSON only.
 
 ## Output
 

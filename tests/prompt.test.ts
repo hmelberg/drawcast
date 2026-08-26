@@ -1,5 +1,25 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { buildSystemPrompt, missingPlaceholders, selectExemplars, stripFence } from "../src/llm/prompt";
+
+const compilerV1 = readFileSync(new URL("../src/llm/prompts/compiler-v1.md", import.meta.url), "utf8");
+
+describe("compiler prompt style rules", () => {
+  test("carries the color-by-role palette rule", () => {
+    expect(compilerV1).toContain("Color by role");
+    expect(compilerV1).toContain("#2f6b8f"); // the palette is spelled out as usable hex values
+  });
+
+  test("bans signposted emphasis and assumes an intelligent viewer", () => {
+    expect(compilerV1).toContain("It is important to note"); // named as a banned phrase
+    expect(compilerV1).toContain("Assume an intelligent viewer");
+  });
+
+  test("aims the insight at the non-intuitive and marks the rules as defaults", () => {
+    expect(compilerV1).toContain("non-intuitive");
+    expect(compilerV1).toContain("defaults, not laws");
+  });
+});
 
 describe("buildSystemPrompt", () => {
   test("substitutes schema, catalog, fewshot, and exemplar placeholders", () => {
