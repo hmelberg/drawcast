@@ -4207,11 +4207,12 @@
       "template": "note_sheet",
       "params": {
         "abc": "X:1\nT:Twinkle, Twinkle\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C G G | A A G2 | F F E E | D D C2 |",
+        "keyboard": true,
         "title": "Twinkle, Twinkle, Little Star"
       },
       "commands": [
-        { "draw": ["staff", "clef"], "speak": "Nearly every folk tune on the internet lives in a plain text format called ABC — a handful of typed lines. Watch six of them become a song." },
-        { "play": { "abc": "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C G G | A A G2 | F F E E | D D C2 |" }, "press": ["note_0", "note_1", "note_2", "note_3", "note_4", "note_5", "note_6", "note_7", "note_8", "note_9", "note_10", "note_11", "note_12", "note_13"], "speak": "Twinkle, Twinkle, Little Star — every note appearing the instant it sounds, at the tempo the text itself prescribes." },
+        { "draw": ["staff", "clef", "keys"], "speak": "Nearly every folk tune on the internet lives in a plain text format called ABC — a handful of typed lines. Watch six of them become sheet music, piano keys, and sound, all at once." },
+        { "play": { "abc": "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C G G | A A G2 | F F E E | D D C2 |" }, "press": ["note_0", "note_1", "note_2", "note_3", "note_4", "note_5", "note_6", "note_7", "note_8", "note_9", "note_10", "note_11", "note_12", "note_13"], "speak": "Twinkle, Twinkle, Little Star — every note lands on the staff and lights its piano key the instant it sounds, at the tempo the text itself prescribes." },
         { "draw": ["bar_0", "bar_1", "bar_2", "label_0", "label_1", "label_2", "label_3", "label_4", "label_5", "label_6", "label_7", "label_8", "label_9", "label_10", "label_11", "label_12", "label_13"], "parallel": true, "speak": "Bar lines and letter names complete the sheet." },
         { "pause": 0.3 },
         { "highlight": { "target": ["note_0", "note_1", "note_2", "note_3"], "effect": "glow" }, "speak": "And the surprise: this is not a Mozart melody. It is an old French song — Ah, vous dirai-je, maman. Mozart heard it like everyone else, and wrote twelve variations on it; the credit stuck to the wrong man." },

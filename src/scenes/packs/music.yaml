@@ -18,7 +18,10 @@ description: >-
   `play` command carrying the SAME notation (or the same {abc}) so viewers
   hear what they see. Choose this scene for ANY request about sheet music,
   staff or musical notation, notes/scales/melodies/chords written on a
-  staff, reading music, note durations, or a named tune in ABC.
+  staff, reading music, note durations, or a named tune in ABC. With
+  keyboard: true a compact piano sits below the staff and every note's key
+  mark lives INSIDE that note's group — so one play command with press:
+  [note_0, ...] lights the staff note AND its piano key on the same beat.
 params:
   type: object
   properties:
@@ -31,6 +34,9 @@ params:
     time_top:
       type: integer
       description: "Beats per bar for the bar lines, 2-6 (default 4; 0 = no bar lines)."
+    keyboard:
+      type: boolean
+      description: "Draw a compact piano under the staff; each note_<i> then also contains its key mark, so press lights sheet and keys together (default false; suits the C4-C6 range)."
     labels:
       type: boolean
       description: "Letter names under the notes (default true)."
@@ -39,6 +45,7 @@ params:
 element_ids:
   staff: the five staff lines (a group)
   clef: the treble clef
+  keys: the compact piano below the staff (a group, when keyboard)
   note_<i>: the i-th token — heads, stem, flag, ledger lines (a group; rests too)
   bar_<i>: the i-th bar line
   label_<i>: letter name under token i (when labels)
@@ -63,12 +70,14 @@ layout: |
   const tokens = kit.parseNotes(notation).slice(0, 16);
   const timeTop = Number.isFinite(params.time_top) ? Math.max(0, Math.min(6, Math.round(params.time_top))) : timeTopDefault;
   const wantLabels = params.labels !== false;
+  const wantKeyboard = params.keyboard === true;
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   // Staff: five lines, E4 on the bottom. One diatonic step = half a gap.
-  const X0 = 130, X1 = 890, Y_E4 = 340, GAP = 26, STEP = GAP / 2;
+  // With the keyboard on, the staff moves up to make room below it.
+  const X0 = 130, X1 = 890, Y_E4 = wantKeyboard ? 430 : 340, GAP = 26, STEP = GAP / 2;
   const staffChildren = [];
   for (let i = 0; i < 5; i++) {
     staffChildren.push(kit.stroke("staff__l" + i, [[X0, Y_E4 + i * GAP], [X1, Y_E4 + i * GAP]], { strokeWidth: 2.5, ms: MS.guides }));
@@ -78,12 +87,75 @@ layout: |
 
   // A hand-drawn treble clef: spine, top curl, and the loop around the G line.
   const G_LINE = Y_E4 + GAP;
+  const dy = Y_E4 - 340; // the clef's control points were drawn for Y_E4 = 340
   push(kit.stroke("clef", kit.smooth([
-    [150, 306], [160, 296], [170, 310], [168, 350], [166, 420], [164, 472],
-    [156, 486], [148, 472], [156, 448], [172, 416], [178, 384], [172, 356],
-    [156, 344], [142, 358], [144, 380], [158, 390], [172, 382],
+    [150, 306 + dy], [160, 296 + dy], [170, 310 + dy], [168, 350 + dy], [166, 420 + dy], [164, 472 + dy],
+    [156, 486 + dy], [148, 472 + dy], [156, 448 + dy], [172, 416 + dy], [178, 384 + dy], [172, 356 + dy],
+    [156, 344 + dy], [142, 358 + dy], [144, 380 + dy], [158, 390 + dy], [172, 382 + dy],
   ], 8), { strokeWidth: 3.5, ms: MS.stroke }));
   anchors.clef = [160, G_LINE];
+
+  // Compact keyboard under the staff (keyboard: true). Sized to the tune's
+  // octave span (max two), and keyMarks() hands each note its key-press
+  // visuals so they can live inside that note's own group.
+  const KB = { y0: 120, y1: 300, blackBot: 200 };
+  let keyMarks = () => [];
+  if (wantKeyboard) {
+    const WHITE = ["C", "D", "E", "F", "G", "A", "B"];
+    const HAS_SHARP = { C: true, D: true, E: false, F: true, G: true, A: true, B: false };
+    let lo = 9, hi = 0;
+    for (const tok of tokens) for (const p of tok.pitches) {
+      const o = Number(p[p.length - 1]);
+      lo = Math.min(lo, o); hi = Math.max(hi, o);
+    }
+    if (lo > hi) { lo = 4; hi = 4; }
+    const startOct = Math.min(lo, 6);
+    const span = Math.max(1, Math.min(2, hi - startOct + 1));
+    const nWhite = span * 7;
+    const KW = Math.min(54, 740 / nWhite);
+    const KX0 = (1000 - nWhite * KW) / 2;
+    const BW = KW * 0.62;
+    const whiteX = (i) => KX0 + i * KW;
+    const hasBlackAfter = (i) => i < nWhite - 1 && HAS_SHARP[WHITE[i % 7]];
+    const keyChildren = [
+      kit.stroke("keys__frame", [[KX0 - 8, KB.y0 - 8], [KX0 + nWhite * KW + 8, KB.y0 - 8], [KX0 + nWhite * KW + 8, KB.y1 + 12], [KX0 - 8, KB.y1 + 12]], { closed: true, strokeWidth: 3.5, ms: MS.stroke }),
+      kit.area("keys__felt", [[KX0, KB.y1], [KX0 + nWhite * KW, KB.y1], [KX0 + nWhite * KW, KB.y1 + 6], [KX0, KB.y1 + 6]], C.demand, { opacity: 0.75, precise: true }),
+    ];
+    for (let i = 0; i < nWhite; i++) {
+      keyChildren.push(kit.stroke("key_w" + i, [[whiteX(i), KB.y0], [whiteX(i) + KW, KB.y0], [whiteX(i) + KW, KB.y1], [whiteX(i), KB.y1]], { closed: true, fill: C.paper, strokeWidth: 2.5, ms: 70 }));
+    }
+    for (let i = 0; i < nWhite; i++) {
+      if (!hasBlackAfter(i)) continue;
+      const bx = whiteX(i + 1) - BW / 2;
+      keyChildren.push(kit.area("key_b" + i + "__f", [[bx, KB.blackBot], [bx + BW, KB.blackBot], [bx + BW, KB.y1], [bx, KB.y1]], C.ink, { opacity: 1, precise: true }));
+      keyChildren.push(kit.stroke("key_b" + i, [[bx, KB.blackBot], [bx + BW, KB.blackBot], [bx + BW, KB.y1], [bx, KB.y1]], { closed: true, strokeWidth: 2, ms: 70 }));
+    }
+    push(kit.group("keys", keyChildren));
+    anchors.keys = [500, (KB.y0 + KB.y1) / 2];
+
+    keyMarks = (noteId, pitches) => {
+      const marks = [];
+      pitches.forEach((p, j) => {
+        const sharp = p.includes("#");
+        const letter = p[0];
+        const octave = Number(p[p.length - 1]);
+        const wi = (octave - startOct) * 7 + WHITE.indexOf(letter);
+        if (wi < 0 || wi >= nWhite) return;
+        if (sharp) {
+          if (wi >= nWhite - 1) return;
+          const bx = whiteX(wi + 1) - BW / 2;
+          marks.push(kit.area(noteId + "__key" + j, [[bx + 2, KB.blackBot + 2], [bx + BW - 2, KB.blackBot + 2], [bx + BW - 2, KB.y1 - 2], [bx + 2, KB.y1 - 2]], C.accent, { opacity: 0.85 }));
+        } else {
+          const x = whiteX(wi);
+          const upL = x + 2 + (wi > 0 && hasBlackAfter(wi - 1) ? BW / 2 : 0);
+          const upR = x + KW - 2 - (hasBlackAfter(wi) ? BW / 2 : 0);
+          marks.push(kit.area(noteId + "__key" + j, [[x + 2, KB.y0 + 2], [x + KW - 2, KB.y0 + 2], [x + KW - 2, KB.blackBot - 2], [x + 2, KB.blackBot - 2]], C.demand, { opacity: 0.5 }));
+          marks.push(kit.area(noteId + "__keyu" + j, [[upL, KB.blackBot - 2], [upR, KB.blackBot - 2], [upR, KB.y1 - 2], [upL, KB.y1 - 2]], C.demand, { opacity: 0.5 }));
+        }
+      });
+      return marks;
+    };
+  }
 
   // Diatonic position: octave*7 + letter index; E4 = 30 sits on the bottom line.
   const LETTER_DIAT = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
@@ -150,11 +222,13 @@ layout: |
           children.push(kit.stroke(id + "__flag2", kit.smooth([[sx, sy1 - (up ? 12 : -12)], [sx + 13, sy1 - (up ? 26 : -26)], [sx + 9, sy1 - (up ? 40 : -40)]], 6), { strokeWidth: 2.5, ms: MS.dot }));
         }
       }
+      children.push(...keyMarks(id, tok.pitches));
       anchors[id] = [x, ys[0]];
       if (wantLabels) {
+        const labelY = wantKeyboard ? 362 : 272;
         const name = tok.pitches.map((p) => p.replace(/\d/g, "")).join("-");
-        push(kit.text("label_" + i, [x, 272], name, { fontSize: 18, color: C.guide }));
-        anchors["label_" + i] = [x, 272];
+        push(kit.text("label_" + i, [x, labelY], name, { fontSize: 18, color: C.guide }));
+        anchors["label_" + i] = [x, labelY];
       }
     }
     push(kit.group(id, children));
@@ -169,7 +243,7 @@ layout: |
   });
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
-    push(kit.text("title", [500, 640], params.title, { fontSize: 30 }));
+    push(kit.text("title", [500, wantKeyboard ? 700 : 640], params.title, { fontSize: 30 }));
   }
   return { drawables, labels, anchors, order };
 ---
@@ -185,7 +259,9 @@ description: >-
   chord can be revealed note by note, each paired with a `play` command
   sounding that note. Choose this scene for ANY request about a piano or
   keyboard, chords or scales shown on keys, intervals (octave, fifth,
-  third), semitones and black keys, or why notes sound good together.
+  third), semitones and black keys, or why notes sound good together. For
+  a whole MELODY with sheet music AND pressed keys together, use
+  note_sheet with keyboard: true instead.
 params:
   type: object
   properties:
