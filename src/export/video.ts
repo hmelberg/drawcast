@@ -1,11 +1,13 @@
 // Client-side video export: replay the drawcast once (real time) while
 // painting each frame onto a canvas and mixing pre-synthesized TTS narration
 // into the recording — canvas.captureStream + WebAudio destination →
-// MediaRecorder → a narrated WebM. No servers; audio requires a BYOK Google
-// Cloud TTS key (browser speechSynthesis cannot be captured).
+// MediaRecorder → a narrated WebM. The recording is silent (narration flows
+// only into the recorder, never the speakers). No servers; audio requires a
+// BYOK Google Cloud TTS key (browser speechSynthesis cannot be captured).
 
 import { render, type RenderStyle } from "../render";
 import type { Spec } from "../spec/types";
+import type { ExportKeepAlive } from "./keepalive";
 import { BufferSpeech, synthesizeAll } from "./tts";
 
 /** Every distinct narration line in the spec's storyboard. */
@@ -163,6 +165,14 @@ export interface ExportHooks {
   /** Offscreen (but laid-out) container the drawcast replays in. */
   workbench: HTMLElement;
   signal: AbortSignal;
+  /**
+   * When set, the export runs its replay, frame loop, and pacing on this
+   * scheduler — which keeps ticking on a picture-in-picture preview window
+   * while the tab is hidden — and only pauses when nothing is visible at all.
+   */
+  keepAlive?: ExportKeepAlive;
+  /** The recording's MediaStream, for mirroring into a preview window. */
+  onStream?(stream: MediaStream): void;
 }
 
 /**
@@ -172,7 +182,10 @@ export interface ExportHooks {
  * no viewer to click during an export.
  */
 export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: ExportHooks): Promise<Blob> {
-  const { canvas, workbench, signal } = hooks;
+  const { canvas, workbench, signal, keepAlive } = hooks;
+  // Frame-driven pacing when a keep-alive scheduler is present (hidden tabs
+  // throttle setTimeout hard); plain timers otherwise.
+  const zzz = (ms: number): Promise<void> => (keepAlive ? keepAlive.sleep(ms) : sleep(ms));
   if (items.length === 0) throw new Error("nothing to export");
   canvas.width = W;
   canvas.height = H;
@@ -195,7 +208,9 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     const dest = audioCtx.createMediaStreamDestination();
     const speech = new BufferSpeech(audioCtx, dest, buffers);
 
-    const stream = new MediaStream([...canvas.captureStream(FPS).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+    const captureTrack = canvas.captureStream(FPS).getVideoTracks()[0] as Partial<CanvasCaptureMediaStreamTrack> & MediaStreamTrack;
+    const stream = new MediaStream([captureTrack, ...dest.stream.getAudioTracks()]);
+    hooks.onStream?.(stream);
     const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((m) => MediaRecorder.isTypeSupported(m));
     const recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 5_000_000 } : undefined);
     const chunks: Blob[] = [];
@@ -215,21 +230,29 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
       while (!stopLoop && !signal.aborted) {
         const t0 = performance.now();
         try {
-          if (currentSvg) await paintFrame(ctx!, serializer.serializeToString(currentSvg), fontStyle, currentCaption?.textContent ?? "", currentTitle);
+          if (currentSvg) {
+            await paintFrame(ctx!, serializer.serializeToString(currentSvg), fontStyle, currentCaption?.textContent ?? "", currentTitle);
+            // Hidden tabs may stop delivering painted frames to the capture
+            // stream on their own; asking explicitly keeps the video moving.
+            captureTrack.requestFrame?.();
+          }
         } catch (err) {
           paintError ??= err as Error;
           stopLoop = true;
         }
-        await sleep(Math.max(0, 1000 / FPS - (performance.now() - t0)));
+        await zzz(Math.max(0, 1000 / FPS - (performance.now() - t0)));
       }
     }
     const frameLoop = runFrameLoop();
 
     recorder.start(1000);
-    // The export runs without a modal now, so nothing stops the user from
-    // switching tabs mid-recording; freeze everything until they return.
+    // The export runs without a modal, so nothing stops the user from
+    // switching tabs mid-recording. With a keep-alive (the picture-in-picture
+    // preview window), the recording continues while the tab is hidden and
+    // this pauser only fires when nothing is visible at all; without one,
+    // freeze everything until they return.
     let resumeTarget: Awaited<ReturnType<typeof render>> | null = null;
-    stopVisibility = visibilityPauser(document, {
+    stopVisibility = visibilityPauser(keepAlive ?? document, {
       pause: () => {
         // Remember the handle only when its timeline is actually playing:
         // play() on a finished player restarts it from step 0 — hiding the tab
@@ -249,7 +272,9 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         resumeTarget = null;
         hooks.onStatus("Recording — resumed…");
       },
-    });
+      // The deferred resume must run on a frame source that actually ticks —
+      // e.g. the preview window appearing while the tab itself is hidden.
+    }, keepAlive ? (cb) => keepAlive.raf(() => cb()) : undefined);
     const onAbort = () => handle?.timeline.dispose();
     signal.addEventListener("abort", onAbort);
     try {
@@ -262,10 +287,11 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         currentSvg = svg;
         currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
         currentTitle = items[i].title ?? "";
-        handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : sleep(600));
+        if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking on the preview window
+        handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
         await handle.timeline.play();
         if (i < items.length - 1) {
-          await sleep(300); // beat between parts
+          await zzz(300); // beat between parts
           currentSvg = null;
           currentCaption = null;
           handle.destroy();
@@ -276,7 +302,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
       signal.removeEventListener("abort", onAbort);
     }
     if (signal.aborted) throw new Error("export cancelled");
-    await sleep(600); // let the last stroke and audio tail land
+    await zzz(600); // let the last stroke and audio tail land
     stopLoop = true;
     await frameLoop;
     recorder.stop();

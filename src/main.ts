@@ -48,6 +48,8 @@ import {
 } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakTexts, type SessionHandle } from "./playlist/session";
 import { exportVideo } from "./export/video";
+import { ExportKeepAlive } from "./export/keepalive";
+import { openExportPreview } from "./export/pip";
 import { CloudSpeech } from "./export/tts";
 import {
   addExemplar,
@@ -514,7 +516,7 @@ driveOpenBtn.hidden = !pickerConfigured();
 driveSaveBtn.hidden = !googleConfigured();
 const exportVideoBtn = h(
   "button",
-  { title: "Record the drawcast as a narrated WebM video (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
+  { title: "Record the drawcast as a narrated WebM video, silently in the background (needs a Google Cloud TTS key in Settings). YouTube accepts WebM directly." },
   "🎬 Export video",
 );
 const uploadYtBtn = h("button", { class: "small", title: "Upload the video to your YouTube channel" }, "▶ YouTube");
@@ -2784,17 +2786,35 @@ async function renderVideoBlob(): Promise<Blob | null> {
   const controller = new AbortController();
   exportAbort = controller;
   exportStage.replaceChildren();
+  // The always-on-top preview window keeps the recording running while this
+  // tab is hidden. It must be requested NOW, inside the click's transient
+  // activation; when it cannot open (unsupported browser, activation spent
+  // by a sign-in popup) the export still works and pauses while hidden.
+  const keepAlive = new ExportKeepAlive(document, (cb) => requestAnimationFrame(() => cb()), () => performance.now());
+  const preview = await openExportPreview(keepAlive);
   try {
     return await exportVideo(
       exportSequence(doc.playlist),
       { ttsKey, style: settings.style, rate: settings.rate },
-      { onStatus: (t) => (exportChipText.textContent = t), canvas: exportCanvas, workbench: exportStage, signal: controller.signal },
+      {
+        onStatus: (t) => {
+          exportChipText.textContent = t;
+          preview?.setStatus(t);
+        },
+        canvas: exportCanvas,
+        workbench: exportStage,
+        signal: controller.signal,
+        keepAlive,
+        onStream: (stream) => preview?.showStream(stream),
+      },
     );
   } catch (err) {
     if (controller.signal.aborted) setStatus("Video export cancelled.");
     else setStatus(`Export failed: ${(err as Error).message}`, "error");
     return null;
   } finally {
+    preview?.close();
+    keepAlive.dispose();
     exportStage.replaceChildren();
   }
 }

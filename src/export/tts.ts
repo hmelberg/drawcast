@@ -220,8 +220,9 @@ export class CloudSpeech extends SpeechManager {
 
 /**
  * SpeechManager drop-in for export: `speak` plays the pre-synthesized buffer
- * into the recording destination (and the speakers, so the export is audible)
- * and resolves when it ends — the Player's timing works unchanged.
+ * into the recording destination ONLY — the export records silently, nothing
+ * reaches the speakers — and resolves when it ends, so the Player's timing
+ * works unchanged.
  */
 export class BufferSpeech extends SpeechManager {
   private audioCtx: AudioContext;
@@ -259,7 +260,6 @@ export class BufferSpeech extends SpeechManager {
       const src = this.audioCtx.createBufferSource();
       src.buffer = buffer;
       src.connect(this.dest);
-      src.connect(this.audioCtx.destination);
       this.active.add(src);
       let settled = false;
       const done = () => {

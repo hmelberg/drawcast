@@ -432,10 +432,12 @@ commands: [ … ]</code></pre>
         <p>
           This needs a Google Cloud Text-to-Speech key, added under Settings — browser speech cannot be
           recorded, so the narration has to be synthesised. The recording happens in your browser in
-          real time, so a three-minute drawcast takes about three minutes. It runs in the background:
-          a 🎬 progress chip appears above the drawing (its ✕ cancels), and you can keep working in
-          drawcast while it records. Keep the tab visible, though — switch away and the recording
-          pauses, resuming when you return.
+          real time, so a three-minute drawcast takes about three minutes, and silently — the narration
+          goes into the file, not your speakers. It runs in the background: a 🎬 progress chip appears
+          above the drawing (its ✕ cancels), and you can keep working in drawcast while it records. In
+          Chrome, a small always-on-top preview window opens alongside and keeps the recording running
+          even when you switch tabs or apps; close that window (or use a browser without it) and the
+          recording instead pauses whenever the tab is hidden, resuming when you return.
         </p>
 
         <h2 id="keys">Keys and privacy</h2>

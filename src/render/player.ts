@@ -51,6 +51,12 @@ export class Player {
   inputGate: ((signal: AbortSignal) => Promise<void>) | null = null;
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
+  /**
+   * Frame scheduler, injectable like inputGate: the exporter swaps in one that
+   * keeps ticking while this tab is hidden (its picture-in-picture preview
+   * window). Callbacks receive a timestamp on the main window's clock.
+   */
+  raf: (cb: (now: number) => void) => void = (cb) => requestAnimationFrame(cb);
 
   private mode: PlaybackMode;
   private speedVal: number;
@@ -496,9 +502,9 @@ export class Player {
           onTick(p);
         }
         if (p >= 1) return resolve();
-        requestAnimationFrame(tick);
+        this.raf(tick);
       };
-      requestAnimationFrame(tick);
+      this.raf(tick);
     });
   }
 
@@ -512,9 +518,9 @@ export class Player {
         if (!this.pausedFlag) t += (now - last) * this.speedVal;
         last = now;
         if (t >= ms) return resolve();
-        requestAnimationFrame(tick);
+        this.raf(tick);
       };
-      requestAnimationFrame(tick);
+      this.raf(tick);
     });
   }
 
