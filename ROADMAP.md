@@ -126,10 +126,12 @@ file has no regenerable source, so its strokes auto-embed in the spec).
 Traces cache in IndexedDB keyed by name/url + tracer version — the name
 is the regenerable truth, the cache is materialization; resolution runs
 in the ensure phase before layout (never mid-playback), and a missing
-portrait degrades to a sketched placeholder with initials. Deferred to
-phase 2: hachure shading for dark regions, crop/re-trace UI, a pin-to-spec
-toggle for name/URL portraits, blob-hoisting before model round-trips,
-and an optional shared cache tier (Anvil).
+portrait degrades to a sketched placeholder with initials. Phase 2 delivered
+shading, pinning and blob-hoisting; the poster (posterized-region) look
+then replaced lines as the default. Still deferred: crop/re-trace UI, an
+optional shared cache tier (Anvil), and a HALFTONE look — the picture as
+dots of varying size and grayness (Hans's idea, 2026-08-26) — as a third
+`look` alongside poster and line, if the poster look ever wants company.
 
 ## Phase A — interaction primitives
 

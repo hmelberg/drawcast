@@ -1,91 +1,96 @@
-// Compact string codec for portrait traces — photos of historical figures
-// converted to polyline strokes and shipped inside a spec as one short
-// string. Pure (no imports), so both the tracer and the renderer can share
-// it without dragging in DOM types.
+// The portrait trace codec: compact strings for traced artwork. Two shape
+// grammars share one format:
+//   "line"  — open polyline strokes (the pen).
+//   "fill"  — closed regions filled solid ink (the poster/stencil look —
+//             the chess-piece idiom).
+//   "wash"  — closed regions shaded at region opacity (the mid-tone).
+//   "paper" — closed regions filled paper color, drawn last (holes: eyes,
+//             teeth, highlights inside dark regions).
 //
-// Format ("t1"):
-//   t1:<AA>:<stroke>.<stroke>...
-// - Alphabet: the 64 chars "A..Za..z0..9-_" (base64url order); every encoded
-//   value is 2 chars = 12 bits (first char = high 6 bits, second = low 6).
-// - <AA> is round(aspect * 500) clamped 0..4095, so aspects up to 8.19 fit
-//   with ~0.002 resolution (a non-finite or <= 0 aspect is treated as 1).
-// - Coordinates are quantized to a 0..4095 grid: x_q = round(x * 4095),
-//   y_q = round(y / aspect * 4095), both clamped. Each point is 4 chars
-//   (x then y); strokes are joined by ".".
-// - decodeTrace reconstructs x = x_q / 4095, y = (y_q / 4095) * aspect, so
-//   decode(encode(t)) matches t within quantization error (1/4095 in x,
-//   aspect/4095 in y). Anything malformed — wrong prefix, bad chars, odd
-//   lengths, empty input — decodes to null; strokes with < 2 points are
-//   skipped on both sides.
+// Wire format: `t2:<2-char aspect>:<shape>.<shape>...` where each shape is
+// one kind char (l/i/m/p) followed by 4 chars per point (12-bit x then
+// 12-bit y, high 6 bits first, base64url alphabet). Aspect = height/width,
+// stored as round(aspect*500) in 12 bits. Coordinates are normalized:
+// x in [0,1], y in [0, aspect], y-UP. Legacy "t1:" (no kind chars, all
+// lines) still decodes.
+
+export interface TraceShape {
+  kind: "line" | "fill" | "wash" | "paper";
+  pts: [number, number][];
+}
 
 export interface PortraitTrace {
   /** Height / width of the traced image. */
   aspect: number;
-  /** Polylines; x in [0, 1], y in [0, aspect], y-UP (0 = bottom). */
-  strokes: [number, number][][];
+  shapes: TraceShape[];
 }
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const CHAR_TO_VAL = new Map([...ALPHABET].map((c, i) => [c, i] as const));
+const GRID = 4095;
 
-/** char -> 0..63, built once from the alphabet. */
-const CHAR_VALUE: Record<string, number> = {};
-for (let i = 0; i < ALPHABET.length; i++) CHAR_VALUE[ALPHABET[i]] = i;
+const KIND_CHAR: Record<TraceShape["kind"], string> = { line: "l", fill: "i", wash: "m", paper: "p" };
+const CHAR_KIND: Record<string, TraceShape["kind"]> = { l: "line", i: "fill", m: "wash", p: "paper" };
 
-/** One 12-bit value -> 2 alphabet chars (high 6 bits first). */
 function enc12(v: number): string {
-  return ALPHABET[(v >> 6) & 63] + ALPHABET[v & 63];
+  const n = Math.max(0, Math.min(GRID, Math.round(v)));
+  return ALPHABET[(n >> 6) & 63] + ALPHABET[n & 63];
 }
 
-/** 2 alphabet chars at s[i], s[i+1] -> 12-bit value, or null on a bad char. */
 function dec12(s: string, i: number): number | null {
-  const hi = CHAR_VALUE[s[i]];
-  const lo = CHAR_VALUE[s[i + 1]];
+  const hi = CHAR_TO_VAL.get(s[i]);
+  const lo = CHAR_TO_VAL.get(s[i + 1]);
   if (hi === undefined || lo === undefined) return null;
   return (hi << 6) | lo;
 }
 
-function clamp12(v: number): number {
-  return v < 0 ? 0 : v > 4095 ? 4095 : v;
-}
-
-/** Encode a trace as a compact "t1:..." string (see the format above). */
 export function encodeTrace(t: PortraitTrace): string {
   const aspect = Number.isFinite(t.aspect) && t.aspect > 0 ? t.aspect : 1;
   const parts: string[] = [];
-  for (const stroke of t.strokes) {
-    if (stroke.length < 2) continue;
-    let out = "";
-    for (const [x, y] of stroke) {
-      out += enc12(clamp12(Math.round(x * 4095)));
-      out += enc12(clamp12(Math.round((y / aspect) * 4095)));
+  for (const shape of t.shapes) {
+    if (shape.pts.length < 2) continue;
+    let out = KIND_CHAR[shape.kind] ?? "l";
+    for (const [x, y] of shape.pts) {
+      out += enc12((x / 1) * GRID) + enc12((y / aspect) * GRID);
     }
     parts.push(out);
   }
-  return "t1:" + enc12(clamp12(Math.round(aspect * 500))) + ":" + parts.join(".");
+  return `t2:${enc12(Math.min(8, aspect) * 500)}:${parts.join(".")}`;
 }
 
-/** Decode a "t1:..." string; null for anything malformed. */
 export function decodeTrace(s: string): PortraitTrace | null {
-  if (!s.startsWith("t1:")) return null;
-  const rest = s.slice(3);
-  if (rest.length < 3 || rest[2] !== ":") return null;
-  const aspectQ = dec12(rest, 0);
-  if (aspectQ === null) return null;
-  const aspect = aspectQ / 500;
-  const body = rest.slice(3);
-  const strokes: [number, number][][] = [];
-  if (body !== "") {
-    for (const seg of body.split(".")) {
-      if (seg.length === 0 || seg.length % 4 !== 0) return null;
-      const points: [number, number][] = [];
-      for (let i = 0; i < seg.length; i += 4) {
-        const xq = dec12(seg, i);
-        const yq = dec12(seg, i + 2);
-        if (xq === null || yq === null) return null;
-        points.push([xq / 4095, (yq / 4095) * aspect]);
+  if (typeof s !== "string") return null;
+  const v2 = s.startsWith("t2:");
+  const v1 = s.startsWith("t1:");
+  if (!v1 && !v2) return null;
+  const body = s.slice(3);
+  const sep = body.indexOf(":");
+  if (sep !== 2) return null;
+  const aspectRaw = dec12(body, 0);
+  if (aspectRaw === null) return null;
+  const aspect = Math.max(0.05, aspectRaw / 500);
+  const payload = body.slice(3);
+  const shapes: TraceShape[] = [];
+  if (payload !== "") {
+    for (const seg of payload.split(".")) {
+      let kind: TraceShape["kind"] = "line";
+      let coords = seg;
+      if (v2) {
+        const k = CHAR_KIND[seg[0]];
+        if (!k) return null;
+        kind = k;
+        coords = seg.slice(1);
       }
-      if (points.length >= 2) strokes.push(points);
+      if (coords.length === 0 || coords.length % 4 !== 0) return null;
+      const pts: [number, number][] = [];
+      for (let i = 0; i < coords.length; i += 4) {
+        const xq = dec12(coords, i);
+        const yq = dec12(coords, i + 2);
+        if (xq === null || yq === null) return null;
+        pts.push([xq / GRID, (yq / GRID) * aspect]);
+      }
+      if (pts.length >= 2) shapes.push({ kind, pts });
     }
   }
-  return { aspect, strokes };
+  return { aspect, shapes };
 }

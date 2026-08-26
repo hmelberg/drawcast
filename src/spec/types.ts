@@ -109,6 +109,8 @@ export interface SpecElement {
   strokes?: string;
   /** Provenance: where the traced image came from (attribution). */
   source?: string;
+  /** Trace look: poster (posterized regions, the default) or line (pen sketch). */
+  look?: "poster" | "line";
   // cross-cutting
   style?: SpecStyle;
   draw?: SpecDraw;

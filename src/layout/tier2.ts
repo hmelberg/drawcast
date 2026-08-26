@@ -519,20 +519,62 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
   const cy = el.y ?? 550;
   const trace = el.strokes ? decodeTrace(el.strokes) : null;
   const children: Drawable[] = [];
-  if (trace && trace.strokes.length > 0) {
+  if (trace && trace.shapes.length > 0) {
     const h = w * trace.aspect;
-    // The whole portrait draws itself in a few seconds regardless of density.
-    const msPer = Math.max(25, Math.min(110, 3200 / trace.strokes.length));
-    trace.strokes.forEach((pts, i) => {
+    const map = ([nx, ny]: [number, number]): Pt => [cx - w / 2 + nx * w, cy - h / 2 + ny * w];
+    // Paint order carries the poster logic: washes under, ink fills over,
+    // paper holes (eyes, highlights) last, line strokes on top of all.
+    const ORDER: Record<string, number> = { wash: 0, fill: 1, paper: 2, line: 3 };
+    const shapes = trace.shapes.map((shape, i) => ({ shape, i })).sort((a, b) => (ORDER[a.shape.kind] ?? 3) - (ORDER[b.shape.kind] ?? 3) || a.i - b.i);
+    const msPer = Math.max(25, Math.min(160, 3200 / shapes.length));
+    for (const { shape, i } of shapes) {
+      const pts = shape.pts.map(map);
+      if (shape.kind === "line") {
+        children.push({
+          id: `${el.id}__s${i}`,
+          kind: "stroke",
+          pts,
+          z: Z_STROKE,
+          style: resolveStyle(el.style, { strokeWidth: 2.2 }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
+        });
+        continue;
+      }
+      if (shape.kind === "wash") {
+        // The house region wash: soft, hand-shaded at region opacity.
+        children.push({
+          id: `${el.id}__w${i}`,
+          kind: "area",
+          pts,
+          z: Z_AREA,
+          style: resolveStyle(undefined, { fill: COLORS.ink, opacity: 0.3, strokeWidth: 0 }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
+        });
+        continue;
+      }
+      // fill / paper: the chess-piece idiom — exact solid shape + its outline.
+      const paper = shape.kind === "paper";
       children.push({
-        id: `${el.id}__s${i}`,
-        kind: "stroke",
-        pts: pts.map(([nx, ny]): Pt => [cx - w / 2 + nx * w, cy - h / 2 + ny * w]),
+        id: `${el.id}__f${i}`,
+        kind: "area",
+        pts,
+        precise: true,
         z: Z_STROKE,
-        style: resolveStyle(el.style, { strokeWidth: 2.2 }),
+        style: resolveStyle(undefined, { fill: paper ? COLORS.paper : COLORS.ink, opacity: 1, strokeWidth: 0 }),
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
       });
-    });
+      if (!paper) {
+        children.push({
+          id: `${el.id}__o${i}`,
+          kind: "stroke",
+          pts,
+          closed: true,
+          z: Z_STROKE,
+          style: resolveStyle(el.style, { strokeWidth: 2 }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
+        });
+      }
+    }
   } else {
     const h = w * 1.25;
     const initials = (el.of ?? "?")

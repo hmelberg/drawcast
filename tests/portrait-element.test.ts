@@ -12,10 +12,10 @@ import type { Spec } from "../src/spec/types";
 
 const TRACE = encodeTrace({
   aspect: 1.25,
-  strokes: [
-    [[0.2, 0.2], [0.8, 0.2], [0.8, 1.0], [0.2, 1.0], [0.2, 0.2]],
-    [[0.35, 0.7], [0.4, 0.75], [0.45, 0.7]],
-    [[0.55, 0.7], [0.6, 0.75], [0.65, 0.7]],
+  shapes: [
+    { kind: "fill", pts: [[0.2, 0.2], [0.8, 0.2], [0.8, 1.0], [0.2, 1.0]] },
+    { kind: "line", pts: [[0.35, 0.7], [0.4, 0.75], [0.45, 0.7]] },
+    { kind: "paper", pts: [[0.55, 0.7], [0.6, 0.75], [0.65, 0.7]] },
   ],
 });
 
@@ -30,13 +30,20 @@ describe("portrait element", () => {
     expect(validateSpec(spec({})).ok).toBe(false);
   });
 
-  test("embedded strokes render as a group of scaled polylines at the given position", () => {
+  test("embedded shapes render scaled at the position: fill+outline, line stroke, paper hole — in paint order", () => {
     const res = layoutSpec(spec({ strokes: TRACE }));
     const flat = flattenDrawables(res.drawables);
-    const strokes = flat.filter((d) => d.id.startsWith("p1__s"));
-    expect(strokes.length).toBe(3);
-    // Width 160, aspect 1.25 → all points inside the 160×200 box around (200, 500).
-    for (const d of strokes) {
+    const ids = flat.map((d) => d.id);
+    expect(ids.some((id) => id.startsWith("p1__f"))).toBe(true); // the ink fill (and the paper hole)
+    expect(ids.some((id) => id.startsWith("p1__o"))).toBe(true); // its outline
+    expect(ids.some((id) => id.startsWith("p1__s"))).toBe(true); // the line stroke
+    // The paper hole paints AFTER the ink fill.
+    const fills = flat.filter((d) => d.id.startsWith("p1__f")) as { style: { fill?: string } }[];
+    expect(fills.length).toBe(2);
+    expect(fills[0].style.fill).not.toBe(fills[1].style.fill);
+    // Width 160, aspect 1.25 → everything inside the 160×200 box around (200, 500).
+    for (const d of flat.filter((x) => x.id.startsWith("p1__"))) {
+      if (!("pts" in d)) continue;
       for (const [x, y] of (d as { pts: [number, number][] }).pts) {
         expect(x).toBeGreaterThanOrEqual(200 - 80 - 1);
         expect(x).toBeLessThanOrEqual(200 + 80 + 1);
@@ -70,8 +77,9 @@ describe("portrait resolver helpers", () => {
 
   test("cache keys: strokes need none; url and name key separately; version bumps invalidate", () => {
     expect(portraitCacheKey({ type: "portrait", strokes: TRACE })).toBeNull();
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|name|keynes`);
-    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|url|https://x/y.jpg`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|poster|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|poster|url|https://x/y.jpg`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "line" })).toBe(`p${TRACE_VERSION}|line|name|keynes`);
     expect(portraitCacheKey({ type: "portrait" })).toBeNull();
   });
 

@@ -136,6 +136,11 @@ const elementSchema = {
     url: { type: "string", description: "portrait: direct image URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
     strokes: { type: "string", description: "portrait: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
     source: { type: "string", description: "portrait: provenance/attribution (machine-written; copy verbatim)." },
+    look: {
+      type: "string",
+      enum: ["poster", "line"],
+      description: "portrait: poster = posterized solid regions (the default, best for photos); line = pen-sketch edges (suits line art and engravings).",
+    },
     style: styleSchema,
     draw: drawSchema,
   },

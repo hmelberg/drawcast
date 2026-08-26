@@ -11,7 +11,7 @@ import { decodeTrace, encodeTrace } from "../spec/trace";
 import { traceImage } from "./tracer";
 
 /** Bump when the tracer's output changes — old cache entries stop matching. */
-export const TRACE_VERSION = 2; // v2: hachure shading of dark regions
+export const TRACE_VERSION = 3; // v3: poster (region) look is the default
 
 /** The Wikipedia summary endpoint for a person (CORS-open, returns the infobox thumbnail). */
 export function wikiSummaryUrl(name: string): string {
@@ -19,10 +19,11 @@ export function wikiSummaryUrl(name: string): string {
 }
 
 /** Cache key for a portrait element, or null when it needs no resolution. */
-export function portraitCacheKey(el: Pick<SpecElement, "type" | "of" | "url" | "strokes">): string | null {
+export function portraitCacheKey(el: Pick<SpecElement, "type" | "of" | "url" | "strokes" | "look">): string | null {
   if (el.type !== "portrait" || el.strokes) return null;
-  if (el.url) return `p${TRACE_VERSION}|url|${el.url}`;
-  if (el.of) return `p${TRACE_VERSION}|name|${el.of.trim().toLowerCase()}`;
+  const look = el.look === "line" ? "line" : "poster";
+  if (el.url) return `p${TRACE_VERSION}|${look}|url|${el.url}`;
+  if (el.of) return `p${TRACE_VERSION}|${look}|name|${el.of.trim().toLowerCase()}`;
   return null;
 }
 
@@ -99,9 +100,9 @@ async function loadRaster(url: string): Promise<{ width: number; height: number;
 }
 
 /** Fetch + trace + encode one portrait image URL. */
-export async function traceFromUrl(url: string): Promise<string> {
+export async function traceFromUrl(url: string, look: "poster" | "line" = "poster"): Promise<string> {
   const raster = await loadRaster(url);
-  return encodeTrace(traceImage(raster));
+  return encodeTrace(traceImage(raster, { style: look }));
 }
 
 /** Trace a local image file (editor file-drop) — no CORS involved. */
@@ -150,7 +151,7 @@ export async function resolvePortraits(spec: Spec): Promise<PortraitResolution[]
           if (!imageUrl) throw new Error(`no portrait found on Wikipedia for "${el.of}"`);
         }
         if (!imageUrl) throw new Error("no image source");
-        encoded = await traceFromUrl(imageUrl);
+        encoded = await traceFromUrl(imageUrl, el.look === "line" ? "line" : "poster");
         el.source = el.source ?? imageUrl;
         await cachePut(key, encoded);
       }
