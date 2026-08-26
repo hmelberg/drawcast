@@ -128,10 +128,12 @@ is the regenerable truth, the cache is materialization; resolution runs
 in the ensure phase before layout (never mid-playback), and a missing
 portrait degrades to a sketched placeholder with initials. Phase 2 delivered
 shading, pinning and blob-hoisting; the poster (posterized-region) look
-then replaced lines as the default. Still deferred: crop/re-trace UI, an
-optional shared cache tier (Anvil), and a HALFTONE look — the picture as
-dots of varying size and grayness (Hans's idea, 2026-08-26) — as a third
-`look` alongside poster and line, if the poster look ever wants company.
+then replaced lines as the default. The halftone look (Hans's dots
+idea) shipped 2026-08-27 and became the DEFAULT — poster destroyed
+likeness; dot-size halftone keeps faces recognizable because tone
+survives. Still deferred: crop/re-trace UI, an optional shared cache
+tier (Anvil), and a true grayscale-photo look (needs an image drawable
+kind in the renderer) if halftone ever falls short.
 
 ## Phase A — interaction primitives
 

@@ -19,8 +19,8 @@
 import type { PortraitTrace, TraceShape } from "../spec/trace";
 
 export interface TraceOpts {
-  /** Which look to produce (default "poster"). */
-  style?: "poster" | "line";
+  /** Which look to produce (default "halftone"). */
+  style?: "halftone" | "poster" | "line";
   /** TOTAL shape budget — most important shapes first (default 110). */
   maxStrokes?: number;
   /** line: edge threshold percentile 0..1 (default 0.82). */
@@ -205,6 +205,49 @@ function normalize(chains: { kind: TraceShape["kind"]; pts: [number, number][] }
   }));
 }
 
+// ---- the halftone look ----------------------------------------------------
+
+/** Cap on halftone dots — independent of maxStrokes (a portrait needs hundreds). */
+const DOT_BUDGET = 900;
+
+/**
+ * The newspaper-print portrait: a hex-packed grid of ink dots whose SIZE
+ * carries the tone — the one conversion that keeps a face recognizable at
+ * portrait scale, because likeness lives in continuous midtones that
+ * posterization destroys. Light cells get no dot at all (paper does the
+ * highlights).
+ */
+function traceHalftone(img: RasterLike): PortraitTrace {
+  const w = img.width;
+  const h = img.height;
+  const aspect = h / w;
+  const lum = blur3(grayscale(img), w, h);
+
+  // Grid step chosen so the dot count stays under budget; hex packing
+  // (odd rows shifted half a step) reads rounder than a square grid.
+  const step = Math.max(3, Math.ceil(Math.sqrt((w * h) / DOT_BUDGET)));
+  const maxR = step * 0.62;
+  const minR = step * 0.14;
+  const GAMMA = 1.25;
+
+  const chains: { kind: TraceShape["kind"]; pts: [number, number][] }[] = [];
+  let row = 0;
+  for (let y = Math.floor(step / 2); y < h; y += step, row++) {
+    const shift = row % 2 === 1 ? step / 2 : 0;
+    for (let x = Math.floor(step / 2) + shift; x < w; x += step) {
+      const px = Math.min(w - 1, Math.round(x));
+      const py = Math.min(h - 1, Math.round(y));
+      const darkness = 1 - lum[py * w + px] / 255;
+      const r = maxR * Math.pow(darkness, GAMMA);
+      if (r < minR) continue;
+      chains.push({ kind: "dot", pts: [[px, py], [px + r, py]] });
+      if (chains.length >= DOT_BUDGET) break;
+    }
+    if (chains.length >= DOT_BUDGET) break;
+  }
+  return { aspect, shapes: normalize(chains, w, h) };
+}
+
 // ---- the poster look ------------------------------------------------------
 
 function tracePoster(img: RasterLike, maxShapes: number): PortraitTrace {
@@ -353,6 +396,8 @@ function traceLines(img: RasterLike, maxStrokes: number, rawPct: number, shading
 
 export function traceImage(img: RasterLike, opts?: TraceOpts): PortraitTrace {
   const maxStrokes = opts?.maxStrokes ?? 110;
-  if ((opts?.style ?? "poster") === "poster") return tracePoster(img, maxStrokes);
+  const style = opts?.style ?? "halftone";
+  if (style === "halftone") return traceHalftone(img);
+  if (style === "poster") return tracePoster(img, maxStrokes);
   return traceLines(img, maxStrokes, opts?.percentile ?? 0.82, opts?.shading !== false);
 }

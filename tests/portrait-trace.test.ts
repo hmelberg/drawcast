@@ -86,9 +86,9 @@ function darkSquare(): RasterLike {
   return { width: w, height: h, data };
 }
 
-describe("poster look (default)", () => {
+describe("poster look", () => {
   test("a dark square becomes a small number of smooth closed region shapes", () => {
-    const t = traceImage(darkSquare());
+    const t = traceImage(darkSquare(), { style: "poster" });
     expect(t.aspect).toBe(1);
     expect(t.shapes.length).toBeGreaterThan(0);
     expect(t.shapes.length).toBeLessThan(10); // regions, not stroke confetti
@@ -115,17 +115,17 @@ describe("poster look (default)", () => {
         raster.data[i] = raster.data[i + 1] = raster.data[i + 2] = 255;
       }
     }
-    const t = traceImage(raster);
+    const t = traceImage(raster, { style: "poster" });
     expect(t.shapes.some((s) => s.kind === "paper")).toBe(true);
   });
 
   test("deterministic, and an all-white raster yields no shapes", () => {
-    expect(JSON.stringify(traceImage(darkSquare()))).toBe(JSON.stringify(traceImage(darkSquare())));
+    expect(JSON.stringify(traceImage(darkSquare(), { style: "poster" }))).toBe(JSON.stringify(traceImage(darkSquare(), { style: "poster" })));
     const blank: RasterLike = { width: 40, height: 40, data: new Uint8ClampedArray(40 * 40 * 4).fill(255) };
     // All-white: every percentile threshold equals the single luminance, so
     // masks may cover everything or nothing — either way no ENCLOSED shapes
     // survive the border/area filters beyond one background region at most.
-    expect(traceImage(blank).shapes.filter((s) => s.kind === "fill").length).toBeLessThanOrEqual(1);
+    expect(traceImage(blank, { style: "poster" }).shapes.filter((s) => s.kind === "fill").length).toBeLessThanOrEqual(1);
   });
 });
 
@@ -141,12 +141,62 @@ describe("line look", () => {
 
   test("maxStrokes is a total budget in both looks", () => {
     expect(traceImage(darkSquare(), { style: "line", maxStrokes: 3 }).shapes.length).toBeLessThanOrEqual(3);
-    expect(traceImage(darkSquare(), { maxStrokes: 2 }).shapes.length).toBeLessThanOrEqual(2);
+    expect(traceImage(darkSquare(), { style: "poster", maxStrokes: 2 }).shapes.length).toBeLessThanOrEqual(2);
   });
 
   test("line look stays deterministic", () => {
     const a = traceImage(darkSquare(), { style: "line" });
     const b = traceImage(darkSquare(), { style: "line" });
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});
+
+describe("halftone look (the new default)", () => {
+  // A left-to-right luminance gradient: dark left, light right.
+  const gradient = (): RasterLike => {
+    const w = 60;
+    const h = 60;
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = Math.round((x / (w - 1)) * 255);
+        const i = (y * w + x) * 4;
+        data[i] = data[i + 1] = data[i + 2] = v;
+        data[i + 3] = 255;
+      }
+    }
+    return { width: w, height: h, data };
+  };
+
+  test("dot size carries the tone: darker cells get bigger dots, light cells none", () => {
+    const t = traceImage(gradient()); // default style = halftone
+    const dots = t.shapes.filter((s) => s.kind === "dot");
+    expect(dots.length).toBeGreaterThan(20);
+    expect(dots.length).toBe(t.shapes.length); // halftone is dots only
+    const radius = (d: { pts: [number, number][] }) => Math.abs(d.pts[1][0] - d.pts[0][0]);
+    const dark = dots.filter((d) => d.pts[0][0] < 0.25);
+    const mid = dots.filter((d) => d.pts[0][0] > 0.4 && d.pts[0][0] < 0.6);
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(avg(dark.map(radius))).toBeGreaterThan(avg(mid.map(radius)) * 1.3);
+    // The lightest column produces no dots at all — paper does the highlights.
+    expect(dots.some((d) => d.pts[0][0] > 0.93)).toBe(false);
+  });
+
+  test("dots round-trip the codec and stay deterministic", () => {
+    const t = traceImage(gradient());
+    const back = decodeTrace(encodeTrace(t))!;
+    expect(back.shapes.length).toBe(t.shapes.length);
+    expect(back.shapes[0].kind).toBe("dot");
+    expect(JSON.stringify(traceImage(gradient()))).toBe(JSON.stringify(traceImage(gradient())));
+  });
+
+  test("the dot budget holds even for an all-black image", () => {
+    const w = 80;
+    const h = 80;
+    const data = new Uint8ClampedArray(w * h * 4).fill(0);
+    for (let i = 3; i < data.length; i += 4) data[i] = 255;
+    const t = traceImage({ width: w, height: h, data });
+    expect(t.shapes.length).toBeLessThanOrEqual(900);
+    expect(t.shapes.length).toBeGreaterThan(300);
   });
 });

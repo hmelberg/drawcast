@@ -70,6 +70,26 @@ describe("portrait element", () => {
   });
 });
 
+describe("portrait element — halftone dots", () => {
+  test("dot shapes render as filled circles scaled with the element width", () => {
+    const dotted = encodeTrace({
+      aspect: 1,
+      shapes: [
+        { kind: "dot", pts: [[0.5, 0.5], [0.55, 0.5]] },
+        { kind: "dot", pts: [[0.25, 0.25], [0.27, 0.25]] },
+      ],
+    });
+    const res = layoutSpec(spec({ strokes: dotted }));
+    const flat = flattenDrawables(res.drawables);
+    const dots = flat.filter((d) => d.id.startsWith("p1__d")) as { shapeHint?: { type: string; r: number } }[];
+    expect(dots.length).toBe(2);
+    expect(dots[0].shapeHint?.type).toBe("circle");
+    // r = 0.05 normalized × width 160 = 8 logical units.
+    expect(dots[0].shapeHint?.r).toBeCloseTo(8, 0);
+    expect(dots[1].shapeHint?.r).toBeCloseTo(3.2, 0);
+  });
+});
+
 describe("portrait resolver helpers", () => {
   test("wikiSummaryUrl encodes names the REST API way", () => {
     expect(wikiSummaryUrl("A. W. Phillips")).toBe("https://en.wikipedia.org/api/rest_v1/page/summary/A._W._Phillips");
@@ -77,8 +97,8 @@ describe("portrait resolver helpers", () => {
 
   test("cache keys: strokes need none; url and name key separately; version bumps invalidate", () => {
     expect(portraitCacheKey({ type: "portrait", strokes: TRACE })).toBeNull();
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|poster|name|keynes`);
-    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|poster|url|https://x/y.jpg`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|halftone|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|halftone|url|https://x/y.jpg`);
     expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "line" })).toBe(`p${TRACE_VERSION}|line|name|keynes`);
     expect(portraitCacheKey({ type: "portrait" })).toBeNull();
   });

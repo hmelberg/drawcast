@@ -6,6 +6,8 @@
 //   "wash"  — closed regions shaded at region opacity (the mid-tone).
 //   "paper" — closed regions filled paper color, drawn last (holes: eyes,
 //             teeth, highlights inside dark regions).
+//   "dot"   — one halftone dot: two points, the center and a radius
+//             carrier at [cx + r, cy] (the newspaper-print look).
 //
 // Wire format: `t2:<2-char aspect>:<shape>.<shape>...` where each shape is
 // one kind char (l/i/m/p) followed by 4 chars per point (12-bit x then
@@ -15,7 +17,8 @@
 // lines) still decodes.
 
 export interface TraceShape {
-  kind: "line" | "fill" | "wash" | "paper";
+  /** dot: exactly two points — the center and a radius carrier at [cx + r, cy]. */
+  kind: "line" | "fill" | "wash" | "paper" | "dot";
   pts: [number, number][];
 }
 
@@ -29,8 +32,8 @@ const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 const CHAR_TO_VAL = new Map([...ALPHABET].map((c, i) => [c, i] as const));
 const GRID = 4095;
 
-const KIND_CHAR: Record<TraceShape["kind"], string> = { line: "l", fill: "i", wash: "m", paper: "p" };
-const CHAR_KIND: Record<string, TraceShape["kind"]> = { l: "line", i: "fill", m: "wash", p: "paper" };
+const KIND_CHAR: Record<TraceShape["kind"], string> = { line: "l", fill: "i", wash: "m", paper: "p", dot: "d" };
+const CHAR_KIND: Record<string, TraceShape["kind"]> = { l: "line", i: "fill", m: "wash", p: "paper", d: "dot" };
 
 function enc12(v: number): string {
   const n = Math.max(0, Math.min(GRID, Math.round(v)));

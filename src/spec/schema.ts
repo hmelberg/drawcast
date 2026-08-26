@@ -138,8 +138,8 @@ const elementSchema = {
     source: { type: "string", description: "portrait: provenance/attribution (machine-written; copy verbatim)." },
     look: {
       type: "string",
-      enum: ["poster", "line"],
-      description: "portrait: poster = posterized solid regions (the default, best for photos); line = pen-sketch edges (suits line art and engravings).",
+      enum: ["halftone", "poster", "line"],
+      description: "portrait: halftone = newspaper-print dots (the default — keeps faces recognizable); poster = posterized solid regions; line = pen-sketch edges (suits line art and engravings).",
     },
     style: styleSchema,
     draw: drawSchema,

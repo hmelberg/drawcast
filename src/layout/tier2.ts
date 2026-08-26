@@ -524,11 +524,27 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
     const map = ([nx, ny]: [number, number]): Pt => [cx - w / 2 + nx * w, cy - h / 2 + ny * w];
     // Paint order carries the poster logic: washes under, ink fills over,
     // paper holes (eyes, highlights) last, line strokes on top of all.
-    const ORDER: Record<string, number> = { wash: 0, fill: 1, paper: 2, line: 3 };
+    const ORDER: Record<string, number> = { wash: 0, fill: 1, paper: 2, dot: 3, line: 4 };
     const shapes = trace.shapes.map((shape, i) => ({ shape, i })).sort((a, b) => (ORDER[a.shape.kind] ?? 3) - (ORDER[b.shape.kind] ?? 3) || a.i - b.i);
     const msPer = Math.max(25, Math.min(160, 3200 / shapes.length));
     for (const { shape, i } of shapes) {
       const pts = shape.pts.map(map);
+      if (shape.kind === "dot") {
+        // Two points: the center and a radius carrier at [cx + r, cy].
+        const [c, rc] = pts;
+        if (!c || !rc) continue;
+        const r = Math.max(0.4, Math.abs(rc[0] - c[0]));
+        children.push({
+          id: `${el.id}__d${i}`,
+          kind: "stroke",
+          pts: [c],
+          shapeHint: { type: "circle", c, r },
+          z: Z_STROKE,
+          style: resolveStyle(undefined, { color: COLORS.ink, fill: COLORS.ink, strokeWidth: 0.4 }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "instant", duration: 0 }),
+        });
+        continue;
+      }
       if (shape.kind === "line") {
         children.push({
           id: `${el.id}__s${i}`,
