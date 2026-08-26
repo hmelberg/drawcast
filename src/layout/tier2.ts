@@ -20,6 +20,7 @@ import {
   type TextDrawable,
 } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
+import { decodeTrace } from "../spec/trace";
 import type { LabelRequest } from "./labels";
 import type { SpecElement } from "../spec/types";
 
@@ -165,6 +166,9 @@ export function layoutElements(
       }
       case "shape":
         drawables.push(shapeDrawable(el, ctx));
+        break;
+      case "portrait":
+        drawables.push(portraitDrawable(el, ctx));
         break;
     }
   }
@@ -499,5 +503,77 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
     z: Z_STROKE,
     style,
     drawOpts,
+  };
+}
+
+/**
+ * A portrait element: traced photo strokes (spec/trace.ts) drawn in the
+ * house style, or — when the strokes are absent or unreadable (offline,
+ * cache-cold, corrupted) — a sketched placeholder frame with the person's
+ * initials, so a missing image degrades instead of breaking. Position and
+ * width are LOGICAL units, like text/shape.
+ */
+function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
+  const w = el.width ?? 170;
+  const cx = el.x ?? 170;
+  const cy = el.y ?? 550;
+  const trace = el.strokes ? decodeTrace(el.strokes) : null;
+  const children: Drawable[] = [];
+  if (trace && trace.strokes.length > 0) {
+    const h = w * trace.aspect;
+    // The whole portrait draws itself in a few seconds regardless of density.
+    const msPer = Math.max(25, Math.min(110, 3200 / trace.strokes.length));
+    trace.strokes.forEach((pts, i) => {
+      children.push({
+        id: `${el.id}__s${i}`,
+        kind: "stroke",
+        pts: pts.map(([nx, ny]): Pt => [cx - w / 2 + nx * w, cy - h / 2 + ny * w]),
+        z: Z_STROKE,
+        style: resolveStyle(el.style, { strokeWidth: 2.2 }),
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
+      });
+    });
+  } else {
+    const h = w * 1.25;
+    const initials = (el.of ?? "?")
+      .split(/\s+/)
+      .map((word) => word[0] ?? "")
+      .join("")
+      .toUpperCase()
+      .slice(0, 3);
+    children.push({
+      id: `${el.id}__frame`,
+      kind: "stroke",
+      pts: [
+        [cx - w / 2, cy - h / 2],
+        [cx + w / 2, cy - h / 2],
+        [cx + w / 2, cy + h / 2],
+        [cx - w / 2, cy + h / 2],
+      ],
+      closed: true,
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { color: COLORS.guide, strokeWidth: 3 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
+    });
+    children.push({
+      id: `${el.id}__initials`,
+      kind: "text",
+      pos: [cx, cy],
+      text: initials || "?",
+      fontSize: Math.max(24, Math.round(w / 4)),
+      anchor: "middle",
+      z: Z_TEXT,
+      style: resolveStyle(el.style, { color: COLORS.guide }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+    });
+  }
+  ctx.anchors[el.id] = [cx, cy];
+  return {
+    id: el.id,
+    kind: "group",
+    z: Z_STROKE,
+    style: defaultStyle(),
+    drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+    children,
   };
 }

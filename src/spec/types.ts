@@ -17,7 +17,8 @@ export type ElementType =
   | "annotation"
   | "path"
   | "text"
-  | "shape";
+  | "shape"
+  | "portrait";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -99,6 +100,15 @@ export interface SpecElement {
   height?: number;
   radius?: number;
   font_size?: number;
+  // portrait (a photo traced into sketch strokes)
+  /** Person's name — resolved to a portrait via Wikipedia when url/strokes are absent. */
+  of?: string;
+  /** Direct image URL (user-provided; CORS-permitting hosts only). */
+  url?: string;
+  /** Embedded traced strokes (spec/trace.ts encoding); set automatically for dropped files. */
+  strokes?: string;
+  /** Provenance: where the traced image came from (attribution). */
+  source?: string;
   // cross-cutting
   style?: SpecStyle;
   draw?: SpecDraw;

@@ -61,7 +61,7 @@ const elementSchema = {
     id: { type: "string", description: "Unique id, referenced by commands and other elements." },
     type: {
       type: "string",
-      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape"],
+      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait"],
     },
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
@@ -127,6 +127,15 @@ const elementSchema = {
     height: { type: "number", description: "shape rect: height in logical units." },
     radius: { type: "number", description: "shape circle: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
+    // portrait
+    of: {
+      type: "string",
+      description:
+        "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes. Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y, and pair it with a label element for the name. NEVER invent an image url; only copy a url the user's request explicitly provided.",
+    },
+    url: { type: "string", description: "portrait: direct image URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
+    strokes: { type: "string", description: "portrait: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
+    source: { type: "string", description: "portrait: provenance/attribution (machine-written; copy verbatim)." },
     style: styleSchema,
     draw: drawSchema,
   },
@@ -472,6 +481,9 @@ function elementErrors(el: SpecElement): string[] {
   switch (el.type) {
     case "curve":
       need(!!el.expr || !!el.direction, "needs either expr or a qualitative direction");
+      break;
+    case "portrait":
+      need(!!el.of || !!el.url || !!el.strokes, "needs of (a person's name), url, or embedded strokes");
       break;
     case "label":
       need(!!el.text, "needs text");

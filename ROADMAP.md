@@ -116,6 +116,21 @@ Deferred follow-up: importing real score formats (ABC, MusicXML, MIDI)
 as an engine that feeds both `note_sheet` and `play` — a bigger,
 separate feature.
 
+## Portraits (phase 1) — done 2026-08-26
+
+A `portrait` element traces a photo into sketch strokes drawn in the house
+style: name mode (the model writes a NAME; the app resolves it via the
+Wikipedia summary API and traces the infobox portrait), URL mode
+(user-supplied links, CORS permitting), and file mode (editor picker; a
+file has no regenerable source, so its strokes auto-embed in the spec).
+Traces cache in IndexedDB keyed by name/url + tracer version — the name
+is the regenerable truth, the cache is materialization; resolution runs
+in the ensure phase before layout (never mid-playback), and a missing
+portrait degrades to a sketched placeholder with initials. Deferred to
+phase 2: hachure shading for dark regions, crop/re-trace UI, a pin-to-spec
+toggle for name/URL portraits, blob-hoisting before model round-trips,
+and an optional shared cache tier (Anvil).
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future

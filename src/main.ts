@@ -33,7 +33,8 @@ import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } fro
 import { createModal, createTabs, dialogHead } from "./ui/modal";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
-import type { Spec } from "./spec/types";
+import type { Spec, SpecElement } from "./spec/types";
+import { resolvePortraits, traceFromBlob } from "./render/portrait";
 import { h } from "./ui/dom";
 import { type PlaybackPrefs } from "./ui/controls";
 import {
@@ -507,6 +508,8 @@ refreshExamples();
 const exportBtn = h("button", { class: "icon-only", title: "Download the spec as a file" }, "⬇");
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
 const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
+const portraitBtn = h("button", { class: "small", title: "Insert a portrait: a person's name (Wikipedia lookup), an image URL, or — leave the prompt empty — a picked file. Traced into sketch strokes in the house style." }, "👤 Portrait");
+const portraitFile = h("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
 const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
 const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
 // A capability without its credential does not advertise itself (spec §6).
@@ -750,6 +753,8 @@ const editorWrap = h(
         exportBtn,
         importBtn,
         importInput,
+        portraitBtn,
+        portraitFile,
         driveOpenBtn,
         driveSaveBtn,
       ),
@@ -2636,6 +2641,62 @@ exportBtn.addEventListener("click", () => {
 });
 
 importBtn.addEventListener("click", () => importInput.click());
+
+// ---- portrait insertion (name | URL | picked file) ----
+/** Append a portrait element to the current (first) item and rewrite the editor text. */
+function insertPortrait(fields: Partial<SpecElement>): void {
+  const doc = readPlaylistText(specArea.value) ?? null;
+  const playlist = doc ?? parsePlaylistText('{"commands": []}');
+  const items = itemsOf(playlist);
+  const spec = items[0]?.spec ?? ({ commands: [] } as Spec);
+  if (items.length === 0) playlist.entries.push({ kind: "item", spec });
+  spec.elements = spec.elements ?? [];
+  const id = `portrait_${spec.elements.filter((e) => e.type === "portrait").length + 1}`;
+  spec.elements.push({ id, type: "portrait", x: 170, y: 550, width: 170, ...fields } as SpecElement);
+  specArea.value = formatPlaylist(playlist, settings.specFormat);
+  rerenderBtn.click();
+  setStatus(`Portrait "${id}" inserted${items.length > 1 ? " (into part 1)" : ""}.`, "ok");
+}
+
+portraitBtn.addEventListener("click", () => {
+  const answer = window.prompt("Portrait of… (a person's name, or an image URL — leave empty to pick a file)");
+  if (answer === null) return;
+  const value = answer.trim();
+  if (value === "") {
+    portraitFile.click();
+    return;
+  }
+  const isUrl = /^https?:\/\//i.test(value);
+  setStatus("Tracing portrait…", "ok");
+  // Resolve eagerly so a bad name or CORS-blocked URL fails LOUDLY now, not
+  // as a silent placeholder at playback. The trace lands in the cache; the
+  // spec keeps only the small reference.
+  const probe: Spec = {
+    elements: [{ id: "probe", type: "portrait", ...(isUrl ? { url: value } : { of: value }) } as SpecElement],
+    commands: [],
+  };
+  void resolvePortraits(probe).then((results) => {
+    const r = results[0];
+    if (!r?.ok) {
+      setStatus(`Portrait failed: ${r?.error ?? "unknown error"}`, "error");
+      return;
+    }
+    insertPortrait(isUrl ? { url: value } : { of: value });
+  });
+});
+
+portraitFile.addEventListener("change", () => {
+  const file = portraitFile.files?.[0];
+  portraitFile.value = "";
+  if (!file) return;
+  setStatus("Tracing portrait…", "ok");
+  void traceFromBlob(file)
+    .then((encoded) => {
+      // A file has no regenerable source — the strokes embed in the spec.
+      insertPortrait({ strokes: encoded, source: file.name, of: file.name.replace(/\.[a-z0-9]+$/i, "") });
+    })
+    .catch((err: Error) => setStatus(`Portrait failed: ${err.message}`, "error"));
+});
 importInput.addEventListener("change", () => {
   const file = importInput.files?.[0];
   if (!file) return;

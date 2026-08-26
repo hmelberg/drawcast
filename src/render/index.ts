@@ -11,6 +11,7 @@ import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
+import { resolvePortraits } from "./portrait";
 import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 
 export type { RenderStyle } from "./svg-backend";
@@ -84,6 +85,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   }
   figure.append(stage, caption);
   container.appendChild(figure);
+
+  // Portraits resolve BEFORE layout (layout is synchronous): cache-warm this
+  // is milliseconds; cache-cold it fetches + traces during figure preparation.
+  // Failures degrade to the element's sketched placeholder, never a throw.
+  await resolvePortraits(spec).catch(() => undefined);
 
   const measure = makeBrowserMeasure();
   const layout = layoutSpec(spec, measure);
