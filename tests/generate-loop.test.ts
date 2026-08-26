@@ -369,3 +369,67 @@ describe("generateSpec exemplar pool", () => {
     expect(promptTextOfCall(0)).not.toContain(RAMP);
   });
 });
+
+describe("pedagogy review pass", () => {
+  const VALID_IMPROVED = {
+    ...VALID_SUPPLY_DEMAND,
+    commands: [{ draw: ["curve_demand"], speak: "Why do prices settle where they do? Watch." } as never],
+  };
+
+  test("off by default: a clean spec generates with exactly one call", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+  });
+
+  test("adopts an improved spec that stays valid, keeps the template, and lints no worse", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(VALID_IMPROVED));
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(mockCallForJson).toHaveBeenCalledTimes(2);
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial", "pedagogy"]);
+    expect(outcome.rounds[1].adopted).toBe(true);
+    expect(outcome.spec).toEqual(VALID_IMPROVED);
+    // The teaching pass runs on the CREATIVE model at low effort.
+    const [, model, , , , opts] = mockCallForJson.mock.calls[1];
+    expect(model).toBe(MODEL);
+    expect((opts as { effort?: string }).effort).toBe("low");
+  });
+
+  test("a revision returned unchanged is recorded but not adopted", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(outcome.rounds[1].label).toBe("pedagogy");
+    expect(outcome.rounds[1].adopted).toBe(false);
+    expect(outcome.spec).toEqual(VALID_SUPPLY_DEMAND);
+  });
+
+  test("a revision that switches template or breaks validation is discarded", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(VALID_FREE_BODY));
+    const switched = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(switched.spec).toEqual(VALID_SUPPLY_DEMAND);
+    expect(switched.rounds[1].adopted).toBe(false);
+
+    mockCallForJson.mockReset();
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond({ nonsense: true }));
+    const broken = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(broken.spec).toEqual(VALID_SUPPLY_DEMAND);
+    expect(broken.rounds[1].adopted).toBe(false);
+    expect(broken.rounds[1].validationErrors.length).toBeGreaterThan(0);
+  });
+
+  test("an API error in the pedagogy pass never costs the finished spec", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockRejectedValueOnce(new Error("api down"));
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(outcome.spec).toEqual(VALID_SUPPLY_DEMAND);
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+  });
+
+  test("no pedagogy pass when generation never produced a valid spec", async () => {
+    mockCallForJson.mockResolvedValue(respond({ nonsense: true }));
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true, maxRepairs: 1 }));
+    expect(outcome.spec).toBeNull();
+    expect(outcome.rounds.every((r) => r.label !== "pedagogy")).toBe(true);
+  });
+});

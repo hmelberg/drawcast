@@ -1833,6 +1833,7 @@ function stopAiStatus(): void {
 /** How a round's label reads in the status line. Round 1 has nothing to add. */
 function phaseText(label: string, round: number): string {
   if (label === "template-fetch") return "fetching a template";
+  if (label === "pedagogy") return "teaching pass";
   if (label === "initial") return round > 1 ? `attempt ${round}` : "";
   return `repair ${round - 1}`;
 }
@@ -1902,6 +1903,7 @@ async function generate(): Promise<void> {
     startAiStatus("Generating");
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
+      pedagogyReview: true,
       model: settings.model,
       variant: currentVariant(),
       exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
@@ -2044,6 +2046,7 @@ async function generateMulti(
     outline.parts.map((part, i) =>
       generateSpec(buildPartRequest(parsed.clean, outline, i, brief), {
         apiKey,
+        pedagogyReview: true,
         model: settings.model,
         variant: currentVariant(),
         exemplars: usableExemplars(loadExemplars(), isReadyTemplate),

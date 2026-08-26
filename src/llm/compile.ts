@@ -46,11 +46,13 @@ export function apiSchema(): object {
 }
 
 export interface GenerationRound {
-  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch";
+  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch" | "pedagogy";
   spec: unknown;
   validationErrors: string[];
   lintIssues: LintIssue[];
   meta: JsonCallMeta;
+  /** Pedagogy round only: whether the revision replaced the delivered spec. */
+  adopted?: boolean;
 }
 
 /** What the model is writing, right now — the UI's only view into a round in flight. */
@@ -72,6 +74,14 @@ export interface GenerationOutcome {
 }
 
 export interface GenerateConfig {
+  /**
+   * After a structurally clean spec lands, run one teaching-quality pass: the
+   * model re-reads the spec against the pedagogy rubric (situate, hook on
+   * ink, one surprise, aha, no signposting) and may return an improved
+   * version — adopted only if it stays valid, keeps the template, and lints
+   * no worse. Off by default; the app turns it on.
+   */
+  pedagogyReview?: boolean;
   apiKey: string;
   model: string;
   variant: PromptVariant;
@@ -181,6 +191,20 @@ export async function improvePrompt(
   }
 }
 
+/**
+ * The teaching rubric — the distilled STYLE.md ledger the pedagogy pass
+ * holds a finished spec against. Update it when STYLE.md graduates new rules.
+ */
+export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cleanly. Before delivering, re-read it as a TEACHER against this checklist:
+1. SITUATED — the opening states or hints why this matters (the decision it informs, the mistake it prevents) before any mechanics begin.
+2. HOOK ON INK — the opening line rides the first draw command; at most one short standalone speak before ink.
+3. ONE SURPRISE — somewhere, one TRUE, retellable fact the viewer didn't expect. Never invent or exaggerate one; only well-established facts qualify.
+4. AHA — every beat converges on one insight, and the closing line names what the viewer can now see.
+5. IN PASSING — explanations live inside working sentences; no "note that", "it is important", or lecture signposting.
+6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
+7. MOMENTS MARKED — highlight/focus/annotation sit at the moments of meaning (the reveal, the contrast), never as decoration.
+If the spec already does all of this, return it EXACTLY unchanged. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
+
 export async function generateSpec(request: string, cfg: GenerateConfig): Promise<GenerationOutcome> {
   const client = makeClient(cfg.apiKey);
   // Prompt caching: the schema/catalog/fewshots prefix is sent as a
@@ -213,6 +237,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
+  let lastRaw = "";
   let repairsUsed = 0;
   let escalated = false;
 
@@ -245,6 +270,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
       });
 
+      lastRaw = raw;
       // Escalation (fires at most once): the model asked for a template's full
       // definition instead of guessing its parameters from the index line.
       // Never for a forced template — the catalog already gives it a full
@@ -326,6 +352,58 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // gets kept as `best`) — surface that as a top-level error rather than a
   // silent success with the wrong template.
   const forcedMismatch = cfg.forcedTemplate && best && best.template !== cfg.forcedTemplate;
+
+  // The teaching-quality pass: geometry has its lint, this is the pedagogy's.
+  // One extra round at low effort; the revision is adopted only when it stays
+  // valid, keeps the same template (no new engines), and lints no worse —
+  // a finished spec is never traded for a worse one, and an API hiccup here
+  // never costs the spec we already have.
+  if (best && !forcedMismatch && cfg.pedagogyReview) {
+    try {
+      const lintOf = (spec: Spec): LintIssue[] | null => {
+        try {
+          return [...layoutSpec(spec, measure).issues, ...lintCommands(spec)];
+        } catch {
+          return null;
+        }
+      };
+      const baseLint = lintOf(best) ?? [];
+      const count = (issues: LintIssue[], sev: string) => issues.filter((i) => i.severity === sev).length;
+      const round = rounds.length + 1;
+      const { json, meta } = await callForJson(
+        client,
+        cfg.model,
+        system,
+        [...messages, { role: "assistant", content: lastRaw }, { role: "user", content: PEDAGOGY_RUBRIC }],
+        schema,
+        {
+          signal: cfg.signal,
+          effort: "low",
+          onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label: "pedagogy", round, text })),
+        },
+      );
+      const v = validateSpec(json);
+      let lintIssues: LintIssue[] = [];
+      let adopted = false;
+      if (v.ok && (json as Spec).template === best.template) {
+        const revised = json as Spec;
+        const revisedLint = lintOf(revised);
+        if (revisedLint !== null) {
+          lintIssues = revisedLint;
+          const noWorse =
+            count(revisedLint, "error") <= count(baseLint, "error") && count(revisedLint, "warn") <= count(baseLint, "warn");
+          const changed = JSON.stringify(revised) !== JSON.stringify(best);
+          if (noWorse && changed) {
+            best = revised;
+            adopted = true;
+          }
+        }
+      }
+      rounds.push({ label: "pedagogy", spec: json, validationErrors: v.ok ? [] : v.errors, lintIssues, meta, adopted });
+    } catch {
+      /* best-effort by design */
+    }
+  }
   return {
     spec: best,
     rounds,

@@ -21,6 +21,25 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-08-26 — The rules are now enforced, not just written
+
+Hans: "implement the round to improve the pedagogy and the instructions or
+suggestions about how to explain things."
+
+Done in two halves. (1) The last un-graduated ledger rule — the
+one-surprise mandate — entered the prompt ("Hand over one surprise").
+(2) The generation loop gained a **pedagogy review pass**: after a spec is
+structurally clean, the model re-reads it as a teacher against
+`PEDAGOGY_RUBRIC` in `src/llm/compile.ts` — situated, hook on ink, one
+surprise, aha convergence, no signposting, intelligent viewer, moments
+marked — and may return an improved version, adopted only when it stays
+valid, keeps the template, and lints no worse. The geometry has its lint;
+the teaching now has one too.
+
+Maintenance rule: when a new ledger entry graduates into the prompt, also
+mirror it in `PEDAGOGY_RUBRIC` — the rubric is the ledger's enforcement
+arm and must not drift from it.
+
 ### 2026-08-26 — Situate the topic first: stakes before mechanics
 
 Hans (on the lead-time-bias example, which opened with two timelines and no
@@ -172,9 +191,9 @@ talky-stretch (3+ speak-only lines in a row).
 
 ## Candidates for the next prompt refinement
 
-- [ ] **One-surprise mandate** in the base prompt: alongside the aha,
-      include one true, retellable, slightly surprising fact — with the
-      truth guard attached. (From the 2026-08-26 entry.)
+- [x] ~~**One-surprise mandate** in the base prompt~~ — graduated
+      2026-08-26 as the "Hand over one surprise" bullet, and enforced by
+      the pedagogy review pass (see ledger entry).
 - [x] ~~Consider whether the *why it matters* half of the hook deserves its
       own sentence in the prompt~~ — graduated 2026-08-26 as the
       "Situate the topic before you explain it" bullet (see ledger entry).
