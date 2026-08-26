@@ -3,6 +3,7 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
+import { lintCommands } from "../src/lint/lint";
 import type { Command, Spec } from "../src/spec/types";
 
 const examples = fewshots as { request: string; spec: Spec }[];
@@ -24,4 +25,8 @@ describe("bundled fewshots stay exemplary", () => {
       expect(speaksBefore.length).toBeLessThanOrEqual(1);
     },
   );
+
+  test.each(examples.map((ex) => [ex.request, ex.spec] as const))("%s — no command-level lint issue (slow-start / talky-stretch)", (_req, spec) => {
+    expect(lintCommands(spec)).toEqual([]);
+  });
 });

@@ -1,7 +1,23 @@
 import { describe, expect, test } from "vitest";
-import { speechKey } from "../src/render/delivery";
+import { speechKey, type SpeakOpts } from "../src/render/delivery";
 import { BufferSpeech } from "../src/export/tts";
 import { collectSpeakLines, wrapCaption } from "../src/export/video";
+import type { Spec } from "../src/spec/types";
+
+/** Minimal WebAudio stand-ins: connect() records where the audio flows, start() ends immediately. */
+function fakeGraph() {
+  const connections: unknown[] = [];
+  const src = {
+    buffer: null as AudioBuffer | null,
+    onended: null as (() => void) | null,
+    connect: (node: unknown) => connections.push(node),
+    start: () => src.onended?.(),
+    stop: () => {},
+  };
+  const audioCtx = { createBufferSource: () => src, destination: { name: "speakers" } };
+  const dest = { name: "recorder" };
+  return { connections, audioCtx, src, dest };
+}
 
 describe("collectSpeakLines", () => {
   test("collects distinct narration lines in storyboard order, with speaker/delivery/gender attached", () => {
@@ -36,21 +52,6 @@ describe("collectSpeakLines", () => {
 });
 
 describe("BufferSpeech", () => {
-  /** Minimal WebAudio stand-ins: connect() records where the audio flows, start() ends immediately. */
-  function fakeGraph() {
-    const connections: unknown[] = [];
-    const src = {
-      buffer: null as AudioBuffer | null,
-      onended: null as (() => void) | null,
-      connect: (node: unknown) => connections.push(node),
-      start: () => src.onended?.(),
-      stop: () => {},
-    };
-    const audioCtx = { createBufferSource: () => src, destination: { name: "speakers" } };
-    const dest = { name: "recorder" };
-    return { connections, audioCtx, src, dest };
-  }
-
   test("resolves buffers by speechKey, so the same text in two voices stays distinct", async () => {
     const bufferA = { id: "a" } as unknown as AudioBuffer;
     const bufferB = { id: "b" } as unknown as AudioBuffer;
@@ -64,6 +65,46 @@ describe("BufferSpeech", () => {
     await speech.speak("Hi", 1, undefined, { speaker: "b" });
 
     expect(src.buffer).toBe(bufferB);
+  });
+});
+
+// Guards the silent-failure link between two independent key-construction
+// paths for the SAME spoken line: collectSpeakLines (src/export/video.ts,
+// what synthesizeAll pre-synthesizes and keys buffers by) and the opts the
+// live Player passes to speech.speak() (src/render/player.ts's runStep,
+// after render() calls player.setNarratorGender(spec.voice) — see
+// src/render/index.ts). If either path drifts (a renamed field, a dropped
+// default), BufferSpeech.speak's lookup (src/export/tts.ts) misses silently
+// and narration just goes quiet — no error, no test failure elsewhere.
+describe("export-key link: BufferSpeech lookup vs collectSpeakLines", () => {
+  test("the key BufferSpeech looks up for a narrated draw+speak command matches the key collectSpeakLines derives for the same line", async () => {
+    const spec: Spec = {
+      voice: "female",
+      commands: [{ draw: ["a"], speak: "Explaining b.", voice: "b", delivery: "grave" }],
+    } as unknown as Spec;
+
+    const lines = collectSpeakLines(spec);
+    expect(lines).toEqual([{ text: "Explaining b.", speaker: "b", delivery: "grave", gender: "female" }]);
+    const collectKey = speechKey(lines[0]);
+
+    // What the Player builds for this command: narrationSpeaker/narrationDelivery
+    // come straight from the command's voice/delivery, gender from
+    // this.narratorGender (set to spec.voice by setNarratorGender at render()).
+    const playerOpts: SpeakOpts = { speaker: "b", delivery: "grave", gender: "female" };
+    const lookupKey = speechKey({ text: "Explaining b.", speaker: playerOpts.speaker, delivery: playerOpts.delivery, gender: playerOpts.gender });
+
+    expect(lookupKey).toBe(collectKey);
+
+    // And prove the lookup actually resolves through BufferSpeech, not just
+    // that the two key strings happen to match in isolation.
+    const buffer = { id: "buf" } as unknown as AudioBuffer;
+    const buffers = new Map<string, AudioBuffer>([[collectKey, buffer]]);
+    const { audioCtx, src, dest } = fakeGraph();
+    const speech = new BufferSpeech(audioCtx as never, dest as never, buffers);
+
+    await speech.speak("Explaining b.", 1, undefined, playerOpts);
+
+    expect(src.buffer).toBe(buffer);
   });
 });
 

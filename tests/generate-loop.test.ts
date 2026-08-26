@@ -163,6 +163,71 @@ describe("generateSpec loop", () => {
   });
 });
 
+describe("generateSpec repair feedback surfaces warn-severity lint (F1)", () => {
+  // A template whose layout ALWAYS places one text element off-canvas — a
+  // deterministic "error"-severity lint issue (lintLayout's out-of-canvas
+  // rule), independent of params, so the round-1 lintIssues always contain it.
+  const REPAIR_ID = "genloop_repair_feedback";
+  function registerBadTemplate(): void {
+    registerTemplateDoc({
+      template: REPAIR_ID,
+      version: 1,
+      kit: 1,
+      status: "ready",
+      description: "Test template for the F1 repair-feedback warn test: always places a label off-canvas.",
+      params: {},
+      element_ids: { bad_label: "off-canvas label" },
+      examples: [{ request: "Draw the F1 repair test figure.", params: {} }],
+      layout: `return { drawables: [kit.text("bad_label", [-999, 400], "Off canvas", { fontSize: 28 })], labels: [], anchors: {}, order: ["bad_label"] };`,
+    });
+  }
+  afterEach(() => {
+    delete scenes[REPAIR_ID];
+  });
+
+  test("a repair round triggered by a lint ERROR also carries a co-occurring WARN's message in the feedback sent to the model", async () => {
+    registerBadTemplate();
+    const BAD_SPEC = {
+      title: "t",
+      template: REPAIR_ID,
+      params: {},
+      // 2 standalone speaks before the draw -> slow-start WARN, alongside the
+      // template's baked-in out-of-canvas ERROR.
+      commands: [{ speak: "One." }, { speak: "Two." }, { draw: ["bad_label"] }],
+    };
+    mockCallForJson.mockResolvedValueOnce(respond(BAD_SPEC)).mockResolvedValueOnce(respond(BAD_SPEC));
+
+    const outcome = await generateSpec("draw the F1 repair test figure", baseCfg({ maxRepairs: 1 }));
+
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial", "lint-repair"]);
+    const round1Issues = outcome.rounds[0].lintIssues;
+    expect(round1Issues.some((i) => i.rule === "out-of-canvas" && i.severity === "error")).toBe(true);
+    const warnIssue = round1Issues.find((i) => i.rule === "slow-start" && i.severity === "warn");
+    expect(warnIssue).toBeDefined();
+
+    const secondCallMessages = mockCallForJson.mock.calls[1][3] as { role: string; content: string }[];
+    const feedback = secondCallMessages[secondCallMessages.length - 1].content;
+    expect(feedback).toContain(warnIssue!.message);
+  });
+
+  test("a spec with ONLY warn-severity lint issues never triggers a repair round", async () => {
+    const WARN_ONLY_SPEC = {
+      ...VALID_SUPPLY_DEMAND,
+      // No draw at all -> both speaks count toward slow-start (warn-only; no
+      // lint ERROR and no validation error).
+      commands: [{ speak: "One." }, { speak: "Two." }],
+    };
+    mockCallForJson.mockResolvedValueOnce(respond(WARN_ONLY_SPEC));
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+    expect(outcome.rounds[0].lintIssues.some((i) => i.severity === "warn")).toBe(true);
+    expect(outcome.rounds[0].lintIssues.some((i) => i.severity === "error")).toBe(false);
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("generateSpec cache split (M5 Task 2)", () => {
   // Pushes the ready-template count above TEMPLATE_FULL_THRESHOLD so
   // catalogText degrades to index + hot-set + escalation, with a

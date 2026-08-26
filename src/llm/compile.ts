@@ -300,10 +300,15 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       repairsUsed++;
 
       const lintErrors = lintIssues.filter((i) => i.severity === "error");
+      const lintWarnings = lintIssues.filter((i) => i.severity === "warn");
+      // A repair round never fires for warns alone (needsRepair above), but
+      // once one is running for a real problem, warn-severity lint rides
+      // along too — free correction, not a reason to spend another round.
+      const warningsBlock = lintWarnings.length > 0 ? `\n\nAlso worth fixing while you're at it (non-blocking):\n${lintReportText(lintWarnings)}` : "";
       const feedback =
         validation.errors.length > 0
-          ? `The spec failed validation:\n${validation.errors.join("\n")}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON.`
-          : `The rendered figure has visual problems:\n${lintReportText(lintErrors)}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON. Typical fixes: different label sides, shorter texts, fewer overlapping elements.`;
+          ? `The spec failed validation:\n${validation.errors.join("\n")}${warningsBlock}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON.`
+          : `The rendered figure has visual problems:\n${lintReportText(lintErrors)}${warningsBlock}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON. Typical fixes: different label sides, shorter texts, fewer overlapping elements.`;
       messages.push({ role: "assistant", content: raw }, { role: "user", content: feedback });
     }
   } catch (err) {

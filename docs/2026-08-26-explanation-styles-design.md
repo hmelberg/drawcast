@@ -122,8 +122,10 @@ action like any other sentence (screen-first outranks tone).
 - `slow-start` (warn): more than one speak-only command before the first draw.
 - `talky-stretch` (warn): more than two consecutive speak-only commands.
 
-Both surface in the lint report the revise loop already feeds back to the
-model, so violations self-correct.
+Both surface in the lint report; whenever a repair round runs they are
+included in the feedback the model sees, so violations self-correct
+opportunistically — warnings alone never trigger an extra repair round
+(latency is dearer than a pacing warn).
 
 ### Tests
 

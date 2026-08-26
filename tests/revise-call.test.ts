@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const calls: { model: string; system: unknown; messages: { role: string; content: unknown }[] }[] = [];
 let replies: string[] = [];
@@ -17,6 +17,7 @@ vi.mock("../src/llm/client", async () => {
 
 import { reviseDocument } from "../src/llm/revise";
 import { promptVariants } from "../src/llm/compile";
+import { registerTemplateDoc, scenes } from "../src/scenes/registry";
 
 const GOOD = `title: A line
 domain: { x: [0, 100], y: [0, 100] }
@@ -83,6 +84,75 @@ describe("reviseDocument", () => {
     const out = await reviseDocument("::: not a document :::", "steeper", cfg());
     expect(out.error).toMatch(/current document/);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("reviseDocument repair feedback surfaces warn-severity lint (F1)", () => {
+  // Same idea as generate-loop.test.ts's F1 case, driven through the revise
+  // loop instead: a template whose layout ALWAYS places one text element
+  // off-canvas (deterministic lint ERROR), independent of params.
+  const REPAIR_ID = "revise_repair_feedback";
+  function registerBadTemplate(): void {
+    registerTemplateDoc({
+      template: REPAIR_ID,
+      version: 1,
+      kit: 1,
+      status: "ready",
+      description: "Test template for the F1 revise repair-feedback warn test: always places a label off-canvas.",
+      params: {},
+      element_ids: { bad_label: "off-canvas label" },
+      examples: [{ request: "Draw the F1 revise repair test figure.", params: {} }],
+      layout: `return { drawables: [kit.text("bad_label", [-999, 400], "Off canvas", { fontSize: 28 })], labels: [], anchors: {}, order: ["bad_label"] };`,
+    });
+  }
+  afterEach(() => {
+    delete scenes[REPAIR_ID];
+  });
+
+  const BAD_DOC = () => `template: ${REPAIR_ID}
+params: {}
+commands:
+  - { speak: "One." }
+  - { speak: "Two." }
+  - { draw: [bad_label] }
+`;
+
+  test("a repair round triggered by a lint ERROR also carries a co-occurring WARN's message in the feedback sent to the model", async () => {
+    registerBadTemplate();
+    replies = [BAD_DOC(), BAD_DOC()];
+
+    const out = await reviseDocument(BAD_DOC(), "tweak it", { ...cfg(), maxRepairs: 1 });
+
+    expect(out.rounds.map((r) => r.label)).toEqual(["initial", "repair"]);
+    const round1Issues = out.rounds[0].lintIssues;
+    expect(round1Issues.some((i) => i.rule === "out-of-canvas" && i.severity === "error")).toBe(true);
+    const warnIssue = round1Issues.find((i) => i.rule === "slow-start" && i.severity === "warn");
+    expect(warnIssue).toBeDefined();
+
+    expect(calls).toHaveLength(2);
+    const feedback = String(calls[1].messages[2].content);
+    expect(feedback).toContain(warnIssue!.message);
+  });
+
+  test("a document with ONLY warn-severity lint issues never triggers a repair round", async () => {
+    const WARN_ONLY = `title: A line
+domain: { x: [0, 100], y: [0, 100] }
+elements:
+  - { id: ax, type: axes, x_label: x, y_label: y }
+  - { id: c1, type: curve, expr: "50" }
+commands:
+  - { speak: "One." }
+  - { speak: "Two." }
+  - { draw: [ax, c1] }
+`;
+    replies = [WARN_ONLY];
+
+    const out = await reviseDocument(GOOD, "steeper", cfg());
+
+    expect(out.rounds).toHaveLength(1);
+    expect(out.rounds[0].lintIssues.some((i) => i.severity === "warn")).toBe(true);
+    expect(out.rounds[0].lintIssues.some((i) => i.severity === "error")).toBe(false);
+    expect(calls).toHaveLength(1);
   });
 });
 

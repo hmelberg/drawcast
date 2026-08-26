@@ -46,7 +46,7 @@ export function buildOutlineMessages(request: string, parts: number | null): { s
   const system = [
     "You plan a multi-part drawcast: a short series of narrated, hand-drawn teaching figures, each about 30–90 seconds.",
     `Split the request into ${count}. Each part must stand on one single figure and one idea.`,
-    "Design the arc across parts: part 1 announces what the series will explain and grounds it in a concrete example, the middle carries the step-by-step development (the worked example, and one pros/cons or debate moment if the topic has one), the last part delivers the synthesis.",
+    "Design the arc across parts: part 1 announces what the series will explain and grounds it in a concrete example, the middle carries the step-by-step development (the worked example, and one brief enrichment moment if the topic genuinely offers one — why it matters, a real debate, a historical note, an empirical number, or strengths and weaknesses — never more than one per part), the last part delivers the synthesis.",
     // The shape lives in the prompt text too: when structured outputs are
     // unavailable (the client degrades to plain JSON per session), the model
     // must still know exactly what to return.

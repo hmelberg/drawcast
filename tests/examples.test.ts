@@ -12,6 +12,7 @@ import { scenes } from "../src/scenes/registry";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
+import { lintCommands } from "../src/lint/lint";
 import { parsePlaylistText, itemsOf } from "../src/playlist/playlist";
 import { ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { ensureEnginesForSpecs } from "../src/scenes/engines";
@@ -75,6 +76,10 @@ describe("bundled examples stay exemplary", () => {
   // cosmetic warning — a label sitting on a stroke, say — is a defect here.
   test.each(cases)("%s — lays out with no lint issue at all, not even a warning", (_req, spec) => {
     expect(layoutSpec(spec).issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
+  });
+
+  test.each(cases)("%s — no command-level lint issue (slow-start / talky-stretch)", (_req, spec) => {
+    expect(lintCommands(spec)).toEqual([]);
   });
 
   test.each(cases)("%s — names a template that exists (or composes from elements)", (_req, spec) => {
