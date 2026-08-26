@@ -146,3 +146,19 @@ describe("suggestTags — autosuggest source", () => {
     expect(suggestTags("nb").map((s) => s.tag)).toContain("norwegian");
   });
 });
+
+describe("hook tags", () => {
+  test("hook tags are exclusive (last wins) and independent of style", () => {
+    const r = parseTags("Explain elasticity #question #debate #socratic");
+    expect(r.tags).toEqual(["debate", "socratic"]);
+    expect(r.clean).toBe("Explain elasticity");
+  });
+  test("hook briefs are draw-under and debate/provoke carry the guardrail", () => {
+    for (const t of ["question", "debate", "provoke"]) {
+      const brief = buildBrief([t]).toLowerCase();
+      expect(brief).toContain("draw");
+    }
+    expect(buildBrief(["debate"])).toContain("never manufacture");
+    expect(buildBrief(["provoke"])).toContain("never manufacture");
+  });
+});

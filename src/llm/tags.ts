@@ -4,7 +4,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "teaching" | "pacing" | "gestures" | "structure";
+export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "pacing" | "gestures" | "structure";
 
 export interface TagDef {
   tag: string;
@@ -16,6 +16,10 @@ export interface TagDef {
   /** Sentences contributed to the directing brief ("" for structure tags). */
   brief: string;
 }
+
+/** Shared truthfulness guardrail for reality-referencing tags (spec principle 4). */
+export const GUARDRAIL =
+  "Only include claims, people, and numbers you are confident are real; if unsure, choose different material — never manufacture a controversy, quote, or statistic.";
 
 export const TAGS: TagDef[] = [
   {
@@ -79,11 +83,34 @@ export const TAGS: TagDef[] = [
   },
   {
     tag: "socratic",
-    group: "teaching",
+    group: "style",
     hint: "ask → pause → reveal",
     brief:
       "Socratic style: before each key reveal, ask the viewer a question in a speak line, then pause (1.5–2 s), then draw or show the answer. " +
       "A guessed-then-corrected belief sticks; an announced fact doesn't.",
+  },
+  {
+    tag: "question",
+    group: "hook",
+    hint: "open on a question the figure answers",
+    brief:
+      "Open on a real question: in the first beats, pose the puzzle the figure will answer in a speak line WHILE drawing the setup (never over a blank canvas), let the drawing answer it step by step, and end by answering the opening question explicitly.",
+  },
+  {
+    tag: "debate",
+    group: "hook",
+    hint: "A says X, B says Y — the drawing decides",
+    brief:
+      "Open on a disagreement: voice two rival claims ('Some say X; others say Y — who is right?') while drawing both candidate pictures, then resolve it by drawing what is actually true, and strike or cross out the losing claim with an annotation at the moment of resolution. " +
+      GUARDRAIL,
+  },
+  {
+    tag: "provoke",
+    group: "hook",
+    hint: "state a common belief, then draw why it fails",
+    brief:
+      "Open on a provocation: state a common belief while drawing the naive picture of it, then visibly correct the picture (erase, redraw, or animate) as the narration shows why the belief fails. Only use beliefs people actually hold. " +
+      GUARDRAIL,
   },
   {
     tag: "calm",
