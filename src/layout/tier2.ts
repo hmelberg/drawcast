@@ -514,9 +514,12 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
  * width are LOGICAL units, like text/shape.
  */
 function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
-  const w = el.width ?? 170;
-  const cx = el.x ?? 170;
-  const cy = el.y ?? 550;
+  // Cameo presentation: centered, larger, frameless, fast fade — built for
+  // appear-at-first-mention-then-erase. Fixture: small, framed, cornered.
+  const cameo = el.cameo === true;
+  const w = el.width ?? (cameo ? 280 : 170);
+  const cx = el.x ?? (cameo ? 500 : 170);
+  const cy = el.y ?? (cameo ? 420 : 550);
   const photo = el.strokes ? decodePhoto(el.strokes) : null;
   const trace = !photo && el.strokes ? decodeTrace(el.strokes) : null;
   const children: Drawable[] = [];
@@ -533,22 +536,24 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
       h,
       z: Z_STROKE,
       style: resolveStyle(undefined, {}),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: cameo ? 450 : 900 }),
     });
-    children.push({
-      id: `${el.id}__frame`,
-      kind: "stroke",
-      pts: [
-        [cx - w / 2 - 5, cy - h / 2 - 5],
-        [cx + w / 2 + 5, cy - h / 2 - 5],
-        [cx + w / 2 + 5, cy + h / 2 + 5],
-        [cx - w / 2 - 5, cy + h / 2 + 5],
-      ],
-      closed: true,
-      z: Z_STROKE,
-      style: resolveStyle(el.style, { strokeWidth: 3 }),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
-    });
+    if (!cameo) {
+      children.push({
+        id: `${el.id}__frame`,
+        kind: "stroke",
+        pts: [
+          [cx - w / 2 - 5, cy - h / 2 - 5],
+          [cx + w / 2 + 5, cy - h / 2 - 5],
+          [cx + w / 2 + 5, cy + h / 2 + 5],
+          [cx - w / 2 - 5, cy + h / 2 + 5],
+        ],
+        closed: true,
+        z: Z_STROKE,
+        style: resolveStyle(el.style, { strokeWidth: 3 }),
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
+      });
+    }
   } else if (trace && trace.shapes.length > 0) {
     const h = w * trace.aspect;
     const map = ([nx, ny]: [number, number]): Pt => [cx - w / 2 + nx * w, cy - h / 2 + ny * w];
@@ -621,6 +626,10 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
         });
       }
     }
+  } else if (cameo) {
+    // A missing cameo leaves NOTHING behind — a centered placeholder frame
+    // would sit on top of the very figure the cameo was meant to visit
+    // (and its texts would fight the figure's in the static lint).
   } else {
     const h = w * 1.25;
     const initials = (el.of ?? "?")

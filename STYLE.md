@@ -45,8 +45,15 @@ portrait bullet in the same commit:
 3. Encoded in the prompt's portrait bullet (element-specific guidance —
    deliberately NOT added to PEDAGOGY_RUBRIC, which stays general).
 
-Embodied in: the Ricardo comparative-advantage example — cameo in,
-biography beat, fade-out as the table takes over.
+Refined same day — Hans: "If it is to appear and fade, it might as well
+be more centralized and a little larger than the current default. It
+might also fade faster and perhaps no need to draw the border? Just fade
+in and out." → `cameo: true` on the portrait element: centered (500,
+420), larger (width 280), frameless, ~450 ms fade — and a missing cameo
+draws NOTHING (no placeholder frame squatting on the figure).
+
+Embodied in: the Ricardo comparative-advantage example — frameless cameo
+fades in centered, biography beat, fades out before the table draws.
 
 ### 2026-08-26 — Interesting, not mandatorily "surprising": vary the kind
 

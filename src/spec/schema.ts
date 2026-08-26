@@ -136,6 +136,11 @@ const elementSchema = {
     url: { type: "string", description: "portrait: direct image URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
     strokes: { type: "string", description: "portrait: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
     source: { type: "string", description: "portrait: provenance/attribution (machine-written; copy verbatim)." },
+    cameo: {
+      type: "boolean",
+      description:
+        "portrait: cameo presentation — centered, larger and frameless with a fast fade, made to APPEAR on the beat that first names the person and be ERASED a beat or two later. Omit x/y/width in cameo mode unless you need them. Off = the small framed corner fixture.",
+    },
     look: {
       type: "string",
       enum: ["photo", "halftone", "poster", "line"],

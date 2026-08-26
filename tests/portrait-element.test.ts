@@ -172,3 +172,22 @@ describe("blob hoisting — strokes never visit the model", () => {
     expect(out.elements[0].x).toBe(100);
   });
 });
+
+describe("portrait element — cameo mode", () => {
+  test("cameo: centered, larger, frameless photo; a missing cameo draws nothing at all", async () => {
+    const { encodePhoto } = await import("../src/spec/trace");
+    const res = layoutSpec(
+      { elements: [{ id: "p1", type: "portrait", of: "X", cameo: true, strokes: encodePhoto(1.3, "data:image/jpeg;base64,AAAA") }], commands: [] } as never,
+    );
+    const flat = flattenDrawables(res.drawables);
+    const img = flat.find((d) => d.id === "p1__img") as { pos: [number, number]; w: number };
+    expect(img.pos).toEqual([500, 420]);
+    expect(img.w).toBe(280);
+    expect(flat.some((d) => d.id === "p1__frame")).toBe(false); // frameless
+    // Unresolved cameo: an empty group — no placeholder squatting mid-canvas.
+    const missing = layoutSpec({ elements: [{ id: "p1", type: "portrait", of: "X", cameo: true }], commands: [] } as never);
+    const mflat = flattenDrawables(missing.drawables);
+    expect(mflat.filter((d) => d.id.startsWith("p1__")).length).toBe(0);
+    expect(missing.order).toContain("p1"); // still addressable by draw/erase
+  });
+});
