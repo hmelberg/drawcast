@@ -14,7 +14,7 @@ import { buildSystemBlocks, stripFence, systemBlocks } from "./prompt";
 import { validateSpec } from "../spec/schema";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
-import { lintReportText, type LintIssue } from "../lint/lint";
+import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { callForText, describeApiError, makeClient } from "./client";
 import { apiSchema, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
@@ -63,6 +63,7 @@ export function checkPlaylist(playlist: Playlist, measure: MeasureFn = heuristic
     }
     try {
       lintIssues.push(...layoutSpec(item.spec, measure).issues);
+      lintIssues.push(...lintCommands(item.spec));
     } catch (err) {
       errors.push(`${where}layout failed: ${(err as Error).message}`);
     }

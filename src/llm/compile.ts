@@ -12,7 +12,7 @@ import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
-import { lintReportText, type LintIssue } from "../lint/lint";
+import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import fewshots from "./prompts/fewshots.json";
 
@@ -288,7 +288,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           });
         }
         try {
-          lintIssues = layoutSpec(best, measure).issues;
+          lintIssues = [...layoutSpec(best, measure).issues, ...lintCommands(best)];
         } catch (err) {
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
