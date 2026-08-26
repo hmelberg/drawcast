@@ -2187,9 +2187,9 @@ describe("maps pack", () => {
 describe("medicine pack", () => {
   beforeEach(() => unregisterPack("medicine"));
 
-  const TEMPLATE_IDS = ["icon_array", "ecg_strip", "heart_circulation", "neuron", "screening_timeline"];
+  const TEMPLATE_IDS = ["icon_array", "ecg_strip", "heart_circulation", "neuron", "screening_timeline", "pk_curve", "pv_loop", "nephron"];
 
-  test("registers all five templates in brief order", () => {
+  test("registers all eight templates in brief order", () => {
     const r = registerPack("medicine", medicineYaml);
     expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
   });
@@ -2277,6 +2277,61 @@ describe("medicine pack", () => {
     const bareIds = flattenDrawables(bare.drawables).map((d) => d.id);
     expect(bareIds).not.toContain("myelin_0");
     expect(bareIds).toContain("axon");
+  });
+
+  test("pk_curve: repeated dosing marks every dose, accumulates toward a steady-state line; a loading dose starts higher", () => {
+    registerPack("medicine", medicineYaml);
+    const r = scenes.pk_curve.layout!({ doses: 6, dose_interval: 12, half_life: 12 });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    for (let i = 0; i < 6; i++) expect(ids).toContain("dose_" + i);
+    expect(ids).toContain("ss_line");
+    // Accumulation: the curve's later peaks sit clearly above the first-dose peak (y-up).
+    const curve = flattenDrawables(r.drawables).find((d) => d.id === "curve") as { pts: [number, number][] };
+    const half = curve.pts.length >> 1;
+    const maxEarly = Math.max(...curve.pts.slice(0, Math.floor(curve.pts.length / 6)).map((p) => p[1]));
+    const maxLate = Math.max(...curve.pts.slice(half).map((p) => p[1]));
+    expect(maxLate).toBeGreaterThan(maxEarly * 1.3);
+    // A loading dose lifts the FIRST peak toward the plateau.
+    const loaded = scenes.pk_curve.layout!({ doses: 6, dose_interval: 12, half_life: 12, loading_dose: 2 });
+    const loadedCurve = flattenDrawables(loaded.drawables).find((d) => d.id === "curve") as { pts: [number, number][] };
+    const loadedEarly = Math.max(...loadedCurve.pts.slice(0, Math.floor(loadedCurve.pts.length / 6)).map((p) => p[1]));
+    expect(loadedEarly).toBeGreaterThan(maxEarly);
+    // Single dose gets no steady-state line; a single IV dose gets the half-life staircase.
+    const single = scenes.pk_curve.layout!({ route: "iv" });
+    const singleIds = flattenDrawables(single.drawables).map((d) => d.id);
+    expect(singleIds).not.toContain("ss_line");
+    expect(singleIds).toContain("half_guides");
+  });
+
+  test("pv_loop: lower contractility raises ESV — the loop (and stroke volume) narrows from the left", () => {
+    registerPack("medicine", medicineYaml);
+    const strong = scenes.pv_loop.layout!({ contractility: 2.5, show_sv: true });
+    const weak = scenes.pv_loop.layout!({ contractility: 1.2, show_sv: true });
+    const esvX = (r: SceneLayout) => (r.anchors.tick_esv as [number, number])[0];
+    const edvX = (r: SceneLayout) => (r.anchors.tick_edv as [number, number])[0];
+    expect(esvX(weak)).toBeGreaterThan(esvX(strong));
+    expect(edvX(weak)).toBeCloseTo(edvX(strong), 6);
+    const ids = flattenDrawables(strong.drawables).map((d) => d.id);
+    for (const p of ["phase_fill", "phase_ivc", "phase_eject", "phase_ivr"]) expect(ids).toContain(p);
+    // The isovolumetric edges are genuinely isovolumetric: constant x.
+    const ivc = flattenDrawables(strong.drawables).find((d) => d.id === "phase_ivc") as { pts: [number, number][] };
+    expect(new Set(ivc.pts.map((p) => p[0])).size).toBe(1);
+  });
+
+  test("nephron: default transports draw the textbook set; highlight_segment recolors only that limb", () => {
+    registerPack("medicine", medicineYaml);
+    const r = scenes.nephron.layout!({});
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    for (let i = 0; i < 7; i++) expect(ids).toContain("arrow_" + i);
+    for (const seg of ["proximal", "descending", "ascending", "distal", "collecting", "glomerulus", "capsule", "urine_arrow"]) {
+      expect(ids).toContain(seg);
+    }
+    const hl = scenes.nephron.layout!({ highlight_segment: "ascending" });
+    const flatHl = flattenDrawables(hl.drawables);
+    const asc = flatHl.find((d) => d.id === "ascending") as { style: { color: string } };
+    const desc = flatHl.find((d) => d.id === "descending") as { style: { color: string } };
+    expect(asc.style.color).toBe(COLORS.accent);
+    expect(desc.style.color).not.toBe(COLORS.accent);
   });
 
   test("screening_timeline: lead-time bias — diagnosis moves earlier, death does not, so observed survival grows", () => {

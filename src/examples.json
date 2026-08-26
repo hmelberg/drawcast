@@ -3866,5 +3866,82 @@
         { "draw": ["title"], "speak": "That is why the pain arrives before you have even looked down." }
       ]
     }
+  },
+  {
+    "request": "When does a twice-a-day pill actually reach its working level?",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "Five half-lives",
+      "template": "pk_curve",
+      "params": {
+        "doses": 8,
+        "dose_interval": 12,
+        "half_life": 12,
+        "show_window": true,
+        "title": "Five half-lives to steady state"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "You start a new pill, twice a day. When is the drug actually up and running? The answer is stranger than you'd guess." },
+        { "draw": ["window"], "speak": "The goal is this band — enough to work, not enough to harm: the therapeutic window." },
+        { "draw": ["dose_0", "dose_1", "dose_2", "dose_3", "dose_4", "dose_5", "dose_6", "dose_7"], "speak": "Each arrow is one dose, every twelve hours." },
+        { "draw": ["curve"], "speak": "Watch the level climb: every new dose lands on what is left of the old ones, so the sawtooth stacks higher — but by less each time." },
+        { "pause": 0.3 },
+        { "draw": ["ss_line", "label_ss"], "speak": "Until it levels off here, where each dose exactly replaces what is eliminated: steady state." },
+        { "highlight": { "target": ["ss_line"], "effect": "glow" }, "speak": "Now the surprise: how long that takes depends only on the half-life — about five of them. A bigger dose buys a higher plateau, never a faster one." },
+        { "draw": ["title"], "speak": "Only a loading dose cheats the clock — by jumping instead of climbing." }
+      ]
+    }
+  },
+  {
+    "request": "Show me the pressure-volume loop — and what heart failure does to it.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "One heartbeat, one joule",
+      "template": "pv_loop",
+      "params": {
+        "contractility": 2,
+        "show_espvr": true,
+        "show_sv": true,
+        "shade_work": true,
+        "title": "One heartbeat, one joule"
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Every heartbeat draws the same secret picture: volume across, pressure up. Cardiologists read whole diseases off this one loop." },
+        { "draw": ["phase_fill"], "speak": "One: the ventricle fills quietly, at almost no pressure." },
+        { "draw": ["phase_ivc"], "speak": "Two: both valves slam shut, and pressure explodes with the volume frozen." },
+        { "draw": ["phase_eject"], "speak": "Three: the aortic valve opens, and blood is ejected." },
+        { "draw": ["phase_ivr", "legend", "phase_nums"], "speak": "Four: the valves close, pressure collapses, and the cycle restarts. Around this loop, once per beat, a hundred thousand times a day." },
+        { "pause": 0.3 },
+        { "draw": ["tick_esv", "tick_edv", "sv_arrow"], "speak": "The loop's width is the stroke volume — what one beat actually delivers." },
+        { "draw": ["work"], "speak": "And here is the quiet marvel: the loop's area is the work of one beat — about one joule. Over a day, that is enough energy to lift a car ten metres." },
+        { "draw": ["espvr"], "speak": "This dashed line is the ventricle's strength ceiling: its contractility." },
+        { "animate": { "contractility": 1.2 }, "duration": 3, "speak": "Watch heart failure happen: the ceiling tilts down, and the loop narrows — every beat delivers less.", "delivery": "grave" },
+        { "draw": ["title"], "speak": "One loop, one joule — and a diagnosis at a glance." }
+      ]
+    }
+  },
+  {
+    "request": "How much urine do your kidneys actually make? Follow one drop through the nephron.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "The 180-litre day",
+      "template": "nephron",
+      "params": {
+        "title": "The 180-litre day"
+      },
+      "commands": [
+        { "draw": ["afferent", "glomerulus", "capsule", "label_glom"], "speak": "Here is a number to sit with: your kidneys filter one hundred and eighty litres a day — your entire blood plasma, sixty times over. This is where it pours in." },
+        { "draw": ["efferent"], "speak": "Blood arrives under pressure, is sieved through this capillary tuft, and leaves — while the filtrate drips into the tubule." },
+        { "draw": ["proximal", "label_proximal"], "speak": "And immediately, the un-making begins. The proximal tubule grabs most of it straight back." },
+        { "draw": ["arrow_0", "arrow_1", "arrow_2"], "speak": "All of the glucose. Most of the sodium. Most of the water." },
+        { "pause": 0.3 },
+        { "draw": ["descending", "ascending", "label_henle"], "speak": "Then the hairpin: the loop of Henle dives deep into the salty medulla and climbs back out." },
+        { "draw": ["arrow_3", "arrow_4"], "speak": "Going down, water is drawn out; climbing up, salt is pumped out. That countercurrent trick is what lets you concentrate urine." },
+        { "draw": ["distal", "label_distal", "arrow_5"], "speak": "The distal tubule fine-tunes the last of the sodium under hormonal control." },
+        { "draw": ["collecting", "label_collecting", "arrow_6"], "speak": "And the collecting duct makes the final decision — how much water to keep — on orders from a hormone that answers to your thirst." },
+        { "draw": ["urine_arrow", "label_urine"], "speak": "Of one hundred and eighty litres filtered, less than two actually leave. You brew a bathtub every day — and quietly un-brew ninety-nine percent of it." },
+        { "draw": ["title"] }
+      ]
+    }
   }
 ]

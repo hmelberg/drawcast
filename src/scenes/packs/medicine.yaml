@@ -1,6 +1,6 @@
 pack: medicine
 title: Medicine
-description: Icon arrays, ECG strips, heart circulation, neurons and screening timelines — the figures of medical teaching and risk communication.
+description: Icon arrays, ECG strips, heart circulation, neurons, screening timelines, PK curves, PV loops and the nephron — the figures of medical teaching and risk communication.
 ---
 template: icon_array
 title: Icon array (risk communication)
@@ -791,5 +791,567 @@ layout: |
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 705], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: pk_curve
+title: Drug concentration curve (pharmacokinetics)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A pharmacokinetic plasma-concentration-versus-time curve: a single oral
+  dose (the rise-and-fall Bateman curve), an IV bolus (instant peak, then
+  exponential decay with optional half-life staircase guides), or repeated
+  dosing (the accumulating sawtooth that levels off at steady state after
+  about five half-lives, with a dashed steady-state line), plus an optional
+  shaded therapeutic window band and a loading-dose comparison. Choose this
+  scene for ANY request about pharmacokinetics, drug concentration or
+  plasma levels over time, half-life, drug elimination or clearance decay,
+  repeated dosing and steady state, therapeutic windows, or loading doses.
+params:
+  type: object
+  properties:
+    route:
+      type: string
+      enum: [oral, iv]
+      description: "oral = absorption rise then decay (default); iv = instant peak then pure exponential decay."
+    half_life:
+      type: number
+      description: "Elimination half-life in hours, 0.5-48 (default 6)."
+    doses:
+      type: integer
+      description: "Number of doses, 1-10 (default 1). 4+ doses draw the steady-state line."
+    dose_interval:
+      type: number
+      description: "Hours between doses, 1-48 (default 12). Only used when doses > 1."
+    loading_dose:
+      type: number
+      description: "Multiplier for the FIRST dose, 1-3 (default 1). E.g. 2 = double loading dose that jumps straight toward the plateau."
+    show_window:
+      type: boolean
+      description: "Shaded therapeutic window band (default false)."
+    window_low:
+      type: number
+      description: "Lower edge of the window in concentration units where a single regular dose peaks at 1.0 (default 1.0)."
+    window_high:
+      type: number
+      description: "Upper edge of the window (default 2.5)."
+    show_half_lives:
+      type: boolean
+      description: "Dashed half-life staircase guides at t½, 2t½, 3t½ (default true for a single IV dose, else false)."
+    t_max:
+      type: number
+      description: "Hours shown (default: 5 half-lives for a single dose, doses+1.5 intervals for repeated)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with axis captions)
+  curve: the concentration curve itself
+  dose_<i>: small arrow on the time axis marking when dose i is taken
+  window: the therapeutic window (shaded band + dashed edges + caption, a group)
+  ss_line: dashed steady-state line (doses >= 4 only)
+  label_ss: "\"Steady state (≈ 5 half-lives)\" caption on that line"
+  half_guides: the half-life staircase guides (a group, single IV dose)
+  title: figure title, when set
+examples:
+  - request: "Show how a drug is eliminated after an IV dose."
+    params:
+      route: iv
+      title: "Exponential elimination"
+  - request: "Show repeated dosing building up to steady state."
+    params:
+      doses: 6
+      dose_interval: 12
+      show_window: true
+      title: "Reaching steady state"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const route = params.route === "iv" ? "iv" : "oral";
+  const halfLife = clamp(num(params.half_life, 6), 0.5, 48);
+  const doses = clamp(Math.round(num(params.doses, 1)), 1, 10);
+  const interval = clamp(num(params.dose_interval, 12), 1, 48);
+  const loading = clamp(num(params.loading_dose, 1), 1, 3);
+  const showWindow = params.show_window === true;
+  const winLow = Math.max(0.1, num(params.window_low, 1));
+  const winHigh = Math.max(winLow + 0.3, num(params.window_high, 2.5));
+  const showHalf = params.show_half_lives === true || (params.show_half_lives !== false && doses === 1 && route === "iv");
+  const tmax = clamp(num(params.t_max, doses > 1 ? interval * (doses + 1.5) : halfLife * 5), halfLife, 600);
+
+  const ke = Math.LN2 / halfLife;
+  const ka = 4 * ke;
+  const tp = Math.log(ka / ke) / (ka - ke);
+  const bNorm = Math.exp(-ke * tp) - Math.exp(-ka * tp);
+  const unit = (u) => (u < 0 ? 0 : route === "iv" ? Math.exp(-ke * u) : (Math.exp(-ke * u) - Math.exp(-ka * u)) / bNorm);
+  const conc = (t) => {
+    let c = 0;
+    for (let i = 0; i < doses; i++) {
+      const u = t - i * interval;
+      if (u >= 0) c += (i === 0 ? loading : 1) * unit(u);
+    }
+    return c;
+  };
+
+  const N = 420;
+  const samples = [];
+  let cmax = 1;
+  for (let i = 0; i <= N; i++) {
+    const t = (tmax * i) / N;
+    const c = conc(t);
+    samples.push([t, c]);
+    if (c > cmax) cmax = c;
+  }
+  const plot = { x0: 110, y0: 130, x1: 920, y1: 630 };
+  const yTop = Math.max(cmax, showWindow ? winHigh : 0) * 1.12;
+  const X = (t) => plot.x0 + (t / tmax) * (plot.x1 - plot.x0);
+  const Y = (c) => plot.y0 + (c / yTop) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Hours", { fontSize: 24, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Concentration", { fontSize: 24, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  if (showWindow) {
+    const yLo = Y(winLow), yHi = Y(winHigh);
+    push(kit.group("window", [
+      kit.area("window__band", [[plot.x0, yLo], [plot.x1, yLo], [plot.x1, yHi], [plot.x0, yHi]], C.region2, { opacity: 0.22 }),
+      kit.stroke("window__lo", [[plot.x0, yLo], [plot.x1, yLo]], { color: C.region2, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.stroke("window__hi", [[plot.x0, yHi], [plot.x1, yHi]], { color: C.region2, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.text("window__t", [plot.x1 - 10, yHi - 20], "Therapeutic window", { fontSize: 18, anchor: "end", color: C.region2 }),
+    ]));
+    anchors.window = [plot.x1 - 60, (yLo + yHi) / 2];
+  }
+
+  for (let i = 0; i < doses; i++) {
+    const x = X(i * interval);
+    if (x > plot.x1) break;
+    const id = "dose_" + i;
+    push(kit.stroke(id, [[x, plot.y0 - 30], [x, plot.y0 - 8]], { arrowhead: "end", color: C.guide, strokeWidth: 3, ms: MS.dot }));
+    anchors[id] = [x, plot.y0 - 19];
+  }
+
+  const pts = samples.map(([t, c]) => [X(t), Y(c)]);
+  push(kit.stroke("curve", pts, { color: C.demand, strokeWidth: 4, ms: Math.min(4200, 1200 + doses * 350) }));
+  let peakI = 0;
+  samples.forEach(([, c], i) => { if (c > samples[peakI][1]) peakI = i; });
+  anchors.curve = [X(samples[peakI][0]), Y(samples[peakI][1])];
+
+  if (doses >= 4) {
+    let plateau = 0;
+    for (const [t, c] of samples) if (t >= tmax - interval * 1.5 && c > plateau) plateau = c;
+    const ySS = Y(plateau);
+    push(kit.stroke("ss_line", [[plot.x0, ySS], [plot.x1, ySS]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    anchors.ss_line = [plot.x0 + 60, ySS];
+    // The sawtooth's peaks touch the steady-state line all along it, so no
+    // caption can hug the line itself. The strip above the window/curve is
+    // provably empty (yTop carries 1.12 headroom, so nothing drawn exceeds
+    // y0 + 500/1.12 ≈ 576) — the caption lives there as a plot-header note.
+    push(kit.text("label_ss", [plot.x1 - 12, plot.y1 - 8], "Steady state (≈ 5 half-lives)", { fontSize: 18, anchor: "end", color: C.guide }));
+    anchors.label_ss = [plot.x1 - 12, plot.y1 - 8];
+  }
+
+  if (showHalf && doses === 1 && route === "iv") {
+    const children = [];
+    const fracs = ["1/2", "1/4", "1/8"];
+    for (let k = 1; k <= 3; k++) {
+      const t = k * halfLife;
+      if (t > tmax) break;
+      const x = X(t), y = Y(loading * unit(t));
+      children.push(kit.stroke("half__v" + k, [[x, plot.y0], [x, y]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+      children.push(kit.stroke("half__h" + k, [[x, y], [plot.x0, y]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+      children.push(kit.text("half__t" + k, [plot.x0 - 12, y], fracs[k - 1], { fontSize: 16, anchor: "end", color: C.guide }));
+    }
+    push(kit.group("half_guides", children));
+    anchors.half_guides = [X(halfLife), Y(loading * 0.5)];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [540, 708], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: pv_loop
+title: Cardiac pressure-volume loop
+version: 1
+kit: 2
+status: ready
+description: >-
+  The cardiac pressure-volume loop: one heartbeat as a closed loop of left-
+  ventricular volume (x) against pressure (y), traversed through its four
+  phases — filling, isovolumetric contraction, ejection, isovolumetric
+  relaxation — with numbered phases and a legend, optional ESPVR
+  (contractility) and EDPVR (stiffness) guide lines, EDV/ESV axis ticks, a
+  stroke-volume bracket, and the loop area shaded as stroke work. preload,
+  afterload and contractility are numeric, so `animate` reshapes the loop
+  honestly (e.g. animate contractility down to show a failing ventricle).
+  Choose this scene for ANY request about the pressure-volume loop or PV
+  loop, cardiac cycle phases plotted as pressure vs volume, stroke volume or
+  stroke work, ejection fraction geometry, preload, afterload,
+  contractility, or heart failure on a PV diagram.
+params:
+  type: object
+  properties:
+    preload:
+      type: number
+      description: "End-diastolic volume in ml, 80-160 (default 120)."
+    afterload:
+      type: number
+      description: "Aortic pressure at which ejection starts, mmHg, 50-110 (default 80)."
+    contractility:
+      type: number
+      description: "ESPVR slope in mmHg/ml, 0.8-4 (default 2). Lower = weaker ventricle = smaller loop."
+    show_espvr:
+      type: boolean
+      description: "Dashed end-systolic pressure-volume relation line (default false)."
+    show_edpvr:
+      type: boolean
+      description: "Dashed end-diastolic (filling/stiffness) curve (default false)."
+    shade_work:
+      type: boolean
+      description: "Shade the loop area = stroke work (default false)."
+    show_sv:
+      type: boolean
+      description: "Stroke-volume bracket above the loop plus EDV/ESV axis ticks (default false)."
+    labels:
+      type: boolean
+      description: "Phase numbers 1-4 inside the loop plus a legend naming them (default true)."
+    title:
+      type: string
+element_ids:
+  axes: the coordinate axes (a group with captions)
+  phase_fill: "phase 1: the filling edge along the bottom"
+  phase_ivc: "phase 2: isovolumetric contraction (vertical right edge)"
+  phase_eject: "phase 3: the ejection dome along the top"
+  phase_ivr: "phase 4: isovolumetric relaxation (vertical left edge)"
+  phase_nums: the numbers 1-4 inside the loop (a group, when labels)
+  legend: the phase legend at the top left (a group, when labels)
+  espvr: dashed ESPVR line with its caption (a group, when show_espvr)
+  edpvr: dashed EDPVR curve with its caption (a group, when show_edpvr)
+  work: the shaded loop area (when shade_work)
+  sv_arrow: the stroke-volume bracket with its caption (a group, when show_sv)
+  tick_edv: EDV tick + caption on the volume axis (when show_sv; likewise tick_esv)
+  tick_esv: ESV tick + caption on the volume axis
+  title: figure title, when set
+examples:
+  - request: "Draw the cardiac pressure-volume loop with its four phases."
+    params:
+      title: "The pressure-volume loop"
+  - request: "Show how low contractility shrinks the PV loop."
+    params:
+      contractility: 1.2
+      show_espvr: true
+      show_sv: true
+      title: "The failing ventricle"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const EDV = clamp(num(params.preload, 120), 80, 160);
+  const afterload = clamp(num(params.afterload, 80), 50, 110);
+  const Ees = clamp(num(params.contractility, 2), 0.8, 4);
+  const wantLabels = params.labels !== false;
+  const V0 = 10;
+  const Pes = afterload + 20;
+  const ESV = clamp(V0 + Pes / Ees, 20, EDV - 15);
+  const Pf = (V) => Math.max(1, 0.45 * (Math.exp(0.025 * (V - V0)) - 1));
+
+  const plot = { x0: 130, y0: 120, x1: 880, y1: 620 };
+  const XV = (v) => plot.x0 + (v / 170) * (plot.x1 - plot.x0);
+  const YP = (p) => plot.y0 + (p / 160) * (plot.y1 - plot.y0);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Volume (ml)", { fontSize: 24, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Pressure (mmHg)", { fontSize: 24, anchor: "start" }),
+  ]));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const fillPts = [], ejectPts = [];
+  for (let i = 0; i <= 40; i++) {
+    const V = ESV + ((EDV - ESV) * i) / 40;
+    fillPts.push([XV(V), YP(Pf(V))]);
+  }
+  for (let i = 0; i <= 40; i++) {
+    const s = i / 40;
+    const V = EDV + (ESV - EDV) * s;
+    const P = (1 - s) * afterload + s * Pes + 26 * Math.sin(Math.PI * s);
+    ejectPts.push([XV(V), YP(P)]);
+  }
+  const ivcPts = [[XV(EDV), YP(Pf(EDV))], [XV(EDV), YP(afterload)]];
+  const ivrPts = [[XV(ESV), YP(Pes)], [XV(ESV), YP(Pf(ESV))]];
+
+  if (params.shade_work === true) {
+    push(kit.area("work", [...fillPts, ...ivcPts, ...ejectPts, ...ivrPts], C.region1, { opacity: 0.3 }));
+    anchors.work = [XV((EDV + ESV) / 2), YP((afterload + Pf(EDV)) / 2)];
+  }
+
+  push(kit.stroke("phase_fill", fillPts, { strokeWidth: 4.5, ms: MS.curve }));
+  push(kit.stroke("phase_ivc", ivcPts, { color: C.demand, strokeWidth: 4.5, ms: MS.connector }));
+  push(kit.stroke("phase_eject", ejectPts, { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
+  push(kit.stroke("phase_ivr", ivrPts, { color: C.supply, strokeWidth: 4.5, ms: MS.connector }));
+  anchors.phase_fill = [XV((EDV + ESV) / 2), YP(Pf((EDV + ESV) / 2))];
+  anchors.phase_ivc = [XV(EDV), YP((Pf(EDV) + afterload) / 2)];
+  anchors.phase_eject = [XV((EDV + ESV) / 2), YP(afterload + 26)];
+  anchors.phase_ivr = [XV(ESV), YP((Pes + Pf(ESV)) / 2)];
+
+  if (wantLabels) {
+    const midV = (EDV + ESV) / 2;
+    push(kit.group("phase_nums", [
+      kit.text("num_1", [XV(midV), YP(Pf(midV)) + 26], "1", { fontSize: 20, color: C.guide }),
+      kit.text("num_2", [XV(EDV) - 18, YP((Pf(EDV) + afterload) / 2)], "2", { fontSize: 20, color: C.demand }),
+      kit.text("num_3", [XV(midV), YP((1 - 0.5) * afterload + 0.5 * Pes + 26) - 28], "3", { fontSize: 20, color: C.demand }),
+      kit.text("num_4", [XV(ESV) + 18, YP((Pes + Pf(ESV)) / 2)], "4", { fontSize: 20, color: C.supply }),
+    ]));
+    anchors.phase_nums = [XV(midV), YP(Pf(midV)) + 26];
+    push(kit.group("legend", [
+      kit.text("legend__1", [145, 600], "1  Filling", { fontSize: 17, anchor: "start", color: C.guide }),
+      kit.text("legend__2", [145, 570], "2  Isovolumetric contraction", { fontSize: 17, anchor: "start", color: C.guide }),
+      kit.text("legend__3", [145, 540], "3  Ejection", { fontSize: 17, anchor: "start", color: C.guide }),
+      kit.text("legend__4", [145, 510], "4  Isovolumetric relaxation", { fontSize: 17, anchor: "start", color: C.guide }),
+    ]));
+    anchors.legend = [145, 600];
+  }
+
+  if (params.show_espvr === true) {
+    const Ptop = Pes + 12;
+    const Vtop = V0 + Ptop / Ees;
+    push(kit.group("espvr", [
+      kit.stroke("espvr__line", [[XV(V0), YP(0)], [XV(Vtop), YP(Ptop)]], { color: C.accent, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.text("espvr__t", [240, 150], "ESPVR (contractility)", { fontSize: 16, anchor: "start", color: C.accent }),
+    ]));
+    anchors.espvr = [XV(Vtop), YP(Ptop)];
+  }
+
+  if (params.show_edpvr === true) {
+    const Vend = Math.min(160, EDV + 25);
+    const pts = [];
+    for (let i = 0; i <= 30; i++) {
+      const V = 20 + ((Vend - 20) * i) / 30;
+      pts.push([XV(V), YP(Pf(V))]);
+    }
+    push(kit.group("edpvr", [
+      kit.stroke("edpvr__line", pts, { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.text("edpvr__t", [XV(Vend) + 8, YP(Pf(Vend))], "EDPVR (stiffness)", { fontSize: 16, anchor: "start", color: C.shifted }),
+    ]));
+    anchors.edpvr = [XV(Vend), YP(Pf(Vend))];
+  }
+
+  if (params.show_sv === true) {
+    const yB = YP(Pes + 24 + 26);
+    push(kit.group("sv_arrow", [
+      kit.stroke("sv__line", [[XV(ESV), yB], [XV(EDV), yB]], { arrowhead: "both", color: C.accent, strokeWidth: 3, ms: MS.connector }),
+      kit.text("sv__t", [XV((ESV + EDV) / 2), yB + 22], "Stroke volume", { fontSize: 17, color: C.accent }),
+    ]));
+    anchors.sv_arrow = [XV((ESV + EDV) / 2), yB];
+    push(kit.group("tick_edv", [
+      kit.stroke("tick_edv__l", [[XV(EDV), plot.y0 - 8], [XV(EDV), plot.y0 + 8]], { strokeWidth: 3, ms: MS.dot }),
+      kit.text("tick_edv__t", [XV(EDV), plot.y0 - 28], "EDV", { fontSize: 15, color: C.guide }),
+    ]));
+    anchors.tick_edv = [XV(EDV), plot.y0];
+    push(kit.group("tick_esv", [
+      kit.stroke("tick_esv__l", [[XV(ESV), plot.y0 - 8], [XV(ESV), plot.y0 + 8]], { strokeWidth: 3, ms: MS.dot }),
+      kit.text("tick_esv__t", [XV(ESV), plot.y0 - 28], "ESV", { fontSize: 15, color: C.guide }),
+    ]));
+    anchors.tick_esv = [XV(ESV), plot.y0];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: nephron
+title: Nephron
+version: 1
+kit: 2
+status: ready
+description: >-
+  The nephron, the kidney's working unit, drawn as the classic schematic:
+  glomerulus in Bowman's capsule (with afferent/efferent arterioles), the
+  convoluted proximal tubule, the hairpin loop of Henle (descending and
+  ascending limbs), the distal tubule and the collecting duct ending in
+  urine — with labeled reabsorption/secretion arrows per segment (glucose,
+  sodium, water...), an optional medullary osmolarity gradient wash, and a
+  highlight_segment option to light up where a drug or process acts (e.g.
+  loop diuretics on the ascending limb). Choose this scene for ANY request
+  about the nephron or kidney function, glomerular filtration, tubular
+  reabsorption or secretion, the loop of Henle, collecting duct and ADH,
+  where diuretics act, or how urine is formed.
+params:
+  type: object
+  properties:
+    transports:
+      type: array
+      maxItems: 9
+      items:
+        type: object
+        properties:
+          species:
+            type: string
+            description: "What moves, e.g. \"Glucose\", \"Na⁺\", \"H₂O\" — keep short."
+          segment:
+            type: string
+            enum: [proximal, descending, ascending, distal, collecting]
+          direction:
+            type: string
+            enum: [out, in]
+            description: "out = reabsorbed back to blood (default); in = secreted into the tubule."
+        required: [species, segment]
+      description: "Substance arrows per segment (capacity: proximal 3, distal 2, collecting 2, limbs 1 each). Default: the textbook set (glucose/Na⁺/H₂O proximal, H₂O descending, Na⁺Cl⁻ ascending, Na⁺ distal, H₂O collecting)."
+    highlight_segment:
+      type: string
+      enum: [none, proximal, descending, ascending, distal, collecting]
+      description: "Draw this segment thicker in the accent color — e.g. ascending for loop diuretics (default none)."
+    show_gradient:
+      type: boolean
+      description: "Medullary osmolarity gradient wash behind the loop of Henle (default false)."
+    labels:
+      type: boolean
+      description: "Part names (default true)."
+    title:
+      type: string
+element_ids:
+  capsule: Bowman's capsule (the cup)
+  glomerulus: the capillary tuft inside it
+  afferent: arteriole arrow into the glomerulus
+  efferent: arteriole arrow out of it
+  proximal: the proximal convoluted tubule
+  descending: the descending limb of the loop of Henle
+  ascending: the ascending limb
+  distal: the distal convoluted tubule
+  collecting: the collecting duct
+  urine_arrow: the outflow arrow at the bottom of the duct
+  gradient: the osmolarity wash (a group, when show_gradient)
+  arrow_<i>: transport arrow i with its species text (a group)
+  label_glom: part name captions (when labels; likewise label_proximal, label_henle, label_distal, label_collecting, label_urine)
+  title: figure title, when set
+examples:
+  - request: "Draw a nephron showing what is reabsorbed in each segment."
+    params:
+      title: "The nephron"
+  - request: "Show where loop diuretics act in the nephron."
+    params:
+      highlight_segment: ascending
+      title: "Where furosemide works"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const wantLabels = params.labels !== false;
+  const showGradient = params.show_gradient === true;
+  const SEGKEYS = { proximal: 1, descending: 1, ascending: 1, distal: 1, collecting: 1 };
+  const hl = typeof params.highlight_segment === "string" && SEGKEYS[params.highlight_segment] ? params.highlight_segment : "none";
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const segStyle = (name, base) => (hl === name ? { color: C.accent, strokeWidth: 6 } : base || {});
+
+  if (showGradient) {
+    const bands = [[300, 380, 0.08], [220, 300, 0.14], [140, 220, 0.2]];
+    push(kit.group("gradient", bands.map(([lo, hi, op], i) =>
+      kit.area("gradient__b" + i, [[390, lo], [570, lo], [570, hi], [390, hi]], C.shifted, { opacity: op })
+    )));
+    anchors.gradient = [480, 260];
+  }
+
+  push(kit.stroke("capsule", kit.arc([210, 555], 54, 0.5, 5.78, 40), { strokeWidth: 4, ms: MS.node }));
+  anchors.capsule = [210, 555];
+  const spiral = [];
+  for (let i = 0; i <= 60; i++) {
+    const th = (i / 60) * 5 * Math.PI;
+    const r = 6 + 20 * (i / 60);
+    spiral.push([210 + r * Math.cos(th), 555 + r * Math.sin(th)]);
+  }
+  push(kit.stroke("glomerulus", spiral, { color: C.demand, strokeWidth: 3, ms: MS.node }));
+  anchors.glomerulus = [210, 555];
+  push(kit.stroke("afferent", [[88, 596], [150, 572]], { arrowhead: "end", color: C.demand, strokeWidth: 4, ms: MS.dot }));
+  anchors.afferent = [119, 584];
+  push(kit.stroke("efferent", [[255, 596], [305, 640]], { arrowhead: "end", color: C.demand, strokeWidth: 4, ms: MS.dot }));
+  anchors.efferent = [280, 618];
+
+  const proximalPts = kit.smooth(kit.wave([262, 540], 170, 34, 55, 6), 4);
+  push(kit.stroke("proximal", proximalPts, { strokeWidth: 4.5, ms: MS.curve, ...segStyle("proximal") }));
+  anchors.proximal = [347, 540];
+  push(kit.stroke("descending", kit.smooth([[436, 528], [452, 340], [458, 190], [476, 148]], 10), { strokeWidth: 4.5, ms: MS.curve, ...segStyle("descending") }));
+  anchors.descending = [452, 340];
+  push(kit.stroke("ascending", kit.smooth([[476, 148], [496, 185], [502, 340], [514, 528]], 10), { strokeWidth: 4.5, ms: MS.curve, ...segStyle("ascending") }));
+  anchors.ascending = [502, 340];
+  const distalPts = kit.smooth(kit.wave([518, 540], 165, 30, 55, 6), 4);
+  push(kit.stroke("distal", distalPts, { strokeWidth: 4.5, ms: MS.curve, ...segStyle("distal") }));
+  anchors.distal = [600, 540];
+  push(kit.stroke("collecting", kit.smooth([[687, 528], [706, 480], [714, 350], [716, 170]], 10), { strokeWidth: 4.5, ms: MS.curve, ...segStyle("collecting") }));
+  anchors.collecting = [714, 350];
+  push(kit.stroke("urine_arrow", [[716, 165], [716, 100]], { arrowhead: "end", color: C.shifted, strokeWidth: 4, ms: MS.dot }));
+  anchors.urine_arrow = [716, 132];
+
+  // Transport arrows: fixed spots per segment, outward normals away from the tube.
+  const SPOTS = {
+    proximal: { pts: [[295, 492], [352, 492], [409, 492]], dir: [0, -1] },
+    descending: { pts: [[443, 340]], dir: [-1, 0] },
+    ascending: { pts: [[508, 340]], dir: [1, 0] },
+    distal: { pts: [[565, 495], [625, 495]], dir: [0, -1] },
+    collecting: { pts: [[728, 300], [728, 230]], dir: [1, 0] },
+  };
+  const DEFAULT_TRANSPORTS = [
+    { species: "Glucose", segment: "proximal", direction: "out" },
+    { species: "Na⁺", segment: "proximal", direction: "out" },
+    { species: "H₂O", segment: "proximal", direction: "out" },
+    { species: "H₂O", segment: "descending", direction: "out" },
+    { species: "Na⁺ Cl⁻", segment: "ascending", direction: "out" },
+    { species: "Na⁺", segment: "distal", direction: "out" },
+    { species: "H₂O", segment: "collecting", direction: "out" },
+  ];
+  const rawT = Array.isArray(params.transports) ? params.transports.slice(0, 9) : DEFAULT_TRANSPORTS;
+  const usedSpots = { proximal: 0, descending: 0, ascending: 0, distal: 0, collecting: 0 };
+  rawT.forEach((t, i) => {
+    if (!t || !SEGKEYS[t.segment] || typeof t.species !== "string") return;
+    const seg = SPOTS[t.segment];
+    const k = usedSpots[t.segment];
+    if (k >= seg.pts.length) return;
+    usedSpots[t.segment]++;
+    const [sx, sy] = seg.pts[k];
+    const [dx, dy] = seg.dir;
+    const secreted = t.direction === "in";
+    const tip = [sx + dx * 34, sy + dy * 34];
+    const arrow = secreted
+      ? kit.stroke("arrow_" + i + "__line", [tip, [sx, sy]], { arrowhead: "end", color: C.accent, strokeWidth: 3.5, ms: MS.dot })
+      : kit.stroke("arrow_" + i + "__line", [[sx, sy], tip], { arrowhead: "end", color: C.supply, strokeWidth: 3.5, ms: MS.dot });
+    const tx = sx + dx * (34 + 10), ty = sy + dy * (34 + 16);
+    const anchorMode = dx < 0 ? "end" : dx > 0 ? "start" : "middle";
+    const text = kit.text("arrow_" + i + "__t", [dx === 0 ? sx : tx, dy === 0 ? sy : ty], t.species, { fontSize: 16, anchor: anchorMode, color: secreted ? C.accent : C.supply });
+    push(kit.group("arrow_" + i, [arrow, text]));
+    anchors["arrow_" + i] = tip;
+  });
+
+  if (wantLabels) {
+    push(kit.group("label_glom", [
+      kit.text("label_glom__1", [195, 652], "Glomerulus", { fontSize: 18 }),
+      kit.text("label_glom__2", [195, 626], "(Bowman's capsule)", { fontSize: 14, color: C.guide }),
+    ]));
+    anchors.label_glom = [195, 652];
+    push(kit.text("label_proximal", [345, 604], "Proximal tubule", { fontSize: 17 }));
+    anchors.label_proximal = [345, 604];
+    push(kit.text("label_henle", [480, 108], "Loop of Henle", { fontSize: 17 }));
+    anchors.label_henle = [480, 108];
+    push(kit.text("label_distal", [608, 604], "Distal tubule", { fontSize: 17 }));
+    anchors.label_distal = [608, 604];
+    push(kit.text("label_collecting", [740, 390], "Collecting duct", { fontSize: 17, anchor: "start" }));
+    anchors.label_collecting = [740, 390];
+    push(kit.text("label_urine", [740, 110], "Urine", { fontSize: 16, anchor: "start", color: C.shifted }));
+    anchors.label_urine = [740, 110];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 706], params.title, { fontSize: 30 }));
   }
   return { drawables, labels, anchors, order };
