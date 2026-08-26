@@ -2624,17 +2624,18 @@ describe("music pack", () => {
     const ids = flat.map((d) => d.id);
     expect(ids).toContain("keys");
     expect(ids).toContain("keys__frame");
-    // C4's key mark (white: two tint areas) lives INSIDE note_0's group.
-    expect(ids).toContain("note_0__key0");
-    expect(ids).toContain("note_0__keyu0");
-    // F#4's mark is a single black-key overlay inside note_1.
-    expect(ids).toContain("note_1__key0");
-    expect(ids).not.toContain("note_1__keyu0");
+    // C4's key mark (white: two tint areas) is its own pressable element key_0.
+    expect(ids).toContain("key_0");
+    expect(ids).toContain("key_0__key0");
+    expect(ids).toContain("key_0__keyu0");
+    // F#4's mark is a single black-key overlay in key_1.
+    expect(ids).toContain("key_1");
+    expect(ids).not.toContain("key_1__keyu0");
     // Without the flag: no keyboard, no marks.
     const plain = scenes.note_sheet.layout!({ notes: "C4:q F#4:q" });
     const plainIds = flattenDrawables(plain.drawables).map((d) => d.id);
     expect(plainIds).not.toContain("keys");
-    expect(plainIds).not.toContain("note_0__key0");
+    expect(plainIds).not.toContain("key_0");
   });
 
   test("piano_keys: two octaves have 14 white and 10 black keys; highlights follow the given order and fold flats", () => {

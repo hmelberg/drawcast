@@ -197,9 +197,15 @@ export interface Command {
   /** With play (string form): the synthesized instrument (default tone). */
   instrument?: Instrument;
   /**
-   * With play: element ids revealed IN TIME with the notes — id k appears
-   * the moment the k-th note of the first voice sounds (pressed piano keys,
-   * staff notes appearing as they play).
+   * With play: element ids revealed IN TIME with the notes and KEPT — id k
+   * appears the moment the k-th sounding note of the first voice starts and
+   * stays (staff notes accumulating as they play).
+   */
+  reveal?: string[] | string;
+  /**
+   * With play: element ids PRESSED in time with the notes — id k appears
+   * when the k-th sounding note starts and disappears when it ends, like a
+   * piano key going down and back up. Ends hidden.
    */
   press?: string[] | string;
 }

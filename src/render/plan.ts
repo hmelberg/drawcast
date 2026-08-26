@@ -40,9 +40,13 @@ export type PlanStep = (
       voices: PlayVoice[];
       tempo: number;
       seconds: number;
-      /** Ids revealed in time with the notes; pressAt[k] = fraction of the step at which press[k] appears. */
+      /** Ids revealed in time with the notes and kept; revealAt[k] = fraction of the step at which reveal[k] appears. */
+      reveal: string[];
+      revealAt: number[];
+      /** Ids pressed transiently: down at pressAt[k], back up at pressOff[k] (fractions of the step). */
       press: string[];
       pressAt: number[];
+      pressOff: number[];
     }
 ) & {
   /** speak paired with an action: voice and action start together, both must finish. */
@@ -356,29 +360,43 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         continue;
       }
       const beats = Math.max(...voices.map((v) => notationBeats(v.notes)));
-      // press: id k appears when the k-th sounding note (rest-skipping) of
-      // the FIRST voice starts — expressed as a fraction of the whole step
-      // so the player just drives it from its progress clock.
+      // reveal/press: id k tracks the k-th sounding note (rest-skipping) of
+      // the FIRST voice — reveal appears at its start and stays; press
+      // appears at its start and vanishes at its end (the key comes back
+      // up). Both expressed as fractions of the whole step, so the player
+      // just drives them from its progress clock.
+      const reveal = resolveIds(cmd.reveal, "reveal");
       const press = resolveIds(cmd.press, "press");
+      const revealAt: number[] = [];
       const pressAt: number[] = [];
-      if (press.length > 0) {
-        const starts: number[] = [];
+      const pressOff: number[] = [];
+      if (reveal.length > 0 || press.length > 0) {
+        const spans: [number, number][] = [];
         let acc = 0;
         for (const tok of parseNotation(voices[0].notes)) {
-          if (tok.pitches.length > 0) starts.push(acc);
+          if (tok.pitches.length > 0) spans.push([acc, acc + tok.beats]);
           acc += tok.beats;
         }
-        if (press.length > starts.length) {
-          warnings.push(`play has ${press.length} press ids but only ${starts.length} sounding notes — the extras appear at the end`);
-        }
+        const overflow = (list: string[], name: string) => {
+          if (list.length > spans.length) {
+            warnings.push(`play has ${list.length} ${name} ids but only ${spans.length} sounding notes — the extras land at the end`);
+          }
+        };
+        overflow(reveal, "reveal");
+        overflow(press, "press");
+        for (let k = 0; k < reveal.length; k++) revealAt.push(k < spans.length ? spans[k][0] / beats : 1);
         for (let k = 0; k < press.length; k++) {
-          pressAt.push(k < starts.length ? starts[k] / beats : 1);
+          pressAt.push(k < spans.length ? spans[k][0] / beats : 1);
+          pressOff.push(k < spans.length ? Math.min(1, spans[k][1] / beats) : 1);
         }
+        reveal.forEach((id) => mentioned.add(id));
+        reveal.forEach((id) => lastRevealed.set(id, steps.length));
+        makeVisible(reveal);
+        // Pressed ids end the step hidden — the key has come back up.
         press.forEach((id) => mentioned.add(id));
-        press.forEach((id) => lastRevealed.set(id, steps.length));
-        makeVisible(press);
+        makeHidden(press);
       }
-      pushStep({ kind: "play", voices, tempo, seconds: (beats * 60) / tempo, press, pressAt });
+      pushStep({ kind: "play", voices, tempo, seconds: (beats * 60) / tempo, reveal, revealAt, press, pressAt, pressOff });
     } else {
       warnings.push("command with no recognized verb skipped");
     }

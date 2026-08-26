@@ -128,32 +128,51 @@ describe("Player → tones seam", () => {
   });
 });
 
-describe("press — visuals locked to the notes", () => {
-  test("pressAt fractions follow the first voice's note starts, skipping rests", () => {
-    const plan = planCommands([{ play: "R:q C4:q D4:q E4:h", press: ["a", "b", "c"] }], ["a", "b", "c"]);
-    const step = plan.steps[0] as { kind: string; press: string[]; pressAt: number[] };
+describe("reveal & press — visuals locked to the notes", () => {
+  test("reveal fractions follow the first voice's note starts (rests skipped) and ids stay visible", () => {
+    const plan = planCommands([{ play: "R:q C4:q D4:q E4:h", reveal: ["a", "b", "c"] }], ["a", "b", "c"]);
+    const step = plan.steps[0] as { kind: string; reveal: string[]; revealAt: number[] };
     expect(step.kind).toBe("play");
-    expect(step.press).toEqual(["a", "b", "c"]);
+    expect(step.reveal).toEqual(["a", "b", "c"]);
     // 5 beats total; sounding notes start at beats 1, 2, 3.
-    expect(step.pressAt).toEqual([1 / 5, 2 / 5, 3 / 5]);
-    // Press ids count as revealed: visible at the boundary, no auto-draw at the end.
+    expect(step.revealAt).toEqual([1 / 5, 2 / 5, 3 / 5]);
+    // Revealed ids stay: visible at the boundary, no auto-draw at the end.
     expect(plan.states[0].visible).toEqual(["a", "b", "c"]);
     expect(plan.steps.filter((s) => s.kind === "draw")).toHaveLength(0);
   });
 
+  test("press ids go down at note start, up at note end — and END the step hidden", () => {
+    const plan = planCommands([{ play: "C4:q D4:q E4:h", press: ["a", "b", "c"] }], ["a", "b", "c"]);
+    const step = plan.steps[0] as { press: string[]; pressAt: number[]; pressOff: number[] };
+    expect(step.pressAt).toEqual([0, 1 / 4, 2 / 4]);
+    expect(step.pressOff).toEqual([1 / 4, 2 / 4, 1]);
+    // Pressed keys have come back up by the boundary — and still no auto-draw.
+    expect(plan.states[0].visible).toEqual([]);
+    expect(plan.steps.filter((s) => s.kind === "draw")).toHaveLength(0);
+  });
+
+  test("reveal and press ride one command: staff notes stay while keys bounce", () => {
+    const plan = planCommands([{ play: "C4:q D4:q", reveal: ["n0", "n1"], press: ["k0", "k1"] }], ["n0", "n1", "k0", "k1"]);
+    const step = plan.steps[0] as { reveal: string[]; press: string[] };
+    expect(step.reveal).toEqual(["n0", "n1"]);
+    expect(step.press).toEqual(["k0", "k1"]);
+    expect(plan.states[0].visible).toEqual(["n0", "n1"]);
+  });
+
   test("unknown press ids drop with a warning; extras land at the end", () => {
     const plan = planCommands([{ play: "C4:q", press: ["a", "ghost", "b"] }], ["a", "b"]);
-    const step = plan.steps[0] as { press: string[]; pressAt: number[] };
+    const step = plan.steps[0] as { press: string[]; pressAt: number[]; pressOff: number[] };
     expect(plan.warnings.some((w) => w.includes("ghost"))).toBe(true);
     expect(plan.warnings.some((w) => w.includes("press ids"))).toBe(true);
     expect(step.press).toEqual(["a", "b"]);
-    expect(step.pressAt).toEqual([0, 1]); // b has no note left — appears at the end
+    expect(step.pressAt).toEqual([0, 1]);
+    expect(step.pressOff).toEqual([1, 1]);
   });
 
-  test("the player reveals each press id as its note starts, in order", async () => {
-    const finished: string[] = [];
+  test("the player presses and releases each id around its note, in order", async () => {
+    const events: string[] = [];
     const stub = (id: string) =>
-      ({ id, durationMs: 100, finish: () => finished.push(id), hide: () => undefined, setProgress: () => undefined }) as never;
+      ({ id, durationMs: 100, finish: () => events.push("+" + id), hide: () => events.push("-" + id), setProgress: () => undefined }) as never;
     const elements = new Map([["a", stub("a")], ["b", stub("b")]]);
     const plan = planCommands([{ play: "C4:q D4:q", press: ["a", "b"], tempo: 240 }], ["a", "b"]);
     const player = new Player(plan, elements, new SpeechManager(), null, { mode: "narrated" });
@@ -161,16 +180,21 @@ describe("press — visuals locked to the notes", () => {
     player.raf = (cb) => frames.push(cb);
     const done = player.play();
     await flush();
-    // Drive the clock in small increments so the two reveals land separately.
     let now = performance.now();
     for (let guard = 0; player.state === "playing" && guard < 60; guard++) {
-      now += 100;
+      now += 60;
       for (const cb of frames.splice(0)) cb(now);
       await flush();
     }
     await done;
     expect(player.state).toBe("done");
-    expect(finished).toEqual(["a", "b"]);
+    // The player hides all pressed elements up front (initial state), so the
+    // meaningful sequence is: a down, a up + b down, b up.
+    expect(events.filter((e) => e === "+a" || e === "+b")).toEqual(["+a", "+b"]);
+    const upA = events.lastIndexOf("-a");
+    const downB = events.indexOf("+b");
+    expect(upA).toBeGreaterThan(events.indexOf("+a"));
+    expect(events.lastIndexOf("-b")).toBeGreaterThan(downB);
   });
 });
 
@@ -218,12 +242,12 @@ describe("ABC notation", () => {
     const abc = "M:4/4\nL:1/4\nQ:1/4=140\nK:G\nG A B c |";
     const spec = { elements: [{ id: "n0", type: "point", at: { x: 500, y: 375 } }], commands: [{ play: { abc } }] } as never;
     expect(validateSpec(spec).ok).toBe(true);
-    const plan = planCommands([{ play: { abc }, press: ["n0"] }], ["n0"]);
-    const step = plan.steps[0] as { kind: string; tempo: number; seconds: number; voices: PlayVoice[]; pressAt: number[] };
+    const plan = planCommands([{ play: { abc }, reveal: ["n0"] }], ["n0"]);
+    const step = plan.steps[0] as { kind: string; tempo: number; seconds: number; voices: PlayVoice[]; revealAt: number[] };
     expect(step.kind).toBe("play");
     expect(step.tempo).toBe(140); // from Q:, no command tempo given
     expect(step.seconds).toBeCloseTo((4 * 60) / 140, 9);
     expect(step.voices[0].notes).toBe("G4:q A4:q B4:q C5:q"); // K:G sharpens F only — none here
-    expect(step.pressAt).toEqual([0]);
+    expect(step.revealAt).toEqual([0]);
   });
 });

@@ -19,9 +19,10 @@ description: >-
   hear what they see. Choose this scene for ANY request about sheet music,
   staff or musical notation, notes/scales/melodies/chords written on a
   staff, reading music, note durations, or a named tune in ABC. With
-  keyboard: true a compact piano sits below the staff and every note's key
-  mark lives INSIDE that note's group — so one play command with press:
-  [note_0, ...] lights the staff note AND its piano key on the same beat.
+  keyboard: true a compact piano sits below the staff, and each note also
+  gets a key mark with its own id key_<i> — so one play command with
+  reveal: [note_0, ...] and press: [key_0, ...] writes the staff note
+  permanently AND presses its piano key transiently on the same beat.
 params:
   type: object
   properties:
@@ -36,7 +37,7 @@ params:
       description: "Beats per bar for the bar lines, 2-6 (default 4; 0 = no bar lines)."
     keyboard:
       type: boolean
-      description: "Draw a compact piano under the staff; each note_<i> then also contains its key mark, so press lights sheet and keys together (default false; suits the C4-C6 range)."
+      description: "Draw a compact piano under the staff; each sounding note also gets its own key-mark element key_<i> — reveal the notes, press the keys (default false; suits the C4-C6 range)."
     labels:
       type: boolean
       description: "Letter names under the notes (default true)."
@@ -46,6 +47,7 @@ element_ids:
   staff: the five staff lines (a group)
   clef: the treble clef
   keys: the compact piano below the staff (a group, when keyboard)
+  key_<i>: the key mark for token i (a group, when keyboard) — press these in time with the notes
   note_<i>: the i-th token — heads, stem, flag, ledger lines (a group; rests too)
   bar_<i>: the i-th bar line
   label_<i>: letter name under token i (when labels)
@@ -222,8 +224,12 @@ layout: |
           children.push(kit.stroke(id + "__flag2", kit.smooth([[sx, sy1 - (up ? 12 : -12)], [sx + 13, sy1 - (up ? 26 : -26)], [sx + 9, sy1 - (up ? 40 : -40)]], 6), { strokeWidth: 2.5, ms: MS.dot }));
         }
       }
-      children.push(...keyMarks(id, tok.pitches));
       anchors[id] = [x, ys[0]];
+      const marks = keyMarks("key_" + i, tok.pitches);
+      if (marks.length > 0) {
+        push(kit.group("key_" + i, marks));
+        anchors["key_" + i] = [500, 210];
+      }
       if (wantLabels) {
         const labelY = wantKeyboard ? 362 : 272;
         const name = tok.pitches.map((p) => p.replace(/\d/g, "")).join("-");

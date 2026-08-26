@@ -283,8 +283,11 @@ const commandSchema = {
       enum: ["tone", "piano", "organ", "pluck", "bell"],
       description: "With play: the synthesized instrument (default tone; array voices can override per voice).",
     },
+    reveal: idListSchema(
+      "With play: element ids revealed IN TIME with the notes and KEPT — id k appears exactly when the k-th sounding note of the first voice starts and stays visible (staff notes accumulating as the tune plays).",
+    ),
     press: idListSchema(
-      "With play: element ids revealed IN TIME with the notes — id k appears exactly when the k-th note of the first voice sounds (rests skipped). THE way to press piano keys or pop staff notes as they play.",
+      "With play: element ids PRESSED in time with the notes — id k appears when the k-th sounding note starts and DISAPPEARS when it ends, like a piano key going down and back up. Combine with reveal (e.g. reveal staff notes, press piano keys).",
     ),
   },
   additionalProperties: false,
@@ -356,6 +359,7 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.highlight) cmd.highlight.target = toList(cmd.highlight.target)!;
     if (cmd.move) cmd.move.target = toList(cmd.move.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
+    if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
   return clone;
 }
@@ -418,8 +422,8 @@ function semanticErrors(spec: Spec): string[] {
     if (cmd.duration !== undefined && verb !== "animate") {
       errors.push(`commands[${i}]: duration only applies to animate (other verbs carry their own duration fields)`);
     }
-    if ((cmd.tempo !== undefined || cmd.instrument !== undefined || cmd.press !== undefined) && verb !== "play") {
-      errors.push(`commands[${i}]: tempo, instrument and press only apply to a play command`);
+    if ((cmd.tempo !== undefined || cmd.instrument !== undefined || cmd.press !== undefined || cmd.reveal !== undefined) && verb !== "play") {
+      errors.push(`commands[${i}]: tempo, instrument, press and reveal only apply to a play command`);
     }
     if (verb === "play") {
       const p = cmd.play!;

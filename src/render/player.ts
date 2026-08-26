@@ -343,14 +343,25 @@ export class Player {
         // clock (worker-driven in export), so background tabs can't desync.
         // Tempo scales with the live speed so audio and wait stay aligned.
         if (this.mode === "narrated") this.tones?.play(step.voices, step.tempo * this.speedVal, signal);
-        if (step.press.length === 0) return this.waitScaled(step.seconds * 1000, signal);
-        // Reveal press[k] the moment its note starts — driven off the same
-        // progress clock as the wait, so audio and ink stay locked together.
+        if (step.press.length === 0 && step.reveal.length === 0) return this.waitScaled(step.seconds * 1000, signal);
+        // reveal[k] appears at its note's start and stays; press[k] goes
+        // down at its note's start and back up at its end — all driven off
+        // the same progress clock as the wait, so audio and ink stay locked.
         let revealed = 0;
+        let pressed = 0;
+        let released = 0;
         await this.progress(step.seconds * 1000, signal, (t) => {
-          while (revealed < step.press.length && step.pressAt[revealed] <= t) {
-            this.elements.get(step.press[revealed])?.finish();
+          while (revealed < step.reveal.length && step.revealAt[revealed] <= t) {
+            this.elements.get(step.reveal[revealed])?.finish();
             revealed++;
+          }
+          while (pressed < step.press.length && step.pressAt[pressed] <= t) {
+            this.elements.get(step.press[pressed])?.finish();
+            pressed++;
+          }
+          while (released < pressed && step.pressOff[released] <= t) {
+            this.elements.get(step.press[released])?.hide();
+            released++;
           }
         });
         return;
