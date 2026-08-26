@@ -123,5 +123,33 @@
         { "point": { "at": { "ref": "server" }, "gesture": "circle" }, "speak": "The server sits in the middle, coordinating both sides." }
       ]
     }
+  },
+  {
+    "request": "Explain with a dialogue why a price ceiling creates a shortage #qa",
+    "spec": {
+      "title": "Why a price ceiling creates a shortage",
+      "template": "supply_demand",
+      "params": {
+        "demand": { "curvature": "linear", "label": "D" },
+        "supply": { "label": "S" },
+        "equilibrium": { "show": true, "guides": true },
+        "price_ceiling": { "label": "Price ceiling", "show_shortage": true }
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Two curves, one government price cap — let's see who actually loses.", "voice": "a" },
+        { "draw": ["demand_curve", "label_D"], "speak": "Demand falls as price falls — the usual story.", "voice": "a" },
+        { "pause": 0.3 },
+        { "draw": ["supply_curve", "label_S"], "speak": "Supply rises with price.", "voice": "a" },
+        { "pause": 0.3 },
+        { "draw": ["guide_lines", "equilibrium_point", "label_E", "label_Pstar", "label_Qstar"], "speak": "And here's equilibrium, where they agree.", "voice": "a" },
+        { "point": { "at": { "ref": "equilibrium_point" }, "gesture": "circle" }, "speak": "So if the government just fixes the price lower than that, buyers get more for less — everyone wins?", "voice": "b" },
+        { "pause": 0.3 },
+        { "draw": ["ceiling_line", "label_ceiling"], "speak": "Let's test that — a price ceiling set below equilibrium.", "voice": "a" },
+        { "pause": 0.5 },
+        { "draw": ["shortage_guides", "shortage_arrow", "label_shortage"], "speak": "At that price, buyers want more than sellers are willing to supply.", "voice": "a", "delivery": "grave" },
+        { "point": { "at": { "ref": "shortage_arrow" }, "gesture": "circle" }, "speak": "Oh — so that gap isn't extra savings, it's missing supply?", "voice": "b" },
+        { "highlight": { "target": ["label_shortage"], "effect": "pulse" }, "speak": "So the price cap didn't lower the cost of buying — it just made buying impossible for some.", "voice": "b" }
+      ]
+    }
   }
 ]

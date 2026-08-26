@@ -95,6 +95,28 @@ export const TAGS: TagDef[] = [
       "A guessed-then-corrected belief sticks; an announced fact doesn't.",
   },
   {
+    tag: "qa",
+    group: "style",
+    hint: "dialogue: one asks and reacts, one answers and draws",
+    brief:
+      'Two speakers at a whiteboard, not two people at microphones. Speaker A (voice "a") is the teacher: A answers and draws. Speaker B (voice "b") asks and reacts — and is not a question machine: B also mis-guesses, reacts ("Oh — so the gap IS the loss?"), and summarizes; a wrong guess then corrected is where the insight lands. Mark EVERY speak line with voice "a" or "b". B\'s lines ride on gestures (point at what is being asked about) and A\'s on draws; never more than two speak-only lines in a row — the canvas keeps moving. Scale to the length budget: a short qa is one question, one drawn answer, one reaction.',
+  },
+  {
+    tag: "podcast",
+    group: "style",
+    hint: "two peers talking informally while sketching",
+    brief:
+      'Two peers (voices "a" and "b") in an informal conversation at a whiteboard, not two people at microphones — either may draw and narrate; interruptions and sentences finished by the other are welcome, but always over a moving canvas: attach lines to draw/point/highlight/animate wherever possible, never more than two speak-only lines in a row. Mark EVERY speak line with voice "a" or "b".',
+  },
+  {
+    tag: "story",
+    group: "style",
+    hint: "a historical episode or character, drawn as told",
+    brief:
+      "Tell it as a story: a historical episode or a running character, drawn as it is told — the timeline, data points, or schematic appear beat by beat with the telling. The story IS the hook; no separate opening needed. " +
+      GUARDRAIL,
+  },
+  {
     tag: "question",
     group: "hook",
     hint: "open on a question the figure answers",
@@ -185,7 +207,8 @@ export const TAGS: TagDef[] = [
     group: "human",
     hint: "hesitations and natural pauses in the narration",
     brief:
-      "Sound human, not machine-read: an occasional hesitation ('Hmm —', 'well,', 'so…') at a genuine thinking moment (a few per drawcast, not per line), at most one self-correction ('about 30 — actually, closer to 33'), and em dashes or ellipses for natural micro-pauses. Never write literal stutters ('th-the') — text-to-speech reads them as glitches.",
+      "Sound human, not machine-read: an occasional hesitation ('Hmm —', 'well,', 'so…') at a genuine thinking moment (a few per drawcast, not per line), at most one self-correction ('about 30 — actually, closer to 33'), and em dashes or ellipses for natural micro-pauses. Never write literal stutters ('th-the') — text-to-speech reads them as glitches." +
+      ' Where the meaning warrants it, mark 2–4 speak lines with a delivery hint: "soft" for a confiding lean-in, "grave" to let a key reveal land slowly, "brisk" for recaps and transitions; leave all other lines unmarked.',
   },
   {
     tag: "male",

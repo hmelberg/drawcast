@@ -205,3 +205,19 @@ describe("voice tags", () => {
     expect(parseTags("Explain GDP").voiceGender).toBeNull();
   });
 });
+
+describe("dialogue style tags", () => {
+  test("style tags are exclusive with socratic", () => {
+    expect(parseTags("x #socratic #qa").tags).toEqual(["qa"]);
+  });
+  test("dialogue briefs carry the whiteboard rule and voice marking", () => {
+    for (const t of ["qa", "podcast"]) {
+      const b = buildBrief([t]);
+      expect(b).toContain('voice "a" or "b"');
+      expect(b.toLowerCase()).toContain("whiteboard");
+    }
+  });
+  test("human brief now teaches delivery hints", () => {
+    expect(buildBrief(["human"])).toContain('"grave"');
+  });
+});
