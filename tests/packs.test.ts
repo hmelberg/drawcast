@@ -1710,25 +1710,39 @@ describe("games pack", () => {
     // the glide/fade/lift branch. Recaptured once before, for the
     // fontSize 52->58 / y-nudge correction, for the same kind of reason.
     // Recaptured again for the contrast fix (a paper casing under the move
-    // arrow). Note the no-moves DEFAULT hash below did NOT move: with no line
-    // there is no arrow and no highlight, so the fix is provably scoped to
-    // exactly the two annotation layers it was meant to touch.
+    // arrow); there the no-moves DEFAULT hash did NOT move — with no line
+    // there is no arrow and no highlight — which was that round's proof that
+    // the fix was scoped to exactly the two annotation layers it touched.
+    //
+    // Recaptured ONCE MORE, and every hash including the default, for the
+    // retrace of the six piece silhouettes off the reference set (games.yaml:
+    // new rings, new detail marks, outline 2.2 -> 2.6). A change to the piece
+    // shapes necessarily moves every hash here, default included, so the
+    // default-didn't-move argument is not available this time. The scoping was
+    // instead proved directly, against the previous commit's games.yaml loaded
+    // side by side with the new one: at all nine renders below, stripping the
+    // `piece_*` drawables and anchors leaves output that is byte-identical
+    // before and after (and the piece group id LIST is identical too). So the
+    // board, grid, coordinates, highlight frame and arrow casings did not move
+    // at all, and — the invariant this test actually protects — the per-square
+    // lookup at every integer boundary is reached the same way as before, with
+    // plyT === 0 and no glide/fade/lift branch taken.
     const EXPECTED: Record<number, string> = {
-      0: "be198cfda0948da388fbe9a3e17044a0ec723138e8ec65c7b7e170c17302449c",
-      1: "edaf1ac508bdbbd8eb313fce79604ff576601601ea1e227c17fa9b35cd0f65e7",
-      2: "fa6cd92d7dc17809327bc7e078759081a3c0d8c758fec45bff556438bdaa9843",
-      3: "dcc39456fa7894bda92a5b88e005d57ba461e8ce7b01021a5683972bfc281d91",
-      4: "2b81e7c196e1d75aae1a3b4eecb7e8f96cdfb97785c525975f9195df0c1375ee",
-      5: "cbca058d80e4fdfdf3d2776e539eaf78cfa04f4cfbee6611602d4ddd44931c23",
-      6: "98cf3731b3c4e47a576ddcd5c65053de0f46b7b6832a0c9f85c599cd362ae7ef",
-      7: "e51c3d81090f53ed9d420b166aa66b8dbcdd7abd44f0fe01a773a7e20e9063af",
+      0: "f3b9dfca6681f6ad300c2b52cfc6ee4c1dbf3e17d19955a598972b99bc671800",
+      1: "af1770f53c90804e666f005ddcb6e6cc539faefefd2841c0bd0fbe58c9cb3b94",
+      2: "9e284480e22d6dae130c25ecc6c4c3c8a9ff145b043e9e2527e3d388e505328b",
+      3: "0942021e5356bcc747cff4a3a347586c4e07db866691642e43657efca6f8808a",
+      4: "687b96492b7d94a43450d1eb6e4d90bcf2cdf5813f89df9f92f9c49e0a5bc6c1",
+      5: "35af84cd0cb87b2ed1f7f79f1559e4fc13afc9b748a99b6a07ac23c79e9a9ce9",
+      6: "1d4921acab25e0471407edfa4df0ff7cb450c24943a69bc8287900240de972cf",
+      7: "e31ba753e992108cdd0d52dae8f0ee049418b2784c8c5d964cb2487947128b32",
     };
     for (let i = 0; i <= moves.length; i++) {
       const r = scenes.chess_board.layout!({ moves, plies_shown: i });
       expect(hashOf(r)).toBe(EXPECTED[i]);
     }
     const r0 = scenes.chess_board.layout!({});
-    expect(hashOf(r0)).toBe("b74467b293d3bf7f6d5a0813b9535cfe2fb46fe475ba055406c80beae4cfe872");
+    expect(hashOf(r0)).toBe("5ea5ee4ea87d06fa6898ae1f09c838166fa3f3245b801fa77bfb4ebcec18fb3a");
   });
 
   test("fractional plies_shown glides the moving piece in a straight line: 0.5 into 1.e4 sits the e-pawn strictly between e2 and e4, x unchanged", async () => {

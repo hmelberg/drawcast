@@ -304,104 +304,212 @@ layout: |
   // are FILLED rings rather than stroke stamps, so they live here as
   // template-local data instead of in the shared stamp library.
   //
-  // Five of the six pieces are left-right symmetric, so they are authored as
-  // a RIGHT-HAND PROFILE — apex first, on the axis (x = 0), then down the
-  // right side to the base's right corner — and `sym` mirrors it into a
-  // closed ring. Symmetry is then exact by construction, and each table is
-  // half the size to read. Only the knight, which faces left, is a full ring.
+  // Four of the six pieces are left-right symmetric, so they are authored as
+  // a RIGHT-HAND PROFILE — starting ON THE AXIS (x = 0) at the silhouette's
+  // topmost axis point, then down the right side to the base's right corner —
+  // and `sym` mirrors it into a closed ring. Symmetry is then exact by
+  // construction, and each table is half the size to read. The KNIGHT (which
+  // faces left) and the BISHOP (whose slit is a diagonal, not a center notch)
+  // are full rings.
   //
-  //     sym(profile) = profile ++ reverse(profile without the apex) mirrored
+  //     sym(profile) = profile ++ reverse(profile without the axis point) mirrored
+  //
+  // The axis point is not always the apex: the queen's coronet has FOUR ball
+  // tips, not a center one, so her profile starts at the FLOOR of the center V
+  // (x = 0, y = 0.27) and climbs the inner point before coming back down. All
+  // `sym` needs is that the first point sits on the axis; the ring closes
+  // across the base between the last point and its mirror.
+  //
+  // ---- Where these numbers come from --------------------------------------
+  // Not eyeballed. Every table below was traced off the reference set the user
+  // supplied (a chess.com-style board, one piece per 100px cell): the piece
+  // pixels were separated from the square by CHROMA (both board tones are
+  // green/cream and so chromatic; every piece pixel — white fill, gray
+  // shading, dark outline, black fill — is achromatic), the resulting mask's
+  // boundary was walked with a Moore neighbour trace, and the contour was
+  // simplified with Douglas-Peucker to the 22-26 profile points (43-51 ring
+  // points) below. The symmetric four were mirror-ORed about their own axis
+  // first, so the halves agree before `sym` ever runs — the UNION, not the
+  // intersection: ANDing erodes by the sub-pixel disagreement between the two
+  // sides and visibly flattened the pawn's ball into a vertical chord.
+  // Coordinates are then exactly this unit box: the trace's own bounding box
+  // mapped to y in [-1, 1], x scaled by the SAME factor (so W/H is preserved)
+  // about the bounding box's center.
+  //
+  // What the reference's proportions actually are — the thing this data is
+  // for — measured off that same trace. W and H are fractions of one CELL;
+  // every landmark is in this unit box, so a half-width of 0.48 means 0.48 of
+  // the piece's own half-height:
+  //
+  //     piece    W      H      W/H     silhouette landmarks
+  //     pawn    0.53   0.68   0.78     ball r 0.41 centred y 0.60; collar
+  //                                    half-width 0.48, y 0.27..0.00; skirt
+  //                                    flaring 0.24 -> 0.78 by y = -1
+  //     rook    0.58   0.73   0.80     3 merlons, notch floor y 0.72 (a seventh
+  //                                    of the height); head half-width 0.68;
+  //                                    shaft waist 0.49; plinth 0.79
+  //     knight  0.68   0.80   0.85     muzzle front x -0.85, chin y -0.22,
+  //                                    throat corner (0.04, 0.04), one ear at
+  //                                    y 1.00, plinth y -0.57..-1, half 0.85
+  //     bishop  0.58   0.81   0.72     finial r 0.19 centred (-0.03, 0.82);
+  //                                    mitre widest 0.59 at y -0.05; slit y
+  //                                    0.62 down to -0.05, ~0.17 wide; plinth 0.71
+  //     queen   0.79   0.80   0.99     4 ball tips: inner span x 0.08..0.51,
+  //                                    topping out at y 1.00; outer span
+  //                                    x 0.68..0.99 over y 0.14..0.59; centre V
+  //                                    floor y 0.27; plinth 0.73
+  //     king    0.77   0.82   0.94     cross: upright half 0.12 to y 1.00, arms
+  //                                    out to 0.30 over y 0.83..0.56; crown
+  //                                    widest 0.94 at y 0.04; plinth 0.72
+  //
+  // The reference's own HEIGHT ladder (king 1, bishop .99, knight/queen .98,
+  // rook .89, pawn .83) is deliberately NOT adopted: `h` below stays on this
+  // template's older, wider-spread ladder, because the height ladder is also
+  // how a test reads a piece's KIND back off a render, and .99-vs-.98 is under
+  // a pixel apart at this size. Only the CONTOURS were retraced.
   //
   // `marks` are detail strokes drawn ON TOP of the fill in the CONTRASTING
-  // color (ink on a white piece, paper on a black one) — the bishop's slit,
-  // the knight's eye and mouth, the crown bands. They are not holes: a hole
-  // shows the SQUARE through, which vanishes whenever the square and the
-  // piece are close in value (a white bishop on a light square), whereas a
-  // contrasting stroke reads on every combination.
+  // color (ink on a white piece, paper on a black one) — the knight's eye, the
+  // king's two crown cut-outs, and the plinth seam that gives five of the six
+  // pieces the reference's chunky two-step base. They are not holes: in the
+  // reference these ARE holes (the square shows through the king's crown), but
+  // a hole vanishes whenever the square and the piece are close in value (a
+  // white king on a light square), whereas a contrasting stroke reads on every
+  // combination. The two features the reference carries as real openings ONTO
+  // the background — the rook's crenellation notches and the bishop's slit —
+  // are part of the RING instead, so they stay openings.
   const sym = (profile) => [...profile, ...profile.slice(1).reverse().map(([x, y]) => [-x, y])];
 
+  /** A plinth seam: the shallow dome the reference draws where a piece's body meets its base plate. */
+  const seam = (halfWidth, edgeY, crownY) => [[-halfWidth, edgeY], [0, crownY], [halfWidth, edgeY]];
+
   const PIECES = {
-    // Pawn: ball, collar, flaring skirt. Shortest piece on the board.
+    // Pawn: a big ball, a flared collar, then a skirt that sweeps out to a
+    // base almost twice the ball's width. Shortest piece on the board, and the
+    // only one whose base is the skirt itself — no plinth, so no plinth seam.
+    // Its one mark is the ball's own underside: in the reference the ball is a
+    // FULL circle overlapping the collar, and the silhouette alone (which sees
+    // only their union) loses the ball entirely — the collar's cusps read as a
+    // waist in a peanut. The arc closes the circle back up.
     p: {
       h: 0.76,
       ring: sym([
-        [0, 0.90], [0.13, 0.87], [0.23, 0.79], [0.29, 0.66], [0.28, 0.53], [0.21, 0.42], // ball
-        [0.13, 0.35], [0.11, 0.28],                                                       // neck
-        [0.28, 0.23], [0.28, 0.16], [0.17, 0.09],                                         // collar
-        [0.21, -0.28], [0.31, -0.56], [0.39, -0.73],                                      // skirt
-        [0.56, -0.81], [0.58, -1.00],                                                     // base plate
+        [0.00, 1.00], [0.14, 0.98], [0.26, 0.92], [0.35, 0.82], [0.40, 0.71],            // ball: a true circle, r 0.41 about y 0.60
+        [0.41, 0.60], [0.39, 0.48], [0.35, 0.39], [0.30, 0.31],
+        [0.34, 0.27], [0.48, 0.18], [0.48, 0.07], [0.42, 0.00],                          // collar: a flared brim, flat-bottomed
+        [0.27, -0.01], [0.24, -0.06],                                                     // the shelf down onto the skirt
+        [0.26, -0.13], [0.31, -0.23], [0.40, -0.35], [0.53, -0.45],                       // skirt, concave then convex
+        [0.66, -0.56], [0.74, -0.68], [0.78, -0.80], [0.78, -1.00],
       ]),
-      marks: [],
+      marks: [[[-0.30, 0.31], [-0.18, 0.26], [0.00, 0.25], [0.18, 0.26], [0.30, 0.31]]], // the ball's underside, where the collar crosses it
     },
-    // Rook: a crenellated tower — three merlons (the center one straddles the
-    // axis, so the profile starts on top of it), then a waisted shaft.
+    // Rook: a crenellated tower. Three merlons — the center one straddles the
+    // axis, so the profile starts on top of it — over a head that is the
+    // WIDEST part of the piece, then a waisted shaft that flares gently into
+    // a plinth. The notches are cut into the ring itself (they open onto the
+    // background in the reference too).
     r: {
       h: 0.84,
       ring: sym([
-        [0, 1.00], [0.13, 1.00], [0.13, 0.80], [0.29, 0.80], [0.29, 1.00], [0.47, 1.00], // crenellations
-        [0.47, 0.68], [0.55, 0.62], [0.55, 0.50], [0.42, 0.42],                           // collar under them
-        [0.36, 0.10], [0.35, -0.28],                                                      // shaft
-        [0.42, -0.56], [0.50, -0.74], [0.62, -0.82], [0.64, -1.00],                       // flare + base
+        [0.00, 1.00], [0.20, 1.00], [0.21, 0.75], [0.25, 0.72], [0.29, 0.72], [0.33, 0.77], // centre merlon + notch
+        [0.35, 0.85], [0.38, 0.94], [0.60, 0.94], [0.67, 0.90],                             // outer merlon, rounded shoulder
+        [0.68, 0.67], [0.65, 0.55], [0.63, 0.43], [0.53, 0.34], [0.49, 0.31],               // head, waisting into the shaft
+        [0.49, 0.14], [0.51, -0.05], [0.54, -0.25], [0.57, -0.42], [0.57, -0.53],           // shaft, flaring downward
+        [0.64, -0.58], [0.72, -0.62], [0.78, -0.71], [0.79, -1.00],                         // plinth
       ]),
-      marks: [],
+      marks: [
+        seam(0.42, 0.32, 0.39),   // the battlement's base line, under the merlons
+        seam(0.62, -0.58, -0.53), // the plinth seam
+      ],
     },
-    // Knight: a horse head facing LEFT, the one hand-traced full ring. What
-    // makes it read as a horse rather than a blob is the CONCAVE throat — the
-    // front of the neck rises almost straight, then cuts sharply out and up to
-    // a muzzle sitting HIGH on the left — plus two ears with a notch between
-    // them and a zigzag mane down the back. A smooth convex left side (the
-    // first attempt) reads as a flame or a chess pawn's ghost, not a head.
+    // Knight: a horse head facing LEFT, on its own plinth — a full ring, and
+    // the piece that carries the most shape information. What makes it read as
+    // a horse rather than a blob, in the reference as much as here: a single
+    // ear at the very top, a long straight NOSE BRIDGE falling away to the
+    // left, a blunt muzzle whose front is the leftmost point of the whole
+    // piece, a flat chin, and — the load-bearing one — a sharp concave THROAT
+    // corner at (0.04, 0.04) where the jaw meets the front of the neck. The
+    // back of the head is one big convex sweep with no mane zigzag at all.
     n: {
       h: 0.88,
       ring: [
-        [-0.62, -1.00], [-0.60, -0.80], [-0.38, -0.72],                   // base plate + plinth step
-        [-0.29, -0.46], [-0.33, -0.10],                                   // front of the neck, near-vertical
-        [-0.48, 0.02], [-0.66, 0.08],                                     // throat cutting out, jaw
-        [-0.79, 0.17], [-0.80, 0.32],                                     // squared-off muzzle front (leftmost)
-        [-0.68, 0.45], [-0.50, 0.43], [-0.30, 0.55], [-0.12, 0.68],       // top of the muzzle, the stop, forehead
-        [0.00, 0.96], [0.10, 0.74], [0.22, 1.00], [0.30, 0.70],           // front ear, notch, back ear, poll
-        [0.44, 0.44], [0.36, 0.28], [0.50, 0.10], [0.40, -0.12], [0.52, -0.34], // mane
-        [0.46, -0.58], [0.46, -0.74], [0.60, -0.80], [0.62, -1.00],       // back of the neck + base plate
+        [-0.27, 1.00], [-0.16, 1.00],                                                    // the ear
+        [0.01, 0.82], [0.16, 0.79], [0.28, 0.76], [0.38, 0.71], [0.50, 0.61], [0.60, 0.48], // crest
+        [0.68, 0.34], [0.73, 0.20], [0.76, 0.04], [0.77, -0.10], [0.75, -0.24],          // back of the head
+        [0.72, -0.36], [0.68, -0.50], [0.67, -0.57],                                     // back of the neck
+        [0.74, -0.62], [0.82, -0.71], [0.84, -0.80], [0.85, -1.00],                      // plinth, right side
+        [-0.62, -1.00], [-0.62, -0.77], [-0.57, -0.67], [-0.48, -0.59], [-0.42, -0.53],  // plinth, left side
+        [-0.33, -0.38], [-0.20, -0.22], [-0.06, -0.07], [0.04, 0.04],                    // front of the neck, up to the throat
+        [0.02, 0.09], [-0.06, 0.05], [-0.17, -0.03], [-0.28, -0.06], [-0.36, -0.07],     // the jaw, running forward
+        [-0.45, -0.17], [-0.49, -0.22], [-0.65, -0.22], [-0.73, -0.19],                  // chin, flat underside of the muzzle
+        [-0.81, -0.12], [-0.85, -0.02], [-0.84, 0.05],                                   // muzzle front — the leftmost point
+        [-0.76, 0.18], [-0.64, 0.34], [-0.55, 0.48], [-0.49, 0.67], [-0.34, 0.82], [-0.33, 0.95], // nose bridge, forehead, ear front (near-vertical)
       ],
       marks: [
-        [[-0.44, 0.30], [-0.38, 0.36], [-0.32, 0.30], [-0.38, 0.24], [-0.44, 0.30]], // eye
-        [[-0.76, 0.22], [-0.64, 0.17]],                                              // mouth
+        [[-0.26, 0.50], [-0.22, 0.55], [-0.17, 0.50], [-0.22, 0.45], [-0.26, 0.50]],     // eye — small enough that the stroke fills it in
+        [[-0.42, -0.53], [0.14, -0.55], [0.74, -0.62]],                                  // plinth seam
       ],
     },
-    // Bishop: ball finial, mitre, collar, stem — plus the mitre's slit.
+    // Bishop: a rounded onion mitre with a ball finial, split by a long
+    // DIAGONAL slit — the slit runs from the finial's left shoulder down and
+    // slightly left to the middle of the body, which is what makes this a full
+    // ring rather than a mirrored profile. The slit is part of the ring, so it
+    // opens onto the square exactly as the reference's does; at this size its
+    // two outline strokes very nearly meet, which is why it reads as a dark
+    // gash rather than a gap.
     b: {
       h: 0.92,
-      ring: sym([
-        [0, 1.00], [0.075, 0.965], [0.095, 0.905], [0.06, 0.855],           // finial + its neck
-        [0.13, 0.79], [0.23, 0.64], [0.31, 0.43], [0.35, 0.26], [0.31, 0.15], [0.20, 0.10], // mitre, widest low
-        [0.38, 0.05], [0.38, -0.04], [0.24, -0.11],                         // collar
-        [0.24, -0.42], [0.34, -0.63], [0.42, -0.77], [0.57, -0.84], [0.59, -1.00], // stem + base
-      ]),
-      marks: [[[-0.14, 0.60], [0.10, 0.36]]], // the slit across the mitre
+      ring: [
+        [-0.09, 1.00], [0.04, 1.00], [0.11, 0.96], [0.16, 0.88], [0.15, 0.78], [0.09, 0.70], [0.04, 0.60], // finial ball
+        [0.01, 0.52], [-0.02, 0.42], [-0.05, 0.28], [-0.08, 0.12], [-0.09, -0.02], [-0.03, -0.06], [0.05, -0.03], // slit: left wall, floor
+        [0.09, 0.10], [0.11, 0.26], [0.14, 0.42], [0.19, 0.54], [0.24, 0.63],                              // slit: right wall, up to the lip
+        [0.32, 0.53], [0.44, 0.38], [0.51, 0.25], [0.56, 0.11], [0.58, -0.04], [0.56, -0.20],              // mitre, right flank
+        [0.51, -0.38], [0.44, -0.50], [0.41, -0.57],
+        [0.50, -0.61], [0.62, -0.66], [0.70, -0.74], [0.71, -0.84], [0.71, -1.00],                         // plinth, right
+        [-0.71, -1.00], [-0.71, -0.84], [-0.69, -0.72], [-0.62, -0.65], [-0.50, -0.61], [-0.41, -0.57],    // plinth, left
+        [-0.46, -0.48], [-0.53, -0.36], [-0.58, -0.20], [-0.59, -0.02], [-0.57, 0.14], [-0.52, 0.27],      // mitre, left flank
+        [-0.45, 0.39], [-0.33, 0.54], [-0.19, 0.70], [-0.21, 0.81], [-0.20, 0.91], [-0.14, 0.97],          // left shoulder, stepping in under the finial
+      ],
+      marks: [seam(0.49, -0.60, -0.55)],
     },
-    // Queen: a five-pointed coronet (center point on the axis) over a band.
+    // Queen: a scalloped coronet of FOUR ball tips — two high and inboard, two
+    // lower and flung wide — over a body that flares straight down to the
+    // plinth. There is no center point, so the profile starts at the floor of
+    // the center V (on the axis) and climbs the inner point first. The widest
+    // piece on the board after the king.
     q: {
       h: 0.94,
       ring: sym([
-        [0, 1.00], [0.10, 0.78], [0.20, 0.93], [0.30, 0.72], [0.42, 0.85],  // coronet points
-        [0.46, 0.60], [0.44, 0.46], [0.34, 0.38],                            // band
-        [0.37, 0.29], [0.24, 0.21],                                          // collar
-        [0.26, -0.16], [0.34, -0.44], [0.44, -0.64], [0.52, -0.78], [0.62, -0.84], [0.64, -1.00],
+        [0.00, 0.27], [0.13, 0.59], [0.08, 0.72], [0.08, 0.88],                                    // out of the centre V, up a thin neck
+        [0.15, 0.98], [0.28, 1.00], [0.44, 0.96], [0.51, 0.84], [0.48, 0.70], [0.38, 0.57],        // inner ball
+        [0.40, 0.40], [0.42, 0.15],                                                                // down the narrow slot between the points
+        [0.58, 0.31], [0.56, 0.44], [0.62, 0.52],                                                  // and up the outer point, itself a narrow spike
+        [0.70, 0.59], [0.86, 0.59], [0.96, 0.51], [0.99, 0.36], [0.90, 0.20],                      // outer ball
+        [0.76, 0.06], [0.65, -0.20], [0.53, -0.53],                                                // the flank
+        [0.61, -0.59], [0.71, -0.70], [0.73, -1.00],                                               // plinth
       ]),
-      marks: [[[-0.42, 0.53], [0.42, 0.53]]], // the coronet's band line
+      marks: [seam(0.58, -0.59, -0.53)],
     },
-    // King: the cross on top is part of the silhouette (its flat top straddles
-    // the axis), then the crown, band, collar, stem, base. Tallest piece.
+    // King: a cross on top (its own flat top straddles the axis), then a squat
+    // crown that flares wider than anything else on the board before pulling
+    // sharply in to the plinth. The crown's two cut-outs are the reference's
+    // most recognisable feature and are carried as closed detail strokes.
     k: {
       h: 1,
       ring: sym([
-        [0, 1.00], [0.07, 1.00], [0.07, 0.86], [0.21, 0.86], [0.21, 0.74], [0.07, 0.74], [0.07, 0.58], // cross
-        [0.19, 0.54], [0.31, 0.68], [0.44, 0.46],                            // crown
-        [0.48, 0.32], [0.45, 0.20], [0.36, 0.13],                            // band
-        [0.38, 0.04], [0.25, -0.04],                                         // collar
-        [0.27, -0.34], [0.35, -0.56], [0.45, -0.72], [0.63, -0.87], [0.65, -1.00],
+        [0.00, 1.00], [0.12, 1.00], [0.12, 0.88],                              // cross, upright
+        [0.17, 0.83], [0.30, 0.83], [0.30, 0.56], [0.17, 0.56],                // cross, right arm
+        [0.16, 0.51], [0.24, 0.46],                                            // cross, foot into the crown
+        [0.34, 0.48], [0.64, 0.48], [0.74, 0.43], [0.81, 0.38], [0.87, 0.31],  // crown, flat top rounding into the shoulder
+        [0.92, 0.21], [0.94, 0.08], [0.93, -0.07], [0.89, -0.19], [0.81, -0.29], // crown, widest flank
+        [0.68, -0.42], [0.54, -0.58],                                          // in to the waist
+        [0.60, -0.64], [0.69, -0.74], [0.72, -0.85], [0.72, -1.00],            // plinth
       ]),
-      marks: [[[-0.44, 0.26], [0.44, 0.26]]], // the crown's band line
+      marks: [
+        [[-0.23, 0.03], [-0.30, 0.09], [-0.44, 0.09], [-0.49, 0.02], [-0.31, -0.24], [-0.24, -0.26], [-0.22, -0.16], [-0.23, 0.03]], // crown cut-out, left
+        [[0.23, 0.03], [0.30, 0.09], [0.44, 0.09], [0.49, 0.02], [0.31, -0.24], [0.24, -0.26], [0.22, -0.16], [0.23, 0.03]],         // crown cut-out, right
+        seam(0.59, -0.64, -0.58),
+      ],
     },
   };
 
@@ -426,6 +534,14 @@ layout: |
    * `at` is the CENTER the silhouette's bounding box lands on; `lift` scales
    * the shape about that center (the mid-glide hop); `opacity` fades the whole
    * piece (a captured piece dissolving under the piece that takes it).
+   *
+   * The outline is 2.6px, up from 2.2 with the retraced shapes. The reference
+   * set draws a ~3px outline on a ~80px-tall piece (3.7%); ours are 47-62px
+   * tall, so a proportional match would be 1.7-2.3px — but our pieces are also
+   * ~10% smaller in their cells than the reference's, and at 2.2 the white
+   * pieces read thin against boardLight. 2.6 lands the king at 4.2% and the
+   * pawn at 5.5%, which is the reference's bold weight rather than its exact
+   * ratio. Checked against renders of the full start position at both widths.
    */
   function pieceGroup(id, cell, at, lift, opacity) {
     const def = PIECES[cell.piece];
@@ -436,7 +552,7 @@ layout: |
     const ring = place(def.ring);
     const children = [
       kit.area(id + "__fill", ring, white ? C.paper : C.ink, { precise: true, ms: SCAFFOLD_MS, ...fade }),
-      kit.stroke(id + "__edge", ring, { closed: true, color: C.ink, strokeWidth: 2.2, ms: SCAFFOLD_MS, ...fade }),
+      kit.stroke(id + "__edge", ring, { closed: true, color: C.ink, strokeWidth: 2.6, ms: SCAFFOLD_MS, ...fade }),
     ];
     def.marks.forEach((mark, i) => {
       children.push(kit.stroke(id + "__mark" + i, place(mark), { color: white ? C.ink : C.paper, strokeWidth: 1.8, ms: SCAFFOLD_MS, ...fade }));
