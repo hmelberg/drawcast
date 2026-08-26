@@ -1,6 +1,6 @@
 # Explanation styles design
 
-2026-08-26. Status: approved direction, not yet implemented.
+2026-08-26. Status: IMPLEMENTED and shipped (both phases; final branch review clean at 4a2ceb9).
 
 ## Problem
 
