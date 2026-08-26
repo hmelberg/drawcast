@@ -38,6 +38,13 @@ export interface BackendEffects {
   setHighlight(ids: string[], effect: HighlightEffect, t: number, box: BBox | null, color?: string): void;
   /** Remove any leftover emphasis for these ids (abort/scrub safety). */
   endHighlight(ids: string[]): void;
+  /**
+   * Dim the listed ids to `alpha` (1 = normal) — the focus verb's inverse
+   * spotlight. Optional so embedded/legacy backends keep working.
+   */
+  setFocus?(dimIds: string[], alpha: number): void;
+  /** Restore any leftover dim (abort/scrub safety). */
+  endFocus?(dimIds: string[]): void;
   /** Show the laser dot at a logical y-up point; null hides it. */
   setPointer(p: Pt | null): void;
   /** Jump the camera to a logical y-up viewBox; null = full canvas. */

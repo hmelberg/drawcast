@@ -1,0 +1,459 @@
+pack: stats
+title: Statistics & risk
+description: Natural-frequency Bayes trees, Galton boards, the central limit theorem and confidence-interval dances — the figures that make probability honest.
+---
+template: bayes_tree
+title: Bayes tree (natural frequencies)
+version: 1
+kit: 2
+status: ready
+description: >-
+  A natural-frequency tree, the Gigerenzer-style antidote to base-rate
+  neglect: a population box at the top splits into sick/healthy by
+  prevalence, each splits again by the test's sensitivity and specificity,
+  every branch labeled with counts of PEOPLE (never bare probabilities),
+  and a punchline box computes the positive predictive value — how few of
+  the positives are actually sick. Choose this scene for ANY request about
+  Bayes' theorem or Bayesian updating with tests, screening or diagnostic
+  test accuracy, false positives, base rates, positive predictive value,
+  or "the test is 90% accurate, I tested positive — do I have it?".
+params:
+  type: object
+  properties:
+    population:
+      type: integer
+      description: "How many people the tree follows, 100-100000 (default 1000)."
+    prevalence:
+      type: number
+      description: "Base rate of the condition, 0.0001-0.5 (default 0.01)."
+    sensitivity:
+      type: number
+      description: "P(test positive | sick), 0.5-1 (default 0.9)."
+    specificity:
+      type: number
+      description: "P(test negative | healthy), 0.5-1 (default 0.91)."
+    condition:
+      type: string
+      description: "Short name of the condition, e.g. \"the disease\" (default)."
+    title:
+      type: string
+element_ids:
+  root: the population box at the top
+  sick: the sick branch box (healthy likewise)
+  healthy: the healthy branch box
+  tp: "true positives box (sick, test +); fn / fp / tn likewise"
+  fn: "false negatives (sick, test −)"
+  fp: "false positives (healthy, test +) — the deceivers"
+  tn: "true negatives (healthy, test −)"
+  edge_sick: branch arrow with its probability label (edge_healthy, edge_tp, edge_fn, edge_fp, edge_tn likewise)
+  edge_healthy: branch to the healthy box
+  edge_tp: branch to true positives
+  edge_fn: branch to false negatives
+  edge_fp: branch to false positives
+  edge_tn: branch to true negatives
+  ppv_box: the punchline box computing P(sick | positive)
+  title: figure title, when set
+examples:
+  - request: "I tested positive on a 90 percent accurate screening test. What are the chances I'm sick?"
+    params:
+      title: "One positive test"
+  - request: "Draw a natural frequency tree for a rare disease and a good test."
+    params:
+      prevalence: 0.001
+      sensitivity: 0.95
+      specificity: 0.95
+      title: "Rare disease, good test"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const pop = Math.round(clamp(num(params.population, 1000), 100, 100000));
+  const prev = clamp(num(params.prevalence, 0.01), 0.0001, 0.5);
+  const sens = clamp(num(params.sensitivity, 0.9), 0.5, 1);
+  const spec = clamp(num(params.specificity, 0.91), 0.5, 1);
+  const condition = typeof params.condition === "string" && params.condition.trim() !== "" ? params.condition.trim() : "the disease";
+
+  const sick = Math.max(1, Math.round(pop * prev));
+  const healthy = pop - sick;
+  const tp = Math.round(sick * sens);
+  const fn = sick - tp;
+  const fp = Math.round(healthy * (1 - spec));
+  const tn = healthy - fp;
+  const ppv = tp + fp > 0 ? tp / (tp + fp) : 1;
+  const pct = (x) => (x * 100 < 1 ? (x * 100).toFixed(1) : Math.round(x * 100)) + "%";
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const BW = 190, BH = 84;
+  const box = (id, cx, cy, count, label, color, w) => {
+    const bw = w ?? BW;
+    push(kit.group(id, [
+      kit.stroke(id + "__r", [[cx - bw / 2, cy - BH / 2], [cx + bw / 2, cy - BH / 2], [cx + bw / 2, cy + BH / 2], [cx - bw / 2, cy + BH / 2]], { closed: true, fill: C.paper, color, strokeWidth: 3.5, ms: MS.node }),
+      kit.text(id + "__n", [cx, cy + 12], String(count), { fontSize: 30, color }),
+      kit.text(id + "__l", [cx, cy - 22], label, { fontSize: 15, color: C.ink }),
+    ]));
+    anchors[id] = [cx, cy];
+  };
+  const edge = (id, from, to, label, color) => {
+    const e = kit.edgeArrow(id + "__a", from, to, { shorten: 10, color, strokeWidth: 3.5, ms: MS.connector });
+    const mx = (from[0] + to[0]) / 2, my = (from[1] + to[1]) / 2;
+    const side = to[0] < from[0] ? -1 : 1;
+    push(kit.group(id, [...e.drawables, kit.text(id + "__t", [mx + side * 34, my + 6], label, { fontSize: 16, color })]));
+    anchors[id] = [mx, my];
+  };
+
+  box("root", 500, 620, pop, "people", C.ink, 230);
+  edge("edge_sick", [455, 578], [310, 472], pct(prev), C.demand);
+  edge("edge_healthy", [545, 578], [690, 472], pct(1 - prev), C.supply);
+  box("sick", 285, 430, sick, "have " + condition, C.demand);
+  box("healthy", 715, 430, healthy, "do not", C.supply);
+  edge("edge_tp", [230, 388], [175, 282], pct(sens) + " +", C.demand);
+  edge("edge_fn", [340, 388], [395, 282], pct(1 - sens) + " −", C.guide);
+  edge("edge_fp", [660, 388], [605, 282], pct(1 - spec) + " +", C.accent);
+  edge("edge_tn", [770, 388], [825, 282], pct(spec) + " −", C.supply);
+  box("tp", 160, 240, tp, "sick, test +", C.demand, 175);
+  box("fn", 390, 240, fn, "sick, test −", C.guide, 175);
+  box("fp", 610, 240, fp, "healthy, test +", C.accent, 175);
+  box("tn", 840, 240, tn, "healthy, test −", C.supply, 175);
+
+  push(kit.group("ppv_box", [
+    kit.area("ppv__bg", [[240, 60], [760, 60], [760, 138], [240, 138]], C.region1, { opacity: 0.3 }),
+    kit.stroke("ppv__r", [[240, 60], [760, 60], [760, 138], [240, 138]], { closed: true, strokeWidth: 3, ms: MS.node }),
+    kit.text("ppv__t1", [500, 112], "Of the " + (tp + fp) + " positives, only " + tp + " are sick", { fontSize: 21 }),
+    kit.text("ppv__t2", [500, 82], "P(sick | positive) = " + pct(ppv), { fontSize: 23, color: C.demand }),
+  ]));
+  anchors.ppv_box = [500, 99];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 712], params.title, { fontSize: 28 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: galton_board
+title: Galton board
+version: 1
+kit: 2
+status: ready
+description: >-
+  A Galton board (bean machine): rows of pegs in a triangle, bins below
+  filled to exact binomial heights — randomness in each bounce, yet the
+  bell shape every time — with an optional single highlighted ball path
+  and an optional normal curve drawn over the bins. Choose this scene for
+  ANY request about the Galton board or bean machine, why random events
+  make a bell curve, the binomial distribution becoming normal, or "order
+  out of randomness".
+params:
+  type: object
+  properties:
+    rows:
+      type: integer
+      description: "Peg rows, 4-12 (default 8)."
+    show_path:
+      type: boolean
+      description: "One highlighted ball's bouncing path from the top into a bin (default true)."
+    show_curve:
+      type: boolean
+      description: "Normal curve drawn over the bin tops — the reveal (default false)."
+    title:
+      type: string
+element_ids:
+  pegs: the peg triangle (a group)
+  bin_<k>: bin k's outline and fill (a group), left to right
+  path: the highlighted ball path (when show_path)
+  curve: the normal curve over the bins (when show_curve)
+  title: figure title, when set
+examples:
+  - request: "Draw a Galton board and show how the bins fill into a bell shape."
+    params:
+      show_curve: true
+      title: "Order out of randomness"
+  - request: "Show one ball bouncing down a Galton board."
+    params:
+      rows: 6
+      title: "One ball, many choices"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const rows = Math.round(Math.max(4, Math.min(12, num(params.rows, 8))));
+  const showPath = params.show_path !== false;
+  const showCurve = params.show_curve === true;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const APEX_Y = 630, DY = Math.min(36, 300 / rows), DX = Math.min(48, 660 / rows);
+  const pegY = (r) => APEX_Y - r * DY;
+  const pegX = (r, i) => 500 + (i - r / 2) * DX;
+
+  const pegChildren = [];
+  for (let r = 0; r < rows; r++) {
+    for (let i = 0; i <= r; i++) {
+      pegChildren.push(kit.stroke("peg_" + r + "_" + i, kit.ellipse([pegX(r, i), pegY(r)], 5, 5, 10), { closed: true, fill: C.ink, ms: 40 }));
+    }
+  }
+  push(kit.group("pegs", pegChildren));
+  anchors.pegs = [500, pegY(Math.floor(rows / 2))];
+
+  // Exact binomial bin heights.
+  const binom = [];
+  let cnk = 1;
+  for (let k = 0; k <= rows; k++) {
+    binom.push(cnk);
+    cnk = (cnk * (rows - k)) / (k + 1);
+  }
+  const maxB = Math.max(...binom);
+  // Bins grow UPWARD from a shared floor (y-up), the tallest reaching BASE.
+  const BASE = pegY(rows - 1) - 34, MAXH = Math.min(190, BASE - 110);
+  const FLOOR = BASE - MAXH;
+  const binW = DX - 6;
+  for (let k = 0; k <= rows; k++) {
+    const cx = 500 + (k - rows / 2) * DX;
+    const h = (binom[k] / maxB) * MAXH;
+    const id = "bin_" + k;
+    push(kit.group(id, [
+      kit.area(id + "__f", [[cx - binW / 2, FLOOR], [cx + binW / 2, FLOOR], [cx + binW / 2, FLOOR + h], [cx - binW / 2, FLOOR + h]], C.supply, { opacity: 0.5 }),
+      kit.stroke(id + "__r", [[cx - binW / 2, FLOOR], [cx + binW / 2, FLOOR], [cx + binW / 2, FLOOR + h], [cx - binW / 2, FLOOR + h]], { closed: true, strokeWidth: 2.5, ms: 110 }),
+    ]));
+    anchors[id] = [cx, FLOOR + h / 2];
+  }
+
+  if (showPath) {
+    // One deterministic ball: left/right at each peg row via kit.jitter.
+    const pts = [[500, APEX_Y + 34]];
+    let x = 500;
+    for (let r = 0; r < rows; r++) {
+      x += (kit.jitter(r + 3) > 0 ? 1 : -1) * (DX / 2);
+      pts.push([x, pegY(r) - DY / 2]);
+    }
+    pts.push([x, BASE + 8]);
+    push(kit.stroke("path", kit.smooth(pts, 6), { color: C.demand, strokeWidth: 3.5, arrowhead: "end", ms: MS.curve }));
+    anchors.path = [x, BASE + 8];
+  }
+
+  if (showCurve) {
+    const sigma = (Math.sqrt(rows) / 2) * DX;
+    const pts = [];
+    for (let i = 0; i <= 60; i++) {
+      const x = 500 - (rows / 2 + 0.5) * DX + ((rows + 1) * DX * i) / 60;
+      const h = MAXH * Math.exp(-Math.pow((x - 500) / sigma, 2) / 2);
+      pts.push([x, FLOOR + h + 8]);
+    }
+    // The envelope over the bin tops — the bell the bins were hiding.
+    push(kit.stroke("curve", pts, { color: C.accent, dash: true, strokeWidth: 3.5, ms: MS.curve }));
+    anchors.curve = [500, BASE + 8];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 706], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: sampling_dist
+title: Sampling distribution (CLT)
+version: 1
+kit: 2
+status: ready
+description: >-
+  The central limit theorem as two stacked panels: any population
+  distribution on top (skewed, uniform, bimodal or normal), and below it
+  the distribution of SAMPLE MEANS for samples of size n — always
+  bell-shaped, always centered on the population mean, and narrower by
+  the square root of n. The sample size n is numeric, so `animate` can
+  slide it and honestly squeeze the sampling distribution. Choose this
+  scene for ANY request about the central limit theorem, sampling
+  distributions, the distribution of sample means or averages, standard
+  errors shrinking with sample size, or why averages are normal even when
+  the data is not.
+params:
+  type: object
+  properties:
+    shape:
+      type: string
+      enum: [skewed, uniform, bimodal, normal]
+      description: "The population's shape (default skewed — the most instructive case)."
+    n:
+      type: number
+      description: "Sample size behind each mean, 1-100 (default 5). Numeric — animate it to watch the squeeze."
+    show_normal:
+      type: boolean
+      description: "Dashed normal overlay on the sampling distribution (default false)."
+    title:
+      type: string
+element_ids:
+  axes: both panels' axis lines and captions (a group)
+  pop_curve: the population distribution (top panel)
+  pop_mean: dashed line at the population mean (top)
+  samp_curve: the distribution of sample means (bottom panel)
+  samp_mean: dashed line at its center — the same mean
+  n_label: "the \"means of samples of n = 5\" caption"
+  normal_overlay: dashed normal on the sampling panel (when show_normal)
+  title: figure title, when set
+examples:
+  - request: "Show the central limit theorem: a skewed population but normal sample means."
+    params:
+      title: "The central limit theorem"
+  - request: "What happens to the distribution of averages when the sample grows?"
+    params:
+      shape: bimodal
+      n: 25
+      title: "Averages of a two-humped world"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const SHAPES = {
+    skewed: (x) => (x <= 0 ? 0 : x * Math.exp(-x / 1.4)),
+    uniform: (x) => (x >= 1.5 && x <= 8.5 ? 1 : 0),
+    bimodal: (x) => Math.exp(-Math.pow((x - 3) / 0.9, 2)) + 0.85 * Math.exp(-Math.pow((x - 7) / 0.9, 2)),
+    normal: (x) => Math.exp(-Math.pow((x - 5) / 1.6, 2)),
+  };
+  const shape = typeof params.shape === "string" && SHAPES[params.shape] ? params.shape : "skewed";
+  const f = SHAPES[shape];
+  const n = Math.max(1, Math.min(100, num(params.n, 5)));
+  const showNormal = params.show_normal === true;
+
+  // Population mean and sd, computed from the density itself.
+  let m0 = 0, m1 = 0, m2 = 0;
+  for (let i = 0; i <= 400; i++) {
+    const x = (10 * i) / 400;
+    const w = f(x);
+    m0 += w; m1 += w * x; m2 += w * x * x;
+  }
+  const mu = m1 / m0;
+  const sd = Math.sqrt(Math.max(0.01, m2 / m0 - mu * mu));
+  const se = sd / Math.sqrt(n);
+
+  const X = (x) => 130 + (x / 10) * 750;
+  const TOP = { y0: 460, h: 165 };
+  const BOT = { y0: 120, h: 205 };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.group("axes", [
+    kit.stroke("axes__t", [[X(0) - 6, TOP.y0], [X(10) + 20, TOP.y0]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
+    kit.stroke("axes__b", [[X(0) - 6, BOT.y0], [X(10) + 20, BOT.y0]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
+    kit.text("axes__tl", [X(0) + 6, TOP.y0 + TOP.h + 26], "The population", { fontSize: 22, anchor: "start" }),
+    kit.text("axes__bl", [X(0) + 6, BOT.y0 + BOT.h + 26], "Means of samples", { fontSize: 22, anchor: "start" }),
+  ]));
+  anchors.axes = [X(0), TOP.y0];
+
+  const curvePts = (fn, y0, h) => {
+    let peak = 0;
+    for (let i = 0; i <= 200; i++) peak = Math.max(peak, fn((10 * i) / 200));
+    const pts = [];
+    for (let i = 0; i <= 120; i++) {
+      const x = (10 * i) / 120;
+      pts.push([X(x), y0 + (fn(x) / peak) * h]);
+    }
+    return pts;
+  };
+
+  push(kit.stroke("pop_curve", curvePts(f, TOP.y0, TOP.h), { color: C.supply, strokeWidth: 4, ms: MS.curve }));
+  anchors.pop_curve = [X(mu), TOP.y0 + TOP.h * 0.7];
+  push(kit.stroke("pop_mean", [[X(mu), TOP.y0], [X(mu), TOP.y0 + TOP.h + 8]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+  anchors.pop_mean = [X(mu), TOP.y0 + TOP.h / 2];
+
+  const g = (x) => Math.exp(-Math.pow((x - mu) / se, 2) / 2);
+  push(kit.stroke("samp_curve", curvePts(g, BOT.y0, BOT.h), { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
+  anchors.samp_curve = [X(mu), BOT.y0 + BOT.h * 0.7];
+  push(kit.stroke("samp_mean", [[X(mu), BOT.y0], [X(mu), BOT.y0 + BOT.h + 8]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+  anchors.samp_mean = [X(mu), BOT.y0 + BOT.h / 2];
+
+  push(kit.text("n_label", [X(10) - 6, BOT.y0 + BOT.h + 26], "n = " + Math.round(n), { fontSize: 24, anchor: "end", color: C.demand }));
+  anchors.n_label = [X(10) - 6, BOT.y0 + BOT.h + 26];
+
+  if (showNormal) {
+    push(kit.stroke("normal_overlay", curvePts(g, BOT.y0, BOT.h).filter((_, i) => i % 2 === 0), { color: C.accent, dash: true, strokeWidth: 3, ms: MS.guides }));
+    anchors.normal_overlay = [X(mu), BOT.y0 + BOT.h];
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 706], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: ci_dance
+title: Confidence-interval dance
+version: 1
+kit: 2
+status: ready
+description: >-
+  What "95% confidence" actually means: many repeated samples, each
+  yielding one confidence interval, stacked as horizontal bars against the
+  fixed dashed line of the true value — most catch it, and the expected
+  share MISS it (drawn in red). The method is reliable; any single
+  interval may lie. Choose this scene for ANY request about confidence
+  intervals and their interpretation, what 95% means, repeated sampling,
+  coverage, or why one study's interval can be wrong.
+params:
+  type: object
+  properties:
+    draws:
+      type: integer
+      description: "How many repeated-sample intervals to stack, 5-40 (default 20)."
+    confidence:
+      type: number
+      description: "The confidence level, 0.5-0.99 (default 0.95); sets how many intervals miss."
+    title:
+      type: string
+element_ids:
+  true_line: the dashed vertical line at the true value
+  ci_<i>: interval i (bar + center dot, a group), top to bottom
+  caption: "the tally, e.g. \"19 of 20 caught the truth\""
+  title: figure title, when set
+examples:
+  - request: "Show what 95 percent confidence really means with repeated samples."
+    params:
+      title: "The confidence-interval dance"
+  - request: "Show how often 80 percent confidence intervals miss."
+    params:
+      confidence: 0.8
+      draws: 20
+      title: "80% confidence, 1 in 5 wrong"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const draws = Math.round(Math.max(5, Math.min(40, num(params.draws, 20))));
+  const conf = Math.max(0.5, Math.min(0.99, num(params.confidence, 0.95)));
+  const misses = Math.max(1, Math.round((1 - conf) * draws));
+  const missEvery = Math.floor(draws / misses);
+
+  const TRUE = 5;
+  const X = (x) => 140 + (x / 10) * 730;
+  const rowY = (i) => 620 - (i * 470) / Math.max(1, draws - 1);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  push(kit.stroke("true_line", [[X(TRUE), 96], [X(TRUE), 660]], { color: C.ink, dash: true, strokeWidth: 3, ms: MS.guides }));
+  anchors.true_line = [X(TRUE), 380];
+
+  let missed = 0;
+  for (let i = 0; i < draws; i++) {
+    const isMiss = missed < misses && (i + 1) % missEvery === 0;
+    const hw = 1.5 * (1 + 0.22 * kit.jitter(i + 5));
+    let center;
+    if (isMiss) {
+      missed++;
+      center = TRUE + (kit.jitter(i + 11) > 0 ? 1 : -1) * hw * 1.3;
+    } else {
+      center = TRUE + kit.jitter(i + 23) * hw * 0.55;
+    }
+    const y = rowY(i);
+    const color = isMiss ? C.demand : C.supply;
+    const id = "ci_" + i;
+    push(kit.group(id, [
+      kit.stroke(id + "__b", [[X(center - hw), y], [X(center + hw), y]], { color, strokeWidth: isMiss ? 4.5 : 3, ms: 130 }),
+      kit.stroke(id + "__d", kit.ellipse([X(center), y], 4.5, 4.5, 10), { closed: true, fill: color, color, ms: 60 }),
+    ]));
+    anchors[id] = [X(center), y];
+  }
+
+  push(kit.text("caption", [500, 62], (draws - missed) + " of " + draws + " caught the truth", { fontSize: 24 }));
+  anchors.caption = [500, 62];
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 706], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };

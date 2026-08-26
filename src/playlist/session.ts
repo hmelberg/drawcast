@@ -14,7 +14,19 @@ import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
-import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, type Playlist, type PlaylistItem } from "./playlist";
+import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
+import { elementBBoxes } from "../layout/layout";
+import { makeBrowserMeasure } from "../render/svg-backend";
+import type { BBox } from "../layout/geometry";
+
+/** The layout bbox of the zoom target in the CURRENT item's scene, or null. */
+function zoomTargetBox(handle: RenderHandle, id: string): BBox | null {
+  try {
+    return elementBBoxes(handle.layout, makeBrowserMeasure()).get(id) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export { itemTitle };
 
@@ -214,12 +226,20 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     // Instant mode is for inspecting final states — never auto-chain there.
     if (destroyed || idx >= items.length - 1 || modeRef === "instant") return;
     const next = items[idx + 1];
-    const crossing = next.chapter !== items[idx].chapter ? next.chapter : undefined;
+    // A semantic zoom IS the transition — it replaces the chapter card.
+    const crossing = next.chapter !== items[idx].chapter && !next.spec.zoom_from ? next.chapter : undefined;
     const ac = new AbortController();
     gateAbort = ac;
     await continueGate(next, ac.signal);
     if (destroyed || ac.signal.aborted) return;
     if (playlist.meta.transitions === "auto") {
+      // Semantic-zoom exit: push into the named element of THIS scene, then
+      // un-draw there — the next figure emerges as the inside of this one.
+      if (next.spec.zoom_from && handle) {
+        const box = zoomTargetBox(handle, next.spec.zoom_from);
+        if (box) await handle.timeline.zoomInto(box, { zoom: ZOOM_EXIT.zoom, ms: ZOOM_EXIT.seconds * 1000 });
+        if (destroyed || ac.signal.aborted) return;
+      }
       // The finished drawing un-draws itself instead of a hard cut.
       await handle?.timeline.fadeOutAll();
       if (destroyed || ac.signal.aborted) return;

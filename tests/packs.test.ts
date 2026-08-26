@@ -11,6 +11,7 @@ import macroYaml from "../src/scenes/packs/macro.yaml?raw";
 import empiricsYaml from "../src/scenes/packs/empirics.yaml?raw";
 import htaYaml from "../src/scenes/packs/hta.yaml?raw";
 import musicYaml from "../src/scenes/packs/music.yaml?raw";
+import statsYaml from "../src/scenes/packs/stats.yaml?raw";
 import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
@@ -2654,5 +2655,102 @@ describe("music pack", () => {
     expect(ids).toContain("highlight_2"); // Gb4 → F#4, a black key
     // C4 and E4 marks sit at distinct white keys, in x order.
     expect((r.anchors.highlight_0 as [number, number])[0]).toBeLessThan((r.anchors.highlight_1 as [number, number])[0]);
+  });
+});
+
+describe("stats pack", () => {
+  beforeEach(() => unregisterPack("stats"));
+
+  const TEMPLATE_IDS = ["bayes_tree", "galton_board", "sampling_dist", "ci_dance"];
+
+  test("registers all four templates", () => {
+    const r = registerPack("stats", statsYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every stats example renders finite, no fallback warnings, no error lint, deterministically", () => {
+    registerPack("stats", statsYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("bayes_tree: the arithmetic is exact and the PPV punchline matches it", () => {
+    registerPack("stats", statsYaml);
+    const r = scenes.bayes_tree.layout!({ population: 1000, prevalence: 0.01, sensitivity: 0.9, specificity: 0.91 });
+    const flat = flattenDrawables(r.drawables);
+    const numOf = (id: string) => Number((flat.find((d) => d.id === id + "__n") as { text: string }).text);
+    expect(numOf("sick")).toBe(10);
+    expect(numOf("healthy")).toBe(990);
+    expect(numOf("tp")).toBe(9);
+    expect(numOf("fn")).toBe(1);
+    expect(numOf("fp")).toBe(89); // round(990 * 0.09)
+    expect(numOf("tn")).toBe(901);
+    // Branches conserve people.
+    expect(numOf("tp") + numOf("fn")).toBe(numOf("sick"));
+    expect(numOf("fp") + numOf("tn")).toBe(numOf("healthy"));
+    const punch = (flat.find((d) => d.id === "ppv__t2") as { text: string }).text;
+    expect(punch).toContain("9%"); // 9 / 98
+  });
+
+  test("galton_board: bins are symmetric, exact binomial, tallest in the middle", () => {
+    registerPack("stats", statsYaml);
+    const r = scenes.galton_board.layout!({ rows: 8 });
+    const flat = flattenDrawables(r.drawables);
+    const heightOf = (k: number) => {
+      const f = flat.find((d) => d.id === `bin_${k}__f`) as { pts: [number, number][] };
+      const ys = f.pts.map((p) => p[1]);
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    for (let k = 0; k <= 4; k++) expect(heightOf(k)).toBeCloseTo(heightOf(8 - k), 6);
+    expect(heightOf(4)).toBeGreaterThan(heightOf(0));
+    // binomial(8): C(8,4)/C(8,0) = 70 — the middle bin is 70× the edge bin.
+    expect(heightOf(4) / heightOf(0)).toBeCloseTo(70, 4);
+    expect(flat.filter((d) => d.id.startsWith("peg_")).length).toBe(36); // 1+2+...+8
+  });
+
+  test("sampling_dist: the sampling distribution narrows with n and stays centered on the mean", () => {
+    registerPack("stats", statsYaml);
+    const widthAt = (n: number) => {
+      const r = scenes.sampling_dist.layout!({ shape: "skewed", n });
+      const curve = flattenDrawables(r.drawables).find((d) => d.id === "samp_curve") as { pts: [number, number][] };
+      const yMax = Math.max(...curve.pts.map((p) => p[1]));
+      const yBase = Math.min(...curve.pts.map((p) => p[1]));
+      const half = yBase + (yMax - yBase) / 2;
+      const above = curve.pts.filter((p) => p[1] >= half).map((p) => p[0]);
+      return Math.max(...above) - Math.min(...above);
+    };
+    expect(widthAt(40)).toBeLessThan(widthAt(5) * 0.55); // ≈ 1/√8 in theory
+    const r5 = scenes.sampling_dist.layout!({ shape: "skewed", n: 5 });
+    expect((r5.anchors.samp_mean as [number, number])[0]).toBeCloseTo((r5.anchors.pop_mean as [number, number])[0], 6);
+  });
+
+  test("ci_dance: exactly the expected number of intervals miss, and the misses truly exclude the truth", () => {
+    registerPack("stats", statsYaml);
+    const r = scenes.ci_dance.layout!({ draws: 20, confidence: 0.95 });
+    const flat = flattenDrawables(r.drawables);
+    const trueX = (r.anchors.true_line as [number, number])[0];
+    const bars = flat.filter((d) => d.id.match(/^ci_\d+__b$/)) as { pts: [number, number][]; style: { color: string } }[];
+    expect(bars.length).toBe(20);
+    const misses = bars.filter((b) => b.style.color === COLORS.demand);
+    expect(misses.length).toBe(1); // 5% of 20
+    for (const m of misses) {
+      const xs = m.pts.map((p) => p[0]);
+      expect(trueX < Math.min(...xs) || trueX > Math.max(...xs)).toBe(true);
+    }
+    for (const b of bars.filter((x) => x.style.color === COLORS.supply)) {
+      const xs = b.pts.map((p) => p[0]);
+      expect(trueX).toBeGreaterThan(Math.min(...xs));
+      expect(trueX).toBeLessThan(Math.max(...xs));
+    }
+    const cap = flat.find((d) => d.id === "caption") as { text: string };
+    expect(cap.text).toBe("19 of 20 caught the truth");
   });
 });

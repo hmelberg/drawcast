@@ -276,6 +276,27 @@ function withSoftExit(spec: Spec, gap: number): Spec {
   return { ...spec, commands: [...(spec.commands ?? []), { pause: gap }, { clear: {} }] };
 }
 
+/** Duration and magnification of the semantic-zoom exit, shared with the live path. */
+export const ZOOM_EXIT = { seconds: 1.6, zoom: 4.5 } as const;
+
+/**
+ * The semantic-zoom exit: instead of holding and un-drawing in place, the
+ * figure pushes INTO the element the next item names (zoom_from), then fades
+ * there — so the next figure feels like the inside of this one. An unknown
+ * id degrades gracefully (the camera command centers on the canvas).
+ */
+function withZoomExit(spec: Spec, ref: string, gap: number): Spec {
+  return {
+    ...spec,
+    commands: [
+      ...(spec.commands ?? []),
+      { pause: Math.min(gap, 0.6) },
+      { camera: { center: { ref }, zoom: ZOOM_EXIT.zoom, duration: ZOOM_EXIT.seconds } },
+      { clear: {} },
+    ],
+  };
+}
+
 /**
  * The specs a video export plays, in order — and the single description of
  * what a viewer sees live: title page first, each item un-drawing itself
@@ -291,11 +312,19 @@ export function exportSequence(playlist: Playlist): Spec[] {
   }
   items.forEach((item, i) => {
     if (i > 0 && meta.transitions === "auto") {
-      const crossing = item.chapter !== items[i - 1].chapter ? item.chapter : undefined;
+      // A semantic zoom IS the transition — it replaces the chapter card.
+      const crossing = item.chapter !== items[i - 1].chapter && !item.spec.zoom_from ? item.chapter : undefined;
       if (crossing) seq.push(makeChapterCard({ chapter: crossing, next: itemTitle(item), gate: "auto", gap: meta.gap }));
     }
     const last = i === items.length - 1;
-    seq.push(!last && meta.transitions === "auto" ? withSoftExit(item.spec, meta.gap) : item.spec);
+    const zoomRef = !last ? items[i + 1].spec.zoom_from : undefined;
+    seq.push(
+      last || meta.transitions !== "auto"
+        ? item.spec
+        : zoomRef
+          ? withZoomExit(item.spec, zoomRef, meta.gap)
+          : withSoftExit(item.spec, meta.gap),
+    );
   });
   return seq;
 }

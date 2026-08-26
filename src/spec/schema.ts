@@ -198,6 +198,17 @@ const commandSchema = {
       required: ["target"],
       additionalProperties: false,
     },
+    focus: {
+      type: "object",
+      description:
+        "The inverse spotlight: dim every OTHER visible element while the targets stay at full strength — the way a hand on a whiteboard says 'ignore the rest'. With a paired speak and no duration, the focus HOLDS FOR THE WHOLE SENTENCE. Use it to walk a dense figure region by region.",
+      properties: {
+        target: idListSchema("Element ids that stay lit; everything else dims."),
+        duration: { type: "number", description: "Seconds. Omit with a paired speak to hold for the sentence (default 2 otherwise)." },
+      },
+      required: ["target"],
+      additionalProperties: false,
+    },
     point: {
       type: "object",
       description: "A laser pointer travels to the target and gestures at it, then disappears. Combine with speak blocking:false to talk while pointing.",
@@ -303,6 +314,11 @@ export const specSchema = {
     "Commands interleave narration (speak) with drawing (draw) for a gradually built, narrated figure.",
   properties: {
     title: { type: "string", description: "Short title of the figure." },
+    zoom_from: {
+      type: "string",
+      description:
+        "Playlist items only: the semantic-zoom entrance. Before this item begins, the PREVIOUS figure zooms into this element id (an id of the PREVIOUS item's scene) and fades there — so the new figure feels like the inside of the old one (heart → cell, bins → bell curve). Replaces the chapter card at that junction.",
+    },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
     voice: {
       type: "string",
@@ -357,6 +373,7 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.erase !== undefined) cmd.erase = toList(cmd.erase);
     if (cmd.clear?.keep !== undefined) cmd.clear.keep = toList(cmd.clear.keep);
     if (cmd.highlight) cmd.highlight.target = toList(cmd.highlight.target)!;
+    if (cmd.focus) cmd.focus.target = toList(cmd.focus.target)!;
     if (cmd.move) cmd.move.target = toList(cmd.move.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
@@ -379,7 +396,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the

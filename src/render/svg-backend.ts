@@ -639,6 +639,22 @@ function makeEffects(
       removeHighlight(keyOf(ids));
     },
 
+    setFocus(dimIds: string[], alpha: number): void {
+      const a = Math.max(0, Math.min(1, alpha));
+      for (const id of dimIds) {
+        for (const { g } of leafNodes.get(id) ?? []) {
+          if (a >= 1) g.style.removeProperty("opacity");
+          else g.style.opacity = String(a);
+        }
+      }
+    },
+
+    endFocus(dimIds: string[]): void {
+      for (const id of dimIds) {
+        for (const { g } of leafNodes.get(id) ?? []) g.style.removeProperty("opacity");
+      }
+    },
+
     setPointer(p: Pt | null): void {
       if (!p) {
         pointer?.setAttribute("display", "none");

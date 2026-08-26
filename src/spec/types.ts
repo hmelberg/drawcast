@@ -146,6 +146,13 @@ export interface CameraArgs {
   duration?: number;
 }
 
+export interface FocusArgs {
+  /** Element ids that stay at full strength; every other visible element dims. */
+  target: string[] | string;
+  /** Seconds. Omit with a paired speak to hold the focus for the whole sentence (default 2 otherwise). */
+  duration?: number;
+}
+
 export interface ClearArgs {
   /** Ids to leave visible (e.g. the axes). */
   keep?: string[] | string;
@@ -176,6 +183,8 @@ export interface Command {
   clear?: ClearArgs;
   /** Temporary emphasis on visible elements. */
   highlight?: HighlightArgs;
+  /** The inverse spotlight: dim everything EXCEPT the targets while the paired sentence lands. */
+  focus?: FocusArgs;
   /** Laser pointer: travel to a target and gesture at it. */
   point?: PointArgs;
   /** Translate elements by a delta or along a path of offsets. */
@@ -212,6 +221,12 @@ export interface Command {
 
 export interface Spec {
   title?: string;
+  /**
+   * Playlist transition (on any item after the first): before this item
+   * begins, the PREVIOUS figure zooms into this element id of ITS OWN scene
+   * and fades there — the semantic-zoom entrance (heart → cell → molecule).
+   */
+  zoom_from?: string;
   /** Difficulty badge, shown in playlist navigation (stamped from #basic/#advanced). */
   level?: "basic" | "advanced";
   /** Narrator gender preference (stamped from #male/#female). In dialogue this is speaker "a"; "b" gets the contrast. */

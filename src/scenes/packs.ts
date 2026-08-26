@@ -82,6 +82,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Staff notation and a piano keyboard — sheet-music figures that pair with the play command's synthesized sound.",
     load: async () => (await import("./packs/music.yaml?raw")).default,
   },
+  stats: {
+    id: "stats",
+    title: "Statistics & risk",
+    description: "Natural-frequency Bayes trees, Galton boards, the central limit theorem and confidence-interval dances — the figures that make probability honest.",
+    load: async () => (await import("./packs/stats.yaml?raw")).default,
+  },
   games: {
     id: "games",
     title: "Games",

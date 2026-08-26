@@ -4219,5 +4219,225 @@
         { "draw": ["title"], "speak": "One text format, one figure, one tune — all from the same six lines." }
       ]
     }
+  },
+  {
+    "request": "I tested positive on a 90 percent accurate test. Do I have the disease?",
+    "packs": [
+      "stats"
+    ],
+    "spec": {
+      "title": "One positive test",
+      "template": "bayes_tree",
+      "params": {
+        "title": "Do I have it?"
+      },
+      "commands": [
+        {
+          "draw": [
+            "root"
+          ],
+          "speak": "You test positive on a screening test that is ninety percent accurate. Most people — and many doctors — now think you are probably sick. Let's count instead of guessing."
+        },
+        {
+          "draw": [
+            "edge_sick",
+            "sick",
+            "edge_healthy",
+            "healthy"
+          ],
+          "speak": "Out of a thousand people like you, the disease is rare: ten have it, nine hundred ninety do not."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "focus": {
+            "target": [
+              "sick",
+              "edge_tp",
+              "edge_fn"
+            ]
+          },
+          "speak": "Follow the ten who are sick: the test catches nine of them and misses one."
+        },
+        {
+          "draw": [
+            "edge_tp",
+            "tp",
+            "edge_fn",
+            "fn"
+          ],
+          "speak": "Nine true positives."
+        },
+        {
+          "focus": {
+            "target": [
+              "healthy",
+              "edge_fp",
+              "edge_fn"
+            ]
+          },
+          "speak": "But now follow the nine hundred ninety who are healthy: nine percent of them get a false alarm."
+        },
+        {
+          "draw": [
+            "edge_fp",
+            "fp",
+            "edge_tn",
+            "tn"
+          ],
+          "speak": "That is eighty-nine false positives — ten times as many as the real ones."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "ppv_box"
+          ],
+          "speak": "So of the ninety-eight people who test positive, only nine are sick. Your chance is about nine percent — not ninety.",
+          "delivery": "grave"
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "The test is fine. The base rate is the story: when a condition is rare, most alarms are false."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why are averages always bell-shaped, even when the data isn't?",
+    "packs": [
+      "stats"
+    ],
+    "spec": {
+      "title": "The central limit theorem",
+      "template": "sampling_dist",
+      "params": {
+        "shape": "skewed",
+        "n": 4,
+        "title": "The central limit theorem"
+      },
+      "commands": [
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Here is the strangest reliable fact in statistics — the reason polls, lab results and quality control work at all."
+        },
+        {
+          "draw": [
+            "pop_curve",
+            "pop_mean"
+          ],
+          "speak": "Take a lopsided population: incomes, hospital costs, waiting times — a long tail to the right, nothing like a bell."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "samp_curve",
+            "samp_mean",
+            "n_label"
+          ],
+          "speak": "Now repeatedly draw small samples and plot only their AVERAGES. Already at four per sample, the lopsidedness is almost gone."
+        },
+        {
+          "animate": {
+            "n": 36
+          },
+          "duration": 3,
+          "speak": "Grow the samples and watch: the distribution of averages tightens around the true mean — a clean bell, born from a skewed world."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "That is the central limit theorem: averages of almost anything are normal. The bell curve isn't in the data — it's in the averaging.",
+          "delivery": "grave"
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does 95 percent confidence actually mean?",
+    "packs": [
+      "stats"
+    ],
+    "spec": {
+      "title": "The confidence-interval dance",
+      "template": "ci_dance",
+      "params": {
+        "draws": 20,
+        "confidence": 0.95,
+        "title": "What 95% really means"
+      },
+      "commands": [
+        {
+          "draw": [
+            "true_line"
+          ],
+          "speak": "Somewhere out there is the true value — fixed, unknown, and not going anywhere. Every study is an attempt to trap it."
+        },
+        {
+          "draw": [
+            "ci_0",
+            "ci_1",
+            "ci_2",
+            "ci_3",
+            "ci_4"
+          ],
+          "speak": "Each study catches a different sample, so each interval lands somewhere new — this is the dance."
+        },
+        {
+          "draw": [
+            "ci_5",
+            "ci_6",
+            "ci_7",
+            "ci_8",
+            "ci_9",
+            "ci_10",
+            "ci_11",
+            "ci_12",
+            "ci_13",
+            "ci_14",
+            "ci_15",
+            "ci_16",
+            "ci_17",
+            "ci_18",
+            "ci_19"
+          ],
+          "parallel": true,
+          "speak": "Run twenty studies and look at the pattern: most intervals straddle the dashed line."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "caption"
+          ],
+          "speak": "Nineteen of twenty caught the truth. One — drawn in red — missed completely, through no fault of its authors."
+        },
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "So ninety-five percent describes the METHOD, not your interval: it's the long-run catch rate of the trap. Any single interval, including the one in the study you just read, may be the red one.",
+          "delivery": "grave"
+        }
+      ]
+    }
+  },
+  {
+    "request": "Where does the bell curve come from? Show me with a Galton board.",
+    "packs": [
+      "stats",
+      "evidence"
+    ],
+    "playlist": "playlist:\n  title: Where the bell curve comes from\n  advance: auto\n  gap: 1\n---\ntitle: The Galton board\ntemplate: galton_board\nparams:\n  rows: 8\n  show_path: true\n  title: Pure chance, every bounce\ncommands:\n  - draw: [pegs]\n    speak: \"Drop thousands of balls through this forest of pegs. At every peg, a coin flip: left or right. Nothing could be more random.\"\n  - draw: [path]\n    speak: \"Watch one ball stumble down — eight accidents in a row.\"\n  - draw: [bin_4, bin_3, bin_5, bin_2, bin_6, bin_1, bin_7, bin_0, bin_8]\n    speak: \"Now let thousands fall. The bins fill — and out of pure randomness, a shape appears: tall in the middle, thin at the edges. Every single time.\"\n  - focus:\n      target: [bin_4, bin_3, bin_5]\n    speak: \"The middle dominates because there are many ways to bounce left-right-left-right — and only one way to bounce left every time.\"\n  - draw: [title]\n    speak: \"Let's zoom into that shape.\"\n---\ntitle: The bell curve\ntemplate: distribution_curve\nzoom_from: bin_4\nparams:\n  title: The normal distribution\ncommands:\n  - draw: [axis, curve]\n    speak: \"Here it is up close: the normal distribution — the smooth limit of all those coin flips.\"\n  - draw: [mean_line]\n    speak: \"Symmetric around its mean...\"\n  - draw: [sd_tick_0, sd_tick_1, sd_tick_2, sd_tick_3]\n    speak: \"...with a spread measured in standard deviations.\"\n  - draw: [title]\n    speak: \"This is why the bell curve is everywhere: whenever many small independent accidents add up — measurement errors, heights, bounces — this shape emerges. Galton called it the law the Greeks would have deified.\"\n"
   }
 ]

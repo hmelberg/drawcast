@@ -31,6 +31,14 @@ export type PlanStep = (
       /** Narrated with no explicit duration: pulse in cycles until the voice ends. */
       untilNarrationEnd?: boolean;
     }
+  | {
+      kind: "focus";
+      /** Targets that stay lit — the player dims the REST of the visible set. */
+      ids: string[];
+      seconds: number;
+      /** Narrated with no explicit duration: hold the focus until the voice ends. */
+      untilNarrationEnd?: boolean;
+    }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
@@ -156,7 +164,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -224,6 +232,19 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         seconds: cmd.highlight.duration ?? 1.5,
         color: cmd.highlight.color,
         ...(cmd.highlight.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
+      });
+    } else if (cmd.focus !== undefined) {
+      const ids = resolveIds(cmd.focus.target, "focus").filter((id) => {
+        if (visibleSet.has(id)) return true;
+        warnings.push(`focus target "${id}" is not visible at that point (skipped)`);
+        return false;
+      });
+      if (ids.length === 0) continue;
+      pushStep({
+        kind: "focus",
+        ids,
+        seconds: cmd.focus.duration ?? 2,
+        ...(cmd.focus.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.point !== undefined) {
       const at = cmd.point.at;

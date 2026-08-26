@@ -30,7 +30,7 @@ const KEYS = {
   // came from a remote source, and a pack the user deliberately turned off
   // gets re-enabled once (accepted: no back-compat guarantee here, see
   // feedback_no_backwards_compat).
-  packsUpgrade: "drawcast.packsDefault.v5",
+  packsUpgrade: "drawcast.packsDefault.v6",
 } as const;
 
 export interface Settings {
@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Object.keys(PACK_DEFS) — store.ts is imported by the viewer, and reaching
   // into scenes/packs.ts would drag the whole scene registry into that chunk.
   // tests/pack-defaults.test.ts pins this list against PACK_DEFS instead.
-  enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic", "medicine", "macro", "empirics", "hta", "music"],
+  enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic", "medicine", "macro", "empirics", "hta", "music", "stats"],
   priorityPacks: [],
 };
 

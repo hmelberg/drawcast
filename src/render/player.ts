@@ -446,6 +446,31 @@ export class Player {
         }
         return;
       }
+      case "focus": {
+        const effects = this.effects;
+        if (!effects?.setFocus) return;
+        // The inverse spotlight: dim everything visible EXCEPT the targets.
+        const keep = new Set(step.ids);
+        const dimIds = before.visible.filter((id) => !keep.has(id));
+        if (dimIds.length === 0) return;
+        const DIM = 0.16;
+        const RAMP = 280;
+        const alphaAt = (t: number) => 1 - (1 - DIM) * t;
+        try {
+          await this.progress(RAMP, signal, (t) => effects.setFocus!(dimIds, alphaAt(t)));
+          if (signal.aborted) return;
+          if (step.untilNarrationEnd && this.narrationVoice) {
+            await this.narrationVoice;
+          } else {
+            await this.waitScaled(Math.max(0, step.seconds * 1000 - 2 * RAMP), signal);
+          }
+          if (signal.aborted) return;
+          await this.progress(RAMP, signal, (t) => effects.setFocus!(dimIds, alphaAt(1 - t)));
+        } finally {
+          effects.endFocus?.(dimIds);
+        }
+        return;
+      }
       case "point": {
         if (!this.effects) return;
         const effects = this.effects;
@@ -588,6 +613,33 @@ export class Player {
    * exit between items. Runs outside the plan (no step, no state change);
    * dispose and scrubbing abort it like any running step.
    */
+  /**
+   * Out-of-plan camera push into an element's box — the playlist's live
+   * semantic-zoom exit (the export path plays the same move as a camera
+   * command in exportSequence). Abortable like fadeOutAll.
+   */
+  async zoomInto(box: BBox, opts: { zoom?: number; ms?: number } = {}): Promise<void> {
+    const effects = this.effects;
+    if (!effects) return;
+    this.abortRun();
+    const ac = new AbortController();
+    this.ac = ac;
+    const zoom = Math.min(8, Math.max(1.2, opts.zoom ?? 4.5));
+    const w = FULL_CANVAS_BOX.w / zoom;
+    const h = FULL_CANVAS_BOX.h / zoom;
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    const to: BBox = {
+      x: Math.min(Math.max(cx - w / 2, 0), FULL_CANVAS_BOX.w - w),
+      y: Math.min(Math.max(cy - h / 2, 0), FULL_CANVAS_BOX.h - h),
+      w,
+      h,
+    };
+    const from = this.stateAt(this.completed).camera ?? FULL_CANVAS_BOX;
+    const ease = EASINGS["ease-in-out"];
+    await this.progress(opts.ms ?? 1600, ac.signal, (t) => effects.setCamera(lerpBox(from, to, ease(t))));
+  }
+
   async fadeOutAll(ms = CLEAR_MS): Promise<void> {
     this.abortRun();
     const ac = new AbortController();
