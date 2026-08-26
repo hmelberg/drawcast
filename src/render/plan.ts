@@ -8,7 +8,7 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { readParam } from "./params";
 import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
-import { notationBeats } from "../spec/notation";
+import { notationBeats, parseNotation } from "../spec/notation";
 import type { Delivery } from "./delivery";
 
 export type PlanStep = (
@@ -34,7 +34,15 @@ export type PlanStep = (
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
   | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number }
-  | { kind: "play"; voices: PlayVoice[]; tempo: number; seconds: number }
+  | {
+      kind: "play";
+      voices: PlayVoice[];
+      tempo: number;
+      seconds: number;
+      /** Ids revealed in time with the notes; pressAt[k] = fraction of the step at which press[k] appears. */
+      press: string[];
+      pressAt: number[];
+    }
 ) & {
   /** speak paired with an action: voice and action start together, both must finish. */
   narration?: string;
@@ -337,7 +345,29 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         continue;
       }
       const beats = Math.max(...voices.map((v) => notationBeats(v.notes)));
-      pushStep({ kind: "play", voices, tempo, seconds: (beats * 60) / tempo });
+      // press: id k appears when the k-th sounding note (rest-skipping) of
+      // the FIRST voice starts — expressed as a fraction of the whole step
+      // so the player just drives it from its progress clock.
+      const press = resolveIds(cmd.press, "press");
+      const pressAt: number[] = [];
+      if (press.length > 0) {
+        const starts: number[] = [];
+        let acc = 0;
+        for (const tok of parseNotation(voices[0].notes)) {
+          if (tok.pitches.length > 0) starts.push(acc);
+          acc += tok.beats;
+        }
+        if (press.length > starts.length) {
+          warnings.push(`play has ${press.length} press ids but only ${starts.length} sounding notes — the extras appear at the end`);
+        }
+        for (let k = 0; k < press.length; k++) {
+          pressAt.push(k < starts.length ? starts[k] / beats : 1);
+        }
+        press.forEach((id) => mentioned.add(id));
+        press.forEach((id) => lastRevealed.set(id, steps.length));
+        makeVisible(press);
+      }
+      pushStep({ kind: "play", voices, tempo, seconds: (beats * 60) / tempo, press, pressAt });
     } else {
       warnings.push("command with no recognized verb skipped");
     }

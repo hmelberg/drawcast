@@ -127,3 +127,49 @@ describe("Player → tones seam", () => {
     expect(player.state).toBe("done");
   });
 });
+
+describe("press — visuals locked to the notes", () => {
+  test("pressAt fractions follow the first voice's note starts, skipping rests", () => {
+    const plan = planCommands([{ play: "R:q C4:q D4:q E4:h", press: ["a", "b", "c"] }], ["a", "b", "c"]);
+    const step = plan.steps[0] as { kind: string; press: string[]; pressAt: number[] };
+    expect(step.kind).toBe("play");
+    expect(step.press).toEqual(["a", "b", "c"]);
+    // 5 beats total; sounding notes start at beats 1, 2, 3.
+    expect(step.pressAt).toEqual([1 / 5, 2 / 5, 3 / 5]);
+    // Press ids count as revealed: visible at the boundary, no auto-draw at the end.
+    expect(plan.states[0].visible).toEqual(["a", "b", "c"]);
+    expect(plan.steps.filter((s) => s.kind === "draw")).toHaveLength(0);
+  });
+
+  test("unknown press ids drop with a warning; extras land at the end", () => {
+    const plan = planCommands([{ play: "C4:q", press: ["a", "ghost", "b"] }], ["a", "b"]);
+    const step = plan.steps[0] as { press: string[]; pressAt: number[] };
+    expect(plan.warnings.some((w) => w.includes("ghost"))).toBe(true);
+    expect(plan.warnings.some((w) => w.includes("press ids"))).toBe(true);
+    expect(step.press).toEqual(["a", "b"]);
+    expect(step.pressAt).toEqual([0, 1]); // b has no note left — appears at the end
+  });
+
+  test("the player reveals each press id as its note starts, in order", async () => {
+    const finished: string[] = [];
+    const stub = (id: string) =>
+      ({ id, durationMs: 100, finish: () => finished.push(id), hide: () => undefined, setProgress: () => undefined }) as never;
+    const elements = new Map([["a", stub("a")], ["b", stub("b")]]);
+    const plan = planCommands([{ play: "C4:q D4:q", press: ["a", "b"], tempo: 240 }], ["a", "b"]);
+    const player = new Player(plan, elements, new SpeechManager(), null, { mode: "narrated" });
+    const frames: ((now: number) => void)[] = [];
+    player.raf = (cb) => frames.push(cb);
+    const done = player.play();
+    await flush();
+    // Drive the clock in small increments so the two reveals land separately.
+    let now = performance.now();
+    for (let guard = 0; player.state === "playing" && guard < 60; guard++) {
+      now += 100;
+      for (const cb of frames.splice(0)) cb(now);
+      await flush();
+    }
+    await done;
+    expect(player.state).toBe("done");
+    expect(finished).toEqual(["a", "b"]);
+  });
+});

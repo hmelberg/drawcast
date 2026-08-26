@@ -2622,7 +2622,11 @@ describe("music pack", () => {
     const r = scenes.piano_keys.layout!({ highlight: ["C4", "E4", "Gb4"] });
     const flat = flattenDrawables(r.drawables);
     expect(flat.filter((d) => d.id.startsWith("key_w")).length).toBe(14);
-    expect(flat.filter((d) => d.id.startsWith("key_b")).length).toBe(10);
+    expect(flat.filter((d) => d.id.startsWith("key_b") && d.kind === "stroke").length).toBe(10);
+    // Black keys are SOLID: a precise full-opacity ink area under each outline.
+    const blackFills = flat.filter((d) => d.id.startsWith("key_b") && d.kind === "area") as { style: { opacity: number } }[];
+    expect(blackFills.length).toBe(10);
+    for (const f of blackFills) expect(f.style.opacity).toBe(1);
     const ids = flat.map((d) => d.id);
     expect(ids).toContain("highlight_0");
     expect(ids).toContain("highlight_1");

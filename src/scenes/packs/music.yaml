@@ -229,16 +229,22 @@ layout: |
   const whitePitch = (i) => WHITE[i % 7] + String(startOct + Math.floor(i / 7));
   const whiteX = (i) => X0 + i * KW;
 
+  const hasBlackAfter = (i) => i < nWhite - 1 && HAS_SHARP[WHITE[i % 7]];
   const keyChildren = [];
+  // Cabinet frame around the whole keyboard, then the red felt hinge strip —
+  // the two cues that make it read as a piano rather than a grid.
+  keyChildren.push(kit.stroke("keys__frame", [[X0 - 9, Y_BOT - 9], [X0 + nWhite * KW + 9, Y_BOT - 9], [X0 + nWhite * KW + 9, Y_TOP + 17], [X0 - 9, Y_TOP + 17]], { closed: true, strokeWidth: 4, ms: MS.stroke }));
+  keyChildren.push(kit.area("keys__felt", [[X0, Y_TOP], [X0 + nWhite * KW, Y_TOP], [X0 + nWhite * KW, Y_TOP + 8], [X0, Y_TOP + 8]], C.demand, { opacity: 0.75, precise: true }));
   for (let i = 0; i < nWhite; i++) {
-    keyChildren.push(kit.stroke("key_w" + i, [[whiteX(i), Y_BOT], [whiteX(i) + KW, Y_BOT], [whiteX(i) + KW, Y_TOP], [whiteX(i), Y_TOP]], { closed: true, fill: C.paper, strokeWidth: 2.5, ms: 90 }));
+    keyChildren.push(kit.stroke("key_w" + i, [[whiteX(i), Y_BOT], [whiteX(i) + KW, Y_BOT], [whiteX(i) + KW, Y_TOP], [whiteX(i), Y_TOP]], { closed: true, fill: C.paper, strokeWidth: 3, ms: 90 }));
   }
   for (let i = 0; i < nWhite; i++) {
-    const letter = WHITE[i % 7];
-    if (!HAS_SHARP[letter] || i === nWhite - 1 && letter === "B") continue;
-    if (i === nWhite - 1) continue;
+    if (!hasBlackAfter(i)) continue;
     const bx = whiteX(i + 1) - BW / 2;
-    keyChildren.push(kit.stroke("key_b" + i, [[bx, BLACK_BOT], [bx + BW, BLACK_BOT], [bx + BW, Y_TOP], [bx, Y_TOP]], { closed: true, fill: C.ink, strokeWidth: 2, ms: 90 }));
+    // Solid ink body (a precise area — a stroke fill renders washed-out in
+    // the sketchy style, the chess-piece lesson) under its own outline.
+    keyChildren.push(kit.area("key_b" + i + "__f", [[bx, BLACK_BOT], [bx + BW, BLACK_BOT], [bx + BW, Y_TOP], [bx, Y_TOP]], C.ink, { opacity: 1, precise: true }));
+    keyChildren.push(kit.stroke("key_b" + i, [[bx, BLACK_BOT], [bx + BW, BLACK_BOT], [bx + BW, Y_TOP], [bx, Y_TOP]], { closed: true, strokeWidth: 2.5, ms: 90 }));
   }
   push(kit.group("keys", keyChildren));
   anchors.keys = [500, (Y_BOT + Y_TOP) / 2];
@@ -276,8 +282,13 @@ layout: |
       anchors[id] = [bx + BW / 2, (BLACK_BOT + Y_TOP) / 2];
     } else {
       const x = whiteX(wi);
+      // Pressed look: tint the WHOLE key — the wide lower part plus the
+      // narrow upper section between its neighboring black keys.
+      const upL = x + 3 + (wi > 0 && hasBlackAfter(wi - 1) ? BW / 2 : 0);
+      const upR = x + KW - 3 - (hasBlackAfter(wi) ? BW / 2 : 0);
       push(kit.group(id, [
-        kit.area(id + "__f", [[x + 3, Y_BOT + 3], [x + KW - 3, Y_BOT + 3], [x + KW - 3, BLACK_BOT - 6], [x + 3, BLACK_BOT - 6]], color, { opacity: 0.45 }),
+        kit.area(id + "__f", [[x + 3, Y_BOT + 3], [x + KW - 3, Y_BOT + 3], [x + KW - 3, BLACK_BOT - 2], [x + 3, BLACK_BOT - 2]], color, { opacity: 0.45 }),
+        kit.area(id + "__fu", [[upL, BLACK_BOT - 2], [upR, BLACK_BOT - 2], [upR, Y_TOP - 3], [upL, Y_TOP - 3]], color, { opacity: 0.45 }),
         kit.stroke(id + "__dot", kit.ellipse([x + KW / 2, Y_BOT + 58], 9, 9, 14), { closed: true, fill: color, color, ms: MS.dot }),
       ]));
       anchors[id] = [x + KW / 2, Y_BOT + 58];

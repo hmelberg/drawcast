@@ -195,6 +195,12 @@ export interface Command {
   tempo?: number;
   /** With play (string form): the synthesized instrument (default tone). */
   instrument?: Instrument;
+  /**
+   * With play: element ids revealed IN TIME with the notes — id k appears
+   * the moment the k-th note of the first voice sounds (pressed piano keys,
+   * staff notes appearing as they play).
+   */
+  press?: string[] | string;
 }
 
 export interface Spec {
