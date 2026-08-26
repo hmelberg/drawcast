@@ -41,6 +41,9 @@ one shape. The interesting material (controversy, history) is welded into
   `#controversy`, `#history`, `#facts`, `#proscons`.
 - **Tone** (how it sounds) — exclusive group `tone`: neutral-warm (default),
   `#fun`, `#dry`, `#pun`.
+- **`#human`** (own group, composes with tone): make the delivery sound less
+  machine-read — occasional hesitations in the text (Phase 1) plus per-line
+  delivery hints that nudge speed/pitch/volume to match the meaning (Phase 2).
 
 Separate from the dials: **voice tags** (`#male` / `#female`, exclusive group
 `voice`) select the narrator's voice rather than shaping the writing — see
@@ -103,6 +106,13 @@ action like any other sentence (screen-first outranks tone).
   share the guardrail sentence (principle 4).
 - New `tone` group: `#fun`, `#dry`, `#pun` with the briefs above (restraint
   clause shared, quirky-example mechanism in `#fun`).
+- New `#human` tag (own group), Phase 1 = text-level only, and it already
+  works: TTS renders hesitation words and punctuation pauses naturally. Brief:
+  an occasional "Hmm —", "well," or "so…" at a thinking moment (a few per
+  drawcast, not per line); at most one self-correction ("about 30 — actually,
+  closer to 33"); em dashes and ellipses for natural micro-pauses. NEVER
+  literal stutters ("th-the") — TTS mangles them into glitches, and hesitation
+  words plus punctuation do the same job. Same restraint clause as tone.
 - **`#verylong` refactor:** remove the hard-coded controversy/history clauses;
   length buys lines and raises the ingredient allowance to two, ingredients
   decide the content.
@@ -173,11 +183,38 @@ highlight / animate wherever possible, and the talky-stretch cap holds.
   natural home for people-behind-the-concept material. Single voice by
   default; may combine with nothing in the hook group (a story IS the hook).
 
+### Delivery hints (`#human`, part 2)
+
+Optional per-command `delivery` field on commands that carry `speak`, a small
+named enum — not free numbers, so the model can't produce erratic prosody:
+
+- `soft` — confiding, leaning in: rate ×0.93, slight pitch drop, volume down a
+  notch. For the "here is the quiet truth" moment.
+- `grave` — slow and weighty: rate ×0.88, neutral pitch. For the key reveal,
+  letting it land.
+- `brisk` — lightly quicker: rate ×1.07. For recaps, lists, transitions.
+
+Each name maps to FIXED deltas in code, applied per line: browser via the
+existing `speak(text, speedMultiplier)` seam plus `utterance.pitch`/`volume`
+(deltas kept conservative — browser voices handle small pitch changes only);
+cloud via `speakingRate`/`pitch`/`volumeGainDb` in audioConfig, with the
+synthesis cache keyed on (text, voice, delivery). Deliberately DETERMINISTIC:
+no random jitter — randomness would bust the TTS cache and make live playback
+and video export diverge; the humanity comes from authored variation matched
+to meaning, which is exactly what the user asked for ("match the words and
+meanings"). The `#human` brief (Phase 2 extension) tells the model to mark
+2–4 lines per drawcast where the meaning warrants it, and leave the rest
+unmarked. The field is legal without `#human` (schema describes it tersely
+with "use sparingly"), but only the `#human` brief actively encourages it.
+
+Pacing note: `pacedDurations` budgets and the reading-time fallback estimate
+scale with the effective rate so timing stays honest.
+
 ### Fewshot
 
 One dialogue few-shot in `fewshots.json` showing the `voice` mechanics
 concretely — the lecture-style exemplars would otherwise drown the
-instruction.
+instruction. It doubles as the `delivery` example (one `grave` reveal line).
 
 ### Tests
 
@@ -189,6 +226,14 @@ pick in both backends (and Settings override winning).
 
 ## Out of scope / later
 
+- **Within-line prosody (SSML `<prosody>`/`<break>`):** the browser speech API
+  has no usable SSML support, so within-line variation would fork the two
+  backends into different-sounding outputs. Per-line deliveries plus
+  punctuation-level pauses cover most of the value at a fraction of the
+  complexity. Revisit only if cloud TTS becomes the sole live path.
+- **Random prosody jitter:** rejected outright, not deferred — cache-busting,
+  non-reproducible, and uniform randomness sounds LESS human than meaningful
+  variation.
 - **`#old` / `#young`:** deferred. Neither Google Cloud TTS nor browser voice
   catalogs have an age axis, so the honest implementations are a crude pitch /
   rate shift (sounds gimmicky fast) or a persona brief that shades the writing
