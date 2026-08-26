@@ -152,8 +152,9 @@ the field only means something with `speak`.
 ### Voice tags: `#male` / `#female`
 
 `#male` / `#female` pick the narrator's gender — for a single-voice drawcast
-the narrator, for dialogue forms the lead teacher (B in `#qa`), with the other
-speaker getting the contrasting voice. No tag = today's defaults.
+the narrator, for dialogue forms the lead teacher (speaker "a" — the voice an
+unmarked line gets), with speaker "b" getting the contrasting voice. No tag =
+today's defaults.
 
 These tags contribute no brief. Instead the parser stamps the choice
 deterministically into the spec as `meta.voice` ("male" | "female"), and both
@@ -171,11 +172,12 @@ Every dialogue brief carries the whiteboard rule: **two people at a
 whiteboard, not two people at microphones** — lines attach to draw / point /
 highlight / animate wherever possible, and the talky-stretch cap holds.
 
-- `#qa` — A asks and reacts, B answers and draws. A is not a question machine:
-  A also mis-guesses, says "oh — so the gap IS the loss?", and summarizes; A's
-  wrong-guess-then-correction is where the aha lands. A's reactions can ride on
-  gestures (point at the thing being asked about). Scales with length: short
-  qa = one question, one drawn answer, one reaction.
+- `#qa` — speaker "a" is the teacher: answers and draws. Speaker "b" asks and
+  reacts — and is not a question machine: "b" also mis-guesses, says "oh — so
+  the gap IS the loss?", and summarizes; the wrong-guess-then-correction is
+  where the aha lands. "b"'s reactions can ride on gestures (point at the
+  thing being asked about). Scales with length: short qa = one question, one
+  drawn answer, one reaction.
 - `#podcast` — two peers, informal; either may draw and narrate; interruptions
   and finished-by-the-other sentences welcome, but always over a moving canvas.
 - `#story` — explain through a historical episode or running character, drawn
