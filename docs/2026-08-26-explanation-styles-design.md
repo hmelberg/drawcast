@@ -30,7 +30,7 @@ one shape. The interesting material (controversy, history) is welded into
    people, and numbers you are confident are real; if unsure, choose a
    different ingredient. Never manufacture a controversy or a statistic.
 
-## Three orthogonal dials
+## Four orthogonal dials
 
 - **Form** (who is talking) — exclusive group `style` (renamed from
   `teaching`): lecture (default, no tag), `#socratic` (exists, joins the
@@ -39,8 +39,32 @@ one shape. The interesting material (controversy, history) is welded into
   `#question`, `#debate`, `#provoke`.
 - **Ingredients** (extra content) — composable, one group each: `#why`,
   `#controversy`, `#history`, `#facts`, `#proscons`.
+- **Tone** (how it sounds) — exclusive group `tone`: neutral-warm (default),
+  `#fun`, `#dry`, `#pun`.
+
+Separate from the dials: **voice tags** (`#male` / `#female`, exclusive group
+`voice`) select the narrator's voice rather than shaping the writing — see
+Phase 2.
 
 All single-token; surfaced by the existing autosuggest popup and chips.
+
+### Tone briefs (Phase 1)
+
+Humor is opt-in (taste varies; default stays neutral but warm) and every tone
+brief carries the same restraint clause: **at most 1–2 light touches per
+drawcast, never forced — exaggerated humor bores fast — and the explanation
+stays rigorous.** Humor must never delay the ink: a joke rides on a narrated
+action like any other sentence (screen-first outranks tone).
+
+- `#fun` — allow a slightly playful register, and — the best mechanism — let
+  the CONCRETE EXAMPLE itself be quirky or gently absurd, tongue-in-cheek
+  (supply and demand of umbrella rentals in a rainstorm; a zombie outbreak for
+  SIR). The numbers stay real and the reasoning stays exact; only the setting
+  winks.
+- `#dry` — deadpan understatement: one or two dry asides delivered straight,
+  no exclamation marks, the joke never announced.
+- `#pun` — one, at most two puns, placed at reveals where the pun lands on
+  something now visible on the canvas; never in the opening line.
 
 ## Phase 1 — prompt + tags + lint (no schema change)
 
@@ -77,6 +101,8 @@ All single-token; surfaced by the existing autosuggest popup and chips.
   empirical evidence), `#proscons`. Briefs say "within the length budget" so
   short formats stay short. `#controversy`/`#history`/`#facts`/`#provoke`
   share the guardrail sentence (principle 4).
+- New `tone` group: `#fun`, `#dry`, `#pun` with the briefs above (restraint
+  clause shared, quirky-example mechanism in `#fun`).
 - **`#verylong` refactor:** remove the hard-coded controversy/history clauses;
   length buys lines and raises the ingredient allowance to two, ingredients
   decide the content.
@@ -113,6 +139,22 @@ the field only means something with `speak`.
   gender heuristic on top of the existing scoring. If only one decent voice
   exists, both speakers share it — dialogue still plays, just less vividly.
 
+### Voice tags: `#male` / `#female`
+
+`#male` / `#female` pick the narrator's gender — for a single-voice drawcast
+the narrator, for dialogue forms the lead teacher (B in `#qa`), with the other
+speaker getting the contrasting voice. No tag = today's defaults.
+
+These tags contribute no brief. Instead the parser stamps the choice
+deterministically into the spec as `meta.voice` ("male" | "female"), and both
+speech backends read it when selecting voices. This amends the rule in
+tags.ts's header ("a tag changes what the AI writes — never how the app
+plays"): the honest rule is **a tag changes what lands in the SPEC — commands
+or meta — never Settings.** The voice is part of the authored work, so a saved
+or exported drawcast replays with the voice it was made with; Settings keeps
+owning device-level playback (rate, explicit voice override, which wins over
+meta.voice when set).
+
 ### Style tags (form group)
 
 Every dialogue brief carries the whiteboard rule: **two people at a
@@ -142,10 +184,17 @@ instruction.
 Schema/extract round-trip of `voice`, player passes voice to the speech
 manager, browser pair selection (nb pair, en heuristic, single-voice
 fallback), cloud request carries the right voice name, cache keyed per voice,
-dialogue brief content.
+dialogue brief content, `#male`/`#female` → `meta.voice` stamping and voice
+pick in both backends (and Settings override winning).
 
 ## Out of scope / later
 
+- **`#old` / `#young`:** deferred. Neither Google Cloud TTS nor browser voice
+  catalogs have an age axis, so the honest implementations are a crude pitch /
+  rate shift (sounds gimmicky fast) or a persona brief that shades the writing
+  (an old professor's register, a young enthusiast's). The persona-brief
+  variant may return as tone-adjacent tags once the tone group has proven
+  itself; a pure playback fake does not.
 - Visual speaker indicator (captions, name chips) in the player.
 - Voice choice UI in Settings for the second speaker.
 - Autosuggest popup group headers (revisit when the vocabulary passes ~20).
