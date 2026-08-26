@@ -196,7 +196,19 @@ describe("halftone look (the new default)", () => {
     const data = new Uint8ClampedArray(w * h * 4).fill(0);
     for (let i = 3; i < data.length; i += 4) data[i] = 255;
     const t = traceImage({ width: w, height: h, data });
-    expect(t.shapes.length).toBeLessThanOrEqual(900);
+    expect(t.shapes.length).toBeLessThanOrEqual(2400);
     expect(t.shapes.length).toBeGreaterThan(300);
+  });
+
+  test("photo strings round-trip and reject non-image payloads", async () => {
+    const { encodePhoto, decodePhoto } = await import("../src/spec/trace");
+    const s = encodePhoto(1.3, "data:image/jpeg;base64,AAAA");
+    expect(s.startsWith("img1:")).toBe(true);
+    const back = decodePhoto(s)!;
+    expect(back.aspect).toBeCloseTo(1.3, 2);
+    expect(back.href).toBe("data:image/jpeg;base64,AAAA");
+    expect(decodePhoto("img1:AA:https://evil.example/x.jpg")).toBeNull(); // data URIs only
+    expect(decodePhoto("t2:AA:lAAAAAAAA")).toBeNull();
+    expect(decodePhoto("img1:!!:data:image/png;base64,x")).toBeNull();
   });
 });

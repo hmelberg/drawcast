@@ -207,8 +207,8 @@ function normalize(chains: { kind: TraceShape["kind"]; pts: [number, number][] }
 
 // ---- the halftone look ----------------------------------------------------
 
-/** Cap on halftone dots — independent of maxStrokes (a portrait needs hundreds). */
-const DOT_BUDGET = 900;
+/** Cap on halftone dots — independent of maxStrokes (a portrait needs thousands). */
+const DOT_BUDGET = 2400;
 
 /**
  * The newspaper-print portrait: a hex-packed grid of ink dots whose SIZE

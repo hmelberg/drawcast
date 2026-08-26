@@ -61,6 +61,23 @@ export function encodeTrace(t: PortraitTrace): string {
   return `t2:${enc12(Math.min(8, aspect) * 500)}:${parts.join(".")}`;
 }
 
+/** The photo look's wire form: `img1:<2-char aspect>:<data URI>`. */
+export function encodePhoto(aspect: number, href: string): string {
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  return `img1:${enc12(Math.min(8, a) * 500)}:${href}`;
+}
+
+export function decodePhoto(s: string): { aspect: number; href: string } | null {
+  if (typeof s !== "string" || !s.startsWith("img1:")) return null;
+  const body = s.slice(5);
+  if (body[2] !== ":") return null;
+  const aspectRaw = dec12(body, 0);
+  if (aspectRaw === null) return null;
+  const href = body.slice(3);
+  if (!href.startsWith("data:image/")) return null;
+  return { aspect: Math.max(0.05, aspectRaw / 500), href };
+}
+
 export function decodeTrace(s: string): PortraitTrace | null {
   if (typeof s !== "string") return null;
   const v2 = s.startsWith("t2:");

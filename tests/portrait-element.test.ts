@@ -90,6 +90,22 @@ describe("portrait element — halftone dots", () => {
   });
 });
 
+describe("portrait element — photo look", () => {
+  test("an img1 string renders as a framed image drawable; junk degrades to the placeholder", async () => {
+    const { encodePhoto } = await import("../src/spec/trace");
+    const res = layoutSpec(spec({ strokes: encodePhoto(1.25, "data:image/jpeg;base64,AAAA") }));
+    const flat = flattenDrawables(res.drawables);
+    const img = flat.find((d) => d.id === "p1__img") as { kind: string; w: number; h: number; pos: [number, number] };
+    expect(img?.kind).toBe("image");
+    expect(img.w).toBe(160);
+    expect(img.h).toBeCloseTo(200, 0);
+    expect(img.pos).toEqual([200, 500]);
+    expect(flat.some((d) => d.id === "p1__frame")).toBe(true);
+    const junk = layoutSpec(spec({ of: "X Y", strokes: "img1:AA:not-a-data-uri" }));
+    expect(flattenDrawables(junk.drawables).some((d) => d.id === "p1__initials")).toBe(true);
+  });
+});
+
 describe("portrait resolver helpers", () => {
   test("wikiSummaryUrl encodes names the REST API way", () => {
     expect(wikiSummaryUrl("A. W. Phillips")).toBe("https://en.wikipedia.org/api/rest_v1/page/summary/A._W._Phillips");
@@ -100,6 +116,7 @@ describe("portrait resolver helpers", () => {
     expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|halftone|name|keynes`);
     expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|halftone|url|https://x/y.jpg`);
     expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "line" })).toBe(`p${TRACE_VERSION}|line|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "photo" })).toBe(`p${TRACE_VERSION}|photo|name|keynes`);
     expect(portraitCacheKey({ type: "portrait" })).toBeNull();
   });
 

@@ -39,6 +39,7 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn): LintIssue
   for (const d of leaves) {
     let box;
     if (d.kind === "text") box = bboxOfText(d, measure);
+    else if (d.kind === "image") box = { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h };
     else if (d.pts.length > 0) box = d.kind === "stroke" && d.shapeHint?.type === "circle"
       ? { x: d.shapeHint.c[0] - d.shapeHint.r, y: d.shapeHint.c[1] - d.shapeHint.r, w: 2 * d.shapeHint.r, h: 2 * d.shapeHint.r }
       : bboxOfPts(d.pts);

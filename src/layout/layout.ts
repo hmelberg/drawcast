@@ -109,6 +109,8 @@ function unionBBoxForId(drawables: Drawable[], id: string, measure: MeasureFn): 
     if (d.id === `${id}_leader` || d.id === `${id}_guides`) continue;
     if (d.kind === "text") {
       boxes.push(bboxOfText(d, measure));
+    } else if (d.kind === "image") {
+      boxes.push({ x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h });
     } else if (d.kind === "stroke" && d.shapeHint?.type === "circle") {
       const { c, r } = d.shapeHint;
       boxes.push({ x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r });
@@ -177,6 +179,8 @@ function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): Obstacle[] {
     if (d.kind === "text") {
       // Text is solid: overlapping words are unreadable.
       obstacles.push({ box: expandBox(bboxOfText(d, measure), 2), solid: true, id: d.id });
+    } else if (d.kind === "image") {
+      obstacles.push({ box: { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h }, solid: false, id: d.id });
     } else if (d.kind === "stroke") {
       // Strokes/shapes are soft: a label may graze them (the halo keeps it legible).
       if (d.shapeHint?.type === "circle") {

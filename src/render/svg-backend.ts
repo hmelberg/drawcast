@@ -236,7 +236,7 @@ function plainPath(d: string, style: { color: string; strokeWidth: number; fill?
   return p;
 }
 
-function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "text" }>): void {
+function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "text" | "image" }>): void {
   if (d.kind === "area") {
     if (isExactArea(d)) {
       g.appendChild(exactAreaPath(d));
@@ -316,6 +316,18 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     g.appendChild(t);
     return g;
   }
+  if (d.kind === "image") {
+    const img = document.createElementNS(SVG_NS, "image");
+    img.setAttribute("href", d.href);
+    img.setAttribute("x", String(d.pos[0] - d.w / 2));
+    img.setAttribute("y", String(toSvgY(d.pos[1] + d.h / 2)));
+    img.setAttribute("width", String(d.w));
+    img.setAttribute("height", String(d.h));
+    img.setAttribute("preserveAspectRatio", "none");
+    if (d.style.opacity < 1) img.setAttribute("opacity", String(d.style.opacity));
+    g.appendChild(img);
+    return g;
+  }
   if (!rc) {
     drawLeafClean(g, d);
     return g;
@@ -368,6 +380,18 @@ interface LeafHandle {
 }
 
 function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
+  if (leaf.kind === "image") {
+    // Images reveal as a straight opacity fade (a photo has no pen to follow).
+    return {
+      durationMs: leaf.drawOpts.duration,
+      prepare: () => {
+        g.style.opacity = "0";
+      },
+      setProgress: (t) => {
+        g.style.opacity = String(leaf.style.opacity * t);
+      },
+    };
+  }
   if (leaf.kind === "text") {
     // KNOWN, DELIBERATE mismatch: the reveal ends on `base`, but drawLeaf has
     // ALREADY put opacity="base" on the <text> itself, so a settled

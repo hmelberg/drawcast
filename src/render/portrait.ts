@@ -7,11 +7,11 @@
 // playback never stalls mid-figure and exports resolve before recording.
 
 import type { Spec, SpecElement } from "../spec/types";
-import { decodeTrace, encodeTrace } from "../spec/trace";
+import { decodePhoto, decodeTrace, encodePhoto, encodeTrace } from "../spec/trace";
 import { traceImage } from "./tracer";
 
 /** Bump when the tracer's output changes — old cache entries stop matching. */
-export const TRACE_VERSION = 4; // v4: halftone (dot) look is the default
+export const TRACE_VERSION = 5; // v5: photo look; halftone traces at higher resolution
 
 /** The Wikipedia summary endpoint for a person (CORS-open, returns the infobox thumbnail). */
 export function wikiSummaryUrl(name: string): string {
@@ -75,11 +75,11 @@ export async function cachePut(key: string, encoded: string): Promise<void> {
 
 // ---- image → trace --------------------------------------------------------
 
-/** Longest image side used for tracing — detail beyond this is noise at portrait size. */
-const TRACE_DIM = 150;
+/** Longest image side per look — halftone earns extra resolution (finer dots). */
+const LOOK_DIM: Record<string, number> = { halftone: 260, poster: 150, line: 150, photo: 240 };
 
 /** Load a CORS-readable image into pixel data (browser only). */
-async function loadRaster(url: string): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
+async function loadRaster(url: string, maxDim: number): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
@@ -87,7 +87,7 @@ async function loadRaster(url: string): Promise<{ width: number; height: number;
     img.onerror = () => reject(new Error(`image failed to load (host may not allow cross-origin reads): ${url}`));
     img.src = url;
   });
-  const scale = Math.min(1, TRACE_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(8, Math.round(img.naturalWidth * scale));
   const h = Math.max(8, Math.round(img.naturalHeight * scale));
   const canvas = document.createElement("canvas");
@@ -99,10 +99,38 @@ async function loadRaster(url: string): Promise<{ width: number; height: number;
   return ctx.getImageData(0, 0, w, h); // throws on tainted canvas = clear CORS signal
 }
 
-/** Fetch + trace + encode one portrait image URL. */
-export async function traceFromUrl(url: string, look: "halftone" | "poster" | "line" = "halftone"): Promise<string> {
-  const raster = await loadRaster(url);
+export type PortraitLook = "halftone" | "poster" | "line" | "photo";
+
+/** Fetch + convert one portrait image URL into the encoded form for `look`. */
+export async function traceFromUrl(url: string, look: PortraitLook = "halftone"): Promise<string> {
+  const raster = await loadRaster(url, LOOK_DIM[look] ?? 150);
+  if (look === "photo") return encodePhoto(raster.height / raster.width, styledPhotoDataUri(raster));
   return encodeTrace(traceImage(raster, { style: look }));
+}
+
+/**
+ * The faithful look: grayscale with a gentle contrast bump and a warm
+ * paper tint, re-encoded as a small JPEG data URI — recognizable where
+ * every stylization fails, still tonally at home on the paper.
+ */
+function styledPhotoDataUri(raster: { width: number; height: number; data: Uint8ClampedArray }): string {
+  const { width: w, height: h, data } = raster;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas 2D unavailable");
+  const out = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const lum = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+    const c = Math.max(0, Math.min(255, (lum - 128) * 1.08 + 132));
+    out.data[i * 4] = c;
+    out.data[i * 4 + 1] = c * 0.97;
+    out.data[i * 4 + 2] = c * 0.9;
+    out.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  return canvas.toDataURL("image/jpeg", 0.8);
 }
 
 /** Trace a local image file (editor file-drop) — no CORS involved. */
@@ -131,7 +159,7 @@ export async function resolvePortraits(spec: Spec): Promise<PortraitResolution[]
   const results: PortraitResolution[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type !== "portrait") continue;
-    if (el.strokes && decodeTrace(el.strokes)) {
+    if (el.strokes && (decodeTrace(el.strokes) || decodePhoto(el.strokes))) {
       results.push({ id: el.id, ok: true });
       continue;
     }
@@ -151,7 +179,7 @@ export async function resolvePortraits(spec: Spec): Promise<PortraitResolution[]
           if (!imageUrl) throw new Error(`no portrait found on Wikipedia for "${el.of}"`);
         }
         if (!imageUrl) throw new Error("no image source");
-        encoded = await traceFromUrl(imageUrl, el.look ?? "halftone");
+        encoded = await traceFromUrl(imageUrl, (el.look as PortraitLook | undefined) ?? "halftone");
         el.source = el.source ?? imageUrl;
         await cachePut(key, encoded);
       }

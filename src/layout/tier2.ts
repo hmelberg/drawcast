@@ -20,7 +20,7 @@ import {
   type TextDrawable,
 } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
-import { decodeTrace } from "../spec/trace";
+import { decodePhoto, decodeTrace } from "../spec/trace";
 import type { LabelRequest } from "./labels";
 import type { SpecElement } from "../spec/types";
 
@@ -517,9 +517,39 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
   const w = el.width ?? 170;
   const cx = el.x ?? 170;
   const cy = el.y ?? 550;
-  const trace = el.strokes ? decodeTrace(el.strokes) : null;
+  const photo = el.strokes ? decodePhoto(el.strokes) : null;
+  const trace = !photo && el.strokes ? decodeTrace(el.strokes) : null;
   const children: Drawable[] = [];
-  if (trace && trace.shapes.length > 0) {
+  if (photo) {
+    // The faithful look: a small styled grayscale photo, framed so it sits
+    // in the sketchbook like something taped in.
+    const h = w * photo.aspect;
+    children.push({
+      id: `${el.id}__img`,
+      kind: "image",
+      href: photo.href,
+      pos: [cx, cy],
+      w,
+      h,
+      z: Z_STROKE,
+      style: resolveStyle(undefined, {}),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+    });
+    children.push({
+      id: `${el.id}__frame`,
+      kind: "stroke",
+      pts: [
+        [cx - w / 2 - 5, cy - h / 2 - 5],
+        [cx + w / 2 + 5, cy - h / 2 - 5],
+        [cx + w / 2 + 5, cy + h / 2 + 5],
+        [cx - w / 2 - 5, cy + h / 2 + 5],
+      ],
+      closed: true,
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { strokeWidth: 3 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
+    });
+  } else if (trace && trace.shapes.length > 0) {
     const h = w * trace.aspect;
     const map = ([nx, ny]: [number, number]): Pt => [cx - w / 2 + nx * w, cy - h / 2 + ny * w];
     // Paint order carries the poster logic: washes under, ink fills over,

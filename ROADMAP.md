@@ -131,9 +131,11 @@ shading, pinning and blob-hoisting; the poster (posterized-region) look
 then replaced lines as the default. The halftone look (Hans's dots
 idea) shipped 2026-08-27 and became the DEFAULT — poster destroyed
 likeness; dot-size halftone keeps faces recognizable because tone
-survives. Still deferred: crop/re-trace UI, an optional shared cache
-tier (Anvil), and a true grayscale-photo look (needs an image drawable
-kind in the renderer) if halftone ever falls short.
+survives. The photo look shipped 2026-08-27
+(image drawable kind; framed, paper-tinted grayscale JPEG data URIs) after
+halftone at 900 dots also fell short of likeness; halftone stayed default
+at 2400 dots / 260px tracing pending Hans's verdict between the two.
+Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
 ## Phase A — interaction primitives
 

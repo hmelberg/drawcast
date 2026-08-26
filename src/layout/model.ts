@@ -90,7 +90,17 @@ export interface GroupDrawable extends BaseDrawable {
   children: Drawable[];
 }
 
-export type Drawable = StrokeDrawable | AreaDrawable | TextDrawable | GroupDrawable;
+export interface ImageDrawable extends BaseDrawable {
+  kind: "image";
+  /** A data URI (self-contained; external URLs would break offline/export). */
+  href: string;
+  /** Center, logical y-up units. */
+  pos: Pt;
+  w: number;
+  h: number;
+}
+
+export type Drawable = StrokeDrawable | AreaDrawable | TextDrawable | ImageDrawable | GroupDrawable;
 
 export const Z_AREA = 0;
 export const Z_STROKE = 1;
