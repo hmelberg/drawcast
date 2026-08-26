@@ -6,10 +6,12 @@ import type { Command } from "../src/spec/types";
 
 class StubSpeech extends SpeechManager {
   resolvers: (() => void)[] = [];
+  calls: Array<{ text: string; opts?: unknown }> = [];
   override get available(): boolean {
     return false;
   }
-  override speak(): Promise<void> {
+  override speak(text: string, _speedMultiplier: number, _signal?: AbortSignal, opts?: unknown): Promise<void> {
+    this.calls.push({ text, opts });
     return new Promise((res) => this.resolvers.push(res));
   }
   override cancel(): void {}
@@ -76,5 +78,25 @@ describe("narration barrier — visuals never race ahead of the voice", () => {
     speech.resolvers[1]();
     await done;
     expect(player.position).toBe(5);
+  });
+
+  test("player passes speaker, delivery and gender to speech", async () => {
+    const speech = new StubSpeech();
+    const player = makePlayer(
+      [
+        { draw: ["x"], speak: "B draws.", voice: "b", delivery: "grave" } as Command,
+        { speak: "A reacts.", voice: "a" } as Command,
+      ],
+      speech,
+    );
+    player.setNarratorGender("male");
+    const done = player.play();
+    await tick();
+    speech.resolvers[0]();
+    await tick();
+    speech.resolvers[1]();
+    await done;
+    expect(speech.calls[0].opts).toMatchObject({ speaker: "b", delivery: "grave", gender: "male" });
+    expect(speech.calls[1].opts).toMatchObject({ speaker: "a", gender: "male" });
   });
 });

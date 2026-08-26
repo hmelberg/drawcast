@@ -8,9 +8,10 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { readParam } from "./params";
 import type { Command, Easing, HighlightEffect, PointGesture } from "../spec/types";
+import type { Delivery } from "./delivery";
 
 export type PlanStep = (
-  | { kind: "speak"; text: string; blocking: boolean }
+  | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
   | { kind: "draw"; ids: string[]; parallel: boolean; implicit?: boolean }
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
@@ -35,6 +36,8 @@ export type PlanStep = (
 ) & {
   /** speak paired with an action: voice and action start together, both must finish. */
   narration?: string;
+  narrationSpeaker?: "a" | "b";
+  narrationDelivery?: Delivery;
 };
 
 /** Scene state at a step boundary. A pure function of the step index. */
@@ -95,8 +98,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
 
   /** Narration of the command currently being planned (speak paired with an action). */
   let currentNarration: string | undefined;
+  /** Voice/delivery hints for currentNarration — travel together, always. */
+  let currentNarrationSpeaker: "a" | "b" | undefined;
+  let currentNarrationDelivery: Delivery | undefined;
   const pushStep = (step: PlanStep) => {
-    if (currentNarration !== undefined && step.kind !== "speak") step = { ...step, narration: currentNarration };
+    if (currentNarration !== undefined && step.kind !== "speak") {
+      step = {
+        ...step,
+        narration: currentNarration,
+        narrationSpeaker: currentNarrationSpeaker,
+        narrationDelivery: currentNarrationDelivery,
+      };
+    }
     steps.push(step);
     states.push({ visible: [...visible], offsets: { ...offsets }, camera, params: { ...params } });
   };
@@ -132,8 +145,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
+    currentNarrationSpeaker = hasAction ? cmd.voice : undefined;
+    currentNarrationDelivery = hasAction ? cmd.delivery : undefined;
     if (cmd.speak !== undefined && !hasAction) {
-      pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false });
+      pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false, speaker: cmd.voice, delivery: cmd.delivery });
     } else if (cmd.draw !== undefined) {
       const ids = resolveIds(cmd.draw, "draw");
       ids.forEach((id) => mentioned.add(id));
@@ -289,7 +304,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // No template means no animation surface at all, but a paired
         // narration is still content the story wanted spoken — keep it
         // rather than silently dropping the sentence with the animate.
-        if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true });
+        if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true, speaker: cmd.voice, delivery: cmd.delivery });
         continue;
       }
       if (Object.keys(targets).length === 0) {
@@ -311,6 +326,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   }
 
   currentNarration = undefined;
+  currentNarrationSpeaker = undefined;
+  currentNarrationDelivery = undefined;
   const remaining = allIds.filter((id) => !mentioned.has(id));
   if (remaining.length > 0) {
     makeVisible(remaining);

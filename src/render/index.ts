@@ -114,6 +114,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     { mode: options.mode, speed: options.speed, effects: mounted.effects },
     options.callbacks,
   );
+  player.setNarratorGender(spec.voice ?? null);
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {

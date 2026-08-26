@@ -72,6 +72,8 @@ export class Player {
   private ac: AbortController | null = null;
   /** Boundary: number of fully completed steps. */
   private completed = 0;
+  /** Speaker "a"'s gender (from Spec.voice), passed through to every speech.speak call. */
+  private narratorGender: "male" | "female" | null = null;
   /** Animate params currently reflected on screen (last reprojector.commit call). */
   private appliedParams: Record<string, number> = {};
   /** True once any reprojector.frame() has run since the last commit — forces the next applyParams to commit even if params compare equal (frame() left the DOM at a live, possibly detached, mid-tween state). */
@@ -112,6 +114,10 @@ export class Player {
   setMode(mode: PlaybackMode): void {
     this.mode = mode;
     if (mode === "instant") this.renderUpTo(this.plan.steps.length);
+  }
+
+  setNarratorGender(g: "male" | "female" | null): void {
+    this.narratorGender = g;
   }
 
   async play(): Promise<void> {
@@ -278,7 +284,11 @@ export class Player {
       this.setCaption(step.narration);
       const voice =
         this.mode === "narrated"
-          ? this.speech.speak(step.narration, this.speedVal, signal)
+          ? this.speech.speak(step.narration, this.speedVal, signal, {
+              speaker: step.narrationSpeaker,
+              delivery: step.narrationDelivery,
+              gender: this.narratorGender ?? undefined,
+            })
           : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.narration) * 0.4), signal);
       this.narrationVoice = voice;
       try {
@@ -298,7 +308,11 @@ export class Player {
       case "speak": {
         this.setCaption(step.text);
         if (this.mode === "narrated") {
-          const spoken = this.speech.speak(step.text, this.speedVal, signal);
+          const spoken = this.speech.speak(step.text, this.speedVal, signal, {
+            speaker: step.speaker,
+            delivery: step.delivery,
+            gender: this.narratorGender ?? undefined,
+          });
           if (step.blocking) await spoken;
           else this.pendingSpeech = spoken;
         } else {
