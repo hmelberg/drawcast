@@ -152,6 +152,10 @@ export interface Command {
   speak?: string;
   /** With speak: false = start speaking and continue to the next command immediately. */
   blocking?: boolean;
+  /** With speak: which dialogue voice reads the line ("a" = lead/teacher, the default; "b" = second voice). */
+  voice?: "a" | "b";
+  /** With speak: named prosody nudge — soft (confiding), grave (slow reveal), brisk (light recap). Use sparingly. */
+  delivery?: "soft" | "grave" | "brisk";
   draw?: string[] | string;
   /** With draw/erase: animate the listed elements simultaneously. */
   parallel?: boolean;
@@ -185,6 +189,8 @@ export interface Spec {
   title?: string;
   /** Difficulty badge, shown in playlist navigation (stamped from #basic/#advanced). */
   level?: "basic" | "advanced";
+  /** Narrator gender preference (stamped from #male/#female). In dialogue this is speaker "a"; "b" gets the contrast. */
+  voice?: "male" | "female";
   canvas?: { width: number; height: number };
   template?: string;
   params?: Record<string, unknown>;

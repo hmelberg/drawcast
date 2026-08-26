@@ -141,7 +141,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (announcement, synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -152,6 +152,17 @@ const commandSchema = {
     blocking: {
       type: "boolean",
       description: "With speak: false starts the narration and immediately continues to the next command — use it to talk while pointing, highlighting, or drawing.",
+    },
+    voice: {
+      type: "string",
+      enum: ["a", "b"],
+      description: 'With speak in a dialogue: which speaker reads this line — "a" (the lead/teacher, the default) or "b" (the second voice).',
+    },
+    delivery: {
+      type: "string",
+      enum: ["soft", "grave", "brisk"],
+      description:
+        "With speak: named delivery nudge — soft = confiding lean-in (slightly slower, lower, quieter); grave = slow and weighty for the key reveal; brisk = lightly quicker for recaps. Mark only the few lines where the meaning warrants it.",
     },
     draw: idListSchema("Element ids to draw. Listed elements animate one after another unless parallel is true."),
     parallel: { type: "boolean", description: "With draw/erase: animate the listed elements simultaneously." },
@@ -247,6 +258,11 @@ export const specSchema = {
   properties: {
     title: { type: "string", description: "Short title of the figure." },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
+    voice: {
+      type: "string",
+      enum: ["male", "female"],
+      description: 'Narrator voice. Usually stamped from the #male/#female tags — omit unless the request states it. In dialogue this is speaker "a"; speaker "b" gets the contrasting voice.',
+    },
     template: { type: "string", description: "Scene template name from the catalog. Omit when composing elements directly." },
     params: { type: "object", description: "Scene template parameters, per the catalog's parameter schema.", additionalProperties: true },
     domain: {
@@ -331,6 +347,9 @@ function semanticErrors(spec: Spec): string[] {
     const verb: string = actions.length > 0 ? actions[0] : "speak";
     if (cmd.blocking !== undefined && (verb !== "speak" || cmd.speak === undefined)) {
       errors.push(`commands[${i}]: blocking only applies to a standalone speak (a speak paired with an action always joins both)`);
+    }
+    if ((cmd.voice !== undefined || cmd.delivery !== undefined) && cmd.speak === undefined) {
+      errors.push(`commands[${i}]: voice and delivery only apply to a command with speak`);
     }
     if (cmd.parallel !== undefined && verb !== "draw" && verb !== "erase") errors.push(`commands[${i}]: parallel only applies to draw/erase`);
     if (verb === "move" && !cmd.move!.by && !(cmd.move!.path && cmd.move!.path.length > 0)) {

@@ -164,3 +164,25 @@ describe("validateSpec — gesture verbs", () => {
     expect(twoVerbs.ok).toBe(false);
   });
 });
+
+describe("voice and delivery", () => {
+  test("valid: spec voice, command voice+delivery with speak", () => {
+    const r = validateSpec({
+      voice: "male",
+      elements: [{ id: "c1", type: "curve", direction: "decreasing" }],
+      commands: [{ draw: ["c1"], speak: "Here.", voice: "b", delivery: "grave" }],
+    });
+    expect(r.errors).toEqual([]);
+  });
+  test("voice/delivery without speak is a semantic error", () => {
+    const r = validateSpec({
+      elements: [{ id: "c1", type: "curve", direction: "decreasing" }],
+      commands: [{ draw: ["c1"], voice: "b" }],
+    });
+    expect(r.errors.join(" ")).toContain("voice and delivery only apply");
+  });
+  test("bad enum rejected structurally", () => {
+    const r = validateSpec({ voice: "robot", elements: [{ id: "c1", type: "curve", direction: "decreasing" }] });
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+});
