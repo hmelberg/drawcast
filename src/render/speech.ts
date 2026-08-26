@@ -6,6 +6,21 @@
 // one). Unless the user picked a voice explicitly, we score the available
 // voices and choose the best match for the utterance's language.
 
+import { DELIVERY, dbToGain, effectiveGender, type SpeakOpts } from "./delivery";
+
+// Gender is not exposed by the Web Speech API — infer it from well-known
+// voice names ("Samantha (Enhanced)" matches by prefix). Unknown names stay
+// ungendered and only win when no gendered match exists.
+const FEMALE_NAMES = ["Samantha", "Karen", "Victoria", "Moira", "Fiona", "Tessa", "Kate", "Serena", "Allison", "Ava", "Susan", "Zoe", "Nora", "Nicky", "Joana", "Martha"];
+const MALE_NAMES = ["Daniel", "Alex", "Oliver", "Thomas", "Fred", "Aaron", "Arthur", "Gordon", "Lee", "Rishi", "Jamie", "Henrik"];
+
+function voiceGenderOf(v: SpeechSynthesisVoice): "male" | "female" | null {
+  const name = v.name;
+  if (FEMALE_NAMES.some((n) => name.startsWith(n))) return "female";
+  if (MALE_NAMES.some((n) => name.startsWith(n))) return "male";
+  return null;
+}
+
 const PREFERRED_NAMES = [
   "Samantha", "Ava", "Allison", "Susan", "Zoe", "Evan", "Nathan", "Joelle", "Aaron",
   "Karen", "Daniel", "Serena", "Moira", "Tessa", "Fiona", "Kate", "Oliver",
@@ -46,7 +61,7 @@ export function detectLang(text: string): "en" | "nb" {
  */
 export interface SpeechLike {
   /** Speak one utterance; resolves when it ends (or its fallback wait does). */
-  speak(text: string, speedMultiplier: number, signal?: AbortSignal): Promise<void>;
+  speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void>;
   cancel(): void;
   pause(): void;
   resume(): void;
@@ -82,18 +97,31 @@ export class SpeechManager {
     this.voiceURI = uri;
   }
 
-  /** Highest-scoring voice for a language; null lets the browser default. */
-  bestVoice(lang: "en" | "nb"): SpeechSynthesisVoice | null {
-    let best: SpeechSynthesisVoice | null = null;
-    let bestScore = 0;
-    for (const v of this.voices()) {
-      const s = scoreVoice(v, lang);
-      if (s > bestScore) {
-        best = v;
-        bestScore = s;
+  /**
+   * Highest-scoring voice for a language; null lets the browser default.
+   * With a gender, scores only name-matched voices first and falls back to
+   * the ungendered scan when none match — no gender is byte-identical to
+   * before.
+   */
+  bestVoice(lang: "en" | "nb", gender?: "male" | "female" | null): SpeechSynthesisVoice | null {
+    const voices = this.voices();
+    const scan = (pool: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
+      let best: SpeechSynthesisVoice | null = null;
+      let bestScore = 0;
+      for (const v of pool) {
+        const s = scoreVoice(v, lang);
+        if (s > bestScore) {
+          best = v;
+          bestScore = s;
+        }
       }
+      return best;
+    };
+    if (gender) {
+      const gendered = scan(voices.filter((v) => voiceGenderOf(v) === gender));
+      if (gendered) return gendered;
     }
-    return best;
+    return scan(voices);
   }
 
   setRate(rate: number): void {
@@ -131,8 +159,10 @@ export class SpeechManager {
    * Speak one utterance; resolves when it ends. speedMultiplier scales the
    * configured rate. Falls back to a timed wait on error/unavailability.
    */
-  speak(text: string, speedMultiplier: number, signal?: AbortSignal): Promise<void> {
-    const estimate = SpeechManager.estimateMs(text) / speedMultiplier;
+  speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+    const d = opts?.delivery ? DELIVERY[opts.delivery] : null;
+    const deliveryRate = d?.rate ?? 1;
+    const estimate = SpeechManager.estimateMs(text) / (speedMultiplier * deliveryRate);
     if (!this.synth || signal?.aborted) {
       return abortableWait(estimate, signal);
     }
@@ -155,11 +185,13 @@ export class SpeechManager {
       const utterance = new SpeechSynthesisUtterance(text);
       const lang = detectLang(text);
       const explicit = this.voices().find((v) => v.voiceURI === this.voiceURI);
-      const voice = explicit ?? this.bestVoice(lang);
+      const g = effectiveGender(opts);
+      const voice = explicit ?? this.bestVoice(lang, g);
       if (voice) utterance.voice = voice;
       utterance.lang = voice?.lang ?? (lang === "nb" ? "nb-NO" : "en-US");
-      utterance.rate = Math.min(4, Math.max(0.25, this.rate * speedMultiplier));
-      utterance.volume = this.mutedFlag ? 0 : 1;
+      utterance.rate = Math.min(4, Math.max(0.25, this.rate * speedMultiplier * deliveryRate));
+      utterance.pitch = Math.min(2, Math.max(0, 1 + (d?.pitchSt ?? 0) * 0.06));
+      utterance.volume = this.mutedFlag ? 0 : dbToGain(d?.gainDb ?? 0);
       utterance.onend = done;
       utterance.onerror = () => {
         // fall back to the remaining reading-time estimate
