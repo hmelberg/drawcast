@@ -3740,8 +3740,8 @@
         "title": "Lead-time bias"
       },
       "commands": [
-        { "draw": ["axis"], "speak": "Follow one patient's disease along a timeline — twice." },
-        { "draw": ["row_label_0", "row_0"], "speak": "First, life without screening." },
+        { "draw": ["axis"], "speak": "Screening can double measured survival without giving anyone a single extra day — this timeline shows the trick." },
+        { "draw": ["row_label_0", "row_0"], "speak": "Follow the same patient twice: first, life without screening." },
         { "draw": ["onset_0", "label_onset"], "speak": "The disease begins here, silently." },
         { "draw": ["detectable_0", "label_detectable"], "speak": "Soon a test could find it — but nobody is looking." },
         { "draw": ["dx_0", "label_dx_0"], "speak": "It is diagnosed only when symptoms appear." },

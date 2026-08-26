@@ -21,6 +21,38 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-08-26 — Situate the topic first: stakes before mechanics
+
+Hans (on the lead-time-bias example, which opened with two timelines and no
+why): "the listener may be left a bit confused as to why this is relevant …
+i tend to think that often it is better to know the motivation or the
+contect befor. In this example the conclusion is that lead-time bias is
+important because it may lead to wrong conclusions about the effectivness
+of screening. So one should, I think, say something like that right away.
+Maybe not exactly the conclusion, but a topic needs to be situated and made
+relevant. It is not important in itself. … state it or hint at it early nd
+then do the explnation inclding suprises and intersting facts and
+controversies or side.remarks (digressions are also ok sometimes). This is
+a general style advice, not just for the lead time bias example (and th
+eproblem is common with many of our eamples)."
+
+Distilled — graduated into the prompt in the same commit as this entry:
+
+1. **Situate before explaining.** The opening states or hints at WHY the
+   viewer wants this concept — the decision it informs, the mistake it
+   prevents, the claim it complicates — before the mechanics begin. Hint
+   at the stakes, not the full conclusion. This resolves the "why it
+   matters" candidate below (now its own prompt bullet, sibling to
+   screen-first).
+2. **Digressions are allowed.** The enrichment bullet now lists "a short
+   digression that circles back" among the permitted enrichment moments.
+
+Embodied in: the lead-time-bias example's opening rewritten (stakes ride
+the first draw: "Screening can double measured survival without giving
+anyone a single extra day — this timeline shows the trick"). Hans says the
+un-situated opening is COMMON across the bundled examples — a sweep of
+src/examples.json openings against this rule is a standing candidate below.
+
 ### 2026-08-26 — Color by role; explain in passing; skip the obvious; rules are defaults
 
 Hans: "Use colors on different types of elements and objects. Assume people
@@ -105,6 +137,8 @@ From `src/llm/prompts/compiler-v1.md`:
 - **Screen-first**: something appears within seconds; the opening line goes
   ON the first draw; at most one short standalone speak before ink; never a
   riddle over a blank canvas.
+- **Situate the topic**: the opening states or hints at why the viewer
+  wants the concept — stakes before mechanics, hint not conclusion.
 - **Aha mandate**: identify the one insight — the sentence the viewer could
   not have said before watching — converge every beat on its reveal, end by
   naming it.
@@ -141,6 +175,10 @@ talky-stretch (3+ speak-only lines in a row).
 - [ ] **One-surprise mandate** in the base prompt: alongside the aha,
       include one true, retellable, slightly surprising fact — with the
       truth guard attached. (From the 2026-08-26 entry.)
-- [ ] Consider whether the *why it matters* half of the hook deserves its
-      own sentence in the prompt — the current screen-first rule says
-      "announce the goal, or pose the hook" but not "say why it matters".
+- [x] ~~Consider whether the *why it matters* half of the hook deserves its
+      own sentence in the prompt~~ — graduated 2026-08-26 as the
+      "Situate the topic before you explain it" bullet (see ledger entry).
+- [ ] **Sweep the bundled examples for un-situated openings**: Hans says
+      the lead-time-bias problem — mechanics before motivation — is common
+      across src/examples.json. Review every example's first two beats
+      against the situate rule; rewrite the openings that fail it.

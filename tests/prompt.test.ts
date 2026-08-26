@@ -19,6 +19,11 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("non-intuitive");
     expect(compilerV1).toContain("defaults, not laws");
   });
+
+  test("demands the topic be situated — stakes stated or hinted before the mechanics", () => {
+    expect(compilerV1).toContain("Situate the topic");
+    expect(compilerV1).toContain("No concept is important in itself");
+  });
 });
 
 describe("buildSystemPrompt", () => {
