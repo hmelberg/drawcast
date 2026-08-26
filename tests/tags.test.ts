@@ -190,3 +190,18 @@ describe("tone and human tags", () => {
     expect(buildBrief(["human"])).toContain("th-the");
   });
 });
+
+describe("voice tags", () => {
+  test("#male/#female parse into voiceGender with empty brief", () => {
+    const r = parseTags("Explain GDP #male");
+    expect(r.voiceGender).toBe("male");
+    expect(r.tags).toEqual(["male"]);
+    expect(buildBrief(["male"])).toBe("");
+  });
+  test("exclusive: last wins", () => {
+    expect(parseTags("x #male #female").voiceGender).toBe("female");
+  });
+  test("absent → null", () => {
+    expect(parseTags("Explain GDP").voiceGender).toBeNull();
+  });
+});

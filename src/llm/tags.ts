@@ -1,10 +1,11 @@
 // Hashtag directives in the AI request text. One vocabulary drives parsing,
-// the recognized-tag chips, and the autosuggest popup. A tag changes what the
-// AI writes — never how the app plays (playback stays in Settings/controls).
+// the recognized-tag chips, and the autosuggest popup. A tag changes what lands
+// in the SPEC — commands, briefs that shape them, or spec metadata like level
+// and voice — never Settings (device playback stays in Settings/controls).
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "tone" | "human" | "gestures" | "structure";
+export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure";
 
 export interface TagDef {
   tag: string;
@@ -187,6 +188,18 @@ export const TAGS: TagDef[] = [
       "Sound human, not machine-read: an occasional hesitation ('Hmm —', 'well,', 'so…') at a genuine thinking moment (a few per drawcast, not per line), at most one self-correction ('about 30 — actually, closer to 33'), and em dashes or ellipses for natural micro-pauses. Never write literal stutters ('th-the') — text-to-speech reads them as glitches.",
   },
   {
+    tag: "male",
+    group: "voice",
+    hint: "male narrator voice (lead speaker in dialogue)",
+    brief: "",
+  },
+  {
+    tag: "female",
+    group: "voice",
+    hint: "female narrator voice (lead speaker in dialogue)",
+    brief: "",
+  },
+  {
     tag: "rich",
     group: "gestures",
     hint: "generous gestures: point, highlight, camera",
@@ -248,6 +261,8 @@ export interface ParsedTags {
   unknown: string[];
   /** Difficulty for stamping into the generated spec. */
   level: "basic" | "advanced" | null;
+  /** Narrator gender from #male/#female, stamped into the spec (never a brief). */
+  voiceGender: "male" | "female" | null;
   /** Forced template id from #template=<id>; null = not given. */
   template: string | null;
 }
@@ -296,6 +311,7 @@ export function parseTags(text: string): ParsedTags {
     .trim();
 
   const level = byGroup.get("level")?.tag ?? null;
+  const vg = byGroup.get("voice")?.tag ?? null;
   return {
     clean,
     tags: order.map((d) => d.tag),
@@ -303,6 +319,7 @@ export function parseTags(text: string): ParsedTags {
     parts,
     unknown,
     level: level === "basic" || level === "advanced" ? level : null,
+    voiceGender: vg === "male" || vg === "female" ? vg : null,
     template,
   };
 }

@@ -1928,6 +1928,7 @@ async function generate(): Promise<void> {
     }
     endSpecStream(false); // setDoc below writes the formatted spec over it
     if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
+    if (parsed.voiceGender && !outcome.spec.voice) outcome.spec.voice = parsed.voiceGender;
     setDoc(
       { id: null, driveFileId: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
@@ -2069,6 +2070,7 @@ async function generateMulti(
     }
     outcome.spec.title ??= outline.parts[i].title;
     outcome.spec.level ??= outline.parts[i].level ?? parsed.level ?? undefined;
+    outcome.spec.voice ??= parsed.voiceGender ?? undefined;
     specs.push(outcome.spec);
   });
   if (specs.length === 0) {
