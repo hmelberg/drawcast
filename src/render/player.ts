@@ -52,9 +52,9 @@ export class Player {
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
   /**
-   * Frame scheduler, injectable like inputGate: the exporter swaps in one that
-   * keeps ticking while this tab is hidden (its picture-in-picture preview
-   * window). Callbacks receive a timestamp on the main window's clock.
+   * Frame scheduler, injectable like inputGate: the exporter swaps in one
+   * that keeps ticking while the tab is hidden (a Web Worker interval).
+   * Callbacks receive a timestamp on the main window's clock.
    */
   raf: (cb: (now: number) => void) => void = (cb) => requestAnimationFrame(cb);
 

@@ -48,8 +48,7 @@ import {
 } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { exportVideo } from "./export/video";
-import { ExportKeepAlive } from "./export/keepalive";
-import { openExportPreview } from "./export/pip";
+import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
 import {
   addExemplar,
@@ -2788,26 +2787,22 @@ async function renderVideoBlob(): Promise<Blob | null> {
   const controller = new AbortController();
   exportAbort = controller;
   exportStage.replaceChildren();
-  // The always-on-top preview window keeps the recording running while this
-  // tab is hidden. It must be requested NOW, inside the click's transient
-  // activation; when it cannot open (unsupported browser, activation spent
-  // by a sign-in popup) the export still works and pauses while hidden.
+  // A Web Worker interval keeps the recording's clock ticking while this tab
+  // is hidden — no extra window, no user-gesture requirement. Where workers
+  // are unavailable the export still works and pauses while hidden.
   const keepAlive = new ExportKeepAlive(document, (cb) => requestAnimationFrame(() => cb()), () => performance.now());
-  const preview = await openExportPreview(keepAlive);
+  const clock = startWorkerClock();
+  if (clock) keepAlive.attach(clock.frame);
   try {
     return await exportVideo(
       exportSequence(doc.playlist),
       { ttsKey, style: settings.style, rate: settings.rate },
       {
-        onStatus: (t) => {
-          exportChipText.textContent = t;
-          preview?.setStatus(t);
-        },
+        onStatus: (t) => (exportChipText.textContent = t),
         canvas: exportCanvas,
         workbench: exportStage,
         signal: controller.signal,
         keepAlive,
-        onStream: (stream) => preview?.showStream(stream),
       },
     );
   } catch (err) {
@@ -2815,7 +2810,7 @@ async function renderVideoBlob(): Promise<Blob | null> {
     else setStatus(`Export failed: ${(err as Error).message}`, "error");
     return null;
   } finally {
-    preview?.close();
+    clock?.stop();
     keepAlive.dispose();
     exportStage.replaceChildren();
   }

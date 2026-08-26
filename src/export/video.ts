@@ -172,12 +172,10 @@ export interface ExportHooks {
   signal: AbortSignal;
   /**
    * When set, the export runs its replay, frame loop, and pacing on this
-   * scheduler — which keeps ticking on a picture-in-picture preview window
-   * while the tab is hidden — and only pauses when nothing is visible at all.
+   * scheduler — which keeps ticking (a Web Worker interval) while the tab is
+   * hidden — so the recording continues in the background.
    */
   keepAlive?: ExportKeepAlive;
-  /** The recording's MediaStream, for mirroring into a preview window. */
-  onStream?(stream: MediaStream): void;
 }
 
 /**
@@ -215,7 +213,6 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
 
     const captureTrack = canvas.captureStream(FPS).getVideoTracks()[0] as Partial<CanvasCaptureMediaStreamTrack> & MediaStreamTrack;
     const stream = new MediaStream([captureTrack, ...dest.stream.getAudioTracks()]);
-    hooks.onStream?.(stream);
     const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((m) => MediaRecorder.isTypeSupported(m));
     const recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 5_000_000 } : undefined);
     const chunks: Blob[] = [];
@@ -252,10 +249,10 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
 
     recorder.start(1000);
     // The export runs without a modal, so nothing stops the user from
-    // switching tabs mid-recording. With a keep-alive (the picture-in-picture
-    // preview window), the recording continues while the tab is hidden and
-    // this pauser only fires when nothing is visible at all; without one,
-    // freeze everything until they return.
+    // switching tabs mid-recording. With a keep-alive (worker-clock ticks),
+    // the recording continues while the tab is hidden and this pauser only
+    // fires when the export has no clock left; without one, freeze
+    // everything until they return.
     let resumeTarget: Awaited<ReturnType<typeof render>> | null = null;
     stopVisibility = visibilityPauser(keepAlive ?? document, {
       pause: () => {
@@ -278,7 +275,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         hooks.onStatus("Recording — resumed…");
       },
       // The deferred resume must run on a frame source that actually ticks —
-      // e.g. the preview window appearing while the tab itself is hidden.
+      // e.g. the keep-alive clock attaching while the tab itself is hidden.
     }, keepAlive ? (cb) => keepAlive.raf(() => cb()) : undefined);
     const onAbort = () => handle?.timeline.dispose();
     signal.addEventListener("abort", onAbort);
@@ -292,7 +289,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         currentSvg = svg;
         currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
         currentTitle = items[i].title ?? "";
-        if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking on the preview window
+        if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
         handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
         await handle.timeline.play();
         if (i < items.length - 1) {
