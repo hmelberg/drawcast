@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { DELIVERY, dbToGain, effectiveGender, speechKey } from "../src/render/delivery";
 import { SpeechManager } from "../src/render/speech";
+import { VOICES } from "../src/export/tts";
 
 describe("delivery table", () => {
   test("keys are stable and distinct per speaker/delivery/gender", () => {
@@ -34,5 +35,15 @@ describe("gendered voice pick", () => {
     expect(m.bestVoice("en", "female")?.name).toBe("Samantha");
     (m as unknown as { synth: unknown }).synth = { getVoices: () => [fakeVoice("Samantha", "en-US")] };
     expect(m.bestVoice("en", "male")?.name).toBe("Samantha"); // shared-voice fallback
+  });
+});
+
+describe("cloud voice map", () => {
+  test("has a gender pair per language", () => {
+    for (const lang of ["en", "nb"] as const) {
+      expect(VOICES[lang].female.name).toBeTruthy();
+      expect(VOICES[lang].male.name).toBeTruthy();
+      expect(VOICES[lang].female.name).not.toBe(VOICES[lang].male.name);
+    }
   });
 });

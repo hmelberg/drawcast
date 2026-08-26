@@ -8,11 +8,12 @@
 // <details> for collapse), per-item dots in the control bar, and n/p keys.
 
 import { render, type RenderHandle, type RenderStyle } from "../render";
+import { speechKey, type SpeakLine } from "../render/delivery";
 import type { PlaybackMode } from "../render/player";
 import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
-import { collectSpeakTexts } from "../export/video";
+import { collectSpeakLines } from "../export/video";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, type Playlist, type PlaylistItem } from "./playlist";
 
 export { itemTitle };
@@ -38,9 +39,15 @@ export interface SessionHandle {
  * Every narration line the playlist can speak — items, the title page, and
  * chapter cards. Derived from exportSequence, so live playback and video
  * export can never disagree about what needs pre-synthesized speech.
+ * Deduped by speechKey: the same text in two voices stays distinct.
  */
-export function playlistSpeakTexts(playlist: Playlist): string[] {
-  return [...new Set(exportSequence(playlist).flatMap(collectSpeakTexts))];
+export function playlistSpeakLines(playlist: Playlist): SpeakLine[] {
+  const seen = new Map<string, SpeakLine>();
+  for (const line of exportSequence(playlist).flatMap(collectSpeakLines)) {
+    const key = speechKey(line);
+    if (!seen.has(key)) seen.set(key, line);
+  }
+  return [...seen.values()];
 }
 
 /** An abortable sleep for auto-advance gaps; resolves (never rejects) on abort. */

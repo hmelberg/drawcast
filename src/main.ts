@@ -46,7 +46,7 @@ import {
   singlePlaylist,
   type Playlist,
 } from "./playlist/playlist";
-import { mountPlaylist, playlistSpeakTexts, type SessionHandle } from "./playlist/session";
+import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { exportVideo } from "./export/video";
 import { ExportKeepAlive } from "./export/keepalive";
 import { openExportPreview } from "./export/pip";
@@ -1434,7 +1434,7 @@ async function present(): Promise<void> {
   document.title = `${doc.title} — drawcast`;
   try {
     // Warm the cloud-voice cache so narrated playback starts without stalls.
-    if (settings.mode === "narrated") speech.prefetch(playlistSpeakTexts(doc.playlist), settings.speed);
+    if (settings.mode === "narrated") speech.prefetch(playlistSpeakLines(doc.playlist), settings.speed);
     // Player mode has no chrome of its own, so the control bar carries the way
     // back. The editor already has the Player/Editor pill in the topbar — a
     // second switch there would only crowd the narrow preview bar.

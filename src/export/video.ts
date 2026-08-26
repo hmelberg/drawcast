@@ -6,16 +6,21 @@
 // BYOK Google Cloud TTS key (browser speechSynthesis cannot be captured).
 
 import { render, type RenderStyle } from "../render";
+import { speechKey, type SpeakLine } from "../render/delivery";
 import type { Spec } from "../spec/types";
 import type { ExportKeepAlive } from "./keepalive";
 import { BufferSpeech, synthesizeAll } from "./tts";
 
-/** Every distinct narration line in the spec's storyboard. */
-export function collectSpeakTexts(spec: Spec): string[] {
-  const texts = (spec.commands ?? [])
-    .map((c) => c.speak)
-    .filter((s): s is string => typeof s === "string" && s.trim().length > 0);
-  return [...new Set(texts)];
+/** Every distinct narration line in the spec's storyboard, with speaker/delivery/gender attached. */
+export function collectSpeakLines(spec: Spec): SpeakLine[] {
+  const seen = new Map<string, SpeakLine>();
+  for (const c of spec.commands ?? []) {
+    if (typeof c.speak !== "string" || c.speak.trim().length === 0) continue;
+    const line: SpeakLine = { text: c.speak, speaker: c.voice, delivery: c.delivery, gender: spec.voice };
+    const key = speechKey(line);
+    if (!seen.has(key)) seen.set(key, line);
+  }
+  return [...seen.values()];
 }
 
 /** Greedy word wrap by measured width; export captions get at most two lines. */
@@ -197,7 +202,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
   try {
     const buffers = await synthesizeAll(
       { apiKey: cfg.ttsKey, rate: cfg.rate },
-      [...new Set(items.flatMap(collectSpeakTexts))],
+      items.flatMap(collectSpeakLines),
       audioCtx,
       (done, total) => hooks.onStatus(`Synthesizing narration ${done}/${total}…`),
       signal,

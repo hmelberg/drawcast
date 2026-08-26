@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { BufferSpeech } from "../src/export/tts";
+import { speechKey } from "../src/render/delivery";
 
 /** Minimal WebAudio stand-ins: connect() records where the audio flows. */
 function fakeGraph() {
@@ -19,7 +20,7 @@ function fakeGraph() {
 describe("BufferSpeech routing", () => {
   test("narration feeds only the recording destination — the export runs silently", async () => {
     const { connections, audioCtx, dest } = fakeGraph();
-    const speech = new BufferSpeech(audioCtx as never, dest as never, new Map([["line", {} as AudioBuffer]]));
+    const speech = new BufferSpeech(audioCtx as never, dest as never, new Map([[speechKey({ text: "line" }), {} as AudioBuffer]]));
     await speech.speak("line", 1);
     expect(connections).toEqual([dest]);
   });

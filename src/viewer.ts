@@ -9,7 +9,7 @@ import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
 import { h } from "./ui/dom";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
-import { mountPlaylist, playlistSpeakTexts } from "./playlist/session";
+import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings } from "./store";
 
@@ -95,7 +95,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
-    if (req.mode === "narrated") speech.prefetch(playlistSpeakTexts(playlist), req.speed);
+    if (req.mode === "narrated") speech.prefetch(playlistSpeakLines(playlist), req.speed);
     await mountPlaylist(figureHost, playlist, {
       style: req.style,
       mode: req.mode,

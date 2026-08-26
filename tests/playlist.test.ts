@@ -8,7 +8,7 @@ import {
   parsePlaylistText,
   singlePlaylist,
 } from "../src/playlist/playlist";
-import { playlistSpeakTexts } from "../src/playlist/session";
+import { playlistSpeakLines } from "../src/playlist/session";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec, SpecElement } from "../src/spec/types";
 
@@ -232,8 +232,9 @@ describe("exportSequence — what a video export plays, in order", () => {
     expect(seq.slice(1).every((s) => (s.commands ?? []).at(-1)?.clear === undefined)).toBe(true);
   });
 
-  test("playlistSpeakTexts covers the title page and chapter cards, with no per-page Next lines", () => {
-    const texts = playlistSpeakTexts(parsePlaylistText(STREAM));
+  test("playlistSpeakLines covers the title page and chapter cards, with no per-page Next lines", () => {
+    const lines = playlistSpeakLines(parsePlaylistText(STREAM));
+    const texts = lines.map((l) => l.text);
     expect(texts.join(" ")).toContain("Health econ");
     expect(texts.join(" ")).toContain("Models");
     expect(texts.some((t) => t.startsWith("Next:"))).toBe(false);

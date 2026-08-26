@@ -3,6 +3,7 @@
 // plays those buffers through a recordable destination instead of the
 // browser's speechSynthesis (whose audio cannot be captured).
 
+import { DELIVERY, effectiveGender, speechKey, type SpeakLine, type SpeakOpts } from "../render/delivery";
 import { SpeechManager, detectLang } from "../render/speech";
 import { addTtsChars, ttsBudgetError } from "../store";
 
@@ -12,10 +13,10 @@ export interface TtsConfig {
   rate: number;
 }
 
-/** Per-language voice defaults; if a name drifts out of the catalog, the API picks. */
-const VOICES: Record<"en" | "nb", { languageCode: string; name?: string }> = {
-  en: { languageCode: "en-US", name: "en-US-Neural2-F" },
-  nb: { languageCode: "nb-NO", name: "nb-NO-Wavenet-E" },
+/** Per-language, per-gender voice defaults; if a name drifts out of the catalog, the API picks. */
+export const VOICES: Record<"en" | "nb", Record<"female" | "male", { languageCode: string; name?: string }>> = {
+  en: { female: { languageCode: "en-US", name: "en-US-Neural2-F" }, male: { languageCode: "en-US", name: "en-US-Neural2-D" } },
+  nb: { female: { languageCode: "nb-NO", name: "nb-NO-Wavenet-E" }, male: { languageCode: "nb-NO", name: "nb-NO-Wavenet-B" } },
 };
 
 const ENDPOINT = "https://texttospeech.googleapis.com/v1/text:synthesize";
@@ -41,11 +42,13 @@ async function ttsError(res: Response): Promise<Error> {
   return new Error(message);
 }
 
-async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContext): Promise<AudioBuffer> {
+export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
   // Soft monthly cap — applies only when the stored key was vended (shared).
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
-  const voice = VOICES[detectLang(text)];
+  const g = effectiveGender(opts) ?? "female";
+  const voice = VOICES[detectLang(text)][g];
+  const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
       method: "POST",
@@ -53,7 +56,11 @@ async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContex
       body: JSON.stringify({
         input: { text },
         voice: withName && voice.name ? { languageCode: voice.languageCode, name: voice.name } : { languageCode: voice.languageCode },
-        audioConfig: { audioEncoding: "MP3", speakingRate: Math.min(4, Math.max(0.25, cfg.rate)) },
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate: Math.min(4, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1))),
+          ...(delivery ? { pitch: delivery.pitchSt, volumeGainDb: delivery.gainDb } : {}),
+        },
       }),
     });
   let res = await call(true);
@@ -66,22 +73,24 @@ async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContex
   return audioCtx.decodeAudioData(bytes.buffer as ArrayBuffer);
 }
 
-/** Synthesize every distinct narration line; sequential to stay far from rate limits. */
+/** Synthesize every distinct narration line (keyed by speechKey); sequential to stay far from rate limits. */
 export async function synthesizeAll(
   cfg: TtsConfig,
-  texts: string[],
+  lines: SpeakLine[],
   audioCtx: AudioContext,
   onProgress: (done: number, total: number) => void,
   signal: AbortSignal,
 ): Promise<Map<string, AudioBuffer>> {
   const buffers = new Map<string, AudioBuffer>();
-  const distinct = [...new Set(texts)];
-  for (const [i, text] of distinct.entries()) {
+  const distinct = new Map<string, SpeakLine>();
+  for (const line of lines) if (!distinct.has(speechKey(line))) distinct.set(speechKey(line), line);
+  const entries = [...distinct.entries()];
+  for (const [i, [key, line]] of entries.entries()) {
     if (signal.aborted) throw new Error("export cancelled");
-    onProgress(i, distinct.length);
-    buffers.set(text, await synthesizeOne(cfg, text, audioCtx));
+    onProgress(i, entries.length);
+    buffers.set(key, await synthesizeOne(cfg, line.text, audioCtx, line));
   }
-  onProgress(distinct.length, distinct.length);
+  onProgress(entries.length, entries.length);
   return buffers;
 }
 
@@ -129,13 +138,13 @@ export class CloudSpeech extends SpeechManager {
     return Math.min(4, Math.max(0.25, this.baseRate * speedMultiplier));
   }
 
-  private buffer(text: string, rate: number, audioCtx: AudioContext): Promise<AudioBuffer> {
-    const key = `${rate.toFixed(2)}|${text}`;
+  private buffer(text: string, rate: number, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
+    const key = `${rate.toFixed(2)}|${speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender })}`;
     const hit = this.cache.get(key);
     if (hit) return Promise.resolve(hit);
     const inFlight = this.pending.get(key);
     if (inFlight) return inFlight;
-    const p = synthesizeOne({ apiKey: this.getKey(), rate }, text, audioCtx)
+    const p = synthesizeOne({ apiKey: this.getKey(), rate }, text, audioCtx, opts)
       .then((b) => {
         this.cache.set(key, b);
         this.pending.delete(key);
@@ -150,20 +159,20 @@ export class CloudSpeech extends SpeechManager {
   }
 
   /** Warm the cache for upcoming lines (fire-and-forget; errors surface at speak time). */
-  prefetch(texts: string[], speedMultiplier: number): void {
+  prefetch(lines: SpeakLine[], speedMultiplier: number): void {
     if (!this.getKey()) return;
     const audioCtx = this.ensureCtx();
     const rate = this.effRate(speedMultiplier);
-    for (const text of texts) void this.buffer(text, rate, audioCtx).catch(() => undefined);
+    for (const line of lines) void this.buffer(line.text, rate, audioCtx, line).catch(() => undefined);
   }
 
-  override speak(text: string, speedMultiplier: number, signal?: AbortSignal): Promise<void> {
-    if (!this.getKey()) return super.speak(text, speedMultiplier, signal);
+  override speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+    if (!this.getKey()) return super.speak(text, speedMultiplier, signal, opts);
     const audioCtx = this.ensureCtx();
     // Prefetch may have created the context before any user gesture (autoplay
     // policy leaves it suspended); speak runs inside the play click, so resume.
     if (audioCtx.state === "suspended") void audioCtx.resume();
-    return this.buffer(text, this.effRate(speedMultiplier), audioCtx)
+    return this.buffer(text, this.effRate(speedMultiplier), audioCtx, opts)
       .then(
         (buffer) =>
           new Promise<void>((resolve) => {
@@ -191,7 +200,7 @@ export class CloudSpeech extends SpeechManager {
             src.start();
           }),
       )
-      .catch(() => super.speak(text, speedMultiplier, signal)); // cloud hiccup → browser voice
+      .catch(() => super.speak(text, speedMultiplier, signal, opts)); // cloud hiccup → browser voice
   }
 
   override cancel(): void {
@@ -253,8 +262,8 @@ export class BufferSpeech extends SpeechManager {
     this.active.clear();
   }
 
-  override speak(text: string, _speedMultiplier: number, signal?: AbortSignal): Promise<void> {
-    const buffer = this.buffers.get(text);
+  override speak(text: string, _speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+    const buffer = this.buffers.get(speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender }));
     if (!buffer || signal?.aborted) return Promise.resolve();
     return new Promise((resolve) => {
       const src = this.audioCtx.createBufferSource();
