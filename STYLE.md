@@ -21,6 +21,33 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-08-27 — Portraits as cameos: appear at first mention, fade away
+
+Hans: "photos can often be used without putting it permanently on top of
+a figure. They tend to have different styles. So maybe make it possible
+for photos to appear when you want (like when you mention the person's
+name the first time) and then fade away. Something like that. Not
+necessarily always (sometimes the image may be integral to the story),
+but often this seems like a better design."
+
+Distilled — no new engine work needed (erase on a photo is already an
+opacity fade-out); this is a USAGE pattern, graduated into the prompt's
+portrait bullet in the same commit:
+
+1. **Default: the cameo.** Draw the portrait on the beat that first
+   names the person, let it sit for a beat or two of biography, then
+   `erase` it (paired with the next content line, so the exit is quiet)
+   before the figure work continues. A photo has a different visual
+   register than the drawn elements — as a permanent fixture it competes
+   with the figure; as a cameo it enriches without occupying.
+2. **Permanent when integral.** When the person IS the story (the Darwin
+   timeline), the portrait may stay for the duration.
+3. Encoded in the prompt's portrait bullet (element-specific guidance —
+   deliberately NOT added to PEDAGOGY_RUBRIC, which stays general).
+
+Embodied in: the Ricardo comparative-advantage example — cameo in,
+biography beat, fade-out as the table takes over.
+
 ### 2026-08-26 — Interesting, not mandatorily "surprising": vary the kind
 
 Hans (correcting the one-surprise mandate the same day it graduated):

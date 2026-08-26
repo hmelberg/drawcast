@@ -4475,5 +4475,39 @@
         { "draw": ["title"], "speak": "Great ideas are not always rushed to print." }
       ]
     }
+  },
+  {
+    "request": "Explain comparative advantage, with a portrait of David Ricardo.",
+    "spec": {
+      "title": "Comparative advantage",
+      "template": "two_by_two_table",
+      "params": {
+        "row_label": "Country",
+        "col_label": "Hours of labour per unit",
+        "row_values": ["Portugal", "England"],
+        "col_values": ["Wine", "Cloth"],
+        "cells": [
+          ["80", "90"],
+          ["120", "100"]
+        ],
+        "title": "Ricardo's own numbers (1817)"
+      },
+      "elements": [
+        { "id": "portrait_1", "type": "portrait", "of": "David Ricardo", "x": 830, "y": 560, "width": 150 },
+        { "id": "name_1", "type": "text", "text": "David Ricardo", "x": 830, "y": 448, "font_size": 19 }
+      ],
+      "commands": [
+        { "draw": ["portrait_1", "name_1"], "speak": "In 1817, a retired London stockbroker posed a puzzle that still decides where your shirt and your wine come from: should a country that is better at EVERYTHING still trade?" },
+        { "draw": ["grid", "row_title", "col_title", "row_header_0", "row_header_1", "col_header_0", "col_header_1"], "speak": "David Ricardo answered with two countries and two goods." },
+        { "erase": ["portrait_1", "name_1"], "speak": "Here are his own numbers: the hours of labour each country needs per unit.", "parallel": true },
+        { "draw": ["cell_0_0", "cell_0_1"], "speak": "Portugal needs eighty hours for wine, ninety for cloth." },
+        { "draw": ["cell_1_0", "cell_1_1"], "speak": "England needs more for BOTH: one hundred twenty and one hundred. Portugal is simply better at everything — so common sense says England has nothing to offer." },
+        { "pause": 0.3 },
+        { "focus": { "target": ["cell_0_0", "cell_1_0"] }, "speak": "But look at the RATIOS, not the levels. In wine, Portugal needs a third fewer hours than England — a big edge." },
+        { "focus": { "target": ["cell_0_1", "cell_1_1"] }, "speak": "In cloth, the edge is tiny — ninety against one hundred." },
+        { "highlight": { "target": ["cell_0_0", "cell_1_1"], "effect": "circle" }, "speak": "So let each country do what it is RELATIVELY best at: Portugal makes the wine, England the cloth — and after trading, BOTH end up with more of both goods than they could make alone.", "delivery": "grave" },
+        { "draw": ["title"], "speak": "That is comparative advantage: trade follows relative, not absolute, ability. Even a country worse at everything is still relatively best at something - which is why everyone has something to sell." }
+      ]
+    }
   }
 ]
