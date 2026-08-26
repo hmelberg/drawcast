@@ -21,7 +21,7 @@ export function wikiSummaryUrl(name: string): string {
 /** Cache key for a portrait element, or null when it needs no resolution. */
 export function portraitCacheKey(el: Pick<SpecElement, "type" | "of" | "url" | "strokes" | "look">): string | null {
   if (el.type !== "portrait" || el.strokes) return null;
-  const look = el.look ?? "halftone";
+  const look = el.look ?? "photo";
   if (el.url) return `p${TRACE_VERSION}|${look}|url|${el.url}`;
   if (el.of) return `p${TRACE_VERSION}|${look}|name|${el.of.trim().toLowerCase()}`;
   return null;
@@ -102,7 +102,7 @@ async function loadRaster(url: string, maxDim: number): Promise<{ width: number;
 export type PortraitLook = "halftone" | "poster" | "line" | "photo";
 
 /** Fetch + convert one portrait image URL into the encoded form for `look`. */
-export async function traceFromUrl(url: string, look: PortraitLook = "halftone"): Promise<string> {
+export async function traceFromUrl(url: string, look: PortraitLook = "photo"): Promise<string> {
   const raster = await loadRaster(url, LOOK_DIM[look] ?? 150);
   if (look === "photo") return encodePhoto(raster.height / raster.width, styledPhotoDataUri(raster));
   return encodeTrace(traceImage(raster, { style: look }));
@@ -179,7 +179,7 @@ export async function resolvePortraits(spec: Spec): Promise<PortraitResolution[]
           if (!imageUrl) throw new Error(`no portrait found on Wikipedia for "${el.of}"`);
         }
         if (!imageUrl) throw new Error("no image source");
-        encoded = await traceFromUrl(imageUrl, (el.look as PortraitLook | undefined) ?? "halftone");
+        encoded = await traceFromUrl(imageUrl, (el.look as PortraitLook | undefined) ?? "photo");
         el.source = el.source ?? imageUrl;
         await cachePut(key, encoded);
       }

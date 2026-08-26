@@ -133,8 +133,8 @@ idea) shipped 2026-08-27 and became the DEFAULT — poster destroyed
 likeness; dot-size halftone keeps faces recognizable because tone
 survives. The photo look shipped 2026-08-27
 (image drawable kind; framed, paper-tinted grayscale JPEG data URIs) after
-halftone at 900 dots also fell short of likeness; halftone stayed default
-at 2400 dots / 260px tracing pending Hans's verdict between the two.
+halftone at 900 dots also fell short of likeness; Hans judged photo the winner —
+it is the DEFAULT look (halftone at 2400 dots stays the styled option).
 Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
 ## Phase A — interaction primitives

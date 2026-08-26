@@ -113,10 +113,10 @@ describe("portrait resolver helpers", () => {
 
   test("cache keys: strokes need none; url and name key separately; version bumps invalidate", () => {
     expect(portraitCacheKey({ type: "portrait", strokes: TRACE })).toBeNull();
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|halftone|name|keynes`);
-    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|halftone|url|https://x/y.jpg`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|photo|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|photo|url|https://x/y.jpg`);
     expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "line" })).toBe(`p${TRACE_VERSION}|line|name|keynes`);
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "photo" })).toBe(`p${TRACE_VERSION}|photo|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "halftone" })).toBe(`p${TRACE_VERSION}|halftone|name|keynes`);
     expect(portraitCacheKey({ type: "portrait" })).toBeNull();
   });
 

@@ -109,8 +109,8 @@ export interface SpecElement {
   strokes?: string;
   /** Provenance: where the traced image came from (attribution). */
   source?: string;
-  /** Portrait look: halftone dots (the default), photo (faithful grayscale), poster regions, or line sketch. */
-  look?: "halftone" | "photo" | "poster" | "line";
+  /** Portrait look: photo (faithful framed grayscale, the default), halftone dots, poster regions, or line sketch. */
+  look?: "photo" | "halftone" | "poster" | "line";
   // cross-cutting
   style?: SpecStyle;
   draw?: SpecDraw;
