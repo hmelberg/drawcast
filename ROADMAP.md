@@ -108,6 +108,35 @@ ROADMAP for that record.
   already gets in `src/scenes/engines.ts`, fetched only when `focus` is
   actually requested.
 
+- **Generic graph/network template via a real layout engine** (phase 2 of
+  the 2026-08-26 Markov self-loop round; phase 1 — true self-loops aimed
+  into the widest angular gap, stay-probability captions, node auto-shrink,
+  obstacle-avoiding bows — shipped without dependencies). When we want a
+  template that takes arbitrary nodes+edges (flowcharts, state machines,
+  networks) and lays them out fully automatically, adopt
+  **@dagrejs/dagre** inside `kit.layoutNodes` as the "layered" style: it is
+  the only engine that fits the kit contract as-is — synchronous,
+  ~100KB, deterministic, returns node positions + edge control points +
+  reserved edge-label boxes (mermaid's default). Keep our own self-loop and
+  sketchy edge rendering on top (dagre deliberately ignores self-loops).
+  elkjs was evaluated and rejected for this slot: best-in-class quality and
+  real self-loop routing options, but Promise-only API and ~1.4MB — wrong
+  fit for the sync template contract and the embeddable dist-engine.
+- **DOT-based graph template via Graphviz WASM** (phase 3, only if diagram
+  ambitions grow): `@viz-js/viz` (actively maintained Graphviz WASM, v3) is
+  the gold standard for small state diagrams — proper self-loops, edge-label
+  placement, spline control points via its JSON output that we could
+  re-render in the sketchy style. Costs: async WASM init (pre-warm once at
+  app start, before the sync template compile path needs it) and a
+  megabyte-class payload — keep it OUT of dist-engine, or lazy like the
+  mathjax/geo engines. Independently of the renderer, **DOT is interesting
+  as a standard format to create/store/express graph relationships**: it is
+  the graph syntax LLMs know best, so a `dot` param (or an import path that
+  parses DOT into nodes+edges for whatever layout engine we use) would let
+  users and models paste existing graphs straight in. Keep JSON params as
+  the primary Spec surface (schema validation + repair pipeline stay
+  intact); DOT enters as an input/interchange format, not a replacement.
+
 ## Phase C — structure
 
 - `pages: [{elements, commands}]` — true multi-scene drawcasts with per-page

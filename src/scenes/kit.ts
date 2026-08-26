@@ -143,8 +143,14 @@ export interface EdgeArrowOpts {
   curve?: number;
   /** "bar" = inhibition ⊣, "circle" = catalysis ○. Default "arrow". */
   head?: "arrow" | "bar" | "circle" | "none";
-  /** Draw a loop (arc above `from`) instead of a path to `to` — `to` is ignored. */
+  /** Draw a self-loop on the node at `from` instead of a path to `to` — `to` is ignored. */
   selfLoop?: boolean;
+  /**
+   * selfLoop only: unit-ish direction the loop bulges (normalized
+   * internally). Default [0, 1] (straight up). Aim it into the node's least
+   * crowded side so the loop never crosses the node's other edges.
+   */
+  loopDir?: Pt;
   color?: string;
   strokeWidth?: number;
   ms?: number;
@@ -308,8 +314,11 @@ export interface SceneKit {
    * (centered on the endpoint) along the edge's direction, plus a small
    * breathing gap — use this for any node that isn't a circle, so an edge
    * never starts inside the node or lets its arrowhead puncture the
-   * target. `selfLoop` draws a loop above `from` and ignores `to` entirely
-   * (and `shorten*` — the loop always starts/ends exactly at `from`).
+   * target. `selfLoop` draws a self-loop on the node at `from` and ignores
+   * `to`: pass the node's CENTER as `from` plus its shape via `shorten` —
+   * both loop endpoints then sit on the node's boundary and the arrowhead
+   * curls back into it. `loopDir` aims the loop's bulge (default [0, 1],
+   * straight up); point it at the node's least crowded side.
    */
   edgeArrow(id: string, from: Pt, to: Pt, o?: EdgeArrowOpts): { drawables: Drawable[]; order: string[] };
   /**
@@ -1198,9 +1207,31 @@ export const kit: SceneKit = {
     let tipDir: Pt;
 
     if (o.selfLoop) {
+      // A true self-loop: both endpoints sit ON the node's boundary (the
+      // `shorten` shape, treated as centered on `from`; absent = a point
+      // node), the teardrop bulges along `loopDir`, and the arrowhead curls
+      // back INTO the node. `curve` still scales the loop's extent beyond
+      // the boundary (default ≈ 48px).
+      const dl0 = o.loopDir ? Math.hypot(o.loopDir[0], o.loopDir[1]) || 1 : 1;
+      const d: Pt = o.loopDir ? [o.loopDir[0] / dl0, o.loopDir[1] / dl0] : [0, 1];
+      const perp: Pt = [-d[1], d[0]];
+      const bdist = (u: Pt) => (o.shorten !== undefined ? edgeTrimAmount(o.shorten, u[0], u[1]) : 0);
+      const rotate = (v: Pt, a: number): Pt => [
+        v[0] * Math.cos(a) - v[1] * Math.sin(a),
+        v[0] * Math.sin(a) + v[1] * Math.cos(a),
+      ];
+      const ALPHA = 0.8; // half-angle between the two boundary anchors
+      const u1 = rotate(d, ALPHA);
+      const u2 = rotate(d, -ALPHA);
+      const start: Pt = [from[0] + u1[0] * bdist(u1), from[1] + u1[1] * bdist(u1)];
+      const end: Pt = [from[0] + u2[0] * bdist(u2), from[1] + u2[1] * bdist(u2)];
       const r = Math.max(18, Math.abs(o.curve ?? 0.4) * 120);
-      const c: Pt = [from[0], from[1] + r];
-      pathPts = this.arc(c, r, -Math.PI / 2 - 1.3, -Math.PI / 2 + 1.3, 32);
+      const bd = bdist(d);
+      const base: Pt = [from[0] + d[0] * bd, from[1] + d[1] * bd];
+      const apex: Pt = [base[0] + d[0] * r, base[1] + d[1] * r];
+      const side1: Pt = [base[0] + d[0] * r * 0.6 + perp[0] * r * 0.75, base[1] + d[1] * r * 0.6 + perp[1] * r * 0.75];
+      const side2: Pt = [base[0] + d[0] * r * 0.6 - perp[0] * r * 0.75, base[1] + d[1] * r * 0.6 - perp[1] * r * 0.75];
+      pathPts = this.smooth([start, side1, apex, side2, end], 8);
       tip = pathPts[pathPts.length - 1];
       const prev = pathPts[pathPts.length - 2] ?? pathPts[0];
       const dx = tip[0] - prev[0], dy = tip[1] - prev[1];

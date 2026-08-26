@@ -1,7 +1,7 @@
 {
   "name": "markov_model",
   "status": "ready",
-  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\". Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All node placement is computed for you (a ring for 3+ states, a horizontal pair for 2); a state that no transition ever leaves renders as absorbing (plain ink, no color) automatically.",
+  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\" (optionally captioned with the stay probability). Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All placement is computed for you: a ring for 3+ states or a horizontal row (layout \"chain\" — the classic textbook style for health-state models), self-loops aimed into each state's least crowded side, and arrows that bow around any state that sits in their way. A state that no transition ever leaves renders as absorbing (plain ink, no color) automatically.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -27,13 +27,25 @@
       },
       "self_loops": {
         "type": "array",
-        "items": { "type": "string" },
-        "description": "State names that also have a \"stay\" probability — drawn with a small loop above the state."
+        "items": {
+          "anyOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "state": { "type": "string" },
+                "label": { "type": "string", "description": "Stay probability caption, e.g. \"0.89\"." }
+              },
+              "required": ["state"]
+            }
+          ]
+        },
+        "description": "States that also have a \"stay\" probability — drawn with a small loop aimed into the state's least crowded side. A bare state name, or {state, label} to caption the stay probability."
       },
       "layout": {
         "type": "string",
         "enum": ["circle", "chain"],
-        "description": "Node arrangement. Default: circle for 3+ states, chain for exactly 2."
+        "description": "Node arrangement. Default: circle for 3+ states, chain for exactly 2. Pick \"chain\" explicitly for the classic left-to-right row (e.g. Well → Sick → Dead) — skip-ahead transitions arc around the states between them."
       },
       "highlight_state": {
         "type": "string",
@@ -46,9 +58,10 @@
   "element_ids": {
     "state_<slug>": "the ellipse for one state (slug: the state name, lowercased, non-alphanumeric characters replaced with _)",
     "state_label_<slug>": "the state's name, centered inside its ellipse",
-    "t_<i>": "transition arrow i (0-indexed, in `transitions` order) — bowed automatically when the reverse transition also exists",
+    "t_<i>": "transition arrow i (0-indexed, in `transitions` order) — bowed automatically when the reverse transition also exists, or to arc around a state that sits in its way",
     "t_label_<i>": "transition i's probability/rate label, when set",
-    "loop_<slug>": "the self-loop arc for a state named in `self_loops`",
+    "loop_<slug>": "the self-loop for a state named in `self_loops`",
+    "loop_label_<slug>": "that loop's stay-probability caption, when its `self_loops` entry set a label",
     "hl_<slug>": "tinted halo behind the state named by `highlight_state` — present only when set",
     "title": "figure title, when set"
   },
@@ -65,6 +78,23 @@
           { "from": "Well", "to": "Dead", "label": "0.01" }
         ],
         "self_loops": ["Well", "Sick"]
+      }
+    },
+    {
+      "request": "Draw the classic Well–Sick–Dead Markov model as a left-to-right row, with stay probabilities on Well and Sick and a direct Well-to-Dead arrow.",
+      "params": {
+        "title": "Well–Sick–Dead",
+        "states": ["Well", "Sick", "Dead"],
+        "transitions": [
+          { "from": "Well", "to": "Sick", "label": "0.10" },
+          { "from": "Sick", "to": "Dead", "label": "0.05" },
+          { "from": "Well", "to": "Dead", "label": "0.01" }
+        ],
+        "self_loops": [
+          { "state": "Well", "label": "0.89" },
+          { "state": "Sick", "label": "0.95" }
+        ],
+        "layout": "chain"
       }
     },
     {
