@@ -536,7 +536,11 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
       h,
       z: Z_STROKE,
       style: resolveStyle(undefined, {}),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: cameo ? 450 : 900 }),
+      // develop (blur-to-sharp) by default: a photo should arrive like a
+      // print in a darkroom, not like a PowerPoint fade — and erase plays
+      // the same effect backwards, so the exit dissolves out of focus.
+      reveal: el.reveal ?? "develop",
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: cameo ? 650 : 900 }),
     });
     if (!cameo) {
       children.push({

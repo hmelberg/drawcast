@@ -4496,8 +4496,9 @@
         { "id": "portrait_1", "type": "portrait", "of": "David Ricardo", "cameo": true }
       ],
       "commands": [
-        { "draw": ["portrait_1"], "speak": "In 1817, a retired London stockbroker posed a puzzle that still decides where your shirt and your wine come from: should a country that is better at EVERYTHING still trade?" },
-        { "erase": ["portrait_1"], "speak": "David Ricardo answered with two countries and two goods." },
+        { "speak": "In 1817, a retired London stockbroker posed a puzzle that still decides where your shirt and your wine come from: should a country that is better at EVERYTHING still trade?" },
+        { "draw": ["portrait_1"], "speak": "The puzzler: David Ricardo — out of the market at forty-two with a fortune, about to invent modern trade theory." },
+        { "erase": ["portrait_1"], "speak": "He answered with two countries and two goods." },
         { "draw": ["grid", "row_title", "col_title", "row_header_0", "row_header_1", "col_header_0", "col_header_1"], "speak": "Here are his own numbers: the hours of labour each country needs per unit." },
         { "draw": ["cell_0_0", "cell_0_1"], "speak": "Portugal needs eighty hours for wine, ninety for cloth." },
         { "draw": ["cell_1_0", "cell_1_1"], "speak": "England needs more for BOTH: one hundred twenty and one hundred. Portugal is simply better at everything — so common sense says England has nothing to offer." },

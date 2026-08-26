@@ -173,6 +173,44 @@ describe("blob hoisting — strokes never visit the model", () => {
   });
 });
 
+describe("portrait element — reveal effects", () => {
+  test("schema: reveal accepts the effect names and rejects junk", () => {
+    expect(validateSpec(spec({ of: "X", reveal: "iris" })).ok).toBe(true);
+    expect(validateSpec(spec({ of: "X", reveal: "develop" })).ok).toBe(true);
+    expect(validateSpec(spec({ of: "X", reveal: "dissolve" })).ok).toBe(false);
+  });
+
+  test("a photo's image drawable defaults to develop; an explicit reveal passes through", async () => {
+    const { encodePhoto } = await import("../src/spec/trace");
+    const strokes = encodePhoto(1.25, "data:image/jpeg;base64,AAAA");
+    const flat = flattenDrawables(layoutSpec(spec({ strokes })).drawables);
+    expect((flat.find((d) => d.id === "p1__img") as { reveal?: string }).reveal).toBe("develop");
+    const iris = flattenDrawables(layoutSpec(spec({ strokes, reveal: "iris" })).drawables);
+    expect((iris.find((d) => d.id === "p1__img") as { reveal?: string }).reveal).toBe("iris");
+  });
+
+  test("imageRevealFrame: pure in t, clears to rest at t=1, each effect shapes its own property", async () => {
+    const { imageRevealFrame } = await import("../src/render/svg-backend");
+    // Rest state: everything cleared — a settled image equals a fresh node.
+    for (const r of ["develop", "iris", "wipe", "drift", "fade"] as const) {
+      expect(imageRevealFrame(r, 1, 1)).toEqual({ opacity: "1", filter: "", clipPath: "", transform: "" });
+    }
+    // develop: blurred and translucent early, blur shrinking as t grows.
+    const early = imageRevealFrame("develop", 1, 0.2);
+    const late = imageRevealFrame("develop", 1, 0.8);
+    expect(parseFloat(early.filter.slice(5))).toBeGreaterThan(parseFloat(late.filter.slice(5)));
+    expect(Number(early.opacity)).toBeLessThan(1);
+    expect(Number(late.opacity)).toBe(1); // opacity fully in by 60%
+    // iris/wipe carve clip paths; drift scales; fade touches only opacity.
+    expect(imageRevealFrame("iris", 1, 0.5).clipPath).toContain("circle");
+    expect(imageRevealFrame("wipe", 1, 0.5).clipPath).toContain("inset");
+    expect(imageRevealFrame("drift", 1, 0.5).transform).toContain("scale");
+    expect(imageRevealFrame("fade", 1, 0.5)).toEqual({ opacity: "0.5", filter: "", clipPath: "", transform: "" });
+    // Reversibility needs purity: the same t gives the same frame either direction.
+    expect(imageRevealFrame("develop", 1, 0.4)).toEqual(imageRevealFrame("develop", 1, 0.4));
+  });
+});
+
 describe("portrait element — cameo mode", () => {
   test("cameo: centered, larger, frameless photo; a missing cameo draws nothing at all", async () => {
     const { encodePhoto } = await import("../src/spec/trace");

@@ -21,6 +21,46 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-08-27 — Cameo entrances: develop, not fade — and the face must land ON the name
+
+Hans: "When a photo appears in drawcast in order to just sow the person
+behind an idea or a concept (i.e. mainly as backgroun) we currently fade
+it. Introduce some more interesting wasy to fade the phonto in and out
+Also do not keep it on the page for a long time, but only introduce it
+when relevant on the screen. For instance in the ricardo example it is
+perhaps introduced too early and then taken away just before the name is
+mentioned whi is a bit non-inuitive. Dirst we do not know why the photo
+appears, and then it disappears before the name is mentioned! Revise and
+also note in style notes."
+
+Distilled — two halves, an engine half and a timing half, both graduated
+in the same commit:
+
+1. **Richer entrances (engine).** Photos now enter by `reveal` effect:
+   `develop` (darkroom blur-to-sharp — the new default), `iris` (circle
+   opening), `wipe` (print emerging top-down), `drift` (settles into
+   place), `fade` (the old plain one). Every effect is a pure function
+   of reveal progress, so `erase` plays the same entrance backwards for
+   free — a developed photo dissolves back out of focus. Cameo entrance
+   650 ms (was 450 — a develop needs a beat to read as developing).
+2. **The face lands ON the name (timing).** The Ricardo example had the
+   backwards pattern: photo up during the anonymous "a retired London
+   stockbroker" hook, erased exactly on the beat that finally says
+   "David Ricardo". Wrong twice — first the viewer doesn't know whose
+   face it is, then the face leaves just as they could have connected
+   it. The rule (already written, now enforced with an explicit
+   anti-pattern sentence in the prompt bullet): the cameo appears on the
+   beat that FIRST names the person, holds for a beat or two of
+   biography, exits quietly under the next content line. Short on-screen
+   life is the point — a cameo visits, it does not reside.
+
+Embodied in: the Ricardo example restructured (anonymous hook photo-free
+→ face + name + biography beat → quiet exit under "He answered with two
+countries and two goods" → the table). Extends the 2026-08-27 cameo
+entry below; the prompt's portrait bullet now carries both the
+anti-pattern and the `reveal` options (element-specific — still not in
+PEDAGOGY_RUBRIC, which stays general).
+
 ### 2026-08-27 — Portraits as cameos: appear at first mention, fade away
 
 Hans: "photos can often be used without putting it permanently on top of

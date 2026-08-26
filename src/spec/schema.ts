@@ -146,6 +146,12 @@ const elementSchema = {
       enum: ["photo", "halftone", "poster", "line"],
       description: "portrait: photo = faithful framed grayscale (the default — most recognizable); halftone = newspaper-print dots; poster = posterized solid regions; line = pen-sketch edges (suits line art and engravings).",
     },
+    reveal: {
+      type: "string",
+      enum: ["develop", "iris", "wipe", "drift", "fade"],
+      description:
+        "portrait: how a photo enters — and, played backwards by erase, exits. develop = darkroom blur-to-sharp (the default; omit unless you want another), iris = circle opening from the center, wipe = top-down like a print emerging, drift = slightly large settling into place, fade = plain opacity.",
+    },
     style: styleSchema,
     draw: drawSchema,
   },

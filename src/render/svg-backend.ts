@@ -12,6 +12,7 @@ import {
   type AreaDrawable,
   type Drawable,
   type GradientSpec,
+  type ImageReveal,
   type Pt,
   type StrokeDrawable,
 } from "../layout/model";
@@ -379,17 +380,58 @@ interface LeafHandle {
   setProgress(t: number): void;
 }
 
+/**
+ * One frame of an image reveal: the CSS an image group wears at progress t.
+ * PURE in t on purpose — erase drives t backwards and scrubbing jumps it
+ * anywhere, so no effect may hold direction state; every entrance therefore
+ * doubles as its own exit, played in reverse. At t ≥ 1 all properties clear
+ * to the resting value, so a settled image is byte-identical to a freshly
+ * built node (the swapGeometry invariant), filters cost nothing at rest,
+ * and export captures a crisp frame.
+ */
+export function imageRevealFrame(reveal: ImageReveal, baseOpacity: number, t: number): { opacity: string; filter: string; clipPath: string; transform: string } {
+  const rest = { filter: "", clipPath: "", transform: "" };
+  if (t >= 1) return { opacity: String(baseOpacity), ...rest };
+  switch (reveal) {
+    case "develop":
+      // Darkroom develop: the print is there early, sharpness arrives last.
+      return { ...rest, opacity: String(baseOpacity * Math.min(1, t / 0.6)), filter: `blur(${(14 * (1 - t)).toFixed(2)}px)` };
+    case "iris":
+      // Film iris: a circle opens from the center (75% covers the corners).
+      return { ...rest, opacity: String(baseOpacity * Math.min(1, t / 0.25)), clipPath: `circle(${(t * 75).toFixed(2)}% at 50% 50%)` };
+    case "wipe":
+      // A print sliding out of the machine: top edge first.
+      return { ...rest, opacity: String(baseOpacity * Math.min(1, t / 0.2)), clipPath: `inset(0 0 ${((1 - t) * 100).toFixed(2)}% 0)` };
+    case "drift": {
+      // Slightly oversized, settling into place as it fades in.
+      const e = 1 - (1 - t) ** 3;
+      return { ...rest, opacity: String(baseOpacity * t), transform: `scale(${(1.06 - 0.06 * e).toFixed(4)})` };
+    }
+    default:
+      return { ...rest, opacity: String(baseOpacity * t) };
+  }
+}
+
 function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
   if (leaf.kind === "image") {
-    // Images reveal as a straight opacity fade (a photo has no pen to follow).
+    // A photo has no pen to follow, so it reveals by effect (ImageReveal in
+    // layout/model.ts): the pure frame math lives in imageRevealFrame.
+    const base = leaf.style.opacity;
+    const reveal = leaf.reveal ?? "fade";
+    const apply = (t: number) => {
+      const f = imageRevealFrame(reveal, base, t);
+      g.style.opacity = f.opacity;
+      g.style.filter = f.filter;
+      g.style.clipPath = f.clipPath;
+      g.style.transform = f.transform;
+    };
+    // transform-box makes scale() pivot on the image itself, not the SVG origin.
+    g.style.transformBox = "fill-box";
+    g.style.transformOrigin = "center";
     return {
       durationMs: leaf.drawOpts.duration,
-      prepare: () => {
-        g.style.opacity = "0";
-      },
-      setProgress: (t) => {
-        g.style.opacity = String(leaf.style.opacity * t);
-      },
+      prepare: () => apply(0),
+      setProgress: apply,
     };
   }
   if (leaf.kind === "text") {

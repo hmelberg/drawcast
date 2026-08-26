@@ -90,6 +90,15 @@ export interface GroupDrawable extends BaseDrawable {
   children: Drawable[];
 }
 
+/**
+ * How an image enters the canvas. Every effect is a PURE function of reveal
+ * progress t ∈ [0,1] (see svg-backend makeLeafHandle): erase drives t
+ * backwards and scrubbing jumps it anywhere, so an effect may hold no
+ * direction state — which also means erase plays each entrance in reverse
+ * for free (a developed photo dissolves back out of focus, an iris closes).
+ */
+export type ImageReveal = "develop" | "iris" | "wipe" | "drift" | "fade";
+
 export interface ImageDrawable extends BaseDrawable {
   kind: "image";
   /** A data URI (self-contained; external URLs would break offline/export). */
@@ -98,6 +107,8 @@ export interface ImageDrawable extends BaseDrawable {
   pos: Pt;
   w: number;
   h: number;
+  /** Entrance/exit effect (default "fade" — plain opacity). */
+  reveal?: ImageReveal;
 }
 
 export type Drawable = StrokeDrawable | AreaDrawable | TextDrawable | ImageDrawable | GroupDrawable;

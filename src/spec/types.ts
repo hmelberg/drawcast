@@ -117,6 +117,12 @@ export interface SpecElement {
    * fixture look.
    */
   cameo?: boolean;
+  /**
+   * How a photo portrait enters (and, reversed, exits): develop = darkroom
+   * blur-to-sharp (the default), iris = circle opening, wipe = top-down
+   * print, drift = settle-and-fade, fade = plain opacity.
+   */
+  reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
   // cross-cutting
   style?: SpecStyle;
   draw?: SpecDraw;
