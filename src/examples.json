@@ -3755,5 +3755,116 @@
         { "draw": ["title"], "speak": "Lead-time bias — why survival statistics can flatter screening." }
       ]
     }
+  },
+  {
+    "request": "Bacon raises cancer risk by 18 percent — should I panic?",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "The bacon headline",
+      "template": "icon_array",
+      "params": {
+        "groups": [
+          { "label": "Cancer anyway", "count": 6, "color": "demand" },
+          { "label": "Extra from bacon", "count": 1, "color": "shifted" }
+        ],
+        "rest_label": "No bowel cancer",
+        "title": "\"18% more cancer\" — among 100 people"
+      },
+      "commands": [
+        { "speak": "\"Daily bacon raises bowel-cancer risk by eighteen percent!\" Scary headline. Let's see what it actually means for one hundred people." },
+        { "draw": ["rest", "legend_rest"], "speak": "Ninety-three of them will never get bowel cancer — bacon or no bacon." },
+        { "pause": 0.3 },
+        { "draw": ["group_0", "legend_0"], "speak": "Six would get it anyway, even if they never touched bacon in their lives." },
+        { "pause": 0.3 },
+        { "draw": ["group_1", "legend_1"], "speak": "And the whole eighteen percent? It is this one extra person." },
+        { "highlight": { "target": ["group_1"], "effect": "glow" }, "speak": "Eighteen percent of a small risk is a very small risk: one extra case in a hundred daily bacon eaters." },
+        { "draw": ["title"], "speak": "Relative risk writes the headlines. Absolute risk — one in a hundred — is what should make the decision." }
+      ]
+    }
+  },
+  {
+    "request": "What does atrial fibrillation actually look like?",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "Atrial fibrillation",
+      "template": "ecg_strip",
+      "params": {
+        "rhythm": "afib",
+        "title": "Atrial fibrillation"
+      },
+      "commands": [
+        { "draw": ["grid"], "speak": "Put two fingers on your wrist. Would you notice if your heart had lost its conductor? Here is what that looks like on paper." },
+        { "draw": ["trace"], "speak": "This is atrial fibrillation. Watch the spikes: they land at random — no two gaps alike." },
+        { "pause": 0.3 },
+        { "highlight": { "target": ["trace"], "effect": "glow" }, "speak": "And something is missing. There is no small P wave before each spike, because the atria are not beating at all — they are quivering, hundreds of times a minute." },
+        { "draw": ["rate_label"], "speak": "Doctors call this pulse irregularly irregular: chaos with no pattern to find." },
+        { "draw": ["title"], "speak": "The surprise: many people feel nothing at all. But blood pooling in the quivering atria can clot — which is why this quiet rhythm is a leading cause of stroke.", "delivery": "grave" }
+      ]
+    }
+  },
+  {
+    "request": "Show me third-degree heart block — and why it doesn't just stop the heart.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "The heart's spare pacemaker",
+      "template": "ecg_strip",
+      "params": {
+        "rhythm": "heart_block",
+        "title": "Third-degree heart block"
+      },
+      "commands": [
+        { "speak": "Here is a reassuring secret: your heart carries spare pacemakers. This is the rhythm that proves it." },
+        { "draw": ["grid", "trace"], "speak": "In third-degree block, the electrical wiring between the atria and the ventricles is completely cut." },
+        { "pause": 0.3 },
+        { "highlight": { "target": ["trace"], "effect": "glow" }, "speak": "Count the small P waves: the atria march on at ninety a minute. Now count the tall spikes: only forty. Two rhythms in one heart, each ignoring the other." },
+        { "draw": ["rate_label"], "speak": "Those slow spikes come from a backup pacemaker deep in the ventricles — it wakes up whenever no signal arrives from above." },
+        { "draw": ["title"], "speak": "Forty beats a minute is enough to stay alive — and exactly the finding that earns you an artificial pacemaker." }
+      ]
+    }
+  },
+  {
+    "request": "Is a hole in the heart always a disaster?",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "A hole in the heart",
+      "template": "heart_circulation",
+      "params": {
+        "defect": "septal_defect",
+        "title": "A hole in the heart"
+      },
+      "commands": [
+        { "draw": ["heart", "walls"], "speak": "A baby is born with a hole in the heart. It sounds terrifying — but here is the twist: before birth, every one of us had one, on purpose." },
+        { "draw": ["right_fill", "ra", "rv"], "speak": "The right side collects used, oxygen-poor blood." },
+        { "draw": ["left_fill", "la", "lv"], "speak": "The left side pumps fresh red blood out to the body. The wall between them keeps the two strictly apart." },
+        { "pause": 0.3 },
+        { "draw": ["body", "lungs", "vein_in", "ra_rv", "pulm_artery", "pulm_vein", "la_lv", "aorta"], "speak": "In the womb the lungs are folded away and useless, so a built-in door between the atria lets blood skip them. At the first breath, it slams shut." },
+        { "draw": ["defect", "label_defect"], "speak": "A septal defect is when a hole in the wall stays open — here, between the ventricles.", "delivery": "grave" },
+        { "highlight": { "target": ["defect"], "effect": "glow" }, "speak": "The strong left side squirts blood back into the right, sending it round the lung loop again and again. That wasted round trip is why a large hole makes a child breathless and tired." },
+        { "draw": ["title"], "speak": "The reassuring part: small holes often close on their own — and the rest can be patched." }
+      ]
+    }
+  },
+  {
+    "request": "How fast is a thought? Show me the neuron's wiring.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "A signal at 400 km/h",
+      "template": "neuron",
+      "params": {
+        "show_synapse": true,
+        "title": "A signal at 400 km/h"
+      },
+      "commands": [
+        { "draw": ["soma", "nucleus", "dendrites"], "speak": "Stub your toe and you feel it almost at once — yet the message crosses more than a metre of living cable. How? Meet the neuron." },
+        { "draw": ["axon", "label_axon"], "speak": "This single cell can stretch from your spinal cord all the way to your toe. One cell, over a metre long." },
+        { "pause": 0.3 },
+        { "draw": ["myelin", "label_myelin"], "speak": "The speed trick is this fatty insulation — myelin — wrapped around the cable in segments." },
+        { "draw": ["label_node"], "speak": "The impulse doesn't glide along. It jumps, gap to gap, node to node." },
+        { "draw": ["impulse", "label_impulse"], "speak": "Jumping, it reaches up to a hundred and twenty metres per second — over four hundred kilometres per hour. Without myelin, it would crawl at walking pace." },
+        { "draw": ["terminals", "label_terminals"], "speak": "At the end of the line the signal must cross to the next cell." },
+        { "draw": ["synapse", "label_synapse"], "speak": "And here electricity becomes chemistry: vesicles spill neurotransmitter across the gap, and the message travels on." },
+        { "draw": ["title"], "speak": "That is why the pain arrives before you have even looked down." }
+      ]
+    }
   }
 ]
