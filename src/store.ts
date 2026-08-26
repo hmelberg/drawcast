@@ -20,7 +20,10 @@ const KEYS = {
   myTemplates: "drawcast.myTemplates.v1",
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
-  usage: "drawcast.usage.v1",
+  // v2 on 2026-08-27: one-shot reset of the soft-cap ledger — a month of
+  // sound-feature testing burned the 250k vended-TTS allowance and silently
+  // dropped playback to the browser voice. Stale v1 ledgers are simply orphaned.
+  usage: "drawcast.usage.v2",
   // One-shot flag, see loadSettings. Bumped to v2 on 2026-08-25: the default
   // pack set grew again (economics/evidence/mathlogic joined
   // physics/chemistry/biology), and browsers that already ran the v1 upgrade

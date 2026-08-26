@@ -40,7 +40,7 @@ describe("usage ledger", () => {
   });
 
   test("a stored ledger from another month resets", () => {
-    mem.set("drawcast.usage.v1", JSON.stringify({ month: "1999-01", anthropicTokens: 999999999, ttsChars: 999999 }));
+    mem.set("drawcast.usage.v2", JSON.stringify({ month: "1999-01", anthropicTokens: 999999999, ttsChars: 999999 }));
     const u = loadUsage();
     expect(u.anthropicTokens).toBe(0);
     expect(u.ttsChars).toBe(0);
