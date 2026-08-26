@@ -28,7 +28,7 @@ export const OUTLINE_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          title: { type: "string", description: "Short title of this part (shown on its transition card)." },
+          title: { type: "string", description: "Short title of this part (shown on the continue button between parts)." },
           brief: { type: "string", description: "One line: what this part covers and its role in the arc." },
           level: { type: "string", enum: ["basic", "advanced"], description: "Only when the request implies one." },
         },

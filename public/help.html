@@ -354,14 +354,18 @@ commands:
         <h2 id="playlists">Multi-part drawcasts</h2>
         <p>
           Add <code>#playlist</code> (or <code>#parts=4</code>) to a request and you get a sequence of
-          drawings that play in order, with a title card between parts. In text form it is a stream of
-          YAML documents separated by <code>---</code>, with an optional header:
+          drawings that play in order. A playlist <code>title</code> opens the show as a fading title
+          page. Between parts the finished drawing stays on screen with a
+          <em>“Click to go on to …”</em> button, then un-draws itself; where a new chapter begins, a
+          chapter card announces it. In text form it is a stream of YAML documents separated by
+          <code>---</code>, with an optional header:
         </p>
         <pre><code>playlist:
   title: A short course on taxes
+  subtitle: In six drawings   # optional, under the title on the title page
   advance: click     # or auto
   gap: 1             # seconds between parts when advancing automatically
-  transitions: auto  # auto = title cards between parts, none = straight through
+  transitions: auto  # auto = soft fades + chapter cards, none = hard cuts
 ---
 chapter: Foundations
 ---

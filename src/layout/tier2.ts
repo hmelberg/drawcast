@@ -129,7 +129,7 @@ export function layoutElements(
           text: el.text ?? el.id,
           fontSize: el.font_size ?? 28,
           style: resolveStyle(el.style),
-          drawOpts: resolveDrawOpts(el.draw, { mode: "instant" }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         });
         break;
       }
@@ -158,7 +158,7 @@ export function layoutElements(
           anchor: "middle",
           z: Z_TEXT,
           style: resolveStyle(el.style),
-          drawOpts: resolveDrawOpts(el.draw, { mode: "instant" }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         });
         ctx.anchors[el.id] = pos;
         break;

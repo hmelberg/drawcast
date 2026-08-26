@@ -13,10 +13,15 @@ import type { Spec } from "../spec/types";
 
 export interface PlaylistMeta {
   title?: string;
+  /** Shown under the title on the opening title page. */
+  subtitle?: string;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
-  /** auto = synthesized "Next: …" title cards between items; none = hard cuts. */
+  /**
+   * auto = stay on the finished drawing until the viewer continues, un-draw
+   * it, and play a chapter card where a new chapter begins; none = hard cuts.
+   */
   transitions: "auto" | "none";
 }
 
@@ -44,6 +49,7 @@ export function singlePlaylist(spec: Spec): Playlist {
 function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMeta {
   const meta: PlaylistMeta = { ...DEFAULT_META };
   if (typeof raw.title === "string") meta.title = raw.title;
+  if (typeof raw.subtitle === "string") meta.subtitle = raw.subtitle;
   if (raw.advance !== undefined) {
     if (raw.advance === "click" || raw.advance === "auto") meta.advance = raw.advance;
     else warnings.push(`playlist.advance must be "click" or "auto" (got ${JSON.stringify(raw.advance)}) — using click`);
@@ -127,6 +133,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.entries.length === 1 &&
     playlist.entries[0].kind === "item" &&
     playlist.meta.title === undefined &&
+    playlist.meta.subtitle === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -146,6 +153,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   const parts: string[] = [];
   const header: Record<string, unknown> = {};
   if (playlist.meta.title !== undefined) header.title = playlist.meta.title;
+  if (playlist.meta.subtitle !== undefined) header.subtitle = playlist.meta.subtitle;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;
@@ -157,42 +165,137 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   return parts.join("---\n");
 }
 
-// ---- Transition title cards ----------------------------------------------
-// A transition is itself a tiny spec played through the ordinary renderer, so
-// it appears identically in live playback, the #gdoc viewer, and video export
-// (which rasterizes the SVG — a DOM overlay would vanish from exports).
+export function itemTitle(item: PlaylistItem): string {
+  return item.spec.title ?? `Part ${item.index + 1}`;
+}
 
-export interface TitleCardOptions {
-  /** Title of the upcoming item. */
-  next: string;
-  /** Set when this transition crosses into a new chapter. */
-  chapter?: string;
-  level?: "basic" | "advanced";
+// ---- Title page and chapter cards ----------------------------------------
+// A card is itself a tiny spec played through the ordinary renderer, so it
+// appears identically in live playback, the #gdoc viewer, and video export
+// (which rasterizes the SVG — a DOM overlay would vanish from exports).
+// Text elements carry explicit sketch draws, so titles FADE in (text reveal
+// is an opacity ramp) and every card fades back out through clear.
+
+/** Font size that keeps a one-line title inside the 1000-unit canvas (no word-wrap for plain text). */
+function titleFont(text: string): number {
+  return Math.max(34, Math.min(64, Math.round(900 / (0.55 * Math.max(1, text.length)))));
+}
+
+export interface TitlePageOptions {
+  title: string;
+  subtitle?: string;
+  /** Seconds the closing hold lasts (default 1). */
+  gap?: number;
+}
+
+/**
+ * The TV-style opening card: the title fades in over its underline, the
+ * subtitle follows, the camera pushes in slowly, then everything fades out.
+ * Always auto-continues — the viewer already pressed play.
+ */
+export function makeTitlePage(opts: TitlePageOptions): Spec {
+  const elements: Spec["elements"] = [
+    {
+      id: "tp_title",
+      type: "text",
+      text: opts.title,
+      x: 500,
+      y: 430,
+      font_size: titleFont(opts.title),
+      draw: { mode: "sketch", duration: 1.2 },
+    },
+    { id: "tp_line", type: "path", points: [[300, 372], [700, 368]] },
+  ];
+  if (opts.subtitle) {
+    elements.push({
+      id: "tp_subtitle",
+      type: "text",
+      text: opts.subtitle,
+      x: 500,
+      y: 315,
+      font_size: 28,
+      style: { opacity: 0.75 },
+      draw: { mode: "sketch", duration: 0.9 },
+    });
+  }
+  const commands: Spec["commands"] = [{ draw: ["tp_title", "tp_line"], speak: opts.title }];
+  if (opts.subtitle) commands.push({ draw: ["tp_subtitle"], speak: opts.subtitle });
+  commands.push({ camera: { center: { ref: "tp_title" }, zoom: 1.08, duration: Math.max(1.6, opts.gap ?? 1) } });
+  commands.push({ clear: {} });
+  return { elements, commands };
+}
+
+export interface ChapterCardOptions {
+  /** The chapter being entered. */
+  chapter: string;
+  /** Title of the chapter's first item, shown as a byline. */
+  next?: string;
   gate: "click" | "auto";
   /** Seconds to hold on auto advance (default 1). */
   gap?: number;
 }
 
-export function makeTitleCard(opts: TitleCardOptions): Spec {
+/** The card played where a new chapter begins — the only interstitial left. */
+export function makeChapterCard(opts: ChapterCardOptions): Spec {
   const elements: Spec["elements"] = [
+    { id: "ch_kicker", type: "text", text: "Chapter", x: 500, y: 465, font_size: 24, style: { opacity: 0.6 } },
     {
-      id: "card_kicker",
+      id: "ch_title",
       type: "text",
-      text: opts.chapter ?? "Next",
+      text: opts.chapter,
       x: 500,
-      y: 465,
-      font_size: 28,
-      style: { opacity: 0.7 },
+      y: 390,
+      font_size: Math.min(56, titleFont(opts.chapter)),
+      draw: { mode: "sketch", duration: 1 },
     },
-    { id: "card_title", type: "text", text: opts.next, x: 500, y: 390, font_size: 52 },
-    { id: "card_line", type: "path", points: [[330, 352], [670, 348]] },
+    { id: "ch_line", type: "path", points: [[330, 352], [670, 348]] },
   ];
-  if (opts.level) {
-    elements.push({ id: "card_level", type: "text", text: opts.level, x: 500, y: 305, font_size: 22, style: { opacity: 0.6 } });
+  if (opts.next) {
+    elements.push({
+      id: "ch_next",
+      type: "text",
+      text: opts.next,
+      x: 500,
+      y: 300,
+      font_size: 26,
+      style: { opacity: 0.7 },
+      draw: { mode: "sketch", duration: 0.7 },
+    });
   }
   const commands: Spec["commands"] = [
-    { draw: elements.map((e) => e.id), speak: opts.chapter ? `${opts.chapter}. Next: ${opts.next}` : `Next: ${opts.next}` },
+    { draw: ["ch_kicker", "ch_title", "ch_line"], speak: `Next chapter: ${opts.chapter}` },
   ];
+  if (opts.next) commands.push({ draw: ["ch_next"] });
   commands.push(opts.gate === "click" ? { wait: "click" } : { pause: opts.gap ?? 1 });
+  commands.push({ clear: {} });
   return { elements, commands };
+}
+
+/** The item's spec plus a soft exit: hold for the gap, then un-draw everything. */
+function withSoftExit(spec: Spec, gap: number): Spec {
+  return { ...spec, commands: [...(spec.commands ?? []), { pause: gap }, { clear: {} }] };
+}
+
+/**
+ * The specs a video export plays, in order — and the single description of
+ * what a viewer sees live: title page first, each item un-drawing itself
+ * before the next, a chapter card where a new chapter begins. Export always
+ * auto-advances; there is no one to click.
+ */
+export function exportSequence(playlist: Playlist): Spec[] {
+  const items = itemsOf(playlist);
+  const { meta } = playlist;
+  const seq: Spec[] = [];
+  if (meta.title !== undefined && items.length > 0) {
+    seq.push(makeTitlePage({ title: meta.title, subtitle: meta.subtitle, gap: meta.gap }));
+  }
+  items.forEach((item, i) => {
+    if (i > 0 && meta.transitions === "auto") {
+      const crossing = item.chapter !== items[i - 1].chapter ? item.chapter : undefined;
+      if (crossing) seq.push(makeChapterCard({ chapter: crossing, next: itemTitle(item), gate: "auto", gap: meta.gap }));
+    }
+    const last = i === items.length - 1;
+    seq.push(!last && meta.transitions === "auto" ? withSoftExit(item.spec, meta.gap) : item.spec);
+  });
+  return seq;
 }

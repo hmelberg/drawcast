@@ -1,7 +1,16 @@
 import { describe, expect, test } from "vitest";
-import { formatPlaylist, itemsOf, makeTitleCard, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
+import {
+  exportSequence,
+  formatPlaylist,
+  itemsOf,
+  makeChapterCard,
+  makeTitlePage,
+  parsePlaylistText,
+  singlePlaylist,
+} from "../src/playlist/playlist";
+import { playlistSpeakTexts } from "../src/playlist/session";
 import { validateSpec } from "../src/spec/schema";
-import type { Spec } from "../src/spec/types";
+import type { Spec, SpecElement } from "../src/spec/types";
 
 const SPEC_A = 'title: Part one\nelements:\n  - {id: t, type: text, text: hi, x: 500, y: 375}\ncommands: []';
 const SPEC_B = 'title: Part two\nlevel: advanced\nelements:\n  - {id: t, type: text, text: yo, x: 500, y: 375}\ncommands: []';
@@ -100,34 +109,133 @@ describe("singlePlaylist", () => {
   });
 });
 
-describe("makeTitleCard", () => {
-  test("produces a valid spec announcing the next item", () => {
-    const card = makeTitleCard({ next: "Markov models", gate: "click" });
+describe("playlist subtitle", () => {
+  test("the header's subtitle is parsed and round-trips through format", () => {
+    const p = parsePlaylistText(`playlist: {title: T, subtitle: In six drawings}\n---\n${SPEC_A}\n---\n${SPEC_B}`);
+    expect(p.meta.subtitle).toBe("In six drawings");
+    expect(parsePlaylistText(formatPlaylist(p, "yaml"))).toEqual(p);
+  });
+});
+
+const elById = (spec: Spec, id: string): SpecElement | undefined => (spec.elements ?? []).find((e) => e.id === id);
+
+describe("makeTitlePage", () => {
+  test("produces a valid spec carrying the series title and subtitle", () => {
+    const page = makeTitlePage({ title: "Health economics", subtitle: "Six drawings" });
+    expect(validateSpec(page).ok).toBe(true);
+    expect(elById(page, "tp_title")?.text).toBe("Health economics");
+    expect(elById(page, "tp_subtitle")?.text).toBe("Six drawings");
+  });
+
+  test("the title fades in instead of popping", () => {
+    const title = elById(makeTitlePage({ title: "X" }), "tp_title");
+    expect(title?.draw?.mode).toBe("sketch");
+    expect(title?.draw?.duration ?? 0).toBeGreaterThan(0);
+  });
+
+  test("ends by fading the canvas back out", () => {
+    expect((makeTitlePage({ title: "X" }).commands ?? []).at(-1)).toEqual({ clear: {} });
+  });
+
+  test("speaks the title so recordings announce the presentation", () => {
+    const page = makeTitlePage({ title: "Health economics", subtitle: "Six drawings" });
+    const spoken = (page.commands ?? [])
+      .map((c) => c.speak)
+      .filter(Boolean)
+      .join(" ");
+    expect(spoken).toContain("Health economics");
+  });
+
+  test("a long title shrinks its font to stay on the canvas", () => {
+    const size = (t: string): number => elById(makeTitlePage({ title: t }), "tp_title")?.font_size ?? 0;
+    expect(size("A quite long presentation title about Markov models")).toBeLessThan(size("Short"));
+  });
+
+  test("without a subtitle the page is valid and has no subtitle element", () => {
+    const page = makeTitlePage({ title: "X" });
+    expect(validateSpec(page).ok).toBe(true);
+    expect(elById(page, "tp_subtitle")).toBeUndefined();
+  });
+});
+
+describe("makeChapterCard", () => {
+  test("announces the chapter big, with the next item as a smaller byline", () => {
+    const card = makeChapterCard({ chapter: "Foundations", next: "Markov models", gate: "click" });
     expect(validateSpec(card).ok).toBe(true);
-    const speaks = (card.commands ?? []).filter((c) => c.speak !== undefined);
-    expect(speaks[0].speak).toContain("Markov models");
+    expect(elById(card, "ch_title")?.text).toBe("Foundations");
+    expect(elById(card, "ch_next")?.text).toContain("Markov models");
+    expect(elById(card, "ch_next")?.font_size ?? 99).toBeLessThan(elById(card, "ch_title")?.font_size ?? 0);
   });
 
-  test("click gate ends the card with a wait command", () => {
-    const card = makeTitleCard({ next: "X", gate: "click" });
-    expect((card.commands ?? []).some((c) => c.wait === "click")).toBe(true);
+  test("chapter text fades in", () => {
+    expect(elById(makeChapterCard({ chapter: "C", gate: "auto" }), "ch_title")?.draw?.mode).toBe("sketch");
   });
 
-  test("auto advance ends the card with a pause of the given gap", () => {
-    const card = makeTitleCard({ next: "X", gate: "auto", gap: 2 });
-    const last = (card.commands ?? []).at(-1);
-    expect(last).toEqual({ pause: 2 });
+  test("click gate: waits for the click, then fades out", () => {
+    const cmds = makeChapterCard({ chapter: "C", gate: "click" }).commands ?? [];
+    expect(cmds.at(-2)).toEqual({ wait: "click" });
+    expect(cmds.at(-1)).toEqual({ clear: {} });
   });
 
-  test("a chapter crossing shows the chapter as the kicker", () => {
-    const card = makeTitleCard({ next: "X", chapter: "Foundations", gate: "click" });
-    const texts = (card.elements ?? []).filter((e) => e.type === "text").map((e) => e.text);
-    expect(texts).toContain("Foundations");
+  test("auto gate: holds for the gap instead of waiting", () => {
+    const cmds = makeChapterCard({ chapter: "C", gate: "auto", gap: 2 }).commands ?? [];
+    expect(cmds.at(-2)).toEqual({ pause: 2 });
+    expect(cmds.at(-1)).toEqual({ clear: {} });
+  });
+});
+
+describe("exportSequence — what a video export plays, in order", () => {
+  const SPEC_C = 'title: Part three\nelements:\n  - {id: t, type: text, text: ho, x: 500, y: 375}\ncommands: []';
+  const STREAM = [
+    "playlist: {title: Health econ, subtitle: In drawings}",
+    "---",
+    "chapter: Basics",
+    "---",
+    SPEC_A,
+    "---",
+    SPEC_B,
+    "---",
+    "chapter: Models",
+    "---",
+    SPEC_C,
+  ].join("\n");
+
+  test("opens with the title page when the playlist has a title", () => {
+    const seq = exportSequence(parsePlaylistText(STREAM));
+    expect(elById(seq[0], "tp_title")?.text).toBe("Health econ");
   });
 
-  test("a level badge appears when the item declares one", () => {
-    const card = makeTitleCard({ next: "X", level: "advanced", gate: "click" });
-    const texts = (card.elements ?? []).map((e) => e.text ?? "");
-    expect(texts.join(" ")).toContain("advanced");
+  test("no title page without a playlist title", () => {
+    const seq = exportSequence(parsePlaylistText(`${SPEC_A}\n---\n${SPEC_B}`));
+    expect(seq.some((s) => elById(s, "tp_title"))).toBe(false);
+  });
+
+  test("chapter cards appear only where a new chapter begins", () => {
+    const seq = exportSequence(parsePlaylistText(STREAM));
+    const cards = seq.filter((s) => elById(s, "ch_title"));
+    expect(cards).toHaveLength(1);
+    expect(elById(cards[0], "ch_title")?.text).toBe("Models");
+  });
+
+  test("every item except the last fades out before the next", () => {
+    const seq = exportSequence(parsePlaylistText(STREAM));
+    const items = seq.filter((s) => !elById(s, "tp_title") && !elById(s, "ch_title"));
+    expect(items).toHaveLength(3);
+    for (const it of items.slice(0, -1)) expect((it.commands ?? []).at(-1)).toEqual({ clear: {} });
+    expect((items.at(-1)?.commands ?? []).at(-1)).not.toEqual({ clear: {} });
+  });
+
+  test("transitions none: items only, apart from the title page", () => {
+    const p = parsePlaylistText(`playlist: {title: T, transitions: none}\n---\n${SPEC_A}\n---\n${SPEC_B}`);
+    const seq = exportSequence(p);
+    expect(seq).toHaveLength(3);
+    expect(seq.slice(1).every((s) => (s.commands ?? []).at(-1)?.clear === undefined)).toBe(true);
+  });
+
+  test("playlistSpeakTexts covers the title page and chapter cards, with no per-page Next lines", () => {
+    const texts = playlistSpeakTexts(parsePlaylistText(STREAM));
+    expect(texts.join(" ")).toContain("Health econ");
+    expect(texts.join(" ")).toContain("Models");
+    expect(texts.some((t) => t.startsWith("Next:"))).toBe(false);
   });
 });

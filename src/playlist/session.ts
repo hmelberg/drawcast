@@ -1,9 +1,11 @@
 // Playlist playback: a thin sequence controller above the unchanged renderer.
-// Each item is a fresh render (its own template, domain, ids — the re-render IS
-// the between-chart clear); transitions are synthesized title-card specs played
-// through the same renderer so they show up in live playback, the #gdoc viewer
-// and video export alike. Navigation: chapter-tree panel (native <details> for
-// collapse), per-item dots in the control bar, and n/p keys.
+// Each item is a fresh render (its own template, domain, ids), but the cut is
+// softened: the finished drawing stays up until the viewer continues, then
+// un-draws itself (fadeOutAll). Cards — the opening title page and the
+// chapter card where a new chapter begins — are synthesized specs played
+// through the same renderer so they show up in live playback, the #gdoc
+// viewer and video export alike. Navigation: chapter-tree panel (native
+// <details> for collapse), per-item dots in the control bar, and n/p keys.
 
 import { render, type RenderHandle, type RenderStyle } from "../render";
 import type { PlaybackMode } from "../render/player";
@@ -11,7 +13,9 @@ import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
 import { collectSpeakTexts } from "../export/video";
-import { itemsOf, makeTitleCard, type Playlist, type PlaylistItem } from "./playlist";
+import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, type Playlist, type PlaylistItem } from "./playlist";
+
+export { itemTitle };
 
 export interface SessionOptions {
   style: RenderStyle;
@@ -30,21 +34,26 @@ export interface SessionHandle {
   destroy(): void;
 }
 
-export function itemTitle(item: PlaylistItem): string {
-  return item.spec.title ?? `Part ${item.index + 1}`;
+/**
+ * Every narration line the playlist can speak — items, the title page, and
+ * chapter cards. Derived from exportSequence, so live playback and video
+ * export can never disagree about what needs pre-synthesized speech.
+ */
+export function playlistSpeakTexts(playlist: Playlist): string[] {
+  return [...new Set(exportSequence(playlist).flatMap(collectSpeakTexts))];
 }
 
-/** Every narration line the playlist can speak — items plus synthesized title cards. */
-export function playlistSpeakTexts(playlist: Playlist): string[] {
-  const items = itemsOf(playlist);
-  const texts = items.flatMap((it) => collectSpeakTexts(it.spec));
-  if (items.length > 1 && playlist.meta.transitions === "auto") {
-    for (let i = 1; i < items.length; i++) {
-      const crossing = items[i].chapter !== items[i - 1].chapter ? items[i].chapter : undefined;
-      texts.push(...collectSpeakTexts(makeTitleCard({ next: itemTitle(items[i]), chapter: crossing, gate: "auto" })));
-    }
-  }
-  return [...new Set(texts)];
+/** An abortable sleep for auto-advance gaps; resolves (never rejects) on abort. */
+function delay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const done = (): void => {
+      window.clearTimeout(t);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const t = window.setTimeout(done, ms);
+    signal.addEventListener("abort", done);
+  });
 }
 
 export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts: SessionOptions): Promise<SessionHandle> {
@@ -54,7 +63,6 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
 
   let handle: RenderHandle | null = null;
   let destroyed = false;
-  let pendingTimer: number | null = null;
   let gateAbort: AbortController | null = null;
   let modeRef: PlaybackMode = opts.mode;
 
@@ -148,10 +156,6 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   function cancelPending(): void {
-    if (pendingTimer !== null) {
-      window.clearTimeout(pendingTimer);
-      pendingTimer = null;
-    }
     gateAbort?.abort();
     gateAbort = null;
   }
@@ -191,29 +195,37 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     if (autoplay) void hd.timeline.play();
   }
 
+  /** The between-items gate: a gap timer on auto, otherwise the continue pill on the finished drawing. */
+  function continueGate(next: PlaylistItem, signal: AbortSignal): Promise<void> {
+    if (advance === "auto") return delay(gap * 1000, signal);
+    const stage = host.querySelector<HTMLElement>(".cs-stage");
+    if (!stage) return Promise.resolve();
+    return clickGate(stage, `Click to go on to ${itemTitle(next)} ▸`)(signal);
+  }
+
   async function onItemDone(): Promise<void> {
     // Instant mode is for inspecting final states — never auto-chain there.
     if (destroyed || idx >= items.length - 1 || modeRef === "instant") return;
     const next = items[idx + 1];
     const crossing = next.chapter !== items[idx].chapter ? next.chapter : undefined;
+    const ac = new AbortController();
+    gateAbort = ac;
+    await continueGate(next, ac.signal);
+    if (destroyed || ac.signal.aborted) return;
     if (playlist.meta.transitions === "auto") {
-      await mountCard(next, crossing);
-    } else if (advance === "auto") {
-      pendingTimer = window.setTimeout(() => void mountItem(idx + 1, true), gap * 1000);
-    } else {
-      const stage = host.querySelector<HTMLElement>(".cs-stage");
-      if (!stage) return;
-      const ac = new AbortController();
-      gateAbort = ac;
-      await clickGate(stage, `Next: ${itemTitle(next)} ▸`)(ac.signal);
-      if (!destroyed && !ac.signal.aborted) void mountItem(next.index, true);
+      // The finished drawing un-draws itself instead of a hard cut.
+      await handle?.timeline.fadeOutAll();
+      if (destroyed || ac.signal.aborted) return;
+      if (crossing) return mountCard(next, crossing);
     }
+    void mountItem(next.index, true);
   }
 
-  async function mountCard(next: PlaylistItem, crossing: string | undefined): Promise<void> {
+  /** The interstitial that remains: a card where a new chapter begins. */
+  async function mountCard(next: PlaylistItem, crossing: string): Promise<void> {
     handle?.destroy();
     handle = null;
-    const card = makeTitleCard({ next: itemTitle(next), chapter: crossing, level: next.spec.level, gate: advance, gap });
+    const card = makeChapterCard({ chapter: crossing, next: itemTitle(next), gate: advance, gap });
     const hd = await render(card, host, renderOpts);
     if (destroyed) {
       hd.destroy();
@@ -230,6 +242,39 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     void hd.timeline.play();
   }
 
+  /**
+   * The TV-style opening: the title page mounts as the cover (its finished
+   * state is the poster behind the big play button); pressing play fades the
+   * title in and out, then chains into the first item.
+   */
+  async function mountTitlePage(title: string): Promise<void> {
+    if (destroyed) return;
+    idx = -1; // before item 0: no dot current, n jumps to the first item
+    handle?.destroy();
+    handle = null;
+    const hd = await render(makeTitlePage({ title, subtitle: playlist.meta.subtitle, gap }), host, renderOpts);
+    if (destroyed) {
+      hd.destroy();
+      return;
+    }
+    handle = hd;
+    attachPlayerControls(host, hd, prefs, {
+      ...opts.controls,
+      trailing: [dotsWrap, panelBtn, ...(opts.controls?.trailing ?? [])],
+    });
+    // Chain AFTER the controls install their callbacks (and their showPoster),
+    // so the poster's initial "done" never triggers an advance.
+    const prev = hd.timeline.callbacks;
+    hd.timeline.callbacks = {
+      onState: (s) => {
+        prev.onState?.(s);
+        if (s === "done" && modeRef !== "instant") void mountItem(0, true);
+      },
+      onStep: prev.onStep,
+    };
+    markCurrent();
+  }
+
   const onKey = (e: KeyboardEvent): void => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
@@ -238,7 +283,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   };
   document.addEventListener("keydown", onKey);
 
-  await mountItem(0, false);
+  if (playlist.meta.title !== undefined) await mountTitlePage(playlist.meta.title);
+  else await mountItem(0, false);
 
   return {
     destroy: () => {

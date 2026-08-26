@@ -31,6 +31,9 @@ export interface PlayerCallbacks {
 
 const ERASE_SPEED = 0.55; // erasing runs faster than drawing
 const CLEAR_MS = 550;
+// Instant elements (durationMs 0, e.g. explicit instant text) would clear in
+// 0 ms — a snap where everything else fades. The floor keeps clear soft.
+const CLEAR_MIN_MS = 250;
 
 export class Player {
   private plan: Plan;
@@ -349,7 +352,9 @@ export class Player {
         await this.narrationBarrier();
         if (signal.aborted) return;
         const els = this.els(step.ids);
-        await Promise.all(els.map((el) => this.animateRange(el, 1, 0, Math.min(el.durationMs * 0.4, CLEAR_MS), signal)));
+        await Promise.all(
+          els.map((el) => this.animateRange(el, 1, 0, Math.min(Math.max(el.durationMs * 0.4, CLEAR_MIN_MS), CLEAR_MS), signal)),
+        );
         return;
       }
       case "highlight": {
@@ -515,5 +520,18 @@ export class Player {
 
   private hideAll(): void {
     for (const el of this.elements.values()) el.hide();
+  }
+
+  /**
+   * Un-draw everything visible at the current boundary — the playlist's soft
+   * exit between items. Runs outside the plan (no step, no state change);
+   * dispose and scrubbing abort it like any running step.
+   */
+  async fadeOutAll(ms = CLEAR_MS): Promise<void> {
+    this.abortRun();
+    const ac = new AbortController();
+    this.ac = ac;
+    const els = this.els([...this.stateAt(this.completed).visible]);
+    await Promise.all(els.map((el) => this.animateRange(el, 1, 0, ms, ac.signal)));
   }
 }

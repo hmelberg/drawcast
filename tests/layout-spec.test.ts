@@ -61,3 +61,34 @@ describe("layoutSpec", () => {
     expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 });
+
+describe("text fades in by default", () => {
+  const drawOptsOf = (r: ReturnType<typeof layoutSpec>, id: string): { mode: string; duration: number } | undefined => {
+    const d = flattenDrawables(r.drawables).find((x) => x.id === id);
+    return d && "drawOpts" in d ? (d as { drawOpts: { mode: string; duration: number } }).drawOpts : undefined;
+  };
+
+  test("a plain text element gets a sketch fade, not an instant pop", () => {
+    const r = layoutSpec({ elements: [{ id: "t", type: "text", text: "hello", x: 500, y: 375 }], commands: [] });
+    expect(drawOptsOf(r, "t")).toEqual({ mode: "sketch", duration: 400 });
+  });
+
+  test("an attached label fades too", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "t", type: "text", text: "anchor", x: 500, y: 375 },
+        { id: "lbl", type: "label", attach_to: "t", text: "the note" },
+      ],
+      commands: [],
+    });
+    expect(drawOptsOf(r, "lbl")?.mode).toBe("sketch");
+  });
+
+  test("an explicit instant draw still wins", () => {
+    const r = layoutSpec({
+      elements: [{ id: "t", type: "text", text: "x", x: 500, y: 375, draw: { mode: "instant" } }],
+      commands: [],
+    });
+    expect(drawOptsOf(r, "t")?.duration).toBe(0);
+  });
+});

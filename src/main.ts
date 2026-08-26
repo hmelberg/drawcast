@@ -38,15 +38,15 @@ import { h } from "./ui/dom";
 import { type PlaybackPrefs } from "./ui/controls";
 import {
   DEFAULT_META,
+  exportSequence,
   formatPlaylist,
   isSingle,
   itemsOf,
-  makeTitleCard,
   parsePlaylistText,
   singlePlaylist,
   type Playlist,
 } from "./playlist/playlist";
-import { itemTitle, mountPlaylist, playlistSpeakTexts, type SessionHandle } from "./playlist/session";
+import { mountPlaylist, playlistSpeakTexts, type SessionHandle } from "./playlist/session";
 import { exportVideo } from "./export/video";
 import { CloudSpeech } from "./export/tts";
 import {
@@ -2766,23 +2766,6 @@ function endExport(): void {
   exportVideoBtn.disabled = false;
   uploadYtBtn.disabled = false;
   exportAbort = null;
-}
-
-/**
- * The specs a video export plays, in order: items with the same title cards a
- * viewer would see, but always auto-advancing — there is no one to click.
- */
-function exportSequence(playlist: Playlist): Spec[] {
-  const items = itemsOf(playlist);
-  const seq: Spec[] = [];
-  items.forEach((item, i) => {
-    if (i > 0 && playlist.meta.transitions === "auto") {
-      const crossing = item.chapter !== items[i - 1].chapter ? item.chapter : undefined;
-      seq.push(makeTitleCard({ next: itemTitle(item), chapter: crossing, level: item.spec.level, gate: "auto", gap: playlist.meta.gap }));
-    }
-    seq.push(item.spec);
-  });
-  return seq;
 }
 
 /**
