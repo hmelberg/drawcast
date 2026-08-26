@@ -1,0 +1,795 @@
+pack: medicine
+title: Medicine
+description: Icon arrays, ECG strips, heart circulation, neurons and screening timelines — the figures of medical teaching and risk communication.
+---
+template: icon_array
+title: Icon array (risk communication)
+version: 1
+kit: 2
+status: ready
+description: >-
+  An icon array (pictograph) for absolute-risk communication: a grid of
+  person pictograms — typically 100, "out of 100 people" — colored group by
+  group (e.g. "8 in 100 have a heart attack anyway, 2 avoid one thanks to
+  treatment") with a legend naming each group and its count. The canonical
+  honest way to show absolute risks, risk differences, treatment benefit and
+  harm, and number needed to treat. Choose this scene for ANY request about
+  absolute vs relative risk, "X in 100" or "X per 100" framings, icon
+  arrays, pictographs of people affected, treatment benefit/harm counts,
+  screening benefit, or number needed to treat.
+params:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: "How many person icons in the grid, 10-100 (default 100)."
+    groups:
+      type: array
+      maxItems: 4
+      items:
+        type: object
+        properties:
+          label:
+            type: string
+            description: "Short legend label, e.g. \"Helped\" — keep under ~22 characters."
+          count: { type: integer }
+          color:
+            type: string
+            enum: [demand, supply, accent, shifted, region2]
+            description: "Optional; defaults cycle demand (red), supply (blue), accent, shifted."
+        required: [label, count]
+      description: "Colored subgroups, filled into the grid in order from the top-left; the remainder is drawn neutral grey."
+    rest_label:
+      type: string
+      description: "Legend label for the uncolored remainder (default \"Unaffected\")."
+    title:
+      type: string
+element_ids:
+  group_<i>: the person icons of groups[i] (one group, drawn together)
+  rest: the remaining neutral person icons (a group)
+  legend_<i>: legend entry (mini icon + count + label) for groups[i]
+  legend_rest: legend entry for the remainder
+  title: figure title, when set
+examples:
+  - request: "Show an icon array: 5 in 100 people get the side effect."
+    params:
+      groups:
+        - { label: "Side effect", count: 5 }
+      rest_label: "No side effect"
+      title: "5 in 100 experience the side effect"
+  - request: "Icon array of statin benefit: 8 in 100 have a heart attack anyway, 2 in 100 avoid one."
+    params:
+      groups:
+        - { label: "Heart attack anyway", count: 8, color: demand }
+        - { label: "Avoided (helped)", count: 2, color: supply }
+      rest_label: "No event either way"
+      title: "What statins change for 100 people"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const GROUP_COLOR_CYCLE = ["demand", "supply", "accent", "shifted"];
+  const COLOR_OK = { demand: 1, supply: 1, accent: 1, shifted: 1, region2: 1 };
+  const total = Math.max(10, Math.min(100, Number.isFinite(params.total) ? Math.round(params.total) : 100));
+  const rawGroups = Array.isArray(params.groups) ? params.groups.slice(0, 4) : [];
+  const groups = [];
+  let used = 0;
+  rawGroups.forEach((g, i) => {
+    const count = Math.max(0, Math.min(total - used, Number.isFinite(g && g.count) ? Math.round(g.count) : 0));
+    if (count <= 0) return;
+    const colorKey = g && COLOR_OK[g.color] ? g.color : GROUP_COLOR_CYCLE[groups.length % GROUP_COLOR_CYCLE.length];
+    groups.push({ label: typeof (g && g.label) === "string" && g.label.trim() !== "" ? g.label.trim() : "Group " + (i + 1), count, color: C[colorKey] });
+    used += count;
+  });
+  if (groups.length === 0) { groups.push({ label: "Affected", count: Math.min(5, total), color: C.demand }); used = groups[0].count; }
+  const rest = total - used;
+  const restLabel = typeof params.rest_label === "string" && params.rest_label.trim() !== "" ? params.rest_label.trim() : "Unaffected";
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const box = { x0: 110, x1: 680, y0: 150, y1: 640 };
+  const cols = total >= 80 ? 10 : Math.max(4, Math.min(10, Math.ceil(Math.sqrt(total * 1.1))));
+  const rows = Math.ceil(total / cols);
+  const cellW = (box.x1 - box.x0) / cols;
+  const cellH = (box.y1 - box.y0) / rows;
+  const scale = Math.min(cellW * 0.42, cellH * 0.40);
+  const msIcon = total > 50 ? 40 : total > 25 ? 70 : 110;
+
+  // Which group owns icon k (row-major from the top-left)?
+  const ownerOf = (k) => {
+    let acc = 0;
+    for (let gi = 0; gi < groups.length; gi++) { acc += groups[gi].count; if (k < acc) return gi; }
+    return -1; // remainder
+  };
+  const iconAt = (k) => {
+    const r = Math.floor(k / cols), c = k % cols;
+    return [box.x0 + cellW * (c + 0.5), box.y1 - cellH * (r + 0.5)];
+  };
+
+  const groupChildren = groups.map(() => []);
+  const restChildren = [];
+  for (let k = 0; k < total; k++) {
+    const gi = ownerOf(k);
+    const color = gi >= 0 ? groups[gi].color : C.guide;
+    const st = kit.stamp("person", iconAt(k), { scale, color, strokeWidth: 2.5, ms: msIcon, idPrefix: "p" + k });
+    (gi >= 0 ? groupChildren[gi] : restChildren).push(...st.drawables);
+  }
+  groups.forEach((g, gi) => {
+    const id = "group_" + gi;
+    push(kit.group(id, groupChildren[gi]));
+    let first = 0;
+    for (let j = 0; j < gi; j++) first += groups[j].count;
+    anchors[id] = iconAt(first);
+  });
+  if (restChildren.length > 0) {
+    push(kit.group("rest", restChildren));
+    anchors.rest = iconAt(used);
+  }
+
+  // Legend down the right side: mini icon, count, label (crudely wrapped).
+  const legendEntry = (id, color, count, text, y) => {
+    const children = [];
+    const st = kit.stamp("person", [726, y], { scale: 15, color, strokeWidth: 2.2, ms: 60, idPrefix: id + "_icon" });
+    children.push(...st.drawables);
+    const full = count + "  " + text;
+    if (full.length > 20) {
+      const cut = full.lastIndexOf(" ", 20);
+      const at = cut > 4 ? cut : 20;
+      children.push(kit.text(id + "__t1", [750, y + 16], full.slice(0, at), { fontSize: 19, anchor: "start" }));
+      children.push(kit.text(id + "__t2", [750, y - 16], full.slice(at).trim(), { fontSize: 19, anchor: "start" }));
+    } else {
+      children.push(kit.text(id + "__t", [750, y], full, { fontSize: 20, anchor: "start" }));
+    }
+    push(kit.group(id, children));
+    anchors[id] = [726, y];
+  };
+  let ly = 600;
+  groups.forEach((g, gi) => { legendEntry("legend_" + gi, g.color, g.count, g.label, ly); ly -= 66; });
+  if (rest > 0) legendEntry("legend_rest", C.guide, rest, restLabel, ly);
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: ecg_strip
+title: ECG rhythm strip
+version: 1
+kit: 2
+status: ready
+description: >-
+  An ECG (electrocardiogram) rhythm strip: a computed cardiac waveform on
+  light graph paper, with the classic rhythms as presets — normal sinus,
+  bradycardia, tachycardia, atrial fibrillation (irregularly irregular, no
+  P waves), ventricular tachycardia (wide complexes), STEMI (ST elevation)
+  and third-degree heart block (P waves and QRS marching independently) —
+  plus optional P/QRS/T labels on the first beat and a rate caption. Choose
+  this scene for ANY request about an ECG or EKG, electrocardiogram, heart
+  rhythm or arrhythmia, P wave / QRS complex / T wave anatomy, atrial
+  fibrillation, tachycardia or bradycardia, heart block, or the trace of a
+  myocardial infarction.
+params:
+  type: object
+  properties:
+    rhythm:
+      type: string
+      enum: [normal, bradycardia, tachycardia, afib, vt, stemi, heart_block]
+      description: "Which rhythm to draw (default normal). heart_block is third-degree: independent P and QRS trains."
+    rate:
+      type: integer
+      description: "Beats per minute, 20-220. Defaults per rhythm (normal 75, bradycardia 45, tachycardia 130, afib ~110, vt 180, stemi 80, heart_block 40 ventricular)."
+    seconds:
+      type: number
+      description: "Strip length in seconds, 3-10 (default 6)."
+    show_grid:
+      type: boolean
+      description: "Light ECG graph-paper grid behind the trace (default true)."
+    labels:
+      type: boolean
+      description: "Label P, QRS and T on the first beat (default true; only drawn for rhythms that have them)."
+    title:
+      type: string
+element_ids:
+  grid: the graph-paper grid (a group), when show_grid
+  trace: the ECG waveform itself
+  rate_label: the rate caption under the strip
+  label_p: "\"P\" on the first beat's P wave (when labels and the rhythm has P waves)"
+  label_qrs: "\"QRS\" on the first beat's R peak (when labels)"
+  label_t: "\"T\" on the first beat's T wave (when labels)"
+  label_st: "\"ST elevation\" caption (stemi only, when labels)"
+  st_pointer: arrow from that caption to the elevated ST segment (stemi only, when labels)
+  title: figure title, when set
+examples:
+  - request: "Draw a normal ECG with the P wave, QRS complex and T wave labeled."
+    params:
+      rhythm: normal
+      title: "Normal sinus rhythm"
+  - request: "Show atrial fibrillation on an ECG strip."
+    params:
+      rhythm: afib
+      seconds: 6
+      title: "Atrial fibrillation"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const RHYTHMS = { normal: 75, bradycardia: 45, tachycardia: 130, afib: 110, vt: 180, stemi: 80, heart_block: 40 };
+  const rhythm = typeof params.rhythm === "string" && RHYTHMS[params.rhythm] !== undefined ? params.rhythm : "normal";
+  const rate = Math.max(20, Math.min(220, Number.isFinite(params.rate) ? Math.round(params.rate) : RHYTHMS[rhythm]));
+  const seconds = Math.max(3, Math.min(10, Number.isFinite(params.seconds) ? params.seconds : 6));
+  const showGrid = params.show_grid !== false;
+  const wantLabels = params.labels !== false;
+
+  const x0 = 80, x1 = 950, yb = 390, PX_MV = 95;
+  const pxs = (x1 - x0) / seconds;
+  const X = (t) => x0 + t * pxs;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  if (showGrid) {
+    const gridChildren = [];
+    for (let t = 0, i = 0; t <= seconds + 1e-9; t += 0.2, i++) {
+      const major = i % 5 === 0;
+      gridChildren.push(kit.stroke("grid__v" + i, [[X(t), yb - 60], [X(t), yb + 150]], { color: C.guide, strokeWidth: major ? 1.8 : 1, opacity: major ? 0.4 : 0.25, instant: true }));
+    }
+    for (let mv = -0.5, j = 0; mv <= 1.5 + 1e-9; mv += 0.5, j++) {
+      gridChildren.push(kit.stroke("grid__h" + j, [[x0, yb + mv * PX_MV], [x1, yb + mv * PX_MV]], { color: C.guide, strokeWidth: 1, opacity: 0.25, instant: true }));
+    }
+    push(kit.group("grid", gridChildren));
+    anchors.grid = [x0, yb];
+  }
+
+  const g = (t, c, w, a) => a * Math.exp(-((t - c) * (t - c)) / (2 * w * w));
+  // Beats compress at high rates so complexes never smear into each other.
+  const period = 60 / rate;
+  const ts = Math.min(1, period / 0.8);
+  const hasP = rhythm !== "afib" && rhythm !== "vt" && rhythm !== "heart_block";
+  const stElev = rhythm === "stemi" ? 0.3 : 0;
+  const beat = (t) => {
+    const u = t / ts;
+    let v = 0;
+    if (rhythm === "vt") {
+      v += g(u, 0.26, 0.05, 1.0) + g(u, 0.36, 0.05, -0.6);
+      return v;
+    }
+    if (hasP) v += g(u, 0.09, 0.025, 0.16);
+    v += g(u, 0.235, 0.011, -0.14) + g(u, 0.26, 0.014, 1.15) + g(u, 0.285, 0.012, -0.28);
+    if (stElev) v += stElev * Math.exp(-Math.pow((u - 0.36) / 0.07, 4));
+    v += g(u, 0.46, 0.045, stElev ? 0.42 : 0.3);
+    return v;
+  };
+
+  const starts = [];
+  if (rhythm === "afib") {
+    let t = 0.15, k = 0;
+    while (t < seconds) { starts.push(t); t += Math.max(0.32, period * (1 + 0.3 * kit.jitter(k))); k++; }
+  } else {
+    for (let t = 0.15; t < seconds; t += period) starts.push(t);
+  }
+  const pStarts = [];
+  if (rhythm === "heart_block") { for (let t = 0.05; t < seconds; t += 60 / 90) pStarts.push(t); }
+
+  const volts = (t) => {
+    let v = 0;
+    for (const s of starts) { const lt = t - s; if (lt > -0.05 && lt < 0.85) v += beat(lt); }
+    for (const s of pStarts) { const lt = t - s; if (lt > -0.05 && lt < 0.4) v += g(lt, 0.09, 0.025, 0.16); }
+    if (rhythm === "afib") v += 0.045 * Math.sin(2 * Math.PI * 7.3 * t) + 0.03 * Math.sin(2 * Math.PI * 11.1 * t + 1.3);
+    return v;
+  };
+
+  const n = Math.min(1200, Math.max(420, Math.round(seconds * 170)));
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = (seconds * i) / n;
+    pts.push([X(t), yb + volts(t) * PX_MV]);
+  }
+  push(kit.stroke("trace", pts, { color: C.ink, strokeWidth: 3.5, ms: Math.min(4200, 650 * seconds) }));
+  const s0 = starts[0];
+  anchors.trace = [X(s0 + 0.26 * ts), yb + 105];
+
+  const rateText = rhythm === "heart_block" ? "Atria 90 / ventricles " + rate + " bpm — independent"
+    : rhythm === "afib" ? "~" + rate + " bpm, irregularly irregular"
+    : rate + " bpm";
+  push(kit.text("rate_label", [x0 + 4, yb - 95], rateText, { fontSize: 24, anchor: "start", color: C.guide }));
+  anchors.rate_label = [x0 + 4, yb - 95];
+
+  if (wantLabels && hasP) {
+    label("label_p", [X(s0 + 0.09 * ts), yb + 18], "above", "P", C.ink, 22);
+    label("label_qrs", [X(s0 + 0.26 * ts), yb + 112], "above", "QRS", C.ink, 22);
+    label("label_t", [X(s0 + 0.46 * ts), yb + 32], "above", "T", C.ink, 22);
+    if (stElev) {
+      // A solver label anywhere over the strip would land on a grid line, so
+      // the ST callout is a pointer from below the grid + exact text there.
+      const xs = X(s0 + 0.36 * ts);
+      push(kit.stroke("st_pointer", [[xs + 64, yb - 62], [xs + 10, yb + stElev * PX_MV - 14]], { arrowhead: "end", color: C.demand, strokeWidth: 3, ms: MS.arrow }));
+      push(kit.text("label_st", [xs + 72, yb - 78], "ST elevation", { fontSize: 19, anchor: "start", color: C.demand }));
+      anchors.label_st = [xs + 72, yb - 78];
+    }
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [515, 690], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: heart_circulation
+title: Heart and double circulation
+version: 1
+kit: 2
+status: ready
+description: >-
+  A schematic four-chamber heart in the classic double-circulation loop:
+  lungs above, body below, deoxygenated blood in blue (body to right atrium
+  to right ventricle to lungs) and oxygenated blood in red (lungs to left
+  atrium to left ventricle to aorta to body), with chamber letters, optional
+  full chamber/vessel names, and an optional septal defect with its shunt
+  arrow. Choose this scene for ANY request about the heart's chambers, blood
+  flow through the heart, pulmonary vs systemic circulation, the double
+  circulation loop, oxygenated vs deoxygenated blood, or a septal defect /
+  hole in the heart.
+params:
+  type: object
+  properties:
+    labels:
+      type: boolean
+      description: "Full chamber names and vessel names alongside the letters (default true)."
+    show_flow:
+      type: boolean
+      description: "The six flow arrows around the loop (default true)."
+    defect:
+      type: string
+      enum: [none, septal_defect]
+      description: "septal_defect draws a hole in the ventricular septum with a left-to-right shunt arrow."
+    title:
+      type: string
+element_ids:
+  body: the body blob at the bottom (with its caption)
+  lungs: the lungs blob at the top (with its caption)
+  heart: the heart outline
+  walls: the septum and the atria/ventricle dividers (a group)
+  right_fill: blue wash over the right heart (viewer's left)
+  left_fill: red wash over the left heart
+  ra: "the \"RA\" chamber letter (right atrium; likewise rv, la, lv)"
+  rv: "the \"RV\" chamber letter"
+  la: "the \"LA\" chamber letter"
+  lv: "the \"LV\" chamber letter"
+  vein_in: blue arrow, body to right atrium (vena cava)
+  ra_rv: blue arrow, right atrium to right ventricle
+  pulm_artery: blue arrow, right ventricle to lungs
+  pulm_vein: red arrow, lungs to left atrium
+  la_lv: red arrow, left atrium to left ventricle
+  aorta: red arrow, left ventricle to body
+  defect: the shunt arrow through the septal hole (defect only)
+  label_ra: full chamber name (when labels; likewise label_rv, label_la, label_lv)
+  label_vc: vessel name on the vena cava (when labels; likewise label_pa, label_pv, label_ao)
+  label_defect: "\"Septal defect (shunt)\" (defect only, when labels)"
+  title: figure title, when set
+examples:
+  - request: "Draw the double circulation: heart, lungs and body with the blood flow."
+    params:
+      title: "The double circulation"
+  - request: "Show a heart with a ventricular septal defect and the shunt."
+    params:
+      defect: septal_defect
+      labels: false
+      title: "Ventricular septal defect"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const wantLabels = params.labels !== false;
+  const showFlow = params.show_flow !== false;
+  const defect = params.defect === "septal_defect";
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+  const pushEdge = (id, from, to, o) => {
+    const e = kit.edgeArrow(id, from, to, o);
+    drawables.push(...e.drawables);
+    order.push(...e.order);
+    anchors[id] = to;
+  };
+
+  // Body below, lungs above, heart in the middle.
+  push(kit.group("body", [
+    kit.stroke("body__outline", kit.blob([500, 100], 195, 58, 0.05, 1), { closed: true, strokeWidth: 4, ms: MS.node }),
+    kit.text("body__caption", [500, 100], "Body", { fontSize: 32 }),
+  ]));
+  anchors.body = [500, 100];
+  push(kit.group("lungs", [
+    kit.stroke("lungs__outline", kit.blob([500, 650], 175, 62, 0.05, 2), { closed: true, strokeWidth: 4, ms: MS.node }),
+    kit.text("lungs__caption", [500, 650], "Lungs", { fontSize: 32 }),
+  ]));
+  anchors.lungs = [500, 650];
+
+  const HC = [500, 385], HRX = 180, HRY = 148;
+  push(kit.stroke("heart", kit.blob(HC, HRX, HRY, 0.04, 3), { closed: true, strokeWidth: 4.5, ms: MS.stroke }));
+  anchors.heart = HC;
+
+  // Washes: right heart (viewer's left) blue, left heart red.
+  const halfPts = (a0, a1) => {
+    const pts = [];
+    for (let i = 0; i <= 30; i++) {
+      const th = a0 + ((a1 - a0) * i) / 30;
+      pts.push([HC[0] + HRX * 0.9 * Math.cos(th), HC[1] + HRY * 0.9 * Math.sin(th)]);
+    }
+    return pts;
+  };
+  push(kit.area("right_fill", halfPts(Math.PI * 0.53, Math.PI * 1.47), C.supply, { opacity: 0.15 }));
+  push(kit.area("left_fill", halfPts(-Math.PI * 0.47, Math.PI * 0.47), C.demand, { opacity: 0.15 }));
+  anchors.right_fill = [410, 385];
+  anchors.left_fill = [590, 385];
+
+  // Septum + dividers. The septal hole sits at ventricle level (a VSD).
+  const wallChildren = [
+    kit.stroke("walls__div_l", [[332, 388], [497, 388]], { strokeWidth: 3, ms: MS.guides }),
+    kit.stroke("walls__div_r", [[503, 388], [668, 388]], { strokeWidth: 3, ms: MS.guides }),
+  ];
+  if (defect) {
+    wallChildren.push(kit.stroke("walls__septum_a", [[500, 362], [500, 521]], { strokeWidth: 4, ms: MS.guides }));
+    wallChildren.push(kit.stroke("walls__septum_b", [[500, 249], [500, 328]], { strokeWidth: 4, ms: MS.guides }));
+  } else {
+    wallChildren.push(kit.stroke("walls__septum", [[500, 249], [500, 521]], { strokeWidth: 4, ms: MS.guides }));
+  }
+  push(kit.group("walls", wallChildren));
+  anchors.walls = [500, 385];
+
+  push(kit.text("ra", [408, 472], "RA", { fontSize: 32, color: C.supply }));
+  push(kit.text("rv", [408, 294], "RV", { fontSize: 32, color: C.supply }));
+  push(kit.text("la", [592, 472], "LA", { fontSize: 32, color: C.demand }));
+  push(kit.text("lv", [592, 294], "LV", { fontSize: 32, color: C.demand }));
+  anchors.ra = [408, 472]; anchors.rv = [408, 294]; anchors.la = [592, 472]; anchors.lv = [592, 294];
+
+  // Full names are exactly-placed small texts INSIDE the chambers — a solver
+  // label would have nowhere collision-free to go in this crowded interior.
+  if (wantLabels) {
+    push(kit.text("label_ra", [408, 434], "Right atrium", { fontSize: 15, color: C.supply }));
+    push(kit.text("label_rv", [408, 332], "Right ventricle", { fontSize: 15, color: C.supply }));
+    push(kit.text("label_la", [592, 434], "Left atrium", { fontSize: 15, color: C.demand }));
+    push(kit.text("label_lv", [592, 332], "Left ventricle", { fontSize: 15, color: C.demand }));
+  }
+
+  if (showFlow) {
+    const FLOW = { strokeWidth: 5.5, ms: 1100 };
+    pushEdge("vein_in", [300, 118], [335, 448], { curve: 0.38, color: C.supply, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    pushEdge("ra_rv", [408, 418], [408, 352], { color: C.supply, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    pushEdge("pulm_artery", [352, 348], [425, 600], { curve: 0.3, color: C.supply, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    pushEdge("pulm_vein", [575, 600], [645, 480], { curve: 0.35, color: C.demand, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    pushEdge("la_lv", [592, 418], [592, 352], { color: C.demand, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    pushEdge("aorta", [648, 340], [690, 122], { curve: 0.38, color: C.demand, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    if (wantLabels) {
+      label("label_vc", [191, 283], "left", "Vena cava", C.supply, 18);
+      label("label_pa", [312, 496], "left", "Pulmonary artery", C.supply, 18);
+      label("label_pv", [700, 545], "right", "Pulmonary vein", C.demand, 18);
+      label("label_ao", [752, 247], "right", "Aorta", C.demand, 18);
+    }
+  }
+
+  if (defect) {
+    pushEdge("defect", [548, 350], [452, 350], { color: C.accent, strokeWidth: 4.5, ms: MS.connector });
+    if (wantLabels) label("label_defect", [500, 240], "below", "Septal defect (shunt)", C.accent, 18);
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 724], params.title, { fontSize: 28 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: neuron
+title: Neuron
+version: 1
+kit: 2
+status: ready
+description: >-
+  A schematic neuron drawn left to right: branching dendrites, the cell body
+  (soma) with its nucleus, a long axon with optional myelin sheath segments
+  and nodes of Ranvier, axon terminals, an "action potential" direction
+  arrow, and an optional magnified synapse inset (presynaptic bouton,
+  vesicles, neurotransmitter crossing the cleft, postsynaptic membrane).
+  Choose this scene for ANY request about neurons or nerve cells, axons and
+  dendrites, myelin or saltatory conduction, nodes of Ranvier, action
+  potentials traveling along a nerve, or synapses and neurotransmitters.
+params:
+  type: object
+  properties:
+    myelinated:
+      type: boolean
+      description: "Myelin sheath segments on the axon (default true)."
+    dendrites:
+      type: integer
+      description: "How many dendrite branches, 2-8 (default 5)."
+    show_impulse:
+      type: boolean
+      description: "Arrow showing the action potential's direction of travel (default true)."
+    show_synapse:
+      type: boolean
+      description: "Magnified synapse inset below the axon terminals (default false)."
+    labels:
+      type: boolean
+      description: "Part names (dendrites, soma, axon, myelin, node of Ranvier, terminals) (default true)."
+    title:
+      type: string
+element_ids:
+  dendrites: the dendrite branches (a group)
+  soma: the cell body outline
+  nucleus: the nucleus inside the soma
+  axon: the axon line
+  myelin: the myelin sheath segments (a group; myelinated only)
+  terminals: the axon terminal branches with their boutons (a group)
+  impulse: the action-potential direction arrow (when show_impulse)
+  synapse: the magnified synapse inset (a group; when show_synapse)
+  label_dendrites: part name (when labels; likewise label_soma, label_axon, label_myelin, label_node, label_terminals, label_impulse, label_synapse)
+  title: figure title, when set
+examples:
+  - request: "Draw a labeled neuron with myelin sheath and nodes of Ranvier."
+    params:
+      title: "The neuron"
+  - request: "Show a neuron with a magnified synapse."
+    params:
+      show_synapse: true
+      title: "Neuron and synapse"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const myelinated = params.myelinated !== false;
+  const nDend = Math.max(2, Math.min(8, Number.isFinite(params.dendrites) ? Math.round(params.dendrites) : 5));
+  const showImpulse = params.show_impulse !== false;
+  const showSynapse = params.show_synapse === true;
+  const wantLabels = params.labels !== false;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  const SOMA = [225, 400], SR = 55;
+  // Dendrites fan out on the soma's left side, forking once near the tip.
+  const dendChildren = [];
+  let topTip = [SOMA[0], SOMA[1]];
+  for (let i = 0; i < nDend; i++) {
+    const a = (Math.PI * (100 + (160 * i) / Math.max(1, nDend - 1))) / 180;
+    const len = 70 + 14 * kit.jitter(i);
+    const bx = SOMA[0] + Math.cos(a) * (SR - 4), by = SOMA[1] + Math.sin(a) * (SR - 4);
+    const mx = SOMA[0] + Math.cos(a) * (SR + len), my = SOMA[1] + Math.sin(a) * (SR + len);
+    dendChildren.push(kit.stroke("dend_" + i, [[bx, by], [mx, my]], { strokeWidth: 3, ms: MS.connector }));
+    for (const [j, da] of [[0, 0.42], [1, -0.42]]) {
+      const fa = a + da;
+      const fx = mx + Math.cos(fa) * 34, fy = my + Math.sin(fa) * 34;
+      dendChildren.push(kit.stroke("dend_" + i + "_f" + j, [[mx, my], [fx, fy]], { strokeWidth: 2.4, ms: MS.connector }));
+    }
+    if (my > topTip[1]) topTip = [mx, my];
+  }
+  push(kit.group("dendrites", dendChildren));
+  anchors.dendrites = topTip;
+
+  push(kit.stroke("soma", kit.blob(SOMA, SR, SR - 3, 0.08, 5), { closed: true, strokeWidth: 4, ms: MS.node }));
+  anchors.soma = SOMA;
+  push(kit.stroke("nucleus", kit.ellipse([SOMA[0] + 3, SOMA[1]], 20, 18), { closed: true, color: C.guide, strokeWidth: 3, ms: MS.dot }));
+  anchors.nucleus = [SOMA[0] + 3, SOMA[1]];
+
+  const AX0 = 278, AX1 = 740, AXY = 400;
+  push(kit.stroke("axon", kit.wave([AX0, AXY], AX1 - AX0, 5, 240, 6), { strokeWidth: 4, ms: MS.curve }));
+  anchors.axon = [(AX0 + AX1) / 2, AXY];
+
+  let firstGap = null, firstSheath = null;
+  if (myelinated) {
+    const span0 = 300, span1 = 715, gap = 18, nSeg = 4;
+    const segW = (span1 - span0 - (nSeg - 1) * gap) / nSeg;
+    const myelinChildren = [];
+    for (let i = 0; i < nSeg; i++) {
+      const cx = span0 + segW / 2 + i * (segW + gap);
+      if (i === 0) firstSheath = [cx, AXY + 16];
+      if (i === 0) firstGap = [span0 + segW + gap / 2, AXY];
+      myelinChildren.push(kit.stroke("myelin_" + i, kit.ellipse([cx, AXY], segW / 2, 16), { closed: true, fill: C.paper, strokeWidth: 3, ms: MS.node }));
+    }
+    push(kit.group("myelin", myelinChildren));
+    anchors.myelin = firstSheath;
+  }
+
+  const termChildren = [];
+  const tips = [[800, 455], [812, 400], [800, 345]];
+  tips.forEach((tip, i) => {
+    termChildren.push(kit.stroke("term_" + i, kit.smooth([[AX1, AXY], [(AX1 + tip[0]) / 2 + 6, (AXY + tip[1]) / 2], tip], 8), { strokeWidth: 3, ms: MS.connector }));
+    termChildren.push(kit.stroke("term_" + i + "_b", kit.ellipse(tip, 7, 7, 14), { closed: true, strokeWidth: 2.6, ms: MS.dot }));
+  });
+  push(kit.group("terminals", termChildren));
+  anchors.terminals = [812, 400];
+
+  if (showImpulse) {
+    push(kit.stroke("impulse", [[320, 470], [700, 470]], { arrowhead: "end", color: C.demand, strokeWidth: 3.5, ms: MS.arrow }));
+    anchors.impulse = [510, 470];
+    if (wantLabels) label("label_impulse", [510, 474], "above", "Action potential", C.demand, 20);
+  }
+
+  if (showSynapse) {
+    const IC = [800, 165], IR = 108;
+    const synChildren = [
+      kit.stroke("syn__ring", kit.ellipse(IC, IR, IR), { closed: true, color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
+      kit.stroke("syn__link", [[800, 348], [800, IC[1] + IR + 4]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }),
+      kit.stroke("syn__bouton", kit.blob([755, 185], 45, 38, 0.07, 7), { closed: true, strokeWidth: 3.5, ms: MS.node }),
+      kit.stroke("syn__post", kit.smooth([[850, 100], [858, 168], [850, 232]], 8), { strokeWidth: 3.5, ms: MS.connector }),
+    ];
+    [[742, 205], [765, 178], [740, 165]].forEach((c, i) => {
+      synChildren.push(kit.stroke("syn__ves" + i, kit.ellipse(c, 8, 8, 12), { closed: true, color: C.supply, strokeWidth: 2.2, ms: MS.dot }));
+    });
+    [[815, 175], [824, 192], [820, 158], [830, 176]].forEach((c, i) => {
+      synChildren.push(kit.stroke("syn__nt" + i, kit.ellipse(c, 2.5, 2.5, 8), { closed: true, color: C.demand, fill: C.demand, strokeWidth: 1.5, ms: 80 }));
+    });
+    push(kit.group("synapse", synChildren));
+    anchors.synapse = IC;
+    if (wantLabels) label("label_synapse", [800, 52], "below", "Synapse (magnified)", C.ink, 19);
+  }
+
+  if (wantLabels) {
+    label("label_dendrites", [anchors.dendrites[0], anchors.dendrites[1] + 4], "above", "Dendrites", C.ink, 20);
+    label("label_soma", [225, 340], "below", "Cell body (soma)", C.ink, 20);
+    label("label_axon", [520, 392], "below", "Axon", C.ink, 20);
+    if (myelinated && firstSheath) label("label_myelin", [firstSheath[0], firstSheath[1] + 4], "above", "Myelin sheath", C.ink, 20);
+    if (myelinated && firstGap) label("label_node", [firstGap[0], firstGap[1] - 20], "below", "Node of Ranvier", C.ink, 19);
+    label("label_terminals", [826, 400], "right", "Axon terminals", C.ink, 20);
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: screening_timeline
+title: Screening timeline (natural history)
+version: 1
+kit: 2
+status: ready
+description: >-
+  The natural history of a disease on a timeline — biological onset, the
+  preclinical detectable phase, symptoms, death — compared with and without
+  screening: screen detection moves diagnosis earlier, dashed guides show
+  that symptoms and death do not move, and the highlighted span between them
+  is the LEAD TIME, so "observed survival" grows without anyone living
+  longer (lead-time bias). Choose this scene for ANY request about
+  screening, early detection, lead-time bias, length bias, overdiagnosis
+  framing, the preclinical detectable phase, or why survival statistics
+  flatter screening.
+params:
+  type: object
+  properties:
+    onset:
+      type: number
+      description: "Time of biological onset (default 1)."
+    detectable:
+      type: number
+      description: "Time the disease becomes screen-detectable (default 2.5)."
+    symptoms:
+      type: number
+      description: "Time symptoms appear = clinical diagnosis without screening (default 5.5)."
+    death:
+      type: number
+      description: "Time of death (default 8.5)."
+    screen_at:
+      type: number
+      description: "Time of the screening test that catches it (default 3.5; clamped into the detectable-to-symptoms window)."
+    compare:
+      type: boolean
+      description: "Two rows, without vs with screening (default true). false = a single natural-history row without screening."
+    time_unit:
+      type: string
+      description: "Unit for the survival captions (default \"years\")."
+    show_lead_time:
+      type: boolean
+      description: "Highlight the lead-time span on the screening row (default true)."
+    title:
+      type: string
+element_ids:
+  axis: the time axis
+  row_0: the without-screening timeline (row_1 = with screening, compare only)
+  row_label_0: "\"Without screening\" caption (row_label_1 likewise)"
+  onset_0: onset dot on row 0 (onset_1 likewise)
+  detectable_0: tick where the disease becomes detectable
+  dx_0: diagnosis tick on row 0 (at symptoms; dx_1 = at the screen)
+  death_0: death cross on row 0 (death_1 likewise)
+  survival_0: observed-survival bracket on row 0 (survival_1 likewise)
+  sympt_guide: dashed vertical guide at symptom onset across both rows (compare only)
+  death_guide: dashed vertical guide at death across both rows (compare only)
+  lead_time: the highlighted lead-time span (compare only, when show_lead_time)
+  label_onset: caption (when drawn; likewise label_detectable, label_dx_0, label_dx_1, label_death, label_survival_0, label_survival_1, label_lead)
+  title: figure title, when set
+examples:
+  - request: "Explain lead-time bias with a screening timeline."
+    params:
+      title: "Lead-time bias"
+  - request: "Draw the natural history of a disease: onset, detectable phase, symptoms, death."
+    params:
+      compare: false
+      title: "Natural history of disease"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (Number.isFinite(v) ? v : d);
+  const onset = Math.max(0, num(params.onset, 1));
+  const detectable = Math.max(onset + 0.2, num(params.detectable, 2.5));
+  const symptoms = Math.max(detectable + 0.2, num(params.symptoms, 5.5));
+  const death = Math.max(symptoms + 0.2, num(params.death, 8.5));
+  const screenAt = Math.min(symptoms - 0.05, Math.max(detectable + 0.05, num(params.screen_at, (detectable + symptoms) / 2)));
+  const compare = params.compare !== false;
+  const unit = typeof params.time_unit === "string" && params.time_unit.trim() !== "" ? params.time_unit.trim() : "years";
+  const showLead = params.show_lead_time !== false;
+
+  const tmax = death * 1.06;
+  const X = (t) => 115 + (t / tmax) * (905 - 115);
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const label = (id, anchor, side, text, color, fontSize) => {
+    labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
+    order.push(id);
+  };
+
+  push(kit.group("axis", [
+    kit.stroke("axis__line", [[100, 150], [930, 150]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.text("axis__caption", [925, 120], "Time", { fontSize: 24, anchor: "end" }),
+  ]));
+  anchors.axis = [500, 150];
+
+  const rows = compare
+    ? [{ y: 505, dx: symptoms, color: C.demand, name: "Without screening" }, { y: 295, dx: screenAt, color: C.supply, name: "With screening" }]
+    : [{ y: 430, dx: symptoms, color: C.demand, name: "" }];
+
+  rows.forEach((row, r) => {
+    if (row.name) {
+      push(kit.text("row_label_" + r, [118, row.y + 42], row.name, { fontSize: 24, anchor: "start", color: C.guide }));
+      anchors["row_label_" + r] = [118, row.y + 42];
+    }
+    push(kit.stroke("row_" + r, [[X(onset), row.y], [X(death), row.y]], { strokeWidth: 3.5, ms: MS.stroke }));
+    anchors["row_" + r] = [X((onset + death) / 2), row.y];
+
+    push(kit.stroke("onset_" + r, kit.ellipse([X(onset), row.y], 6, 6, 12), { closed: true, fill: C.ink, ms: MS.dot }));
+    anchors["onset_" + r] = [X(onset), row.y];
+
+    push(kit.stroke("detectable_" + r, [[X(detectable), row.y - 12], [X(detectable), row.y + 12]], { color: C.guide, strokeWidth: 3, ms: MS.dot }));
+    anchors["detectable_" + r] = [X(detectable), row.y];
+
+    push(kit.stroke("dx_" + r, [[X(row.dx), row.y - 18], [X(row.dx), row.y + 18]], { color: row.color, strokeWidth: 4.5, ms: MS.dot }));
+    anchors["dx_" + r] = [X(row.dx), row.y];
+
+    push(kit.group("death_" + r, [
+      kit.stroke("death_" + r + "__a", [[X(death) - 9, row.y - 9], [X(death) + 9, row.y + 9]], { strokeWidth: 4, ms: MS.dot }),
+      kit.stroke("death_" + r + "__b", [[X(death) - 9, row.y + 9], [X(death) + 9, row.y - 9]], { strokeWidth: 4, ms: MS.dot }),
+    ]));
+    anchors["death_" + r] = [X(death), row.y];
+
+    const by = row.y - 52;
+    push(kit.stroke("survival_" + r, [[X(row.dx), by], [X(death), by]], { arrowhead: "both", color: row.color, strokeWidth: 3, ms: MS.connector }));
+    anchors["survival_" + r] = [X((row.dx + death) / 2), by];
+    // Exact text, not a solver label: in compare mode the dashed guides at
+    // symptoms and death span the full height, so the only collision-free
+    // band is BETWEEN them — center the caption there deliberately.
+    const capX = compare ? (X(symptoms) + X(death)) / 2 : X((row.dx + death) / 2);
+    push(kit.text("label_survival_" + r, [capX, by - 24], "Survival: " + (death - row.dx).toFixed(1) + " " + unit, { fontSize: 19, color: row.color }));
+  });
+
+  label("label_onset", [X(onset), rows[0].y + 8], "above", "Onset", C.ink, 19);
+  label("label_detectable", [X(detectable), rows[0].y + 14], "above-right", "Detectable", C.guide, 18);
+  label("label_dx_0", [X(symptoms), rows[0].y + 20], "above", compare ? "Diagnosis (symptoms)" : "Diagnosis", C.demand, 19);
+  label("label_death", [X(death) + 12, rows[0].y], "right", "Death", C.ink, 19);
+
+  if (compare) {
+    label("label_dx_1", [X(screenAt), rows[1].y + 20], "above", "Diagnosis (screen)", C.supply, 19);
+    push(kit.stroke("sympt_guide", [[X(symptoms), 240], [X(symptoms), 548]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    anchors.sympt_guide = [X(symptoms), 394];
+    push(kit.stroke("death_guide", [[X(death), 240], [X(death), 548]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    anchors.death_guide = [X(death), 394];
+    if (showLead) {
+      const y = rows[1].y;
+      push(kit.area("lead_time", [[X(screenAt), y - 24], [X(symptoms), y - 24], [X(symptoms), y + 24], [X(screenAt), y + 24]], C.region1, { opacity: 0.3 }));
+      anchors.lead_time = [X((screenAt + symptoms) / 2), y];
+      label("label_lead", [X((screenAt + symptoms) / 2), y + 26], "above", "Lead time", C.ink, 20);
+    }
+  }
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 705], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };

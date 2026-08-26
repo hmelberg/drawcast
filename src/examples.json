@@ -3635,5 +3635,125 @@
         { "draw": ["title"], "speak": "Phillips published it in 1958. It held for over a decade — until the 1970s, when inflation and unemployment rose together, and the simple trade-off broke." }
       ]
     }
+  },
+  {
+    "request": "Show what statins change for 100 people like me.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "Statins for 100 people",
+      "template": "icon_array",
+      "params": {
+        "groups": [
+          { "label": "Heart attack anyway", "count": 8, "color": "demand" },
+          { "label": "Avoided (helped)", "count": 2, "color": "supply" }
+        ],
+        "rest_label": "No event either way",
+        "title": "What statins change for 100 people"
+      },
+      "commands": [
+        { "speak": "Twenty percent fewer heart attacks — sounds impressive. Let's see what it really means for one hundred people." },
+        { "draw": ["rest", "legend_rest"], "speak": "Here are one hundred people. For ninety of them, the statin changes nothing — no heart attack either way." },
+        { "pause": 0.3 },
+        { "draw": ["group_0", "legend_0"], "speak": "Eight would have a heart attack whether or not they take the pill." },
+        { "pause": 0.3 },
+        { "draw": ["group_1", "legend_1"], "speak": "And these two are the entire benefit: two people in a hundred avoid a heart attack because of the statin." },
+        { "highlight": { "target": ["group_1"], "effect": "glow" }, "speak": "Two in one hundred — that is what twenty percent fewer looks like in absolute terms." },
+        { "draw": ["title"], "speak": "Same drug, same data — but the icon array is the honest picture." }
+      ]
+    }
+  },
+  {
+    "request": "Walk me through a normal ECG.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "Reading a normal ECG",
+      "template": "ecg_strip",
+      "params": {
+        "rhythm": "normal",
+        "title": "Normal sinus rhythm"
+      },
+      "commands": [
+        { "draw": ["grid"], "speak": "An E C G is drawn on graph paper — every small square is a fifth of a second." },
+        { "draw": ["trace"], "speak": "Here is one normal heartbeat after another, about seventy-five per minute." },
+        { "pause": 0.3 },
+        { "draw": ["label_p"], "speak": "The little P wave comes first: the atria contracting." },
+        { "draw": ["label_qrs"], "speak": "Then the tall spike — the QRS complex — as the ventricles fire." },
+        { "draw": ["label_t"], "speak": "And the T wave: the ventricles resetting for the next beat." },
+        { "draw": ["rate_label", "title"], "speak": "P, QRS, T — repeated steadily. That is sinus rhythm." }
+      ]
+    }
+  },
+  {
+    "request": "Explain how blood flows through the heart and lungs.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "The double circulation",
+      "template": "heart_circulation",
+      "params": {
+        "title": "The double circulation"
+      },
+      "commands": [
+        { "draw": ["body", "lungs"], "speak": "Two destinations: the body below, the lungs above." },
+        { "draw": ["heart", "walls"], "speak": "Between them sits the heart — four chambers, two on each side of a solid wall." },
+        { "draw": ["right_fill", "ra", "rv", "label_ra", "label_rv"], "speak": "The right side handles blue, oxygen-poor blood." },
+        { "draw": ["left_fill", "la", "lv", "label_la", "label_lv"], "speak": "The left side handles red, oxygen-rich blood." },
+        { "pause": 0.3 },
+        { "draw": ["vein_in", "label_vc"], "speak": "Used blood returns from the body into the right atrium." },
+        { "draw": ["ra_rv"], "speak": "It drops into the right ventricle." },
+        { "draw": ["pulm_artery", "label_pa"], "speak": "From there it is pumped up to the lungs to collect oxygen." },
+        { "draw": ["pulm_vein", "label_pv"], "speak": "Fresh red blood flows back into the left atrium." },
+        { "draw": ["la_lv"], "speak": "It fills the powerful left ventricle." },
+        { "draw": ["aorta", "label_ao"], "speak": "And it is driven out through the aorta to the whole body." },
+        { "draw": ["title"], "speak": "Two loops through one pump — that is the double circulation." }
+      ]
+    }
+  },
+  {
+    "request": "Draw a neuron and show how the signal travels.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "The neuron",
+      "template": "neuron",
+      "params": {
+        "title": "The neuron"
+      },
+      "commands": [
+        { "draw": ["dendrites", "label_dendrites"], "speak": "A neuron listens with its dendrites — branching antennas for incoming signals." },
+        { "draw": ["soma", "nucleus", "label_soma"], "speak": "The signals meet in the cell body, where the neuron decides whether to fire." },
+        { "pause": 0.3 },
+        { "draw": ["axon", "label_axon"], "speak": "When it fires, the impulse races down a single long cable: the axon." },
+        { "draw": ["myelin", "label_myelin"], "speak": "Fatty myelin sheaths insulate the cable in segments." },
+        { "draw": ["label_node"], "speak": "The signal leaps from gap to gap — the nodes of Ranvier — which makes it fast." },
+        { "draw": ["impulse", "label_impulse"], "speak": "It travels one way only: from the cell body toward the terminals." },
+        { "draw": ["terminals", "label_terminals"], "speak": "At the axon terminals the message is handed on to the next cell." },
+        { "draw": ["title"] }
+      ]
+    }
+  },
+  {
+    "request": "Why can screening look better than it is? Show lead-time bias.",
+    "packs": ["medicine"],
+    "spec": {
+      "title": "Lead-time bias",
+      "template": "screening_timeline",
+      "params": {
+        "title": "Lead-time bias"
+      },
+      "commands": [
+        { "draw": ["axis"], "speak": "Follow one patient's disease along a timeline — twice." },
+        { "draw": ["row_label_0", "row_0"], "speak": "First, life without screening." },
+        { "draw": ["onset_0", "label_onset"], "speak": "The disease begins here, silently." },
+        { "draw": ["detectable_0", "label_detectable"], "speak": "Soon a test could find it — but nobody is looking." },
+        { "draw": ["dx_0", "label_dx_0"], "speak": "It is diagnosed only when symptoms appear." },
+        { "draw": ["death_0", "label_death", "survival_0", "label_survival_0"], "speak": "From diagnosis to death, this patient survives three years." },
+        { "pause": 0.4 },
+        { "draw": ["row_label_1", "row_1", "onset_1", "detectable_1"], "speak": "Now the same patient, the same disease — with screening." },
+        { "draw": ["dx_1", "label_dx_1"], "speak": "A screening test catches it two years earlier." },
+        { "draw": ["death_1", "sympt_guide", "death_guide"], "speak": "But look at the dashed lines: symptoms and death arrive at exactly the same moments as before." },
+        { "draw": ["survival_1", "label_survival_1"], "speak": "Measured survival jumps from three years to five — yet nobody lived a single day longer." },
+        { "draw": ["lead_time", "label_lead"], "speak": "The difference is only a head start on the stopwatch: the lead time." },
+        { "draw": ["title"], "speak": "Lead-time bias — why survival statistics can flatter screening." }
+      ]
+    }
   }
 ]

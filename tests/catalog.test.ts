@@ -102,6 +102,8 @@ describe("detectNeedTemplate", () => {
 
 // Deliberate value, not incidental: it sits above the default library so the
 // out-of-the-box catalog stays fully expanded (tests/pack-defaults.test.ts).
-test("threshold is 50", () => {
-  expect(TEMPLATE_FULL_THRESHOLD).toBe(50);
+// Raised 50 -> 80 when the medicine pack pushed the default library to 50
+// ready templates — full entries beat index-only selection at this scale.
+test("threshold is 80", () => {
+  expect(TEMPLATE_FULL_THRESHOLD).toBe(80);
 });

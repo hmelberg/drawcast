@@ -6,6 +6,7 @@ import economicsYaml from "../src/scenes/packs/economics.yaml?raw";
 import evidenceYaml from "../src/scenes/packs/evidence.yaml?raw";
 import mathlogicYaml from "../src/scenes/packs/mathlogic.yaml?raw";
 import gamesYaml from "../src/scenes/packs/games.yaml?raw";
+import medicineYaml from "../src/scenes/packs/medicine.yaml?raw";
 import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
@@ -2180,5 +2181,116 @@ describe("maps pack", () => {
     expect(outline).toBeDefined();
     expect(highlight).toBeDefined();
     expect(highlight.pts).toEqual(outline.pts);
+  });
+});
+
+describe("medicine pack", () => {
+  beforeEach(() => unregisterPack("medicine"));
+
+  const TEMPLATE_IDS = ["icon_array", "ecg_strip", "heart_circulation", "neuron", "screening_timeline"];
+
+  test("registers all five templates in brief order", () => {
+    const r = registerPack("medicine", medicineYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every medicine example renders finite, no fallback warnings, no error-severity lint, and is deterministic", () => {
+    registerPack("medicine", medicineYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+        for (const d of flattenDrawables(res.drawables)) {
+          if (d.kind === "stroke" || d.kind === "area") {
+            for (const [x, y] of d.pts) {
+              expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+              expect(Math.abs(x)).toBeLessThan(2000);
+              expect(Math.abs(y)).toBeLessThan(2000);
+            }
+          }
+        }
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("icon_array: groups partition the grid exactly — 5 strokes per person, counts honored, remainder neutral", () => {
+    registerPack("medicine", medicineYaml);
+    const r = scenes.icon_array.layout!({
+      total: 100,
+      groups: [
+        { label: "Anyway", count: 8, color: "demand" },
+        { label: "Helped", count: 2, color: "supply" },
+      ],
+    });
+    const flat = flattenDrawables(r.drawables);
+    const group0 = r.drawables.find((d) => d.id === "group_0") as { children: Drawable[] };
+    const group1 = r.drawables.find((d) => d.id === "group_1") as { children: Drawable[] };
+    const rest = r.drawables.find((d) => d.id === "rest") as { children: Drawable[] };
+    // The person stamp is 5 polylines, so a group of N people carries 5N strokes.
+    expect(group0.children.length).toBe(8 * 5);
+    expect(group1.children.length).toBe(2 * 5);
+    expect(rest.children.length).toBe(90 * 5);
+    const g0color = (group0.children[0] as { style: { color: string } }).style.color;
+    const restColor = (rest.children[0] as { style: { color: string } }).style.color;
+    expect(g0color).toBe(COLORS.demand);
+    expect(restColor).toBe(COLORS.guide);
+    expect(flat.map((d) => d.id)).toEqual(expect.arrayContaining(["legend_0", "legend_1", "legend_rest"]));
+  });
+
+  test("ecg_strip: normal sinus labels P/QRS/T; atrial fibrillation has no P to label and says so in the caption", () => {
+    registerPack("medicine", medicineYaml);
+    const normal = scenes.ecg_strip.layout!({ rhythm: "normal" });
+    expect(normal.labels.map((l) => l.id)).toEqual(expect.arrayContaining(["label_p", "label_qrs", "label_t"]));
+    const afib = scenes.ecg_strip.layout!({ rhythm: "afib" });
+    expect(afib.labels.map((l) => l.id)).not.toContain("label_p");
+    const caption = flattenDrawables(afib.drawables).find((d) => d.id === "rate_label") as { text: string };
+    expect(caption.text).toContain("irregular");
+  });
+
+  test("heart_circulation: deoxygenated flow is supply-blue, oxygenated flow demand-red; a septal defect splits the septum and adds the shunt", () => {
+    registerPack("medicine", medicineYaml);
+    const plain = scenes.heart_circulation.layout!({});
+    const flatPlain = flattenDrawables(plain.drawables);
+    const vein = flatPlain.find((d) => d.id === "vein_in") as { style: { color: string } };
+    const aorta = flatPlain.find((d) => d.id === "aorta") as { style: { color: string } };
+    expect(vein.style.color).toBe(COLORS.supply);
+    expect(aorta.style.color).toBe(COLORS.demand);
+    expect(flatPlain.map((d) => d.id)).toContain("walls__septum");
+    expect(flatPlain.map((d) => d.id)).not.toContain("defect");
+    const vsd = scenes.heart_circulation.layout!({ defect: "septal_defect" });
+    const idsVsd = flattenDrawables(vsd.drawables).map((d) => d.id);
+    expect(idsVsd).toContain("defect");
+    expect(idsVsd).toContain("walls__septum_a");
+    expect(idsVsd).not.toContain("walls__septum");
+  });
+
+  test("neuron: myelin sheath segments appear only when myelinated", () => {
+    registerPack("medicine", medicineYaml);
+    const myelinated = scenes.neuron.layout!({});
+    expect(flattenDrawables(myelinated.drawables).map((d) => d.id)).toContain("myelin_0");
+    expect(myelinated.labels.map((l) => l.id)).toContain("label_node");
+    const bare = scenes.neuron.layout!({ myelinated: false });
+    const bareIds = flattenDrawables(bare.drawables).map((d) => d.id);
+    expect(bareIds).not.toContain("myelin_0");
+    expect(bareIds).toContain("axon");
+  });
+
+  test("screening_timeline: lead-time bias — diagnosis moves earlier, death does not, so observed survival grows", () => {
+    registerPack("medicine", medicineYaml);
+    const r = scenes.screening_timeline.layout!({});
+    // Screen-detected diagnosis sits earlier in time than the symptom diagnosis...
+    expect((r.anchors.dx_1 as [number, number])[0]).toBeLessThan((r.anchors.dx_0 as [number, number])[0]);
+    // ...while both rows die at the same moment (the dashed guide's whole point).
+    expect((r.anchors.death_0 as [number, number])[0]).toBeCloseTo((r.anchors.death_1 as [number, number])[0], 6);
+    const span = (id: string) => {
+      const s = flattenDrawables(r.drawables).find((d) => d.id === id) as { pts: [number, number][] };
+      return Math.abs(s.pts[s.pts.length - 1][0] - s.pts[0][0]);
+    };
+    expect(span("survival_1")).toBeGreaterThan(span("survival_0"));
+    expect(flattenDrawables(r.drawables).map((d) => d.id)).toContain("lead_time");
   });
 });

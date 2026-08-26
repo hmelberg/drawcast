@@ -52,6 +52,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations.",
     load: async () => (await import("./packs/mathlogic.yaml?raw")).default,
   },
+  medicine: {
+    id: "medicine",
+    title: "Medicine",
+    description: "Icon arrays for absolute risk, ECG rhythm strips, the heart's double circulation, neurons, and screening/lead-time-bias timelines.",
+    load: async () => (await import("./packs/medicine.yaml?raw")).default,
+  },
   games: {
     id: "games",
     title: "Games",
