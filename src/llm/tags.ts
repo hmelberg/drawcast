@@ -4,7 +4,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "gestures" | "structure";
+export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "tone" | "human" | "gestures" | "structure";
 
 export interface TagDef {
   tag: string;
@@ -20,6 +20,10 @@ export interface TagDef {
 /** Shared truthfulness guardrail for reality-referencing tags (spec principle 4). */
 export const GUARDRAIL =
   "Only include claims, people, and numbers you are confident are real; if unsure, choose different material — never manufacture a controversy, quote, or statistic.";
+
+/** Shared restraint clause for the tone tags (spec: tone briefs). */
+export const RESTRAINT =
+  "At most 1–2 light touches per drawcast, never forced — exaggerated humor bores fast — and the explanation stays rigorous; a joke rides on a narrated action and never delays the drawing.";
 
 export const TAGS: TagDef[] = [
   {
@@ -152,6 +156,35 @@ export const TAGS: TagDef[] = [
     group: "pacing",
     hint: "unhurried pacing: ~1 s between beats",
     brief: "Calm pacing: lengthen the between-beat pauses to about 1 second, and keep sentences unhurried.",
+  },
+  {
+    tag: "fun",
+    group: "tone",
+    hint: "playful: a quirky tongue-in-cheek example",
+    brief:
+      "Playful register: let the CONCRETE EXAMPLE itself be quirky or gently absurd, tongue-in-cheek (umbrella rentals in a rainstorm; a zombie outbreak for infection curves) — the numbers stay real and the reasoning exact; only the setting winks. " +
+      RESTRAINT,
+  },
+  {
+    tag: "dry",
+    group: "tone",
+    hint: "deadpan understatement, delivered straight",
+    brief:
+      "Dry humor: one or two deadpan asides delivered completely straight — understatement, no exclamation marks, the joke never announced. " + RESTRAINT,
+  },
+  {
+    tag: "pun",
+    group: "tone",
+    hint: "one or two puns, landed at reveals",
+    brief:
+      "Include one pun, at most two, placed at a reveal so the pun lands on something now visible on the canvas — never in the opening line. " + RESTRAINT,
+  },
+  {
+    tag: "human",
+    group: "human",
+    hint: "hesitations and natural pauses in the narration",
+    brief:
+      "Sound human, not machine-read: an occasional hesitation ('Hmm —', 'well,', 'so…') at a genuine thinking moment (a few per drawcast, not per line), at most one self-correction ('about 30 — actually, closer to 33'), and em dashes or ellipses for natural micro-pauses. Never write literal stutters ('th-the') — text-to-speech reads them as glitches.",
   },
   {
     tag: "rich",

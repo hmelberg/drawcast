@@ -177,3 +177,16 @@ describe("ingredient tags", () => {
     expect(brief).toContain("TWO enrichment");
   });
 });
+
+describe("tone and human tags", () => {
+  test("tone tags are exclusive; human composes with tone", () => {
+    const r = parseTags("Explain inflation #pun #dry #human");
+    expect(r.tags).toEqual(["dry", "human"]);
+  });
+  test("every tone brief carries the restraint clause", () => {
+    for (const t of ["fun", "dry", "pun"]) expect(buildBrief([t])).toContain("bores fast");
+  });
+  test("human brief forbids literal stutters", () => {
+    expect(buildBrief(["human"])).toContain("th-the");
+  });
+});
