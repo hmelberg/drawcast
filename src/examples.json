@@ -3518,5 +3518,122 @@
       "mathlogic"
     ],
     "playlist": "playlist:\n  title: 'The inverse-square law: equation to plot'\n---\ntitle: 'The inverse-square law: the equation'\ntemplate: equation_steps\nparams:\n  title: 'The inverse-square law: the equation'\n  steps:\n    - tex: I=\\frac{k}{d^2}\n      note: Intensity falls off with the square of distance.\n    - tex: \\frac{I(2d)}{I(d)}=\\frac{1}{4}\n      note: 'Double the distance: a quarter of the intensity.'\n    - tex: I(d)=\\frac{10000}{d^2}\n      note: 'Our example: k = 10000.'\ncommands:\n  - speak: 'Light from a bulb, gravity from a planet, sound from a speaker — all fade by the same rule: the inverse-square law.'\n  - draw:\n      - title\n    speak: The inverse-square law.\n  - draw:\n      - step_0\n      - note_0\n    speak: Intensity I equals some constant k, divided by the distance squared.\n  - pause: 0.3\n  - draw:\n      - step_1\n      - note_1\n    speak: 'Square the distance and the intensity divides by four: double the distance, and you''re left with a quarter of it.'\n  - pause: 0.3\n  - draw:\n      - step_2\n      - note_2\n    speak: With k set to ten thousand, here's what that curve actually looks like.\n---\ntitle: 'Inverse-square law: the curve'\ntemplate: generic_axes_diagram\nparams:\n  title: 'Inverse-square law: the curve'\n  x_label: Distance d (10 to 100)\n  y_label: I(d)\n  curves:\n    - expression: 10000/((10+0.9*x)^2)\n      label: I(d)\n  points:\n    - x: 0\n      'y': 100\n      label: 'd=10: I=100'\n    - x: 11.11\n      'y': 25\n      label: 'd=20: a quarter of I'\n    - x: 33.33\n      'y': 6.25\n      label: 'd=40: a quarter again'\n    - x: 77.78\n      'y': 1.5625\n      label: 'd=80: almost gone'\ncommands:\n  - speak: Here's that curve — intensity as the distance from the source keeps doubling.\n  - draw:\n      - axes\n      - x_label\n      - y_label\n    speak: We start a little away from the source, at distance 10 — any closer and the curve shoots off the chart. Distance along the bottom, intensity up the side.\n  - pause: 0.3\n  - draw:\n      - curve_0\n      - label_curve_0\n    speak: It plunges near the source, then levels off far away — the classic inverse-square shape.\n  - pause: 0.3\n  - draw:\n      - point_0\n      - point_label_0\n    speak: Close in, at a distance of 10, the intensity is a full 100.\n  - pause: 0.3\n  - draw:\n      - point_1\n      - point_label_1\n    speak: 'Move twice as far away, to 20, and the intensity has dropped to a quarter: just 25.'\n  - pause: 0.3\n  - draw:\n      - point_2\n      - point_label_2\n    speak: 'Double it again, to 40, and it quarters again: 6.25.'\n  - pause: 0.3\n  - draw:\n      - point_3\n      - point_label_3\n    speak: One more doubling, to 80, and there's barely anything left.\n  - draw:\n      - title\n    speak: Every doubling of distance costs three-quarters of the intensity — the price of spreading out over a sphere.\n"
+  },
+  {
+    "request": "Explain opportunity cost with a dialogue #qa",
+    "packs": ["economics"],
+    "spec": {
+      "title": "Fish, coconuts, and opportunity cost",
+      "template": "ppf",
+      "params": {
+        "good_x": "Fish",
+        "good_y": "Coconuts",
+        "points": [
+          { "x_share": 0.3, "label": "Mostly coconuts", "kind": "efficient" },
+          { "x_share": 0.7, "label": "More fish", "kind": "efficient" }
+        ]
+      },
+      "commands": [
+        { "draw": ["axes"], "speak": "Every economy has to choose how to split its hours between two things — let's see what that choice really costs.", "voice": "a" },
+        { "pause": 0.3 },
+        { "draw": ["frontier"], "speak": "This bowed curve is the production possibilities frontier: everything on it uses every hour of labor there is.", "voice": "a" },
+        { "pause": 0.3 },
+        { "draw": ["attainable"], "speak": "Everything underneath is attainable; nothing above it is, not with the time we have.", "voice": "a" },
+        { "pause": 0.3 },
+        { "draw": ["pt_0", "pt_label_0"], "speak": "Say we start here, spending most of our hours gathering coconuts.", "voice": "a" },
+        { "point": { "at": { "ref": "pt_0" }, "gesture": "circle" }, "speak": "So moving along the curve is free — we're not really giving anything up either way?", "voice": "b" },
+        { "pause": 0.3 },
+        { "draw": ["pt_1", "pt_label_1"], "speak": "Watch what happens sliding toward more fishing instead: the coconut harvest has to fall — and that drop, the slope of the curve right here, is the opportunity cost of the extra fish.", "voice": "a", "delivery": "grave" },
+        { "point": { "at": { "ref": "pt_1" }, "gesture": "circle" }, "speak": "Oh — so it's not that moving along the curve is free, it's that every extra fish comes straight out of the coconut pile?", "voice": "b" },
+        { "highlight": { "target": ["frontier"], "effect": "glow" }, "speak": "Exactly — the frontier's slope at any point is the opportunity cost of producing more of the other good.", "voice": "a" }
+      ]
+    }
+  },
+  {
+    "request": "Does raising the minimum wage help workers? #debate",
+    "spec": {
+      "title": "Does a higher minimum wage help workers?",
+      "template": "supply_demand",
+      "params": {
+        "demand": {},
+        "supply": {},
+        "equilibrium": { "show": true, "guides": true },
+        "price_floor": { "label": "Minimum wage", "show_surplus": true }
+      },
+      "elements": [
+        { "id": "claim_a_mark", "type": "shape", "shape": "rect", "x": 150, "y": 20, "width": 24, "height": 24 },
+        { "id": "strike_claim_a", "type": "annotation", "target": "claim_a_mark", "kind": "strike" }
+      ],
+      "commands": [
+        { "draw": ["axes"], "speak": "A minimum wage sounds simple: pay workers more. Let's actually test that." },
+        { "pause": 0.3 },
+        { "draw": ["demand_curve", "label_D"], "speak": "Employers demand less labor as it gets more expensive — this downward curve." },
+        { "pause": 0.3 },
+        { "draw": ["supply_curve", "label_S"], "speak": "Workers supply more labor at a higher wage — this upward one." },
+        { "pause": 0.3 },
+        { "draw": ["guide_lines", "equilibrium_point", "label_E", "label_Pstar", "label_Qstar"], "speak": "Left alone, the market settles right here — this wage, this many jobs." },
+        { "pause": 0.4 },
+        { "draw": ["floor_line", "label_floor", "claim_a_mark"], "speak": "Set a wage floor above that. First claim: a free raise for every worker, nobody worse off." },
+        { "speak": "Second claim: it prices the least-skilled workers out of a job entirely." },
+        { "pause": 0.3 },
+        { "draw": ["surplus_guides", "surplus_arrow", "label_surplus"], "speak": "Here's what the picture actually shows: at that wage, more people want jobs than employers want to fill." },
+        { "pause": 0.3 },
+        { "draw": ["strike_claim_a"], "speak": "So the first claim doesn't survive the picture — those priced-out workers are the real cost of the floor." }
+      ]
+    }
+  },
+  {
+    "request": "Explain how an epidemic spreads #fun",
+    "packs": ["evidence"],
+    "spec": {
+      "title": "An epidemic, zombie edition",
+      "template": "sir_compartments",
+      "params": {},
+      "commands": [
+        { "draw": ["box_s", "box_code_s", "box_name_s"], "speak": "Let's trace how an epidemic spreads — and, just for fun, let's say this one makes zombies." },
+        { "pause": 0.3 },
+        { "draw": ["flow_0", "rate_0"], "speak": "At rate beta, susceptible people get infected and cross over." },
+        { "pause": 0.3 },
+        { "draw": ["box_i", "box_code_i", "box_name_i"], "speak": "Now they're infectious themselves, able to pass it on to anyone nearby." },
+        { "pause": 0.3 },
+        { "draw": ["flow_1", "rate_1"], "speak": "At rate gamma, infectious people recover — or are otherwise removed from the chain." },
+        { "pause": 0.3 },
+        { "draw": ["box_r", "box_code_r", "box_name_r"], "speak": "And here's where they land: no longer susceptible, no longer infectious." },
+        { "pause": 0.4 },
+        { "highlight": { "target": ["flow_0", "flow_1"], "effect": "glow" }, "speak": "The two rates together set the reproduction number. With an R0 of 2, every zombie — every infectious case — bites, or infects, two more before it's stopped." }
+      ]
+    }
+  },
+  {
+    "request": "Tell the story of the Phillips curve #story #human #male",
+    "spec": {
+      "title": "The Phillips curve",
+      "voice": "male",
+      "template": "generic_axes_diagram",
+      "params": {
+        "title": "The Phillips curve",
+        "x_label": "Unemployment",
+        "y_label": "Wage inflation",
+        "curves": [{ "expression": "70*exp(-0.03*x)", "label": "Phillips's curve" }],
+        "points": [
+          { "x": 15, "y": 50, "label": "1861–1913" },
+          { "x": 50, "y": 20, "label": "1913–1948" },
+          { "x": 80, "y": 10, "label": "1948–1957" }
+        ]
+      },
+      "commands": [
+        { "draw": ["axes", "x_label", "y_label"], "speak": "Hmm — an engineer, of all people, gave economics one of its most famous curves.", "delivery": "soft" },
+        { "pause": 0.3 },
+        { "draw": ["point_0", "point_label_0"], "speak": "At the London School of Economics, A. W. Phillips combed through British wage records — decade by decade, back to 1861." },
+        { "pause": 0.3 },
+        { "draw": ["point_1", "point_label_1"], "speak": "He plotted how fast wages rose against how many people were out of work, stretch of years by stretch of years." },
+        { "pause": 0.3 },
+        { "draw": ["point_2", "point_label_2"], "speak": "By 1957 — almost a century later — he had the whole picture laid out on the page." },
+        { "pause": 0.4 },
+        { "draw": ["curve_0", "label_curve_0"], "speak": "Through those scattered years ran a single downward slope: low unemployment, fast-rising wages — high unemployment, wages barely moved.", "delivery": "grave" },
+        { "pause": 0.3 },
+        { "draw": ["title"], "speak": "Phillips published it in 1958. It held for over a decade — until the 1970s, when inflation and unemployment rose together, and the simple trade-off broke." }
+      ]
+    }
   }
 ]
