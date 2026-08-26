@@ -173,3 +173,57 @@ describe("press — visuals locked to the notes", () => {
     expect(finished).toEqual(["a", "b"]);
   });
 });
+
+describe("ABC notation", () => {
+  test("a simple tune converts: headers, unit length, meter, tempo, title", async () => {
+    const { parseABC } = await import("../src/spec/abc");
+    const tune = parseABC("X:1\nT:Twinkle\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C G G | A A G2 |");
+    expect(tune.title).toBe("Twinkle");
+    expect(tune.tempo).toBe(120);
+    expect(tune.meterTop).toBe(4);
+    expect(tune.voices).toHaveLength(1);
+    expect(tune.voices[0].notes).toBe("C4:q C4:q G4:q G4:q A4:q A4:q G4:h");
+  });
+
+  test("key signatures apply and explicit accidentals persist to the bar line", async () => {
+    const { parseABC } = await import("../src/spec/abc");
+    // D major: F and C are sharp. The =c naturalizes c for the REST of its bar.
+    const tune = parseABC("L:1/4\nK:D\nF c =c c | c F");
+    expect(tune.voices[0].notes).toBe("F#4:q C#5:q C5:q C5:q C#5:q F#4:q");
+  });
+
+  test("octave marks, chords, rests, ties and dotted/broken rhythm", async () => {
+    const { parseABC } = await import("../src/spec/abc");
+    const t1 = parseABC("L:1/4\nK:C\nC, c' [CEG]2 z2 C- | C");
+    expect(t1.voices[0].notes).toBe("C3:q C6:q C4+E4+G4:h R:h C4:h");
+    const t2 = parseABC("L:1/8\nK:C\nA>B c3/2");
+    // A>B: dotted A (0.75 beats), halved B (0.25); c3/2 = 0.75 beats.
+    expect(t2.voices[0].notes).toBe("A4:e. B4:s C5:e.");
+  });
+
+  test("triplets compress to 2/3; V: lines become parallel voices", async () => {
+    const { parseABC } = await import("../src/spec/abc");
+    const t = parseABC("L:1/4\nK:C\nV:1\n(3CDE F\nV:2\nC2 C2");
+    expect(t.voices).toHaveLength(2);
+    expect(t.voices[0].notes).toBe("C4:0.667 D4:0.667 E4:0.667 F4:q");
+    expect(t.voices[1].notes).toBe("C4:h C4:h");
+  });
+
+  test("dotted and numeric durations round-trip through the internal parser", () => {
+    const toks = parseNotation("C4:q. D4:e. E4:0.667 F4:h.");
+    expect(toks.map((t) => t.beats)).toEqual([1.5, 0.75, 0.667, 3]);
+  });
+
+  test("a play command with abc validates, plans with the tune's own tempo, and presses per note", () => {
+    const abc = "M:4/4\nL:1/4\nQ:1/4=140\nK:G\nG A B c |";
+    const spec = { elements: [{ id: "n0", type: "point", at: { x: 500, y: 375 } }], commands: [{ play: { abc } }] } as never;
+    expect(validateSpec(spec).ok).toBe(true);
+    const plan = planCommands([{ play: { abc }, press: ["n0"] }], ["n0"]);
+    const step = plan.steps[0] as { kind: string; tempo: number; seconds: number; voices: PlayVoice[]; pressAt: number[] };
+    expect(step.kind).toBe("play");
+    expect(step.tempo).toBe(140); // from Q:, no command tempo given
+    expect(step.seconds).toBeCloseTo((4 * 60) / 140, 9);
+    expect(step.voices[0].notes).toBe("G4:q A4:q B4:q C5:q"); // K:G sharpens F only — none here
+    expect(step.pressAt).toEqual([0]);
+  });
+});

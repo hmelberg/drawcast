@@ -9,6 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
 import { notationBeats } from "./notation";
+import { parseABC } from "./abc";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -246,7 +247,7 @@ const commandSchema = {
     duration: { type: "number", description: "With animate: seconds the animation takes (default 2)." },
     play: {
       description:
-        'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — or up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass). ONLY for figures genuinely about sound or music.',
+        'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass) — or a whole tune as {"abc": "K:C\\nC D E F|…"} in ABC notation. ONLY for figures genuinely about sound or music.',
       oneOf: [
         { type: "string" },
         {
@@ -262,6 +263,17 @@ const commandSchema = {
             required: ["notes"],
             additionalProperties: false,
           },
+        },
+        {
+          type: "object",
+          properties: {
+            abc: {
+              type: "string",
+              description: "A whole tune in ABC notation (K:/M:/L:/Q: headers, then the music; V: voices become parallel channels). Tempo comes from Q: unless the command sets tempo.",
+            },
+          },
+          required: ["abc"],
+          additionalProperties: false,
         },
       ],
     },
@@ -410,9 +422,10 @@ function semanticErrors(spec: Spec): string[] {
       errors.push(`commands[${i}]: tempo, instrument and press only apply to a play command`);
     }
     if (verb === "play") {
-      const voices = typeof cmd.play === "string" ? [{ notes: cmd.play }] : cmd.play!;
+      const p = cmd.play!;
+      const voices = typeof p === "string" ? [{ notes: p }] : Array.isArray(p) ? p : parseABC(p.abc).voices;
       if (!voices.some((v) => notationBeats(v.notes) > 0)) {
-        errors.push(`commands[${i}]: play has no readable notes — notation is space-separated "C4:q E4:q G4+C5:h" (pitch+octave, optional :w/h/q/e/s duration, R for rests)`);
+        errors.push(`commands[${i}]: play has no readable notes — notation is space-separated "C4:q E4:q G4+C5:h" (pitch+octave, optional :w/h/q/e/s duration, R for rests), or a tune in {abc: "..."}`);
       }
       if (cmd.tempo !== undefined && (typeof cmd.tempo !== "number" || cmd.tempo < 30 || cmd.tempo > 300)) {
         errors.push(`commands[${i}]: tempo must be a number between 30 and 300 bpm`);

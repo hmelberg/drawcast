@@ -188,9 +188,10 @@ export interface Command {
   duration?: number;
   /**
    * Play synthesized notes: a notation string ("C4:q E4:q G4:h", chords with
-   * +, R for rests) or up to four parallel voices [{notes, instrument}].
+   * +, R for rests), up to four parallel voices [{notes, instrument}], or a
+   * whole tune as ABC notation ({abc: "K:G\n..."}).
    */
-  play?: string | PlayVoice[];
+  play?: string | PlayVoice[] | { abc: string };
   /** With play: beats per minute (default 100). */
   tempo?: number;
   /** With play (string form): the synthesized instrument (default tone). */

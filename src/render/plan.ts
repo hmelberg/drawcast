@@ -9,6 +9,7 @@ import type { Pt } from "../layout/model";
 import { readParam } from "./params";
 import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
+import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
 
 export type PlanStep = (
@@ -331,8 +332,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       pushStep({ kind: "animate", targets, starts, seconds: cmd.duration ?? 2 });
       if (opts.bboxesFor) bboxOf = opts.bboxesFor(params);
     } else if (cmd.play !== undefined) {
-      const tempo = Math.min(300, Math.max(30, typeof cmd.tempo === "number" && Number.isFinite(cmd.tempo) ? cmd.tempo : 100));
-      const raw = typeof cmd.play === "string" ? [{ notes: cmd.play, instrument: cmd.instrument }] : cmd.play;
+      let raw;
+      let abcTempo: number | null = null;
+      if (typeof cmd.play === "string") {
+        raw = [{ notes: cmd.play, instrument: cmd.instrument }];
+      } else if (Array.isArray(cmd.play)) {
+        raw = cmd.play;
+      } else {
+        const tune = parseABC(cmd.play.abc);
+        abcTempo = tune.tempo;
+        raw = tune.voices.map((v) => ({ notes: v.notes, instrument: cmd.instrument }));
+      }
+      const tempo = Math.min(300, Math.max(30, typeof cmd.tempo === "number" && Number.isFinite(cmd.tempo) ? cmd.tempo : abcTempo ?? 100));
       const voices: PlayVoice[] = raw
         .filter((v) => v && typeof v.notes === "string")
         .map((v) => ({ notes: v.notes, instrument: v.instrument ?? cmd.instrument }))

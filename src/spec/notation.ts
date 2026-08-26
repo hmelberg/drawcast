@@ -4,7 +4,8 @@
 //
 //   PITCHES  one pitch (C4, F#3, Bb4), a chord joined with + (C4+E4+G4),
 //            or R for a rest.
-//   DUR      w (4 beats) | h (2) | q (1, the default) | e (1/2) | s (1/4).
+//   DUR      w (4 beats) | h (2) | q (1, the default) | e (1/2) | s (1/4),
+//            optionally dotted (q. = 1.5) — or a plain number of beats.
 //
 // Example: "C4:q D4:q E4:q F4:q G4:h  R:q  G4+B4+D5:w"
 
@@ -28,6 +29,22 @@ export interface NoteToken {
 }
 
 const DUR_BEATS: Record<string, number> = { w: 4, h: 2, q: 1, e: 0.5, s: 0.25 };
+
+/**
+ * A duration slot: a named length (w/h/q/e/s), optionally dotted (q. = 1.5×),
+ * or a plain number of beats (0.05-16) — the escape hatch ABC conversion
+ * needs for triplets and other lengths the letters can't spell.
+ */
+function durBeats(raw: string | undefined): number | null {
+  const d = (raw ?? "q").toLowerCase();
+  const named = /^([whqes])(\.)?$/.exec(d);
+  if (named) return DUR_BEATS[named[1]] * (named[2] ? 1.5 : 1);
+  if (/^\d*\.?\d+$/.test(d)) {
+    const n = Number(d);
+    return n >= 0.05 && n <= 16 ? n : null;
+  }
+  return null;
+}
 const LETTER_SEMITONE: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const PITCH_RE = /^([A-Ga-g])([#b]?)([1-7])$/;
 
@@ -65,7 +82,7 @@ export function parseNotation(notation: string): NoteToken[] {
   for (const raw of String(notation).trim().split(/\s+/)) {
     if (raw === "") continue;
     const [head, durRaw] = raw.split(":");
-    const beats = DUR_BEATS[(durRaw ?? "q").toLowerCase()] ?? null;
+    const beats = durBeats(durRaw);
     if (beats === null) continue;
     if (/^r$/i.test(head)) {
       out.push({ pitches: [], beats, freqs: [] });

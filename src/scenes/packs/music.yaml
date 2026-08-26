@@ -12,17 +12,22 @@ description: >-
   "C4:q D4:q E4:h" (pitch letter + optional #/b + octave, duration w/h/q/e/s
   = 4/2/1/half/quarter beats, chords joined with +, R for rests) — with
   correct staff positions, ledger lines, stems, open vs filled heads, bar
-  lines by time signature, and optional letter names under the notes. Pair
-  it with a `play` command carrying the SAME notation so viewers hear what
-  they see. Choose this scene for ANY request about sheet music, staff or
-  musical notation, notes/scales/melodies/chords written on a staff,
-  reading music, or note durations.
+  lines by time signature, and optional letter names under the notes — or a
+  whole tune given as ABC notation via the `abc` param (first voice
+  rendered; key signatures become explicit accidentals). Pair it with a
+  `play` command carrying the SAME notation (or the same {abc}) so viewers
+  hear what they see. Choose this scene for ANY request about sheet music,
+  staff or musical notation, notes/scales/melodies/chords written on a
+  staff, reading music, note durations, or a named tune in ABC.
 params:
   type: object
   properties:
     notes:
       type: string
       description: "Notation, e.g. \"C4:q D4:q E4:q F4:q G4:h R:q G4+B4:h\". Up to 16 tokens; comfortable range C3-A5. Default: the C-major scale."
+    abc:
+      type: string
+      description: "A tune in ABC notation (overrides `notes`; the first voice is rendered, bar lines follow the tune's M: unless time_top is set)."
     time_top:
       type: integer
       description: "Beats per bar for the bar lines, 2-6 (default 4; 0 = no bar lines)."
@@ -48,9 +53,15 @@ examples:
       title: "Ode to Joy (opening)"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
-  const notation = typeof params.notes === "string" && params.notes.trim() !== "" ? params.notes : "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q";
+  let notation = typeof params.notes === "string" && params.notes.trim() !== "" ? params.notes : "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q";
+  let timeTopDefault = 4;
+  if (typeof params.abc === "string" && params.abc.trim() !== "") {
+    const tune = kit.parseABC(params.abc);
+    if (tune.voices.length > 0) notation = tune.voices[0].notes;
+    if (tune.meterTop) timeTopDefault = tune.meterTop;
+  }
   const tokens = kit.parseNotes(notation).slice(0, 16);
-  const timeTop = Number.isFinite(params.time_top) ? Math.max(0, Math.min(6, Math.round(params.time_top))) : 4;
+  const timeTop = Number.isFinite(params.time_top) ? Math.max(0, Math.min(6, Math.round(params.time_top))) : timeTopDefault;
   const wantLabels = params.labels !== false;
 
   const drawables = [], labels = [], anchors = {}, order = [];
@@ -114,11 +125,15 @@ layout: |
         children.push(kit.stroke(id + "__lu" + ly, [[x - 20, ly], [x + 20, ly]], { strokeWidth: 2.5, ms: MS.dot }));
       }
       const filled = tok.beats < 2;
+      const dotted = [3, 1.5, 0.75, 0.375].some((b) => Math.abs(tok.beats - b) < 1e-6);
       tok.pitches.forEach((p, k) => {
         const y = yOf(p);
         children.push(kit.stroke(id + "__h" + k, kit.ellipse([x, y], 12, 9, 20), { closed: true, strokeWidth: 3, ...(filled ? { fill: C.ink } : {}), ms: MS.dot }));
         if (p.includes("#")) {
           children.push(kit.text(id + "__acc" + k, [x - 27, y], "#", { fontSize: 22 }));
+        }
+        if (dotted) {
+          children.push(kit.stroke(id + "__dot" + k, kit.ellipse([x + 21, y + 5], 3, 3, 8), { closed: true, fill: C.ink, ms: 60 }));
         }
       });
       if (tok.beats < 4) {

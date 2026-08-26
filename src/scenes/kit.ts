@@ -14,6 +14,7 @@
 
 import { compileExpression } from "../spec/expression";
 import { parseNotation, type NoteToken } from "../spec/notation";
+import { parseABC, type AbcTune } from "../spec/abc";
 import { CANVAS } from "../layout/canvas";
 import {
   COLORS,
@@ -254,6 +255,8 @@ export interface SceneKit {
   parseEdgeList(s: string): Edge[];
   /** Musical notation "C4:q E4+G4:h R:q" → note tokens (kit v3; spec/notation.ts). */
   parseNotes(s: string): NoteToken[];
+  /** A whole ABC tune → internal notation per voice + tempo/meter/title (kit v3; spec/abc.ts). */
+  parseABC(s: string): AbcTune;
   // ---- static 3D → flat drawables (spec §3a; validated by the 2026-08-22 spike) ----
   /**
    * Project 3D primitives into ordinary flat drawables: orbit camera
@@ -699,6 +702,9 @@ export const kit: SceneKit = {
   },
   parseNotes(s) {
     return parseNotation(s);
+  },
+  parseABC(s) {
+    return parseABC(s);
   },
   parseEdgeList(s) {
     const out: Edge[] = [];
