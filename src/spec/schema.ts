@@ -8,6 +8,7 @@
 
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
+import { notationBeats } from "./notation";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -243,6 +244,33 @@ const commandSchema = {
         "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs.",
     },
     duration: { type: "number", description: "With animate: seconds the animation takes (default 2)." },
+    play: {
+      description:
+        'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — or up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass). ONLY for figures genuinely about sound or music.',
+      oneOf: [
+        { type: "string" },
+        {
+          type: "array",
+          minItems: 1,
+          maxItems: 4,
+          items: {
+            type: "object",
+            properties: {
+              notes: { type: "string", description: "Notation string for this voice." },
+              instrument: { type: "string", enum: ["tone", "piano", "organ", "pluck", "bell"] },
+            },
+            required: ["notes"],
+            additionalProperties: false,
+          },
+        },
+      ],
+    },
+    tempo: { type: "number", description: "With play: beats per minute, 30-300 (default 100)." },
+    instrument: {
+      type: "string",
+      enum: ["tone", "piano", "organ", "pluck", "bell"],
+      description: "With play: the synthesized instrument (default tone; array voices can override per voice).",
+    },
   },
   additionalProperties: false,
 };
@@ -331,7 +359,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate", "play"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the
@@ -373,6 +401,18 @@ function semanticErrors(spec: Spec): string[] {
     }
     if (cmd.duration !== undefined && verb !== "animate") {
       errors.push(`commands[${i}]: duration only applies to animate (other verbs carry their own duration fields)`);
+    }
+    if ((cmd.tempo !== undefined || cmd.instrument !== undefined) && verb !== "play") {
+      errors.push(`commands[${i}]: tempo and instrument only apply to a play command`);
+    }
+    if (verb === "play") {
+      const voices = typeof cmd.play === "string" ? [{ notes: cmd.play }] : cmd.play!;
+      if (!voices.some((v) => notationBeats(v.notes) > 0)) {
+        errors.push(`commands[${i}]: play has no readable notes — notation is space-separated "C4:q E4:q G4+C5:h" (pitch+octave, optional :w/h/q/e/s duration, R for rests)`);
+      }
+      if (cmd.tempo !== undefined && (typeof cmd.tempo !== "number" || cmd.tempo < 30 || cmd.tempo > 300)) {
+        errors.push(`commands[${i}]: tempo must be a number between 30 and 300 bpm`);
+      }
     }
   }
 

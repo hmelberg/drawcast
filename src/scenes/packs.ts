@@ -76,6 +76,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Cost-effectiveness acceptability curves and tornado diagrams — the sensitivity-analysis figures of economic evaluation.",
     load: async () => (await import("./packs/hta.yaml?raw")).default,
   },
+  music: {
+    id: "music",
+    title: "Music",
+    description: "Staff notation and a piano keyboard — sheet-music figures that pair with the play command's synthesized sound.",
+    load: async () => (await import("./packs/music.yaml?raw")).default,
+  },
   games: {
     id: "games",
     title: "Games",

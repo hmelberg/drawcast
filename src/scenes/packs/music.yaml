@@ -1,0 +1,294 @@
+pack: music
+title: Music
+description: Staff notation and a piano keyboard — sheet-music figures that pair with the play command's synthesized sound.
+---
+template: note_sheet
+title: Note sheet (staff notation)
+version: 1
+kit: 3
+status: ready
+description: >-
+  A treble-clef staff with notes computed from a simple notation string —
+  "C4:q D4:q E4:h" (pitch letter + optional #/b + octave, duration w/h/q/e/s
+  = 4/2/1/half/quarter beats, chords joined with +, R for rests) — with
+  correct staff positions, ledger lines, stems, open vs filled heads, bar
+  lines by time signature, and optional letter names under the notes. Pair
+  it with a `play` command carrying the SAME notation so viewers hear what
+  they see. Choose this scene for ANY request about sheet music, staff or
+  musical notation, notes/scales/melodies/chords written on a staff,
+  reading music, or note durations.
+params:
+  type: object
+  properties:
+    notes:
+      type: string
+      description: "Notation, e.g. \"C4:q D4:q E4:q F4:q G4:h R:q G4+B4:h\". Up to 16 tokens; comfortable range C3-A5. Default: the C-major scale."
+    time_top:
+      type: integer
+      description: "Beats per bar for the bar lines, 2-6 (default 4; 0 = no bar lines)."
+    labels:
+      type: boolean
+      description: "Letter names under the notes (default true)."
+    title:
+      type: string
+element_ids:
+  staff: the five staff lines (a group)
+  clef: the treble clef
+  note_<i>: the i-th token — heads, stem, flag, ledger lines (a group; rests too)
+  bar_<i>: the i-th bar line
+  label_<i>: letter name under token i (when labels)
+  title: figure title, when set
+examples:
+  - request: "Write the C major scale on a staff."
+    params:
+      title: "The C major scale"
+  - request: "Show a simple melody with a chord at the end."
+    params:
+      notes: "E4:q E4:q F4:q G4:q G4:q F4:q E4:q D4:q C4:h C4+E4+G4:h"
+      title: "Ode to Joy (opening)"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const notation = typeof params.notes === "string" && params.notes.trim() !== "" ? params.notes : "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q";
+  const tokens = kit.parseNotes(notation).slice(0, 16);
+  const timeTop = Number.isFinite(params.time_top) ? Math.max(0, Math.min(6, Math.round(params.time_top))) : 4;
+  const wantLabels = params.labels !== false;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  // Staff: five lines, E4 on the bottom. One diatonic step = half a gap.
+  const X0 = 130, X1 = 890, Y_E4 = 340, GAP = 26, STEP = GAP / 2;
+  const staffChildren = [];
+  for (let i = 0; i < 5; i++) {
+    staffChildren.push(kit.stroke("staff__l" + i, [[X0, Y_E4 + i * GAP], [X1, Y_E4 + i * GAP]], { strokeWidth: 2.5, ms: MS.guides }));
+  }
+  push(kit.group("staff", staffChildren));
+  anchors.staff = [(X0 + X1) / 2, Y_E4 + 2 * GAP];
+
+  // A hand-drawn treble clef: spine, top curl, and the loop around the G line.
+  const G_LINE = Y_E4 + GAP;
+  push(kit.stroke("clef", kit.smooth([
+    [150, 306], [160, 296], [170, 310], [168, 350], [166, 420], [164, 472],
+    [156, 486], [148, 472], [156, 448], [172, 416], [178, 384], [172, 356],
+    [156, 344], [142, 358], [144, 380], [158, 390], [172, 382],
+  ], 8), { strokeWidth: 3.5, ms: MS.stroke }));
+  anchors.clef = [160, G_LINE];
+
+  // Diatonic position: octave*7 + letter index; E4 = 30 sits on the bottom line.
+  const LETTER_DIAT = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+  const diatOf = (pitch) => {
+    const letter = pitch[0];
+    const octave = Number(pitch[pitch.length - 1]);
+    return octave * 7 + LETTER_DIAT[letter];
+  };
+  const yOf = (pitch) => Y_E4 + (diatOf(pitch) - 30) * STEP;
+
+  const n = tokens.length;
+  const advance = Math.max(48, Math.min(84, (X1 - 240) / Math.max(1, n)));
+  const MID_Y = Y_E4 + 2 * GAP; // the B4 middle line
+  let beatsSoFar = 0;
+  let barCount = 0;
+
+  tokens.forEach((tok, i) => {
+    const x = 225 + i * advance;
+    const id = "note_" + i;
+    const children = [];
+    if (tok.pitches.length === 0) {
+      // Rest: half/whole = a block on/under the middle line; shorter = a hook.
+      if (tok.beats >= 2) {
+        const onTop = tok.beats >= 4;
+        const yr = MID_Y + (onTop ? -8 : 0);
+        children.push(kit.stroke(id + "__rest", [[x - 11, yr], [x + 11, yr], [x + 11, yr + 8], [x - 11, yr + 8]], { closed: true, fill: C.ink, ms: MS.dot }));
+      } else {
+        children.push(kit.stroke(id + "__rest", kit.smooth([[x - 6, MID_Y + 16], [x + 5, MID_Y + 4], [x - 4, MID_Y - 4], [x + 6, MID_Y - 16]], 6), { strokeWidth: 3, ms: MS.dot }));
+      }
+      anchors[id] = [x, MID_Y];
+    } else {
+      const ys = tok.pitches.map(yOf);
+      const yLo = Math.min(...ys), yHi = Math.max(...ys);
+      // Ledger lines: line positions beyond the staff that this note reaches.
+      for (let ly = Y_E4 - GAP; ly >= yLo - STEP; ly -= GAP) {
+        children.push(kit.stroke(id + "__lg" + ly, [[x - 20, ly], [x + 20, ly]], { strokeWidth: 2.5, ms: MS.dot }));
+      }
+      for (let ly = Y_E4 + 5 * GAP; ly <= yHi + STEP; ly += GAP) {
+        children.push(kit.stroke(id + "__lu" + ly, [[x - 20, ly], [x + 20, ly]], { strokeWidth: 2.5, ms: MS.dot }));
+      }
+      const filled = tok.beats < 2;
+      tok.pitches.forEach((p, k) => {
+        const y = yOf(p);
+        children.push(kit.stroke(id + "__h" + k, kit.ellipse([x, y], 12, 9, 20), { closed: true, strokeWidth: 3, ...(filled ? { fill: C.ink } : {}), ms: MS.dot }));
+        if (p.includes("#")) {
+          children.push(kit.text(id + "__acc" + k, [x - 27, y], "#", { fontSize: 22 }));
+        }
+      });
+      if (tok.beats < 4) {
+        // Stem: up from the right side when the top head sits low, else down-left.
+        const up = (yLo + yHi) / 2 < MID_Y;
+        const sx = up ? x + 11 : x - 11;
+        const sy0 = up ? yLo : yHi;
+        const sy1 = up ? yHi + 56 : yLo - 56;
+        children.push(kit.stroke(id + "__stem", [[sx, sy0], [sx, sy1]], { strokeWidth: 2.5, ms: MS.dot }));
+        if (tok.beats <= 0.5) {
+          children.push(kit.stroke(id + "__flag", kit.smooth([[sx, sy1], [sx + 14, sy1 - (up ? 14 : -14)], [sx + 10, sy1 - (up ? 30 : -30)]], 6), { strokeWidth: 2.5, ms: MS.dot }));
+        }
+        if (tok.beats <= 0.25) {
+          children.push(kit.stroke(id + "__flag2", kit.smooth([[sx, sy1 - (up ? 12 : -12)], [sx + 13, sy1 - (up ? 26 : -26)], [sx + 9, sy1 - (up ? 40 : -40)]], 6), { strokeWidth: 2.5, ms: MS.dot }));
+        }
+      }
+      anchors[id] = [x, ys[0]];
+      if (wantLabels) {
+        const name = tok.pitches.map((p) => p.replace(/\d/g, "")).join("-");
+        push(kit.text("label_" + i, [x, 272], name, { fontSize: 18, color: C.guide }));
+        anchors["label_" + i] = [x, 272];
+      }
+    }
+    push(kit.group(id, children));
+
+    beatsSoFar += tok.beats;
+    if (timeTop > 0 && i < n - 1 && Math.abs(beatsSoFar % timeTop) < 1e-9) {
+      const bx = x + advance / 2;
+      const bid = "bar_" + barCount++;
+      push(kit.stroke(bid, [[bx, Y_E4], [bx, Y_E4 + 4 * GAP]], { strokeWidth: 3, ms: MS.dot }));
+      anchors[bid] = [bx, MID_Y];
+    }
+  });
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 640], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };
+---
+template: piano_keys
+title: Piano keyboard
+version: 1
+kit: 3
+status: ready
+description: >-
+  A piano keyboard (one or two octaves) with any set of keys highlighted —
+  chords, scales, intervals — plus letter names on the white keys and an
+  optional caption. Highlights get their own ids in the order given, so a
+  chord can be revealed note by note, each paired with a `play` command
+  sounding that note. Choose this scene for ANY request about a piano or
+  keyboard, chords or scales shown on keys, intervals (octave, fifth,
+  third), semitones and black keys, or why notes sound good together.
+params:
+  type: object
+  properties:
+    octaves:
+      type: integer
+      description: "1 (C4-B4) or 2 (C3-B4, the default)."
+    highlight:
+      type: array
+      maxItems: 8
+      items: { type: string }
+      description: "Pitches to mark, e.g. [\"C4\", \"E4\", \"G4\"] — flats accepted (Db4 folds to C#4). Each gets its own id highlight_<i> in this order."
+    labels:
+      type: boolean
+      description: "Letter names on the white keys (default true)."
+    caption:
+      type: string
+      description: "Caption under the keyboard, e.g. \"C major = C + E + G\"."
+    title:
+      type: string
+element_ids:
+  keys: the keyboard itself (white then black keys, a group)
+  labels: the white-key letter names (a group, when labels)
+  highlight_<i>: the mark on highlight[i] (draw them one at a time to build a chord)
+  caption: the caption text, when set
+  title: figure title, when set
+examples:
+  - request: "Show a C major chord on the piano."
+    params:
+      highlight: ["C4", "E4", "G4"]
+      caption: "C major = C + E + G"
+      title: "The C major chord"
+  - request: "Show an octave on the keyboard."
+    params:
+      octaves: 2
+      highlight: ["C3", "C4"]
+      caption: "One octave apart: double the frequency"
+      title: "The octave"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const octaves = params.octaves === 1 ? 1 : 2;
+  const startOct = octaves === 1 ? 4 : 3;
+  const rawHl = Array.isArray(params.highlight) ? params.highlight.slice(0, 8) : [];
+  const wantLabels = params.labels !== false;
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const WHITE = ["C", "D", "E", "F", "G", "A", "B"];
+  const HAS_SHARP = { C: true, D: true, E: false, F: true, G: true, A: true, B: false };
+  const nWhite = octaves * 7;
+  const KW = Math.min(60, 760 / nWhite);
+  const X0 = (1000 - nWhite * KW) / 2;
+  const Y_BOT = 250, Y_TOP = 520, BLACK_BOT = 370, BW = KW * 0.62;
+
+  // key layout: white index i -> pitch; black keys sit between.
+  const whitePitch = (i) => WHITE[i % 7] + String(startOct + Math.floor(i / 7));
+  const whiteX = (i) => X0 + i * KW;
+
+  const keyChildren = [];
+  for (let i = 0; i < nWhite; i++) {
+    keyChildren.push(kit.stroke("key_w" + i, [[whiteX(i), Y_BOT], [whiteX(i) + KW, Y_BOT], [whiteX(i) + KW, Y_TOP], [whiteX(i), Y_TOP]], { closed: true, fill: C.paper, strokeWidth: 2.5, ms: 90 }));
+  }
+  for (let i = 0; i < nWhite; i++) {
+    const letter = WHITE[i % 7];
+    if (!HAS_SHARP[letter] || i === nWhite - 1 && letter === "B") continue;
+    if (i === nWhite - 1) continue;
+    const bx = whiteX(i + 1) - BW / 2;
+    keyChildren.push(kit.stroke("key_b" + i, [[bx, BLACK_BOT], [bx + BW, BLACK_BOT], [bx + BW, Y_TOP], [bx, Y_TOP]], { closed: true, fill: C.ink, strokeWidth: 2, ms: 90 }));
+  }
+  push(kit.group("keys", keyChildren));
+  anchors.keys = [500, (Y_BOT + Y_TOP) / 2];
+
+  if (wantLabels) {
+    const labelChildren = [];
+    for (let i = 0; i < nWhite; i++) {
+      labelChildren.push(kit.text("labels__" + i, [whiteX(i) + KW / 2, Y_BOT + 24], WHITE[i % 7], { fontSize: 19, color: C.guide }));
+    }
+    push(kit.group("labels", labelChildren));
+    anchors.labels = [500, Y_BOT + 24];
+  }
+
+  // Highlights: normalize through the shared notation parser (folds flats).
+  const HL_COLORS = [C.demand, C.supply, C.accent, C.shifted, C.region2, C.demand, C.supply, C.accent];
+  rawHl.forEach((name, hi) => {
+    if (typeof name !== "string") return;
+    const tok = kit.parseNotes(name.trim())[0];
+    if (!tok || tok.pitches.length === 0) return;
+    const pitch = tok.pitches[0];
+    const sharp = pitch.includes("#");
+    const letter = pitch[0];
+    const octave = Number(pitch[pitch.length - 1]);
+    const wi = (octave - startOct) * 7 + WHITE.indexOf(letter);
+    if (wi < 0 || wi >= nWhite) return;
+    const id = "highlight_" + hi;
+    const color = HL_COLORS[hi];
+    if (sharp) {
+      if (wi >= nWhite - 1) return;
+      const bx = whiteX(wi + 1) - BW / 2;
+      push(kit.group(id, [
+        kit.area(id + "__f", [[bx + 3, BLACK_BOT + 3], [bx + BW - 3, BLACK_BOT + 3], [bx + BW - 3, Y_TOP - 3], [bx + 3, Y_TOP - 3]], color, { opacity: 0.85 }),
+        kit.stroke(id + "__dot", kit.ellipse([bx + BW / 2, BLACK_BOT - 22], 9, 9, 14), { closed: true, fill: color, color, ms: MS.dot }),
+      ]));
+      anchors[id] = [bx + BW / 2, (BLACK_BOT + Y_TOP) / 2];
+    } else {
+      const x = whiteX(wi);
+      push(kit.group(id, [
+        kit.area(id + "__f", [[x + 3, Y_BOT + 3], [x + KW - 3, Y_BOT + 3], [x + KW - 3, BLACK_BOT - 6], [x + 3, BLACK_BOT - 6]], color, { opacity: 0.45 }),
+        kit.stroke(id + "__dot", kit.ellipse([x + KW / 2, Y_BOT + 58], 9, 9, 14), { closed: true, fill: color, color, ms: MS.dot }),
+      ]));
+      anchors[id] = [x + KW / 2, Y_BOT + 58];
+    }
+  });
+
+  if (typeof params.caption === "string" && params.caption.trim() !== "") {
+    push(kit.text("caption", [500, 190], params.caption, { fontSize: 24 }));
+    anchors.caption = [500, 190];
+  }
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 640], params.title, { fontSize: 30 }));
+  }
+  return { drawables, labels, anchors, order };

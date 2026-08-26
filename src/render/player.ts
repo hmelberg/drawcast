@@ -13,6 +13,7 @@ import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { SpeechManager, type SpeechLike } from "./speech";
+import type { ToneLike } from "./tones";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -57,6 +58,13 @@ export class Player {
    * Callbacks receive a timestamp on the main window's clock.
    */
   raf: (cb: (now: number) => void) => void = (cb) => requestAnimationFrame(cb);
+  /**
+   * Sound engine for the play command, injectable like inputGate: live
+   * playback wires a speaker-connected WebAudioTones, the exporter wires one
+   * bound to its recording destination (notes land in the video, silently).
+   * Null (headless tests) keeps play as pure pacing.
+   */
+  tones: ToneLike | null = null;
 
   private mode: PlaybackMode;
   private speedVal: number;
@@ -156,6 +164,7 @@ export class Player {
     if (this.state !== "playing") return;
     this.pausedFlag = true;
     this.speech.pause();
+    this.tones?.pause();
     this.setState("paused");
   }
 
@@ -245,6 +254,7 @@ export class Player {
     this.pausedFlag = false;
     this.pendingSpeech = null;
     this.speech.cancel();
+    this.tones?.cancel();
     this.ac?.abort();
     this.ac = null;
   }
@@ -258,6 +268,7 @@ export class Player {
 
   private speechSynthResume(): void {
     this.speech.resume();
+    this.tones?.resume();
   }
 
   private setState(s: PlayerState): void {
@@ -325,6 +336,15 @@ export class Player {
       }
       case "pause":
         return this.waitScaled(step.seconds * 1000, signal);
+      case "play": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        // Notes are scheduled on the audio clock; the WAIT runs on the frame
+        // clock (worker-driven in export), so background tabs can't desync.
+        // Tempo scales with the live speed so audio and wait stay aligned.
+        if (this.mode === "narrated") this.tones?.play(step.voices, step.tempo * this.speedVal, signal);
+        return this.waitScaled(step.seconds * 1000, signal);
+      }
       case "wait":
         await this.narrationBarrier();
         if (signal.aborted) return;

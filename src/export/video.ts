@@ -10,6 +10,7 @@ import { speechKey, type SpeakLine } from "../render/delivery";
 import type { Spec } from "../spec/types";
 import type { ExportKeepAlive } from "./keepalive";
 import { BufferSpeech, synthesizeAll } from "./tts";
+import { WebAudioTones } from "../render/tones";
 
 /** Every distinct narration line in the spec's storyboard, with speaker/delivery/gender attached. */
 export function collectSpeakLines(spec: Spec): SpeakLine[] {
@@ -210,6 +211,9 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
 
     const dest = audioCtx.createMediaStreamDestination();
     const speech = new BufferSpeech(audioCtx, dest, buffers);
+    // The play command's notes go into the SAME recording destination as the
+    // narration: recorded in full, inaudible while exporting (see tones.ts).
+    const tones = new WebAudioTones(audioCtx, dest);
 
     const captureTrack = canvas.captureStream(FPS).getVideoTracks()[0] as Partial<CanvasCaptureMediaStreamTrack> & MediaStreamTrack;
     const stream = new MediaStream([captureTrack, ...dest.stream.getAudioTracks()]);
@@ -283,7 +287,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
       for (let i = 0; i < items.length; i++) {
         if (signal.aborted) break;
         hooks.onStatus(items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…");
-        handle = await render(items[i], workbench, { style: cfg.style, speech, mode: "narrated", speed: 1 });
+        handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1 });
         const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
         if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
         currentSvg = svg;

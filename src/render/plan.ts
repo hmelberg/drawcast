@@ -7,7 +7,8 @@ import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { readParam } from "./params";
-import type { Command, Easing, HighlightEffect, PointGesture } from "../spec/types";
+import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
+import { notationBeats } from "../spec/notation";
 import type { Delivery } from "./delivery";
 
 export type PlanStep = (
@@ -33,6 +34,7 @@ export type PlanStep = (
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
   | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number }
+  | { kind: "play"; voices: PlayVoice[]; tempo: number; seconds: number }
 ) & {
   /** speak paired with an action: voice and action start together, both must finish. */
   narration?: string;
@@ -141,7 +143,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -320,6 +322,22 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       params = { ...params, ...targets };
       pushStep({ kind: "animate", targets, starts, seconds: cmd.duration ?? 2 });
       if (opts.bboxesFor) bboxOf = opts.bboxesFor(params);
+    } else if (cmd.play !== undefined) {
+      const tempo = Math.min(300, Math.max(30, typeof cmd.tempo === "number" && Number.isFinite(cmd.tempo) ? cmd.tempo : 100));
+      const raw = typeof cmd.play === "string" ? [{ notes: cmd.play, instrument: cmd.instrument }] : cmd.play;
+      const voices: PlayVoice[] = raw
+        .filter((v) => v && typeof v.notes === "string")
+        .map((v) => ({ notes: v.notes, instrument: v.instrument ?? cmd.instrument }))
+        .filter((v) => notationBeats(v.notes) > 0)
+        .slice(0, 4);
+      if (voices.length === 0) {
+        warnings.push("play command with no readable notes skipped");
+        // Keep a paired narration rather than silently dropping the sentence.
+        if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true, speaker: cmd.voice, delivery: cmd.delivery });
+        continue;
+      }
+      const beats = Math.max(...voices.map((v) => notationBeats(v.notes)));
+      pushStep({ kind: "play", voices, tempo, seconds: (beats * 60) / tempo });
     } else {
       warnings.push("command with no recognized verb skipped");
     }

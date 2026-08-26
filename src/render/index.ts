@@ -10,6 +10,7 @@ import { withOverrides } from "./params";
 import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
+import { WebAudioTones, type ToneLike } from "./tones";
 import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 
 export type { RenderStyle } from "./svg-backend";
@@ -19,6 +20,8 @@ export interface RenderOptions {
   mode?: PlaybackMode;
   speed?: number;
   speech?: SpeechLike;
+  /** Sound engine for the play command; defaults to a shared speaker-connected WebAudioTones. The exporter passes one bound to its recording destination. */
+  tones?: ToneLike;
   callbacks?: PlayerCallbacks;
 }
 
@@ -34,6 +37,13 @@ export interface RenderHandle {
    */
   update(diff: Partial<Spec>): Promise<RenderHandle>;
   destroy(): void;
+}
+
+// One speaker-connected tone engine for all live players — its AudioContext
+// is created lazily on the first play command.
+let liveTonesSingleton: WebAudioTones | null = null;
+function liveTones(): WebAudioTones {
+  return (liveTonesSingleton ??= new WebAudioTones());
 }
 
 let fontsReady: Promise<void> | null = null;
@@ -115,6 +125,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     options.callbacks,
   );
   player.setNarratorGender(spec.voice ?? null);
+  player.tones = options.tones ?? liveTones();
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {

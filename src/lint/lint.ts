@@ -95,7 +95,7 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn): LintIssue
   return issues;
 }
 
-const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate"] as const;
+const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "point", "move", "camera", "animate", "play"] as const;
 
 function isStandaloneSpeak(c: Command): boolean {
   return c.speak !== undefined && !ACTION_KEYS.some((k) => c[k] !== undefined);

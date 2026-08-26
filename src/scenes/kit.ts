@@ -13,6 +13,7 @@
 //    rough stroke.
 
 import { compileExpression } from "../spec/expression";
+import { parseNotation, type NoteToken } from "../spec/notation";
 import { CANVAS } from "../layout/canvas";
 import {
   COLORS,
@@ -33,7 +34,7 @@ import {
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 2;
+export const KIT_VERSION = 3; // v3: parseNotes (the music pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -251,6 +252,8 @@ export interface SceneKit {
   parseNewick(s: string): NewickNode;
   /** "A -> B; B -| C; X => Y" (activates / inhibits / converts). */
   parseEdgeList(s: string): Edge[];
+  /** Musical notation "C4:q E4+G4:h R:q" → note tokens (kit v3; spec/notation.ts). */
+  parseNotes(s: string): NoteToken[];
   // ---- static 3D → flat drawables (spec §3a; validated by the 2026-08-22 spike) ----
   /**
    * Project 3D primitives into ordinary flat drawables: orbit camera
@@ -693,6 +696,9 @@ export const kit: SceneKit = {
     const root = node();
     if (i !== src.length) throw new Error(`newick: trailing input at ${i}`);
     return root;
+  },
+  parseNotes(s) {
+    return parseNotation(s);
   },
   parseEdgeList(s) {
     const out: Edge[] = [];

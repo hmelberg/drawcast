@@ -10,6 +10,7 @@ import medicineYaml from "../src/scenes/packs/medicine.yaml?raw";
 import macroYaml from "../src/scenes/packs/macro.yaml?raw";
 import empiricsYaml from "../src/scenes/packs/empirics.yaml?raw";
 import htaYaml from "../src/scenes/packs/hta.yaml?raw";
+import musicYaml from "../src/scenes/packs/music.yaml?raw";
 import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
@@ -2563,5 +2564,70 @@ describe("hta pack", () => {
     expect(labelAt(2)).toBe("Small");
     // Row 0 (widest) sits highest (y-up).
     expect((r.anchors.bar_0 as [number, number])[1]).toBeGreaterThan((r.anchors.bar_1 as [number, number])[1]);
+  });
+});
+
+describe("music pack", () => {
+  beforeEach(() => unregisterPack("music"));
+
+  const TEMPLATE_IDS = ["note_sheet", "piano_keys"];
+
+  test("registers note_sheet and piano_keys", () => {
+    const r = registerPack("music", musicYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  test("every music example renders finite, no fallback warnings, no error lint, deterministically", () => {
+    registerPack("music", musicYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test("note_sheet: staff positions are diatonic — E4 on the bottom line, C4 one ledger below, C5 in the third space", () => {
+    registerPack("music", musicYaml);
+    const r = scenes.note_sheet.layout!({ notes: "E4:q C4:q C5:q" });
+    const yE4 = (r.anchors.note_0 as [number, number])[1];
+    const yC4 = (r.anchors.note_1 as [number, number])[1];
+    const yC5 = (r.anchors.note_2 as [number, number])[1];
+    expect(yC4).toBeCloseTo(yE4 - 26, 6); // two diatonic steps below the bottom line
+    expect(yC5).toBeCloseTo(yE4 + 5 * 13, 6); // C5 = five diatonic steps above E4 (F G A B C)
+    const flat = flattenDrawables(r.drawables);
+    // C4 needs exactly one ledger line; E4 and C5 need none.
+    expect(flat.filter((d) => d.id.startsWith("note_1__lg")).length).toBe(1);
+    expect(flat.filter((d) => d.id.startsWith("note_0__lg") || d.id.startsWith("note_0__lu")).length).toBe(0);
+  });
+
+  test("note_sheet: half notes are open, quarter notes filled; bars land every time_top beats", () => {
+    registerPack("music", musicYaml);
+    const r = scenes.note_sheet.layout!({ notes: "C4:q D4:q E4:q F4:q G4:h A4:h", time_top: 4 });
+    const flat = flattenDrawables(r.drawables);
+    const q = flat.find((d) => d.id === "note_0__h0") as { style: { fill?: string } };
+    const h = flat.find((d) => d.id === "note_4__h0") as { style: { fill?: string } };
+    expect(q.style.fill).toBeDefined();
+    expect(h.style.fill).toBeUndefined();
+    const bars = flat.filter((d) => d.id.startsWith("bar_"));
+    expect(bars.length).toBe(1); // after four quarter beats, once — the final bar is the edge
+  });
+
+  test("piano_keys: two octaves have 14 white and 10 black keys; highlights follow the given order and fold flats", () => {
+    registerPack("music", musicYaml);
+    const r = scenes.piano_keys.layout!({ highlight: ["C4", "E4", "Gb4"] });
+    const flat = flattenDrawables(r.drawables);
+    expect(flat.filter((d) => d.id.startsWith("key_w")).length).toBe(14);
+    expect(flat.filter((d) => d.id.startsWith("key_b")).length).toBe(10);
+    const ids = flat.map((d) => d.id);
+    expect(ids).toContain("highlight_0");
+    expect(ids).toContain("highlight_1");
+    expect(ids).toContain("highlight_2"); // Gb4 → F#4, a black key
+    // C4 and E4 marks sit at distinct white keys, in x order.
+    expect((r.anchors.highlight_0 as [number, number])[0]).toBeLessThan((r.anchors.highlight_1 as [number, number])[0]);
   });
 });

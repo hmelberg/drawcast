@@ -161,8 +161,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 2 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(2);
+test("KIT_VERSION is 3 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(3);
   expect(kit.CANVAS.w).toBe(1000);
   expect(kit.COLORS.ink).toBeDefined();
   expect(kit.SKETCH_MS.stroke).toBeGreaterThan(0);

@@ -2,6 +2,9 @@
 // All coordinates are logical (1000×750, y-up, origin bottom-left) or domain
 // coordinates when a `domain` is declared — never screen pixels.
 
+import type { Instrument, PlayVoice } from "./notation";
+export type { Instrument, PlayVoice } from "./notation";
+
 export type ElementType =
   | "axes"
   | "curve"
@@ -183,6 +186,15 @@ export interface Command {
   animate?: Record<string, number>;
   /** With animate: seconds the animation takes (default 2). */
   duration?: number;
+  /**
+   * Play synthesized notes: a notation string ("C4:q E4:q G4:h", chords with
+   * +, R for rests) or up to four parallel voices [{notes, instrument}].
+   */
+  play?: string | PlayVoice[];
+  /** With play: beats per minute (default 100). */
+  tempo?: number;
+  /** With play (string form): the synthesized instrument (default tone). */
+  instrument?: Instrument;
 }
 
 export interface Spec {

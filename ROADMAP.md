@@ -103,6 +103,19 @@ discussion; the two managed risks are shoehorning (kept in check by honest
 "Choose this for…" scoping and the fall-through) and catalog weight (the
 two-level catalog above `TEMPLATE_FULL_THRESHOLD`).
 
+## Sound (the play command) — done 2026-08-26
+
+`play` sounds synthesized notes (WebAudio oscillators, five instrument
+recipes, chords with `+`, up to four parallel voices) with the same
+routing discipline as narration: live → speakers, export → the recording
+destination only (notes land in the YouTube video, silently, background
+tabs included — scheduling rides the audio clock, the wait rides the
+player's frame clock). Notation is shared between the command, the spec
+validator, and the music templates via `kit.parseNotes` (kit v3).
+Deferred follow-up: importing real score formats (ABC, MusicXML, MIDI)
+as an engine that feeds both `note_sheet` and `play` — a bigger,
+separate feature.
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future
