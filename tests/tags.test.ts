@@ -162,3 +162,18 @@ describe("hook tags", () => {
     expect(buildBrief(["provoke"])).toContain("never manufacture");
   });
 });
+
+describe("ingredient tags", () => {
+  test("ingredients stack (each its own group)", () => {
+    const r = parseTags("Explain NPV #why #history #facts");
+    expect(r.tags).toEqual(["why", "history", "facts"]);
+  });
+  test("controversy/history/facts carry the guardrail, why/proscons do not need it", () => {
+    for (const t of ["controversy", "history", "facts"]) expect(buildBrief([t])).toContain("never manufacture");
+  });
+  test("verylong now delegates enrichment to ingredients", () => {
+    const brief = buildBrief(["verylong"]);
+    expect(brief).not.toContain("controversy");
+    expect(brief).toContain("TWO enrichment");
+  });
+});

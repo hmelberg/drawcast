@@ -4,7 +4,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "pacing" | "gestures" | "structure";
+export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "gestures" | "structure";
 
 export interface TagDef {
   tag: string;
@@ -52,7 +52,7 @@ export const TAGS: TagDef[] = [
       "Make it a deep-dive drawcast: 16–24 speak lines in 3–4 acts (use clear between acts); override the examples' length. " +
       "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
       "Build the explanation step by step through that example: narrate each element AS it is drawn (put speak on the draw command) — what it is and why it matters — and no step is skipped. " +
-      "Give context for why the concept matters, include one pros/cons or debate/controversy moment related to it, and optionally a brief historical remark. " +
+      "You have room for up to TWO enrichment moments (why it matters, a real debate, a historical note, empirical numbers, or strengths and weaknesses) — pick only what genuinely fits the topic. " +
       "End with a synthesis that restates the core insight in the example's terms.",
   },
   {
@@ -111,6 +111,41 @@ export const TAGS: TagDef[] = [
     brief:
       "Open on a provocation: state a common belief while drawing the naive picture of it, then visibly correct the picture (erase, redraw, or animate) as the narration shows why the belief fails. Only use beliefs people actually hold. " +
       GUARDRAIL,
+  },
+  {
+    tag: "why",
+    group: "why",
+    hint: "say why the concept matters",
+    brief:
+      "Include the stakes: one or two speak lines on why this concept matters in the real world — who uses it, what goes wrong without it — woven in near the start or the synthesis, within the length budget.",
+  },
+  {
+    tag: "controversy",
+    group: "controversy",
+    hint: "mention a real debate about the topic",
+    brief:
+      "Include one genuine controversy or debate related to the topic — what the sides claim and why it is unresolved — in one or two speak lines, within the length budget. " + GUARDRAIL,
+  },
+  {
+    tag: "history",
+    group: "history",
+    hint: "the person or moment behind the concept",
+    brief:
+      "Include a brief historical note — the person or moment behind the concept — told in one or two speak lines where it illuminates the idea, within the length budget. " + GUARDRAIL,
+  },
+  {
+    tag: "facts",
+    group: "facts",
+    hint: "real empirical numbers, not invented ones",
+    brief:
+      "Ground the explanation in real empirical numbers — actual magnitudes, dates, or study results, not invented placeholders — within the length budget. " + GUARDRAIL,
+  },
+  {
+    tag: "proscons",
+    group: "proscons",
+    hint: "one strengths-and-weaknesses moment",
+    brief:
+      "Include one balanced strengths-and-weaknesses moment: what this concept or method does well and where it breaks down, in one or two speak lines, within the length budget.",
   },
   {
     tag: "calm",
