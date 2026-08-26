@@ -21,6 +21,39 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-08-26 — Interesting, not mandatorily "surprising": vary the kind
+
+Hans (correcting the one-surprise mandate the same day it graduated):
+"making the surprise a mandate or absolute rule is too strong. what i mean
+is that most presentations should contain something that is interesting.
+it could be a surprising conclusion, implication, fact but it could also
+just be an interesting fact related to what you say or some biographical
+information about a person behind or related to the concept or some piece
+of history around it or any interesting tidbit related to it. If we
+mandate a 'surprising' fact then we may start inventing things that are
+not true, or not surprising and it also becomes a bit like all lectures
+are the same. We need variation and relevance to the topic. Sometimes
+there are interesting interpretations, implications and so on. Sometimes
+it is more plain, but there might be other interesting things to say."
+
+Distilled — supersedes the one-surprise mandate below, graduated to the
+prompt and mirrored in `PEDAGOGY_RUBRIC` in the same commit:
+
+1. **Most (not all) drawcasts carry one genuinely interesting thing** —
+   and the KIND varies: a surprising conclusion or implication, an
+   unexpected true fact, a scrap of history or biography behind the
+   concept, an interpretation that reframes it, a good tidbit.
+2. **Two failure modes the old mandate invited**: forced "surprises"
+   pressure the model toward invention or exaggeration (truth-guard
+   risk), and a fixed formula makes every lecture feel the same
+   (homogenization). Variation across drawcasts is itself a quality.
+3. **Relevance beats wow**: the interesting thing must belong to the
+   topic. When nothing honest offers itself, a plain clean explanation
+   wins over a forced tidbit.
+4. Kin to the ingredient tags (#history/#facts/#controversy/#why) — those
+   force a kind; the default rule asks the model to pick whichever kind
+   genuinely fits, or none.
+
 ### 2026-08-26 — The rules are now enforced, not just written
 
 Hans: "implement the round to improve the pedagogy and the instructions or
@@ -124,9 +157,12 @@ Distilled, two rules:
    The truth guard applies with full force — a surprise must be a
    well-established fact, never invented or exaggerated for effect.
 
-Status: the hook opening is largely encoded (screen-first rule + `#question`
-tag); the **one-surprise mandate is NOT yet a standing prompt rule** —
-top candidate for the next prompt refinement.
+Status: the hook opening was already encoded (screen-first rule +
+`#question` tag). The one-surprise mandate graduated 2026-08-26 ("Hand
+over one surprise") — and was SOFTENED the same day into "Make it
+interesting — and vary how" (see the newest ledger entry): the
+interestingness survives, the mandate and the surprise-only framing
+do not.
 
 Embodied in: the five hook-first medicine examples (commit `513c204`) —
 the bacon headline, silent AFib, the heart's spare pacemaker, the fetal

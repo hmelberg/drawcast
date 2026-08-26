@@ -198,7 +198,7 @@ export async function improvePrompt(
 export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cleanly. Before delivering, re-read it as a TEACHER against this checklist:
 1. SITUATED — the opening states or hints why this matters (the decision it informs, the mistake it prevents) before any mechanics begin.
 2. HOOK ON INK — the opening line rides the first draw command; at most one short standalone speak before ink.
-3. ONE SURPRISE — somewhere, one TRUE, retellable fact the viewer didn't expect. Never invent or exaggerate one; only well-established facts qualify.
+3. SOMETHING INTERESTING — does it offer one genuinely interesting thing beyond the mechanics: a surprising conclusion or implication, an unexpected true fact, a scrap of history or biography, a reframing interpretation, a good tidbit? The kind should fit THIS topic (variation between figures is a quality, not a defect). Only well-established facts — a plain clean explanation beats a forced or invented tidbit, so absence can be correct.
 4. AHA — every beat converges on one insight, and the closing line names what the viewer can now see.
 5. IN PASSING — explanations live inside working sentences; no "note that", "it is important", or lecture signposting.
 6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
