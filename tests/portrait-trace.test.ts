@@ -124,3 +124,47 @@ describe("traceImage", () => {
     expect(res.strokes).toEqual([]);
   });
 });
+
+describe("hachure shading (trace v2)", () => {
+  const darkSquare = () => {
+    const w = 60, h = 60;
+    const data = new Uint8ClampedArray(w * h * 4).fill(255);
+    for (let y = 20; y < 40; y++) {
+      for (let x = 20; x < 40; x++) {
+        const i = (y * w + x) * 4;
+        data[i] = data[i + 1] = data[i + 2] = 0;
+        data[i + 3] = 255;
+      }
+    }
+    return { width: w, height: h, data };
+  };
+
+  test("dark regions gain hatch strokes; shading: false gives edges only", async () => {
+    const { traceImage } = await import("../src/render/tracer");
+    const withShading = traceImage(darkSquare());
+    const without = traceImage(darkSquare(), { shading: false });
+    expect(withShading.strokes.length).toBeGreaterThan(without.strokes.length);
+    // Hatch strokes (2-point diagonals) sit INSIDE the dark square region.
+    const hatch = withShading.strokes.filter((st) => st.length === 2);
+    expect(hatch.length).toBeGreaterThan(2);
+    for (const [a, b] of hatch) {
+      for (const [x] of [a, b]) {
+        expect(x).toBeGreaterThan(0.25);
+        expect(x).toBeLessThan(0.72);
+      }
+    }
+  });
+
+  test("maxStrokes is a TOTAL budget: edges keep priority, hatch fills the rest", async () => {
+    const { traceImage } = await import("../src/render/tracer");
+    const t = traceImage(darkSquare(), { maxStrokes: 6 });
+    expect(t.strokes.length).toBeLessThanOrEqual(6);
+    const capped = traceImage(darkSquare(), { maxStrokes: 2 });
+    expect(capped.strokes.length).toBeLessThanOrEqual(2);
+  });
+
+  test("shading stays deterministic", async () => {
+    const { traceImage } = await import("../src/render/tracer");
+    expect(JSON.stringify(traceImage(darkSquare()))).toBe(JSON.stringify(traceImage(darkSquare())));
+  });
+});

@@ -9,10 +9,12 @@
 import type { PortraitTrace } from "../spec/trace";
 
 export interface TraceOpts {
-  /** Max strokes kept, longest first (default 110). */
+  /** TOTAL stroke budget — edges first (longest kept), hatching fills the remainder (default 110). */
   maxStrokes?: number;
   /** Edge threshold percentile 0..1 (default 0.82 — keep the top 18% strongest edges). */
   percentile?: number;
+  /** Hachure shading of dark regions — diagonal hatch strokes (default true). */
+  shading?: boolean;
 }
 
 /** ImageData-shaped input: RGBA bytes, so tests need no DOM canvas. */
@@ -161,13 +163,38 @@ export function traceImage(img: RasterLike, opts?: TraceOpts): PortraitTrace {
   chains.sort((a, b) => b.length - a.length);
   const kept = chains.slice(0, Math.max(0, maxStrokes));
 
+  // 9. Hachure shading: dark regions get diagonal hatch strokes, drawn AFTER
+  // the edges and paid from the SAME total budget (edges have priority) —
+  // the ink-portrait look, still fully deterministic.
+  const hatched: [number, number][][] = [];
+  if (opts?.shading !== false) {
+    const budget = Math.min(70, Math.max(0, maxStrokes - kept.length));
+    const DARK = 80;
+    const SPACING = 5;
+    const MIN_RUN = 4;
+    // Diagonals x + y = c, spaced SPACING apart, each dark run one stroke.
+    for (let c = SPACING; c < w + h - 1 && hatched.length < budget; c += SPACING) {
+      let run: [number, number][] = [];
+      const flush = () => {
+        if (run.length >= MIN_RUN && hatched.length < budget) {
+          hatched.push([run[0], run[run.length - 1]]);
+        }
+        run = [];
+      };
+      for (let x = Math.max(0, c - (h - 1)); x <= Math.min(w - 1, c); x++) {
+        const y = c - x;
+        if (lum[y * w + x] < DARK) run.push([x, y]);
+        else flush();
+      }
+      flush();
+    }
+  }
+
   // 5 + 7 + 8. Simplify, then normalize to x in [0,1], y-up in [0, aspect].
   const epsilon = Math.max(0.8, Math.min(w, h) / 220);
   const round5 = (v: number): number => Math.round(v * 100000) / 100000;
-  const strokes = kept.map((chain) =>
-    simplify(chain, epsilon).map(
-      ([px, py]): [number, number] => [round5(px / (w - 1)), round5((1 - py / (h - 1)) * aspect)],
-    ),
+  const strokes = [...kept.map((chain) => simplify(chain, epsilon)), ...hatched].map((chain) =>
+    chain.map(([px, py]): [number, number] => [round5(px / (w - 1)), round5((1 - py / (h - 1)) * aspect)]),
   );
   return { aspect, strokes };
 }

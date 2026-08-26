@@ -3610,6 +3610,9 @@
       "title": "The Phillips curve",
       "voice": "male",
       "template": "generic_axes_diagram",
+      "elements": [
+        { "id": "portrait_1", "type": "portrait", "of": "A. W. Phillips", "x": 780, "y": 550, "width": 145 }
+      ],
       "params": {
         "title": "The Phillips curve",
         "x_label": "Unemployment",
@@ -3624,7 +3627,7 @@
       "commands": [
         { "draw": ["axes", "x_label", "y_label"], "speak": "Hmm — an engineer, of all people, gave economics one of its most famous curves.", "delivery": "soft" },
         { "pause": 0.3 },
-        { "draw": ["point_0", "point_label_0"], "speak": "At the London School of Economics, A. W. Phillips combed through British wage records — decade by decade, back to 1861." },
+        { "draw": ["point_0", "point_label_0", "portrait_1"], "speak": "At the London School of Economics, A. W. Phillips combed through British wage records — decade by decade, back to 1861." },
         { "pause": 0.3 },
         { "draw": ["point_1", "point_label_1"], "speak": "He plotted how fast wages rose against how many people were out of work, stretch of years by stretch of years." },
         { "pause": 0.3 },
@@ -4048,6 +4051,9 @@
     "spec": {
       "title": "IS-LM and fiscal policy",
       "template": "is_lm",
+      "elements": [
+        { "id": "portrait_1", "type": "portrait", "of": "John Hicks", "x": 240, "y": 250, "width": 140 }
+      ],
       "params": {
         "is_shift": 20,
         "title": "A fiscal expansion"
@@ -4060,7 +4066,7 @@
         { "pause": 0.3 },
         { "draw": ["is_shifted"], "speak": "Now the government spends: the IS curve slides right." },
         { "draw": ["eq2"], "speak": "Output rises — but climbing along the LM curve, so interest rates rise too, crowding out some private investment on the way." },
-        { "draw": ["title"], "speak": "A curiosity: the most famous Keynesian diagram was never drawn by Keynes — John Hicks sketched it in 1937 to summarize him, and the summary conquered the textbooks." }
+        { "draw": ["title", "portrait_1"], "speak": "A curiosity: the most famous Keynesian diagram was never drawn by Keynes — John Hicks sketched it in 1937 to summarize him, and the summary conquered the textbooks." }
       ]
     }
   },
@@ -4438,6 +4444,36 @@
       "stats",
       "evidence"
     ],
-    "playlist": "playlist:\n  title: Where the bell curve comes from\n  advance: auto\n  gap: 1\n---\ntitle: The Galton board\ntemplate: galton_board\nparams:\n  rows: 8\n  show_path: true\n  title: Pure chance, every bounce\ncommands:\n  - draw: [pegs]\n    speak: \"Drop thousands of balls through this forest of pegs. At every peg, a coin flip: left or right. Nothing could be more random.\"\n  - draw: [path]\n    speak: \"Watch one ball stumble down — eight accidents in a row.\"\n  - draw: [bin_4, bin_3, bin_5, bin_2, bin_6, bin_1, bin_7, bin_0, bin_8]\n    speak: \"Now let thousands fall. The bins fill — and out of pure randomness, a shape appears: tall in the middle, thin at the edges. Every single time.\"\n  - focus:\n      target: [bin_4, bin_3, bin_5]\n    speak: \"The middle dominates because there are many ways to bounce left-right-left-right — and only one way to bounce left every time.\"\n  - draw: [title]\n    speak: \"Let's zoom into that shape.\"\n---\ntitle: The bell curve\ntemplate: distribution_curve\nzoom_from: bin_4\nparams:\n  title: The normal distribution\ncommands:\n  - draw: [axis, curve]\n    speak: \"Here it is up close: the normal distribution — the smooth limit of all those coin flips.\"\n  - draw: [mean_line]\n    speak: \"Symmetric around its mean...\"\n  - draw: [sd_tick_0, sd_tick_1, sd_tick_2, sd_tick_3]\n    speak: \"...with a spread measured in standard deviations.\"\n  - draw: [title]\n    speak: \"This is why the bell curve is everywhere: whenever many small independent accidents add up — measurement errors, heights, bounces — this shape emerges. Galton called it the law the Greeks would have deified.\"\n"
+    "playlist": "playlist:\n  title: Where the bell curve comes from\n  advance: auto\n  gap: 1\n---\ntitle: The Galton board\ntemplate: galton_board\nparams:\n  rows: 8\n  show_path: true\n  title: Pure chance, every bounce\ncommands:\n  - draw: [pegs]\n    speak: \"Drop thousands of balls through this forest of pegs. At every peg, a coin flip: left or right. Nothing could be more random.\"\n  - draw: [path]\n    speak: \"Watch one ball stumble down — eight accidents in a row.\"\n  - draw: [bin_4, bin_3, bin_5, bin_2, bin_6, bin_1, bin_7, bin_0, bin_8]\n    speak: \"Now let thousands fall. The bins fill — and out of pure randomness, a shape appears: tall in the middle, thin at the edges. Every single time.\"\n  - focus:\n      target: [bin_4, bin_3, bin_5]\n    speak: \"The middle dominates because there are many ways to bounce left-right-left-right — and only one way to bounce left every time.\"\n  - draw: [title]\n    speak: \"Let's zoom into that shape.\"\n---\ntitle: The bell curve\ntemplate: distribution_curve\nzoom_from: bin_4\nparams:\n  title: The normal distribution\nelements:\n  - { id: portrait_1, type: portrait, of: Francis Galton, x: 838, y: 545, width: 130 }\ncommands:\n  - draw: [axis, curve]\n    speak: \"Here it is up close: the normal distribution — the smooth limit of all those coin flips.\"\n  - draw: [mean_line]\n    speak: \"Symmetric around its mean...\"\n  - draw: [sd_tick_0, sd_tick_1, sd_tick_2, sd_tick_3]\n    speak: \"...with a spread measured in standard deviations.\"\n  - draw: [title, portrait_1]\n    speak: \"This is why the bell curve is everywhere: whenever many small independent accidents add up — measurement errors, heights, bounces — this shape emerges. Galton called it the law the Greeks would have deified.\"\n"
+  },
+  {
+    "request": "How long did Darwin sit on his theory? Show me the timeline.",
+    "spec": {
+      "title": "Darwin's long fuse",
+      "template": "timeline",
+      "params": {
+        "title": "Darwin's long fuse",
+        "milestones": [
+          { "label": "Beagle voyage", "sublabel": "1831-36" },
+          { "label": "\"I think\" notebook", "sublabel": "1837" },
+          { "label": "Wallace's letter", "sublabel": "1858" },
+          { "label": "On the Origin of Species", "sublabel": "1859", "emphasize": true }
+        ]
+      },
+      "elements": [
+        { "id": "portrait_1", "type": "portrait", "of": "Charles Darwin", "x": 160, "y": 560, "width": 160 },
+        { "id": "name_1", "type": "text", "text": "Charles Darwin", "x": 160, "y": 435, "font_size": 20 }
+      ],
+      "commands": [
+        { "draw": ["portrait_1", "name_1"], "speak": "Charles Darwin had the most dangerous idea in biology - and then kept it in a drawer. Let's count the years." },
+        { "draw": ["line", "dot_0", "label_0"], "speak": "The voyage of the Beagle, 1831: five years of finches, fossils and growing doubts." },
+        { "draw": ["dot_1", "label_1"], "speak": "By 1837 he sketches a branching tree in a private notebook and writes two words above it: I think." },
+        { "pause": 0.3 },
+        { "draw": ["dot_2", "label_2"], "speak": "Then - almost nothing, for two decades. He knew what the idea would unleash. What finally moved him was a letter from Alfred Russel Wallace, who had reached the same conclusion on his own.", "delivery": "grave" },
+        { "draw": ["dot_3", "label_3"], "speak": "On the Origin of Species appeared in 1859 - twenty-two years after those two words in the notebook." },
+        { "highlight": { "target": ["label_1", "label_2"], "effect": "glow" }, "speak": "The remarkable part is the gap: the most famous book in biology waited twenty years, and might have waited longer if a rival hadn't forced the drawer open." },
+        { "draw": ["title"], "speak": "Great ideas are not always rushed to print." }
+      ]
+    }
   }
 ]

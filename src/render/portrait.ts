@@ -11,7 +11,7 @@ import { decodeTrace, encodeTrace } from "../spec/trace";
 import { traceImage } from "./tracer";
 
 /** Bump when the tracer's output changes — old cache entries stop matching. */
-export const TRACE_VERSION = 1;
+export const TRACE_VERSION = 2; // v2: hachure shading of dark regions
 
 /** The Wikipedia summary endpoint for a person (CORS-open, returns the infobox thumbnail). */
 export function wikiSummaryUrl(name: string): string {

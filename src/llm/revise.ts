@@ -9,9 +9,10 @@
 // its cost does not grow every round.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
+import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
 import { buildSystemBlocks, stripFence, systemBlocks } from "./prompt";
 import { validateSpec } from "../spec/schema";
+import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
@@ -107,6 +108,10 @@ function templatesIn(playlist: Playlist): string[] {
 }
 
 export async function reviseDocument(docText: string, instruction: string, cfg: ReviseConfig): Promise<ReviseOutcome> {
+  // Portrait strokes never visit the model (llm/hoist.ts) — swapped for a
+  // sentinel here, restored onto the winning revision before returning.
+  const hoisted = hoistPortraitStrokes(docText);
+  docText = hoisted.text;
   const parsedNow = parseReviseReply(docText);
   if (!parsedNow.playlist) {
     return { playlist: null, text: null, rounds: [], error: `the current document is unreadable: ${parsedNow.error}` };
@@ -187,6 +192,10 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err) };
   }
 
+  if (best && hoisted.blobs.size > 0) {
+    restorePortraitStrokes(best.playlist, hoisted.blobs);
+    best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "yaml") };
+  }
   return {
     playlist: best?.playlist ?? null,
     text: best?.text ?? null,

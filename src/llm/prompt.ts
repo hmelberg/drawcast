@@ -2,6 +2,7 @@
 // exemplars are runtime data (Loop 2). Everything here is pure and tested.
 
 import type { Spec } from "../spec/types";
+import { stripStrokesForModel } from "./hoist";
 
 export interface PromptParts {
   schema: object;
@@ -106,6 +107,6 @@ export function selectExemplars<T extends Exemplar>(prompt: string, pool: T[], n
 export function formatExemplars(exemplars: Exemplar[]): string {
   if (exemplars.length === 0) return "(none yet)";
   return exemplars
-    .map((ex, i) => `### Exemplar ${i + 1}\nRequest: ${ex.prompt}\nSpec:\n\`\`\`json\n${JSON.stringify(ex.spec, null, 1)}\n\`\`\``)
+    .map((ex, i) => `### Exemplar ${i + 1}\nRequest: ${ex.prompt}\nSpec:\n\`\`\`json\n${JSON.stringify(stripStrokesForModel(ex.spec), null, 1)}\n\`\`\``)
     .join("\n\n");
 }

@@ -82,3 +82,48 @@ describe("portrait resolver helpers", () => {
     expect(thumbFromSummary(null)).toBeNull();
   });
 });
+
+describe("blob hoisting — strokes never visit the model", () => {
+  test("hoist swaps strokes for the sentinel; restore puts them back by id", async () => {
+    const { hoistPortraitStrokes, restorePortraitStrokes, HOISTED } = await import("../src/llm/hoist");
+    const { parsePlaylistText, itemsOf } = await import("../src/playlist/playlist");
+    const docText = JSON.stringify({
+      elements: [
+        { id: "p1", type: "portrait", of: "Darwin", strokes: TRACE },
+        { id: "dot", type: "point", at: { x: 1, y: 1 } },
+      ],
+      commands: [],
+    });
+    const { text, blobs } = hoistPortraitStrokes(docText);
+    expect(blobs.get("p1")).toBe(TRACE);
+    expect(text).toContain(HOISTED);
+    expect(text).not.toContain(TRACE);
+    const revised = parsePlaylistText(text);
+    restorePortraitStrokes(revised, blobs);
+    const el = itemsOf(revised)[0].spec.elements!.find((e) => e.id === "p1")!;
+    expect(el.strokes).toBe(TRACE);
+  });
+
+  test("a hoisted portrait the model dropped loses only its strokes; specs without portraits pass through untouched", async () => {
+    const { hoistPortraitStrokes, restorePortraitStrokes, HOISTED } = await import("../src/llm/hoist");
+    const { parsePlaylistText, itemsOf } = await import("../src/playlist/playlist");
+    const plain = JSON.stringify({ elements: [{ id: "dot", type: "point", at: { x: 1, y: 1 } }], commands: [] });
+    expect(hoistPortraitStrokes(plain).text).toBe(plain);
+    // Model renamed the element: the sentinel has no blob — strokes drop, name survives.
+    const revised = parsePlaylistText(JSON.stringify({ elements: [{ id: "renamed", type: "portrait", of: "Darwin", strokes: HOISTED }], commands: [] }));
+    restorePortraitStrokes(revised, new Map([["p1", TRACE]]));
+    expect(itemsOf(revised)[0].spec.elements![0].strokes).toBeUndefined();
+  });
+
+  test("stripStrokesForModel omits strokes and leaves everything else", async () => {
+    const { stripStrokesForModel } = await import("../src/llm/hoist");
+    const spec = {
+      elements: [{ id: "p1", type: "portrait", of: "Darwin", strokes: TRACE, x: 100 }],
+      commands: [],
+    } as never;
+    const out = stripStrokesForModel(spec) as { elements: { strokes?: string; of?: string; x?: number }[] };
+    expect(out.elements[0].strokes).toBeUndefined();
+    expect(out.elements[0].of).toBe("Darwin");
+    expect(out.elements[0].x).toBe(100);
+  });
+});

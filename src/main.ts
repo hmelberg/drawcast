@@ -510,6 +510,7 @@ const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", 
 const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
 const portraitBtn = h("button", { class: "small", title: "Insert a portrait: a person's name (Wikipedia lookup), an image URL, or — leave the prompt empty — a picked file. Traced into sketch strokes in the house style." }, "👤 Portrait");
 const portraitFile = h("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
+const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin portraits: embed every portrait's traced strokes into the spec text, so it renders identically forever, offline, on any machine" }, "📌");
 const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
 const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
 // A capability without its credential does not advertise itself (spec §6).
@@ -755,6 +756,7 @@ const editorWrap = h(
         importInput,
         portraitBtn,
         portraitFile,
+        pinPortraitsBtn,
         driveOpenBtn,
         driveSaveBtn,
       ),
@@ -2682,6 +2684,29 @@ portraitBtn.addEventListener("click", () => {
       return;
     }
     insertPortrait(isUrl ? { url: value } : { of: value });
+  });
+});
+
+pinPortraitsBtn.addEventListener("click", () => {
+  const playlist = readPlaylistText(specArea.value);
+  if (!playlist) return;
+  const items = itemsOf(playlist);
+  const hasPortraits = items.some((it) => (it.spec.elements ?? []).some((e) => e.type === "portrait"));
+  if (!hasPortraits) {
+    setStatus("No portrait elements to pin.", "error");
+    return;
+  }
+  setStatus("Pinning portraits…", "ok");
+  void Promise.all(items.map((it) => resolvePortraits(it.spec))).then((all) => {
+    const failed = all.flat().filter((r) => !r.ok);
+    specArea.value = formatPlaylist(playlist, settings.specFormat);
+    rerenderBtn.click();
+    setStatus(
+      failed.length > 0
+        ? `Pinned with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
+        : "Portraits pinned — the spec is now fully self-contained.",
+      failed.length > 0 ? "error" : "ok",
+    );
   });
 });
 
