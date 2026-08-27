@@ -7013,7 +7013,7 @@
      }
     },
     {
-     "speak": "Demand up, price up — the crossing point tells the whole story."
+     "speak": "Demand up, price up — and you answered {score} of {score_total}. The crossing point tells the whole story."
     }
    ]
   }

@@ -83,6 +83,20 @@ export class Player {
   /** A goto requested by the current step; the play loop performs it. */
   private pendingJump: number | null = null;
 
+  /** Per-question outcomes, keyed by step index — re-answering a question
+   *  (a remediation goto, a replay) overwrites its slot, never double-counts. */
+  private outcomes = new Map<number, boolean>();
+
+  /** Publish {score}/{score_total} from the outcomes — called right after an
+   *  answer lands, BEFORE the feedback lines speak. Digit strings: they read
+   *  naturally in narration and if's numeric ops coerce at comparison time. */
+  private updateScoreVars(): void {
+    let right = 0;
+    for (const ok of this.outcomes.values()) if (ok) right++;
+    this.vars.set("score", String(right));
+    this.vars.set("score_total", String(this.outcomes.size));
+  }
+
   /** Interpolate stored ask answers into a narration/caption line. */
   private line(text: string): string {
     return subVars(text, this.vars);
@@ -500,6 +514,10 @@ export class Player {
         // Let the question finish before any feedback talks over it.
         if (this.narrationVoice) await this.narrationVoice;
         if (signal.aborted) return;
+        // Auto paths (movies, gate-less players) answer correctly by
+        // definition; a live viewer's Skip counts as wrong — a test is a test.
+        this.outcomes.set(index, this.autoAnswers || this.quizGate === null ? true : chosen === step.correct);
+        this.updateScoreVars();
         const reveal = step.right ?? step.choices[step.correct];
         if (chosen === step.correct) {
           if (step.right) await this.speakLine(step.right, step, signal);
@@ -545,6 +563,8 @@ export class Player {
           if (signal.aborted) return;
           if (step.store && typed !== null) this.vars.set(step.store.toLowerCase(), typed);
         }
+        this.outcomes.set(index, isRight(typed));
+        this.updateScoreVars();
         if (isRight(typed)) {
           if (step.right) await this.speakLine(step.right, step, signal);
         } else if (step.reveal) {

@@ -3,7 +3,7 @@
 // repair round as structured text.
 
 import { CANVAS } from "../layout/canvas";
-import { VAR_RE } from "../spec/answers";
+import { RESERVED_VARS, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox } from "../layout/geometry";
 import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
@@ -180,6 +180,7 @@ export function lintCommands(spec: Spec): LintIssue[] {
     if (typeof text !== "string") return;
     for (const m of text.matchAll(VAR_RE)) {
       const name = m[1].toLowerCase();
+      if ((RESERVED_VARS as readonly string[]).includes(name)) continue; // the player maintains these
       if (!stored.has(name)) {
         issues.push({
           rule: "ask-var",

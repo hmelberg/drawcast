@@ -99,6 +99,21 @@ describe("collectSpeakLines", () => {
     expect(texts).not.toContain("Which?");
   });
 
+  test("the movie's score tally interpolates: pre-answer in questions, post-answer in feedback", () => {
+    const lines = collectSpeakLines({
+      commands: [
+        { quiz: { question: "First — {score} so far?", choices: ["a", "b"], correct: 1, right: "Now {score} of {score_total}." } },
+        { ask: { question: "Second?", answer: "x", right: "That makes {score}." } },
+        { speak: "Final: {score} of {score_total}." },
+      ],
+    } as never);
+    const texts = lines.map((l) => l.text);
+    expect(texts).toContain("First — 0 so far?");
+    expect(texts).toContain("Now 1 of 1.");
+    expect(texts).toContain("That makes 2.");
+    expect(texts).toContain("Final: 2 of 2.");
+  });
+
   test("the same text spoken by two different voices stays distinct", () => {
     const lines = collectSpeakLines({
       voice: "female",

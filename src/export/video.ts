@@ -20,6 +20,13 @@ import { WebAudioTones } from "../render/tones";
 export function collectSpeakLines(spec: Spec): SpeakLine[] {
   const seen = new Map<string, SpeakLine>();
   const vars = new Map<string, string>();
+  // The movie's tally: auto answers are always correct, so score == answered.
+  let answered = 0;
+  const publishScore = (): void => {
+    vars.set("score", String(answered));
+    vars.set("score_total", String(answered));
+  };
+  publishScore();
   for (const c of spec.commands ?? []) {
     const push = (text: unknown): void => {
       if (typeof text !== "string" || text.trim().length === 0) return;
@@ -36,18 +43,25 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
     };
     if (!c.quiz && !c.ask) push(c.speak);
     if (c.quiz) {
-      // The export's quiz path: the question line, then the reveal — right if
-      // present, else the correct choice. The wrong line is never spoken in a
-      // movie (auto-reveal answers null).
+      // The export's quiz path: the question line (pre-answer tally), then —
+      // post-answer — the reveal: right if present, else the correct choice.
+      // The wrong line is never spoken in a movie.
       push(questionLine(c.quiz));
+      answered++;
+      publishScore();
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
     if (c.ask) {
       // The export's ask path: the question line, then — check mode only —
-      // right-or-answer (the demo always "types" correctly). Collect mode
-      // speaks nothing extra; its default feeds later {var} lines instead.
+      // right-or-answer with the post-answer tally (the demo always "types"
+      // correctly). Collect mode speaks nothing extra; its default feeds
+      // later {var} lines instead.
       push(questionLine(c.ask));
-      if (c.ask.answer !== undefined) push(c.ask.right ?? c.ask.answer);
+      if (c.ask.answer !== undefined) {
+        answered++;
+        publishScore();
+        push(c.ask.right ?? c.ask.answer);
+      }
       if (c.ask.store) vars.set(c.ask.store.toLowerCase(), c.ask.default ?? "");
     }
   }

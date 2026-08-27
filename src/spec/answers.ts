@@ -5,6 +5,10 @@
 
 export const VAR_RE = /\{([a-z][a-z0-9_]*)\}/gi;
 
+/** Auto-maintained variables the player writes after every answered
+ *  quiz/check-ask; ask.store may not claim them. */
+export const RESERVED_VARS = ["score", "score_total"] as const;
+
 export function answersMatch(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }

@@ -8,6 +8,7 @@
 
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
+import { RESERVED_VARS } from "./answers";
 import { notationBeats } from "./notation";
 import { parseABC } from "./abc";
 
@@ -607,6 +608,9 @@ function semanticErrors(spec: Spec): string[] {
       }
       if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
         errors.push(`commands[${i}]: ask.store must be a simple name (letters, digits, underscores; starts with a letter)`);
+      }
+      if (a.store !== undefined && (RESERVED_VARS as readonly string[]).includes(a.store.toLowerCase())) {
+        errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
       if (a.store !== undefined && a.default === undefined) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);

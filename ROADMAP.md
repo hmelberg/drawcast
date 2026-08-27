@@ -171,9 +171,11 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
   (`docs/superpowers/plans/2026-08-27-goto-branching.md`): `label` commands,
   `right_goto`/`wrong_goto` on quiz/ask (viewer answers only — movies stay
   linear and terminate by construction), and `if` conditionals on stored
-  answers (one comparison, backward jumps must cross a question). Still
-  future: a test score tally, answers logged, values into drawn
-  text/template params, widget answer devices.
+  answers (one comparison, backward jumps must cross a question). The score
+  tally shipped the same day: reserved `{score}`/`{score_total}` variables,
+  per-question outcome slots (remediation re-answers overwrite), usable in
+  narration and `if` conditions. Still future: answers logged, values into
+  drawn text/template params, widget answer devices.
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 
