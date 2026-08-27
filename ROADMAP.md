@@ -137,6 +137,14 @@ halftone at 900 dots also fell short of likeness; Hans judged photo the winner �
 it is the DEFAULT look (halftone at 2400 dots stays the styled option).
 Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
+- **Explore tray** (2026-08-27): interactivity round 1 per
+  `docs/superpowers/specs/2026-08-27-interactivity-principles.md` — ⊕ on the
+  control bar opens a slider tray auto-derived from params_schema bounds
+  (`minimum`/`maximum`), live-previewed via `Player.previewParams`, restored
+  exactly by "Continue ▶" (and self-settled by any fresh `play()`). Flagship
+  ranges declared on supply_demand and the stats pack; other templates join
+  by declaring bounds.
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future
