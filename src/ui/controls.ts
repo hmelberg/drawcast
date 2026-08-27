@@ -452,7 +452,9 @@ export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskG
         const typed = input.value.trim();
         if (typed.length === 0) return;
         if (step.answer === undefined) {
-          settle(typed, 700); // collect: brief linger so the entry registers
+          // Collect mode has no colors to show — vanish at once, so whatever
+          // the answer triggers (a personalized animate) plays in full view.
+          settle(typed, 0);
           return;
         }
         if (answersMatch(typed, step.answer)) {
