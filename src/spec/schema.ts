@@ -207,7 +207,11 @@ const commandSchema = {
         question: { type: "string", description: "The question, spoken aloud and shown as the caption." },
         choices: { type: "array", items: { type: "string" }, description: "2-4 short answer options, a few words each." },
         correct: { type: "number", description: "1-based index of the correct choice." },
-        right: { type: "string", description: "Spoken when answered correctly. One sentence." },
+        right: {
+          type: "string",
+          description:
+            "One sentence stating the answer and the reason. Spoken on a correct answer, AND as the reveal after a wrong answer or in a movie — so no praise words ('The price rises — more buyers compete'), never ('Exactly!').",
+        },
         wrong: { type: "string", description: "Spoken on a wrong answer, before the correct one is revealed. One sentence." },
         required: { type: "boolean", description: "App only: the question cannot be skipped without answering. Movies never wait." },
       },

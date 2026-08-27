@@ -5,7 +5,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure";
+export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction";
 
 export interface TagDef {
   tag: string;
@@ -240,6 +240,14 @@ export const TAGS: TagDef[] = [
     hint: "click-to-continue gates at act boundaries",
     brief:
       'At each act boundary (and before the key reveal, if natural) insert a {"wait": "click"} command so the viewer clicks to continue.',
+  },
+  {
+    tag: "ask",
+    aliases: ["quiz"],
+    group: "interaction",
+    hint: "include one multiple-choice ask question",
+    brief:
+      "Include exactly one `ask` command: a multiple-choice question placed right after the figure has shown the answer, with 2-4 short choices, a 1-based `correct`, and one-sentence `right`/`wrong` feedback.",
   },
   {
     tag: "playlist",

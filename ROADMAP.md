@@ -159,8 +159,12 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
 - `math` element: lazy-loaded MathJax SVG output → dash-offset "handwritten"
   equations. First use of the lazy capability-registry pattern.
-- `ask`: multiple-choice quiz modal, blocking like speak; feedback text;
-  answer → `goto` for branching; answers logged.
+- `ask` **v1 shipped 2026-08-27** (plan:
+  `docs/superpowers/plans/2026-08-27-ask-v1.md`): the question rides the
+  narration/caption channel, choices are pills on the stage (Skip unless
+  `required: true`), right/wrong feedback is spoken, video export
+  auto-reveals after a beat. Still future: answer → `goto` branching,
+  answers logged, widget answer devices.
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 
