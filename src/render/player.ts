@@ -559,7 +559,24 @@ export class Player {
         // the default in collect mode — one uniform string contract.
         const auto = step.answer ?? step.fallback ?? "";
         let typed: string | null;
-        if (this.askGate) {
+        if (step.widget !== undefined && (this.autoAnswers || !this.askGate)) {
+          // Widget asks demonstrate with the laser instead of the typing card:
+          // the pointer taps the answer element (SVG — it exports), then the
+          // auto answer stands.
+          if (this.effects && step.answerBox) {
+            const effects = this.effects;
+            const b = step.answerBox;
+            const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
+            try {
+              await this.progress(1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
+            } finally {
+              effects.setPointer(null);
+            }
+          } else {
+            await this.waitScaled(1200, signal);
+          }
+          typed = auto;
+        } else if (this.askGate) {
           typed = await this.askGate(signal, step);
         } else {
           await this.waitScaled(1600, signal);

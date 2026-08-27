@@ -6,6 +6,10 @@
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
+import { CANVAS } from "../layout/canvas";
+import { elementBBoxes } from "../layout/layout";
+import { makeBrowserMeasure } from "../render/svg-backend";
+import { hitElement } from "./hit";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
@@ -132,6 +136,71 @@ interface AskGateStep {
   answer?: string;
   retry: boolean;
   required: boolean;
+  widget?: "click" | "piano" | "chess";
+}
+
+/**
+ * The click widget's gate: a transparent overlay on the stage (so the
+ * play/pause toggle underneath never fires); a click maps through the svg's
+ * LIVE viewBox (camera-proof) into logical y-up coordinates, hits the
+ * smallest containing element box, drops a colored marker, and resolves the
+ * element id — the player judges it like any typed answer.
+ */
+function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+  return (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      stage.querySelector(".cs-figgate")?.remove();
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click on the figure \u25b8");
+      const gate = h("div", { class: "cs-figgate" }, hint);
+      const boxes = elementBBoxes(hd.layout, makeBrowserMeasure());
+      let settled = false;
+      const remove = (): void => {
+        signal.removeEventListener("abort", onAbort);
+        gate.remove();
+      };
+      const onAbort = (): void => {
+        remove();
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      };
+      gate.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (settled) return;
+        const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
+        if (!svg) return;
+        const r = svg.getBoundingClientRect();
+        const vb = svg.viewBox.baseVal;
+        const sx = vb.x + ((e.clientX - r.left) / r.width) * vb.width;
+        const sy = vb.y + ((e.clientY - r.top) / r.height) * vb.height;
+        const id = hitElement(boxes, [sx, CANVAS.h - sy]);
+        if (id === null) return; // background: keep waiting
+        settled = true;
+        const ok = step.answer !== undefined && answersMatch(id, step.answer);
+        const gr = gate.getBoundingClientRect();
+        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
+        mark.style.left = `${e.clientX - gr.left}px`;
+        mark.style.top = `${e.clientY - gr.top}px`;
+        gate.appendChild(mark);
+        hint.remove();
+        window.setTimeout(remove, CARD_LINGER_MS);
+        resolve(id);
+      });
+      if (!step.required) {
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (settled) return;
+          settled = true;
+          remove();
+          resolve(null);
+        });
+        gate.appendChild(skip);
+      }
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+    });
 }
 
 /**
@@ -321,7 +390,9 @@ export function attachPlayerControls(
 
   hd.timeline.inputGate = clickGate(stage);
   hd.timeline.quizGate = quizGateFor(stage);
-  hd.timeline.askGate = askGateFor(stage);
+  const textGate = askGateFor(stage);
+  const figureGate = figureGateFor(stage, hd);
+  hd.timeline.askGate = (signal, step) => (step.widget === "click" ? figureGate(signal, step) : textGate(signal, step));
 
   const togglePlay = () => {
     if (hd.timeline.state === "playing") hd.timeline.pause();

@@ -7118,5 +7118,82 @@
     }
    ]
   }
+ },
+ {
+  "request": "Show a demand shift and then have me point out the new equilibrium on the figure itself.",
+  "spec": {
+   "title": "Find it on the figure",
+   "template": "supply_demand",
+   "params": {
+    "demand_shift": {
+     "amount": 25
+    }
+   },
+   "commands": [
+    {
+     "draw": [
+      "axes"
+     ],
+     "speak": "A market, and in a moment you will point at the answer yourself."
+    },
+    {
+     "draw": [
+      "demand_curve",
+      "label_D"
+     ],
+     "speak": "Demand slopes down."
+    },
+    {
+     "draw": [
+      "supply_curve",
+      "label_S"
+     ],
+     "speak": "Supply slopes up."
+    },
+    {
+     "draw": [
+      "equilibrium_point",
+      "guide_lines",
+      "label_E",
+      "label_Pstar",
+      "label_Qstar"
+     ],
+     "speak": "They cross at today's equilibrium."
+    },
+    {
+     "pause": 0.3
+    },
+    {
+     "draw": [
+      "demand_shift_curve",
+      "label_D_shift",
+      "demand_shift_arrow"
+     ],
+     "speak": "Now demand rises — the curve steps right."
+    },
+    {
+     "draw": [
+      "shift_equilibrium_point",
+      "shift_guide_lines",
+      "label_E_shift",
+      "label_P_shift",
+      "label_Q_shift"
+     ],
+     "speak": "Both crossings are on the board now."
+    },
+    {
+     "ask": {
+      "question": "Click on the NEW equilibrium — where the market settles after the shift.",
+      "answer": "shift_equilibrium_point",
+      "widget": "click",
+      "right": "That crossing — higher price, more traded — is the new equilibrium.",
+      "wrong": "Not that one — follow the shifted demand curve to where it meets supply."
+     }
+    },
+    {
+     "speak": "Pointing at it yourself beats being told — that crossing is the whole story."
+    }
+   ]
+  }
  }
 ]

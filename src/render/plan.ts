@@ -20,7 +20,7 @@ export type PlanStep = (
   | { kind: "label"; name: string }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
   | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
-  | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
+  | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean; rightGoto?: string; wrongGoto?: string; widget?: "click" | "piano" | "chess"; answerBox?: BBox }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
@@ -236,6 +236,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         required: cmd.ask.required === true,
         ...(cmd.ask.right_goto !== undefined ? { rightGoto: cmd.ask.right_goto } : {}),
         ...(cmd.ask.wrong_goto !== undefined ? { wrongGoto: cmd.ask.wrong_goto } : {}),
+        ...(cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
+        // The click widget's movie demo points at the answer element.
+        ...(cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
+          ? { answerBox: currentBox(cmd.ask.answer)! }
+          : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {

@@ -293,6 +293,10 @@ export interface AskArgs {
   right_goto?: string;
   /** Jump to this label on a wrong viewer answer — the re-watch loop. */
   wrong_goto?: string;
+  /** Answer device: click = click the element on the figure (answer = its id);
+   *  piano = press a key on the drawn keyboard (answer = the note, e.g. "C4");
+   *  chess = click two squares (answer = the move, e.g. "e2e4"). Requires answer. */
+  widget?: "click" | "piano" | "chess";
 }
 
 export interface QuizArgs {

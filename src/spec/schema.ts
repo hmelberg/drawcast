@@ -269,6 +269,12 @@ const commandSchema = {
         store: { type: "string", description: "Save the typed reply under this snake_case name; use {name} in later speak lines." },
         default: { type: "string", description: "Stand-in the movie types and skip/silent use. REQUIRED with store." },
         required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
+        widget: {
+          type: "string",
+          enum: ["click", "piano", "chess"],
+          description:
+            "Answer device instead of typing: click = click the named element on the figure (answer = its id); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4). Requires answer. In movies the laser pointer demonstrates.",
+        },
         right_goto: { type: "string", description: "Jump to this label on a correct VIEWER answer. Movies always play straight through." },
         wrong_goto: { type: "string", description: "Jump to this label on a wrong VIEWER answer — typically back to the explanation, so the viewer re-watches and the question comes again. Movies always play straight through." },
       },
@@ -626,6 +632,9 @@ function semanticErrors(spec: Spec): string[] {
       }
       if (a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
+      }
+      if (a.widget !== undefined && a.answer === undefined) {
+        errors.push(`commands[${i}]: ask.widget requires answer (the element id / note / move the click must match)`);
       }
       if (a.retry === true && a.wrong_goto !== undefined) {
         errors.push(`commands[${i}]: ask.retry and wrong_goto are mutually exclusive — retry re-asks in place, wrong_goto jumps away`);

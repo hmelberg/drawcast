@@ -913,6 +913,43 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-cardgate-input.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
 .cs-cardgate-input.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 8%, var(--surface)); }
 
+/* ---------- click widget: answer by clicking the figure ---------- */
+
+.cs-figgate {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: crosshair;
+}
+.cs-figgate-hint {
+  position: absolute;
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.cs-figgate-skip {
+  position: absolute;
+  bottom: 1.2rem;
+  right: 1rem;
+  pointer-events: auto;
+}
+.cs-figgate-mark {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  border: 3px solid var(--ok);
+  pointer-events: none;
+  animation: figgate-pop 0.25s ease-out;
+}
+.cs-figgate-mark.wrong { border-color: var(--loss); }
+@keyframes figgate-pop {
+  from { transform: scale(0.4); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 /* ---------- hashtag chips + autosuggest ---------- */
 
 .editor-toolbar .prompt-row { position: relative; }
