@@ -56,3 +56,31 @@ export function pianoKeyBox(octaves: 1 | 2, note: string): BBox | null {
 export function pianoOctaves(params: Record<string, unknown> | null | undefined): 1 | 2 {
   return params?.["octaves"] === 1 ? 1 : 2;
 }
+
+// Chess board geometry — mirrors the chess_board template's constants
+// (src/scenes/packs/games.yaml): BOARD 620 centered, CELL = BOARD/8.
+const CH_BOARD = 620;
+const CH_X0 = (1000 - CH_BOARD) / 2;
+const CH_Y0 = (750 - CH_BOARD) / 2;
+const CH_CELL = CH_BOARD / 8;
+
+/** The algebraic square under a logical y-up point, or null off the board. */
+export function chessSquareAt(flip: boolean, p: Pt): string | null {
+  const col = Math.floor((p[0] - CH_X0) / CH_CELL);
+  const row = Math.floor((p[1] - CH_Y0) / CH_CELL); // 0 = bottom
+  if (col < 0 || col > 7 || row < 0 || row > 7) return null;
+  const file = String.fromCharCode(97 + (flip ? 7 - col : col));
+  const rank = flip ? 8 - row : row + 1;
+  return `${file}${rank}`;
+}
+
+/** The hit-box of an algebraic square (for the movie's pointer demo). */
+export function chessSquareBox(flip: boolean, square: string): BBox | null {
+  const m = /^([a-h])([1-8])$/i.exec(square.trim());
+  if (!m) return null;
+  const f = m[1].toLowerCase().charCodeAt(0) - 97;
+  const r = Number(m[2]);
+  const col = flip ? 7 - f : f;
+  const row = flip ? 8 - r : r - 1;
+  return { x: CH_X0 + col * CH_CELL, y: CH_Y0 + row * CH_CELL, w: CH_CELL, h: CH_CELL };
+}

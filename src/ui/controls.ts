@@ -10,7 +10,7 @@ import { CANVAS } from "../layout/canvas";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
-import { pianoKeyAt, pianoOctaves } from "../render/widgets";
+import { chessSquareAt, pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
@@ -204,6 +204,82 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
         hint.remove();
         window.setTimeout(remove, CARD_LINGER_MS);
         resolve(note);
+      });
+      if (!step.required) {
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (settled) return;
+          settled = true;
+          remove();
+          resolve(null);
+        });
+        gate.appendChild(skip);
+      }
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+    });
+}
+
+/**
+ * The chess widget's gate: click the move's FROM square (a steel ring marks
+ * it; clicking it again deselects), then the TO square — resolves the move
+ * as coordinates ("e2e4"), judged like any typed answer.
+ */
+function chessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+  return (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      stage.querySelector(".cs-figgate")?.remove();
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click the move: from, then to \u25b8");
+      const gate = h("div", { class: "cs-figgate" }, hint);
+      const flip = hd.spec.params?.["flip"] === true;
+      let from: string | null = null;
+      let fromMark: HTMLElement | null = null;
+      let settled = false;
+      const remove = (): void => {
+        signal.removeEventListener("abort", onAbort);
+        gate.remove();
+      };
+      const onAbort = (): void => {
+        remove();
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      };
+      gate.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (settled) return;
+        const p = logicalPoint(stage, e);
+        if (!p) return;
+        const sq = chessSquareAt(flip, p);
+        if (sq === null) return;
+        const gr = gate.getBoundingClientRect();
+        if (from === null) {
+          from = sq;
+          fromMark = h("span", { class: "cs-figgate-mark from" });
+          fromMark.style.left = `${e.clientX - gr.left}px`;
+          fromMark.style.top = `${e.clientY - gr.top}px`;
+          gate.appendChild(fromMark);
+          return;
+        }
+        if (sq === from) {
+          from = null;
+          fromMark?.remove();
+          fromMark = null;
+          return;
+        }
+        settled = true;
+        const move = `${from}${sq}`;
+        const ok = step.answer !== undefined && answersMatch(move, step.answer);
+        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
+        mark.style.left = `${e.clientX - gr.left}px`;
+        mark.style.top = `${e.clientY - gr.top}px`;
+        gate.appendChild(mark);
+        fromMark?.classList.add(ok ? "right" : "wrong");
+        hint.remove();
+        window.setTimeout(remove, CARD_LINGER_MS);
+        resolve(move);
       });
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
@@ -464,8 +540,15 @@ export function attachPlayerControls(
   const textGate = askGateFor(stage);
   const figureGate = figureGateFor(stage, hd);
   const pianoGate = pianoGateFor(stage, hd);
+  const chessGate = chessGateFor(stage, hd);
   hd.timeline.askGate = (signal, step) =>
-    step.widget === "click" ? figureGate(signal, step) : step.widget === "piano" ? pianoGate(signal, step) : textGate(signal, step);
+    step.widget === "click"
+      ? figureGate(signal, step)
+      : step.widget === "piano"
+        ? pianoGate(signal, step)
+        : step.widget === "chess"
+          ? chessGate(signal, step)
+          : textGate(signal, step);
 
   // Intrinsic free play (pause is the door): on a piano figure, a paused
   // click that lands ON a key sounds it instead of resuming playback.

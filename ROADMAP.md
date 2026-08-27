@@ -177,8 +177,13 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
   narration and `if` conditions. Values→params shipped the same
   day (`2026-08-27-var-params.md`): a "{var}" animate target glides the
   figure to the viewer's stored number, fallback = the ask's default,
-  scrub-safe via a runtime override overlay. Still future: answers logged,
-  {var} in drawn text, widget answer devices.
+  scrub-safe via a runtime override overlay. Widget answer devices shipped
+  2026-08-28 (`2026-08-27-widgets.md`): `widget: "click"` (point at the
+  element), `"piano"` (press the drawn key, it sounds; paused pianos are
+  freely playable), `"chess"` (click a move) — all resolving strings the
+  ordinary ask judging handles; movies demonstrate with the laser pointer.
+  Still future: answers logged, {var} in drawn text, richer widgets (maps
+  need point-in-polygon).
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 

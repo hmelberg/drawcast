@@ -7,7 +7,7 @@ import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { readParam } from "./params";
-import { pianoKeyBox, pianoOctaves } from "./widgets";
+import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
@@ -245,6 +245,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           : {}),
         ...(cmd.ask.widget === "piano" && cmd.ask.answer !== undefined && pianoKeyBox(pianoOctaves(opts.animateBase), cmd.ask.answer) !== null
           ? { answerBox: pianoKeyBox(pianoOctaves(opts.animateBase), cmd.ask.answer)! }
+          : {}),
+        ...(cmd.ask.widget === "chess" && cmd.ask.answer !== undefined && chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2)) !== null
+          ? { answerBox: chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2))! }
           : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
