@@ -148,6 +148,8 @@ params:
   properties:
     rows:
       type: integer
+      minimum: 4
+      maximum: 12
       description: "Peg rows, 4-12 (default 8)."
     show_path:
       type: boolean
@@ -274,6 +276,9 @@ params:
       description: "The population's shape (default skewed — the most instructive case)."
     n:
       type: number
+      minimum: 1
+      maximum: 100
+      multipleOf: 1
       description: "Sample size behind each mean, 1-100 (default 5). Numeric — animate it to watch the squeeze."
     show_normal:
       type: boolean
@@ -394,6 +399,8 @@ params:
       description: "How many repeated-sample intervals to stack, 5-40 (default 20)."
     confidence:
       type: number
+      minimum: 0.5
+      maximum: 0.99
       description: "The confidence level, 0.5-0.99 (default 0.95); sets how many intervals miss."
     title:
       type: string

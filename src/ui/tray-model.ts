@@ -21,8 +21,9 @@ interface SchemaNode {
 }
 
 function boundedNumber(node: SchemaNode): { min: number; max: number; step: number | "any" } | null {
-  if (node.type === "number" && typeof node.minimum === "number" && typeof node.maximum === "number" && node.maximum > node.minimum) {
-    return { min: node.minimum, max: node.maximum, step: typeof node.multipleOf === "number" ? node.multipleOf : "any" };
+  if ((node.type === "number" || node.type === "integer") && typeof node.minimum === "number" && typeof node.maximum === "number" && node.maximum > node.minimum) {
+    const fallback = node.type === "integer" ? 1 : "any";
+    return { min: node.minimum, max: node.maximum, step: typeof node.multipleOf === "number" ? node.multipleOf : fallback };
   }
   return null;
 }

@@ -27,6 +27,11 @@ describe("sliderSpecs", () => {
     expect(sliderSpecs(schema)).toEqual([{ path: "steepness", label: "steepness", min: 0.25, max: 2.5, step: "any" }]);
   });
 
+  test("a bounded integer gets step 1 by default", () => {
+    const schema = { type: "object", properties: { rows: { type: "integer", minimum: 4, maximum: 12 } } };
+    expect(sliderSpecs(schema)).toEqual([{ path: "rows", label: "rows", min: 4, max: 12, step: 1 }]);
+  });
+
   test("skips numbers without both bounds, degenerate ranges, and non-schemas", () => {
     const schema = {
       type: "object",

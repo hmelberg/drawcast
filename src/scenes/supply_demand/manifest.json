@@ -28,7 +28,9 @@
                 ]
               },
               {
-                "type": "number"
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 2.5
               }
             ],
             "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05. Use a number when the value needs to animate smoothly."
@@ -66,7 +68,9 @@
                 ]
               },
               {
-                "type": "number"
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 2.5
               }
             ],
             "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05."
@@ -124,6 +128,8 @@
           },
           "amount": {
             "type": "number",
+            "minimum": -93,
+            "maximum": 95,
             "description": "Signed horizontal shift in domain units (0–100 axis). When set, wins over direction. 0 is legal: the shifted curve coincides exactly with the base curve — the canonical animate start state. Positive = right, negative = left."
           },
           "label": {
@@ -146,6 +152,8 @@
           },
           "amount": {
             "type": "number",
+            "minimum": -93,
+            "maximum": 95,
             "description": "Signed horizontal shift in domain units (0–100 axis). When set, wins over direction. 0 is legal: the shifted curve coincides exactly with the base curve — the canonical animate start state. Positive = right, negative = left."
           },
           "label": {
