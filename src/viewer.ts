@@ -8,6 +8,7 @@ import "./styles.css";
 import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
 import { h } from "./ui/dom";
+import { attachParamsTray } from "./ui/tray";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { validateSpec } from "./spec/schema";
@@ -103,6 +104,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       speech,
       prefs: { mode: req.mode, speed: req.speed },
       controls: { speech, fullscreenEl: figureHost },
+      onItemMounted: (hd) => attachParamsTray(figureHost, hd),
       advanceOverride: req.advance,
     });
     status.remove();

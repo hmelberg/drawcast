@@ -37,6 +37,7 @@ import type { Spec, SpecElement } from "./spec/types";
 import { resolvePortraits, traceFromBlob } from "./render/portrait";
 import { h } from "./ui/dom";
 import { type PlaybackPrefs } from "./ui/controls";
+import { attachParamsTray } from "./ui/tray";
 import {
   DEFAULT_META,
   exportSequence,
@@ -1476,6 +1477,7 @@ async function present(): Promise<void> {
           model3dBtn.addEventListener("click", () => openModel3dDialog(q));
           bar.appendChild(model3dBtn);
         }
+        attachParamsTray(host, hd);
       },
     });
     if (seq !== presentSeq) {
