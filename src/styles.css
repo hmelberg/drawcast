@@ -968,6 +968,29 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .pl-badge-basic { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--surface)); }
 .pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
 
+/* ---------- explore tray (params sliders under the control bar) ---------- */
+
+.cs-paramtray {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem 0.55rem;
+  border-top: 1px dashed var(--line);
+}
+.cs-tray-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.cs-tray-row input[type="range"] { flex: 1; accent-color: var(--rust); }
+.cs-tray-label { min-width: 6.5rem; }
+.cs-tray-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.cs-tray-actions { display: flex; justify-content: flex-end; }
+.cs-tray-continue { font-size: 0.82rem; }
+.cs-tray-btn.open { color: var(--rust); }
+
 /* ---------- figure title (centered, above the drawing) ---------- */
 
 .player-figure:fullscreen .cs-title { font-size: 1.7rem; }
