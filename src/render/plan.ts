@@ -46,7 +46,7 @@ export type PlanStep = (
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
-  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number }
+  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; varTargets?: Record<string, string> }
   | {
       kind: "play";
       voices: PlayVoice[];
@@ -115,6 +115,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const states: SceneState[] = [];
   const warnings: string[] = [];
   const labels: Record<string, number> = {};
+  /** Ask store → default, in command order — the fallback for "{var}" animate targets. */
+  const storeDefaults: Record<string, string> = {};
   /** Ids whose visibility the spec manages explicitly — excluded from the implicit final draw. */
   const mentioned = new Set<string>();
 
@@ -235,6 +237,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.right_goto !== undefined ? { rightGoto: cmd.ask.right_goto } : {}),
         ...(cmd.ask.wrong_goto !== undefined ? { wrongGoto: cmd.ask.wrong_goto } : {}),
       });
+      if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {
       const ids = resolveIds(cmd.show, "show");
       ids.forEach((id) => mentioned.add(id));
@@ -381,9 +384,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       pushStep({ kind: "camera", box, seconds: cmd.camera.duration ?? 1.2 });
     } else if (cmd.animate !== undefined) {
       const targets: Record<string, number> = {};
+      const varTargets: Record<string, string> = {};
       for (const [key, v] of Object.entries(cmd.animate)) {
         if (typeof v === "number" && Number.isFinite(v)) {
           targets[key] = v;
+        } else if (typeof v === "string" && /^\{[a-z][a-z0-9_]*\}$/i.test(v)) {
+          // Plan-time = the FALLBACK (the ask's default): targets and every
+          // boundary state stay plain numbers; the player swaps in the
+          // viewer's answer at run time.
+          const name = v.slice(1, -1).toLowerCase();
+          const raw = (storeDefaults[name] ?? "").trim();
+          const fallback = raw === "" ? NaN : Number(raw);
+          if (Number.isFinite(fallback)) {
+            targets[key] = fallback;
+            varTargets[key] = name;
+          } else {
+            warnings.push(`animate "${key}" references {${name}} but its ask default is not numeric (dropped)`);
+          }
         } else {
           warnings.push(`animate "${key}" target is not a number (dropped)`);
         }
@@ -407,7 +424,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
       params = { ...params, ...targets };
-      pushStep({ kind: "animate", targets, starts, seconds: cmd.duration ?? 2 });
+      pushStep({ kind: "animate", targets, starts, seconds: cmd.duration ?? 2, ...(Object.keys(varTargets).length > 0 ? { varTargets } : {}) });
       if (opts.bboxesFor) bboxOf = opts.bboxesFor(params);
     } else if (cmd.play !== undefined) {
       let raw;

@@ -174,8 +174,11 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
   answers (one comparison, backward jumps must cross a question). The score
   tally shipped the same day: reserved `{score}`/`{score_total}` variables,
   per-question outcome slots (remediation re-answers overwrite), usable in
-  narration and `if` conditions. Still future: answers logged, values into
-  drawn text/template params, widget answer devices.
+  narration and `if` conditions. Values→params shipped the same
+  day (`2026-08-27-var-params.md`): a "{var}" animate target glides the
+  figure to the viewer's stored number, fallback = the ask's default,
+  scrub-safe via a runtime override overlay. Still future: answers logged,
+  {var} in drawn text, widget answer devices.
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 

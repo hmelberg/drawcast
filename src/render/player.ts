@@ -83,6 +83,12 @@ export class Player {
   /** A goto requested by the current step; the play loop performs it. */
   private pendingJump: number | null = null;
 
+  /** Runtime values of "{var}" animate targets (path → the viewer's number).
+   *  Overlaid by applyParams/previewParams — but only onto paths already
+   *  present in the boundary's params, so pre-animate boundaries stay
+   *  untouched and post-animate scrubs keep the personalization. */
+  private varParamOverrides: Record<string, number> = {};
+
   /** Per-question outcomes, keyed by step index — re-answering a question
    *  (a remediation goto, a replay) overwrites its slot, never double-counts. */
   private outcomes = new Map<number, boolean>();
@@ -307,11 +313,24 @@ export class Player {
    * DOM state must always be settled by a trailing commit — never left as-is,
    * even if the boundary's params happen to equal the last committed ones).
    */
+  /** Overlay runtime var-animate values onto paths the params already hold. */
+  private withVarOverrides(params: Record<string, number>): Record<string, number> {
+    let out = params;
+    for (const [k, v] of Object.entries(this.varParamOverrides)) {
+      if (k in params && params[k] !== v) {
+        if (out === params) out = { ...params };
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
   private applyParams(params: Record<string, number>): void {
     if (!this.reprojector) return;
-    if (!this.geometryDirty && Player.sameParams(this.appliedParams, params)) return;
-    this.elements = this.reprojector.commit(params);
-    this.appliedParams = { ...params };
+    const merged = this.withVarOverrides(params);
+    if (!this.geometryDirty && Player.sameParams(this.appliedParams, merged)) return;
+    this.elements = this.reprojector.commit(merged);
+    this.appliedParams = { ...merged };
     this.geometryDirty = false;
   }
 
@@ -324,7 +343,7 @@ export class Player {
   previewParams(overrides: Record<string, number>): void {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
-    this.reprojector.frame({ ...scene.params, ...overrides }, new Set(scene.visible), scene.offsets);
+    this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets);
     this.geometryDirty = true;
   }
 
@@ -698,13 +717,27 @@ export class Player {
           // No reprojection surface (headless tests, degraded backends): keep the pacing.
           return this.waitScaled(step.seconds * 1000, signal);
         }
+        // "{var}" targets: swap in the viewer's stored number (the plan-time
+        // value is the ask's default — the movie's path); record the override
+        // so later commits and scrubs keep the personalization.
+        const targets = { ...step.targets };
+        if (step.varTargets) {
+          for (const [key, varName] of Object.entries(step.varTargets)) {
+            const raw = this.vars.get(varName);
+            if (raw === undefined || raw.trim() === "") continue;
+            const n = Number(raw.trim());
+            if (!Number.isFinite(n)) continue;
+            targets[key] = n;
+            this.varParamOverrides[key] = n;
+          }
+        }
         const visible = new Set(before.visible);
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = t * t * (3 - 2 * t); // smoothstep
           const cur: Record<string, number> = { ...before.params };
-          for (const key of Object.keys(step.targets)) {
+          for (const key of Object.keys(targets)) {
             const start = step.starts[key];
-            cur[key] = start === null ? step.targets[key] : start + (step.targets[key] - start) * e;
+            cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
           rp.frame(cur, visible, before.offsets);
           this.geometryDirty = true;

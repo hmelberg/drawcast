@@ -215,8 +215,10 @@ export interface Command {
   move?: MoveArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
-  /** Smoothly animate numeric template params to target values (dot paths into params). */
-  animate?: Record<string, number>;
+  /** Smoothly animate numeric template params to target values (dot paths
+   *  into params). A value may be a "{var}" token: the param glides to the
+   *  viewer's stored answer (fallback = that ask's default). */
+  animate?: Record<string, number | string>;
   /** With animate: seconds the animation takes (default 2). */
   duration?: number;
   /**

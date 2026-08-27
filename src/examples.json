@@ -7060,5 +7060,63 @@
     }
    ]
   }
+ },
+ {
+  "request": "Let me pick my own sample size and watch the central limit theorem squeeze the averages.",
+  "packs": [
+   "stats"
+  ],
+  "spec": {
+   "title": "Your own sample size",
+   "template": "sampling_dist",
+   "params": {
+    "shape": "skewed",
+    "n": 4
+   },
+   "commands": [
+    {
+     "draw": [
+      "axes"
+     ],
+     "speak": "Averages behave better than the data they come from — and you are about to choose how much better."
+    },
+    {
+     "draw": [
+      "pop_curve",
+      "pop_mean"
+     ],
+     "speak": "The population is lopsided: a long tail to the right, nothing like a bell."
+    },
+    {
+     "pause": 0.3
+    },
+    {
+     "draw": [
+      "samp_curve",
+      "samp_mean",
+      "n_label"
+     ],
+     "speak": "Plot only the averages of small samples — four per sample — and the lopsidedness already fades."
+    },
+    {
+     "ask": {
+      "question": "Your turn: how many observations behind each average? Type a number from 1 to 100.",
+      "store": "n_choice",
+      "default": "36"
+     }
+    },
+    {
+     "animate": {
+      "n": "{n_choice}"
+     },
+     "duration": 3,
+     "speak": "Watch the distribution of averages tighten to YOUR sample size — {n_choice} per average."
+    },
+    {
+     "speak": "Bigger samples, tighter bell: that is the central limit theorem working for you personally.",
+     "delivery": "grave"
+    }
+   ]
+  }
  }
 ]

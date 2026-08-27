@@ -510,6 +510,8 @@ function semanticErrors(spec: Spec): string[] {
       labels.add(cmd.label);
     }
   }
+  /** Stores seen so far in command order — animate var tokens must reference an EARLIER ask. */
+  const storedVars = new Set<string>();
   const checkGoto = (i: number, verb: string, field: string, target: string | undefined): void => {
     if (target === undefined) return;
     if (!labels.has(target)) errors.push(`commands[${i}]: ${verb}.${field} targets unknown label "${target}"`);
@@ -573,7 +575,14 @@ function semanticErrors(spec: Spec): string[] {
       const entries = Object.entries(cmd.animate!);
       if (entries.length === 0) errors.push(`commands[${i}]: animate needs at least one param target`);
       for (const [k, v] of entries) {
-        if (typeof v !== "number" || !Number.isFinite(v)) errors.push(`commands[${i}]: animate "${k}" must be a finite number`);
+        if (typeof v === "string" && /^\{[a-z][a-z0-9_]*\}$/i.test(v)) {
+          const name = v.slice(1, -1).toLowerCase();
+          if (!storedVars.has(name)) {
+            errors.push(`commands[${i}]: animate "${k}" references {${name}} but no earlier ask stores it (the movie's fallback comes from that ask's default)`);
+          }
+        } else if (typeof v !== "number" || !Number.isFinite(v)) {
+          errors.push(`commands[${i}]: animate "${k}" must be a finite number or a "{var}" token`);
+        }
       }
     }
     if (cmd.duration !== undefined && verb !== "animate") {
@@ -623,6 +632,7 @@ function semanticErrors(spec: Spec): string[] {
       }
       checkGoto(i, "ask", "right_goto", a.right_goto);
       checkGoto(i, "ask", "wrong_goto", a.wrong_goto);
+      if (typeof a.store === "string") storedVars.add(a.store.toLowerCase());
     }
     if (verb === "play") {
       const p = cmd.play!;
