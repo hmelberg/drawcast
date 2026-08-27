@@ -7,28 +7,42 @@
 
 import { render, type RenderStyle } from "../render";
 import { speechKey, type SpeakLine } from "../render/delivery";
+import { subVars } from "../spec/answers";
+import { askDemoAt, askDemoDuration, quizDemoAt, quizDemoDuration } from "./demo";
 import type { Spec } from "../spec/types";
 import type { ExportKeepAlive } from "./keepalive";
 import { BufferSpeech, synthesizeAll } from "./tts";
 import { WebAudioTones } from "../render/tones";
 
-/** Every distinct narration line in the spec's storyboard, with speaker/delivery/gender attached. */
+/** Every distinct narration line in the spec's storyboard, with
+ *  speaker/delivery/gender attached, and {var} tokens interpolated with the
+ *  asks' defaults — the movie's values — so the audio exists at export time. */
 export function collectSpeakLines(spec: Spec): SpeakLine[] {
   const seen = new Map<string, SpeakLine>();
+  const vars = new Map<string, string>();
   for (const c of spec.commands ?? []) {
     const push = (text: unknown): void => {
       if (typeof text !== "string" || text.trim().length === 0) return;
-      const line: SpeakLine = { text, speaker: c.voice, delivery: c.delivery, gender: spec.voice };
+      const line: SpeakLine = { text: subVars(text, vars), speaker: c.voice, delivery: c.delivery, gender: spec.voice };
       const key = speechKey(line);
       if (!seen.has(key)) seen.set(key, line);
     };
+    const hasSpeak = typeof c.speak === "string" && c.speak.trim().length > 0;
     push(c.speak);
     if (c.quiz) {
       // The export's quiz path: question narration (a paired speak replaces
       // it), then the reveal — right if present, else the correct choice.
       // The wrong line is never spoken in a movie (auto-reveal answers null).
-      if (typeof c.speak !== "string" || c.speak.trim().length === 0) push(c.quiz.question);
+      if (!hasSpeak) push(c.quiz.question);
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
+    }
+    if (c.ask) {
+      // The export's ask path: question narration, then — check mode only —
+      // right-or-answer (the demo always "types" correctly). Collect mode
+      // speaks nothing extra; its default feeds later {var} lines instead.
+      if (!hasSpeak) push(c.ask.question);
+      if (c.ask.answer !== undefined) push(c.ask.right ?? c.ask.answer);
+      if (c.ask.store) vars.set(c.ask.store.toLowerCase(), c.ask.default ?? "");
     }
   }
   return [...seen.values()];
@@ -89,7 +103,91 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function paintFrame(ctx: CanvasRenderingContext2D, svgText: string, fontStyle: string, caption: string, title: string): Promise<void> {
+/** A question performance in progress: what the frame painter draws while the
+ *  movie "answers" a quiz (hover walk) or an ask (self-typing). */
+interface DemoState {
+  kind: "quiz" | "ask";
+  question: string;
+  choices?: string[];
+  correct?: number;
+  typed?: string;
+  t0: number;
+}
+
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, hh: number, r: number): void {
+  ctx.beginPath();
+  const c = ctx as CanvasRenderingContext2D & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void };
+  if (typeof c.roundRect === "function") c.roundRect(x, y, w, hh, r);
+  else ctx.rect(x, y, w, hh);
+}
+
+/** The DOM card's look, in canvas: paper card, ink border, question on top. */
+function paintDemoCard(ctx: CanvasRenderingContext2D, demo: DemoState, elapsed: number): void {
+  const rows = demo.kind === "quiz" ? (demo.choices?.length ?? 0) : 1;
+  const cardW = 560;
+  const pad = 22;
+  const qFont = 27;
+  const rowH = 46;
+  const rowGap = 10;
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.font = `${qFont}px 'Patrick Hand', 'Segoe Print', cursive`;
+  const qLines = wrapCaption((s) => ctx.measureText(s).width, demo.question, cardW - pad * 2).slice(0, 3);
+  const qH = qLines.length * (qFont + 6);
+  const cardH = pad + qH + 14 + rows * (rowH + rowGap) - rowGap + pad;
+  const cx = W / 2 - cardW / 2;
+  const cy = FIG_Y + (FIG_H - cardH) / 2;
+  ctx.globalAlpha = Math.min(1, elapsed / 400);
+  roundedRect(ctx, cx, cy, cardW, cardH, 12);
+  ctx.fillStyle = "rgba(255, 253, 246, 0.93)";
+  ctx.fill();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = INK;
+  qLines.forEach((line, i) => ctx.fillText(line, cx + pad, cy + pad + (i + 0.8) * (qFont + 6)));
+  const rowsTop = cy + pad + qH + 14;
+  const rowFont = 24;
+  ctx.font = `${rowFont}px 'Patrick Hand', 'Segoe Print', cursive`;
+  const textY = (ry: number): number => ry + rowH / 2 + rowFont / 3;
+  if (demo.kind === "quiz") {
+    const frame = quizDemoAt(elapsed, demo.choices?.length ?? 0, demo.correct ?? 0);
+    (demo.choices ?? []).forEach((choice, i) => {
+      const ry = rowsTop + i * (rowH + rowGap);
+      roundedRect(ctx, cx + pad, ry, cardW - pad * 2, rowH, 8);
+      const hovered = frame.hover === i;
+      const selected = frame.selected && i === demo.correct;
+      ctx.fillStyle = selected ? "rgba(74, 124, 89, 0.12)" : "#fffdf6";
+      ctx.fill();
+      ctx.strokeStyle = selected ? "#4a7c59" : hovered ? "#b5482e" : "#d8d2c2";
+      ctx.lineWidth = selected || hovered ? 2.5 : 1.5;
+      ctx.stroke();
+      ctx.fillStyle = selected ? "#4a7c59" : INK;
+      ctx.fillText(`${i + 1} · ${choice}`, cx + pad + 14, textY(ry));
+    });
+  } else {
+    const frame = askDemoAt(elapsed, demo.typed ?? "");
+    roundedRect(ctx, cx + pad, rowsTop, cardW - pad * 2, rowH, 8);
+    ctx.fillStyle = "#fffdf6";
+    ctx.fill();
+    ctx.strokeStyle = frame.done ? "#4a7c59" : "#d8d2c2";
+    ctx.lineWidth = frame.done ? 2.5 : 1.5;
+    ctx.stroke();
+    const shown = (demo.typed ?? "").slice(0, frame.typedChars);
+    ctx.fillStyle = frame.done ? "#4a7c59" : INK;
+    ctx.fillText(frame.done ? shown : `${shown}|`, cx + pad + 14, textY(rowsTop));
+  }
+  ctx.restore();
+}
+
+async function paintFrame(
+  ctx: CanvasRenderingContext2D,
+  svgText: string,
+  fontStyle: string,
+  caption: string,
+  title: string,
+  demo?: { state: DemoState; elapsed: number },
+): Promise<void> {
   // Explicit dimensions: some browsers refuse to draw an SVG image without them.
   let src = svgText.replace("<svg ", `<svg width="${FIG_W}" height="${FIG_H}" `);
   if (fontStyle) src = src.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
@@ -121,6 +219,7 @@ async function paintFrame(ctx: CanvasRenderingContext2D, svgText: string, fontSt
       const lines = wrapCaption((s) => ctx.measureText(s).width, caption, W - 200).slice(0, 2);
       lines.forEach((line, i) => ctx.fillText(line, W / 2, FIG_Y + FIG_H + 34 + i * 32));
     }
+    if (demo) paintDemoCard(ctx, demo.state, demo.elapsed);
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -239,6 +338,13 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     let currentSvg: SVGSVGElement | null = null;
     let currentCaption: HTMLElement | null = null;
     let currentTitle = "";
+    let currentDemo: DemoState | null = null;
+    // Keep the answered card on screen while the feedback line speaks.
+    const lingerDemo = (demo: DemoState): void => {
+      void zzz(2600).then(() => {
+        if (currentDemo === demo) currentDemo = null;
+      });
+    };
     const serializer = new XMLSerializer();
     let paintError: Error | null = null;
     let stopLoop = false;
@@ -247,7 +353,14 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         const t0 = performance.now();
         try {
           if (currentSvg) {
-            await paintFrame(ctx!, serializer.serializeToString(currentSvg), fontStyle, currentCaption?.textContent ?? "", currentTitle);
+            await paintFrame(
+              ctx!,
+              serializer.serializeToString(currentSvg),
+              fontStyle,
+              currentCaption?.textContent ?? "",
+              currentTitle,
+              currentDemo ? { state: currentDemo, elapsed: performance.now() - currentDemo.t0 } : undefined,
+            );
             // Hidden tabs may stop delivering painted frames to the capture
             // stream on their own; asking explicitly keeps the video moving.
             captureTrack.requestFrame?.();
@@ -305,13 +418,44 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         currentTitle = items[i].title ?? "";
         if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
         handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
-        // Movies never wait on an answer: hold a beat, then auto-reveal.
-        handle.timeline.quizGate = (sig) => (sig.aborted ? Promise.resolve(null) : zzz(1200).then(() => null));
+        // Movies never wait on an answer: the card performs — the quiz hovers
+        // across its options and settles on the correct one; the ask types
+        // its answer (or the default) by itself — then the timeline goes on.
+        const mounted = handle;
+        handle.timeline.quizGate = async (sig, step) => {
+          if (sig.aborted) return null;
+          const demo: DemoState = {
+            kind: "quiz",
+            question: subVars(step.question, mounted.timeline.vars),
+            choices: step.choices,
+            correct: step.correct,
+            t0: performance.now(),
+          };
+          currentDemo = demo;
+          await zzz(quizDemoDuration(step.choices.length));
+          lingerDemo(demo);
+          return null;
+        };
+        handle.timeline.askGate = async (sig, step) => {
+          if (sig.aborted) return null;
+          const text = step.answer ?? step.fallback ?? "";
+          const demo: DemoState = {
+            kind: "ask",
+            question: subVars(step.question, mounted.timeline.vars),
+            typed: text,
+            t0: performance.now(),
+          };
+          currentDemo = demo;
+          await zzz(askDemoDuration(text));
+          lingerDemo(demo);
+          return text;
+        };
         await handle.timeline.play();
         if (i < items.length - 1) {
           await zzz(300); // beat between parts
           currentSvg = null;
           currentCaption = null;
+          currentDemo = null;
           handle.destroy();
           handle = null;
         }

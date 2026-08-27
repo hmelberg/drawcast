@@ -55,6 +55,36 @@ describe("collectSpeakLines", () => {
     expect(lines.every((l) => l.gender === "female")).toBe(true);
   });
 
+  test("typed-ask lines: question, right-or-answer in check mode, nothing extra in collect mode", () => {
+    const lines = collectSpeakLines({
+      commands: [
+        { ask: { question: "Symbol for gold?", answer: "Au", wrong: "No." } },
+        { ask: { question: "What is your name?", store: "name", default: "friend" } },
+      ],
+    } as never);
+    const texts = lines.map((l) => l.text);
+    expect(texts).toContain("Symbol for gold?");
+    expect(texts).toContain("Au"); // reveal fallback (no right line)
+    expect(texts).toContain("What is your name?");
+    expect(texts).not.toContain("No."); // movies never answer wrong
+    expect(texts).not.toContain("friend"); // collect mode speaks nothing extra
+  });
+
+  test("stored defaults interpolate into later lines at collection time", () => {
+    const lines = collectSpeakLines({
+      commands: [
+        { ask: { question: "What is your name?", store: "name", default: "friend" } },
+        { speak: "Nice to meet you, {name}!" },
+        { quiz: { question: "Ready, {name}?", choices: ["yes", "no"], correct: 1, right: "Off we go, {name}." } },
+      ],
+    } as never);
+    const texts = lines.map((l) => l.text);
+    expect(texts).toContain("Nice to meet you, friend!");
+    expect(texts).toContain("Ready, friend?");
+    expect(texts).toContain("Off we go, friend.");
+    expect(texts.some((t) => t.includes("{name}"))).toBe(false);
+  });
+
   test("the same text spoken by two different voices stays distinct", () => {
     const lines = collectSpeakLines({
       voice: "female",
