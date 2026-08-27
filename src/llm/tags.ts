@@ -243,11 +243,11 @@ export const TAGS: TagDef[] = [
   },
   {
     tag: "ask",
-    aliases: ["quiz"],
+    aliases: ["quiz", "test"],
     group: "interaction",
-    hint: "include one multiple-choice ask question",
+    hint: "include multiple-choice ask question(s)",
     brief:
-      "Include exactly one `ask` command: a multiple-choice question placed right after the figure has shown the answer, with 2-4 short choices, a 1-based `correct`, and one-sentence `right`/`wrong` feedback.",
+      "Include one `ask` command per question — one for a single check, several in a row for a test — each placed right after the figure has shown its answer, with 2-4 short choices, a 1-based `correct`, and one-sentence `right`/`wrong` feedback.",
   },
   {
     tag: "playlist",

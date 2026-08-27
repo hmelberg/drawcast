@@ -6996,6 +6996,19 @@
      }
     },
     {
+     "ask": {
+      "question": "And the quantity traded — what does it do?",
+      "choices": [
+       "It falls",
+       "It stays the same",
+       "It rises"
+      ],
+      "correct": 3,
+      "right": "Quantity rises too — the new crossing sits further out along the axis.",
+      "wrong": "Follow the new crossing down to the quantity axis: it sits further out."
+     }
+    },
+    {
      "speak": "Demand up, price up — the crossing point tells the whole story."
     }
    ]

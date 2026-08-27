@@ -55,59 +55,69 @@ export function clickGate(stage: HTMLElement, label = "Click to continue ▸"): 
 /** The slice of the ask plan step the gate needs (structurally matches
  *  Player.askGate's parameter — controls stays decoupled from plan types). */
 interface AskGateStep {
+  question: string;
   choices: string[];
   correct: number;
   required: boolean;
 }
 
+/** How long the answered card (with its right/wrong colors) stays on screen
+ *  while the feedback line speaks. A scrub or the next question clears it. */
+const ASK_LINGER_MS = 2600;
+
 /**
- * The ask verb's gate: one pill per choice at the stage's foot, plus Skip
- * when the ask is not required. A pick colors the chosen and correct pills,
- * holds a beat so the colors register, then resolves the 0-based index
- * (Skip and abort resolve null). Resolves on signal abort so scrubbing and
- * disposal are never blocked.
+ * The ask verb's gate: a centered card — question on top, one choice row per
+ * option, Skip when the ask is not required. A pick colors the chosen and
+ * correct rows and resolves the 0-based index IMMEDIATELY (so the feedback
+ * line speaks while the colors are still showing); the card lingers a beat,
+ * then removes itself. Skip and abort resolve null. Resolves on signal abort
+ * so scrubbing and disposal are never blocked.
  */
 export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskGateStep) => Promise<number | null> {
   return (signal, step) =>
     new Promise<number | null>((resolve) => {
-      const row = h("div", { class: "cs-askgate-row" });
-      const gate = h("div", { class: "cs-askgate" }, row);
+      // A lingering previous question makes way for this one.
+      stage.querySelector(".cs-askgate")?.remove();
+      const choicesBox = h("div", { class: "cs-askgate-choices" });
+      const card = h("div", { class: "cs-askgate-card" }, h("div", { class: "cs-askgate-q" }, step.question), choicesBox);
+      const gate = h("div", { class: "cs-askgate" }, card);
       let settled = false;
-      const onAbort = (): void => {
-        if (settled) return;
-        settled = true;
-        gate.remove();
-        resolve(null);
-      };
-      const finish = (v: number | null, hold: number): void => {
-        if (settled) return;
-        settled = true;
+      const remove = (): void => {
         signal.removeEventListener("abort", onAbort);
-        window.setTimeout(() => {
-          gate.remove();
-          resolve(v);
-        }, hold);
+        gate.remove();
+      };
+      const onAbort = (): void => {
+        remove();
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
       };
       const pills: HTMLButtonElement[] = step.choices.map((choice, i) => {
         const pill = h("button", { class: "cs-askgate-pill" }, `${i + 1} · ${choice}`) as HTMLButtonElement;
         pill.addEventListener("click", (e) => {
           e.stopPropagation();
           if (settled) return;
+          settled = true;
           pill.classList.add(i === step.correct ? "right" : "wrong");
           pills[step.correct].classList.add("right");
           for (const p of pills) p.disabled = true;
-          finish(i, 900);
+          window.setTimeout(remove, ASK_LINGER_MS);
+          resolve(i);
         });
         return pill;
       });
-      row.append(...pills);
+      choicesBox.append(...pills);
       if (!step.required) {
         const skip = h("button", { class: "cs-askgate-pill skip" }, "Skip ▸");
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
-          finish(null, 0);
+          if (settled) return;
+          settled = true;
+          remove();
+          resolve(null);
         });
-        row.appendChild(skip);
+        card.appendChild(skip);
       }
       gate.addEventListener("click", (e) => e.stopPropagation());
       signal.addEventListener("abort", onAbort);

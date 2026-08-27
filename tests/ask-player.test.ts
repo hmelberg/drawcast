@@ -68,6 +68,20 @@ describe("the ask action", () => {
     expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
   });
 
+  test("several asks in a row run as a test, each with its own feedback", async () => {
+    const speech = new RecordingSpeech();
+    const plan = planCommands(
+      [{ ask: ASK }, { ask: { question: "Second?", choices: ["a", "b"], correct: 1, right: "A is right." } }],
+      [],
+    );
+    const player = new Player(plan, new Map(), speech, null, { mode: "narrated" });
+    const answers = [1, 0]; // correct, then correct
+    player.askGate = async () => answers.shift() ?? null;
+    await player.play();
+    expect(speech.spoken).toEqual(["Which?", "Yes, two.", "Second?", "A is right."]);
+    expect(player.state).toBe("done");
+  });
+
   test("the gate receives the step, including required", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer({ ...ASK, required: true }, speech);
