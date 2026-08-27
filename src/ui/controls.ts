@@ -52,6 +52,69 @@ export function clickGate(stage: HTMLElement, label = "Click to continue ▸"): 
     });
 }
 
+/** The slice of the ask plan step the gate needs (structurally matches
+ *  Player.askGate's parameter — controls stays decoupled from plan types). */
+interface AskGateStep {
+  choices: string[];
+  correct: number;
+  required: boolean;
+}
+
+/**
+ * The ask verb's gate: one pill per choice at the stage's foot, plus Skip
+ * when the ask is not required. A pick colors the chosen and correct pills,
+ * holds a beat so the colors register, then resolves the 0-based index
+ * (Skip and abort resolve null). Resolves on signal abort so scrubbing and
+ * disposal are never blocked.
+ */
+export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskGateStep) => Promise<number | null> {
+  return (signal, step) =>
+    new Promise<number | null>((resolve) => {
+      const row = h("div", { class: "cs-askgate-row" });
+      const gate = h("div", { class: "cs-askgate" }, row);
+      let settled = false;
+      const onAbort = (): void => {
+        if (settled) return;
+        settled = true;
+        gate.remove();
+        resolve(null);
+      };
+      const finish = (v: number | null, hold: number): void => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener("abort", onAbort);
+        window.setTimeout(() => {
+          gate.remove();
+          resolve(v);
+        }, hold);
+      };
+      const pills: HTMLButtonElement[] = step.choices.map((choice, i) => {
+        const pill = h("button", { class: "cs-askgate-pill" }, `${i + 1} · ${choice}`) as HTMLButtonElement;
+        pill.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (settled) return;
+          pill.classList.add(i === step.correct ? "right" : "wrong");
+          pills[step.correct].classList.add("right");
+          for (const p of pills) p.disabled = true;
+          finish(i, 900);
+        });
+        return pill;
+      });
+      row.append(...pills);
+      if (!step.required) {
+        const skip = h("button", { class: "cs-askgate-pill skip" }, "Skip ▸");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          finish(null, 0);
+        });
+        row.appendChild(skip);
+      }
+      gate.addEventListener("click", (e) => e.stopPropagation());
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+    });
+}
+
 export function attachPlayerControls(
   stageHost: HTMLElement,
   hd: RenderHandle,
@@ -152,6 +215,7 @@ export function attachPlayerControls(
   });
 
   hd.timeline.inputGate = clickGate(stage);
+  hd.timeline.askGate = askGateFor(stage);
 
   const togglePlay = () => {
     if (hd.timeline.state === "playing") hd.timeline.pause();

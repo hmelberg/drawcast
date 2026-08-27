@@ -838,6 +838,41 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   50% { transform: translateY(-4px); }
 }
 
+/* ---------- ask verb: choice pills ---------- */
+
+.cs-askgate {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 1.1rem;
+  z-index: 5;
+}
+.cs-askgate-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  max-width: 92%;
+}
+.cs-askgate-pill {
+  font-family: var(--sketch-font);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.25);
+}
+.cs-askgate-pill:hover { border-color: var(--rust); }
+.cs-askgate-pill.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+.cs-askgate-pill.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
+.cs-askgate-pill.skip { border-style: dashed; color: var(--muted); border-color: var(--muted); box-shadow: none; }
+.cs-askgate-pill:disabled { cursor: default; }
+
 /* ---------- hashtag chips + autosuggest ---------- */
 
 .editor-toolbar .prompt-row { position: relative; }
