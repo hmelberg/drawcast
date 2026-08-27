@@ -536,12 +536,33 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
       h,
       z: Z_STROKE,
       style: resolveStyle(undefined, {}),
-      // develop (blur-to-sharp) by default: a photo should arrive like a
-      // print in a darkroom, not like a PowerPoint fade — and erase plays
-      // the same effect backwards, so the exit dissolves out of focus.
-      reveal: el.reveal ?? "develop",
+      // wipe by default for portraits (the face emerges like a print; erase
+      // plays it backwards). Non-portrait images keep the plain fade — the
+      // backend default when reveal is absent.
+      reveal: el.reveal ?? "wipe",
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: cameo ? 650 : 900 }),
     });
+    // The name rides with the photo: a centered caption below it (above when
+    // the photo sits too low), part of the SAME element so it appears and
+    // erases with the portrait — no separate label element needed.
+    const name = (el.of ?? "").trim();
+    if (name) {
+      const fontSize = cameo ? 30 : 20;
+      const frameEdge = cameo ? 0 : 5;
+      const gap = frameEdge + (cameo ? 16 : 14) + fontSize / 2;
+      const below = cy - h / 2 - gap;
+      children.push({
+        id: `${el.id}__name`,
+        kind: "text",
+        pos: [cx, below - fontSize / 2 < 6 ? cy + h / 2 + gap : below],
+        text: name,
+        fontSize,
+        anchor: "middle",
+        z: Z_TEXT,
+        style: resolveStyle(el.style, {}),
+        drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 240 }),
+      });
+    }
     if (!cameo) {
       children.push({
         id: `${el.id}__frame`,

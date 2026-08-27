@@ -118,9 +118,9 @@ export interface SpecElement {
    */
   cameo?: boolean;
   /**
-   * How a photo portrait enters (and, reversed, exits): develop = darkroom
-   * blur-to-sharp (the default), iris = circle opening, wipe = top-down
-   * print, drift = settle-and-fade, fade = plain opacity.
+   * How a photo portrait enters (and, reversed, exits): wipe = top-down
+   * print (the portrait default), develop = darkroom blur-to-sharp,
+   * iris = circle opening, drift = settle-and-fade, fade = plain opacity.
    */
   reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
   // cross-cutting

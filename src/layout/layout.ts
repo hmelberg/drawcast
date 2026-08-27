@@ -92,7 +92,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
-  const issues = lintLayout(drawables, measure);
+  const issues = lintLayout(drawables, measure, spec.commands);
   return { drawables, order, issues, warnings };
 }
 

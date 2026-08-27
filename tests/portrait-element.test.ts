@@ -180,13 +180,36 @@ describe("portrait element — reveal effects", () => {
     expect(validateSpec(spec({ of: "X", reveal: "dissolve" })).ok).toBe(false);
   });
 
-  test("a photo's image drawable defaults to develop; an explicit reveal passes through", async () => {
+  test("a photo's image drawable defaults to wipe; an explicit reveal passes through", async () => {
     const { encodePhoto } = await import("../src/spec/trace");
     const strokes = encodePhoto(1.25, "data:image/jpeg;base64,AAAA");
     const flat = flattenDrawables(layoutSpec(spec({ strokes })).drawables);
-    expect((flat.find((d) => d.id === "p1__img") as { reveal?: string }).reveal).toBe("develop");
+    expect((flat.find((d) => d.id === "p1__img") as { reveal?: string }).reveal).toBe("wipe");
     const iris = flattenDrawables(layoutSpec(spec({ strokes, reveal: "iris" })).drawables);
     expect((iris.find((d) => d.id === "p1__img") as { reveal?: string }).reveal).toBe("iris");
+  });
+
+  test("a named photo carries a centered caption below it, part of the same element; no name, no caption", async () => {
+    const { encodePhoto } = await import("../src/spec/trace");
+    const strokes = encodePhoto(1.25, "data:image/jpeg;base64,AAAA");
+    // spec() places the portrait at (200, 500), width 160 → photo h = 200.
+    const flat = flattenDrawables(layoutSpec(spec({ strokes, of: "Charles Darwin" })).drawables);
+    const name = flat.find((d) => d.id === "p1__name") as { kind: string; pos: [number, number]; text: string; anchor: string };
+    expect(name.kind).toBe("text");
+    expect(name.text).toBe("Charles Darwin");
+    expect(name.anchor).toBe("middle");
+    expect(name.pos[0]).toBe(200); // centered on the photo
+    expect(name.pos[1]).toBeLessThan(500 - 100); // below the photo's bottom edge
+    // A stroke-only or nameless portrait draws no caption.
+    expect(flattenDrawables(layoutSpec(spec({ strokes })).drawables).some((d) => d.id === "p1__name")).toBe(false);
+  });
+
+  test("a photo hugging the bottom edge flips its caption above", async () => {
+    const { encodePhoto } = await import("../src/spec/trace");
+    const strokes = encodePhoto(1.25, "data:image/jpeg;base64,AAAA");
+    const flat = flattenDrawables(layoutSpec(spec({ strokes, of: "X Y", y: 110 })).drawables);
+    const name = flat.find((d) => d.id === "p1__name") as { pos: [number, number] };
+    expect(name.pos[1]).toBeGreaterThan(110 + 100); // above the photo's top edge
   });
 
   test("imageRevealFrame: pure in t, clears to rest at t=1, each effect shapes its own property", async () => {

@@ -18,11 +18,65 @@ export interface LintIssue {
   severity: "warn" | "error";
 }
 
-export function lintLayout(drawables: Drawable[], measure: MeasureFn): LintIssue[] {
+/**
+ * Which ELEMENTS are ever on screen together, from a visibility walk over the
+ * commands. Static overlap between two elements that never coexist — a cameo
+ * portrait (and its name caption) erased before the figure draws — is not a
+ * defect, and without this every centered transient forced its caption to be
+ * dropped (the kameo lesson). Mirrors the plan's rules: draw/show reveal,
+ * erase/hide/clear conceal, and everything no visibility verb ever touched
+ * joins an implicit final draw. Unknown ids in commands are simply ignored
+ * here (the plan already warns about them); anything not provably transient
+ * ends up coexisting, so approximation errs toward keeping warnings.
+ */
+function coVisible(commands: Command[] | undefined, allIds: string[]): (a: string, b: string) => boolean {
+  if (!commands || commands.length === 0) return () => true;
+  const visible = new Set<string>();
+  const managed = new Set<string>();
+  const pairs = new Set<string>();
+  const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const snapshot = () => {
+    const list = [...visible];
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) pairs.add(key(list[i], list[j]));
+  };
+  const ids = (raw: string[] | string | undefined): string[] => (typeof raw === "string" ? [raw] : raw ?? []);
+  for (const c of commands) {
+    const revealed = [...ids(c.draw), ...ids(c.show)];
+    if (revealed.length > 0) {
+      for (const id of revealed) {
+        visible.add(id);
+        managed.add(id);
+      }
+      snapshot();
+    }
+    for (const id of [...ids(c.erase), ...ids(c.hide)]) {
+      visible.delete(id);
+      managed.add(id);
+    }
+    if (c.clear !== undefined) {
+      const keep = new Set(ids(c.clear.keep));
+      for (const id of [...visible]) {
+        if (keep.has(id)) continue;
+        visible.delete(id);
+        managed.add(id);
+      }
+    }
+  }
+  for (const id of allIds) if (!managed.has(id)) visible.add(id);
+  snapshot();
+  return (a, b) => a === b || pairs.has(key(a, b));
+}
+
+export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[]): LintIssue[] {
   const issues: LintIssue[] = [];
   const leaves = leafDrawables(drawables);
   const texts = leaves.filter((d): d is TextDrawable => d.kind === "text");
   const strokes = leaves.filter((d): d is StrokeDrawable => d.kind === "stroke");
+  // Leaf → owning top-level element, for the co-visibility exemption.
+  const owner = new Map<string, string>();
+  for (const top of drawables) for (const leaf of leafDrawables([top])) owner.set(leaf.id, top.id);
+  const together = coVisible(commands, drawables.map((d) => d.id));
+  const coexist = (a: string, b: string) => together(owner.get(a) ?? a, owner.get(b) ?? b);
 
   for (const t of texts) {
     if (t.fontSize < FONT_FLOOR) {
@@ -59,9 +113,10 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn): LintIssue
     }
   }
 
-  // label–label overlap
+  // label–label overlap (skipped for pairs that are never on screen together)
   for (let i = 0; i < texts.length; i++) {
     for (let j = i + 1; j < texts.length; j++) {
+      if (!coexist(texts[i].id, texts[j].id)) continue;
       const a = bboxOfText(texts[i], measure);
       const b = bboxOfText(texts[j], measure);
       if (boxesOverlap(a, b, 2)) {
@@ -82,6 +137,7 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn): LintIssue
     const core = { x: full.x + full.w * 0.2, y: full.y + full.h * 0.25, w: full.w * 0.6, h: full.h * 0.5 };
     for (const s of strokes) {
       if (s.id === `${t.id}_leader`) continue;
+      if (!coexist(t.id, s.id)) continue;
       if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
         issues.push({
           rule: "overlap-label-stroke",

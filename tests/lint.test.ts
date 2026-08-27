@@ -44,6 +44,39 @@ describe("lintLayout", () => {
   });
 });
 
+describe("lintLayout — co-visibility (the kameo exemption)", () => {
+  const overlapping = [text("a", [500, 400]), text("b", [510, 405])];
+  const cmds = (c: object[]) => c as never;
+
+  test("a transient erased before its rival draws is exempt from overlap checks", () => {
+    const issues = lintLayout(overlapping, heuristicMeasure, cmds([{ draw: ["a"] }, { erase: ["a"] }, { draw: ["b"] }]));
+    expect(issues).toEqual([]);
+    // Same for a label core sitting on a stroke it never meets.
+    const strokeIssues = lintLayout(
+      [stroke("curve", [[100, 400], [900, 400]]), text("lbl", [500, 400])],
+      heuristicMeasure,
+      cmds([{ draw: ["lbl"] }, { hide: ["lbl"] }, { draw: ["curve"] }]),
+    );
+    expect(strokeIssues).toEqual([]);
+  });
+
+  test("pairs that DO share the screen still warn; no commands means everything coexists", () => {
+    expect(lintLayout(overlapping, heuristicMeasure, cmds([{ draw: ["a"] }, { draw: ["b"] }, { erase: ["a"] }]))
+      .some((i) => i.rule === "overlap-label-label")).toBe(true);
+    expect(lintLayout(overlapping, heuristicMeasure).some((i) => i.rule === "overlap-label-label")).toBe(true);
+    expect(lintLayout(overlapping, heuristicMeasure, cmds([]))
+      .some((i) => i.rule === "overlap-label-label")).toBe(true);
+  });
+
+  test("clear conceals everything but keep; concealed ids stay out of the implicit final draw", () => {
+    // a drawn, cleared away, then b drawn: never together — clean.
+    expect(lintLayout(overlapping, heuristicMeasure, cmds([{ draw: ["a"] }, { clear: {} }, { draw: ["b"] }]))).toEqual([]);
+    // keep: ["a"] holds a on screen through the clear — they DO meet.
+    expect(lintLayout(overlapping, heuristicMeasure, cmds([{ draw: ["a"] }, { clear: { keep: ["a"] } }, { draw: ["b"] }]))
+      .some((i) => i.rule === "overlap-label-label")).toBe(true);
+  });
+});
+
 describe("lintCommands", () => {
   const spec = (commands: object[]): Spec => ({ elements: [{ id: "e1", type: "label", text: "x", attach_to: "e1" }], commands }) as unknown as Spec;
 

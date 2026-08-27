@@ -131,7 +131,7 @@ const elementSchema = {
     of: {
       type: "string",
       description:
-        "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes. Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y, and pair it with a label element for the name. NEVER invent an image url; only copy a url the user's request explicitly provided.",
+        "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided.",
     },
     url: { type: "string", description: "portrait: direct image URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
     strokes: { type: "string", description: "portrait: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
@@ -150,7 +150,7 @@ const elementSchema = {
       type: "string",
       enum: ["develop", "iris", "wipe", "drift", "fade"],
       description:
-        "portrait: how a photo enters — and, played backwards by erase, exits. develop = darkroom blur-to-sharp (the default; omit unless you want another), iris = circle opening from the center, wipe = top-down like a print emerging, drift = slightly large settling into place, fade = plain opacity.",
+        "portrait: how a photo enters — and, played backwards by erase, exits. wipe = top-down like a print emerging (the default for portraits; omit unless you want another), develop = darkroom blur-to-sharp, iris = circle opening from the center, drift = slightly large settling into place, fade = plain opacity.",
     },
     style: styleSchema,
     draw: drawSchema,

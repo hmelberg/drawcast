@@ -4461,11 +4461,10 @@
         ]
       },
       "elements": [
-        { "id": "portrait_1", "type": "portrait", "of": "Charles Darwin", "x": 160, "y": 560, "width": 160 },
-        { "id": "name_1", "type": "text", "text": "Charles Darwin", "x": 160, "y": 435, "font_size": 20 }
+        { "id": "portrait_1", "type": "portrait", "of": "Charles Darwin", "x": 160, "y": 560, "width": 160 }
       ],
       "commands": [
-        { "draw": ["portrait_1", "name_1"], "speak": "Charles Darwin had the most dangerous idea in biology - and then kept it in a drawer. Let's count the years." },
+        { "draw": ["portrait_1"], "speak": "Charles Darwin had the most dangerous idea in biology - and then kept it in a drawer. Let's count the years." },
         { "draw": ["line", "dot_0", "label_0"], "speak": "The voyage of the Beagle, 1831: five years of finches, fossils and growing doubts." },
         { "draw": ["dot_1", "label_1"], "speak": "By 1837 he sketches a branching tree in a private notebook and writes two words above it: I think." },
         { "pause": 0.3 },

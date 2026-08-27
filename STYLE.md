@@ -61,6 +61,26 @@ entry below; the prompt's portrait bullet now carries both the
 anti-pattern and the `reveal` options (element-specific — still not in
 PEDAGOGY_RUBRIC, which stays general).
 
+Refined same day — Hans: "when we have a name and a photo, try to use
+add the name as text also above or below the photo (centralized).
+Default can be wipe (for portraits/faces), but for other things use
+fade." → Three changes, same commit:
+
+1. **The name rides with the photo.** A portrait with a known name draws
+   it as a centered caption below the photo (above when the photo sits
+   too low) — part of the SAME element, so it appears and erases with
+   the portrait. No separate label element (prompt updated; the old
+   "pair it with a label" advice reversed). The Darwin example's manual
+   name label removed.
+2. **wipe is the portrait default** (a face emerging like a print);
+   develop/iris/drift/fade remain choices. Non-portrait images keep the
+   plain fade — reveal effects are for faces.
+3. **The lint learned about time** (what forced the caption-drop
+   compromise in the first cameo round): overlap checks now skip element
+   pairs that are never on screen together, computed from a visibility
+   walk over the commands. A cameo's caption may statically sit on the
+   figure it never actually meets.
+
 ### 2026-08-27 — Portraits as cameos: appear at first mention, fade away
 
 Hans: "photos can often be used without putting it permanently on top of
