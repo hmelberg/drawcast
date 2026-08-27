@@ -920,6 +920,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   inset: 0;
   z-index: 5;
   cursor: crosshair;
+  touch-action: none;
 }
 .cs-figgate-hint {
   position: absolute;

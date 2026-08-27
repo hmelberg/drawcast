@@ -37,6 +37,13 @@ describe("hitElement", () => {
   test("a miss returns null", () => {
     expect(hitElement(boxes, [150, 150])).toBe(null);
   });
+
+  test("with slop, a near miss snaps to the closest box (fat fingers)", () => {
+    expect(hitElement(boxes, [112, 50], 18)).toBe("big"); // 12 units right of "big"
+    expect(hitElement(boxes, [150, 150], 18)).toBe(null); // too far from everything
+    // Exact hits still win over slop candidates.
+    expect(hitElement(boxes, [50, 50], 18)).toBe("small");
+  });
 });
 
 describe("widget validation", () => {

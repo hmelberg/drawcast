@@ -182,7 +182,8 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
           resolve(null);
         }
       };
-      gate.addEventListener("click", (e) => {
+      gate.addEventListener("click", (e) => e.stopPropagation());
+      gate.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
         if (settled) return;
         const p = logicalPoint(stage, e);
@@ -321,7 +322,7 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
         if (settled) return;
         const p = logicalPoint(stage, e);
         if (!p) return;
-        const id = hitElement(boxes, p);
+        const id = hitElement(boxes, p, 18); // fat-finger slop, in logical units
         if (id === null) return; // background: keep waiting
         settled = true;
         const ok = step.answer !== undefined && answersMatch(id, step.answer);
@@ -556,24 +557,59 @@ export function attachPlayerControls(
   // gates render their own overlay and are left alone.
   if (hd.spec.template === "piano_keys") {
     const octaves = pianoOctaves(hd.spec.params);
+    // A keyboard is an instrument: no scroll-panning from the stage, so a
+    // finger can press and glide (touch-action gates pointermove delivery).
+    stage.style.touchAction = "none";
+    /** Last note per active pointer — a glide re-sounds only on key changes;
+     *  several fingers = a chord. */
+    const pressed = new Map<number, string>();
+    const freePlayBlocked = (e: Event): boolean =>
+      hd.timeline.state === "playing" ||
+      (e.target instanceof Element && e.target.closest("button") !== null) ||
+      stage.querySelector(".cs-figgate, .cs-cardgate") !== null;
+    const sound = (note: string): void => {
+      try {
+        hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
+      } catch {
+        /* silent */
+      }
+    };
+    stage.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (freePlayBlocked(e)) return;
+        const p = logicalPoint(stage, e);
+        const note = p && pianoKeyAt(octaves, p);
+        if (!note) return;
+        pressed.set(e.pointerId, note);
+        sound(note);
+      },
+      true,
+    );
+    stage.addEventListener(
+      "pointermove",
+      (e) => {
+        const last = pressed.get(e.pointerId);
+        if (last === undefined || freePlayBlocked(e)) return;
+        const p = logicalPoint(stage, e);
+        const note = p && pianoKeyAt(octaves, p);
+        if (!note || note === last) return;
+        pressed.set(e.pointerId, note);
+        sound(note); // the glissando
+      },
+      true,
+    );
+    for (const type of ["pointerup", "pointercancel"] as const) {
+      stage.addEventListener(type, (e) => pressed.delete(e.pointerId), true);
+    }
+    // The synthesized click after a key press must not reach the play/pause
+    // toggle; clicks that never sounded a key (background, buttons) pass.
     stage.addEventListener(
       "click",
       (e) => {
-        if (hd.timeline.state === "playing") return;
-        // Controls keep priority: the big replay button sits centered INSIDE
-        // the stage — right over the drawn keyboard — and must never be eaten.
-        if (e.target instanceof Element && e.target.closest("button")) return;
-        if (stage.querySelector(".cs-figgate, .cs-cardgate")) return;
+        if (freePlayBlocked(e)) return;
         const p = logicalPoint(stage, e);
-        if (!p) return;
-        const note = pianoKeyAt(octaves, p);
-        if (note === null) return;
-        e.stopPropagation();
-        try {
-          hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
-        } catch {
-          /* silent */
-        }
+        if (p && pianoKeyAt(octaves, p) !== null) e.stopPropagation();
       },
       true,
     );
