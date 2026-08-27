@@ -17,6 +17,7 @@ export type PlanStep = (
   | { kind: "draw"; ids: string[]; parallel: boolean; implicit?: boolean }
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
+  | { kind: "ask"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
@@ -164,7 +165,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "ask", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -182,6 +183,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       pushStep({ kind: "pause", seconds: cmd.pause });
     } else if (cmd.wait !== undefined) {
       pushStep({ kind: "wait" });
+    } else if (cmd.ask !== undefined) {
+      // The question IS the narration unless the author paired a speak.
+      if (currentNarration === undefined) currentNarration = cmd.ask.question;
+      pushStep({
+        kind: "ask",
+        question: cmd.ask.question,
+        choices: cmd.ask.choices,
+        correct: cmd.ask.correct - 1,
+        ...(cmd.ask.right !== undefined ? { right: cmd.ask.right } : {}),
+        ...(cmd.ask.wrong !== undefined ? { wrong: cmd.ask.wrong } : {}),
+        required: cmd.ask.required === true,
+      });
     } else if (cmd.show !== undefined) {
       const ids = resolveIds(cmd.show, "show");
       ids.forEach((id) => mentioned.add(id));

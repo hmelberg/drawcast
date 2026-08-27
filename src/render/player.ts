@@ -5,7 +5,7 @@
 // stepping, and a live speed multiplier. Scrubbing applies the plan's
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
-import type { Plan, SceneState } from "./plan";
+import type { Plan, PlanStep, SceneState } from "./plan";
 import { INITIAL_STATE } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
@@ -50,6 +50,14 @@ export class Player {
    * wait degrades to a short pause so a bare Player never deadlocks.
    */
   inputGate: ((signal: AbortSignal) => Promise<void>) | null = null;
+
+  /**
+   * Provider for the ask verb, set by the controls layer (choice buttons) or
+   * the exporter (auto-reveal beat). Resolves the 0-based chosen index, or
+   * null for skipped/auto. Must resolve on signal abort. When unset, ask
+   * degrades to a short hold + reveal so a bare Player never deadlocks.
+   */
+  askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<number | null>) | null = null;
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
   /**
@@ -293,6 +301,21 @@ export class Player {
     this.callbacks.onState?.(s);
   }
 
+  /** Speak a runtime-chosen line (ask feedback): narrated mode voices it,
+   *  other modes hold a capped reading beat; the caption always updates. */
+  private async speakLine(text: string, step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
+    this.setCaption(text);
+    if (this.mode === "narrated") {
+      await this.speech.speak(text, this.speedVal, signal, {
+        speaker: step.narrationSpeaker,
+        delivery: step.narrationDelivery,
+        gender: this.narratorGender ?? undefined,
+      });
+    } else {
+      await this.waitScaled(Math.min(1400, SpeechManager.estimateMs(text) * 0.4), signal);
+    }
+  }
+
   private setCaption(text: string): void {
     if (!this.captionEl) return;
     this.captionEl.textContent = text;
@@ -388,6 +411,33 @@ export class Player {
         if (signal.aborted) return;
         if (this.inputGate) return this.inputGate(signal);
         return this.waitScaled(800, signal);
+      case "ask": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        // The gate shows immediately — the viewer may answer while the
+        // question narration (started by runStep) is still speaking.
+        let chosen: number | null;
+        if (this.askGate) {
+          chosen = await this.askGate(signal, step);
+        } else {
+          await this.waitScaled(1600, signal);
+          chosen = null;
+        }
+        if (signal.aborted) return;
+        // Let the question finish before any feedback talks over it.
+        if (this.narrationVoice) await this.narrationVoice;
+        if (signal.aborted) return;
+        const reveal = step.right ?? step.choices[step.correct];
+        if (chosen === step.correct) {
+          if (step.right) await this.speakLine(step.right, step, signal);
+        } else if (chosen !== null) {
+          if (step.wrong) await this.speakLine(step.wrong, step, signal);
+          await this.speakLine(reveal, step, signal);
+        } else {
+          await this.speakLine(reveal, step, signal);
+        }
+        return;
+      }
       case "draw": {
         await this.narrationBarrier();
         if (signal.aborted) return;
