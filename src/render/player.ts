@@ -76,6 +76,13 @@ export class Player {
    *  stores its default so later {var} lines keep working). */
   private skipQuestions = false;
 
+  /** Set by the exporter (and true in spirit for bare players): answers are
+   *  the demo's, not a viewer's — gotos never fire, the path stays linear. */
+  autoAnswers = false;
+
+  /** A goto requested by the current step; the play loop performs it. */
+  private pendingJump: number | null = null;
+
   /** Interpolate stored ask answers into a narration/caption line. */
   private line(text: string): string {
     return subVars(text, this.vars);
@@ -186,6 +193,12 @@ export class Player {
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
       await this.runStep(this.completed, ac.signal);
       if (ac.signal.aborted) return;
+      if (this.pendingJump !== null) {
+        const n = this.pendingJump;
+        this.pendingJump = null;
+        this.jumpTo(n, true);
+        continue;
+      }
       this.completed++;
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
     }
@@ -232,6 +245,13 @@ export class Player {
   /** Jump to a step boundary: apply exactly the scene state after steps[0..n-1]. */
   renderUpTo(n: number): void {
     this.abortRun();
+    this.jumpTo(n, false);
+  }
+
+  /** Move the playhead to a boundary: scrub (keepPlaying false, from
+   *  renderUpTo) or a content-initiated goto mid-run (keepPlaying true —
+   *  the run's own AbortController must survive the jump). */
+  private jumpTo(n: number, keepPlaying: boolean): void {
     const scene = this.stateAt(n);
     this.applyParams(scene.params);
     this.applyScene(scene);
@@ -245,7 +265,7 @@ export class Player {
     }
     this.setCaption(this.line(caption));
     this.callbacks.onStep?.(this.completed, this.plan.steps.length);
-    this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
+    if (!keepPlaying) this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
   }
 
   /** Apply a scene's visibility/offsets/pointer/camera to the currently mounted elements. */
@@ -299,6 +319,7 @@ export class Player {
   }
 
   private abortRun(): void {
+    this.pendingJump = null;
     this.pausedFlag = false;
     this.pendingSpeech = null;
     this.speech.cancel();
@@ -438,6 +459,8 @@ export class Player {
         });
         return;
       }
+      case "label":
+        return;
       case "wait":
         await this.narrationBarrier();
         if (signal.aborted) return;
@@ -467,6 +490,10 @@ export class Player {
           await this.speakLine(reveal, step, signal);
         } else {
           await this.speakLine(reveal, step, signal);
+        }
+        if (!this.autoAnswers && this.quizGate !== null && chosen !== null) {
+          const target = chosen === step.correct ? step.rightGoto : step.wrongGoto;
+          if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
         }
         return;
       }
@@ -504,6 +531,10 @@ export class Player {
           if (step.right) await this.speakLine(step.right, step, signal);
         } else if (step.reveal) {
           await this.speakLine(step.right ?? answer, step, signal);
+        }
+        if (!this.autoAnswers && this.askGate !== null && typed !== null) {
+          const target = isRight(typed) ? step.rightGoto : step.wrongGoto;
+          if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
         }
         return;
       }
