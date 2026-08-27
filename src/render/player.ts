@@ -6,6 +6,7 @@
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
 import type { Plan, PlanStep, SceneState } from "./plan";
+import { answersMatch, subVars } from "../spec/answers";
 import { INITIAL_STATE } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
@@ -58,6 +59,23 @@ export class Player {
    * degrades to a short hold + reveal so a bare Player never deadlocks.
    */
   quizGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "quiz" }>) => Promise<number | null>) | null = null;
+
+  /**
+   * Provider for the typed ask verb, set by the controls layer (input card)
+   * or the exporter (self-typing demo). Resolves the typed string, or null
+   * for skipped. Must resolve on signal abort. When unset, ask degrades to a
+   * short hold + the auto text so a bare Player never deadlocks.
+   */
+  askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
+
+  /** Responses collected by ask commands with store — {name} in later
+   *  narration interpolates from here. Keys are lowercased. */
+  readonly vars = new Map<string, string>();
+
+  /** Interpolate stored ask answers into a narration/caption line. */
+  private line(text: string): string {
+    return subVars(text, this.vars);
+  }
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
   /**
@@ -220,7 +238,7 @@ export class Player {
       if (s.kind === "speak") caption = s.text;
       else if (s.narration !== undefined) caption = s.narration;
     }
-    this.setCaption(caption);
+    this.setCaption(this.line(caption));
     this.callbacks.onStep?.(this.completed, this.plan.steps.length);
     this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
   }
@@ -303,7 +321,8 @@ export class Player {
 
   /** Speak a runtime-chosen line (quiz/ask feedback): narrated mode voices it,
    *  other modes hold a capped reading beat; the caption always updates. */
-  private async speakLine(text: string, step: Extract<PlanStep, { kind: "quiz" }>, signal: AbortSignal): Promise<void> {
+  private async speakLine(text: string, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+    text = this.line(text);
     this.setCaption(text);
     if (this.mode === "narrated") {
       await this.speech.speak(text, this.speedVal, signal, {
@@ -332,15 +351,16 @@ export class Player {
       // Narrated action: voice and action start together; both must finish.
       await this.narrationBarrier();
       if (signal.aborted) return;
-      this.setCaption(step.narration);
+      const narration = this.line(step.narration);
+      this.setCaption(narration);
       const voice =
         this.mode === "narrated"
-          ? this.speech.speak(step.narration, this.speedVal, signal, {
+          ? this.speech.speak(narration, this.speedVal, signal, {
               speaker: step.narrationSpeaker,
               delivery: step.narrationDelivery,
               gender: this.narratorGender ?? undefined,
             })
-          : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.narration) * 0.4), signal);
+          : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(narration) * 0.4), signal);
       this.narrationVoice = voice;
       try {
         await Promise.all([this.runAction(index, signal), voice]);
@@ -357,9 +377,10 @@ export class Player {
     const before = this.stateAt(index);
     switch (step.kind) {
       case "speak": {
-        this.setCaption(step.text);
+        const text = this.line(step.text);
+        this.setCaption(text);
         if (this.mode === "narrated") {
-          const spoken = this.speech.speak(step.text, this.speedVal, signal, {
+          const spoken = this.speech.speak(text, this.speedVal, signal, {
             speaker: step.speaker,
             delivery: step.delivery,
             gender: this.narratorGender ?? undefined,
@@ -368,7 +389,7 @@ export class Player {
           else this.pendingSpeech = spoken;
         } else {
           // silent: hold the caption for a reading-time slice instead
-          const hold = this.waitScaled(Math.min(1400, SpeechManager.estimateMs(step.text) * 0.4), signal);
+          const hold = this.waitScaled(Math.min(1400, SpeechManager.estimateMs(text) * 0.4), signal);
           if (step.blocking) await hold;
           else this.pendingSpeech = hold;
         }
@@ -435,6 +456,43 @@ export class Player {
           await this.speakLine(reveal, step, signal);
         } else {
           await this.speakLine(reveal, step, signal);
+        }
+        return;
+      }
+      case "ask": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        // The auto path (movie/bare player) "types" the answer in check mode,
+        // the default in collect mode — one uniform string contract.
+        const auto = step.answer ?? step.fallback ?? "";
+        let typed: string | null;
+        if (this.askGate) {
+          typed = await this.askGate(signal, step);
+        } else {
+          await this.waitScaled(1600, signal);
+          typed = auto;
+        }
+        if (signal.aborted) return;
+        // Let the question finish before any feedback talks over it.
+        if (this.narrationVoice) await this.narrationVoice;
+        if (signal.aborted) return;
+        // Store BEFORE feedback so the feedback lines may use {store} too.
+        if (step.store) this.vars.set(step.store.toLowerCase(), typed ?? step.fallback ?? step.answer ?? "");
+        if (step.answer === undefined) return; // collect mode: nothing to judge
+        const answer = step.answer;
+        const isRight = (t: string | null): boolean => t !== null && answersMatch(t, answer);
+        while (typed !== null && !isRight(typed)) {
+          if (step.wrong) await this.speakLine(step.wrong, step, signal);
+          if (signal.aborted) return;
+          if (!step.retry || !this.askGate) break;
+          typed = await this.askGate(signal, step);
+          if (signal.aborted) return;
+          if (step.store && typed !== null) this.vars.set(step.store.toLowerCase(), typed);
+        }
+        if (isRight(typed)) {
+          if (step.right) await this.speakLine(step.right, step, signal);
+        } else if (step.reveal) {
+          await this.speakLine(step.right ?? answer, step, signal);
         }
         return;
       }

@@ -3,6 +3,7 @@
 // repair round as structured text.
 
 import { CANVAS } from "../layout/canvas";
+import { VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox } from "../layout/geometry";
 import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
@@ -12,7 +13,7 @@ export const FONT_FLOOR = 14;
 const CANVAS_TOLERANCE = 2;
 
 export interface LintIssue {
-  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch";
+  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch" | "ask-var";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -171,6 +172,34 @@ function isVisibleAction(c: Command): boolean {
 export function lintCommands(spec: Spec): LintIssue[] {
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [];
+
+  // {var} tokens must be stored by an EARLIER ask — a later or missing store
+  // means the line speaks the literal braces.
+  const stored = new Set<string>();
+  const flagVars = (text: string | undefined, where: string): void => {
+    if (typeof text !== "string") return;
+    for (const m of text.matchAll(VAR_RE)) {
+      const name = m[1].toLowerCase();
+      if (!stored.has(name)) {
+        issues.push({
+          rule: "ask-var",
+          ids: [],
+          message: `${where} uses {${m[1]}} before any ask stores it — add an ask with store: ${m[1]} earlier (or fix the name)`,
+          severity: "warn",
+        });
+      }
+    }
+  };
+  cmds.forEach((c, i) => {
+    flagVars(c.speak, `commands[${i}].speak`);
+    flagVars(c.quiz?.question, `commands[${i}].quiz.question`);
+    flagVars(c.quiz?.right, `commands[${i}].quiz.right`);
+    flagVars(c.quiz?.wrong, `commands[${i}].quiz.wrong`);
+    flagVars(c.ask?.question, `commands[${i}].ask.question`);
+    flagVars(c.ask?.right, `commands[${i}].ask.right`);
+    flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
+    if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
+  });
 
   let speaksBeforeInk = 0;
   for (const c of cmds) {

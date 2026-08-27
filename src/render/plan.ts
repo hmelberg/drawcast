@@ -18,6 +18,7 @@ export type PlanStep = (
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
   | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean }
+  | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
@@ -165,7 +166,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -194,6 +195,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.right !== undefined ? { right: cmd.quiz.right } : {}),
         ...(cmd.quiz.wrong !== undefined ? { wrong: cmd.quiz.wrong } : {}),
         required: cmd.quiz.required === true,
+      });
+    } else if (cmd.ask !== undefined) {
+      // The question IS the narration unless the author paired a speak.
+      if (currentNarration === undefined) currentNarration = cmd.ask.question;
+      pushStep({
+        kind: "ask",
+        question: cmd.ask.question,
+        ...(cmd.ask.answer !== undefined ? { answer: cmd.ask.answer } : {}),
+        ...(cmd.ask.right !== undefined ? { right: cmd.ask.right } : {}),
+        ...(cmd.ask.wrong !== undefined ? { wrong: cmd.ask.wrong } : {}),
+        reveal: cmd.ask.reveal !== false,
+        retry: cmd.ask.retry === true,
+        ...(cmd.ask.store !== undefined ? { store: cmd.ask.store } : {}),
+        ...(cmd.ask.default !== undefined ? { fallback: cmd.ask.default } : {}),
+        required: cmd.ask.required === true,
       });
     } else if (cmd.show !== undefined) {
       const ids = resolveIds(cmd.show, "show");
