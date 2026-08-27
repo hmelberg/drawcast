@@ -7,6 +7,10 @@ import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
 import type { RenderedElement } from "../src/render/backend";
 
+// node has no rAF; drive Player.progress with a timer-based stand-in.
+globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
+  setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
+
 class StubSpeech extends SpeechManager {
   override get available(): boolean {
     return false;
@@ -61,6 +65,19 @@ describe("previewParams", () => {
     player.renderUpTo(player.position);
     expect(commits.length).toBe(before + 1); // dirty flag forced the commit
     expect(commits.at(-1)).toEqual({}); // boundary has no overrides
+  });
+
+  test("a fresh play() settles a pending preview before stepping", async () => {
+    const plan = planCommands([{ draw: ["demand"] }, { pause: 0.01 }], ["demand"], { animateBase: BASE });
+    const player = new Player(plan, new Map([["demand", fakeElement("demand")]]), new StubSpeech(), null, { mode: "silent" });
+    const { rp, commits } = makeReprojector();
+    player.reprojector = rp;
+    player.renderUpTo(1);
+    const before = commits.length;
+    player.previewParams({ "demand_shift.amount": 40 });
+    await player.play(); // big-play resume, not Continue ▶: must not run atop preview DOM
+    expect(commits.length).toBe(before + 1);
+    expect(commits.at(-1)).toEqual({}); // boundary settled before the steps ran
   });
 
   test("no reprojector: previewParams is a no-op", () => {

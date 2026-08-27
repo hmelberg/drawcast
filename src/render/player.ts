@@ -142,6 +142,10 @@ export class Player {
       return;
     }
     if (this.completed >= this.plan.steps.length) this.renderUpTo(0);
+    // A pending tray preview (geometryDirty) must settle before stepping:
+    // frame() leaves handle-less DOM, and the run's actions need honest
+    // elements. No-op when nothing is dirty and params already match.
+    this.applyParams(this.stateAt(this.completed).params);
 
     const ac = new AbortController();
     this.ac = ac;
