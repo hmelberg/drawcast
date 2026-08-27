@@ -250,6 +250,9 @@ export interface Command {
 export interface AskArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
   question: string;
+  /** Spoken introduction, prepended to the question line — lives INSIDE the
+   *  element so skipping the question skips its introduction with it. */
+  intro?: string;
   /** Correct answer (check mode). Compared trimmed, case-insensitively. */
   answer?: string;
   /** Spoken on a correct answer; doubles as the reveal line. */
@@ -271,6 +274,9 @@ export interface AskArgs {
 export interface QuizArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
   question: string;
+  /** Spoken introduction, prepended to the question line — lives INSIDE the
+   *  element so skipping the question skips its introduction with it. */
+  intro?: string;
   /** 2-4 short answer options. */
   choices: string[];
   /** 1-based index of the correct choice. */

@@ -24,6 +24,8 @@ export interface RenderOptions {
   /** Sound engine for the play command; defaults to a shared speaker-connected WebAudioTones. The exporter passes one bound to its recording destination. */
   tones?: ToneLike;
   callbacks?: PlayerCallbacks;
+  /** Viewer preference: skip quiz/ask questions entirely (collect-asks still store their defaults). */
+  questions?: "on" | "skip";
 }
 
 export interface RenderHandle {
@@ -127,7 +129,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     mounted.elements,
     speech,
     caption,
-    { mode: options.mode, speed: options.speed, effects: mounted.effects },
+    { mode: options.mode, speed: options.speed, effects: mounted.effects, questions: options.questions },
     options.callbacks,
   );
   player.setNarratorGender(spec.voice ?? null);

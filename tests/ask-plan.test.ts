@@ -26,6 +26,21 @@ describe("typed ask planning", () => {
     expect(s.answer).toBeUndefined();
   });
 
+  test("intro prepends to the spoken question", () => {
+    const plan = planCommands([{ ask: { question: "Gold?", answer: "Au", intro: "A quick check!" } }], []);
+    expect(plan.steps[0].narration).toBe("A quick check! Gold?");
+  });
+
+  test("intro prepends to a paired speak too", () => {
+    const plan = planCommands([{ ask: { question: "Gold?", answer: "Au", intro: "A quick check!" }, speak: "Here it comes." }], []);
+    expect(plan.steps[0].narration).toBe("A quick check! Here it comes.");
+  });
+
+  test("quiz intro prepends the same way", () => {
+    const plan = planCommands([{ quiz: { question: "Which?", choices: ["a", "b"], correct: 1, intro: "Test time!" } }], []);
+    expect(plan.steps[0].narration).toBe("Test time! Which?");
+  });
+
   test("lint warns when {var} is used before any ask stores it", () => {
     const spec = {
       elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],

@@ -185,8 +185,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.wait !== undefined) {
       pushStep({ kind: "wait" });
     } else if (cmd.quiz !== undefined) {
-      // The question IS the narration unless the author paired a speak.
+      // The question IS the narration unless the author paired a speak; the
+      // intro prepends either way (inside the step, so skipping skips it).
       if (currentNarration === undefined) currentNarration = cmd.quiz.question;
+      if (cmd.quiz.intro) currentNarration = `${cmd.quiz.intro} ${currentNarration}`;
       pushStep({
         kind: "quiz",
         question: cmd.quiz.question,
@@ -197,8 +199,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         required: cmd.quiz.required === true,
       });
     } else if (cmd.ask !== undefined) {
-      // The question IS the narration unless the author paired a speak.
+      // The question IS the narration unless the author paired a speak; the
+      // intro prepends either way (inside the step, so skipping skips it).
       if (currentNarration === undefined) currentNarration = cmd.ask.question;
+      if (cmd.ask.intro) currentNarration = `${cmd.ask.intro} ${currentNarration}`;
       pushStep({
         kind: "ask",
         question: cmd.ask.question,

@@ -85,6 +85,20 @@ describe("collectSpeakLines", () => {
     expect(texts.some((t) => t.includes("{name}"))).toBe(false);
   });
 
+  test("intro joins the spoken question line, matching the player", () => {
+    const lines = collectSpeakLines({
+      commands: [
+        { quiz: { question: "Which?", choices: ["a", "b"], correct: 1, intro: "Test time!" } },
+        { ask: { question: "Gold?", answer: "Au", intro: "A quick check!" }, speak: "Here it comes." },
+      ],
+    } as never);
+    const texts = lines.map((l) => l.text);
+    expect(texts).toContain("Test time! Which?");
+    expect(texts).toContain("A quick check! Here it comes.");
+    expect(texts).not.toContain("Here it comes."); // never spoken bare
+    expect(texts).not.toContain("Which?");
+  });
+
   test("the same text spoken by two different voices stays distinct", () => {
     const lines = collectSpeakLines({
       voice: "female",

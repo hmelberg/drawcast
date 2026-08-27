@@ -72,6 +72,10 @@ export class Player {
    *  narration interpolates from here. Keys are lowercased. */
   readonly vars = new Map<string, string>();
 
+  /** Viewer preference: skip quiz/ask entirely (a skipped collect-ask still
+   *  stores its default so later {var} lines keep working). */
+  private skipQuestions = false;
+
   /** Interpolate stored ask answers into a narration/caption line. */
   private line(text: string): string {
     return subVars(text, this.vars);
@@ -119,7 +123,7 @@ export class Player {
     elements: Map<string, RenderedElement>,
     speech: SpeechLike,
     captionEl: HTMLElement | null,
-    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects } = {},
+    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip" } = {},
     callbacks: PlayerCallbacks = {},
   ) {
     this.plan = plan;
@@ -130,6 +134,7 @@ export class Player {
     this.callbacks = callbacks;
     this.mode = opts.mode ?? "narrated";
     this.speedVal = opts.speed ?? 1;
+    this.skipQuestions = opts.questions === "skip";
     this.hideAll();
   }
 
@@ -236,7 +241,7 @@ export class Player {
     for (let i = 0; i < n; i++) {
       const s = this.plan.steps[i];
       if (s.kind === "speak") caption = s.text;
-      else if (s.narration !== undefined) caption = s.narration;
+      else if (s.narration !== undefined && !(this.skipQuestions && (s.kind === "quiz" || s.kind === "ask"))) caption = s.narration;
     }
     this.setCaption(this.line(caption));
     this.callbacks.onStep?.(this.completed, this.plan.steps.length);
@@ -347,6 +352,12 @@ export class Player {
 
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
     const step = this.plan.steps[index];
+    if (this.skipQuestions && (step.kind === "quiz" || step.kind === "ask")) {
+      // Preference: no question, no narration, no gate — but a collect-ask
+      // still stores its default so later {var} lines keep working.
+      if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
+      return;
+    }
     if (step.kind !== "speak" && step.narration !== undefined) {
       // Narrated action: voice and action start together; both must finish.
       await this.narrationBarrier();

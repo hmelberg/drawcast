@@ -28,19 +28,25 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       if (!seen.has(key)) seen.set(key, line);
     };
     const hasSpeak = typeof c.speak === "string" && c.speak.trim().length > 0;
-    push(c.speak);
+    // The spoken question line mirrors the plan exactly: (intro +) speak-or-
+    // question — the bare speak is never voiced on a quiz/ask command.
+    const questionLine = (q: { intro?: string; question: string }): string => {
+      const base = hasSpeak ? (c.speak as string) : q.question;
+      return q.intro ? `${q.intro} ${base}` : base;
+    };
+    if (!c.quiz && !c.ask) push(c.speak);
     if (c.quiz) {
-      // The export's quiz path: question narration (a paired speak replaces
-      // it), then the reveal — right if present, else the correct choice.
-      // The wrong line is never spoken in a movie (auto-reveal answers null).
-      if (!hasSpeak) push(c.quiz.question);
+      // The export's quiz path: the question line, then the reveal — right if
+      // present, else the correct choice. The wrong line is never spoken in a
+      // movie (auto-reveal answers null).
+      push(questionLine(c.quiz));
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
     if (c.ask) {
-      // The export's ask path: question narration, then — check mode only —
+      // The export's ask path: the question line, then — check mode only —
       // right-or-answer (the demo always "types" correctly). Collect mode
       // speaks nothing extra; its default feeds later {var} lines instead.
-      if (!hasSpeak) push(c.ask.question);
+      push(questionLine(c.ask));
       if (c.ask.answer !== undefined) push(c.ask.right ?? c.ask.answer);
       if (c.ask.store) vars.set(c.ask.store.toLowerCase(), c.ask.default ?? "");
     }
@@ -269,6 +275,8 @@ export function visibilityPauser(
 export interface ExportConfig {
   ttsKey: string;
   style: RenderStyle;
+  /** Skip quiz/ask questions in the recording too (the viewer preference). */
+  questions?: "on" | "skip";
   /** Narration rate (maps to the TTS speakingRate); the animation runs at 1×. */
   rate: number;
 }
@@ -410,7 +418,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
       for (let i = 0; i < items.length; i++) {
         if (signal.aborted) break;
         hooks.onStatus(items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…");
-        handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1 });
+        handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions });
         const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
         if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
         currentSvg = svg;

@@ -205,6 +205,11 @@ const commandSchema = {
         "Pose a multiple-choice question. The question is spoken and captioned; in the app the viewer answers on buttons (required: true means it cannot be skipped); in video export it auto-reveals after a beat and never waits. correct is 1-BASED.",
       properties: {
         question: { type: "string", description: "The question, spoken aloud and shown as the caption." },
+        intro: {
+          type: "string",
+          description:
+            "Optional spoken introduction ('Time for a quick check!'), prepended to the question line. Introduce a quiz HERE, never in a separate speak command — viewers can skip questions, and a skipped question must take its introduction with it.",
+        },
         choices: { type: "array", items: { type: "string" }, description: "2-4 short answer options, a few words each." },
         correct: { type: "number", description: "1-based index of the correct choice." },
         right: {
@@ -224,6 +229,11 @@ const commandSchema = {
         "Pose a question answered by TYPING. Check mode (answer set): the typed reply is judged, with optional retry and reveal. Collect mode (store set): the reply is saved and later speak lines may use {store_name} — e.g. 'Nice to meet you, {name}'. At least one of answer/store is required; default is REQUIRED with store (the movie types it). In video export the card types its answer by itself and never waits.",
       properties: {
         question: { type: "string", description: "The question, spoken aloud and shown as the caption." },
+        intro: {
+          type: "string",
+          description:
+            "Optional spoken introduction, prepended to the question line. Introduce an ask HERE, never in a separate speak command — viewers can skip questions, and a skipped question must take its introduction with it.",
+        },
         answer: { type: "string", description: "Check mode: the correct answer. Compared trimmed and case-insensitively." },
         right: {
           type: "string",

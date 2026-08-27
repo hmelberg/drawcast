@@ -20,9 +20,46 @@ class RecordingSpeech extends SpeechManager {
   override cancel(): void {}
 }
 
-function makePlayer(commands: Command[], speech: RecordingSpeech) {
-  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated" });
+function makePlayer(commands: Command[], speech: RecordingSpeech, questions?: "on" | "skip") {
+  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", questions });
 }
+
+describe("skip questions", () => {
+  test("a skipped quiz says nothing and never gates", async () => {
+    const speech = new RecordingSpeech();
+    const player = makePlayer(
+      [{ quiz: { question: "Which?", choices: ["a", "b"], correct: 1, right: "A." } }, { speak: "Moving on." }],
+      speech,
+      "skip",
+    );
+    let gated = false;
+    player.quizGate = async () => {
+      gated = true;
+      return null;
+    };
+    await player.play();
+    expect(gated).toBe(false);
+    expect(speech.spoken).toEqual(["Moving on."]);
+    expect(player.state).toBe("done");
+  });
+
+  test("a skipped collect-ask still stores its default for later lines", async () => {
+    const speech = new RecordingSpeech();
+    const player = makePlayer(
+      [{ ask: { question: "Name?", store: "name", default: "friend" } }, { speak: "Hello, {name}." }],
+      speech,
+      "skip",
+    );
+    let gated = false;
+    player.askGate = async () => {
+      gated = true;
+      return null;
+    };
+    await player.play();
+    expect(gated).toBe(false);
+    expect(speech.spoken).toEqual(["Hello, friend."]);
+  });
+});
 
 describe("the typed ask action", () => {
   test("collect: the typed answer is stored and interpolated into later narration", async () => {

@@ -50,6 +50,8 @@ export interface Settings {
   theater: boolean;
   /** Use the cloud TTS voices for live playback too (when a TTS key is set). */
   cloudPlayback: boolean;
+  /** Skip quiz/ask questions in playback and exports. */
+  skipQuestions: boolean;
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
@@ -80,6 +82,7 @@ export const DEFAULT_SETTINGS: Settings = {
   muted: false,
   theater: false,
   cloudPlayback: true,
+  skipQuestions: false,
   uiMode: "player",
   sidebarOpen: true,
   choicesOpen: false,

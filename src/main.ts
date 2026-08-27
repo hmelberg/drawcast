@@ -987,6 +987,8 @@ ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
 const cloudPlaybackCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 cloudPlaybackCb.checked = settings.cloudPlayback;
+const skipQuestionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+skipQuestionsCb.checked = settings.skipQuestions;
 const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 developerCb.checked = settings.developerMode;
 const voiceSel = h("select", {});
@@ -1019,6 +1021,7 @@ dialog.append(
       "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. The free tier (~1M characters/month) covers roughly a thousand drawcasts.",
     ),
     h("label", { class: "settings-check" }, cloudPlaybackCb, " Also use these voices for normal playback (falls back to the browser voice if a call fails)"),
+    h("label", { class: "settings-check" }, skipQuestionsCb, " Skip questions (quiz and typed ask) in playback and exports"),
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
@@ -1456,6 +1459,7 @@ async function present(): Promise<void> {
       style: settings.style,
       mode: settings.mode,
       speed: settings.speed,
+      questions: settings.skipQuestions ? "skip" : "on",
       speech,
       prefs: playbackPrefs(),
       controls: {
@@ -2887,7 +2891,7 @@ async function renderVideoBlob(): Promise<Blob | null> {
   try {
     return await exportVideo(
       exportSequence(doc.playlist),
-      { ttsKey, style: settings.style, rate: settings.rate },
+      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on" },
       {
         onStatus: (t) => (exportChipText.textContent = t),
         canvas: exportCanvas,
@@ -3178,6 +3182,11 @@ clearKeyBtn.addEventListener("click", () => {
 ttsKeyInput.addEventListener("change", () => {
   setTtsKey(ttsKeyInput.value.trim());
   setVendedFlags({ ...loadVendedFlags(), tts: false });
+});
+skipQuestionsCb.addEventListener("change", () => {
+  settings.skipQuestions = skipQuestionsCb.checked;
+  persist();
+  void present();
 });
 cloudPlaybackCb.addEventListener("change", () => {
   settings.cloudPlayback = cloudPlaybackCb.checked;

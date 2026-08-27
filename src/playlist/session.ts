@@ -39,6 +39,8 @@ export interface SessionOptions {
   controls?: ControlsOptions;
   /** Viewer/kiosk override of the playlist's advance mode (&advance=auto). */
   advanceOverride?: "click" | "auto";
+  /** Viewer preference: skip quiz/ask questions entirely. */
+  questions?: "on" | "skip";
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
 }
@@ -92,7 +94,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       opts.prefs.onMode?.(m);
     },
   };
-  const renderOpts = { style: opts.style, speech: opts.speech, mode: opts.mode, speed: opts.speed };
+  const renderOpts = { style: opts.style, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions };
 
   // One item: exactly the pre-playlist behavior — no dots, no panel, no cards.
   if (items.length <= 1) {
