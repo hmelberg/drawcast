@@ -37,6 +37,24 @@ describe("collectSpeakLines", () => {
     ]);
   });
 
+  test("ask lines are pre-synthesized: question (or paired speak), right, and the reveal fallback", () => {
+    const lines = collectSpeakLines({
+      voice: "female",
+      commands: [
+        { ask: { question: "Which?", choices: ["one", "two"], correct: 2, right: "Yes, two.", wrong: "No." } },
+        { speak: "Custom intro.", ask: { question: "Second?", choices: ["a", "b"], correct: 1 } },
+      ],
+    } as never);
+    const texts = lines.map((l) => l.text);
+    expect(texts).toContain("Which?");
+    expect(texts).toContain("Yes, two.");
+    expect(texts).toContain("Custom intro.");
+    expect(texts).toContain("a"); // reveal fallback for the second ask (no right line)
+    expect(texts).not.toContain("Second?"); // the paired speak replaced the question narration
+    expect(texts).not.toContain("No."); // the export never takes the wrong path
+    expect(lines.every((l) => l.gender === "female")).toBe(true);
+  });
+
   test("the same text spoken by two different voices stays distinct", () => {
     const lines = collectSpeakLines({
       voice: "female",
