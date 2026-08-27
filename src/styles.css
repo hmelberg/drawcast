@@ -1108,6 +1108,30 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* Exploring: the stage is a workbench — no centered play button over it. */
 .cs-stage.cs-exploring .cs-bigplay { display: none; }
 
+/* On-key letter guide: which physical key plays which drawn key (DAW row). */
+.cs-keyguide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.cs-keyguide-key {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--mono-font);
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255, 253, 246, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.cs-keyguide-key.black {
+  color: #f5f1e6;
+  background: rgba(61, 56, 51, 0.85);
+  border-color: rgba(61, 56, 51, 0.9);
+}
+
 /* ---------- figure title (centered, above the drawing) ---------- */
 
 .player-figure:fullscreen .cs-title { font-size: 1.7rem; }

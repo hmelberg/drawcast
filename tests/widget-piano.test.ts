@@ -54,21 +54,25 @@ describe("piano key geometry", () => {
   });
 });
 
-describe("typed-letter note entry", () => {
-  test("the drawn label is the mapping: E types E4", () => {
-    expect(pianoNoteForKey(1, "e", false)).toBe("E4");
-    expect(pianoNoteForKey(1, "D", false)).toBe("D4");
-    expect(pianoNoteForKey(2, "c", false)).toBe("C3");
+describe("DAW keyboard note entry", () => {
+  test("the home row is the white keys in order", () => {
+    expect(pianoNoteForKey(1, "a")).toBe("C4");
+    expect(pianoNoteForKey(1, "d")).toBe("E4"); // "press d for the third"
+    expect(pianoNoteForKey(1, "j")).toBe("B4");
+    expect(pianoNoteForKey(2, "a")).toBe("C3");
+    expect(pianoNoteForKey(2, "k")).toBe("C4"); // the row continues into octave two
   });
 
-  test("Shift adds the sharp where one exists", () => {
-    expect(pianoNoteForKey(1, "c", true)).toBe("C#4");
-    expect(pianoNoteForKey(1, "e", true)).toBe(null); // E has no sharp
+  test("the row above plays the sharps", () => {
+    expect(pianoNoteForKey(1, "w")).toBe("C#4");
+    expect(pianoNoteForKey(1, "t")).toBe("F#4");
+    expect(pianoNoteForKey(2, "o")).toBe("C#4");
   });
 
-  test("non-note keys are ignored", () => {
-    expect(pianoNoteForKey(1, "x", false)).toBe(null);
-    expect(pianoNoteForKey(1, "Enter", false)).toBe(null);
+  test("keys beyond the drawn keyboard and non-note keys are null", () => {
+    expect(pianoNoteForKey(1, "k")).toBe(null); // one octave has 7 whites
+    expect(pianoNoteForKey(1, "x")).toBe(null);
+    expect(pianoNoteForKey(1, "Enter")).toBe(null);
   });
 });
 

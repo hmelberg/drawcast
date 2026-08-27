@@ -85,16 +85,45 @@ export function chessSquareBox(flip: boolean, square: string): BBox | null {
   return { x: CH_X0 + col * CH_CELL, y: CH_Y0 + row * CH_CELL, w: CH_CELL, h: CH_CELL };
 }
 
+/** The DAW convention: the home row IS the white keys, in order — adjacent
+ *  fingers play adjacent notes, which is what makes it learnable. */
+export const DAW_WHITE = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"] as const;
+/** Black keys on the row above: physical key → white index whose sharp it is. */
+export const DAW_BLACK: Record<string, number> = { w: 0, e: 1, t: 3, y: 4, u: 5, o: 7, p: 8 };
+
 /**
- * Computer-keyboard note entry for a piano figure: the LETTER ON THE DRAWN
- * KEY is the key you type (press E for the E key — the labels are the
- * mapping), Shift adds the sharp where one exists. Notes land in the
- * keyboard's first octave.
+ * Computer-keyboard note entry for a piano figure, DAW-style: A S D F G H J
+ * (continuing K L ;) play the white keys left to right; W E T Y U (O P) play
+ * the sharps above them. Notes outside the drawn keyboard return null.
  */
-export function pianoNoteForKey(octaves: 1 | 2, key: string, shift: boolean): string | null {
-  const letter = key.length === 1 ? key.toUpperCase() : "";
-  if (!(WHITE as readonly string[]).includes(letter)) return null;
-  if (shift && !HAS_SHARP[letter]) return null;
-  const startOct = octaves === 1 ? 4 : 3;
-  return `${letter}${shift ? "#" : ""}${startOct}`;
+export function pianoNoteForKey(octaves: 1 | 2, key: string): string | null {
+  const c = pianoConsts(octaves);
+  const k = key.length === 1 ? key.toLowerCase() : "";
+  const noteAtWhite = (wi: number, sharp: boolean): string | null => {
+    if (wi < 0 || wi >= c.nWhite || (sharp && wi >= c.nWhite - 1)) return null;
+    const letter = WHITE[wi % 7];
+    if (sharp && !HAS_SHARP[letter]) return null;
+    return `${letter}${sharp ? "#" : ""}${c.startOct + Math.floor(wi / 7)}`;
+  };
+  const wi = (DAW_WHITE as readonly string[]).indexOf(k);
+  if (wi >= 0) return noteAtWhite(wi, false);
+  if (k in DAW_BLACK) return noteAtWhite(DAW_BLACK[k], true);
+  return null;
+}
+
+/** Every physical key that plays on this keyboard, with its target's box —
+ *  the on-key letter guide shown while exploring. */
+export function pianoKeyGuide(octaves: 1 | 2): { key: string; note: string; box: BBox; black: boolean }[] {
+  const out: { key: string; note: string; box: BBox; black: boolean }[] = [];
+  for (const k of DAW_WHITE) {
+    const note = pianoNoteForKey(octaves, k);
+    const box = note && pianoKeyBox(octaves, note);
+    if (note && box) out.push({ key: k, note, box, black: false });
+  }
+  for (const k of Object.keys(DAW_BLACK)) {
+    const note = pianoNoteForKey(octaves, k);
+    const box = note && pianoKeyBox(octaves, note);
+    if (note && box) out.push({ key: k, note, box, black: true });
+  }
+  return out;
 }

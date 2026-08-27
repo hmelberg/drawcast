@@ -10,7 +10,7 @@ import { CANVAS } from "../layout/canvas";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
-import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoNoteForKey, pianoOctaves } from "../render/widgets";
+import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
@@ -160,6 +160,34 @@ function logicalPoint(stage: HTMLElement, e: MouseEvent): [number, number] | nul
 }
 
 /**
+ * On-key letter guide (DAW mapping) shown while a piano is interactive:
+ * each playable key wears the physical key that plays it. Client-positioned
+ * from the live viewBox; short-lived, so resize drift is acceptable.
+ */
+export function mountKeyGuide(stage: HTMLElement, octaves: 1 | 2): () => void {
+  stage.querySelector(".cs-keyguide")?.remove();
+  const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
+  if (!svg) return () => {};
+  const r = svg.getBoundingClientRect();
+  const sr = stage.getBoundingClientRect();
+  if (r.width === 0) return () => {};
+  const vb = svg.viewBox.baseVal;
+  const guide = h("div", { class: "cs-keyguide" });
+  for (const g of pianoKeyGuide(octaves)) {
+    const lx = g.box.x + g.box.w / 2;
+    const ly = g.black ? g.box.y + g.box.h / 2 : g.box.y + 18;
+    const cx = r.left + ((lx - vb.x) / vb.width) * r.width - sr.left;
+    const cy = r.top + ((750 - ly - vb.y) / vb.height) * r.height - sr.top;
+    const el = h("span", { class: `cs-keyguide-key${g.black ? " black" : ""}` }, g.key.toUpperCase());
+    el.style.left = `${cx}px`;
+    el.style.top = `${cy}px`;
+    guide.appendChild(el);
+  }
+  stage.appendChild(guide);
+  return () => guide.remove();
+}
+
+/**
  * The piano widget's gate: clicks on the drawn keyboard resolve the NOTE
  * (and sound it); everything else about the overlay matches the click gate.
  */
@@ -167,12 +195,14 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       stage.querySelector(".cs-figgate")?.remove();
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click a key on the piano — or type its letter \u25b8");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click a key — or play your keyboard: A S D F G H J \u25b8");
       const gate = h("div", { class: "cs-figgate" }, hint);
       const octaves = pianoOctaves(hd.spec.params);
+      const unguide = mountKeyGuide(stage, octaves);
       let settled = false;
       const remove = (): void => {
         signal.removeEventListener("abort", onAbort);
+        unguide();
         gate.remove();
       };
       const onAbort = (): void => {
@@ -221,7 +251,7 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
       const onKey = (e: KeyboardEvent): void => {
         if (settled) return;
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        const note = pianoNoteForKey(octaves, e.key, e.shiftKey);
+        const note = pianoNoteForKey(octaves, e.key);
         if (note === null) return;
         e.preventDefault();
         settle(note, null, null);
@@ -642,7 +672,7 @@ export function attachPlayerControls(
       if (hd.timeline.state === "playing") return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (stage.querySelector(".cs-figgate, .cs-cardgate")) return;
-      const note = pianoNoteForKey(octaves, e.key, e.shiftKey);
+      const note = pianoNoteForKey(octaves, e.key);
       if (note === null) return;
       e.preventDefault();
       sound(note);

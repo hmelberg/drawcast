@@ -12,6 +12,8 @@ import { INITIAL_STATE } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { scenes } from "../scenes/registry";
 import { h } from "./dom";
+import { mountKeyGuide } from "./controls";
+import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, type SliderSpec } from "./tray-model";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
@@ -56,6 +58,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (e.target instanceof Element && e.target.closest("button")) return;
     e.stopPropagation();
   };
+  let unguide: (() => void) | null = null;
 
   const overrides: Record<string, number> = {};
   const clearOverrides = (): void => {
@@ -69,6 +72,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     trayBtn.classList.remove("open");
     stage?.classList.remove("cs-exploring");
     stage?.removeEventListener("click", freezeClick, true);
+    unguide?.();
+    unguide = null;
   };
 
   /** Back to the honest boundary; previewParams marked geometry dirty, so
@@ -85,7 +90,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     tray.replaceChildren();
     if (playable) {
       tray.appendChild(
-        h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 The keyboard is playable while paused — click a key, glide across them, or type the letters."),
+        h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 Playable while paused — click, glide, or use your keyboard: A S D F G H J are the white keys, W E T Y U the black."),
       );
     }
     for (const { spec, value } of liveSliders(hd)) {
@@ -116,6 +121,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     trayBtn.classList.add("open");
     stage?.classList.add("cs-exploring");
     stage?.addEventListener("click", freezeClick, true);
+    if (playable && stage) unguide = mountKeyGuide(stage, pianoOctaves(hd.spec.params));
   };
 
   trayBtn.addEventListener("click", () => {
