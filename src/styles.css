@@ -838,9 +838,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   50% { transform: translateY(-4px); }
 }
 
-/* ---------- ask verb: the question card ---------- */
+/* ---------- quiz/ask: the question card ---------- */
 
-.cs-askgate {
+.cs-cardgate {
   position: absolute;
   inset: 0;
   display: flex;
@@ -848,7 +848,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   justify-content: center;
   z-index: 5;
 }
-.cs-askgate-card {
+.cs-cardgate-card {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -860,19 +860,19 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.9rem 1.1rem 0.8rem;
   box-shadow: 3px 3px 0 rgba(61, 56, 51, 0.25);
 }
-.cs-askgate-q {
+.cs-cardgate-q {
   font-family: var(--sketch-font);
   font-size: 1.2rem;
   line-height: 1.3;
   color: var(--ink);
 }
-.cs-askgate-choices {
+.cs-cardgate-choices {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.4rem;
 }
-.cs-askgate-pill {
+.cs-cardgate-pill {
   font-family: var(--sketch-font);
   font-size: 1rem;
   text-align: left;
@@ -883,10 +883,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.35rem 0.8rem;
   cursor: pointer;
 }
-.cs-askgate-pill:hover { border-color: var(--rust); }
-.cs-askgate-pill.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
-.cs-askgate-pill.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
-.cs-askgate-pill.skip {
+.cs-cardgate-pill:hover { border-color: var(--rust); }
+.cs-cardgate-pill.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+.cs-cardgate-pill.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
+.cs-cardgate-pill.skip {
   align-self: flex-end;
   border-style: dashed;
   border-radius: 999px;
@@ -895,7 +895,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border-color: var(--muted);
   padding: 0.15rem 0.7rem;
 }
-.cs-askgate-pill:disabled { cursor: default; }
+.cs-cardgate-pill:disabled { cursor: default; }
 
 /* ---------- hashtag chips + autosuggest ---------- */
 

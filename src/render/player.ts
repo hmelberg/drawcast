@@ -52,12 +52,12 @@ export class Player {
   inputGate: ((signal: AbortSignal) => Promise<void>) | null = null;
 
   /**
-   * Provider for the ask verb, set by the controls layer (choice buttons) or
+   * Provider for the quiz verb, set by the controls layer (choice buttons) or
    * the exporter (auto-reveal beat). Resolves the 0-based chosen index, or
-   * null for skipped/auto. Must resolve on signal abort. When unset, ask
+   * null for skipped/auto. Must resolve on signal abort. When unset, quiz
    * degrades to a short hold + reveal so a bare Player never deadlocks.
    */
-  askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<number | null>) | null = null;
+  quizGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "quiz" }>) => Promise<number | null>) | null = null;
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
   /**
@@ -301,9 +301,9 @@ export class Player {
     this.callbacks.onState?.(s);
   }
 
-  /** Speak a runtime-chosen line (ask feedback): narrated mode voices it,
+  /** Speak a runtime-chosen line (quiz/ask feedback): narrated mode voices it,
    *  other modes hold a capped reading beat; the caption always updates. */
-  private async speakLine(text: string, step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
+  private async speakLine(text: string, step: Extract<PlanStep, { kind: "quiz" }>, signal: AbortSignal): Promise<void> {
     this.setCaption(text);
     if (this.mode === "narrated") {
       await this.speech.speak(text, this.speedVal, signal, {
@@ -411,14 +411,14 @@ export class Player {
         if (signal.aborted) return;
         if (this.inputGate) return this.inputGate(signal);
         return this.waitScaled(800, signal);
-      case "ask": {
+      case "quiz": {
         await this.narrationBarrier();
         if (signal.aborted) return;
         // The gate shows immediately — the viewer may answer while the
         // question narration (started by runStep) is still speaking.
         let chosen: number | null;
-        if (this.askGate) {
-          chosen = await this.askGate(signal, step);
+        if (this.quizGate) {
+          chosen = await this.quizGate(signal, step);
         } else {
           await this.waitScaled(1600, signal);
           chosen = null;

@@ -241,11 +241,11 @@ export interface Command {
    * piano key going down and back up. Ends hidden.
    */
   press?: string[] | string;
-  /** Pose a multiple-choice question (the ask verb). */
-  ask?: AskArgs;
+  /** Pose a multiple-choice question (the quiz verb). */
+  quiz?: QuizArgs;
 }
 
-export interface AskArgs {
+export interface QuizArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
   question: string;
   /** 2-4 short answer options. */

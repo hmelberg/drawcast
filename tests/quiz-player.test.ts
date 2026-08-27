@@ -21,16 +21,16 @@ class RecordingSpeech extends SpeechManager {
 
 const ASK = { question: "Which?", choices: ["one", "two"], correct: 2, right: "Yes, two.", wrong: "No." };
 
-function makePlayer(ask: object, speech: RecordingSpeech) {
-  const plan = planCommands([{ ask: ask as never }], []);
+function makePlayer(quiz: object, speech: RecordingSpeech) {
+  const plan = planCommands([{ quiz: quiz as never }], []);
   return new Player(plan, new Map(), speech, null, { mode: "narrated" });
 }
 
-describe("the ask action", () => {
+describe("the quiz action", () => {
   test("correct answer: question then right feedback only", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(ASK, speech);
-    player.askGate = async () => 1; // 0-based: "two"
+    player.quizGate = async () => 1; // 0-based: "two"
     await player.play();
     expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
     expect(player.state).toBe("done");
@@ -39,7 +39,7 @@ describe("the ask action", () => {
   test("wrong answer: wrong feedback then the reveal line", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(ASK, speech);
-    player.askGate = async () => 0;
+    player.quizGate = async () => 0;
     await player.play();
     expect(speech.spoken).toEqual(["Which?", "No.", "Yes, two."]);
   });
@@ -47,7 +47,7 @@ describe("the ask action", () => {
   test("skipped/auto (null): just the reveal line", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(ASK, speech);
-    player.askGate = async () => null;
+    player.quizGate = async () => null;
     await player.play();
     expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
   });
@@ -55,7 +55,7 @@ describe("the ask action", () => {
   test("without right, the reveal is the correct choice text", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer({ question: "Which?", choices: ["one", "two"], correct: 2 }, speech);
-    player.askGate = async () => null;
+    player.quizGate = async () => null;
     await player.play();
     expect(speech.spoken).toEqual(["Which?", "two"]);
   });
@@ -68,15 +68,15 @@ describe("the ask action", () => {
     expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
   });
 
-  test("several asks in a row run as a test, each with its own feedback", async () => {
+  test("several quizzes in a row run as a test, each with its own feedback", async () => {
     const speech = new RecordingSpeech();
     const plan = planCommands(
-      [{ ask: ASK }, { ask: { question: "Second?", choices: ["a", "b"], correct: 1, right: "A is right." } }],
+      [{ quiz: ASK }, { quiz: { question: "Second?", choices: ["a", "b"], correct: 1, right: "A is right." } }],
       [],
     );
     const player = new Player(plan, new Map(), speech, null, { mode: "narrated" });
     const answers = [1, 0]; // correct, then correct
-    player.askGate = async () => answers.shift() ?? null;
+    player.quizGate = async () => answers.shift() ?? null;
     await player.play();
     expect(speech.spoken).toEqual(["Which?", "Yes, two.", "Second?", "A is right."]);
     expect(player.state).toBe("done");
@@ -86,7 +86,7 @@ describe("the ask action", () => {
     const speech = new RecordingSpeech();
     const player = makePlayer({ ...ASK, required: true }, speech);
     let seen: { required: boolean; choices: string[] } | null = null;
-    player.askGate = async (_sig, step) => {
+    player.quizGate = async (_sig, step) => {
       seen = { required: step.required, choices: step.choices };
       return step.correct;
     };

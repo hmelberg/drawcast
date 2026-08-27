@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 
-const base = (ask: object) => ({
+const base = (quiz: object) => ({
   elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],
-  commands: [{ draw: ["a"] }, { ask }],
+  commands: [{ draw: ["a"] }, { quiz }],
 });
 
-describe("ask validation", () => {
-  test("a well-formed ask passes", () => {
+describe("quiz validation", () => {
+  test("a well-formed quiz passes", () => {
     expect(
       validateSpec(base({ question: "Which?", choices: ["one", "two"], correct: 2, right: "Yes.", wrong: "No.", required: true })).ok,
     ).toBe(true);
@@ -26,15 +26,15 @@ describe("ask validation", () => {
     expect(validateSpec(base({ question: "  ", choices: ["one", "two"], correct: 1 })).ok).toBe(false);
   });
 
-  test("ask counts as an action verb — combining it with draw fails", () => {
+  test("quiz counts as an action verb — combining it with draw fails", () => {
     const r = validateSpec({
       elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],
-      commands: [{ draw: ["a"], ask: { question: "Q?", choices: ["x", "y"], correct: 1 } }],
+      commands: [{ draw: ["a"], quiz: { question: "Q?", choices: ["x", "y"], correct: 1 } }],
     });
     expect(r.ok).toBe(false);
   });
 
-  test("ask paired with speak is allowed (speak overrides the spoken question)", () => {
+  test("quiz paired with speak is allowed (speak overrides the spoken question)", () => {
     const withSpeak = base({ question: "Which?", choices: ["one", "two"], correct: 1 });
     (withSpeak.commands[1] as Record<string, unknown>).speak = "Here is a question for you.";
     expect(validateSpec(withSpeak).ok).toBe(true);

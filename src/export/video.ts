@@ -23,12 +23,12 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       if (!seen.has(key)) seen.set(key, line);
     };
     push(c.speak);
-    if (c.ask) {
-      // The export's ask path: question narration (a paired speak replaces
+    if (c.quiz) {
+      // The export's quiz path: question narration (a paired speak replaces
       // it), then the reveal — right if present, else the correct choice.
       // The wrong line is never spoken in a movie (auto-reveal answers null).
-      if (typeof c.speak !== "string" || c.speak.trim().length === 0) push(c.ask.question);
-      push(c.ask.right ?? c.ask.choices[c.ask.correct - 1]);
+      if (typeof c.speak !== "string" || c.speak.trim().length === 0) push(c.quiz.question);
+      push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
   }
   return [...seen.values()];
@@ -306,7 +306,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
         handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
         // Movies never wait on an answer: hold a beat, then auto-reveal.
-        handle.timeline.askGate = (sig) => (sig.aborted ? Promise.resolve(null) : zzz(1200).then(() => null));
+        handle.timeline.quizGate = (sig) => (sig.aborted ? Promise.resolve(null) : zzz(1200).then(() => null));
         await handle.timeline.play();
         if (i < items.length - 1) {
           await zzz(300); // beat between parts

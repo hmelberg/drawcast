@@ -168,7 +168,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / ask / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -199,7 +199,7 @@ const commandSchema = {
       enum: ["click"],
       description: "Wait until the viewer clicks before continuing — a reveal gate ('study this… now click') or an act boundary. Auto-resolved in video export.",
     },
-    ask: {
+    quiz: {
       type: "object",
       description:
         "Pose a multiple-choice question. The question is spoken and captioned; in the app the viewer answers on buttons (required: true means it cannot be skipped); in video export it auto-reveals after a beat and never waits. correct is 1-BASED.",
@@ -440,7 +440,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "ask", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the
@@ -486,15 +486,15 @@ function semanticErrors(spec: Spec): string[] {
     if ((cmd.tempo !== undefined || cmd.instrument !== undefined || cmd.press !== undefined || cmd.reveal !== undefined) && verb !== "play") {
       errors.push(`commands[${i}]: tempo, instrument, press and reveal only apply to a play command`);
     }
-    if (verb === "ask" && cmd.ask) {
-      const a = cmd.ask;
+    if (verb === "quiz" && cmd.quiz) {
+      const a = cmd.quiz;
       if (typeof a.question !== "string" || a.question.trim().length === 0) {
-        errors.push(`commands[${i}]: ask.question must be a non-empty string`);
+        errors.push(`commands[${i}]: quiz.question must be a non-empty string`);
       }
       if (!Array.isArray(a.choices) || a.choices.length < 2 || a.choices.length > 4 || a.choices.some((c) => typeof c !== "string" || c.trim().length === 0)) {
-        errors.push(`commands[${i}]: ask.choices must be 2-4 non-empty strings`);
+        errors.push(`commands[${i}]: quiz.choices must be 2-4 non-empty strings`);
       } else if (!Number.isInteger(a.correct) || a.correct < 1 || a.correct > a.choices.length) {
-        errors.push(`commands[${i}]: ask.correct must be a 1-based index into choices (1..${a.choices.length})`);
+        errors.push(`commands[${i}]: quiz.correct must be a 1-based index into choices (1..${a.choices.length})`);
       }
     }
     if (verb === "play") {

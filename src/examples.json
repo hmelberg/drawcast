@@ -6983,7 +6983,7 @@
      "pause": 0.3
     },
     {
-     "ask": {
+     "quiz": {
       "question": "So after demand rises, what happens to the equilibrium price?",
       "choices": [
        "It falls",
@@ -6996,7 +6996,7 @@
      }
     },
     {
-     "ask": {
+     "quiz": {
       "question": "And the quantity traded — what does it do?",
       "choices": [
        "It falls",
