@@ -242,12 +242,20 @@ export const TAGS: TagDef[] = [
       'At each act boundary (and before the key reveal, if natural) insert a {"wait": "click"} command so the viewer clicks to continue.',
   },
   {
-    tag: "ask",
-    aliases: ["quiz", "test"],
+    tag: "quiz",
+    aliases: ["test"],
     group: "interaction",
-    hint: "include multiple-choice ask question(s)",
+    hint: "include multiple-choice quiz question(s)",
     brief:
-      "Include one `ask` command per question — one for a single check, several in a row for a test — each placed right after the figure has shown its answer, with 2-4 short choices, a 1-based `correct`, and one-sentence `right`/`wrong` feedback.",
+      "Include one `quiz` command per question — one for a single check, several in a row for a test — each placed right after the figure has shown its answer, with 2-4 short choices, a 1-based `correct`, and one-sentence `right`/`wrong` feedback.",
+  },
+  {
+    tag: "ask",
+    aliases: ["personal"],
+    group: "interaction",
+    hint: "collect a typed answer and personalize",
+    brief:
+      "Include an `ask` command that collects a typed response with store + default (e.g. store: name, default: friend) early on, and weave {name} into at least one later speak line. Use answer instead of store when the reply should be checked.",
   },
   {
     tag: "playlist",

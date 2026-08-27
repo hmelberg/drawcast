@@ -159,12 +159,17 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
 - `math` element: lazy-loaded MathJax SVG output → dash-offset "handwritten"
   equations. First use of the lazy capability-registry pattern.
-- `ask` **v1 shipped 2026-08-27** (plan:
-  `docs/superpowers/plans/2026-08-27-ask-v1.md`): the question rides the
-  narration/caption channel, choices are pills on the stage (Skip unless
-  `required: true`), right/wrong feedback is spoken, video export
-  auto-reveals after a beat. Still future: answer → `goto` branching,
-  answers logged, widget answer devices.
+- **`quiz` + typed `ask` shipped 2026-08-27** (plans:
+  `docs/superpowers/plans/2026-08-27-ask-v1.md`,
+  `2026-08-27-quiz-ask-typed.md`): `quiz` = the multiple-choice card
+  (several in a row = a test); `ask` = a typed answer — check mode with
+  `answer`/`retry`/`reveal`, collect mode with `store` + mandatory
+  `default`, and `{name}` interpolation into later narration
+  (`Player.vars`, ask-var lint). Movies perform both: the quiz card hovers
+  across its options and selects the correct one; the ask card types its
+  answer/default — painted by the export's frame painter. Still future:
+  answer → `goto` branching, a test score tally, answers logged, values
+  into drawn text/template params, widget answer devices.
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 

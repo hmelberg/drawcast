@@ -7013,5 +7013,48 @@
     }
    ]
   }
+ },
+ {
+  "request": "Make a little personalized warm-up: ask my name, greet me, and quiz me on gold's chemical symbol with typing.",
+  "spec": {
+   "title": "Hello, you",
+   "elements": [
+    {
+     "id": "welcome",
+     "type": "text",
+     "text": "Welcome!",
+     "x": 500,
+     "y": 420,
+     "font_size": 48
+    }
+   ],
+   "commands": [
+    {
+     "ask": {
+      "question": "What should I call you?",
+      "store": "name",
+      "default": "friend"
+     }
+    },
+    {
+     "draw": [
+      "welcome"
+     ],
+     "speak": "Welcome, {name} — let's warm up with one quick question."
+    },
+    {
+     "ask": {
+      "question": "Typing check: what is the chemical symbol for gold?",
+      "answer": "Au",
+      "right": "Gold is Au — from the Latin aurum.",
+      "wrong": "Not quite — think Latin.",
+      "retry": true
+     }
+    },
+    {
+     "speak": "Nicely done, {name}. That's the spirit."
+    }
+   ]
+  }
  }
 ]
