@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { pianoKeyAt, pianoKeyBox, pianoOctaves } from "../src/render/widgets";
+import { pianoKeyAt, pianoKeyBox, pianoNoteForKey, pianoOctaves } from "../src/render/widgets";
 import { planCommands } from "../src/render/plan";
 import { Player } from "../src/render/player";
 import { SpeechManager } from "../src/render/speech";
@@ -51,6 +51,24 @@ describe("piano key geometry", () => {
     expect(pianoOctaves({ octaves: 2 })).toBe(2);
     expect(pianoOctaves({})).toBe(2);
     expect(pianoOctaves(null)).toBe(2);
+  });
+});
+
+describe("typed-letter note entry", () => {
+  test("the drawn label is the mapping: E types E4", () => {
+    expect(pianoNoteForKey(1, "e", false)).toBe("E4");
+    expect(pianoNoteForKey(1, "D", false)).toBe("D4");
+    expect(pianoNoteForKey(2, "c", false)).toBe("C3");
+  });
+
+  test("Shift adds the sharp where one exists", () => {
+    expect(pianoNoteForKey(1, "c", true)).toBe("C#4");
+    expect(pianoNoteForKey(1, "e", true)).toBe(null); // E has no sharp
+  });
+
+  test("non-note keys are ignored", () => {
+    expect(pianoNoteForKey(1, "x", false)).toBe(null);
+    expect(pianoNoteForKey(1, "Enter", false)).toBe(null);
   });
 });
 

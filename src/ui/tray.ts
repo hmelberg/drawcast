@@ -38,7 +38,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   host.querySelector(".cs-tray-btn")?.remove();
   const bar = host.querySelector<HTMLElement>(".cs-controlbar");
   if (!bar) return; // no control bar (author preview, embeds): no tray
-  if (liveSliders(hd).length === 0) return;
+  // The ⊕ signals ANY intrinsic capability of the scene — explore-sliders,
+  // or an instrument (a piano figure is playable while paused).
+  const playable = hd.spec.template === "piano_keys";
+  if (liveSliders(hd).length === 0 && !playable) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -49,7 +52,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     for (const k of Object.keys(overrides)) delete overrides[k];
   };
 
-  const trayBtn = h("button", { class: "cs-bar-btn cs-tray-btn", title: "Explore this figure (sliders)" }, "⊕");
+  const trayBtn = h("button", { class: "cs-bar-btn cs-tray-btn", title: "Explore this figure" }, "⊕");
 
   const close = (): void => {
     tray.hidden = true;
@@ -68,6 +71,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // paused, so previews never paint over half-drawn strokes.
     hd.timeline.renderUpTo(hd.timeline.position);
     tray.replaceChildren();
+    if (playable) {
+      tray.appendChild(
+        h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 The keyboard is playable while paused — click a key, glide across them, or type the letters."),
+      );
+    }
     for (const { spec, value } of liveSliders(hd)) {
       const range = h("input", {
         type: "range",

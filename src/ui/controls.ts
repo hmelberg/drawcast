@@ -10,7 +10,7 @@ import { CANVAS } from "../layout/canvas";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
-import { chessSquareAt, pianoKeyAt, pianoOctaves } from "../render/widgets";
+import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoNoteForKey, pianoOctaves } from "../render/widgets";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
@@ -167,7 +167,7 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       stage.querySelector(".cs-figgate")?.remove();
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click a key on the piano \u25b8");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click a key on the piano — or type its letter \u25b8");
       const gate = h("div", { class: "cs-figgate" }, hint);
       const octaves = pianoOctaves(hd.spec.params);
       let settled = false;
@@ -179,10 +179,54 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
         remove();
         if (!settled) {
           settled = true;
+          window.removeEventListener("keydown", onKey);
           resolve(null);
         }
       };
       gate.addEventListener("click", (e) => e.stopPropagation());
+      const settle = (note: string, clientX: number | null, clientY: number | null): void => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("keydown", onKey);
+        try {
+          hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
+        } catch {
+          /* silent */
+        }
+        const ok = step.answer !== undefined && answersMatch(note, step.answer);
+        const gr = gate.getBoundingClientRect();
+        let mx = clientX;
+        let my = clientY;
+        if (mx === null || my === null) {
+          // Typed answers get their mark ON the key.
+          const box = pianoKeyBox(octaves, note);
+          const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
+          if (box && svg) {
+            const r = svg.getBoundingClientRect();
+            const vb = svg.viewBox.baseVal;
+            mx = r.left + ((box.x + box.w / 2 - vb.x) / vb.width) * r.width;
+            my = r.top + ((750 - (box.y + box.h / 2) - vb.y) / vb.height) * r.height;
+          }
+        }
+        if (mx !== null && my !== null) {
+          const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
+          mark.style.left = `${mx - gr.left}px`;
+          mark.style.top = `${my - gr.top}px`;
+          gate.appendChild(mark);
+        }
+        hint.remove();
+        window.setTimeout(remove, CARD_LINGER_MS);
+        resolve(note);
+      };
+      const onKey = (e: KeyboardEvent): void => {
+        if (settled) return;
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        const note = pianoNoteForKey(octaves, e.key, e.shiftKey);
+        if (note === null) return;
+        e.preventDefault();
+        settle(note, null, null);
+      };
+      window.addEventListener("keydown", onKey);
       gate.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
         if (settled) return;
@@ -190,21 +234,7 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
         if (!p) return;
         const note = pianoKeyAt(octaves, p);
         if (note === null) return; // off the keys: keep waiting
-        try {
-          hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
-        } catch {
-          /* silent */
-        }
-        settled = true;
-        const ok = step.answer !== undefined && answersMatch(note, step.answer);
-        const gr = gate.getBoundingClientRect();
-        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
-        mark.style.left = `${e.clientX - gr.left}px`;
-        mark.style.top = `${e.clientY - gr.top}px`;
-        gate.appendChild(mark);
-        hint.remove();
-        window.setTimeout(remove, CARD_LINGER_MS);
-        resolve(note);
+        settle(note, e.clientX, e.clientY);
       });
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
@@ -602,6 +632,22 @@ export function attachPlayerControls(
     for (const type of ["pointerup", "pointercancel"] as const) {
       stage.addEventListener(type, (e) => pressed.delete(e.pointerId), true);
     }
+    // Typed letters play too (the labels are the mapping); self-cleaning when
+    // this mount's stage leaves the DOM.
+    const onFreeKey = (e: KeyboardEvent): void => {
+      if (!stage.isConnected) {
+        window.removeEventListener("keydown", onFreeKey);
+        return;
+      }
+      if (hd.timeline.state === "playing") return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (stage.querySelector(".cs-figgate, .cs-cardgate")) return;
+      const note = pianoNoteForKey(octaves, e.key, e.shiftKey);
+      if (note === null) return;
+      e.preventDefault();
+      sound(note);
+    };
+    window.addEventListener("keydown", onFreeKey);
     // The synthesized click after a key press must not reach the play/pause
     // toggle; clicks that never sounded a key (background, buttons) pass.
     stage.addEventListener(

@@ -84,3 +84,17 @@ export function chessSquareBox(flip: boolean, square: string): BBox | null {
   const row = flip ? 8 - r : r - 1;
   return { x: CH_X0 + col * CH_CELL, y: CH_Y0 + row * CH_CELL, w: CH_CELL, h: CH_CELL };
 }
+
+/**
+ * Computer-keyboard note entry for a piano figure: the LETTER ON THE DRAWN
+ * KEY is the key you type (press E for the E key — the labels are the
+ * mapping), Shift adds the sharp where one exists. Notes land in the
+ * keyboard's first octave.
+ */
+export function pianoNoteForKey(octaves: 1 | 2, key: string, shift: boolean): string | null {
+  const letter = key.length === 1 ? key.toUpperCase() : "";
+  if (!(WHITE as readonly string[]).includes(letter)) return null;
+  if (shift && !HAS_SHARP[letter]) return null;
+  const startOct = octaves === 1 ? 4 : 3;
+  return `${letter}${shift ? "#" : ""}${startOct}`;
+}
