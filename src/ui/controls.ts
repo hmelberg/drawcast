@@ -167,7 +167,7 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       stage.querySelector(".cs-figgate")?.remove();
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Press a key \u25b8");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click a key on the piano \u25b8");
       const gate = h("div", { class: "cs-figgate" }, hint);
       const octaves = pianoOctaves(hd.spec.params);
       let settled = false;
@@ -560,6 +560,9 @@ export function attachPlayerControls(
       "click",
       (e) => {
         if (hd.timeline.state === "playing") return;
+        // Controls keep priority: the big replay button sits centered INSIDE
+        // the stage — right over the drawn keyboard — and must never be eaten.
+        if (e.target instanceof Element && e.target.closest("button")) return;
         if (stage.querySelector(".cs-figgate, .cs-cardgate")) return;
         const p = logicalPoint(stage, e);
         if (!p) return;

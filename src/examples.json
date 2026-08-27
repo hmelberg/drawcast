@@ -7223,25 +7223,25 @@
       "keys",
       "labels"
      ],
-     "speak": "One octave of piano — and a chord hiding in it."
+     "speak": "One octave of piano — every white key wears its letter name."
     },
     {
      "draw": [
       "highlight_0"
      ],
-     "speak": "The root: C."
+     "speak": "A chord starts with its root. Here: C."
     },
     {
      "draw": [
       "highlight_1"
      ],
-     "speak": "The third: E — four half-steps up, the note that makes it sound happy."
+     "speak": "Add E, two letters up — musicians call it the third."
     },
     {
      "draw": [
       "highlight_2"
      ],
-     "speak": "The fifth: G. Together: C major."
+     "speak": "And G, the fifth. C, E, G: a C major chord."
     },
     {
      "draw": [
@@ -7250,16 +7250,17 @@
     },
     {
      "ask": {
-      "question": "Your turn — press the THIRD of the chord.",
+      "intro": "Now you play.",
+      "question": "Click the E key on the piano — the third of the chord.",
       "answer": "E4",
       "widget": "piano",
-      "right": "E — the third, the happy note.",
-      "wrong": "Not that key — count four half-steps up from C.",
+      "right": "E — and that sound is the third.",
+      "wrong": "Look for the key labeled E and click it.",
       "retry": true
      }
     },
     {
-     "speak": "Fingers remember better than ears alone — that E is yours now."
+     "speak": "Root, third, fifth — and your finger now knows where the third lives."
     }
    ]
   }
