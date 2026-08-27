@@ -241,6 +241,23 @@ export interface Command {
    * piano key going down and back up. Ends hidden.
    */
   press?: string[] | string;
+  /** Pose a multiple-choice question (the ask verb). */
+  ask?: AskArgs;
+}
+
+export interface AskArgs {
+  /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
+  question: string;
+  /** 2-4 short answer options. */
+  choices: string[];
+  /** 1-based index of the correct choice. */
+  correct: number;
+  /** Spoken when the viewer answers correctly (optional). */
+  right?: string;
+  /** Spoken on a wrong pick, before the answer is revealed (optional). */
+  wrong?: string;
+  /** Player mode only: the question cannot be skipped without answering. Movies never wait. */
+  required?: boolean;
 }
 
 export interface Spec {
