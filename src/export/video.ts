@@ -41,7 +41,8 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       const base = hasSpeak ? (c.speak as string) : q.question;
       return q.intro ? `${q.intro} ${base}` : base;
     };
-    if (!c.quiz && !c.ask) push(c.speak);
+    // An explore command is skipped wholesale in movies — its speak too.
+    if (!c.quiz && !c.ask && !c.explore) push(c.speak);
     if (c.quiz) {
       // The export's quiz path: the question line (pre-answer tally), then —
       // post-answer — the reveal: right if present, else the correct choice.

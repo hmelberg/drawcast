@@ -7117,6 +7117,14 @@
      "speak": "Watch the distribution of averages tighten to YOUR sample size — {n_choice} per average."
     },
     {
+     "explore": {
+      "params": [
+       "n"
+      ]
+     },
+     "speak": "Keep going — drag n yourself and watch the bracket trade width for sample size."
+    },
+    {
      "speak": "Bigger samples, tighter bell: that is the central limit theorem working for you personally.",
      "delivery": "grave"
     }

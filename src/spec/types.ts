@@ -249,6 +249,9 @@ export interface Command {
   ask?: AskArgs;
   /** A named position in the storyboard — the target of quiz/ask gotos. */
   label?: string;
+  /** Open the explore tray and wait (app only; movies skip the whole beat,
+   *  narration included). params restricts which sliders show. */
+  explore?: { params?: string[] };
   /** Conditional jump on a stored ask answer. Live viewers only; movies stay linear. */
   if?: IfArgs;
 }

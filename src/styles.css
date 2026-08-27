@@ -1104,6 +1104,11 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tray-actions { display: flex; justify-content: flex-end; }
 .cs-tray-continue { font-size: 0.82rem; }
 .cs-tray-btn.open { color: var(--rust); }
+.cs-tray-btn.pulse { animation: tray-pulse 1s ease-in-out 4; color: var(--rust); }
+@keyframes tray-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
 .cs-tray-hint { font-size: 0.82rem; color: var(--muted); }
 /* Exploring: the stage is a workbench — no centered play button over it. */
 .cs-stage.cs-exploring .cs-bigplay { display: none; }

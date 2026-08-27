@@ -169,7 +169,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -241,6 +241,15 @@ const commandSchema = {
         goto: { type: "string", description: "Label to jump to when the comparison holds." },
       },
       required: ["var", "goto"],
+      additionalProperties: false,
+    },
+    explore: {
+      type: "object",
+      description:
+        "Open the explore tray (the \u2295 sliders) and wait for the viewer to press Continue \u2014 the authored 'now try numbers yourself' moment, placed right after a personalized reveal. params restricts which sliders show. App only: movies and skip-questions playback drop the whole beat, its narration included, so never put content the movie needs in its speak.",
+      properties: {
+        params: { type: "array", items: { type: "string" }, description: "Slider param paths to show (default: all)." },
+      },
       additionalProperties: false,
     },
     label: {
@@ -503,7 +512,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
@@ -642,6 +651,11 @@ function semanticErrors(spec: Spec): string[] {
       checkGoto(i, "ask", "right_goto", a.right_goto);
       checkGoto(i, "ask", "wrong_goto", a.wrong_goto);
       if (typeof a.store === "string") storedVars.add(a.store.toLowerCase());
+    }
+    if (verb === "explore" && cmd.explore !== undefined) {
+      if (cmd.explore.params !== undefined && (!Array.isArray(cmd.explore.params) || cmd.explore.params.some((x) => typeof x !== "string"))) {
+        errors.push(`commands[${i}]: explore.params must be an array of param paths`);
+      }
     }
     if (verb === "play") {
       const p = cmd.play!;

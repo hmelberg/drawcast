@@ -26,8 +26,11 @@ function liveSliders(hd: RenderHandle): { spec: SliderSpec; value: number }[] {
   const n = hd.timeline.position;
   const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
   const effective = withOverrides(hd.spec.params, boundary.params);
+  // The viewer's own committed numbers (a {var} animate) win over the plan's
+  // fallbacks — exploration continues from where THEY left the figure.
+  const runtime = hd.timeline.getParamOverrides();
   return sliderSpecs(schema)
-    .map((spec) => ({ spec, value: readParam(effective, spec.path) }))
+    .map((spec) => ({ spec, value: runtime[spec.path] ?? readParam(effective, spec.path) }))
     .filter((s): s is { spec: SliderSpec; value: number } => s.value !== null);
 }
 
@@ -59,6 +62,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     e.stopPropagation();
   };
   let unguide: (() => void) | null = null;
+  /** Set while an explore command holds the run — Continue resolves it. */
+  let gateResolve: (() => void) | null = null;
 
   const overrides: Record<string, number> = {};
   const clearOverrides = (): void => {
@@ -83,17 +88,19 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     hd.timeline.renderUpTo(hd.timeline.position);
   };
 
-  const open = (): void => {
+  const open = (opts: { filter?: string[]; gated?: boolean } = {}): void => {
     // Snap to the boundary first: it aborts any in-flight step and lands
-    // paused, so previews never paint over half-drawn strokes.
-    hd.timeline.renderUpTo(hd.timeline.position);
+    // paused, so previews never paint over half-drawn strokes. NOT when an
+    // explore gate called us — the run is parked on the gate's promise, and
+    // renderUpTo would abort it and replay the invitation forever.
+    if (!opts.gated) hd.timeline.renderUpTo(hd.timeline.position);
     tray.replaceChildren();
     if (playable) {
       tray.appendChild(
         h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 Playable while paused — click, glide, or use your keyboard: A S D F G H J are the white keys, W E T Y U the black."),
       );
     }
-    for (const { spec, value } of liveSliders(hd)) {
+    for (const { spec, value } of liveSliders(hd).filter((s) => !opts.filter || opts.filter.includes(s.spec.path))) {
       const range = h("input", {
         type: "range",
         min: String(spec.min),
@@ -112,9 +119,20 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     }
     const continueBtn = h("button", { class: "cs-tray-continue" }, "Continue ▶");
     continueBtn.addEventListener("click", () => {
-      restore();
-      close();
-      void hd.timeline.play();
+      if (gateResolve) {
+        // The run is waiting on the explore gate: settle honest geometry
+        // WITHOUT aborting it, then let it continue.
+        clearOverrides();
+        hd.timeline.settleParams();
+        close();
+        const r = gateResolve;
+        gateResolve = null;
+        r();
+      } else {
+        restore();
+        close();
+        void hd.timeline.play();
+      }
     });
     tray.appendChild(h("div", { class: "cs-tray-actions" }, continueBtn));
     tray.hidden = false;
@@ -126,12 +144,52 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
 
   trayBtn.addEventListener("click", () => {
     if (tray.hidden) open();
-    else {
+    else if (gateResolve) {
+      // Closing during an explore gate means "continue".
+      clearOverrides();
+      hd.timeline.settleParams();
+      close();
+      const r = gateResolve;
+      gateResolve = null;
+      r();
+    } else {
       restore(); // toggle-close: honest state, stay paused
       close();
     }
   });
   bar.appendChild(trayBtn);
+
+  // The explore verb: the storyboard opens this tray itself and waits for
+  // Continue. Abort (a scrub) resolves and tidies up — the gate contract.
+  hd.timeline.exploreGate = (signal, step) =>
+    new Promise<void>((resolve) => {
+      const onAbort = (): void => {
+        gateResolve = null;
+        clearOverrides();
+        close();
+        resolve();
+      };
+      signal.addEventListener("abort", onAbort);
+      gateResolve = () => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      };
+      open({ filter: step.params, gated: true });
+    });
+
+  // Ambient nudge: a personalized animate just played — the ⊕ can take it
+  // further. Pulse briefly.
+  let pulseTimer = 0;
+  const prevOnStep = hd.timeline.callbacks.onStep;
+  hd.timeline.callbacks.onStep = (completed, total) => {
+    prevOnStep?.(completed, total);
+    const s = hd.plan.steps[completed - 1];
+    if (s?.kind === "animate" && s.varTargets) {
+      trayBtn.classList.add("pulse");
+      window.clearTimeout(pulseTimer);
+      pulseTimer = window.setTimeout(() => trayBtn.classList.remove("pulse"), 4000);
+    }
+  };
 
   // Play from anywhere else (big play, stage click) closes the tray; the
   // player settles the preview itself at run start, so no restore here.

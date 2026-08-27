@@ -68,6 +68,14 @@ export class Player {
    */
   askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
 
+  /**
+   * Provider for the explore verb, wired by the tray: opens the sliders and
+   * resolves on Continue. Must resolve on signal abort. Absent (movies,
+   * embeds, bare players), the WHOLE step — narration included — is skipped:
+   * an exploration invitation with nothing to explore is a dangling intro.
+   */
+  exploreGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "explore" }>) => Promise<void>) | null = null;
+
   /** Responses collected by ask commands with store — {name} in later
    *  narration interpolates from here. Keys are lowercased. */
   readonly vars = new Map<string, string>();
@@ -313,6 +321,19 @@ export class Player {
    * DOM state must always be settled by a trailing commit — never left as-is,
    * even if the boundary's params happen to equal the last committed ones).
    */
+  /** Commit the current boundary's honest geometry MID-RUN — the explore
+   *  gate's way back after slider previews (renderUpTo would abort the run
+   *  the gate is parked on). Adopts fresh element handles. */
+  settleParams(): void {
+    this.applyParams(this.stateAt(this.completed).params);
+  }
+
+  /** The viewer's runtime var-animate values (path → number) — the tray
+   *  starts its sliders at these, not at the plan-time fallbacks. */
+  getParamOverrides(): Record<string, number> {
+    return { ...this.varParamOverrides };
+  }
+
   /** Overlay runtime var-animate values onto paths the params already hold. */
   private withVarOverrides(params: Record<string, number>): Record<string, number> {
     let out = params;
@@ -406,6 +427,7 @@ export class Player {
 
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
     const step = this.plan.steps[index];
+    if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) return;
     if (this.skipQuestions && (step.kind === "quiz" || step.kind === "ask")) {
       // Preference: no question, no narration, no gate — but a collect-ask
       // still stores its default so later {var} lines keep working.
@@ -494,6 +516,12 @@ export class Player {
       }
       case "label":
         return;
+      case "explore": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        if (this.exploreGate) await this.exploreGate(signal, step);
+        return;
+      }
       case "if": {
         // Live viewers only: movies/skip fall straight through (linear path).
         if (this.autoAnswers || this.skipQuestions) return;
