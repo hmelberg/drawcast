@@ -292,6 +292,8 @@ element_ids:
   samp_curve: the distribution of sample means (bottom panel)
   samp_mean: dashed line at its center — the same mean
   n_label: "the \"means of samples of n = 5\" caption"
+  se_bracket: a bracket at the sampling distribution's mean +/- one standard error — it narrows as n grows
+  se_label: "the bracket's width as a number (\"± 0.63\") — recomputed live while n animates"
   normal_overlay: dashed normal on the sampling panel (when show_normal)
   title: figure title, when set
 examples:
@@ -340,6 +342,14 @@ layout: |
     kit.stroke("axes__b", [[X(0) - 6, BOT.y0], [X(10) + 20, BOT.y0]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
     kit.text("axes__tl", [X(0) + 6, TOP.y0 + TOP.h + 26], "The population", { fontSize: 22, anchor: "start" }),
     kit.text("axes__bl", [X(0) + 6, BOT.y0 + BOT.h + 26], "Means of samples", { fontSize: 22, anchor: "start" }),
+    // A sparse fixed ruler on BOTH baselines — the same scale twice is itself
+    // the point: the squeeze below is real, not a rescaled axis.
+    ...[0, 5, 10].flatMap((t, i) => [
+      kit.stroke("axes__tt" + i, [[X(t), TOP.y0 - 5], [X(t), TOP.y0 + 5]], { strokeWidth: 2, ms: 60 }),
+      kit.text("axes__ttl" + i, [X(t), TOP.y0 - 22], String(t), { fontSize: 16, color: C.guide }),
+      kit.stroke("axes__bt" + i, [[X(t), BOT.y0 - 5], [X(t), BOT.y0 + 5]], { strokeWidth: 2, ms: 60 }),
+      kit.text("axes__btl" + i, [X(t), BOT.y0 - 22], String(t), { fontSize: 16, color: C.guide }),
+    ]),
   ]));
   anchors.axes = [X(0), TOP.y0];
 
@@ -367,6 +377,16 @@ layout: |
 
   push(kit.text("n_label", [X(10) - 6, BOT.y0 + BOT.h + 26], "n = " + Math.round(n), { fontSize: 24, anchor: "end", color: C.demand }));
   anchors.n_label = [X(10) - 6, BOT.y0 + BOT.h + 26];
+
+  // The number that reacts to n: a measurement bracket at mu +/- one standard
+  // error with its width spelled out. Layout re-runs per animate frame, so
+  // both the bracket and the number tighten live as n grows.
+  const seTxt = "\u00b1 " + (se >= 1 ? se.toFixed(1) : se.toFixed(2));
+  const bY = BOT.y0 + 12;
+  push(kit.stroke("se_bracket", [[X(mu - se), bY + 8], [X(mu - se), bY], [X(mu + se), bY], [X(mu + se), bY + 8]], { color: C.demand, strokeWidth: 2.5, ms: MS.guides }));
+  anchors.se_bracket = [X(mu), bY];
+  push(kit.text("se_label", [X(mu + se) + 10, bY + 4], seTxt, { fontSize: 18, anchor: "start", color: C.demand }));
+  anchors.se_label = [X(mu + se) + 10, bY + 4];
 
   if (showNormal) {
     push(kit.stroke("normal_overlay", curvePts(g, BOT.y0, BOT.h).filter((_, i) => i % 2 === 0), { color: C.accent, dash: true, strokeWidth: 3, ms: MS.guides }));

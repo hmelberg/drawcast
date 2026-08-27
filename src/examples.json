@@ -6597,7 +6597,9 @@
      "draw": [
       "samp_curve",
       "samp_mean",
-      "n_label"
+      "n_label",
+      "se_bracket",
+      "se_label"
      ],
      "speak": "Now repeatedly draw small samples and plot only their AVERAGES. Already at four per sample, the lopsidedness is almost gone."
     },
@@ -7094,7 +7096,9 @@
      "draw": [
       "samp_curve",
       "samp_mean",
-      "n_label"
+      "n_label",
+      "se_bracket",
+      "se_label"
      ],
      "speak": "Plot only the averages of small samples — four per sample — and the lopsidedness already fades."
     },
