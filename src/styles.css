@@ -896,6 +896,22 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.15rem 0.7rem;
 }
 .cs-cardgate-pill:disabled { cursor: default; }
+.cs-cardgate-pill.ok { border-radius: 999px; padding: 0.25rem 0.9rem; }
+.cs-cardgate-inputrow { display: flex; gap: 0.5rem; align-items: center; }
+.cs-cardgate-input {
+  flex: 1;
+  font-family: var(--sketch-font);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  transition: border-color 0.2s ease;
+}
+.cs-cardgate-input:focus { outline: none; border-color: var(--steel); }
+.cs-cardgate-input.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
+.cs-cardgate-input.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 8%, var(--surface)); }
 
 /* ---------- hashtag chips + autosuggest ---------- */
 

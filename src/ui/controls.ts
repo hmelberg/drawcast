@@ -5,6 +5,7 @@
 
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
+import { answersMatch } from "../spec/answers";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
@@ -125,6 +126,100 @@ export function quizGateFor(stage: HTMLElement): (signal: AbortSignal, step: Qui
     });
 }
 
+/** The slice of the typed-ask plan step the gate needs. */
+interface AskGateStep {
+  question: string;
+  answer?: string;
+  retry: boolean;
+  required: boolean;
+}
+
+/**
+ * The typed ask verb's gate: a centered card with the question and a text
+ * field. Collect mode resolves the typed text at once. Check mode judges:
+ * correct → green, linger, resolve; wrong with retry → red flash, field
+ * clears, the SAME card keeps accepting attempts; wrong without retry → red,
+ * linger, resolve the wrong text (the player speaks wrong/reveal). Skip and
+ * abort resolve null. Resolves on signal abort.
+ */
+export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+  return (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      stage.querySelector(".cs-cardgate")?.remove();
+      const input = h("input", { type: "text", class: "cs-cardgate-input", "aria-label": step.question }) as HTMLInputElement;
+      const okBtn = h("button", { class: "cs-cardgate-pill ok" }, "OK");
+      const inputRow = h("div", { class: "cs-cardgate-inputrow" }, input, okBtn);
+      const card = h("div", { class: "cs-cardgate-card" }, h("div", { class: "cs-cardgate-q" }, step.question), inputRow);
+      const gate = h("div", { class: "cs-cardgate" }, card);
+      let settled = false;
+      const remove = (): void => {
+        signal.removeEventListener("abort", onAbort);
+        gate.remove();
+      };
+      const onAbort = (): void => {
+        remove();
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      };
+      const settle = (v: string | null, hold: number): void => {
+        if (settled) return;
+        settled = true;
+        if (hold > 0) window.setTimeout(remove, hold);
+        else remove();
+        resolve(v);
+      };
+      const submit = (): void => {
+        if (settled) return;
+        const typed = input.value.trim();
+        if (typed.length === 0) return;
+        if (step.answer === undefined) {
+          settle(typed, 700); // collect: brief linger so the entry registers
+          return;
+        }
+        if (answersMatch(typed, step.answer)) {
+          input.classList.remove("wrong");
+          input.classList.add("right");
+          input.disabled = true;
+          settle(typed, CARD_LINGER_MS);
+        } else if (step.retry) {
+          // Same card, next attempt: flash red and clear.
+          input.classList.add("wrong");
+          window.setTimeout(() => {
+            input.classList.remove("wrong");
+            input.value = "";
+            input.focus();
+          }, 650);
+        } else {
+          input.classList.add("wrong");
+          input.disabled = true;
+          settle(typed, CARD_LINGER_MS);
+        }
+      };
+      okBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        submit();
+      });
+      input.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") submit();
+      });
+      if (!step.required) {
+        const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          settle(null, 0);
+        });
+        card.appendChild(skip);
+      }
+      gate.addEventListener("click", (e) => e.stopPropagation());
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+      input.focus();
+    });
+}
+
 export function attachPlayerControls(
   stageHost: HTMLElement,
   hd: RenderHandle,
@@ -226,6 +321,7 @@ export function attachPlayerControls(
 
   hd.timeline.inputGate = clickGate(stage);
   hd.timeline.quizGate = quizGateFor(stage);
+  hd.timeline.askGate = askGateFor(stage);
 
   const togglePlay = () => {
     if (hd.timeline.state === "playing") hd.timeline.pause();
