@@ -245,6 +245,8 @@ export interface Command {
   quiz?: QuizArgs;
   /** Pose a typed-answer question (the ask verb). */
   ask?: AskArgs;
+  /** A named position in the storyboard — the target of quiz/ask gotos. */
+  label?: string;
 }
 
 export interface AskArgs {
@@ -269,6 +271,10 @@ export interface AskArgs {
   default?: string;
   /** Player mode only: the question cannot be skipped without answering. Movies never wait. */
   required?: boolean;
+  /** Jump to this label on a correct viewer answer (movies stay linear). */
+  right_goto?: string;
+  /** Jump to this label on a wrong viewer answer — the re-watch loop. */
+  wrong_goto?: string;
 }
 
 export interface QuizArgs {
@@ -287,6 +293,10 @@ export interface QuizArgs {
   wrong?: string;
   /** Player mode only: the question cannot be skipped without answering. Movies never wait. */
   required?: boolean;
+  /** Jump to this label on a correct viewer answer (movies stay linear). */
+  right_goto?: string;
+  /** Jump to this label on a wrong viewer answer — the re-watch loop. */
+  wrong_goto?: string;
 }
 
 export interface Spec {

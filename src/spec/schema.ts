@@ -168,7 +168,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -219,9 +219,15 @@ const commandSchema = {
         },
         wrong: { type: "string", description: "Spoken on a wrong answer, before the correct one is revealed. One sentence." },
         required: { type: "boolean", description: "App only: the question cannot be skipped without answering. Movies never wait." },
+        right_goto: { type: "string", description: "Jump to this label on a correct VIEWER answer. Movies always play straight through." },
+        wrong_goto: { type: "string", description: "Jump to this label on a wrong VIEWER answer — typically back to the explanation, so the viewer re-watches and the question comes again. Movies always play straight through." },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
+    },
+    label: {
+      type: "string",
+      description: "A named position in the storyboard (snake_case), the target of quiz/ask right_goto/wrong_goto. Zero duration.",
     },
     ask: {
       type: "object",
@@ -245,6 +251,8 @@ const commandSchema = {
         store: { type: "string", description: "Save the typed reply under this snake_case name; use {name} in later speak lines." },
         default: { type: "string", description: "Stand-in the movie types and skip/silent use. REQUIRED with store." },
         required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
+        right_goto: { type: "string", description: "Jump to this label on a correct VIEWER answer. Movies always play straight through." },
+        wrong_goto: { type: "string", description: "Jump to this label on a wrong VIEWER answer — typically back to the explanation, so the viewer re-watches and the question comes again. Movies always play straight through." },
       },
       required: ["question"],
       additionalProperties: false,
@@ -471,7 +479,23 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  // Labels first (gotos may point forward): collect + check duplicates/names.
+  const labels = new Set<string>();
+  for (const [i, cmd] of (spec.commands ?? []).entries()) {
+    if (cmd.label === undefined) continue;
+    if (typeof cmd.label !== "string" || !/^[a-z][a-z0-9_]*$/i.test(cmd.label)) {
+      errors.push(`commands[${i}]: label must be a simple snake_case name`);
+    } else if (labels.has(cmd.label)) {
+      errors.push(`commands[${i}]: duplicate label "${cmd.label}"`);
+    } else {
+      labels.add(cmd.label);
+    }
+  }
+  const checkGoto = (i: number, verb: string, field: string, target: string | undefined): void => {
+    if (target === undefined) return;
+    if (!labels.has(target)) errors.push(`commands[${i}]: ${verb}.${field} targets unknown label "${target}"`);
+  };
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the
@@ -527,6 +551,8 @@ function semanticErrors(spec: Spec): string[] {
       } else if (!Number.isInteger(a.correct) || a.correct < 1 || a.correct > a.choices.length) {
         errors.push(`commands[${i}]: quiz.correct must be a 1-based index into choices (1..${a.choices.length})`);
       }
+      checkGoto(i, "quiz", "right_goto", a.right_goto);
+      checkGoto(i, "quiz", "wrong_goto", a.wrong_goto);
     }
     if (verb === "ask" && cmd.ask) {
       const a = cmd.ask;
@@ -545,9 +571,14 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && a.default === undefined) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
-      if (a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined)) {
-        errors.push(`commands[${i}]: ask.retry, reveal, right and wrong only apply in check mode (with answer)`);
+      if (a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+        errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
+      if (a.retry === true && a.wrong_goto !== undefined) {
+        errors.push(`commands[${i}]: ask.retry and wrong_goto are mutually exclusive — retry re-asks in place, wrong_goto jumps away`);
+      }
+      checkGoto(i, "ask", "right_goto", a.right_goto);
+      checkGoto(i, "ask", "wrong_goto", a.wrong_goto);
     }
     if (verb === "play") {
       const p = cmd.play!;
