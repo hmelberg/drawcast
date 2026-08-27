@@ -6962,6 +6962,9 @@
      "pause": 0.3
     },
     {
+     "label": "shift_explained"
+    },
+    {
      "draw": [
       "demand_shift_curve",
       "label_D_shift",
@@ -6992,7 +6995,8 @@
       ],
       "correct": 3,
       "right": "The price rises — more buyers now compete for the same supply.",
-      "wrong": "Look at the new crossing: it sits higher than the old one."
+      "wrong": "Look at the new crossing: it sits higher than the old one.",
+      "wrong_goto": "shift_explained"
      }
     },
     {

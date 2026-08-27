@@ -247,6 +247,22 @@ export interface Command {
   ask?: AskArgs;
   /** A named position in the storyboard — the target of quiz/ask gotos. */
   label?: string;
+  /** Conditional jump on a stored ask answer. Live viewers only; movies stay linear. */
+  if?: IfArgs;
+}
+
+export interface IfArgs {
+  /** The stored variable to test (an earlier ask's store name). */
+  var: string;
+  /** Exactly ONE comparison: numeric gt/lt/gte/lte, or string eq/ne (trimmed, case-insensitive). */
+  gt?: number;
+  lt?: number;
+  gte?: number;
+  lte?: number;
+  eq?: string;
+  ne?: string;
+  /** Label to jump to when the comparison holds. */
+  goto: string;
 }
 
 export interface AskArgs {

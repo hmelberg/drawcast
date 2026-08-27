@@ -430,6 +430,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         // across its options and settles on the correct one; the ask types
         // its answer (or the default) by itself — then the timeline goes on.
         const mounted = handle;
+        handle.timeline.autoAnswers = true; // demo answers are not a viewer's: gotos never fire, the movie stays linear
         handle.timeline.quizGate = async (sig, step) => {
           if (sig.aborted) return null;
           const demo: DemoState = {

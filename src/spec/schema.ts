@@ -168,7 +168,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -223,6 +223,23 @@ const commandSchema = {
         wrong_goto: { type: "string", description: "Jump to this label on a wrong VIEWER answer — typically back to the explanation, so the viewer re-watches and the question comes again. Movies always play straight through." },
       },
       required: ["question", "choices", "correct"],
+      additionalProperties: false,
+    },
+    if: {
+      type: "object",
+      description:
+        "Conditional jump on a STORED ask answer: exactly one comparison (numeric gt/lt/gte/lte or string eq/ne) and a goto label. Fires only for live viewers — movies and skip-questions playback fall straight through. A backward jump must cross a quiz/ask so every loop has a human gate.",
+      properties: {
+        var: { type: "string", description: "An earlier ask's store name." },
+        gt: { type: "number" },
+        lt: { type: "number" },
+        gte: { type: "number" },
+        lte: { type: "number" },
+        eq: { type: "string", description: "Equal (trimmed, case-insensitive)." },
+        ne: { type: "string", description: "Not equal (trimmed, case-insensitive)." },
+        goto: { type: "string", description: "Label to jump to when the comparison holds." },
+      },
+      required: ["var", "goto"],
       additionalProperties: false,
     },
     label: {
@@ -479,7 +496,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
@@ -496,6 +513,29 @@ function semanticErrors(spec: Spec): string[] {
     if (target === undefined) return;
     if (!labels.has(target)) errors.push(`commands[${i}]: ${verb}.${field} targets unknown label "${target}"`);
   };
+  // if commands: one comparison, a known target, and — for backward jumps —
+  // a question between target and if, so every loop has a human gate.
+  const labelIndex = new Map<string, number>();
+  for (const [i, cmd] of (spec.commands ?? []).entries()) {
+    if (typeof cmd.label === "string") labelIndex.set(cmd.label, i);
+  }
+  for (const [i, cmd] of (spec.commands ?? []).entries()) {
+    if (cmd.if === undefined) continue;
+    const f = cmd.if;
+    const comparisons = [f.gt, f.lt, f.gte, f.lte, f.eq, f.ne].filter((v) => v !== undefined).length;
+    if (comparisons !== 1) errors.push(`commands[${i}]: if needs exactly ONE comparison of gt/lt/gte/lte/eq/ne (got ${comparisons})`);
+    if (typeof f.var !== "string" || !/^[a-z][a-z0-9_]*$/i.test(f.var)) errors.push(`commands[${i}]: if.var must be a simple store name`);
+    checkGoto(i, "if", "goto", f.goto);
+    const target = labelIndex.get(f.goto);
+    if (target !== undefined && target < i) {
+      const cmds = spec.commands ?? [];
+      let gated = false;
+      for (let k = target + 1; k < i; k++) {
+        if ((cmds[k] as Command).quiz !== undefined || (cmds[k] as Command).ask !== undefined) gated = true;
+      }
+      if (!gated) errors.push(`commands[${i}]: a backward if-jump to "${f.goto}" must cross a quiz/ask — otherwise the loop has no human gate`);
+    }
+  }
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the

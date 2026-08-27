@@ -461,6 +461,24 @@ export class Player {
       }
       case "label":
         return;
+      case "if": {
+        // Live viewers only: movies/skip fall straight through (linear path).
+        if (this.autoAnswers || this.skipQuestions) return;
+        const raw = this.vars.get(step.varName.toLowerCase());
+        if (raw === undefined) return;
+        const num = Number(raw.trim());
+        let hit = false;
+        switch (step.op) {
+          case "gt": hit = Number.isFinite(num) && num > (step.value as number); break;
+          case "lt": hit = Number.isFinite(num) && num < (step.value as number); break;
+          case "gte": hit = Number.isFinite(num) && num >= (step.value as number); break;
+          case "lte": hit = Number.isFinite(num) && num <= (step.value as number); break;
+          case "eq": hit = answersMatch(raw, String(step.value)); break;
+          case "ne": hit = !answersMatch(raw, String(step.value)); break;
+        }
+        if (hit && this.plan.labels[step.target] !== undefined) this.pendingJump = this.plan.labels[step.target];
+        return;
+      }
       case "wait":
         await this.narrationBarrier();
         if (signal.aborted) return;

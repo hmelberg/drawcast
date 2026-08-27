@@ -167,9 +167,13 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
   `default`, and `{name}` interpolation into later narration
   (`Player.vars`, ask-var lint). Movies perform both: the quiz card hovers
   across its options and selects the correct one; the ask card types its
-  answer/default — painted by the export's frame painter. Still future:
-  answer → `goto` branching, a test score tally, answers logged, values
-  into drawn text/template params, widget answer devices.
+  answer/default — painted by the export's frame painter. Goto branching shipped 2026-08-27
+  (`docs/superpowers/plans/2026-08-27-goto-branching.md`): `label` commands,
+  `right_goto`/`wrong_goto` on quiz/ask (viewer answers only — movies stay
+  linear and terminate by construction), and `if` conditionals on stored
+  answers (one comparison, backward jumps must cross a question). Still
+  future: a test score tally, answers logged, values into drawn
+  text/template params, widget answer devices.
 - `on_click` on elements: open an info modal or jump to a label (fat invisible
   hit areas over thin rough strokes).
 
