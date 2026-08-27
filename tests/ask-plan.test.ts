@@ -54,6 +54,19 @@ describe("typed ask planning", () => {
     expect(issues[0].severity).toBe("warn");
   });
 
+  test("a speak paired with a typed ask or a label is not a standalone narration line", () => {
+    const spec = {
+      elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],
+      commands: [
+        { speak: "Opening line.", blocking: false },
+        { speak: "Second line.", ask: { question: "Q?", answer: "x" } },
+        { speak: "Third line.", label: "here" },
+        { draw: ["a"] },
+      ],
+    } as unknown as Spec;
+    expect(lintCommands(spec).filter((i) => i.rule === "slow-start")).toEqual([]);
+  });
+
   test("lint stays quiet when the store comes first", () => {
     const spec = {
       elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],

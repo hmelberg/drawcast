@@ -17,8 +17,9 @@ export type PlanStep = (
   | { kind: "draw"; ids: string[]; parallel: boolean; implicit?: boolean }
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean }
-  | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean }
+  | { kind: "label"; name: string }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
+  | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
@@ -83,6 +84,8 @@ export interface Plan {
   steps: PlanStep[];
   /** states[i] = scene state after steps[0..i] have completed. */
   states: SceneState[];
+  /** Label name → step index (the label step itself). Gotos resolve here. */
+  labels: Record<string, number>;
   warnings: string[];
 }
 
@@ -110,6 +113,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const steps: PlanStep[] = [];
   const states: SceneState[] = [];
   const warnings: string[] = [];
+  const labels: Record<string, number> = {};
   /** Ids whose visibility the spec manages explicitly — excluded from the implicit final draw. */
   const mentioned = new Set<string>();
 
@@ -166,7 +170,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -184,6 +188,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       pushStep({ kind: "pause", seconds: cmd.pause });
     } else if (cmd.wait !== undefined) {
       pushStep({ kind: "wait" });
+    } else if (cmd.label !== undefined) {
+      labels[cmd.label] = steps.length;
+      pushStep({ kind: "label", name: cmd.label });
     } else if (cmd.quiz !== undefined) {
       // The question IS the narration unless the author paired a speak; the
       // intro prepends either way (inside the step, so skipping skips it).
@@ -197,6 +204,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.right !== undefined ? { right: cmd.quiz.right } : {}),
         ...(cmd.quiz.wrong !== undefined ? { wrong: cmd.quiz.wrong } : {}),
         required: cmd.quiz.required === true,
+        ...(cmd.quiz.right_goto !== undefined ? { rightGoto: cmd.quiz.right_goto } : {}),
+        ...(cmd.quiz.wrong_goto !== undefined ? { wrongGoto: cmd.quiz.wrong_goto } : {}),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
@@ -214,6 +223,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.store !== undefined ? { store: cmd.ask.store } : {}),
         ...(cmd.ask.default !== undefined ? { fallback: cmd.ask.default } : {}),
         required: cmd.ask.required === true,
+        ...(cmd.ask.right_goto !== undefined ? { rightGoto: cmd.ask.right_goto } : {}),
+        ...(cmd.ask.wrong_goto !== undefined ? { wrongGoto: cmd.ask.wrong_goto } : {}),
       });
     } else if (cmd.show !== undefined) {
       const ids = resolveIds(cmd.show, "show");
@@ -465,5 +476,5 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, warnings };
+  return { steps, states, labels, warnings };
 }
