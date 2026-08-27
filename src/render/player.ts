@@ -246,6 +246,19 @@ export class Player {
     this.geometryDirty = false;
   }
 
+  /**
+   * Paint the current boundary with extra param overrides — the explore
+   * tray's live slider preview. Cheap frame() geometry only (no handles);
+   * marks geometry dirty so the next renderUpTo/applyParams commits honest
+   * state even when the boundary's params compare equal to appliedParams.
+   */
+  previewParams(overrides: Record<string, number>): void {
+    if (!this.reprojector) return;
+    const scene = this.stateAt(this.completed);
+    this.reprojector.frame({ ...scene.params, ...overrides }, new Set(scene.visible), scene.offsets);
+    this.geometryDirty = true;
+  }
+
   dispose(): void {
     this.abortRun();
   }
