@@ -1105,6 +1105,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tray-continue { font-size: 0.82rem; }
 .cs-tray-btn.open { color: var(--rust); }
 .cs-tray-hint { font-size: 0.82rem; color: var(--muted); }
+/* Exploring: the stage is a workbench — no centered play button over it. */
+.cs-stage.cs-exploring .cs-bigplay { display: none; }
 
 /* ---------- figure title (centered, above the drawing) ---------- */
 

@@ -47,6 +47,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   tray.addEventListener("click", (e) => e.stopPropagation());
   bar.insertAdjacentElement("afterend", tray);
 
+  // While exploring, the stage is a workbench, not a play button: the big
+  // centered ▶ would sit over the very figure being explored, and a stray
+  // click must not resume. The tray's own Continue ▶ (and the bar's ▶)
+  // are the ways back.
+  const stage = host.querySelector<HTMLElement>(".cs-stage");
+  const freezeClick = (e: Event): void => {
+    if (e.target instanceof Element && e.target.closest("button")) return;
+    e.stopPropagation();
+  };
+
   const overrides: Record<string, number> = {};
   const clearOverrides = (): void => {
     for (const k of Object.keys(overrides)) delete overrides[k];
@@ -57,6 +67,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const close = (): void => {
     tray.hidden = true;
     trayBtn.classList.remove("open");
+    stage?.classList.remove("cs-exploring");
+    stage?.removeEventListener("click", freezeClick, true);
   };
 
   /** Back to the honest boundary; previewParams marked geometry dirty, so
@@ -102,6 +114,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     tray.appendChild(h("div", { class: "cs-tray-actions" }, continueBtn));
     tray.hidden = false;
     trayBtn.classList.add("open");
+    stage?.classList.add("cs-exploring");
+    stage?.addEventListener("click", freezeClick, true);
   };
 
   trayBtn.addEventListener("click", () => {
