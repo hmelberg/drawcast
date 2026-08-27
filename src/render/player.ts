@@ -562,7 +562,15 @@ export class Player {
         if (step.widget !== undefined && (this.autoAnswers || !this.askGate)) {
           // Widget asks demonstrate with the laser instead of the typing card:
           // the pointer taps the answer element (SVG — it exports), then the
-          // auto answer stands.
+          // auto answer stands. A piano answer also SOUNDS (tones route into
+          // the export's recording).
+          if (step.widget === "piano" && step.answer !== undefined && this.tones) {
+            try {
+              this.tones.play([{ notes: `${step.answer}:q` }], 160, signal);
+            } catch {
+              /* an unparseable note stays silent */
+            }
+          }
           if (this.effects && step.answerBox) {
             const effects = this.effects;
             const b = step.answerBox;

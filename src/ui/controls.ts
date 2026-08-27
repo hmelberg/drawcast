@@ -10,6 +10,7 @@ import { CANVAS } from "../layout/canvas";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
+import { pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { h } from "./dom";
 
 export interface PlaybackPrefs {
@@ -146,6 +147,80 @@ interface AskGateStep {
  * smallest containing element box, drops a colored marker, and resolves the
  * element id — the player judges it like any typed answer.
  */
+/** A click event mapped through the svg's LIVE viewBox into logical y-up coordinates (camera-proof). */
+function logicalPoint(stage: HTMLElement, e: MouseEvent): [number, number] | null {
+  const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
+  if (!svg) return null;
+  const r = svg.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return null;
+  const vb = svg.viewBox.baseVal;
+  const sx = vb.x + ((e.clientX - r.left) / r.width) * vb.width;
+  const sy = vb.y + ((e.clientY - r.top) / r.height) * vb.height;
+  return [sx, CANVAS.h - sy];
+}
+
+/**
+ * The piano widget's gate: clicks on the drawn keyboard resolve the NOTE
+ * (and sound it); everything else about the overlay matches the click gate.
+ */
+function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+  return (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      stage.querySelector(".cs-figgate")?.remove();
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Press a key \u25b8");
+      const gate = h("div", { class: "cs-figgate" }, hint);
+      const octaves = pianoOctaves(hd.spec.params);
+      let settled = false;
+      const remove = (): void => {
+        signal.removeEventListener("abort", onAbort);
+        gate.remove();
+      };
+      const onAbort = (): void => {
+        remove();
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      };
+      gate.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (settled) return;
+        const p = logicalPoint(stage, e);
+        if (!p) return;
+        const note = pianoKeyAt(octaves, p);
+        if (note === null) return; // off the keys: keep waiting
+        try {
+          hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
+        } catch {
+          /* silent */
+        }
+        settled = true;
+        const ok = step.answer !== undefined && answersMatch(note, step.answer);
+        const gr = gate.getBoundingClientRect();
+        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
+        mark.style.left = `${e.clientX - gr.left}px`;
+        mark.style.top = `${e.clientY - gr.top}px`;
+        gate.appendChild(mark);
+        hint.remove();
+        window.setTimeout(remove, CARD_LINGER_MS);
+        resolve(note);
+      });
+      if (!step.required) {
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (settled) return;
+          settled = true;
+          remove();
+          resolve(null);
+        });
+        gate.appendChild(skip);
+      }
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+    });
+}
+
 function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
@@ -168,13 +243,9 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
       gate.addEventListener("click", (e) => {
         e.stopPropagation();
         if (settled) return;
-        const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
-        if (!svg) return;
-        const r = svg.getBoundingClientRect();
-        const vb = svg.viewBox.baseVal;
-        const sx = vb.x + ((e.clientX - r.left) / r.width) * vb.width;
-        const sy = vb.y + ((e.clientY - r.top) / r.height) * vb.height;
-        const id = hitElement(boxes, [sx, CANVAS.h - sy]);
+        const p = logicalPoint(stage, e);
+        if (!p) return;
+        const id = hitElement(boxes, p);
         if (id === null) return; // background: keep waiting
         settled = true;
         const ok = step.answer !== undefined && answersMatch(id, step.answer);
@@ -392,7 +463,35 @@ export function attachPlayerControls(
   hd.timeline.quizGate = quizGateFor(stage);
   const textGate = askGateFor(stage);
   const figureGate = figureGateFor(stage, hd);
-  hd.timeline.askGate = (signal, step) => (step.widget === "click" ? figureGate(signal, step) : textGate(signal, step));
+  const pianoGate = pianoGateFor(stage, hd);
+  hd.timeline.askGate = (signal, step) =>
+    step.widget === "click" ? figureGate(signal, step) : step.widget === "piano" ? pianoGate(signal, step) : textGate(signal, step);
+
+  // Intrinsic free play (pause is the door): on a piano figure, a paused
+  // click that lands ON a key sounds it instead of resuming playback.
+  // Capture phase so the stage's play/pause toggle never sees it; question
+  // gates render their own overlay and are left alone.
+  if (hd.spec.template === "piano_keys") {
+    const octaves = pianoOctaves(hd.spec.params);
+    stage.addEventListener(
+      "click",
+      (e) => {
+        if (hd.timeline.state === "playing") return;
+        if (stage.querySelector(".cs-figgate, .cs-cardgate")) return;
+        const p = logicalPoint(stage, e);
+        if (!p) return;
+        const note = pianoKeyAt(octaves, p);
+        if (note === null) return;
+        e.stopPropagation();
+        try {
+          hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
+        } catch {
+          /* silent */
+        }
+      },
+      true,
+    );
+  }
 
   const togglePlay = () => {
     if (hd.timeline.state === "playing") hd.timeline.pause();

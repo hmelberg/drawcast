@@ -7,6 +7,7 @@ import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { readParam } from "./params";
+import { pianoKeyBox, pianoOctaves } from "./widgets";
 import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
@@ -237,9 +238,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.right_goto !== undefined ? { rightGoto: cmd.ask.right_goto } : {}),
         ...(cmd.ask.wrong_goto !== undefined ? { wrongGoto: cmd.ask.wrong_goto } : {}),
         ...(cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
-        // The click widget's movie demo points at the answer element.
+        // The movie demo points at the answer: the element's box (click) or
+        // the key's box (piano — geometry mirrored from the template).
         ...(cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
           ? { answerBox: currentBox(cmd.ask.answer)! }
+          : {}),
+        ...(cmd.ask.widget === "piano" && cmd.ask.answer !== undefined && pianoKeyBox(pianoOctaves(opts.animateBase), cmd.ask.answer) !== null
+          ? { answerBox: pianoKeyBox(pianoOctaves(opts.animateBase), cmd.ask.answer)! }
           : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;

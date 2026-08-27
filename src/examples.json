@@ -7195,5 +7195,69 @@
     }
    ]
   }
+ },
+ {
+  "request": "Teach the C major chord on the piano and then let me press the third myself.",
+  "packs": [
+   "music"
+  ],
+  "spec": {
+   "title": "Press the third",
+   "template": "piano_keys",
+   "params": {
+    "octaves": 1,
+    "highlight": [
+     "C4",
+     "E4",
+     "G4"
+    ],
+    "caption": "C major = C + E + G"
+   },
+   "commands": [
+    {
+     "draw": [
+      "keys",
+      "labels"
+     ],
+     "speak": "One octave of piano — and a chord hiding in it."
+    },
+    {
+     "draw": [
+      "highlight_0"
+     ],
+     "speak": "The root: C."
+    },
+    {
+     "draw": [
+      "highlight_1"
+     ],
+     "speak": "The third: E — four half-steps up, the note that makes it sound happy."
+    },
+    {
+     "draw": [
+      "highlight_2"
+     ],
+     "speak": "The fifth: G. Together: C major."
+    },
+    {
+     "draw": [
+      "caption"
+     ]
+    },
+    {
+     "ask": {
+      "question": "Your turn — press the THIRD of the chord.",
+      "answer": "E4",
+      "widget": "piano",
+      "right": "E — the third, the happy note.",
+      "wrong": "Not that key — count four half-steps up from C.",
+      "retry": true
+     }
+    },
+    {
+     "speak": "Fingers remember better than ears alone — that E is yours now."
+    }
+   ]
+  }
  }
 ]
