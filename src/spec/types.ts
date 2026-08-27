@@ -243,6 +243,29 @@ export interface Command {
   press?: string[] | string;
   /** Pose a multiple-choice question (the quiz verb). */
   quiz?: QuizArgs;
+  /** Pose a typed-answer question (the ask verb). */
+  ask?: AskArgs;
+}
+
+export interface AskArgs {
+  /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
+  question: string;
+  /** Correct answer (check mode). Compared trimmed, case-insensitively. */
+  answer?: string;
+  /** Spoken on a correct answer; doubles as the reveal line. */
+  right?: string;
+  /** Spoken on a wrong attempt (check mode only). */
+  wrong?: string;
+  /** Check mode: speak the correct answer after a final wrong attempt (default true). */
+  reveal?: boolean;
+  /** Check mode: clear the field and ask again after a wrong attempt (default false). */
+  retry?: boolean;
+  /** Store the typed response under this name; later speak lines may use {name}. */
+  store?: string;
+  /** Stand-in the movie types and the silent/skip paths use. REQUIRED with store. */
+  default?: string;
+  /** Player mode only: the question cannot be skipped without answering. Movies never wait. */
+  required?: boolean;
 }
 
 export interface QuizArgs {

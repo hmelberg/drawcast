@@ -168,7 +168,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -216,6 +216,27 @@ const commandSchema = {
         required: { type: "boolean", description: "App only: the question cannot be skipped without answering. Movies never wait." },
       },
       required: ["question", "choices", "correct"],
+      additionalProperties: false,
+    },
+    ask: {
+      type: "object",
+      description:
+        "Pose a question answered by TYPING. Check mode (answer set): the typed reply is judged, with optional retry and reveal. Collect mode (store set): the reply is saved and later speak lines may use {store_name} — e.g. 'Nice to meet you, {name}'. At least one of answer/store is required; default is REQUIRED with store (the movie types it). In video export the card types its answer by itself and never waits.",
+      properties: {
+        question: { type: "string", description: "The question, spoken aloud and shown as the caption." },
+        answer: { type: "string", description: "Check mode: the correct answer. Compared trimmed and case-insensitively." },
+        right: {
+          type: "string",
+          description: "One sentence stating the answer and the reason — spoken on a correct answer and as the reveal; no praise words.",
+        },
+        wrong: { type: "string", description: "Spoken on a wrong attempt. One sentence. Check mode only." },
+        reveal: { type: "boolean", description: "Check mode: speak the correct answer after a final wrong attempt (default true)." },
+        retry: { type: "boolean", description: "Check mode: clear the field and ask again after a wrong attempt (default false). App only." },
+        store: { type: "string", description: "Save the typed reply under this snake_case name; use {name} in later speak lines." },
+        default: { type: "string", description: "Stand-in the movie types and skip/silent use. REQUIRED with store." },
+        required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
+      },
+      required: ["question"],
       additionalProperties: false,
     },
     show: idListSchema("Element ids to make visible instantly (inverse of hide; no animation)."),
@@ -440,7 +461,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
     const actions = ACTION_VERBS.filter((k) => (cmd as Command)[k] !== undefined);
     // One action verb per command; speak may stand alone OR accompany the
@@ -495,6 +516,27 @@ function semanticErrors(spec: Spec): string[] {
         errors.push(`commands[${i}]: quiz.choices must be 2-4 non-empty strings`);
       } else if (!Number.isInteger(a.correct) || a.correct < 1 || a.correct > a.choices.length) {
         errors.push(`commands[${i}]: quiz.correct must be a 1-based index into choices (1..${a.choices.length})`);
+      }
+    }
+    if (verb === "ask" && cmd.ask) {
+      const a = cmd.ask;
+      if (typeof a.question !== "string" || a.question.trim().length === 0) {
+        errors.push(`commands[${i}]: ask.question must be a non-empty string`);
+      }
+      if (a.answer === undefined && a.store === undefined) {
+        errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
+      }
+      if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
+        errors.push(`commands[${i}]: ask.answer must be a non-empty string`);
+      }
+      if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
+        errors.push(`commands[${i}]: ask.store must be a simple name (letters, digits, underscores; starts with a letter)`);
+      }
+      if (a.store !== undefined && a.default === undefined) {
+        errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
+      }
+      if (a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined)) {
+        errors.push(`commands[${i}]: ask.retry, reveal, right and wrong only apply in check mode (with answer)`);
       }
     }
     if (verb === "play") {
