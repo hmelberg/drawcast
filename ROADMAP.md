@@ -216,6 +216,12 @@ route it replaced: no format change, so it cannot break on an ampersand in the
 narration; it fixes the BROWSER voice too, which ignores SSML; and the default
 handles the larger half.
 
+Lowercasing alone turned out not to be enough. Hans listened against the real
+voices: "qaly" is not it — "qualy", with the u that drops the initialism, is
+the accurate one, and ICER wants a doubled e ("iceer"). So an entry is a
+PHONETIC RESPELLING arrived at by ear, and the table is a map rather than a
+list. A trailing plural rides along on its own ("QALYs" → "qualys").
+
 `sayable()` (src/render/pronounce.ts) is pure and applies at the two audio
 boundaries only — inside `synthesizeOne` (all cloud paths, the export's
 pre-synthesis batch included) and at `new SpeechSynthesisUtterance`. The
@@ -223,11 +229,12 @@ caption keeps its capitals, and since the movie burns the CAPTION, a viewer
 always reads "QALY" however it is said. Cache keys and `detectLang` still see
 the original.
 
-OPEN, and only Hans can close it: whether it actually sounds better. The table
-is seeded with QALY/DALY/ICER/NICE/SEIR/SIR/PICO/GRADE as a hypothesis to
-listen to — he has the TTS key and the ears. If it helps, domain packs should
-contribute their own vocabulary to one shared table (a term's pronunciation
-belongs to the term, not to a template — QALY is QALY in every figure).
+The table holds ONLY what has been listened to — QALY and ICER. Speculative
+entries were removed: SIR in particular would have been wrong, since the
+epidemiology model's letters really are spelled out, which is exactly what the
+default does. If the vocabulary grows, domain packs should contribute to one
+shared table (a term's pronunciation belongs to the term, not to a template —
+QALY is QALY in every figure).
 
 ## Sources — done 2026-08-28
 
