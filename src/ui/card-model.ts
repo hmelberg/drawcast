@@ -1,11 +1,12 @@
 // The info card, pure half (interactivity spec §9.5 "more info", §13):
-// which elements carry a card, what the card calls them, and where Search
-// goes. V1 name sources are the reliable, spec-level ones — a portrait's
-// person (its wiki identity rides along) and an element's authored label
-// text. Template parts wait for a real naming story: their element_ids
-// docs are LLM-facing prose and their labels are symbols ("D", "P*").
+// which elements carry a card, what the card calls them, which links it
+// offers, and where Search goes. Name sources are the reliable, spec-level
+// ones — a portrait's person (its wiki identity rides along) and label
+// text; an element carrying only links falls back to its prettified id.
+// Template parts wait for a real naming story: their element_ids docs are
+// LLM-facing prose and their labels are symbols ("D", "P*").
 
-import type { Spec } from "../spec/types";
+import type { Spec, SpecElement } from "../spec/types";
 
 export interface CardTarget {
   id: string;
@@ -13,6 +14,9 @@ export interface CardTarget {
   kind: "portrait" | "plain";
   /** The wiki identity (the portrait's `of`) — summary + Read more exist. */
   wikiName?: string;
+  /** Authored resource links (spec §13), merged from the element and any
+   *  labels attached to it; deduped. */
+  links: string[];
 }
 
 /** A name a human would search for — not a curve symbol or a number.
@@ -22,24 +26,48 @@ export function meaningfulName(s: string): boolean {
   return t.length >= 3 && /[A-Za-zÀ-ÖØ-öø-ÿ]{2}/.test(t);
 }
 
-/** Every element of the spec that carries an info card, by id. A label
- *  element names itself AND, via attach_to, the element it labels — the
- *  curve is clickable, not just the word beside it. Portraits win over a
- *  label that happens to attach to them. */
+/** The element's own links, post-normalize tolerant of a bare string. */
+function linksOf(el: SpecElement): string[] {
+  return typeof el.link === "string" ? [el.link] : Array.isArray(el.link) ? el.link.filter((l): l is string => typeof l === "string") : [];
+}
+
+/**
+ * Every element of the spec that carries an info card, by id. A label
+ * element names (and links) itself AND, via attach_to, the element it
+ * labels — the curve is clickable, not just the word beside it. Portraits
+ * win the name over a label that happens to attach to them; an element
+ * with only links is card-bearing too, named by its prettified id.
+ */
 export function cardTargets(spec: Spec): Map<string, CardTarget> {
   const out = new Map<string, CardTarget>();
   const usable = (id: unknown): id is string => typeof id === "string" && id !== "" && !id.includes("__");
+  const ensure = (id: string, name: string, kind: "portrait" | "plain" = "plain"): CardTarget => {
+    const t = out.get(id) ?? { id, name, kind, links: [] };
+    out.set(id, t);
+    return t;
+  };
+  const addLinks = (t: CardTarget, links: string[]): void => {
+    for (const l of links) if (!t.links.includes(l)) t.links.push(l);
+  };
+
   for (const el of spec.elements ?? []) {
-    if (el.type === "label" && typeof el.text === "string" && meaningfulName(el.text)) {
-      const t: Omit<CardTarget, "id"> = { name: el.text.trim(), kind: "plain" } as Omit<CardTarget, "id">;
-      if (usable(el.id) && !out.has(el.id)) out.set(el.id, { id: el.id, ...t });
-      if (usable(el.attach_to) && !out.has(el.attach_to)) out.set(el.attach_to, { id: el.attach_to, ...t });
-    }
+    if (el.type !== "label" || typeof el.text !== "string" || !meaningfulName(el.text)) continue;
+    const name = el.text.trim();
+    if (usable(el.id)) addLinks(ensure(el.id, name), linksOf(el));
+    if (usable(el.attach_to)) addLinks(ensure(el.attach_to, name), linksOf(el));
   }
   for (const el of spec.elements ?? []) {
-    if (el.type === "portrait" && usable(el.id) && typeof el.of === "string" && el.of.trim() !== "") {
+    if (!usable(el.id)) continue;
+    if (el.type === "portrait" && typeof el.of === "string" && el.of.trim() !== "") {
       const name = el.of.trim();
-      out.set(el.id, { id: el.id, name, kind: "portrait", wikiName: name });
+      const prev = out.get(el.id);
+      const t: CardTarget = { id: el.id, name, kind: "portrait", wikiName: name, links: prev?.links ?? [] };
+      out.set(el.id, t);
+      addLinks(t, linksOf(el));
+    } else if (el.type !== "label" && linksOf(el).length > 0) {
+      // A linked element with no label of its own: the id is the name.
+      const t = ensure(el.id, el.id.replace(/_/g, " "));
+      addLinks(t, linksOf(el));
     }
   }
   return out;

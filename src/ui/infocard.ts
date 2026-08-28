@@ -18,6 +18,8 @@ import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
 import { cardTargets, searchUrl, type CardTarget } from "./card-model";
+import { linkActionsFor } from "./link-model";
+import { openMediaModal } from "./media-modal";
 import { h, logicalPoint } from "./dom";
 import { hitElement } from "./hit";
 import type { BBox } from "../layout/geometry";
@@ -92,7 +94,6 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
       a.addEventListener("click", (e) => e.stopPropagation());
       return a;
     };
-    actions.appendChild(link(searchUrl(t.name, hd.spec.title), "🔍 Search ↗"));
     card = h("div", { class: "cs-infocard" }, closeBtn, title, summary, actions);
     card.addEventListener("click", (e) => e.stopPropagation());
     card.addEventListener("contextmenu", (e) => {
@@ -100,11 +101,54 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
       e.stopPropagation();
     });
 
+    // Authored links first (the author's intent), then Read more, then the
+    // zero-authoring Search. YouTube and PDF open the modal surface; wiki
+    // and plain urls are honest anchors.
+    const linkActs = linkActionsFor(t.links);
+    for (const a of linkActs) {
+      if (a.link.kind === "youtube") {
+        const id = a.link.id;
+        const b = h("button", { class: "cs-infocard-act" }, `${a.label} ▸`);
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeCard();
+          openMediaModal(stage, hd, {
+            src: `https://www.youtube-nocookie.com/embed/${id}`,
+            href: a.url,
+            allow: "encrypted-media; picture-in-picture; fullscreen",
+          });
+        });
+        actions.appendChild(b);
+      } else if (a.link.kind === "pdf") {
+        const b = h("button", { class: "cs-infocard-act" }, `${a.label} ▸`);
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeCard();
+          openMediaModal(stage, hd, { src: a.url, href: a.url });
+        });
+        actions.appendChild(b);
+      } else {
+        actions.appendChild(link(a.url, `${a.label} ↗`));
+      }
+    }
+
+    // One summary per card: the portrait's person wins; else the first
+    // authored wiki link feeds the same REST endpoint in its own language.
+    const wikiAct = linkActs.find((a) => a.link.kind === "wiki");
+    let readMore: HTMLAnchorElement | null = null;
+    let summaryRest: string | null = null;
     if (t.kind === "portrait" && t.wikiName) {
-      const readMore = link(`https://en.wikipedia.org/wiki/${encodeURIComponent(t.wikiName.replace(/\s+/g, "_"))}`, "📖 Read more ↗");
+      readMore = link(`https://en.wikipedia.org/wiki/${encodeURIComponent(t.wikiName.replace(/\s+/g, "_"))}`, "📖 Read more ↗");
       actions.appendChild(readMore);
+      summaryRest = wikiSummaryUrl(t.wikiName);
+    } else if (wikiAct && wikiAct.link.kind === "wiki") {
+      summaryRest = `https://${wikiAct.link.lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiAct.link.title)}`;
+    }
+    actions.appendChild(link(searchUrl(t.name, hd.spec.title), "🔍 Search ↗"));
+
+    if (summaryRest) {
       const mine = card;
-      void fetch(wikiSummaryUrl(t.wikiName))
+      void fetch(summaryRest)
         .then((r) => (r.ok ? (r.json() as Promise<unknown>) : null))
         .then((j) => {
           if (card !== mine || !j) return;
@@ -114,7 +158,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
             summary.hidden = false;
           }
           const page = s.content_urls?.desktop?.page;
-          if (typeof page === "string") readMore.href = page;
+          if (typeof page === "string" && readMore) readMore.href = page;
         })
         .catch(() => undefined);
     }

@@ -186,3 +186,27 @@ describe("voice and delivery", () => {
     expect(r.errors.length).toBeGreaterThan(0);
   });
 });
+
+describe("element links", () => {
+  const withLink = (link: unknown) => ({
+    elements: [{ id: "book", type: "shape", shape: "rect", x: 100, y: 100, width: 80, height: 120, link }],
+    commands: [{ draw: ["book"] }],
+  });
+
+  test("an array of https links is valid; a bare string normalizes to one", () => {
+    expect(validateSpec(withLink(["https://x.org/won.pdf", "https://youtu.be/dQw4w9WgXcQ"])).ok).toBe(true);
+    expect(validateSpec(withLink("https://x.org/won.pdf")).ok).toBe(true);
+  });
+
+  test("more than four links is a structural error", () => {
+    const r = validateSpec(withLink(["https://a.org/1", "https://a.org/2", "https://a.org/3", "https://a.org/4", "https://a.org/5"]));
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(" ")).toMatch(/link/);
+  });
+
+  test("a non-http link is a semantic error", () => {
+    const r = validateSpec(withLink(["javascript:alert(1)"]));
+    expect(r.ok).toBe(false);
+    expect(r.errors[0]).toMatch(/http/);
+  });
+});

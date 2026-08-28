@@ -82,6 +82,10 @@ export interface SpecElement {
   text?: string;
   attach_to?: string;
   side?: Side;
+  /** Resource links for this element's info card (player-only add-on; the
+   *  movie export ignores them). Canonical form: array of full https URLs
+   *  (max 4) — normalizeSpec folds a bare string into a one-element array. */
+  link?: string[] | string;
   // region
   between?: string[];
   // annotation

@@ -98,6 +98,13 @@ const elementSchema = {
       enum: ["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"],
       description: "label: preferred side relative to the attached element. The collision solver may move it.",
     },
+    link: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 4,
+      description:
+        "Resource links for this element (a paper, a video, a book) — shown on its info card in the live player; the video export ignores them. Full https URLs, COPIED VERBATIM from the user's request — NEVER invent, guess, or construct a URL (a fabricated DOI or video id looks exactly like a real one). The kind is auto-detected: YouTube plays embedded, Wikipedia shows a summary, .pdf opens a document view, anything else a new tab. On a label, the link also reaches the element it attach_to's.",
+    },
     // region
     between: {
       type: "array",
@@ -474,8 +481,12 @@ let structural: ValidateFunction | null = null;
  */
 export function normalizeSpec(spec: unknown): unknown {
   if (typeof spec !== "object" || spec === null) return spec;
-  const clone = JSON.parse(JSON.stringify(spec)) as { commands?: Command[] };
+  const clone = JSON.parse(JSON.stringify(spec)) as { commands?: Command[]; elements?: SpecElement[] };
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
+  // Malformed input flows through here before validation — guard shapes.
+  for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
+    if (el && typeof el === "object" && el.link !== undefined) el.link = toList(el.link);
+  }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
     // YAML-friendly spelling: `pause: click` means the wait verb.
@@ -684,6 +695,11 @@ function elementErrors(el: SpecElement): string[] {
   const need = (cond: boolean, msg: string) => {
     if (!cond) errs.push(`element "${el.id}" (${el.type}): ${msg}`);
   };
+  if (Array.isArray(el.link)) {
+    for (const l of el.link) {
+      need(/^https?:\/\//i.test(l), `link "${l}" must be a full http(s) URL`);
+    }
+  }
   switch (el.type) {
     case "curve":
       need(!!el.expr || !!el.direction, "needs either expr or a qualitative direction");

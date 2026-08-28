@@ -16,7 +16,7 @@ describe("meaningfulName", () => {
 describe("cardTargets", () => {
   test("portraits carry their person and wiki identity", () => {
     const t = cardTargets(spec([{ id: "ricardo", type: "portrait", of: "David Ricardo" }]));
-    expect(t.get("ricardo")).toEqual({ id: "ricardo", name: "David Ricardo", kind: "portrait", wikiName: "David Ricardo" });
+    expect(t.get("ricardo")).toEqual({ id: "ricardo", name: "David Ricardo", kind: "portrait", wikiName: "David Ricardo", links: [] });
   });
   test("label elements name themselves AND what they attach to; symbols are skipped", () => {
     const t = cardTargets(
@@ -50,6 +50,32 @@ describe("cardTargets", () => {
   });
   test("a spec without elements yields no targets", () => {
     expect(cardTargets({ commands: [] } as unknown as Spec).size).toBe(0);
+  });
+  test("links make an unlabeled element card-bearing, named by its id", () => {
+    const t = cardTargets(spec([{ id: "wealth_book", type: "shape", link: ["https://x.org/won.pdf"] }]));
+    expect(t.get("wealth_book")).toEqual({ id: "wealth_book", name: "wealth book", kind: "plain", links: ["https://x.org/won.pdf"] });
+  });
+  test("links merge from the element and its label, deduped; a bare string link tolerated", () => {
+    const t = cardTargets(
+      spec([
+        { id: "book", type: "shape", link: "https://x.org/won.pdf" },
+        { id: "book_lbl", type: "label", text: "Wealth of Nations", attach_to: "book", link: ["https://youtu.be/dQw4w9WgXcQ", "https://x.org/won.pdf"] },
+      ]),
+    );
+    expect(t.get("book")?.name).toBe("Wealth of Nations");
+    expect(t.get("book")?.links).toEqual(["https://youtu.be/dQw4w9WgXcQ", "https://x.org/won.pdf"]);
+    expect(t.get("book_lbl")?.links).toEqual(["https://youtu.be/dQw4w9WgXcQ", "https://x.org/won.pdf"]);
+  });
+  test("a portrait keeps its person name but gains an attached label's links", () => {
+    const t = cardTargets(
+      spec([
+        { id: "p1", type: "portrait", of: "Adam Smith", link: ["https://x.org/won.pdf"] },
+        { id: "l1", type: "label", text: "The author", attach_to: "p1", link: ["https://youtu.be/dQw4w9WgXcQ"] },
+      ]),
+    );
+    expect(t.get("p1")?.name).toBe("Adam Smith");
+    expect(t.get("p1")?.kind).toBe("portrait");
+    expect(t.get("p1")?.links).toEqual(["https://youtu.be/dQw4w9WgXcQ", "https://x.org/won.pdf"]);
   });
 });
 
