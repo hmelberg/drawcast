@@ -232,6 +232,21 @@ Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
 - `pages: [{elements, commands}]` — true multi-scene drawcasts with per-page
   layout and lint; the player concatenates page plans with transitions.
+- **Template-as-element** (idea only — revisit if a concrete lesson demands
+  it, not scheduled): let a tier-2 element embed a template instance (own
+  params, offset/scale) so two engine-backed figures can share one screen —
+  e.g. a playable keyboard next to an interactive map. Today `Spec.template`
+  is a single string and the interaction attach reads that one manifest
+  (tray.ts/controls.ts), so multiple heavy interactive figures per screen are
+  impossible by construction; the attach loop itself already handles a
+  multi-kind `interactions:` list, so the registry is not the blocker.
+  Known costs: layout composition, interaction attach across embedded
+  manifests, hit-testing (the R9 visible-set lesson), schema + prompt.
+  Reasons to keep deferring: one spec already combines a template with
+  freehand elements; links/info cards/quizzes compose freely on any number
+  of elements; heavy interactions are pause-gated so movies never need this;
+  and the note_sheet `keyboard: true` precedent shows a purpose-built
+  combined template covers a specific pairing cheaply.
 - Time-proportional seek bar (estimate from speech + draw durations).
 - `morph`: spec-diff tweening for untemplated specs — no template param to
   drive, so it has to re-layout from a diffed spec and interpolate. Remains
