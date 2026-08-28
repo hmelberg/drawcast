@@ -6,7 +6,7 @@ import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../
 import type { LintIssue } from "../lint/lint";
 import type { Spec } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
-import { withOverrides } from "./params";
+import { withNewIdsVisible, withOverrides } from "./params";
 import { planCommands, type Plan } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
@@ -101,7 +101,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
   // is a distinct param set — caching them would hoard hundreds of layouts).
   const boundaryLayouts = new Map<string, LayoutResult>();
-  const layoutFor = (params: Record<string, number>, cache: boolean): LayoutResult => {
+  const layoutFor = (params: Record<string, unknown>, cache: boolean): LayoutResult => {
     if (Object.keys(params).length === 0) return layout;
     const key = cache ? JSON.stringify(Object.entries(params).sort()) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
@@ -137,7 +137,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets) => mounted.swapGeometry!(layoutFor(params, false), visible, offsets),
+      frame: (params, visible, offsets, revealNew) => {
+        const l = layoutFor(params, false);
+        // Free-play previews mint element ids the plan never drew (a chess
+        // piece moved to a never-visited square) — reveal those, measured
+        // against the plan-time layout so honest hidden ids stay hidden.
+        const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
+        mounted.swapGeometry!(l, vis, offsets);
+      },
       commit: (params) => mounted.remount!(layoutFor(params, true)),
     };
   }

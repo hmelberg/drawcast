@@ -22,7 +22,7 @@ class StubSpeech extends SpeechManager {
 }
 
 function makeReprojector() {
-  const frames: Record<string, number>[] = [];
+  const frames: Record<string, unknown>[] = [];
   const commits: Record<string, number>[] = [];
   const rp: Reprojector = {
     frame: (p) => frames.push({ ...p }),
@@ -83,5 +83,20 @@ describe("previewParams", () => {
   test("no reprojector: previewParams is a no-op", () => {
     const player = makePlayer();
     expect(() => player.previewParams({ x: 1 })).not.toThrow();
+  });
+
+  test("non-numeric overrides and the revealNew flag reach the reprojector (chess free-move)", () => {
+    const player = makePlayer();
+    const calls: { params: Record<string, unknown>; revealNew?: boolean }[] = [];
+    player.reprojector = {
+      frame: (p, _v, _o, revealNew) => calls.push({ params: { ...p }, revealNew }),
+      commit: () => new Map(),
+    };
+    player.renderUpTo(1);
+    player.previewParams({ fen: "8/8/8/8/8/8/8/8 w - - 0 1", moves: [] }, { revealNew: true });
+    expect(calls.at(-1)).toEqual({
+      params: { fen: "8/8/8/8/8/8/8/8 w - - 0 1", moves: [] },
+      revealNew: true,
+    });
   });
 });

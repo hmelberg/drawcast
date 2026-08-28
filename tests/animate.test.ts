@@ -16,7 +16,7 @@ class StubSpeech extends SpeechManager {
 }
 
 function makeReprojector() {
-  const frames: Record<string, number>[] = [];
+  const frames: Record<string, unknown>[] = [];
   const commits: Record<string, number>[] = [];
   const rp: Reprojector = {
     frame: (p) => frames.push({ ...p }),
@@ -35,7 +35,7 @@ describe("the animate action", () => {
     player.reprojector = rp;
     await player.play();
     expect(frames.length).toBeGreaterThanOrEqual(2);
-    const vals = frames.map((f) => f["demand_shift.amount"]);
+    const vals = frames.map((f) => f["demand_shift.amount"] as number);
     expect(Math.min(...vals)).toBeGreaterThanOrEqual(0);
     expect(Math.max(...vals)).toBeLessThanOrEqual(20);
     expect(vals[vals.length - 1]).toBeCloseTo(20, 5);

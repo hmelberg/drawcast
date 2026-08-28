@@ -20,8 +20,11 @@ export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
 
 export interface Reprojector {
-  /** Cheap per-frame swap at interpolated params. */
-  frame(params: Record<string, number>, visible: ReadonlySet<string>, offsets: Record<string, Pt>): void;
+  /** Cheap per-frame swap at interpolated params. Values are numbers from
+   *  animate/sliders except under free-play previews (a fen string, a moves
+   *  array). revealNew shows ids the previewed layout mints that the plan's
+   *  visible set has never heard of (a chess piece on a fresh square). */
+  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean): void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
 }
@@ -357,14 +360,15 @@ export class Player {
 
   /**
    * Paint the current boundary with extra param overrides — the explore
-   * tray's live slider preview. Cheap frame() geometry only (no handles);
-   * marks geometry dirty so the next renderUpTo/applyParams commits honest
-   * state even when the boundary's params compare equal to appliedParams.
+   * tray's live slider preview and free play's position preview. Cheap
+   * frame() geometry only (no handles); marks geometry dirty so the next
+   * renderUpTo/applyParams commits honest state even when the boundary's
+   * params compare equal to appliedParams.
    */
-  previewParams(overrides: Record<string, number>): void {
+  previewParams(overrides: Record<string, unknown>, opts: { revealNew?: boolean } = {}): void {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
-    this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets);
+    this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, opts.revealNew);
     this.geometryDirty = true;
   }
 

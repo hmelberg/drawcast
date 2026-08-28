@@ -21,7 +21,7 @@ class StubSpeech extends SpeechManager {
 }
 
 function makeReprojector() {
-  const frames: Record<string, number>[] = [];
+  const frames: Record<string, unknown>[] = [];
   const commits: Record<string, number>[] = [];
   const rp: Reprojector = {
     frame: (p) => frames.push({ ...p }),
