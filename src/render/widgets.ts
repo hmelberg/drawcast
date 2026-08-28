@@ -57,6 +57,20 @@ export function pianoOctaves(params: Record<string, unknown> | null | undefined)
   return params?.["octaves"] === 1 ? 1 : 2;
 }
 
+/** Every note the drawn keyboard has, left to right (whites with their
+ *  sharps interleaved) — the identify quiz's data space. */
+export function pianoNotes(octaves: 1 | 2): string[] {
+  const c = pianoConsts(octaves);
+  const out: string[] = [];
+  for (let wi = 0; wi < c.nWhite; wi++) {
+    const letter = WHITE[wi % 7];
+    const oct = c.startOct + Math.floor(wi / 7);
+    out.push(`${letter}${oct}`);
+    if (HAS_SHARP[letter] && wi < c.nWhite - 1) out.push(`${letter}#${oct}`);
+  }
+  return out;
+}
+
 // Chess board geometry — mirrors the chess_board template's constants
 // (src/scenes/packs/games.yaml): BOARD 620 centered, CELL = BOARD/8.
 const CH_BOARD = 620;

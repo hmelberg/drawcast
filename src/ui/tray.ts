@@ -15,6 +15,8 @@ import { h } from "./dom";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, type SliderSpec } from "./tray-model";
+import { activitiesFor } from "./quiz-model";
+import { mountQuiz } from "./quiz";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
  *  a slider for a param the spec never set would move invisible geometry. */
@@ -97,6 +99,24 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // renderUpTo would abort it and replay the invitation forever.
     if (!opts.gated) hd.timeline.renderUpTo(hd.timeline.position);
     tray.replaceChildren();
+    // The activity pills (spec §13's scheduled convergence): rendered from
+    // the same interactions registry the context menu reads — right-click
+    // opens this tray, so both doors show one row. Not during an explore
+    // gate: a drill would strand the parked run.
+    const acts = opts.gated ? [] : activitiesFor(interactions);
+    if (acts.length > 0 && stage) {
+      const row = h("div", { class: "cs-tray-acts" });
+      for (const a of acts) {
+        const pill = h("button", { class: "cs-cardgate-pill cs-tray-pill" }, a.label);
+        pill.addEventListener("click", () => {
+          restore(); // the drill runs on the honest boundary
+          close();
+          mountQuiz(stage, hd, a.kind);
+        });
+        row.appendChild(pill);
+      }
+      tray.appendChild(row);
+    }
     if (playable) {
       tray.appendChild(
         h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 Playable while paused — click, glide, or use your keyboard: A S D F G H J are the white keys, W E T Y U the black."),

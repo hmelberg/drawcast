@@ -949,6 +949,16 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-figgate-mark.from { border-color: var(--steel); }
 /* Chess free play's selection ring lives on the stage itself (no gate). */
 .cs-chessring { z-index: 3; }
+
+/* Identify quiz: activity pills in the tray, Again ↻ on the quiz gate. */
+.cs-tray-acts { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.cs-tray-pill { font-size: 0.82rem; padding: 0.25rem 0.7rem; }
+.cs-quiz-again {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 1rem;
+  pointer-events: auto;
+}
 @keyframes figgate-pop {
   from { transform: scale(0.4); opacity: 0.4; }
   to { transform: scale(1); opacity: 1; }
