@@ -49,7 +49,6 @@ describe("spoken form", () => {
     expect(sayable("Two DALYs averted")).toBe("Two dalys averted");
     expect(sayable("a PICO question")).toBe("a pico question");
     expect(sayable("NICE appraised it")).toBe("nice appraised it");
-    expect(sayable("FIFA and its members")).toBe("fifa and its members");
   });
 
   test("case-sensitivity is what keeps NICE safe", () => {

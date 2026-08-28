@@ -41,7 +41,6 @@ export const SAID_AS: Readonly<Record<string, string>> = {
   DALY: "daly",
   PICO: "pico",
   NICE: "nice",
-  FIFA: "fifa",
 };
 
 /**
