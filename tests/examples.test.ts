@@ -13,6 +13,8 @@ import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
 import { lintCommands } from "../src/lint/lint";
+import { cardTargets } from "../src/ui/card-model";
+import { linkKindOf } from "../src/ui/link-model";
 import { parsePlaylistText, itemsOf } from "../src/playlist/playlist";
 import { ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { ensureEnginesForSpecs } from "../src/scenes/engines";
@@ -84,6 +86,25 @@ describe("bundled examples stay exemplary", () => {
 
   test.each(cases)("%s — names a template that exists (or composes from elements)", (_req, spec) => {
     if (spec.template) expect(isReadyTemplate(spec.template), spec.template).toBe(true);
+  });
+
+  // A link only does its job if it reaches a card and sniffs to the right
+  // kind. A mistyped YouTube id still LOOKS like a link — it just quietly
+  // degrades from the embedded player to a plain new tab — so pin both.
+  test.each(cases)("%s — every authored link reaches a card, with the kind its URL implies", (_req, spec) => {
+    const linked = (spec.elements ?? []).filter((el) => (Array.isArray(el.link) ? el.link.length : el.link ? 1 : 0) > 0);
+    if (linked.length === 0) return;
+    const targets = cardTargets(spec, layoutSpec(spec).order);
+    for (const el of linked) {
+      const urls = typeof el.link === "string" ? [el.link] : (el.link ?? []);
+      const reached = [...targets.values()].flatMap((t) => t.links);
+      for (const url of urls) {
+        expect(reached, `${el.id} link ${url}`).toContain(url);
+        if (/youtube\.com|youtu\.be/.test(url)) expect(linkKindOf(url).kind, url).toBe("youtube");
+        if (/\.pdf$|arxiv\.org\/pdf\//.test(url)) expect(linkKindOf(url).kind, url).toBe("pdf");
+        if (/wikipedia\.org\/wiki\//.test(url)) expect(linkKindOf(url).kind, url).toBe("wiki");
+      }
+    }
   });
 
   test.each(cases)("%s — at most one opening (announcement) speak precedes the first draw", (_req, spec) => {

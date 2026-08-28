@@ -8017,5 +8017,184 @@
   "request": "Tell the story of the Broad Street pump, and show Snow's actual 1854 map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
   "title": "The Broad Street pump",
   "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  title: \"Soho, autumn 1854\"\n  milestones:\n    - label: \"31 August\"\n      sublabel: \"Cholera breaks out in Soho\"\n    - label: \"Early September\"\n      sublabel: \"Snow collects the death records\"\n    - label: \"He maps them\"\n      sublabel: \"The deaths ring one pump\"\n      emphasize: true\n    - label: \"7 September\"\n      sublabel: \"He argues it to the parish board\"\n    - label: \"8 September\"\n      sublabel: \"The pump handle comes off\"\ncommands:\n  - draw: [title, line, dot_0, label_0]\n    speak: \"In the last days of August 1854, cholera broke out in a few streets of Soho, and within a week some five hundred people were dead.\"\n  - draw: [dot_1, label_1]\n    speak: \"The reigning theory was bad air. John Snow suspected the water — and to argue it he did something bad air could not be argued with: he went and collected the death records, address by address.\"\n  - draw: [dot_2, label_2]\n    speak: \"Then he drew each death as a short bar on the street where it happened.\"\n  - pause: 0.4\n  - draw: [dot_3, label_3, dot_4, label_4]\n    speak: \"The bars piled up around one water pump. On the seventh of September he took that to the parish board; the next day the handle came off.\"\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: \"Snow's cholera map, 1855\"\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 500\n    y: 400\n    width: 420\ncommands:\n  - draw: [snow_map]\n    speak: \"This is the map itself, from the 1855 edition of Snow's book.\"\n  - camera: { center: { ref: snow_map }, zoom: 1.8 }\n    speak: \"Every short black bar is one death, stacked against the address where it fell — and they crowd around one point near the middle, the pump on Broad Street.\"\n  - camera: { reset: true }\n    speak: \"No arrows, no legend, no statistics. The pattern is the whole argument, and anyone can check it against their own street.\"\n  - speak: \"The part the story usually leaves out: the outbreak was already falling when the handle came off, so pulling it saved fewer lives than the legend says. What the map really won was the argument — and that was worth far more than one pump.\"\n"
+ },
+ {
+  "request": "Show what a derivative actually is — the slope of the tangent — and link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
+  "title": "The derivative is a slope",
+  "spec": {
+   "title": "What a derivative is",
+   "template": "generic_axes_diagram",
+   "params": {
+    "x_label": "x",
+    "y_label": "f(x)",
+    "curves": [
+     {
+      "id": "f",
+      "label": "f(x)",
+      "expression": "20 + 0.005*x*x",
+      "color": "ink"
+     },
+     {
+      "id": "tangent",
+      "expression": "0.4*x + 12",
+      "color": "accent"
+     }
+    ],
+    "points": [
+     {
+      "x": 40,
+      "y": 28,
+      "label": "one point"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "id": "slope",
+     "type": "label",
+     "text": "slope = 0.4",
+     "attach_to": "tangent",
+     "side": "below-right",
+     "link": [
+      "https://www.youtube.com/watch?v=WUvTyaaNkzM"
+     ]
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "x_label",
+      "y_label",
+      "f",
+      "label_f"
+     ],
+     "speak": "Here is a curve — anything whose value changes as x moves."
+    },
+    {
+     "draw": [
+      "point_0",
+      "point_label_0"
+     ],
+     "speak": "Now pick a single point on it and ask how fast the curve is rising THERE. The question sounds broken: a rate of change needs two points, and we have one."
+    },
+    {
+     "pause": 0.4
+    },
+    {
+     "draw": [
+      "tangent"
+     ],
+     "speak": "The trick is to draw the one straight line that grazes the curve at that point without cutting through it."
+    },
+    {
+     "draw": [
+      "slope"
+     ],
+     "speak": "The derivative is simply that line's slope — four tenths here: nudge x forward by one, and the line climbs by 0.4."
+    },
+    {
+     "highlight": {
+      "target": [
+       "tangent"
+      ],
+      "effect": "glow"
+     },
+     "speak": "Which is why a derivative is a number, not a shape: the whole curve at that point has been replaced by one straight line, and all we kept is how steep it was.",
+     "delivery": "grave"
+    },
+    {
+     "speak": "Pause and click the slope label — its card opens Grant Sanderson's calculus series, where that grazing line gets built from scratch."
+    }
+   ]
+  }
+ },
+ {
+  "request": "A disease hits 1 in 10,000. The test catches 90% of cases and false-alarms only 1% of the time. I tested positive — should I panic? Add 3Blue1Brown's Bayes video: https://www.youtube.com/watch?v=HZGCoVF3YvM",
+  "title": "Positive on a very good test",
+  "spec": {
+   "title": "A very good test, a very rare disease",
+   "template": "bayes_tree",
+   "params": {
+    "population": 100000,
+    "prevalence": 0.0001,
+    "sensitivity": 0.9,
+    "specificity": 0.99,
+    "condition": "the disease",
+    "title": "100,000 people, a 1-in-10,000 disease"
+   },
+   "elements": [
+    {
+     "id": "deceivers",
+     "type": "label",
+     "text": "Healthy but flagged",
+     "attach_to": "fp",
+     "side": "below",
+     "link": [
+      "https://www.youtube.com/watch?v=HZGCoVF3YvM"
+     ]
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "root"
+     ],
+     "speak": "Start with a hundred thousand people, and follow them instead of arguing about percentages."
+    },
+    {
+     "draw": [
+      "edge_sick",
+      "sick",
+      "edge_healthy",
+      "healthy"
+     ],
+     "speak": "The disease hits one in ten thousand, so ten of them have it and ninety-nine thousand nine hundred and ninety do not."
+    },
+    {
+     "draw": [
+      "edge_tp",
+      "tp",
+      "edge_fn",
+      "fn"
+     ],
+     "speak": "The test catches ninety per cent of real cases: nine of the ten sick people test positive, and one slips through."
+    },
+    {
+     "draw": [
+      "edge_fp",
+      "fp",
+      "edge_tn",
+      "tn"
+     ],
+     "speak": "It false-alarms just one time in a hundred — which sounds tiny, until you notice it is one per cent of a very large number."
+    },
+    {
+     "draw": [
+      "deceivers"
+     ],
+     "speak": "A thousand healthy people are told they might be sick."
+    },
+    {
+     "pause": 0.4
+    },
+    {
+     "draw": [
+      "ppv_box"
+     ],
+     "speak": "So a positive result puts you in a group of one thousand and nine, of whom nine are actually sick. Under one per cent.",
+     "delivery": "grave"
+    },
+    {
+     "highlight": {
+      "target": [
+       "fp"
+      ],
+      "effect": "glow"
+     },
+     "speak": "Nothing is wrong with the test. The rare thing simply stays rare after the evidence arrives — and click that label for the geometric picture of why."
+    }
+   ]
+  }
  }
 ]

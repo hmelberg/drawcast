@@ -181,6 +181,19 @@ deliberate: a big source element sitting on a template disturbs the LABEL
 SOLVER, which knows nothing about time, so labels get pushed aside by a
 picture that is never on screen with them.
 
+Two more examples (2026-08-28) hang a YouTube video on a figure, which had
+zero exemplars despite R7 shipping the embedded player: the derivative as the
+slope of a tangent (3Blue1Brown's calculus series) and a positive test for a
+1-in-10,000 disease (3Blue1Brown on Bayes). Both hang the link on a LABEL
+element, so it reaches the label AND the element it `attach_to`s — the
+documented reach that also had no exemplar. Every video id was checked against
+`youtube.com/oembed` before use (title and channel came back as expected);
+one plausible-looking id turned out not to exist, which is exactly the
+fabrication hazard the prompt warns about. tests/examples.test.ts now pins
+that every authored link reaches a card AND sniffs to the kind its URL
+implies, because a mistyped video id still looks like a link — it just
+degrades silently from the embedded player to a plain new tab.
+
 Deferred, deliberately: a Netlify proxy for publisher PDFs (a policy
 decision, not a technical one), Google Books covers (no CORS — their URLs
 stay fine as plain links), Semantic Scholar (429s anonymous callers),

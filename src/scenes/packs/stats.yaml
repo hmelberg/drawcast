@@ -80,7 +80,10 @@ layout: |
   const fp = Math.round(healthy * (1 - spec));
   const tn = healthy - fp;
   const ppv = tp + fp > 0 ? tp / (tp + fp) : 1;
-  const pct = (x) => (x * 100 < 1 ? (x * 100).toFixed(1) : Math.round(x * 100)) + "%";
+  // Enough decimals to stay a NUMBER: a 1-in-10,000 prevalence is exactly the
+  // case this tree exists for, and one decimal renders that branch "0.0%",
+  // which reads as a broken figure rather than a rare disease.
+  const pct = (x) => { const p = x * 100; return (p > 0 && p < 0.1 ? p.toFixed(2) : p < 1 ? p.toFixed(1) : Math.round(p)) + "%"; };
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
