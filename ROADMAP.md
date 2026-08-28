@@ -144,6 +144,20 @@ means in THIS figure. A label already carried one; node text and tier-3 text
 now do too (`meaningfulName` still screens out "D", "P*", "42"), and only a
 label reaches through to what it `attach_to`s — a node has no such relation.
 
+**And the words a TEMPLATE drew.** Measuring the first cut answered a question
+badly: only 3% of the 495 readable words across the bundled drawcasts were
+clickable, because 110 of the 114 specs use a template and a template computes
+its own labels — they are not spec elements, so "Nucleus", "Base pair",
+"α-helix" and "Amplitude A" were all dead text. Cards are now minted from the
+LAYOUT as well, which takes that to 100%. Two rules keep it honest: the card
+lands on the WORD's own box, never on the part behind it (mapping an axis
+caption up to `axes` would make the whole coordinate cross clickable as
+"Quantity (Q)"), and a word whose owning part is not command-addressable is
+never minted at all, since nothing would ever hide it — a clickable ghost
+outliving the erase of what it belonged to. Ownership comes from the drawable
+TREE, not an id prefix: `pv_loop`'s "Stroke volume" is `sv__t`, sharing no
+prefix with its group.
+
 The disambiguation is the interesting half. "Mercury" is the element in a
 figure about protons and thermometers and the planet in one about orbits, and
 the figure ALREADY says which: its title, its narration, its other labels, its

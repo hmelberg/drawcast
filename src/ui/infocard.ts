@@ -15,6 +15,8 @@ import { INITIAL_STATE } from "../render/plan";
 import { wikiSummaryUrl } from "../render/portrait";
 import { chessSquareAt, pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { elementBBoxes } from "../layout/layout";
+import { bboxOfText } from "../layout/geometry";
+import { leafDrawables, type TextDrawable } from "../layout/model";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
 import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-model";
@@ -52,13 +54,41 @@ function trimExtract(s: string): string {
 }
 
 export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
-  const targets = cardTargets(hd.spec, hd.layout.order);
+  // The words a template DREW count too, not just the spec's own elements —
+  // otherwise an axis caption, a node's text and a legend entry are all dead.
+  // Each word's owning part comes from the drawable tree (the same walk the
+  // lint does), because a group's children need not share its id prefix.
+  const ownerOf = new Map<string, string>();
+  for (const top of hd.layout.drawables) for (const leaf of leafDrawables([top])) ownerOf.set(leaf.id, top.id);
+  const drawnTexts = leafDrawables(hd.layout.drawables)
+    .filter((d): d is TextDrawable => d.kind === "text")
+    .map((d) => ({ id: d.id, text: d.text, owner: ownerOf.get(d.id) }));
+  const targets = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts });
   if (targets.size === 0) return; // scenes without cards pay nothing
 
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const flip = hd.spec.params?.["flip"] === true;
   const octaves = pianoOctaves(hd.spec.params);
   let boxes: ReadonlyMap<string, BBox> | null = null;
+
+  /**
+   * Hit boxes for every card target: the command-addressable elements, plus
+   * a box around each DRAWN WORD that carries a card of its own. The word's
+   * own box is what gets clicked — a caption belonging to `axes` must not
+   * make the whole coordinate cross clickable — and since hitElement picks
+   * the SMALLEST containing box, a word always wins over the part behind it.
+   */
+  const hitBoxes = (): ReadonlyMap<string, BBox> => {
+    if (boxes) return boxes;
+    const measure = makeBrowserMeasure();
+    const map = new Map<string, BBox>(elementBBoxes(hd.layout, measure));
+    for (const d of leafDrawables(hd.layout.drawables)) {
+      if (d.kind !== "text" || !targets.has(d.id) || map.has(d.id)) continue;
+      map.set(d.id, bboxOfText(d, measure));
+    }
+    boxes = map;
+    return map;
+  };
 
   let card: HTMLElement | null = null;
   const closeCard = (): void => {
@@ -91,15 +121,17 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     if (!p) return null;
     if (interactions.includes("chess") && chessSquareAt(flip, p) !== null) return null;
     if (interactions.includes("piano") && pianoKeyAt(octaves, p) !== null) return null;
-    boxes ??= elementBBoxes(hd.layout, makeBrowserMeasure());
     // Hit-test only what is on screen at this boundary: an invisible
     // element's smaller box must never shadow a visible card element (the
     // cameo-over-undrawn-table bug), and a card never opens for something
-    // the viewer cannot see.
+    // the viewer cannot see. A drawn word inherits the visibility of the part
+    // that owns it — it appears and is erased with that part, never alone.
     const n = hd.timeline.position;
     const visibleIds = new Set(n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible);
     const visBoxes = new Map<string, BBox>();
-    for (const [id, b] of boxes) if (visibleIds.has(id)) visBoxes.set(id, b);
+    for (const [id, b] of hitBoxes()) {
+      if (visibleIds.has(targets.get(id)?.owner ?? id)) visBoxes.set(id, b);
+    }
     const id = hitElement(visBoxes, p, 12);
     return (id !== null && targets.get(id)) || null;
   };

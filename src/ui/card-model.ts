@@ -19,6 +19,26 @@ export interface CardTarget {
   /** Authored resource links (spec §13), merged from the element and any
    *  labels attached to it; deduped. */
   links: string[];
+  /**
+   * Set on a target minted from a DRAWN text that is not itself command-
+   * addressable (a template's axis caption, `axes__x_label`): the addressable
+   * element whose visibility governs it. The word appears and disappears with
+   * the part it belongs to, so the card must too.
+   */
+  owner?: string;
+}
+
+/** What the layout knows that the spec does not: what was actually drawn. */
+export interface LayoutFacts {
+  /** Command-addressable ids in draw order (`LayoutResult.order`). */
+  order?: readonly string[];
+  /**
+   * Every text drawable actually painted: its own id, its words, and the
+   * top-level drawable it belongs to. `owner` comes from the drawable TREE,
+   * which is the only reliable answer — a template group's children need not
+   * share its id prefix (`pv_loop`'s "Stroke volume" is `sv__t`).
+   */
+  texts?: readonly { id: string; text: string; owner?: string }[];
 }
 
 /** Element types whose `text` is a word on the canvas a viewer might ask about. */
@@ -43,7 +63,9 @@ function linksOf(el: SpecElement): string[] {
  * win the name over a label that happens to attach to them; an element
  * with only links is card-bearing too, named by its prettified id.
  */
-export function cardTargets(spec: Spec, ids?: readonly string[]): Map<string, CardTarget> {
+export function cardTargets(spec: Spec, layout: LayoutFacts | readonly string[] = {}): Map<string, CardTarget> {
+  const facts: LayoutFacts = Array.isArray(layout) ? { order: layout as readonly string[] } : (layout as LayoutFacts);
+  const ids = facts.order;
   const out = new Map<string, CardTarget>();
   const usable = (id: unknown): id is string => typeof id === "string" && id !== "" && !id.includes("__");
   const ensure = (id: string, name: string, kind: "portrait" | "plain" = "plain"): CardTarget => {
@@ -101,6 +123,40 @@ export function cardTargets(spec: Spec, ids?: readonly string[]): Map<string, Ca
     const owner = /^(.+)_quote(_\d+)?$/.exec(id)?.[1];
     const t = owner ? out.get(owner) : undefined;
     if (t && !out.has(id)) out.set(id, t);
+  }
+
+  // Finally the words a TEMPLATE drew. They are not spec elements — the
+  // template computes them — so without this pass they are dead text: measured
+  // 2026-08-29, only 3% of the readable words across the bundled drawcasts
+  // were clickable, and "Nucleus", "Amplitude A" and "Base pair" were not
+  // among them. A drawn word names itself, and the card lands on the WORD's
+  // own box, never on the part that owns it: mapping an axis caption up to
+  // `axes` would make the whole coordinate cross clickable as "Quantity (Q)".
+  // Sub-drawable ids (`axes__x_label`) are exactly what this pass is for, so
+  // the `__` screen that `usable` applies to SPEC ids does not apply here.
+  const addressable = new Set(ids ?? []);
+  for (const t of facts.texts ?? []) {
+    if (typeof t.id !== "string" || t.id === "") continue;
+    if (typeof t.text !== "string" || !meaningfulName(t.text)) continue;
+    if (out.has(t.id)) continue;
+    // Its own id may be addressable; otherwise the drawable tree says which
+    // part owns it, and that part lends it both a home and a visibility.
+    let owner: string | undefined;
+    if (!addressable.has(t.id)) {
+      if (t.owner !== undefined && addressable.has(t.owner)) owner = t.owner;
+      else {
+        for (const cand of addressable) {
+          if (t.id.startsWith(cand) && (owner === undefined || cand.length > owner.length)) owner = cand;
+        }
+      }
+      // Never mint a card whose visibility nothing governs: it would sit on
+      // screen after the storyboard erased the part it belongs to.
+      if (owner === undefined) continue;
+    }
+    // A part that already carries a card keeps it — a portrait's caption must
+    // not shadow the portrait's own identity with a plain name.
+    if (owner !== undefined && out.has(owner)) continue;
+    out.set(t.id, { id: t.id, name: t.text.trim(), kind: "plain", links: [], owner });
   }
   return out;
 }

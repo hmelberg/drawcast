@@ -146,3 +146,54 @@ describe("which text on the canvas carries a card", () => {
     expect(targets.get("box")?.name).toBe("Supply");
   });
 });
+
+describe("words a TEMPLATE drew are clickable too", () => {
+  // Until 2026-08-29 only spec elements carried cards, so a figure built from
+  // a template — 110 of the 114 bundled ones — had almost nothing clickable:
+  // measured 3% of the readable words, with "Nucleus" and "Base pair" among
+  // the dead ones. A drawn word now names itself.
+  const layout = {
+    order: ["axes", "curve_1", "pv_loop"],
+    texts: [
+      { id: "axes__x_label", text: "Quantity (Q)", owner: "axes" },
+      { id: "curve_1", text: "Demand", owner: "curve_1" },
+      { id: "sv__t", text: "Stroke volume", owner: "pv_loop" }, // no shared id prefix
+      { id: "orphan__t", text: "Nothing owns me", owner: "not_addressable" },
+      { id: "sym__t", text: "P*", owner: "axes" },
+    ],
+  };
+  const spec = { elements: [], commands: [] } as unknown as Spec;
+
+  test("a drawn word gets its own card, keyed by its OWN id", () => {
+    const t = cardTargets(spec, layout);
+    expect(t.get("axes__x_label")?.name).toBe("Quantity (Q)");
+    expect(t.get("curve_1")?.name).toBe("Demand");
+  });
+
+  test("the card lands on the word, never on the part behind it", () => {
+    // Mapping the caption up to `axes` would make the whole coordinate cross
+    // clickable under one label's name.
+    const t = cardTargets(spec, layout);
+    expect(t.has("axes")).toBe(false);
+    expect(t.get("axes__x_label")?.owner).toBe("axes"); // but its visibility follows axes
+  });
+
+  test("ownership comes from the drawable tree, not the id prefix", () => {
+    // "sv__t" shares no prefix with "pv_loop"; only the tree connects them.
+    expect(cardTargets(spec, layout).get("sv__t")?.owner).toBe("pv_loop");
+  });
+
+  test("a word no visible part governs is never minted — no clickable ghosts", () => {
+    // Its owner is not command-addressable, so nothing would ever hide it:
+    // the card would outlive the erase of whatever it belongs to.
+    expect(cardTargets(spec, layout).has("orphan__t")).toBe(false);
+  });
+
+  test("symbols stay unclickable, and an element's own identity still wins", () => {
+    expect(cardTargets(spec, layout).has("sym__t")).toBe(false); // "P*" is not a thing to look up
+    const withPortrait = { elements: [{ id: "p1", type: "portrait", of: "Charles Darwin" }], commands: [] } as unknown as Spec;
+    const t = cardTargets(withPortrait, { order: ["p1"], texts: [{ id: "p1__name", text: "Charles Darwin", owner: "p1" }] });
+    expect(t.get("p1")?.kind).toBe("portrait"); // the portrait keeps its wiki identity
+    expect(t.has("p1__name")).toBe(false); // its caption does not shadow it
+  });
+});
