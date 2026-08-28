@@ -10,7 +10,7 @@ import type { RenderHandle } from "../render";
 import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { boundaryChessFen } from "./chessplay";
-import type { ChessCtor, ChessLike } from "./chessplay-model";
+import { legalTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
 import { bestReply, type AiChessCtor } from "./chess-ai";
 
 const THINK_MS = 650;
@@ -66,16 +66,27 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
   };
 
   const clearMarks = (): void => {
-    for (const m of gate.querySelectorAll(".cs-figgate-mark")) m.remove();
+    for (const m of gate.querySelectorAll(".cs-figgate-mark, .cs-chessdot")) m.remove();
   };
-  const ringAt = (sq: string, cls: string): void => {
+  const place = (sq: string, className: string): void => {
     const box = chessSquareBox(flip, sq);
     const c = box && clientPointFor(stage, [box.x + box.w / 2, box.y + box.h / 2]);
     if (!c) return;
-    const m = h("span", { class: `cs-figgate-mark ${cls}` });
+    const m = h("span", { class: className });
     m.style.left = `${c[0]}px`;
     m.style.top = `${c[1]}px`;
     gate.appendChild(m);
+  };
+  const ringAt = (sq: string, cls: string): void => place(sq, `cs-figgate-mark${cls ? ` ${cls}` : ""}`);
+
+  /** Ring the grabbed piece and dot its legal targets (ring = a capture). */
+  const markSelection = (sq: string): void => {
+    clearMarks();
+    ringAt(sq, "from");
+    if (!Chess || !game) return;
+    for (const t of legalTargets(Chess, game.fen(), sq)) {
+      place(t, game.get(t) ? "cs-figgate-mark cs-chesstake" : "cs-chessdot");
+    }
   };
 
   const paint = (): void => {
@@ -156,8 +167,7 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
       const piece = game.get(sq);
       if (!piece || piece.color !== viewerColor) return;
       selected = sq;
-      clearMarks();
-      ringAt(sq, "from");
+      markSelection(sq);
       return;
     }
     if (sq === selected) {
@@ -168,8 +178,7 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
     const other = game.get(sq);
     if (other && other.color === viewerColor) {
       selected = sq; // switching pieces
-      clearMarks();
-      ringAt(sq, "from");
+      markSelection(sq);
       return;
     }
     try {

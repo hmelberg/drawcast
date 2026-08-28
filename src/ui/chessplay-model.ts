@@ -41,6 +41,28 @@ export function flipTurn(fen: string): string {
   return f.join(" ");
 }
 
+interface ChessWithMoves extends ChessLike {
+  moves(opts: { square: string; verbose: true }): { to: string }[];
+}
+
+/**
+ * The squares the piece on `from` may move to — free-play semantics, so
+ * grabbing either side's piece works (turn flips like freeMove). Deduped
+ * (promotions repeat their target); empty for a vacant square or a
+ * position chess.js cannot search.
+ */
+export function legalTargets(Chess: ChessCtor, fen: string, from: string): string[] {
+  try {
+    let game = new Chess(fen, { skipValidation: true });
+    const piece = game.get(from);
+    if (!piece) return [];
+    if (piece.color !== fen.split(" ")[1]) game = new Chess(flipTurn(fen), { skipValidation: true });
+    return [...new Set((game as ChessWithMoves).moves({ square: from, verbose: true }).map((m) => m.to))];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * A free move: whichever piece the viewer grabs, it is that side's turn —
  * the fen's turn field flips if needed, then the move must be legal.

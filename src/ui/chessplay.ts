@@ -17,7 +17,7 @@ import { INITIAL_STATE } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
-import { freeMove, shownFen, type ChessCtor } from "./chessplay-model";
+import { freeMove, legalTargets, shownFen, type ChessCtor } from "./chessplay-model";
 
 /** The FEN actually shown at the current boundary (fen + moves + the runtime
  *  plies_shown a {var} animate may have committed) — where free play and the
@@ -40,14 +40,16 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
   let liveFen: string | null = null;
   let selected: string | null = null;
   let ring: HTMLElement | null = null;
+  let marks: HTMLElement[] = [];
 
-  const dropRing = (): void => {
-    ring?.remove();
+  const dropMarks = (): void => {
+    for (const m of marks) m.remove();
+    marks = [];
     ring = null;
   };
   const deselect = (): void => {
     selected = null;
-    dropRing();
+    dropMarks();
   };
   const invalidate = (): void => {
     liveFen = null;
@@ -75,15 +77,28 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
 
   const boundaryFen = (): string | null => (Chess ? boundaryChessFen(hd, Chess) : null);
 
-  const markSquare = (sq: string): void => {
-    dropRing();
+  const place = (sq: string, className: string): HTMLElement | null => {
     const box = chessSquareBox(flip, sq);
     const c = box && clientPointFor(stage, [box.x + box.w / 2, box.y + box.h / 2]);
-    if (!c) return;
-    ring = h("span", { class: "cs-figgate-mark from cs-chessring" });
-    ring.style.left = `${c[0]}px`;
-    ring.style.top = `${c[1]}px`;
-    stage.appendChild(ring);
+    if (!c) return null;
+    const m = h("span", { class: className });
+    m.style.left = `${c[0]}px`;
+    m.style.top = `${c[1]}px`;
+    stage.appendChild(m);
+    marks.push(m);
+    return m;
+  };
+
+  /** Ring the grabbed piece and dot where it may go (ring = a capture) —
+   *  the temporary highlight that doubles as a how-does-it-move lesson. */
+  const markSelection = (sq: string): void => {
+    dropMarks();
+    ring = place(sq, "cs-figgate-mark from cs-chessring");
+    if (!Chess || liveFen === null) return;
+    const game = new Chess(liveFen, { skipValidation: true });
+    for (const t of legalTargets(Chess, liveFen, sq)) {
+      place(t, game.get(t) ? "cs-figgate-mark cs-chessring cs-chesstake" : "cs-chessdot");
+    }
   };
 
   const shrug = (): void => {
@@ -101,7 +116,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
       const game = new Chess(liveFen, { skipValidation: true });
       if (!game.get(sq)) return; // empty square, nothing to grab
       selected = sq;
-      markSquare(sq);
+      markSelection(sq);
       return;
     }
     if (sq === selected) {
@@ -120,7 +135,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     const game = new Chess(liveFen, { skipValidation: true });
     if (game.get(sq)) {
       selected = sq;
-      markSquare(sq);
+      markSelection(sq);
     } else {
       shrug();
     }

@@ -3,7 +3,7 @@
 // explore tray starts from.
 import { describe, expect, test } from "vitest";
 import { Chess } from "chess.js";
-import { flipTurn, freeMove, shownFen, type ChessCtor } from "../src/ui/chessplay-model";
+import { flipTurn, freeMove, legalTargets, shownFen, type ChessCtor } from "../src/ui/chessplay-model";
 
 const C = Chess as unknown as ChessCtor;
 const board = (fen: string | null) => fen?.split(" ")[0];
@@ -57,5 +57,26 @@ describe("freeMove", () => {
   test("promotions auto-queen", () => {
     const next = freeMove(C, "1k6/P7/8/8/8/8/8/1K6 w - - 0 1", "a7", "a8");
     expect(board(next)).toBe("Qk6/8/8/8/8/8/8/1K6");
+  });
+});
+
+describe("legalTargets", () => {
+  const START = shownFen(C, undefined, [], 0)!;
+
+  test("a pawn's one-and-two-step start, a knight's hops", () => {
+    expect(legalTargets(C, START, "e2").sort()).toEqual(["e3", "e4"]);
+    expect(legalTargets(C, START, "g1").sort()).toEqual(["f3", "h3"]);
+  });
+  test("grabbing the side not to move still shows its moves", () => {
+    expect(legalTargets(C, START, "e7").sort()).toEqual(["e5", "e6"]);
+  });
+  test("captures are included; empty squares yield nothing", () => {
+    const pos = shownFen(C, undefined, ["e4", "d5"], 2)!;
+    expect(legalTargets(C, pos, "e4")).toContain("d5");
+    expect(legalTargets(C, START, "e5")).toEqual([]);
+  });
+  test("promotion squares are deduped", () => {
+    const t = legalTargets(C, "8/P6k/8/8/8/8/8/7K w - - 0 1", "a7");
+    expect(t).toEqual(["a8"]);
   });
 });
