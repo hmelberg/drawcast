@@ -264,3 +264,67 @@ elements ever touch it.
    ticks on the seek bar from the roadmap).
 5. **First widget** — keyboard or chess exercise, built for a concrete
    lesson, which is when the widget API gets designed.
+
+## 13. Amendments (agreed Hans + Claude, 2026-08-28)
+
+These refine §7's UI model after the chess-indicator round; where they
+conflict with §7 as written, the amendment wins.
+
+**The gesture pair.** *Left-click does; right-click asks what's
+possible.* Left-click keeps today's meanings unchanged: pause/resume on
+the stage, the natural action on an interactive object (a piano key
+sounds, a chess piece moves), and — once the info card exists — the card
+on an inert marked element, because "tell me about yourself" *is* an
+inert object's natural action. Right-click (and, in a later round,
+long-press on touch) opens the interaction menu for whatever is under
+the pointer: an object → its card/menu at the pointer; the background →
+the scene surface (the tray). Right-click during playback pauses at the
+step boundary first, then opens — one gesture from movie into
+interaction. The browser's native context menu is suppressed inside the
+stage only. Left-click never opens controls or menus on active objects;
+that collision rule is settled.
+
+**Two scopes, no selection.** Element scope is addressed by *pointing*
+(the right-click target); scene scope by the ⊕ or a background
+right-click. There is no "selected object" state in the player, ever —
+selection would duplicate what pointing already does and make the ⊕'s
+meaning depend on invisible state.
+
+**The ⊕ stays, static and frozen.** The indicator remains in the control
+bar as (a) the guaranteed touch path, (b) the anchor of the persistent
+controls surface (the tray — menus are transient, sliders are not), and
+(c) first-session discoverability, per the accelerator rule: a context
+menu is never the only route to a command. It carries no per-scene
+state, no color changes. For now it keeps exactly its shipped role —
+controls/explore door — and does not grow.
+
+**Scheduled convergence.** The ⊕/tray and the context menu are two views
+of ONE interactions registry (the manifest's `interactions:` section,
+§6); they can never drift because neither owns content. When the first
+*named activity* ships (quiz, play-vs-computer), its launcher appears in
+both: as a context-menu entry and as a pill row atop the tray. Until
+then no pills are built — the dashboard solves a problem that does not
+exist yet.
+
+**Markers are the enumeration.** The scene surface never lists the
+scene's objects textually; the pause-reveal markers show them in place,
+and pointing goes element-scope. Marker rule: markers go on *objects*,
+not element ids — an element with an info payload (name/summary/link) or
+a bound interaction gets one; a chessboard is one marked object, its 64
+squares are hit geometry.
+
+**Free play is an excursion.** Intrinsic free play (moving the chess
+pieces, playing the keyboard) previews over the paused frame and is
+discarded on Continue ▶ — the storyboard's honest position is restored
+exactly, per §4.1. Chess free-move rides the param machinery: the
+position is `fen`/`moves`/`plies_shown`, so a user move is a param
+preview, with legality from the already-shipped chess engine.
+
+**Amended near-term build order:** (1) `interactions:` manifest section
++ ⊕ lights for chess; (2) free-move chess while paused; (3) right-click
+v1 (suppress native menu on stage; pause + open the tray); (4) identify
+quiz generator; (5) info card v1 (name + search, then wiki summaries);
+(6) play vs computer with a small built-in engine (chess.js legal moves
++ shallow material search — beginner strength is right for a teaching
+app; Stockfish WASM only if strength is ever actually wanted); long-press
+touch analog as its own later round.
