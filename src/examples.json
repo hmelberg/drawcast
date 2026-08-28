@@ -6914,6 +6914,112 @@
   }
  },
  {
+  "request": "Tell the story of Adam Smith's pin factory, and link his portrait to the book: https://en.wikipedia.org/wiki/The_Wealth_of_Nations and https://www.gutenberg.org/ebooks/3300",
+  "title": "Smith's pin factory",
+  "spec": {
+   "title": "The division of labour",
+   "template": "two_by_two_table",
+   "params": {
+    "row_label": "How they work",
+    "col_label": "Pins per day",
+    "row_values": [
+     "Each alone",
+     "Ten specialists"
+    ],
+    "col_values": [
+     "Per worker",
+     "Whole shop"
+    ],
+    "cells": [
+     [
+      "20",
+      "200"
+     ],
+     [
+      "4,800",
+      "48,000"
+     ]
+    ],
+    "title": "Smith's pin factory (1776)"
+   },
+   "elements": [
+    {
+     "id": "portrait_smith",
+     "type": "portrait",
+     "of": "Adam Smith",
+     "cameo": true,
+     "link": [
+      "https://en.wikipedia.org/wiki/The_Wealth_of_Nations",
+      "https://www.gutenberg.org/ebooks/3300"
+     ]
+    }
+   ],
+   "commands": [
+    {
+     "speak": "In 1776 a Scottish professor visited a pin factory — and what he counted there became the most famous number in economics."
+    },
+    {
+     "draw": [
+      "portrait_smith"
+     ],
+     "speak": "Adam Smith, about to publish The Wealth of Nations — the book that begins, of all places, with pins."
+    },
+    {
+     "erase": [
+      "portrait_smith"
+     ],
+     "speak": "Here is what he saw."
+    },
+    {
+     "draw": [
+      "grid",
+      "row_title",
+      "col_title",
+      "row_header_0",
+      "row_header_1",
+      "col_header_0",
+      "col_header_1"
+     ],
+     "speak": "Compare two ways of running the same ten-man workshop."
+    },
+    {
+     "draw": [
+      "cell_0_0",
+      "cell_0_1"
+     ],
+     "speak": "A worker doing every step himself — drawing the wire, cutting, sharpening, fitting the head — makes at best twenty pins a day. Ten of them: two hundred."
+    },
+    {
+     "draw": [
+      "cell_1_0",
+      "cell_1_1"
+     ],
+     "speak": "Smith's factory split the work into eighteen small operations, one or two per man. The same ten workers now made forty-eight THOUSAND pins a day."
+    },
+    {
+     "pause": 0.3
+    },
+    {
+     "highlight": {
+      "target": [
+       "cell_0_1",
+       "cell_1_1"
+      ],
+      "effect": "circle"
+     },
+     "speak": "Two hundred against forty-eight thousand — a two-hundred-forty-fold gain from nothing but organizing the work differently.",
+     "delivery": "grave"
+    },
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "That is the division of labour, the very first idea in the book. Pause and click Smith's portrait — the card there opens The Wealth of Nations itself."
+    }
+   ]
+  }
+ },
+ {
   "request": "Explain how a rise in demand moves the market price, and quiz me at the end.",
   "spec": {
    "title": "Demand up, price up — quiz",
@@ -7392,6 +7498,151 @@
      },
      "duration": 1.2,
      "speak": "Checkmate. The king cannot take — the bishop on c4 guards your queen."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Show the Italian Game opening, then let me play on from there.",
+  "title": "The Italian Game — your move",
+  "packs": [
+   "games"
+  ],
+  "spec": {
+   "title": "The Italian Game",
+   "template": "chess_board",
+   "params": {
+    "moves": [
+     "e4",
+     "e5",
+     "Nf3",
+     "Nc6",
+     "Bc4"
+    ],
+    "plies_shown": 0
+   },
+   "commands": [
+    {
+     "speak": "The Italian Game is four centuries old and still the first opening every player should learn — watch it build, then take the board yourself."
+    },
+    {
+     "draw": [
+      "board",
+      "sq_b8",
+      "sq_d8",
+      "sq_f8",
+      "sq_h8",
+      "sq_a7",
+      "sq_c7",
+      "sq_e7",
+      "sq_g7",
+      "sq_b6",
+      "sq_d6",
+      "sq_f6",
+      "sq_h6",
+      "sq_a5",
+      "sq_c5",
+      "sq_e5",
+      "sq_g5",
+      "sq_b4",
+      "sq_d4",
+      "sq_f4",
+      "sq_h4",
+      "sq_a3",
+      "sq_c3",
+      "sq_e3",
+      "sq_g3",
+      "sq_b2",
+      "sq_d2",
+      "sq_f2",
+      "sq_h2",
+      "sq_a1",
+      "sq_c1",
+      "sq_e1",
+      "sq_g1",
+      "piece_a1",
+      "piece_b1",
+      "piece_c1",
+      "piece_d1",
+      "piece_e1",
+      "piece_f1",
+      "piece_g1",
+      "piece_h1",
+      "piece_a2",
+      "piece_b2",
+      "piece_c2",
+      "piece_d2",
+      "piece_e2",
+      "piece_f2",
+      "piece_g2",
+      "piece_h2",
+      "piece_a7",
+      "piece_b7",
+      "piece_c7",
+      "piece_d7",
+      "piece_e7",
+      "piece_f7",
+      "piece_g7",
+      "piece_h7",
+      "piece_a8",
+      "piece_b8",
+      "piece_c8",
+      "piece_d8",
+      "piece_e8",
+      "piece_f8",
+      "piece_g8",
+      "piece_h8",
+      "piece_e4",
+      "piece_e5",
+      "piece_f3",
+      "piece_c6",
+      "piece_c4",
+      "move_arrow",
+      "coord_a",
+      "coord_b",
+      "coord_c",
+      "coord_d",
+      "coord_e",
+      "coord_f",
+      "coord_g",
+      "coord_h",
+      "coord_1",
+      "coord_2",
+      "coord_3",
+      "coord_4",
+      "coord_5",
+      "coord_6",
+      "coord_7",
+      "coord_8"
+     ],
+     "speak": "The starting position: sixteen pieces a side, and a fight for the four center squares about to begin."
+    },
+    {
+     "animate": {
+      "plies_shown": 2
+     },
+     "duration": 1.6,
+     "speak": "Both sides stake the center at once — pawn to e4, pawn to e5."
+    },
+    {
+     "animate": {
+      "plies_shown": 4
+     },
+     "duration": 1.6,
+     "speak": "Knights before bishops: White's knight attacks the e5 pawn, and Black's knight steps up to defend it."
+    },
+    {
+     "animate": {
+      "plies_shown": 5
+     },
+     "duration": 1.2,
+     "speak": "And the Italian move itself — bishop to c4, aiming straight at f7, the one square only the king defends."
+    },
+    {
+     "pause": 0.3
+    },
+    {
+     "speak": "That's the Italian Game. Now it's your board: pause and move the pieces to try continuations — or open the plus button for a square-naming quiz, or a full game against the computer."
     }
    ]
   }
