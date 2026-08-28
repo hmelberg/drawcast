@@ -13,7 +13,7 @@ export const FONT_FLOOR = 14;
 const CANVAS_TOLERANCE = 2;
 
 export interface LintIssue {
-  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch" | "ask-var";
+  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch" | "ask-var" | "source-use";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -165,13 +165,53 @@ function isVisibleAction(c: Command): boolean {
 }
 
 /**
+ * Source elements earn their place one at a time (further reading, a proof
+ * pointer, a quotation the narration actually uses) — a wall of covers is a
+ * bibliography, not a figure. The other two rules catch settings that quietly
+ * do nothing: a quote with no page to find it on, and cameo, which is a
+ * person-entrance gesture and has no meaning for a book.
+ */
+function lintSources(spec: Spec): LintIssue[] {
+  const sources = (spec.elements ?? []).filter((e) => e.type === "source");
+  if (sources.length === 0) return [];
+  const issues: LintIssue[] = [];
+  for (const el of sources) {
+    if (typeof el.quote === "string" && el.quote.trim() !== "" && el.page === undefined) {
+      issues.push({
+        rule: "source-use",
+        ids: [el.id],
+        message: `source "${el.id}" has a quote but no page — add the page the passage is on, or drop the quote`,
+        severity: "warn",
+      });
+    }
+    if (el.cameo === true) {
+      issues.push({
+        rule: "source-use",
+        ids: [el.id],
+        message: `source "${el.id}" sets cameo, which is a person-entrance gesture — ignored; drop it`,
+        severity: "warn",
+      });
+    }
+  }
+  if (sources.length > 2) {
+    issues.push({
+      rule: "source-use",
+      ids: sources.map((e) => e.id),
+      message: `${sources.length} source elements in one figure — keep at most one or two; a gallery of covers reads as a bibliography, not a figure`,
+      severity: "warn",
+    });
+  }
+  return issues;
+}
+
+/**
  * Screen-first lint (spec principle 1): the canvas must start fast and keep
  * moving. Deterministic, spec-level — feeds the same report as lintLayout so
  * the LLM repair round self-corrects talky storyboards.
  */
 export function lintCommands(spec: Spec): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [];
+  const issues: LintIssue[] = [...lintSources(spec)];
 
   // {var} tokens must be stored by an EARLIER ask — a later or missing store
   // means the line speaks the literal braces.

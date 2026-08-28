@@ -18,7 +18,8 @@ export type ElementType =
   | "path"
   | "text"
   | "shape"
-  | "portrait";
+  | "portrait"
+  | "source";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -104,8 +105,8 @@ export interface SpecElement {
   height?: number;
   radius?: number;
   font_size?: number;
-  // portrait (a photo traced into sketch strokes)
-  /** Person's name — resolved to a portrait via Wikipedia when url/strokes are absent. */
+  // portrait (a photo traced into sketch strokes) / source (a book or paper)
+  /** Person's name (portrait) or work's title (source) — resolved via Wikipedia when url/strokes are absent. */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
@@ -127,6 +128,17 @@ export interface SpecElement {
    * iris = circle opening, drift = settle-and-fade, fade = plain opacity.
    */
   reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
+  // source (a book cover, a paper's title page, or one page of either)
+  /** DOI of a paper — resolved to its open-access PDF via OpenAlex/Unpaywall. */
+  doi?: string;
+  /** ISBN of a book — resolved to its Open Library cover. */
+  isbn?: string;
+  /** Internet Archive scan id — resolved to a IIIF page image of that scan. */
+  archive?: string;
+  /** PDF page (1-based) or, on the archive path, the scan's LEAF index. */
+  page?: number;
+  /** Passage on `page` to sweep with a highlighter (PDF path only). */
+  quote?: string;
   // cross-cutting
   style?: SpecStyle;
   draw?: SpecDraw;

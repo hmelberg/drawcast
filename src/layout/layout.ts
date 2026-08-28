@@ -65,6 +65,12 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     for (const el of spec.elements) {
       if (!order.includes(el.id)) order.push(el.id);
     }
+    // Ids tier-2 minted itself (a source element's quote highlights) come
+    // AFTER their element — order is also paint order, and a highlighter
+    // sweep belongs on top of the page it marks.
+    for (const id of tier2.extraOrder) {
+      if (!order.includes(id)) order.push(id);
+    }
   }
 
   // Label placement against everything drawn so far.

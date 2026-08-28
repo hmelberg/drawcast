@@ -9,6 +9,9 @@
 //   "dot"   — one halftone dot: two points, the center and a radius
 //             carrier at [cx + r, cy] (the newspaper-print look).
 //
+// The photo looks share the file: `img1:` (a framed grayscale photo) and
+// `img2:` (a source page — the same photo plus quote-highlight rects).
+//
 // Wire format: `t2:<2-char aspect>:<shape>.<shape>...` where each shape is
 // one kind char (l/i/m/p) followed by 4 chars per point (12-bit x then
 // 12-bit y, high 6 bits first, base64url alphabet). Aspect = height/width,
@@ -76,6 +79,57 @@ export function decodePhoto(s: string): { aspect: number; href: string } | null 
   const href = body.slice(3);
   if (!href.startsWith("data:image/")) return null;
   return { aspect: Math.max(0.05, aspectRaw / 500), href };
+}
+
+/** A highlight rectangle over a source page: [x, y, w, h], lower-left origin. */
+export type PhotoRect = [number, number, number, number];
+
+/**
+ * The SOURCE element's wire form: a photo PLUS the quote-highlight rectangles
+ * the PDF text layer produced — `img2:<2-char aspect>:<rects>:<data URI>`.
+ * Each rect is 8 chars (x, y, w, h; 12 bits each, the alphabet above),
+ * normalized exactly like trace points: x/w as fractions of the image WIDTH,
+ * y/h in [0, aspect], y-UP, (x, y) = the lower-left corner.
+ *
+ * Rects ride WITH the photo so one cached value carries the whole resolution:
+ * the text layer is parsed once per browser, not once per play, and a pinned
+ * spec keeps its highlights. `img1:` (a plain portrait photo) decodes here too,
+ * with no rects — a photo pinned onto a source element still renders.
+ */
+export function encodeSourceImage(aspect: number, href: string, rects: readonly PhotoRect[] = []): string {
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  const body = rects
+    .map(([x, y, w, h]) => enc12(x * GRID) + enc12((y / a) * GRID) + enc12(w * GRID) + enc12((h / a) * GRID))
+    .join("");
+  return `img2:${enc12(Math.min(8, a) * 500)}:${body}:${href}`;
+}
+
+export function decodeSourceImage(s: string): { aspect: number; href: string; rects: PhotoRect[] } | null {
+  if (typeof s !== "string") return null;
+  if (s.startsWith("img1:")) {
+    const photo = decodePhoto(s);
+    return photo && { ...photo, rects: [] };
+  }
+  if (!s.startsWith("img2:")) return null;
+  const body = s.slice(5);
+  if (body[2] !== ":") return null;
+  const aspectRaw = dec12(body, 0);
+  if (aspectRaw === null) return null;
+  const aspect = Math.max(0.05, aspectRaw / 500);
+  const sep = body.indexOf(":", 3);
+  if (sep < 0) return null;
+  const coords = body.slice(3, sep);
+  if (coords.length % 8 !== 0) return null;
+  const rects: PhotoRect[] = [];
+  for (let i = 0; i < coords.length; i += 8) {
+    const q = [dec12(coords, i), dec12(coords, i + 2), dec12(coords, i + 4), dec12(coords, i + 6)];
+    if (q.some((v) => v === null)) return null;
+    const [x, y, w, h] = q as number[];
+    rects.push([x / GRID, (y / GRID) * aspect, w / GRID, (h / GRID) * aspect]);
+  }
+  const href = body.slice(sep + 1);
+  if (!href.startsWith("data:image/")) return null;
+  return { aspect, href, rects };
 }
 
 export function decodeTrace(s: string): PortraitTrace | null {

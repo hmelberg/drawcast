@@ -33,7 +33,7 @@ function trimExtract(s: string): string {
 }
 
 export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
-  const targets = cardTargets(hd.spec);
+  const targets = cardTargets(hd.spec, hd.layout.order);
   if (targets.size === 0) return; // scenes without cards pay nothing
 
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];

@@ -12,6 +12,8 @@ import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
+import { resolveSources } from "./source";
+import { loadSettings } from "../store";
 import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 
 export type { RenderStyle } from "./svg-backend";
@@ -47,6 +49,22 @@ export interface RenderHandle {
 let liveTonesSingleton: WebAudioTones | null = null;
 function liveTones(): WebAudioTones {
   return (liveTonesSingleton ??= new WebAudioTones());
+}
+
+/**
+ * The contact address Unpaywall asks its callers for (the OpenAlex fallback
+ * on the DOI path). From the user's settings, or a build-time env var for
+ * embedded/kiosk builds — never a hardcoded address in the repo. No address =
+ * no Unpaywall call; OpenAlex alone covers most open-access papers.
+ */
+function contactEmail(): string {
+  const env = import.meta.env?.VITE_CONTACT_EMAIL;
+  if (typeof env === "string" && env.includes("@")) return env;
+  try {
+    return loadSettings().contactEmail?.trim() ?? "";
+  } catch {
+    return "";
+  }
 }
 
 let fontsReady: Promise<void> | null = null;
@@ -88,10 +106,15 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   figure.append(stage, caption);
   container.appendChild(figure);
 
-  // Portraits resolve BEFORE layout (layout is synchronous): cache-warm this
-  // is milliseconds; cache-cold it fetches + traces during figure preparation.
+  // Portraits and sources resolve BEFORE layout (layout is synchronous):
+  // cache-warm this is milliseconds; cache-cold it fetches + traces (or
+  // fetches + renders a PDF page) during figure preparation, so playback never
+  // stalls mid-figure and an export always records the finished image.
   // Failures degrade to the element's sketched placeholder, never a throw.
-  await resolvePortraits(spec).catch(() => undefined);
+  await Promise.all([
+    resolvePortraits(spec).catch(() => undefined),
+    resolveSources(spec, { contactEmail: contactEmail() }).catch(() => undefined),
+  ]);
 
   const measure = makeBrowserMeasure();
   const layout = layoutSpec(spec, measure);

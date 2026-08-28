@@ -7642,5 +7642,107 @@
     }
    ]
   }
+ },
+ {
+  "request": "Why are most published research findings false? Show the base-rate arithmetic, and put the paper itself on the slide: https://doi.org/10.1371/journal.pmed.0020124",
+  "title": "Most findings are false",
+  "spec": {
+   "title": "Why most published findings are false",
+   "template": "two_by_two_table",
+   "params": {
+    "row_label": "The hypothesis",
+    "col_label": "The test says",
+    "row_values": [
+     "Really true",
+     "Really false"
+    ],
+    "col_values": [
+     "Significant",
+     "Not significant"
+    ],
+    "cells": [
+     [
+      "80",
+      "20"
+     ],
+     [
+      "45",
+      "855"
+     ]
+    ],
+    "title": "1,000 hypotheses, 100 of them true"
+   },
+   "elements": [
+    {
+     "id": "paper",
+     "type": "source",
+     "of": "Why Most Published Research Findings Are False",
+     "doi": "10.1371/journal.pmed.0020124",
+     "x": 840,
+     "y": 330,
+     "width": 190
+    }
+   ],
+   "commands": [
+    {
+     "speak": "Take a thousand hypotheses a field might test in a year."
+    },
+    {
+     "draw": [
+      "grid",
+      "row_title",
+      "col_title",
+      "row_header_0",
+      "row_header_1",
+      "col_header_0",
+      "col_header_1"
+     ],
+     "speak": "Each one is either really true or really false — and the study either reaches significance or it does not."
+    },
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Suppose a hundred of the thousand are genuinely true. That is a generous field."
+    },
+    {
+     "draw": [
+      "cell_0_0",
+      "cell_0_1"
+     ],
+     "speak": "A study with eighty per cent power finds eighty of those hundred, and misses twenty."
+    },
+    {
+     "draw": [
+      "cell_1_0",
+      "cell_1_1"
+     ],
+     "speak": "Of the nine hundred false hypotheses, a five per cent significance threshold still hands back forty-five significant results."
+    },
+    {
+     "pause": 0.4
+    },
+    {
+     "highlight": {
+      "target": [
+       "cell_0_0",
+       "cell_1_0"
+      ],
+      "effect": "circle"
+     },
+     "speak": "So a hundred and twenty-five papers report a significant finding — and forty-five of them, more than one in three, are false.",
+     "delivery": "grave"
+    },
+    {
+     "draw": [
+      "paper"
+     ],
+     "speak": "John Ioannidis made exactly this arithmetic famous in 2005; his paper is here — click it to read."
+    },
+    {
+     "speak": "Nothing was fabricated and no rule was broken. The false-discovery rate falls straight out of the base rate, the power, and the threshold."
+    }
+   ]
+  }
  }
 ]

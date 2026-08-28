@@ -24,6 +24,7 @@
     "d3-shape": "^3.2.0",
     "js-yaml": "^4.1.0",
     "mathjax-full": "^3.2.2",
+    "pdfjs-dist": "^6.2.108",
     "roughjs": "^4.6.6",
     "smiles-drawer": "^2.4.1",
     "topojson-client": "^3.1.0",

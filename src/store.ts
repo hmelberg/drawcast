@@ -69,6 +69,8 @@ export interface Settings {
   enabledPacks: string[];
   /** Enabled pack ids whose templates get a full catalog entry (never summarized). */
   priorityPacks: string[];
+  /** Contact address Unpaywall asks callers for (source elements, DOI path). Empty = skip Unpaywall. */
+  contactEmail: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -99,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // tests/pack-defaults.test.ts pins this list against PACK_DEFS instead.
   enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic", "medicine", "macro", "empirics", "hta", "music", "stats"],
   priorityPacks: [],
+  contactEmail: "",
 };
 
 function read<T>(key: string, fallback: T): T {

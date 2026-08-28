@@ -85,14 +85,15 @@ const EDGE_PAD = 4;
 const MAX_LABEL_WIDTH = 280;
 const LINE_HEIGHT = 1.25;
 
-function wrapLines(text: string, fontSize: number, measure: MeasureFn): string[] {
-  if (measure(text, fontSize).w <= MAX_LABEL_WIDTH) return [text];
+/** Greedy word wrap at a measured width. Shared with the source caption. */
+export function wrapText(text: string, fontSize: number, maxWidth: number, measure: MeasureFn): string[] {
+  if (measure(text, fontSize).w <= maxWidth) return [text];
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
-    if (current && measure(candidate, fontSize).w > MAX_LABEL_WIDTH) {
+    if (current && measure(candidate, fontSize).w > maxWidth) {
       lines.push(current);
       current = word;
     } else {
@@ -101,6 +102,10 @@ function wrapLines(text: string, fontSize: number, measure: MeasureFn): string[]
   }
   if (current) lines.push(current);
   return lines;
+}
+
+function wrapLines(text: string, fontSize: number, measure: MeasureFn): string[] {
+  return wrapText(text, fontSize, MAX_LABEL_WIDTH, measure);
 }
 
 function candidateBox(anchor: Pt, side: Side, r: number, w: number, h: number): BBox {

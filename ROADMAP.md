@@ -137,6 +137,38 @@ halftone at 900 dots also fell short of likeness; Hans judged photo the winner �
 it is the DEFAULT look (halftone at 2400 dots stays the styled option).
 Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
+## Sources — done 2026-08-28
+
+A `source` element puts the WORK itself on the canvas — a book cover, a
+paper's title page, or one page of either — in the portrait photo family
+(`docs/2026-08-28-source-element-spec.md`). Same architecture as portraits
+and for the same reasons: the spec carries only the reference (`of` = the
+title, verified against Wikipedia and therefore the preferred one; or
+`doi`/`isbn`/`archive`/`url`, which must be COPIED from the request because
+a wrong-but-real identifier resolves to the wrong work in silence), and
+`src/render/source.ts` resolves it in the ensure phase into a paper-tinted
+image cached in IndexedDB. Two cache entries per element — the reference
+lookup (page-independent) and the image (page- and quote-specific) — so
+turning a page never re-asks OpenAlex. A `quote` on the PDF path is matched
+against `getTextContent()` (whitespace collapsed, curly punctuation
+flattened, line-break hyphenation joined) and becomes drawcast's OWN ink:
+one thick highlighter stroke per line, emitted as separate addressable
+drawables `<id>_quote`, `<id>_quote_2`, … so the sweep is timed to the
+narration beat and plays backwards on erase, never baked into the pixels.
+pdf.js is lazy-loaded as its own chunk (433 kB) on first use. Two live
+findings the implementation is built around: OpenAlex 404s on a
+percent-encoded DOI slash, and its `best_oa_location.pdf_url` is often null
+while the `locations` array carries a perfectly good arXiv PDF — so every
+location is scanned and arxiv.org wins the tie (verified CORS-open).
+Failure degrades to a ruled placeholder page; a missing cover (Open Library
+answers 1×1 pixels, not 404) or a paywalled DOI falls back to the title.
+
+Deferred, deliberately: a Netlify proxy for publisher PDFs (a policy
+decision, not a technical one), Google Books covers (no CORS — their URLs
+stay fine as plain links), Semantic Scholar (429s anonymous callers),
+and full-text search inside PDFs — a quote is located verbatim-ish, never
+discovered.
+
 - **Explore tray** (2026-08-27): interactivity round 1 per
   `docs/superpowers/specs/2026-08-27-interactivity-principles.md` — ⊕ on the
   control bar opens a slider tray auto-derived from params_schema bounds

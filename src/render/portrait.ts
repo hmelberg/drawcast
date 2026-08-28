@@ -75,11 +75,25 @@ export async function cachePut(key: string, encoded: string): Promise<void> {
 
 // ---- image → trace --------------------------------------------------------
 
-/** Longest image side per look — halftone earns extra resolution (finer dots). */
-const LOOK_DIM: Record<string, number> = { halftone: 260, poster: 150, line: 150, photo: 240 };
+/**
+ * Longest image side per look — halftone earns extra resolution (finer dots).
+ * `page` is the source element's (src/render/source.ts): a book cover or a
+ * PDF page carries TEXT, which at the portrait cap of 240 px is mush.
+ */
+export const LOOK_DIM: Record<string, number> = { halftone: 260, poster: 150, line: 150, photo: 240, page: 640 };
+
+export interface Raster {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray;
+  /** The image's own size before downscaling — Open Library answers "no cover"
+   *  with a 1×1 pixel instead of a 404, and only this catches that. */
+  naturalWidth: number;
+  naturalHeight: number;
+}
 
 /** Load a CORS-readable image into pixel data (browser only). */
-async function loadRaster(url: string, maxDim: number): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
+export async function loadRaster(url: string, maxDim: number): Promise<Raster> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
@@ -96,7 +110,8 @@ async function loadRaster(url: string, maxDim: number): Promise<{ width: number;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas 2D unavailable");
   ctx.drawImage(img, 0, 0, w, h);
-  return ctx.getImageData(0, 0, w, h); // throws on tainted canvas = clear CORS signal
+  const px = ctx.getImageData(0, 0, w, h); // throws on tainted canvas = clear CORS signal
+  return { width: px.width, height: px.height, data: px.data, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight };
 }
 
 export type PortraitLook = "halftone" | "poster" | "line" | "photo";
@@ -112,8 +127,11 @@ export async function traceFromUrl(url: string, look: PortraitLook = "photo"): P
  * The faithful look: grayscale with a gentle contrast bump and a warm
  * paper tint, re-encoded as a small JPEG data URI — recognizable where
  * every stylization fails, still tonally at home on the paper.
+ *
+ * Shared with the source element (src/render/source.ts) on purpose: a page
+ * of a book must look like it sits on the same paper as everything else.
  */
-function styledPhotoDataUri(raster: { width: number; height: number; data: Uint8ClampedArray }): string {
+export function styledPhotoDataUri(raster: { width: number; height: number; data: Uint8ClampedArray }): string {
   const { width: w, height: h, data } = raster;
   const canvas = document.createElement("canvas");
   canvas.width = w;

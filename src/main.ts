@@ -35,6 +35,7 @@ import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec, SpecElement } from "./spec/types";
 import { resolvePortraits, traceFromBlob } from "./render/portrait";
+import { resolveSources } from "./render/source";
 import { h } from "./ui/dom";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
@@ -511,7 +512,7 @@ const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", 
 const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
 const portraitBtn = h("button", { class: "small", title: "Insert a portrait: a person's name (Wikipedia lookup), an image URL, or — leave the prompt empty — a picked file. Traced into sketch strokes in the house style." }, "👤 Portrait");
 const portraitFile = h("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
-const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin portraits: embed every portrait's traced strokes into the spec text, so it renders identically forever, offline, on any machine" }, "📌");
+const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
 const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
 const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
 // A capability without its credential does not advertise itself (spec §6).
@@ -991,6 +992,12 @@ const skipQuestionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 skipQuestionsCb.checked = settings.skipQuestions;
 const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 developerCb.checked = settings.developerMode;
+const contactEmailInput = h("input", { type: "email", placeholder: "you@example.org", autocomplete: "off" }) as HTMLInputElement;
+contactEmailInput.value = settings.contactEmail;
+contactEmailInput.addEventListener("change", () => {
+  settings.contactEmail = contactEmailInput.value.trim();
+  persist();
+});
 const voiceSel = h("select", {});
 const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
@@ -1025,6 +1032,17 @@ dialog.append(
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
+  h(
+    "div",
+    { class: "settings-field" },
+    h("label", {}, "Contact email (optional)"),
+    contactEmailInput,
+    h(
+      "div",
+      { class: "settings-note" },
+      "Only for source elements that carry a DOI: when OpenAlex knows no open-access PDF, Unpaywall is asked next, and its free API requires a contact address. Sent to api.unpaywall.org and nowhere else; leave it empty to skip that step.",
+    ),
+  ),
   h(
     "div",
     { class: "settings-field" },
@@ -2697,20 +2715,25 @@ pinPortraitsBtn.addEventListener("click", () => {
   const playlist = readPlaylistText(specArea.value);
   if (!playlist) return;
   const items = itemsOf(playlist);
-  const hasPortraits = items.some((it) => (it.spec.elements ?? []).some((e) => e.type === "portrait"));
-  if (!hasPortraits) {
-    setStatus("No portrait elements to pin.", "error");
+  const pinnable = items.some((it) => (it.spec.elements ?? []).some((e) => e.type === "portrait" || e.type === "source"));
+  if (!pinnable) {
+    setStatus("No portrait or source elements to pin.", "error");
     return;
   }
-  setStatus("Pinning portraits…", "ok");
-  void Promise.all(items.map((it) => resolvePortraits(it.spec))).then((all) => {
+  setStatus("Pinning images…", "ok");
+  // Sources pin for the same reason portraits do, and one more: a resolved
+  // page image outlives the link rot and API deaths that dynamic resolution
+  // accepts as its risk (docs/2026-08-28-source-element-spec.md §2).
+  void Promise.all(
+    items.flatMap((it) => [resolvePortraits(it.spec), resolveSources(it.spec, { contactEmail: settings.contactEmail })]),
+  ).then((all) => {
     const failed = all.flat().filter((r) => !r.ok);
     specArea.value = formatPlaylist(playlist, settings.specFormat);
     rerenderBtn.click();
     setStatus(
       failed.length > 0
         ? `Pinned with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
-        : "Portraits pinned — the spec is now fully self-contained.",
+        : "Pinned — the spec is now fully self-contained.",
       failed.length > 0 ? "error" : "ok",
     );
   });

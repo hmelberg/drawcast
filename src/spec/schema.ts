@@ -62,7 +62,7 @@ const elementSchema = {
     id: { type: "string", description: "Unique id, referenced by commands and other elements." },
     type: {
       type: "string",
-      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait"],
+      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source"],
     },
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
@@ -131,19 +131,40 @@ const elementSchema = {
     closed: { type: "boolean", description: "path: close the polyline." },
     x: { type: "number", description: "text/shape: logical x (y-up canvas)." },
     y: { type: "number", description: "text/shape: logical y (y-up canvas)." },
-    width: { type: "number", description: "shape rect: width in logical units." },
+    width: { type: "number", description: "shape rect / portrait / source: width in logical units (a source defaults to 200 for a cover, 260 for a page)." },
     height: { type: "number", description: "shape rect: height in logical units." },
     radius: { type: "number", description: "shape circle: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
-    // portrait
+    // portrait / source
     of: {
       type: "string",
       description:
-        "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided.",
+        "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
+        "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it.",
     },
-    url: { type: "string", description: "portrait: direct image URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
-    strokes: { type: "string", description: "portrait: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
-    source: { type: "string", description: "portrait: provenance/attribution (machine-written; copy verbatim)." },
+    url: { type: "string", description: "portrait/source: direct image or .pdf URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
+    strokes: { type: "string", description: "portrait/source: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
+    source: { type: "string", description: "portrait/source: provenance/attribution (machine-written; copy verbatim)." },
+    doi: {
+      type: "string",
+      description:
+        "source: DOI of a paper, e.g. \"10.48550/arXiv.1706.03762\" — resolved to its open-access PDF. COPY IT from the user's request; NEVER invent or reconstruct a DOI: a wrong-but-real DOI silently shows the wrong paper.",
+    },
+    isbn: { type: "string", description: "source: ISBN of a book — resolved to its Open Library cover. Copy it from the user's request; never invent one." },
+    archive: {
+      type: "string",
+      description: "source: Internet Archive scan id (the id in an archive.org/details/… URL) — a public-domain scan, any page. Copy it from the user's request; never invent one.",
+    },
+    page: {
+      type: "number",
+      description:
+        "source: which page to show — the 1-based page of a PDF, or (with archive) the scan's LEAF index, which usually differs from the printed page number by however much front matter the book has. Only meaningful on a doi/pdf/archive source.",
+    },
+    quote: {
+      type: "string",
+      description:
+        "source: the passage ON that page to sweep with a highlighter, in drawcast's own ink, timed to the narration (draw \"<id>_quote\" as its own beat). Must be VERBATIM text the user supplied or that certainly appears on that page — a paraphrase simply will not highlight. Needs page, and a PDF source (doi or a .pdf url).",
+    },
     cameo: {
       type: "boolean",
       description:
@@ -158,7 +179,7 @@ const elementSchema = {
       type: "string",
       enum: ["develop", "iris", "wipe", "drift", "fade"],
       description:
-        "portrait: how a photo enters — and, played backwards by erase, exits. wipe = top-down like a print emerging (the default for portraits; omit unless you want another), develop = darkroom blur-to-sharp, iris = circle opening from the center, drift = slightly large settling into place, fade = plain opacity.",
+        "portrait/source: how a photo or page enters — and, played backwards by erase, exits. wipe = top-down like a print emerging (the default; omit unless you want another), develop = darkroom blur-to-sharp, iris = circle opening from the center, drift = slightly large settling into place, fade = plain opacity.",
     },
     style: styleSchema,
     draw: drawSchema,
@@ -706,6 +727,12 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "portrait":
       need(!!el.of || !!el.url || !!el.strokes, "needs of (a person's name), url, or embedded strokes");
+      break;
+    case "source":
+      need(
+        !!el.of || !!el.doi || !!el.isbn || !!el.archive || !!el.url || !!el.strokes,
+        "needs one reference: of (the work's title), doi, isbn, archive, or url",
+      );
       break;
     case "label":
       need(!!el.text, "needs text");

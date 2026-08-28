@@ -8,6 +8,7 @@ import { centroid } from "./geometry";
 import { heuristicMeasure } from "./measure";
 import {
   COLORS,
+  LINE_HEIGHT,
   Z_AREA,
   Z_STROKE,
   Z_TEXT,
@@ -20,8 +21,8 @@ import {
   type TextDrawable,
 } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
-import { decodePhoto, decodeTrace } from "../spec/trace";
-import type { LabelRequest } from "./labels";
+import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { wrapText, type LabelRequest } from "./labels";
 import type { SpecElement } from "../spec/types";
 
 export interface Tier2Result {
@@ -29,6 +30,12 @@ export interface Tier2Result {
   labels: LabelRequest[];
   /** Logical anchor point per element id (for labels, arrows, and commands). */
   anchors: Record<string, Pt>;
+  /**
+   * Command-addressable ids tier-2 minted that are NOT spec element ids — a
+   * source element's quote highlights (`<id>_quote`, `<id>_quote_2`, …), which
+   * the storyboard times to the narration beat on their own line.
+   */
+  extraOrder: string[];
   warnings: string[];
 }
 
@@ -42,6 +49,7 @@ interface Ctx {
   curveSamples: Map<string, Pt[]>;
   nodeRadius: Map<string, number>;
   anchors: Record<string, Pt>;
+  extraOrder: string[];
   warnings: string[];
 }
 
@@ -64,6 +72,7 @@ export function layoutElements(
     curveSamples: new Map(Object.entries(seedCurveSamples)),
     nodeRadius: new Map(),
     anchors: { ...seedAnchors },
+    extraOrder: [],
     warnings: [],
   };
 
@@ -170,10 +179,13 @@ export function layoutElements(
       case "portrait":
         drawables.push(portraitDrawable(el, ctx));
         break;
+      case "source":
+        drawables.push(...sourceDrawables(el, ctx));
+        break;
     }
   }
 
-  return { drawables, labels, anchors: ctx.anchors, warnings: ctx.warnings };
+  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings };
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
@@ -698,4 +710,134 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
     drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
     children,
   };
+}
+
+/**
+ * A source element: a book cover, a paper's title page, or one page of
+ * either — the same framed, paper-tinted photo family as a portrait, at a
+ * size meant to be READ rather than recognized. Its title rides with it as a
+ * caption (like a portrait's name), so no separate label element is ever
+ * needed, and an unresolved reference degrades to a ruled placeholder page
+ * instead of breaking.
+ *
+ * A `quote` resolves to highlight rectangles which are emitted as SEPARATE
+ * top-level drawables (`<id>_quote`, `<id>_quote_2`, …) rather than children:
+ * the marker sweep is its own beat, timed to the narration, targetable by
+ * annotations, and played backwards by erase like any other ink.
+ */
+function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  // Pages need more width than covers: the size need is driven by the text.
+  const page = el.page !== undefined || el.quote !== undefined;
+  const w = el.width ?? (page ? 260 : 200);
+  const cx = el.x ?? 820;
+  const cy = el.y ?? 480;
+  const decoded = el.strokes ? decodeSourceImage(el.strokes) : null;
+  const aspect = decoded?.aspect ?? 1.4;
+  const h = w * aspect;
+  const children: Drawable[] = [];
+
+  if (decoded) {
+    children.push({
+      id: `${el.id}__img`,
+      kind: "image",
+      href: decoded.href,
+      pos: [cx, cy],
+      w,
+      h,
+      z: Z_STROKE,
+      style: resolveStyle(undefined, {}),
+      // Same entrance vocabulary as a portrait photo; wipe (a page sliding
+      // out of the machine) is the default here too.
+      reveal: el.reveal ?? "wipe",
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+    });
+  } else {
+    // Unresolved (bad reference, offline, CORS): a sketched page, ruled.
+    const inset = w * 0.16;
+    for (let i = 0; i < 4; i++) {
+      const ly = cy + h / 2 - h * (0.22 + i * 0.16);
+      children.push({
+        id: `${el.id}__rule${i}`,
+        kind: "stroke",
+        pts: [
+          [cx - w / 2 + inset, ly],
+          [cx + w / 2 - inset * (i === 3 ? 2.2 : 1), ly],
+        ],
+        z: Z_STROKE,
+        style: resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2.5 }),
+        drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+      });
+    }
+  }
+
+  children.push({
+    id: `${el.id}__frame`,
+    kind: "stroke",
+    pts: [
+      [cx - w / 2 - 5, cy - h / 2 - 5],
+      [cx + w / 2 + 5, cy - h / 2 - 5],
+      [cx + w / 2 + 5, cy + h / 2 + 5],
+      [cx - w / 2 - 5, cy + h / 2 + 5],
+    ],
+    closed: true,
+    z: Z_STROKE,
+    style: resolveStyle(el.style, { color: decoded ? undefined : COLORS.guide, strokeWidth: 3 }),
+    drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
+  });
+
+  // The title rides with the picture — the portrait caption mechanism, so the
+  // model must never add a label element of its own for it. A work's title is
+  // a sentence where a person's name is two words, so it WRAPS to the picture's
+  // own width (three lines, then an ellipsis) instead of running off the page.
+  const title = (el.of ?? "").trim();
+  if (title) {
+    const fontSize = 20;
+    let lines = wrapText(title, fontSize, w + 30, heuristicMeasure);
+    if (lines.length > 3) lines = [...lines.slice(0, 2), `${lines[2]}…`];
+    const blockH = lines.length * fontSize * LINE_HEIGHT;
+    const gap = 5 + 12 + blockH / 2;
+    const below = cy - h / 2 - gap;
+    children.push({
+      id: `${el.id}__name`,
+      kind: "text",
+      pos: [cx, below - blockH / 2 < 6 ? cy + h / 2 + gap : below],
+      text: lines.join(" "),
+      lines: lines.length > 1 ? lines : undefined,
+      fontSize,
+      anchor: "middle",
+      z: Z_TEXT,
+      style: resolveStyle(el.style, {}),
+      drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 240 }),
+    });
+  }
+
+  ctx.anchors[el.id] = [cx, cy];
+  const out: Drawable[] = [
+    { id: el.id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children },
+  ];
+
+  // Highlighter sweeps: one thick horizontal stroke per matched line, so the
+  // dash-offset reveal IS the marker travelling left to right.
+  (decoded?.rects ?? []).forEach(([nx, ny, nw, nh], i) => {
+    const x = cx - w / 2 + nx * w;
+    const y = cy - h / 2 + ny * w;
+    const ww = nw * w;
+    const hh = nh * w;
+    if (ww <= 0 || hh <= 0) return;
+    const id = i === 0 ? `${el.id}_quote` : `${el.id}_quote_${i + 1}`;
+    ctx.extraOrder.push(id);
+    ctx.anchors[id] = [x + ww / 2, y + hh / 2];
+    out.push({
+      id,
+      kind: "stroke",
+      pts: [
+        [x, y + hh / 2],
+        [x + ww, y + hh / 2],
+      ],
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { color: COLORS.region1, strokeWidth: hh, opacity: 0.42, roughness: 0.6 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: Math.max(320, Math.min(1500, ww * 7)) }),
+    });
+  });
+  return out;
 }

@@ -38,7 +38,7 @@ function linksOf(el: SpecElement): string[] {
  * win the name over a label that happens to attach to them; an element
  * with only links is card-bearing too, named by its prettified id.
  */
-export function cardTargets(spec: Spec): Map<string, CardTarget> {
+export function cardTargets(spec: Spec, ids?: readonly string[]): Map<string, CardTarget> {
   const out = new Map<string, CardTarget>();
   const usable = (id: unknown): id is string => typeof id === "string" && id !== "" && !id.includes("__");
   const ensure = (id: string, name: string, kind: "portrait" | "plain" = "plain"): CardTarget => {
@@ -58,7 +58,16 @@ export function cardTargets(spec: Spec): Map<string, CardTarget> {
   }
   for (const el of spec.elements ?? []) {
     if (!usable(el.id)) continue;
-    if (el.type === "portrait" && typeof el.of === "string" && el.of.trim() !== "") {
+    if (el.type === "source" && typeof el.of === "string" && el.of.trim() !== "") {
+      // A source is named by its title — the same caption the figure draws,
+      // and it wins over a stray label the way a portrait's person does. Its
+      // click-through (the PDF, the archive page) is already in `link`: the
+      // resolver appends it, so this costs the model nothing.
+      const prev = out.get(el.id);
+      const t: CardTarget = { id: el.id, name: el.of.trim(), kind: "plain", links: prev?.links ?? [] };
+      out.set(el.id, t);
+      addLinks(t, linksOf(el));
+    } else if (el.type === "portrait" && typeof el.of === "string" && el.of.trim() !== "") {
       const name = el.of.trim();
       const prev = out.get(el.id);
       const t: CardTarget = { id: el.id, name, kind: "portrait", wikiName: name, links: prev?.links ?? [] };
@@ -69,6 +78,18 @@ export function cardTargets(spec: Spec): Map<string, CardTarget> {
       const t = ensure(el.id, el.id.replace(/_/g, " "));
       addLinks(t, linksOf(el));
     }
+  }
+
+  // Command-addressable ids the LAYOUT minted for an element — a source's
+  // highlighter sweeps (`<id>_quote`, `<id>_quote_2`, …) — carry their
+  // element's card. They sit ON the page and are much smaller than it, and
+  // the hit test takes the SMALLEST containing box, so without this a click
+  // on the marked passage would open nothing at all: the other half of the
+  // R9 lesson, where a card-less box shadows the card element it belongs to.
+  for (const id of ids ?? []) {
+    const owner = /^(.+)_quote(_\d+)?$/.exec(id)?.[1];
+    const t = owner ? out.get(owner) : undefined;
+    if (t && !out.has(id)) out.set(id, t);
   }
   return out;
 }
