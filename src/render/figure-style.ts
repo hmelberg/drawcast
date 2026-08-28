@@ -16,6 +16,7 @@ const FIGURE_CSS = `
 }
 .cs-svg { width: 100%; height: 100%; display: block; }
 .cs-caption {
+  position: relative;
   min-height: 3.1rem;
   padding: 0.35rem 0.8rem 0.15rem;
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
@@ -25,6 +26,26 @@ const FIGURE_CSS = `
   color: var(--ink, #3d3833);
 }
 .cs-caption-empty::before { content: "\\00a0"; }
+/* Selecting a phrase in the caption offers to look it up — the viewer draws
+   the boundary, which no phrase detector does reliably. */
+.cs-lookup {
+  position: absolute;
+  z-index: 7;
+  transform: translate(-50%, -100%);
+  padding: 0.08rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #b5482e;
+  background: #fffefb;
+  border: 1.5px solid #eee8da;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.cs-lookup:hover { border-color: #b5482e; }
 .cs-title {
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
   font-size: 1.3rem;

@@ -78,6 +78,25 @@ export function contextWords(spec: Spec): Set<string> {
   return new Set(words(parts.join(" ")));
 }
 
+/** The longest phrase worth looking up — past this it is a sentence, not a term. */
+const PHRASE_MAX = 90;
+
+/**
+ * A selected stretch of caption, reduced to the term inside it, or null when
+ * the selection is not one. A drag almost always catches a leading space or a
+ * trailing comma, and line-wrapped narration arrives with newlines in it.
+ */
+export function selectedPhrase(raw: string): string | null {
+  const phrase = raw
+    .replace(/\s+/g, " ")
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
+    .trim();
+  if (phrase.length > PHRASE_MAX) return null;
+  // The same bar the canvas words clear: three characters with two letters in
+  // a row, so a stray "a" or "42" is not offered as something to look up.
+  return phrase.length >= 3 && /[\p{L}]{2}/u.test(phrase) ? phrase : null;
+}
+
 const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 /** A page that only lists other pages is never a destination. */

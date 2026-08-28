@@ -182,6 +182,29 @@ automatic summaries and eventually buys a confidently WRONG one — the trade
 that was rejected, because a wrong summary presented as fact is worse than one
 extra click.
 
+### Selecting a phrase in the caption (2026-08-29)
+
+The narration says things the canvas never draws — "the dismal science",
+"regression to the mean" — and measuring two cheap detectors over all 735
+bundled narration lines showed why no detector should be trusted with those:
+matching words already on the canvas covers 29% of lines with perfect
+precision, but capitalised runs (12%) return "AA Aa Aa" and
+"Norway Sweden Denmark Finland" as if they were terms. English does not
+capitalise its concepts, so the boundary is simply not in the text.
+
+So the VIEWER draws the boundary: select a phrase in the caption and a small
+"🔍" chip offers to look it up, through the same context matcher a canvas word
+uses. Free of the play/pause conflict by construction — the caption is a
+SIBLING of the stage and togglePlay is bound to the stage alone, so dragging
+to select never touches playback — and free of any phrase detection at all.
+The chip goes away when the caption is rewritten on the next beat.
+
+Video export is untouched: it reads `currentCaption.textContent`, which is
+unaffected by anything the card layer does. Deliberately NOT built: phrase
+detection in running text, which needs either a vocabulary list or a model
+call per line, and a model call would break the property that makes this
+whole feature free.
+
 ## Sources — done 2026-08-28
 
 A `source` element puts the WORK itself on the canvas — a book cover, a

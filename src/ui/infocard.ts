@@ -20,7 +20,7 @@ import { leafDrawables, type TextDrawable } from "../layout/model";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
 import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-model";
-import { contextWords, matchWiki, type WikiCandidate } from "./wiki-match";
+import { contextWords, matchWiki, selectedPhrase, type WikiCandidate } from "./wiki-match";
 import { linkActionsFor } from "./link-model";
 import { openMediaModal } from "./media-modal";
 import { h, logicalPoint } from "./dom";
@@ -64,7 +64,10 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     .filter((d): d is TextDrawable => d.kind === "text")
     .map((d) => ({ id: d.id, text: d.text, owner: ownerOf.get(d.id) }));
   const targets = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts });
-  if (targets.size === 0) return; // scenes without cards pay nothing
+  // A figure of pure geometry carries no card — but it still NARRATES, and a
+  // viewer can still select a phrase in that narration, so the caption half is
+  // wired regardless. With neither, the scene pays nothing.
+  if (targets.size === 0 && !stage.parentElement?.querySelector(".cs-caption")) return;
 
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const flip = hd.spec.params?.["flip"] === true;
@@ -275,6 +278,64 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     stage.appendChild(card);
     window.addEventListener("keydown", onKey);
   };
+
+  // ---- selecting a phrase in the caption -----------------------------------
+  // The narration says things the canvas never draws — "the dismal science",
+  // "regression to the mean" — and no phrase detector finds those reliably:
+  // English does not capitalize its concepts, and a run of capitals glues
+  // "Norway Sweden Denmark Finland" into one word. So the VIEWER draws the
+  // boundary, which is both exact and a gesture they already know.
+  //
+  // Free of the play/pause conflict by construction: the caption is a SIBLING
+  // of the stage, and togglePlay is bound to the stage alone, so dragging to
+  // select never touches playback.
+  const caption = stage.parentElement?.querySelector<HTMLElement>(".cs-caption") ?? null;
+  if (caption) {
+    let chip: HTMLElement | null = null;
+    const hideChip = (): void => {
+      chip?.remove();
+      chip = null;
+    };
+
+    const offerLookup = (): void => {
+      const sel = window.getSelection();
+      const phrase = sel ? selectedPhrase(sel.toString()) : null;
+      if (!sel || sel.rangeCount === 0 || !caption.contains(sel.anchorNode) || phrase === null) {
+        hideChip();
+        return;
+      }
+      hideChip();
+      // The phrase is captured NOW, not when the chip is clicked: pressing a
+      // button collapses the selection in some browsers.
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      const cr = caption.getBoundingClientRect();
+      chip = h("button", { class: "cs-lookup", title: `Look up "${phrase}"` }, `🔍 ${phrase.length > 28 ? `${phrase.slice(0, 27)}…` : phrase}`);
+      chip.style.left = `${Math.min(Math.max(rect.left + rect.width / 2 - cr.left, 40), cr.width - 40)}px`;
+      chip.style.top = `${Math.max(rect.top - cr.top - 4, 4)}px`;
+      chip.addEventListener("mousedown", (e) => e.preventDefault()); // keep the selection alive
+      chip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hideChip();
+        openCard({ id: "__selection", name: phrase, kind: "plain", links: [] }, e.clientX, e.clientY);
+      });
+      caption.appendChild(chip);
+    };
+
+    caption.addEventListener("mouseup", () => setTimeout(offerLookup, 0));
+    caption.addEventListener("touchend", () => setTimeout(offerLookup, 0));
+    // The caption is rewritten on every narrated beat, which destroys the
+    // selection — the offer must go with it.
+    const prevStep = hd.timeline.callbacks.onStep;
+    hd.timeline.callbacks.onStep = (completed, total) => {
+      prevStep?.(completed, total);
+      hideChip();
+    };
+    const prevState = hd.timeline.callbacks.onState;
+    hd.timeline.callbacks.onState = (s) => {
+      prevState?.(s);
+      if (s === "playing") hideChip();
+    };
+  }
 
   // Left-click, paused: a card element's natural action IS its card (§13).
   // Capture phase so the stage's play/pause toggle never fires for it; an

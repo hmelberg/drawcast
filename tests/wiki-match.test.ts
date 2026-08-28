@@ -6,7 +6,7 @@
 // on 2026-08-29, so the fixtures are real answers, not invented ones.
 
 import { describe, expect, test } from "vitest";
-import { contextWords, matchWiki, scoreCandidate, words, type WikiCandidate } from "../src/ui/wiki-match";
+import { contextWords, matchWiki, scoreCandidate, selectedPhrase, words, type WikiCandidate } from "../src/ui/wiki-match";
 import { cardTargets } from "../src/ui/card-model";
 import type { Spec } from "../src/spec/types";
 
@@ -195,5 +195,40 @@ describe("words a TEMPLATE drew are clickable too", () => {
     const t = cardTargets(withPortrait, { order: ["p1"], texts: [{ id: "p1__name", text: "Charles Darwin", owner: "p1" }] });
     expect(t.get("p1")?.kind).toBe("portrait"); // the portrait keeps its wiki identity
     expect(t.has("p1__name")).toBe(false); // its caption does not shadow it
+  });
+});
+
+describe("a phrase the VIEWER selected in the caption", () => {
+  // The narration says things the canvas never draws — "the dismal science",
+  // "regression to the mean" — and no detector finds those reliably: English
+  // does not capitalize its concepts, and a run of capitals glues
+  // "Norway Sweden Denmark Finland" into one term. Letting the viewer drag the
+  // boundary is exact by construction, so this only has to clean up the drag.
+  test("trims what a drag catches: spaces, punctuation, wrapped lines", () => {
+    expect(selectedPhrase(" the dismal science,")).toBe("the dismal science");
+    expect(selectedPhrase("regression to\n the mean.")).toBe("regression to the mean");
+    expect(selectedPhrase("“World War II”")).toBe("World War II");
+    expect(selectedPhrase("  Mercury  ")).toBe("Mercury");
+  });
+
+  test("a selection that is not a term is refused, so no chip is offered", () => {
+    expect(selectedPhrase("")).toBeNull();
+    expect(selectedPhrase("   ")).toBeNull();
+    expect(selectedPhrase("—")).toBeNull();
+    expect(selectedPhrase("42")).toBeNull(); // digits are not a thing to look up
+    expect(selectedPhrase("a")).toBeNull();
+    // A whole sentence is not a term — a viewer who selects the line is
+    // copying it, not asking what it means.
+    expect(
+      selectedPhrase("A line and a curve like that must meet, and after they meet there is not enough food to go round."),
+    ).toBeNull();
+    expect(selectedPhrase("x".repeat(91))).toBeNull();
+    expect(selectedPhrase("x".repeat(88))).toBe("x".repeat(88)); // just inside
+  });
+
+  test("a selected phrase runs through the same context matcher as a canvas word", () => {
+    // Nothing special about its origin: the figure's own words still decide.
+    const chem = matchWiki(MERCURY, contextWords(CHEMISTRY), selectedPhrase(" Mercury,")!);
+    expect(chem.kind === "confident" && chem.page.title).toBe("Mercury (element)");
   });
 });
