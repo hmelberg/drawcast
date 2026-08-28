@@ -12,8 +12,8 @@ function rngOf(...vals: number[]): () => number {
 
 describe("activitiesFor", () => {
   test("kinds imply their drills; unknown kinds imply nothing", () => {
-    expect(activitiesFor(["chess"]).map((a) => a.id)).toEqual(["square_quiz"]);
-    expect(activitiesFor(["piano", "chess"]).map((a) => a.id)).toEqual(["square_quiz", "note_quiz"]);
+    expect(activitiesFor(["chess"]).map((a) => a.id)).toEqual(["square_quiz", "vs_computer"]);
+    expect(activitiesFor(["piano", "chess"]).map((a) => a.id)).toEqual(["square_quiz", "vs_computer", "note_quiz"]);
     expect(activitiesFor([])).toEqual([]);
   });
 });

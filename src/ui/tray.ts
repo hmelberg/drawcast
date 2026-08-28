@@ -17,6 +17,7 @@ import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, type SliderSpec } from "./tray-model";
 import { activitiesFor } from "./quiz-model";
 import { mountQuiz } from "./quiz";
+import { mountChessVs } from "./chessvs";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
  *  a slider for a param the spec never set would move invisible geometry. */
@@ -109,9 +110,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       for (const a of acts) {
         const pill = h("button", { class: "cs-cardgate-pill cs-tray-pill" }, a.label);
         pill.addEventListener("click", () => {
-          restore(); // the drill runs on the honest boundary
+          restore(); // the session runs on the honest boundary
           close();
-          mountQuiz(stage, hd, a.kind);
+          if (a.id === "vs_computer") mountChessVs(stage, hd);
+          else mountQuiz(stage, hd, a.kind);
         });
         row.appendChild(pill);
       }

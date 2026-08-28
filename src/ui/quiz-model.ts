@@ -20,7 +20,10 @@ export interface Activity {
  *  per-activity manifest vocabulary. */
 export function activitiesFor(interactions: readonly string[]): Activity[] {
   const out: Activity[] = [];
-  if (interactions.includes("chess")) out.push({ kind: "chess", id: "square_quiz", label: "🎯 Find the square" });
+  if (interactions.includes("chess")) {
+    out.push({ kind: "chess", id: "square_quiz", label: "🎯 Find the square" });
+    out.push({ kind: "chess", id: "vs_computer", label: "♟ Play the computer" });
+  }
   if (interactions.includes("piano")) out.push({ kind: "piano", id: "note_quiz", label: "🎯 Find the note" });
   return out;
 }

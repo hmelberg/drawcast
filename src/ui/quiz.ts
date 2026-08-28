@@ -16,7 +16,7 @@ const RIGHT_LINGER_MS = 700;
 const WRONG_LINGER_MS = 1500;
 
 export function mountQuiz(stage: HTMLElement, hd: RenderHandle, kind: "chess" | "piano"): void {
-  stage.querySelector(".cs-quizgate")?.remove();
+  stage.querySelector(".cs-quizgate, .cs-vsgate")?.remove();
   const flip = hd.spec.params?.["flip"] === true;
   const octaves = pianoOctaves(hd.spec.params);
 

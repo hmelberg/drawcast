@@ -19,6 +19,19 @@ import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { freeMove, shownFen, type ChessCtor } from "./chessplay-model";
 
+/** The FEN actually shown at the current boundary (fen + moves + the runtime
+ *  plies_shown a {var} animate may have committed) — where free play and the
+ *  vs-computer session both start from. */
+export function boundaryChessFen(hd: RenderHandle, Chess: ChessCtor): string | null {
+  const n = hd.timeline.position;
+  const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
+  const eff = withOverrides(hd.spec.params, boundary.params);
+  const moves = Array.isArray(eff["moves"]) ? (eff["moves"] as string[]) : [];
+  const plies = hd.timeline.getParamOverrides()["plies_shown"] ?? readParam(eff, "plies_shown") ?? moves.length;
+  const fen = typeof eff["fen"] === "string" ? eff["fen"] : undefined;
+  return shownFen(Chess, fen, moves, plies);
+}
+
 export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
   const flip = hd.spec.params?.["flip"] === true;
   let Chess: ChessCtor | null = null;
@@ -60,18 +73,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     (e.target instanceof Element && e.target.closest("button") !== null) ||
     stage.querySelector(".cs-figgate, .cs-cardgate") !== null;
 
-  /** The FEN actually shown at the current boundary (fen + moves + the
-   *  runtime plies_shown a {var} animate may have committed). */
-  const boundaryFen = (): string | null => {
-    if (!Chess) return null;
-    const n = hd.timeline.position;
-    const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
-    const eff = withOverrides(hd.spec.params, boundary.params);
-    const moves = Array.isArray(eff["moves"]) ? (eff["moves"] as string[]) : [];
-    const plies = hd.timeline.getParamOverrides()["plies_shown"] ?? readParam(eff, "plies_shown") ?? moves.length;
-    const fen = typeof eff["fen"] === "string" ? eff["fen"] : undefined;
-    return shownFen(Chess, fen, moves, plies);
-  };
+  const boundaryFen = (): string | null => (Chess ? boundaryChessFen(hd, Chess) : null);
 
   const markSquare = (sq: string): void => {
     dropRing();
