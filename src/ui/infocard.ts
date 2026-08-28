@@ -73,13 +73,16 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     if (interactions.includes("chess") && chessSquareAt(flip, p) !== null) return null;
     if (interactions.includes("piano") && pianoKeyAt(octaves, p) !== null) return null;
     boxes ??= elementBBoxes(hd.layout, makeBrowserMeasure());
-    const id = hitElement(boxes, p, 12);
-    if (id === null) return null;
-    const t = targets.get(id);
-    if (!t) return null;
+    // Hit-test only what is on screen at this boundary: an invisible
+    // element's smaller box must never shadow a visible card element (the
+    // cameo-over-undrawn-table bug), and a card never opens for something
+    // the viewer cannot see.
     const n = hd.timeline.position;
-    const visible = n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible;
-    return visible.includes(id) ? t : null;
+    const visibleIds = new Set(n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible);
+    const visBoxes = new Map<string, BBox>();
+    for (const [id, b] of boxes) if (visibleIds.has(id)) visBoxes.set(id, b);
+    const id = hitElement(visBoxes, p, 12);
+    return (id !== null && targets.get(id)) || null;
   };
 
   const openCard = (t: CardTarget, clientX: number, clientY: number): void => {

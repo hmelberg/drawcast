@@ -6947,7 +6947,9 @@
      "id": "portrait_smith",
      "type": "portrait",
      "of": "Adam Smith",
-     "cameo": true,
+     "x": 855,
+     "y": 360,
+     "width": 170,
      "link": [
       "https://en.wikipedia.org/wiki/The_Wealth_of_Nations",
       "https://www.gutenberg.org/ebooks/3300"
@@ -6965,12 +6967,6 @@
      "speak": "Adam Smith, about to publish The Wealth of Nations — the book that begins, of all places, with pins."
     },
     {
-     "erase": [
-      "portrait_smith"
-     ],
-     "speak": "Here is what he saw."
-    },
-    {
      "draw": [
       "grid",
       "row_title",
@@ -6980,7 +6976,7 @@
       "col_header_0",
       "col_header_1"
      ],
-     "speak": "Compare two ways of running the same ten-man workshop."
+     "speak": "Here is what he saw: two ways of running the same ten-man workshop."
     },
     {
      "draw": [
@@ -7014,7 +7010,7 @@
      "draw": [
       "title"
      ],
-     "speak": "That is the division of labour, the very first idea in the book. Pause and click Smith's portrait — the card there opens The Wealth of Nations itself."
+     "speak": "That is the division of labour, the very first idea in the book. Pause and click Smith's portrait — its card opens The Wealth of Nations itself."
     }
    ]
   }
