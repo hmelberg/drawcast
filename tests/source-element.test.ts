@@ -17,6 +17,7 @@ import { flattenDrawables } from "../src/layout/model";
 import { lintCommands } from "../src/lint/lint";
 import { decodeSourceImage, encodePhoto, encodeSourceImage } from "../src/spec/trace";
 import { cardTargets } from "../src/ui/card-model";
+import { linkKindOf } from "../src/ui/link-model";
 import {
   SOURCE_VERSION,
   archiveImageUrl,
@@ -582,5 +583,67 @@ describe("source resolver — against the real pdf.js", () => {
     for (const [, y, , h] of rects) expect(y + h).toBeLessThan(320 / 200);
     // A paraphrase never matches; the page would still resolve, unmarked.
     expect(await pageQuoteRects(page as never, viewport as never, "guided by an unseen hand", 400, 800)).toBeNull();
+  });
+});
+
+describe("source element — a video as the work", () => {
+  test("a YouTube url resolves through oEmbed to the still, titled and clickable", async () => {
+    const d = deps({
+      "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DHZGCoVF3YvM&format=json": {
+        title: "Bayes theorem, the geometry of changing beliefs",
+        author_name: "3Blue1Brown",
+      },
+    });
+    const s = spec({ url: "https://youtu.be/HZGCoVF3YvM" });
+    const [r] = await resolveSources(s, d);
+    expect(r.ok).toBe(true);
+    const el = s.elements![0];
+    // The widescreen frame is preferred; the letterboxed one is the fallback.
+    expect(d.rendered).toEqual(["https://i.ytimg.com/vi/HZGCoVF3YvM/maxresdefault.jpg"]);
+    expect(el.of).toBe("Bayes theorem, the geometry of changing beliefs"); // the caption, for free
+    expect(el.link).toEqual(["https://www.youtube.com/watch?v=HZGCoVF3YvM"]);
+    expect(linkKindOf((el.link as string[])[0]).kind).toBe("youtube"); // the card plays it embedded
+  });
+
+  test("an upload with no widescreen frame falls back to the letterboxed one", async () => {
+    const d = deps(
+      { "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Doldvideo123&format=json": { title: "An old upload" } },
+      {
+        renderImage: async (url: string) => {
+          if (url.includes("maxresdefault")) throw new Error("image failed to load");
+          return { encoded: encodeSourceImage(0.75, DATA) };
+        },
+      },
+    );
+    const s = spec({ url: "https://www.youtube.com/watch?v=oldvideo123" });
+    expect((await resolveSources(s, d))[0].ok).toBe(true);
+    expect(s.elements![0].source).toContain("hqdefault");
+  });
+
+  test("a video id that does not exist fails visibly instead of showing someone else's video", async () => {
+    const s = spec({ url: "https://www.youtube.com/watch?v=ZZZZZZZZZZZ" });
+    const [r] = await resolveSources(s, deps({})); // oEmbed answers 400 for a bad id
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("YouTube lookup failed");
+    expect(s.elements![0].strokes).toBeUndefined();
+  });
+
+  test("the still is drawn 16:9 with a hand-drawn play mark, never baked into the pixels", () => {
+    const el = { url: "https://youtu.be/HZGCoVF3YvM", of: "A video", x: 500, y: 400 };
+    const res = layoutSpec(spec({ ...el, strokes: encodeSourceImage(9 / 16, DATA) }));
+    const flat = flattenDrawables(res.drawables);
+    const img = flat.find((d) => d.id === "s1__img") as { w: number; h: number };
+    expect(img.w).toBe(300); // wider default than a page: 16:9 is short
+    expect(img.h).toBeCloseTo(168.75, 0); // 16:9, to the codec's 12-bit aspect
+    const ring = flat.find((d) => d.id === "s1__play") as { shapeHint?: { type: string; c: [number, number] } };
+    expect(ring.shapeHint?.type).toBe("circle");
+    expect(ring.shapeHint?.c).toEqual([500, 400]); // centred on the still
+    expect(flat.some((d) => d.id === "s1__playtri")).toBe(true);
+    // Unresolved: the frame and the play mark still say "a video goes here",
+    // and the ruled placeholder page (which would say "a document") does not.
+    const cold = flattenDrawables(layoutSpec(spec(el)).drawables);
+    expect(cold.some((d) => d.id === "s1__play")).toBe(true);
+    expect(cold.some((d) => d.id.startsWith("s1__rule"))).toBe(false);
+    expect(cold.some((d) => d.id === "s1__frame")).toBe(true);
   });
 });

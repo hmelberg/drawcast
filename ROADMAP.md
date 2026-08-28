@@ -181,6 +181,19 @@ deliberate: a big source element sitting on a template disturbs the LABEL
 SOLVER, which knows nothing about time, so labels get pushed aside by a
 picture that is never on screen with them.
 
+A VIDEO is a work like any other (2026-08-29): a YouTube url in a source's
+`url` draws the video's still, framed and paper-tinted like a page, with a
+hand-drawn play mark over it — ink, not baked pixels, so it arrives with the
+frame and erases with it — and its real title as the caption. YouTube's
+keyless oEmbed supplies the title and answers 400 for an id that does not
+exist, so a wrong video fails VISIBLY, the property that makes `of` the
+preferred reference for books. Stills come from i.ytimg.com
+(`access-control-allow-origin: *`): the widescreen `maxresdefault` first, the
+letterboxed `hqdefault` behind it, since older uploads lack the former. A
+machine-discovered title is no longer allowed to serve as the picture
+fallback — otherwise a video titled "Simpson's paradox" would quietly show
+the Wikipedia article's image instead of the video.
+
 Two more examples (2026-08-28) hang a YouTube video on a figure, which had
 zero exemplars despite R7 shipping the embedded player: the derivative as the
 slope of a tangent (3Blue1Brown's calculus series) and a positive test for a

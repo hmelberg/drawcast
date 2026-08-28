@@ -1,5 +1,6 @@
 // Source resolution: turn a source element's REFERENCE (a title, a DOI, an
-// ISBN, an Internet Archive scan id, or a URL) into a framed, paper-tinted
+// ISBN, an Internet Archive scan id, or a URL — including a YouTube URL,
+// whose still is a work like any other) into a framed, paper-tinted
 // page image — and, when a `quote` is given, the rectangles that highlight it
 // — cached in IndexedDB so each work is fetched and rendered ONCE per browser.
 //
@@ -17,6 +18,9 @@
 import type { Spec, SpecElement } from "../spec/types";
 import { decodeSourceImage, encodeSourceImage, type PhotoRect } from "../spec/trace";
 import { cacheGet, cachePut, loadRaster, LOOK_DIM, styledPhotoDataUri } from "./portrait";
+// The one place that decides what a YouTube URL is; duplicating that sniff
+// here would let the two copies drift. link-model imports nothing itself.
+import { linkKindOf } from "../ui/link-model";
 
 /**
  * Bump whenever the tint, the dimensions, or the cached envelope changes —
@@ -78,9 +82,10 @@ function refCacheKey(ref: SourceRef): string {
 
 // ---- endpoints -----------------------------------------------------------
 // All live-probed 2026-08-28 with an `Origin:` header. Wikipedia, OpenAlex,
-// Open Library covers and arxiv.org PDFs answer `access-control-allow-origin:
-// *`; the archive.org IIIF endpoint 302s to the real image, reflecting the
-// origin on the redirect and answering `*` on the image itself — both fine for
+// Open Library covers, arxiv.org PDFs and i.ytimg.com stills answer
+// `access-control-allow-origin: *` (YouTube's oEmbed reflects the origin);
+// the archive.org IIIF endpoint 302s to the real image, reflecting the origin
+// on the redirect and answering `*` on the image itself — both fine for
 // `crossOrigin="anonymous"`, which checks the FINAL response.
 
 /** A DOI with any of the usual wrappers stripped: "10.xxxx/yyy". */
@@ -129,6 +134,39 @@ export function archiveDetailsUrl(id: string): string {
 
 export function wikiSummaryUrlFor(title: string): string {
   return `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.trim().replace(/\s+/g, "_"))}`;
+}
+
+/**
+ * A video's own metadata, from YouTube's keyless oEmbed endpoint: the title,
+ * the channel, and a thumbnail URL. CORS-open (it reflects the origin), and —
+ * the property that matters — it answers 400 for an id that does not exist,
+ * so a wrong video FAILS VISIBLY the way a wrong title does, instead of
+ * quietly resolving to somebody else's video.
+ */
+export function youtubeOembedUrl(watchUrl: string): string {
+  return `https://www.youtube.com/oembed?url=${encodeURIComponent(watchUrl)}&format=json`;
+}
+
+/** The canonical watch URL for a video id (what the click-through opens). */
+export function youtubeWatchUrl(id: string): string {
+  return `https://www.youtube.com/watch?v=${id}`;
+}
+
+/**
+ * The still to draw. oEmbed hands back `hqdefault` (480×360, letterboxed for
+ * a 16:9 video); `maxresdefault` is the clean widescreen frame at 1280×720 —
+ * both served with `access-control-allow-origin: *` — but it is missing for
+ * some older uploads, so it is a preference, not a promise.
+ */
+export function youtubeThumbUrls(id: string): string[] {
+  return [`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`, `https://i.ytimg.com/vi/${id}/hqdefault.jpg`];
+}
+
+/** Title and channel out of an oEmbed response. */
+export function readOembed(json: unknown): { title: string | null; author: string | null } {
+  const o = json as { title?: unknown; author_name?: unknown } | null;
+  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
+  return { title: str(o?.title), author: str(o?.author_name) };
 }
 
 /** arXiv serves HTML at /abs/ and the PDF only at /pdf/ — normalize before fetching. */
@@ -457,7 +495,8 @@ export async function pageQuoteRects(
 
 /** What a reference resolves to: an image, a PDF, or neither — plus a link. */
 interface RefTargets {
-  image?: string;
+  /** Candidate image URLs in preference order; the first that loads wins. */
+  images?: string[];
   pdf?: string;
   /** The click-through URL auto-appended to the element's `link` array. */
   link?: string;
@@ -490,14 +529,23 @@ async function targetsFor(ref: SourceRef, el: SpecElement, deps: SourceDeps): Pr
   };
 
   switch (ref.kind) {
-    case "url":
+    case "url": {
+      // A video is a work like any other: its still goes on the canvas,
+      // framed and paper-tinted like a page, and the click-through plays it.
+      const kind = linkKindOf(ref.value);
+      if (kind.kind === "youtube") {
+        const watch = youtubeWatchUrl(kind.id);
+        const meta = readOembed(await json(youtubeOembedUrl(watch), "YouTube"));
+        return { images: youtubeThumbUrls(kind.id), link: watch, title: meta.title ?? undefined };
+      }
       return isPdfUrl(ref.value)
         ? { pdf: normalizePdfUrl(ref.value), link: normalizePdfUrl(ref.value) }
-        : { image: ref.value, link: ref.value };
+        : { images: [ref.value], link: ref.value };
+    }
 
     case "archive":
       return {
-        image: archiveImageUrl(ref.value, el.page ?? 0),
+        images: [archiveImageUrl(ref.value, el.page ?? 0)],
         link: archiveDetailsUrl(ref.value),
       };
 
@@ -529,14 +577,14 @@ async function targetsFor(ref: SourceRef, el: SpecElement, deps: SourceDeps): Pr
     case "isbn": {
       const cover = openLibraryCoverUrl(ref.value);
       const link = `https://openlibrary.org/isbn/${encodeURIComponent(ref.value.replace(/[^0-9Xx]/g, ""))}`;
-      return { image: cover, link };
+      return { images: [cover], link };
     }
 
     default: {
       const summary = thumbOf(await json(wikiSummaryUrlFor(ref.value), "Wikipedia"));
       if (!summary.image) throw new Error(`no cover or title-page image on Wikipedia for "${ref.value}"`);
       return {
-        image: summary.image,
+        images: [summary.image],
         link: summary.landing ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(ref.value.trim().replace(/\s+/g, "_"))}`,
         title: summary.title ?? undefined,
       };
@@ -581,8 +629,12 @@ export async function resolveSources(spec: Spec, deps: SourceDeps = {}): Promise
     }
     let warning: string | undefined;
     // Before any mutation: a discovered title lands in `of`, which is itself
-    // a reference — the key must describe what was ASKED for.
+    // a reference — the key must describe what was ASKED for, and only an
+    // AUTHORED title may serve as the fallback. A machine-filled one must
+    // not: a video titled "Simpson's paradox" would otherwise fall back to
+    // the Wikipedia article's picture and quietly show the wrong thing.
     const key = sourceCacheKey(el);
+    const authoredTitle = typeof el.of === "string" && el.of.trim() !== "" ? el.of.trim() : null;
 
     // The reference lookup is cached apart from the image: turning to another
     // page of the same paper must not re-ask OpenAlex, and an image cache hit
@@ -593,7 +645,7 @@ export async function resolveSources(spec: Spec, deps: SourceDeps = {}): Promise
       if (hit) {
         const cached = JSON.parse(hit) as RefTargets;
         // The IIIF leaf lives in the URL, so a page change re-derives it.
-        if (r.kind === "archive") cached.image = archiveImageUrl(r.value, el.page ?? 0);
+        if (r.kind === "archive") cached.images = [archiveImageUrl(r.value, el.page ?? 0)];
         return cached;
       }
       const fresh = await targetsFor(r, el, deps);
@@ -607,9 +659,19 @@ export async function resolveSources(spec: Spec, deps: SourceDeps = {}): Promise
         if (out.quoteMissed) warning = `quote not found on page ${el.page ?? 1} — the page is shown without a highlight`;
         return { encoded: out.encoded, from: t.pdf };
       }
-      if (t.image) {
+      if (t.images?.length) {
         if (el.quote) warning = "quote highlighting needs a PDF page; this source resolves to a picture";
-        return { encoded: (await (deps.renderImage ?? renderImage)(t.image)).encoded, from: t.image };
+        // Candidates in preference order: YouTube's clean widescreen frame is
+        // missing for some older uploads, so the letterboxed one backs it up.
+        let last: Error | null = null;
+        for (const url of t.images) {
+          try {
+            return { encoded: (await (deps.renderImage ?? renderImage)(url)).encoded, from: url };
+          } catch (err) {
+            last = err as Error;
+          }
+        }
+        throw last ?? new Error("no image for this source");
       }
       throw new Error("no open-access image or PDF for this source");
     };
@@ -622,7 +684,7 @@ export async function resolveSources(spec: Spec, deps: SourceDeps = {}): Promise
       const encoded = key ? await cacheGet(key) : null;
       if (encoded) {
         el.strokes = encoded;
-        el.source = el.source ?? targets.pdf ?? targets.image;
+        el.source = el.source ?? targets.pdf ?? targets.images?.[0];
         results.push({ id: el.id, ok: true });
         continue;
       }
@@ -633,9 +695,9 @@ export async function resolveSources(spec: Spec, deps: SourceDeps = {}): Promise
         // The two silent no-pictures: Open Library answers "no cover for this
         // ISBN" with a 1×1 pixel, and a paywalled DOI has no open copy at all.
         // Fall back to the TITLE, the one reference Wikipedia verifies.
-        if (ref.kind === "of" || !el.of) throw err;
-        drawn = await draw(await lookup({ kind: "of", value: el.of }));
-        warning = `${(err as Error).message} — showing what Wikipedia has for "${el.of}" instead`;
+        if (ref.kind === "of" || !authoredTitle) throw err;
+        drawn = await draw(await lookup({ kind: "of", value: authoredTitle }));
+        warning = `${(err as Error).message} — showing what Wikipedia has for "${authoredTitle}" instead`;
       }
       if (key) await cachePut(key, drawn.encoded);
       el.source = el.source ?? drawn.from;

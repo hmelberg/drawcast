@@ -142,7 +142,11 @@ const elementSchema = {
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it.",
     },
-    url: { type: "string", description: "portrait/source: direct image or .pdf URL — ONLY when the user's request supplied one (copy it verbatim; never invent)." },
+    url: {
+      type: "string",
+      description:
+        "portrait/source: direct image, .pdf, or YOUTUBE url — ONLY when the user's request supplied one (copy it verbatim; never invent). On a source, a YouTube url draws the video's still, framed with a hand-drawn play mark, and clicking it plays the video embedded — use it when the video IS a thing the figure points at, and note that its title becomes the caption automatically.",
+    },
     strokes: { type: "string", description: "portrait/source: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
     source: { type: "string", description: "portrait/source: provenance/attribution (machine-written; copy verbatim)." },
     doi: {

@@ -8330,5 +8330,76 @@
     }
    ]
   }
+ },
+ {
+  "request": "Show how two waves cancel, and put 3Blue1Brown's Fourier video on the slide: https://www.youtube.com/watch?v=spUNpyF58BY",
+  "title": "Waves that cancel",
+  "spec": {
+   "title": "Two waves, out of step",
+   "template": "wave_diagram",
+   "params": {
+    "amplitude": 3,
+    "cycles": 3,
+    "second_wave_phase_deg": 180,
+    "label_parts": true
+   },
+   "elements": [
+    {
+     "id": "deeper",
+     "type": "source",
+     "url": "https://www.youtube.com/watch?v=spUNpyF58BY",
+     "x": 828,
+     "y": 648,
+     "width": 250
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axis",
+      "wave"
+     ],
+     "speak": "One wave: a disturbance travelling along, rising and falling in a fixed rhythm."
+    },
+    {
+     "draw": [
+      "amp_arrow",
+      "label_amp",
+      "wl_arrow",
+      "label_wl"
+     ],
+     "speak": "Its two measurements are how tall it swings and how far apart the crests are."
+    },
+    {
+     "draw": [
+      "wave2"
+     ],
+     "speak": "Now send a second wave down the same line, half a wavelength behind — every crest of one lands on a trough of the other."
+    },
+    {
+     "pause": 0.4
+    },
+    {
+     "highlight": {
+      "target": [
+       "wave",
+       "wave2"
+      ],
+      "effect": "glow"
+     },
+     "speak": "Add them point by point and they annihilate: two disturbances, and the medium sits perfectly still.",
+     "delivery": "grave"
+    },
+    {
+     "draw": [
+      "deeper"
+     ],
+     "speak": "Which is the whole trick behind Fourier's idea, run backwards — if waves add like this, then any messy signal can be taken APART into simple ones."
+    },
+    {
+     "speak": "Pause and click the still to watch that pulling-apart happen."
+    }
+   ]
+  }
  }
 ]

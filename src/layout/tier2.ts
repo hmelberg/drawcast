@@ -23,6 +23,7 @@ import {
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
+import { linkKindOf } from "../ui/link-model";
 import type { SpecElement } from "../spec/types";
 
 export interface Tier2Result {
@@ -713,9 +714,9 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
 }
 
 /**
- * A source element: a book cover, a paper's title page, or one page of
- * either — the same framed, paper-tinted photo family as a portrait, at a
- * size meant to be READ rather than recognized. Its title rides with it as a
+ * A source element: a book cover, a paper's title page, one page of either,
+ * or a video's still — the same framed, paper-tinted photo family as a
+ * portrait, at a size meant to be READ rather than recognized. Its title rides with it as a
  * caption (like a portrait's name), so no separate label element is ever
  * needed, and an unresolved reference degrades to a ruled placeholder page
  * instead of breaking.
@@ -727,12 +728,14 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
  */
 function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   // Pages need more width than covers: the size need is driven by the text.
+  // A video still is wider still — 16:9 at 200 across is only 113 tall.
+  const video = typeof el.url === "string" && linkKindOf(el.url).kind === "youtube";
   const page = el.page !== undefined || el.quote !== undefined;
-  const w = el.width ?? (page ? 260 : 200);
+  const w = el.width ?? (video ? 300 : page ? 260 : 200);
   const cx = el.x ?? 820;
   const cy = el.y ?? 480;
   const decoded = el.strokes ? decodeSourceImage(el.strokes) : null;
-  const aspect = decoded?.aspect ?? 1.4;
+  const aspect = decoded?.aspect ?? (video ? 9 / 16 : 1.4);
   const h = w * aspect;
   const children: Drawable[] = [];
 
@@ -751,6 +754,9 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       reveal: el.reveal ?? "wipe",
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
     });
+  } else if (video) {
+    // Unresolved video: the frame alone carries it — the play mark below
+    // already says what this is, and ruled lines would say "page".
   } else {
     // Unresolved (bad reference, offline, CORS): a sketched page, ruled.
     const inset = w * 0.16;
@@ -784,6 +790,35 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     style: resolveStyle(el.style, { color: decoded ? undefined : COLORS.guide, strokeWidth: 3 }),
     drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
   });
+
+  if (video) {
+    // The play mark is drawn in INK, over the still — never baked into the
+    // pixels — so it arrives with the frame, erases with it, and says "this
+    // is a video, click it" without a word of caption spent on saying so.
+    const r = Math.max(16, w * 0.1);
+    children.push({
+      id: `${el.id}__play`,
+      kind: "stroke",
+      pts: [[cx, cy]],
+      shapeHint: { type: "circle", c: [cx, cy], r },
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { strokeWidth: 3 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 420 }),
+    });
+    children.push({
+      id: `${el.id}__playtri`,
+      kind: "area",
+      pts: [
+        [cx - r * 0.3, cy + r * 0.45],
+        [cx + r * 0.55, cy],
+        [cx - r * 0.3, cy - r * 0.45],
+      ],
+      precise: true,
+      z: Z_STROKE,
+      style: resolveStyle(undefined, { fill: COLORS.ink, opacity: 1, strokeWidth: 0 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 260 }),
+    });
+  }
 
   // The title rides with the picture — the portrait caption mechanism, so the
   // model must never add a label element of its own for it. A work's title is
