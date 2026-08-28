@@ -5,6 +5,7 @@
 
 import { DELIVERY, effectiveGender, speechKey, type SpeakLine, type SpeakOpts } from "../render/delivery";
 import { SpeechManager, detectLang } from "../render/speech";
+import { sayable } from "../render/pronounce";
 import { addTtsChars, ttsBudgetError } from "../store";
 
 export interface TtsConfig {
@@ -54,7 +55,10 @@ export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: Audi
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        input: { text },
+        // The SPOKEN form: an acronym said as a word is lowercased here and
+        // nowhere else, so the caption (and the movie's burned-in text) keeps
+        // its capitals. detectLang and the cache key still see the original.
+        input: { text: sayable(text) },
         voice: withName && voice.name ? { languageCode: voice.languageCode, name: voice.name } : { languageCode: voice.languageCode },
         audioConfig: {
           audioEncoding: "MP3",

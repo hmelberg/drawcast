@@ -59,6 +59,8 @@ export function detectLang(text: string): "en" | "nb" {
  * embedding the engine (xplainer) pass their own adapter so exactly one TTS
  * pipeline is authoritative.
  */
+import { sayable } from "./pronounce";
+
 export interface SpeechLike {
   /** Speak one utterance; resolves when it ends (or its fallback wait does). */
   speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void>;
@@ -182,7 +184,8 @@ export class SpeechManager {
       };
       signal?.addEventListener("abort", onAbort);
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Spoken form only — the caption keeps its capitals (see pronounce.ts).
+      const utterance = new SpeechSynthesisUtterance(sayable(text));
       const lang = detectLang(text);
       const explicit = this.voices().find((v) => v.voiceURI === this.voiceURI);
       const g = effectiveGender(opts);

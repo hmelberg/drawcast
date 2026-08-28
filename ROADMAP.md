@@ -205,6 +205,30 @@ detection in running text, which needs either a vocabulary list or a model
 call per line, and a model call would break the property that makes this
 whole feature free.
 
+### Saying an acronym (2026-08-29)
+
+"QALY" is said as a word, "UN" is spelled "U N", and a speech engine guesses
+which from the capitals. So the spelled kind ALREADY comes out right and needs
+nothing — only the word-like ones need marking, and lowercasing them is the
+whole mechanism ("qaly" is a nonsense word, so the engine falls back to
+letter-to-sound rules and says it). Hans's idea, and better than the SSML
+route it replaced: no format change, so it cannot break on an ampersand in the
+narration; it fixes the BROWSER voice too, which ignores SSML; and the default
+handles the larger half.
+
+`sayable()` (src/render/pronounce.ts) is pure and applies at the two audio
+boundaries only — inside `synthesizeOne` (all cloud paths, the export's
+pre-synthesis batch included) and at `new SpeechSynthesisUtterance`. The
+caption keeps its capitals, and since the movie burns the CAPTION, a viewer
+always reads "QALY" however it is said. Cache keys and `detectLang` still see
+the original.
+
+OPEN, and only Hans can close it: whether it actually sounds better. The table
+is seeded with QALY/DALY/ICER/NICE/SEIR/SIR/PICO/GRADE as a hypothesis to
+listen to — he has the TTS key and the ears. If it helps, domain packs should
+contribute their own vocabulary to one shared table (a term's pronunciation
+belongs to the term, not to a template — QALY is QALY in every figure).
+
 ## Sources — done 2026-08-28
 
 A `source` element puts the WORK itself on the canvas — a book cover, a
