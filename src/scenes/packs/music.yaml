@@ -258,6 +258,7 @@ title: Piano keyboard
 version: 1
 kit: 3
 status: ready
+interactions: [piano]
 description: >-
   A piano keyboard (one or two octaves) with any set of keys highlighted —
   chords, scales, intervals — plus letter names on the white keys and an

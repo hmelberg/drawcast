@@ -4,7 +4,7 @@
 import { CORE_SCHEMA, load } from "js-yaml";
 import { KIT_VERSION } from "./kit";
 import { KNOWN_ENGINES } from "./engines";
-import type { SceneManifest } from "./types";
+import { KNOWN_INTERACTIONS, type InteractionKind, type SceneManifest } from "./types";
 
 export interface TemplateDoc {
   template: string;
@@ -20,6 +20,8 @@ export interface TemplateDoc {
   engines?: string[];
   /** Explore-in-3D affordance: present when a 3Dmol.js view can be built for this scene. */
   model3d?: { kind: "molecule"; source: "preset" | "smiles" };
+  /** Intrinsic interactions the scene offers while paused (free play, exercises). */
+  interactions?: InteractionKind[];
   /** JS function body: (params, kit, engines) => SceneLayout. Required when ready. */
   layout?: string;
 }
@@ -84,6 +86,17 @@ export function validateTemplateDoc(raw: unknown): DocResult {
       }
     }
   }
+  if (d.interactions !== undefined) {
+    if (!Array.isArray(d.interactions) || !d.interactions.every((i) => typeof i === "string")) {
+      errors.push("interactions must be an array of strings");
+    } else {
+      for (const i of d.interactions as string[]) {
+        if (!(KNOWN_INTERACTIONS as readonly string[]).includes(i)) {
+          errors.push(`unknown interaction "${i}" — known interactions: ${KNOWN_INTERACTIONS.join(", ")}`);
+        }
+      }
+    }
+  }
   if (d.model3d !== undefined) {
     if (typeof d.model3d !== "object" || d.model3d === null || Array.isArray(d.model3d)) {
       errors.push("model3d must be an object");
@@ -113,5 +126,6 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     examples: doc.examples,
     ...(doc.engines && doc.engines.length > 0 ? { engines: doc.engines } : {}),
     ...(doc.model3d ? { model3d: doc.model3d } : {}),
+    ...(doc.interactions && doc.interactions.length > 0 ? { interactions: doc.interactions } : {}),
   };
 }

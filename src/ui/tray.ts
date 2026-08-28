@@ -44,8 +44,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const bar = host.querySelector<HTMLElement>(".cs-controlbar");
   if (!bar) return; // no control bar (author preview, embeds): no tray
   // The ⊕ signals ANY intrinsic capability of the scene — explore-sliders,
-  // or an instrument (a piano figure is playable while paused).
-  const playable = hd.spec.template === "piano_keys";
+  // or a manifest-declared interaction (a piano figure is playable while
+  // paused). One declared source (interactivity spec §6), never sniffed.
+  const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
+  const playable = interactions.includes("piano");
   if (liveSliders(hd).length === 0 && !playable) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });

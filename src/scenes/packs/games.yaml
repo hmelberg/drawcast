@@ -8,6 +8,7 @@ version: 1
 kit: 2
 status: ready
 engines: [chess]
+interactions: [chess]
 description: >-
   A chess board rendered from a FEN position and, optionally, a line of
   moves in Standard Algebraic Notation (SAN) played out via the chess

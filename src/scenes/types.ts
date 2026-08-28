@@ -15,6 +15,11 @@ export interface SceneLayout {
   curveSamples?: Record<string, Pt[]>;
 }
 
+/** Intrinsic interactions a template can declare (interactivity spec §6):
+ *  the ⊕/tray and the context menu read this one source — never sniff. */
+export const KNOWN_INTERACTIONS = ["piano", "chess"] as const;
+export type InteractionKind = (typeof KNOWN_INTERACTIONS)[number];
+
 /** Scene manifest — data, improvable by Loop 2 without touching code. */
 export interface SceneManifest {
   name: string;
@@ -26,6 +31,8 @@ export interface SceneManifest {
   engines?: string[];
   /** Explore-in-3D affordance: present when a 3Dmol.js view can be built for this scene. */
   model3d?: { kind: "molecule"; source: "preset" | "smiles" };
+  /** Intrinsic interactions the scene offers while paused (free play, exercises). */
+  interactions?: InteractionKind[];
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */

@@ -82,6 +82,24 @@ describe("validateTemplateDoc", () => {
     d.examples = [{ params: {} }];
     expect(validateTemplateDoc(d).errors[0]).toMatch(/example/);
   });
+
+  test("known interactions are accepted", () => {
+    const d = base();
+    d.interactions = ["piano", "chess"];
+    expect(validateTemplateDoc(d).errors).toEqual([]);
+  });
+
+  test("unknown interaction name is rejected", () => {
+    const d = base();
+    d.interactions = ["theremin"];
+    expect(validateTemplateDoc(d).errors[0]).toMatch(/unknown interaction/);
+  });
+
+  test("non-array interactions is rejected", () => {
+    const d = base();
+    d.interactions = "piano";
+    expect(validateTemplateDoc(d).errors[0]).toMatch(/interactions/);
+  });
 });
 
 test("docToManifest maps fields onto SceneManifest", () => {
@@ -92,6 +110,23 @@ test("docToManifest maps fields onto SceneManifest", () => {
   expect(m.params_schema).toEqual(doc.params);
   expect(m.element_ids.ring).toBe("the ring");
   expect(m.examples).toHaveLength(1);
+  expect(m.interactions).toBeUndefined();
+});
+
+test("docToManifest carries interactions through", () => {
+  const doc = { ...parseTemplateDoc(GOOD).doc!, interactions: ["chess" as const] };
+  expect(docToManifest(doc).interactions).toEqual(["chess"]);
+});
+
+test("the shipped chess and piano templates declare their interactions", async () => {
+  const { PACK_DEFS, parsePack } = await import("../src/scenes/packs");
+  const docOf = async (pack: string, tpl: string) => {
+    const { pack: parsed, errors } = parsePack(await PACK_DEFS[pack].load());
+    expect(errors).toEqual([]);
+    return parsed!.templates.find((d) => d.template === tpl)!;
+  };
+  expect((await docOf("games", "chess_board")).interactions).toEqual(["chess"]);
+  expect((await docOf("music", "piano_keys")).interactions).toEqual(["piano"]);
 });
 
 describe("registerTemplateDoc", () => {
