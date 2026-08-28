@@ -320,6 +320,30 @@ exactly, per §4.1. Chess free-move rides the param machinery: the
 position is `fen`/`moves`/`plies_shown`, so a user move is a param
 preview, with legality from the already-shipped chess engine.
 
+**Authored links (agreed 2026-08-28, second session).** The §9.5 "Read
+more" action becomes a spec-level `link` field on any element — content,
+not capability, so it lives in the drawcast spec, never the template
+manifests. Canonical form is an array of full https URLs (max 4; a bare
+string normalizes to a one-element array — the schema stays anyOf-free
+for structured outputs). The kind is SNIFFED from the URL, never
+declared: YouTube hosts → embed player in a modal over the stage;
+`*.wikipedia.org/wiki/…` → the in-card summary portraits already use;
+`.pdf` paths (and arxiv.org/pdf) → framed document in a modal with a
+permanent "Open in new tab ↗" escape (X-Frame-Options blocks are
+undetectable from JS, so the escape always shows); anything else → new
+tab. Multiple links are cheap because the card is already a multi-action
+surface: one action per link, same-kind duplicates disambiguated by
+hostname. The card stays the intermediary — clicking a linked object
+never navigates directly (preview before commitment); a `link` is an
+info payload, so it makes its element card-bearing, and a label's link
+propagates to its attach_to target like its name does. THE AUTHORING
+RULE THAT MATTERS: links are pass-through only — the model includes a
+`link` ONLY when the request itself supplies the URL, copied verbatim,
+never constructed — hallucinated DOIs and dead video ids look exactly
+like real ones. Links are add-ons (§5): ignored by movie export
+entirely. Labeled link objects ({url, label}) stay unbuilt until
+hostname disambiguation proves too crude.
+
 **Amended near-term build order:** (1) `interactions:` manifest section
 + ⊕ lights for chess; (2) free-move chess while paused; (3) right-click
 v1 (suppress native menu on stage; pause + open the tray); (4) identify
