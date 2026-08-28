@@ -8196,5 +8196,139 @@
     }
    ]
   }
+ },
+ {
+  "request": "Show Simpson's paradox: a drug that helps every group but looks harmful overall. Link the article: https://en.wikipedia.org/wiki/Simpson%27s_paradox",
+  "title": "When the trend reverses",
+  "spec": {
+   "title": "Simpson's paradox",
+   "domain": {
+    "x": [
+     0,
+     100
+    ],
+    "y": [
+     0,
+     100
+    ]
+   },
+   "elements": [
+    {
+     "id": "axes",
+     "type": "axes",
+     "x_label": "Dose given",
+     "y_label": "Recovery"
+    },
+    {
+     "id": "mild",
+     "type": "curve",
+     "expr": "51 + 0.4*x",
+     "x_from": 10,
+     "x_to": 45,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "severe",
+     "type": "curve",
+     "expr": "3 + 0.4*x",
+     "x_from": 55,
+     "x_to": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "pooled",
+     "type": "curve",
+     "expr": "80.3 - 0.667*x",
+     "x_from": 10,
+     "x_to": 90,
+     "style": {
+      "color": "#8a5fa8",
+      "dash": true
+     }
+    },
+    {
+     "id": "lab_mild",
+     "type": "label",
+     "text": "Mild cases",
+     "attach_to": "mild",
+     "side": "above-left"
+    },
+    {
+     "id": "lab_severe",
+     "type": "label",
+     "text": "Severe cases",
+     "attach_to": "severe",
+     "side": "above-left"
+    },
+    {
+     "id": "lab_pooled",
+     "type": "label",
+     "text": "Everyone, pooled",
+     "attach_to": "pooled",
+     "side": "below-left",
+     "link": [
+      "https://en.wikipedia.org/wiki/Simpson%27s_paradox"
+     ]
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes"
+     ],
+     "speak": "One drug, given at different doses, and we record how well people recover."
+    },
+    {
+     "draw": [
+      "mild",
+      "lab_mild"
+     ],
+     "speak": "Among the mild cases, the pattern is clean: the more they were given, the better they did."
+    },
+    {
+     "draw": [
+      "severe",
+      "lab_severe"
+     ],
+     "speak": "Among the severe cases, the same again — lower down the chart, because they start sicker, but rising just as clearly."
+    },
+    {
+     "pause": 0.5
+    },
+    {
+     "draw": [
+      "pooled",
+      "lab_pooled"
+     ],
+     "speak": "Now throw both groups into one pile and fit a single line. It runs the other way: more dose, worse recovery.",
+     "delivery": "grave"
+    },
+    {
+     "highlight": {
+      "target": [
+       "pooled"
+      ],
+      "effect": "glow"
+     },
+     "speak": "Nothing in the data changed. The pooled line is steered by WHO got the high doses — the severe cases, who were going to do worse whatever they were given."
+    },
+    {
+     "point": {
+      "at": {
+       "ref": "severe"
+      },
+      "gesture": "circle"
+     },
+     "speak": "That is Simpson's paradox: severity is doing the work, and pooling hides it. Pause and click the pooled line — its card carries the Wikipedia summary."
+    },
+    {
+     "speak": "The lesson is not that averages lie. It is that an average over a mixture answers a question nobody asked."
+    }
+   ]
+  }
  }
 ]
