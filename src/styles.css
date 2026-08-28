@@ -1003,6 +1003,31 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   cursor: pointer;
 }
 .cs-infocard-actions .cs-infocard-act:hover { text-decoration: underline; }
+/* The matched article's picture, above its summary. */
+.cs-infocard-thumb {
+  display: block;
+  width: 100%;
+  max-height: 130px;
+  object-fit: cover;
+  border-radius: 5px;
+  margin-top: 0.4rem;
+  background: var(--paper);
+}
+/* "Did you mean" — shown only when the figure's own words do not settle the
+   sense. One click picks, and the row is replaced by that sense. */
+.cs-infocard-senses { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; margin-top: 0.4rem; }
+.cs-infocard-senseslabel { font-size: 0.78rem; color: var(--muted); }
+.cs-infocard-sense {
+  font-family: var(--sketch-font);
+  font-size: 0.78rem;
+  color: var(--rust);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  cursor: pointer;
+}
+.cs-infocard-sense:hover { border-color: var(--rust); }
 .cs-stage.cs-cardable { cursor: pointer; }
 
 /* Media modal: the read-instead-of-the-figure surface (YouTube, PDF). */

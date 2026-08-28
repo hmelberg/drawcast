@@ -1,10 +1,12 @@
 // The info card, pure half (interactivity spec §9.5 "more info", §13):
 // which elements carry a card, what the card calls them, which links it
 // offers, and where Search goes. Name sources are the reliable, spec-level
-// ones — a portrait's person (its wiki identity rides along) and label
-// text; an element carrying only links falls back to its prettified id.
-// Template parts wait for a real naming story: their element_ids docs are
-// LLM-facing prose and their labels are symbols ("D", "P*").
+// ones — a portrait's person and a source's title (their identity rides
+// along) and the TEXT a viewer can read on the canvas: a label's, a node's,
+// a tier-3 text's. An element carrying only links falls back to its
+// prettified id. Template parts wait for a real naming story: their
+// element_ids docs are LLM-facing prose and their labels are symbols
+// ("D", "P*") — which meaningfulName screens out anyway.
 
 import type { Spec, SpecElement } from "../spec/types";
 
@@ -18,6 +20,9 @@ export interface CardTarget {
    *  labels attached to it; deduped. */
   links: string[];
 }
+
+/** Element types whose `text` is a word on the canvas a viewer might ask about. */
+const TEXT_BEARING = new Set(["label", "node", "text"]);
 
 /** A name a human would search for — not a curve symbol or a number.
  *  ≥3 chars with at least two consecutive letters ("GDP" yes, "D′"/"P*"/"42" no). */
@@ -50,11 +55,17 @@ export function cardTargets(spec: Spec, ids?: readonly string[]): Map<string, Ca
     for (const l of links) if (!t.links.includes(l)) t.links.push(l);
   };
 
+  // Text names its element. A LABEL also names what it attach_to's — the
+  // curve is clickable, not just the word beside it. A node's text and a
+  // tier-3 text name only themselves (there is nothing to reach through to),
+  // but they are words on the canvas exactly like a label's, so they carry a
+  // card on the same terms: a flowchart box reading "Confounding" is as
+  // clickable as a label saying it.
   for (const el of spec.elements ?? []) {
-    if (el.type !== "label" || typeof el.text !== "string" || !meaningfulName(el.text)) continue;
+    if (!TEXT_BEARING.has(el.type) || typeof el.text !== "string" || !meaningfulName(el.text)) continue;
     const name = el.text.trim();
     if (usable(el.id)) addLinks(ensure(el.id, name), linksOf(el));
-    if (usable(el.attach_to)) addLinks(ensure(el.attach_to, name), linksOf(el));
+    if (el.type === "label" && usable(el.attach_to)) addLinks(ensure(el.attach_to, name), linksOf(el));
   }
   for (const el of spec.elements ?? []) {
     if (!usable(el.id)) continue;
@@ -73,7 +84,7 @@ export function cardTargets(spec: Spec, ids?: readonly string[]): Map<string, Ca
       const t: CardTarget = { id: el.id, name, kind: "portrait", wikiName: name, links: prev?.links ?? [] };
       out.set(el.id, t);
       addLinks(t, linksOf(el));
-    } else if (el.type !== "label" && linksOf(el).length > 0) {
+    } else if (!TEXT_BEARING.has(el.type) && linksOf(el).length > 0) {
       // A linked element with no label of its own: the id is the name.
       const t = ensure(el.id, el.id.replace(/_/g, " "));
       addLinks(t, linksOf(el));

@@ -17,7 +17,8 @@ import { chessSquareAt, pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
-import { cardTargets, searchUrl, type CardTarget } from "./card-model";
+import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-model";
+import { contextWords, matchWiki, type WikiCandidate } from "./wiki-match";
 import { linkActionsFor } from "./link-model";
 import { openMediaModal } from "./media-modal";
 import { h, logicalPoint } from "./dom";
@@ -25,6 +26,24 @@ import { hitElement } from "./hit";
 import type { BBox } from "../layout/geometry";
 
 const SUMMARY_MAX = 200;
+
+/**
+ * Wikipedia's keyless search: title, one-line description and thumbnail for
+ * each hit, in ONE request, CORS-open. `origin=*` is what makes the action API
+ * answer `access-control-allow-origin: *` for an anonymous browser caller.
+ */
+async function searchWiki(term: string, limit = 6): Promise<WikiCandidate[]> {
+  const url =
+    `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search` +
+    `&gsrsearch=${encodeURIComponent(term)}&gsrlimit=${limit}&prop=description|pageimages&piprop=thumbnail&pithumbsize=320`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const j = (await res.json()) as { query?: { pages?: Record<string, { title?: string; description?: string; thumbnail?: { source?: string } }> } };
+  const pages = Object.values(j.query?.pages ?? {});
+  return pages
+    .filter((p): p is { title: string; description?: string; thumbnail?: { source?: string } } => typeof p.title === "string")
+    .map((p) => ({ title: p.title, description: p.description ?? "", thumbnail: p.thumbnail?.source }));
+}
 
 function trimExtract(s: string): string {
   if (s.length <= SUMMARY_MAX) return s;
@@ -149,21 +168,72 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     }
     actions.appendChild(link(searchUrl(t.name, hd.spec.title), "🔍 Search ↗"));
 
-    if (summaryRest) {
+    /** Fill the summary line (and Read more) from a REST summary endpoint. */
+    const fillSummary = (restUrl: string, into: HTMLElement): void => {
       const mine = card;
-      void fetch(summaryRest)
+      void fetch(restUrl)
         .then((r) => (r.ok ? (r.json() as Promise<unknown>) : null))
         .then((j) => {
           if (card !== mine || !j) return;
           const s = j as { extract?: string; content_urls?: { desktop?: { page?: string } } };
           if (typeof s.extract === "string" && s.extract.trim() !== "") {
-            summary.textContent = trimExtract(s.extract.trim());
-            summary.hidden = false;
+            into.textContent = trimExtract(s.extract.trim());
+            into.hidden = false;
           }
           const page = s.content_urls?.desktop?.page;
           if (typeof page === "string" && readMore) readMore.href = page;
         })
         .catch(() => undefined);
+    };
+
+    if (summaryRest) {
+      fillSummary(summaryRest, summary);
+    } else if (meaningfulName(t.name)) {
+      // No authored identity: ask Wikipedia what this WORD could mean, and let
+      // the figure's own words decide which sense (src/ui/wiki-match.ts). One
+      // keyless search call, only on a click, and no model is involved —
+      // scoring is string arithmetic, so this costs nothing per card.
+      const mine = card;
+      void searchWiki(t.name)
+        .then((candidates) => {
+          if (card !== mine || candidates.length === 0) return;
+          const match = matchWiki(candidates, contextWords(hd.spec), t.name);
+          if (match.kind === "confident") showSense(match.page, mine);
+          else if (match.kind === "choice") offerSenses(match.pages, mine);
+        })
+        .catch(() => undefined);
+    }
+
+    /** A settled sense: its picture, its summary, and Read more. */
+    function showSense(page: { title: string; thumbnail?: string }, mine: HTMLElement): void {
+      if (card !== mine) return;
+      if (page.thumbnail) {
+        const img = h("img", { class: "cs-infocard-thumb", src: page.thumbnail, alt: page.title, loading: "lazy" });
+        mine.insertBefore(img, summary);
+      }
+      readMore = link(`https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/\s+/g, "_"))}`, "📖 Read more ↗");
+      actions.insertBefore(readMore, actions.firstChild);
+      fillSummary(wikiSummaryUrl(page.title), summary);
+    }
+
+    /**
+     * Several senses fit: ask instead of guessing. Picking one replaces the
+     * row with that sense — the same card, one click deeper, never a wrong
+     * summary presented as fact.
+     */
+    function offerSenses(pages: { title: string; description: string; thumbnail?: string }[], mine: HTMLElement): void {
+      if (card !== mine) return;
+      const row = h("div", { class: "cs-infocard-senses" }, h("span", { class: "cs-infocard-senseslabel" }, "Did you mean"));
+      for (const p of pages) {
+        const b = h("button", { class: "cs-infocard-sense", title: p.description }, p.title);
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          row.remove();
+          showSense(p, mine);
+        });
+        row.appendChild(b);
+      }
+      mine.insertBefore(row, actions);
     }
 
     // At the pointer, clamped inside the stage.

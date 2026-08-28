@@ -137,6 +137,37 @@ halftone at 900 dots also fell short of likeness; Hans judged photo the winner �
 it is the DEFAULT look (halftone at 2400 dots stays the styled option).
 Still deferred: crop/re-trace UI and the Anvil shared cache tier.
 
+## Clickable words — done 2026-08-29
+
+Any meaningful TEXT on the canvas now opens a card that knows what the word
+means in THIS figure. A label already carried one; node text and tier-3 text
+now do too (`meaningfulName` still screens out "D", "P*", "42"), and only a
+label reaches through to what it `attach_to`s — a node has no such relation.
+
+The disambiguation is the interesting half. "Mercury" is the element in a
+figure about protons and thermometers and the planet in one about orbits, and
+the figure ALREADY says which: its title, its narration, its other labels, its
+params. `src/ui/wiki-match.ts` scores Wikipedia's search hits against that bag
+of words. **No model is involved** — it is string arithmetic in the browser, so
+there is no API key, no token cost, and nothing happens until a viewer clicks;
+the only network access is one keyless `action=query&generator=search` call
+(`origin=*` makes it CORS-open) that returns title, one-line description and
+thumbnail for six candidates at once.
+
+Two signals, and both were needed. Description overlap ALONE was measured
+wrong: in a wave figure it ranked "Pulse-amplitude modulation" above the
+article "Amplitude", because the longer description shared more words. For a
+generic term an exact title match is itself the strongest evidence, so title
+and context each carry their own weight.
+
+The threshold is deliberately STRICT (Hans's call): over ten measured cases
+five cleared it and all five were right; the rest fall to a "Did you mean"
+chip row where the viewer picks, or to plain Search when nothing fits. A
+disambiguation page is never a destination. Loosening it buys a few more
+automatic summaries and eventually buys a confidently WRONG one — the trade
+that was rejected, because a wrong summary presented as fact is worse than one
+extra click.
+
 ## Sources — done 2026-08-28
 
 A `source` element puts the WORK itself on the canvas — a book cover, a
