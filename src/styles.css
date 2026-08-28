@@ -950,6 +950,36 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* Chess free play's selection ring lives on the stage itself (no gate). */
 .cs-chessring { z-index: 3; }
 
+/* Info card: name + summary + actions at the pointer, over the paused figure. */
+.cs-infocard {
+  position: absolute;
+  z-index: 6;
+  max-width: 240px;
+  padding: 0.5rem 0.7rem 0.55rem;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-family: var(--sketch-font);
+}
+.cs-infocard-title { font-size: 1.02rem; color: var(--ink); padding-right: 1.2rem; }
+.cs-infocard-summary { font-size: 0.82rem; line-height: 1.3; color: var(--muted); margin-top: 0.25rem; }
+.cs-infocard-actions { display: flex; gap: 0.7rem; margin-top: 0.4rem; }
+.cs-infocard-actions a { font-size: 0.82rem; color: var(--rust); text-decoration: none; }
+.cs-infocard-actions a:hover { text-decoration: underline; }
+.cs-infocard-close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.35rem;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.1rem;
+}
+.cs-stage.cs-cardable { cursor: pointer; }
+
 /* Identify quiz: activity pills in the tray, Again ↻ on the quiz gate. */
 .cs-tray-acts { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .cs-tray-pill { font-size: 0.82rem; padding: 0.25rem 0.7rem; }
