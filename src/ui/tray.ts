@@ -48,7 +48,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // paused). One declared source (interactivity spec §6), never sniffed.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const playable = interactions.includes("piano");
-  if (liveSliders(hd).length === 0 && !playable) return;
+  if (liveSliders(hd).length === 0 && interactions.length === 0) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -100,6 +100,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (playable) {
       tray.appendChild(
         h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 Playable while paused — click, glide, or use your keyboard: A S D F G H J are the white keys, W E T Y U the black."),
+      );
+    }
+    if (interactions.includes("chess")) {
+      tray.appendChild(
+        h(
+          "div",
+          { class: "cs-tray-hint" },
+          "♟️ Playable while paused — click a piece, then its target square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
+        ),
       );
     }
     for (const { spec, value } of liveSliders(hd).filter((s) => !opts.filter || opts.filter.includes(s.spec.path))) {
@@ -160,6 +169,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     }
   });
   bar.appendChild(trayBtn);
+
+  // Right-click v1 (interactivity spec §13): "left-click does, right-click
+  // asks what's possible." Inside the stage the native menu never opens;
+  // the gesture pauses (open() snaps to the boundary) and opens the scene
+  // surface. Element-scoped menus arrive with the info card round.
+  stage?.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (tray.hidden) open();
+  });
 
   // The explore verb: the storyboard opens this tray itself and waits for
   // Continue. Abort (a scrub) resolves and tidies up — the gate contract.

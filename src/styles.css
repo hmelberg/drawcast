@@ -947,6 +947,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-figgate-mark.wrong { border-color: var(--loss); }
 .cs-figgate-mark.from { border-color: var(--steel); }
+/* Chess free play's selection ring lives on the stage itself (no gate). */
+.cs-chessring { z-index: 3; }
 @keyframes figgate-pop {
   from { transform: scale(0.4); opacity: 0.4; }
   to { transform: scale(1); opacity: 1; }

@@ -6,12 +6,13 @@
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
-import { CANVAS } from "../layout/canvas";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
 import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
-import { h } from "./dom";
+import { h, logicalPoint } from "./dom";
+import { attachChessPlay } from "./chessplay";
+import { scenes } from "../scenes/registry";
 
 export interface PlaybackPrefs {
   mode: "narrated" | "silent" | "instant";
@@ -147,17 +148,6 @@ interface AskGateStep {
  * smallest containing element box, drops a colored marker, and resolves the
  * element id — the player judges it like any typed answer.
  */
-/** A click event mapped through the svg's LIVE viewBox into logical y-up coordinates (camera-proof). */
-function logicalPoint(stage: HTMLElement, e: MouseEvent): [number, number] | null {
-  const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
-  if (!svg) return null;
-  const r = svg.getBoundingClientRect();
-  if (r.width === 0 || r.height === 0) return null;
-  const vb = svg.viewBox.baseVal;
-  const sx = vb.x + ((e.clientX - r.left) / r.width) * vb.width;
-  const sy = vb.y + ((e.clientY - r.top) / r.height) * vb.height;
-  return [sx, CANVAS.h - sy];
-}
 
 /**
  * On-key letter guide (DAW mapping) shown while a piano is interactive:
@@ -613,11 +603,15 @@ export function attachPlayerControls(
           ? chessGate(signal, step)
           : textGate(signal, step);
 
-  // Intrinsic free play (pause is the door): on a piano figure, a paused
-  // click that lands ON a key sounds it instead of resuming playback.
-  // Capture phase so the stage's play/pause toggle never sees it; question
-  // gates render their own overlay and are left alone.
-  if (hd.spec.template === "piano_keys") {
+  // Intrinsic free play (pause is the door): the manifest's interactions
+  // section (interactivity spec §6) is the one declared source — never
+  // sniffed from the template name. On a piano figure, a paused click that
+  // lands ON a key sounds it instead of resuming playback. Capture phase so
+  // the stage's play/pause toggle never sees it; question gates render
+  // their own overlay and are left alone.
+  const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
+  if (interactions.includes("chess")) attachChessPlay(stage, hd);
+  if (interactions.includes("piano")) {
     const octaves = pianoOctaves(hd.spec.params);
     // A keyboard is an instrument: no scroll-panning from the stage, so a
     // finger can press and glide (touch-action gates pointermove delivery).
