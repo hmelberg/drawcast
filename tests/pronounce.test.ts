@@ -43,11 +43,24 @@ describe("spoken form", () => {
     expect(sayable("qualy")).toBe("qualy"); // already the spoken form
   });
 
-  test("every entry is a real respelling of an ALL-CAPS written form", () => {
+  test("plain lowercase earns an entry too — absent means CAPITALS, not lowercase", () => {
+    // The distinction the whole table rests on: leaving DALY out does not
+    // make it "daly", it makes it "D-A-L-Y".
+    expect(sayable("Two DALYs averted")).toBe("Two dalys averted");
+    expect(sayable("a PICO question")).toBe("a pico question");
+    expect(sayable("NICE appraised it")).toBe("nice appraised it");
+  });
+
+  test("case-sensitivity is what keeps NICE safe", () => {
+    // The institute is written in capitals; the ordinary adjective is not, and
+    // must never be touched.
+    expect(sayable("a nice result, appraised by NICE")).toBe("a nice result, appraised by nice");
+  });
+
+  test("every entry is written in capitals and spoken in lowercase", () => {
     for (const [written, spoken] of Object.entries(SAID_AS)) {
       expect(written, written).toBe(written.toUpperCase());
       expect(spoken, written).toBe(spoken.toLowerCase());
-      expect(spoken, written).not.toBe(written.toLowerCase()); // else it earns no entry
     }
   });
 

@@ -229,10 +229,16 @@ caption keeps its capitals, and since the movie burns the CAPTION, a viewer
 always reads "QALY" however it is said. Cache keys and `detectLang` still see
 the original.
 
-The table holds ONLY what has been listened to — QALY and ICER. Speculative
-entries were removed: SIR in particular would have been wrong, since the
-epidemiology model's letters really are spelled out, which is exactly what the
-default does. If the vocabulary grows, domain packs should contribute to one
+Often the respelling is just the lowercase form — DALY, PICO, NICE — and that
+still earns an entry, because ABSENT does not mean lowercase: absent means the
+capitals stand and the engine spells the thing out. Leaving DALY out does not
+give "daly", it gives "D-A-L-Y". Matching is case-sensitive, which is what
+keeps NICE safe: the institute is capitalised, the ordinary adjective is not.
+
+The table holds ONLY what has been listened to. Speculative entries were
+removed: SIR in particular would have been wrong, since the epidemiology
+model's letters really are spelled out, which is exactly what the default
+does. If the vocabulary grows, domain packs should contribute to one
 shared table (a term's pronunciation belongs to the term, not to a template —
 QALY is QALY in every figure).
 

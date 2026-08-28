@@ -6,11 +6,13 @@
 // needs nothing — this table is only the exceptions, and only the ones
 // actually listened to.
 //
-// The respelling, not merely lowercasing, is the point. Measured by Hans on
-// 2026-08-29 against Google's neural voices: "qaly" is not it, "qualy" — with
-// the u the initialism drops — is the accurate one, and ICER wants a doubled
-// e. So an entry is a PHONETIC SPELLING for the engine's letter-to-sound
-// rules, arrived at by ear, not a case transform.
+// An entry is a PHONETIC SPELLING for the engine's letter-to-sound rules,
+// arrived at BY EAR (Hans, 2026-08-29, against Google's neural voices). Often
+// that is simply the lowercase form — "daly", "pico", "nice" — and that still
+// earns an entry, because ABSENT does not mean lowercase: absent means the
+// capitals stand and the engine spells the thing out. Sometimes the letters
+// have to change: "qaly" is not it, "qualy" — with the u that drops the
+// initialism — is the accurate one, and ICER wants a doubled e.
 //
 // Chosen over SSML (`<say-as>`, `<phoneme>`) for three reasons: it needs no
 // format change and so cannot break on an ampersand in the narration; it
@@ -28,12 +30,17 @@
  *
  * Add an entry only after LISTENING to it. Everything absent follows the
  * default, which is correct for UN, GDP, DNA, ICD, RCT — and for the SIR
- * model, whose letters really are spelled out. Candidates worth an ear when
- * they next come up: DALY, NICE, PICO.
+ * model, whose letters really are spelled out.
+ *
+ * Case-sensitive throughout, which is what keeps NICE safe: the institute is
+ * written in capitals, so the ordinary adjective "nice" never matches.
  */
 export const SAID_AS: Readonly<Record<string, string>> = {
-  QALY: "qualy",
-  ICER: "iceer",
+  QALY: "qualy", // the u drops the initialism; "qaly" was not it
+  ICER: "iceer", // a doubled e, or the engine says "icer" as in nicer
+  DALY: "daly",
+  PICO: "pico",
+  NICE: "nice",
 };
 
 /**
