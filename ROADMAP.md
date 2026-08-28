@@ -159,9 +159,27 @@ pdf.js is lazy-loaded as its own chunk (433 kB) on first use. Two live
 findings the implementation is built around: OpenAlex 404s on a
 percent-encoded DOI slash, and its `best_oa_location.pdf_url` is often null
 while the `locations` array carries a perfectly good arXiv PDF — so every
-location is scanned and arxiv.org wins the tie (verified CORS-open).
-Failure degrades to a ruled placeholder page; a missing cover (Open Library
-answers 1×1 pixels, not 404) or a paywalled DOI falls back to the title.
+location is scanned and arxiv.org wins the tie (verified CORS-open). A third
+came from running the real pdf.js: it has DROPPED
+`viewport.convertToViewportRectangle` (which the spec assumed), so the flip
+goes through `convertToViewportPoint` on the two corners — and because the
+loader is a dynamic import, a wrong method name is a runtime TypeError rather
+than a type error, so a 587-byte PDF written inline in the test suite pins
+that contract offline. Failure degrades to a ruled placeholder page; a missing
+cover (Open Library answers 1×1 pixels, not 404) or a paywalled DOI falls back
+to the title, and a declared `quote` promises its `<id>_quote` id even when the
+reference has not resolved, so the storyboard beat survives being offline.
+
+Four bundled examples show the three uses: Ioannidis's false-findings paper by
+DOI (further reading), Malthus's Essay by title (a cover beside the two
+curves), the "Attention Is All You Need" abstract quoted off the real arXiv
+PDF with the sweep on its own beat (verified: it lands 23% from the left, 57%
+down, wrapping onto a second line), and Snow's 1854 cholera map from an
+archive.org scan as a two-part playlist — part 1 the timeline of the outbreak,
+part 2 the map alone at full size, reached by `zoom_from`. That split is
+deliberate: a big source element sitting on a template disturbs the LABEL
+SOLVER, which knows nothing about time, so labels get pushed aside by a
+picture that is never on screen with them.
 
 Deferred, deliberately: a Netlify proxy for publisher PDFs (a policy
 decision, not a technical one), Google Books covers (no CORS — their URLs

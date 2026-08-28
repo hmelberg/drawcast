@@ -5,7 +5,10 @@
 //
 // Nothing here touches the network or a canvas: the resolver's two rendering
 // seams (renderImage / renderPage) are injected the way the chess tests inject
-// the Chess ctor, so a PDF is never downloaded to run the suite.
+// the Chess ctor, so a PDF is never downloaded to run the suite. The last
+// block is the exception that proves the seams honest — it runs the REAL
+// pdf.js against a 587-byte PDF written inline, pinning the viewport API the
+// text-layer path calls through.
 
 import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
@@ -134,6 +137,16 @@ describe("source element — rendering", () => {
     expect((flat.find((d) => d.id === "s1__name") as { text: string }).text).toBe("A Book Nobody Fetched");
     expect(res.warnings).toEqual([]);
     expect(res.order).toContain("s1");
+  });
+
+  test("an unresolved quote still promises its id, drawing nothing", () => {
+    // The storyboard times the sweep on its own beat; that beat must survive
+    // an unresolved reference, or every quoting drawcast breaks offline.
+    const res = layoutSpec(spec({ of: "Smith", page: 12, quote: "an invisible hand" }));
+    expect(res.order).toContain("s1_quote");
+    const sweep = flattenDrawables(res.drawables).find((d) => d.id === "s1_quote") as { pts: [number, number][] };
+    expect(sweep.pts).toEqual([]);
+    expect(res.issues).toEqual([]);
   });
 
   test("a page defaults wider than a cover", () => {
@@ -458,7 +471,7 @@ describe("source resolver — quote matching", () => {
     const viewport = {
       width: 400,
       height: CANVAS_H,
-      convertToViewportRectangle: ([x0, y0, x1, y1]: number[]) => [x0 * SCALE, CANVAS_H - y0 * SCALE, x1 * SCALE, CANVAS_H - y1 * SCALE],
+      convertToViewportPoint: (x: number, y: number) => [x * SCALE, CANVAS_H - y * SCALE],
     };
     // Two lines near the TOP of the page (high y in PDF space).
     const at = (str: string, x: number, y: number, w: number) => ({ str, transform: [10, 0, 0, 10, x, y], width: w, height: 10 });
@@ -536,5 +549,38 @@ describe("source element — hoisting, cards and lint", () => {
     };
     expect(rules(gallery)[0]).toContain("3 source elements");
     expect(rules(spec({ of: "X" }))).toEqual([]);
+  });
+});
+
+// A 587-byte one-page PDF, inline: three lines of Helvetica on a 200×400 page
+// (built once, kept verbatim). Real pdf.js, no network, no canvas — the guard
+// against a pdf.js upgrade quietly changing the API this path depends on.
+const TINY_PDF =
+  "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgMjAwIDQwMF0vUmVzb3VyY2VzPDwvRm9udDw8L0YxIDQgMCBSPj4+Pi9Db250ZW50cyA1IDAgUj4+ZW5kb2JqCjQgMCBvYmo8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PmVuZG9iago1IDAgb2JqPDwvTGVuZ3RoIDkxPj5zdHJlYW0KQlQgL0YxIDEyIFRmIDIwIDMyMCBUZCAoTm90IGl0LikgVGogMCAtMjAgVGQgKGxlZCBieSBhbikgVGogMCAtMTQgVGQgKGludmlzaWJsZSBoYW5kKSBUaiBFVAplbmRzdHJlYW1lbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTIgMDAwMDAgbiAKMDAwMDAwMDEwMSAwMDAwMCBuIAowMDAwMDAwMjExIDAwMDAwIG4gCjAwMDAwMDAyNzIgMDAwMDAgbiAKdHJhaWxlcjw8L1NpemUgNi9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjQwOAolJUVPRgo=";
+
+describe("source resolver — against the real pdf.js", () => {
+  test("the viewport contract holds and a quote sweeps the right lines", { timeout: 30000 }, async () => {
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const data = Uint8Array.from(atob(TINY_PDF), (c) => c.charCodeAt(0));
+    const doc = await getDocument({ data }).promise;
+    const page = await doc.getPage(1);
+    const viewport = page.getViewport({ scale: 2 }); // 200×400 pt → 400×800 px
+    expect(viewport.width).toBe(400);
+    expect(viewport.height).toBe(800);
+    // The API pageQuoteRects depends on. pdf.js DROPPED convertToViewportRectangle,
+    // which the loader's dynamic import turns into a runtime TypeError, not a
+    // type error — so the contract is pinned here.
+    expect(typeof viewport.convertToViewportPoint).toBe("function");
+
+    const rects = (await pageQuoteRects(page as never, viewport as never, "led by an invisible hand", 400, 800))!;
+    expect(rects.length).toBe(2); // the quote wraps: one sweep per line
+    // Line 2 is at PDF y = 300, line 3 at y = 286; normalized by WIDTH (200 pt).
+    expect(rects[0][1]).toBeLessThanOrEqual(300 / 200);
+    expect(rects[0][1] + rects[0][3]).toBeGreaterThanOrEqual((300 + 8) / 200);
+    expect(rects[1][1]).toBeLessThanOrEqual(286 / 200);
+    // Neither sweep reaches the unquoted first line (PDF y = 320).
+    for (const [, y, , h] of rects) expect(y + h).toBeLessThan(320 / 200);
+    // A paraphrase never matches; the page would still resolve, unmarked.
+    expect(await pageQuoteRects(page as never, viewport as never, "guided by an unseen hand", 400, 800)).toBeNull();
   });
 });

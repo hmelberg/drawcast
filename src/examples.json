@@ -7744,5 +7744,278 @@
     }
    ]
   }
+ },
+ {
+  "request": "Explain what attention does that recurrence could not — and quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
+  "title": "Attention, in the paper's words",
+  "spec": {
+   "title": "Why attention replaced recurrence",
+   "elements": [
+    {
+     "id": "w1",
+     "type": "node",
+     "shape": "circle",
+     "text": "The",
+     "x": 120,
+     "y": 175
+    },
+    {
+     "id": "w2",
+     "type": "node",
+     "shape": "circle",
+     "text": "animal",
+     "x": 300,
+     "y": 175
+    },
+    {
+     "id": "w3",
+     "type": "node",
+     "shape": "circle",
+     "text": "was",
+     "x": 480,
+     "y": 175
+    },
+    {
+     "id": "w4",
+     "type": "node",
+     "shape": "circle",
+     "text": "tired",
+     "x": 660,
+     "y": 175
+    },
+    {
+     "id": "step1",
+     "type": "arrow",
+     "from": {
+      "ref": "w1"
+     },
+     "to": {
+      "ref": "w2"
+     }
+    },
+    {
+     "id": "step2",
+     "type": "arrow",
+     "from": {
+      "ref": "w2"
+     },
+     "to": {
+      "ref": "w3"
+     }
+    },
+    {
+     "id": "step3",
+     "type": "arrow",
+     "from": {
+      "ref": "w3"
+     },
+     "to": {
+      "ref": "w4"
+     }
+    },
+    {
+     "id": "look1",
+     "type": "edge",
+     "from": {
+      "ref": "w2"
+     },
+     "to": {
+      "ref": "w4"
+     },
+     "curved": true,
+     "style": {
+      "color": "#8a5fa8"
+     }
+    },
+    {
+     "id": "look2",
+     "type": "edge",
+     "from": {
+      "ref": "w1"
+     },
+     "to": {
+      "ref": "w3"
+     },
+     "curved": true,
+     "style": {
+      "color": "#8a5fa8"
+     }
+    },
+    {
+     "id": "look3",
+     "type": "edge",
+     "from": {
+      "ref": "w1"
+     },
+     "to": {
+      "ref": "w4"
+     },
+     "curved": true,
+     "style": {
+      "color": "#8a5fa8"
+     }
+    },
+    {
+     "id": "paper",
+     "type": "source",
+     "of": "Attention Is All You Need",
+     "url": "https://arxiv.org/abs/1706.03762",
+     "page": 1,
+     "quote": "dispensing with recurrence and convolutions entirely",
+     "x": 825,
+     "y": 500,
+     "width": 210
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "w1",
+      "w2",
+      "w3",
+      "w4"
+     ],
+     "parallel": true,
+     "speak": "Four words of one sentence."
+    },
+    {
+     "draw": [
+      "step1",
+      "step2",
+      "step3"
+     ],
+     "speak": "A recurrent network had to walk them in order: every word waited for the one before it, so a hundred-word sentence meant a hundred steps that could not be shared out."
+    },
+    {
+     "pause": 0.4
+    },
+    {
+     "draw": [
+      "look1",
+      "look2",
+      "look3"
+     ],
+     "parallel": true,
+     "speak": "Attention throws the queue away — every word looks straight at every other, so \"tired\" reaches \"animal\" in one hop instead of two."
+    },
+    {
+     "draw": [
+      "paper"
+     ],
+     "speak": "The 2017 paper that made this the default architecture said it in a single line of its abstract."
+    },
+    {
+     "draw": [
+      "paper_quote"
+     ],
+     "speak": "Dispensing with recurrence and convolutions entirely.",
+     "delivery": "grave"
+    },
+    {
+     "speak": "And the words that mattered were \"dispensing with\". Attention was already in use alongside recurrence; taking the sequence OUT is what let the whole sentence be computed at once — the paper's real gift was not attention, it was parallelism."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Why did Malthus think population growth must end in famine, and was he right?",
+  "title": "Malthus's two lines",
+  "spec": {
+   "title": "Malthus's two lines",
+   "template": "generic_axes_diagram",
+   "params": {
+    "x_label": "Time",
+    "y_label": "Amount",
+    "curves": [
+     {
+      "id": "population",
+      "label": "Population",
+      "expression": "3*exp(0.035*x)",
+      "color": "demand"
+     },
+     {
+      "id": "food",
+      "label": "Food",
+      "expression": "12 + 0.6*x",
+      "color": "supply"
+     }
+    ],
+    "points": [
+     {
+      "x": 88,
+      "y": 65,
+      "label": "Famine"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "id": "essay",
+     "type": "source",
+     "of": "An Essay on the Principle of Population",
+     "x": 245,
+     "y": 520,
+     "width": 170
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "x_label",
+      "y_label"
+     ],
+     "speak": "Malthus, writing in 1798, put two quantities on one pair of axes."
+    },
+    {
+     "draw": [
+      "food",
+      "label_food"
+     ],
+     "speak": "Food, he argued, can only grow by addition — clear another field, drain another marsh. A straight line."
+    },
+    {
+     "draw": [
+      "population",
+      "label_population"
+     ],
+     "speak": "People grow by multiplication: every couple that has four children doubles the next generation. A curve that bends upward."
+    },
+    {
+     "pause": 0.5
+    },
+    {
+     "draw": [
+      "point_0",
+      "point_label_0"
+     ],
+     "speak": "A line and a curve like that must meet, and after they meet there is not enough. Famine, he concluded, is not a policy failure but arithmetic.",
+     "delivery": "grave"
+    },
+    {
+     "draw": [
+      "essay"
+     ],
+     "speak": "The argument is his Essay on the Principle of Population — the book that got economics called the dismal science."
+    },
+    {
+     "highlight": {
+      "target": [
+       "food"
+      ],
+      "effect": "glow"
+     },
+     "speak": "He was wrong for two centuries, and the mistake is in the straight line: fertiliser, new varieties and machinery made food grow by multiplication too."
+    },
+    {
+     "speak": "The arithmetic was never the weak part. The assumption about which curve food follows was."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Tell the story of the Broad Street pump, and show Snow's actual 1854 map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
+  "title": "The Broad Street pump",
+  "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  title: \"Soho, autumn 1854\"\n  milestones:\n    - label: \"31 August\"\n      sublabel: \"Cholera breaks out in Soho\"\n    - label: \"Early September\"\n      sublabel: \"Snow collects the death records\"\n    - label: \"He maps them\"\n      sublabel: \"The deaths ring one pump\"\n      emphasize: true\n    - label: \"7 September\"\n      sublabel: \"He argues it to the parish board\"\n    - label: \"8 September\"\n      sublabel: \"The pump handle comes off\"\ncommands:\n  - draw: [title, line, dot_0, label_0]\n    speak: \"In the last days of August 1854, cholera broke out in a few streets of Soho, and within a week some five hundred people were dead.\"\n  - draw: [dot_1, label_1]\n    speak: \"The reigning theory was bad air. John Snow suspected the water — and to argue it he did something bad air could not be argued with: he went and collected the death records, address by address.\"\n  - draw: [dot_2, label_2]\n    speak: \"Then he drew each death as a short bar on the street where it happened.\"\n  - pause: 0.4\n  - draw: [dot_3, label_3, dot_4, label_4]\n    speak: \"The bars piled up around one water pump. On the seventh of September he took that to the parish board; the next day the handle came off.\"\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: \"Snow's cholera map, 1855\"\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 500\n    y: 400\n    width: 420\ncommands:\n  - draw: [snow_map]\n    speak: \"This is the map itself, from the 1855 edition of Snow's book.\"\n  - camera: { center: { ref: snow_map }, zoom: 1.8 }\n    speak: \"Every short black bar is one death, stacked against the address where it fell — and they crowd around one point near the middle, the pump on Broad Street.\"\n  - camera: { reset: true }\n    speak: \"No arrows, no legend, no statistics. The pattern is the whole argument, and anyone can check it against their own street.\"\n  - speak: \"The part the story usually leaves out: the outbreak was already falling when the handle came off, so pulling it saved fewer lives than the legend says. What the map really won was the argument — and that was worth far more than one pump.\"\n"
  }
 ]

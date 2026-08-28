@@ -816,6 +816,26 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     { id: el.id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children },
   ];
 
+  // A declared quote PROMISES the id `<id>_quote`, and the storyboard draws it
+  // on its own beat — so the id has to exist even when the reference has not
+  // resolved (offline, cache-cold, a quote the page turned out not to carry).
+  // An empty stroke keeps the beat and its narration and draws nothing, the
+  // way an unresolved cameo stays addressable while showing no face.
+  if (el.quote !== undefined && (decoded?.rects.length ?? 0) === 0) {
+    const id = `${el.id}_quote`;
+    ctx.extraOrder.push(id);
+    ctx.anchors[id] = [cx, cy];
+    out.push({
+      id,
+      kind: "stroke",
+      pts: [],
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { color: COLORS.region1, opacity: 0.42 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 600 }),
+    });
+    return out;
+  }
+
   // Highlighter sweeps: one thick horizontal stroke per matched line, so the
   // dash-offset reveal IS the marker travelling left to right.
   (decoded?.rects ?? []).forEach(([nx, ny, nw, nh], i) => {

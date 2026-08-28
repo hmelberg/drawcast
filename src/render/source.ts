@@ -327,8 +327,15 @@ export function quoteRects(rects: readonly ViewportRect[], pageW: number, pageH:
 export interface PdfViewportLike {
   width: number;
   height: number;
-  /** PDF user space (y-up) → viewport pixels (y-down). Never hand-flip Y. */
-  convertToViewportRectangle(rect: number[]): number[];
+  /**
+   * PDF user space (y-up, bottom-left) → viewport pixels (y-down). Never
+   * hand-flip Y: the viewport also carries the page's rotation and offset.
+   *
+   * Point, not rectangle: pdf.js dropped `convertToViewportRectangle`, and a
+   * missing method here is a runtime TypeError, not a type error, because the
+   * loader is dynamic. Verified against pdfjs-dist 6.2.108.
+   */
+  convertToViewportPoint(x: number, y: number): number[];
 }
 
 export interface PdfPageLike {
@@ -419,7 +426,7 @@ const renderPage: PageRenderer = async (url, page, quote) => {
  * is testable against synthetic textContent.
  *
  * PDF user space is bottom-left origin; the flip goes through the viewport's
- * own `convertToViewportRectangle`, never by hand.
+ * own `convertToViewportPoint`, never by hand.
  */
 export async function pageQuoteRects(
   page: PdfPageLike,
@@ -439,8 +446,9 @@ export async function pageQuoteRects(
     const y = it.transform[5];
     const w = it.width ?? 0;
     const h = it.height ?? (Math.abs(it.transform[3]) || 10);
-    const [vx0, vy0, vx1, vy1] = viewport.convertToViewportRectangle([x, y, x + w, y + h]);
-    boxes.push({ x: Math.min(vx0, vx1), y: Math.min(vy0, vy1), w: Math.abs(vx1 - vx0), h: Math.abs(vy1 - vy0) });
+    const [ax, ay] = viewport.convertToViewportPoint(x, y);
+    const [bx, by] = viewport.convertToViewportPoint(x + w, y + h);
+    boxes.push({ x: Math.min(ax, bx), y: Math.min(ay, by), w: Math.abs(bx - ax), h: Math.abs(by - ay) });
   }
   return quoteRects(boxes, canvasW, canvasH);
 }
