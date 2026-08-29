@@ -326,6 +326,27 @@ discovered.
   ranges declared on supply_demand and the stats pack; other templates join
   by declaring bounds.
 
+## Languages — done 2026-08-29
+
+The upload dialog carries a checkbox per language. Ticking one that is not the
+source translates the drawcast into a COPY and queues a second video for it;
+the document itself is never written to. Template-computed captions ride in
+`text_map` because a template's own words ("Susceptible" for compartment "S")
+never appear in the spec — measured at the time, 67 of the 114 bundled
+drawcasts drew text a spec-level translator could not see.
+
+Open follow-ups:
+
+- **"Save the translations as new drawcasts" in the status line too.** Today
+  the button lives only in the upload dialog, which closes when the queue
+  starts — so the decision has to be made before uploading. The translations
+  stay in memory until the dialog is next opened, so offering the same action
+  again afterwards is only a second action on the status line (which currently
+  takes exactly one).
+- The upload **description** is shared across a multi-language set and is not
+  translated; a playlist's **title page and chapter cards** are not translated
+  either (item specs are, playlist meta is not).
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future
