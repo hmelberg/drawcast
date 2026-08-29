@@ -7,6 +7,8 @@
 
 import { callForJson, makeClient, type CallOpts } from "./client";
 import { applyTranslations, translatableStrings, type Translatable } from "../spec/i18n";
+import { layoutSpec } from "../layout/layout";
+import { collectDrawnText } from "../layout/text-map";
 import type { Spec } from "../spec/types";
 
 export interface TranslationCheck {
@@ -67,6 +69,27 @@ export interface TranslateConfig {
 }
 
 /**
+ * Text the FIGURE draws that the spec does not hold: a scene template computes
+ * its own captions, so "Susceptible" lives in the layout code for a spec that
+ * only says compartment "S". Measured before this existed: 67 of the 114
+ * bundled drawcasts had such words, and every one of them stayed English.
+ */
+export function drawnOnlyStrings(spec: Spec, covered: Set<string>): Translatable[] {
+  let drawables: ReturnType<typeof layoutSpec>["drawables"] = [];
+  try {
+    // Solved labels are already drawables by the time layoutSpec returns, so
+    // this sees every word on the canvas. A template that throws must not take
+    // the translation down with it — the spec strings are still worth having.
+    drawables = layoutSpec(spec).drawables;
+  } catch {
+    return [];
+  }
+  return collectDrawnText(drawables, [])
+    .filter((t) => !covered.has(t))
+    .map((text) => ({ text, role: "figure text" }));
+}
+
+/**
  * A translated COPY of the spec. The original is never touched — exportSequence
  * hands out the document's own objects, so the copy is what keeps an upload in
  * another language from rewriting the user's library.
@@ -78,7 +101,9 @@ export async function translateSpec(
   paramsSchema?: object,
   opts: CallOpts = {},
 ): Promise<TranslationResult> {
-  const sent = translatableStrings(spec, paramsSchema);
+  const fromSpec = translatableStrings(spec, paramsSchema);
+  const drawnOnly = drawnOnlyStrings(spec, new Set(fromSpec.map((t) => t.text)));
+  const sent = [...fromSpec, ...drawnOnly];
   const empty = { map: {}, missing: [], unknown: [] };
   if (sent.length === 0) return { spec: { ...spec, lang: target.code }, check: empty };
   const listing = sent.map((t) => `- (${t.role}) ${JSON.stringify(t.text)}`).join("\n");
@@ -96,7 +121,14 @@ export async function translateSpec(
     opts,
   );
   const check = verifyTranslation(sent, json);
+  // Spec strings are rewritten in place; the template's own computed captions
+  // cannot be — they have no field to live in — so they ride along in text_map
+  // and the layout substitutes them as it draws.
+  const textMap: Record<string, string> = {};
+  for (const t of drawnOnly) if (check.map[t.text]) textMap[t.text] = check.map[t.text];
+  const translated: Spec = { ...applyTranslations(spec, check.map, paramsSchema), lang: target.code };
   // The copy declares its language, so its narrator's voice is chosen rather
   // than sniffed — and so it stays right if the copy is ever saved and played.
-  return { spec: { ...applyTranslations(spec, check.map, paramsSchema), lang: target.code }, check };
+  if (Object.keys(textMap).length > 0) translated.text_map = { ...spec.text_map, ...textMap };
+  return { spec: translated, check };
 }

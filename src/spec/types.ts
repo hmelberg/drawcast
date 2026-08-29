@@ -350,6 +350,14 @@ export interface Spec {
    */
   lang?: string;
   /**
+   * Drawn text a template computes for itself, and its replacement. A scene
+   * supplies its own captions ("Susceptible" for compartment "S"), so those
+   * words never appear in the spec and a translation cannot reach them by
+   * rewriting fields. Applied in the layout, before labels are placed.
+   * Written by the translator; absent on everything else.
+   */
+  text_map?: Record<string, string>;
+  /**
    * Playlist transition (on any item after the first): before this item
    * begins, the PREVIOUS figure zooms into this element id of ITS OWN scene
    * and fades there — the semantic-zoom entrance (heart → cell → molecule).

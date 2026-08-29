@@ -3,6 +3,7 @@
 
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
+import { applyTextMap } from "./text-map";
 import type { Spec } from "../spec/types";
 import { lintLayout, type LintIssue } from "../lint/lint";
 import { layoutElements } from "./tier2";
@@ -72,6 +73,12 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
       if (!order.includes(id)) order.push(id);
     }
   }
+
+  // A translated copy carries the template's own computed captions here,
+  // because those words are in the layout code and never in the spec. Doing it
+  // BEFORE the solver means obstacles, placement and annotation boxes are all
+  // measured against the words that actually get drawn.
+  if (spec.text_map) applyTextMap(drawables, labelRequests, spec.text_map);
 
   // Label placement against everything drawn so far.
   const obstacles = obstacleBoxes(drawables, measure);
