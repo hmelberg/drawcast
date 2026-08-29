@@ -8,6 +8,8 @@ export interface OutlinePart {
   title: string;
   brief: string;
   level?: "basic" | "advanced";
+  /** The author-declared chapter this part falls under, when the caller declared any. */
+  chapter?: string;
 }
 
 export interface Outline {
@@ -31,6 +33,7 @@ export const OUTLINE_SCHEMA = {
           title: { type: "string", description: "Short title of this part (shown on the continue button between parts)." },
           brief: { type: "string", description: "One line: what this part covers and its role in the arc." },
           level: { type: "string", enum: ["basic", "advanced"], description: "Only when the request implies one." },
+          chapter: { type: "string", description: "Which declared chapter this part belongs to. Omit when no chapters were declared." },
         },
         required: ["title", "brief"],
         additionalProperties: false,
@@ -41,19 +44,33 @@ export const OUTLINE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-export function buildOutlineMessages(request: string, parts: number | null): { system: string; user: string } {
+export function buildOutlineMessages(
+  request: string,
+  parts: number | null,
+  chapters?: string[],
+): { system: string; user: string } {
   const count = parts !== null ? `exactly ${parts} parts` : "2–4 parts (your judgement: fewest parts that teach it well)";
   const system = [
     "You plan a multi-part drawcast: a short series of narrated, hand-drawn teaching figures, each about 30–90 seconds.",
     `Split the request into ${count}. Each part must stand on one single figure and one idea.`,
     "Design the arc across parts: part 1 announces what the series will explain and grounds it in a concrete example, the middle carries the step-by-step development (the worked example, and one brief enrichment moment if the topic genuinely offers one — why it matters, a real debate, a historical note, an empirical number, or strengths and weaknesses — never more than one per part), the last part delivers the synthesis.",
-    // The shape lives in the prompt text too: when structured outputs are
-    // unavailable (the client degrades to plain JSON per session), the model
-    // must still know exactly what to return.
+  ];
+  if (chapters && chapters.length > 0) {
+    system.push(
+      `The author declared these chapters, in order: ${chapters.map((c, i) => `${i + 1}. ${c}`).join("; ")}. ` +
+        "Assign every part to one of them with the `chapter` field, in order, and never invent a chapter that is not on this list.",
+    );
+  }
+  // The shape lives in the prompt text too: when structured outputs are
+  // unavailable (the client degrades to plain JSON per session), the model
+  // must still know exactly what to return.
+  system.push(
     "Return ONLY a minified JSON object of exactly this shape, nothing else:",
-    '{"title": "<short series title>", "parts": [{"title": "<short part title>", "brief": "<one line: coverage and role in the arc>", "level": "basic|advanced (only when the request implies one)"}]}',
-  ].join("\n");
-  return { system, user: request };
+    chapters && chapters.length > 0
+      ? '{"title": "<short series title>", "parts": [{"title": "<short part title>", "brief": "<one line: coverage and role in the arc>", "level": "basic|advanced (only when the request implies one)", "chapter": "<one of the declared chapters>"}]}'
+      : '{"title": "<short series title>", "parts": [{"title": "<short part title>", "brief": "<one line: coverage and role in the arc>", "level": "basic|advanced (only when the request implies one)"}]}',
+  );
+  return { system: system.join("\n"), user: request };
 }
 
 /**
@@ -62,17 +79,20 @@ export function buildOutlineMessages(request: string, parts: number | null): { s
  * a title to survive; a missing series title becomes "" (caller falls back to
  * the request).
  */
-export function normalizeOutline(json: unknown): Outline | null {
+export function normalizeOutline(json: unknown, chapters?: string[]): Outline | null {
   if (typeof json !== "object" || json === null) return null;
   const raw = json as { title?: unknown; parts?: unknown };
   if (!Array.isArray(raw.parts)) return null;
   const parts: OutlinePart[] = [];
   for (const p of raw.parts) {
     if (typeof p !== "object" || p === null) continue;
-    const { title, brief, level } = p as Record<string, unknown>;
+    const { title, brief, level, chapter } = p as Record<string, unknown>;
     if (typeof title !== "string" || title.length === 0) continue;
     const part: OutlinePart = { title, brief: typeof brief === "string" ? brief : "" };
     if (level === "basic" || level === "advanced") part.level = level;
+    // The plain-JSON fallback is unconstrained, so an invented chapter must not
+    // reach the playlist as a chapter card nobody asked for.
+    if (typeof chapter === "string" && (!chapters || chapters.includes(chapter))) part.chapter = chapter;
     parts.push(part);
   }
   if (parts.length < 2) return null;

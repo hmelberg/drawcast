@@ -422,9 +422,10 @@ export async function generateOutline(
   cfg: { apiKey: string; model: string },
   parts: number | null,
   signal?: AbortSignal,
+  chapters?: string[],
 ): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
-  const { system, user } = buildOutlineMessages(request, parts);
+  const { system, user } = buildOutlineMessages(request, parts, chapters);
   const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal });
-  return normalizeOutline(json);
+  return normalizeOutline(json, chapters);
 }
