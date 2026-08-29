@@ -12,13 +12,65 @@ export interface TtsConfig {
   apiKey: string;
   /** Narration rate preference, mapped to the API's speakingRate. */
   rate: number;
+  /**
+   * The spec's declared language. Without it the language is sniffed per line,
+   * and detectLang only knows English from Norwegian — so a French narration
+   * would be handed to an American voice, fluently mispronounced.
+   */
+  lang?: string;
+}
+
+/** A language drawcast can speak, i.e. one Google has neural voices for. This
+ *  list is what the translate picker offers: translating into a language we
+ *  cannot narrate would produce a silent video. */
+export const LANGUAGES: { code: string; label: string; languageCode: string }[] = [
+  { code: "en", label: "English", languageCode: "en-US" },
+  { code: "nb", label: "Norwegian", languageCode: "nb-NO" },
+  { code: "da", label: "Danish", languageCode: "da-DK" },
+  { code: "sv", label: "Swedish", languageCode: "sv-SE" },
+  { code: "fi", label: "Finnish", languageCode: "fi-FI" },
+  { code: "de", label: "German", languageCode: "de-DE" },
+  { code: "nl", label: "Dutch", languageCode: "nl-NL" },
+  { code: "fr", label: "French", languageCode: "fr-FR" },
+  { code: "es", label: "Spanish", languageCode: "es-ES" },
+  { code: "it", label: "Italian", languageCode: "it-IT" },
+  { code: "pt", label: "Portuguese", languageCode: "pt-BR" },
+  { code: "pl", label: "Polish", languageCode: "pl-PL" },
+  { code: "ru", label: "Russian", languageCode: "ru-RU" },
+  { code: "tr", label: "Turkish", languageCode: "tr-TR" },
+  { code: "ar", label: "Arabic", languageCode: "ar-XA" },
+  { code: "hi", label: "Hindi", languageCode: "hi-IN" },
+  { code: "ja", label: "Japanese", languageCode: "ja-JP" },
+  { code: "ko", label: "Korean", languageCode: "ko-KR" },
+  { code: "zh", label: "Chinese (Mandarin)", languageCode: "cmn-CN" },
+];
+
+export function languageLabel(code: string): string {
+  return LANGUAGES.find((l) => l.code === code)?.label ?? code;
+}
+
+export interface VoiceChoice {
+  languageCode: string;
+  /** A specific catalog voice. Named only where the choice has been listened
+   *  to — everywhere else the API picks from languageCode + gender, which is
+   *  honest rather than a guessed name that 400s on every call. */
+  name?: string;
 }
 
 /** Per-language, per-gender voice defaults; if a name drifts out of the catalog, the API picks. */
-export const VOICES: Record<"en" | "nb", Record<"female" | "male", { languageCode: string; name?: string }>> = {
+export const VOICES: Record<string, Record<"female" | "male", VoiceChoice>> = {
   en: { female: { languageCode: "en-US", name: "en-US-Neural2-F" }, male: { languageCode: "en-US", name: "en-US-Neural2-D" } },
   nb: { female: { languageCode: "nb-NO", name: "nb-NO-Wavenet-E" }, male: { languageCode: "nb-NO", name: "nb-NO-Wavenet-B" } },
 };
+
+/** The voice for a language: the listened-to default when there is one, else
+ *  the language code alone and let Google choose within the gender. */
+export function voiceFor(lang: string, gender: "female" | "male"): VoiceChoice {
+  const known = VOICES[lang]?.[gender];
+  if (known) return known;
+  const entry = LANGUAGES.find((l) => l.code === lang);
+  return { languageCode: entry?.languageCode ?? lang };
+}
 
 const ENDPOINT = "https://texttospeech.googleapis.com/v1/text:synthesize";
 
@@ -48,7 +100,7 @@ export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: Audi
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
   const g = effectiveGender(opts) ?? "female";
-  const voice = VOICES[detectLang(text)][g];
+  const voice = voiceFor(cfg.lang ?? detectLang(text), g);
   const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
@@ -59,7 +111,10 @@ export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: Audi
         // nowhere else, so the caption (and the movie's burned-in text) keeps
         // its capitals. detectLang and the cache key still see the original.
         input: { text: sayable(text) },
-        voice: withName && voice.name ? { languageCode: voice.languageCode, name: voice.name } : { languageCode: voice.languageCode },
+        voice:
+          withName && voice.name
+            ? { languageCode: voice.languageCode, name: voice.name }
+            : { languageCode: voice.languageCode, ssmlGender: g === "male" ? "MALE" : "FEMALE" },
         audioConfig: {
           audioEncoding: "MP3",
           speakingRate: Math.min(4, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1))),

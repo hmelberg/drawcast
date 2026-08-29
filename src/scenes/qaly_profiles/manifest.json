@@ -16,7 +16,7 @@
           "properties": {
             "id": { "type": "string", "description": "Short id used in element ids (curve_<id>, label_<id>)." },
             "label": { "type": "string", "description": "Legend text shown at the curve." },
-            "color": { "type": "string", "description": "Optional CSS color; sensible defaults otherwise." },
+            "color": { "type": "string", "description": "Optional CSS color; sensible defaults otherwise.", "x-translate": false },
             "fill": { "type": "boolean", "description": "Shade the area under this curve (its total QALYs). Prefer shade_between for comparisons." },
             "waypoints": {
               "type": "array",
@@ -39,8 +39,8 @@
         "type": "object",
         "description": "Shade the areas between two profiles: green where a is above b (QALYs gained), red where a is below b (e.g. initial treatment discomfort). Defaults to profile 2 vs profile 1; set to null to disable.",
         "properties": {
-          "a": { "type": "string", "description": "Profile id of the intervention/new scenario." },
-          "b": { "type": "string", "description": "Profile id of the comparator." },
+          "a": { "type": "string", "description": "Profile id of the intervention/new scenario.", "x-translate": false },
+          "b": { "type": "string", "description": "Profile id of the comparator.", "x-translate": false },
           "gain_label": { "type": "string", "description": "Default \"QALYs gained\"." },
           "loss_label": { "type": "string", "description": "Default \"Initial loss\". Set to \"\" to hide." }
         }

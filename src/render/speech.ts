@@ -31,9 +31,11 @@ const PREFERRED_NAMES = [
 const AVOID_NAMES =
   /fred|albert|zarvox|trinoids|whisper|wobble|deranged|hysterical|bad news|bells|boing|bubbles|cellos|jester|organ|superstar|good news|bahh|junior|ralph|kathy|eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley|compact|espeak|eloquence/i;
 
-function scoreVoice(v: SpeechSynthesisVoice, lang: "en" | "nb"): number {
+function scoreVoice(v: SpeechSynthesisVoice, lang: string): number {
   const vLang = v.lang.toLowerCase();
-  const langFamily = lang === "nb" ? ["nb", "no", "nn"] : ["en"];
+  // Norwegian is the one family whose tags genuinely disagree (nb/no/nn all
+  // mean the same shelf of voices); every other language matches its own tag.
+  const langFamily = lang === "nb" ? ["nb", "no", "nn"] : [lang];
   if (!langFamily.some((l) => vLang.startsWith(l))) return -1;
   let s = 10;
   if (AVOID_NAMES.test(v.name)) return 0; // last resort only
@@ -72,6 +74,7 @@ export interface SpeechLike {
 export class SpeechManager {
   private synth: SpeechSynthesis | null;
   private voiceURI: string | null = null;
+  private langHint: string | null = null;
   private rate = 1;
   private mutedFlag = false;
   private listeners: (() => void)[] = [];
@@ -99,13 +102,18 @@ export class SpeechManager {
     this.voiceURI = uri;
   }
 
+  /** The spec's declared language, when it has one; null goes back to sniffing. */
+  setLangHint(lang: string | null): void {
+    this.langHint = lang;
+  }
+
   /**
    * Highest-scoring voice for a language; null lets the browser default.
    * With a gender, scores only name-matched voices first and falls back to
    * the ungendered scan when none match — no gender is byte-identical to
    * before.
    */
-  bestVoice(lang: "en" | "nb", gender?: "male" | "female" | null): SpeechSynthesisVoice | null {
+  bestVoice(lang: string, gender?: "male" | "female" | null): SpeechSynthesisVoice | null {
     const voices = this.voices();
     const scan = (pool: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
       let best: SpeechSynthesisVoice | null = null;
@@ -186,12 +194,14 @@ export class SpeechManager {
 
       // Spoken form only — the caption keeps its capitals (see pronounce.ts).
       const utterance = new SpeechSynthesisUtterance(sayable(text));
-      const lang = detectLang(text);
+      // A declared language beats a sniff: detectLang can only tell en from nb,
+      // so a translated drawcast would otherwise be read by an English voice.
+      const lang = this.langHint ?? detectLang(text);
       const explicit = this.voices().find((v) => v.voiceURI === this.voiceURI);
       const g = effectiveGender(opts);
       const voice = explicit ?? this.bestVoice(lang, g);
       if (voice) utterance.voice = voice;
-      utterance.lang = voice?.lang ?? (lang === "nb" ? "nb-NO" : "en-US");
+      utterance.lang = voice?.lang ?? (lang === "nb" ? "nb-NO" : lang === "en" ? "en-US" : lang);
       utterance.rate = Math.min(4, Math.max(0.25, this.rate * speedMultiplier * deliveryRate));
       utterance.pitch = Math.min(2, Math.max(0, 1 + (d?.pitchSt ?? 0) * 0.06));
       utterance.volume = this.mutedFlag ? 0 : dbToGain(d?.gainDb ?? 0);

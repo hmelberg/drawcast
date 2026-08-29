@@ -17,7 +17,7 @@
         },
         "description": "Explicit segments, left to right. Alternate loops between structural elements."
       },
-      "ss": { "type": "string", "description": "Compact alternative: e.g. \"CCHHHHHCCEEEECC\". Runs become segments; first helix/strand get labeled automatically." },
+      "ss": { "type": "string", "description": "Compact alternative: e.g. \"CCHHHHHCCEEEECC\". Runs become segments; first helix/strand get labeled automatically.", "x-translate": false },
       "title": { "type": "string", "description": "Caption above the strip." }
     }
   },

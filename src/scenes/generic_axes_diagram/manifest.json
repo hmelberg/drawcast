@@ -22,7 +22,8 @@
             "label": { "type": "string" },
             "expression": {
               "type": "string",
-              "description": "y = f(x) over x ∈ [0, 100], e.g. \"80*(1 - exp(-0.05*x))\". Wins over `shape` when both are set."
+              "description": "y = f(x) over x ∈ [0, 100], e.g. \"80*(1 - exp(-0.05*x))\". Wins over `shape` when both are set.",
+              "x-translate": false
             },
             "shape": {
               "type": "string",

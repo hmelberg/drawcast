@@ -52,6 +52,9 @@ import {
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
 import { toVtt } from "./export/captions";
+import { LANGUAGES, languageLabel } from "./export/tts";
+import { translateSpec } from "./llm/translate";
+import { lintCommands } from "./lint/lint";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
 import {
@@ -1482,6 +1485,9 @@ async function present(): Promise<void> {
   session = null;
   host.replaceChildren();
   document.title = `${doc.title} — drawcast`;
+  // A declared language picks the narrator's voice; without one the old
+  // per-line sniff stands, which only ever tells English from Norwegian.
+  speech.setLangHint(itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang ?? null);
   try {
     // Warm the cloud-voice cache so narrated playback starts without stalls.
     if (settings.mode === "narrated") speech.prefetch(playlistSpeakLines(doc.playlist), settings.speed);
@@ -2917,7 +2923,7 @@ function endExport(): void {
  * cancelled, or the export failed — in every one of those cases the status
  * line already says why, so callers just return.
  */
-async function renderVideo(burnCaptions: boolean): Promise<ExportResult | null> {
+async function renderVideo(specs: Spec[], burnCaptions: boolean): Promise<ExportResult | null> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
@@ -2935,8 +2941,8 @@ async function renderVideo(burnCaptions: boolean): Promise<ExportResult | null> 
   if (clock) keepAlive.attach(clock.frame);
   try {
     return await exportVideo(
-      exportSequence(doc.playlist),
-      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions },
+      specs,
+      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions, lang: narrationLanguage(specs) },
       {
         onStatus: (t) => (exportChipText.textContent = t),
         canvas: exportCanvas,
@@ -2960,7 +2966,7 @@ exportVideoBtn.addEventListener("click", () => void runVideoExport());
 async function runVideoExport(): Promise<void> {
   beginExport("Preparing…");
   try {
-    const out = await renderVideo(settings.burnCaptions);
+    const out = await renderVideo(exportSequence(doc.playlist), settings.burnCaptions);
     if (!out) return;
     const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     downloadBlob(`${base}.webm`, out.blob);
@@ -2975,6 +2981,9 @@ async function runVideoExport(): Promise<void> {
 
 const ytTitle = h("input", { type: "text", class: "yt-field", "aria-label": "Video title" }) as HTMLInputElement;
 const ytDesc = h("textarea", { class: "yt-field", rows: "3", "aria-label": "Video description" }) as HTMLTextAreaElement;
+const ytLang = h("select", { class: "yt-field", "aria-label": "Language" }) as HTMLSelectElement;
+for (const l of LANGUAGES) ytLang.appendChild(h("option", { value: l.code }, l.label));
+const ytSaveCopy = h("button", {}, "Save the translation as a new drawcast") as HTMLButtonElement;
 const ytBurnCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 const ytPrivacy = h("select", { class: "yt-field", "aria-label": "Visibility" }) as HTMLSelectElement;
 for (const [v, label] of [["private", "Private"], ["unlisted", "Unlisted"], ["public", "Public"]]) {
@@ -2987,6 +2996,7 @@ ytDialog.append(
   dialogHead(ytDialog, "▶ Upload to YouTube"),
   h("label", { class: "quiet-label" }, "Title ", ytTitle),
   h("label", { class: "quiet-label" }, "Description ", ytDesc),
+  h("label", { class: "quiet-label" }, "Language ", ytLang),
   h("label", { class: "quiet-label" }, "Visibility ", ytPrivacy),
   h(
     "label",
@@ -3000,16 +3010,111 @@ ytDialog.append(
     "The video is uploaded to your own channel with the visibility you chose. Its subtitle file is downloaded at the same time — " +
       "afterwards you can attach it with one click, or drag it in yourself in YouTube Studio. Either way, YouTube can then translate it for viewers in other languages.",
   ),
-  h("div", { class: "row" }, ytGo),
+  h("div", { class: "row" }, ytGo, ytSaveCopy),
   ytStatus,
 );
 app.appendChild(ytDialog);
+
+/**
+ * The translated COPY waiting to be recorded. It exists only while the dialog
+ * is open and is never written back to `doc` — exportSequence hands out the
+ * document's own spec objects, so the whole point of translating into a fresh
+ * playlist is that your drawcast stays in the language you wrote it in.
+ */
+let ytTranslation: { code: string; playlist: Playlist } | null = null;
+
+function sourceLanguage(): string {
+  return narrationLanguage(itemsOf(doc.playlist).map((i) => i.spec));
+}
+
+/** The document's playlist with each item's spec swapped for its translation. */
+function playlistWithSpecs(specs: Spec[]): Playlist {
+  let i = 0;
+  return {
+    ...doc.playlist,
+    entries: doc.playlist.entries.map((e) => (e.kind === "item" ? { kind: "item" as const, spec: specs[i++] } : e)),
+  };
+}
+
+/** What actually gets recorded: the translation when one is pending, else the document. */
+function uploadPlaylist(): Playlist {
+  return ytTranslation?.playlist ?? doc.playlist;
+}
+
+async function retranslate(): Promise<void> {
+  const code = ytLang.value;
+  ytTranslation = null;
+  ytSaveCopy.hidden = true;
+  if (code === sourceLanguage()) {
+    ytTitle.value = doc.title;
+    ytStatus.textContent = "";
+    return;
+  }
+  const target = LANGUAGES.find((l) => l.code === code);
+  const apiKey = getApiKey();
+  if (!target || !apiKey) {
+    ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";
+    ytLang.value = sourceLanguage();
+    return;
+  }
+  ytGo.disabled = true;
+  ytLang.disabled = true;
+  ytStatus.textContent = `Translating into ${target.label}…`;
+  try {
+    const specs: Spec[] = [];
+    const problems: string[] = [];
+    for (const spec of itemsOf(doc.playlist).map((i) => i.spec)) {
+      const schema = spec.template ? scenes[spec.template]?.manifest.params_schema : undefined;
+      const { spec: out, check } = await translateSpec(spec, target, { apiKey, model: settings.model }, schema);
+      if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(sourceLanguage())}`);
+      // Cheap structural guard: ids and gotos are never sent to the model, so a
+      // broken reference here means a bug in the extractor, not a bad answer.
+      const broken = lintCommands(out).filter((i) => i.severity === "error");
+      if (broken.length > 0) problems.push(broken[0].message);
+      specs.push(out);
+    }
+    const playlist = playlistWithSpecs(specs);
+    ytTranslation = { code, playlist };
+    ytTitle.value = docTitleOf(playlist, doc.title);
+    ytSaveCopy.hidden = false;
+    ytStatus.textContent = problems.length > 0 ? `Translated into ${target.label} — ${problems.join("; ")}.` : `Translated into ${target.label}.`;
+  } catch (err) {
+    ytLang.value = sourceLanguage();
+    ytStatus.textContent = `Could not translate: ${describeApiError(err)}`;
+  } finally {
+    ytGo.disabled = false;
+    ytLang.disabled = false;
+  }
+}
+
+ytLang.addEventListener("change", () => void retranslate());
+
+ytSaveCopy.addEventListener("click", () => {
+  const t = ytTranslation;
+  if (!t) return;
+  // A NEW library entry with a NEW id. Never doc.id: the translation is a
+  // sibling of the original, never a replacement for it.
+  const title = docTitleOf(t.playlist, doc.title);
+  saveDrawing({
+    id: crypto.randomUUID(),
+    title,
+    prompt: doc.prompt,
+    spec: itemsOf(t.playlist)[0]?.spec ?? { commands: [] },
+    playlist: isSingle(t.playlist) ? undefined : formatPlaylist(t.playlist, "yaml"),
+    ts: new Date().toISOString(),
+  });
+  refreshLibrary();
+  ytStatus.textContent = `Saved "${title}" to your library as a separate drawcast. The original is untouched.`;
+});
 
 uploadYtBtn.addEventListener("click", () => {
   ytTitle.value = doc.title;
   ytDesc.value = "Made with drawcast.";
   ytPrivacy.value = "private";
   ytBurnCb.checked = settings.burnCaptionsOnUpload;
+  ytLang.value = sourceLanguage();
+  ytTranslation = null;
+  ytSaveCopy.hidden = true;
   ytStatus.textContent = "";
   ytGo.disabled = false;
   ytDialog.showModal();
@@ -3038,7 +3143,7 @@ async function runYoutubeUpload(): Promise<void> {
     title: ytTitle.value.trim() || doc.title,
     description: ytDesc.value,
     privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"],
-    language: narrationLanguage(exportSequence(doc.playlist)),
+    language: narrationLanguage(exportSequence(uploadPlaylist())),
   };
   ytGo.disabled = true;
   // The dialog's answer becomes the standing one — the same channel usually
@@ -3065,7 +3170,7 @@ async function runYoutubeUpload(): Promise<void> {
   ytDialog.close();
   beginExport("Preparing…");
   try {
-    const out = await renderVideo(ytBurnCb.checked);
+    const out = await renderVideo(exportSequence(uploadPlaylist()), ytBurnCb.checked);
     if (!out) return; // renderVideo already reported why
     const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     const controller = new AbortController();

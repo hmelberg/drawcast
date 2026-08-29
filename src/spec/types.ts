@@ -343,6 +343,13 @@ export interface QuizArgs {
 export interface Spec {
   title?: string;
   /**
+   * BCP-47 primary tag for the language the text is WRITTEN in ("en", "nb",
+   * "fr"). Absent means the old behaviour: the language is sniffed per line,
+   * which can only tell English from Norwegian — so a translated drawcast
+   * without this field gets read aloud by an English voice.
+   */
+  lang?: string;
+  /**
    * Playlist transition (on any item after the first): before this item
    * begins, the PREVIOUS figure zooms into this element id of ITS OWN scene
    * and fades there — the semantic-zoom entrance (heart → cell → molecule).

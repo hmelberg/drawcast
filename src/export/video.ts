@@ -72,12 +72,17 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
 }
 
 /**
- * The language of the whole export, by majority vote over its narration —
- * what YouTube is told the audio is, which is what gates its own translation
- * of the caption track. A stand-in until specs carry a declared language:
- * detectLang only knows en/nb, so this only ever answers those two.
+ * The language of the whole export: what picks the narrator's voice, and what
+ * YouTube is told the audio is — which is what gates its own translation of
+ * the caption track. A declared `lang` answers it outright; the fallback vote
+ * is for drawcasts written before specs carried one, and detectLang can only
+ * tell English from Norwegian, so that path only ever answers those two.
  */
-export function narrationLanguage(specs: Spec[]): "en" | "nb" {
+export function narrationLanguage(specs: Spec[]): string {
+  // A declared language is the answer; the vote is only for the drawcasts
+  // written before specs carried one.
+  const declared = specs.find((s) => typeof s.lang === "string" && s.lang.trim().length > 0)?.lang;
+  if (declared) return declared.trim();
   let nb = 0;
   let total = 0;
   for (const line of specs.flatMap(collectSpeakLines)) {
@@ -312,6 +317,8 @@ export interface ExportConfig {
   questions?: "on" | "skip";
   /** Narration rate (maps to the TTS speakingRate); the animation runs at 1×. */
   rate: number;
+  /** The narration's language, so the voice is chosen rather than guessed. */
+  lang?: string;
   /**
    * Paint the caption into the frame. Off leaves the text band empty paper —
    * the layout does not move, so a burnt-in and a clean export are the same
@@ -364,7 +371,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
   let stopVisibility: (() => void) | null = null;
   try {
     const buffers = await synthesizeAll(
-      { apiKey: cfg.ttsKey, rate: cfg.rate },
+      { apiKey: cfg.ttsKey, rate: cfg.rate, lang: cfg.lang },
       items.flatMap(collectSpeakLines),
       audioCtx,
       (done, total) => hooks.onStatus(`Synthesizing narration ${done}/${total}…`),
