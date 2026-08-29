@@ -6,7 +6,7 @@
 // function and there is no resume parameter, so a failure mid-upload means
 // starting over from the first chunk.
 
-import { YOUTUBE_SCOPE, requireScope } from "./auth";
+import { YOUTUBE_CAPTIONS_SCOPE, YOUTUBE_SCOPE, requireScope } from "./auth";
 
 export const CHUNK_SIZE = 8 * 1024 * 1024;
 
@@ -32,6 +32,32 @@ export function videoResource(meta: UploadMeta): {
     snippet: { title: meta.title, description: meta.description, defaultLanguage: meta.language, defaultAudioLanguage: meta.language },
     status: { privacyStatus: meta.privacyStatus },
   };
+}
+
+/** What YouTube needs to file a caption track under a video. */
+export interface CaptionSnippet {
+  videoId: string;
+  /** BCP-47 tag, e.g. "en" or "nb". */
+  language: string;
+  /** Track label in the caption menu when a video carries several. */
+  name: string;
+}
+
+/**
+ * A caption track is a multipart/related upload: the snippet as JSON, then the
+ * file itself. Small enough (kilobytes) that the resumable protocol the video
+ * needs would be pure ceremony here.
+ */
+export function captionsMultipart(snippet: CaptionSnippet, vtt: string, boundary: string): { body: string; contentType: string } {
+  const body =
+    `--${boundary}\r\n` +
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+    `${JSON.stringify({ snippet })}\r\n` +
+    `--${boundary}\r\n` +
+    "Content-Type: text/vtt\r\n\r\n" +
+    `${vtt}\r\n` +
+    `--${boundary}--\r\n`;
+  return { body, contentType: `multipart/related; boundary=${boundary}` };
 }
 
 /** Half-open ranges [start, end). An empty blob yields none. */
@@ -95,4 +121,28 @@ export async function uploadVideo(
     return { videoId: j.id };
   }
   throw new Error("the upload ended without YouTube confirming the video");
+}
+
+/**
+ * Attach a caption track to an uploaded video. Returns false when the user
+ * declines the (wide) captions scope — a normal outcome, not an error: the
+ * caller falls back to telling them the .vtt is downloaded and Studio takes it
+ * by hand. Throws only when YouTube itself rejects the track.
+ *
+ * Must be called from a real click. The consent popup needs live transient
+ * activation, and the render that preceded the upload burned the one belonging
+ * to the click that started it.
+ */
+export async function uploadCaptions(snippet: CaptionSnippet, vtt: string, signal: AbortSignal): Promise<boolean> {
+  const token = await requireScope(YOUTUBE_CAPTIONS_SCOPE);
+  if (!token) return false;
+  const part = captionsMultipart(snippet, vtt, `drawcast-${Math.random().toString(36).slice(2)}`);
+  const res = await fetch("https://www.googleapis.com/upload/youtube/v3/captions?uploadType=multipart&part=snippet", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": part.contentType },
+    body: part.body,
+    signal,
+  });
+  if (!res.ok) throw new Error(`YouTube rejected the caption track (${res.status}): ${await res.text()}`);
+  return true;
 }

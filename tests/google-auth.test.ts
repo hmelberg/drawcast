@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DRIVE_SCOPE, YOUTUBE_SCOPE, makeTokenStore } from "../src/google/auth";
+import { DRIVE_SCOPE, YOUTUBE_CAPTIONS_SCOPE, YOUTUBE_SCOPE, makeTokenStore } from "../src/google/auth";
 
 describe("token store", () => {
   test("returns a token that is still comfortably valid", () => {
@@ -58,5 +58,20 @@ describe("token store", () => {
     // paid annual security assessment. This test is the tripwire.
     expect(DRIVE_SCOPE).toBe("https://www.googleapis.com/auth/drive.file");
     expect(YOUTUBE_SCOPE).toBe("https://www.googleapis.com/auth/youtube.upload");
+  });
+});
+
+describe("the captions scope stands apart from the upload scope", () => {
+  test("permission to upload a video never confers permission to edit captions", () => {
+    const s = makeTokenStore();
+    s.put(YOUTUBE_SCOPE, "upload-token", 3600);
+    // force-ssl also grants deleting the user's videos and comments: it must be
+    // consented to on its own, so an upload grant must not satisfy it.
+    expect(s.get(YOUTUBE_CAPTIONS_SCOPE)).toBeNull();
+  });
+
+  test("captions.insert accepts only force-ssl, so that is the scope asked for", () => {
+    expect(YOUTUBE_CAPTIONS_SCOPE).toBe("https://www.googleapis.com/auth/youtube.force-ssl");
+    expect(YOUTUBE_CAPTIONS_SCOPE).not.toBe(YOUTUBE_SCOPE);
   });
 });

@@ -9,7 +9,16 @@
 
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
-export type Scope = typeof DRIVE_SCOPE | typeof YOUTUBE_SCOPE;
+/**
+ * Attaching a caption track needs this one — captions.insert accepts only
+ * force-ssl (or youtubepartner, which is for content partners). It is far
+ * wider than uploading: Google presents it as seeing, editing and permanently
+ * deleting the user's videos, ratings, comments and captions. So it is asked
+ * for on its own, by the button that adds subtitles, and never as part of an
+ * upload — a user who is happy dragging the .vtt into Studio never sees it.
+ */
+export const YOUTUBE_CAPTIONS_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
+export type Scope = typeof DRIVE_SCOPE | typeof YOUTUBE_SCOPE | typeof YOUTUBE_CAPTIONS_SCOPE;
 
 /** Seconds of headroom: a token this close to expiry must not start a long upload. */
 const EXPIRY_MARGIN_S = 60;

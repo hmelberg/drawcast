@@ -95,7 +95,7 @@ import {
 } from "./store";
 import { DRIVE_SCOPE, YOUTUBE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
 import { openSpec, saveSpec } from "./google/drive";
-import { uploadVideo, type UploadMeta } from "./google/youtube";
+import { uploadCaptions, uploadVideo, type UploadMeta } from "./google/youtube";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
@@ -299,6 +299,19 @@ const statusEl = h("div", { class: "editor-status hint" });
 function setStatus(text: string, kind: "info" | "error" | "ok" = "info"): void {
   statusEl.textContent = text;
   statusEl.className = `editor-status hint ${kind === "info" ? "" : kind}`.trim();
+}
+
+/**
+ * The status line with one inline button. The click matters: a consent popup
+ * needs live transient user activation, and anything offered after a long
+ * render has to be triggered by a fresh press rather than continue from the
+ * one that started the work.
+ */
+function setStatusAction(text: string, label: string, onClick: () => void, kind: "info" | "error" | "ok" = "info"): void {
+  setStatus(`${text} `, kind);
+  const btn = h("button", { class: "small" }, label) as HTMLButtonElement;
+  btn.addEventListener("click", onClick);
+  statusEl.appendChild(btn);
 }
 
 // Create panel
@@ -2978,7 +2991,7 @@ ytDialog.append(
     "div",
     { class: "yt-warning" },
     "The video is uploaded to your own channel with the visibility you chose. Its subtitle file is downloaded at the same time — " +
-      "add it in YouTube Studio, and YouTube can translate it for viewers in other languages.",
+      "afterwards you can attach it with one click, or drag it in yourself in YouTube Studio. Either way, YouTube can then translate it for viewers in other languages.",
   ),
   h("div", { class: "row" }, ytGo),
   ytStatus,
@@ -2993,6 +3006,23 @@ uploadYtBtn.addEventListener("click", () => {
   ytGo.disabled = false;
   ytDialog.showModal();
 });
+
+/**
+ * Attach the caption track to a video that just went up. Declining the scope
+ * is a normal answer, not a failure — the .vtt is already on disk, and Studio
+ * takes it by hand.
+ */
+async function addCaptions(videoId: string, language: string, vtt: string): Promise<void> {
+  const fallback = "The .vtt file is downloaded — add it to the video in YouTube Studio.";
+  setStatus("Adding subtitles…");
+  try {
+    const added = await uploadCaptions({ videoId, language, name: "drawcast" }, vtt, AbortSignal.timeout(60_000));
+    if (added) setStatus("Subtitles added to the video.", "ok");
+    else setStatus(`Subtitles were not added — YouTube's caption permission was declined. ${fallback}`, "error");
+  } catch (err) {
+    setStatus(`Subtitles were not added: ${(err as Error).message} — ${fallback}`, "error");
+  }
+}
 
 ytGo.addEventListener("click", () => void runYoutubeUpload());
 async function runYoutubeUpload(): Promise<void> {
@@ -3038,13 +3068,17 @@ async function runYoutubeUpload(): Promise<void> {
         // Only reachable if the grant above expired during a very long render.
         setStatus("YouTube sign-in was cancelled — nothing was uploaded.", "error");
       } else {
-        // The caption track never goes up with the video: captions.insert
-        // needs the force-ssl scope, which also grants deleting the user's
-        // videos and comments. It is downloaded instead — attaching it in
-        // Studio is one drag, and asks for nothing.
-        downloadBlob(`${base}.vtt`, new Blob([toVtt(out.cues)], { type: "text/vtt" }));
-        setStatus(
-          `Uploaded: https://youtu.be/${res.videoId} — "${base}.vtt" was downloaded; add it to the video in YouTube Studio to give it subtitles.`,
+        // The caption track is NOT sent with the video: captions.insert needs
+        // the force-ssl scope, which also grants deleting the user's videos
+        // and comments — too much to fold into an upload. The file downloads
+        // either way (a re-render costs minutes), and the button below asks
+        // for that scope only if this user wants the drag done for them.
+        const vtt = toVtt(out.cues);
+        downloadBlob(`${base}.vtt`, new Blob([vtt], { type: "text/vtt" }));
+        setStatusAction(
+          `Uploaded: https://youtu.be/${res.videoId} — "${base}.vtt" was downloaded.`,
+          "Add subtitles to the video",
+          () => void addCaptions(res.videoId, meta.language, vtt),
           "ok",
         );
       }

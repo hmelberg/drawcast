@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { chunkRanges, contentRange, videoResource } from "../src/google/youtube";
+import { captionsMultipart, chunkRanges, contentRange, videoResource } from "../src/google/youtube";
 
 describe("chunkRanges", () => {
   test("a file smaller than one chunk is a single range covering all of it", () => {
@@ -45,5 +45,21 @@ describe("videoResource", () => {
       snippet: { title: "Kurven", description: "Laget med drawcast.", defaultLanguage: "nb", defaultAudioLanguage: "nb" },
       status: { privacyStatus: "public" },
     });
+  });
+});
+
+describe("captionsMultipart", () => {
+  const part = captionsMultipart({ videoId: "abc123", language: "nb", name: "drawcast" }, "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHei.\n", "BOUND");
+
+  test("declares the boundary it actually uses, so the request and the body agree", () => {
+    expect(part.contentType).toBe("multipart/related; boundary=BOUND");
+    expect(part.body.startsWith("--BOUND\r\n")).toBe(true);
+    expect(part.body.endsWith("\r\n--BOUND--\r\n")).toBe(true);
+  });
+
+  test("sends the snippet as JSON and the caption file as its own part, verbatim", () => {
+    expect(part.body).toContain('{"snippet":{"videoId":"abc123","language":"nb","name":"drawcast"}}');
+    expect(part.body).toContain("Content-Type: text/vtt");
+    expect(part.body).toContain("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHei.\n");
   });
 });
