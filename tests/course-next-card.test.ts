@@ -9,7 +9,7 @@ describe("makeNextCard", () => {
 
   it("names the next lecture and its position", () => {
     const spec = makeNextCard({ next: "Difference-in-differences", position: 2, total: 8 });
-    const texts = spec.elements.map((e) => ("text" in e ? e.text : "")).join(" | ");
+    const texts = (spec.elements ?? []).map((e) => ("text" in e ? e.text : "")).join(" | ");
     expect(texts).toContain("Difference-in-differences");
     expect(texts).toContain("2 of 8");
   });
