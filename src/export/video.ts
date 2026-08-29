@@ -6,7 +6,9 @@
 // BYOK Google Cloud TTS key (browser speechSynthesis cannot be captured).
 
 import { render, type RenderStyle } from "../render";
+import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
 import { speechKey, type SpeakLine } from "../render/delivery";
+import { detectLang } from "../render/speech";
 import { subVars } from "../spec/answers";
 import { askDemoAt, askDemoDuration, quizDemoAt, quizDemoDuration } from "./demo";
 import type { Spec } from "../spec/types";
@@ -67,6 +69,22 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
     }
   }
   return [...seen.values()];
+}
+
+/**
+ * The language of the whole export, by majority vote over its narration —
+ * what YouTube is told the audio is, which is what gates its own translation
+ * of the caption track. A stand-in until specs carry a declared language:
+ * detectLang only knows en/nb, so this only ever answers those two.
+ */
+export function narrationLanguage(specs: Spec[]): "en" | "nb" {
+  let nb = 0;
+  let total = 0;
+  for (const line of specs.flatMap(collectSpeakLines)) {
+    total++;
+    if (detectLang(line.text) === "nb") nb++;
+  }
+  return nb * 2 > total ? "nb" : "en";
 }
 
 /** Greedy word wrap by measured width; export captions get at most two lines. */
@@ -294,6 +312,14 @@ export interface ExportConfig {
   questions?: "on" | "skip";
   /** Narration rate (maps to the TTS speakingRate); the animation runs at 1×. */
   rate: number;
+  /**
+   * Paint the caption into the frame. Off leaves the text band empty paper —
+   * the layout does not move, so a burnt-in and a clean export are the same
+   * video with one layer missing — and the .vtt sidecar carries the words
+   * instead, switchable and translatable. Burnt-in captions and a caption
+   * track shown together are two copies of the same sentence on screen.
+   */
+  burnCaptions: boolean;
 }
 
 export interface ExportHooks {
@@ -317,7 +343,13 @@ export interface ExportHooks {
  * while each spec replays in sequence; wait verbs auto-resolve — there is
  * no viewer to click during an export.
  */
-export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: ExportHooks): Promise<Blob> {
+/** The finished movie and the caption track that matches its timeline. */
+export interface ExportResult {
+  blob: Blob;
+  cues: CaptionCue[];
+}
+
+export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: ExportHooks): Promise<ExportResult> {
   const { canvas, workbench, signal, keepAlive } = hooks;
   // Frame-driven pacing when a keep-alive scheduler is present (hidden tabs
   // throttle setTimeout hard); plain timers otherwise.
@@ -371,16 +403,20 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     const serializer = new XMLSerializer();
     let paintError: Error | null = null;
     let stopLoop = false;
+    // The caption track rides along with the frame loop: same sampling, same
+    // clock, so a cue can never claim a moment the video does not have.
+    const tape = new CaptionTape();
     async function runFrameLoop(): Promise<void> {
       while (!stopLoop && !signal.aborted) {
         const t0 = performance.now();
+        tape.tick(t0, recorder.state === "recording", currentCaption?.textContent ?? "");
         try {
           if (currentSvg) {
             await paintFrame(
               ctx!,
               serializer.serializeToString(currentSvg),
               fontStyle,
-              currentCaption?.textContent ?? "",
+              cfg.burnCaptions ? (currentCaption?.textContent ?? "") : "",
               currentTitle,
               currentDemo ? { state: currentDemo, elapsed: performance.now() - currentDemo.t0 } : undefined,
             );
@@ -494,7 +530,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     recorder.stop();
     await stopped;
     if (paintError) throw paintError;
-    return new Blob(chunks, { type: mime ?? "video/webm" });
+    return { blob: new Blob(chunks, { type: mime ?? "video/webm" }), cues: splitLongCues(tape.finish()) };
   } finally {
     stopVisibility?.();
     handle?.destroy();

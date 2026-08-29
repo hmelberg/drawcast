@@ -14,6 +14,24 @@ export interface UploadMeta {
   title: string;
   description: string;
   privacyStatus: "private" | "unlisted" | "public";
+  /** BCP-47 tag for the narration, e.g. "en" or "nb". */
+  language: string;
+}
+
+/**
+ * The video resource sent with the upload session. defaultAudioLanguage is the
+ * field that earns its keep: it tells YouTube what language the audio is in,
+ * which is what lets it offer the caption track machine-translated to viewers
+ * in other languages — and lets the captions count in search.
+ */
+export function videoResource(meta: UploadMeta): {
+  snippet: { title: string; description: string; defaultLanguage: string; defaultAudioLanguage: string };
+  status: { privacyStatus: UploadMeta["privacyStatus"] };
+} {
+  return {
+    snippet: { title: meta.title, description: meta.description, defaultLanguage: meta.language, defaultAudioLanguage: meta.language },
+    status: { privacyStatus: meta.privacyStatus },
+  };
 }
 
 /** Half-open ranges [start, end). An empty blob yields none. */
@@ -46,10 +64,7 @@ export async function uploadVideo(
       "X-Upload-Content-Type": blob.type || "video/webm",
       "X-Upload-Content-Length": String(blob.size),
     },
-    body: JSON.stringify({
-      snippet: { title: meta.title, description: meta.description },
-      status: { privacyStatus: meta.privacyStatus },
-    }),
+    body: JSON.stringify(videoResource(meta)),
     signal: hooks.signal,
   });
   if (!start.ok) throw new Error(`YouTube rejected the upload (${start.status}): ${await start.text()}`);

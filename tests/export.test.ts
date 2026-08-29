@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { speechKey, type SpeakOpts } from "../src/render/delivery";
 import { BufferSpeech } from "../src/export/tts";
-import { collectSpeakLines, wrapCaption } from "../src/export/video";
+import { collectSpeakLines, narrationLanguage, wrapCaption } from "../src/export/video";
 import type { Spec } from "../src/spec/types";
 
 /** Minimal WebAudio stand-ins: connect() records where the audio flows, start() ends immediately. */
@@ -198,5 +198,23 @@ describe("wrapCaption", () => {
 
   test("a single overlong word still lands on its own line", () => {
     expect(wrapCaption(measure, "supercalifragilistic yes", 100)).toEqual(["supercalifragilistic", "yes"]);
+  });
+});
+
+describe("narrationLanguage", () => {
+  test("a Norwegian narration reports nb, so YouTube tags the audio as Norwegian", () => {
+    const spec: Spec = { commands: [{ speak: "Her er kurven vi skal se på." }, { speak: "Legg merke til hvor den bøyer av." }] };
+    expect(narrationLanguage([spec])).toBe("nb");
+  });
+
+  test("the majority of the lines decides — one stray line does not flip the whole video", () => {
+    const spec: Spec = {
+      commands: [{ speak: "Here is the curve." }, { speak: "Notice where it bends." }, { speak: "Og her er poenget." }],
+    };
+    expect(narrationLanguage([spec])).toBe("en");
+  });
+
+  test("a drawcast with no narration at all falls back to English rather than throwing", () => {
+    expect(narrationLanguage([{ commands: [{ draw: ["a"] }] }])).toBe("en");
   });
 });

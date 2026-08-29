@@ -52,6 +52,13 @@ export interface Settings {
   cloudPlayback: boolean;
   /** Skip quiz/ask questions in playback and exports. */
   skipQuestions: boolean;
+  /**
+   * Paint the caption into the exported video. Off ships a clean figure and
+   * leans on the .vtt file, which every export downloads either way — the
+   * subtitle can then be turned off or translated instead of being part of
+   * the picture.
+   */
+  burnCaptions: boolean;
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
@@ -85,6 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theater: false,
   cloudPlayback: true,
   skipQuestions: false,
+  burnCaptions: true,
   uiMode: "player",
   sidebarOpen: true,
   choicesOpen: false,

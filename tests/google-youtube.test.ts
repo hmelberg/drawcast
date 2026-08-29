@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { chunkRanges, contentRange } from "../src/google/youtube";
+import { chunkRanges, contentRange, videoResource } from "../src/google/youtube";
 
 describe("chunkRanges", () => {
   test("a file smaller than one chunk is a single range covering all of it", () => {
@@ -36,5 +36,14 @@ describe("contentRange", () => {
     // here means every upload fails on the first chunk.
     expect(contentRange(0, 1000, 2500)).toBe("bytes 0-999/2500");
     expect(contentRange(2000, 2500, 2500)).toBe("bytes 2000-2499/2500");
+  });
+});
+
+describe("videoResource", () => {
+  test("declares the narration language, which is what lets YouTube translate the caption track", () => {
+    expect(videoResource({ title: "Kurven", description: "Laget med drawcast.", privacyStatus: "public", language: "nb" })).toEqual({
+      snippet: { title: "Kurven", description: "Laget med drawcast.", defaultLanguage: "nb", defaultAudioLanguage: "nb" },
+      status: { privacyStatus: "public" },
+    });
   });
 });

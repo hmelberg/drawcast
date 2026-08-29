@@ -50,7 +50,8 @@ import {
   type Playlist,
 } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
-import { exportVideo } from "./export/video";
+import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
+import { toVtt } from "./export/captions";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
 import {
@@ -990,6 +991,8 @@ const cloudPlaybackCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 cloudPlaybackCb.checked = settings.cloudPlayback;
 const skipQuestionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 skipQuestionsCb.checked = settings.skipQuestions;
+const burnCaptionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+burnCaptionsCb.checked = settings.burnCaptions;
 const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 developerCb.checked = settings.developerMode;
 const contactEmailInput = h("input", { type: "email", placeholder: "you@example.org", autocomplete: "off" }) as HTMLInputElement;
@@ -1029,6 +1032,12 @@ dialog.append(
     ),
     h("label", { class: "settings-check" }, cloudPlaybackCb, " Also use these voices for normal playback (falls back to the browser voice if a call fails)"),
     h("label", { class: "settings-check" }, skipQuestionsCb, " Skip questions (quiz and typed ask) in playback and exports"),
+    h(
+      "label",
+      { class: "settings-check" },
+      burnCaptionsCb,
+      " Burn captions into the exported video (off = clean figure; the .vtt subtitle file is downloaded either way)",
+    ),
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
@@ -2895,7 +2904,7 @@ function endExport(): void {
  * cancelled, or the export failed — in every one of those cases the status
  * line already says why, so callers just return.
  */
-async function renderVideoBlob(): Promise<Blob | null> {
+async function renderVideo(): Promise<ExportResult | null> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
@@ -2914,7 +2923,7 @@ async function renderVideoBlob(): Promise<Blob | null> {
   try {
     return await exportVideo(
       exportSequence(doc.playlist),
-      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on" },
+      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions: settings.burnCaptions },
       {
         onStatus: (t) => (exportChipText.textContent = t),
         canvas: exportCanvas,
@@ -2938,11 +2947,12 @@ exportVideoBtn.addEventListener("click", () => void runVideoExport());
 async function runVideoExport(): Promise<void> {
   beginExport("Preparing…");
   try {
-    const blob = await renderVideoBlob();
-    if (!blob) return;
+    const out = await renderVideo();
+    if (!out) return;
     const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-    downloadBlob(`${base}.webm`, blob);
-    setStatus(`Done — "${base}.webm" was downloaded.`, "ok");
+    downloadBlob(`${base}.webm`, out.blob);
+    downloadBlob(`${base}.vtt`, new Blob([toVtt(out.cues)], { type: "text/vtt" }));
+    setStatus(`Done — "${base}.webm" and its subtitle file "${base}.vtt" were downloaded.`, "ok");
   } finally {
     endExport();
   }
@@ -2967,8 +2977,8 @@ ytDialog.append(
   h(
     "div",
     { class: "yt-warning" },
-    "YouTube locks videos uploaded through its API to private until the app has passed YouTube's compliance audit, which drawcast has not yet. " +
-      "Your video will arrive on your own channel, private, whatever you choose above.",
+    "The video is uploaded to your own channel with the visibility you chose. Its subtitle file is downloaded at the same time — " +
+      "add it in YouTube Studio, and YouTube can translate it for viewers in other languages.",
   ),
   h("div", { class: "row" }, ytGo),
   ytStatus,
@@ -2990,6 +3000,7 @@ async function runYoutubeUpload(): Promise<void> {
     title: ytTitle.value.trim() || doc.title,
     description: ytDesc.value,
     privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"],
+    language: narrationLanguage(exportSequence(doc.playlist)),
   };
   ytGo.disabled = true;
   // Consent FIRST, while this click's transient user activation is still
@@ -3012,13 +3023,14 @@ async function runYoutubeUpload(): Promise<void> {
   ytDialog.close();
   beginExport("Preparing…");
   try {
-    const blob = await renderVideoBlob();
-    if (!blob) return; // renderVideoBlob already reported why
+    const out = await renderVideo();
+    if (!out) return; // renderVideo already reported why
+    const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     const controller = new AbortController();
     exportAbort = controller;
     exportChipText.textContent = "Uploading to YouTube…";
     try {
-      const res = await uploadVideo(blob, meta, {
+      const res = await uploadVideo(out.blob, meta, {
         onProgress: (f) => (exportChipText.textContent = `Uploading to YouTube… ${Math.round(f * 100)}%`),
         signal: controller.signal,
       });
@@ -3026,7 +3038,15 @@ async function runYoutubeUpload(): Promise<void> {
         // Only reachable if the grant above expired during a very long render.
         setStatus("YouTube sign-in was cancelled — nothing was uploaded.", "error");
       } else {
-        setStatus(`Uploaded (private): https://youtu.be/${res.videoId}`, "ok");
+        // The caption track never goes up with the video: captions.insert
+        // needs the force-ssl scope, which also grants deleting the user's
+        // videos and comments. It is downloaded instead — attaching it in
+        // Studio is one drag, and asks for nothing.
+        downloadBlob(`${base}.vtt`, new Blob([toVtt(out.cues)], { type: "text/vtt" }));
+        setStatus(
+          `Uploaded: https://youtu.be/${res.videoId} — "${base}.vtt" was downloaded; add it to the video in YouTube Studio to give it subtitles.`,
+          "ok",
+        );
       }
     } catch (err) {
       // Cancel aborts the fetch, which throws — that is the user's own doing,
@@ -3205,6 +3225,10 @@ clearKeyBtn.addEventListener("click", () => {
 ttsKeyInput.addEventListener("change", () => {
   setTtsKey(ttsKeyInput.value.trim());
   setVendedFlags({ ...loadVendedFlags(), tts: false });
+});
+burnCaptionsCb.addEventListener("change", () => {
+  settings.burnCaptions = burnCaptionsCb.checked;
+  persist();
 });
 skipQuestionsCb.addEventListener("change", () => {
   settings.skipQuestions = skipQuestionsCb.checked;
