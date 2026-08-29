@@ -271,6 +271,56 @@ export function makeChapterCard(opts: ChapterCardOptions): Spec {
   return { elements, commands };
 }
 
+export interface NextCardOptions {
+  /** Title of the lecture that follows this one. */
+  next: string;
+  /** The NEXT lecture's 1-based number. */
+  position: number;
+  total: number;
+  /** Seconds to hold before fading out (default 1.5). */
+  gap?: number;
+}
+
+/**
+ * The card a course lecture ends on. Title only: the link target does not exist
+ * until the course is published, and a burnt-in URL goes stale the first time
+ * the course is reordered. The overview page carries the clickable version.
+ */
+export function makeNextCard(opts: NextCardOptions): Spec {
+  const elements: Spec["elements"] = [
+    { id: "nx_kicker", type: "text", text: "Next", x: 500, y: 465, font_size: 24, style: { opacity: 0.6 } },
+    {
+      id: "nx_title",
+      type: "text",
+      text: opts.next,
+      x: 500,
+      y: 390,
+      font_size: Math.min(56, titleFont(opts.next)),
+      draw: { mode: "sketch", duration: 1 },
+    },
+    { id: "nx_line", type: "path", points: [[330, 352], [670, 348]] },
+    {
+      id: "nx_count",
+      type: "text",
+      text: `${opts.position} of ${opts.total}`,
+      x: 500,
+      y: 300,
+      font_size: 26,
+      style: { opacity: 0.7 },
+      draw: { mode: "sketch", duration: 0.7 },
+    },
+  ];
+  return {
+    elements,
+    commands: [
+      { draw: ["nx_kicker", "nx_title", "nx_line"], speak: `Next: ${opts.next}` },
+      { draw: ["nx_count"] },
+      { pause: opts.gap ?? 1.5 },
+      { clear: {} },
+    ],
+  };
+}
+
 /** The item's spec plus a soft exit: hold for the gap, then un-draw everything. */
 function withSoftExit(spec: Spec, gap: number): Spec {
   return { ...spec, commands: [...(spec.commands ?? []), { pause: gap }, { clear: {} }] };
