@@ -1342,3 +1342,39 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border: 1px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
   background: color-mix(in srgb, #9c6b1f 10%, var(--surface));
 }
+
+/* ---- Course panel ---- */
+.course-modal { width: min(62rem, 94vw); }
+.course-help { margin: 0 0 0.5rem; font-size: 0.85rem; opacity: 0.75; }
+.course-doc {
+  width: 100%;
+  min-height: 18rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  padding: 0.6rem;
+  resize: vertical;
+}
+.course-cost { font-size: 0.82rem; opacity: 0.75; }
+.course-status { min-height: 1.2rem; font-size: 0.85rem; opacity: 0.85; margin-top: 0.4rem; }
+.course-warnings {
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  color: #9c6b1f;
+  border-left: 3px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
+  padding-left: 0.5rem;
+}
+.course-rows { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.5rem; }
+.course-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.28rem 0.45rem;
+  border-radius: 0.3rem;
+  font-size: 0.86rem;
+  border-left: 3px solid transparent;
+}
+.course-row-label { flex: 1; }
+.course-done { border-left-color: #2e7d32; }
+.course-failed { border-left-color: #b3261e; }
+.course-pending { opacity: 0.75; }

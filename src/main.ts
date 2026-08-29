@@ -37,6 +37,7 @@ import type { Spec, SpecElement } from "./spec/types";
 import { resolvePortraits, traceFromBlob } from "./render/portrait";
 import { resolveSources } from "./render/source";
 import { h } from "./ui/dom";
+import { openCoursePanel } from "./ui/course";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
 import {
@@ -817,6 +818,20 @@ const sidebar = h(
     (() => {
       const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
       b.addEventListener("click", () => openInstructionsModal());
+      return b;
+    })(),
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "🎓 Course");
+      b.addEventListener("click", () =>
+        openCoursePanel({
+          apiKey: () => getApiKey(),
+          model: () => settings.model,
+          variant: () => currentVariant(),
+          exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
+          bundledExemplars: () => bundledExemplarPool(),
+          setStatus,
+        }),
+      );
       return b;
     })(),
     dataRow,
