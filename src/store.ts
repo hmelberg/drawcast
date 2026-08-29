@@ -13,6 +13,7 @@ const KEYS = {
   logs: "drawcast.logs.v1",
   exemplars: "drawcast.exemplars.v1",
   library: "drawcast.library.v1",
+  courses: "drawcast.courses.v1",
   customPrompt: "drawcast.customPrompt.v1", // legacy single slot; migrated into prompts
   prompts: "drawcast.prompts.v1",
   apiKey: "drawcast.apikey",
@@ -203,6 +204,31 @@ export function setTtsKey(key: string): void {
   else localStorage.removeItem(KEYS.ttsKey);
 }
 
+/** A localStorage write that did not fit. Callers report it; nothing is silently lost. */
+export class StorageFullError extends Error {
+  constructor(what: string) {
+    super(`Out of browser storage while saving ${what}. Delete a few saved drawcasts and try again.`);
+    this.name = "StorageFullError";
+  }
+}
+
+/**
+ * Every library write goes through here, so a full quota is an error a caller
+ * can show. Batch course generation is the first thing that realistically
+ * fills the ~5 MB quota, and an uncaught throw there would lose a run that had
+ * already spent forty AI calls.
+ */
+function writeJson(key: string, value: unknown, what: string): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    if (err instanceof Error && (err.name === "QuotaExceededError" || err.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
+      throw new StorageFullError(what);
+    }
+    throw err;
+  }
+}
+
 // ---- Drawing library (the user's saved drawcasts) ----
 
 export interface SavedDrawing {
@@ -224,11 +250,37 @@ export function loadLibrary(): SavedDrawing[] {
 export function saveDrawing(d: SavedDrawing): void {
   const all = loadLibrary().filter((x) => x.id !== d.id);
   all.unshift(d);
-  localStorage.setItem(KEYS.library, JSON.stringify(all));
+  writeJson(KEYS.library, all, "a drawcast");
 }
 
 export function deleteDrawing(id: string): void {
-  localStorage.setItem(KEYS.library, JSON.stringify(loadLibrary().filter((x) => x.id !== id)));
+  writeJson(KEYS.library, loadLibrary().filter((x) => x.id !== id), "the library");
+}
+
+// ---- Course library (course documents, stage A) ----
+
+export interface SavedCourse {
+  id: string;
+  title: string;
+  /** The course document, verbatim — the author's layout is never rewritten. */
+  text: string;
+  /** owner/repo/dir this course was last published to (stage B). */
+  target?: string;
+  ts: string;
+}
+
+export function loadCourses(): SavedCourse[] {
+  return readArray<SavedCourse>(KEYS.courses);
+}
+
+export function saveCourse(c: SavedCourse): void {
+  const all = loadCourses().filter((x) => x.id !== c.id);
+  all.unshift(c);
+  writeJson(KEYS.courses, all, "a course");
+}
+
+export function deleteCourse(id: string): void {
+  writeJson(KEYS.courses, loadCourses().filter((x) => x.id !== id), "the course library");
 }
 
 // ---- My templates (user-authored TemplateDocs, M2) ----

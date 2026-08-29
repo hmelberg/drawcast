@@ -5,8 +5,8 @@
 
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
-import { generateOutline, generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
-import { buildPartRequest } from "./llm/outline";
+import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
+import { generateParts } from "./llm/multi";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
@@ -37,6 +37,7 @@ import type { Spec, SpecElement } from "./spec/types";
 import { resolvePortraits, traceFromBlob } from "./render/portrait";
 import { resolveSources } from "./render/source";
 import { h } from "./ui/dom";
+import { openCoursePanel } from "./ui/course";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
 import {
@@ -817,6 +818,20 @@ const sidebar = h(
     (() => {
       const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
       b.addEventListener("click", () => openInstructionsModal());
+      return b;
+    })(),
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "🎓 Course");
+      b.addEventListener("click", () =>
+        openCoursePanel({
+          apiKey: () => getApiKey(),
+          model: () => settings.model,
+          variant: () => currentVariant(),
+          exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
+          bundledExemplars: () => bundledExemplarPool(),
+          setStatus,
+        }),
+      );
       return b;
     })(),
     dataRow,
@@ -2081,74 +2096,53 @@ async function generateMulti(
   // writing into one pane would interleave into nonsense. The counter below
   // is this path's progress signal.
   startAiStatus("Outlining a multi-part drawcast");
-  let outline;
-  try {
-    outline = await generateOutline(parsed.clean, { apiKey, model: settings.model }, parsed.parts, signal);
-  } catch (err) {
-    if (signal.aborted) setStatus("Cancelled.");
-    else setStatus(`Outline failed: ${describeApiError(err)}`, "error");
-    return;
-  }
-  if (!outline) {
-    setStatus("The model could not outline this into parts — try rephrasing, or drop #playlist.", "error");
-    return;
-  }
-  if (!outline.title) outline.title = parsed.clean;
-  // Parts depend only on the outline (bridging uses outline titles, not each
-  // other's specs), so they generate in parallel: N parts in ~one part's time.
-  const n = outline.parts.length;
-  let finished = 0;
-  aiLabel = `Generating ${n} parts in parallel`;
-  aiPhase = `0/${n} done`;
-  renderAiStatus();
-  const outcomes = await Promise.all(
-    outline.parts.map((part, i) =>
-      generateSpec(buildPartRequest(parsed.clean, outline, i, brief), {
-        apiKey,
-        pedagogyReview: true,
-        model: settings.model,
-        variant: currentVariant(),
-        exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
-        bundledExemplars: bundledExemplarPool(),
-        forcedTemplate,
-        priorityIds,
-        signal,
-      }).then((outcome) => {
-        finished++;
-        aiPhase = `${finished}/${n} done`;
+  let partTitles: string[] = [];
+  const result = await generateParts(
+    { request: parsed.clean, parts: parsed.parts, brief },
+    {
+      apiKey,
+      pedagogyReview: true,
+      model: settings.model,
+      variant: currentVariant(),
+      exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
+      bundledExemplars: bundledExemplarPool(),
+      forcedTemplate,
+      priorityIds,
+      signal,
+    },
+    {
+      onOutline: (outline) => {
+        partTitles = outline.parts.map((p) => p.title);
+        aiLabel = `Generating ${outline.parts.length} parts in parallel`;
+        aiPhase = `0/${outline.parts.length} done`;
         renderAiStatus();
-        logOutcome(`${rawRequest} [part ${i + 1}: ${part.title}]`, outcome);
-        return outcome;
-      }),
-    ),
+      },
+      onPart: (done, total, index, outcome) => {
+        aiPhase = `${done}/${total} done`;
+        renderAiStatus();
+        logOutcome(`${rawRequest} [part ${index + 1}: ${partTitles[index] ?? index + 1}]`, outcome);
+      },
+    },
   );
-  const specs: Spec[] = [];
-  const failedParts: number[] = [];
-  outcomes.forEach((outcome, i) => {
-    if (!outcome.spec) {
-      failedParts.push(i + 1);
-      return;
-    }
-    outcome.spec.title ??= outline.parts[i].title;
-    outcome.spec.level ??= outline.parts[i].level ?? parsed.level ?? undefined;
-    outcome.spec.voice ??= parsed.voiceGender ?? undefined;
-    specs.push(outcome.spec);
-  });
-  if (specs.length === 0) {
+  if (result.specs.length === 0) {
     if (signal.aborted) setStatus("Cancelled.");
-    else setStatus(`Every part failed: ${outcomes[0]?.error ?? "no spec"}`, "error");
+    else setStatus(`Every part failed: ${result.error}`, "error");
     return;
   }
+  for (const spec of result.specs) spec.voice ??= parsed.voiceGender ?? undefined;
+  for (const spec of result.specs) spec.level ??= parsed.level ?? undefined;
+  const title = result.outline?.title ?? parsed.clean;
+  const n = result.outline?.parts.length ?? result.specs.length;
   const playlist: Playlist = {
-    meta: { ...DEFAULT_META, title: outline.title },
-    entries: specs.map((spec) => ({ kind: "item", spec })),
+    meta: { ...DEFAULT_META, title },
+    entries: result.specs.map((spec) => ({ kind: "item" as const, spec })),
     warnings: [],
   };
   setDoc(
-    { id: null, driveFileId: null, title: outline.title, prompt: rawRequest, playlist },
-    failedParts.length > 0
-      ? `Generated ${specs.length}/${n} parts (part${failedParts.length > 1 ? "s" : ""} ${failedParts.join(", ")} failed).`
-      : `Generated a ${specs.length}-part drawcast.`,
+    { id: null, driveFileId: null, title, prompt: rawRequest, playlist },
+    result.failed.length > 0
+      ? `Generated ${result.specs.length}/${n} parts (part${result.failed.length > 1 ? "s" : ""} ${result.failed.join(", ")} failed).`
+      : `Generated a ${result.specs.length}-part drawcast.`,
     { label: rawRequest, kind: "generate" },
   );
   autosave();
