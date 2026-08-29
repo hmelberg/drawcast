@@ -1049,7 +1049,7 @@ dialog.append(
       "label",
       { class: "settings-check" },
       burnCaptionsCb,
-      " Burn captions into the exported video (off = clean figure; the .vtt subtitle file is downloaded either way)",
+      " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in the upload dialog.",
     ),
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
@@ -2917,7 +2917,7 @@ function endExport(): void {
  * cancelled, or the export failed — in every one of those cases the status
  * line already says why, so callers just return.
  */
-async function renderVideo(): Promise<ExportResult | null> {
+async function renderVideo(burnCaptions: boolean): Promise<ExportResult | null> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
@@ -2936,7 +2936,7 @@ async function renderVideo(): Promise<ExportResult | null> {
   try {
     return await exportVideo(
       exportSequence(doc.playlist),
-      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions: settings.burnCaptions },
+      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions },
       {
         onStatus: (t) => (exportChipText.textContent = t),
         canvas: exportCanvas,
@@ -2960,7 +2960,7 @@ exportVideoBtn.addEventListener("click", () => void runVideoExport());
 async function runVideoExport(): Promise<void> {
   beginExport("Preparing…");
   try {
-    const out = await renderVideo();
+    const out = await renderVideo(settings.burnCaptions);
     if (!out) return;
     const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     downloadBlob(`${base}.webm`, out.blob);
@@ -2975,6 +2975,7 @@ async function runVideoExport(): Promise<void> {
 
 const ytTitle = h("input", { type: "text", class: "yt-field", "aria-label": "Video title" }) as HTMLInputElement;
 const ytDesc = h("textarea", { class: "yt-field", rows: "3", "aria-label": "Video description" }) as HTMLTextAreaElement;
+const ytBurnCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 const ytPrivacy = h("select", { class: "yt-field", "aria-label": "Visibility" }) as HTMLSelectElement;
 for (const [v, label] of [["private", "Private"], ["unlisted", "Unlisted"], ["public", "Public"]]) {
   ytPrivacy.appendChild(h("option", { value: v }, label));
@@ -2987,6 +2988,12 @@ ytDialog.append(
   h("label", { class: "quiet-label" }, "Title ", ytTitle),
   h("label", { class: "quiet-label" }, "Description ", ytDesc),
   h("label", { class: "quiet-label" }, "Visibility ", ytPrivacy),
+  h(
+    "label",
+    { class: "settings-check" },
+    ytBurnCb,
+    " Burn captions into the picture. Off is usually right here: YouTube shows its own captions over the video, so a burnt-in upload says everything twice. On only for feeds that autoplay muted.",
+  ),
   h(
     "div",
     { class: "yt-warning" },
@@ -3002,6 +3009,7 @@ uploadYtBtn.addEventListener("click", () => {
   ytTitle.value = doc.title;
   ytDesc.value = "Made with drawcast.";
   ytPrivacy.value = "private";
+  ytBurnCb.checked = settings.burnCaptionsOnUpload;
   ytStatus.textContent = "";
   ytGo.disabled = false;
   ytDialog.showModal();
@@ -3033,6 +3041,10 @@ async function runYoutubeUpload(): Promise<void> {
     language: narrationLanguage(exportSequence(doc.playlist)),
   };
   ytGo.disabled = true;
+  // The dialog's answer becomes the standing one — the same channel usually
+  // wants the same treatment every time.
+  settings.burnCaptionsOnUpload = ytBurnCb.checked;
+  persist();
   // Consent FIRST, while this click's transient user activation is still
   // alive. Rendering records the drawcast in real time — minutes for a long
   // one — and activation lapses after about five seconds, so a popup opened
@@ -3053,7 +3065,7 @@ async function runYoutubeUpload(): Promise<void> {
   ytDialog.close();
   beginExport("Preparing…");
   try {
-    const out = await renderVideo();
+    const out = await renderVideo(ytBurnCb.checked);
     if (!out) return; // renderVideo already reported why
     const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     const controller = new AbortController();

@@ -53,12 +53,18 @@ export interface Settings {
   /** Skip quiz/ask questions in playback and exports. */
   skipQuestions: boolean;
   /**
-   * Paint the caption into the exported video. Off ships a clean figure and
-   * leans on the .vtt file, which every export downloads either way — the
-   * subtitle can then be turned off or translated instead of being part of
-   * the picture.
+   * Paint the caption into the DOWNLOADED video. On by default: a file handed
+   * to someone has no subtitle layer, and a loose .vtt beside it gets lost.
    */
   burnCaptions: boolean;
+  /**
+   * The same, for the video uploaded to YouTube — off by default, and
+   * deliberately a separate answer. YouTube has a subtitle layer and publishes
+   * its own automatic captions over the picture, so a burnt-in upload shows
+   * every sentence twice. The one reason to turn it back on: feeds autoplay
+   * muted, where painted text is all a scroller ever sees.
+   */
+  burnCaptionsOnUpload: boolean;
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
@@ -93,6 +99,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cloudPlayback: true,
   skipQuestions: false,
   burnCaptions: true,
+  burnCaptionsOnUpload: false,
   uiMode: "player",
   sidebarOpen: true,
   choicesOpen: false,
