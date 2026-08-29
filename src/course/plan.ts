@@ -54,13 +54,22 @@ function tagVocabulary(): string {
   return TAGS.map((t) => `- \`#${t.tag}\` — ${t.hint}`).join("\n");
 }
 
+/**
+ * The course philosophy — questions not topics, the shared context block, tag
+ * variation, the fabrication guardrail. Shared with revision, so a revised
+ * course is held to the same rules the planner wrote it under.
+ */
+export function courseSystemPrompt(): string {
+  return COURSE_PROMPT.replace("{{TAGS}}", tagVocabulary());
+}
+
 export function buildCourseMessages(request: string, lectures: number | null): { system: string; user: string } {
   const count =
     lectures !== null
       ? `exactly ${lectures} lectures`
       : `as many lectures as the topic needs (your judgement; never more than ${MAX_LECTURES})`;
   const system = [
-    COURSE_PROMPT.replace("{{TAGS}}", tagVocabulary()),
+    courseSystemPrompt(),
     "",
     `Plan ${count}.`,
     // The shape lives in the prompt text too: when structured outputs are

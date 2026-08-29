@@ -5,6 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
+import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
@@ -50,26 +51,54 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     spellcheck: "false",
     placeholder: "# My course\n\n---\n## First lecture\nWhat question does it answer?\n#parts=4",
   }) as HTMLTextAreaElement;
+  // The one input for both actions: describe the course to Plan it, then
+  // describe a change to Revise it. It grows with the text — a course is often
+  // several lines to describe, and a one-line box hides what you wrote.
+  const ask = h("textarea", {
+    class: "course-ask",
+    rows: "2",
+    spellcheck: "false",
+    placeholder: "Describe the course to plan it — or a change to revise it (e.g. “add a lecture on synthetic control, and make lecture 3 shorter”)",
+  }) as HTMLTextAreaElement;
   const rows = h("div", { class: "course-rows" });
   const warnings = h("div", { class: "course-warnings" });
   const cost = h("div", { class: "course-cost" });
   const status = h("div", { class: "course-status" });
 
   const planBtn = h("button", { class: "small" }, "✦ Plan");
+  const reviseBtn = h("button", { class: "small" }, "✎ Revise");
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
   const saveBtn = h("button", { class: "small" }, "💾 Save");
+  const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
   const cancelBtn = h("button", { class: "small" }, "✕ Cancel");
   cancelBtn.hidden = true;
+  undoBtn.hidden = true;
 
   let courseId: string | null = null;
   let running: AbortController | null = null;
+  /** The document as it stood before the last AI change — the one-step undo. */
+  let previous: string | null = null;
 
   const setBusy = (busy: boolean): void => {
     planBtn.disabled = busy;
+    reviseBtn.disabled = busy;
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
+    undoBtn.disabled = busy;
     cancelBtn.hidden = !busy;
   };
+
+  /** Grow the box to fit what is in it, up to the cap the stylesheet sets. */
+  function autoGrow(el: HTMLTextAreaElement): void {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
+
+  /** Remember the pre-change text so one bad revision is never the end of it. */
+  function checkpoint(): void {
+    previous = doc.value;
+    undoBtn.hidden = false;
+  }
 
   function render(): void {
     const course = parseCourse(doc.value);
@@ -120,9 +149,13 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       deps.setStatus("Add an API key in Settings first.", "error");
       return;
     }
+    const request = ask.value.trim();
+    if (!request) {
+      deps.setStatus("Describe the course in the box first — topic, level, how many lectures.", "error");
+      ask.focus();
+      return;
+    }
     if (doc.value.trim() && !confirm("Replace the course document with a new plan?")) return;
-    const request = prompt("Describe the course — topic, level, how many lectures:");
-    if (!request) return;
 
     const controller = new AbortController();
     running = controller;
@@ -135,6 +168,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         deps.setStatus("The model could not plan that into lectures — try rephrasing.", "error");
         return;
       }
+      checkpoint();
       doc.value = formatCourse(course);
       courseId = null; // a new plan is a new course
       persist();
@@ -143,6 +177,58 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     } catch (err) {
       status.textContent = "";
       deps.setStatus(controller.signal.aborted ? "Cancelled." : `Planning failed: ${(err as Error).message}`, "error");
+    } finally {
+      running = null;
+      setBusy(false);
+    }
+  }
+
+  async function revise(): Promise<void> {
+    const key = deps.apiKey();
+    if (!key) {
+      deps.setStatus("Add an API key in Settings first.", "error");
+      return;
+    }
+    if (!doc.value.trim()) {
+      deps.setStatus("There is no course to revise yet — press Plan first.", "error");
+      return;
+    }
+    const instruction = ask.value.trim();
+    if (!instruction) {
+      deps.setStatus("Say what to change in the box first.", "error");
+      ask.focus();
+      return;
+    }
+
+    const controller = new AbortController();
+    running = controller;
+    setBusy(true);
+    status.textContent = "Revising the course…";
+    try {
+      const outcome = await reviseCourse(doc.value, instruction, {
+        apiKey: key,
+        model: deps.model(),
+        signal: controller.signal,
+        onProgress: (chars) => {
+          status.textContent = `Revising the course… (${chars.toLocaleString()} characters)`;
+        },
+      });
+      status.textContent = "";
+      if (!outcome.text) {
+        deps.setStatus(controller.signal.aborted ? "Cancelled." : `Revision failed: ${outcome.error}`, "error");
+        return;
+      }
+      checkpoint();
+      doc.value = outcome.text;
+      // The instruction is spent; the box is now free for the next one.
+      ask.value = "";
+      autoGrow(ask);
+      persist();
+      render();
+      deps.setStatus("Course revised.", "ok");
+    } catch (err) {
+      status.textContent = "";
+      deps.setStatus(`Revision failed: ${(err as Error).message}`, "error");
     } finally {
       running = null;
       setBusy(false);
@@ -225,7 +311,17 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   }
 
   planBtn.addEventListener("click", () => void plan());
+  reviseBtn.addEventListener("click", () => void revise());
   runBtn.addEventListener("click", () => void run());
+  undoBtn.addEventListener("click", () => {
+    if (previous === null) return;
+    const restored = previous;
+    previous = doc.value; // undo is its own undo
+    doc.value = restored;
+    persist();
+    render();
+    deps.setStatus("Reverted the last AI change.", "ok");
+  });
   saveBtn.addEventListener("click", () => {
     try {
       persist();
@@ -241,14 +337,16 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     if (debounce) clearTimeout(debounce);
     debounce = setTimeout(render, 300);
   });
+  ask.addEventListener("input", () => autoGrow(ask));
 
   modal.body.append(
     h(
       "p",
       { class: "course-help" },
-      "One `##` heading per lecture — each becomes its own drawcast. Write questions, not topics. Tags like #why or #parts=4 apply to that lecture.",
+      "One ## heading per lecture — each becomes its own drawcast. Write questions, not topics. Tags like #why or #parts=4 apply to that lecture.",
     ),
-    h("div", { class: "pane-bar" }, planBtn, runBtn, saveBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
+    ask,
+    h("div", { class: "pane-bar" }, planBtn, reviseBtn, runBtn, saveBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
     doc,
     warnings,
     status,

@@ -1344,11 +1344,26 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 
 /* ---- Course panel ---- */
-.course-modal { width: min(62rem, 94vw); }
+.course-modal { width: min(78rem, 96vw); }
+/* The course document is the working surface: give the dialog body most of the
+   viewport rather than the shared 70vh cap. */
+.course-modal .dialog-body { max-height: min(84vh, 56rem); }
 .course-help { margin: 0 0 0.5rem; font-size: 0.85rem; opacity: 0.75; }
+.course-ask {
+  width: 100%;
+  min-height: 3.2rem;
+  /* Grown to fit by autoGrow(); this is the ceiling before it scrolls. */
+  max-height: 14rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.5rem;
+  resize: vertical;
+  overflow-y: auto;
+}
 .course-doc {
   width: 100%;
-  min-height: 18rem;
+  min-height: 24rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85rem;
   line-height: 1.5;
