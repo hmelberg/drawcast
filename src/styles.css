@@ -1329,6 +1329,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* ---------- YouTube upload dialog ---------- */
 
 .yt-dialog .yt-field { width: 100%; }
+/* Nineteen languages: a wrapping row of small checkboxes reads faster than a
+   multi-select list, and shows at a glance how many videos are queued. */
+.yt-langs { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
+.yt-langs .yt-lang { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; white-space: nowrap; }
 .yt-warning {
   margin: 10px 0;
   padding: 8px 10px;

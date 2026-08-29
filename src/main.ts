@@ -2923,7 +2923,7 @@ function endExport(): void {
  * cancelled, or the export failed — in every one of those cases the status
  * line already says why, so callers just return.
  */
-async function renderVideo(specs: Spec[], burnCaptions: boolean): Promise<ExportResult | null> {
+async function renderVideo(specs: Spec[], burnCaptions: boolean, of = ""): Promise<ExportResult | null> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
@@ -2944,7 +2944,7 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean): Promise<Export
       specs,
       { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions, lang: narrationLanguage(specs) },
       {
-        onStatus: (t) => (exportChipText.textContent = t),
+        onStatus: (t) => (exportChipText.textContent = of ? `${t.replace(/…$/, "")}${of}…` : t),
         canvas: exportCanvas,
         workbench: exportStage,
         signal: controller.signal,
@@ -2981,9 +2981,17 @@ async function runVideoExport(): Promise<void> {
 
 const ytTitle = h("input", { type: "text", class: "yt-field", "aria-label": "Video title" }) as HTMLInputElement;
 const ytDesc = h("textarea", { class: "yt-field", rows: "3", "aria-label": "Video description" }) as HTMLTextAreaElement;
-const ytLang = h("select", { class: "yt-field", "aria-label": "Language" }) as HTMLSelectElement;
-for (const l of LANGUAGES) ytLang.appendChild(h("option", { value: l.code }, l.label));
-const ytSaveCopy = h("button", {}, "Save the translation as a new drawcast") as HTMLButtonElement;
+/** One checkbox per language drawcast can narrate. Ticking a language that is
+ *  not the source translates it there and then, so a failure shows up in
+ *  seconds rather than twenty minutes into a queue of real-time recordings. */
+const ytLangBox = h("div", { class: "yt-langs" });
+const ytLangCbs = new Map<string, HTMLInputElement>();
+for (const l of LANGUAGES) {
+  const cb = h("input", { type: "checkbox", value: l.code }) as HTMLInputElement;
+  ytLangCbs.set(l.code, cb);
+  ytLangBox.appendChild(h("label", { class: "yt-lang" }, cb, " " + l.label));
+}
+const ytSaveCopy = h("button", {}, "Save the translations as new drawcasts") as HTMLButtonElement;
 const ytBurnCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 const ytPrivacy = h("select", { class: "yt-field", "aria-label": "Visibility" }) as HTMLSelectElement;
 for (const [v, label] of [["private", "Private"], ["unlisted", "Unlisted"], ["public", "Public"]]) {
@@ -2996,7 +3004,7 @@ ytDialog.append(
   dialogHead(ytDialog, "▶ Upload to YouTube"),
   h("label", { class: "quiet-label" }, "Title ", ytTitle),
   h("label", { class: "quiet-label" }, "Description ", ytDesc),
-  h("label", { class: "quiet-label" }, "Language ", ytLang),
+  h("div", { class: "quiet-label" }, "Languages ", ytLangBox),
   h("label", { class: "quiet-label" }, "Visibility ", ytPrivacy),
   h(
     "label",
@@ -3016,15 +3024,23 @@ ytDialog.append(
 app.appendChild(ytDialog);
 
 /**
- * The translated COPY waiting to be recorded. It exists only while the dialog
- * is open and is never written back to `doc` — exportSequence hands out the
- * document's own spec objects, so the whole point of translating into a fresh
- * playlist is that your drawcast stays in the language you wrote it in.
+ * Translated COPIES waiting to be recorded, by language code. They exist only
+ * while the dialog is open and are never written back to `doc` —
+ * exportSequence hands out the document's own spec objects, so translating
+ * into fresh playlists is what keeps your drawcast in the language you wrote
+ * it in. Kept even when a language is unticked, so re-ticking is free.
  */
-let ytTranslation: { code: string; playlist: Playlist } | null = null;
+const ytTranslations = new Map<string, Playlist>();
 
 function sourceLanguage(): string {
   return narrationLanguage(itemsOf(doc.playlist).map((i) => i.spec));
+}
+
+/** Ticked languages, in catalog order, source first when it is among them. */
+function ytSelected(): string[] {
+  const src = sourceLanguage();
+  const picked = LANGUAGES.filter((l) => ytLangCbs.get(l.code)?.checked).map((l) => l.code);
+  return picked.includes(src) ? [src, ...picked.filter((c) => c !== src)] : picked;
 }
 
 /** The document's playlist with each item's spec swapped for its translation. */
@@ -3036,125 +3052,130 @@ function playlistWithSpecs(specs: Spec[]): Playlist {
   };
 }
 
-/** What actually gets recorded: the translation when one is pending, else the document. */
-function uploadPlaylist(): Playlist {
-  return ytTranslation?.playlist ?? doc.playlist;
+/** What gets recorded for one language: the translation, or the document itself. */
+function playlistFor(code: string): Playlist {
+  return code === sourceLanguage() ? doc.playlist : (ytTranslations.get(code) ?? doc.playlist);
 }
 
-async function retranslate(): Promise<void> {
-  const code = ytLang.value;
-  ytTranslation = null;
-  ytSaveCopy.hidden = true;
-  if (code === sourceLanguage()) {
-    ytTitle.value = doc.title;
-    ytStatus.textContent = "";
-    return;
-  }
+/** Ready to upload once at least one language is ticked and translated. */
+function refreshYtButtons(): void {
+  const picked = ytSelected();
+  const ready = picked.every((c) => c === sourceLanguage() || ytTranslations.has(c));
+  ytGo.disabled = picked.length === 0 || !ready;
+  ytGo.textContent = picked.length > 1 ? `Upload ${picked.length} videos` : "Upload";
+  ytSaveCopy.hidden = !picked.some((c) => ytTranslations.has(c));
+  // One language: the field is the title, yours to edit. Several: each video
+  // takes its own translated title, because one field cannot hold four.
+  ytTitle.disabled = picked.length > 1;
+  if (picked.length === 1) ytTitle.value = docTitleOf(playlistFor(picked[0]), doc.title);
+  else ytTitle.value = doc.title;
+}
+
+async function translateInto(code: string): Promise<void> {
   const target = LANGUAGES.find((l) => l.code === code);
   const apiKey = getApiKey();
   if (!target || !apiKey) {
     ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";
-    ytLang.value = sourceLanguage();
+    ytLangCbs.get(code)!.checked = false;
     return;
   }
-  ytGo.disabled = true;
-  ytLang.disabled = true;
   ytStatus.textContent = `Translating into ${target.label}…`;
-  try {
-    const specs: Spec[] = [];
-    const problems: string[] = [];
-    for (const spec of itemsOf(doc.playlist).map((i) => i.spec)) {
-      const schema = spec.template ? scenes[spec.template]?.manifest.params_schema : undefined;
-      const { spec: out, check } = await translateSpec(spec, target, { apiKey, model: settings.model }, schema);
-      if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(sourceLanguage())}`);
-      // Cheap structural guard: ids and gotos are never sent to the model, so a
-      // broken reference here means a bug in the extractor, not a bad answer.
-      const broken = lintCommands(out).filter((i) => i.severity === "error");
-      if (broken.length > 0) problems.push(broken[0].message);
-      specs.push(out);
-    }
-    const playlist = playlistWithSpecs(specs);
-    ytTranslation = { code, playlist };
-    ytTitle.value = docTitleOf(playlist, doc.title);
-    ytSaveCopy.hidden = false;
-    ytStatus.textContent = problems.length > 0 ? `Translated into ${target.label} — ${problems.join("; ")}.` : `Translated into ${target.label}.`;
-  } catch (err) {
-    ytLang.value = sourceLanguage();
-    ytStatus.textContent = `Could not translate: ${describeApiError(err)}`;
-  } finally {
-    ytGo.disabled = false;
-    ytLang.disabled = false;
+  const specs: Spec[] = [];
+  const problems: string[] = [];
+  for (const spec of itemsOf(doc.playlist).map((i) => i.spec)) {
+    const schema = spec.template ? scenes[spec.template]?.manifest.params_schema : undefined;
+    const { spec: out, check } = await translateSpec(spec, target, { apiKey, model: settings.model }, schema);
+    if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(sourceLanguage())}`);
+    // Cheap structural guard: ids and gotos are never sent to the model, so a
+    // broken reference here means a bug in the extractor, not a bad answer.
+    const broken = lintCommands(out).filter((i) => i.severity === "error");
+    if (broken.length > 0) problems.push(broken[0].message);
+    specs.push(out);
   }
+  ytTranslations.set(code, playlistWithSpecs(specs));
+  ytStatus.textContent = problems.length > 0 ? `Translated into ${target.label} — ${problems.join("; ")}.` : `Translated into ${target.label}.`;
 }
 
-ytLang.addEventListener("change", () => void retranslate());
+for (const [code, cb] of ytLangCbs) {
+  cb.addEventListener("change", () => {
+    if (!cb.checked || code === sourceLanguage() || ytTranslations.has(code)) {
+      refreshYtButtons();
+      return;
+    }
+    void (async () => {
+      ytGo.disabled = true;
+      for (const other of ytLangCbs.values()) other.disabled = true;
+      try {
+        await translateInto(code);
+      } catch (err) {
+        cb.checked = false;
+        ytStatus.textContent = `Could not translate: ${describeApiError(err)}`;
+      } finally {
+        for (const other of ytLangCbs.values()) other.disabled = false;
+        refreshYtButtons();
+      }
+    })();
+  });
+}
 
 ytSaveCopy.addEventListener("click", () => {
-  const t = ytTranslation;
-  if (!t) return;
-  // A NEW library entry with a NEW id. Never doc.id: the translation is a
-  // sibling of the original, never a replacement for it.
-  const title = docTitleOf(t.playlist, doc.title);
-  saveDrawing({
-    id: crypto.randomUUID(),
-    title,
-    prompt: doc.prompt,
-    spec: itemsOf(t.playlist)[0]?.spec ?? { commands: [] },
-    playlist: isSingle(t.playlist) ? undefined : formatPlaylist(t.playlist, "yaml"),
-    ts: new Date().toISOString(),
-  });
+  // NEW library entries with NEW ids. Never doc.id: a translation is a sibling
+  // of the original, never a replacement for it.
+  const saved: string[] = [];
+  for (const code of ytSelected()) {
+    const playlist = ytTranslations.get(code);
+    if (!playlist) continue;
+    const title = docTitleOf(playlist, doc.title);
+    saveDrawing({
+      id: crypto.randomUUID(),
+      title,
+      prompt: doc.prompt,
+      spec: itemsOf(playlist)[0]?.spec ?? { commands: [] },
+      playlist: isSingle(playlist) ? undefined : formatPlaylist(playlist, "yaml"),
+      ts: new Date().toISOString(),
+    });
+    saved.push(title);
+  }
   refreshLibrary();
-  ytStatus.textContent = `Saved "${title}" to your library as a separate drawcast. The original is untouched.`;
+  ytStatus.textContent = `Saved ${saved.length} drawcast(s) to your library: ${saved.join(", ")}. The original is untouched.`;
 });
 
 uploadYtBtn.addEventListener("click", () => {
-  ytTitle.value = doc.title;
   ytDesc.value = "Made with drawcast.";
   ytPrivacy.value = "private";
   ytBurnCb.checked = settings.burnCaptionsOnUpload;
-  ytLang.value = sourceLanguage();
-  ytTranslation = null;
-  ytSaveCopy.hidden = true;
+  ytTranslations.clear();
+  for (const [code, cb] of ytLangCbs) cb.checked = code === sourceLanguage();
   ytStatus.textContent = "";
-  ytGo.disabled = false;
+  refreshYtButtons();
   ytDialog.showModal();
 });
 
-/**
- * Attach the caption track to a video that just went up. Declining the scope
- * is a normal answer, not a failure — the .vtt is already on disk, and Studio
- * takes it by hand.
- */
-async function addCaptions(videoId: string, language: string, vtt: string): Promise<void> {
-  const fallback = "The .vtt file is downloaded — add it to the video in YouTube Studio.";
-  setStatus("Adding subtitles…");
-  try {
-    const added = await uploadCaptions({ videoId, language, name: "drawcast" }, vtt, AbortSignal.timeout(60_000));
-    if (added) setStatus("Subtitles added to the video.", "ok");
-    else setStatus(`Subtitles were not added — YouTube's caption permission was declined. ${fallback}`, "error");
-  } catch (err) {
-    setStatus(`Subtitles were not added: ${(err as Error).message} — ${fallback}`, "error");
-  }
+ytGo.addEventListener("click", () => void runYoutubeUpload());
+
+/** One language's outcome, for the summary and the follow-up actions. */
+interface UploadOutcome {
+  code: string;
+  label: string;
+  videoId?: string;
+  vtt?: string;
+  error?: string;
 }
 
-ytGo.addEventListener("click", () => void runYoutubeUpload());
 async function runYoutubeUpload(): Promise<void> {
-  const meta: UploadMeta = {
-    title: ytTitle.value.trim() || doc.title,
-    description: ytDesc.value,
-    privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"],
-    language: narrationLanguage(exportSequence(uploadPlaylist())),
-  };
+  const targets = ytSelected();
+  if (targets.length === 0) return;
+  const single = targets.length === 1;
   ytGo.disabled = true;
   // The dialog's answer becomes the standing one — the same channel usually
   // wants the same treatment every time.
   settings.burnCaptionsOnUpload = ytBurnCb.checked;
   persist();
   // Consent FIRST, while this click's transient user activation is still
-  // alive. Rendering records the drawcast in real time — minutes for a long
-  // one — and activation lapses after about five seconds, so a popup opened
-  // on the far side of the render is blocked by the browser and the user is
-  // told "sign-in was cancelled" after all that work. uploadVideo's own
+  // alive. Rendering records each drawcast in real time — minutes apiece — and
+  // activation lapses after about five seconds, so a popup opened on the far
+  // side of the queue is blocked by the browser and the user is told
+  // "sign-in was cancelled" after all that work. uploadVideo's own
   // requireScope then finds this token in the cache and prompts nobody.
   // (The session cannot be opened this early instead: starting a resumable
   // upload needs X-Upload-Content-Length, i.e. the finished blob's size.)
@@ -3162,51 +3183,97 @@ async function runYoutubeUpload(): Promise<void> {
   refreshAccountRow();
   if (!token) {
     ytStatus.textContent = "YouTube sign-in was cancelled — nothing was uploaded.";
-    ytGo.disabled = false;
+    refreshYtButtons();
     return;
   }
-  // The render and upload both run in the background — close the metadata
-  // dialog and let the export chip carry progress from here.
+  // The queue runs in the background — close the metadata dialog and let the
+  // export chip carry progress from here.
   ytDialog.close();
   beginExport("Preparing…");
+  const done: UploadOutcome[] = [];
   try {
-    const out = await renderVideo(exportSequence(uploadPlaylist()), ytBurnCb.checked);
-    if (!out) return; // renderVideo already reported why
-    const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-    const controller = new AbortController();
-    exportAbort = controller;
-    exportChipText.textContent = "Uploading to YouTube…";
-    try {
-      const res = await uploadVideo(out.blob, meta, {
-        onProgress: (f) => (exportChipText.textContent = `Uploading to YouTube… ${Math.round(f * 100)}%`),
-        signal: controller.signal,
-      });
-      if (!res) {
-        // Only reachable if the grant above expired during a very long render.
-        setStatus("YouTube sign-in was cancelled — nothing was uploaded.", "error");
-      } else {
+    for (const [i, code] of targets.entries()) {
+      const label = languageLabel(code);
+      const of = targets.length > 1 ? ` (${label}, ${i + 1} of ${targets.length})` : "";
+      const playlist = playlistFor(code);
+      const title = single ? ytTitle.value.trim() || doc.title : docTitleOf(playlist, doc.title);
+      const base = `${title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast"}${single ? "" : `-${code}`}`;
+
+      const out = await renderVideo(exportSequence(playlist), ytBurnCb.checked, of);
+      // Null means the key is missing, the render failed, or the user pressed
+      // cancel — all three already said so, and all three end the queue: the
+      // rest would fail the same way or was not wanted.
+      if (!out) break;
+
+      const controller = new AbortController();
+      exportAbort = controller;
+      exportChipText.textContent = `Uploading${of}…`;
+      try {
+        const res = await uploadVideo(
+          out.blob,
+          { title, description: ytDesc.value, privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"], language: code },
+          {
+            onProgress: (f) => (exportChipText.textContent = `Uploading${of}… ${Math.round(f * 100)}%`),
+            signal: controller.signal,
+          },
+        );
         // The caption track is NOT sent with the video: captions.insert needs
-        // the force-ssl scope, which also grants deleting the user's videos
-        // and comments — too much to fold into an upload. The file downloads
-        // either way (a re-render costs minutes), and the button below asks
-        // for that scope only if this user wants the drag done for them.
+        // the force-ssl scope, which also grants deleting the user's videos and
+        // comments — too much to fold into an upload. The file downloads either
+        // way (a re-render costs minutes), and the button below asks for that
+        // scope only if this user wants the drag done for them.
         const vtt = toVtt(out.cues);
         downloadBlob(`${base}.vtt`, new Blob([vtt], { type: "text/vtt" }));
-        setStatusAction(
-          `Uploaded: https://youtu.be/${res.videoId} — "${base}.vtt" was downloaded.`,
-          "Add subtitles to the video",
-          () => void addCaptions(res.videoId, meta.language, vtt),
-          "ok",
-        );
+        if (!res) done.push({ code, label, error: "sign-in expired" });
+        else done.push({ code, label, videoId: res.videoId, vtt });
+      } catch (err) {
+        if (controller.signal.aborted) {
+          setStatus("YouTube upload cancelled.");
+          return;
+        }
+        // One language failing must not cost the others their recordings.
+        done.push({ code, label, error: (err as Error).message });
       }
-    } catch (err) {
-      // Cancel aborts the fetch, which throws — that is the user's own doing,
-      // not a failure. Same check the render half makes.
-      if (controller.signal.aborted) setStatus("YouTube upload cancelled.");
-      else setStatus(`Upload failed: ${(err as Error).message}`, "error");
     }
   } finally {
     endExport();
+    reportUploads(done);
+  }
+}
+
+function reportUploads(done: UploadOutcome[]): void {
+  const ok = done.filter((d) => d.videoId);
+  if (done.length === 0) return;
+  const lines = done.map((d) => (d.videoId ? `${d.label}: https://youtu.be/${d.videoId}` : `${d.label}: ${d.error}`));
+  const text = `${ok.length} of ${done.length} uploaded. ${lines.join(" · ")} — subtitle files were downloaded.`;
+  if (ok.length === 0) {
+    setStatus(text, "error");
+    return;
+  }
+  setStatusAction(
+    text,
+    ok.length > 1 ? `Add subtitles to all ${ok.length} videos` : "Add subtitles to the video",
+    () => void addCaptionsToAll(ok),
+    ok.length === done.length ? "ok" : "error",
+  );
+}
+
+async function addCaptionsToAll(ok: UploadOutcome[]): Promise<void> {
+  const fallback = "The .vtt files are downloaded — add them in YouTube Studio.";
+  setStatus(`Adding subtitles to ${ok.length} video(s)…`);
+  let added = 0;
+  try {
+    for (const d of ok) {
+      // The first call asks for the captions scope; the rest reuse the grant.
+      if (!(await uploadCaptions({ videoId: d.videoId!, language: d.code, name: "drawcast" }, d.vtt!, AbortSignal.timeout(60_000)))) {
+        setStatus(`Subtitles were not added — YouTube's caption permission was declined. ${fallback}`, "error");
+        return;
+      }
+      added++;
+    }
+    setStatus(`Subtitles added to ${added} video(s).`, "ok");
+  } catch (err) {
+    setStatus(`Added subtitles to ${added} of ${ok.length}: ${(err as Error).message} — ${fallback}`, "error");
   }
 }
 
