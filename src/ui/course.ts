@@ -50,12 +50,15 @@ export interface CoursePanelDeps {
 }
 
 let panel: { dialog: HTMLDialogElement; open: () => void } | null = null;
+/** Re-syncs the button states when the panel is reopened mid-run. */
+let reopen: (() => void) | null = null;
 /** Repos published to in this session — the Pages note is shown only once each. */
 const published = new Set<string>();
 
 export function openCoursePanel(deps: CoursePanelDeps): void {
   if (panel) {
     panel.open();
+    reopen?.();
     return;
   }
 
@@ -93,7 +96,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const publishBtn = h("button", { class: "small", title: "Publish this course to your GitHub repository" }, "⬆ Publish");
   const backupBtn = h("button", { class: "small", title: "Download every course and drawcast as one file" }, "⬇ Backup");
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
-  const cancelBtn = h("button", { class: "small" }, "✕ Cancel");
+  const cancelBtn = h("button", { class: "small course-cancel", title: "Stop everything this panel has in flight" }, "✕ Cancel");
   cancelBtn.hidden = true;
   undoBtn.hidden = true;
 
@@ -718,7 +721,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, saveBtn, publishBtn, backupBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, saveBtn, publishBtn, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
     doc,
     warnings,
     status,
@@ -727,6 +730,10 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   );
   document.body.append(modal.dialog);
   panel = modal;
+  reopen = () => {
+    syncBusy();
+    render();
+  };
   const saved = loadCourses();
   if (saved.length > 0) loadCourse(saved[0].id); // newest first: saveCourse unshifts
   else refreshCourseList();

@@ -1371,6 +1371,14 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   resize: vertical;
 }
 .course-pick { max-width: 14rem; }
+/* Only ever visible while something is running, so it should be the thing the
+   eye lands on when it appears. */
+.course-cancel {
+  color: #b3261e;
+  border-color: color-mix(in srgb, #b3261e 55%, var(--surface));
+  background: color-mix(in srgb, #b3261e 10%, var(--surface));
+  font-weight: 600;
+}
 .course-cost { font-size: 0.82rem; opacity: 0.75; }
 .course-status { min-height: 1.2rem; font-size: 0.85rem; opacity: 0.85; margin-top: 0.4rem; }
 .course-status-error { color: #b3261e; opacity: 1; }
