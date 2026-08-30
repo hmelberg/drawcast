@@ -38,6 +38,7 @@ import { resolvePortraits, traceFromBlob } from "./render/portrait";
 import { resolveSources } from "./render/source";
 import { h } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
+import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
 import {
@@ -328,6 +329,10 @@ const promptEl = h("textarea", {
 });
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
 const reviseBtn = h("button", { class: "primary", title: "Change the current drawcast with AI" }, "Revise with AI");
+// Review mode: watch and collect notes, then apply them as one revision. A
+// mode rather than a permanent fixture — a viewer should never see it.
+const reviewBtn = h("button", { class: "small", title: "Watch and collect notes, then apply them as one revision" }, "✎ Review");
+let review: ReviewHandle | null = null;
 const blankBtn = h("button", { class: "sidebar-new", title: "Start a new drawcast from a minimal hand-editable spec" }, "＋ New drawcast");
 
 // ---------- version history: the ◀ ▶ arrows and the viewing bar ----------
@@ -788,7 +793,7 @@ const editorWrap = h(
     h(
       "div",
       { class: "panel editor-preview" },
-      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), ratingBox, promoteBtn, exportVideoBtn, uploadYtBtn, exportChip),
+      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), reviewBtn, ratingBox, promoteBtn, exportVideoBtn, uploadYtBtn, exportChip),
       previewHost,
       lintBox,
     ),
@@ -2132,6 +2137,30 @@ async function revise(): Promise<void> {
 }
 
 reviseBtn.addEventListener("click", () => void revise());
+
+reviewBtn.addEventListener("click", () => {
+  if (review) {
+    review.destroy();
+    review = null;
+    reviewBtn.classList.remove("active");
+    return;
+  }
+  review = attachReview(previewHost, {
+    applyLabel: "Send to Revise",
+    onApply: (instruction) => {
+      // Into the prompt box the Revise button already reads, rather than
+      // revising directly: the notes are a draft you can still edit, and
+      // Revise is where the user already knows changes come from.
+      promptEl.value = instruction;
+      promptEl.focus();
+      review?.destroy();
+      review = null;
+      reviewBtn.classList.remove("active");
+      setStatus("Notes collected — check the text and press Revise with AI.", "ok");
+    },
+  });
+  reviewBtn.classList.add("active");
+});
 
 /** #playlist / #parts=N: one outline call, then one ordinary generation per part. */
 async function generateMulti(

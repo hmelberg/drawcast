@@ -502,7 +502,9 @@ export function attachPlayerControls(
 
   const total = hd.plan.steps.length;
   const bigPlay = h("button", { class: "cs-bigplay", title: "Play with narration" }, "▶");
-  const playBtn = h("button", { class: "cs-bar-btn", title: "Play / pause" }, "▶");
+  // cs-play is a stable hook: review mode pauses playback by pressing this
+  // button rather than reaching into the player's internals.
+  const playBtn = h("button", { class: "cs-bar-btn cs-play", title: "Play / pause" }, "▶");
   const backBtn = h("button", { class: "cs-bar-btn", title: "Step back one command" }, "⏮");
   const fwdBtn = h("button", { class: "cs-bar-btn", title: "Step forward one command" }, "⏭");
   const progressFill = h("div", { class: "cs-progress-fill" });

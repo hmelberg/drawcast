@@ -1468,3 +1468,41 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .course-done { border-left-color: #2e7d32; }
 .course-failed { border-left-color: #b3261e; }
 .course-pending { opacity: 0.75; }
+
+/* ---- Review mode ---- */
+.rv-panel {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--surface);
+}
+.rv-head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.4rem; }
+.rv-title { font-weight: 600; font-size: 0.9rem; }
+.rv-where {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rv-input { width: 100%; font-size: 0.88rem; line-height: 1.5; padding: 0.45rem 0.55rem; resize: vertical; }
+.rv-bar { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
+.rv-hint { font-size: 0.78rem; opacity: 0.6; text-align: right; }
+.rv-list { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.5rem; }
+.rv-note {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+  border-left: 3px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 0.2rem;
+}
+.rv-note-at { flex: none; opacity: 0.6; font-size: 0.8rem; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-note-text { flex: 1; min-width: 0; }
+.rv-drop { flex: none; border: 0; background: transparent; cursor: pointer; opacity: 0.5; padding: 0 0.2rem; }
+.rv-drop:hover { opacity: 1; }
+.pane-bar button.active { border-color: var(--ink); font-weight: 600; }
