@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCourse, parseCourse, setLectureStatus } from "../src/course/document";
+import { formatCourse, parseCourse, setCourseOption, setLectureStatus } from "../src/course/document";
 
 const DOC = `# Causal Inference
 level: advanced · minutes: 5
@@ -113,5 +113,30 @@ describe("setLectureStatus", () => {
     expect(out).toContain("status: failed · error: no spec");
     expect(out).not.toContain("id: a3f9c1");
     expect(out).toContain("## Difference-in-differences");
+  });
+});
+
+describe("setCourseOption", () => {
+  it("adds a header key without touching anything else", () => {
+    const out = setCourseOption(DOC, "slug", "causal");
+    expect(out).toContain("slug: causal");
+    for (const line of DOC.split("\n")) {
+      if (line.trim()) expect(out).toContain(line);
+    }
+  });
+
+  it("replaces an existing one in place", () => {
+    const once = setCourseOption(DOC, "slug", "causal");
+    const twice = setCourseOption(once, "slug", "other");
+    expect(twice).toContain("slug: other");
+    expect(twice).not.toContain("slug: causal");
+    expect(twice.match(/slug:/g)).toHaveLength(1);
+  });
+
+  it("puts it in the header, never inside a lecture", () => {
+    const out = setCourseOption(DOC, "slug", "causal");
+    expect(out.indexOf("slug: causal")).toBeLessThan(out.indexOf("## Potential outcomes"));
+    expect(parseCourse(out).context.slug).toBe("causal");
+    expect(parseCourse(out).lectures[0].options.slug).toBeUndefined();
   });
 });

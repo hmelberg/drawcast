@@ -97,17 +97,29 @@ export async function preflight(repo: RepoRef, token: string, fetchImpl: typeof 
 
 const FOLD: Record<string, string> = { æ: "ae", ø: "o", å: "a", ä: "a", ö: "o", ü: "u", ß: "ss" };
 
+/** Past this, a folder name stops being something a student will type. */
+export const MAX_SLUG = 40;
+
 /**
  * A file name a person can read in a URL. Non-ASCII is folded rather than
- * dropped, so "Årsak" does not become "rsak".
+ * dropped, so "Årsak" does not become "rsak", and a long title is cut at a
+ * word boundary rather than mid-word — a course called "Causal inference in
+ * economics: evidence from health and health care" should not become a
+ * 63-character path.
  */
-export function slugify(text: string): string {
+export function slugify(text: string, max = MAX_SLUG): string {
   const folded = text
     .toLowerCase()
     .replace(/[æøåäöüß]/g, (c) => FOLD[c] ?? c)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
-  const slug = folded.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  let slug = folded.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (slug.length > max) {
+    const cut = slug.slice(0, max + 1);
+    const boundary = cut.lastIndexOf("-");
+    // Only honour the boundary if it leaves something worth reading.
+    slug = (boundary > max / 2 ? cut.slice(0, boundary) : slug.slice(0, max)).replace(/-+$/, "");
+  }
   return slug || "lecture";
 }
 

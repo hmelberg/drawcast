@@ -16,8 +16,8 @@ import {
   type PublishFile,
   type RepoRef,
 } from "../publish/github";
-import { parseCourse, setLectureStatus, type Course } from "./document";
-import { coursePage, lectureHref, repoIndexPage, type PageLink } from "./page";
+import { parseCourse, setCourseOption, setLectureStatus, type Course } from "./document";
+import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
 
 /**
  * Join a repo path, tolerating an empty directory. The default IS empty: a
@@ -31,6 +31,8 @@ export function joinPath(dir: string, ...parts: string[]): string {
 
 export interface PublishPlan {
   slug: string;
+  /** github.com's own rendering of the course README — works without Pages. */
+  readmeUrl: string;
   files: PublishFile[];
   deletions: string[];
   /** The file name each lecture index was assigned, for the status write-back. */
@@ -53,7 +55,9 @@ export interface PlanArgs {
 
 export function buildPublishPlan(args: PlanArgs): PublishPlan {
   const { course, text, repo, coursesDir, viewerBase, manifest } = args;
-  const slug = slugFor(course.title || "course", new Set());
+  // A slug recorded in the document wins and never changes: retitling a course
+  // would otherwise move its whole folder and orphan every link already shared.
+  const slug = course.context.slug || slugFor(course.title || "course", new Set());
   const dir = joinPath(coursesDir, slug);
 
   const taken = new Set<string>();
@@ -92,6 +96,9 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
 
   files.push({ path: joinPath(dir, "course.md"), content: text });
   files.push({ path: joinPath(dir, "index.html"), content: coursePage(course, links) });
+  // github.com renders this one itself, so the course is shareable before
+  // Pages is switched on — and if it never is.
+  files.push({ path: joinPath(dir, "README.md"), content: courseReadme(course, links) });
 
   const entry = {
     slug,
@@ -102,6 +109,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
   const next = upsertCourse(manifest, entry);
   files.push({ path: joinPath(coursesDir, "courses.json"), content: JSON.stringify(next, null, 2) + "\n" });
   files.push({ path: joinPath(coursesDir, "index.html"), content: repoIndexPage(next.courses, course.title) });
+  files.push({ path: joinPath(coursesDir, "README.md"), content: repoReadme(next.courses) });
   // Pages runs Jekyll by default, which rewrites and skips files by its own
   // rules; these pages are plain HTML and want serving verbatim. Only when the
   // repo is ours to shape, though — a repo we are publishing into a SUBFOLDER
@@ -117,6 +125,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
       files.map((f) => f.path),
     ),
     fileOf,
+    readmeUrl: `https://github.com/${repo.owner}/${repo.repo}/tree/HEAD/${dir}`,
     courseUrl: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`,
     pagesUrl: `https://${repo.owner}.github.io/${repo.repo}/${coursesDir ? `${coursesDir}/` : ""}`,
   };
@@ -133,10 +142,11 @@ export interface PublishArgs {
 }
 
 export interface PublishResult {
-  /** The course document with each published lecture's file name recorded. */
+  /** The document with the course's slug and each lecture's file name recorded. */
   text: string;
   courseUrl: string;
   pagesUrl: string;
+  readmeUrl: string;
   defaultBranch: string;
   /** Files written; useful for the report. */
   count: number;
@@ -156,7 +166,8 @@ export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
   // The document published inside the commit must already carry the file names,
   // or the repo's copy would disagree with the local one on the very first
   // publish — and the repo is meant to be the source you can re-open.
-  let updated = text;
+  // Record the slug first, so it is permanent from the first publish onward.
+  let updated = course.context.slug ? text : setCourseOption(text, "slug", plan.slug);
   for (const [index, name] of plan.fileOf) {
     const status = course.lectures[index].status;
     if (status) updated = setLectureStatus(updated, index, { ...status, file: name });
@@ -185,6 +196,7 @@ export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
     text: updated,
     courseUrl: withNames.courseUrl,
     pagesUrl: withNames.pagesUrl,
+    readmeUrl: withNames.readmeUrl,
     defaultBranch,
     count: withNames.files.length,
   };

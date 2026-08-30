@@ -57,8 +57,11 @@ export function buildLectureRequest(course: Course, index: number): string {
       `No questions or topics were given, so the lecture is its title: explain "${lecture.title}" — what it is, why it matters, and how it works.`,
     );
   }
-  // `minutes` is a budget for the planner, not something to narrate.
-  const context = Object.entries({ ...course.context, ...lecture.options }).filter(([key]) => key !== "minutes");
+  // `minutes` is a budget for the planner and `slug` is a file name; neither
+  // is something to narrate.
+  const context = Object.entries({ ...course.context, ...lecture.options }).filter(
+    ([key]) => key !== "minutes" && key !== "slug",
+  );
   if (context.length > 0) {
     lines.push("", "The whole course shares this — use it exactly, do not invent your own:");
     for (const [key, value] of context) lines.push(`- ${key}: ${value}`);

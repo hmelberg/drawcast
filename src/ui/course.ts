@@ -565,7 +565,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         );
         return;
       }
-      showLinks(out.courseUrl, out.pagesUrl, firstTime, out.defaultBranch);
+      showLinks(out.readmeUrl, out.courseUrl, out.pagesUrl, firstTime, out.defaultBranch);
       say(`Published ${out.count} files to ${settings.githubRepo}.`, "ok");
     } catch (err) {
       // The stack is what names the culprit; the message alone rarely does.
@@ -582,7 +582,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
    * whole point of publishing, and burying it in a status sentence that the
    * next message overwrites makes it useless — so this block persists.
    */
-  function showLinks(courseUrl: string, pagesUrl: string, firstTime: boolean, branch: string): void {
+  function showLinks(readmeUrl: string, courseUrl: string, pagesUrl: string, firstTime: boolean, branch: string): void {
     const row = (label: string, url: string): HTMLElement => {
       const copy = h("button", { class: "small", title: `Copy ${label}` }, "⧉");
       copy.addEventListener("click", () => {
@@ -599,13 +599,18 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         copy,
       );
     };
-    links.replaceChildren(row("Course page", courseUrl), row("All courses", pagesUrl));
+    links.replaceChildren(
+      // First, because it is the one that works without anything being switched on.
+      row("Share now", readmeUrl),
+      row("Course page", courseUrl),
+      row("All courses", pagesUrl),
+    );
     if (firstTime) {
       links.append(
         h(
           "div",
           { class: "course-link-note" },
-          `The lecture links work already. These two pages need GitHub Pages switched on once — in the repository: Settings → Pages → Source: Deploy from a branch → ${branch} / (root). After that every course in this repo gets its own page under the same site; nothing more to switch on.`,
+          `"Share now" and the lecture links work already — GitHub renders the course README itself. The two page links need GitHub Pages switched on once, in the repository: Settings → Pages → Source: Deploy from a branch → ${branch} / (root). If that dropdown is greyed out, reload the page: GitHub reads the branch list when the settings page loads, so it stays empty if you opened it before the first commit. After that, every course in this repo gets its own page under the same site.`,
         ),
       );
     }

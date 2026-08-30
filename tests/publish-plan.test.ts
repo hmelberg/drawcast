@@ -74,3 +74,23 @@ describe("removedPaths", () => {
     expect(removedPaths(m, "c", ["a"])).toEqual([]);
   });
 });
+
+describe("slug length", () => {
+  it("cuts at a word boundary rather than mid-word", () => {
+    expect(slugify("Causal inference in economics: evidence from health and health care")).toBe(
+      "causal-inference-in-economics-evidence",
+    );
+  });
+
+  it("leaves a short title alone", () => {
+    expect(slugify("Causal Inference")).toBe("causal-inference");
+  });
+
+  it("hard-cuts a single long word rather than returning nothing", () => {
+    expect(slugify("a".repeat(80)).length).toBe(40);
+  });
+
+  it("never ends on a hyphen", () => {
+    expect(slugify("one two three four five six seven eight nine ten")).not.toMatch(/-$/);
+  });
+});

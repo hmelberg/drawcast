@@ -79,3 +79,32 @@ export function repoIndexPage(courses: CourseEntry[], base: string): string {
     .join("\n");
   return page(base, `<h1>Courses</h1>\n<ol>\n${items}\n</ol>`);
 }
+
+// ---- Markdown ------------------------------------------------------------
+// github.com renders a folder's README.md with working links, so a course is
+// shareable the moment it is committed — no Pages, no build, no waiting. The
+// HTML page is the nicer one; this is the one that always works.
+
+/** Only what would otherwise break a link or a heading. */
+export function escapeMd(text: string): string {
+  return text.replace(/([\\`*_[\]<>])/g, "\\$1");
+}
+
+export function courseReadme(course: Course, links: PageLink[]): string {
+  const out = [`# ${escapeMd(course.title)}`, ""];
+  if (course.intro) out.push(escapeMd(course.intro), "");
+  links.forEach((link, i) => {
+    const title = escapeMd(link.title);
+    out.push(link.href ? `${i + 1}. [${title}](${link.href})` : `${i + 1}. ${title} — *not published yet*`);
+    for (const q of link.questions) out.push(`   - ${escapeMd(q)}`);
+  });
+  out.push("", "---", "", "Made with [drawcast](https://drawcast.app/).");
+  return out.join("\n") + "\n";
+}
+
+export function repoReadme(courses: CourseEntry[]): string {
+  const out = ["# Courses", ""];
+  for (const c of courses) out.push(`- [${escapeMd(c.title)}](${c.slug}/) — updated ${c.updated}`);
+  out.push("", "---", "", "Made with [drawcast](https://drawcast.app/).");
+  return out.join("\n") + "\n";
+}

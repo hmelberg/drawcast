@@ -182,6 +182,32 @@ export function formatCourse(course: Course): string {
 }
 
 /**
+ * Write a course-level `key: value` into the header without reformatting
+ * anything else — the same surgical contract as setLectureStatus. Used for
+ * `slug:`, which the publisher records on first publish so a later retitling
+ * cannot move the course's folder and orphan everything already linked.
+ */
+export function setCourseOption(text: string, key: string, value: string): string {
+  const lines = text.split("\n");
+  const line = `${key}: ${value}`;
+  const firstLecture = lines.findIndex((l) => {
+    const h = HEADING_RE.exec(l.trim());
+    return h !== null && h[1].length === 2;
+  });
+  const end = firstLecture === -1 ? lines.length : firstLecture;
+
+  const existing = lines.slice(0, end).findIndex((l) => new RegExp(`^\\s*${key}\\s*:`).test(l));
+  if (existing >= 0) {
+    lines[existing] = line;
+    return lines.join("\n");
+  }
+  // Straight after the title, so the header reads as a block.
+  const title = lines.findIndex((l) => /^#\s+/.test(l.trim()));
+  lines.splice(title >= 0 ? title + 1 : 0, 0, line);
+  return lines.join("\n");
+}
+
+/**
  * Write one lecture's status into the text without reformatting anything else.
  * A run must never cost the author their layout.
  */

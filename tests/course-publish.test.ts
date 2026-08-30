@@ -31,6 +31,8 @@ const args = (over: Partial<PlanArgs> = {}): PlanArgs => ({
 describe("buildPublishPlan", () => {
   it("publishes the course document, the page, and every generated lecture", () => {
     expect(buildPublishPlan(args()).files.map((f) => f.path).sort()).toEqual([
+      "courses/README.md",
+      "courses/causal-inference/README.md",
       "courses/causal-inference/course.md",
       "courses/causal-inference/did.yaml",
       "courses/causal-inference/index.html",
@@ -172,6 +174,8 @@ describe("publishing at the repository root", () => {
     const plan = buildPublishPlan(args({ coursesDir: "" }));
     expect(plan.files.map((f) => f.path).sort()).toEqual([
       ".nojekyll",
+      "README.md",
+      "causal-inference/README.md",
       "causal-inference/course.md",
       "causal-inference/did.yaml",
       "causal-inference/index.html",
@@ -207,5 +211,62 @@ describe("GitHub Pages", () => {
     const a = buildPublishPlan(args({ coursesDir: "" }));
     expect(a.courseUrl).toBe("https://o.github.io/r/causal-inference/");
     expect(a.pagesUrl).toBe("https://o.github.io/r/");
+  });
+});
+
+describe("the folder name", () => {
+  const long = `# Causal inference in economics: evidence from health and health care\n---\n## A\nQ?\nstatus: done · id: a1\n`;
+
+  it("cuts a long course title at a word boundary", () => {
+    const plan = buildPublishPlan(args({ course: parseCourse(long), text: long, coursesDir: "" }));
+    expect(plan.slug).toBe("causal-inference-in-economics-evidence");
+    expect(plan.slug.length).toBeLessThanOrEqual(40);
+  });
+
+  it("lets the document name the folder itself", () => {
+    const chosen = long.replace("care\n", "care\nslug: causal\n");
+    expect(buildPublishPlan(args({ course: parseCourse(chosen), text: chosen })).slug).toBe("causal");
+  });
+
+  it("keeps the recorded slug when the course is retitled, so nothing is orphaned", () => {
+    const renamed = `# A completely different name\nslug: causal\n---\n## A\nQ?\nstatus: done · id: a1\n`;
+    expect(buildPublishPlan(args({ course: parseCourse(renamed), text: renamed })).slug).toBe("causal");
+  });
+});
+
+describe("the README GitHub renders itself", () => {
+  it("links each published lecture", () => {
+    const readme = buildPublishPlan(args()).files.find((f) => f.path.endsWith("causal-inference/README.md"))!;
+    expect(readme.content).toContain("[Difference-in-differences](https://drawcast.app/#gh=o/r/courses/causal-inference/did.yaml)");
+  });
+
+  it("marks an ungenerated lecture instead of linking it", () => {
+    const readme = buildPublishPlan(args()).files.find((f) => f.path.endsWith("causal-inference/README.md"))!;
+    expect(readme.content).toContain("Not made yet — *not published yet*");
+  });
+
+  it("points at github.com, which needs no Pages", () => {
+    expect(buildPublishPlan(args()).readmeUrl).toBe("https://github.com/o/r/tree/HEAD/courses/causal-inference");
+  });
+
+  it("lists every course at the top level", () => {
+    const readme = buildPublishPlan(args()).files.find((f) => f.path === "courses/README.md")!;
+    expect(readme.content).toContain("[Causal Inference](causal-inference/)");
+  });
+});
+
+describe("recording the slug", () => {
+  it("writes it into the document on the first publish", async () => {
+    const { fetchImpl } = fakeGithub();
+    const out = await publishCourse({ ...publishArgs, fetchImpl });
+    expect(out.text).toContain("slug: causal-inference");
+  });
+
+  it("does not rewrite one the document already carries", async () => {
+    const { fetchImpl } = fakeGithub();
+    const chosen = TEXT.replace("# Causal Inference\n", "# Causal Inference\nslug: mine\n");
+    const out = await publishCourse({ ...publishArgs, text: chosen, fetchImpl });
+    expect(out.text).toContain("slug: mine");
+    expect(out.text).not.toContain("slug: causal-inference");
   });
 });
