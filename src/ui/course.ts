@@ -6,8 +6,10 @@
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
 import { publishCourse } from "../course/publish";
+import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
+import { setLectureStatus } from "../course/document";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
@@ -95,6 +97,8 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const saveBtn = h("button", { class: "small" }, "💾 Save");
   const publishBtn = h("button", { class: "small", title: "Publish this course to your GitHub repository" }, "⬆ Publish");
   const backupBtn = h("button", { class: "small", title: "Download every course and drawcast as one file" }, "⬇ Backup");
+  const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
+  matchBtn.hidden = true;
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
   const cancelBtn = h("button", { class: "small course-cancel", title: "Stop everything this panel has in flight" }, "✕ Cancel");
   cancelBtn.hidden = true;
@@ -181,6 +185,13 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     warnings.textContent = course.warnings.join(" ");
     warnings.hidden = course.warnings.length === 0;
     cost.textContent = course.lectures.length > 0 ? costPreview(course) : "";
+    // A lecture whose drawcast exists but whose status line was lost would be
+    // generated again at full cost. Offer the repair, and only when there is
+    // one to make.
+    const found = matchLibrary(course, loadLibrary(), courseId);
+    matchBtn.hidden = found.length === 0;
+    matchBtn.textContent = `⟲ Match ${found.length} to library`;
+    matchBtn.title = `${found.length} lecture${found.length === 1 ? " is" : "s are"} already in your library but not marked done here — mark them, so Generate does not make them again`;
     rows.replaceChildren(
       ...course.lectures.map((lecture, i) => {
         const done = lecture.status?.state === "done" && lecture.status.id;
@@ -656,6 +667,29 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     links.hidden = false;
   }
 
+  matchBtn.addEventListener("click", () => {
+    const course = parseCourse(doc.value);
+    const found = matchLibrary(course, loadLibrary(), courseId);
+    if (found.length === 0) return;
+    let text = doc.value;
+    for (const match of found) {
+      text = setLectureStatus(text, match.index, restoredStatus(match.id, course.lectures[match.index].status));
+    }
+    checkpoint();
+    doc.value = text;
+    try {
+      persist();
+    } catch (err) {
+      say((err as Error).message, "error");
+      return;
+    }
+    render();
+    say(
+      `Marked ${found.length} lecture${found.length === 1 ? "" : "s"} as done: ${found.map((m) => m.title).join(", ")}. Generate will now skip them. ↩ Undo reverses this.`,
+      "ok",
+    );
+  });
+
   backupBtn.addEventListener("click", () => {
     // Everything localStorage holds for courses, in one file. Generated
     // lectures cost real money, and until a course is published to GitHub the
@@ -721,7 +755,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, saveBtn, publishBtn, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
     doc,
     warnings,
     status,
