@@ -301,14 +301,23 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
 
   function refreshCourseList(): void {
     const saved = loadCourses();
-    courseSel.replaceChildren(
-      ...saved.map((c) => {
-        const option = h("option", { value: c.id }, c.title || "Untitled course") as HTMLOptionElement;
-        option.selected = c.id === courseId;
-        return option;
-      }),
-    );
-    courseSel.hidden = saved.length === 0;
+    const options = saved.map((c) => {
+      const option = h("option", { value: c.id }, c.title || "Untitled course") as HTMLOptionElement;
+      option.selected = c.id === courseId;
+      return option;
+    });
+    // Without an entry of its own, an unsaved new course selects nothing — and
+    // a <select> with nothing selected displays its FIRST option, so the panel
+    // looked as though the previous course were still loaded and about to be
+    // overwritten. It never was (persist mints a fresh id when courseId is
+    // null), but the control has to say so.
+    if (courseId === null) {
+      const blank = h("option", { value: "" }, "— New course —") as HTMLOptionElement;
+      blank.selected = true;
+      options.unshift(blank);
+    }
+    courseSel.replaceChildren(...options);
+    courseSel.hidden = options.length === 0;
   }
 
   function loadCourse(id: string): void {
@@ -495,7 +504,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     }
   }
 
-  courseSel.addEventListener("change", () => loadCourse(courseSel.value));
+  courseSel.addEventListener("change", () => {
+    if (courseSel.value) loadCourse(courseSel.value); // "" is the placeholder
+  });
   newBtn.addEventListener("click", () => {
     // Autosave means whatever is on screen is already stored; starting a new
     // course can never cost the old one.
@@ -506,7 +517,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     undoBtn.hidden = true;
     render();
     refreshCourseList();
-    say("New course. Describe it above and press Plan.");
+    say("New course — nothing is saved until you write something, and your other courses are untouched.");
   });
   /**
    * Publishing is a remote write whose result is invisible from here — the
