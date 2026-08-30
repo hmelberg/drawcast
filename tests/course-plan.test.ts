@@ -69,3 +69,20 @@ describe("normalizeCoursePlan", () => {
     expect(round.lectures[0].tags).toEqual(["#why", "#parts=4"]);
   });
 });
+
+describe("taste lives in the planner, not the runner", () => {
+  it("steers the planner toward why and how", () => {
+    const system = buildCourseMessages("x", null).system;
+    expect(system).toContain("why and how");
+  });
+
+  it("tells the planner that presentation lectures are legitimate", () => {
+    const system = buildCourseMessages("x", null).system;
+    expect(system.toLowerCase()).toContain("not every lecture is an argument");
+    expect(system).toContain("#data");
+  });
+
+  it("tells the planner to leave a teacher's topics alone", () => {
+    expect(buildCourseMessages("x", null).system).toContain("keep them as topics");
+  });
+});

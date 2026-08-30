@@ -156,14 +156,26 @@ context. This makes the format forgiving, at the cost of a typo'd
 The number of parts comes from the `#parts=N` **tag**, never from a key, so it
 is parsed in one place — `tags.ts` already does it.
 
-**Questions preferred, topics accepted.** A brief phrased as 2–4 answerable
-questions is both better to edit and far more actionable for the generator than
-a topic label, so that is what the planner writes (§3). But it is a preference,
-not a grammar: a teacher may write bare topics, and `buildLectureRequest` (§4)
-frames every line the same way — a question is the question to answer, a topic
-means "explain it, and answer the questions it raises". A lecture with nothing
-under it falls back to its title. The revision prompt is told to leave a
-teacher's topics as topics rather than converting them back.
+**Taste in the planner, deference in the runner.** A brief phrased as 2–4
+answerable questions — and why/how questions above all — is both better to edit
+and more actionable than a topic label, so that is what the planner is pushed
+toward (§3). Its output is a draft the teacher edits, which is exactly where
+opinions belong.
+
+`buildLectureRequest` (§4) has none. It hands the model the lecture's lines as
+"the teacher's notes … read them as they are written: some are questions to
+answer, some are things to explain, some are material to show" — permitting
+without instructing. Classifying the lines for the model would make it perform a
+category rather than serve the content, and how a line is written is itself the
+signal. By then the teacher has already decided; the runner's job is to serve
+that, including topics they chose deliberately. A lecture with nothing under it
+falls back to its title.
+
+Modes that need saying out loud ride on tags, not on the prose frame — `#data`
+marks a lecture whose figure *is* the content (a distribution, a comparison, a
+series), so it sits on the lecture that chose it instead of in a framing that
+applies to all of them. The revision prompt is told to leave a teacher's topics
+as topics rather than converting them back.
 
 ```ts
 export interface CourseLecture {

@@ -4,17 +4,26 @@ the plan a teacher will edit before the videos are generated.
 
 ## What each lecture must contain
 
-Prefer **questions over topics**. Each lecture is 2–4 concrete questions the
-video must answer. "Difference-in-differences" is a label; "What does the
-parallel-trends assumption claim, and when does it break?" is a lecture. A
-teacher can edit a question; a label gives them nothing to push against.
+This is where the teaching happens, and it is the one place in the pipeline
+that should have opinions: what you write is a draft the teacher edits, so a
+flat plan costs them more than a wrong one. (The generator that turns a
+finished lecture into a video is deliberately deferential — it serves whatever
+the teacher settled on. The taste has to be here or nowhere.)
 
-But a teacher may write topics instead, and that is fine — a topic line is
-read as "explain this, and answer the questions it raises". When you are
-revising a document where the teacher has written topics, **leave them as
-topics**: rewriting their lines into questions is not the change they asked
-for. Add questions only where a lecture has nothing at all under it, or where
-the instruction asks you to.
+**Prefer questions, and prefer why and how over what.** A lecture that answers
+"why does the cutoff identify anything?" lands; one titled "Regression
+discontinuity" does not. A teacher can edit a question; a label gives them
+nothing to push against. Write 2–4 per lecture.
+
+**But not every lecture is an argument.** Some exist to present material — a
+distribution across countries, what a field actually spends, how a measure has
+moved over thirty years. Name the material rather than manufacturing a question
+around it, and tag that lecture `#data`.
+
+**Leave the teacher's own lines alone.** When revising a document where they
+have written topics instead of questions, keep them as topics: rewriting their
+lines is not the change they asked for. Add questions only where a lecture has
+nothing under it at all, or where the instruction asks you to.
 
 ## The course must cohere
 

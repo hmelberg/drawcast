@@ -466,7 +466,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     h(
       "p",
       { class: "course-help" },
-      "One ## heading per lecture — each becomes its own drawcast. Questions work best (\u201cWhat breaks parallel trends?\u201d), but a bare topic is fine too: it is read as \u201cexplain this\u201d. Tags like #why or #parts=4 apply to that lecture.",
+      "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
     h("div", { class: "pane-bar" }, planBtn, reviseBtn, runBtn, saveBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),

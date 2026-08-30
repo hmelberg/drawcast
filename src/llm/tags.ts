@@ -5,7 +5,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction";
+export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction";
 
 export interface TagDef {
   tag: string;
@@ -173,6 +173,16 @@ export const TAGS: TagDef[] = [
     hint: "one strengths-and-weaknesses moment",
     brief:
       "Include one balanced strengths-and-weaknesses moment: what this concept or method does well and where it breaks down, in one or two speak lines, within the length budget.",
+  },
+  {
+    tag: "data",
+    group: "mode",
+    hint: "the figure IS the content: present the numbers",
+    brief:
+      "This drawcast presents material rather than arguing a point: the figure IS the content — a distribution, a comparison, a series over time — and the narration serves the display rather than the other way round. " +
+      "Read the shape out loud: what is large, what is small, what changed, what is surprising. Let the numbers carry it — reach for a 'why' only where the material itself raises one. " +
+      "If you do not know the real magnitudes, draw a clearly illustrative shape and SAY that it is illustrative, rather than putting invented precision on the axes. " +
+      GUARDRAIL,
   },
   {
     tag: "calm",

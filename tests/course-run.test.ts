@@ -154,14 +154,17 @@ The 2x2 estimator
     expect(req).toContain("The 2x2 estimator");
   });
 
-  it("tells the model a topic line means explain it", () => {
+  it("presents the lines as the teacher's notes, without classifying them", () => {
     const req = buildLectureRequest(parseCourse(TOPICS), 0);
-    expect(req).toContain("naming a topic");
-    expect(req).toContain("why it matters");
+    expect(req).toContain("teacher's notes");
+    expect(req).toContain("some are material to show");
   });
 
   it("does not claim the lines are questions", () => {
-    expect(buildLectureRequest(parseCourse(TOPICS), 0)).not.toContain("Answer these questions");
+    const req = buildLectureRequest(parseCourse(TOPICS), 0);
+    expect(req).not.toContain("Answer these questions");
+    // The taste lives in the planner prompt; the runner must not re-argue it.
+    expect(req).not.toContain("Match the mode");
   });
 
   it("falls back to the title when a lecture has nothing under it", () => {
