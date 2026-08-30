@@ -47,6 +47,11 @@ async function call<T>(
 ): Promise<T> {
   const res = await fetchImpl(`${API}${path}`, {
     method,
+    // GitHub sends `Cache-Control: private, max-age=60` on API responses, so a
+    // plain GET of the branch ref can be answered from the browser cache with a
+    // sha that is a minute old. Committing on top of that stale parent is
+    // exactly what GitHub then rejects as "Update is not a fast forward".
+    cache: "no-store",
     headers: { ...headers(token), ...(body ? { "Content-Type": "application/json" } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
@@ -184,7 +189,13 @@ export function parseManifest(text: string): Manifest {
 
 /** Read one file from the public repo; null when it is not there yet. */
 export async function readFile(repo: RepoRef, path: string, fetchImpl: typeof fetch = fetch): Promise<string | null> {
-  const res = await fetchImpl(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/HEAD/${path}`);
+  // Cache-busted: raw.githubusercontent sits behind a CDN with a multi-minute
+  // TTL, and a stale manifest would make the next publish compute deletions
+  // from a picture of the repo that is no longer true.
+  const bust = `?t=${Date.now()}`;
+  const res = await fetchImpl(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/HEAD/${path}${bust}`, {
+    cache: "no-store",
+  });
   return res.ok ? await res.text() : null;
 }
 
@@ -276,15 +287,33 @@ export async function commitFiles(
     // to remove in a repository that had no commits a moment ago.
     ...(wasEmpty ? [] : deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null }))),
   ];
-  const newTree = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/trees`, {
-    base_tree: state.baseTree,
-    tree,
-  });
-  const newCommit = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/commits`, {
-    message,
-    tree: newTree.sha,
-    parents: [state.head],
-  });
-  await call(fetchImpl, token, "PATCH", `${base}/git/refs/heads/${branch}`, { sha: newCommit.sha });
-  return { commitSha: newCommit.sha };
+
+  /** Build a commit on the given parent and move the branch to it. */
+  const commitOnto = async (onto: { head: string; baseTree: string }): Promise<string> => {
+    const newTree = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/trees`, {
+      base_tree: onto.baseTree,
+      tree,
+    });
+    const newCommit = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/commits`, {
+      message,
+      tree: newTree.sha,
+      parents: [onto.head],
+    });
+    await call(fetchImpl, token, "PATCH", `${base}/git/refs/heads/${branch}`, { sha: newCommit.sha });
+    return newCommit.sha;
+  };
+
+  try {
+    return { commitSha: await commitOnto(state) };
+  } catch (err) {
+    // "Update is not a fast forward": someone else pushed between our read and
+    // our write — a commit from GitHub's web editor, another tab, another
+    // machine. Re-read the branch and rebuild on top of what is there now.
+    // Once only: a second failure means something is pushing continuously, and
+    // retrying forever would be worse than saying so.
+    if (!(err instanceof PublishError) || err.status !== 422) throw err;
+    const fresh = await readHead(fetchImpl, token, base, branch);
+    if (!fresh) throw err;
+    return { commitSha: await commitOnto(fresh) };
+  }
 }

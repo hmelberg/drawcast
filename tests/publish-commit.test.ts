@@ -190,3 +190,72 @@ describe("large files", () => {
     expect((seed.body!.content as string).length).toBeGreaterThan(1_000_000);
   });
 });
+
+describe("a branch that moved under us", () => {
+  /** Answers the first PATCH with 422, then behaves; head advances after it. */
+  function racing(): { calls: Call[]; fetchImpl: typeof fetch } {
+    const calls: Call[] = [];
+    let patched = 0;
+    let head = "old";
+    const fetchImpl = (async (url: string, init: RequestInit = {}) => {
+      const method = init.method ?? "GET";
+      calls.push({ url, method, body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null });
+      if (url.includes("/git/refs/heads/") && method === "PATCH") {
+        patched++;
+        if (patched === 1) {
+          head = "moved";
+          return { ok: false, status: 422, json: async () => ({}), text: async () => "Update is not a fast forward" } as Response;
+        }
+        return { ok: true, status: 200, json: async () => ({}), text: async () => "" } as Response;
+      }
+      const body = url.includes("/git/ref/")
+        ? { object: { sha: head } }
+        : url.includes("/git/commits/")
+          ? { tree: { sha: `${head}-tree` } }
+          : { sha: "new" };
+      return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
+    }) as unknown as typeof fetch;
+    return { calls, fetchImpl };
+  }
+
+  it("re-reads the branch and lands the commit instead of failing", async () => {
+    const { fetchImpl } = racing();
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).resolves.toBeTruthy();
+  });
+
+  it("rebuilds on whatever is there now, not on the stale parent", async () => {
+    const { calls, fetchImpl } = racing();
+    await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
+    const commits = calls.filter((c) => c.url.endsWith("/git/commits") && c.method === "POST");
+    expect(commits[0].body!.parents).toEqual(["old"]);
+    expect(commits[1].body!.parents).toEqual(["moved"]);
+    const trees = calls.filter((c) => c.url.includes("/git/trees"));
+    expect(trees[1].body!.base_tree).toBe("moved-tree");
+  });
+
+  it("gives up after one retry rather than looping", async () => {
+    const calls: Call[] = [];
+    const alwaysStale = (async (url: string, init: RequestInit = {}) => {
+      const method = init.method ?? "GET";
+      calls.push({ url, method, body: null });
+      if (url.includes("/git/refs/heads/") && method === "PATCH") {
+        return { ok: false, status: 422, json: async () => ({}), text: async () => "Update is not a fast forward" } as Response;
+      }
+      const body = url.includes("/git/ref/") ? { object: { sha: "s" } } : url.includes("/git/commits/") ? { tree: { sha: "t" } } : { sha: "n" };
+      return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
+    }) as unknown as typeof fetch;
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", alwaysStale)).rejects.toThrow(/fast forward/);
+    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(2);
+  });
+
+  it("never lets the browser answer an API read from cache", async () => {
+    const seen: (RequestCache | undefined)[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit = {}) => {
+      seen.push(init.cache);
+      const body = url.includes("/git/ref/") ? { object: { sha: "s" } } : url.includes("/git/commits/") ? { tree: { sha: "t" } } : { sha: "n" };
+      return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
+    }) as unknown as typeof fetch;
+    await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
+    expect(seen.every((c) => c === "no-store")).toBe(true);
+  });
+});
