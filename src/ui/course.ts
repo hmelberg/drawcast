@@ -107,6 +107,13 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
    * last one lands, not the newest.
    */
   const inFlight = new Set<AbortController>();
+  /**
+   * Batch runs currently going. Two at once generate the same lectures twice
+   * — the second run's plan was made before the first one's results landed —
+   * and their status write-backs overwrite each other, so a lecture that
+   * finished can lose its `status: done` and be generated a third time.
+   */
+  let runsActive = 0;
 
   function syncBusy(): void {
     const busy = inFlight.size > 0;
@@ -447,6 +454,13 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       say("Add an API key in Settings first.", "error");
       return;
     }
+    if (runsActive > 0) {
+      say(
+        "A run is already going — starting another would generate the same lectures twice. Wait for it, or press Cancel and then Generate to pick up where it stopped.",
+        "error",
+      );
+      return;
+    }
     const course = parseCourse(doc.value);
     if (course.lectures.length === 0) {
       say("There is nothing to generate yet — plan or write a course first.", "error");
@@ -509,6 +523,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     } catch (err) {
       say(`The run stopped: ${(err as Error).message}`, "error");
     } finally {
+      runsActive--;
       end(controller);
       render();
     }

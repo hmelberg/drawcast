@@ -102,3 +102,14 @@ describe("the gate is what sets batch throughput", () => {
     expect(peak).toBe(GENERATION_LIMIT);
   });
 });
+
+describe("cancelling costs nothing", () => {
+  it("spends no call on an outline still queued when the run was cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const { outline, error } = await outlineParts({ request: "r", parts: 2, brief: "" }, cfg({ signal: controller.signal }));
+    expect(mockCallForJson).not.toHaveBeenCalled();
+    expect(outline).toBeNull();
+    expect(error).toBeTruthy();
+  });
+});

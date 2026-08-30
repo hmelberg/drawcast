@@ -44,7 +44,11 @@ export async function outlineParts(req: PartsRequest, cfg: GenerateConfig): Prom
   let outline: Outline | null;
   try {
     outline = await generationGate(() =>
-      generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters),
+      // Same guard the parts have: an outline still queued when the run was
+      // cancelled must not spend a call on its way out.
+      cfg.signal?.aborted
+        ? Promise.resolve(null)
+        : generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters),
     );
   } catch (err) {
     return { outline: null, error: (err as Error).message };
