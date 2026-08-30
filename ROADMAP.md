@@ -510,15 +510,22 @@ gains multiply.
   a guess at where rate limits start. If 429s show up in practice, shrink the
   gate on a 429 and grow it back, rather than tuning a constant by hand.
 
-### Stage B — publishing (specified, not built)
+### Stage B — publishing (done 2026-08-30)
 
-Spec §8–§11. The author's own public GitHub repo, one folder per course, one
-atomic commit via the Git Data API, a generated `index.html` overview page,
-and a `#gh=owner/repo/path` viewer mode. Chosen over Drive because
-`SavedDrawing` has no `driveFileId`, so a regenerated lecture would get a new
-Drive file and break every published link — plus Drive needs per-file manual
-sharing and cannot host the overview page. Ship only after a real course has
-been through stage A.
+The author's own public GitHub repo, one folder per course, one atomic commit
+via the Git Data API (five calls whatever the course's size), a generated
+`index.html` overview page, and a `#gh=owner/repo/path` viewer mode. Chosen
+over Drive because `SavedDrawing` has no `driveFileId`, so a regenerated
+lecture would get a new Drive file and break every published link — plus Drive
+needs per-file manual sharing and cannot host the overview page. The publishing
+seam is `publishCourse` in `src/course/publish.ts`; a Drive target would
+replace that one function and nothing else.
+
+Open: **`#gh=` links work without Pages** (they are raw fetches), but the
+overview page needs Pages switched on once per repo. The app says so after the
+first publish rather than probing, because the Pages endpoint needs admin
+permission a Contents-only token does not have and would answer 403 either
+way.
 
 ### C — a catalogue of courses other people made
 
