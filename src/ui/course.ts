@@ -145,7 +145,11 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   function say(text: string, kind?: "ok" | "error"): void {
     status.textContent = text;
     status.classList.toggle("course-status-error", kind === "error");
-    if (text) say(text, kind);
+    // deps.setStatus, never this function itself: a blanket rename once
+    // rewrote this line into a self-call, and every message in the panel then
+    // recursed until the stack blew. The text is assigned above first, so the
+    // message still appeared — which is exactly what hid the bug.
+    if (text) deps.setStatus(text, kind);
   }
 
   /** Transient progress: the panel's line only, never the app's. */
