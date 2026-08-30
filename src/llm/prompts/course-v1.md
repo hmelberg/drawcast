@@ -4,10 +4,17 @@ the plan a teacher will edit before the videos are generated.
 
 ## What each lecture must contain
 
-Write **questions, not topics**. Each lecture is 2–4 concrete questions the
+Prefer **questions over topics**. Each lecture is 2–4 concrete questions the
 video must answer. "Difference-in-differences" is a label; "What does the
 parallel-trends assumption claim, and when does it break?" is a lecture. A
-teacher can edit a question. Nobody can edit a label.
+teacher can edit a question; a label gives them nothing to push against.
+
+But a teacher may write topics instead, and that is fine — a topic line is
+read as "explain this, and answer the questions it raises". When you are
+revising a document where the teacher has written topics, **leave them as
+topics**: rewriting their lines into questions is not the change they asked
+for. Add questions only where a lecture has nothing at all under it, or where
+the instruction asks you to.
 
 ## The course must cohere
 

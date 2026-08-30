@@ -156,10 +156,14 @@ context. This makes the format forgiving, at the cost of a typo'd
 The number of parts comes from the `#parts=N` **tag**, never from a key, so it
 is parsed in one place — `tags.ts` already does it.
 
-**Questions, not topics.** A brief phrased as 2–4 answerable questions is both
-better to edit and far more actionable for the generator than a topic label.
-This is a format rule, enforced by the planner prompt (§3), not by the parser —
-a lecture with prose instead of questions still generates.
+**Questions preferred, topics accepted.** A brief phrased as 2–4 answerable
+questions is both better to edit and far more actionable for the generator than
+a topic label, so that is what the planner writes (§3). But it is a preference,
+not a grammar: a teacher may write bare topics, and `buildLectureRequest` (§4)
+frames every line the same way — a question is the question to answer, a topic
+means "explain it, and answer the questions it raises". A lecture with nothing
+under it falls back to its title. The revision prompt is told to leave a
+teacher's topics as topics rather than converting them back.
 
 ```ts
 export interface CourseLecture {

@@ -39,7 +39,21 @@ export function buildLectureRequest(course: Course, index: number): string {
   const lecture = course.lectures[index];
   const lines = [`${lecture.title} — a lecture in the course "${course.title}".`];
   if (lecture.questions.length > 0) {
-    lines.push("", "Answer these questions, in this order:", ...lecture.questions.map((q) => `- ${q}`));
+    // One framing for both kinds of line rather than trying to classify them:
+    // a teacher writes questions sometimes and bare topics other times, and a
+    // topic can end in a question mark as easily as a question can not.
+    lines.push(
+      "",
+      "This lecture covers, in this order:",
+      ...lecture.questions.map((q) => `- ${q}`),
+      "",
+      "A line phrased as a question is the question to answer. A line naming a topic means: explain it, and answer the questions it naturally raises — what it is, why it matters, and where it breaks down.",
+    );
+  } else {
+    lines.push(
+      "",
+      `No questions or topics were given, so the lecture is its title: explain "${lecture.title}" — what it is, why it matters, and where it breaks down.`,
+    );
   }
   // `minutes` is a budget for the planner, not something to narrate.
   const context = Object.entries({ ...course.context, ...lecture.options }).filter(([key]) => key !== "minutes");

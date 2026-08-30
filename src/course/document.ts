@@ -17,6 +17,11 @@ export interface LectureStatus {
 
 export interface CourseLecture {
   title: string;
+  /**
+   * What the lecture must cover, one item per line. Questions are what the
+   * planner writes and what edits best, but a bare topic is equally valid —
+   * the runner reads it as "explain this".
+   */
   questions: string[];
   chapters: string[];
   /** Raw drawcast tags, e.g. ["#why", "#parts=4"]. */

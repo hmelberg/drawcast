@@ -137,3 +137,40 @@ describe("pendingIndices", () => {
     expect(pendingIndices(parseCourse(DOC), { only: 9 })).toEqual([]);
   });
 });
+
+describe("topics, not only questions", () => {
+  const TOPICS = `# Causal Inference
+---
+## Difference-in-differences
+Parallel trends
+The 2x2 estimator
+---
+## Synthetic control
+`;
+
+  it("passes topic lines through as the ground to cover", () => {
+    const req = buildLectureRequest(parseCourse(TOPICS), 0);
+    expect(req).toContain("Parallel trends");
+    expect(req).toContain("The 2x2 estimator");
+  });
+
+  it("tells the model a topic line means explain it", () => {
+    const req = buildLectureRequest(parseCourse(TOPICS), 0);
+    expect(req).toContain("naming a topic");
+    expect(req).toContain("why it matters");
+  });
+
+  it("does not claim the lines are questions", () => {
+    expect(buildLectureRequest(parseCourse(TOPICS), 0)).not.toContain("Answer these questions");
+  });
+
+  it("falls back to the title when a lecture has nothing under it", () => {
+    const req = buildLectureRequest(parseCourse(TOPICS), 1);
+    expect(req).toContain('explain "Synthetic control"');
+    expect(req).toContain("why it matters");
+  });
+
+  it("still carries questions when they are questions", () => {
+    expect(buildLectureRequest(parseCourse(DOC), 1)).toContain("What breaks parallel trends?");
+  });
+});

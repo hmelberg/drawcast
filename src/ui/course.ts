@@ -53,7 +53,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const doc = h("textarea", {
     class: "course-doc",
     spellcheck: "false",
-    placeholder: "# My course\n\n---\n## First lecture\nWhat question does it answer?\n#parts=4",
+    placeholder: "# My course\n\n---\n## First lecture\nWhat question does it answer? (or just name a topic)\n#parts=4",
   }) as HTMLTextAreaElement;
   // The one input for both actions: describe the course to Plan it, then
   // describe a change to Revise it. It grows with the text — a course is often
@@ -466,7 +466,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     h(
       "p",
       { class: "course-help" },
-      "One ## heading per lecture — each becomes its own drawcast. Write questions, not topics. Tags like #why or #parts=4 apply to that lecture.",
+      "One ## heading per lecture — each becomes its own drawcast. Questions work best (\u201cWhat breaks parallel trends?\u201d), but a bare topic is fine too: it is read as \u201cexplain this\u201d. Tags like #why or #parts=4 apply to that lecture.",
     ),
     ask,
     h("div", { class: "pane-bar" }, planBtn, reviseBtn, runBtn, saveBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
