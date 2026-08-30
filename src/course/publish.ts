@@ -102,6 +102,11 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
   const next = upsertCourse(manifest, entry);
   files.push({ path: joinPath(coursesDir, "courses.json"), content: JSON.stringify(next, null, 2) + "\n" });
   files.push({ path: joinPath(coursesDir, "index.html"), content: repoIndexPage(next.courses, course.title) });
+  // Pages runs Jekyll by default, which rewrites and skips files by its own
+  // rules; these pages are plain HTML and want serving verbatim. Only when the
+  // repo is ours to shape, though — a repo we are publishing into a SUBFOLDER
+  // of may be someone's Jekyll site, and this file at its root would break it.
+  if (coursesDir === "") files.push({ path: ".nojekyll", content: "" });
 
   return {
     slug,

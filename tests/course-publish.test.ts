@@ -171,6 +171,7 @@ describe("publishing at the repository root", () => {
   it("gives each course its own folder without an extra level", () => {
     const plan = buildPublishPlan(args({ coursesDir: "" }));
     expect(plan.files.map((f) => f.path).sort()).toEqual([
+      ".nojekyll",
       "causal-inference/course.md",
       "causal-inference/did.yaml",
       "causal-inference/index.html",
@@ -190,5 +191,21 @@ describe("publishing at the repository root", () => {
     const page = buildPublishPlan(args({ coursesDir: "" })).files.find((f) => f.path === "causal-inference/index.html")!;
     expect(page.content).toContain("#gh=o/r/causal-inference/did.yaml");
     expect(page.content).not.toContain("//causal-inference");
+  });
+});
+
+describe("GitHub Pages", () => {
+  it("disables Jekyll when the repo is ours to shape", () => {
+    expect(buildPublishPlan(args({ coursesDir: "" })).files.map((f) => f.path)).toContain(".nojekyll");
+  });
+
+  it("leaves the root alone when publishing into a subfolder of someone else's repo", () => {
+    expect(buildPublishPlan(args({ coursesDir: "courses" })).files.map((f) => f.path)).not.toContain(".nojekyll");
+  });
+
+  it("gives every course its own page under one Pages site", () => {
+    const a = buildPublishPlan(args({ coursesDir: "" }));
+    expect(a.courseUrl).toBe("https://o.github.io/r/causal-inference/");
+    expect(a.pagesUrl).toBe("https://o.github.io/r/");
   });
 });

@@ -78,6 +78,8 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const warnings = h("div", { class: "course-warnings" });
   const cost = h("div", { class: "course-cost" });
   const status = h("div", { class: "course-status" });
+  const links = h("div", { class: "course-links" });
+  links.hidden = true;
 
   // Saved courses were reachable only in localStorage: the panel started empty
   // on every page load, so a course that HAD been saved looked lost. This is
@@ -563,13 +565,8 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         );
         return;
       }
-      say(
-        `Published ${out.count} files. Course page: ${out.courseUrl} · all courses: ${out.pagesUrl}` +
-          (firstTime
-            ? ` — the lecture links work already; the pages need GitHub Pages switched on once (Settings → Pages → Deploy from a branch → ${out.defaultBranch} / root).`
-            : ""),
-        "ok",
-      );
+      showLinks(out.courseUrl, out.pagesUrl, firstTime, out.defaultBranch);
+      say(`Published ${out.count} files to ${settings.githubRepo}.`, "ok");
     } catch (err) {
       // The stack is what names the culprit; the message alone rarely does.
       console.error("drawcast: publish failed", err);
@@ -578,6 +575,41 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     } finally {
       end(controller);
     }
+  }
+
+  /**
+   * The two URLs, as links you can click and copy. A published address is the
+   * whole point of publishing, and burying it in a status sentence that the
+   * next message overwrites makes it useless — so this block persists.
+   */
+  function showLinks(courseUrl: string, pagesUrl: string, firstTime: boolean, branch: string): void {
+    const row = (label: string, url: string): HTMLElement => {
+      const copy = h("button", { class: "small", title: `Copy ${label}` }, "⧉");
+      copy.addEventListener("click", () => {
+        void navigator.clipboard?.writeText(url).then(
+          () => say(`Copied ${label}.`, "ok"),
+          () => say("Could not reach the clipboard — select the link and copy it.", "error"),
+        );
+      });
+      return h(
+        "div",
+        { class: "course-link" },
+        h("span", { class: "course-link-label" }, label),
+        h("a", { href: url, target: "_blank", rel: "noopener" }, url),
+        copy,
+      );
+    };
+    links.replaceChildren(row("Course page", courseUrl), row("All courses", pagesUrl));
+    if (firstTime) {
+      links.append(
+        h(
+          "div",
+          { class: "course-link-note" },
+          `The lecture links work already. These two pages need GitHub Pages switched on once — in the repository: Settings → Pages → Source: Deploy from a branch → ${branch} / (root). After that every course in this repo gets its own page under the same site; nothing more to switch on.`,
+        ),
+      );
+    }
+    links.hidden = false;
   }
 
   backupBtn.addEventListener("click", () => {
@@ -649,6 +681,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     doc,
     warnings,
     status,
+    links,
     rows,
   );
   document.body.append(modal.dialog);

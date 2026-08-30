@@ -1381,6 +1381,19 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border-left: 3px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
   padding-left: 0.5rem;
 }
+.course-links {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.35rem;
+  border: 1px solid color-mix(in srgb, #2e7d32 40%, var(--surface));
+  background: color-mix(in srgb, #2e7d32 8%, var(--surface));
+  font-size: 0.85rem;
+}
+.course-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; }
+.course-link-label { flex: none; min-width: 7rem; opacity: 0.7; }
+.course-link a { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.course-link-note { margin-top: 0.4rem; opacity: 0.8; }
+
 .course-rows { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.5rem; }
 .course-row {
   display: flex;
