@@ -5,6 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
+import { publishCourse } from "../course/publish";
 import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
@@ -12,7 +13,8 @@ import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
 import { formatPlaylist, singlePlaylist, type Playlist } from "../playlist/playlist";
-import { loadCourses, loadLibrary, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { parseRepo } from "../publish/github";
+import { getGithubToken, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 
@@ -48,6 +50,8 @@ export interface CoursePanelDeps {
 }
 
 let panel: { dialog: HTMLDialogElement; open: () => void } | null = null;
+/** Repos published to in this session — the Pages note is shown only once each. */
+const published = new Set<string>();
 
 export function openCoursePanel(deps: CoursePanelDeps): void {
   if (panel) {
@@ -84,6 +88,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const reviseBtn = h("button", { class: "small" }, "✎ Revise");
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
   const saveBtn = h("button", { class: "small" }, "💾 Save");
+  const publishBtn = h("button", { class: "small", title: "Publish this course to your GitHub repository" }, "⬆ Publish");
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
   const cancelBtn = h("button", { class: "small" }, "✕ Cancel");
   cancelBtn.hidden = true;
@@ -106,6 +111,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     reviseBtn.disabled = busy;
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
+    publishBtn.disabled = busy;
     undoBtn.disabled = busy;
     cancelBtn.hidden = !busy;
   }
@@ -495,7 +501,67 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     refreshCourseList();
     say("New course. Describe it above and press Plan.");
   });
+  /**
+   * Publishing is a remote write whose result is invisible from here — the
+   * exact shape of the three "saved but nothing showed it" bugs in stage A —
+   * so it reports both URLs on the panel's own line, and the one-time Pages
+   * instruction the first time a repo is written to.
+   */
+  async function publish(): Promise<void> {
+    const settings = loadSettings();
+    const token = getGithubToken();
+    const repo = parseRepo(settings.githubRepo);
+    if (!token || !repo) {
+      say("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
+      return;
+    }
+    const course = parseCourse(doc.value);
+    if (course.lectures.length === 0) {
+      say("There is nothing to publish yet.", "error");
+      return;
+    }
+    const library = loadLibrary();
+    const yamlFor = (index: number): string | null => {
+      const status = course.lectures[index].status;
+      if (status?.state !== "done" || !status.id) return null;
+      const saved = library.find((d) => d.id === status.id);
+      return saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
+    };
+
+    const controller = begin();
+    working("Publishing to GitHub…");
+    try {
+      const out = await publishCourse({
+        text: doc.value,
+        repo,
+        token,
+        coursesDir: settings.coursesDir,
+        viewerBase: settings.viewerBase,
+        lectureYaml: yamlFor,
+        fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
+      });
+      checkpoint();
+      doc.value = out.text; // now carries each lecture's permanent file name
+      persist();
+      render();
+      const firstTime = !published.has(settings.githubRepo);
+      published.add(settings.githubRepo);
+      say(
+        `Published ${out.count} files. Course page: ${out.courseUrl} · all courses: ${out.pagesUrl}` +
+          (firstTime
+            ? ` — the lecture links work already; the pages need GitHub Pages switched on once (Settings → Pages → Deploy from a branch → ${out.defaultBranch} / root).`
+            : ""),
+        "ok",
+      );
+    } catch (err) {
+      say(`Publish failed: ${(err as Error).message}`, "error");
+    } finally {
+      end(controller);
+    }
+  }
+
   planBtn.addEventListener("click", () => void plan());
+  publishBtn.addEventListener("click", () => void publish());
   reviseBtn.addEventListener("click", () => void revise());
   runBtn.addEventListener("click", () => void run());
   undoBtn.addEventListener("click", () => {
@@ -548,7 +614,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, saveBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, saveBtn, publishBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
     doc,
     warnings,
     status,

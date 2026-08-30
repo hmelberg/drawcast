@@ -18,6 +18,7 @@ const KEYS = {
   prompts: "drawcast.prompts.v1",
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
+  githubToken: "drawcast.githubtoken",
   myTemplates: "drawcast.myTemplates.v1",
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
@@ -85,6 +86,12 @@ export interface Settings {
   priorityPacks: string[];
   /** Contact address Unpaywall asks callers for (source elements, DOI path). Empty = skip Unpaywall. */
   contactEmail: string;
+  /** owner/repo courses publish to. Empty until the user sets one. */
+  githubRepo: string;
+  /** Directory inside that repo, so it can hold other things too. */
+  coursesDir: string;
+  /** Where a published lecture link points; the app has two deploys. */
+  viewerBase: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -118,6 +125,9 @@ export const DEFAULT_SETTINGS: Settings = {
   enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic", "medicine", "macro", "empirics", "hta", "music", "stats"],
   priorityPacks: [],
   contactEmail: "",
+  githubRepo: "",
+  coursesDir: "courses",
+  viewerBase: "https://drawcast.app/",
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -193,6 +203,19 @@ export function getApiKey(): string {
 export function setApiKey(key: string): void {
   if (key) localStorage.setItem(KEYS.apiKey, key);
   else localStorage.removeItem(KEYS.apiKey);
+}
+
+/**
+ * The user's OWN fine-grained PAT for their OWN repository — the same BYOK
+ * shape as the API key. There is no shared repo and so no shared credential.
+ */
+export function getGithubToken(): string {
+  return localStorage.getItem(KEYS.githubToken) ?? "";
+}
+
+export function setGithubToken(token: string): void {
+  if (token) localStorage.setItem(KEYS.githubToken, token);
+  else localStorage.removeItem(KEYS.githubToken);
 }
 
 export function getTtsKey(): string {
