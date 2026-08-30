@@ -343,7 +343,17 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       ask.focus();
       return;
     }
-    if (doc.value.trim() && !confirm("Replace the course document with a new plan?")) return;
+    // Be precise about what is at stake: planning never overwrites a saved
+    // course — courseId is cleared below, so the new plan is saved under a new
+    // id — and the old one stays in the list. The only thing genuinely at risk
+    // is text that has not become a course yet, and even that survives in Undo.
+    if (doc.value.trim()) {
+      const current = parseCourse(doc.value).title;
+      const warning = courseId
+        ? `Plan a new course from what you wrote above?\n\nThis replaces the text in the editor. "${current || "The course you have open"}" stays saved — pick it again from the list at any time — and the new plan becomes a separate course.`
+        : "Plan a new course from what you wrote above?\n\nThis replaces the text in the editor, which has not been saved as a course yet. ↩ Undo brings it back.";
+      if (!confirm(warning)) return;
+    }
 
     const controller = begin();
     working("Planning the course…");
