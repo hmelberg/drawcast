@@ -470,6 +470,108 @@ Open follow-ups:
   background export (progress chip + pause-on-hidden-tab, 2026-08-25) covers
   the usability gap meanwhile.
 
+## Courses — stage A done 2026-08-30
+
+A course document (`#` course, `##` lecture = one drawcast, `###` chapter)
+planned by one LLM call, revised conversationally, and batch-generated through
+the existing `#playlist` machinery with shared course context, resumable per
+lecture. Design: `docs/superpowers/specs/2026-08-30-courses-design.md`; plan:
+`docs/superpowers/plans/2026-08-30-courses-stage-a.md`.
+
+### Speed — the remaining levers
+
+The 2026-08-30 round (two phases, gate 4 → 8, real progress) bought an
+estimated 1.6–2.3× depending on course size, by cutting the number of *waves*.
+Everything below attacks the other term — how long one part takes — so the two
+gains multiply.
+
+- **Measure before optimising further.** `T_part` (initial Opus round +
+  pedagogy pass + conditional repairs) is a guess at ~90 s and the repair
+  rate is entirely unknown. Log per-round durations and repair counts for one
+  real course run; the answer decides whether `maxRepairs` is worth touching
+  at all. Do this first — the speed estimates above are arithmetic on wave
+  counts, never a stopwatch.
+- **Draft mode** — the big one. Run the whole batch on Sonnet with
+  `pedagogyReview: false`, then ⟳ individual lectures at full quality. Halves
+  the calls per part *and* makes each call faster, so roughly another 2×.
+  Machinery exists: `repairModelFor` already picks a different model per
+  round. Must be an explicit checkbox in the course panel — it is a quality
+  trade, not a free win, and silently downgrading a course would be a bad
+  surprise.
+- **One-hour prompt cache.** `systemBlocks` sets
+  `cache_control: { type: "ephemeral" }` with no `ttl`, so the ~10k-token
+  prefix expires after five minutes — shorter than a course run, so it gets
+  re-processed mid-batch. `ttl: "1h"` costs more on the single write and less
+  on every one of the twenty reads. Helps ordinary single-drawcast work too.
+- **Fewer repair rounds in a batch.** `maxRepairs` defaults to 2. In a run
+  whose output you will review anyway, one is probably enough — but see
+  "measure first": if repairs rarely fire, this saves nothing.
+- **Adaptive gate.** `GENERATION_LIMIT = 8` with the SDK retry budget at 4 is
+  a guess at where rate limits start. If 429s show up in practice, shrink the
+  gate on a 429 and grow it back, rather than tuning a constant by hand.
+
+### Stage B — publishing (specified, not built)
+
+Spec §8–§11. The author's own public GitHub repo, one folder per course, one
+atomic commit via the Git Data API, a generated `index.html` overview page,
+and a `#gh=owner/repo/path` viewer mode. Chosen over Drive because
+`SavedDrawing` has no `driveFileId`, so a regenerated lecture would get a new
+Drive file and break every published link — plus Drive needs per-file manual
+sharing and cannot host the overview page. Ship only after a real course has
+been through stage A.
+
+### C — a catalogue of courses other people made
+
+"Share this course" opens a prefilled issue on a catalogue repo — a link with
+query parameters, no backend and no token. A GitHub Action builds a static
+index from labelled issues, 👍 reactions serve as likes, and an issue *is* a
+comment thread. An unlabelled issue simply does not appear, so nothing is
+required of the maintainer: that is what makes it work without anyone being an
+editor. PRs were rejected as the submission model for exactly that reason —
+a PR demands a decision per submission.
+
+The one real limit: liking or commenting needs a GitHub account. Anonymous
+likes are where a Netlify function plus Blobs would earn its place — and where
+the `consistency: "strong"` fix below becomes load-bearing.
+
+### D — comments under a course
+
+giscus on the **overview page**, one thread per course rather than per
+lecture: ten empty comment sections under ten videos read as abandoned, and
+`viewer.ts` stays free of third-party scripts. Needs Discussions enabled on
+the repo and a GitHub account to comment.
+
+### Deferred deliberately
+
+- **Batch video/YouTube export.** Recording is real-time `MediaRecorder` in
+  the tab; ten lectures is ~an hour unattended with no resume. A queue with
+  per-item status and resume-after-failure is its own project. Export stays a
+  per-drawcast action meanwhile.
+- **Batch translation.** Already exists in the upload dialog; a course × N
+  languages multiplies everything.
+- **Clickable next/previous inside a video.** The link target does not exist
+  until after publishing, and a burnt-in URL goes stale on reorder. The
+  end-card carries the next lecture's *title* instead, which survives both.
+- **A module level above lectures.** Only matters past ~15 lectures and only
+  affects the overview page. Making the middle heading level optional would
+  move the video boundary depending on how deep a document happens to go —
+  an ambiguity paid on every document forever. When needed it arrives as an
+  ordinary option line, `part: Foundations`, touching nothing else.
+- **Full version history for the course document.** One-step undo covers the
+  actual fear ("the revision ruined it"). `history.ts` is text-based and
+  would slot in if walking further back turns out to matter.
+
+### Known loose ends
+
+- **`SECONDS_PER_SPEAK_LINE = 4.5` is uncalibrated** (`src/course/run.ts`).
+  Export one generated lecture, divide its duration by
+  `collectSpeakLines(...).length`, and replace the constant. Until then the
+  per-lecture runtime estimate is a rough guide, not a number to quote.
+- **`netlify/lib/rate-limit.mts` calls `getStore()` without
+  `consistency: "strong"`.** Netlify Blobs is eventually consistent by
+  default, so the password limiter may not be counting at all. Not in the way
+  of anything shipped, but it blocks C.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
