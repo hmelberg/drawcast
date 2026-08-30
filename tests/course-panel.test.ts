@@ -68,3 +68,20 @@ describe("the panel's own source", () => {
     expect(checked).toBeGreaterThan(5);
   });
 });
+
+describe("the course modal's width", () => {
+  // The base `dialog` rule caps every dialog at 30rem. Setting `width` alone
+  // on .course-modal did nothing, twice, because the cap is a different
+  // property — so pin both here rather than rediscovering it a third time.
+  it("lifts the base dialog max-width, not just the width", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const rule = /\.course-modal\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/width:\s*min\(/);
+    expect(rule).toMatch(/max-width:\s*min\(/);
+  });
+
+  it("still caps the base dialog, so ordinary dialogs stay narrow", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    expect(/\ndialog\s*\{[^}]*max-width:\s*30rem/.test(css)).toBe(true);
+  });
+});

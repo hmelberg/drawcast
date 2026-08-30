@@ -1361,7 +1361,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 
 /* ---- Course panel ---- */
-.course-modal { width: min(104rem, 96vw); }
+/* max-width too, not just width: the base `dialog` rule caps every dialog at
+   30rem, and that cap is a different property — so setting width alone left
+   this modal exactly as narrow as every other one. */
+.course-modal { width: min(104rem, 96vw); max-width: min(104rem, 96vw); }
 /* The course document is the working surface: give the dialog body most of the
    viewport rather than the shared 70vh cap. */
 .course-modal .dialog-body { max-height: min(86vh, 64rem); }
