@@ -94,50 +94,71 @@ describe("commitFiles", () => {
 });
 
 describe("a repository with no commits yet", () => {
-  /** GitHub answers 409 "Git Repository is empty" for the ref of a fresh repo. */
+  /**
+   * A fresh repo 409s on the ref read AND on creating a tree — the whole Git
+   * Data API is unavailable until something has been committed. Only the
+   * Contents API can write the first file, after which the ref exists.
+   */
   function emptyRepo(): { calls: Call[]; fetchImpl: typeof fetch } {
     const calls: Call[] = [];
+    let seeded = false;
     const fetchImpl = (async (url: string, init: RequestInit = {}) => {
+      const method = init.method ?? "GET";
       calls.push({
         url,
-        method: init.method ?? "GET",
+        method,
         body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null,
       });
-      if (url.includes("/git/ref/heads/")) {
+      if (url.includes("/contents/") && method === "PUT") {
+        seeded = true;
+        return { ok: true, status: 201, json: async () => ({ commit: { sha: "seed" } }), text: async () => "" } as Response;
+      }
+      if (!seeded) {
         return { ok: false, status: 409, json: async () => ({}), text: async () => "Git Repository is empty." } as Response;
       }
-      return { ok: true, status: 200, json: async () => ({ sha: "new" }), text: async () => "" } as Response;
+      const body = url.includes("/git/ref/")
+        ? { object: { sha: "seedsha" } }
+        : url.includes("/git/commits/")
+          ? { tree: { sha: "seedtree" } }
+          : { sha: "new" };
+      return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
     }) as unknown as typeof fetch;
     return { calls, fetchImpl };
   }
 
-  it("makes the first commit instead of failing with 409", async () => {
+  it("publishes instead of failing with 409", async () => {
     const { fetchImpl } = emptyRepo();
     await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).resolves.toBeTruthy();
   });
 
-  it("has no parent and no base tree", async () => {
+  it("seeds the repo through the Contents API, which is the only endpoint that can", async () => {
+    const { calls, fetchImpl } = emptyRepo();
+    await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
+    const seed = calls.find((c) => c.url.includes("/contents/"))!;
+    expect(seed.method).toBe("PUT");
+    expect(seed.body!.branch).toBe("main");
+    // base64 of the first file's content
+    expect(seed.body!.content).toBe(btoa("title: a"));
+  });
+
+  it("commits the rest on the ordinary path once the repo exists", async () => {
     const { calls, fetchImpl } = emptyRepo();
     await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
     const tree = calls.find((c) => c.url.includes("/git/trees"))!;
-    expect(tree.body!.base_tree).toBeUndefined();
-    const commit = calls.find((c) => c.url.endsWith("/git/commits"))!;
-    expect(commit.body!.parents).toEqual([]);
+    expect(tree.body!.base_tree).toBe("seedtree");
+    expect(calls.at(-1)!.method).toBe("PATCH");
   });
 
-  it("creates the ref rather than moving it", async () => {
-    const { calls, fetchImpl } = emptyRepo();
-    await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
-    const ref = calls.at(-1)!;
-    expect(ref.method).toBe("POST");
-    expect(ref.url).toMatch(/\/git\/refs$/);
-    expect(ref.body).toEqual({ ref: "refs/heads/main", sha: "new" });
-  });
-
-  it("ignores deletions, since there is nothing to delete", async () => {
+  it("ignores deletions, since there was nothing to delete", async () => {
     const { calls, fetchImpl } = emptyRepo();
     await commitFiles(REPO, "t", "main", FILES, ["gone.yaml"], "msg", fetchImpl);
     const tree = calls.find((c) => c.url.includes("/git/trees"))!.body!.tree as Record<string, unknown>[];
     expect(tree).toHaveLength(1);
+  });
+
+  it("encodes a path with a space without eating its slashes", async () => {
+    const { calls, fetchImpl } = emptyRepo();
+    await commitFiles(REPO, "t", "main", [{ path: "a b/c.yaml", content: "x" }], [], "msg", fetchImpl);
+    expect(calls.find((c) => c.url.includes("/contents/"))!.url).toContain("/contents/a%20b/c.yaml");
   });
 });

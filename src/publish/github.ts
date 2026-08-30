@@ -178,6 +178,37 @@ export async function readFile(repo: RepoRef, path: string, fetchImpl: typeof fe
 
 const MODE_FILE = "100644";
 
+/** UTF-8 safe: btoa alone throws on anything outside Latin-1. */
+function toBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+/** Each segment encoded, but the slashes kept — they are the path. */
+function encodePath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
+/** The branch's head commit and its tree, or null when the repo has no commits. */
+async function readHead(
+  fetchImpl: typeof fetch,
+  token: string,
+  base: string,
+  branch: string,
+): Promise<{ head: string; baseTree: string } | null> {
+  try {
+    const ref = await call<{ object: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/ref/heads/${branch}`);
+    const commit = await call<{ tree: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/commits/${ref.object.sha}`);
+    return { head: ref.object.sha, baseTree: commit.tree.sha };
+  } catch (err) {
+    // 409 = empty repository; 404 = the branch does not exist yet.
+    if (err instanceof PublishError && (err.status === 409 || err.status === 404)) return null;
+    throw err;
+  }
+}
+
 /**
  * One atomic commit: read the ref and its tree, post a new tree carrying every
  * file's content inline (which creates the blobs implicitly), post the commit,
@@ -198,41 +229,39 @@ export async function commitFiles(
   }
   const base = `/repos/${repo.owner}/${repo.repo}`;
 
-  // A brand-new repository has no commits, so there is no ref to read: GitHub
-  // answers 409 "Git Repository is empty" (404 when only the branch is
-  // missing). Both mean the same thing here — this commit is the first one, so
-  // it has no parent, no base tree, and its ref must be CREATED rather than
-  // moved. Requiring the user to add a README first would be a worse answer.
-  let head: string | null = null;
-  let baseTree: string | null = null;
-  try {
-    const ref = await call<{ object: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/ref/heads/${branch}`);
-    head = ref.object.sha;
-    const commit = await call<{ tree: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/commits/${head}`);
-    baseTree = commit.tree.sha;
-  } catch (err) {
-    if (!(err instanceof PublishError) || (err.status !== 409 && err.status !== 404)) throw err;
+  let state = await readHead(fetchImpl, token, base, branch);
+  const wasEmpty = state === null;
+  if (!state) {
+    // The whole Git Data API refuses a repository with no commits — the ref
+    // read answers 409 "Git Repository is empty", and so does creating a tree.
+    // The Contents API is the one endpoint that CAN write into an empty repo,
+    // so one file goes in through it to create the initial commit, and
+    // everything else follows on the ordinary path. One extra commit, once,
+    // rather than making the user seed the repo by hand.
+    await call(fetchImpl, token, "PUT", `${base}/contents/${encodePath(files[0].path)}`, {
+      message,
+      content: toBase64(files[0].content),
+      branch,
+    });
+    state = await readHead(fetchImpl, token, base, branch);
+    if (!state) throw new PublishError("The repository is still empty after the first write — nothing was published.");
   }
 
   const tree = [
     ...files.map((f) => ({ path: f.path, mode: MODE_FILE, type: "blob", content: f.content })),
     // A null sha is how the tree API says "remove this path". There is nothing
-    // to remove in a repository that has no commits yet.
-    ...(head ? deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null })) : []),
+    // to remove in a repository that had no commits a moment ago.
+    ...(wasEmpty ? [] : deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null }))),
   ];
   const newTree = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/trees`, {
-    ...(baseTree ? { base_tree: baseTree } : {}),
+    base_tree: state.baseTree,
     tree,
   });
   const newCommit = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/commits`, {
     message,
     tree: newTree.sha,
-    parents: head ? [head] : [],
+    parents: [state.head],
   });
-  if (head) {
-    await call(fetchImpl, token, "PATCH", `${base}/git/refs/heads/${branch}`, { sha: newCommit.sha });
-  } else {
-    await call(fetchImpl, token, "POST", `${base}/git/refs`, { ref: `refs/heads/${branch}`, sha: newCommit.sha });
-  }
+  await call(fetchImpl, token, "PATCH", `${base}/git/refs/heads/${branch}`, { sha: newCommit.sha });
   return { commitSha: newCommit.sha };
 }
