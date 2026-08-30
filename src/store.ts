@@ -240,6 +240,13 @@ export interface SavedDrawing {
   spec: Spec;
   /** Multi-part drawcasts: the full playlist as serialized multi-doc YAML. */
   playlist?: string;
+  /**
+   * The course this lecture belongs to, when it came from one. Lectures are
+   * saved the moment they are generated — they cost real money, so they are
+   * never provisional — and this is what lets the library group them under
+   * their course instead of scattering ten rows through everything else.
+   */
+  courseId?: string;
   ts: string;
 }
 

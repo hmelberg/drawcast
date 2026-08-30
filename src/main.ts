@@ -94,6 +94,7 @@ import {
   updateLog,
   worstLoggedCases,
   type LogEntry,
+  loadCourses,
   type SavedDrawing,
   type UserPrompt,
 } from "./store";
@@ -830,6 +831,10 @@ const sidebar = h(
           exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
           bundledExemplars: () => bundledExemplarPool(),
           setStatus,
+          openDrawing: (id) => {
+            const saved = loadLibrary().find((d) => d.id === id);
+            if (saved) setDoc(docFromSaved(saved), `Loaded "${saved.title}".`);
+          },
         }),
       );
       return b;
@@ -2288,7 +2293,7 @@ function refreshLibrary(): void {
     libraryList.appendChild(h("div", { class: "hint" }, all.length === 0 ? "Nothing saved yet." : "No match."));
     return;
   }
-  for (const item of items) {
+  const row = (item: SavedDrawing): HTMLElement => {
     const label = item.playlist ? `${item.title} ▤` : item.title;
     const openBtn = h("button", { class: "library-open", title: item.playlist ? "Load this playlist" : "Load this drawing" }, label);
     openBtn.addEventListener("click", () => {
@@ -2300,7 +2305,37 @@ function refreshLibrary(): void {
       deleteDrawing(item.id);
       refreshLibrary();
     });
-    libraryList.appendChild(h("div", { class: "library-item" }, openBtn, delBtn));
+    return h("div", { class: "library-item" }, openBtn, delBtn);
+  };
+
+  // Lectures belong to their course: ten of them in a row would otherwise bury
+  // everything else in the library. Loose drawcasts keep their newest-first
+  // order; each course collapses into one <details> in the place its newest
+  // lecture would have taken.
+  const courseTitles = new Map(loadCourses().map((c) => [c.id, c.title]));
+  const grouped = new Map<string, SavedDrawing[]>();
+  for (const item of items) {
+    if (!item.courseId) continue;
+    const list = grouped.get(item.courseId);
+    if (list) list.push(item);
+    else grouped.set(item.courseId, [item]);
+  }
+  const emitted = new Set<string>();
+  for (const item of items) {
+    if (!item.courseId) {
+      libraryList.appendChild(row(item));
+      continue;
+    }
+    if (emitted.has(item.courseId)) continue;
+    emitted.add(item.courseId);
+    const lectures = grouped.get(item.courseId)!;
+    const title = courseTitles.get(item.courseId) ?? "Course";
+    const group = h("details", { class: "library-course" });
+    group.append(
+      h("summary", {}, `🎓 ${title} — ${lectures.length} lecture${lectures.length === 1 ? "" : "s"}`),
+      ...lectures.map(row),
+    );
+    libraryList.appendChild(group);
   }
 }
 refreshLibrary();

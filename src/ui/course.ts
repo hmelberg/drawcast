@@ -9,8 +9,10 @@ import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
-import { formatPlaylist, type Playlist } from "../playlist/playlist";
-import { saveCourse, saveDrawing, type SavedCourse } from "../store";
+import { reviseDocument } from "../llm/revise";
+import { generationGate } from "../llm/limit";
+import { formatPlaylist, singlePlaylist, type Playlist } from "../playlist/playlist";
+import { loadLibrary, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 
@@ -35,6 +37,8 @@ export interface CoursePanelDeps {
   exemplars: () => Exemplar[];
   bundledExemplars: () => Exemplar[];
   setStatus: (text: string, kind?: "ok" | "error") => void;
+  /** Load a saved drawcast into the main editor/player. */
+  openDrawing: (id: string) => void;
 }
 
 let panel: { dialog: HTMLDialogElement; open: () => void } | null = null;
@@ -75,18 +79,37 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   undoBtn.hidden = true;
 
   let courseId: string | null = null;
-  let running: AbortController | null = null;
   /** The document as it stood before the last AI change — the one-step undo. */
   let previous: string | null = null;
+  /**
+   * Every call this panel has in flight. A per-lecture comment can be queued
+   * while the batch is still running, so one controller would not do: Cancel
+   * has to reach all of them, and the buttons must stay disabled until the
+   * last one lands, not the newest.
+   */
+  const inFlight = new Set<AbortController>();
 
-  const setBusy = (busy: boolean): void => {
+  function syncBusy(): void {
+    const busy = inFlight.size > 0;
     planBtn.disabled = busy;
     reviseBtn.disabled = busy;
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
     undoBtn.disabled = busy;
     cancelBtn.hidden = !busy;
-  };
+  }
+
+  function begin(): AbortController {
+    const controller = new AbortController();
+    inFlight.add(controller);
+    syncBusy();
+    return controller;
+  }
+
+  function end(controller: AbortController): void {
+    inFlight.delete(controller);
+    syncBusy();
+  }
 
   /** Grow the box to fit what is in it, up to the cap the stylesheet sets. */
   function autoGrow(el: HTMLTextAreaElement): void {
@@ -107,16 +130,106 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     cost.textContent = course.lectures.length > 0 ? costPreview(course) : "";
     rows.replaceChildren(
       ...course.lectures.map((lecture, i) => {
-        const again = h("button", { class: "small course-again", title: `Regenerate "${lecture.title}"` }, "⟳");
-        again.addEventListener("click", () => void run({ only: i }));
-        return h(
-          "div",
-          { class: `course-row course-${lecture.status?.state ?? "pending"}` },
+        const done = lecture.status?.state === "done" && lecture.status.id;
+        const parts: HTMLElement[] = [
           h("span", { class: "course-row-label" }, `${i + 1}. ${lectureRowLabel(lecture)}`),
-          again,
-        );
+        ];
+
+        // Only a generated lecture can be commented on or watched — there is
+        // nothing to revise or play until one exists.
+        const note = h("input", {
+          type: "text",
+          class: "course-note",
+          placeholder: "what to change…",
+          title: "Leave empty to regenerate from scratch; write a note to revise what is there",
+        }) as HTMLInputElement;
+        if (done) parts.push(note);
+
+        const again = h("button", {
+          class: "small course-again",
+          title: done
+            ? `Apply the note to "${lecture.title}" — or regenerate it if the note is empty`
+            : `Generate "${lecture.title}"`,
+        }, "⟳");
+        again.addEventListener("click", () => {
+          const instruction = done ? note.value.trim() : "";
+          if (instruction) void reviseLecture(lecture.status!.id!, instruction, note);
+          else void run({ only: i });
+        });
+        parts.push(again);
+
+        if (done) {
+          const open = h("button", { class: "small course-open", title: `Watch "${lecture.title}"` }, "▶");
+          open.addEventListener("click", () => {
+            deps.openDrawing(lecture.status!.id!);
+            modal.dialog.close();
+            deps.setStatus(
+              `Playing "${lecture.title}". The course keeps generating — press 🎓 Course to come back.`,
+              "ok",
+            );
+          });
+          parts.push(open);
+        }
+
+        return h("div", { class: `course-row course-${lecture.status?.state ?? "pending"}` }, ...parts);
       }),
     );
+  }
+
+  /**
+   * Apply one note to one already-generated lecture. This is the cheap path:
+   * reviseDocument is a single call against the drawcast that exists, where a
+   * regenerate is a fresh outline plus every part. It queues on the same gate
+   * as the batch, so a note written while the run is still going simply falls
+   * in behind the parts already in flight — and it writes back to the SAME
+   * library id, so the course document's status stays valid.
+   */
+  async function reviseLecture(id: string, instruction: string, note: HTMLInputElement): Promise<void> {
+    const key = deps.apiKey();
+    if (!key) {
+      deps.setStatus("Add an API key in Settings first.", "error");
+      return;
+    }
+    const saved = loadLibrary().find((d) => d.id === id);
+    if (!saved) {
+      deps.setStatus("That lecture is no longer in the library — regenerate it instead.", "error");
+      return;
+    }
+    const docText = saved.playlist ?? formatPlaylist(singlePlaylist(saved.spec), "yaml");
+
+    const controller = begin();
+    const title = saved.title;
+    status.textContent = `Revising "${title}"…`;
+    try {
+      const outcome = await generationGate(() =>
+        reviseDocument(docText, instruction, {
+          apiKey: key,
+          model: deps.model(),
+          variant: deps.variant(),
+          signal: controller.signal,
+        }),
+      );
+      status.textContent = "";
+      if (!outcome.playlist || !outcome.text) {
+        deps.setStatus(controller.signal.aborted ? "Cancelled." : `Could not revise "${title}": ${outcome.error}`, "error");
+        return;
+      }
+      const first = outcome.playlist.entries.find((e) => e.kind === "item");
+      const next: SavedDrawing = {
+        ...saved,
+        spec: first && first.kind === "item" ? first.spec : saved.spec,
+        playlist: outcome.text,
+        ts: new Date().toISOString(),
+      };
+      saveDrawing(next);
+      note.value = "";
+      deps.setStatus(`Revised "${title}". Press ▶ to watch it again.`, "ok");
+    } catch (err) {
+      status.textContent = "";
+      deps.setStatus(`Could not revise "${title}": ${(err as Error).message}`, "error");
+    } finally {
+      end(controller);
+    }
   }
 
   function config(signal: AbortSignal): GenerateConfig {
@@ -157,9 +270,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     }
     if (doc.value.trim() && !confirm("Replace the course document with a new plan?")) return;
 
-    const controller = new AbortController();
-    running = controller;
-    setBusy(true);
+    const controller = begin();
     status.textContent = "Planning the course…";
     try {
       const course = await generateCoursePlan(request, { apiKey: key, model: deps.model() }, null, controller.signal);
@@ -178,8 +289,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       status.textContent = "";
       deps.setStatus(controller.signal.aborted ? "Cancelled." : `Planning failed: ${(err as Error).message}`, "error");
     } finally {
-      running = null;
-      setBusy(false);
+      end(controller);
     }
   }
 
@@ -200,9 +310,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       return;
     }
 
-    const controller = new AbortController();
-    running = controller;
-    setBusy(true);
+    const controller = begin();
     status.textContent = "Revising the course…";
     try {
       const outcome = await reviseCourse(doc.value, instruction, {
@@ -230,13 +338,15 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       status.textContent = "";
       deps.setStatus(`Revision failed: ${(err as Error).message}`, "error");
     } finally {
-      running = null;
-      setBusy(false);
+      end(controller);
     }
   }
 
   function store(_index: number, lecture: CourseLecture, playlist: Playlist): string {
-    const id = crypto.randomUUID();
+    // Regenerating writes over the row it replaces rather than minting a new
+    // one: the course document points at this id, and a fresh id every time
+    // would leave the previous version orphaned in the library.
+    const id = lecture.status?.id ?? crypto.randomUUID();
     const first = playlist.entries.find((e) => e.kind === "item");
     saveDrawing({
       id,
@@ -244,6 +354,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       prompt: lecture.questions.join(" "),
       spec: first && first.kind === "item" ? first.spec : { elements: [], commands: [] },
       playlist: formatPlaylist(playlist, "yaml"),
+      courseId: courseId ?? undefined,
       ts: new Date().toISOString(),
     });
     return id;
@@ -267,10 +378,11 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       }
       if (!confirm(`${costPreview(course)}\n\nGenerate now?`)) return;
     }
+    // Mint the course id before the first lecture is stored, so every lecture
+    // this run produces is tagged with the course that owns it.
+    persist();
 
-    const controller = new AbortController();
-    running = controller;
-    setBusy(true);
+    const controller = begin();
     let last = "";
     try {
       const result = await runCourse(
@@ -314,8 +426,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       status.textContent = "";
       deps.setStatus(`The run stopped: ${(err as Error).message}`, "error");
     } finally {
-      running = null;
-      setBusy(false);
+      end(controller);
       render();
     }
   }
@@ -340,7 +451,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       deps.setStatus((err as Error).message, "error");
     }
   });
-  cancelBtn.addEventListener("click", () => running?.abort());
+  cancelBtn.addEventListener("click", () => {
+    for (const controller of inFlight) controller.abort();
+  });
 
   let debounce: ReturnType<typeof setTimeout> | null = null;
   doc.addEventListener("input", () => {
