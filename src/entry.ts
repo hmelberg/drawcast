@@ -1,9 +1,10 @@
-// Entry router: #gdoc=<google-doc-id> boots the standalone share viewer (a
-// single player, no editor/AI); anything else loads the two-mode app.
+// Entry router: #gdoc=<google-doc-id> or #gh=<owner>/<repo>/<path> boots the
+// standalone share viewer (a single player, no editor/AI); anything else loads
+// the two-mode app.
 // Code-split so shared-link viewers never download the editor or the Anthropic SDK.
 
 const hash = location.hash;
-if (/[#&]gdoc[=-]/.test(hash)) {
+if (/[#&](gdoc|gh)[=-]/.test(hash)) {
   void import("./viewer").then(({ parseViewerHash, runViewer }) => {
     const req = parseViewerHash(hash);
     if (req) void runViewer(req);
@@ -12,7 +13,7 @@ if (/[#&]gdoc[=-]/.test(hash)) {
   void import("./main");
 }
 
-// Entering/leaving the #gdoc share view requires a reload (the app builds eagerly).
+// Entering/leaving a share view requires a reload (the app builds eagerly).
 window.addEventListener("hashchange", () => location.reload());
 
 export {};
