@@ -71,6 +71,8 @@ import {
   downloadText,
   deleteUserPrompt,
   getApiKey,
+  getGithubToken,
+  setGithubToken,
   getTtsKey,
   setTtsKey,
   loadExemplars,
@@ -1038,6 +1040,24 @@ contactEmailInput.addEventListener("change", () => {
   settings.contactEmail = contactEmailInput.value.trim();
   persist();
 });
+// ---- Publishing (courses -> the user's own public GitHub repo) ----
+const githubRepoInput = h("input", { type: "text", placeholder: "hmelberg/kurs", autocomplete: "off" }) as HTMLInputElement;
+githubRepoInput.value = settings.githubRepo;
+githubRepoInput.addEventListener("change", () => {
+  settings.githubRepo = githubRepoInput.value.trim();
+  persist();
+});
+const githubTokenInput = h("input", { type: "password", placeholder: "github_pat_…", autocomplete: "off" }) as HTMLInputElement;
+githubTokenInput.value = getGithubToken();
+githubTokenInput.addEventListener("change", () => setGithubToken(githubTokenInput.value.trim()));
+const coursesDirInput = h("input", { type: "text", placeholder: "courses", autocomplete: "off" }) as HTMLInputElement;
+coursesDirInput.value = settings.coursesDir;
+coursesDirInput.addEventListener("change", () => {
+  settings.coursesDir = coursesDirInput.value.trim().replace(/^\/+|\/+$/g, "") || "courses";
+  coursesDirInput.value = settings.coursesDir;
+  persist();
+});
+
 const voiceSel = h("select", {});
 const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
@@ -1075,6 +1095,26 @@ dialog.append(
       burnCaptionsCb,
       " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in the upload dialog.",
     ),
+  ),
+  h(
+    "div",
+    { class: "settings-field" },
+    h("label", {}, "Publishing — GitHub repository"),
+    githubRepoInput,
+    h(
+      "div",
+      { class: "settings-note" },
+      "owner/repo. It must be PUBLIC: published lectures are fetched from raw.githubusercontent.com, which does not serve private repositories, and GitHub Pages on a private repo needs a paid plan. One repo holds any number of courses, one folder each.",
+    ),
+    h("label", {}, "GitHub token"),
+    githubTokenInput,
+    h(
+      "div",
+      { class: "settings-note" },
+      "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
+    ),
+    h("label", {}, "Courses folder"),
+    coursesDirInput,
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
