@@ -835,6 +835,7 @@ const sidebar = h(
             const saved = loadLibrary().find((d) => d.id === id);
             if (saved) setDoc(docFromSaved(saved), `Loaded "${saved.title}".`);
           },
+          refreshLibrary: () => refreshLibrary(),
         }),
       );
       return b;

@@ -39,6 +39,12 @@ export interface CoursePanelDeps {
   setStatus: (text: string, kind?: "ok" | "error") => void;
   /** Load a saved drawcast into the main editor/player. */
   openDrawing: (id: string) => void;
+  /**
+   * Re-render the sidebar library. Storing a lecture writes localStorage but
+   * cannot repaint the list on its own, and a lecture that is saved yet
+   * invisible is indistinguishable from one that was lost.
+   */
+  refreshLibrary: () => void;
 }
 
 let panel: { dialog: HTMLDialogElement; open: () => void } | null = null;
@@ -245,6 +251,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         ts: new Date().toISOString(),
       };
       saveDrawing(next);
+      deps.refreshLibrary();
       note.value = "";
       say(`Revised "${title}". Press ▶ to watch it again.`, "ok");
     } catch (err) {
@@ -449,6 +456,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
             doc.value = text;
             persist();
             render();
+            // A lecture has just landed in the library — show it there now,
+            // not after the next reload.
+            deps.refreshLibrary();
           },
         },
         store,
