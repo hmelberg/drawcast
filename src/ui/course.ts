@@ -756,11 +756,16 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     ),
     ask,
     h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
-    doc,
-    warnings,
+    // Messages sit with the buttons that produce them; the document and the
+    // lecture list share the width below, side by side when there is room.
     status,
     links,
-    rows,
+    h(
+      "div",
+      { class: "course-split" },
+      h("div", { class: "course-doc-col" }, doc, warnings),
+      h("div", { class: "course-rows-col" }, rows),
+    ),
   );
   document.body.append(modal.dialog);
   panel = modal;

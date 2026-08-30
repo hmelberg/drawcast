@@ -1361,10 +1361,21 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 
 /* ---- Course panel ---- */
-.course-modal { width: min(78rem, 96vw); }
+.course-modal { width: min(104rem, 96vw); }
 /* The course document is the working surface: give the dialog body most of the
    viewport rather than the shared 70vh cap. */
-.course-modal .dialog-body { max-height: min(84vh, 56rem); }
+.course-modal .dialog-body { max-height: min(86vh, 64rem); }
+
+/* Stacked by default; side by side once the width is actually there, which is
+   what the extra width is FOR — a document stretched to 100rem is harder to
+   read, not easier. */
+.course-split { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+.course-doc-col, .course-rows-col { min-width: 0; }
+@media (min-width: 72rem) {
+  .course-split { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+  .course-split .course-doc { min-height: 30rem; }
+  .course-rows-col { position: sticky; top: 0; }
+}
 .course-help { margin: 0 0 0.5rem; font-size: 0.85rem; opacity: 0.75; }
 .course-ask {
   width: 100%;
