@@ -117,6 +117,25 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     el.style.height = `${el.scrollHeight}px`;
   }
 
+  /**
+   * A message the user must actually see. deps.setStatus writes to the app's
+   * status bar BEHIND the modal, where nobody can read it while the panel is
+   * open — "Course saved." landing there is indistinguishable from nothing
+   * having happened. Shown on the panel's own line first, and forwarded on so
+   * the last word is still there once the panel closes.
+   */
+  function say(text: string, kind?: "ok" | "error"): void {
+    status.textContent = text;
+    status.classList.toggle("course-status-error", kind === "error");
+    if (text) say(text, kind);
+  }
+
+  /** Transient progress: the panel's line only, never the app's. */
+  function working(text: string): void {
+    status.textContent = text;
+    status.classList.remove("course-status-error");
+  }
+
   /** Remember the pre-change text so one bad revision is never the end of it. */
   function checkpoint(): void {
     previous = doc.value;
@@ -187,19 +206,19 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   async function reviseLecture(id: string, instruction: string, note: HTMLInputElement): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      deps.setStatus("Add an API key in Settings first.", "error");
+      say("Add an API key in Settings first.", "error");
       return;
     }
     const saved = loadLibrary().find((d) => d.id === id);
     if (!saved) {
-      deps.setStatus("That lecture is no longer in the library — regenerate it instead.", "error");
+      say("That lecture is no longer in the library — regenerate it instead.", "error");
       return;
     }
     const docText = saved.playlist ?? formatPlaylist(singlePlaylist(saved.spec), "yaml");
 
     const controller = begin();
     const title = saved.title;
-    status.textContent = `Revising "${title}"…`;
+    working(`Revising "${title}"…`);
     try {
       const outcome = await generationGate(() =>
         reviseDocument(docText, instruction, {
@@ -209,9 +228,8 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
           signal: controller.signal,
         }),
       );
-      status.textContent = "";
       if (!outcome.playlist || !outcome.text) {
-        deps.setStatus(controller.signal.aborted ? "Cancelled." : `Could not revise "${title}": ${outcome.error}`, "error");
+        say(controller.signal.aborted ? "Cancelled." : `Could not revise "${title}": ${outcome.error}`, "error");
         return;
       }
       const first = outcome.playlist.entries.find((e) => e.kind === "item");
@@ -223,10 +241,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       };
       saveDrawing(next);
       note.value = "";
-      deps.setStatus(`Revised "${title}". Press ▶ to watch it again.`, "ok");
+      say(`Revised "${title}". Press ▶ to watch it again.`, "ok");
     } catch (err) {
-      status.textContent = "";
-      deps.setStatus(`Could not revise "${title}": ${(err as Error).message}`, "error");
+      say(`Could not revise "${title}": ${(err as Error).message}`, "error");
     } finally {
       end(controller);
     }
@@ -259,24 +276,23 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   async function plan(): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      deps.setStatus("Add an API key in Settings first.", "error");
+      say("Add an API key in Settings first.", "error");
       return;
     }
     const request = ask.value.trim();
     if (!request) {
-      deps.setStatus("Describe the course in the box first — topic, level, how many lectures.", "error");
+      say("Describe the course in the box first — topic, level, how many lectures.", "error");
       ask.focus();
       return;
     }
     if (doc.value.trim() && !confirm("Replace the course document with a new plan?")) return;
 
     const controller = begin();
-    status.textContent = "Planning the course…";
+    working("Planning the course…");
     try {
       const course = await generateCoursePlan(request, { apiKey: key, model: deps.model() }, null, controller.signal);
       if (!course) {
-        status.textContent = "";
-        deps.setStatus("The model could not plan that into lectures — try rephrasing.", "error");
+        say("The model could not plan that into lectures — try rephrasing.", "error");
         return;
       }
       checkpoint();
@@ -286,8 +302,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       render();
       status.textContent = `Planned ${course.lectures.length} lectures. Edit the questions, then Generate.`;
     } catch (err) {
-      status.textContent = "";
-      deps.setStatus(controller.signal.aborted ? "Cancelled." : `Planning failed: ${(err as Error).message}`, "error");
+      say(controller.signal.aborted ? "Cancelled." : `Planning failed: ${(err as Error).message}`, "error");
     } finally {
       end(controller);
     }
@@ -296,34 +311,33 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   async function revise(): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      deps.setStatus("Add an API key in Settings first.", "error");
+      say("Add an API key in Settings first.", "error");
       return;
     }
     if (!doc.value.trim()) {
-      deps.setStatus("There is no course to revise yet — press Plan first.", "error");
+      say("There is no course to revise yet — press Plan first.", "error");
       return;
     }
     const instruction = ask.value.trim();
     if (!instruction) {
-      deps.setStatus("Say what to change in the box first.", "error");
+      say("Say what to change in the box first.", "error");
       ask.focus();
       return;
     }
 
     const controller = begin();
-    status.textContent = "Revising the course…";
+    working("Revising the course…");
     try {
       const outcome = await reviseCourse(doc.value, instruction, {
         apiKey: key,
         model: deps.model(),
         signal: controller.signal,
         onProgress: (chars) => {
-          status.textContent = `Revising the course… (${chars.toLocaleString()} characters)`;
+          working(`Revising the course… (${chars.toLocaleString()} characters)`);
         },
       });
-      status.textContent = "";
       if (!outcome.text) {
-        deps.setStatus(controller.signal.aborted ? "Cancelled." : `Revision failed: ${outcome.error}`, "error");
+        say(controller.signal.aborted ? "Cancelled." : `Revision failed: ${outcome.error}`, "error");
         return;
       }
       checkpoint();
@@ -333,10 +347,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       autoGrow(ask);
       persist();
       render();
-      deps.setStatus("Course revised.", "ok");
+      say("Course revised.", "ok");
     } catch (err) {
-      status.textContent = "";
-      deps.setStatus(`Revision failed: ${(err as Error).message}`, "error");
+      say(`Revision failed: ${(err as Error).message}`, "error");
     } finally {
       end(controller);
     }
@@ -363,17 +376,17 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   async function run(opts: { only?: number } = {}): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      deps.setStatus("Add an API key in Settings first.", "error");
+      say("Add an API key in Settings first.", "error");
       return;
     }
     const course = parseCourse(doc.value);
     if (course.lectures.length === 0) {
-      deps.setStatus("There is nothing to generate yet — plan or write a course first.", "error");
+      say("There is nothing to generate yet — plan or write a course first.", "error");
       return;
     }
     if (opts.only === undefined) {
       if (estimateCalls(course) === 0) {
-        deps.setStatus("Every lecture is already generated.", "ok");
+        say("Every lecture is already generated.", "ok");
         return;
       }
       if (!confirm(`${costPreview(course)}\n\nGenerate now?`)) return;
@@ -401,7 +414,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
               p.phase === "outlining"
                 ? `Planning ${p.lecturesTotal} lecture${p.lecturesTotal === 1 ? "" : "s"}…`
                 : `${p.lecturesDone}/${p.lecturesTotal} lectures · ${p.partsDone}/${p.partsTotal} figures drawn`;
-            status.textContent = last ? `${head} — ${last}` : head;
+            working(last ? `${head} — ${last}` : head);
           },
           onDocument: (text) => {
             doc.value = text;
@@ -414,7 +427,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       );
       status.textContent = "";
       const failed = result.failed.length;
-      deps.setStatus(
+      say(
         controller.signal.aborted
           ? `Cancelled after ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`
           : failed > 0
@@ -423,8 +436,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         failed > 0 ? "error" : "ok",
       );
     } catch (err) {
-      status.textContent = "";
-      deps.setStatus(`The run stopped: ${(err as Error).message}`, "error");
+      say(`The run stopped: ${(err as Error).message}`, "error");
     } finally {
       end(controller);
       render();
@@ -441,14 +453,15 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     doc.value = restored;
     persist();
     render();
-    deps.setStatus("Reverted the last AI change.", "ok");
+    say("Reverted the last AI change.", "ok");
   });
   saveBtn.addEventListener("click", () => {
     try {
       persist();
-      deps.setStatus("Course saved.", "ok");
+      const course = parseCourse(doc.value);
+      say(`Saved "${course.title || "Untitled course"}" to this browser's course library.`, "ok");
     } catch (err) {
-      deps.setStatus((err as Error).message, "error");
+      say((err as Error).message, "error");
     }
   });
   cancelBtn.addEventListener("click", () => {
@@ -458,7 +471,21 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   let debounce: ReturnType<typeof setTimeout> | null = null;
   doc.addEventListener("input", () => {
     if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(render, 300);
+    debounce = setTimeout(() => {
+      render();
+      // Hand edits were the one path that did NOT persist: Plan, Revise, a run
+      // and Undo all save themselves, so 💾 Save was the only thing standing
+      // between typing and losing it. Autosave the way the drawcast editor
+      // does, and let the button be reassurance rather than load-bearing.
+      const course = parseCourse(doc.value);
+      if (course.title || course.lectures.length > 0) {
+        try {
+          persist();
+        } catch (err) {
+          say((err as Error).message, "error");
+        }
+      }
+    }, 300);
   });
   ask.addEventListener("input", () => autoGrow(ask));
 
