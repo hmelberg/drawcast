@@ -1370,6 +1370,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.6rem;
   resize: vertical;
 }
+.course-pick { max-width: 14rem; }
 .course-cost { font-size: 0.82rem; opacity: 0.75; }
 .course-status { min-height: 1.2rem; font-size: 0.85rem; opacity: 0.85; margin-top: 0.4rem; }
 .course-status-error { color: #b3261e; opacity: 1; }

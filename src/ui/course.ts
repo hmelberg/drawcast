@@ -12,7 +12,7 @@ import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
 import { formatPlaylist, singlePlaylist, type Playlist } from "../playlist/playlist";
-import { loadLibrary, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { loadCourses, loadLibrary, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 
@@ -69,6 +69,11 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const cost = h("div", { class: "course-cost" });
   const status = h("div", { class: "course-status" });
 
+  // Saved courses were reachable only in localStorage: the panel started empty
+  // on every page load, so a course that HAD been saved looked lost. This is
+  // how you get it back.
+  const courseSel = h("select", { class: "small course-pick", title: "Saved courses" }) as HTMLSelectElement;
+  const newBtn = h("button", { class: "small", title: "Start a new, empty course" }, "＋ New");
   const planBtn = h("button", { class: "small" }, "✦ Plan");
   const reviseBtn = h("button", { class: "small" }, "✎ Revise");
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
@@ -271,6 +276,30 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       ts: new Date().toISOString(),
     };
     saveCourse(entry);
+    refreshCourseList();
+  }
+
+  function refreshCourseList(): void {
+    const saved = loadCourses();
+    courseSel.replaceChildren(
+      ...saved.map((c) => {
+        const option = h("option", { value: c.id }, c.title || "Untitled course") as HTMLOptionElement;
+        option.selected = c.id === courseId;
+        return option;
+      }),
+    );
+    courseSel.hidden = saved.length === 0;
+  }
+
+  function loadCourse(id: string): void {
+    const saved = loadCourses().find((c) => c.id === id);
+    if (!saved) return;
+    courseId = saved.id;
+    doc.value = saved.text;
+    previous = null;
+    undoBtn.hidden = true;
+    render();
+    refreshCourseList();
   }
 
   async function plan(): Promise<void> {
@@ -443,6 +472,19 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     }
   }
 
+  courseSel.addEventListener("change", () => loadCourse(courseSel.value));
+  newBtn.addEventListener("click", () => {
+    // Autosave means whatever is on screen is already stored; starting a new
+    // course can never cost the old one.
+    courseId = null;
+    doc.value = "";
+    ask.value = "";
+    previous = null;
+    undoBtn.hidden = true;
+    render();
+    refreshCourseList();
+    say("New course. Describe it above and press Plan.");
+  });
   planBtn.addEventListener("click", () => void plan());
   reviseBtn.addEventListener("click", () => void revise());
   runBtn.addEventListener("click", () => void run());
@@ -496,7 +538,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, planBtn, reviseBtn, runBtn, saveBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, saveBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
     doc,
     warnings,
     status,
@@ -504,6 +546,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   );
   document.body.append(modal.dialog);
   panel = modal;
+  const saved = loadCourses();
+  if (saved.length > 0) loadCourse(saved[0].id); // newest first: saveCourse unshifts
+  else refreshCourseList();
   render();
   modal.open();
 }
