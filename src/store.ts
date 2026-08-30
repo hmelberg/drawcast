@@ -88,7 +88,7 @@ export interface Settings {
   contactEmail: string;
   /** owner/repo courses publish to. Empty until the user sets one. */
   githubRepo: string;
-  /** Directory inside that repo, so it can hold other things too. */
+  /** Subdirectory inside that repo; empty (the default) publishes at its root. */
   coursesDir: string;
   /** Where a published lecture link points; the app has two deploys. */
   viewerBase: string;
@@ -126,7 +126,7 @@ export const DEFAULT_SETTINGS: Settings = {
   priorityPacks: [],
   contactEmail: "",
   githubRepo: "",
-  coursesDir: "courses",
+  coursesDir: "",
   viewerBase: "https://drawcast.app/",
 };
 

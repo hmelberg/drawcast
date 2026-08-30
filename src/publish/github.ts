@@ -7,9 +7,12 @@
 // no shared credential to protect.
 
 export class PublishError extends Error {
-  constructor(message: string) {
+  /** The HTTP status, when the failure came from GitHub. */
+  readonly status?: number;
+  constructor(message: string, status?: number) {
     super(message);
     this.name = "PublishError";
+    this.status = status;
   }
 }
 
@@ -51,15 +54,16 @@ async function call<T>(
     if (res.status === 401) {
       throw new PublishError(
         "GitHub rejected the token. Check that it has not expired and that it grants Contents: read and write on this repository.",
+        401,
       );
     }
     if (res.status === 403) {
-      throw new PublishError("GitHub refused the request (403). The token most likely lacks Contents: write on this repository.");
+      throw new PublishError("GitHub refused the request (403). The token most likely lacks Contents: write on this repository.", 403);
     }
     if (res.status === 404) {
-      throw new PublishError("GitHub returned 404 — the repository does not exist, or the token has no access to it.");
+      throw new PublishError("GitHub returned 404 — the repository does not exist, or the token has no access to it.", 404);
     }
-    throw new PublishError(`GitHub returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    throw new PublishError(`GitHub returned ${res.status}: ${(await res.text()).slice(0, 200)}`, res.status);
   }
   return (await res.json()) as T;
 }
@@ -193,24 +197,42 @@ export async function commitFiles(
     throw new PublishError("There is nothing to publish.");
   }
   const base = `/repos/${repo.owner}/${repo.repo}`;
-  const ref = await call<{ object: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/ref/heads/${branch}`);
-  const head = ref.object.sha;
-  const commit = await call<{ tree: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/commits/${head}`);
+
+  // A brand-new repository has no commits, so there is no ref to read: GitHub
+  // answers 409 "Git Repository is empty" (404 when only the branch is
+  // missing). Both mean the same thing here — this commit is the first one, so
+  // it has no parent, no base tree, and its ref must be CREATED rather than
+  // moved. Requiring the user to add a README first would be a worse answer.
+  let head: string | null = null;
+  let baseTree: string | null = null;
+  try {
+    const ref = await call<{ object: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/ref/heads/${branch}`);
+    head = ref.object.sha;
+    const commit = await call<{ tree: { sha: string } }>(fetchImpl, token, "GET", `${base}/git/commits/${head}`);
+    baseTree = commit.tree.sha;
+  } catch (err) {
+    if (!(err instanceof PublishError) || (err.status !== 409 && err.status !== 404)) throw err;
+  }
 
   const tree = [
     ...files.map((f) => ({ path: f.path, mode: MODE_FILE, type: "blob", content: f.content })),
-    // A null sha is how the tree API says "remove this path".
-    ...deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null })),
+    // A null sha is how the tree API says "remove this path". There is nothing
+    // to remove in a repository that has no commits yet.
+    ...(head ? deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null })) : []),
   ];
   const newTree = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/trees`, {
-    base_tree: commit.tree.sha,
+    ...(baseTree ? { base_tree: baseTree } : {}),
     tree,
   });
   const newCommit = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/commits`, {
     message,
     tree: newTree.sha,
-    parents: [head],
+    parents: head ? [head] : [],
   });
-  await call(fetchImpl, token, "PATCH", `${base}/git/refs/heads/${branch}`, { sha: newCommit.sha });
+  if (head) {
+    await call(fetchImpl, token, "PATCH", `${base}/git/refs/heads/${branch}`, { sha: newCommit.sha });
+  } else {
+    await call(fetchImpl, token, "POST", `${base}/git/refs`, { ref: `refs/heads/${branch}`, sha: newCommit.sha });
+  }
   return { commitSha: newCommit.sha };
 }

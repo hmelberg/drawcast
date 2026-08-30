@@ -19,6 +19,16 @@ import {
 import { parseCourse, setLectureStatus, type Course } from "./document";
 import { coursePage, lectureHref, repoIndexPage, type PageLink } from "./page";
 
+/**
+ * Join a repo path, tolerating an empty directory. The default IS empty: a
+ * repo dedicated to courses should give hmelberg/dcast/<course>/, not
+ * hmelberg/dcast/courses/<course>/. The setting exists for a repo that holds
+ * other things too.
+ */
+export function joinPath(dir: string, ...parts: string[]): string {
+  return [dir, ...parts].filter((p) => p !== "").join("/");
+}
+
 export interface PublishPlan {
   slug: string;
   files: PublishFile[];
@@ -44,7 +54,7 @@ export interface PlanArgs {
 export function buildPublishPlan(args: PlanArgs): PublishPlan {
   const { course, text, repo, coursesDir, viewerBase, manifest } = args;
   const slug = slugFor(course.title || "course", new Set());
-  const dir = `${coursesDir}/${slug}`;
+  const dir = joinPath(coursesDir, slug);
 
   const taken = new Set<string>();
   const fileOf = new Map<number, string>();
@@ -72,16 +82,16 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
       name = `${minted}.yaml`;
     }
     fileOf.set(i, name);
-    files.push({ path: `${dir}/${name}`, content: yaml });
+    files.push({ path: joinPath(dir, name), content: yaml });
     links.push({
       title: lecture.title,
       questions: lecture.questions,
-      href: lectureHref(viewerBase, repo.owner, repo.repo, `${dir}/${name}`),
+      href: lectureHref(viewerBase, repo.owner, repo.repo, joinPath(dir, name)),
     });
   });
 
-  files.push({ path: `${dir}/course.md`, content: text });
-  files.push({ path: `${dir}/index.html`, content: coursePage(course, links) });
+  files.push({ path: joinPath(dir, "course.md"), content: text });
+  files.push({ path: joinPath(dir, "index.html"), content: coursePage(course, links) });
 
   const entry = {
     slug,
@@ -90,8 +100,8 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
     updated: new Date().toISOString().slice(0, 10),
   };
   const next = upsertCourse(manifest, entry);
-  files.push({ path: `${coursesDir}/courses.json`, content: JSON.stringify(next, null, 2) + "\n" });
-  files.push({ path: `${coursesDir}/index.html`, content: repoIndexPage(next.courses, coursesDir) });
+  files.push({ path: joinPath(coursesDir, "courses.json"), content: JSON.stringify(next, null, 2) + "\n" });
+  files.push({ path: joinPath(coursesDir, "index.html"), content: repoIndexPage(next.courses, course.title) });
 
   return {
     slug,
@@ -103,7 +113,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
     ),
     fileOf,
     courseUrl: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`,
-    pagesUrl: `https://${repo.owner}.github.io/${repo.repo}/${coursesDir}/`,
+    pagesUrl: `https://${repo.owner}.github.io/${repo.repo}/${coursesDir ? `${coursesDir}/` : ""}`,
   };
 }
 
@@ -132,7 +142,7 @@ export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
   const fetchImpl = args.fetchImpl ?? fetch;
 
   const { defaultBranch } = await preflight(repo, token, fetchImpl);
-  const manifestText = await readFile(repo, `${coursesDir}/courses.json`, fetchImpl);
+  const manifestText = await readFile(repo, joinPath(coursesDir, "courses.json"), fetchImpl);
   const manifest = manifestText ? parseManifest(manifestText) : emptyManifest();
 
   const course = parseCourse(text);

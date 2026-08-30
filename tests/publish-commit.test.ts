@@ -92,3 +92,52 @@ describe("commitFiles", () => {
     await expect(commitFiles(REPO, "t", "main", [], [], "msg", fetchImpl)).rejects.toThrow(/nothing/i);
   });
 });
+
+describe("a repository with no commits yet", () => {
+  /** GitHub answers 409 "Git Repository is empty" for the ref of a fresh repo. */
+  function emptyRepo(): { calls: Call[]; fetchImpl: typeof fetch } {
+    const calls: Call[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit = {}) => {
+      calls.push({
+        url,
+        method: init.method ?? "GET",
+        body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null,
+      });
+      if (url.includes("/git/ref/heads/")) {
+        return { ok: false, status: 409, json: async () => ({}), text: async () => "Git Repository is empty." } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ sha: "new" }), text: async () => "" } as Response;
+    }) as unknown as typeof fetch;
+    return { calls, fetchImpl };
+  }
+
+  it("makes the first commit instead of failing with 409", async () => {
+    const { fetchImpl } = emptyRepo();
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).resolves.toBeTruthy();
+  });
+
+  it("has no parent and no base tree", async () => {
+    const { calls, fetchImpl } = emptyRepo();
+    await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
+    const tree = calls.find((c) => c.url.includes("/git/trees"))!;
+    expect(tree.body!.base_tree).toBeUndefined();
+    const commit = calls.find((c) => c.url.endsWith("/git/commits"))!;
+    expect(commit.body!.parents).toEqual([]);
+  });
+
+  it("creates the ref rather than moving it", async () => {
+    const { calls, fetchImpl } = emptyRepo();
+    await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
+    const ref = calls.at(-1)!;
+    expect(ref.method).toBe("POST");
+    expect(ref.url).toMatch(/\/git\/refs$/);
+    expect(ref.body).toEqual({ ref: "refs/heads/main", sha: "new" });
+  });
+
+  it("ignores deletions, since there is nothing to delete", async () => {
+    const { calls, fetchImpl } = emptyRepo();
+    await commitFiles(REPO, "t", "main", FILES, ["gone.yaml"], "msg", fetchImpl);
+    const tree = calls.find((c) => c.url.includes("/git/trees"))!.body!.tree as Record<string, unknown>[];
+    expect(tree).toHaveLength(1);
+  });
+});

@@ -1050,10 +1050,10 @@ githubRepoInput.addEventListener("change", () => {
 const githubTokenInput = h("input", { type: "password", placeholder: "github_pat_…", autocomplete: "off" }) as HTMLInputElement;
 githubTokenInput.value = getGithubToken();
 githubTokenInput.addEventListener("change", () => setGithubToken(githubTokenInput.value.trim()));
-const coursesDirInput = h("input", { type: "text", placeholder: "courses", autocomplete: "off" }) as HTMLInputElement;
+const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 coursesDirInput.addEventListener("change", () => {
-  settings.coursesDir = coursesDirInput.value.trim().replace(/^\/+|\/+$/g, "") || "courses";
+  settings.coursesDir = coursesDirInput.value.trim().replace(/^\/+|\/+$/g, "");
   coursesDirInput.value = settings.coursesDir;
   persist();
 });
@@ -1113,8 +1113,13 @@ dialog.append(
       { class: "settings-note" },
       "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
     ),
-    h("label", {}, "Courses folder"),
+    h("label", {}, "Subfolder (optional)"),
     coursesDirInput,
+    h(
+      "div",
+      { class: "settings-note" },
+      "Leave empty when the repository is only for courses — each course then gets its own folder at the root, and the course list becomes the site's front page. Set a folder only if the repository holds other things too; note that the list is written as index.html at that level. Nothing needs creating on GitHub first: git has no empty directories, so the folders appear with the files.",
+    ),
   ),
   h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
   h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),

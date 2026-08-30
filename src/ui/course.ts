@@ -14,7 +14,7 @@ import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
 import { formatPlaylist, singlePlaylist, type Playlist } from "../playlist/playlist";
 import { parseRepo } from "../publish/github";
-import { getGithubToken, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { downloadJson, getGithubToken, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 
@@ -89,6 +89,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
   const saveBtn = h("button", { class: "small" }, "💾 Save");
   const publishBtn = h("button", { class: "small", title: "Publish this course to your GitHub repository" }, "⬆ Publish");
+  const backupBtn = h("button", { class: "small", title: "Download every course and drawcast as one file" }, "⬇ Backup");
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
   const cancelBtn = h("button", { class: "small" }, "✕ Cancel");
   cancelBtn.hidden = true;
@@ -560,6 +561,17 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     }
   }
 
+  backupBtn.addEventListener("click", () => {
+    // Everything localStorage holds for courses, in one file. Generated
+    // lectures cost real money, and until a course is published to GitHub the
+    // only copy is one browser away from being gone.
+    const courses = loadCourses();
+    const library = loadLibrary();
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadJson(`drawcast-backup-${stamp}.json`, { savedAt: new Date().toISOString(), courses, library });
+    say(`Backed up ${courses.length} course${courses.length === 1 ? "" : "s"} and ${library.length} drawcast${library.length === 1 ? "" : "s"}.`, "ok");
+  });
+
   planBtn.addEventListener("click", () => void plan());
   publishBtn.addEventListener("click", () => void publish());
   reviseBtn.addEventListener("click", () => void revise());
@@ -614,7 +626,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, saveBtn, publishBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, saveBtn, publishBtn, backupBtn, undoBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
     doc,
     warnings,
     status,

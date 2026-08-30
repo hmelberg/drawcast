@@ -166,3 +166,29 @@ describe("publishCourse", () => {
     await expect(publishCourse({ ...publishArgs, fetchImpl })).rejects.toThrow(/public/);
   });
 });
+
+describe("publishing at the repository root", () => {
+  it("gives each course its own folder without an extra level", () => {
+    const plan = buildPublishPlan(args({ coursesDir: "" }));
+    expect(plan.files.map((f) => f.path).sort()).toEqual([
+      "causal-inference/course.md",
+      "causal-inference/did.yaml",
+      "causal-inference/index.html",
+      "causal-inference/potential-outcomes.yaml",
+      "courses.json",
+      "index.html",
+    ]);
+  });
+
+  it("points the course URL at the root folder", () => {
+    const plan = buildPublishPlan(args({ coursesDir: "" }));
+    expect(plan.courseUrl).toBe("https://o.github.io/r/causal-inference/");
+    expect(plan.pagesUrl).toBe("https://o.github.io/r/");
+  });
+
+  it("links lectures without a doubled slash", () => {
+    const page = buildPublishPlan(args({ coursesDir: "" })).files.find((f) => f.path === "causal-inference/index.html")!;
+    expect(page.content).toContain("#gh=o/r/causal-inference/did.yaml");
+    expect(page.content).not.toContain("//causal-inference");
+  });
+});
