@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { buildLectureRequest, estimateCalls, estimateMinutes, lecturePlaylist } from "../src/course/run";
+import { buildLectureRequest, estimateCalls, estimateMinutes, lecturePlaylist, pendingIndices } from "../src/course/run";
 import { itemsOf } from "../src/playlist/playlist";
 import type { Spec } from "../src/spec/types";
 
@@ -115,5 +115,25 @@ describe("estimateMinutes", () => {
     const one: Spec = { elements: [], commands: [{ speak: "a" }] };
     const four: Spec = { elements: [], commands: [{ speak: "a" }, { speak: "b" }, { speak: "c" }, { speak: "d" }] };
     expect(estimateMinutes([four])).toBeGreaterThan(estimateMinutes([one]));
+  });
+});
+
+describe("pendingIndices", () => {
+  it("returns every ungenerated lecture", () => {
+    expect(pendingIndices(parseCourse(DOC))).toEqual([0, 1, 2]);
+  });
+
+  it("skips the ones already done", () => {
+    const done = DOC.replace("#why #parts=4", "#why #parts=4\nstatus: done · id: a1");
+    expect(pendingIndices(parseCourse(done))).toEqual([1, 2]);
+  });
+
+  it("honours `only`, even for a lecture already done", () => {
+    const done = DOC.replace("#why #parts=4", "#why #parts=4\nstatus: done · id: a1");
+    expect(pendingIndices(parseCourse(done), { only: 0 })).toEqual([0]);
+  });
+
+  it("returns nothing for an out-of-range `only`", () => {
+    expect(pendingIndices(parseCourse(DOC), { only: 9 })).toEqual([]);
   });
 });

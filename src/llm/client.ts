@@ -18,6 +18,11 @@ export const DEFAULT_MODEL = "claude-opus-5";
 export function makeClient(apiKey: string): Anthropic {
   return new Anthropic({
     apiKey,
+    // A course batch puts GENERATION_LIMIT calls in flight at once, so a 429
+    // is an ordinary event rather than a surprise. The SDK honours the
+    // `retry-after` header and backs off; the default budget of 2 is thin for
+    // a burst that size.
+    maxRetries: 4,
     dangerouslyAllowBrowser: true,
     defaultHeaders: { "anthropic-dangerous-direct-browser-access": "true" },
   });

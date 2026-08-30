@@ -1,10 +1,11 @@
-// The course runner: generate the lectures that are missing, one lecture at a
-// time through the ordinary multi-part generator, writing status back into the
-// document after each so an interrupted run resumes instead of restarting.
+// The course runner: generate the lectures that are missing, in two parallel
+// phases through the ordinary multi-part generator, writing status back into
+// the document as each lands so an interrupted run resumes instead of
+// restarting.
 
 import { collectSpeakLines } from "../export/video";
 import { type GenerateConfig } from "../llm/compile";
-import { generateParts, type PartsResult } from "../llm/multi";
+import { generateFromOutline, outlineParts, type PartsRequest, type PartsResult } from "../llm/multi";
 import { buildBrief, parseTags } from "../llm/tags";
 import { DEFAULT_META, makeNextCard, type Playlist, type PlaylistEntry } from "../playlist/playlist";
 import type { Spec } from "../spec/types";
@@ -98,8 +99,20 @@ export function lecturePlaylist(course: Course, index: number, result: PartsResu
   return { meta: { ...DEFAULT_META, title: lecture.title }, entries, warnings: [] };
 }
 
+export interface RunProgress {
+  phase: "outlining" | "generating";
+  lecturesTotal: number;
+  lecturesDone: number;
+  /** Known only once the outlines are in; 0 while outlining. */
+  partsTotal: number;
+  partsDone: number;
+}
+
 export interface RunHooks {
   onLecture(index: number, phase: "start" | "done" | "failed"): void;
+  /** Aggregate progress across the whole run — a lecture takes minutes, and a
+   *  status line that never moves reads as a hang. */
+  onProgress(progress: RunProgress): void;
   /** The document after a status write-back; the caller persists and re-renders it. */
   onDocument(text: string): void;
 }
@@ -123,11 +136,36 @@ export interface RunResult {
  */
 export type StoreLecture = (index: number, lecture: CourseLecture, playlist: Playlist) => string;
 
+/** The lectures a run would touch: what is missing, or exactly the one named. */
+export function pendingIndices(course: Course, opts: RunOptions = {}): number[] {
+  if (opts.only !== undefined) return opts.only < course.lectures.length ? [opts.only] : [];
+  return course.lectures.map((_, i) => i).filter((i) => isPending(course.lectures[i]));
+}
+
+function requestFor(course: Course, index: number): PartsRequest {
+  const lecture = course.lectures[index];
+  const parsedTags = parseTags(lecture.tags.join(" "));
+  return {
+    request: buildLectureRequest(course, index),
+    parts: partsOf(lecture),
+    brief: buildBrief(parsedTags.tags),
+    chapters: lecture.chapters.length > 0 ? lecture.chapters : undefined,
+  };
+}
+
 /**
  * "Generate" means "generate what is missing": a lecture marked done is skipped
- * unless `only` names it. Lectures run one at a time — their parts already run
- * in parallel behind the global gate, and stacking both levels would queue
- * dozens of calls with no progress to show for any of them.
+ * unless `only` names it.
+ *
+ * Two phases, both parallel. Every outline first — they are small, independent,
+ * and doing one inside each lecture's turn left the generation gate idle while
+ * it ran. Then every part of every lecture is poured into ONE pool, so the gate
+ * stays saturated instead of draining at each lecture boundary. Lectures have
+ * no dependency on each other: buildLectureRequest composes its context from
+ * the document's titles, never from another lecture's generated specs.
+ *
+ * Results land as they finish, so status is written back per lecture and a
+ * cancelled run keeps everything that was already generated.
  */
 export async function runCourse(
   text: string,
@@ -137,51 +175,81 @@ export async function runCourse(
   opts: RunOptions = {},
 ): Promise<RunResult> {
   const course = parseCourse(text);
+  const targets = pendingIndices(course, opts);
   let current = text;
   let generated = 0;
   const failed: number[] = [];
+  let lecturesDone = 0;
+  let partsDone = 0;
+  let partsTotal = 0;
 
-  for (let i = 0; i < course.lectures.length; i++) {
-    if (cfg.signal?.aborted) break;
-    if (opts.only !== undefined ? i !== opts.only : !isPending(course.lectures[i])) continue;
+  const progress = (phase: RunProgress["phase"]): void =>
+    hooks.onProgress({ phase, lecturesTotal: targets.length, lecturesDone, partsTotal, partsDone });
 
-    const lecture = course.lectures[i];
-    hooks.onLecture(i, "start");
-    const parsedTags = parseTags(lecture.tags.join(" "));
-    const result = await generateParts(
-      {
-        request: buildLectureRequest(course, i),
-        parts: partsOf(lecture),
-        brief: buildBrief(parsedTags.tags),
-        chapters: lecture.chapters.length > 0 ? lecture.chapters : undefined,
-      },
-      cfg,
-    );
+  // ---- Phase 1: every outline at once -------------------------------------
+  progress("outlining");
+  const ts = new Date().toISOString().slice(0, 10);
+  const plans = await Promise.all(
+    targets.map(async (i) => {
+      hooks.onLecture(i, "start");
+      const request = requestFor(course, i);
+      return { index: i, request, ...(await outlineParts(request, cfg)) };
+    }),
+  );
 
-    const ts = new Date().toISOString().slice(0, 10);
-    if (result.specs.length === 0) {
-      failed.push(i);
-      current = setLectureStatus(current, i, { state: "failed", error: result.error ?? "no spec", ts });
-      hooks.onLecture(i, "failed");
-    } else {
-      for (const spec of result.specs) {
-        spec.level ??= parsedTags.level ?? undefined;
-        spec.voice ??= parsedTags.voiceGender ?? undefined;
-      }
-      try {
-        const id = store(i, lecture, lecturePlaylist(course, i, result));
-        generated++;
-        // The published file name, once stage B has minted one, is permanent —
-        // carry it through so a regenerated lecture keeps its link.
-        current = setLectureStatus(current, i, { state: "done", id, file: lecture.status?.file, ts });
-        hooks.onLecture(i, "done");
-      } catch (err) {
-        failed.push(i);
-        current = setLectureStatus(current, i, { state: "failed", error: (err as Error).message, ts });
-        hooks.onLecture(i, "failed");
-      }
+  for (const plan of plans) {
+    if (plan.outline) partsTotal += plan.outline.parts.length;
+    else {
+      failed.push(plan.index);
+      current = setLectureStatus(current, plan.index, { state: "failed", error: plan.error ?? "no outline", ts });
+      hooks.onLecture(plan.index, "failed");
     }
-    hooks.onDocument(current);
   }
-  return { text: current, generated, failed };
+  if (failed.length > 0) hooks.onDocument(current);
+  progress("generating");
+
+  // ---- Phase 2: every part of every lecture in one pool --------------------
+  await Promise.all(
+    plans.map(async (plan) => {
+      if (!plan.outline || cfg.signal?.aborted) return;
+      const i = plan.index;
+      const lecture = course.lectures[i];
+      const parsedTags = parseTags(lecture.tags.join(" "));
+      const result = await generateFromOutline(plan.request, plan.outline, cfg, {
+        onPart: () => {
+          partsDone++;
+          progress("generating");
+        },
+      });
+
+      if (result.specs.length === 0) {
+        failed.push(i);
+        current = setLectureStatus(current, i, { state: "failed", error: result.error ?? "no spec", ts });
+        hooks.onLecture(i, "failed");
+      } else {
+        for (const spec of result.specs) {
+          spec.level ??= parsedTags.level ?? undefined;
+          spec.voice ??= parsedTags.voiceGender ?? undefined;
+        }
+        try {
+          // Synchronous between awaits, so the parallel lectures cannot
+          // interleave mid-write and lose one another's status lines.
+          const id = store(i, lecture, lecturePlaylist(course, i, result));
+          generated++;
+          // The published file name, once stage B has minted one, is permanent —
+          // carry it through so a regenerated lecture keeps its link.
+          current = setLectureStatus(current, i, { state: "done", id, file: lecture.status?.file, ts });
+          hooks.onLecture(i, "done");
+        } catch (err) {
+          failed.push(i);
+          current = setLectureStatus(current, i, { state: "failed", error: (err as Error).message, ts });
+          hooks.onLecture(i, "failed");
+        }
+      }
+      lecturesDone++;
+      progress("generating");
+      hooks.onDocument(current);
+    }),
+  );
+  return { text: current, generated, failed: [...new Set(failed)].sort((a, b) => a - b) };
 }

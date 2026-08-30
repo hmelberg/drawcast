@@ -33,26 +33,48 @@ export interface PartsHooks {
   onPart?: (done: number, total: number, index: number, outcome: GenerationOutcome) => void;
 }
 
-export async function generateParts(req: PartsRequest, cfg: GenerateConfig, hooks: PartsHooks = {}): Promise<PartsResult> {
-  const empty: PartsResult = { outline: null, specs: [], chapterOf: [], failed: [] };
+export const EMPTY_PARTS: PartsResult = { outline: null, specs: [], chapterOf: [], failed: [] };
+
+/**
+ * Phase one, on its own so a batch can run every outline first and then pour
+ * all the parts into one pool. Outlines are small and independent; doing them
+ * inside each lecture's turn leaves the generation gate idle while they run.
+ */
+export async function outlineParts(req: PartsRequest, cfg: GenerateConfig): Promise<{ outline: Outline | null; error?: string }> {
   let outline: Outline | null;
   try {
-    outline = await generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters);
+    outline = await generationGate(() =>
+      generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters),
+    );
   } catch (err) {
-    return { ...empty, error: (err as Error).message };
+    return { outline: null, error: (err as Error).message };
   }
-  if (!outline) return { ...empty, error: "the model could not outline this into parts" };
+  if (!outline) return { outline: null, error: "the model could not outline this into parts" };
   if (!outline.title) outline.title = req.request;
-  const plan = outline;
-  hooks.onOutline?.(plan);
+  return { outline };
+}
 
+/** Phase two: the parts of one already-planned drawcast. */
+export async function generateFromOutline(
+  req: PartsRequest,
+  plan: Outline,
+  cfg: GenerateConfig,
+  hooks: PartsHooks = {},
+): Promise<PartsResult> {
   // Parts depend only on the outline (bridging uses outline titles, not each
   // other's specs), so they generate in parallel — the gate caps how many.
   const n = plan.parts.length;
   let finished = 0;
   const outcomes = await Promise.all(
     plan.parts.map((_, i) =>
-      generationGate(() => generateSpec(buildPartRequest(req.request, plan, i, req.brief), cfg)).then((outcome) => {
+      generationGate(() =>
+        // A queued task whose run was cancelled while it waited must not spend
+        // a call: after a cancel, dozens of doomed requests could still be
+        // holding gate slots.
+        cfg.signal?.aborted
+          ? Promise.resolve({ spec: null, rounds: [], error: "cancelled", systemPromptChars: 0 } satisfies GenerationOutcome)
+          : generateSpec(buildPartRequest(req.request, plan, i, req.brief), cfg),
+      ).then((outcome) => {
         finished++;
         hooks.onPart?.(finished, n, i, outcome);
         return outcome;
@@ -80,4 +102,12 @@ export async function generateParts(req: PartsRequest, cfg: GenerateConfig, hook
     failed,
     error: specs.length === 0 ? (outcomes[0]?.error ?? "no spec") : undefined,
   };
+}
+
+/** Both phases, for the single-drawcast path (#playlist / #parts=N). */
+export async function generateParts(req: PartsRequest, cfg: GenerateConfig, hooks: PartsHooks = {}): Promise<PartsResult> {
+  const { outline, error } = await outlineParts(req, cfg);
+  if (!outline) return { ...EMPTY_PARTS, error };
+  hooks.onOutline?.(outline);
+  return generateFromOutline(req, outline, cfg, hooks);
 }

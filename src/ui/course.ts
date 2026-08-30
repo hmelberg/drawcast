@@ -271,15 +271,25 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     const controller = new AbortController();
     running = controller;
     setBusy(true);
+    let last = "";
     try {
       const result = await runCourse(
         doc.value,
         config(controller.signal),
         {
           onLecture: (index, phase) => {
+            if (phase === "start") return; // the progress line covers starts
             const title = course.lectures[index]?.title ?? `Lecture ${index + 1}`;
-            status.textContent =
-              phase === "start" ? `Generating "${title}"…` : `${title}: ${phase}.`;
+            last = `${title}: ${phase}.`;
+          },
+          onProgress: (p) => {
+            // Lectures now run together, so a per-lecture line would flicker
+            // between them. One aggregate line, plus whatever last finished.
+            const head =
+              p.phase === "outlining"
+                ? `Planning ${p.lecturesTotal} lecture${p.lecturesTotal === 1 ? "" : "s"}…`
+                : `${p.lecturesDone}/${p.lecturesTotal} lectures · ${p.partsDone}/${p.partsTotal} figures drawn`;
+            status.textContent = last ? `${head} — ${last}` : head;
           },
           onDocument: (text) => {
             doc.value = text;
