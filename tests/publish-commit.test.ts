@@ -162,3 +162,31 @@ describe("a repository with no commits yet", () => {
     expect(calls.find((c) => c.url.includes("/contents/"))!.url).toContain("/contents/a%20b/c.yaml");
   });
 });
+
+describe("large files", () => {
+  it("base64-encodes a megabyte-scale lecture without building it byte by byte", async () => {
+    // Firefox reports a deeply nested rope as "too much recursion"; the chunked
+    // encoder is what keeps this from happening on a lecture with portraits.
+    const { calls, fetchImpl } = (() => {
+      const calls: Call[] = [];
+      let seeded = false;
+      const fetchImpl = (async (url: string, init: RequestInit = {}) => {
+        const method = init.method ?? "GET";
+        calls.push({ url, method, body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null });
+        if (url.includes("/contents/") && method === "PUT") {
+          seeded = true;
+          return { ok: true, status: 201, json: async () => ({}), text: async () => "" } as Response;
+        }
+        if (!seeded) return { ok: false, status: 409, json: async () => ({}), text: async () => "" } as Response;
+        const body = url.includes("/git/ref/") ? { object: { sha: "s" } } : url.includes("/git/commits/") ? { tree: { sha: "t" } } : { sha: "n" };
+        return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
+      }) as unknown as typeof fetch;
+      return { calls, fetchImpl };
+    })();
+    const big = "æøå".repeat(400_000); // ~2.4 MB once UTF-8 encoded
+    await commitFiles(REPO, "t", "main", [{ path: "a.yaml", content: big }], [], "msg", fetchImpl);
+    const seed = calls.find((c) => c.url.includes("/contents/"))!;
+    expect(typeof seed.body!.content).toBe("string");
+    expect((seed.body!.content as string).length).toBeGreaterThan(1_000_000);
+  });
+});

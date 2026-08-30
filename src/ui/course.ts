@@ -541,12 +541,24 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         lectureYaml: yamlFor,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
       });
-      checkpoint();
-      doc.value = out.text; // now carries each lecture's permanent file name
-      persist();
-      render();
+      // Past this line the commit has LANDED. Anything that fails below is
+      // local bookkeeping, and reporting it as "Publish failed" would send the
+      // user hunting for files that are already in their repository.
       const firstTime = !published.has(settings.githubRepo);
       published.add(settings.githubRepo);
+      try {
+        checkpoint();
+        doc.value = out.text; // now carries each lecture's permanent file name
+        persist();
+        render();
+      } catch (err) {
+        console.error("drawcast: publish succeeded, bookkeeping failed", err);
+        say(
+          `Published to ${out.courseUrl} — but the file names could not be written back into the document (${(err as Error).name}: ${(err as Error).message}). Press Publish again after checking the document.`,
+          "error",
+        );
+        return;
+      }
       say(
         `Published ${out.count} files. Course page: ${out.courseUrl} · all courses: ${out.pagesUrl}` +
           (firstTime
@@ -555,7 +567,10 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         "ok",
       );
     } catch (err) {
-      say(`Publish failed: ${(err as Error).message}`, "error");
+      // The stack is what names the culprit; the message alone rarely does.
+      console.error("drawcast: publish failed", err);
+      const e = err as Error;
+      say(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
     } finally {
       end(controller);
     }

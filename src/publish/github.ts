@@ -178,12 +178,23 @@ export async function readFile(repo: RepoRef, path: string, fetchImpl: typeof fe
 
 const MODE_FILE = "100644";
 
-/** UTF-8 safe: btoa alone throws on anything outside Latin-1. */
+/**
+ * UTF-8 safe: btoa alone throws on anything outside Latin-1.
+ *
+ * Chunked rather than `binary += String.fromCharCode(b)` per byte. A lecture
+ * carrying embedded portrait strokes runs to megabytes, and building a string
+ * that size by repeated concatenation makes Firefox flatten a rope thousands
+ * of levels deep — which it reports as "too much recursion", not as a memory
+ * error. 32k at a time keeps the concatenation count in the dozens.
+ */
 function toBase64(text: string): string {
   const bytes = new TextEncoder().encode(text);
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary);
+  const CHUNK = 0x8000;
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
+  }
+  return btoa(parts.join(""));
 }
 
 /** Each segment encoded, but the slashes kept — they are the path. */
