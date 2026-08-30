@@ -126,10 +126,25 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
 
   const panel = buildPanel();
   const panelBtn = h("button", { class: "cs-bar-btn", title: "Playlist (n/p: next/previous)" }, "☰");
+  /**
+   * The panel is an absolutely positioned overlay above the control bar, so
+   * once it is open it covers the ☰ that opened it — toggling was never a way
+   * back out. Three ways out instead: the close button in its own corner,
+   * Escape, and a click anywhere outside it.
+   */
+  function closePanel(): void {
+    panel.classList.remove("open");
+  }
   panelBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     panel.classList.toggle("open");
   });
+  const onHostClick = (e: MouseEvent): void => {
+    if (!panel.classList.contains("open")) return;
+    const t = e.target as Node | null;
+    if (t && !panel.contains(t) && !panelBtn.contains(t)) closePanel();
+  };
+  host.addEventListener("click", onHostClick);
   host.classList.add("pl-host");
   host.appendChild(panel);
 
@@ -165,8 +180,13 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         list.appendChild(det);
       }
     }
+    const close = h("button", { class: "pl-close", title: "Close (Esc)", "aria-label": "Close the playlist" }, "✕");
+    close.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closePanel();
+    });
     const head = playlist.meta.title ? [h("div", { class: "pl-panel-title" }, playlist.meta.title)] : [];
-    return h("aside", { class: "pl-panel" }, ...head, list);
+    return h("aside", { class: "pl-panel" }, close, ...head, list);
   }
 
   function markCurrent(): void {
@@ -307,6 +327,13 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   const onKey = (e: KeyboardEvent): void => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+    if (e.key === "Escape" && panel.classList.contains("open")) {
+      // Before n/p: while the list is open, Escape means "close this", not
+      // "leave the player".
+      e.stopPropagation();
+      closePanel();
+      return;
+    }
     if (e.key === "n") void jump(Math.min(idx + 1, items.length - 1));
     else if (e.key === "p") void jump(Math.max(idx - 1, 0));
   };
@@ -320,6 +347,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       destroyed = true;
       cancelPending();
       document.removeEventListener("keydown", onKey);
+      host.removeEventListener("click", onHostClick);
       handle?.destroy();
       panel.remove();
       dotsWrap.remove();

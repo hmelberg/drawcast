@@ -1173,7 +1173,24 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   display: none;
 }
 .pl-panel.open { display: block; }
+.pl-close {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+}
+.pl-close:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+
 .pl-panel-title {
+  /* Room for the close button, so a long title never runs under it. */
+  padding-right: 1.6rem;
   font-family: var(--sketch-font);
   font-size: 1.15rem;
   margin-bottom: 0.5rem;
