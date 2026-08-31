@@ -1,8 +1,9 @@
 /* drawcast — the chrome reads as a sketchbook: paper ground, ink lines, the
    same hand-drawn face as the figures for titles, quiet utilitarian controls.
-   Signature element: hand-drawn squiggle underlines. Two modes share one
-   document: .mode-player shows just the video-like player; .mode-editor shows
-   the creation workbench. */
+   Signature element: the mark (src/brand/mark.ts), a rough.js sketch — the
+   same engine that draws every figure — rather than a hand-authored logo.
+   Two modes share one document: .mode-player shows just the video-like
+   player; .mode-editor shows the creation workbench. */
 
 :root {
   --paper: #efe9da;   /* the page sits back so panels can lift off it */
@@ -64,13 +65,6 @@ body {
   line-height: 1.45;
 }
 
-.squiggle {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='7' viewBox='0 0 120 7'%3E%3Cpath d='M2 4 Q 12 1 24 4 T 48 4 T 72 3 T 96 5 T 118 3' fill='none' stroke='%23b5482e' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
-  background-position: left bottom;
-  padding-bottom: 9px;
-}
-
 /* ---------- topbar + mode toggle ---------- */
 
 .topbar {
@@ -93,6 +87,13 @@ body {
   font-family: var(--sketch-font);
   font-size: 2rem;
   letter-spacing: 0.01em;
+}
+
+/* The mark, drawn by rough.js like everything else — sized to sit on the
+   wordmark's baseline instead of at its own native 64px. */
+.mark {
+  width: 1.9rem;
+  height: 1.9rem;
 }
 
 /* Phones: the mode pill and the two round buttons need the full width. */

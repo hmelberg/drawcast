@@ -324,7 +324,13 @@ app.appendChild(
   h(
     "header",
     { class: "topbar" },
-    h("div", { class: "topbar-left" }, menuBtn, h("div", { class: "wordmark squiggle" }, "drawcast")),
+    h(
+      "div",
+      { class: "topbar-left" },
+      menuBtn,
+      h("img", { class: "mark", src: "./mark.svg", alt: "" }),
+      h("div", { class: "wordmark" }, "drawcast"),
+    ),
     h("div", { class: "mode-toggle" }, playerModeBtn, editorModeBtn),
   ),
 );
