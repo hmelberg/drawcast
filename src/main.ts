@@ -3100,19 +3100,30 @@ async function publishDrawcast(bake: boolean): Promise<void> {
   }
 }
 
+// In-flight guards for the two Drive operations. These used to live as
+// `driveSaveBtn.disabled` / `driveOpenBtn.disabled` — but that only ever
+// protected the one button wired to the call. Now that Open/Save are menu
+// items (createMenu returns a different element shape depending on which
+// items are configured-visible, so there is no single stable button to
+// disable), the guard belongs to the operation itself: a saveToDrive() that
+// cannot be re-entered is correct no matter what calls it — a menu item
+// today, a keyboard shortcut or Share tomorrow.
+let driveSaveInFlight = false;
 async function saveToDrive(): Promise<void> {
-  // Everything this save is ABOUT is captured at click time. The first Save
-  // opens a consent popup and the page stays interactive behind it, so `doc`
-  // may be a different document by the time the await resolves — and writing
-  // file A's id onto document B would make B's next Save overwrite A.
-  const target = doc;
-  const base = target.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-  // The textarea holds YAML for a playlist and the chosen format otherwise
-  // (same rule as ⬇ Download), so the extension and the MIME type follow it.
-  const format: SpecFormat = isSingle(target.playlist) ? settings.specFormat : "yaml";
-  const name = `${base}.${format}`;
-  const mimeType = format === "json" ? "application/json" : "text/yaml";
+  if (driveSaveInFlight) return;
+  driveSaveInFlight = true;
   try {
+    // Everything this save is ABOUT is captured at click time. The first Save
+    // opens a consent popup and the page stays interactive behind it, so `doc`
+    // may be a different document by the time the await resolves — and writing
+    // file A's id onto document B would make B's next Save overwrite A.
+    const target = doc;
+    const base = target.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+    // The textarea holds YAML for a playlist and the chosen format otherwise
+    // (same rule as ⬇ Download), so the extension and the MIME type follow it.
+    const format: SpecFormat = isSingle(target.playlist) ? settings.specFormat : "yaml";
+    const name = `${base}.${format}`;
+    const mimeType = format === "json" ? "application/json" : "text/yaml";
     setStatus("Saving to Drive…");
     const res = await saveSpec(specArea.value, name, mimeType, target.driveFileId);
     if (!res) {
@@ -3127,9 +3138,12 @@ async function saveToDrive(): Promise<void> {
     setStatus(`Saved "${name}" to your Google Drive.`, "ok");
   } catch (err) {
     setStatus(`Drive save failed: ${(err as Error).message}`, "error");
+  } finally {
+    driveSaveInFlight = false;
   }
 }
 
+let driveOpenInFlight = false;
 async function openFromDrive(): Promise<void> {
   // Same in-flight guard as every other document-loading path — checked twice
   // on purpose: once before the picker opens, and again once it resolves,
@@ -3137,6 +3151,8 @@ async function openFromDrive(): Promise<void> {
   // long enough to press Revise. A revise that resolves after this setDoc
   // would write the old document's text into the Drive document's identity.
   if (blockedByAi("opening from Drive")) return;
+  if (driveOpenInFlight) return;
+  driveOpenInFlight = true;
   try {
     const picked = await openSpec();
     if (!picked) return; // cancelled, or sign-in declined — say nothing
@@ -3153,6 +3169,8 @@ async function openFromDrive(): Promise<void> {
     refreshAccountRow();
   } catch (err) {
     setStatus(`Drive open failed: ${(err as Error).message}`, "error");
+  } finally {
+    driveOpenInFlight = false;
   }
 }
 
