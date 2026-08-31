@@ -91,3 +91,10 @@ describe("every dialog goes through the helper", () => {
     }
   });
 });
+
+describe("portrait insertion", () => {
+  it("no longer asks for a portrait through a raw browser prompt", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/window\.prompt\("Portrait/);
+  });
+});

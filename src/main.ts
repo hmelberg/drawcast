@@ -31,14 +31,16 @@ import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
 import { createModal, createTabs } from "./ui/modal";
+import { createMenu } from "./ui/menu";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
-import type { Spec, SpecElement } from "./spec/types";
-import { resolvePortraits, traceFromBlob } from "./render/portrait";
+import type { Spec } from "./spec/types";
+import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
 import { h } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
 import { openShare } from "./ui/share";
+import { openInsertPortrait } from "./ui/insert";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
@@ -552,8 +554,23 @@ function refreshExamples(): void {
 refreshExamples();
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
 const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
-const portraitBtn = h("button", { class: "small", title: "Insert a portrait: a person's name (Wikipedia lookup), an image URL, or — leave the prompt empty — a picked file. Traced into sketch strokes in the house style." }, "👤 Portrait");
-const portraitFile = h("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
+// A menu of one item renders as a plain button (ui/menu.ts) until "Source…"
+// joins it in a later task.
+const insertMenu = createMenu("＋ Insert", [
+  {
+    label: "Portrait…",
+    onSelect: () =>
+      openInsertPortrait({
+        readPlaylist: () => readPlaylistText(specArea.value),
+        viewedPart: () => previewedPart,
+        applyPlaylist: (playlist) => {
+          specArea.value = formatPlaylist(playlist, settings.specFormat);
+          rerenderBtn.click();
+        },
+        setStatus,
+      }),
+  },
+]);
 const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
 const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
 const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
@@ -794,8 +811,7 @@ const editorWrap = h(
         h("span", { class: "pane-spacer" }),
         importBtn,
         importInput,
-        portraitBtn,
-        portraitFile,
+        insertMenu,
         pinPortraitsBtn,
         driveOpenBtn,
         driveSaveBtn,
@@ -1672,6 +1688,11 @@ function playbackPrefs(): PlaybackPrefs {
 
 let presentSeq = 0;
 
+// Which part the editor preview last mounted — the ＋ Insert dialog's default
+// "Part", so a portrait lands where you were actually looking instead of
+// always into part 1 (the old insertion's hardcoded position).
+let previewedPart = 0;
+
 async function present(): Promise<void> {
   // Guard against overlapping presents (e.g. Re-render while a mount is in
   // flight): only the latest call may keep its session.
@@ -1721,7 +1742,10 @@ async function present(): Promise<void> {
         trailing: isPlayer ? [switchBtn] : [],
       },
       onItemMounted: (hd, item) => {
-        if (!isPlayer) setLint(hd);
+        if (!isPlayer) {
+          setLint(hd);
+          previewedPart = item.index;
+        }
         // Per-item chrome: the control bar is rebuilt fresh on every item mount
         // (session.ts), so this only ever appends into the CURRENT bar — no
         // stale button to remove from a previous item.
@@ -2929,48 +2953,9 @@ refreshRemotePacksPanel();
 
 importBtn.addEventListener("click", () => importInput.click());
 
-// ---- portrait insertion (name | URL | picked file) ----
-/** Append a portrait element to the current (first) item and rewrite the editor text. */
-function insertPortrait(fields: Partial<SpecElement>): void {
-  const doc = readPlaylistText(specArea.value) ?? null;
-  const playlist = doc ?? parsePlaylistText('{"commands": []}');
-  const items = itemsOf(playlist);
-  const spec = items[0]?.spec ?? ({ commands: [] } as Spec);
-  if (items.length === 0) playlist.entries.push({ kind: "item", spec });
-  spec.elements = spec.elements ?? [];
-  const id = `portrait_${spec.elements.filter((e) => e.type === "portrait").length + 1}`;
-  spec.elements.push({ id, type: "portrait", x: 170, y: 550, width: 170, ...fields } as SpecElement);
-  specArea.value = formatPlaylist(playlist, settings.specFormat);
-  rerenderBtn.click();
-  setStatus(`Portrait "${id}" inserted${items.length > 1 ? " (into part 1)" : ""}.`, "ok");
-}
-
-portraitBtn.addEventListener("click", () => {
-  const answer = window.prompt("Portrait of… (a person's name, or an image URL — leave empty to pick a file)");
-  if (answer === null) return;
-  const value = answer.trim();
-  if (value === "") {
-    portraitFile.click();
-    return;
-  }
-  const isUrl = /^https?:\/\//i.test(value);
-  setStatus("Tracing portrait…", "ok");
-  // Resolve eagerly so a bad name or CORS-blocked URL fails LOUDLY now, not
-  // as a silent placeholder at playback. The trace lands in the cache; the
-  // spec keeps only the small reference.
-  const probe: Spec = {
-    elements: [{ id: "probe", type: "portrait", ...(isUrl ? { url: value } : { of: value }) } as SpecElement],
-    commands: [],
-  };
-  void resolvePortraits(probe).then((results) => {
-    const r = results[0];
-    if (!r?.ok) {
-      setStatus(`Portrait failed: ${r?.error ?? "unknown error"}`, "error");
-      return;
-    }
-    insertPortrait(isUrl ? { url: value } : { of: value });
-  });
-});
+// Portrait insertion now lives behind the ＋ Insert menu (ui/insert.ts):
+// openInsertPortrait builds a real draw command at a chosen step, instead of
+// this spot's old raw window.prompt() + implicit-tail-draw placement.
 
 pinPortraitsBtn.addEventListener("click", () => {
   const playlist = readPlaylistText(specArea.value);
@@ -3000,18 +2985,6 @@ pinPortraitsBtn.addEventListener("click", () => {
   });
 });
 
-portraitFile.addEventListener("change", () => {
-  const file = portraitFile.files?.[0];
-  portraitFile.value = "";
-  if (!file) return;
-  setStatus("Tracing portrait…", "ok");
-  void traceFromBlob(file)
-    .then((encoded) => {
-      // A file has no regenerable source — the strokes embed in the spec.
-      insertPortrait({ strokes: encoded, source: file.name, of: file.name.replace(/\.[a-z0-9]+$/i, "") });
-    })
-    .catch((err: Error) => setStatus(`Portrait failed: ${err.message}`, "error"));
-});
 importInput.addEventListener("change", () => {
   const file = importInput.files?.[0];
   if (!file) return;
