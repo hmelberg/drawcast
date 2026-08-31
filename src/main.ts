@@ -33,6 +33,7 @@ import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
+import { openDestinations, saveDestinations, type CredentialState } from "./ui/destinations";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
@@ -706,31 +707,63 @@ function openSaveToDisk(): void {
 // §6); that rule now lives in each item's `hidden` flag instead of a
 // button's own. The download (Share's old Spec file destination) is
 // "To disk…" below: downloading your own source is a save, not a share.
-// GitHub Open/Save credential gate: same "no credential, no advertisement"
-// rule as Drive's pickerConfigured()/googleConfigured(), but the repo/token
-// are user-entered Settings values rather than a build-time env var — read
-// live at menu-build time (this runs after loadSettings(), well above).
+//
+// GitHub's credential gate looks like Drive's (pickerConfigured() /
+// googleConfigured()) but ISN'T static per session: the repo and token are
+// Settings values a user edits at runtime, not a build-time env var, so
+// `githubConfigured()` can flip mid-session in a way Drive's checks never do.
+// `createMenu` decides plain-button-vs-dropdown at construction and bakes
+// `hidden` in then — making that dynamic is a menu.ts change, and a bigger
+// one than this needs (ruling: Task 7 fix round 1). So instead each menu
+// lives inside a stable host span, and refreshCredentialMenus() below swaps
+// the host's one child for a freshly built menu. WHICH items each menu
+// offers is decided by openDestinations()/saveDestinations()
+// (ui/destinations.ts) — pure and tested there, since main.ts can't be
+// (a module-scope h(...) call crashes vitest's node environment on import).
 function githubConfigured(): boolean {
   return parseRepo(settings.githubRepo) !== null && getGithubToken() !== "";
 }
-const openMenu = createMenu(
-  "Open",
-  [
-    { label: "From disk…", onSelect: () => importInput.click() },
-    { label: "From Google Drive…", onSelect: () => void openFromDrive(), hidden: !pickerConfigured() },
-    { label: "From GitHub…", onSelect: () => void openSourceFromGithub(), hidden: !githubConfigured() },
-  ],
-  { title: "Open a drawcast" },
-);
-const saveMenu = createMenu(
-  "Save",
-  [
-    { label: "To disk…", onSelect: () => openSaveToDisk() },
-    { label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !googleConfigured() },
-    { label: "To GitHub…", onSelect: () => void saveSourceToGithub(), hidden: !githubConfigured() },
-  ],
-  { title: "Save this drawcast" },
-);
+function credentialState(): CredentialState {
+  return { drivePicker: pickerConfigured(), driveSave: googleConfigured(), github: githubConfigured() };
+}
+function buildOpenMenu(): HTMLElement {
+  const allowed = new Set(openDestinations(credentialState()));
+  return createMenu(
+    "Open",
+    [
+      { label: "From disk…", onSelect: () => importInput.click() },
+      { label: "From Google Drive…", onSelect: () => void openFromDrive(), hidden: !allowed.has("From Google Drive…") },
+      { label: "From GitHub…", onSelect: () => void openSourceFromGithub(), hidden: !allowed.has("From GitHub…") },
+    ],
+    { title: "Open a drawcast" },
+  );
+}
+function buildSaveMenu(): HTMLElement {
+  const allowed = new Set(saveDestinations(credentialState()));
+  return createMenu(
+    "Save",
+    [
+      { label: "To disk…", onSelect: () => openSaveToDisk() },
+      { label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !allowed.has("To Google Drive…") },
+      { label: "To GitHub…", onSelect: () => void saveSourceToGithub(), hidden: !allowed.has("To GitHub…") },
+    ],
+    { title: "Save this drawcast" },
+  );
+}
+const openMenuHost = h("span", {}, buildOpenMenu());
+const saveMenuHost = h("span", {}, buildSaveMenu());
+/**
+ * Rebuilds both menus so a destination configured mid-session (today: only
+ * GitHub's repo+token) appears without a reload. Called from persist() —
+ * the general "a setting changed" hook, which covers the repo field — and
+ * once more explicitly from the token field's own listener below, since the
+ * token lives outside `settings` (its own localStorage key) and so never
+ * goes through persist() at all.
+ */
+function refreshCredentialMenus(): void {
+  openMenuHost.replaceChildren(buildOpenMenu());
+  saveMenuHost.replaceChildren(buildSaveMenu());
+}
 // One button for every way a drawcast leaves the app — replaces ⬇, ⬆ Publish,
 // ☑ with narration, 🎬 Export video and ▶ YouTube (spec §2). Its modal picks
 // which of those still applies; an unconfigured one just does not appear.
@@ -960,7 +993,7 @@ const editorWrap = h(
         "div",
         { class: "pane-bar" },
         h("span", { class: "bar-group" }, imagesMenu),
-        h("span", { class: "bar-group" }, openMenu, saveMenu, importInput),
+        h("span", { class: "bar-group" }, openMenuHost, saveMenuHost, importInput),
         h("span", { class: "pane-spacer" }),
         shareBtn,
       ),
@@ -1212,7 +1245,12 @@ githubRepoInput.addEventListener("change", () => {
 });
 const githubTokenInput = h("input", { type: "password", placeholder: "github_pat_…", autocomplete: "off" }) as HTMLInputElement;
 githubTokenInput.value = getGithubToken();
-githubTokenInput.addEventListener("change", () => setGithubToken(githubTokenInput.value.trim()));
+githubTokenInput.addEventListener("change", () => {
+  setGithubToken(githubTokenInput.value.trim());
+  // The token lives outside `settings` (its own localStorage key, per BYOK
+  // convention), so it never goes through persist() — refresh explicitly.
+  refreshCredentialMenus();
+});
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 coursesDirInput.addEventListener("change", () => {
@@ -1771,6 +1809,9 @@ model3dDialog.addEventListener("close", () => {
 
 function persist(): void {
   saveSettings(settings);
+  // Covers settings.githubRepo (and anything else that could ever gate a
+  // destination) changing mid-session — see refreshCredentialMenus() above.
+  refreshCredentialMenus();
 }
 
 // ---- Subtitles: making a track for another language -----------------------
