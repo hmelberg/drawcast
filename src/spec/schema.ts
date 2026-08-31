@@ -497,6 +497,45 @@ export const specSchema = {
   additionalProperties: false,
 } as const;
 
+/**
+ * What a SAVED document may carry beyond what the model writes.
+ *
+ * specSchema above is the authoring contract — it goes to the API as the
+ * structured-output constraint (apiSchema in llm/compile.ts), and its
+ * `additionalProperties: false` is what makes it one. These fields are stamped
+ * afterwards by tooling: the translator writes `lang` and `text_map`, the
+ * subtitle authoring writes `subtitles`. The model is never asked for them.
+ *
+ * They were in the Spec type and in nothing else, so validateSpec — which
+ * validates against the authoring schema — refused every document that carried
+ * one. A translated drawcast could not be reopened in the app ("Spec invalid:
+ * (root) must NOT have additional properties") and the standalone viewer threw
+ * it out. Hence two schemas: the model sees the narrower one, the validator
+ * uses this.
+ */
+const TRANSLATION_FIELDS = {
+  lang: {
+    type: "string",
+    description: 'BCP-47 primary tag for the language the text is written in ("en", "nb"). Picks the narrator voice.',
+  },
+  text_map: {
+    type: "object",
+    description: "Drawn text a scene template computes for itself, and its replacement. Applied during layout.",
+    additionalProperties: { type: "string" },
+  },
+  subtitles: {
+    type: "object",
+    description: "Subtitle tracks: language code → (source caption line → translated line). What the CC menu offers.",
+    additionalProperties: { type: "object", additionalProperties: { type: "string" } },
+  },
+} as const;
+
+/** The authoring schema plus the fields tooling stamps. What validateSpec checks. */
+export const documentSchema = {
+  ...specSchema,
+  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS },
+} as const;
+
 const ajv = new AjvCtor({ allErrors: true, strict: false });
 let structural: ValidateFunction | null = null;
 
@@ -534,7 +573,7 @@ export function normalizeSpec(spec: unknown): unknown {
 }
 
 function structuralErrors(spec: unknown): string[] {
-  structural ??= ajv.compile(specSchema as object);
+  structural ??= ajv.compile(documentSchema as object);
   if (structural(spec)) return [];
   return (structural.errors ?? []).map(
     (e) => `${e.instancePath || "(root)"} ${e.message ?? "invalid"}${e.params ? " " + JSON.stringify(e.params) : ""}`,
