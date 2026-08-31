@@ -16,7 +16,15 @@ import { itemsOf, itemTitle, type Playlist, type PlaylistItem } from "../playlis
 import { createModal } from "./modal";
 import { h } from "./dom";
 
-export type PortraitSource = { of: string } | { url: string } | { strokes: string };
+export type PortraitSource =
+  | { of: string }
+  | { url: string }
+  // A file has no regenerable source — the strokes embed in the spec, and the
+  // filename is all there is for the caption drawn under the portrait
+  // (layout/tier2.ts reads `of`) and the provenance attribution: unlike the
+  // name/url arms, resolvePortraits never backfills `source` for an element
+  // that already has strokes, so it has to travel with the choice itself.
+  | { strokes: string; of?: string; source?: string };
 
 export interface PortraitChoice {
   source: PortraitSource;
@@ -148,24 +156,43 @@ function build(): InsertSession {
   const insertBtn = h("button", { class: "primary" }, "Insert");
   modal.footer.append(insertBtn);
 
-  /** Insert, patch in anything portraitInsert's typed source can't carry, apply, close. */
-  const commit = (playlist: Playlist, part: number, source: PortraitSource, cameo: boolean, afterStep: number, patch?: (el: SpecElement) => void): void => {
+  /** Insert into a FRESH playlist and apply. Never called with a playlist read
+   *  before the async trace/resolve above it — see the WHY note at the call
+   *  site below. */
+  const commit = (playlist: Playlist, part: number, source: PortraitSource, cameo: boolean, afterStep: number): void => {
     const result = portraitInsert(playlist, { source, part, cameo, afterStep });
     const els = itemsOf(result)[part]?.spec.elements ?? [];
     const el = els[els.length - 1];
-    if (patch && el) patch(el);
     current.applyPlaylist(result);
-    current.setStatus(el ? `Portrait "${el.id}" inserted into "${itemTitle(itemsOf(result)[part])}".` : "Portrait inserted.", "ok");
-    modal.dialog.close();
+    if (el) {
+      current.setStatus(`Portrait "${el.id}" inserted into "${itemTitle(itemsOf(result)[part])}".`, "ok");
+      modal.dialog.close();
+    } else {
+      // The chosen part no longer exists in this fresh read — the text
+      // changed out from under the dialog while it waited. Leave the dialog
+      // open (nothing to undo — applyPlaylist above wrote back the playlist
+      // unchanged) so the user can pick a part that still exists and retry.
+      current.setStatus("That part no longer exists in the current text — nothing was inserted.", "error");
+    }
   };
 
   insertBtn.addEventListener("click", () => {
-    const playlist = current.readPlaylist();
-    if (!playlist) return; // readPlaylist already reported why
     const part = Number(partSel.value) || 0;
     const cameo = placeSel.value === "cameo";
     const afterStep = Math.max(0, Math.floor(Number(afterInput.value) || 0));
     const mode = sourceMode();
+
+    // The playlist is read HERE, after the async trace/resolve below settles,
+    // never before it starts: the deleted window.prompt() flow's own comment
+    // named the hazard this avoids — "an upload that lands mid-revise would
+    // be overwritten by the revise that resolves after it". Reading early and
+    // holding onto the result would silently clobber whatever the editor text
+    // became during the network delay.
+    const apply = (source: PortraitSource): void => {
+      const playlist = current.readPlaylist();
+      if (!playlist) return; // readPlaylist already reported why
+      commit(playlist, part, source, cameo, afterStep);
+    };
 
     if (mode === "file") {
       const file = fileInput.files?.[0];
@@ -177,16 +204,8 @@ function build(): InsertSession {
       insertBtn.disabled = true;
       void traceFromBlob(file)
         .then((encoded) => {
-          // PortraitSource's `strokes` branch is a single-key union — it can't
-          // also carry the filename-derived caption/provenance the old file
-          // flow set, so those are patched onto the element after insertion
-          // (same fields, same values, as before: a file has no regenerable
-          // source, so the strokes embed and the filename is all there is).
           const base = file.name.replace(/\.[a-z0-9]+$/i, "");
-          commit(playlist, part, { strokes: encoded }, cameo, afterStep, (el) => {
-            el.source = file.name;
-            el.of = base;
-          });
+          apply({ strokes: encoded, of: base, source: file.name });
         })
         .catch((err: Error) => current.setStatus(`Portrait failed: ${err.message}`, "error"))
         .finally(() => (insertBtn.disabled = false));
@@ -213,7 +232,7 @@ function build(): InsertSession {
           current.setStatus(`Portrait failed: ${r?.error ?? "unknown error"}`, "error");
           return;
         }
-        commit(playlist, part, source, cameo, afterStep);
+        apply(source);
       })
       .finally(() => (insertBtn.disabled = false));
   });

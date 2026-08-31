@@ -39,4 +39,22 @@ describe("portraitInsert", () => {
     const ids = (itemsOf(pl)[0].spec.elements ?? []).map((e: any) => e.id);
     expect(ids).toEqual(["portrait_1", "portrait_2"]);
   });
+
+  // Fix round 1, finding 2: a file upload has no regenerable source, so the
+  // strokes arm of PortraitSource optionally carries the filename-derived
+  // caption (`of`, drawn under the portrait — layout/tier2.ts) and provenance
+  // (`source`) alongside the strokes themselves, and portraitInsert builds
+  // the whole element from that one call — no separate patch step needed.
+  it("carries a file upload's caption and provenance alongside its strokes", () => {
+    const out = portraitInsert(one(), {
+      source: { strokes: "STROKES_DATA", of: "vacation-photo", source: "vacation-photo.jpg" },
+      part: 0,
+      cameo: true,
+      afterStep: 0,
+    });
+    const el: any = (itemsOf(out)[0].spec.elements ?? [])[0];
+    expect(el.strokes).toBe("STROKES_DATA");
+    expect(el.of).toBe("vacation-photo");
+    expect(el.source).toBe("vacation-photo.jpg");
+  });
 });
