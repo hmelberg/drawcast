@@ -61,4 +61,14 @@ describe("the modal size scale", () => {
   it("still scrolls the body instead of clipping it — a max-height alone doesn't scroll", async () => {
     expect(await css()).toMatch(/\.dialog-body\s*\{[^}]*overflow-y:\s*auto/);
   });
+
+  it("caps the bare dialog rule, so a dialog that names no size class isn't full-bleed", async () => {
+    // A dialog with no .modal-s/m/l class (Settings, YouTube upload — until a
+    // later task converts them) falls through to this rule alone. It has to
+    // carry its own cap rather than relying on a size class that might not
+    // be there.
+    const text = await css();
+    const rule = /\ndialog\s*\{([^}]*)\}/.exec(text)?.[1] ?? "";
+    expect(rule).toMatch(/max-width:\s*30rem/);
+  });
 });

@@ -792,6 +792,7 @@ dialog {
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
+  max-width: 30rem; /* the default a dialog gets when it names no size class */
   width: 92vw;
   padding: 1.2rem 1.4rem;
 }
