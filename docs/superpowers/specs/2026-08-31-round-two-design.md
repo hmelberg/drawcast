@@ -212,18 +212,38 @@ real risk this change introduces; the dot is what removes it.
 |---|---|---|---|
 | `--paper` | `#f5f1e6` | `#efe9da` | the page sits back so panels can lift |
 | `--surface` | `#fffdf6` | `#fffdf8` | panels read as raised, not adjacent |
-| `--line` | `#d8d2c2` | `#c2b9a4` | 1.33:1 → **3.0:1**, a real edge |
+| `--line` | `#d8d2c2` | `#8f8265` | 1.33:1 → **3.13:1**, a real edge |
 | `--muted` | `#8f887c` | `#6f685c` | 3.45:1 → **4.6:1**, readable |
 
 Every ratio in this table is asserted by a test (§8), computed from the
 tokens rather than eyeballed.
 
-### 5.2 One job for the accent
+*Correction, 2026-08-31: this table first proposed `#c2b9a4` for `--line` and
+claimed 3.0:1. It is 1.61:1 — I measured the diagnosis and not the
+prescription. The implementer computed it, refused the value, and substituted
+`#8f8265` (3.13:1) from the same warm-khaki family. The test in §8 exists
+precisely so a proposed colour cannot be taken on trust, including mine.*
 
-`--rust` keeps `button.primary` and nothing else. Its five other uses become
-structural: the active mode pill uses `--ink`; hovers use an `--ink`-mix step;
-`.cs-progress-fill` uses `--ink`; `.library-open:hover` uses `--ink` with the
-existing dotted underline; `.squiggle` is deleted with the wordmark (§6).
+### 5.2 Three jobs for the accent, not twenty-eight
+
+There are **28** `var(--rust)` uses in `styles.css`, not the handful this spec
+first assumed. Reducing that to literally one is the wrong correction — an
+accent has legitimate work to do. It keeps three named roles and loses the
+rest:
+
+| Role | Keeps the accent | Examples |
+|---|---|---|
+| The primary action | yes | `button.primary` |
+| "You are here" | yes | `.tab-btn.active`, `.library-open.current`, `.pl-item.current`, `.share-dest.current`, `.pl-dot.current` |
+| Links | yes | `.viewer-footer a`, `.cs-infocard-actions a`, `.cs-mediamodal-bar a` |
+| **Hover** | **no** → an `--ink` mix | `.sidebar-new:hover`, `.tab-btn:hover`, `.cs-bar-btn:hover`, `.cs-cardgate-pill:hover`, `.cs-infocard-sense:hover`, `.pl-dot:hover`, `.pl-item:hover`, `.share-dest:hover` |
+| **Incidental text and controls** | **no** → `--muted` / `--ink` | `.row-note`, `.cs-tray-*`, `.cs-progress-fill` |
+
+Hover is the biggest offender: transient, everywhere, and it is what makes the
+accent stop meaning anything. `.squiggle` is deleted with the wordmark (§6).
+
+The test asserts an explicit allowlist of selectors, so a new accent use has to
+be added to it deliberately rather than drifting in.
 
 ### 5.3 Dark — and the figure stays paper
 
