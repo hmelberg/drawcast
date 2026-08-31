@@ -1477,7 +1477,22 @@ Into the existing `@media (max-width: 940px)` block at `styles.css:292`:
     padding: 1rem;
   }
   .modal-s .dialog-body, .modal-m .dialog-body, .modal-l .dialog-body { max-height: 66vh; }
-  .share-split, .insert-split { grid-template-columns: 1fr; }
+  /* Share's destination rail sits BESIDE its panels on a desktop; on a phone
+     there is no room for both, so the rail becomes a row above them. The
+     class is `.share-layout` (a flex row, styles.css:1473) — there is no
+     `.share-split`, and the Insert dialog is single-column already, so it
+     needs nothing here. Verify both claims before writing this rule; a
+     selector matching nothing is the failure this whole section is about. */
+  .share-layout { flex-direction: column; }
+  .share-rail {
+    flex: 0 0 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    padding-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.6rem;
+  }
 }
 ```
 
