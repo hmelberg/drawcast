@@ -41,6 +41,11 @@ const STYLE = `
   footer { margin-top: 3rem; font-size: 0.85rem; opacity: 0.6; }
 `;
 
+/** The shared page look, so a sibling page (published drawcasts) matches. */
+export function coursePageStyle(): string {
+  return STYLE;
+}
+
 function page(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">

@@ -284,6 +284,12 @@ export interface SavedDrawing {
    * their course instead of scattering ten rows through everything else.
    */
   courseId?: string;
+  /**
+   * The name this drawcast was published under in the author's repo, once it
+   * has been. Permanent from the first publish: retitling must never move the
+   * file a shared link already points at.
+   */
+  publishedAs?: string;
   ts: string;
 }
 

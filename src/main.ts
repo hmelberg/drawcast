@@ -45,10 +45,12 @@ import {
   DEFAULT_META,
   exportSequence,
   formatPlaylist,
+  formatPublished,
   isSingle,
   itemsOf,
   parsePlaylistText,
   singlePlaylist,
+  type AudioTrack,
   type Playlist,
 } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
@@ -57,6 +59,11 @@ import { toVtt } from "./export/captions";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
+import { bakeNarration, bakeSize } from "./export/bake";
+import { synthesizeBase64 } from "./export/tts";
+import { publishCast } from "./publish/cast";
+import { parseRepo, readFile } from "./publish/github";
+import { joinPath } from "./course/publish";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { translateSpec } from "./llm/translate";
 import { lintCommands } from "./lint/lint";
@@ -153,6 +160,12 @@ interface Doc {
   id: string | null;
   /** The Drive file this document was saved to this session; null otherwise. In memory only. */
   driveFileId: string | null;
+  /**
+   * The folder name this drawcast was published under, once it has been.
+   * Permanent from the first publish: retitling must never move the file a
+   * shared link already points at.
+   */
+  publishedAs?: string;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -252,12 +265,12 @@ function firstSpec(d: Doc): Spec {
 function docFromSaved(saved: SavedDrawing): Doc {
   if (saved.playlist) {
     try {
-      return { id: saved.id, driveFileId: null, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -547,6 +560,17 @@ const portraitFile = h("input", { type: "file", accept: "image/*", style: "displ
 const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
 const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
 const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
+const publishBtn = h("button", { class: "small", title: "Publish this drawcast to your GitHub repository, as a link anyone can open" }, "⬆ Publish");
+// Baking the narration in is what lets a viewer play it with no key of their
+// own: synthesized once here, by the author, instead of once per viewer. Off
+// by default — it spends the TTS budget.
+const publishBakeCb = h("input", { type: "checkbox", id: "cast-bake" }) as HTMLInputElement;
+const publishBakeLabel = h(
+  "label",
+  { class: "quiet-label", for: "cast-bake", title: "Synthesize the narration once and publish it inside the drawcast, so viewers need no key" },
+  publishBakeCb,
+  "with narration",
+);
 // A capability without its credential does not advertise itself (spec §6).
 // Open needs the Picker's own developer key; Save does not.
 driveOpenBtn.hidden = !pickerConfigured();
@@ -793,6 +817,8 @@ const editorWrap = h(
         pinPortraitsBtn,
         driveOpenBtn,
         driveSaveBtn,
+        publishBtn,
+        publishBakeLabel,
       ),
       specArea,
     ),
@@ -1758,7 +1784,7 @@ function showVersion(index: number): void {
   restoring = true;
   try {
     specArea.value = v.text;
-    doc = { id: doc.id, driveFileId: doc.driveFileId, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
     void present();
   } finally {
     restoring = false;
@@ -1847,6 +1873,7 @@ function autosave(): void {
       prompt: doc.prompt,
       spec: firstSpec(doc),
       playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+      publishedAs: doc.publishedAs,
       ts: new Date().toISOString(),
     });
   } catch (err) {
@@ -2234,7 +2261,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       `Revised: ${instruction}`,
       { label, kind: "revise" },
     );
@@ -2431,7 +2458,7 @@ rerenderBtn.addEventListener("click", () => {
   if (!playlist) return;
   // Same document, edited in place — carry the id forward so autosave() below
   // replaces this entry instead of minting a second one (copy-on-write).
-  doc = { id: doc.id, driveFileId: doc.driveFileId, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   setStatus("Re-rendered from edited spec.", "ok");
@@ -3024,6 +3051,90 @@ importInput.addEventListener("change", () => {
 });
 
 driveSaveBtn.addEventListener("click", () => void saveToDrive());
+
+// ---- Publishing one drawcast to the author's own public repo ---------------
+
+/**
+ * Bake this document's narration, if asked for, and return the text to publish.
+ * Reuses whatever the drawcast already published, so a second publish pays only
+ * for lines that are new or changed.
+ */
+async function publishTextFor(signal: AbortSignal): Promise<string> {
+  const plain = formatPlaylist(doc.playlist, "yaml");
+  if (!publishBakeCb.checked) return plain;
+  const apiKey = getTtsKey();
+  if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
+  const repo = parseRepo(settings.githubRepo);
+  let existing: AudioTrack["lines"] = {};
+  if (repo && doc.publishedAs) {
+    const published = await readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
+      fetch(input, { ...init, signal }),
+    ).catch(() => null);
+    if (published) existing = parsePlaylistText(published).audio?.lines ?? {};
+  }
+  const track = await bakeNarration(
+    playlistSpeakLines(doc.playlist),
+    {
+      lang: itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang ?? "en",
+      existing,
+      synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate }, line.text, line),
+    },
+    (done, total) => setStatus(`Synthesizing narration — ${done}/${total} lines…`),
+    signal,
+  );
+  const size = bakeSize(track);
+  lastBakeNote = ` Narration included — ${size.lines} line(s), ${(size.inlineBytes / 1_048_576).toFixed(1)} MB, so viewers need no key.`;
+  return formatPublished(doc.playlist, track);
+}
+
+let lastBakeNote = "";
+
+async function publishDrawcast(): Promise<void> {
+  const token = getGithubToken();
+  const repo = parseRepo(settings.githubRepo);
+  if (!token || !repo) {
+    setStatus("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
+    return;
+  }
+  if (itemsOf(doc.playlist).length === 0) {
+    setStatus("There is nothing to publish yet.", "error");
+    return;
+  }
+  publishBtn.disabled = true;
+  lastBakeNote = "";
+  const ac = new AbortController();
+  try {
+    setStatus("Publishing to GitHub…");
+    const text = await publishTextFor(ac.signal);
+    const out = await publishCast({
+      title: doc.title,
+      text,
+      slug: doc.publishedAs,
+      repo,
+      token,
+      castsDir: joinPath(settings.coursesDir, "casts"),
+      viewerBase: settings.viewerBase,
+      fetchImpl: (input, init) => fetch(input, { ...init, signal: ac.signal }),
+    });
+    // Past this line the commit has LANDED. Recording the slug is what keeps
+    // the link permanent, so it is worth saying if only that part failed.
+    doc.publishedAs = out.slug;
+    try {
+      autosave();
+    } catch (err) {
+      console.error("drawcast: publish succeeded, bookkeeping failed", err);
+    }
+    setStatus(`Published to ${out.castUrl}${lastBakeNote}`, "ok");
+  } catch (err) {
+    console.error("drawcast: publish failed", err);
+    const e = err as Error;
+    setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+  } finally {
+    publishBtn.disabled = false;
+  }
+}
+
+publishBtn.addEventListener("click", () => void publishDrawcast());
 async function saveToDrive(): Promise<void> {
   // Everything this save is ABOUT is captured at click time. The first Save
   // opens a consent popup and the page stays interactive behind it, so `doc`
