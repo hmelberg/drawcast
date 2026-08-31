@@ -52,6 +52,14 @@ describe("the modal size scale", () => {
     expect(text).toMatch(/\.modal-l\s*\{[^}]*max-width:\s*min\(104rem,\s*96vw\)/);
     expect(text).not.toMatch(/\.wide-dialog/);
     expect(text).not.toMatch(/\.course-modal\s*\{[^}]*max-width/);
+    // .modal-m already caps this dialog at 46rem (736px) — any width/max-width
+    // of its own would either be silently overridden (dead CSS that lies about
+    // the dialog's actual rendered width) or, if narrower than 736px, would
+    // reintroduce a per-modal override the size scale is meant to replace.
+    expect(text).not.toMatch(/\.author-dialog\s*\{[^}]*width/);
+    // Same story for .modal-s (30rem/480px): .sub-dialog's own 520px width was
+    // always ≥ that cap, so it could never once have taken effect.
+    expect(text).not.toMatch(/\.sub-dialog\s*\{[^}]*width/);
   });
 
   it("gives every modal a footer row for its actions", async () => {
