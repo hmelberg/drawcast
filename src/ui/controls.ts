@@ -523,6 +523,15 @@ export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskG
     });
 }
 
+/**
+ * Whether the control bar may fade out. A gate holds it visible: on a phone
+ * the only gesture that brings a hidden bar back is a tap on the figure, and
+ * during a click-the-figure question that same tap submits an answer.
+ */
+export function shouldIdle(s: { playing: boolean; gateOpen: boolean }): boolean {
+  return s.playing && !s.gateOpen;
+}
+
 export function attachPlayerControls(
   stageHost: HTMLElement,
   hd: RenderHandle,
@@ -756,8 +765,15 @@ export function attachPlayerControls(
   let idleTimer: number | null = null;
   let playing = false;
   const setIdle = (idle: boolean) => figure.classList.toggle("cs-idle", idle);
+  // gateIsOpen reads the stage rather than a threaded flag: the six gate
+  // factories (clickGate, quizGateFor, askGateFor, figureGateFor,
+  // pianoGateFor, chessGateFor) already mark their overlay's presence in the
+  // DOM, and on a phone that overlay is the only thing standing between a
+  // hidden bar and the tap that would answer the question — asking it here
+  // is cheaper than plumbing a flag through every factory.
   const scheduleIdle = (ms = IDLE_MS) => {
     if (idleTimer !== null) window.clearTimeout(idleTimer);
+    if (!shouldIdle({ playing, gateOpen: gateIsOpen(stage) })) return;
     idleTimer = window.setTimeout(() => setIdle(true), ms);
   };
   const activity = () => {
