@@ -432,6 +432,14 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 }
 .pane-bar button, .pane-bar select { font-size: 0.82rem; padding: 0.24rem 0.5rem; min-height: var(--bar-h); }
 .pane-spacer { flex: 1; }
+/* Three visible groups instead of one flex spacer (spec §4): a divider
+   reads as "these controls act on different things" without a label. */
+.bar-group { display: inline-flex; align-items: center; gap: 0.35rem; }
+.bar-group + .bar-group {
+  margin-left: 0.35rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--line);
+}
 
 /* ---------- the ▾ menu: a verb with a few ways to do it ---------- */
 .menu { position: relative; display: inline-flex; }

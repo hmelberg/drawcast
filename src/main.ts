@@ -553,7 +553,6 @@ function refreshExamples(): void {
 }
 refreshExamples();
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
-const importBtn = h("button", { class: "icon-only", title: "Load a spec file from disk" }, "⬆");
 // A menu of one item renders as a plain button (ui/menu.ts) until "Source…"
 // joins it in a later task.
 const insertMenu = createMenu("＋ Insert", [
@@ -572,16 +571,30 @@ const insertMenu = createMenu("＋ Insert", [
   },
 ]);
 const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
-const driveOpenBtn = h("button", { class: "small", title: "Open a spec from Google Drive" }, "☁ Open");
-const driveSaveBtn = h("button", { class: "small", title: "Save this spec to Google Drive" }, "☁ Save");
+// Open ▾ and Save ▾ fold what used to be four buttons (⬆ import, ☁ Open,
+// ☁ Save, plus the ⬇ download now living in Share) into one menu per verb
+// (spec §4) — the ⬆ glyph no longer means two different things. A capability
+// without its credential still does not advertise itself (spec §6); that
+// rule now lives in each item's `hidden` flag instead of a button's own.
+// Save holds Drive alone: a "to disk" twin would duplicate Share's Spec
+// file destination (share.ts specGo), putting one action in two menus.
+const openMenu = createMenu(
+  "Open",
+  [
+    { label: "From disk…", onSelect: () => importInput.click() },
+    { label: "From Google Drive…", onSelect: () => void openFromDrive(), hidden: !pickerConfigured() },
+  ],
+  { title: "Open a drawcast" },
+);
+const saveMenu = createMenu(
+  "Save",
+  [{ label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !googleConfigured() }],
+  { title: "Save this drawcast" },
+);
 // One button for every way a drawcast leaves the app — replaces ⬇, ⬆ Publish,
 // ☑ with narration, 🎬 Export video and ▶ YouTube (spec §2). Its modal picks
 // which of those still applies; an unconfigured one just does not appear.
 const shareBtn = h("button", { class: "small", title: "Publish a link, upload to YouTube, export a video, or download the spec" }, "↗ Share");
-// A capability without its credential does not advertise itself (spec §6).
-// Open needs the Picker's own developer key; Save does not.
-driveOpenBtn.hidden = !pickerConfigured();
-driveSaveBtn.hidden = !googleConfigured();
 // Background-export progress chip: the render/upload runs without a modal, so
 // this chip in the pane bar is the only visible trace — status text + cancel.
 // (Created here with its pane-bar siblings; wired in the video-export section.)
@@ -806,15 +819,10 @@ const editorWrap = h(
       h(
         "div",
         { class: "pane-bar" },
-        formatSel,
-        rerenderBtn,
+        h("span", { class: "bar-group" }, formatSel, rerenderBtn),
+        h("span", { class: "bar-group" }, insertMenu, pinPortraitsBtn),
+        h("span", { class: "bar-group" }, openMenu, saveMenu, importInput),
         h("span", { class: "pane-spacer" }),
-        importBtn,
-        importInput,
-        insertMenu,
-        pinPortraitsBtn,
-        driveOpenBtn,
-        driveSaveBtn,
         shareBtn,
       ),
       specArea,
@@ -2951,8 +2959,6 @@ function refreshRemotePacksPanel(): void {
 }
 refreshRemotePacksPanel();
 
-importBtn.addEventListener("click", () => importInput.click());
-
 // Portrait insertion now lives behind the ＋ Insert menu (ui/insert.ts):
 // openInsertPortrait builds a real draw command at a chosen step, instead of
 // this spot's old raw window.prompt() + implicit-tail-draw placement.
@@ -3011,8 +3017,6 @@ importInput.addEventListener("change", () => {
     setDoc({ id: null, driveFileId: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
   });
 });
-
-driveSaveBtn.addEventListener("click", () => void saveToDrive());
 
 // ---- Publishing one drawcast to the author's own public repo ---------------
 
@@ -3108,7 +3112,6 @@ async function saveToDrive(): Promise<void> {
   const format: SpecFormat = isSingle(target.playlist) ? settings.specFormat : "yaml";
   const name = `${base}.${format}`;
   const mimeType = format === "json" ? "application/json" : "text/yaml";
-  driveSaveBtn.disabled = true;
   try {
     setStatus("Saving to Drive…");
     const res = await saveSpec(specArea.value, name, mimeType, target.driveFileId);
@@ -3124,12 +3127,9 @@ async function saveToDrive(): Promise<void> {
     setStatus(`Saved "${name}" to your Google Drive.`, "ok");
   } catch (err) {
     setStatus(`Drive save failed: ${(err as Error).message}`, "error");
-  } finally {
-    driveSaveBtn.disabled = false;
   }
 }
 
-driveOpenBtn.addEventListener("click", () => void openFromDrive());
 async function openFromDrive(): Promise<void> {
   // Same in-flight guard as every other document-loading path — checked twice
   // on purpose: once before the picker opens, and again once it resolves,
@@ -3137,7 +3137,6 @@ async function openFromDrive(): Promise<void> {
   // long enough to press Revise. A revise that resolves after this setDoc
   // would write the old document's text into the Drive document's identity.
   if (blockedByAi("opening from Drive")) return;
-  driveOpenBtn.disabled = true;
   try {
     const picked = await openSpec();
     if (!picked) return; // cancelled, or sign-in declined — say nothing
@@ -3154,8 +3153,6 @@ async function openFromDrive(): Promise<void> {
     refreshAccountRow();
   } catch (err) {
     setStatus(`Drive open failed: ${(err as Error).message}`, "error");
-  } finally {
-    driveOpenBtn.disabled = false;
   }
 }
 

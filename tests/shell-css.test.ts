@@ -98,3 +98,11 @@ describe("portrait insertion", () => {
     expect(src).not.toMatch(/window\.prompt\("Portrait/);
   });
 });
+
+describe("Open ▾ and Save ▾", () => {
+  it("has no icon-only download/upload buttons left in the spec bar", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/class:\s*"icon-only"[^)]*"⬇"/);
+    expect(src).not.toMatch(/class:\s*"icon-only"[^)]*"⬆"/);
+  });
+});
