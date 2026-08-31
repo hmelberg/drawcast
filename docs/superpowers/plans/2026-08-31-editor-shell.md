@@ -179,6 +179,11 @@ describe("the touch tier", () => {
     expect(block).toMatch(/min-height:\s*var\(--tap\)/);
   });
 
+  it("has exactly one touch block — the old rule is absorbed, not duplicated", async () => {
+    const hits = (await css()).match(/@media\s*\(hover:\s*none\)/g) ?? [];
+    expect(hits.length).toBe(1);
+  });
+
   it("grows the seek bar on touch, where :hover never fires", async () => {
     const block = /@media\s*\(hover:\s*none\)\s*\{([\s\S]*?)\n\}/.exec(await css())?.[1] ?? "";
     expect(block).toMatch(/\.cs-progress\s*\{[^}]*height:\s*12px/);
@@ -523,7 +528,20 @@ export function createModal(title: string, opts: ModalOptions = {}): Modal {
 }
 ```
 
-Add `size?: "s" | "m" | "l"` to `ModalOptions`, documented as: *the size scale; omit for `s`.*
+Add two fields to `ModalOptions`:
+
+```ts
+  /** The size scale; omit for "s". */
+  size?: "s" | "m" | "l";
+  /**
+   * Extra content for the title row — a document picker, a "＋ New". Context,
+   * not action: actions belong in the footer. Appended between the title and
+   * the ✕.
+   */
+  head?: HTMLElement[];
+```
+
+and in `dialogHead`, append them after the `h3` and before the `x`.
 
 An empty footer must not draw its border. Add:
 
@@ -640,7 +658,10 @@ git push origin main
 - Consumes: `createModal` + `footer` (Task 4).
 - Produces:
   ```ts
+  // store.ts — declared there, NOT in share.ts: store.ts is imported by the
+  // standalone viewer chunk and must not pull in UI code.
   export type ShareTo = "link" | "youtube" | "video" | "spec";
+  // share.ts
   export interface ShareCaps { github: boolean; google: boolean; tts: boolean }
   export interface ShareDest { id: ShareTo; label: string; action: string }
   export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course"): ShareDest[];
@@ -701,7 +722,8 @@ Expected: FAIL — cannot resolve `../src/ui/share`.
 // checkboxes are YouTube's, and burn-captions differs between the downloaded
 // file and the upload on purpose.
 
-export type ShareTo = "link" | "youtube" | "video" | "spec";
+import type { ShareTo } from "../store";
+export type { ShareTo };
 
 export interface ShareCaps {
   /** A GitHub repo AND token are set. */
@@ -747,7 +769,15 @@ In `src/store.ts`, add to `Settings` after `specFormat`:
   shareTo: ShareTo;
 ```
 
-and to `DEFAULT_SETTINGS`: `shareTo: "link",`. Import the type from `./ui/share` — or, to keep `store.ts` free of UI imports (it is imported by the standalone viewer), declare it inline as the same union and let `share.ts` import it from the store. **Take the second option**: `store.ts` must not pull in UI code.
+Declare the union in `store.ts` itself, above `Settings`:
+
+```ts
+/** Where Share last sent this document. Declared here rather than in the UI:
+ *  store.ts is imported by the standalone viewer and must stay UI-free. */
+export type ShareTo = "link" | "youtube" | "video" | "spec";
+```
+
+and add `shareTo: "link",` to `DEFAULT_SETTINGS`.
 
 - [ ] **Step 6: Build the modal**
 
@@ -1133,11 +1163,16 @@ Append to `tests/course-panel.test.ts`:
 
 ```ts
 describe("the course modal's regions", () => {
-  it("no longer runs twelve controls in one bar", async () => {
+  it("no longer runs twelve controls in one bar — the picker, persistence and\n     history have left it", async () => {
     const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-    const bar = /class:\s*"pane-bar"\s*\},([^)]*)\)/.exec(src)?.[1] ?? "";
-    const controls = bar.split(",").map((s) => s.trim()).filter(Boolean);
-    expect(controls.length).toBeLessThanOrEqual(5);
+    const bar = src.slice(src.indexOf('class: "pane-bar"'));
+    const line = bar.slice(0, bar.indexOf("\n", bar.indexOf("pane-spacer")));
+    for (const gone of ["courseSel", "newBtn", "saveBtn", "publishBtn", "bakeLabel", "backupBtn", "undoBtn", "matchBtn"]) {
+      expect(line).not.toContain(gone);
+    }
+    for (const kept of ["planBtn", "reviseBtn", "runBtn", "cancelBtn"]) {
+      expect(line).toContain(kept);
+    }
   });
 
   it("has no second copy of the publish checkbox — Share asks it once", async () => {
