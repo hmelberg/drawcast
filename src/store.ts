@@ -112,6 +112,9 @@ export interface Settings {
   coursesDir: string;
   /** Where a published lecture link points; the app has two deploys. */
   viewerBase: string;
+  /** Chrome appearance. "system" follows prefers-color-scheme; the figure
+   *  itself never reads this (see render/figure-style.ts). */
+  theme: "system" | "light" | "dark";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -152,6 +155,7 @@ export const DEFAULT_SETTINGS: Settings = {
   githubRepo: "",
   coursesDir: "",
   viewerBase: "https://drawcast.app/",
+  theme: "system",
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -227,7 +231,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
-  { id: "playback", label: "Playback", fields: ["style", "voice", "rate", "cloudPlayback", "skipQuestions", "burnCaptions"] },
+  { id: "playback", label: "Playback", fields: ["style", "theme", "voice", "rate", "cloudPlayback", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];

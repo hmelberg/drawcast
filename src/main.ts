@@ -121,6 +121,20 @@ import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
 const settings = loadSettings();
+/**
+ * Chrome appearance only — the figure never reads this (see
+ * render/figure-style.ts). Applied here at startup, and again from the
+ * settings dialog's change listener: a chosen theme must be visible before
+ * Settings is ever opened, not only after.
+ */
+function applyTheme(): void {
+  if (settings.theme === "dark" || settings.theme === "light") {
+    document.documentElement.setAttribute("data-theme", settings.theme);
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+applyTheme();
 // Cloud voices for live playback when a TTS key is set (and the toggle is on);
 // falls back to the browser's speechSynthesis otherwise, per line.
 const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
@@ -498,6 +512,14 @@ if (!modelSel.value) modelSel.value = MODELS[0].id;
 const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
 styleSel.value = settings.style;
+
+const themeSel = h("select", { title: "Appearance" });
+themeSel.append(
+  h("option", { value: "system" }, "Match system"),
+  h("option", { value: "light" }, "Light"),
+  h("option", { value: "dark" }, "Dark"),
+);
+themeSel.value = settings.theme;
 
 // Toolbar template picker (M3): "Auto" lets the AI pick; a specific choice
 // (or a #template= tag, which wins) forces it. Ready templates only — a
@@ -1148,6 +1170,7 @@ backupBtn.addEventListener("click", () => {
 // determine where each field's markup actually lands.
 const settingsBlocks = new Map<string, HTMLElement>([
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
+  ["theme", h("div", { class: "settings-field" }, h("label", {}, "Appearance"), themeSel)],
   [
     "apiKey",
     h(
@@ -3670,6 +3693,11 @@ styleSel.addEventListener("change", () => {
   settings.style = styleSel.value as RenderStyle;
   persist();
   void present();
+});
+themeSel.addEventListener("change", () => {
+  settings.theme = themeSel.value as "system" | "light" | "dark";
+  persist();
+  applyTheme();
 });
 
 exportPacketBtn.addEventListener("click", () => downloadJson(`drawcast-improvement-packet-${Date.now()}.json`, buildImprovementPacket()));

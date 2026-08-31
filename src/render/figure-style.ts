@@ -74,7 +74,11 @@ const FIGURE_CSS = `
 .cs-title {
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
   font-size: 1.3rem;
-  color: var(--ink, #3d3833);
+  /* The figure never reads a chrome token. Its paper is real paper — a sheet
+     on a dark desk when the app is dark — and an exported video must look
+     like what the editor showed. A themed --ink here would put light text on
+     white paper, inside the drawing, in the file. */
+  color: #3d3833;
   text-align: center;
   width: fit-content;
   padding: 0 0.4rem;

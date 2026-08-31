@@ -30,6 +30,25 @@
   --tap: 44px;
 }
 
+/* Dark chrome, paper figures. Only the tokens change; every rule already reads
+   them. The drawing keeps its own ground (see figure-style.ts). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1c1a17;
+    --surface: #26231f;
+    --ink: #ece6da;
+    --muted: #a49b8b;
+    --line: #79715c;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1c1a17;
+  --surface: #26231f;
+  --ink: #ece6da;
+  --muted: #a49b8b;
+  --line: #79715c;
+}
+
 * { box-sizing: border-box; }
 
 /* Any explicit display rule (flex, block, …) outranks the UA's [hidden] rule,

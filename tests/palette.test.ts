@@ -132,3 +132,42 @@ describe("the type scale", () => {
     expect(/\.course-ask\s*\{[^}]*\}/.exec(css)?.[0]).toMatch(/font-size:\s*var\(--text-sm\)/);
   });
 });
+
+describe("dark mode", () => {
+  it("defines the dark palette once, and redefines only tokens that exist in light", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const blocks = [...css.matchAll(/@media\s*\(prefers-color-scheme:\s*dark\)/g)];
+    expect(blocks.length).toBe(1);
+    const dark = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+    const root = /:root\s*\{([\s\S]*?)\}/.exec(css)?.[1] ?? "";
+    for (const m of dark.matchAll(/(--[\w-]+):/g)) expect(root).toContain(m[1]);
+  });
+
+  it("lets an explicit choice win in both directions", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    expect(css).toMatch(/:root\[data-theme="dark"\]/);
+    expect(css).toMatch(/:root:not\(\[data-theme="light"\]\)/);
+  });
+
+  it("keeps dark text readable", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const dark = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+    const t: Record<string, string> = {};
+    for (const m of dark.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/g)) t[m[1]] = m[2];
+    expect(contrastRatio(t["--muted"], t["--surface"])).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(t["--line"], t["--paper"])).toBeGreaterThanOrEqual(3);
+    // Borders sit on panels as well as on the page; a paper-only check passes
+    // colours that still vanish against a surface.
+    expect(contrastRatio(t["--line"], t["--surface"])).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("the figure is not themed", () => {
+  it("never reads a chrome token — a dark --ink would put light text on white paper", async () => {
+    const src = await readFile(new URL("../src/render/figure-style.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/var\(--ink/);
+    expect(src).not.toMatch(/var\(--paper/);
+    expect(src).not.toMatch(/var\(--surface/);
+    expect(src).not.toMatch(/var\(--muted/);
+  });
+});
