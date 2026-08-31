@@ -45,6 +45,16 @@ describe("the palette", () => {
 // :root (where --rust is defined) is not in this list because the token
 // definition itself never contains the literal text "var(--rust)", so the
 // rule-matching regex below never sees it.
+//
+// A var(--rust) that ends up inside an @media block (none do today) gets
+// attributed to the media prelude — e.g. "@media (max-width: 560px)" — as
+// its "selector", by the same regex that reads a normal rule's selector.
+// That text never matches anything in the allowlist below, so the test
+// fails — correctly, since an unreviewed rust use is still an unreviewed
+// rust use — but the failure message points at the @media line, not the
+// actual rule inside it that uses --rust. If you land here debugging that:
+// look for the nearest var(--rust) *inside* the reported block, not on the
+// reported line itself.
 const RUST_ALLOWED_SELECTORS = [
   "button.primary", // primary action — covers button.primary and button.primary.cancelling:hover
   ".tab-btn.active", // you are here
@@ -57,13 +67,48 @@ const RUST_ALLOWED_SELECTORS = [
   ".cs-mediamodal-bar a",
 ];
 
+/**
+ * Round-2 fix-round-2: checks a rule's selector *list* (as captured whole
+ * from source, e.g. "a, b, c") against an allowlist. The naive version of
+ * this check — `selectorList.includes(allowed)` — only asks whether an
+ * allowed selector appears somewhere in the joined string, so a rule
+ * smuggling an unlisted selector in on the same line as a legitimate one —
+ * `.tab-btn.active, .sneaky-new-thing { color: var(--rust); }` — passes
+ * silently: the string contains ".tab-btn.active", and that's all the naive
+ * check looks for. Splitting on "," and requiring *every* part to
+ * independently match closes that hole. Each part is still matched by
+ * substring (not exact equality) against the allowlist, so compound/pseudo
+ * selectors like "button.primary.cancelling:hover" still match the bare
+ * "button.primary" entry that names their role.
+ */
+export const isRustUseAllowed = (selectorList: string, allowedList: string[]): boolean =>
+  selectorList
+    .split(",")
+    .map((part) => part.trim())
+    .every((part) => allowedList.some((allowed) => part.includes(allowed)));
+
 describe("the accent — an explicit allowlist", () => {
   it("spends var(--rust) only on the permitted selectors", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
     const uses = [...css.matchAll(/([^{}]+)\{([^}]*var\(--rust\)[^}]*)\}/g)].map((m) => m[1].trim());
     for (const sel of uses) {
-      expect(RUST_ALLOWED_SELECTORS.some((allowed) => sel.includes(allowed)), sel).toBe(true);
+      expect(isRustUseAllowed(sel, RUST_ALLOWED_SELECTORS), sel).toBe(true);
     }
+  });
+
+  // Proves the guard actually rejects something. A rule list that smuggles
+  // an unlisted selector in alongside a permitted one must be caught
+  // per-part — this is exactly the shape of rule the naive whole-string
+  // .includes() check let through silently.
+  it("rejects a selector list that smuggles an unlisted selector past a permitted one", () => {
+    expect(isRustUseAllowed(".tab-btn.active, .sneaky-new-thing", RUST_ALLOWED_SELECTORS)).toBe(false);
+  });
+
+  // And confirms the fix didn't break genuinely compound/pseudo-class
+  // matches in the process.
+  it("still accepts a single selector that legitimately matches an allowed entry", () => {
+    expect(isRustUseAllowed("button.primary.cancelling:hover", RUST_ALLOWED_SELECTORS)).toBe(true);
+    expect(isRustUseAllowed(".cs-infocard-actions a, .cs-mediamodal-bar a", RUST_ALLOWED_SELECTORS)).toBe(true);
   });
 });
 
