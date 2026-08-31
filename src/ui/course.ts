@@ -519,6 +519,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       spec: first && first.kind === "item" ? first.spec : { elements: [], commands: [] },
       playlist: formatPlaylist(playlist, "yaml"),
       courseId: courseId ?? undefined,
+      sourcePath: null, // a course lecture; GitHub source-saving is per drawcast, not wired to courses
       ts: new Date().toISOString(),
     });
     return id;

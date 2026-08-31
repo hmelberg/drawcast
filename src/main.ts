@@ -35,6 +35,7 @@ import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
+import type { SpecFormat } from "./spec/text";
 import { h } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
 import { openShare } from "./ui/share";
@@ -180,6 +181,13 @@ interface Doc {
    * shared link already points at.
    */
   publishedAs?: string;
+  /**
+   * The path this document's SOURCE was last saved to in the author's repo —
+   * distinct from `publishedAs` (the rendered viewer page). Nothing in this
+   * task sets it to anything but null; Task 7's Save → To GitHub is what
+   * writes a real path here, the same way publishing writes `publishedAs`.
+   */
+  sourcePath: string | null;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -277,14 +285,17 @@ function firstSpec(d: Doc): Spec {
 }
 
 function docFromSaved(saved: SavedDrawing): Doc {
+  // `?? null` normalises a library entry stored before sourcePath existed
+  // (plain `undefined` at runtime, despite the type) into the real default.
+  const sourcePath = saved.sourcePath ?? null;
   if (saved.playlist) {
     try {
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, sourcePath, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -293,7 +304,7 @@ function initialDoc(): Doc {
   // Fewshots come first in `examples` and always carry a spec.
   const ex = examples.find((e) => e.spec) as BundledExample & { spec: Spec };
   // An untouched bundled example is not yours until you change it (copy-on-write).
-  return { id: null, driveFileId: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
+  return { id: null, driveFileId: null, sourcePath: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) };
 }
 
 const app = document.getElementById("app")!;
@@ -646,13 +657,53 @@ const imagesMenu = createMenu("🖼 Images", [
       }),
   },
 ], { title: "Portraits and sources in this drawcast" });
+// ---- Save → To disk: the YAML/JSON spec download Share's Spec file panel
+// used to do (share.ts's now-deleted specGo) — moved here because downloading
+// your own source is a save, not a share (spec §1). Same formatPlaylist call,
+// same filename rule; only the format choice's home changed. Built once, like
+// the app's other small modals, and reused on every open.
+const saveDiskFormatSel = h("select", { "aria-label": "Spec format" }) as HTMLSelectElement;
+saveDiskFormatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
+const saveDiskModal = createModal("Save to disk", { size: "s" });
+app.appendChild(saveDiskModal.dialog);
+saveDiskModal.body.append(h("label", { class: "quiet-label" }, "Format ", saveDiskFormatSel));
+const saveDiskBtn = h("button", { class: "primary" }, "Save") as HTMLButtonElement;
+saveDiskModal.footer.append(saveDiskBtn);
+saveDiskFormatSel.addEventListener("change", () => {
+  const next = saveDiskFormatSel.value as SpecFormat;
+  // A playlist is a multi-document YAML stream and JSON cannot hold that —
+  // same guard the Spec file panel had.
+  if (next === "json" && !isSingle(doc.playlist)) {
+    setStatus("Playlists are YAML-only (a JSON document cannot hold a multi-document stream).", "error");
+    saveDiskFormatSel.value = "yaml";
+    settings.specFormat = "yaml";
+  } else {
+    settings.specFormat = next;
+  }
+  persist();
+});
+saveDiskBtn.addEventListener("click", () => {
+  saveDiskModal.dialog.close();
+  const format: SpecFormat = isSingle(doc.playlist) ? (saveDiskFormatSel.value as SpecFormat) : "yaml";
+  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+  downloadText(`${base}.${format}`, formatPlaylist(doc.playlist, format));
+});
+function openSaveToDisk(): void {
+  // Catch the drawing up to the text on screen first — same reason every
+  // other Save/Share entry point does this: a download must never ship a
+  // document the author has edited past.
+  ensureRendered();
+  saveDiskFormatSel.value = settings.specFormat;
+  saveDiskModal.open();
+}
+
 // Open ▾ and Save ▾ fold what used to be four buttons (⬆ import, ☁ Open,
-// ☁ Save, plus the ⬇ download now living in Share) into one menu per verb
-// (spec §4) — the ⬆ glyph no longer means two different things. A capability
-// without its credential still does not advertise itself (spec §6); that
-// rule now lives in each item's `hidden` flag instead of a button's own.
-// Save holds Drive alone: a "to disk" twin would duplicate Share's Spec
-// file destination (share.ts specGo), putting one action in two menus.
+// ☁ Save, plus the ⬇ download that used to live in Share) into one menu per
+// verb (spec §4) — the ⬆ glyph no longer means two different things. A
+// capability without its credential still does not advertise itself (spec
+// §6); that rule now lives in each item's `hidden` flag instead of a
+// button's own. The download (Share's old Spec file destination) is
+// "To disk…" below: downloading your own source is a save, not a share.
 const openMenu = createMenu(
   "Open",
   [
@@ -663,13 +714,16 @@ const openMenu = createMenu(
 );
 const saveMenu = createMenu(
   "Save",
-  [{ label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !googleConfigured() }],
+  [
+    { label: "To disk…", onSelect: () => openSaveToDisk() },
+    { label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !googleConfigured() },
+  ],
   { title: "Save this drawcast" },
 );
 // One button for every way a drawcast leaves the app — replaces ⬇, ⬆ Publish,
 // ☑ with narration, 🎬 Export video and ▶ YouTube (spec §2). Its modal picks
 // which of those still applies; an unconfigured one just does not appear.
-const shareBtn = h("button", { class: "small", title: "Publish a link, upload to YouTube, export a video, or download the spec" }, "↗ Share");
+const shareBtn = h("button", { class: "small", title: "Publish a link, upload to YouTube, or export a video" }, "↗ Share");
 // Background-export progress chip: the render/upload runs without a modal, so
 // this chip in the pane bar is the only visible trace — status text + cancel.
 // (Created here with its pane-bar siblings; wired in the video-export section.)
@@ -1960,7 +2014,7 @@ function showVersion(index: number): void {
   restoring = true;
   try {
     specArea.value = v.text;
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2055,6 +2109,7 @@ function autosave(): void {
       spec: firstSpec(doc),
       playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
       publishedAs: doc.publishedAs,
+      sourcePath: doc.sourcePath,
       ts: new Date().toISOString(),
     });
   } catch (err) {
@@ -2387,7 +2442,7 @@ async function generate(): Promise<void> {
     if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
     if (parsed.voiceGender && !outcome.spec.voice) outcome.spec.voice = parsed.voiceGender;
     setDoc(
-      { id: null, driveFileId: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
+      { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
       { label: rawRequest, kind: "generate" },
     );
@@ -2447,7 +2502,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       `Revised: ${instruction}`,
       { label, kind: "revise" },
     );
@@ -2545,7 +2600,7 @@ async function generateMulti(
     warnings: [],
   };
   setDoc(
-    { id: null, driveFileId: null, title, prompt: rawRequest, playlist },
+    { id: null, driveFileId: null, sourcePath: null, title, prompt: rawRequest, playlist },
     result.failed.length > 0
       ? `Generated ${result.specs.length}/${n} parts (part${result.failed.length > 1 ? "s" : ""} ${result.failed.join(", ")} failed).`
       : `Generated a ${result.specs.length}-part drawcast.`,
@@ -2590,7 +2645,7 @@ blankBtn.addEventListener("click", () => {
   refreshChips();
   clearLint();
   setDoc(
-    { id: null, driveFileId: null, title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
+    { id: null, driveFileId: null, sourcePath: null, title: "Untitled drawcast", prompt: "", playlist: singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec) },
     "New drawcast — describe one above, or edit the spec below.",
   );
   if (window.innerWidth < 940 && settings.sidebarOpen) {
@@ -2630,13 +2685,13 @@ async function loadBundledExample(index: number): Promise<void> {
     try {
       const playlist = parsePlaylistText(ex.playlist);
       // Untouched bundled example: not yours until you change it (copy-on-write).
-      setDoc({ id: null, driveFileId: null, title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
+      setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, ex.title ?? ex.request), prompt: ex.request, playlist }, "Example loaded.");
     } catch (err) {
       setStatus(`Example failed to parse: ${(err as Error).message}`, "error");
     }
     return;
   }
-  if (ex.spec) setDoc({ id: null, driveFileId: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
+  if (ex.spec) setDoc({ id: null, driveFileId: null, sourcePath: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
 }
 
 // The last text a render actually reflected. null until the first present() —
@@ -2688,7 +2743,7 @@ function ensureRendered(andPlay = false): boolean {
   if (!playlist) return false;
   // Same document, edited in place — carry the id forward so autosave() below
   // replaces this entry instead of minting a second one (copy-on-write).
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -3262,7 +3317,9 @@ importInput.addEventListener("change", () => {
         const inner = maybe.playlist ?? JSON.stringify(maybe.spec);
         const playlist = readPlaylistText(inner);
         // An uploaded file is a shared document, not yours until you change it (copy-on-write).
-        if (playlist) setDoc({ id: null, driveFileId: null, title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
+        // sourcePath rides along IF the export already had one (round-trip of
+        // your own backup/export); a file from anywhere else has none to lose.
+        if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: maybe.sourcePath ?? null, title: maybe.title ?? file.name, prompt: maybe.prompt, playlist }, "Uploaded.");
         return;
       }
     } catch {
@@ -3270,7 +3327,7 @@ importInput.addEventListener("change", () => {
     }
     const playlist = readPlaylistText(text);
     if (!playlist) return;
-    setDoc({ id: null, driveFileId: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
+    setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
   });
 });
 
@@ -3420,6 +3477,7 @@ async function openFromDrive(): Promise<void> {
     setDoc({
       id: null, // copy-on-write: opening creates no library entry until you change it
       driveFileId: null, // a NEW Save should not overwrite the file you opened
+      sourcePath: null, // a Drive open, not a GitHub one — nothing to carry forward
       title: docTitleOf(playlist, picked.name.replace(/\.(ya?ml|json)$/i, "")),
       prompt: "",
       playlist,
@@ -3504,13 +3562,15 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = ""): Promi
   }
 }
 
-// ↗ Share — one modal over Link/YouTube/Video file/Spec file, replacing the
-// five controls above (spec §2). The panels' own logic (translation, upload,
-// the YouTube-into-fresh-playlists trap) lives in ui/share.ts now; this is
-// just the wiring to this app's live state.
+// ↗ Share — one modal over Link/YouTube/Video file, replacing the five
+// controls above (spec §2). Spec file left this modal for Save → To disk
+// (spec §1) — Share is for reaching an audience, not downloading your own
+// source. The panels' own logic (translation, upload, the
+// YouTube-into-fresh-playlists trap) lives in ui/share.ts now; this is just
+// the wiring to this app's live state.
 shareBtn.addEventListener("click", () => {
   // The modal reads `doc` live (below) — catch it up to the text on screen
-  // first, so a link/upload/download never ships a stale drawing.
+  // first, so a link/upload never ships a stale drawing.
   ensureRendered();
   openShare({
     subject: "drawcast",

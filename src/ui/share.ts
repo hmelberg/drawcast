@@ -21,8 +21,7 @@ import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
-import type { SpecFormat } from "../spec/text";
-import { downloadBlob, downloadText, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
+import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { parseRepo } from "../publish/github";
 import { h } from "./dom";
 import { createModal, type Modal } from "./modal";
@@ -65,8 +64,8 @@ export interface ShareDeps {
   subject: "drawcast" | "course";
   /** The open document/course, read fresh each time — never cached. */
   doc: () => ShareDoc;
-  /** The live settings object; Share writes `shareTo`, `burnCaptions`,
-   *  `burnCaptionsOnUpload` and `specFormat` onto it, same as the controls it replaces did. */
+  /** The live settings object; Share writes `shareTo`, `burnCaptions` and
+   *  `burnCaptionsOnUpload` onto it, same as the controls it replaces did. */
   settings: Settings;
   persist: () => void;
   setStatus: (text: string, kind?: "info" | "error" | "ok") => void;
@@ -102,7 +101,6 @@ const DESTS: (ShareDest & { needs: (c: ShareCaps) => boolean; courses: boolean }
   { id: "link", label: "Link", action: "Publish", needs: (c) => c.github, courses: true },
   { id: "youtube", label: "YouTube", action: "Upload", needs: (c) => c.google && c.tts, courses: false },
   { id: "video", label: "Video file", action: "Export", needs: (c) => c.tts, courses: false },
-  { id: "spec", label: "Spec file", action: "Download", needs: () => true, courses: false },
 ];
 
 /**
@@ -238,30 +236,10 @@ function build(): ShareSession {
     })();
   });
 
-  // ---- Spec file panel ----
-
-  const specFormatSel = h("select", { "aria-label": "Spec format" }) as HTMLSelectElement;
-  specFormatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
-  const specPanel = h("div", { class: "share-panel" }, h("label", { class: "quiet-label" }, "Format ", specFormatSel));
-  const specGo = h("button", { class: "primary" }, "Download") as HTMLButtonElement;
-  // The format picker controls what file format to download. The editor always
-  // displays and saves as YAML; this choice affects only the download file.
-  specFormatSel.addEventListener("change", () => {
-    const deps = current;
-    const next = specFormatSel.value as SpecFormat;
-    // A playlist is a multi-document YAML stream and JSON cannot hold that.
-    if (next === "json" && !isSingle(deps.doc().playlist)) {
-      deps.setStatus("Playlists are YAML-only (a JSON document cannot hold a multi-document stream).", "error");
-      specFormatSel.value = "yaml";
-    }
-  });
-  specGo.addEventListener("click", () => {
-    const deps = current;
-    modal.dialog.close();
-    const doc = deps.doc();
-    const format: SpecFormat = isSingle(doc.playlist) ? (specFormatSel.value as SpecFormat) : "yaml";
-    downloadText(`${fileSafe(doc.title)}.${format}`, formatPlaylist(doc.playlist, format));
-  });
+  // Spec file panel — GONE. Downloading your own source is a save, not a
+  // share (spec §1); it now lives in Save → To disk (main.ts's
+  // openSaveToDisk), which reproduces this panel's picker, formatPlaylist
+  // call and filename rule verbatim.
 
   // ---- YouTube panel — lifted from the dialog it used to be its own modal ----
 
@@ -410,6 +388,7 @@ function build(): ShareSession {
         prompt: doc.prompt,
         spec: itemsOf(playlist)[0]?.spec ?? { commands: [] },
         playlist: isSingle(playlist) ? undefined : formatPlaylist(playlist, "yaml"),
+        sourcePath: null, // a new sibling drawing, never a saved GitHub source of its own
         ts: new Date().toISOString(),
       });
       saved.push(title);
@@ -541,11 +520,11 @@ function build(): ShareSession {
 
   // ---- the modal shell: rail on the left, that destination's panel on the right ----
 
-  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, youtube: youtubePanel, video: videoPanel, spec: specPanel };
-  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, youtube: ytGo, video: videoGo, spec: specGo };
+  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, youtube: youtubePanel, video: videoPanel };
+  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, youtube: ytGo, video: videoGo };
 
   const rail = h("div", { class: "share-rail" });
-  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, youtubePanel, videoPanel, specPanel);
+  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, youtubePanel, videoPanel);
   const layout = h("div", { class: "share-layout" }, rail, panelHost);
   const settingsBtn = h("button", { class: "small" }, "Open Settings");
   settingsBtn.addEventListener("click", () => {
@@ -606,7 +585,6 @@ function build(): ShareSession {
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
     linkSubjectLine.hidden = current.subject !== "course";
-    specFormatSel.value = current.settings.specFormat;
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytBurnCb.checked = current.settings.burnCaptionsOnUpload;

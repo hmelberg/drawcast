@@ -39,8 +39,20 @@ const KEYS = {
 } as const;
 
 /** Where Share last sent this document. Declared here rather than in the UI:
- *  store.ts is imported by the standalone viewer and must stay UI-free. */
-export type ShareTo = "link" | "youtube" | "video" | "spec";
+ *  store.ts is imported by the standalone viewer and must stay UI-free.
+ *  "spec" is gone — downloading your own source is a save, not a share
+ *  (spec §1), and now lives in Save → To disk. */
+export type ShareTo = "link" | "youtube" | "video";
+
+/**
+ * A settings blob written before the source download moved out of Share can
+ * still name "spec" as its remembered destination — that member no longer
+ * exists, and Share would open on nothing. Anything else unrecognised falls
+ * back to "link" too, rather than trusting an arbitrary stored string.
+ */
+export function migrateShareTo(v: string): ShareTo {
+  return v === "youtube" || v === "video" ? v : "link";
+}
 
 export interface Settings {
   model: string;
@@ -190,6 +202,11 @@ function readArray<T>(key: string): T[] {
 
 export function loadSettings(): Settings {
   const s = read(KEYS.settings, DEFAULT_SETTINGS);
+  // A blob written before Share dropped its Spec file destination may still
+  // hold "spec" here — see migrateShareTo's own comment. Applied on every
+  // load (cheap, idempotent) rather than as a one-shot flag: nothing else in
+  // this file writes shareTo back to storage on its own.
+  s.shareTo = migrateShareTo(s.shareTo);
   // One-time upgrade: the bundled packs moved from opt-in to baseline
   // (DEFAULT_SETTINGS.enabledPacks). A settings blob stored before that keeps
   // its own list, which `{...fallback, ...parsed}` leaves untouched — so union
@@ -316,6 +333,16 @@ export interface SavedDrawing {
    * file a shared link already points at.
    */
   publishedAs?: string;
+  /**
+   * The path this drawcast's SOURCE was last saved to in the author's repo —
+   * distinct from `publishedAs`, which is the rendered viewer page. Absent or
+   * null until a save to GitHub happens (Task 7); carried here, not just on
+   * the in-memory `Doc`, so it survives a reload instead of asking for a
+   * second file the next time the author saves. Optional like this
+   * interface's other extra fields — a library entry from before this field
+   * existed simply has none, and `docFromSaved` treats that the same as null.
+   */
+  sourcePath?: string | null;
   ts: string;
 }
 
