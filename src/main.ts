@@ -65,7 +65,8 @@ import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize } from "./export/bake";
 import { synthesizeBase64 } from "./export/tts";
 import { publishCast } from "./publish/cast";
-import { parseRepo, readFile } from "./publish/github";
+import { parseRepo, readFile, type RepoRef } from "./publish/github";
+import { parseSourceManifest, saveSource, sourceIndexPath } from "./publish/source";
 import { joinPath } from "./course/publish";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
@@ -183,9 +184,10 @@ interface Doc {
   publishedAs?: string;
   /**
    * The path this document's SOURCE was last saved to in the author's repo —
-   * distinct from `publishedAs` (the rendered viewer page). Nothing in this
-   * task sets it to anything but null; Task 7's Save → To GitHub is what
-   * writes a real path here, the same way publishing writes `publishedAs`.
+   * distinct from `publishedAs` (the rendered viewer page). Set by
+   * saveSourceToGithub() on a successful save, the same way publishing sets
+   * `publishedAs`; also set when opening a source FROM GitHub, so a later
+   * save goes back to the same file instead of minting a second one.
    */
   sourcePath: string | null;
   title: string;
@@ -704,11 +706,19 @@ function openSaveToDisk(): void {
 // §6); that rule now lives in each item's `hidden` flag instead of a
 // button's own. The download (Share's old Spec file destination) is
 // "To disk…" below: downloading your own source is a save, not a share.
+// GitHub Open/Save credential gate: same "no credential, no advertisement"
+// rule as Drive's pickerConfigured()/googleConfigured(), but the repo/token
+// are user-entered Settings values rather than a build-time env var — read
+// live at menu-build time (this runs after loadSettings(), well above).
+function githubConfigured(): boolean {
+  return parseRepo(settings.githubRepo) !== null && getGithubToken() !== "";
+}
 const openMenu = createMenu(
   "Open",
   [
     { label: "From disk…", onSelect: () => importInput.click() },
     { label: "From Google Drive…", onSelect: () => void openFromDrive(), hidden: !pickerConfigured() },
+    { label: "From GitHub…", onSelect: () => void openSourceFromGithub(), hidden: !githubConfigured() },
   ],
   { title: "Open a drawcast" },
 );
@@ -717,6 +727,7 @@ const saveMenu = createMenu(
   [
     { label: "To disk…", onSelect: () => openSaveToDisk() },
     { label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !googleConfigured() },
+    { label: "To GitHub…", onSelect: () => void saveSourceToGithub(), hidden: !githubConfigured() },
   ],
   { title: "Save this drawcast" },
 );
@@ -3487,6 +3498,136 @@ async function openFromDrive(): Promise<void> {
     setStatus(`Drive open failed: ${(err as Error).message}`, "error");
   } finally {
     driveOpenInFlight = false;
+  }
+}
+
+// ---- Save/Open → GitHub source (publish/source.ts) --------------------
+//
+// Distinct from Publish (publishDrawcast, above): that commits a RENDERED
+// viewer page for an audience and says "Published to <url>". This commits the
+// .yaml a document is EDITED as — the source itself, so it gets real version
+// history and diffs — and says `Saved "<title>" to <owner>/<repo>`. Neither
+// path implies the other happened; a document can be published, saved as a
+// source, both, or neither.
+let sourceSaveInFlight = false;
+async function saveSourceToGithub(): Promise<void> {
+  if (sourceSaveInFlight) return;
+  sourceSaveInFlight = true;
+  try {
+    // Catch the drawing up before capturing `target` below — same reason
+    // saveToDrive does this: Save must ship what is on screen.
+    ensureRendered();
+    const target = doc;
+    const token = getGithubToken();
+    const repo = parseRepo(settings.githubRepo);
+    if (!token || !repo) {
+      setStatus("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
+      return;
+    }
+    setStatus("Saving source to GitHub…");
+    const out = await saveSource({
+      title: target.title,
+      text: formatPlaylist(target.playlist, "yaml"),
+      existing: target.sourcePath,
+      dir: joinPath(settings.coursesDir, "casts"),
+      repo,
+      token,
+    });
+    // Only if that document is still the open one — same rule saveToDrive
+    // follows for driveFileId: the popup/network delay may have let the user
+    // switch documents while this was in flight.
+    if (doc === target) {
+      doc.sourcePath = out.path;
+      try {
+        autosave();
+      } catch (err) {
+        console.error("drawcast: source save succeeded, bookkeeping failed", err);
+      }
+    }
+    setStatus(`Saved "${target.title}" to ${repo.owner}/${repo.repo}`, "ok");
+  } catch (err) {
+    console.error("drawcast: source save failed", err);
+    const e = err as Error;
+    setStatus(`Save to GitHub failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+  } finally {
+    sourceSaveInFlight = false;
+  }
+}
+
+// Built once, like the app's other small modals; body content is dynamic
+// (one row per saved source) so it is rebuilt on every open, not just once.
+const sourceOpenModal = createModal("Open from GitHub", { size: "s" });
+app.appendChild(sourceOpenModal.dialog);
+
+/** Fetch one saved source and open it — the picker's per-row click handler. */
+async function loadSourceFromGithub(repo: RepoRef, entryPath: string, fallbackTitle: string): Promise<void> {
+  // Re-checked here (not just before the picker opened): the picker stays up
+  // waiting for a click, long enough for a revise to land in the meantime —
+  // same hazard openFromDrive's double-check guards against.
+  if (blockedByAi("opening from GitHub")) return;
+  try {
+    const text = await readFile(repo, entryPath);
+    if (text === null) {
+      setStatus(`GitHub open failed: "${entryPath}" was not found in ${repo.owner}/${repo.repo}.`, "error");
+      return;
+    }
+    const playlist = readPlaylistText(text);
+    if (!playlist) return; // readPlaylistText already reported why
+    setDoc(
+      {
+        id: null, // copy-on-write: opening creates no library entry until you change it
+        driveFileId: null,
+        // A GitHub source open — unlike a Drive open, this path IS carried
+        // forward: a later Save → To GitHub must overwrite this same file,
+        // not mint a second one next to it.
+        sourcePath: entryPath,
+        title: docTitleOf(playlist, fallbackTitle),
+        prompt: "",
+        playlist,
+      },
+      `Opened "${fallbackTitle}" from GitHub.`,
+    );
+  } catch (err) {
+    setStatus(`GitHub open failed: ${(err as Error).message}`, "error");
+  }
+}
+
+let sourceOpenInFlight = false;
+async function openSourceFromGithub(): Promise<void> {
+  if (blockedByAi("opening from GitHub")) return;
+  if (sourceOpenInFlight) return;
+  sourceOpenInFlight = true;
+  try {
+    const token = getGithubToken();
+    const repo = parseRepo(settings.githubRepo);
+    if (!token || !repo) {
+      setStatus("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
+      return;
+    }
+    const dir = joinPath(settings.coursesDir, "casts");
+    const indexText = await readFile(repo, sourceIndexPath(dir));
+    // A missing manifest is the normal state of a repo nothing has been saved
+    // to yet — readFile answers null on a 404, not a rejection, so this is
+    // not the catch block below; it is read the same as an empty manifest.
+    const manifest = indexText ? parseSourceManifest(indexText) : { sources: [] };
+    if (manifest.sources.length === 0) {
+      setStatus("Nothing saved to this repository yet.");
+      return;
+    }
+    sourceOpenModal.body.replaceChildren();
+    for (const entry of [...manifest.sources].sort((a, b) => b.ts.localeCompare(a.ts))) {
+      const openBtn = h("button", { class: "library-open" }, entry.title);
+      openBtn.addEventListener("click", () => {
+        sourceOpenModal.dialog.close();
+        void loadSourceFromGithub(repo, entry.path, entry.title);
+      });
+      sourceOpenModal.body.appendChild(h("div", { class: "library-item" }, openBtn));
+    }
+    sourceOpenModal.open();
+  } catch (err) {
+    setStatus(`GitHub open failed: ${(err as Error).message}`, "error");
+  } finally {
+    sourceOpenInFlight = false;
   }
 }
 
