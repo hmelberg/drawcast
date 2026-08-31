@@ -34,7 +34,6 @@ import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } fro
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
-import { type SpecFormat } from "./spec/text";
 import type { Spec } from "./spec/types";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
@@ -627,7 +626,7 @@ const insertMenu = createMenu("＋ Insert", [
         readPlaylist: () => readPlaylistText(specArea.value),
         viewedPart: () => previewedPart,
         applyPlaylist: (playlist) => {
-          specArea.value = formatPlaylist(playlist, settings.specFormat);
+          specArea.value = formatPlaylist(playlist, "yaml");
           ensureRendered();
         },
         setStatus,
@@ -789,9 +788,6 @@ refreshCounts();
 // Preview column
 const previewHost = h("div", { class: "player-figure" });
 const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
-const formatSel = h("select", { class: "cs-bar-select", title: "Spec text format (parsing accepts both)" });
-formatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
-formatSel.value = settings.specFormat;
 // State, not an action — filled with --muted rather than the accent (see the
 // rust allowlist in tests/palette.test.ts). Lives in the PREVIEW bar because
 // it describes the drawing, not the text.
@@ -886,7 +882,6 @@ const editorWrap = h(
       h(
         "div",
         { class: "pane-bar" },
-        h("span", { class: "bar-group" }, formatSel),
         h("span", { class: "bar-group" }, insertMenu, pinPortraitsBtn),
         h("span", { class: "bar-group" }, openMenu, saveMenu, importInput),
         h("span", { class: "pane-spacer" }),
@@ -2006,7 +2001,7 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
   doc = next;
   lastLogId = null; // ratings apply to generations only
   promoted = false; // before applyHistoryUi(), which reads it
-  specArea.value = formatPlaylist(doc.playlist, settings.specFormat);
+  specArea.value = formatPlaylist(doc.playlist, "yaml");
   // A new document starts a new history. Generate hands us a brand-new drawcast
   // (`id: null`, and autosave() mints it its own library row straight after), so
   // its stack is RESEEDED: appending it to the outgoing document's stack would
@@ -3255,7 +3250,7 @@ pinPortraitsBtn.addEventListener("click", () => {
     items.flatMap((it) => [resolvePortraits(it.spec), resolveSources(it.spec, { contactEmail: settings.contactEmail })]),
   ).then((all) => {
     const failed = all.flat().filter((r) => !r.ok);
-    specArea.value = formatPlaylist(playlist, settings.specFormat);
+    specArea.value = formatPlaylist(playlist, "yaml");
     ensureRendered();
     setStatus(
       failed.length > 0
@@ -3397,11 +3392,10 @@ async function saveToDrive(): Promise<void> {
     // file A's id onto document B would make B's next Save overwrite A.
     const target = doc;
     const base = target.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-    // The textarea holds YAML for a playlist and the chosen format otherwise
-    // (same rule as ⬇ Download), so the extension and the MIME type follow it.
-    const format: SpecFormat = isSingle(target.playlist) ? settings.specFormat : "yaml";
-    const name = `${base}.${format}`;
-    const mimeType = format === "json" ? "application/json" : "text/yaml";
+    // The textarea always holds YAML now (the format picker is gone), so the
+    // extension and the MIME type follow it.
+    const name = `${base}.yaml`;
+    const mimeType = "text/yaml";
     setStatus("Saving to Drive…");
     const res = await saveSpec(specArea.value, name, mimeType, target.driveFileId);
     if (!res) {
@@ -3451,33 +3445,6 @@ async function openFromDrive(): Promise<void> {
     driveOpenInFlight = false;
   }
 }
-
-formatSel.addEventListener("change", () => {
-  const next = formatSel.value as SpecFormat;
-  // Convert whatever is in the textarea (possibly with unsaved edits) — don't lose work.
-  let playlist: Playlist;
-  try {
-    playlist = parsePlaylistText(specArea.value);
-  } catch (err) {
-    setStatus(`Fix the spec text before switching format: ${(err as Error).message}`, "error");
-    formatSel.value = settings.specFormat;
-    return;
-  }
-  if (next === "json" && !isSingle(playlist)) {
-    setStatus("Playlists are YAML-only (a JSON document cannot hold a multi-document stream).", "error");
-    formatSel.value = "yaml";
-    return;
-  }
-  // A reformat changes the TEXT, not the drawing — if it was already caught
-  // up, it still is (in its new spelling); if it was already behind, it stays
-  // behind. Decide before overwriting the value, since needsRender() below
-  // would otherwise always compare against the old spelling.
-  const wasRendered = !needsRender(specArea.value, lastRenderedText);
-  specArea.value = formatPlaylist(playlist, next);
-  if (wasRendered) markRendered(specArea.value);
-  settings.specFormat = next;
-  persist();
-});
 
 // ---------- video export ----------
 
@@ -3796,7 +3763,7 @@ clearLogsBtn.addEventListener("click", () => {
 
 // ---------- boot ----------
 
-specArea.value = formatPlaylist(doc.playlist, isSingle(doc.playlist) ? settings.specFormat : "yaml");
+specArea.value = formatPlaylist(doc.playlist, "yaml");
 stack = seedStack(specArea.value, doc.prompt || doc.title);
 applyHistoryUi();
 if (doc.prompt) promptEl.value = doc.prompt;

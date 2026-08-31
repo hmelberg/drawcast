@@ -126,6 +126,13 @@ describe("Open ▾ and Save ▾", () => {
   });
 });
 
+describe("the format picker", () => {
+  it("no longer asks YAML or JSON in the editor bar", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/formatSel/);
+  });
+});
+
 describe("the phone", () => {
   it("puts the drawing above the code editor on a narrow screen", async () => {
     const block = /@media\s*\(max-width:\s*940px\)\s*\{([\s\S]*?)\n\}/.exec(await css())?.[1] ?? "";

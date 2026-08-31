@@ -244,13 +244,8 @@ function build(): ShareSession {
   specFormatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
   const specPanel = h("div", { class: "share-panel" }, h("label", { class: "quiet-label" }, "Format ", specFormatSel));
   const specGo = h("button", { class: "primary" }, "Download") as HTMLButtonElement;
-  // Read-only with respect to settings.specFormat — it defaults from the
-  // setting (prepPanels) but never writes it back. The editor's own format
-  // toggle (main.ts's formatSel) owns that setting and also re-renders
-  // specArea when it changes; this select cannot do that from here, so
-  // writing to the same field would leave the editor showing a stale format
-  // until reload. This is exactly what the ⬇ button it replaces did: read
-  // the setting, never write it.
+  // The format picker controls what file format to download. The editor always
+  // displays and saves as YAML; this choice affects only the download file.
   specFormatSel.addEventListener("change", () => {
     const deps = current;
     const next = specFormatSel.value as SpecFormat;
