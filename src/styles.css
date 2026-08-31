@@ -804,6 +804,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .modal-s { max-width: 30rem; }
 .modal-m { max-width: 46rem; }
 .modal-l { width: min(104rem, 96vw); max-width: min(104rem, 96vw); }
+/* Every modal body scrolls inside its own box; the size scale varies only how
+   tall that box may get before it does. */
+.dialog-body { overflow-y: auto; }
 .modal-s .dialog-body, .modal-m .dialog-body { max-height: min(70vh, 42rem); }
 .modal-l .dialog-body { max-height: min(86vh, 64rem); }
 

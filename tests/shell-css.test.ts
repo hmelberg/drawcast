@@ -57,4 +57,8 @@ describe("the modal size scale", () => {
   it("gives every modal a footer row for its actions", async () => {
     expect(await css()).toMatch(/\.dialog-footer\s*\{/);
   });
+
+  it("still scrolls the body instead of clipping it — a max-height alone doesn't scroll", async () => {
+    expect(await css()).toMatch(/\.dialog-body\s*\{[^}]*overflow-y:\s*auto/);
+  });
 });

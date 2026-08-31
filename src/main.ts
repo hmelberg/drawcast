@@ -989,6 +989,11 @@ const instructionsTabs = createTabs([
       h("div", { class: "hint" }, "What the AI is told before your request. The active one (●) is what Generate uses."),
       promptList,
       promptSource,
+      // These act on the prompt currently selected in the list above, not on
+      // the modal itself — a per-item verb like the per-template Delete, so
+      // it stays with its row instead of moving to the footer.
+      h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
+      h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
       promptHint,
     ),
   },
@@ -1004,18 +1009,6 @@ const instructionsTabs = createTabs([
   },
 ]);
 instructionsModal.body.appendChild(instructionsTabs.el);
-// These acted on the current prompt, wherever the tabs happened to scroll —
-// the footer keeps them reachable regardless of tab or scroll position.
-instructionsModal.footer.append(
-  promptSaveBtn,
-  promptRenameBtn,
-  promptCopyBtn,
-  promptDeleteBtn,
-  promptDownloadBtn,
-  promptUploadBtn,
-  promptUploadInput,
-  promptImproveBtn,
-);
 app.appendChild(instructionsModal.dialog);
 
 function refreshReferences(): void {
