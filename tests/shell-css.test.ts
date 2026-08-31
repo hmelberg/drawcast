@@ -72,3 +72,14 @@ describe("the modal size scale", () => {
     expect(rule).toMatch(/max-width:\s*30rem/);
   });
 });
+
+import { readFile as read2 } from "node:fs/promises";
+
+describe("every dialog goes through the helper", () => {
+  it("nothing builds a bare <dialog> outside createModal — that is how\n     Settings lost its scroll cap", async () => {
+    for (const f of ["../src/main.ts", "../src/ui/course.ts"]) {
+      const src = await read2(new URL(f, import.meta.url), "utf8");
+      expect(src).not.toMatch(/h\(\s*"dialog"/);
+    }
+  });
+});

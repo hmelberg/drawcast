@@ -30,7 +30,7 @@ import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engine
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
-import { createModal, createTabs, dialogHead } from "./ui/modal";
+import { createModal, createTabs } from "./ui/modal";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import { type SpecFormat } from "./spec/text";
 import type { Spec, SpecElement } from "./spec/types";
@@ -1103,9 +1103,9 @@ const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
 rateSel.value = String(settings.rate);
 
-const dialog = h("dialog", {});
-dialog.append(
-  dialogHead(dialog, "Settings"),
+const settingsModal = createModal("Settings", { size: "m" });
+const dialog = settingsModal.dialog;
+settingsModal.body.append(
   h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel),
   h(
     "div",
@@ -1230,16 +1230,16 @@ const authorRefineEl = h("textarea", { placeholder: "Refine it… e.g. \"make th
 const authorRefineBtn = h("button", { hidden: "" }, "Refine");
 const authorSaveBtn = h("button", { class: "primary", hidden: "" }, "Save to My templates");
 
-const authorDialog = h("dialog", { class: "author-dialog" });
-authorDialog.append(
-  dialogHead(authorDialog, "✦ New template"),
+const authorModal = createModal("✦ New template", { size: "m", class: "author-dialog" });
+const authorDialog = authorModal.dialog;
+authorModal.body.append(
   authorDescEl,
   h("div", { class: "row" }, authorDrop, authorImgInput, authorImgThumb, authorImgClear),
-  h("div", { class: "row" }, authorGenBtn),
   authorStatus,
   authorPreviewHost,
-  h("div", { class: "row" }, authorRefineEl, authorRefineBtn, authorSaveBtn),
+  authorRefineEl,
 );
+authorModal.footer.append(authorGenBtn, authorRefineBtn, authorSaveBtn);
 app.appendChild(authorDialog);
 
 let authorImage: AuthorImage | null = null;
@@ -1475,12 +1475,10 @@ authorDialog.addEventListener("close", () => {
 const model3dContainer = h("div", { class: "model3d-container" });
 const model3dSpinBtn = h("button", {}, "Pause spin");
 const model3dLabelsBtn = h("button", {}, "Hide labels");
-const model3dDialog = h("dialog", { class: "model3d-dialog" });
-model3dDialog.append(
-  dialogHead(model3dDialog, "⬡ Explore in 3D"),
-  model3dContainer,
-  h("div", { class: "row" }, model3dSpinBtn, model3dLabelsBtn),
-);
+const model3dModal = createModal("⬡ Explore in 3D", { size: "m", class: "model3d-dialog" });
+const model3dDialog = model3dModal.dialog;
+model3dModal.body.append(model3dContainer);
+model3dModal.footer.append(model3dSpinBtn, model3dLabelsBtn);
 app.appendChild(model3dDialog);
 
 let model3dDestroy: (() => void) | null = null;
@@ -3332,9 +3330,9 @@ for (const [v, label] of [["private", "Private"], ["unlisted", "Unlisted"], ["pu
 }
 const ytGo = h("button", { class: "primary" }, "Upload");
 const ytStatus = h("div", { class: "hint" });
-const ytDialog = h("dialog", { class: "yt-dialog" }) as HTMLDialogElement;
-ytDialog.append(
-  dialogHead(ytDialog, "▶ Upload to YouTube"),
+const ytModal = createModal("▶ Upload to YouTube", { size: "m", class: "yt-dialog", backdropCloses: false });
+const ytDialog = ytModal.dialog;
+ytModal.body.append(
   h("label", { class: "quiet-label" }, "Title ", ytTitle),
   h("label", { class: "quiet-label" }, "Description ", ytDesc),
   h("div", { class: "quiet-label" }, "Languages ", ytLangBox),
@@ -3351,9 +3349,9 @@ ytDialog.append(
     "The video is uploaded to your own channel with the visibility you chose. Its subtitle file is downloaded at the same time — " +
       "afterwards you can attach it with one click, or drag it in yourself in YouTube Studio. Either way, YouTube can then translate it for viewers in other languages.",
   ),
-  h("div", { class: "row" }, ytGo, ytSaveCopy),
   ytStatus,
 );
+ytModal.footer.append(h("div", { class: "footer-left" }, ytSaveCopy), ytGo);
 app.appendChild(ytDialog);
 
 /**
