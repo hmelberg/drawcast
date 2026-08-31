@@ -23,17 +23,22 @@ the list. And make the design and layout more consistent and professional."*
 5. **Courses get their own section**, instead of being nested inside Library.
 6. **One visual vocabulary**: one control size per bar, explicit groups, and
    an icon only where the icon is the whole meaning.
+7. **One anatomy and one size scale for all nine modals** — the same rule as
+   the bars, applied to the other half of the surface. The course modal is
+   the worst offender in the app and is restructured; Settings gains the
+   scroll cap it never had.
 
 ## Non-goals
 
 - **A topbar rework.** The document title stays out of the topbar and the
   mode pill keeps its place. Considered and declined as a separate round.
+- **Rewriting what the modals contain.** §7–§9 move controls between regions
+  and give them one frame; they do not redesign the course document format,
+  the template packs UI, or what any setting means.
 - **Changing what any of these actions do.** Publishing, uploading,
   exporting, tracing and saving keep their current behaviour and their
   current code paths; this moves where they are reached from. The one
   exception is portrait *placement*, §3.
-- **Course publishing.** It publishes a whole course, not the open document,
-  and stays inside the course panel.
 - **Rethinking `developerMode`.** The 1–5 rating and the Data row are already
   gated behind it (`main.ts:1190`); they are not part of the crowding.
 - **Batch or multi-destination sharing.** One destination per Share.
@@ -93,6 +98,42 @@ What is specifically wrong:
 - **Neither list can be closed.** Each is capped at `max-height: 13rem` and
   scrolls internally (`styles.css:356–363`).
 
+### 0.1 The modals have the same three diseases
+
+There are nine. Five go through `createModal` (Templates, Instructions, Data,
+Subtitles, Course); **four build a raw `<dialog>` by hand** — Settings
+(`main.ts:1103`), the author dialog, the 3D viewer and the YouTube upload.
+
+- **The course modal is the worst bar in the app**: twelve controls in one
+  flat `.pane-bar` (`ui/course.ts:832`) —
+  `[Saved courses ▾] ＋New ✦Plan ✎Revise ▶Generate ✕Cancel ⟲Match 💾Save
+  ⬆Publish ☑with narration ⬇Backup ↩Undo` and the cost note. Four unrelated
+  species in one row: a document picker, lifecycle verbs, persistence and
+  history.
+- **`☑ with narration` exists twice**, identically — `main.ts:567` and
+  `ui/course.ts:106`. The same rule violation, copied.
+- **`⬇ Backup` is app-global** — "Download every course and drawcast as one
+  file" — inside one course's toolbar.
+- **Three of those twelve are `hidden` and appear mid-row** (`matchBtn`,
+  `undoBtn`, `cancelBtn`), so the row reflows and buttons move under the
+  cursor while the author works.
+- **Settings has no scroll cap.** Because it skips `createModal` it has no
+  `.dialog-body`, and so never gets the `max-height: min(70vh, 42rem);
+  overflow-y: auto` every other modal has (`styles.css:480`). Eight
+  `.settings-field` blocks with long notes simply grow the dialog.
+- **Two settings are misfiled.** "Skip questions" and "Burn captions" sit
+  under the *Google Cloud TTS key* field (`main.ts:1128–1134`). Neither is
+  about a key.
+- **No size scale.** Three widths, all one-offs: `dialog { max-width: 30rem }`,
+  `.wide-dialog { 46rem }`, `.course-modal { min(104rem, 96vw) }`.
+- **Actions have no home.** Some modals put them in a top bar (Course), some
+  mid-body (Instructions has two loose `.row`s of four buttons each,
+  `main.ts:992–993`), some at the end (YouTube).
+
+What is already right: **Templates and Instructions** use `createTabs` +
+`.tab-panel` + a leading `.hint` line. That is the pattern §7 standardizes
+on — it is not invented here.
+
 ## 1. The rule
 
 > **A button in a bar is a verb. Its options live in the modal that verb
@@ -103,8 +144,10 @@ modifies. The two `<select>`s that survive — the spec format and the
 generation choices behind `…` — are not options *of* an adjacent button; they
 describe the pane itself.
 
-This is the general pattern Hans asked for. §2, §3 and §4 are three
-applications of it.
+This is the general pattern Hans asked for. Everything after it is an
+application: §2–§4 in the pane bars, §7–§9 in the modals. The clearest test
+of it is that `☑ with narration` currently exists twice, in two different
+surfaces, and afterwards exists nowhere but inside Share.
 
 ## 2. Share — one verb, four destinations
 
@@ -141,7 +184,17 @@ calls them. One improvement comes free: when the GitHub repo or token is
 missing, the modal can say so *in place* with a link to Settings, instead of
 today's red status line after the click (`main.ts:3097–3100`).
 
-**Course publishing is not part of Share** — see Non-goals.
+**Share is context-aware.** Opened from the editor it shares the open
+drawcast; opened from the course modal (§8) it shares the course, showing
+`Link` alone with "Course — N lectures" and calling `publishCourse()` instead
+of `publishCast()`.
+
+An earlier draft made course publishing a Non-goal. Finding the *identical*
+bake-narration checkbox in both places (`main.ts:567`, `ui/course.ts:106`)
+reversed it: two publish buttons carrying two copies of one question is
+exactly the duplication §1 exists to prevent. One dialog asks it once. If
+batch video export is ever written, it slots in as a second destination here
+rather than as another button somewhere else.
 
 ## 3. ＋ Insert — and what portrait becomes
 
@@ -262,7 +315,96 @@ count, and remembered open state:
 - **One panel treatment.** The same border, radius and shadow for the two
   editor panes and the dialogs.
 
-## 7. Settings
+## 7. Modals — one scale, one anatomy
+
+**A named size scale**, replacing three one-offs:
+
+| Class | Width | For |
+|---|---|---|
+| `.modal-s` | 30rem | one subject, a confirmation — today's bare `dialog` |
+| `.modal-m` | 46rem | lists and tabs — today's `.wide-dialog` |
+| `.modal-l` | min(104rem, 96vw) | working surfaces — today's `.course-modal` |
+
+The body cap scales with the size rather than being overridden per modal
+(`70vh` for s/m, `86vh` for l, as `.course-modal` already does).
+
+Note for implementation: `tests/course-panel.test.ts:77–86` currently pins
+`dialog { max-width: 30rem }` and `.course-modal`'s `min()` widths. Those
+assertions move to the new class names in the same commit — they must not be
+deleted, they are the drift guard.
+
+**One anatomy, in this order, for every modal:**
+
+```
+┌──────────────────────────────────────────┐
+│ head    title · optional context · ✕     │
+├──────────────────────────────────────────┤
+│ tabs    (only when there is more than    │
+│         one subject)                     │
+├──────────────────────────────────────────┤
+│ body    scrolls; a leading .hint line    │
+│         says what this is for            │
+├──────────────────────────────────────────┤
+│ footer  actions, right-aligned,          │
+│         primary last                     │
+└──────────────────────────────────────────┘
+```
+
+`createModal` grows a `footer` alongside `body`, and the four hand-built
+dialogs move onto it. A modal's actions live in the footer; verbs that act on
+something *inside* the body (per-lecture "again", per-template "Delete") stay
+with their row. Nothing else floats mid-body.
+
+## 8. The course modal
+
+The twelve-control bar splits four ways, by what each control is *about*:
+
+```
+┌─ 🎓 Course   [ Causal inference ▾ ]  ＋ New ────────── ✕ ─┐
+├───────────────────────────────────────────────────────────┤
+│  ✦ Plan    ✎ Revise    ▶ Generate    ✕ Cancel             │
+│  <status · links>                                         │
+│                                                           │
+│  [ course document ]              [ lectures ]            │
+│                                                           │
+├───────────────────────────────────────────────────────────┤
+│  ↩ Undo   ⟲ Match                      💾 Save   ↗ Share  │
+└───────────────────────────────────────────────────────────┘
+```
+
+- **Picker + `＋ New` move into the head.** They answer *which document am I
+  editing*, which is context, not action.
+- **Plan / Revise / Generate / Cancel stay with the document** as the working
+  verbs, in one group. `✕ Cancel` keeps its reserved slot instead of being
+  `hidden`, so the row stops reflowing under the cursor — disabled when
+  nothing is in flight.
+- **Undo / Match / Save / Share move to the footer.** `⟲ Match` keeps its
+  conditional appearance but on the left, where a reflow moves nothing the
+  author is aiming at.
+- **`☑ with narration` goes into Share** (§2).
+- **`⬇ Backup` moves to Settings → Advanced** (§9). It is an app-global
+  export; it was never about this course.
+
+Everything the panel *does* is unchanged: `runCourse`, `reviseCourse`,
+`matchLibrary`, the `inFlight` AbortController set and the per-lecture rows
+keep their code.
+
+## 9. Settings
+
+**Routed through `createModal`**, which is what gives it the missing scroll
+cap, and **split into four tabs** with the existing `createTabs`:
+
+| Tab | Holds |
+|---|---|
+| **Keys** | Anthropic key, Google Cloud TTS key, usage note |
+| **Playback** | drawing style, voice, rate, cloud playback, skip questions, burn captions |
+| **Publishing** | GitHub repo, token, subfolder |
+| **Advanced** | contact email, developer mode, ⬇ Backup |
+
+This is what refiles "Skip questions" and "Burn captions" out from under the
+TTS *key* field, where they have no business being. No setting changes
+meaning, and the long `.settings-note` explanations are kept verbatim — they
+are the reason someone trusts pasting a token.
 
 Two additions to `Settings` (`store.ts:41–106`) and `DEFAULT_SETTINGS`:
 
@@ -278,7 +420,7 @@ Defaults: `shareTo: "link"`, `sidebarSections: {}`.
 The portrait dialog's default part is deliberately **not** a setting — it is
 read from the live playlist when the dialog opens.
 
-## 8. Testing
+## 10. Testing
 
 `vitest`, `environment: "node"` (`vite.config.ts`) — there is no DOM, so the
 established pattern applies: extract the decidable parts as pure functions and
@@ -296,12 +438,21 @@ test those, plus source-text drift tests (already used against `styles.css` in
 - `portraitInsert(playlist, choice)` → the spec edit: the element, its part,
   and the `draw` command. Pins that a draw command is emitted, that the target
   part is honoured, and that cameo omits x/y/width.
+- `settingsTabs()` → which field belongs to which tab. Pins that skip-questions
+  and burn-captions are no longer under Keys.
 
 **Drift tests against source:**
 
 - No `.icon-only` rule inside a `.pane-bar` selector.
 - `--bar-h` is defined and used by both bars.
 - No `window.prompt(` in the portrait path.
+- `.modal-s` / `.modal-m` / `.modal-l` are the only modal width rules — no
+  per-modal `max-width` override survives. (This replaces, and must not
+  delete, the two existing width assertions at
+  `tests/course-panel.test.ts:77–86`.)
+- No `<dialog>` is constructed outside `createModal` — pins the four
+  hand-built dialogs onto the helper so none can lose the scroll cap again.
+- `with narration` appears once in the source, not twice.
 
 **Regression:** the existing suite must stay green. `exportSequence` hands out
 the document's own spec objects, so anything that reaches into the playlist —
@@ -309,7 +460,7 @@ Share's YouTube path especially — keeps translating into fresh playlists
 rather than mutating `doc` (the trap recorded on `ytTranslations`,
 `main.ts:3358–3365`).
 
-## 9. Risks
+## 11. Risks
 
 - **Share costs frequent publishing one extra click.** Mitigated by the
   remembered destination: Share → Enter.
@@ -321,12 +472,24 @@ rather than mutating `doc` (the trap recorded on `ytTranslations`,
   rather than growing `main.ts` further.
 - **Four sections make a taller menu than two.** Two default closed, and the
   `13rem` per-list cap stays.
+- **The course panel is the app's most stateful surface.** `ui/course.ts` runs
+  a set of in-flight AbortControllers, a one-step undo, and per-lecture
+  re-runs. §8 moves buttons between regions and must not disturb `syncBusy()`
+  or the `inFlight` set — the buttons change place, not wiring.
+- **Settings tabs hide fields that were previously all visible.** Someone who
+  scrolled to find a key now needs the right tab. Mitigated by four
+  self-evident tab names and by Keys being first.
 
-## 10. Order of work
+## 12. Order of work
 
-1. `--bar-h`, `.bar-group`, the icon rule, the panel treatment (§6) — visible
-   immediately, no behaviour change.
-2. `src/ui/share.ts` + the Share modal (§2), absorbing `ytDialog`.
-3. `src/ui/insert.ts` + the portrait dialog (§3), and `Open ▾` / `Save ▾` (§4).
-4. `src/ui/sidebar.ts` + the four sections (§5), moving course grouping out of
+1. `--bar-h`, `.bar-group`, the icon rule, the panel treatment (§6), and the
+   `.modal-s/m/l` scale (§7) — visible immediately, no behaviour change.
+2. `createModal` grows a footer; the four hand-built dialogs move onto it
+   (§7). Settings gets its scroll cap here, before its tabs.
+3. `src/ui/share.ts` + the Share modal (§2), absorbing `ytDialog`, with the
+   course context wired in.
+4. `src/ui/insert.ts` + the portrait dialog (§3), and `Open ▾` / `Save ▾` (§4).
+5. Settings tabs and the Backup move (§9).
+6. The course modal's four regions (§8).
+7. `src/ui/sidebar.ts` + the four sections (§5), moving course grouping out of
    `refreshLibrary`.
