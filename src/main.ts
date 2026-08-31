@@ -598,7 +598,7 @@ const insertMenu = createMenu("＋ Insert", [
       }),
   },
 ]);
-const pinPortraitsBtn = h("button", { class: "icon-only", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
+const pinPortraitsBtn = h("button", { class: "icon-only pin-btn", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
 // Open ▾ and Save ▾ fold what used to be four buttons (⬆ import, ☁ Open,
 // ☁ Save, plus the ⬇ download now living in Share) into one menu per verb
 // (spec §4) — the ⬆ glyph no longer means two different things. A capability

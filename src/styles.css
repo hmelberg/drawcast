@@ -295,6 +295,9 @@ body.mode-editor main {
 }
 @media (max-width: 940px) {
   .editor-split { grid-template-columns: 1fr; }
+  /* The drawing is what you came to see; the spec textarea has a 320px
+     min-height, so leaving it first buries the figure below the fold. */
+  .editor-preview { order: -1; }
 }
 
 .editor-code { display: flex; flex-direction: column; }
@@ -673,6 +676,10 @@ details > summary { cursor: pointer; color: var(--muted); }
   }
   .cs-progress-fill { border-radius: 3px; }
   .cs-controlbar { gap: 0.2rem; }
+  /* 📌 is the one icon-only control this pass leaves icon-only — its title=
+     explains an irreversible, expensive action that touch never shows, so it
+     gets visible text here instead of losing the explanation outright. */
+  .pin-btn::after { content: " Pin images"; font-size: 0.78rem; }
 }
 
 /* ---------- the figure / player (cs-*) ---------- */
@@ -753,6 +760,12 @@ details > summary { cursor: pointer; color: var(--muted); }
   cursor: pointer;
 }
 .cs-bar-btn:hover { color: var(--rust); }
+
+/* Theater mode widens the stage — on a screen this narrow there is no
+   "narrow vs. wide" left to switch between, so the button does nothing. */
+@media (max-width: 780px) {
+  .cs-theater { display: none; }
+}
 
 .cs-bar-select {
   font-size: 0.75rem;
@@ -1501,6 +1514,36 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: #9c6b1f;
   border: 1px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
   background: color-mix(in srgb, #9c6b1f 10%, var(--surface));
+}
+
+/* Phones: a centred box with a 25px ✕ is the worst version of a dialog. A
+   sheet pinned to the bottom puts the footer's primary action under the thumb
+   that is already there. Placed after the Share rules above so these
+   overrides (same selectors, same specificity) win in the cascade. */
+@media (max-width: 560px) {
+  dialog {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 88vh;
+    margin-bottom: 0;
+    margin-top: auto;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    padding: 1rem;
+  }
+  .modal-s .dialog-body, .modal-m .dialog-body, .modal-l .dialog-body { max-height: 66vh; }
+  /* Share's destination rail sits beside its panels on a desktop; on a phone
+     there is no room for both, so the rail becomes a row above them. */
+  .share-layout { flex-direction: column; }
+  .share-rail {
+    flex: 0 0 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    padding-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.6rem;
+  }
 }
 
 /* ---- Course panel ---- */

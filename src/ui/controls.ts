@@ -566,6 +566,14 @@ export function attachPlayerControls(
    *  bar's own flex layout never has to make room for a panel. */
   const menuPanels: HTMLElement[] = [];
 
+  // Phones fold mode/speed/mute/captions behind "⋯" so a thumb meets play,
+  // progress, and fullscreen first. Matched once when the bar is built — it
+  // is rebuilt on every render, so a resize across the breakpoint is picked
+  // up on the next render rather than by a live listener.
+  const foldSecondary = window.matchMedia("(max-width: 560px)").matches;
+  // Hoisted so the fold below can pull it out of rightExtra by reference.
+  let ccBtn: HTMLButtonElement | undefined;
+
   if (opts.speech) {
     const speech = opts.speech;
     speech.setMuted(prefs.muted === true);
@@ -591,7 +599,11 @@ export function attachPlayerControls(
     // what you read, in which language, and which voice says it. As separate
     // bar controls this was three more selects on a strip that already carries
     // twelve and wraps on a phone.
-    const ccBtn = h("button", { class: "cs-bar-btn cs-cc", title: "Subtitles and voice" }, "CC");
+    // A local const so the closures below narrow it as always-defined; the
+    // hoisted `ccBtn` (assigned once, right after) is only for the fold
+    // logic outside this block, which runs after `cc` is known to exist.
+    const ccBtnEl = h("button", { class: "cs-bar-btn cs-cc", title: "Subtitles and voice" }, "CC");
+    ccBtn = ccBtnEl;
     const onCb = h("input", { type: "checkbox" }) as HTMLInputElement;
     const langSel = h("select", { class: "cs-menu-select" }) as HTMLSelectElement;
     const voiceSel = h("select", { class: "cs-menu-select" }) as HTMLSelectElement;
@@ -611,7 +623,7 @@ export function attachPlayerControls(
     const ADD = "__add__";
 
     const paint = (): void => {
-      ccBtn.classList.toggle("is-on", on);
+      ccBtnEl.classList.toggle("is-on", on);
       onCb.checked = on;
       // The language of the TEXT only matters when there is text showing, and
       // when there is more than one to choose between.
@@ -669,7 +681,7 @@ export function attachPlayerControls(
     function onMenuKey(e: KeyboardEvent): void {
       if (e.key === "Escape") closeMenu();
     }
-    ccBtn.addEventListener("click", (e) => {
+    ccBtnEl.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!menu.hidden) return closeMenu();
       menu.hidden = false;
@@ -684,7 +696,7 @@ export function attachPlayerControls(
       "click",
       (e) => {
         if (menu.hidden) return;
-        if (e.target instanceof Node && (menu.contains(e.target) || ccBtn.contains(e.target))) return;
+        if (e.target instanceof Node && (menu.contains(e.target) || ccBtnEl.contains(e.target))) return;
         closeMenu();
         e.stopPropagation();
       },
@@ -718,12 +730,14 @@ export function attachPlayerControls(
       cc.voice?.onPick(voice);
     });
 
-    rightExtra.push(ccBtn);
+    rightExtra.push(ccBtnEl);
     menuPanels.push(menu);
   }
 
   if (opts.onTheater) {
-    const theaterBtn = h("button", { class: "cs-bar-btn", title: "Theater mode (wide)" }, "▭");
+    // Hidden outright below 780px (styles.css) — widening the stage does
+    // nothing on a screen that has no "narrow vs. wide" to switch between.
+    const theaterBtn = h("button", { class: "cs-bar-btn cs-theater", title: "Theater mode (wide)" }, "▭");
     theaterBtn.addEventListener("click", () => opts.onTheater?.());
     rightExtra.push(theaterBtn);
   }
@@ -737,6 +751,43 @@ export function attachPlayerControls(
     rightExtra.push(fsBtn);
   }
 
+  // Fold mode, speed, mute, and captions behind one "⋯" trigger on a phone.
+  // These are the SAME control instances built above (moved, not rebuilt),
+  // so their listeners and state are untouched — only their place in the DOM
+  // changes. createMenu (ui/menu.ts) cannot hold them: its items are a flat
+  // label+onSelect list that renders its own buttons, and modeSel/speedSel
+  // are live <select> elements with their own change wiring, and ccBtn already
+  // owns a popover of its own (see below) — running any of them through
+  // createMenu would mean rebuilding them as new, disconnected controls. This
+  // reuses the same .menu/.menu-panel look instead, mirroring the CC popover
+  // pattern already used a few lines above.
+  let overflowRoot: HTMLElement | null = null;
+  if (foldSecondary) {
+    const folded: HTMLElement[] = [modeSel, speedSel, ...leftExtra.splice(0, leftExtra.length)];
+    if (ccBtn) {
+      const i = rightExtra.indexOf(ccBtn);
+      if (i !== -1) folded.push(...rightExtra.splice(i, 1));
+    }
+    const trigger = h("button", { class: "cs-bar-btn menu-trigger", title: "More controls" }, "⋯");
+    const panel = h("div", { class: "menu-panel cs-overflow-panel", hidden: "" }, ...folded);
+    overflowRoot = h("span", { class: "menu" }, trigger, panel);
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+    });
+    panel.addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (panel.hidden) return;
+        if (e.target instanceof Node && (panel.contains(e.target) || trigger.contains(e.target))) return;
+        panel.hidden = true;
+        e.stopPropagation();
+      },
+      true,
+    );
+  }
+
   const bar = h(
     "div",
     { class: "cs-controlbar" },
@@ -746,8 +797,7 @@ export function attachPlayerControls(
     ...leftExtra,
     progress,
     stepInd,
-    modeSel,
-    speedSel,
+    ...(overflowRoot ? [overflowRoot] : [modeSel, speedSel]),
     ...rightExtra,
     ...(opts.trailing ?? []),
   );

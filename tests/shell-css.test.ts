@@ -106,3 +106,29 @@ describe("Open ▾ and Save ▾", () => {
     expect(src).not.toMatch(/class:\s*"icon-only"[^)]*"⬆"/);
   });
 });
+
+describe("the phone", () => {
+  it("puts the drawing above the code editor on a narrow screen", async () => {
+    const block = /@media\s*\(max-width:\s*940px\)\s*\{([\s\S]*?)\n\}/.exec(await css())?.[1] ?? "";
+    expect(block).toMatch(/\.editor-preview\s*\{[^}]*order:\s*-1/);
+  });
+
+  it("turns dialogs into bottom sheets, where the footer keeps the primary\n     action on screen", async () => {
+    const block = /@media\s*\(max-width:\s*560px\)\s*\{([\s\S]*?)\n\}/g;
+    const text = await css();
+    const sheets = [...text.matchAll(block)].map((m) => m[1]).join("\n");
+    expect(sheets).toMatch(/dialog\s*\{[^}]*max-height:\s*88vh/);
+    expect(sheets).toMatch(/margin-bottom:\s*0/);
+  });
+
+  it("hides theater mode where it cannot change anything", async () => {
+    const text = await css();
+    expect(text).toMatch(/max-width:\s*780px[\s\S]{0,400}\.cs-theater[^}]*display:\s*none/);
+  });
+
+  it("gives the pinned-images button a pin-btn class, in both main.ts and\n     the CSS — a selector with no element is worse than no selector, because\n     it looks done", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/pin-btn/);
+    expect(await css()).toMatch(/\.pin-btn/);
+  });
+});
