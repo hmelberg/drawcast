@@ -532,6 +532,36 @@ export function shouldIdle(s: { playing: boolean; gateOpen: boolean }): boolean 
   return s.playing && !s.gateOpen;
 }
 
+/** The bar's secondary controls: always mode and speed, plus mute and/or
+ *  captions when the caller wired them up. */
+export type SecondarySlot = "mode" | "speed" | "mute" | "captions";
+
+/**
+ * Which secondary controls sit inline in the bar vs. behind the "⋯" overflow,
+ * given the viewport tier and which optional controls this render has. Pure
+ * and DOM-free on purpose: it is the one part of the fold a no-DOM test suite
+ * can exercise, and it is the part that had the bug (a matchMedia read taken
+ * once when the bar was built and never re-run on rotation) — attachPlayerControls
+ * now calls this again on every "change" event instead of trusting a stale read.
+ */
+export function foldedControls(
+  narrow: boolean,
+  hasMute: boolean,
+  hasCC: boolean,
+): { inline: SecondarySlot[]; folded: SecondarySlot[] } {
+  const present: SecondarySlot[] = ["mode", "speed"];
+  if (hasMute) present.push("mute");
+  if (hasCC) present.push("captions");
+  return narrow ? { inline: [], folded: present } : { inline: present, folded: [] };
+}
+
+/** Fold-listener cleanup from a previous render of a given stageHost. Every
+ *  other per-render listener in attachPlayerControls is scoped to DOM nodes
+ *  it removes at the top (the .cs-bigplay/.cs-controlbar cleanup below) and
+ *  simply dies with them — but a MediaQueryList is not DOM-scoped, so unlike
+ *  those it needs an explicit teardown, done in that same spot. */
+const foldTeardown = new WeakMap<HTMLElement, () => void>();
+
 export function attachPlayerControls(
   stageHost: HTMLElement,
   hd: RenderHandle,
@@ -541,6 +571,8 @@ export function attachPlayerControls(
   const stage = stageHost.querySelector<HTMLElement>(".cs-stage");
   if (!stage) return;
   stageHost.querySelectorAll(".cs-bigplay, .cs-controlbar").forEach((el) => el.remove());
+  foldTeardown.get(stageHost)?.();
+  foldTeardown.delete(stageHost);
 
   const total = hd.plan.steps.length;
   const bigPlay = h("button", { class: "cs-bigplay", title: "Play with narration" }, "▶");
@@ -560,31 +592,31 @@ export function attachPlayerControls(
   speedSel.value = String(prefs.speed);
   if (!speedSel.value) speedSel.value = "1";
 
-  const leftExtra: HTMLElement[] = [];
-  const rightExtra: HTMLElement[] = [];
   /** Popovers that belong to the bar; mounted beside it, not inside it, so the
    *  bar's own flex layout never has to make room for a panel. */
   const menuPanels: HTMLElement[] = [];
 
-  // Phones fold mode/speed/mute/captions behind "⋯" so a thumb meets play,
-  // progress, and fullscreen first. Matched once when the bar is built — it
-  // is rebuilt on every render, so a resize across the breakpoint is picked
-  // up on the next render rather than by a live listener.
-  const foldSecondary = window.matchMedia("(max-width: 560px)").matches;
-  // Hoisted so the fold below can pull it out of rightExtra by reference.
+  // Hoisted so layout() below can read them by name regardless of which
+  // options were passed in — each stays undefined when its option was not.
+  let muteBtn: HTMLButtonElement | undefined;
   let ccBtn: HTMLButtonElement | undefined;
+  let theaterBtn: HTMLButtonElement | undefined;
+  let fsBtn: HTMLButtonElement | undefined;
 
   if (opts.speech) {
     const speech = opts.speech;
     speech.setMuted(prefs.muted === true);
-    const muteBtn = h("button", { class: "cs-bar-btn", title: "Mute narration (timing unchanged)" }, speech.muted ? "🔇" : "🔊");
-    muteBtn.addEventListener("click", () => {
+    // A local const so the closure below narrows it as always-defined; the
+    // hoisted `muteBtn` (assigned right after) is only for layout(), which
+    // runs after `opts.speech` is known to exist.
+    const muteBtnEl = h("button", { class: "cs-bar-btn", title: "Mute narration (timing unchanged)" }, speech.muted ? "🔇" : "🔊");
+    muteBtn = muteBtnEl;
+    muteBtnEl.addEventListener("click", () => {
       const muted = !speech.muted;
       speech.setMuted(muted);
-      muteBtn.textContent = muted ? "🔇" : "🔊";
+      muteBtnEl.textContent = muted ? "🔇" : "🔊";
       prefs.onMute?.(muted);
     });
-    leftExtra.push(muteBtn);
   }
   if (opts.captions) {
     const cc = opts.captions;
@@ -730,81 +762,100 @@ export function attachPlayerControls(
       cc.voice?.onPick(voice);
     });
 
-    rightExtra.push(ccBtnEl);
     menuPanels.push(menu);
   }
 
   if (opts.onTheater) {
     // Hidden outright below 780px (styles.css) — widening the stage does
     // nothing on a screen that has no "narrow vs. wide" to switch between.
-    const theaterBtn = h("button", { class: "cs-bar-btn cs-theater", title: "Theater mode (wide)" }, "▭");
-    theaterBtn.addEventListener("click", () => opts.onTheater?.());
-    rightExtra.push(theaterBtn);
+    const theaterBtnEl = h("button", { class: "cs-bar-btn cs-theater", title: "Theater mode (wide)" }, "▭");
+    theaterBtnEl.addEventListener("click", () => opts.onTheater?.());
+    theaterBtn = theaterBtnEl;
   }
   if (opts.fullscreenEl) {
     const el = opts.fullscreenEl;
-    const fsBtn = h("button", { class: "cs-bar-btn", title: "Fullscreen" }, "⛶");
-    fsBtn.addEventListener("click", () => {
+    const fsBtnEl = h("button", { class: "cs-bar-btn", title: "Fullscreen" }, "⛶");
+    fsBtnEl.addEventListener("click", () => {
       if (document.fullscreenElement) void document.exitFullscreen();
       else void el.requestFullscreen?.();
     });
-    rightExtra.push(fsBtn);
+    fsBtn = fsBtnEl;
   }
 
   // Fold mode, speed, mute, and captions behind one "⋯" trigger on a phone.
-  // These are the SAME control instances built above (moved, not rebuilt),
-  // so their listeners and state are untouched — only their place in the DOM
-  // changes. createMenu (ui/menu.ts) cannot hold them: its items are a flat
+  // These are the SAME control instances built above — layout() below only
+  // ever moves them, never rebuilds them, so their listeners and state are
+  // untouched. createMenu (ui/menu.ts) cannot hold them: its items are a flat
   // label+onSelect list that renders its own buttons, and modeSel/speedSel
   // are live <select> elements with their own change wiring, and ccBtn already
-  // owns a popover of its own (see below) — running any of them through
+  // owns a popover of its own (see above) — running any of them through
   // createMenu would mean rebuilding them as new, disconnected controls. This
   // reuses the same .menu/.menu-panel look instead, mirroring the CC popover
   // pattern already used a few lines above.
-  let overflowRoot: HTMLElement | null = null;
-  if (foldSecondary) {
-    const folded: HTMLElement[] = [modeSel, speedSel, ...leftExtra.splice(0, leftExtra.length)];
-    if (ccBtn) {
-      const i = rightExtra.indexOf(ccBtn);
-      if (i !== -1) folded.push(...rightExtra.splice(i, 1));
-    }
-    const trigger = h("button", { class: "cs-bar-btn menu-trigger", title: "More controls" }, "⋯");
-    const panel = h("div", { class: "menu-panel cs-overflow-panel", hidden: "" }, ...folded);
-    overflowRoot = h("span", { class: "menu" }, trigger, panel);
-    trigger.addEventListener("click", (e) => {
+  const foldTrigger = h("button", { class: "cs-bar-btn menu-trigger", title: "More controls" }, "⋯");
+  const foldPanel = h("div", { class: "menu-panel cs-overflow-panel", hidden: "" });
+  const foldRoot = h("span", { class: "menu" }, foldTrigger, foldPanel);
+  foldTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    foldPanel.hidden = !foldPanel.hidden;
+  });
+  foldPanel.addEventListener("click", (e) => e.stopPropagation());
+  // Same click-away idiom as the CC popover above: a persistent capture-phase
+  // listener rather than one added/removed per open, so this needs no
+  // teardown of its own — closing an already-hidden, detached panel from a
+  // stale render is a no-op, same reasoning as the figure listeners further
+  // down.
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (foldPanel.hidden) return;
+      if (e.target instanceof Node && (foldPanel.contains(e.target) || foldTrigger.contains(e.target))) return;
+      foldPanel.hidden = true;
       e.stopPropagation();
-      panel.hidden = !panel.hidden;
-    });
-    panel.addEventListener("click", (e) => e.stopPropagation());
-    document.addEventListener(
-      "click",
-      (e) => {
-        if (panel.hidden) return;
-        if (e.target instanceof Node && (panel.contains(e.target) || trigger.contains(e.target))) return;
-        panel.hidden = true;
-        e.stopPropagation();
-      },
-      true,
-    );
-  }
-
-  const bar = h(
-    "div",
-    { class: "cs-controlbar" },
-    playBtn,
-    backBtn,
-    fwdBtn,
-    ...leftExtra,
-    progress,
-    stepInd,
-    ...(overflowRoot ? [overflowRoot] : [modeSel, speedSel]),
-    ...rightExtra,
-    ...(opts.trailing ?? []),
+    },
+    true,
   );
+
+  const bySlot: Record<SecondarySlot, HTMLElement | undefined> = { mode: modeSel, speed: speedSel, mute: muteBtn, captions: ccBtn };
+  /** Arranges the bar between inline and folded. Called once for the render's
+   *  initial layout and again on every breakpoint crossing — re-decided each
+   *  time via foldedControls() rather than trusted from a stale read, which
+   *  is the bug a phone rotation used to hit. replaceChildren() *moves*
+   *  already-attached nodes, so this never rebuilds a control mid-session.
+   *  menuPanels (the CC popover) rides along on every call rather than being
+   *  appended once separately — replaceChildren() replaces ALL of the bar's
+   *  children, so leaving it out here would make the first re-layout (the
+   *  first rotation) silently drop the CC panel from the DOM. */
+  const layout = (narrow: boolean): void => {
+    const decision = foldedControls(narrow, !!muteBtn, !!ccBtn);
+    foldPanel.replaceChildren(...decision.folded.map((s) => bySlot[s] as HTMLElement));
+    const inline = (slot: SecondarySlot): HTMLElement[] => (decision.inline.includes(slot) && bySlot[slot] ? [bySlot[slot] as HTMLElement] : []);
+    bar.replaceChildren(
+      playBtn,
+      backBtn,
+      fwdBtn,
+      ...inline("mute"),
+      progress,
+      stepInd,
+      ...(narrow ? [foldRoot] : [modeSel, speedSel]),
+      ...inline("captions"),
+      ...(theaterBtn ? [theaterBtn] : []),
+      ...(fsBtn ? [fsBtn] : []),
+      ...(opts.trailing ?? []),
+      ...menuPanels,
+    );
+  };
+
+  const bar = h("div", { class: "cs-controlbar" });
   stage.appendChild(bigPlay);
   // The bar lives below the drawing so it never covers axis labels.
   stage.insertAdjacentElement("afterend", bar);
-  for (const panel of menuPanels) bar.appendChild(panel);
+
+  const foldQuery = window.matchMedia("(max-width: 560px)");
+  const onFoldChange = (e: MediaQueryListEvent): void => layout(e.matches);
+  foldQuery.addEventListener("change", onFoldChange);
+  foldTeardown.set(stageHost, () => foldQuery.removeEventListener("change", onFoldChange));
+  layout(foldQuery.matches);
 
   // YouTube-like idle behavior: while playing, the controls fade out fully
   // after a moment of pointer inactivity (cursor hidden too) and return on any
