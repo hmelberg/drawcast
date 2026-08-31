@@ -102,6 +102,22 @@ export class SpeechManager {
     this.voiceURI = uri;
   }
 
+  /** What the host configured, so a player-level pick can be undone: choosing
+   *  Default must restore the viewer's own Settings voice, not clear it. */
+  get voice(): string | null {
+    return this.voiceURI;
+  }
+
+  /**
+   * The viewer picked a specific browser voice, so any richer path — a baked
+   * recording, a cloud voice — is not what they asked for and must stand
+   * aside. A no-op here because this class IS the browser path; the wrappers
+   * that add those paths override it.
+   */
+  preferBrowserVoice(_on: boolean): void {
+    /* nothing richer to stand aside */
+  }
+
   /** The spec's declared language, when it has one; null goes back to sniffing. */
   setLangHint(lang: string | null): void {
     this.langHint = lang;

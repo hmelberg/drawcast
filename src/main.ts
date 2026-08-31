@@ -1642,6 +1642,7 @@ function captionPrefs(): {
   lang: string;
   onChange(next: { on: boolean; lang: string }): void;
   onAdd(): void;
+  hasCloudVoice: boolean;
 } {
   return {
     on: settings.captionsOn,
@@ -1652,6 +1653,7 @@ function captionPrefs(): {
       persist();
     },
     onAdd: openSubtitleDialog,
+    hasCloudVoice: settings.cloudPlayback && getTtsKey() !== "",
   };
 }
 

@@ -93,10 +93,30 @@ export class PublishedSpeech extends SpeechManager {
     this.inner.resume();
   }
 
+  /**
+   * The viewer picked a specific browser voice, so the baked recording is not
+   * what they asked for. Without this, choosing "Samantha" on a drawcast baked
+   * in English would keep playing the recording — the clip's key matches,
+   * because the TEXT is unchanged — and the pick would look broken.
+   */
+  private forceBrowser = false;
+
+  override preferBrowserVoice(on: boolean): void {
+    this.forceBrowser = on;
+    (this.inner as Partial<{ preferBrowserVoice(on: boolean): void }>).preferBrowserVoice?.(on);
+  }
+
+  override setVoice(uri: string | null): void {
+    super.setVoice(uri);
+    // The browser voice is chosen on whichever manager actually reaches
+    // speechSynthesis, which is the innermost one.
+    (this.inner as Partial<SpeechManager>).setVoice?.(uri);
+  }
+
   override async speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
     if (signal?.aborted) return;
     const key = speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender });
-    if (this.clips.has(key)) {
+    if (!this.forceBrowser && this.clips.has(key)) {
       try {
         await this.clips.play(key, speedMultiplier, signal);
         return;

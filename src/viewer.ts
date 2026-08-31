@@ -146,6 +146,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
+    // A declared language picks the narrator's voice. Without it the per-line
+    // sniff stands, and detectLang only tells English from Norwegian — so a
+    // published French drawcast was read aloud by an English voice. The app's
+    // player has always done this; the viewer never did.
+    speech.setLangHint(itemsOf(playlist).find((i) => i.spec.lang)?.spec.lang ?? null);
     // Narration baked into the document plays from there; anything it does not
     // cover falls through to this manager, and only THOSE lines are worth a
     // synthesis call. A fully baked drawcast needs no key at all.
@@ -161,6 +166,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         on: settings.captionsOn,
         lang: settings.captionLang,
         onChange: (next) => saveSettings({ ...loadSettings(), captionsOn: next.on, captionLang: next.lang }),
+        hasCloudVoice: settings.cloudPlayback && getTtsKey() !== "",
       },
       controls: { speech, fullscreenEl: figureHost },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),

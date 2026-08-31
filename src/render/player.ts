@@ -121,9 +121,11 @@ export class Player {
   }
 
   /**
-   * The active subtitle track, or undefined for the language the drawcast was
-   * written in. Text only: the VOICE always speaks the source, because the
-   * narration is recorded speech in one language and a caption is not.
+   * The active subtitle track — what the viewer READS — or undefined for the
+   * language the drawcast was written in. Independent of what is spoken (see
+   * setSpokenTrack): the default is the original voice under translated text,
+   * because baked or cloud narration really is a recording in one language and
+   * a caption is not.
    */
   private subtitles: SubtitleTrack | undefined;
 
@@ -147,6 +149,26 @@ export class Player {
   setSubtitles(track: SubtitleTrack | undefined): void {
     this.subtitles = track;
     this.showCaption(this.captionSource);
+  }
+
+  /**
+   * What the VOICE says, which is a separate choice from what the caption
+   * shows: Norwegian subtitles over the original English narration is a real
+   * way to watch (read along), and so is the mirror image. The two tracks are
+   * never coupled.
+   */
+  private spoken: SubtitleTrack | undefined;
+
+  /** Switch the spoken track (undefined = the source language). Takes effect
+   *  from the next line; the line already in the air is left to finish. */
+  setSpokenTrack(track: SubtitleTrack | undefined): void {
+    this.spoken = track;
+  }
+
+  /** The words to SPEAK for a source line: spoken track first, then {var}
+   *  substitution — the same order, and for the same reason, as showCaption. */
+  private spokenLine(source: string): string {
+    return this.line(translateCaption(source, this.spoken));
   }
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
@@ -437,7 +459,7 @@ export class Player {
    *  other modes hold a capped reading beat; the caption always updates. */
   private async speakLine(source: string, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
     // The caption may be a translation; what is SPOKEN never is.
-    const text = this.line(source);
+    const text = this.spokenLine(source);
     this.showCaption(source);
     if (this.mode === "narrated") {
       await this.speech.speak(text, this.speedVal, signal, {
@@ -473,7 +495,7 @@ export class Player {
       // Narrated action: voice and action start together; both must finish.
       await this.narrationBarrier();
       if (signal.aborted) return;
-      const narration = this.line(step.narration);
+      const narration = this.spokenLine(step.narration);
       this.showCaption(step.narration);
       const voice =
         this.mode === "narrated"
@@ -499,7 +521,7 @@ export class Player {
     const before = this.stateAt(index);
     switch (step.kind) {
       case "speak": {
-        const text = this.line(step.text);
+        const text = this.spokenLine(step.text);
         this.showCaption(step.text);
         if (this.mode === "narrated") {
           const spoken = this.speech.speak(text, this.speedVal, signal, {

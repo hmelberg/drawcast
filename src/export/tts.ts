@@ -231,14 +231,21 @@ export class CloudSpeech extends SpeechManager {
 
   /** Warm the cache for upcoming lines (fire-and-forget; errors surface at speak time). */
   prefetch(lines: SpeakLine[], speedMultiplier: number): void {
-    if (!this.getKey()) return;
+    if (this.forceBrowser || !this.getKey()) return;
     const audioCtx = this.ensureCtx();
     const rate = this.effRate(speedMultiplier);
     for (const line of lines) void this.buffer(line.text, rate, audioCtx, line).catch(() => undefined);
   }
 
+  /** The viewer chose a specific browser voice; the cloud is not what they asked for. */
+  private forceBrowser = false;
+
+  override preferBrowserVoice(on: boolean): void {
+    this.forceBrowser = on;
+  }
+
   override speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
-    if (!this.getKey()) return super.speak(text, speedMultiplier, signal, opts);
+    if (this.forceBrowser || !this.getKey()) return super.speak(text, speedMultiplier, signal, opts);
     const audioCtx = this.ensureCtx();
     // Prefetch may have created the context before any user gesture (autoplay
     // policy leaves it suspended); speak runs inside the play click, so resume.

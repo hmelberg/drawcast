@@ -16,6 +16,7 @@ import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
 import { subtitleLanguages, subtitleTrack } from "../spec/subtitles";
+import { parseVoiceId, voiceOptions } from "../render/voices";
 import type { Spec } from "../spec/types";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
@@ -56,6 +57,8 @@ export interface SessionOptions {
     onChange(next: { on: boolean; lang: string }): void;
     /** Editor only: offer "＋ Add a language…" in the subtitle picker. */
     onAdd?(): void;
+    /** A cloud TTS key is present, so Default's label can say so. */
+    hasCloudVoice?: boolean;
   };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
@@ -130,10 +133,25 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
    *  the source language and carry no track, so they set this to null. */
   let shownSpec: Spec | null = null;
 
-  /** Point the figure now on screen at the chosen track and CC state. */
+  // The VOICE is a separate choice from the subtitles, and deliberately not
+  // remembered across drawcasts: it names a language and a specific installed
+  // voice, so a stale pick would silently override the next drawcast's own
+  // narration — including a recording its author baked in.
+  let voicePick = "";
+  /** Whatever the host configured, so "Default" can put it back. */
+  const hostVoice = opts.speech.voice;
+
+  /** Point the figure now on screen at the chosen subtitles, CC state and voice. */
   function applyCaptions(hd: RenderHandle): void {
     hd.timeline.setSubtitles(shownSpec ? subtitleTrack(shownSpec, cc.lang) : undefined);
     host.querySelector(".cs-figure")?.classList.toggle("cs-cc-off", !cc.on);
+
+    const chosen = parseVoiceId(voicePick);
+    // An explicit browser voice means the baked recording and the cloud are
+    // both not what was asked for; Default puts the whole chain back.
+    opts.speech.preferBrowserVoice(chosen !== null);
+    opts.speech.setVoice(chosen ? chosen.voiceURI : hostVoice);
+    hd.timeline.setSpokenTrack(chosen && shownSpec ? subtitleTrack(shownSpec, chosen.lang) : undefined);
   }
 
   const captionControls: ControlsOptions["captions"] | undefined =
@@ -141,6 +159,23 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       ? {
           languages: captionLanguages,
           onAdd: opts.captions?.onAdd,
+          voice: {
+            options: () =>
+              voiceOptions({
+                languages: captionLanguages,
+                voices: opts.speech.voices().map((v) => ({ name: v.name, lang: v.lang, voiceURI: v.voiceURI })),
+                hasBaked: Object.keys(playlist.audio?.lines ?? {}).length > 0,
+                hasCloud: opts.captions?.hasCloudVoice === true,
+              }),
+            get current() {
+              return voicePick;
+            },
+            onPick: (id) => {
+              voicePick = id;
+              if (handle) applyCaptions(handle);
+            },
+            onVoicesChanged: (cb) => opts.speech.onVoicesChanged(cb),
+          },
           get lang() {
             return cc.lang;
           },

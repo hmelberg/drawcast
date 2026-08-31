@@ -13,6 +13,7 @@ import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey,
 import { h, logicalPoint } from "./dom";
 import { isTextDrag } from "./caption";
 import type { SubtitleLanguage } from "../spec/subtitles";
+import type { VoiceOption } from "../render/voices";
 import { gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { attachInfoCards } from "./infocard";
@@ -53,6 +54,17 @@ export interface ControlsOptions {
      * a key, and the viewer has neither by design.
      */
     onAdd?(): void;
+    /**
+     * The Voice row. One control for both the language spoken and the voice
+     * speaking it (see render/voices.ts). Absent leaves the row out entirely.
+     */
+    voice?: {
+      /** Re-read on every change: the browser loads voices asynchronously. */
+      options(): VoiceOption[];
+      current: string;
+      onPick(id: string): void;
+      onVoicesChanged(cb: () => void): void;
+    };
   };
   /** Extra buttons appended at the right end (e.g. the editor/player switch). */
   trailing?: HTMLElement[];
@@ -541,6 +553,9 @@ export function attachPlayerControls(
 
   const leftExtra: HTMLElement[] = [];
   const rightExtra: HTMLElement[] = [];
+  /** Popovers that belong to the bar; mounted beside it, not inside it, so the
+   *  bar's own flex layout never has to make room for a panel. */
+  const menuPanels: HTMLElement[] = [];
 
   if (opts.speech) {
     const speech = opts.speech;
@@ -561,46 +576,143 @@ export function attachPlayerControls(
     // and may expose them as getters that this must not assign to.
     let on = cc.on;
     let lang = cc.lang;
-    // Styled like YouTube's: the letters, underlined while on.
-    const ccBtn = h("button", { class: "cs-bar-btn cs-cc", title: "Subtitles (CC)" }, "CC");
+    let voice = cc.voice?.current ?? "";
+
+    // Everything about how the narration reaches you, in one panel behind CC:
+    // what you read, in which language, and which voice says it. As separate
+    // bar controls this was three more selects on a strip that already carries
+    // twelve and wraps on a phone.
+    const ccBtn = h("button", { class: "cs-bar-btn cs-cc", title: "Subtitles and voice" }, "CC");
+    const onCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+    const langSel = h("select", { class: "cs-menu-select" }) as HTMLSelectElement;
+    const voiceSel = h("select", { class: "cs-menu-select" }) as HTMLSelectElement;
+    const langRow = h("label", { class: "cs-menu-row cs-menu-sub" }, h("span", {}, "Language"), langSel);
+    const voiceRow = h("label", { class: "cs-menu-row" }, h("span", {}, "Voice"), voiceSel);
+    const menu = h(
+      "div",
+      { class: "cs-menu", hidden: "" },
+      h("div", { class: "cs-menu-title" }, "Narration"),
+      h("label", { class: "cs-menu-row" }, h("span", {}, "Subtitles"), onCb),
+      langRow,
+      voiceRow,
+    );
+    voiceRow.hidden = !cc.voice;
+
+    /** Not a language: the last row of the picker opens the authoring dialog. */
+    const ADD = "__add__";
+
     const paint = (): void => {
       ccBtn.classList.toggle("is-on", on);
+      onCb.checked = on;
+      // The language of the TEXT only matters when there is text showing, and
+      // when there is more than one to choose between.
+      langRow.hidden = cc.languages.length <= 1 && !cc.onAdd;
+      langSel.disabled = !on;
     };
+
+    const fillLanguages = (): void => {
+      langSel.replaceChildren();
+      for (const l of cc.languages) langSel.appendChild(h("option", { value: l.code }, l.label));
+      if (cc.onAdd) langSel.appendChild(h("option", { value: ADD }, "＋ Add a language…"));
+      langSel.value = lang || cc.languages[0]?.code || "";
+    };
+
+    const fillVoices = (): void => {
+      if (!cc.voice) return;
+      voiceSel.replaceChildren();
+      let group: HTMLElement | null = null;
+      for (const o of cc.voice.options()) {
+        const option = h("option", { value: o.id }, o.label) as HTMLOptionElement;
+        if (o.disabled) option.disabled = true;
+        if (o.lang === undefined) {
+          group = null;
+          voiceSel.appendChild(option);
+          continue;
+        }
+        // One <optgroup> per language, so the list reads as "these voices can
+        // say this drawcast in Norwegian" rather than as a flat wall of names.
+        if (!group || group.dataset.lang !== o.lang) {
+          group = h("optgroup", { label: cc.languages.find((l) => l.code === o.lang)?.label ?? o.lang }) as HTMLElement;
+          group.dataset.lang = o.lang;
+          voiceSel.appendChild(group);
+        }
+        group.appendChild(option);
+      }
+      // A voice remembered from another machine may not exist here; fall back
+      // to Default rather than showing a selection that will not be used.
+      voiceSel.value = voice;
+      if (voiceSel.selectedIndex < 0) {
+        voice = "";
+        voiceSel.value = "";
+      }
+    };
+
+    fillLanguages();
+    fillVoices();
     paint();
-    ccBtn.addEventListener("click", () => {
-      on = !on;
+    // Chrome loads voices asynchronously and reports an empty list first.
+    cc.voice?.onVoicesChanged(fillVoices);
+
+    const closeMenu = (): void => {
+      menu.hidden = true;
+      window.removeEventListener("keydown", onMenuKey, true);
+    };
+    function onMenuKey(e: KeyboardEvent): void {
+      if (e.key === "Escape") closeMenu();
+    }
+    ccBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!menu.hidden) return closeMenu();
+      menu.hidden = false;
+      window.addEventListener("keydown", onMenuKey, true);
+    });
+    // Any click that is not inside the menu closes it — including one on the
+    // drawing, which must then NOT also toggle playback: dismissing a panel and
+    // pausing the drawcast are two different intentions, and one click should
+    // not be read as both. Capture phase on the document so this runs before
+    // the stage's own handlers, and stopPropagation so none of them see it.
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (menu.hidden) return;
+        if (e.target instanceof Node && (menu.contains(e.target) || ccBtn.contains(e.target))) return;
+        closeMenu();
+        e.stopPropagation();
+      },
+      true,
+    );
+    menu.addEventListener("click", (e) => e.stopPropagation());
+
+    onCb.addEventListener("change", () => {
+      on = onCb.checked;
       paint();
       cc.onChange({ lang, on });
     });
+    langSel.addEventListener("change", () => {
+      if (langSel.value === ADD) {
+        // Put the picker back before opening the dialog, so cancelling leaves
+        // the caption exactly as it reads now.
+        langSel.value = lang;
+        closeMenu();
+        cc.onAdd?.();
+        return;
+      }
+      lang = langSel.value;
+      // Picking a language is asking to read it: it turns subtitles back on
+      // rather than silently choosing a track nobody can see.
+      on = true;
+      paint();
+      cc.onChange({ lang, on });
+    });
+    voiceSel.addEventListener("change", () => {
+      voice = voiceSel.value;
+      cc.voice?.onPick(voice);
+    });
+
     rightExtra.push(ccBtn);
-    // The picker earns its width only when there is a choice to make: more
-    // than one language, or the editor's offer to make one. A select holding
-    // a single fixed option is furniture that explains nothing.
-    const ADD = " add";
-    if (cc.languages.length > 1 || cc.onAdd) {
-      const langSel = h("select", { class: "cs-bar-select cs-cc-lang", title: "Subtitle language" });
-      for (const l of cc.languages) langSel.appendChild(h("option", { value: l.code }, l.label));
-      if (cc.onAdd) langSel.appendChild(h("option", { value: ADD }, "＋ Add a language…"));
-      langSel.value = lang;
-      if (!langSel.value) langSel.value = cc.languages[0].code;
-      langSel.addEventListener("change", () => {
-        if (langSel.value === ADD) {
-          // Not a language: put the picker back where it was before opening
-          // the dialog, so cancelling leaves the caption exactly as it reads.
-          langSel.value = lang;
-          cc.onAdd?.();
-          return;
-        }
-        lang = langSel.value;
-        // Picking a language is asking to read it: it turns CC back on rather
-        // than silently choosing a track nobody can see.
-        on = true;
-        paint();
-        cc.onChange({ lang, on });
-      });
-      rightExtra.push(langSel);
-    }
+    menuPanels.push(menu);
   }
+
   if (opts.onTheater) {
     const theaterBtn = h("button", { class: "cs-bar-btn", title: "Theater mode (wide)" }, "▭");
     theaterBtn.addEventListener("click", () => opts.onTheater?.());
@@ -633,6 +745,7 @@ export function attachPlayerControls(
   stage.appendChild(bigPlay);
   // The bar lives below the drawing so it never covers axis labels.
   stage.insertAdjacentElement("afterend", bar);
+  for (const panel of menuPanels) bar.appendChild(panel);
 
   // YouTube-like idle behavior: while playing, the controls fade out fully
   // after a moment of pointer inactivity (cursor hidden too) and return on any

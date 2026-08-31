@@ -1548,3 +1548,52 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .sub-dialog { width: min(520px, 92vw); }
 .sub-dialog .sub-lang { flex: 1; }
 .sub-status { margin-top: 0.6rem; color: var(--muted); font-size: 0.9rem; min-height: 1.2rem; }
+
+/* ---------- narration menu (behind CC) ---------- */
+
+/* Everything about how the narration reaches you — what you read, in which
+   language, and which voice says it — in one panel, so the control bar does
+   not grow three more selects. Anchored to the bar and opening upward: the
+   bar sits at the bottom of the figure, so a panel below it would fall off. */
+.cs-menu {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 100%;
+  z-index: 9;
+  min-width: 15rem;
+  padding: 0.5rem 0.6rem 0.6rem;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(61, 56, 51, 0.18);
+  font-size: 0.9rem;
+}
+.cs-controlbar { position: relative; }
+.cs-menu-title {
+  font-family: var(--sketch-font);
+  font-size: 1rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+.cs-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.22rem 0;
+  cursor: pointer;
+}
+/* The language belongs to the subtitles above it, and reads as a sub-setting. */
+.cs-menu-sub { padding-left: 0.8rem; }
+.cs-menu-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 9.5rem;
+  font-size: 0.86rem;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+}
+.cs-menu-select:disabled { opacity: 0.45; }
