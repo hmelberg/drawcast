@@ -52,6 +52,13 @@ export interface ShareDoc {
   title: string;
   playlist: Playlist;
   prompt?: string;
+  /**
+   * How many lectures a course has. The one line of context Link's panel
+   * shows for `subject: "course"` — otherwise Publish looks identical
+   * whether it is about to send one drawcast or an entire course (spec §2).
+   * Left undefined for `subject: "drawcast"`, which has no lectures to count.
+   */
+  lectureCount?: number;
 }
 
 export interface ShareDeps {
@@ -177,6 +184,11 @@ function build(): ShareSession {
 
   // ---- Link panel ----
 
+  // The only line telling the author whether Publish is about to send one
+  // drawcast or an entire course — Share serves both from this same panel.
+  // Text and visibility come from prepPanels(); empty and hidden for a
+  // drawcast, which has no lecture count to show.
+  const linkSubjectLine = h("div", { class: "hint" });
   const linkBakeCb = h("input", { type: "checkbox", id: "share-bake" }) as HTMLInputElement;
   const linkBakeLabel = h(
     "label",
@@ -184,7 +196,7 @@ function build(): ShareSession {
     linkBakeCb,
     "with narration",
   );
-  const linkPanel = h("div", { class: "share-panel" }, linkBakeLabel);
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, linkBakeLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
@@ -581,9 +593,13 @@ function build(): ShareSession {
    *  rail click, so glancing at another destination and back does not throw
    *  away a typed title or description. */
   function prepPanels(): void {
-    const playlist = current.doc().playlist;
+    const doc = current.doc();
+    const playlist = doc.playlist;
     videoBurnCb.checked = current.settings.burnCaptions;
     videoLangHint.textContent = `Renders in ${languageLabel(sourceLanguage(playlist))}.`;
+    const lectures = doc.lectureCount ?? 0;
+    linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
+    linkSubjectLine.hidden = current.subject !== "course";
     specFormatSel.value = current.settings.specFormat;
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";

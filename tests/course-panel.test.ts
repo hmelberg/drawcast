@@ -83,9 +83,15 @@ describe("the course modal's regions", () => {
   });
 
   it("has no second copy of the publish checkbox — Share asks it once", async () => {
+    // Checks for the removed CONTROL by its own identifiers, not for the
+    // English phrase "with narration" — that phrase also occurs, entirely
+    // legitimately, in bakeLectures()'s unrelated "needs a Google TTS key"
+    // error, and a prose-substring assertion would fail on any sentence that
+    // happens to use those two words.
     const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-    expect(src).not.toContain("with narration");
-    expect(src).not.toContain("course-bake");
+    for (const gone of ["bakeCb", "bakeLabel", "course-bake", "publishBtn"]) {
+      expect(src).not.toContain(gone);
+    }
   });
 
   it("no longer offers an app-global backup from inside one course", async () => {

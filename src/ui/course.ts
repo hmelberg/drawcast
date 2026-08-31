@@ -146,8 +146,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     reviseBtn.disabled = busy;
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
-    // Same guard publishBtn used to carry: publish() reads and rewrites
-    // doc.value, same as plan/revise/a run, so it must not overlap them.
+    // Publish carried this same guard before it moved into Share: publish()
+    // reads and rewrites doc.value, same as plan/revise/a run, so it must
+    // not overlap them.
     shareBtn.disabled = busy;
     undoBtn.disabled = busy;
     cancelBtn.disabled = !busy;
@@ -603,7 +604,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     bakedTotal = 0;
     const settings = loadSettings();
     const apiKey = getTtsKey();
-    if (!apiKey) throw new Error("Baking in narration needs a Google TTS key — add one in Settings.");
+    if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
     const repo = parseRepo(settings.githubRepo);
     const out = new Map<number, string>();
     const numbered = course.lectures.map((_, i) => i).filter((i) => yamlFor(i) !== null);
@@ -785,17 +786,27 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   shareBtn.addEventListener("click", () => {
     openShare({
       subject: "course",
-      // Share's own setup (prepPanels) reads doc() once per open no matter
-      // which destination ends up offered — and a course has no playlist of
-      // its own to hand over truthfully. This states that honestly (an empty
-      // playlist) rather than inventing lecture content to fill the type.
-      // Only Link is offered for subject "course" (shareDestinations), and
-      // Link's Publish button never reads doc() at all — it calls
-      // deps.publish(bake) below, which is this file's own publish().
-      doc: () => ({
-        title: parseCourse(doc.value).title || "Untitled course",
-        playlist: { meta: { ...DEFAULT_META }, entries: [], warnings: [] },
-      }),
+      doc: () => {
+        const course = parseCourse(doc.value);
+        return {
+          title: course.title || "Untitled course",
+          // A course has no single playlist of its own — each lecture has
+          // its own — so this is left genuinely empty rather than fabricated
+          // from one lecture's content. Do NOT "fix" this by filling in a
+          // lecture's playlist: Share's own setup (prepPanels) reads doc()
+          // once per open no matter which destination ends up offered,
+          // purely to default the hidden YouTube/Video panels a course never
+          // shows (shareDestinations offers Link alone for subject
+          // "course"); Link's own Publish button never reads doc().playlist
+          // at all — it calls deps.publish(bake) below, which is this
+          // file's own publish(). sourceLanguage() on an empty playlist is
+          // safe (falls back to "en", never throws).
+          playlist: { meta: { ...DEFAULT_META }, entries: [], warnings: [] },
+          // The one line Link's panel shows so Publish never looks the same
+          // as publishing a single drawcast (spec §2).
+          lectureCount: course.lectures.length,
+        };
+      },
       settings: deps.settings,
       persist: deps.persist,
       setStatus: shareStatus,
