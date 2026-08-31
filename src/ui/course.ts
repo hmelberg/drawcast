@@ -14,9 +14,13 @@ import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
-import { formatPlaylist, singlePlaylist, type Playlist } from "../playlist/playlist";
-import { parseRepo } from "../publish/github";
-import { downloadJson, getGithubToken, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { formatPlaylist, formatPublished, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
+import { playlistSpeakLines } from "../playlist/session";
+import { bakeNarration, bakeSize } from "../export/bake";
+import { synthesizeBase64 } from "../export/tts";
+import { joinPath } from "../course/publish";
+import { parseRepo, readFile } from "../publish/github";
+import { downloadJson, getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 
@@ -96,6 +100,16 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
   const saveBtn = h("button", { class: "small" }, "💾 Save");
   const publishBtn = h("button", { class: "small", title: "Publish this course to your GitHub repository" }, "⬆ Publish");
+  // Baking the narration into the published files is what lets a student play
+  // the course with no key of their own: synthesized once here, by the author,
+  // instead of once per viewer. Off by default — it spends the TTS budget.
+  const bakeCb = h("input", { type: "checkbox", id: "course-bake" }) as HTMLInputElement;
+  const bakeLabel = h(
+    "label",
+    { class: "quiet-label", for: "course-bake", title: "Synthesize the narration once and publish it inside each lecture, so viewers need no key" },
+    bakeCb,
+    "with narration",
+  );
   const backupBtn = h("button", { class: "small", title: "Download every course and drawcast as one file" }, "⬇ Backup");
   const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
   matchBtn.hidden = true;
@@ -129,6 +143,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
     publishBtn.disabled = busy;
+    bakeCb.disabled = busy;
     undoBtn.disabled = busy;
     cancelBtn.hidden = !busy;
   }
@@ -559,6 +574,58 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     say("New course — nothing is saved until you write something, and your other courses are untouched.");
   });
   /**
+   * Synthesize every lecture's narration and fold it into that lecture's text.
+   *
+   * Reuses whatever the repo already carries: a republished course pays only
+   * for lines that are new or changed, which is what keeps a twentieth publish
+   * as cheap as the second. Reading the published file is also how a lecture
+   * that has not changed at all costs nothing.
+   */
+  let bakedTotal = 0;
+
+  async function bakeLectures(course: Course, yamlFor: (i: number) => string | null, signal: AbortSignal): Promise<Map<number, string>> {
+    bakedTotal = 0;
+    const settings = loadSettings();
+    const apiKey = getTtsKey();
+    if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
+    const repo = parseRepo(settings.githubRepo);
+    const out = new Map<number, string>();
+    const numbered = course.lectures.map((_, i) => i).filter((i) => yamlFor(i) !== null);
+
+    for (const [n, index] of numbered.entries()) {
+      if (signal.aborted) throw new Error("Publishing was cancelled.");
+      const text = yamlFor(index)!;
+      const playlist = parsePlaylistText(text);
+      const lines = playlistSpeakLines(playlist);
+      // What this lecture already published, so unchanged lines are free.
+      let existing: AudioTrack["lines"] = {};
+      const file = course.lectures[index].status?.file;
+      // No slug means this course has never been published, so there is no
+      // file to read and nothing to reuse — do not spend a request finding out.
+      if (repo && file && course.context.slug) {
+        const published = await readFile(repo, joinPath(settings.coursesDir, course.context.slug || "", file), (input, init) =>
+          fetch(input, { ...init, signal }),
+        ).catch(() => null);
+        if (published) existing = parsePlaylistText(published).audio?.lines ?? {};
+      }
+      const track = await bakeNarration(
+        lines,
+        {
+          lang: playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0] ?? "en",
+          existing,
+          synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate }, line.text, line),
+        },
+        (done, total) =>
+          working(`Narration for lecture ${n + 1} of ${numbered.length} — ${done}/${total} lines…`),
+        signal,
+      );
+      out.set(index, formatPublished(playlist, track));
+      bakedTotal += bakeSize(track).inlineBytes;
+    }
+    return out;
+  }
+
+  /**
    * Publishing is a remote write whose result is invisible from here — the
    * exact shape of the three "saved but nothing showed it" bugs in stage A —
    * so it reports both URLs on the panel's own line, and the one-time Pages
@@ -588,13 +655,18 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     const controller = begin();
     working("Publishing to GitHub…");
     try {
+      // Bake BEFORE the commit, so a cancelled or failed bake leaves the repo
+      // untouched rather than half-published. The result replaces each
+      // lecture's text; everything downstream is unchanged.
+      const baked = bakeCb.checked ? await bakeLectures(course, yamlFor, controller.signal) : null;
+      const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);
       const out = await publishCourse({
         text: doc.value,
         repo,
         token,
         coursesDir: settings.coursesDir,
         viewerBase: settings.viewerBase,
-        lectureYaml: yamlFor,
+        lectureYaml: publishText,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
       });
       // Past this line the commit has LANDED. Anything that fails below is
@@ -616,7 +688,8 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
         return;
       }
       showLinks(out.readmeUrl, out.courseUrl, out.pagesUrl, firstTime, out.defaultBranch);
-      say(`Published ${out.count} files to ${settings.githubRepo}.`, "ok");
+      const narration = baked ? ` Narration included — ${(bakedTotal / 1_048_576).toFixed(1)} MB across ${baked.size} lecture(s), so viewers need no key.` : "";
+      say(`Published ${out.count} files to ${settings.githubRepo}.${narration}`, "ok");
     } catch (err) {
       // The stack is what names the culprit; the message alone rarely does.
       console.error("drawcast: publish failed", err);
@@ -755,7 +828,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, bakeLabel, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
     // Messages sit with the buttons that produce them; the document and the
     // lecture list share the width below, side by side when there is room.
     status,
