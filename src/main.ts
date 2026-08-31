@@ -55,6 +55,8 @@ import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlis
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
 import { toVtt } from "./export/captions";
 import { LANGUAGES, languageLabel } from "./export/tts";
+import { subtitleLanguages } from "./spec/subtitles";
+import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { translateSpec } from "./llm/translate";
 import { lintCommands } from "./lint/lint";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
@@ -94,6 +96,7 @@ import {
   loadVendedFlags,
   setVendedFlags,
   usageSummary,
+  anthropicBudgetError,
   updateLog,
   worstLoggedCases,
   type LogEntry,
@@ -1524,6 +1527,105 @@ function persist(): void {
   saveSettings(settings);
 }
 
+// ---- Subtitles: making a track for another language -----------------------
+// Translation happens ONCE, here, and the answer is written into the document.
+// Playback never calls a model — which is what lets the standalone viewer, key
+// and all, show a Norwegian caption.
+
+const subLangSel = h("select", { class: "sub-lang" }) as HTMLSelectElement;
+const subGo = h("button", { class: "primary" }, "Add subtitles") as HTMLButtonElement;
+const subStatus = h("div", { class: "sub-status" });
+const subModal = createModal("Subtitles", { class: "sub-dialog" });
+subModal.body.append(
+  h(
+    "p",
+    { class: "hint" },
+    "Translates what the narrator SAYS, once, and stores it in this drawcast. " +
+      "The figure's labels and the narrator's voice stay as they are — a viewer picks the language with the CC button, and needs no key of their own.",
+  ),
+  h("div", { class: "row" }, subLangSel, subGo),
+  subStatus,
+);
+app.appendChild(subModal.dialog);
+
+/** Languages this document already carries a track for, plus its own. */
+function subtitleLanguagesHere(): Set<string> {
+  return new Set(subtitleLanguages(itemsOf(doc.playlist).map((i) => i.spec)).map((l) => l.code));
+}
+
+function openSubtitleDialog(): void {
+  const here = subtitleLanguagesHere();
+  subLangSel.replaceChildren();
+  for (const l of LANGUAGES) {
+    if (here.has(l.code)) continue;
+    subLangSel.appendChild(h("option", { value: l.code }, l.label));
+  }
+  const none = subLangSel.options.length === 0;
+  subGo.disabled = none;
+  subStatus.textContent = none ? "Every language drawcast can speak already has a track here." : "";
+  subModal.open();
+}
+
+async function addSubtitleTrack(): Promise<void> {
+  const target = LANGUAGES.find((l) => l.code === subLangSel.value);
+  const apiKey = getApiKey();
+  if (!target) return;
+  if (!apiKey) {
+    subStatus.textContent = "Subtitles need your Anthropic API key — add it in Settings.";
+    return;
+  }
+  const budget = anthropicBudgetError();
+  if (budget) {
+    subStatus.textContent = budget;
+    return;
+  }
+  subGo.disabled = true;
+  const items = itemsOf(doc.playlist).map((i) => i.spec);
+  const specs: Spec[] = [];
+  let missing = 0;
+  try {
+    for (const [i, spec] of items.entries()) {
+      subStatus.textContent =
+        items.length > 1 ? `Translating into ${target.label} — part ${i + 1} of ${items.length}…` : `Translating into ${target.label}…`;
+      const out = await translateSubtitles(spec, target, { apiKey, model: settings.model });
+      missing += out.missing.length;
+      specs.push(withSubtitles(spec, target.code, out.track));
+    }
+  } catch (err) {
+    subStatus.textContent = `Could not translate — ${(err as Error).message}`;
+    subGo.disabled = false;
+    return;
+  }
+  // Written into the document, so it is saved, published and exported with it.
+  setDoc({ ...doc, playlist: playlistWithSpecs(specs) }, undefined, { label: `subtitles: ${target.label}`, kind: "revise" });
+  subStatus.textContent =
+    missing > 0
+      ? `Added ${target.label} subtitles — ${missing} line(s) came back untranslated and will show in ${languageLabel(sourceLanguage())}.`
+      : `Added ${target.label} subtitles. Pick them with the CC button.`;
+  subGo.disabled = false;
+}
+
+subGo.addEventListener("click", () => void addSubtitleTrack());
+
+/** The CC choice, remembered across drawcasts like mode and speed. */
+function captionPrefs(): {
+  on: boolean;
+  lang: string;
+  onChange(next: { on: boolean; lang: string }): void;
+  onAdd(): void;
+} {
+  return {
+    on: settings.captionsOn,
+    lang: settings.captionLang,
+    onChange: (next) => {
+      settings.captionsOn = next.on;
+      settings.captionLang = next.lang;
+      persist();
+    },
+    onAdd: openSubtitleDialog,
+  };
+}
+
 function playbackPrefs(): PlaybackPrefs {
   return {
     mode: settings.mode,
@@ -1579,6 +1681,7 @@ async function present(): Promise<void> {
       questions: settings.skipQuestions ? "skip" : "on",
       speech,
       prefs: playbackPrefs(),
+      captions: captionPrefs(),
       controls: {
         onPlayingChange: (playing) => document.body.classList.toggle("is-playing", playing),
         speech,

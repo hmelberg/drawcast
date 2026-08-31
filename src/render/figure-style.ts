@@ -15,17 +15,42 @@ const FIGURE_CSS = `
   overflow: hidden;
 }
 .cs-svg { width: 100%; height: 100%; display: block; }
+/* Subtitles, the way a video carries them: a band across the bottom of the
+   drawing, on its own dark ground so the words read over whatever is beneath
+   them. It is a child of the stage, so it scales with the picture in
+   fullscreen and needs no separate rule there. */
 .cs-caption {
-  position: relative;
-  min-height: 3.1rem;
-  padding: 0.35rem 0.8rem 0.15rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 0.45rem 0.9rem 0.5rem;
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
   font-size: 1.15rem;
-  line-height: 1.3;
+  line-height: 1.35;
   text-align: center;
-  color: var(--ink, #3d3833);
+  color: #fbf8f1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  background: linear-gradient(to top, rgba(24, 20, 16, 0.82) 55%, rgba(24, 20, 16, 0));
+  /* Selecting a phrase to look up is the one gesture the band answers; every
+     other click belongs to the drawing underneath (see ui/caption.ts). */
+  pointer-events: none;
+  -webkit-user-select: text;
+  user-select: text;
 }
-.cs-caption-empty::before { content: "\\00a0"; }
+.cs-caption::selection,
+.cs-caption *::selection { background: rgba(181, 72, 46, 0.55); }
+/* The band goes away between beats rather than hanging over the drawing as an
+   empty box — and CC off takes it away outright. Visibility rather than
+   display: the video export reads this element's textContent every frame, and
+   an unrendered node still carries its text. */
+.cs-caption-empty,
+.cs-cc-off .cs-caption { visibility: hidden; }
+/* Text is selectable only where there IS text: the band is transparent to
+   pointers so the drawing keeps its clicks, and turns solid for the drag. */
+.cs-caption:not(.cs-caption-empty) { pointer-events: auto; }
+.cs-cc-off .cs-caption { pointer-events: none; }
 /* Selecting a phrase in the caption offers to look it up — the viewer draws
    the boundary, which no phrase detector does reliably. */
 .cs-lookup {

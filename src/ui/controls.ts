@@ -11,6 +11,9 @@ import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
 import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
 import { h, logicalPoint } from "./dom";
+import { isTextDrag } from "./caption";
+import type { SubtitleLanguage } from "../spec/subtitles";
+import { gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { attachInfoCards } from "./infocard";
 import { scenes } from "../scenes/registry";
@@ -33,6 +36,24 @@ export interface ControlsOptions {
   fullscreenEl?: HTMLElement;
   /** Enables the theater (wide) toggle. */
   onTheater?(): void;
+  /**
+   * Enables the CC button. `languages` always holds at least the drawcast's
+   * own language, so CC is a show/hide toggle even with nothing translated;
+   * the language picker appears beside it only when there is a second one.
+   */
+  captions?: {
+    languages: SubtitleLanguage[];
+    /** The chosen track's code. A code with no track shows the source. */
+    lang: string;
+    on: boolean;
+    onChange(next: { lang: string; on: boolean }): void;
+    /**
+     * Offers "＋ Add a language…" at the foot of the picker. The editor sets
+     * it; the standalone viewer never does — making a track needs a model and
+     * a key, and the viewer has neither by design.
+     */
+    onAdd?(): void;
+  };
   /** Extra buttons appended at the right end (e.g. the editor/player switch). */
   trailing?: HTMLElement[];
 }
@@ -533,6 +554,53 @@ export function attachPlayerControls(
     });
     leftExtra.push(muteBtn);
   }
+  if (opts.captions) {
+    const cc = opts.captions;
+    // Read once into local state, reported back through onChange: the caller
+    // owns the live values (the bar is rebuilt with every item, so it cannot),
+    // and may expose them as getters that this must not assign to.
+    let on = cc.on;
+    let lang = cc.lang;
+    // Styled like YouTube's: the letters, underlined while on.
+    const ccBtn = h("button", { class: "cs-bar-btn cs-cc", title: "Subtitles (CC)" }, "CC");
+    const paint = (): void => {
+      ccBtn.classList.toggle("is-on", on);
+    };
+    paint();
+    ccBtn.addEventListener("click", () => {
+      on = !on;
+      paint();
+      cc.onChange({ lang, on });
+    });
+    rightExtra.push(ccBtn);
+    // The picker earns its width only when there is a choice to make: more
+    // than one language, or the editor's offer to make one. A select holding
+    // a single fixed option is furniture that explains nothing.
+    const ADD = " add";
+    if (cc.languages.length > 1 || cc.onAdd) {
+      const langSel = h("select", { class: "cs-bar-select cs-cc-lang", title: "Subtitle language" });
+      for (const l of cc.languages) langSel.appendChild(h("option", { value: l.code }, l.label));
+      if (cc.onAdd) langSel.appendChild(h("option", { value: ADD }, "＋ Add a language…"));
+      langSel.value = lang;
+      if (!langSel.value) langSel.value = cc.languages[0].code;
+      langSel.addEventListener("change", () => {
+        if (langSel.value === ADD) {
+          // Not a language: put the picker back where it was before opening
+          // the dialog, so cancelling leaves the caption exactly as it reads.
+          langSel.value = lang;
+          cc.onAdd?.();
+          return;
+        }
+        lang = langSel.value;
+        // Picking a language is asking to read it: it turns CC back on rather
+        // than silently choosing a track nobody can see.
+        on = true;
+        paint();
+        cc.onChange({ lang, on });
+      });
+      rightExtra.push(langSel);
+    }
+  }
   if (opts.onTheater) {
     const theaterBtn = h("button", { class: "cs-bar-btn", title: "Theater mode (wide)" }, "▭");
     theaterBtn.addEventListener("click", () => opts.onTheater?.());
@@ -626,7 +694,7 @@ export function attachPlayerControls(
     const freePlayBlocked = (e: Event): boolean =>
       hd.timeline.state === "playing" ||
       (e.target instanceof Element && e.target.closest("button") !== null) ||
-      stage.querySelector(".cs-figgate, .cs-cardgate") !== null;
+      gateIsOpen(stage);
     const sound = (note: string): void => {
       try {
         hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
@@ -671,7 +739,7 @@ export function attachPlayerControls(
       }
       if (hd.timeline.state === "playing") return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (stage.querySelector(".cs-figgate, .cs-cardgate")) return;
+      if (gateIsOpen(stage)) return;
       const note = pianoNoteForKey(octaves, e.key);
       if (note === null) return;
       e.preventDefault();
@@ -713,8 +781,14 @@ export function attachPlayerControls(
     prefs.onSpeed?.(s);
   });
   bar.addEventListener("click", (e) => e.stopPropagation());
-  // Clicking the drawing itself toggles play/pause, like a video.
-  stage.addEventListener("click", togglePlay);
+  // Clicking the drawing itself toggles play/pause, like a video — but the
+  // subtitle band lies across the bottom of it now, and selecting a phrase
+  // there to look up ends in a click delivered to the stage. Toggling on that
+  // click would pause the drawcast every time a viewer highlighted a word.
+  stage.addEventListener("click", () => {
+    if (isTextDrag(window.getSelection())) return;
+    togglePlay();
+  });
   progress.addEventListener("click", (e) => {
     e.stopPropagation();
     const rect = progress.getBoundingClientRect();

@@ -13,7 +13,7 @@ import { attachParamsTray } from "./ui/tray";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { validateSpec } from "./spec/schema";
-import { getTtsKey, loadSettings } from "./store";
+import { getTtsKey, loadSettings, saveSettings } from "./store";
 
 export interface GhRef {
   owner: string;
@@ -113,7 +113,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const app = document.getElementById("app")!;
   const titleEl = h("h1", { class: "viewer-title squiggle" }, "drawcast");
   const status = h("div", { class: "viewer-status" }, req.gh ? "Loading drawing from GitHub…" : "Loading drawing from Google Doc…");
-  const figureHost = h("div", { class: "viewer-figure" });
+  // The same frame the app's player mounts into, by the same class: the
+  // fullscreen rules are written against it, and a viewer-only copy of them
+  // would be a copy nobody remembers to keep in step (it wasn't).
+  const figureHost = h("div", { class: "player-figure" });
   const footer = h(
     "div",
     { class: "viewer-footer" },
@@ -149,6 +152,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       speed: req.speed,
       speech,
       prefs: { mode: req.mode, speed: req.speed },
+      captions: {
+        on: settings.captionsOn,
+        lang: settings.captionLang,
+        onChange: (next) => saveSettings({ ...loadSettings(), captionsOn: next.on, captionLang: next.lang }),
+      },
       controls: { speech, fullscreenEl: figureHost },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),
       advanceOverride: req.advance,

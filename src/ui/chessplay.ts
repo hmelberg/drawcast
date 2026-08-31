@@ -17,6 +17,7 @@ import { INITIAL_STATE } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
+import { gateIsOpen } from "./gates";
 import { freeMove, legalTargets, shownFen, type ChessCtor } from "./chessplay-model";
 
 /** The FEN actually shown at the current boundary (fen + moves + the runtime
@@ -73,7 +74,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
   const blocked = (e: Event): boolean =>
     hd.timeline.state === "playing" ||
     (e.target instanceof Element && e.target.closest("button") !== null) ||
-    stage.querySelector(".cs-figgate, .cs-cardgate") !== null;
+    gateIsOpen(stage);
 
   const boundaryFen = (): string | null => (Chess ? boundaryChessFen(hd, Chess) : null);
 

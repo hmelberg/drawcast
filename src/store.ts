@@ -55,6 +55,18 @@ export interface Settings {
   /** Skip quiz/ask questions in playback and exports. */
   skipQuestions: boolean;
   /**
+   * Subtitles (CC) on the picture. On by default: a drawcast in silent mode
+   * has nothing BUT the caption, and in narrated mode the caption is what the
+   * narrator is saying — turning it off is a choice, not a default.
+   */
+  captionsOn: boolean;
+  /**
+   * Which subtitle track to show, as a language code. Remembered across
+   * drawcasts: someone who reads Norwegian reads it in the next one too. A
+   * drawcast without a track for it simply shows its own language.
+   */
+  captionLang: string;
+  /**
    * Paint the caption into the DOWNLOADED video. On by default: a file handed
    * to someone has no subtitle layer, and a loose .vtt beside it gets lost.
    */
@@ -106,6 +118,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theater: false,
   cloudPlayback: true,
   skipQuestions: false,
+  captionsOn: true,
+  captionLang: "",
   burnCaptions: true,
   burnCaptionsOnUpload: false,
   uiMode: "player",

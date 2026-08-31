@@ -15,6 +15,8 @@ import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPre
 import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
+import { subtitleLanguages, subtitleTrack } from "../spec/subtitles";
+import type { Spec } from "../spec/types";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import type { BBox } from "../layout/geometry";
@@ -41,6 +43,20 @@ export interface SessionOptions {
   advanceOverride?: "click" | "auto";
   /** Viewer preference: skip quiz/ask questions entirely. */
   questions?: "on" | "skip";
+  /**
+   * Subtitles: the remembered choice coming in, and where a change goes out.
+   * The session owns the live state because the CC bar is rebuilt with every
+   * item — the viewer's language must survive the next mount, and a chosen
+   * language must apply to the whole playlist rather than one figure.
+   */
+  captions?: {
+    on: boolean;
+    /** Remembered language code; ignored when this playlist has no such track. */
+    lang: string;
+    onChange(next: { on: boolean; lang: string }): void;
+    /** Editor only: offer "＋ Add a language…" in the subtitle picker. */
+    onAdd?(): void;
+  };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
 }
@@ -96,12 +112,62 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   };
   const renderOpts = { style: opts.style, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions };
 
+  // ---- subtitles ----------------------------------------------------------
+  // One choice for the whole playlist, held here rather than in the control
+  // bar: the bar is rebuilt from scratch with every item mount, so anything it
+  // owned would be forgotten at the first cut. Offered languages are the ones
+  // EVERY item can show (see spec/subtitles.ts) — a language that runs out
+  // halfway is worse than one never offered.
+  const captionLanguages = subtitleLanguages(items.map((i) => i.spec));
+  const cc = {
+    on: opts.captions?.on ?? true,
+    lang: captionLanguages.some((l) => l.code === opts.captions?.lang)
+      ? opts.captions!.lang
+      : (captionLanguages[0]?.code ?? ""),
+  };
+
+  /** The spec on screen. Cards (title page, chapter card) are synthesized in
+   *  the source language and carry no track, so they set this to null. */
+  let shownSpec: Spec | null = null;
+
+  /** Point the figure now on screen at the chosen track and CC state. */
+  function applyCaptions(hd: RenderHandle): void {
+    hd.timeline.setSubtitles(shownSpec ? subtitleTrack(shownSpec, cc.lang) : undefined);
+    host.querySelector(".cs-figure")?.classList.toggle("cs-cc-off", !cc.on);
+  }
+
+  const captionControls: ControlsOptions["captions"] | undefined =
+    captionLanguages.length > 0
+      ? {
+          languages: captionLanguages,
+          onAdd: opts.captions?.onAdd,
+          get lang() {
+            return cc.lang;
+          },
+          get on() {
+            return cc.on;
+          },
+          onChange: (next) => {
+            cc.on = next.on;
+            cc.lang = next.lang;
+            // The figure on screen changes language at once — the viewer is
+            // looking at a caption when they press the button.
+            if (handle) applyCaptions(handle);
+            opts.captions?.onChange(next);
+          },
+        }
+      : undefined;
+
+  const controlOpts: ControlsOptions = { ...opts.controls, captions: captionControls };
+
   // One item: exactly the pre-playlist behavior — no dots, no panel, no cards.
   if (items.length <= 1) {
     if (items.length === 1) {
       const hd = await render(items[0].spec, host, renderOpts);
       handle = hd;
-      attachPlayerControls(host, hd, prefs, opts.controls);
+      shownSpec = items[0].spec;
+      attachPlayerControls(host, hd, prefs, controlOpts);
+      applyCaptions(hd);
       opts.onItemMounted?.(hd, items[0]);
     }
     return {
@@ -217,10 +283,12 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       return;
     }
     handle = hd;
+    shownSpec = items[i].spec;
     attachPlayerControls(host, hd, prefs, {
-      ...opts.controls,
+      ...controlOpts,
       trailing: [dotsWrap, panelBtn, ...(opts.controls?.trailing ?? [])],
     });
+    applyCaptions(hd);
     // Chain AFTER the controls install their callbacks (and their showPoster),
     // so the poster's initial "done" never triggers an advance.
     const prev = hd.timeline.callbacks;
@@ -275,6 +343,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     handle?.destroy();
     handle = null;
     const card = makeChapterCard({ chapter: crossing, next: itemTitle(next), gate: advance, gap });
+    // A card is synthesized here, in the playlist's own language, and carries
+    // no track — its caption stays as written whatever CC is set to.
+    shownSpec = null;
     const hd = await render(card, host, renderOpts);
     if (destroyed) {
       hd.destroy();
@@ -301,6 +372,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     idx = -1; // before item 0: no dot current, n jumps to the first item
     handle?.destroy();
     handle = null;
+    shownSpec = null; // the title page is synthesized too
     const hd = await render(makeTitlePage({ title, subtitle: playlist.meta.subtitle, gap }), host, renderOpts);
     if (destroyed) {
       hd.destroy();
@@ -308,9 +380,10 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     }
     handle = hd;
     attachPlayerControls(host, hd, prefs, {
-      ...opts.controls,
+      ...controlOpts,
       trailing: [dotsWrap, panelBtn, ...(opts.controls?.trailing ?? [])],
     });
+    applyCaptions(hd);
     // Chain AFTER the controls install their callbacks (and their showPoster),
     // so the poster's initial "done" never triggers an advance.
     const prev = hd.timeline.callbacks;

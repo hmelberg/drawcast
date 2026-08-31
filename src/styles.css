@@ -151,18 +151,40 @@ body.mode-editor main {
   padding: 0.5rem 0.6rem 0.3rem;
 }
 
-/* Fullscreen: the figure fills the screen, letterboxed on paper. */
+/* Fullscreen: the figure fills the screen, letterboxed on paper.
+   The stage gets the height the title, control bar and caption LEAVE OVER,
+   and derives its width from that through its own 4/3 aspect-ratio. It used
+   to be `width: min(100%, calc(76vh * 4 / 3))` — a guess that the rest of the
+   figure always fits in the other 24vh. On a short window, or the moment a
+   caption wrapped to a third line, it didn't: the column is centered, so the
+   overflow went half above the top of the screen, where nothing can scroll
+   to it. Hence flex, which cannot guess wrong. */
 .player-figure:fullscreen {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   background: var(--paper);
   border: none;
   border-radius: 0;
   padding: 1rem 2rem;
 }
+.player-figure:fullscreen .cs-figure {
+  flex: 1;
+  min-width: 0;
+  /* Without min-height:0 a flex item refuses to shrink below its content, so
+     a tall figure would push past the screen instead of the stage giving way. */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .player-figure:fullscreen .cs-stage {
-  width: min(100%, calc(76vh * 4 / 3));
+  flex: 1 1 0;
+  min-height: 0;
+  /* width auto + the base rule's aspect-ratio: the ratio reads the height
+     flex just handed us. max-width keeps a screen narrower than 4/3 (a phone
+     held upright) from pushing the sides off, and the SVG letterboxes itself
+     inside the taller box that leaves. */
+  width: auto;
+  max-width: 100%;
   margin: 0 auto;
 }
 .player-figure:fullscreen .cs-caption { font-size: 1.5rem; }
@@ -641,6 +663,21 @@ details > summary { cursor: pointer; color: var(--muted); }
 }
 .cs-figure.cs-idle .cs-stage { cursor: none; }
 
+/* CC: the letters, underlined while subtitles are on — the convention every
+   video player uses, and legible without a color the theme has to supply. */
+.cs-cc {
+  font-family: var(--mono-font);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+.cs-cc.is-on {
+  opacity: 1;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0;
+}
+.cs-cc-lang { max-width: 8.5rem; }
+
 .cs-bar-btn {
   border: none;
   background: none;
@@ -795,13 +832,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .viewer-status { color: var(--muted); margin-bottom: 0.8rem; }
 .viewer-status.error { color: var(--loss); font-weight: 600; }
-.viewer-figure {
-  background: var(--surface);
-  border: 1.5px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(61, 56, 51, 0.09);
-  padding: 0.5rem 0.6rem 0.3rem;
-}
+/* The figure itself is a .player-figure here too — see the player-mode block
+   above. This used to be a byte-identical .viewer-figure copy, which meant the
+   :fullscreen rules (all keyed on .player-figure) never reached the viewer. */
 .viewer-footer { margin-top: 0.9rem; text-align: center; font-size: 0.85rem; }
 .viewer-footer a { color: var(--muted); text-decoration: none; }
 .viewer-footer a:hover { color: var(--rust); }
@@ -1509,3 +1542,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .rv-drop { flex: none; border: 0; background: transparent; cursor: pointer; opacity: 0.5; padding: 0 0.2rem; }
 .rv-drop:hover { opacity: 1; }
 .pane-bar button.active { border-color: var(--ink); font-weight: 600; }
+
+/* ---------- subtitles dialog ---------- */
+
+.sub-dialog { width: min(520px, 92vw); }
+.sub-dialog .sub-lang { flex: 1; }
+.sub-status { margin-top: 0.6rem; color: var(--muted); font-size: 0.9rem; min-height: 1.2rem; }

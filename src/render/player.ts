@@ -14,6 +14,7 @@ import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { SpeechManager, type SpeechLike } from "./speech";
+import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
@@ -117,6 +118,35 @@ export class Player {
   /** Interpolate stored ask answers into a narration/caption line. */
   private line(text: string): string {
     return subVars(text, this.vars);
+  }
+
+  /**
+   * The active subtitle track, or undefined for the language the drawcast was
+   * written in. Text only: the VOICE always speaks the source, because the
+   * narration is recorded speech in one language and a caption is not.
+   */
+  private subtitles: SubtitleTrack | undefined;
+
+  /** The source line the caption currently shows, kept so a language change
+   *  can re-render it without moving the playhead. */
+  private captionSource = "";
+
+  /**
+   * Show a source line as the caption: translate first, substitute second.
+   * That order is load-bearing — the translator copies {var} tokens through
+   * verbatim, so a track's keys are the RAW spec lines, and a lookup done
+   * after substitution would miss every personalized line.
+   */
+  private showCaption(source: string): void {
+    this.captionSource = source;
+    this.setCaption(this.line(translateCaption(source, this.subtitles)));
+  }
+
+  /** Switch the CC track (undefined = the source language). Re-renders the
+   *  caption already on screen; never touches the playhead or the voice. */
+  setSubtitles(track: SubtitleTrack | undefined): void {
+    this.subtitles = track;
+    this.showCaption(this.captionSource);
   }
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
@@ -265,7 +295,7 @@ export class Player {
    */
   showPoster(): void {
     this.renderUpTo(this.plan.steps.length);
-    this.setCaption("");
+    this.showCaption("");
   }
 
   /** Scene state at a step boundary (after steps[0..n-1]). */
@@ -294,7 +324,7 @@ export class Player {
       if (s.kind === "speak") caption = s.text;
       else if (s.narration !== undefined && !(this.skipQuestions && (s.kind === "quiz" || s.kind === "ask"))) caption = s.narration;
     }
-    this.setCaption(this.line(caption));
+    this.showCaption(caption);
     this.callbacks.onStep?.(this.completed, this.plan.steps.length);
     if (!keepPlaying) this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
   }
@@ -405,9 +435,10 @@ export class Player {
 
   /** Speak a runtime-chosen line (quiz/ask feedback): narrated mode voices it,
    *  other modes hold a capped reading beat; the caption always updates. */
-  private async speakLine(text: string, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
-    text = this.line(text);
-    this.setCaption(text);
+  private async speakLine(source: string, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+    // The caption may be a translation; what is SPOKEN never is.
+    const text = this.line(source);
+    this.showCaption(source);
     if (this.mode === "narrated") {
       await this.speech.speak(text, this.speedVal, signal, {
         speaker: step.narrationSpeaker,
@@ -443,7 +474,7 @@ export class Player {
       await this.narrationBarrier();
       if (signal.aborted) return;
       const narration = this.line(step.narration);
-      this.setCaption(narration);
+      this.showCaption(step.narration);
       const voice =
         this.mode === "narrated"
           ? this.speech.speak(narration, this.speedVal, signal, {
@@ -469,7 +500,7 @@ export class Player {
     switch (step.kind) {
       case "speak": {
         const text = this.line(step.text);
-        this.setCaption(text);
+        this.showCaption(step.text);
         if (this.mode === "narrated") {
           const spoken = this.speech.speak(text, this.speedVal, signal, {
             speaker: step.speaker,

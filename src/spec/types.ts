@@ -358,6 +358,14 @@ export interface Spec {
    */
   text_map?: Record<string, string>;
   /**
+   * Subtitle tracks: language code → (source caption line → translated line).
+   * What the CC menu offers. Written once at authoring time and carried in the
+   * document, so playback — including the standalone viewer, which has no API
+   * key — never calls a model. Source-keyed rather than timestamped: see
+   * spec/subtitles.ts for why a drawcast cannot have a cue clock.
+   */
+  subtitles?: Record<string, Record<string, string>>;
+  /**
    * Playlist transition (on any item after the first): before this item
    * begins, the PREVIOUS figure zooms into this element id of ITS OWN scene
    * and fades there — the semantic-zoom entrance (heart → cell → molecule).

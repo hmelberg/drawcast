@@ -24,6 +24,8 @@ import { contextWords, matchWiki, selectedPhrase, type WikiCandidate } from "./w
 import { linkActionsFor } from "./link-model";
 import { openMediaModal } from "./media-modal";
 import { h, logicalPoint } from "./dom";
+import { overCaption } from "./caption";
+import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
 import type { BBox } from "../layout/geometry";
 
@@ -67,7 +69,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
   // A figure of pure geometry carries no card — but it still NARRATES, and a
   // viewer can still select a phrase in that narration, so the caption half is
   // wired regardless. With neither, the scene pays nothing.
-  if (targets.size === 0 && !stage.parentElement?.querySelector(".cs-caption")) return;
+  if (targets.size === 0 && !stage.querySelector(".cs-caption")) return;
 
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const flip = hd.spec.params?.["flip"] === true;
@@ -116,10 +118,16 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
   };
 
   /** The card target under a pointer event, respecting the paused boundary's
-   *  visibility (a portrait the storyboard hasn't drawn yet has no card)
-   *  and standing aside on the instruments' own hit areas. */
+   *  visibility (a portrait the storyboard hasn't drawn yet has no card),
+   *  standing aside on the instruments' own hit areas, and yielding the whole
+   *  stage to an open gate — including the continue gate between playlist
+   *  items, where the timeline reads "done" rather than "playing". */
   const targetAt = (e: MouseEvent): CardTarget | null => {
-    if (stage.querySelector(".cs-figgate, .cs-cardgate")) return null;
+    if (gateIsOpen(stage)) return null;
+    // The subtitle band covers the bottom of the canvas — for an axes diagram,
+    // exactly where the x-axis label sits. A click on a subtitle is a click on
+    // the subtitle, not on what it happens to be hiding.
+    if (overCaption(e.target as Element | null)) return null;
     const p = logicalPoint(stage, e);
     if (!p) return null;
     if (interactions.includes("chess") && chessSquareAt(flip, p) !== null) return null;
@@ -286,10 +294,12 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
   // "Norway Sweden Denmark Finland" into one word. So the VIEWER draws the
   // boundary, which is both exact and a gesture they already know.
   //
-  // Free of the play/pause conflict by construction: the caption is a SIBLING
-  // of the stage, and togglePlay is bound to the stage alone, so dragging to
-  // select never touches playback.
-  const caption = stage.parentElement?.querySelector<HTMLElement>(".cs-caption") ?? null;
+  // This used to be free of the play/pause conflict by construction — the
+  // caption was a SIBLING of the stage, and togglePlay is bound to the stage
+  // alone. As a band ON the drawing it is inside the stage, so the drag's
+  // trailing click reaches togglePlay and the rule is stated instead: see
+  // isTextDrag in ui/caption.ts, checked in the stage's click handler.
+  const caption = stage.querySelector<HTMLElement>(".cs-caption");
   if (caption) {
     let chip: HTMLElement | null = null;
     const hideChip = (): void => {

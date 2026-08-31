@@ -95,15 +95,18 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   stage.className = "cs-stage";
   const caption = document.createElement("div");
   caption.className = "cs-caption cs-caption-empty";
-  // Title above, caption below — figure chrome, never inside the canvas
-  // coordinates (so it can never collide with the drawing).
+  // Title above the drawing; the caption is a band ACROSS the bottom of it,
+  // the way a video carries its subtitles. Both are figure chrome — neither
+  // is ever placed in canvas coordinates, so neither can collide with the
+  // drawing's own layout.
   if (spec.title) {
     const title = document.createElement("div");
     title.className = "cs-title";
     title.textContent = spec.title;
     figure.appendChild(title);
   }
-  figure.append(stage, caption);
+  stage.appendChild(caption);
+  figure.appendChild(stage);
   container.appendChild(figure);
 
   // Portraits and sources resolve BEFORE layout (layout is synchronous):
