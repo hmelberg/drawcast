@@ -43,3 +43,18 @@ describe("the touch tier", () => {
     expect(block).toMatch(/\.cs-progress\s*\{[^}]*padding:\s*16px 0/);
   });
 });
+
+describe("the modal size scale", () => {
+  it("names three sizes and no per-modal override survives", async () => {
+    const text = await css();
+    expect(text).toMatch(/\.modal-s\s*\{[^}]*max-width:\s*30rem/);
+    expect(text).toMatch(/\.modal-m\s*\{[^}]*max-width:\s*46rem/);
+    expect(text).toMatch(/\.modal-l\s*\{[^}]*max-width:\s*min\(104rem,\s*96vw\)/);
+    expect(text).not.toMatch(/\.wide-dialog/);
+    expect(text).not.toMatch(/\.course-modal\s*\{[^}]*max-width/);
+  });
+
+  it("gives every modal a footer row for its actions", async () => {
+    expect(await css()).toMatch(/\.dialog-footer\s*\{/);
+  });
+});

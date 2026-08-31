@@ -507,8 +507,6 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 .tab-btn.active { color: var(--rust); border-bottom-color: var(--rust); }
 .tab-panel { min-height: 12rem; }
 
-.wide-dialog { max-width: 46rem; }
-.dialog-body { max-height: min(70vh, 42rem); overflow-y: auto; }
 .row-note { color: var(--muted); font-size: 0.75rem; }
 .library-open.current { font-weight: 600; color: var(--rust); }
 
@@ -794,12 +792,33 @@ dialog {
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
-  max-width: 30rem;
   width: 92vw;
   padding: 1.2rem 1.4rem;
 }
 dialog::backdrop { background: rgba(61, 56, 51, 0.35); }
 dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8rem; font-size: 1.4rem; }
+
+/* Three sizes, named. .modal-s is one subject or a confirmation; .modal-m is
+   lists and tabs; .modal-l is a working surface you edit inside. The body cap
+   scales with the size instead of being overridden per modal. */
+.modal-s { max-width: 30rem; }
+.modal-m { max-width: 46rem; }
+.modal-l { width: min(104rem, 96vw); max-width: min(104rem, 96vw); }
+.modal-s .dialog-body, .modal-m .dialog-body { max-height: min(70vh, 42rem); }
+.modal-l .dialog-body { max-height: min(86vh, 64rem); }
+
+/* Actions live at the foot, right-aligned, primary last — never mid-body. */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+.dialog-footer .footer-left { margin-right: auto; display: flex; gap: 0.5rem; }
+.dialog-footer:empty { display: none; }
 
 /* Shared modal chrome: title row with a ✕ in the corner (Windows-style). */
 .dialog-head {
@@ -1450,13 +1469,6 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 
 /* ---- Course panel ---- */
-/* max-width too, not just width: the base `dialog` rule caps every dialog at
-   30rem, and that cap is a different property — so setting width alone left
-   this modal exactly as narrow as every other one. */
-.course-modal { width: min(104rem, 96vw); max-width: min(104rem, 96vw); }
-/* The course document is the working surface: give the dialog body most of the
-   viewport rather than the shared 70vh cap. */
-.course-modal .dialog-body { max-height: min(86vh, 64rem); }
 
 /* Stacked by default; side by side once the width is actually there, which is
    what the extra width is FOR — a document stretched to 100rem is harder to

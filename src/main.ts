@@ -925,7 +925,7 @@ app.append(main, sidebarBackdrop);
 
 // ---------- templates modal (create + my templates + packs) ----------
 
-const templatesModal = createModal("✦ Templates", { class: "wide-dialog" });
+const templatesModal = createModal("✦ Templates", { size: "m" });
 const templatesTabs = createTabs([
   {
     id: "mine",
@@ -978,7 +978,7 @@ function openTemplatesModal(view: "list" | "new"): void {
 // ---------- instructions modal (compiler prompt + references) ----------
 
 const referencesList = h("div", { class: "library-list" });
-const instructionsModal = createModal("📝 Instructions", { class: "wide-dialog" });
+const instructionsModal = createModal("📝 Instructions", { size: "m" });
 const instructionsTabs = createTabs([
   {
     id: "instructions",
@@ -989,8 +989,6 @@ const instructionsTabs = createTabs([
       h("div", { class: "hint" }, "What the AI is told before your request. The active one (●) is what Generate uses."),
       promptList,
       promptSource,
-      h("div", { class: "row" }, promptSaveBtn, promptRenameBtn, promptCopyBtn, promptDeleteBtn),
-      h("div", { class: "row" }, promptDownloadBtn, promptUploadBtn, promptUploadInput, promptImproveBtn),
       promptHint,
     ),
   },
@@ -1006,6 +1004,18 @@ const instructionsTabs = createTabs([
   },
 ]);
 instructionsModal.body.appendChild(instructionsTabs.el);
+// These acted on the current prompt, wherever the tabs happened to scroll —
+// the footer keeps them reachable regardless of tab or scroll position.
+instructionsModal.footer.append(
+  promptSaveBtn,
+  promptRenameBtn,
+  promptCopyBtn,
+  promptDeleteBtn,
+  promptDownloadBtn,
+  promptUploadBtn,
+  promptUploadInput,
+  promptImproveBtn,
+);
 app.appendChild(instructionsModal.dialog);
 
 function refreshReferences(): void {

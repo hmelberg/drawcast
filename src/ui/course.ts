@@ -68,7 +68,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     return;
   }
 
-  const modal = createModal("Course", { class: "course-modal" });
+  const modal = createModal("Course", { size: "l", class: "course-modal" });
   const doc = h("textarea", {
     class: "course-doc",
     spellcheck: "false",

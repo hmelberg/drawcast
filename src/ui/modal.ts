@@ -17,6 +17,14 @@ export interface ModalOptions {
   backdropCloses?: boolean;
   /** Runs instead of dialog.close() when ✕ is pressed. */
   onClose?(): void;
+  /** The size scale; omit for "s". */
+  size?: "s" | "m" | "l";
+  /**
+   * Extra content for the title row — a document picker, a "＋ New". Context,
+   * not action: actions belong in the footer. Appended between the title and
+   * the ✕.
+   */
+  head?: HTMLElement[];
 }
 
 /**
@@ -38,23 +46,32 @@ export function dialogHead(dlg: HTMLDialogElement, title: string, opts: ModalOpt
       if (!inside) dlg.close();
     });
   }
-  return h("div", { class: "dialog-head" }, h("h3", {}, title), x);
+  return h("div", { class: "dialog-head" }, h("h3", {}, title), ...(opts.head ?? []), x);
 }
 
 export interface Modal {
   dialog: HTMLDialogElement;
   /** Append the modal's content here — the head is already in place. */
   body: HTMLElement;
+  /**
+   * The action row. Right-aligned, primary last; anything appended to
+   * `.footer-left` in it sits on the far side. A modal with no actions simply
+   * never touches this and it stays empty and invisible.
+   */
+  footer: HTMLElement;
   open(): void;
 }
 
 export function createModal(title: string, opts: ModalOptions = {}): Modal {
-  const dialog = h("dialog", opts.class ? { class: opts.class } : {}) as HTMLDialogElement;
+  const size = opts.size ?? "s";
+  const dialog = h("dialog", { class: `modal-${size}${opts.class ? ` ${opts.class}` : ""}` }) as HTMLDialogElement;
   const body = h("div", { class: "dialog-body" });
-  dialog.append(dialogHead(dialog, title, opts), body);
+  const footer = h("div", { class: "dialog-footer" });
+  dialog.append(dialogHead(dialog, title, opts), body, footer);
   return {
     dialog,
     body,
+    footer,
     open: () => {
       if (!dialog.open) dialog.showModal();
     },
