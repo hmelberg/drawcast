@@ -20,7 +20,7 @@ import { bakeNarration, bakeSize } from "../export/bake";
 import { synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { parseRepo, readFile } from "../publish/github";
-import { downloadJson, getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 
@@ -110,7 +110,6 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     bakeCb,
     "with narration",
   );
-  const backupBtn = h("button", { class: "small", title: "Download every course and drawcast as one file" }, "⬇ Backup");
   const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
   matchBtn.hidden = true;
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
@@ -763,17 +762,6 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     );
   });
 
-  backupBtn.addEventListener("click", () => {
-    // Everything localStorage holds for courses, in one file. Generated
-    // lectures cost real money, and until a course is published to GitHub the
-    // only copy is one browser away from being gone.
-    const courses = loadCourses();
-    const library = loadLibrary();
-    const stamp = new Date().toISOString().slice(0, 10);
-    downloadJson(`drawcast-backup-${stamp}.json`, { savedAt: new Date().toISOString(), courses, library });
-    say(`Backed up ${courses.length} course${courses.length === 1 ? "" : "s"} and ${library.length} drawcast${library.length === 1 ? "" : "s"}.`, "ok");
-  });
-
   planBtn.addEventListener("click", () => void plan());
   publishBtn.addEventListener("click", () => void publish());
   reviseBtn.addEventListener("click", () => void revise());
@@ -828,7 +816,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, bakeLabel, backupBtn, undoBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, bakeLabel, undoBtn, h("span", { class: "pane-spacer" }), cost),
     // Messages sit with the buttons that produce them; the document and the
     // lecture list share the width below, side by side when there is room.
     status,

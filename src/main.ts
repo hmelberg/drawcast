@@ -110,6 +110,7 @@ import {
   worstLoggedCases,
   type LogEntry,
   loadCourses,
+  SETTINGS_TABS,
   type SavedDrawing,
   type UserPrompt,
 } from "./store";
@@ -1108,84 +1109,166 @@ const rateSel = h("select", {});
 for (const r of ["0.8", "0.9", "1", "1.1", "1.25"]) rateSel.appendChild(h("option", { value: r }, `${r}×`));
 rateSel.value = String(settings.rate);
 
+// Backup: an app-global "download everything" button. It used to live in the
+// course panel's button bar, but it backs up drawcasts as much as courses —
+// Settings is where it belongs.
+const backupBtn = h("button", { class: "small", title: "Download every course and drawcast as one file" }, "⬇ Backup");
+backupBtn.addEventListener("click", () => {
+  // Everything localStorage holds for courses, in one file. Generated
+  // lectures cost real money, and until a course is published to GitHub the
+  // only copy is one browser away from being gone.
+  const courses = loadCourses();
+  const library = loadLibrary();
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadJson(`drawcast-backup-${stamp}.json`, { savedAt: new Date().toISOString(), courses, library });
+  setStatus(`Backed up ${courses.length} course${courses.length === 1 ? "" : "s"} and ${library.length} drawcast${library.length === 1 ? "" : "s"}.`, "ok");
+});
+
+// Every id in SETTINGS_TABS (src/store.ts) must resolve to exactly one of
+// these blocks — that mapping is what lets a tab list settings.ts owns
+// determine where each field's markup actually lands.
+const settingsBlocks = new Map<string, HTMLElement>([
+  ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
+  [
+    "apiKey",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Anthropic API key (bring your own)"),
+      keyInput,
+      h("div", {}, clearKeyBtn),
+      h("div", { class: "settings-note" }, "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com."),
+      usageNote,
+    ),
+  ],
+  [
+    "ttsKey",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Google Cloud Text-to-Speech key (for video export)"),
+      ttsKeyInput,
+      h("div", {}, clearTtsKeyBtn),
+      h(
+        "div",
+        { class: "settings-note" },
+        "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. The free tier (~1M characters/month) covers roughly a thousand drawcasts.",
+      ),
+    ),
+  ],
+  [
+    "cloudPlayback",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", { class: "settings-check" }, cloudPlaybackCb, " Also use these voices for normal playback (falls back to the browser voice if a call fails)"),
+    ),
+  ],
+  [
+    "skipQuestions",
+    h("div", { class: "settings-field" }, h("label", { class: "settings-check" }, skipQuestionsCb, " Skip questions (quiz and typed ask) in playback and exports")),
+  ],
+  [
+    "burnCaptions",
+    h(
+      "div",
+      { class: "settings-field" },
+      h(
+        "label",
+        { class: "settings-check" },
+        burnCaptionsCb,
+        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in the upload dialog.",
+      ),
+    ),
+  ],
+  [
+    "githubRepo",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Publishing — GitHub repository"),
+      githubRepoInput,
+      h(
+        "div",
+        { class: "settings-note" },
+        "owner/repo. It must be PUBLIC: published lectures are fetched from raw.githubusercontent.com, which does not serve private repositories, and GitHub Pages on a private repo needs a paid plan. One repo holds any number of courses, one folder each.",
+      ),
+    ),
+  ],
+  [
+    "githubToken",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "GitHub token"),
+      githubTokenInput,
+      h(
+        "div",
+        { class: "settings-note" },
+        "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
+      ),
+    ),
+  ],
+  [
+    "coursesDir",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Subfolder (optional)"),
+      coursesDirInput,
+      h(
+        "div",
+        { class: "settings-note" },
+        "Leave empty when the repository is only for courses — each course then gets its own folder at the root, and the course list becomes the site's front page. Set a folder only if the repository holds other things too; note that the list is written as index.html at that level. Nothing needs creating on GitHub first: git has no empty directories, so the folders appear with the files.",
+      ),
+    ),
+  ],
+  ["voice", h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel)],
+  ["rate", h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel)],
+  [
+    "contactEmail",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Contact email (optional)"),
+      contactEmailInput,
+      h(
+        "div",
+        { class: "settings-note" },
+        "Only for source elements that carry a DOI: when OpenAlex knows no open-access PDF, Unpaywall is asked next, and its free API requires a contact address. Sent to api.unpaywall.org and nowhere else; leave it empty to skip that step.",
+      ),
+    ),
+  ],
+  [
+    "developerMode",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Advanced"),
+      h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, the full lint list and the Data panel"),
+    ),
+  ],
+  ["backup", h("div", { class: "settings-field" }, backupBtn)],
+]);
+
 const settingsModal = createModal("Settings", { size: "m" });
 const dialog = settingsModal.dialog;
-settingsModal.body.append(
-  h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel),
-  h(
-    "div",
-    { class: "settings-field" },
-    h("label", {}, "Anthropic API key (bring your own)"),
-    keyInput,
-    h("div", {}, clearKeyBtn),
-    h("div", { class: "settings-note" }, "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com."),
-    usageNote,
-  ),
-  h(
-    "div",
-    { class: "settings-field" },
-    h("label", {}, "Google Cloud Text-to-Speech key (for video export)"),
-    ttsKeyInput,
-    h("div", {}, clearTtsKeyBtn),
-    h(
+const settingsTabs = createTabs(
+  SETTINGS_TABS.map((t) => ({
+    id: t.id,
+    label: t.label,
+    panel: h(
       "div",
-      { class: "settings-note" },
-      "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. The free tier (~1M characters/month) covers roughly a thousand drawcasts.",
+      { class: "tab-panel" },
+      ...t.fields.map((f) => {
+        const block = settingsBlocks.get(f);
+        if (!block) throw new Error(`SETTINGS_TABS field "${f}" has no matching settings block`);
+        return block;
+      }),
     ),
-    h("label", { class: "settings-check" }, cloudPlaybackCb, " Also use these voices for normal playback (falls back to the browser voice if a call fails)"),
-    h("label", { class: "settings-check" }, skipQuestionsCb, " Skip questions (quiz and typed ask) in playback and exports"),
-    h(
-      "label",
-      { class: "settings-check" },
-      burnCaptionsCb,
-      " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in the upload dialog.",
-    ),
-  ),
-  h(
-    "div",
-    { class: "settings-field" },
-    h("label", {}, "Publishing — GitHub repository"),
-    githubRepoInput,
-    h(
-      "div",
-      { class: "settings-note" },
-      "owner/repo. It must be PUBLIC: published lectures are fetched from raw.githubusercontent.com, which does not serve private repositories, and GitHub Pages on a private repo needs a paid plan. One repo holds any number of courses, one folder each.",
-    ),
-    h("label", {}, "GitHub token"),
-    githubTokenInput,
-    h(
-      "div",
-      { class: "settings-note" },
-      "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
-    ),
-    h("label", {}, "Subfolder (optional)"),
-    coursesDirInput,
-    h(
-      "div",
-      { class: "settings-note" },
-      "Leave empty when the repository is only for courses — each course then gets its own folder at the root, and the course list becomes the site's front page. Set a folder only if the repository holds other things too; note that the list is written as index.html at that level. Nothing needs creating on GitHub first: git has no empty directories, so the folders appear with the files.",
-    ),
-  ),
-  h("div", { class: "settings-field" }, h("label", {}, "Browser narration voice (used when no cloud voices)"), voiceSel),
-  h("div", { class: "settings-field" }, h("label", {}, "Narration rate"), rateSel),
-  h(
-    "div",
-    { class: "settings-field" },
-    h("label", {}, "Contact email (optional)"),
-    contactEmailInput,
-    h(
-      "div",
-      { class: "settings-note" },
-      "Only for source elements that carry a DOI: when OpenAlex knows no open-access PDF, Unpaywall is asked next, and its free API requires a contact address. Sent to api.unpaywall.org and nowhere else; leave it empty to skip that step.",
-    ),
-  ),
-  h(
-    "div",
-    { class: "settings-field" },
-    h("label", {}, "Advanced"),
-    h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, the full lint list and the Data panel"),
-  ),
+  })),
 );
+settingsModal.body.appendChild(settingsTabs.el);
 app.appendChild(dialog);
 
 function openSettings(): void {

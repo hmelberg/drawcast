@@ -217,6 +217,18 @@ export function saveSettings(s: Settings): void {
   localStorage.setItem(KEYS.settings, JSON.stringify(s));
 }
 
+/**
+ * Which settings field belongs on which tab. A list rather than a lookup so
+ * the order is the reading order, and a test can pin that "skip questions" no
+ * longer lives under the text-to-speech KEY it had been nested beneath.
+ */
+export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
+  { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
+  { id: "playback", label: "Playback", fields: ["style", "voice", "rate", "cloudPlayback", "skipQuestions", "burnCaptions"] },
+  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir"] },
+  { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
+];
+
 export function getApiKey(): string {
   return localStorage.getItem(KEYS.apiKey) || (import.meta.env.VITE_ANTHROPIC_API_KEY ?? "");
 }
