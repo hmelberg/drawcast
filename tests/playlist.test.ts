@@ -6,7 +6,9 @@ import {
   makeChapterCard,
   makeTitlePage,
   parsePlaylistText,
+  playlistWithSpecs,
   singlePlaylist,
+  sourceLanguage,
 } from "../src/playlist/playlist";
 import { playlistSpeakLines } from "../src/playlist/session";
 import { validateSpec } from "../src/spec/schema";
@@ -238,5 +240,39 @@ describe("exportSequence — what a video export plays, in order", () => {
     expect(texts.join(" ")).toContain("Health econ");
     expect(texts.join(" ")).toContain("Models");
     expect(texts.some((t) => t.startsWith("Next:"))).toBe(false);
+  });
+});
+
+// Both main.ts (the CC-subtitles feature) and ui/share.ts (the YouTube panel)
+// need this same answer for a playlist — one shared, pure, tested copy so a
+// future narrationLanguage change cannot fix one caller and not the other.
+describe("sourceLanguage", () => {
+  test("a declared lang on any item wins", () => {
+    const p = parsePlaylistText(`lang: nb\n${SPEC_A}`);
+    expect(sourceLanguage(p)).toBe("nb");
+  });
+
+  test("no declared lang and nothing spoken falls back to English", () => {
+    const p = parsePlaylistText(SPEC_A);
+    expect(sourceLanguage(p)).toBe("en");
+  });
+});
+
+describe("playlistWithSpecs", () => {
+  test("swaps each item's spec, in item order, leaving chapters untouched", () => {
+    const p = parsePlaylistText(`chapter: C\n---\n${SPEC_A}\n---\n${SPEC_B}`);
+    const replacement: Spec = { title: "Replaced", commands: [] };
+    const out = playlistWithSpecs(p, [replacement, replacement]);
+    expect(out.entries.map((e) => e.kind)).toEqual(["chapter", "item", "item"]);
+    expect(itemsOf(out).map((i) => i.spec.title)).toEqual(["Replaced", "Replaced"]);
+  });
+
+  test("never mutates the playlist it was given — a fresh object comes back", () => {
+    const p = parsePlaylistText(SPEC_A);
+    const original = itemsOf(p)[0].spec;
+    const out = playlistWithSpecs(p, [{ title: "New", commands: [] }]);
+    expect(itemsOf(p)[0].spec).toBe(original); // unchanged
+    expect(itemsOf(out)[0].spec.title).toBe("New");
+    expect(out).not.toBe(p);
   });
 });

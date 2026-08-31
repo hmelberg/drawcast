@@ -49,7 +49,9 @@ import {
   isSingle,
   itemsOf,
   parsePlaylistText,
+  playlistWithSpecs,
   singlePlaylist,
+  sourceLanguage,
   type AudioTrack,
   type Playlist,
 } from "./playlist/playlist";
@@ -1163,6 +1165,17 @@ settingsModal.body.append(
 app.appendChild(dialog);
 
 function openSettings(): void {
+  // These four are set once at construction and otherwise read-only from the
+  // dialog's own "change" listeners — but Share's Video panel now writes
+  // settings.burnCaptions from outside this dialog, so the checkbox must be
+  // re-read on every open or it shows construction-time state forever. The
+  // other three have no such external writer today, but the pattern is
+  // identical, so they get the same treatment rather than leaving a landmine
+  // for the next setting that grows one.
+  cloudPlaybackCb.checked = settings.cloudPlayback;
+  skipQuestionsCb.checked = settings.skipQuestions;
+  burnCaptionsCb.checked = settings.burnCaptions;
+  developerCb.checked = settings.developerMode;
   usageNote.textContent = usageSummary();
   usageNote.hidden = usageNote.textContent === "";
   dialog.showModal();
@@ -1557,19 +1570,6 @@ subModal.body.append(
 );
 app.appendChild(subModal.dialog);
 
-function sourceLanguage(): string {
-  return narrationLanguage(itemsOf(doc.playlist).map((i) => i.spec));
-}
-
-/** The document's playlist with each item's spec swapped for a translation of it. */
-function playlistWithSpecs(specs: Spec[]): Playlist {
-  let i = 0;
-  return {
-    ...doc.playlist,
-    entries: doc.playlist.entries.map((e) => (e.kind === "item" ? { kind: "item" as const, spec: specs[i++] } : e)),
-  };
-}
-
 /** Languages this document already carries a track for, plus its own. */
 function subtitleLanguagesHere(): Set<string> {
   return new Set(subtitleLanguages(itemsOf(doc.playlist).map((i) => i.spec)).map((l) => l.code));
@@ -1619,10 +1619,10 @@ async function addSubtitleTrack(): Promise<void> {
     return;
   }
   // Written into the document, so it is saved, published and exported with it.
-  setDoc({ ...doc, playlist: playlistWithSpecs(specs) }, undefined, { label: `subtitles: ${target.label}`, kind: "revise" });
+  setDoc({ ...doc, playlist: playlistWithSpecs(doc.playlist, specs) }, undefined, { label: `subtitles: ${target.label}`, kind: "revise" });
   subStatus.textContent =
     missing > 0
-      ? `Added ${target.label} subtitles — ${missing} line(s) came back untranslated and will show in ${languageLabel(sourceLanguage())}.`
+      ? `Added ${target.label} subtitles — ${missing} line(s) came back untranslated and will show in ${languageLabel(sourceLanguage(doc.playlist))}.`
       : `Added ${target.label} subtitles. Pick them with the CC button.`;
   subGo.disabled = false;
 }

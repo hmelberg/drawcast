@@ -10,6 +10,7 @@ import { CORE_SCHEMA, dump, loadAll } from "js-yaml";
 import { desmartenJson } from "../spec/extract";
 import { formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
 import type { Spec } from "../spec/types";
+import { narrationLanguage } from "../export/video";
 
 export interface PlaylistMeta {
   title?: string;
@@ -166,6 +167,29 @@ export function itemsOf(playlist: Playlist): PlaylistItem[] {
     else items.push({ spec: e.spec, chapter, index: items.length });
   }
   return items;
+}
+
+/**
+ * The language this playlist narrates in, going by its items' specs. Both the
+ * CC-subtitles feature and Share's YouTube panel need this same answer — one
+ * copy, so a future `narrationLanguage` change cannot fix one and not the other.
+ */
+export function sourceLanguage(playlist: Playlist): string {
+  return narrationLanguage(itemsOf(playlist).map((i) => i.spec));
+}
+
+/**
+ * `playlist` with each item's spec swapped for the corresponding entry in
+ * `specs` (same order as `itemsOf`) — a FRESH playlist, `playlist` itself is
+ * never mutated. This is what keeps a translation from ever being written
+ * back onto the document it was translated from.
+ */
+export function playlistWithSpecs(playlist: Playlist, specs: Spec[]): Playlist {
+  let i = 0;
+  return {
+    ...playlist,
+    entries: playlist.entries.map((e) => (e.kind === "item" ? { kind: "item" as const, spec: specs[i++] } : e)),
+  };
 }
 
 /** True when the playlist is just one bare spec (no header worth keeping, no chapters). */

@@ -17,8 +17,8 @@ import { translateSpec } from "../llm/translate";
 import { lintCommands } from "../lint/lint";
 import { toVtt } from "../export/captions";
 import { LANGUAGES, languageLabel } from "../export/tts";
-import { narrationLanguage, type ExportResult } from "../export/video";
-import { exportSequence, formatPlaylist, isSingle, itemsOf, type Playlist } from "../playlist/playlist";
+import type { ExportResult } from "../export/video";
+import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import type { SpecFormat } from "../spec/text";
@@ -107,6 +107,21 @@ export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course
   return DESTS
     .filter((d) => (subject === "course" ? d.courses : true) && d.needs(caps))
     .map(({ id, label, action }) => ({ id, label, action }));
+}
+
+/** Every destination id there is — panelVisibility's `all`, and the modal's fixed set of panels. */
+const ALL_DESTS: ShareTo[] = DESTS.map((d) => d.id);
+
+/**
+ * Which of the four panels should be visible: exactly the selected one, and
+ * ONLY if it is actually offered right now. A destination that is filtered
+ * out of `available` (an unconfigured capability) must never show its panel
+ * even if `selected` still names it — a stale/unavailable selection hides
+ * everything rather than leaking that panel's content.
+ */
+export function panelVisibility(all: ShareTo[], available: ShareDest[], selected: ShareTo): Record<ShareTo, boolean> {
+  const offered = new Set(available.map((d) => d.id));
+  return Object.fromEntries(all.map((id) => [id, offered.has(id) && id === selected])) as Record<ShareTo, boolean>;
 }
 
 /** Recomputed on every open — credentials can change while Share is closed. */
@@ -217,25 +232,27 @@ function build(): ShareSession {
   specFormatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
   const specPanel = h("div", { class: "share-panel" }, h("label", { class: "quiet-label" }, "Format ", specFormatSel));
   const specGo = h("button", { class: "primary" }, "Download") as HTMLButtonElement;
+  // Read-only with respect to settings.specFormat — it defaults from the
+  // setting (prepPanels) but never writes it back. The editor's own format
+  // toggle (main.ts's formatSel) owns that setting and also re-renders
+  // specArea when it changes; this select cannot do that from here, so
+  // writing to the same field would leave the editor showing a stale format
+  // until reload. This is exactly what the ⬇ button it replaces did: read
+  // the setting, never write it.
   specFormatSel.addEventListener("change", () => {
     const deps = current;
     const next = specFormatSel.value as SpecFormat;
-    // Same guard the editor's own format toggle applies: a playlist is a
-    // multi-document YAML stream and JSON cannot hold that, so a playlist
-    // downloads as YAML regardless of what is picked here.
+    // A playlist is a multi-document YAML stream and JSON cannot hold that.
     if (next === "json" && !isSingle(deps.doc().playlist)) {
       deps.setStatus("Playlists are YAML-only (a JSON document cannot hold a multi-document stream).", "error");
       specFormatSel.value = "yaml";
-      return;
     }
-    deps.settings.specFormat = next;
-    deps.persist();
   });
   specGo.addEventListener("click", () => {
     const deps = current;
     modal.dialog.close();
     const doc = deps.doc();
-    const format: SpecFormat = isSingle(doc.playlist) ? deps.settings.specFormat : "yaml";
+    const format: SpecFormat = isSingle(doc.playlist) ? (specFormatSel.value as SpecFormat) : "yaml";
     downloadText(`${fileSafe(doc.title)}.${format}`, formatPlaylist(doc.playlist, format));
   });
 
@@ -294,44 +311,30 @@ function build(): ShareSession {
    */
   const ytTranslations = new Map<string, Playlist>();
 
-  function sourceLanguage(): string {
-    return narrationLanguage(itemsOf(current.doc().playlist).map((i) => i.spec));
-  }
-
   /** Ticked languages, in catalog order, source first when it is among them. */
   function ytSelected(): string[] {
-    const src = sourceLanguage();
+    const src = sourceLanguage(current.doc().playlist);
     const picked = LANGUAGES.filter((l) => ytLangCbs.get(l.code)?.checked).map((l) => l.code);
     return picked.includes(src) ? [src, ...picked.filter((c) => c !== src)] : picked;
-  }
-
-  /** The document's playlist with each item's spec swapped for its translation. */
-  function playlistWithSpecs(specs: Spec[]): Playlist {
-    const playlist = current.doc().playlist;
-    let i = 0;
-    return {
-      ...playlist,
-      entries: playlist.entries.map((e) => (e.kind === "item" ? { kind: "item" as const, spec: specs[i++] } : e)),
-    };
   }
 
   /** What gets recorded for one language: the translation, or the document itself. */
   function playlistFor(code: string): Playlist {
     const doc = current.doc();
-    return code === sourceLanguage() ? doc.playlist : (ytTranslations.get(code) ?? doc.playlist);
+    return code === sourceLanguage(doc.playlist) ? doc.playlist : (ytTranslations.get(code) ?? doc.playlist);
   }
 
   /** Ready to upload once at least one language is ticked and translated. */
   function refreshYtButtons(): void {
+    const doc = current.doc();
     const picked = ytSelected();
-    const ready = picked.every((c) => c === sourceLanguage() || ytTranslations.has(c));
+    const ready = picked.every((c) => c === sourceLanguage(doc.playlist) || ytTranslations.has(c));
     ytGo.disabled = picked.length === 0 || !ready;
     ytGo.textContent = picked.length > 1 ? `Upload ${picked.length} videos` : "Upload";
     ytSaveCopy.hidden = !picked.some((c) => ytTranslations.has(c));
     // One language: the field is the title, yours to edit. Several: each
     // video takes its own translated title, because one field cannot hold four.
     ytTitle.disabled = picked.length > 1;
-    const doc = current.doc();
     if (picked.length === 1) ytTitle.value = titleOf(playlistFor(picked[0]), doc.title);
     else ytTitle.value = doc.title;
   }
@@ -345,25 +348,26 @@ function build(): ShareSession {
       return;
     }
     ytStatus.textContent = `Translating into ${target.label}…`;
+    const playlist = current.doc().playlist;
     const specs: Spec[] = [];
     const problems: string[] = [];
-    for (const spec of itemsOf(current.doc().playlist).map((i) => i.spec)) {
+    for (const spec of itemsOf(playlist).map((i) => i.spec)) {
       const schema = spec.template ? scenes[spec.template]?.manifest.params_schema : undefined;
       const { spec: out, check } = await translateSpec(spec, target, { apiKey, model: current.settings.model }, schema);
-      if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(sourceLanguage())}`);
+      if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(sourceLanguage(playlist))}`);
       // Cheap structural guard: ids and gotos are never sent to the model, so
       // a broken reference here means a bug in the extractor, not a bad answer.
       const broken = lintCommands(out).filter((i) => i.severity === "error");
       if (broken.length > 0) problems.push(broken[0].message);
       specs.push(out);
     }
-    ytTranslations.set(code, playlistWithSpecs(specs));
+    ytTranslations.set(code, playlistWithSpecs(playlist, specs));
     ytStatus.textContent = problems.length > 0 ? `Translated into ${target.label} — ${problems.join("; ")}.` : `Translated into ${target.label}.`;
   }
 
   for (const [code, cb] of ytLangCbs) {
     cb.addEventListener("change", () => {
-      if (!cb.checked || code === sourceLanguage() || ytTranslations.has(code)) {
+      if (!cb.checked || code === sourceLanguage(current.doc().playlist) || ytTranslations.has(code)) {
         refreshYtButtons();
         return;
       }
@@ -548,7 +552,12 @@ function build(): ShareSession {
     settingsBtn,
   );
 
-  const modal = createModal("↗ Share", { size: "m", class: "share-modal" });
+  // backdropCloses: false — carried over from the YouTube dialog this absorbed.
+  // A stray outside click must not be able to discard queued translations:
+  // prepPanels() clears ytTranslations on the NEXT open, so losing this one
+  // to an accidental backdrop click would mean paying for those Anthropic
+  // calls a second time.
+  const modal = createModal("↗ Share", { size: "m", class: "share-modal", backdropCloses: false });
   modal.body.append(layout, emptyHint);
   document.body.append(modal.dialog);
 
@@ -558,10 +567,12 @@ function build(): ShareSession {
   function selectDestination(id: ShareTo): void {
     current.settings.shareTo = id;
     current.persist();
-    destinations.forEach((d, i) => {
-      panels[d.id].hidden = d.id !== id;
-      railButtons[i].classList.toggle("current", d.id === id);
-    });
+    // Every panel, not just the ones in `destinations` — a filtered-out
+    // destination's panel has never had `.hidden` touched otherwise, and
+    // stays visible by default (the bug this pure function pins).
+    const visible = panelVisibility(ALL_DESTS, destinations, id);
+    for (const key of ALL_DESTS) panels[key].hidden = !visible[key];
+    destinations.forEach((d, i) => railButtons[i].classList.toggle("current", d.id === id));
     const left = id === "youtube" ? [h("div", { class: "footer-left" }, ytSaveCopy)] : [];
     modal.footer.replaceChildren(...left, actionBtns[id]);
   }
@@ -570,14 +581,15 @@ function build(): ShareSession {
    *  rail click, so glancing at another destination and back does not throw
    *  away a typed title or description. */
   function prepPanels(): void {
+    const playlist = current.doc().playlist;
     videoBurnCb.checked = current.settings.burnCaptions;
-    videoLangHint.textContent = `Renders in ${languageLabel(sourceLanguage())}.`;
+    videoLangHint.textContent = `Renders in ${languageLabel(sourceLanguage(playlist))}.`;
     specFormatSel.value = current.settings.specFormat;
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytBurnCb.checked = current.settings.burnCaptionsOnUpload;
     ytTranslations.clear();
-    for (const [code, cb] of ytLangCbs) cb.checked = code === sourceLanguage();
+    for (const [code, cb] of ytLangCbs) cb.checked = code === sourceLanguage(playlist);
     ytStatus.textContent = "";
     refreshYtButtons();
   }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { shareDestinations } from "../src/ui/share";
+import { panelVisibility, shareDestinations, type ShareDest, type ShareTo } from "../src/ui/share";
 
 const all = { github: true, google: true, tts: true };
+const ALL_IDS: ShareTo[] = ["link", "youtube", "video", "spec"];
+const dest = (id: ShareTo): ShareDest => ({ id, label: id, action: id });
 
 describe("shareDestinations", () => {
   it("offers four destinations for a drawcast when everything is configured", () => {
@@ -30,5 +32,34 @@ describe("shareDestinations", () => {
 
   it("can offer nothing at all", () => {
     expect(shareDestinations({ github: false, google: false, tts: false }, "course")).toEqual([]);
+  });
+});
+
+describe("panelVisibility", () => {
+  it("shows only the selected panel, and hides an unavailable one even though it is not selected", () => {
+    // The bug this pins: a GitHub-only user (no Google, no TTS key) sees Link
+    // and Spec file in the rail, but before this function existed YouTube's
+    // and Video file's panels — never touched by the filtered `destinations`
+    // loop — stayed at their un-set `.hidden` default and rendered anyway.
+    const available = [dest("link"), dest("spec")];
+    const visible = panelVisibility(ALL_IDS, available, "link");
+    expect(visible).toEqual({ link: true, youtube: false, video: false, spec: false });
+  });
+
+  it("shows whichever available destination is selected", () => {
+    const available = [dest("link"), dest("spec")];
+    expect(panelVisibility(ALL_IDS, available, "spec")).toEqual({ link: false, youtube: false, video: false, spec: true });
+  });
+
+  it("shows nothing when the selection names a destination that is not available", () => {
+    // Defensive: a stale/invalid selection must never leak a hidden panel's
+    // content rather than showing the wrong (but at least real) one.
+    const available = [dest("link")];
+    expect(panelVisibility(ALL_IDS, available, "youtube")).toEqual({ link: false, youtube: false, video: false, spec: false });
+  });
+
+  it("shows all four when everything is available and one is picked", () => {
+    const available = ALL_IDS.map(dest);
+    expect(panelVisibility(ALL_IDS, available, "youtube")).toEqual({ link: false, youtube: true, video: false, spec: false });
   });
 });
