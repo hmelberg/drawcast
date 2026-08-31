@@ -2617,9 +2617,10 @@ async function toggleAccount(): Promise<void> {
 // ---------- library ----------
 
 function sidebarInput(): SectionInput {
+  const library = loadLibrary();
   return {
-    library: loadLibrary().map((d) => ({ title: d.title, courseId: d.courseId })),
-    courses: loadCourses().map((c) => ({ id: c.id, title: c.title })),
+    library: library.map((d) => ({ title: d.title, courseId: d.courseId })),
+    courses: loadCourses().map((c) => ({ id: c.id, title: c.title, lectures: library.filter((i) => i.courseId === c.id).map((i) => i.title) })),
     examples: examples.map((ex) => ({ title: ex.title ?? ex.spec?.title ?? ex.request })),
     templates: loadMyTemplates().map((t) => ({ id: t.id })),
   };
@@ -2668,19 +2669,29 @@ function refreshLibrary(): void {
  *  that course's lectures inline behind its own caret (ui/sidebar.ts's
  *  courseGroup — the exact per-course <details> grouping this function used
  *  to build for the library, moved out and now driven by every saved course
- *  rather than only the ones with a lecture already in view). */
+ *  rather than only the ones with a lecture already in view).
+ *
+ *  A course is a match on its own title OR any lecture's (sidebarSections
+ *  pins this) — searching for a lecture by name must surface the course
+ *  that has it, not make it vanish. While filtering, a course that matched
+ *  only through a lecture renders just its matching lectures (the old
+ *  per-item library filter's behaviour, preserved); a course whose own
+ *  title matched shows every lecture, since the whole course is the hit —
+ *  and with no filter active `matchesFilter` is true for everything, so
+ *  every course shows all of its lectures as before. */
 function refreshCourses(): void {
   coursesSection.list.replaceChildren();
   const all = loadCourses();
-  const shown = all.filter((c) => matchesFilter(c.title));
+  const library = loadLibrary();
+  const withLectures = all.map((course) => ({ course, lectures: library.filter((i) => i.courseId === course.id) }));
+  const shown = withLectures.filter(({ course, lectures }) => matchesFilter(course.title) || lectures.some((l) => matchesFilter(l.title)));
   if (shown.length === 0) {
     coursesSection.list.appendChild(h("div", { class: "hint" }, all.length === 0 ? "No courses yet." : "No match."));
     return;
   }
-  const library = loadLibrary();
-  for (const course of shown) {
-    const lectures = library.filter((i) => i.courseId === course.id);
-    coursesSection.list.appendChild(courseGroup(course, lectures, row, openCourse));
+  for (const { course, lectures } of shown) {
+    const visible = matchesFilter(course.title) ? lectures : lectures.filter((l) => matchesFilter(l.title));
+    coursesSection.list.appendChild(courseGroup(course, visible, row, openCourse));
   }
 }
 

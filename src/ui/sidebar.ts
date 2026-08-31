@@ -7,7 +7,10 @@ import { h } from "./dom";
 
 export interface SectionInput {
   library: { title: string; courseId?: string }[];
-  courses: { id: string; title: string }[];
+  /** `lectures` are each lecture's own title — a course with ten lectures is
+   *  exactly the case search has to see into, or a hit inside it just
+   *  vanishes from the menu instead of surfacing the course that has it. */
+  courses: { id: string; title: string; lectures: string[] }[];
   examples: { title: string }[];
   templates: { id: string }[];
 }
@@ -27,18 +30,24 @@ const DEFAULT_OPEN: Record<string, boolean> = { library: true, courses: false, e
 export function sidebarSections(input: SectionInput, filter: string, openState: Record<string, boolean>): SectionModel[] {
   const f = filter.trim().toLowerCase();
   const match = (t: string): boolean => f === "" || t.toLowerCase().includes(f);
-  const specs: { id: string; label: string; titles: string[] }[] = [
-    { id: "library", label: "📚 Library", titles: input.library.filter((i) => !i.courseId).map((i) => i.title) },
-    { id: "courses", label: "🎓 Courses", titles: input.courses.map((c) => c.title) },
-    { id: "examples", label: "✨ Examples", titles: input.examples.map((e) => e.title) },
-    { id: "templates", label: "✦ Templates", titles: input.templates.map((t) => t.id) },
+  const libraryTitles = input.library.filter((i) => !i.courseId).map((i) => i.title);
+  const exampleTitles = input.examples.map((e) => e.title);
+  const templateTitles = input.templates.map((t) => t.id);
+  // A course counts as a hit on its own title OR any of its lectures' — a
+  // course whose title never matches is still where a matching lecture
+  // lives, and hiding the course would hide the lecture too.
+  const courseHits = input.courses.filter((c) => match(c.title) || c.lectures.some(match)).length;
+  const specs: { id: string; label: string; shown: number; total: number }[] = [
+    { id: "library", label: "📚 Library", shown: libraryTitles.filter(match).length, total: libraryTitles.length },
+    { id: "courses", label: "🎓 Courses", shown: courseHits, total: input.courses.length },
+    { id: "examples", label: "✨ Examples", shown: exampleTitles.filter(match).length, total: exampleTitles.length },
+    { id: "templates", label: "✦ Templates", shown: templateTitles.filter(match).length, total: templateTitles.length },
   ];
-  return specs.map(({ id, label, titles }) => {
-    const shown = titles.filter(match).length;
+  return specs.map(({ id, label, shown, total }) => {
     const remembered = openState[id] ?? DEFAULT_OPEN[id];
     // A filter overrides the remembered state only upwards: it opens a closed
     // section that has hits, and never closes one the author opened.
-    return { id, label, shown, total: titles.length, open: f !== "" && shown > 0 ? true : remembered };
+    return { id, label, shown, total, open: f !== "" && shown > 0 ? true : remembered };
   });
 }
 

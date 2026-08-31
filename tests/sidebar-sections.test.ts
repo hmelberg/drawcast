@@ -3,7 +3,7 @@ import { sidebarSections, type SectionInput } from "../src/ui/sidebar";
 
 const input: SectionInput = {
   library: [{ title: "Ricardo on trade" }, { title: "Lecture 1", courseId: "c1" }, { title: "Lecture 2", courseId: "c1" }],
-  courses: [{ id: "c1", title: "Causal inference" }],
+  courses: [{ id: "c1", title: "Causal inference", lectures: ["Lecture 1", "Lecture 2"] }],
   examples: [{ title: "Supply and demand" }, { title: "Ricardo" }],
   templates: [{ id: "t1" }],
 };
@@ -42,5 +42,11 @@ describe("sidebarSections", () => {
 
   it("does not auto-expand a section with no matches", () => {
     expect(sidebarSections(input, "zzz", {}).find((s) => s.id === "courses")!.open).toBe(false);
+  });
+
+  it("counts a course as a match when a lecture title matches, even though the course's own title doesn't", () => {
+    const courses = sidebarSections(input, "lecture 1", {}).find((s) => s.id === "courses")!;
+    expect(courses.shown).toBe(1);
+    expect(courses.open).toBe(true);
   });
 });
