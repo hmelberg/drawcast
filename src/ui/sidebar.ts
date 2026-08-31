@@ -85,16 +85,27 @@ export function applySection(section: SidebarSection, model: SectionModel): void
  * as a `<details>` summary, its lectures inline when expanded — the exact
  * shape `refreshLibrary`'s per-course grouping used to build inside the
  * library, moved out and now driven by every saved course rather than only
- * the ones with a lecture already in view. `onOpen` fires on the same click
- * that expands/collapses it — the summary's native disclosure marker doubles
- * as the only "this is a course" affordance, so opening the panel and peeking
- * at the lectures are one gesture, not two competing targets.
+ * the ones with a lecture already in view. Two separate targets inside the
+ * one summary: the title button opens the course panel, the rest of the
+ * summary (its native disclosure marker included) is the free `<details>`
+ * toggle — so a lecture list can be peeked at without ever opening the
+ * panel over it.
  */
 export function courseGroup(course: SavedCourse, lectures: SavedDrawing[], row: (item: SavedDrawing) => HTMLElement, onOpen: () => void): HTMLDetailsElement {
   const group = h("details", { class: "library-course" });
   const title = course.title || "Course";
-  const summary = h("summary", {}, `🎓 ${title} — ${lectures.length} lecture${lectures.length === 1 ? "" : "s"}`);
-  summary.addEventListener("click", () => onOpen());
+  const titleBtn = h("button", { class: "library-open" }, `🎓 ${title}`);
+  titleBtn.addEventListener("click", (e) => {
+    // The <details> toggle is this click's DEFAULT ACTION, not a listener —
+    // stopPropagation alone would not stop it, so preventDefault is the one
+    // that matters here; stopPropagation is kept too, so opening the panel
+    // never also reaches some future listener on an ancestor.
+    e.preventDefault();
+    e.stopPropagation();
+    onOpen();
+  });
+  const count = h("span", { class: "row-note" }, `${lectures.length} lecture${lectures.length === 1 ? "" : "s"}`);
+  const summary = h("summary", {}, titleBtn, count);
   group.append(summary, ...lectures.map(row));
   return group;
 }

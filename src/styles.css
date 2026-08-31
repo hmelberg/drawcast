@@ -1595,13 +1595,19 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .course-open, .course-again { flex: none; }
 
 /* A course owns its lectures in the library rather than scattering ten rows
-   through everything else. */
+   through everything else. Two targets share this row: the title button
+   opens the course panel, the rest (its native caret included) toggles the
+   lecture list — so the button needs its own layout, not the summary's. */
 .library-course > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   cursor: pointer;
   font-size: 0.86rem;
   padding: 0.28rem 0.45rem;
   opacity: 0.85;
 }
+.library-course > summary .library-open { flex: 1; font: inherit; color: inherit; padding: 0; }
 .library-course[open] > summary { opacity: 1; }
 .library-course .library-item { padding-left: 1rem; }
 .course-done { border-left-color: #2e7d32; }
