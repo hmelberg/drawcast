@@ -32,6 +32,10 @@ describe("the touch tier", () => {
 
   it("grows the seek bar on touch, where :hover never fires", async () => {
     const block = /@media\s*\(hover:\s*none\)\s*\{([\s\S]*?)\n\}/.exec(await css())?.[1] ?? "";
+    // The visible track must stay 12px, but the box must actually grow past
+    // that (padding) — a test that only checked height would also pass
+    // against a version where the hit area is clipped away to nothing.
     expect(block).toMatch(/\.cs-progress\s*\{[^}]*height:\s*12px/);
+    expect(block).toMatch(/\.cs-progress\s*\{[^}]*padding:\s*14px 0/);
   });
 });
