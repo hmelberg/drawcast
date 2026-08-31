@@ -800,21 +800,19 @@ export function attachPlayerControls(
     foldPanel.hidden = !foldPanel.hidden;
   });
   foldPanel.addEventListener("click", (e) => e.stopPropagation());
-  // Same click-away idiom as the CC popover above: a persistent capture-phase
-  // listener rather than one added/removed per open, so this needs no
-  // teardown of its own — closing an already-hidden, detached panel from a
-  // stale render is a no-op, same reasoning as the figure listeners further
-  // down.
-  document.addEventListener(
-    "click",
-    (e) => {
-      if (foldPanel.hidden) return;
-      if (e.target instanceof Node && (foldPanel.contains(e.target) || foldTrigger.contains(e.target))) return;
-      foldPanel.hidden = true;
-      e.stopPropagation();
-    },
-    true,
-  );
+  // Unlike the CC popover's own click-away listener (which is scoped to
+  // elements that get removed wholesale on the next render, so it is left to
+  // die with them), foldTrigger/foldPanel are built unconditionally on every
+  // render now — including on desktop, where the fold never fires — so this
+  // one is deliberately torn down below, in the same foldTeardown disposer as
+  // the "change" listener, rather than left to accumulate one per render.
+  const onDocClick = (e: MouseEvent): void => {
+    if (foldPanel.hidden) return;
+    if (e.target instanceof Node && (foldPanel.contains(e.target) || foldTrigger.contains(e.target))) return;
+    foldPanel.hidden = true;
+    e.stopPropagation();
+  };
+  document.addEventListener("click", onDocClick, true);
 
   const bySlot: Record<SecondarySlot, HTMLElement | undefined> = { mode: modeSel, speed: speedSel, mute: muteBtn, captions: ccBtn };
   /** Arranges the bar between inline and folded. Called once for the render's
@@ -854,7 +852,14 @@ export function attachPlayerControls(
   const foldQuery = window.matchMedia("(max-width: 560px)");
   const onFoldChange = (e: MediaQueryListEvent): void => layout(e.matches);
   foldQuery.addEventListener("change", onFoldChange);
-  foldTeardown.set(stageHost, () => foldQuery.removeEventListener("change", onFoldChange));
+  // One disposer for both listeners this render added outside any element
+  // this function already removes wholesale (the "change" listener above,
+  // and onDocClick above that) — one lifetime, one teardown, run at the top
+  // of the next call to this function for this same stageHost.
+  foldTeardown.set(stageHost, () => {
+    foldQuery.removeEventListener("change", onFoldChange);
+    document.removeEventListener("click", onDocClick, true);
+  });
   layout(foldQuery.matches);
 
   // YouTube-like idle behavior: while playing, the controls fade out fully
