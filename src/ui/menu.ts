@@ -16,18 +16,41 @@ export function visibleItems(items: MenuItem[]): MenuItem[] {
   return items.filter((i) => !i.hidden);
 }
 
+/** Compose a label for a single-item menu: "Open from disk…" (not "From disk…").
+ *  Lowercases the item's first letter so it reads as one phrase. */
+export function soloLabel(verb: string, item: MenuItem): string {
+  const cleaned = verb.replace(/ ▾$/, "").trim();
+  const itemLabel = item.label.charAt(0).toLowerCase() + item.label.slice(1);
+  return `${cleaned} ${itemLabel}`.trim();
+}
+
 export function createMenu(label: string, items: MenuItem[], opts: { title?: string } = {}): HTMLElement {
   const live = visibleItems(items);
+  if (live.length === 0) {
+    // An empty menu contradicts the design rule: no credential, no advertisement.
+    return h("span", { class: "menu", hidden: "" });
+  }
   if (live.length === 1) {
-    const only = h("button", opts.title ? { title: opts.title } : {}, `${label.replace(/ ▾$/, "")} ${live[0].label}`.trim());
+    const only = h("button", opts.title ? { title: opts.title } : {}, soloLabel(label, live[0]));
     only.addEventListener("click", () => live[0].onSelect());
     return only;
   }
   const panel = h("div", { class: "menu-panel", hidden: "" });
   const trigger = h("button", { class: "menu-trigger", "aria-expanded": "false", ...(opts.title ? { title: opts.title } : {}) }, `${label} ▾`);
+  const root = h("span", { class: "menu" }, trigger, panel);
+  const onDocClick = (e: MouseEvent) => {
+    // The click that opened THIS menu lands inside it; anything else dismisses.
+    if (!root.contains(e.target as Node)) close();
+  };
   const close = (): void => {
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("click", onDocClick);
+  };
+  const open = (): void => {
+    panel.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    document.addEventListener("click", onDocClick);
   };
   for (const item of live) {
     const b = h("button", { class: "menu-item" }, item.label);
@@ -37,13 +60,8 @@ export function createMenu(label: string, items: MenuItem[], opts: { title?: str
     });
     panel.appendChild(b);
   }
-  trigger.addEventListener("click", (e) => {
-    e.stopPropagation();
-    panel.hidden = !panel.hidden;
-    trigger.setAttribute("aria-expanded", String(!panel.hidden));
+  trigger.addEventListener("click", () => {
+    panel.hidden ? open() : close();
   });
-  // Dismissal belongs on the document, not the trigger: a click anywhere else
-  // — including on another menu's trigger — has to close this one.
-  document.addEventListener("click", close);
-  return h("span", { class: "menu" }, trigger, panel);
+  return root;
 }
