@@ -771,10 +771,17 @@ export function attachPlayerControls(
   // DOM, and on a phone that overlay is the only thing standing between a
   // hidden bar and the tap that would answer the question — asking it here
   // is cheaper than plumbing a flag through every factory.
+  //
+  // A gate can open (or close) between one schedule call and the next with
+  // no scheduleIdle call in between — nothing re-evaluates the *already
+  // armed* timeout, so its callback re-checks shouldIdle itself rather than
+  // trusting the state it was armed under.
   const scheduleIdle = (ms = IDLE_MS) => {
     if (idleTimer !== null) window.clearTimeout(idleTimer);
     if (!shouldIdle({ playing, gateOpen: gateIsOpen(stage) })) return;
-    idleTimer = window.setTimeout(() => setIdle(true), ms);
+    idleTimer = window.setTimeout(() => {
+      if (shouldIdle({ playing, gateOpen: gateIsOpen(stage) })) setIdle(true);
+    }, ms);
   };
   const activity = () => {
     setIdle(false);
@@ -787,6 +794,21 @@ export function attachPlayerControls(
   figure.addEventListener("pointerleave", () => {
     if (playing) scheduleIdle(600);
   });
+  // A gate opening or closing is not itself a pointer event — five of the
+  // six factories answer on "click" (which a bar-revealing pointerdown
+  // precedes in the same gesture, so those self-heal), but the piano gate
+  // answers on "pointerdown" and stops it from bubbling to figure, and the
+  // quiz card removes itself on a timeout (CARD_LINGER_MS) with no gesture
+  // at all. Rather than special-case those, watch stage itself: every gate,
+  // the piano key guide, and info cards all mount as its direct children, so
+  // observing stage's own childList (not its subtree, which is where the
+  // SVG repaints on every frame during normal playback) catches every
+  // open/close uniformly and re-runs activity() — which un-hides a bar that
+  // had already faded and, via scheduleIdle, leaves it alone while a gate
+  // still stands. No teardown call: like the figure listeners above, this
+  // observer is scoped to this render's own stage, and dies with it.
+  const gateWatch = new MutationObserver(activity);
+  gateWatch.observe(stage, { childList: true });
 
   hd.timeline.inputGate = clickGate(stage);
   hd.timeline.quizGate = quizGateFor(stage);
