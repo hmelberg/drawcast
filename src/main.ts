@@ -881,6 +881,16 @@ const sidebar = h(
             if (saved) setDoc(docFromSaved(saved), `Loaded "${saved.title}".`);
           },
           refreshLibrary: () => refreshLibrary(),
+          settings,
+          persist,
+          setStatusAction,
+          refreshAccountRow,
+          openSettings,
+          renderVideo,
+          beginExport,
+          setProgress: (text) => (exportChipText.textContent = text),
+          endExport,
+          setAbort: (c) => (exportAbort = c),
         }),
       );
       return b;

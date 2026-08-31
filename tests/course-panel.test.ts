@@ -69,6 +69,31 @@ describe("the panel's own source", () => {
   });
 });
 
+describe("the course modal's regions", () => {
+  it("no longer runs twelve controls in one bar — the picker, persistence and\n     history have left it", async () => {
+    const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+    const bar = src.slice(src.indexOf('class: "pane-bar"'));
+    const line = bar.slice(0, bar.indexOf("\n", bar.indexOf("pane-spacer")));
+    for (const gone of ["courseSel", "newBtn", "saveBtn", "publishBtn", "bakeLabel", "backupBtn", "undoBtn", "matchBtn"]) {
+      expect(line).not.toContain(gone);
+    }
+    for (const kept of ["planBtn", "reviseBtn", "runBtn", "cancelBtn"]) {
+      expect(line).toContain(kept);
+    }
+  });
+
+  it("has no second copy of the publish checkbox — Share asks it once", async () => {
+    const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+    expect(src).not.toContain("with narration");
+    expect(src).not.toContain("course-bake");
+  });
+
+  it("no longer offers an app-global backup from inside one course", async () => {
+    const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/⬇ Backup/);
+  });
+});
+
 describe("the course modal's width", () => {
   // The base `dialog` rule used to cap every dialog at 30rem. Setting `width`
   // alone on .course-modal did nothing, twice, because the cap is a different

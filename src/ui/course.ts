@@ -14,7 +14,7 @@ import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
-import { formatPlaylist, formatPublished, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
+import { DEFAULT_META, formatPlaylist, formatPublished, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { bakeNarration, bakeSize } from "../export/bake";
 import { synthesizeBase64 } from "../export/tts";
@@ -23,6 +23,7 @@ import { parseRepo, readFile } from "../publish/github";
 import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
+import { openShare, type ShareDeps } from "./share";
 
 export function lectureRowLabel(lecture: CourseLecture): string {
   const status = lecture.status;
@@ -38,7 +39,18 @@ export function costPreview(course: Course): string {
   return `${pending} lecture${pending === 1 ? "" : "s"} to generate — about ${calls} AI calls.`;
 }
 
-export interface CoursePanelDeps {
+/**
+ * The Share fields this panel forwards unchanged into `openShare()` now that
+ * the narration checkbox and Publish live in Share instead of this file
+ * (§2, §8). Picked from `ShareDeps` rather than re-typed here, so the two can
+ * never drift apart.
+ */
+type CourseShareDeps = Pick<
+  ShareDeps,
+  "settings" | "persist" | "setStatusAction" | "refreshAccountRow" | "openSettings" | "renderVideo" | "beginExport" | "setProgress" | "endExport" | "setAbort"
+>;
+
+export interface CoursePanelDeps extends CourseShareDeps {
   apiKey: () => string;
   model: () => string;
   variant: () => PromptVariant;
@@ -68,7 +80,13 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     return;
   }
 
-  const modal = createModal("Course", { size: "l", class: "course-modal" });
+  // Saved courses were reachable only in localStorage: the panel started empty
+  // on every page load, so a course that HAD been saved looked lost. This is
+  // how you get it back. Head content, not action — which document is open is
+  // context, not a working verb.
+  const courseSel = h("select", { class: "small course-pick", title: "Saved courses" }) as HTMLSelectElement;
+  const newBtn = h("button", { class: "small", title: "Start a new, empty course" }, "＋ New");
+  const modal = createModal("🎓 Course", { size: "l", class: "course-modal", head: [courseSel, newBtn] });
   const doc = h("textarea", {
     class: "course-doc",
     spellcheck: "false",
@@ -90,31 +108,18 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   const links = h("div", { class: "course-links" });
   links.hidden = true;
 
-  // Saved courses were reachable only in localStorage: the panel started empty
-  // on every page load, so a course that HAD been saved looked lost. This is
-  // how you get it back.
-  const courseSel = h("select", { class: "small course-pick", title: "Saved courses" }) as HTMLSelectElement;
-  const newBtn = h("button", { class: "small", title: "Start a new, empty course" }, "＋ New");
   const planBtn = h("button", { class: "small" }, "✦ Plan");
   const reviseBtn = h("button", { class: "small" }, "✎ Revise");
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
   const saveBtn = h("button", { class: "small" }, "💾 Save");
-  const publishBtn = h("button", { class: "small", title: "Publish this course to your GitHub repository" }, "⬆ Publish");
-  // Baking the narration into the published files is what lets a student play
-  // the course with no key of their own: synthesized once here, by the author,
-  // instead of once per viewer. Off by default — it spends the TTS budget.
-  const bakeCb = h("input", { type: "checkbox", id: "course-bake" }) as HTMLInputElement;
-  const bakeLabel = h(
-    "label",
-    { class: "quiet-label", for: "course-bake", title: "Synthesize the narration once and publish it inside each lecture, so viewers need no key" },
-    bakeCb,
-    "with narration",
-  );
+  const shareBtn = h("button", { class: "small" }, "↗ Share");
   const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
   matchBtn.hidden = true;
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
   const cancelBtn = h("button", { class: "small course-cancel", title: "Stop everything this panel has in flight" }, "✕ Cancel");
-  cancelBtn.hidden = true;
+  // Keeps its slot rather than disappearing, so the row stops reflowing under
+  // the cursor while the author works — disabled when nothing is in flight.
+  cancelBtn.disabled = true;
   undoBtn.hidden = true;
 
   let courseId: string | null = null;
@@ -141,10 +146,11 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     reviseBtn.disabled = busy;
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
-    publishBtn.disabled = busy;
-    bakeCb.disabled = busy;
+    // Same guard publishBtn used to carry: publish() reads and rewrites
+    // doc.value, same as plan/revise/a run, so it must not overlap them.
+    shareBtn.disabled = busy;
     undoBtn.disabled = busy;
-    cancelBtn.hidden = !busy;
+    cancelBtn.disabled = !busy;
   }
 
   function begin(): AbortController {
@@ -186,6 +192,17 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   function working(text: string): void {
     status.textContent = text;
     status.classList.remove("course-status-error");
+  }
+
+  /**
+   * Adapts this panel's status reporter for Share, which also accepts
+   * "info" (deps.setStatus here does not — every caller in this file only
+   * ever says "ok" or "error"). "info" maps to omitting the kind, which is
+   * exactly what "info" already means to the real function underneath
+   * (main.ts's `setStatus` defaults to "info" when none is given).
+   */
+  function shareStatus(text: string, kind?: "info" | "error" | "ok"): void {
+    deps.setStatus(text, kind === "info" ? undefined : kind);
   }
 
   /** Remember the pre-change text so one bad revision is never the end of it. */
@@ -586,7 +603,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     bakedTotal = 0;
     const settings = loadSettings();
     const apiKey = getTtsKey();
-    if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
+    if (!apiKey) throw new Error("Baking in narration needs a Google TTS key — add one in Settings.");
     const repo = parseRepo(settings.githubRepo);
     const out = new Map<number, string>();
     const numbered = course.lectures.map((_, i) => i).filter((i) => yamlFor(i) !== null);
@@ -630,7 +647,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
    * so it reports both URLs on the panel's own line, and the one-time Pages
    * instruction the first time a repo is written to.
    */
-  async function publish(): Promise<void> {
+  async function publish(bake: boolean): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -657,7 +674,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       // Bake BEFORE the commit, so a cancelled or failed bake leaves the repo
       // untouched rather than half-published. The result replaces each
       // lecture's text; everything downstream is unchanged.
-      const baked = bakeCb.checked ? await bakeLectures(course, yamlFor, controller.signal) : null;
+      const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);
       const out = await publishCourse({
         text: doc.value,
@@ -763,9 +780,37 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   });
 
   planBtn.addEventListener("click", () => void plan());
-  publishBtn.addEventListener("click", () => void publish());
   reviseBtn.addEventListener("click", () => void revise());
   runBtn.addEventListener("click", () => void run());
+  shareBtn.addEventListener("click", () => {
+    openShare({
+      subject: "course",
+      // Share's own setup (prepPanels) reads doc() once per open no matter
+      // which destination ends up offered — and a course has no playlist of
+      // its own to hand over truthfully. This states that honestly (an empty
+      // playlist) rather than inventing lecture content to fill the type.
+      // Only Link is offered for subject "course" (shareDestinations), and
+      // Link's Publish button never reads doc() at all — it calls
+      // deps.publish(bake) below, which is this file's own publish().
+      doc: () => ({
+        title: parseCourse(doc.value).title || "Untitled course",
+        playlist: { meta: { ...DEFAULT_META }, entries: [], warnings: [] },
+      }),
+      settings: deps.settings,
+      persist: deps.persist,
+      setStatus: shareStatus,
+      setStatusAction: deps.setStatusAction,
+      refreshLibrary: deps.refreshLibrary,
+      refreshAccountRow: deps.refreshAccountRow,
+      openSettings: deps.openSettings,
+      publish,
+      renderVideo: deps.renderVideo,
+      beginExport: deps.beginExport,
+      setProgress: deps.setProgress,
+      endExport: deps.endExport,
+      setAbort: deps.setAbort,
+    });
+  });
   undoBtn.addEventListener("click", () => {
     if (previous === null) return;
     const restored = previous;
@@ -816,7 +861,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
     ask,
-    h("div", { class: "pane-bar" }, courseSel, newBtn, planBtn, reviseBtn, runBtn, cancelBtn, matchBtn, saveBtn, publishBtn, bakeLabel, undoBtn, h("span", { class: "pane-spacer" }), cost),
+    h("div", { class: "pane-bar" }, planBtn, reviseBtn, runBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
     // Messages sit with the buttons that produce them; the document and the
     // lecture list share the width below, side by side when there is room.
     status,
@@ -828,6 +873,9 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
       h("div", { class: "course-rows-col" }, rows),
     ),
   );
+  // Undo/Match on the left — a reflow there moves nothing the author is
+  // aiming at; Save/Share on the right, primary last.
+  modal.footer.append(h("span", { class: "footer-left" }, undoBtn, matchBtn), saveBtn, shareBtn);
   document.body.append(modal.dialog);
   panel = modal;
   reopen = () => {
