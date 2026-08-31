@@ -100,7 +100,7 @@ export function applySection(section: SidebarSection, model: SectionModel): void
  * toggle — so a lecture list can be peeked at without ever opening the
  * panel over it.
  */
-export function courseGroup(course: SavedCourse, lectures: SavedDrawing[], row: (item: SavedDrawing) => HTMLElement, onOpen: () => void): HTMLDetailsElement {
+export function courseGroup(course: SavedCourse, lectures: SavedDrawing[], row: (item: SavedDrawing) => HTMLElement, onOpen: (id: string) => void): HTMLDetailsElement {
   const group = h("details", { class: "library-course" });
   const title = course.title || "Course";
   const titleBtn = h("button", { class: "library-open" }, `🎓 ${title}`);
@@ -111,7 +111,7 @@ export function courseGroup(course: SavedCourse, lectures: SavedDrawing[], row: 
     // never also reaches some future listener on an ancestor.
     e.preventDefault();
     e.stopPropagation();
-    onOpen();
+    onOpen(course.id);
   });
   const count = h("span", { class: "row-note" }, `${lectures.length} lecture${lectures.length === 1 ? "" : "s"}`);
   const summary = h("summary", {}, titleBtn, count);

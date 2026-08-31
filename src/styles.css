@@ -858,6 +858,14 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   gap: 1rem;
   margin-bottom: 0.6rem;
 }
+/* Title plus any head extras (the course modal's picker/＋New) as one group,
+   so space-between above puts only the ✕ on the far right. */
+.dialog-head-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
 .dialog-head h3 { margin: 0; }
 .dialog-x {
   border: none;

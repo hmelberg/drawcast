@@ -46,7 +46,12 @@ export function dialogHead(dlg: HTMLDialogElement, title: string, opts: ModalOpt
       if (!inside) dlg.close();
     });
   }
-  return h("div", { class: "dialog-head" }, h("h3", {}, title), ...(opts.head ?? []), x);
+  // .dialog-head is `justify-content: space-between` (title vs. ✕), so `head`
+  // extras (the course modal's saved-course picker and "＋ New") must be
+  // grouped WITH the title in one child, not appended as siblings of it —
+  // otherwise space-between spreads title/head/✕ across the row as three
+  // separate groups instead of "title + head" on the left, ✕ alone on the right.
+  return h("div", { class: "dialog-head" }, h("div", { class: "dialog-head-main" }, h("h3", {}, title), ...(opts.head ?? [])), x);
 }
 
 export interface Modal {

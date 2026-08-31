@@ -543,8 +543,21 @@ function matchesFilter(text: string): boolean {
 
 function onSectionToggle(id: string): (open: boolean) => void {
   return (open) => {
-    settings.sidebarSections[id] = open;
-    persist();
+    // sidebarSections() forces a section open whenever the filter has hits
+    // for it, regardless of what is remembered (ui/sidebar.ts). A toggle
+    // fired while that override is in effect reflects the filtered VIEW, not
+    // the author's actual preference — persisting it would be the inverse
+    // failure of spec §5's "a filter never closes one the author opened":
+    // type a search, collapse a section that only looks open because of the
+    // filter, clear the search, and find it stayed collapsed forever. So a
+    // toggle is recorded only when the filter is not the reason this section
+    // is currently open.
+    const model = sidebarSections(sidebarInput(), sidebarFilter, settings.sidebarSections).find((m) => m.id === id);
+    const filterForced = sidebarFilter !== "" && !!model && model.shown > 0;
+    if (!filterForced) {
+      settings.sidebarSections[id] = open;
+      persist();
+    }
     refreshSidebarShell();
   };
 }
@@ -1183,7 +1196,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "label",
         { class: "settings-check" },
         burnCaptionsCb,
-        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in the upload dialog.",
+        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in Share's YouTube panel.",
       ),
     ),
   ],
@@ -1250,7 +1263,6 @@ const settingsBlocks = new Map<string, HTMLElement>([
     h(
       "div",
       { class: "settings-field" },
-      h("label", {}, "Advanced"),
       h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, the full lint list and the Data panel"),
     ),
   ],
@@ -1335,7 +1347,7 @@ const authorRefineEl = h("textarea", { placeholder: "Refine it… e.g. \"make th
 const authorRefineBtn = h("button", { hidden: "" }, "Refine");
 const authorSaveBtn = h("button", { class: "primary", hidden: "" }, "Save to My templates");
 
-const authorModal = createModal("✦ New template", { size: "m", class: "author-dialog" });
+const authorModal = createModal("✦ New template", { size: "m" });
 const authorDialog = authorModal.dialog;
 authorModal.body.append(
   authorDescEl,
@@ -2691,14 +2703,17 @@ function refreshCourses(): void {
   }
   for (const { course, lectures } of shown) {
     const visible = matchesFilter(course.title) ? lectures : lectures.filter((l) => matchesFilter(l.title));
-    coursesSection.list.appendChild(courseGroup(course, visible, row, openCourse));
+    coursesSection.list.appendChild(courseGroup(course, visible, row, (id) => openCourse(id)));
   }
 }
 
 /** Opens the course panel — the "＋ New course" row and every course row in
  *  the Courses section share this one call site; the panel itself offers the
- *  saved-course picker and ＋ New once open. */
-function openCourse(): void {
+ *  saved-course picker and ＋ New once open. `id` names the course a
+ *  sidebar row was clicked for, so the panel loads THAT course rather than
+ *  whichever one it last happened to have open — omitted by "＋ New course",
+ *  which leaves the panel wherever it already was. */
+function openCourse(id?: string): void {
   openCoursePanel({
     apiKey: () => getApiKey(),
     model: () => settings.model,
@@ -2721,7 +2736,7 @@ function openCourse(): void {
     setProgress: (text) => (exportChipText.textContent = text),
     endExport,
     setAbort: (c) => (exportAbort = c),
-  });
+  }, id);
 }
 
 refreshLibrary();

@@ -577,8 +577,19 @@ function build(): ShareSession {
   let railButtons: HTMLButtonElement[] = [];
 
   function selectDestination(id: ShareTo): void {
-    current.settings.shareTo = id;
-    current.persist();
+    // Only a drawcast's choice is worth remembering. A course offers Link
+    // alone (shareDestinations filters to `courses: true` destinations only),
+    // so refresh() calling this on every open would overwrite the editor's
+    // remembered destination with "link" every time Share is opened from the
+    // course panel — silently defeating "Share → Enter" repeat-publish for
+    // an author whose drawcast destination was YouTube. `deps.settings` is
+    // the app's one Settings object either way (course.ts's openCoursePanel
+    // is handed the same `settings` main.ts passes for a drawcast), so this
+    // is the one place that has to tell the two subjects apart.
+    if (current.subject === "drawcast") {
+      current.settings.shareTo = id;
+      current.persist();
+    }
     // Every panel, not just the ones in `destinations` — a filtered-out
     // destination's panel has never had `.hidden` touched otherwise, and
     // stays visible by default (the bug this pure function pins).

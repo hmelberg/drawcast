@@ -602,6 +602,12 @@ export function attachPlayerControls(
   let ccBtn: HTMLButtonElement | undefined;
   let theaterBtn: HTMLButtonElement | undefined;
   let fsBtn: HTMLButtonElement | undefined;
+  // The CC popover's click-away listener (below, inside `if (opts.captions)`)
+  // is document-scoped like the fold's onDocClick — it does NOT die with the
+  // elements it closes over, so it is named here and torn down in the same
+  // foldTeardown disposer as onDocClick, rather than left to accumulate one
+  // per attachPlayerControls call (per item mount, and per editor re-render).
+  let onCcDocClick: ((e: MouseEvent) => void) | undefined;
 
   if (opts.speech) {
     const speech = opts.speech;
@@ -724,16 +730,15 @@ export function attachPlayerControls(
     // pausing the drawcast are two different intentions, and one click should
     // not be read as both. Capture phase on the document so this runs before
     // the stage's own handlers, and stopPropagation so none of them see it.
-    document.addEventListener(
-      "click",
-      (e) => {
-        if (menu.hidden) return;
-        if (e.target instanceof Node && (menu.contains(e.target) || ccBtnEl.contains(e.target))) return;
-        closeMenu();
-        e.stopPropagation();
-      },
-      true,
-    );
+    // Named, not inline: it is torn down below (foldTeardown.set), not left
+    // to die with this render's elements — see onCcDocClick's declaration.
+    onCcDocClick = (e) => {
+      if (menu.hidden) return;
+      if (e.target instanceof Node && (menu.contains(e.target) || ccBtnEl.contains(e.target))) return;
+      closeMenu();
+      e.stopPropagation();
+    };
+    document.addEventListener("click", onCcDocClick, true);
     menu.addEventListener("click", (e) => e.stopPropagation());
 
     onCb.addEventListener("change", () => {
@@ -792,8 +797,8 @@ export function attachPlayerControls(
   // createMenu would mean rebuilding them as new, disconnected controls. This
   // reuses the same .menu/.menu-panel look instead, mirroring the CC popover
   // pattern already used a few lines above.
-  const foldTrigger = h("button", { class: "cs-bar-btn menu-trigger", title: "More controls" }, "⋯");
-  const foldPanel = h("div", { class: "menu-panel cs-overflow-panel", hidden: "" });
+  const foldTrigger = h("button", { class: "cs-bar-btn", title: "More controls" }, "⋯");
+  const foldPanel = h("div", { class: "menu-panel", hidden: "" });
   const foldRoot = h("span", { class: "menu" }, foldTrigger, foldPanel);
   foldTrigger.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -852,13 +857,19 @@ export function attachPlayerControls(
   const foldQuery = window.matchMedia("(max-width: 560px)");
   const onFoldChange = (e: MediaQueryListEvent): void => layout(e.matches);
   foldQuery.addEventListener("change", onFoldChange);
-  // One disposer for both listeners this render added outside any element
+  // One disposer for every listener this render added outside any element
   // this function already removes wholesale (the "change" listener above,
-  // and onDocClick above that) — one lifetime, one teardown, run at the top
-  // of the next call to this function for this same stageHost.
+  // onDocClick above that, and the CC popover's own click-away listener,
+  // which is the third of this exact shape — the CC popover's `menu` is
+  // rebuilt on every attachPlayerControls call, but the OLD `onCcDocClick`
+  // stayed registered on `document` pointing at the old, detached `menu`
+  // and `ccBtnEl`, silently swallowing clicks whenever its stale `menu.hidden`
+  // read false) — one lifetime, one teardown, run at the top of the next
+  // call to this function for this same stageHost.
   foldTeardown.set(stageHost, () => {
     foldQuery.removeEventListener("change", onFoldChange);
     document.removeEventListener("click", onDocClick, true);
+    if (onCcDocClick) document.removeEventListener("click", onCcDocClick, true);
   });
   layout(foldQuery.matches);
 

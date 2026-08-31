@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { costPreview, lectureRowLabel } from "../src/ui/course";
+import { costPreview, lectureRowLabel, resolveOpenCourseId } from "../src/ui/course";
 
 const DOC = `# T
 ---
@@ -39,6 +39,32 @@ describe("costPreview", () => {
   it("says nothing is left when every lecture is done", () => {
     const all = DOC.replace("#parts=3", "#parts=3\nstatus: done · id: b1");
     expect(costPreview(parseCourse(all)).toLowerCase()).toContain("nothing");
+  });
+});
+
+describe("resolveOpenCourseId", () => {
+  const saved = [{ id: "micro" }, { id: "causal" }];
+
+  it("opens the requested course, not whatever the panel had loaded last — the headline bug", () => {
+    // With two saved courses, clicking "Micro I" in the sidebar must load
+    // Micro I, even though "Causal inference" (courses[1] here) is the one
+    // that would win the old saved[0]-only fallback.
+    expect(resolveOpenCourseId("micro", saved)).toBe("micro");
+    expect(resolveOpenCourseId("causal", saved)).toBe("causal");
+  });
+
+  it("falls back to the newest saved course when nothing was requested", () => {
+    // saveCourse unshifts, so saved[0] is the newest — this is the
+    // "＋ New course" row and every other unspecific call site.
+    expect(resolveOpenCourseId(undefined, saved)).toBe("micro");
+  });
+
+  it("loads nothing rather than guessing when the requested course is gone", () => {
+    expect(resolveOpenCourseId("deleted", saved)).toBeNull();
+  });
+
+  it("loads nothing when nothing is saved at all", () => {
+    expect(resolveOpenCourseId(undefined, [])).toBeNull();
   });
 });
 

@@ -81,21 +81,40 @@ describe("the modal size scale", () => {
   });
 });
 
-import { readFile as read2 } from "node:fs/promises";
+import { readdir, readFile as read2 } from "node:fs/promises";
 
 describe("every dialog goes through the helper", () => {
   it("nothing builds a bare <dialog> outside createModal — that is how\n     Settings lost its scroll cap", async () => {
-    for (const f of ["../src/main.ts", "../src/ui/course.ts"]) {
+    // Widened from just main.ts + course.ts to every ui/*.ts (modal.ts
+    // excepted — createModal itself is the one legitimate h("dialog", …)):
+    // a hand-built dialog in, say, share.ts would have passed the narrower
+    // scan silently.
+    const uiDir = new URL("../src/ui/", import.meta.url);
+    const uiFiles = (await readdir(uiDir)).filter((f) => f.endsWith(".ts") && f !== "modal.ts");
+    const targets = ["../src/main.ts", ...uiFiles.map((f) => `../src/ui/${f}`)];
+    expect(targets.length).toBeGreaterThan(10); // the scan itself must not silently shrink to nothing
+    for (const f of targets) {
       const src = await read2(new URL(f, import.meta.url), "utf8");
-      expect(src).not.toMatch(/h\(\s*"dialog"/);
+      expect(src, f).not.toMatch(/h\(\s*"dialog"/);
     }
   });
 });
 
 describe("portrait insertion", () => {
   it("no longer asks for a portrait through a raw browser prompt", async () => {
-    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(src).not.toMatch(/window\.prompt\("Portrait/);
+    // Relaxed from a literal `window.prompt("Portrait` match (the spec's
+    // actual rule is broader: no window.prompt( at all in the portrait
+    // path) — but scoped to ui/insert.ts, the module that actually IS the
+    // portrait path, rather than all of main.ts: main.ts has its own
+    // unrelated, legitimate window.prompt() (renaming a saved prompt), and
+    // a whole-file scan would either miss a regression hiding behind a
+    // different message string or false-positive on that unrelated call.
+    // Line comments are stripped first — this very file's own history
+    // comments mention "the deleted window.prompt() flow" in prose, which a
+    // raw scan would misread as the call itself.
+    const src = await read2(new URL("../src/ui/insert.ts", import.meta.url), "utf8");
+    const code = src.replace(/\/\/.*$/gm, "");
+    expect(code).not.toMatch(/window\.prompt\(/);
   });
 });
 

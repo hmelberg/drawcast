@@ -70,13 +70,43 @@ export interface CoursePanelDeps extends CourseShareDeps {
 let panel: { dialog: HTMLDialogElement; open: () => void } | null = null;
 /** Re-syncs the button states when the panel is reopened mid-run. */
 let reopen: (() => void) | null = null;
+/** Loads a saved course by id into the already-built panel — set once the
+ *  panel exists, called again on a later `openCoursePanel(deps, id)` while
+ *  it is still open (or merely reopened). */
+let loadCourseRef: ((id: string) => void) | null = null;
 /** Repos published to in this session — the Pages note is shown only once each. */
 const published = new Set<string>();
 
-export function openCoursePanel(deps: CoursePanelDeps): void {
+/**
+ * Which saved course the panel should load when opened. Pure so the decision
+ * — the one thing that was never actually asserted, letting a course row
+ * open whatever the panel last happened to have loaded instead of the course
+ * that was clicked — can be pinned by a test with no DOM at all. An explicit
+ * request wins whenever that course still exists; otherwise fall back to the
+ * newest saved course (saveCourse unshifts, so `saved[0]` is newest), or
+ * nothing when there is nothing saved.
+ */
+export function resolveOpenCourseId(requestedId: string | undefined, saved: { id: string }[]): string | null {
+  if (requestedId && saved.some((c) => c.id === requestedId)) return requestedId;
+  if (requestedId) return null; // asked for a course that is gone — load nothing rather than guess
+  return saved[0]?.id ?? null;
+}
+
+/** `openId` names a specific saved course to open — the sidebar's course
+ *  rows pass their own id, so clicking "Micro I" opens Micro I even when
+ *  another course was loaded last. Omitted (the "＋ New course" row, and
+ *  every other call site) leaves the previous behaviour: reopen wherever the
+ *  panel already was, or load the newest saved course on first open. Named
+ *  differently from the panel's own internal `courseId` (the currently-open
+ *  course, tracked below) so the two are never confused. */
+export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   if (panel) {
     panel.open();
     reopen?.();
+    if (openId) {
+      const toLoad = resolveOpenCourseId(openId, loadCourses());
+      if (toLoad) loadCourseRef?.(toLoad);
+    }
     return;
   }
 
@@ -86,7 +116,7 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
   // context, not a working verb.
   const courseSel = h("select", { class: "small course-pick", title: "Saved courses" }) as HTMLSelectElement;
   const newBtn = h("button", { class: "small", title: "Start a new, empty course" }, "＋ New");
-  const modal = createModal("🎓 Course", { size: "l", class: "course-modal", head: [courseSel, newBtn] });
+  const modal = createModal("🎓 Course", { size: "l", head: [courseSel, newBtn] });
   const doc = h("textarea", {
     class: "course-doc",
     spellcheck: "false",
@@ -893,8 +923,10 @@ export function openCoursePanel(deps: CoursePanelDeps): void {
     syncBusy();
     render();
   };
+  loadCourseRef = loadCourse;
   const saved = loadCourses();
-  if (saved.length > 0) loadCourse(saved[0].id); // newest first: saveCourse unshifts
+  const toLoad = resolveOpenCourseId(openId, saved);
+  if (toLoad) loadCourse(toLoad);
   else refreshCourseList();
   render();
   modal.open();

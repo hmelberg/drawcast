@@ -163,15 +163,18 @@ function build(): InsertSession {
     const result = portraitInsert(playlist, { source, part, cameo, afterStep });
     const els = itemsOf(result)[part]?.spec.elements ?? [];
     const el = els[els.length - 1];
-    current.applyPlaylist(result);
     if (el) {
+      current.applyPlaylist(result);
       current.setStatus(`Portrait "${el.id}" inserted into "${itemTitle(itemsOf(result)[part])}".`, "ok");
       modal.dialog.close();
     } else {
       // The chosen part no longer exists in this fresh read — the text
       // changed out from under the dialog while it waited. Leave the dialog
-      // open (nothing to undo — applyPlaylist above wrote back the playlist
-      // unchanged) so the user can pick a part that still exists and retry.
+      // open AND leave the editor text untouched — applyPlaylist must not
+      // run here: `result` is semantically the same playlist, but formatting
+      // it back out can still change the TEXT (whitespace/ordering), which
+      // would reformat the editor after inserting nothing. Nothing to undo,
+      // so the user can pick a part that still exists and retry.
       current.setStatus("That part no longer exists in the current text — nothing was inserted.", "error");
     }
   };

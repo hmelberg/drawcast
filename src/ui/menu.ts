@@ -36,7 +36,7 @@ export function createMenu(label: string, items: MenuItem[], opts: { title?: str
     return only;
   }
   const panel = h("div", { class: "menu-panel", hidden: "" });
-  const trigger = h("button", { class: "menu-trigger", "aria-expanded": "false", ...(opts.title ? { title: opts.title } : {}) }, `${label} ▾`);
+  const trigger = h("button", { "aria-expanded": "false", ...(opts.title ? { title: opts.title } : {}) }, `${label} ▾`);
   const root = h("span", { class: "menu" }, trigger, panel);
   const onDocClick = (e: MouseEvent) => {
     // The click that opened THIS menu lands inside it; anything else dismisses.
