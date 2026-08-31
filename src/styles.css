@@ -622,13 +622,13 @@ details > summary { cursor: pointer; color: var(--muted); }
   /* The bar a finger scrubs. overflow:hidden clips the fill to the track's
      rounded ends, and it clips a ::before reaching outside just as
      effectively — so the hit area has to come from the element's own box.
-     content-box padding grows what a thumb can land on to 40px while
-     background-clip keeps the visible track 12px, and seeking is unaffected
-     because it maps the X axis alone. */
+     content-box padding grows what a thumb can land on to the --tap minimum
+     (12 + 16 + 16 = 44px) while background-clip keeps the visible track
+     12px, and seeking is unaffected because it maps the X axis alone. */
   .cs-progress {
     box-sizing: content-box;
     height: 12px;
-    padding: 14px 0;
+    padding: 16px 0;
     background-clip: content-box;
     overflow: visible;
   }

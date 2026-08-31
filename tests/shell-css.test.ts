@@ -34,8 +34,12 @@ describe("the touch tier", () => {
     const block = /@media\s*\(hover:\s*none\)\s*\{([\s\S]*?)\n\}/.exec(await css())?.[1] ?? "";
     // The visible track must stay 12px, but the box must actually grow past
     // that (padding) — a test that only checked height would also pass
-    // against a version where the hit area is clipped away to nothing.
+    // against a version where the hit area is clipped away to nothing. And
+    // box-sizing: content-box has to hold, or the global border-box default
+    // turns "height: 12px" back into the *total* box and the 32px of padding
+    // eats the content box instead of adding to it — same silent collapse.
+    expect(block).toMatch(/\.cs-progress\s*\{[^}]*box-sizing:\s*content-box/);
     expect(block).toMatch(/\.cs-progress\s*\{[^}]*height:\s*12px/);
-    expect(block).toMatch(/\.cs-progress\s*\{[^}]*padding:\s*14px 0/);
+    expect(block).toMatch(/\.cs-progress\s*\{[^}]*padding:\s*16px 0/);
   });
 });
