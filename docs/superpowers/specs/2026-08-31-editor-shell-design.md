@@ -27,6 +27,12 @@ the list. And make the design and layout more consistent and professional."*
    the bars, applied to the other half of the surface. The course modal is
    the worst offender in the app and is restructured; Settings gains the
    scroll cap it never had.
+8. **Make the player work on a phone, and the editor survive one.** The
+   player is what a stranger opens on a phone and gets first call: 44px tap
+   targets, a seek bar a finger can hit, and a control bar that folds instead
+   of wrapping. The editor is a workbench — it gets the drawing above the
+   fold, bottom sheets, and the same touch tier, without pretending a 390px
+   screen is a good place to write specs.
 
 ## Non-goals
 
@@ -420,7 +426,89 @@ Defaults: `shareTo: "link"`, `sidebarSections: {}`.
 The portrait dialog's default part is deliberately **not** a setting — it is
 read from the live playlist when the dialog opens.
 
-## 10. Testing
+## 10. The phone — the player first
+
+Hans: *"especially player should work on cell phone. editor may be more
+difficult to fit well. May consider hamburger menu system."* So this section
+is ordered by that: the player is a product a stranger opens on a phone, the
+editor is a workbench its author uses at a desk.
+
+### 10.1 What already works
+
+Not unconsidered. `.editor-split` collapses to one column at 940px
+(`styles.css:292`), the sidebar becomes a fixed drawer with a backdrop at the
+same width (`styles.css:395–414`), the wordmark hides and padding shrinks at
+560px, the generate row goes ragged-left at 560px, `@media (hover: none)`
+un-hides the library delete button (`styles.css:565`), the control bar already
+wraps rather than overflows with a comment saying why (`styles.css:646`), the
+viewport meta is right (`index.html:5`), and **fullscreen is the best-reasoned
+code in the file** — it explicitly handles "a phone held upright"
+(`styles.css:179–188`).
+
+### 10.2 What breaks in the player
+
+- **Every control bar button is ~27px.** `.cs-bar-btn` is
+  `padding: 0.15rem 0.3rem; font-size: 1.02rem` (`styles.css:681`) — play,
+  step back, step forward, mute, CC, theater and fullscreen, all ~27px with a
+  ~7px gap between them. iOS asks 44, Material 48.
+- **The seek bar is 6px and only grows on hover.** `.cs-progress` is `height:
+  6px` with `:hover { height: 9px }` (`styles.css:697–705`). Touch has no
+  hover, so the *primary* seek affordance stays a 6px ribbon under a fingertip.
+- **The bar holds up to eleven items** — play, back, forward, mute, progress,
+  step counter, mode select, speed select, CC, theater, fullscreen
+  (`ui/controls.ts:730–743`) — so it wraps to two or three rows on a 390px
+  screen, with two `<select>`s at `0.75rem` in the middle of it.
+- **Theater mode does nothing on a phone.** `.player-wrap` is already
+  `min(780px, 100%)`, so `▭` is a control that cannot change anything.
+- **A hidden bar may be unreachable during a question.** The controls fade to
+  `opacity: 0; pointer-events: none` after 2800ms of pointer stillness
+  (`ui/controls.ts:750–771`) — which on a phone is *always*, since a finger
+  that is not touching generates no `pointermove`. They return on
+  `pointerdown` anywhere on the figure. But when a `figureGate` question is
+  active, a tap on the figure **is** the answer. Mechanism traced in the
+  source, **not yet confirmed live** — first job of the implementation is to
+  reproduce it on a real phone before fixing it.
+- **`.cs-bigplay` at 72×72px is the one control already big enough.**
+
+### 10.3 The player treatment
+
+- **Touch tier.** Under `@media (hover: none)`, every `.cs-bar-btn` gets
+  `min-height: 44px` and matching width.
+- **A seek bar you can hit.** 12px tall on touch, with a taller transparent
+  hit area, since `:hover` will never fire to grow it.
+- **The bar collapses to what you actually use.** Under 560px it keeps
+  **play · progress · fullscreen** inline and folds mode, speed, CC and mute
+  behind a `⋯` menu — §1 applied to the player, and Hans's hamburger idea in
+  the place it pays off most. `▭` theater is hidden outright below 780px.
+- **Fix the idle/gate collision** once reproduced: while any gate is open the
+  controls do not idle out.
+
+### 10.4 The editor treatment
+
+The editor stays a workbench and is not pretended otherwise. What it gets:
+
+- **The drawing above the fold.** `order: -1` on `.editor-preview` below
+  940px, so a phone author sees the figure instead of scrolling past a 320px
+  code editor to reach it.
+- **The bar fits one row, because §2–§4 already shrank it.** By the time
+  Insert, Open, Save and Share are menus, the spec bar on a phone is
+  `YAML▾ ↻ │ ＋ │ ⋯ │ ↗` — the hamburger system Hans suggested, arrived at
+  from the desktop side.
+- **Sheets, not centred boxes.** Under 560px dialogs pin to the bottom, full
+  width, rounded top corners, `max-height: 88vh`. Affordable only because §7
+  adds a footer row — the primary action stays on screen instead of scrolling
+  away. Share and Insert stack their two columns under 640px.
+- **The touch tier covers the editor too**: 44px minimum on `.pane-bar
+  button`, `.sidebar-row`, `.mode-btn` and `.dialog-x` — the close button, at
+  ~25px today, is the worst target in the app.
+- **No icon-only control may rely on `title=` alone.** 47 controls explain
+  themselves only through a tooltip (39 in `main.ts`, 8 in `ui/course.ts`,
+  the longest 222 characters) and **touch shows none of them**. Each gets
+  visible text or moves into a dialog that explains it. This is the one place
+  the redesign pays a debt it did not create: §3 moving the portrait prose
+  into a dialog is the first time a phone user can read it.
+
+## 11. Testing
 
 `vitest`, `environment: "node"` (`vite.config.ts`) — there is no DOM, so the
 established pattern applies: extract the decidable parts as pure functions and
@@ -460,7 +548,7 @@ Share's YouTube path especially — keeps translating into fresh playlists
 rather than mutating `doc` (the trap recorded on `ytTranslations`,
 `main.ts:3358–3365`).
 
-## 11. Risks
+## 12. Risks
 
 - **Share costs frequent publishing one extra click.** Mitigated by the
   remembered destination: Share → Enter.
@@ -476,11 +564,19 @@ rather than mutating `doc` (the trap recorded on `ytTranslations`,
   a set of in-flight AbortControllers, a one-step undo, and per-lecture
   re-runs. §8 moves buttons between regions and must not disturb `syncBusy()`
   or the `inFlight` set — the buttons change place, not wiring.
+- **The idle/gate collision is diagnosed, not observed.** §10.2's last item
+  is traced through `ui/controls.ts:750–771` and `clickGate`/`figureGate`, not
+  reproduced. It is the one claim in this spec that has to be confirmed on a
+  real phone before anything is written to fix it — and if it turns out not to
+  happen, that item simply drops.
+- **The player's touch tier makes the bar taller on desktop if scoped wrong.**
+  `@media (hover: none)` is the gate; a stylus or a hybrid laptop can report
+  no hover. Acceptable: a 44px bar on a touch laptop is right anyway.
 - **Settings tabs hide fields that were previously all visible.** Someone who
   scrolled to find a key now needs the right tab. Mitigated by four
   self-evident tab names and by Keys being first.
 
-## 12. Order of work
+## 13. Order of work
 
 1. `--bar-h`, `.bar-group`, the icon rule, the panel treatment (§6), and the
    `.modal-s/m/l` scale (§7) — visible immediately, no behaviour change.
@@ -493,3 +589,15 @@ rather than mutating `doc` (the trap recorded on `ytTranslations`,
 6. The course modal's four regions (§8).
 7. `src/ui/sidebar.ts` + the four sections (§5), moving course grouping out of
    `refreshLibrary`.
+
+The phone work (§10) is deliberately **not** last. It splits:
+
+- **Before step 1**: reproduce the idle/gate collision on a real phone (§10.2)
+  and fix it. It is a player bug, it is independent of everything else here,
+  and it is the only item in this spec a viewer — rather than the author —
+  can hit.
+- **With step 1**: the touch tier and the player's control bar fold (§10.3).
+  The player is the priority and it does not depend on any of the editor work.
+- **With steps 2 and 4**: bottom sheets ride along with the footer row, and
+  the editor's one-row bar falls out of Insert/Open/Save/Share becoming menus
+  (§10.4). No separate phase — by then it is CSS.
