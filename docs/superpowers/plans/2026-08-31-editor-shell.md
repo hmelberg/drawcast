@@ -998,12 +998,25 @@ const openMenu = createMenu("Open", [
 ], { title: "Open a drawcast" });
 
 const saveMenu = createMenu("Save", [
-  { label: "To disk…", onSelect: () => downloadSpec() },
   { label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !googleConfigured() },
 ], { title: "Save this drawcast" });
 ```
 
-`downloadSpec()` is the body of the old `exportBtn` handler, extracted as a named function. `importBtn` and `exportBtn` are deleted; `importInput` stays (it is the hidden file input).
+`importBtn` is deleted; `importInput` stays (it is the hidden file input).
+
+**`Save ▾` holds Drive alone, not a "To disk…" twin.** An earlier draft of this
+task gave it one, extracted from the old `⬇ exportBtn` handler — but Task 6 has
+already absorbed that button into Share's **Spec file** destination
+(`share.ts` `specGo`), and `exportBtn` no longer exists. Putting a second
+download in `Save ▾` would place one action in two menus, which is exactly what
+§1 forbids. Share is the single answer to "how does this document leave the
+app"; downloading the spec is one of those ways.
+
+The asymmetry with `Open ▾` is deliberate and honest: opening a file from disk
+has no other home in the app, so it lives here. Saving one does have another
+home, so it lives there. When Drive is not configured the menu's only item is
+hidden, and `createMenu` then renders nothing at all — the same
+capability-without-credential rule every other control follows.
 
 - [ ] **Step 4: Assemble the bar in its three groups**
 
