@@ -10,8 +10,8 @@ import type { Options as RoughOptions } from "roughjs/bin/core";
 const SEED = 20260831;
 const INK = "#3d3833";
 
-function opts(extra: Partial<RoughOptions> = {}): RoughOptions {
-  return { seed: SEED, stroke: INK, roughness: 1.3, bowing: 1, ...extra };
+function opts(color: string, extra: Partial<RoughOptions> = {}): RoughOptions {
+  return { seed: SEED, stroke: color, roughness: 1.3, bowing: 1, ...extra };
 }
 
 /**
@@ -22,8 +22,14 @@ function opts(extra: Partial<RoughOptions> = {}): RoughOptions {
  * a solid fill still read. Both shapes sit in the right two-thirds of the
  * box so the mark reads off-center next to the wordmark, not centered
  * alone.
+ *
+ * `color` defaults to the fixed ink literal — required for public/mark.svg,
+ * the favicon, which is served standalone and cannot read a CSS custom
+ * property. The topbar's inline copy passes "currentColor" instead, so the
+ * mark follows --ink (and stays visible in dark mode) the way every other
+ * chrome element does; see main.ts.
  */
-export function markSvg(size = 64): string {
+export function markSvg(size = 64, color = INK): string {
   const gen = rough.generator();
 
   // The pencil: a two-segment upward swoop, thick enough to survive
@@ -34,7 +40,7 @@ export function markSvg(size = 64): string {
       [22, 16],
       [38, 34],
     ],
-    opts({ strokeWidth: 5.5 }),
+    opts(color, { strokeWidth: 5.5 }),
   );
 
   // The cast: a solid play triangle picking up where the stroke ends.
@@ -44,7 +50,7 @@ export function markSvg(size = 64): string {
       [36, 50],
       [58, 34],
     ],
-    opts({ strokeWidth: 3, fill: INK, fillStyle: "solid" }),
+    opts(color, { strokeWidth: 3, fill: color, fillStyle: "solid" }),
   );
 
   const paths = [...gen.toPaths(stroke), ...gen.toPaths(play)]

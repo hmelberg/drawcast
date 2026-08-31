@@ -112,19 +112,44 @@ describe("the accent — an explicit allowlist", () => {
   });
 });
 
+// Round-2 fix-round: an explicit allowlist of every literal font-size value
+// already in the file, reviewed once here — same idiom as RUST_ALLOWED_
+// SELECTORS above. The denylist this replaces
+// (`not.toMatch(/font-size:\s*0\.(92|85|82|78|75)rem/)`) only ever banned the
+// five sizes one specific past migration retired; it caught none of
+// 0.86/0.88/0.9/0.95/1.02rem, which reads exactly like a near-miss of
+// --text-sm (0.875rem) or --text (1rem) but was never on that list — so a
+// denylist can never actually enforce "three sizes", only guard one past
+// regression. An allowlist does: any NEW literal has to be added here
+// deliberately, so a future near-token typo fails loudly instead of quietly
+// surviving the way these did.
+const FONT_SIZE_ALLOWED = [
+  "var(--text)", "var(--text-sm)", "var(--text-xs)",
+  // The wordmark and a handful of other elements are deliberately their own
+  // size, outside the three-token body/secondary/dense scale (see the
+  // --text-sm token comment at the top of styles.css) — reviewed once, here.
+  "15px", "12px",
+  "2rem", "1.9rem", "1.7rem", "1.5rem", "1.4rem", "1.2rem", "1.15rem", "1.05rem", "1.02rem",
+  "0.95rem", "0.9rem", "0.9em", "0.88rem", "0.86rem", "0.8rem", "0.7rem",
+];
+
 describe("the type scale", () => {
-  // The brief's closing sentence for this step names the guard list as
-  // "0.9/0.92/0.82/0.78/0.75" — omitting 0.85rem, even though the step's own
-  // instruction two sentences earlier replaces 0.85rem along with the rest.
-  // Leaving 0.85 out of the guard would let it silently regress, defeating
-  // the point of the assertion, so it is included here too. Bare "0.9" is
-  // deliberately NOT in this list: the brief only collapses the *course
-  // textarea's* 0.9rem, not the other pre-existing 0.9rem uses elsewhere
-  // (.model3d-container, .rv-title, .sub-status, .cs-menu) — those are
-  // outside the six sizes this task names and are left alone below.
-  it("leaves no font-size using one of the collapsed sizes", async () => {
+  it("names every literal font-size once — an explicit allowlist, not a denylist a near-miss slips past", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-    expect(css).not.toMatch(/font-size:\s*0\.(92|85|82|78|75)rem/);
+    const sizes = [...css.matchAll(/font-size:\s*([^;]+);/g)].map((m) => m[1].trim());
+    expect(sizes.length).toBeGreaterThan(10); // the scan itself must not silently shrink to nothing
+    for (const size of sizes) {
+      expect(FONT_SIZE_ALLOWED, size).toContain(size);
+    }
+  });
+
+  // Proves the allowlist actually rejects something, the same way the rust
+  // allowlist's own guard-test does above.
+  it("rejects a font-size that isn't on the list", async () => {
+    const css = 'button { color: red; font-size: 0.87rem; }';
+    const sizes = [...css.matchAll(/font-size:\s*([^;]+);/g)].map((m) => m[1].trim());
+    expect(sizes).toEqual(["0.87rem"]);
+    expect(FONT_SIZE_ALLOWED).not.toContain("0.87rem");
   });
 
   it("moves the course textarea's font-size onto the scale", async () => {
@@ -159,6 +184,57 @@ describe("dark mode", () => {
     // Borders sit on panels as well as on the page; a paper-only check passes
     // colours that still vanish against a surface.
     expect(contrastRatio(t["--line"], t["--surface"])).toBeGreaterThanOrEqual(3);
+    // --field is the input/select/textarea ground — same minimum body text
+    // needs everywhere else (round-2 fix: it used to be a literal #fff no
+    // dark override ever touched, stranding dark --ink at ~1.24:1).
+    expect(contrastRatio(t["--ink"], t["--field"])).toBeGreaterThanOrEqual(7);
+  });
+});
+
+// Round-2 fix: four chrome rules paired a themed foreground (var(--ink), the
+// one that flips light/dark) with a hardcoded LIGHT background — #fff dead
+// ahead, in the same rule, so dark mode put light-on-light text everywhere
+// from the spec textarea to the mode pill. --field (light #fff, themed dark)
+// replaces the input/select/textarea cases; .mode-btn.active's ink FILL takes
+// --paper as its foreground instead of literal white, the same fix in the
+// other direction. These assertions describe the invariant, not just the
+// four sites the reviewer found — a sweep, so a fifth future site fails the
+// same way.
+describe("dark-mode-safe surfaces", () => {
+  it("defines a themed --field token, distinct from --surface once dark", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const root = /:root\s*\{([\s\S]*?)\}/.exec(css)?.[1] ?? "";
+    expect(root).toMatch(/--field:\s*#fff\b/);
+    const dark = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+    const t: Record<string, string> = {};
+    for (const m of dark.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/g)) t[m[1]] = m[2];
+    expect(t["--field"]).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(t["--field"]).not.toBe(t["--surface"]);
+  });
+
+  it("no rule pairs a themed foreground (--ink/--muted) with a literal white background", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const blocks = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    let checked = 0;
+    for (const [, selector, body] of blocks) {
+      const themedFg = /color:\s*var\(--(ink|muted)\)/.test(body);
+      // Anywhere in a background declaration's value, not just anchored right
+      // after the colon — .sidebar-new's bug was color-mix(in srgb, var(--ink)
+      // 7%, #fff), where #fff is the color-mix's second argument, not the
+      // whole background value.
+      const literalWhiteBg = /background(?:-color)?:\s*[^;]*(?:#fff\b|#ffffff\b|\bwhite\b)/i.test(body);
+      if (themedFg) checked++;
+      expect(themedFg && literalWhiteBg, selector.trim()).toBe(false);
+    }
+    expect(checked).toBeGreaterThan(10); // the scan itself must not silently shrink to nothing
+  });
+
+  it(".mode-btn.active's ink fill takes a paper/surface foreground, not literal white", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const rule = /\.mode-btn\.active\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/background:\s*var\(--ink\)/);
+    expect(rule).toMatch(/color:\s*var\(--(paper|surface)\)/);
+    expect(rule).not.toMatch(/color:\s*#fff/);
   });
 });
 

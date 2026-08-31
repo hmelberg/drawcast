@@ -34,12 +34,14 @@ import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } fro
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { openDestinations, saveDestinations, OPEN_LABELS, SAVE_LABELS, type CredentialState } from "./ui/destinations";
-import { validateSpec, SPEC_VERSION } from "./spec/schema";
+import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
-import { h } from "./ui/dom";
+import { h, svgFromMarkup } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
-import { openShare } from "./ui/share";
+import { fileSafe, openShare } from "./ui/share";
+import { checkSaveable } from "./ui/save-gate";
+import { markSvg } from "./brand/mark";
 import { openInsertPortrait, openPinDialog } from "./ui/insert";
 import { applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
@@ -320,6 +322,14 @@ const playerModeBtn = h("button", { class: "mode-btn", title: "Watch the current
 const editorModeBtn = h("button", { class: "mode-btn", title: "Create and edit drawcasts" }, "✎ Editor");
 const menuBtn = h("button", { class: "icon-btn", title: "Show or hide the menu" }, "☰");
 
+// Rendered inline (not the public/mark.svg <img> the favicon uses) so its
+// strokes pick up currentColor -> --ink and stay visible when Settings ->
+// Appearance -> Dark flips the chrome dark. The favicon file itself stays a
+// fixed-ink asset — it is never seen through this page's CSS.
+const topbarMark = svgFromMarkup(markSvg(64, "currentColor"));
+topbarMark.setAttribute("class", "mark");
+topbarMark.setAttribute("aria-hidden", "true");
+
 app.appendChild(
   h(
     "header",
@@ -328,7 +338,7 @@ app.appendChild(
       "div",
       { class: "topbar-left" },
       menuBtn,
-      h("img", { class: "mark", src: "./mark.svg", alt: "" }),
+      topbarMark,
       h("div", { class: "wordmark" }, "drawcast"),
     ),
     h("div", { class: "mode-toggle" }, playerModeBtn, editorModeBtn),
@@ -692,10 +702,18 @@ saveDiskFormatSel.addEventListener("change", () => {
   persist();
 });
 saveDiskBtn.addEventListener("click", () => {
+  // What you see is what you save — re-derived from the editor's own text,
+  // not doc.playlist (last render's GOOD text, stale the moment the editor
+  // holds something that fails to parse). Refuses (and says why) rather than
+  // shipping that stale version — see prepareSave()'s doc comment.
+  const save = prepareSave();
+  if (!save) return;
   saveDiskModal.dialog.close();
-  const format: SpecFormat = isSingle(doc.playlist) ? (saveDiskFormatSel.value as SpecFormat) : "yaml";
-  const base = doc.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
-  downloadText(`${base}.${format}`, formatPlaylist(doc.playlist, format));
+  const format: SpecFormat = isSingle(save.playlist) ? (saveDiskFormatSel.value as SpecFormat) : "yaml";
+  // YAML ships the editor's own text verbatim; JSON has to be derived (the
+  // textarea is always YAML — see saveToDrive's note below).
+  const content = format === "yaml" ? save.text : formatPlaylist(save.playlist, format);
+  downloadText(`${fileSafe(save.title)}.${format}`, content);
 });
 function openSaveToDisk(): void {
   // Catch the drawing up to the text on screen first — same reason every
@@ -760,11 +778,13 @@ const openMenuHost = h("span", {}, buildOpenMenu());
 const saveMenuHost = h("span", {}, buildSaveMenu());
 /**
  * Rebuilds both menus so a destination configured mid-session (today: only
- * GitHub's repo+token) appears without a reload. Called from persist() —
- * the general "a setting changed" hook, which covers the repo field — and
- * once more explicitly from the token field's own listener below, since the
- * token lives outside `settings` (its own localStorage key) and so never
- * goes through persist() at all.
+ * GitHub's repo+token) appears without a reload. Called explicitly from both
+ * credential fields' own listeners below (repo, token) — deliberately NOT
+ * from persist(), the general "a setting changed" hook: persist() fires from
+ * 37 call sites (mode switch, style change, rating…), and only these two
+ * fields can ever gate a destination, so hanging this DOM rebuild off every
+ * settings change would run it 35 times for nothing on the way to the two
+ * that matter.
  */
 function refreshCredentialMenus(): void {
   openMenuHost.replaceChildren(buildOpenMenu());
@@ -1248,6 +1268,9 @@ githubRepoInput.value = settings.githubRepo;
 githubRepoInput.addEventListener("change", () => {
   settings.githubRepo = githubRepoInput.value.trim();
   persist();
+  // Same explicit refresh as the token field just below — see
+  // refreshCredentialMenus()'s doc comment for why this isn't persist()'s job.
+  refreshCredentialMenus();
 });
 const githubTokenInput = h("input", { type: "password", placeholder: "github_pat_…", autocomplete: "off" }) as HTMLInputElement;
 githubTokenInput.value = getGithubToken();
@@ -1815,9 +1838,6 @@ model3dDialog.addEventListener("close", () => {
 
 function persist(): void {
   saveSettings(settings);
-  // Covers settings.githubRepo (and anything else that could ever gate a
-  // destination) changing mid-session — see refreshCredentialMenus() above.
-  refreshCredentialMenus();
 }
 
 // ---- Subtitles: making a track for another language -----------------------
@@ -2181,29 +2201,19 @@ function autosave(): void {
   refreshLibrary();
 }
 
-/** Parse + validate playlist text; returns null after reporting the first problem. */
+/**
+ * Parse + validate playlist text; returns null after reporting the first
+ * problem. The actual decision lives in checkSaveable() (ui/save-gate.ts,
+ * pure and unit-tested) — this just adds the setStatus side effect every
+ * caller here wants.
+ */
 function readPlaylistText(text: string): Playlist | null {
-  let playlist: Playlist;
-  try {
-    playlist = parsePlaylistText(text);
-  } catch (err) {
-    setStatus(`Spec unreadable: ${(err as Error).message}`, "error");
+  const decision = checkSaveable(text);
+  if (!decision.ok) {
+    setStatus(decision.reason, "error");
     return null;
   }
-  const items = itemsOf(playlist);
-  if (items.length === 0) {
-    setStatus("The playlist has no drawable items.", "error");
-    return null;
-  }
-  for (const item of items) {
-    const v = validateSpec(item.spec);
-    if (!v.ok) {
-      const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
-      setStatus(`Spec invalid: ${where}${v.errors[0]}${v.errors.length > 1 ? ` (+${v.errors.length - 1} more)` : ""}`, "error");
-      return null;
-    }
-  }
-  return playlist;
+  return decision.playlist;
 }
 
 function docTitleOf(playlist: Playlist, fallback: string): string {
@@ -2808,6 +2818,32 @@ function ensureRendered(andPlay = false): boolean {
   autosave();
   markRendered(specArea.value);
   return true;
+}
+
+/**
+ * The shared refusal path for every Save destination (disk / Drive /
+ * GitHub — see openSaveToDisk/saveDiskBtn, saveToDrive, saveSourceToGithub
+ * below). "What you see is what you save": the decision is re-derived
+ * straight from specArea.value via checkSaveable() — never from doc.playlist,
+ * which is only ever last render's GOOD text and goes stale the moment the
+ * editor holds something that fails to parse. ensureRendered() is still
+ * called first for its side effects (catches the preview/history/autosave up
+ * when the text DOES parse) but its return value is intentionally ignored:
+ * ensureRendered() also returns false when there is simply nothing new to
+ * render, which must NOT block a save. On refusal this sets the red status
+ * itself and returns null — callers must not follow up with a "Saving…"
+ * status of their own, or it silently overwrites the reason the save didn't
+ * happen (the exact bug this replaces).
+ */
+function prepareSave(andPlay = false): { text: string; playlist: Playlist; title: string } | null {
+  ensureRendered(andPlay);
+  const text = specArea.value;
+  const decision = checkSaveable(text);
+  if (!decision.ok) {
+    setStatus(decision.reason, "error");
+    return null;
+  }
+  return { text, playlist: decision.playlist, title: docTitleOf(decision.playlist, doc.title) };
 }
 
 promoteBtn.addEventListener("click", () => {
@@ -3484,21 +3520,21 @@ async function saveToDrive(): Promise<void> {
   if (driveSaveInFlight) return;
   driveSaveInFlight = true;
   try {
-    // Catch the drawing up before capturing `target` below — Save must ship
-    // what is on screen, not whatever the last render happened to be.
-    ensureRendered();
+    // What you see is what you save — refuses (and says why) rather than
+    // uploading text that doesn't even parse. See prepareSave()'s doc comment.
+    const save = prepareSave();
+    if (!save) return;
     // Everything this save is ABOUT is captured at click time. The first Save
     // opens a consent popup and the page stays interactive behind it, so `doc`
     // may be a different document by the time the await resolves — and writing
     // file A's id onto document B would make B's next Save overwrite A.
     const target = doc;
-    const base = target.title.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
     // The textarea always holds YAML now (the format picker is gone), so the
     // extension and the MIME type follow it.
-    const name = `${base}.yaml`;
+    const name = `${fileSafe(save.title)}.yaml`;
     const mimeType = "text/yaml";
     setStatus("Saving to Drive…");
-    const res = await saveSpec(specArea.value, name, mimeType, target.driveFileId);
+    const res = await saveSpec(save.text, name, mimeType, target.driveFileId);
     if (!res) {
       setStatus("Drive sign-in was cancelled — nothing was saved.", "error");
       return;
@@ -3561,9 +3597,15 @@ async function saveSourceToGithub(): Promise<void> {
   if (sourceSaveInFlight) return;
   sourceSaveInFlight = true;
   try {
-    // Catch the drawing up before capturing `target` below — same reason
-    // saveToDrive does this: Save must ship what is on screen.
-    ensureRendered();
+    // What you see is what you save — refuses (and says why) instead of
+    // committing doc.playlist, last render's GOOD text, past the author's
+    // edits. See prepareSave()'s doc comment. This is also the fix for the
+    // original bug report: a broken indent used to sail straight through to
+    // "Saved … to owner/repo" because setStatus("Saving source to GitHub…")
+    // below overwrote the parse error readPlaylistText had already posted —
+    // prepareSave() returning null here stops that dead in its tracks.
+    const save = prepareSave();
+    if (!save) return;
     const target = doc;
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -3573,8 +3615,8 @@ async function saveSourceToGithub(): Promise<void> {
     }
     setStatus("Saving source to GitHub…");
     const out = await saveSource({
-      title: target.title,
-      text: formatPlaylist(target.playlist, "yaml"),
+      title: save.title,
+      text: save.text,
       existing: target.sourcePath,
       dir: joinPath(settings.coursesDir, "casts"),
       repo,
@@ -3591,7 +3633,7 @@ async function saveSourceToGithub(): Promise<void> {
         console.error("drawcast: source save succeeded, bookkeeping failed", err);
       }
     }
-    setStatus(`Saved "${target.title}" to ${repo.owner}/${repo.repo}`, "ok");
+    setStatus(`Saved "${save.title}" to ${repo.owner}/${repo.repo}`, "ok");
   } catch (err) {
     console.error("drawcast: source save failed", err);
     const e = err as Error;
@@ -3781,10 +3823,6 @@ shareBtn.addEventListener("click", () => {
 
 // ---------- prompt library ----------
 
-function fileSafe(name: string): string {
-  return name.replace(/[^\wæøå -]+/gi, "").trim() || "prompt";
-}
-
 function selectUserPrompt(p: UserPrompt): void {
   settings.variant = `user:${p.id}`;
   persist();
@@ -3848,7 +3886,7 @@ promptDeleteBtn.addEventListener("click", () => {
 
 promptDownloadBtn.addEventListener("click", () => {
   const name = activeUserPrompt()?.name ?? settings.variant;
-  downloadText(`${fileSafe(name)}.md`, promptSource.value, "text/markdown");
+  downloadText(`${fileSafe(name, "prompt")}.md`, promptSource.value, "text/markdown");
 });
 
 promptUploadBtn.addEventListener("click", () => promptUploadInput.click());

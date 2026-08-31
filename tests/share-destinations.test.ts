@@ -1,5 +1,15 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { panelVisibility, shareDestinations, type ShareDest, type ShareTo } from "../src/ui/share";
+
+// Round-2 fix: DESTS is down to three (link/youtube/video — see below), but
+// panelVisibility's own doc comment still said "four panels" from before one
+// was retired.
+it("panelVisibility's doc comment says three panels, matching DESTS", async () => {
+  const src = await readFile(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+  expect(src).not.toMatch(/four panels/);
+  expect(src).toMatch(/three panels/);
+});
 
 const all = { github: true, google: true, tts: true };
 const ALL_IDS: ShareTo[] = ["link", "youtube", "video"];

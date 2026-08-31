@@ -16,6 +16,15 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/**
+ * Parses a self-contained `<svg>…</svg>` string (e.g. brand/mark.ts's
+ * markSvg()) into a live, appendable element — `h()` only accepts Node/string
+ * children, and a string child becomes an inert text node, not markup.
+ */
+export function svgFromMarkup(markup: string): SVGSVGElement {
+  return new DOMParser().parseFromString(markup, "image/svg+xml").documentElement as unknown as SVGSVGElement;
+}
+
 /** A pointer event mapped through the stage svg's LIVE viewBox (camera-proof)
  *  into logical y-up coordinates, or null when the svg is missing/zero-sized. */
 export function logicalPoint(stage: HTMLElement, e: MouseEvent): [number, number] | null {

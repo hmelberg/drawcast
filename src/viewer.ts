@@ -112,7 +112,7 @@ async function fetchGhText(gh: GhRef): Promise<string> {
 export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
-  const titleEl = h("h1", { class: "viewer-title squiggle" }, "drawcast");
+  const titleEl = h("h1", { class: "viewer-title" }, "drawcast");
   const status = h("div", { class: "viewer-status" }, req.gh ? "Loading drawing from GitHub…" : "Loading drawing from Google Doc…");
   // The same frame the app's player mounts into, by the same class: the
   // fullscreen rules are written against it, and a viewer-only copy of them
@@ -121,7 +121,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const footer = h(
     "div",
     { class: "viewer-footer" },
-    h("a", { href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast ✏️"),
+    h("a", { href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"),
   );
   app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, footer));
 

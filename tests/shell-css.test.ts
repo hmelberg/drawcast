@@ -168,3 +168,44 @@ describe("the phone", () => {
   // 🖼 Images menu above, where its label is real text on every input, so
   // there is no icon-only button left to explain. See "the images menu".
 });
+
+// Round-2 fix: refreshCredentialMenus() used to be called from inside
+// persist(), the general "a setting changed" hook — so a mode switch, a
+// style change, a rating, any of persist()'s 37 call sites, rebuilt the
+// Open/Save menus for no reason. Only the two GitHub credential fields
+// (repo, token) can ever change which destinations those menus offer.
+describe("the credential menu refresh", () => {
+  it("is not called from persist() any more", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    const fn = /function persist\(\):\s*void\s*\{([\s\S]*?)\n\}/.exec(src)?.[1] ?? "";
+    expect(fn).not.toBe("");
+    expect(fn).not.toMatch(/refreshCredentialMenus\(\)/);
+  });
+
+  it("still fires from the repo field's own listener, same as the token field already does", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    const repoListener = /githubRepoInput\.addEventListener\("change",\s*\(\)\s*=>\s*\{([\s\S]*?)\n\}\);/.exec(src)?.[1] ?? "";
+    const tokenListener = /githubTokenInput\.addEventListener\("change",\s*\(\)\s*=>\s*\{([\s\S]*?)\n\}\);/.exec(src)?.[1] ?? "";
+    expect(repoListener).not.toBe("");
+    expect(tokenListener).not.toBe("");
+    expect(repoListener).toMatch(/refreshCredentialMenus\(\)/);
+    expect(tokenListener).toMatch(/refreshCredentialMenus\(\)/);
+  });
+});
+
+// Round-2 fix: main.ts inlined a third copy of fileSafe's exact regex at its
+// disk-save call site (a fourth lived in saveToDrive) instead of using either
+// of the two named fileSafe() functions already in the codebase (main.ts's
+// own, and share.ts's). Now there is one, exported from share.ts.
+describe("the filename rule", () => {
+  it("main.ts has no inlined copy of the filename-safe regex — it imports fileSafe instead", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/replace\(\/\[\^\\w\S*æøå/);
+    expect(src).toMatch(/import\s*\{[^}]*\bfileSafe\b[^}]*\}\s*from\s*"\.\/ui\/share"/);
+  });
+
+  it("share.ts's fileSafe is the only definition left, and it's exported", async () => {
+    const src = await read2(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/export function fileSafe\(/);
+  });
+});

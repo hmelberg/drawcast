@@ -8,6 +8,7 @@
 :root {
   --paper: #efe9da;   /* the page sits back so panels can lift off it */
   --surface: #fffdf8;
+  --field: #fff;      /* inputs/selects — one step brighter than --surface, themed so it never strands dark-mode ink on a literal white */
   --ink: #3d3833;
   --muted: #6f685c;   /* 4.6:1 on the surface — hints are text, not decoration */
   --line: #8f8265;    /* a real edge: 3.1:1 against the paper, not 1.33 */
@@ -37,6 +38,7 @@
   :root:not([data-theme="light"]) {
     --paper: #1c1a17;
     --surface: #26231f;
+    --field: #302b24;
     --ink: #ece6da;
     --muted: #a49b8b;
     --line: #79715c;
@@ -45,6 +47,7 @@
 :root[data-theme="dark"] {
   --paper: #1c1a17;
   --surface: #26231f;
+  --field: #302b24;
   --ink: #ece6da;
   --muted: #a49b8b;
   --line: #79715c;
@@ -123,7 +126,7 @@ body {
 .mode-btn:hover { color: var(--ink); }
 .mode-btn.active {
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
 }
 /* The sidebar toggle and the ☰ menu button, pill-shaped like the gear was. */
 .icon-btn {
@@ -271,7 +274,7 @@ body.mode-editor main {
   color: var(--ink);
   max-width: 11.5rem;
 }
-.quiet-label select:hover { border-color: var(--line); background: #fff; }
+.quiet-label select:hover { border-color: var(--line); background: var(--field); }
 /* Ragged-left right-alignment reads as broken once the row wraps. */
 @media (max-width: 560px) {
   .gen-row, .gen-choices { justify-content: flex-start; }
@@ -360,9 +363,9 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   font-weight: 600;
   border-color: var(--ink);
   color: var(--ink);
-  background: color-mix(in srgb, var(--ink) 7%, #fff);
+  background: color-mix(in srgb, var(--ink) 7%, var(--field));
 }
-.sidebar-new:hover { background: color-mix(in srgb, var(--ink) 14%, #fff); border-color: var(--ink); }
+.sidebar-new:hover { background: color-mix(in srgb, var(--ink) 14%, var(--field)); border-color: var(--ink); }
 
 .sidebar-search { width: 100%; font-size: var(--text-sm); padding: 0.3rem 0.5rem; }
 
@@ -590,11 +593,11 @@ textarea {
   min-height: 64px;
   resize: vertical;
   font-family: var(--ui-font);
-  font-size: 1rem;
+  font-size: var(--text);
   padding: 0.6rem 0.7rem;
   border: 1.5px solid var(--line);
   border-radius: 5px;
-  background: #fff;
+  background: var(--field);
   color: var(--ink);
 }
 
@@ -652,7 +655,7 @@ button, select, input[type="text"], input[type="password"] {
   font-family: var(--ui-font);
   font-size: var(--text-sm);
   color: var(--ink);
-  background: #fff;
+  background: var(--field);
   border: 1.5px solid var(--line);
   border-radius: 5px;
   padding: 0.42rem 0.7rem;
@@ -1053,7 +1056,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-cardgate-pill {
   font-family: var(--sketch-font);
-  font-size: 1rem;
+  font-size: var(--text);
   text-align: left;
   color: var(--ink);
   background: var(--surface);
@@ -1080,7 +1083,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-cardgate-input {
   flex: 1;
   font-family: var(--sketch-font);
-  font-size: 1rem;
+  font-size: var(--text);
   color: var(--ink);
   background: var(--surface);
   border: 1.5px solid var(--line);
@@ -1763,7 +1766,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-controlbar { position: relative; }
 .cs-menu-title {
   font-family: var(--sketch-font);
-  font-size: 1rem;
+  font-size: var(--text);
   color: var(--muted);
   margin-bottom: 0.35rem;
 }
@@ -1785,7 +1788,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.2rem 0.3rem;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: #fff;
+  background: var(--field);
   color: var(--ink);
 }
 .cs-menu-select:disabled { opacity: 0.45; }

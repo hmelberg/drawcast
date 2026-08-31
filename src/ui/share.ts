@@ -118,7 +118,7 @@ export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course
 const ALL_DESTS: ShareTo[] = DESTS.map((d) => d.id);
 
 /**
- * Which of the four panels should be visible: exactly the selected one, and
+ * Which of the three panels should be visible: exactly the selected one, and
  * ONLY if it is actually offered right now. A destination that is filtered
  * out of `available` (an unconfigured capability) must never show its panel
  * even if `selected` still names it — a stale/unavailable selection hides
@@ -138,8 +138,16 @@ function currentCaps(settings: Settings): ShareCaps {
   };
 }
 
-function fileSafe(name: string): string {
-  return name.replace(/[^\wæøå -]+/gi, "").trim() || "drawcast";
+/**
+ * Strip a title down to characters safe in a filename, everywhere a
+ * drawcast is saved or exported: disk, Drive, GitHub (main.ts's Save menu)
+ * and every destination here. One rule, shared — main.ts used to carry a
+ * third copy of this exact regex inlined at its disk-save call site, plus a
+ * second standalone copy for the prompt-library export (its own `fallback`
+ * covers that case; every save-destination call site keeps "drawcast").
+ */
+export function fileSafe(name: string, fallback = "drawcast"): string {
+  return name.replace(/[^\wæøå -]+/gi, "").trim() || fallback;
 }
 
 function titleOf(playlist: Playlist, fallback: string): string {
