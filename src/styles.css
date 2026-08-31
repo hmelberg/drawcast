@@ -1454,9 +1454,28 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 
 .remote-url-input { flex: 1; min-width: 160px; }
 
-/* ---------- YouTube upload dialog ---------- */
+/* ---------- Share modal: destinations on the left, that destination's
+   options on the right (design spec §2). ---------- */
 
-.yt-dialog .yt-field { width: 100%; }
+.share-layout { display: flex; gap: 1.1rem; align-items: flex-start; }
+.share-rail { display: flex; flex-direction: column; gap: 0.15rem; flex: 0 0 9rem; border-right: 1px solid var(--line); padding-right: 0.9rem; }
+.share-dest {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.92rem;
+  color: var(--steel);
+  cursor: pointer;
+}
+.share-dest:hover { color: var(--rust); }
+.share-dest.current { background: var(--paper); color: var(--rust); font-weight: 600; }
+.share-panel-host { flex: 1; min-width: 0; }
+.share-panel > * + * { margin-top: 0.6rem; }
+/* The YouTube panel's fields, carried over unchanged from the dialog it used
+   to be its own modal. */
+.share-modal .yt-field { width: 100%; }
 /* Nineteen languages: a wrapping row of small checkboxes reads faster than a
    multi-select list, and shows at a glance how many videos are queued. */
 .yt-langs { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }

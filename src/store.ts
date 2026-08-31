@@ -38,6 +38,10 @@ const KEYS = {
   packsUpgrade: "drawcast.packsDefault.v6",
 } as const;
 
+/** Where Share last sent this document. Declared here rather than in the UI:
+ *  store.ts is imported by the standalone viewer and must stay UI-free. */
+export type ShareTo = "link" | "youtube" | "video" | "spec";
+
 export interface Settings {
   model: string;
   style: RenderStyle;
@@ -92,6 +96,8 @@ export interface Settings {
   developerMode: boolean;
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
+  /** The Share destination used last, so a repeat publish is one keypress. */
+  shareTo: ShareTo;
   /** Domain pack ids (M3) currently enabled — loaded and registered at startup. */
   enabledPacks: string[];
   /** Enabled pack ids whose templates get a full catalog entry (never summarized). */
@@ -127,6 +133,7 @@ export const DEFAULT_SETTINGS: Settings = {
   choicesOpen: false,
   developerMode: false,
   specFormat: "yaml",
+  shareTo: "link",
   // Every built-in pack, on. A pack that is off is invisible to the compiler
   // (its templates are not in the catalog at all), so a chemistry request
   // silently degrades to hand-composed primitives instead of the SMILES
