@@ -86,6 +86,8 @@ export interface Settings {
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
+  /** Sidebar sections that are open, by id. Absent = that section's default. */
+  sidebarSections: Record<string, boolean>;
   /** The Template/Instructions/Model row under Generate, folded away by default. */
   choicesOpen: boolean;
   /**
@@ -130,6 +132,7 @@ export const DEFAULT_SETTINGS: Settings = {
   burnCaptionsOnUpload: false,
   uiMode: "player",
   sidebarOpen: true,
+  sidebarSections: {},
   choicesOpen: false,
   developerMode: false,
   specFormat: "yaml",

@@ -41,6 +41,7 @@ import { h } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
 import { openShare } from "./ui/share";
 import { openInsertPortrait } from "./ui/insert";
+import { applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
@@ -530,15 +531,40 @@ templateSel.addEventListener("change", () => {
   openTemplatesModal(picked === ACTION_NEW ? "new" : "list");
 });
 
-// Examples list (sidebar): clicking an example loads it directly. Both sidebar
-// lists honour the one search box above them.
-const examplesList = h("div", { class: "library-list" });
+// The sidebar's four uniform sections (ui/sidebar.ts): each a <details> with
+// a caret, a count, and open state remembered per section in
+// settings.sidebarSections. Built here, early, because refreshExamples()
+// below needs examplesSection.list to exist the moment it first runs.
 let sidebarFilter = "";
 
 function matchesFilter(text: string): boolean {
   return sidebarFilter === "" || text.toLowerCase().includes(sidebarFilter);
 }
 
+function onSectionToggle(id: string): (open: boolean) => void {
+  return (open) => {
+    settings.sidebarSections[id] = open;
+    persist();
+    refreshSidebarShell();
+  };
+}
+const librarySection = createSidebarSection(onSectionToggle("library"));
+const coursesSection = createSidebarSection(onSectionToggle("courses"));
+const examplesSection = createSidebarSection(onSectionToggle("examples"));
+const templatesSection = createSidebarSection(onSectionToggle("templates"));
+const examplesList = examplesSection.list;
+// "＋ New course" replaces the old "🎓 Course" tool row — same wiring
+// (openCourse, defined with the other library/course refresh functions
+// below), new home at the foot of the Courses section.
+const newCourseRow = h("button", { class: "sidebar-row" }, "＋ New course");
+newCourseRow.addEventListener("click", () => openCourse());
+coursesSection.details.append(newCourseRow);
+const manageTemplatesRow = h("button", { class: "sidebar-row" }, "Manage…");
+manageTemplatesRow.addEventListener("click", () => openTemplatesModal("list"));
+templatesSection.details.append(manageTemplatesRow);
+
+// Examples list (sidebar): clicking an example loads it directly. Every
+// sidebar section honours the one search box above them.
 function refreshExamples(): void {
   examplesList.replaceChildren();
   let shown = 0;
@@ -551,6 +577,7 @@ function refreshExamples(): void {
     examplesList.appendChild(h("div", { class: "library-item" }, b));
   });
   if (shown === 0) examplesList.appendChild(h("div", { class: "hint" }, "No match."));
+  refreshSidebarShell();
 }
 refreshExamples();
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
@@ -609,7 +636,7 @@ newTemplateBtn.addEventListener("click", () => {
   templatesModal.dialog.close(); // hand over rather than stack (see openTemplatesModal)
   openAuthorDialog();
 });
-const libraryList = h("div", { class: "library-list" });
+const libraryList = librarySection.list;
 // My templates panel: the list host + import controls are created here so they
 // can be placed in editorWrap below; refreshMyTemplates() itself lives with the
 // rest of the wiring further down (same split as libraryList/refreshLibrary).
@@ -840,7 +867,7 @@ const editorWrap = h(
 
 // ---------- left sidebar: the one menu ----------
 
-const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library and examples" }) as HTMLInputElement;
+const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library, courses, examples and templates" }) as HTMLInputElement;
 const dataRow = h("button", { class: "sidebar-row" }, "📊 Data");
 // Declared here, ABOVE the sidebar, not near refreshAccountRow(): the IIFE
 // below that assigns it runs during module initialisation, before a `let`
@@ -851,48 +878,16 @@ const sidebar = h(
   { class: "sidebar" },
   blankBtn,
   sidebarSearch,
-  h("div", { class: "sidebar-section" }, h("h2", { class: "sidebar-heading" }, "📚 Library"), libraryList),
-  h("div", { class: "sidebar-section" }, h("h2", { class: "sidebar-heading" }, "✨ Examples"), examplesList),
+  librarySection.details,
+  coursesSection.details,
+  examplesSection.details,
+  templatesSection.details,
   h(
     "div",
     { class: "sidebar-tools" },
     (() => {
-      const b = h("button", { class: "sidebar-row" }, "✦ Templates");
-      b.addEventListener("click", () => openTemplatesModal("list"));
-      return b;
-    })(),
-    (() => {
       const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
       b.addEventListener("click", () => openInstructionsModal());
-      return b;
-    })(),
-    (() => {
-      const b = h("button", { class: "sidebar-row" }, "🎓 Course");
-      b.addEventListener("click", () =>
-        openCoursePanel({
-          apiKey: () => getApiKey(),
-          model: () => settings.model,
-          variant: () => currentVariant(),
-          exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
-          bundledExemplars: () => bundledExemplarPool(),
-          setStatus,
-          openDrawing: (id) => {
-            const saved = loadLibrary().find((d) => d.id === id);
-            if (saved) setDoc(docFromSaved(saved), `Loaded "${saved.title}".`);
-          },
-          refreshLibrary: () => refreshLibrary(),
-          settings,
-          persist,
-          setStatusAction,
-          refreshAccountRow,
-          openSettings,
-          renderVideo,
-          beginExport,
-          setProgress: (text) => (exportChipText.textContent = text),
-          endExport,
-          setAbort: (c) => (exportAbort = c),
-        }),
-      );
       return b;
     })(),
     dataRow,
@@ -934,6 +929,7 @@ sidebarSearch.addEventListener("input", () => {
   sidebarFilter = sidebarSearch.value.trim().toLowerCase();
   refreshLibrary();
   refreshExamples();
+  refreshTemplatesSection();
 });
 
 const main = h("main", {}, sidebar, playerWrap, editorWrap);
@@ -2620,59 +2616,103 @@ async function toggleAccount(): Promise<void> {
 
 // ---------- library ----------
 
-function refreshLibrary(): void {
-  libraryList.replaceChildren();
-  const all = loadLibrary(); // newest first: saveDrawing unshifts
-  const items = all.filter((i) => matchesFilter(i.title));
-  if (items.length === 0) {
-    libraryList.appendChild(h("div", { class: "hint" }, all.length === 0 ? "Nothing saved yet." : "No match."));
-    return;
-  }
-  const row = (item: SavedDrawing): HTMLElement => {
-    const label = item.playlist ? `${item.title} ▤` : item.title;
-    const openBtn = h("button", { class: "library-open", title: item.playlist ? "Load this playlist" : "Load this drawing" }, label);
-    openBtn.addEventListener("click", () => {
-      if (blockedByAi("opening another drawcast")) return;
-      setDoc(docFromSaved(item), "Loaded from library.");
-    });
-    const delBtn = h("button", { class: "library-del", title: "Delete from library" }, "✕");
-    delBtn.addEventListener("click", () => {
-      deleteDrawing(item.id);
-      refreshLibrary();
-    });
-    return h("div", { class: "library-item" }, openBtn, delBtn);
+function sidebarInput(): SectionInput {
+  return {
+    library: loadLibrary().map((d) => ({ title: d.title, courseId: d.courseId })),
+    courses: loadCourses().map((c) => ({ id: c.id, title: c.title })),
+    examples: examples.map((ex) => ({ title: ex.title ?? ex.spec?.title ?? ex.request })),
+    templates: loadMyTemplates().map((t) => ({ id: t.id })),
   };
+}
 
-  // Lectures belong to their course: ten of them in a row would otherwise bury
-  // everything else in the library. Loose drawcasts keep their newest-first
-  // order; each course collapses into one <details> in the place its newest
-  // lecture would have taken.
-  const courseTitles = new Map(loadCourses().map((c) => [c.id, c.title]));
-  const grouped = new Map<string, SavedDrawing[]>();
-  for (const item of items) {
-    if (!item.courseId) continue;
-    const list = grouped.get(item.courseId);
-    if (list) list.push(item);
-    else grouped.set(item.courseId, [item]);
-  }
-  const emitted = new Set<string>();
-  for (const item of items) {
-    if (!item.courseId) {
-      libraryList.appendChild(row(item));
-      continue;
-    }
-    if (emitted.has(item.courseId)) continue;
-    emitted.add(item.courseId);
-    const lectures = grouped.get(item.courseId)!;
-    const title = courseTitles.get(item.courseId) ?? "Course";
-    const group = h("details", { class: "library-course" });
-    group.append(
-      h("summary", {}, `🎓 ${title} — ${lectures.length} lecture${lectures.length === 1 ? "" : "s"}`),
-      ...lectures.map(row),
-    );
-    libraryList.appendChild(group);
+/** Recomputes all four sections' header text and open state — cheap, and
+ *  called after anything that could change what they list or count. */
+function refreshSidebarShell(): void {
+  const sections: Record<string, SidebarSection> = { library: librarySection, courses: coursesSection, examples: examplesSection, templates: templatesSection };
+  for (const model of sidebarSections(sidebarInput(), sidebarFilter, settings.sidebarSections)) {
+    applySection(sections[model.id], model);
   }
 }
+
+function row(item: SavedDrawing): HTMLElement {
+  const label = item.playlist ? `${item.title} ▤` : item.title;
+  const openBtn = h("button", { class: "library-open", title: item.playlist ? "Load this playlist" : "Load this drawing" }, label);
+  openBtn.addEventListener("click", () => {
+    if (blockedByAi("opening another drawcast")) return;
+    setDoc(docFromSaved(item), "Loaded from library.");
+  });
+  const delBtn = h("button", { class: "library-del", title: "Delete from library" }, "✕");
+  delBtn.addEventListener("click", () => {
+    deleteDrawing(item.id);
+    refreshLibrary();
+  });
+  return h("div", { class: "library-item" }, openBtn, delBtn);
+}
+
+/** Loose drawcasts only — a lecture belongs to its course (the Courses
+ *  section below), not here. */
+function refreshLibrary(): void {
+  libraryList.replaceChildren();
+  const loose = loadLibrary().filter((i) => !i.courseId); // newest first: saveDrawing unshifts
+  const items = loose.filter((i) => matchesFilter(i.title));
+  if (items.length === 0) {
+    libraryList.appendChild(h("div", { class: "hint" }, loose.length === 0 ? "Nothing saved yet." : "No match."));
+  } else {
+    for (const item of items) libraryList.appendChild(row(item));
+  }
+  refreshCourses();
+  refreshSidebarShell();
+}
+
+/** One row per saved course, opening the same panel `openCourse` does, with
+ *  that course's lectures inline behind its own caret (ui/sidebar.ts's
+ *  courseGroup — the exact per-course <details> grouping this function used
+ *  to build for the library, moved out and now driven by every saved course
+ *  rather than only the ones with a lecture already in view). */
+function refreshCourses(): void {
+  coursesSection.list.replaceChildren();
+  const all = loadCourses();
+  const shown = all.filter((c) => matchesFilter(c.title));
+  if (shown.length === 0) {
+    coursesSection.list.appendChild(h("div", { class: "hint" }, all.length === 0 ? "No courses yet." : "No match."));
+    return;
+  }
+  const library = loadLibrary();
+  for (const course of shown) {
+    const lectures = library.filter((i) => i.courseId === course.id);
+    coursesSection.list.appendChild(courseGroup(course, lectures, row, openCourse));
+  }
+}
+
+/** Opens the course panel — the "＋ New course" row and every course row in
+ *  the Courses section share this one call site; the panel itself offers the
+ *  saved-course picker and ＋ New once open. */
+function openCourse(): void {
+  openCoursePanel({
+    apiKey: () => getApiKey(),
+    model: () => settings.model,
+    variant: () => currentVariant(),
+    exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
+    bundledExemplars: () => bundledExemplarPool(),
+    setStatus,
+    openDrawing: (id) => {
+      const saved = loadLibrary().find((d) => d.id === id);
+      if (saved) setDoc(docFromSaved(saved), `Loaded "${saved.title}".`);
+    },
+    refreshLibrary: () => refreshLibrary(),
+    settings,
+    persist,
+    setStatusAction,
+    refreshAccountRow,
+    openSettings,
+    renderVideo,
+    beginExport,
+    setProgress: (text) => (exportChipText.textContent = text),
+    endExport,
+    setAbort: (c) => (exportAbort = c),
+  });
+}
+
 refreshLibrary();
 refreshAccountRow();
 
@@ -2707,24 +2747,44 @@ function refreshMyTemplates(): void {
   const all = loadMyTemplates();
   if (all.length === 0) {
     myTemplatesList.appendChild(h("div", { class: "hint" }, "No templates yet — create one with ✦ New template."));
-    return;
+  } else {
+    for (const t of all) {
+      const improveBtn = h("button", { class: "small" }, "Improve");
+      improveBtn.addEventListener("click", () => openAuthorDialog({ id: t.id }));
+      const exportBtn2 = h("button", { class: "small", title: "Download this template's YAML" }, "Export");
+      exportBtn2.addEventListener("click", () => downloadBlob(`${t.id}.yaml`, new Blob([t.yaml], { type: "text/yaml" })));
+      const delBtn2 = h("button", { class: "small" }, "Delete");
+      delBtn2.addEventListener("click", () => {
+        deleteMyTemplate(t.id);
+        unregisterUserTemplate(t.id);
+        refreshMyTemplates();
+        refreshTemplatePicker();
+      });
+      myTemplatesList.appendChild(h("div", { class: "library-item" }, h("span", { class: "library-title" }, t.id), improveBtn, exportBtn2, delBtn2));
+    }
   }
-  for (const t of all) {
-    const improveBtn = h("button", { class: "small" }, "Improve");
-    improveBtn.addEventListener("click", () => openAuthorDialog({ id: t.id }));
-    const exportBtn2 = h("button", { class: "small", title: "Download this template's YAML" }, "Export");
-    exportBtn2.addEventListener("click", () => downloadBlob(`${t.id}.yaml`, new Blob([t.yaml], { type: "text/yaml" })));
-    const delBtn2 = h("button", { class: "small" }, "Delete");
-    delBtn2.addEventListener("click", () => {
-      deleteMyTemplate(t.id);
-      unregisterUserTemplate(t.id);
-      refreshMyTemplates();
-      refreshTemplatePicker();
-    });
-    myTemplatesList.appendChild(h("div", { class: "library-item" }, h("span", { class: "library-title" }, t.id), improveBtn, exportBtn2, delBtn2));
-  }
+  refreshTemplatesSection();
 }
 refreshMyTemplates();
+
+/** The Templates section (sidebar): the author's own templates, opened the
+ *  same way "Improve" in the modal does. Full management (export, delete)
+ *  stays behind Manage… — the modal above, unchanged. */
+function refreshTemplatesSection(): void {
+  templatesSection.list.replaceChildren();
+  const all = loadMyTemplates();
+  const shown = all.filter((t) => matchesFilter(t.id));
+  if (shown.length === 0) {
+    templatesSection.list.appendChild(h("div", { class: "hint" }, all.length === 0 ? "No templates yet." : "No match."));
+  } else {
+    for (const t of shown) {
+      const b = h("button", { class: "library-open" }, t.id);
+      b.addEventListener("click", () => openAuthorDialog({ id: t.id }));
+      templatesSection.list.appendChild(h("div", { class: "library-item" }, b));
+    }
+  }
+  refreshSidebarShell();
+}
 
 // ---------- template packs (M3) ----------
 

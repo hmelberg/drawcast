@@ -395,6 +395,11 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 }
 .sidebar-row:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
 
+/* The footer rows configure the app rather than list content — a quieter
+   style so the two species read differently. */
+.sidebar-tools .sidebar-row { font-size: 0.85rem; color: var(--muted); }
+.sidebar-tools .sidebar-row:hover { color: var(--ink); }
+
 .sidebar-backdrop { display: none; }
 @media (max-width: 940px) {
   body.mode-editor.sidebar-open .sidebar {
