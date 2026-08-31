@@ -33,7 +33,7 @@ import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
-import { openDestinations, saveDestinations, type CredentialState } from "./ui/destinations";
+import { openDestinations, saveDestinations, OPEN_LABELS, SAVE_LABELS, type CredentialState } from "./ui/destinations";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
@@ -731,9 +731,9 @@ function buildOpenMenu(): HTMLElement {
   return createMenu(
     "Open",
     [
-      { label: "From disk…", onSelect: () => importInput.click() },
-      { label: "From Google Drive…", onSelect: () => void openFromDrive(), hidden: !allowed.has("From Google Drive…") },
-      { label: "From GitHub…", onSelect: () => void openSourceFromGithub(), hidden: !allowed.has("From GitHub…") },
+      { label: OPEN_LABELS.disk, onSelect: () => importInput.click() },
+      { label: OPEN_LABELS.drive, onSelect: () => void openFromDrive(), hidden: !allowed.has(OPEN_LABELS.drive) },
+      { label: OPEN_LABELS.github, onSelect: () => void openSourceFromGithub(), hidden: !allowed.has(OPEN_LABELS.github) },
     ],
     { title: "Open a drawcast" },
   );
@@ -743,9 +743,9 @@ function buildSaveMenu(): HTMLElement {
   return createMenu(
     "Save",
     [
-      { label: "To disk…", onSelect: () => openSaveToDisk() },
-      { label: "To Google Drive…", onSelect: () => void saveToDrive(), hidden: !allowed.has("To Google Drive…") },
-      { label: "To GitHub…", onSelect: () => void saveSourceToGithub(), hidden: !allowed.has("To GitHub…") },
+      { label: SAVE_LABELS.disk, onSelect: () => openSaveToDisk() },
+      { label: SAVE_LABELS.drive, onSelect: () => void saveToDrive(), hidden: !allowed.has(SAVE_LABELS.drive) },
+      { label: SAVE_LABELS.github, onSelect: () => void saveSourceToGithub(), hidden: !allowed.has(SAVE_LABELS.github) },
     ],
     { title: "Save this drawcast" },
   );

@@ -18,10 +18,31 @@ export interface CredentialState {
   github: boolean;
 }
 
+/**
+ * The exact label text each menu item shows — exported so main.ts builds its
+ * real `MenuItem[]` from these same values instead of retyping the strings.
+ * Two independent copies of "From GitHub…" (one here deciding visibility,
+ * one in main.ts labelling the button) could drift on a rename and leave the
+ * item permanently hidden while both test files stayed green — a `hidden`
+ * check against a label that no longer matches anything is silently always
+ * true. One copy of each string closes that gap structurally.
+ */
+export const OPEN_LABELS = {
+  disk: "From disk…",
+  drive: "From Google Drive…",
+  github: "From GitHub…",
+} as const;
+
+export const SAVE_LABELS = {
+  disk: "To disk…",
+  drive: "To Google Drive…",
+  github: "To GitHub…",
+} as const;
+
 export function openDestinations(state: CredentialState): string[] {
-  return ["From disk…", ...(state.drivePicker ? ["From Google Drive…"] : []), ...(state.github ? ["From GitHub…"] : [])];
+  return [OPEN_LABELS.disk, ...(state.drivePicker ? [OPEN_LABELS.drive] : []), ...(state.github ? [OPEN_LABELS.github] : [])];
 }
 
 export function saveDestinations(state: CredentialState): string[] {
-  return ["To disk…", ...(state.driveSave ? ["To Google Drive…"] : []), ...(state.github ? ["To GitHub…"] : [])];
+  return [SAVE_LABELS.disk, ...(state.driveSave ? [SAVE_LABELS.drive] : []), ...(state.github ? [SAVE_LABELS.github] : [])];
 }
