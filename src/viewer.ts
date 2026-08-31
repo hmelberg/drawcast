@@ -12,6 +12,7 @@ import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
+import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
 
@@ -145,12 +146,16 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
-    if (req.mode === "narrated") speech.prefetch(playlistSpeakLines(playlist), req.speed);
+    // Narration baked into the document plays from there; anything it does not
+    // cover falls through to this manager, and only THOSE lines are worth a
+    // synthesis call. A fully baked drawcast needs no key at all.
+    const baked = bakedAudioFor(speech, playlist);
+    if (req.mode === "narrated") speech.prefetch(baked.unbaked(playlistSpeakLines(playlist)), req.speed);
     await mountPlaylist(figureHost, playlist, {
       style: req.style,
       mode: req.mode,
       speed: req.speed,
-      speech,
+      speech: baked.speech,
       prefs: { mode: req.mode, speed: req.speed },
       captions: {
         on: settings.captionsOn,

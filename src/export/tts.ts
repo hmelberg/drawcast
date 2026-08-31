@@ -95,7 +95,15 @@ async function ttsError(res: Response): Promise<Error> {
   return new Error(message);
 }
 
-export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
+/**
+ * One line, as the base64 MP3 the API itself returns.
+ *
+ * Split out of synthesizeOne because publishing needs the ENCODED bytes, not a
+ * decoded buffer: baking spends this string straight into the document (or a
+ * file), and re-encoding a decoded buffer would need an MP3 encoder in the
+ * browser to get back what the API already sent.
+ */
+export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: SpeakOpts): Promise<string> {
   // Soft monthly cap — applies only when the stored key was vended (shared).
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
@@ -128,7 +136,11 @@ export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: Audi
   const { audioContent } = (await res.json()) as { audioContent?: string };
   if (!audioContent) throw new Error("the TTS response carried no audio");
   addTtsChars(text.length);
-  const bytes = base64ToBytes(audioContent);
+  return audioContent;
+}
+
+export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
+  const bytes = base64ToBytes(await synthesizeBase64(cfg, text, opts));
   return audioCtx.decodeAudioData(bytes.buffer as ArrayBuffer);
 }
 

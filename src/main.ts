@@ -56,6 +56,7 @@ import { exportVideo, narrationLanguage, type ExportResult } from "./export/vide
 import { toVtt } from "./export/captions";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
+import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { translateSpec } from "./llm/translate";
 import { lintCommands } from "./lint/lint";
@@ -114,6 +115,8 @@ const settings = loadSettings();
 // Cloud voices for live playback when a TTS key is set (and the toggle is on);
 // falls back to the browser's speechSynthesis otherwise, per line.
 const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
+/** Baked narration for the document on screen; replaced on every mount. */
+let bakedAudio: BakedAudio | null = null;
 speech.setVoice(settings.voiceURI);
 speech.setRate(settings.rate);
 const variants: PromptVariant[] = promptVariants();
@@ -1661,9 +1664,16 @@ async function present(): Promise<void> {
   // A declared language picks the narrator's voice; without one the old
   // per-line sniff stands, which only ever tells English from Norwegian.
   speech.setLangHint(itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang ?? null);
+  // Narration baked into the document plays from there; the live manager stays
+  // behind it for anything the bake does not cover. Released before the next
+  // mount, since the clips hold object URLs.
+  bakedAudio?.destroy();
+  bakedAudio = bakedAudioFor(speech, doc.playlist);
+  const playSpeech = bakedAudio.speech;
   try {
-    // Warm the cloud-voice cache so narrated playback starts without stalls.
-    if (settings.mode === "narrated") speech.prefetch(playlistSpeakLines(doc.playlist), settings.speed);
+    // Warm the cloud-voice cache so narrated playback starts without stalls —
+    // skipping lines already baked, which would be paid for twice.
+    if (settings.mode === "narrated") speech.prefetch(bakedAudio.unbaked(playlistSpeakLines(doc.playlist)), settings.speed);
     // Player mode has no chrome of its own, so the control bar carries the way
     // back. The editor already has the Player/Editor pill in the topbar — a
     // second switch there would only crowd the narrow preview bar.
@@ -1679,12 +1689,12 @@ async function present(): Promise<void> {
       mode: settings.mode,
       speed: settings.speed,
       questions: settings.skipQuestions ? "skip" : "on",
-      speech,
+      speech: playSpeech,
       prefs: playbackPrefs(),
       captions: captionPrefs(),
       controls: {
         onPlayingChange: (playing) => document.body.classList.toggle("is-playing", playing),
-        speech,
+        speech: playSpeech,
         fullscreenEl: host,
         onTheater: isPlayer ? toggleTheater : undefined,
         trailing: isPlayer ? [switchBtn] : [],

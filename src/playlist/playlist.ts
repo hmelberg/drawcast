@@ -29,10 +29,29 @@ export type PlaylistEntry =
   | { kind: "chapter"; title: string }
   | { kind: "item"; spec: Spec };
 
+/**
+ * Narration baked at publish time, carried inside the published document.
+ *
+ * Keyed by speechKey (the sentence, plus who says it and how) — never by
+ * position, because a drawcast branches: see render/published-speech.ts. `mp3`
+ * is base64, which is how bytes survive in a text file.
+ *
+ * On the PLAYLIST rather than on a spec, and deliberately: specs go into the
+ * editor's textarea, the version history, the localStorage library and the
+ * prompts sent to the model, and none of those can carry a megabyte of base64
+ * (design §15.2). formatPlaylist never writes this back out.
+ */
+export interface AudioTrack {
+  lang: string;
+  lines: Record<string, { mp3: string; ms: number }>;
+}
+
 export interface Playlist {
   meta: PlaylistMeta;
   entries: PlaylistEntry[];
   warnings: string[];
+  /** Present only on a document published with inline audio. */
+  audio?: AudioTrack;
 }
 
 export const DEFAULT_META: PlaylistMeta = { advance: "click", gap: 1, transitions: "auto" };
@@ -88,15 +107,37 @@ export function parsePlaylistText(text: string): Playlist {
   return singlePlaylist(single);
 }
 
+/** Tolerant read of a baked-audio document; anything malformed is ignored. */
+function readAudio(raw: unknown, warnings: string[]): AudioTrack | undefined {
+  if (!isPlainObject(raw) || !isPlainObject(raw.lines)) {
+    warnings.push("audio document is not a mapping with `lines` — ignored");
+    return undefined;
+  }
+  const lines: AudioTrack["lines"] = {};
+  for (const [key, value] of Object.entries(raw.lines)) {
+    if (isPlainObject(value) && typeof value.mp3 === "string" && value.mp3.length > 0) {
+      lines[key] = { mp3: value.mp3, ms: typeof value.ms === "number" ? value.ms : 0 };
+    }
+  }
+  return { lang: typeof raw.lang === "string" ? raw.lang : "", lines };
+}
+
 function classifyDocs(docs: Record<string, unknown>[]): Playlist {
   const warnings: string[] = [];
   let meta: PlaylistMeta = { ...DEFAULT_META };
   const entries: PlaylistEntry[] = [];
+  let audio: AudioTrack | undefined;
   for (const doc of docs) {
     if ("playlist" in doc) {
       const raw = doc.playlist;
       if (isPlainObject(raw)) meta = readMeta(raw, warnings);
       else warnings.push("playlist header is not a mapping — ignored");
+    } else if ("audio" in doc) {
+      // MUST be an explicit branch: the else below treats any unrecognized
+      // mapping as a spec, so an unhandled audio document becomes a figure
+      // with nothing to draw and then fails validateSpec, taking the whole
+      // drawcast down with it.
+      audio = readAudio(doc.audio, warnings) ?? audio;
     } else if ("chapter" in doc) {
       const raw = doc.chapter;
       const title = typeof raw === "string" ? raw : isPlainObject(raw) && typeof raw.title === "string" ? raw.title : null;
@@ -106,7 +147,7 @@ function classifyDocs(docs: Record<string, unknown>[]): Playlist {
       entries.push({ kind: "item", spec: doc as Spec });
     }
   }
-  return { meta, entries, warnings };
+  return { meta, entries, warnings, ...(audio ? { audio } : {}) };
 }
 
 export interface PlaylistItem {
@@ -163,6 +204,27 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
     else parts.push(dump(e.spec, YAML_OPTS));
   }
   return parts.join("---\n");
+}
+
+/**
+ * Serialize FOR PUBLISHING, with baked audio appended as its own document.
+ *
+ * Separate from formatPlaylist on purpose. formatPlaylist is what the editor
+ * textarea, the version stack and the localStorage library all go through, and
+ * none of them can carry a megabyte of base64 — the twenty-deep history alone
+ * would hold twenty copies of it (design §15.2). Keeping the audio out of that
+ * function is what makes the rule structural instead of a convention someone
+ * has to remember, so this is the ONLY place that writes an audio document.
+ *
+ * A single-spec playlist is promoted to a stream: it now has a second document
+ * to carry, and `---` is what says so.
+ */
+export function formatPublished(playlist: Playlist, audio: AudioTrack | null): string {
+  const body = formatPlaylist(playlist, "yaml");
+  if (!audio || Object.keys(audio.lines).length === 0) return body;
+  // lineWidth:-1 (YAML_OPTS) is load-bearing here: js-yaml folds long scalars
+  // across lines by default, which would corrupt every base64 payload at once.
+  return `${body.replace(/\n*$/, "\n")}---\n${dump({ audio }, YAML_OPTS)}`;
 }
 
 export function itemTitle(item: PlaylistItem): string {
