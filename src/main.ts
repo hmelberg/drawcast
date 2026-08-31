@@ -5,7 +5,7 @@
 
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
-import { needsRender } from "./render/policy";
+import { canRender, needsRender } from "./render/policy";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
 import { generateParts } from "./llm/multi";
 import { missingPlaceholders } from "./llm/prompt";
@@ -2659,8 +2659,23 @@ function markRendered(text: string): void {
  * that to decide whether the fresh session (which autostarts on its own via
  * `andPlay`) has already taken care of playback, or whether today's already-
  * current session still needs to be told to play (see beforePlay in present()).
+ *
+ * Silent by design: this now fires from Play, Share, Save and mode-switch as
+ * well as an explicit edit, so an "ok" status line here would routinely cover
+ * up something more relevant. The edited dot is the drawing's visible signal.
+ *
+ * canRender() restores what a disabled ↻ button used to prevent for free:
+ * while viewing an old version (the pane is read-only, but 📌 Pin and Insert
+ * Portrait still write to specArea.value directly) or while an AI call is
+ * streaming its own partial text into the same textarea, this must not push
+ * a manual edit or autosave — doing either would silently jump the cursor to
+ * newest, or commit the model's half-formed draft as the author's.
  */
 function ensureRendered(andPlay = false): boolean {
+  // Keeps the dot honest even on every early return below — including a
+  // playlist that fails to parse, which otherwise leaves it stale.
+  refreshEditedDot();
+  if (!canRender(!atNewest(stack), aiBusy)) return false;
   if (!needsRender(specArea.value, lastRenderedText)) return false;
   const playlist = readPlaylistText(specArea.value);
   if (!playlist) return false;
@@ -2669,7 +2684,6 @@ function ensureRendered(andPlay = false): boolean {
   doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
-  setStatus("Re-rendered from edited spec.", "ok");
   void present(andPlay);
   autosave();
   markRendered(specArea.value);
