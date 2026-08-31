@@ -280,12 +280,12 @@ body.mode-editor main {
    with a live left edge, so it reads as "being written" and not as "yours". */
 .spec-json.streaming {
   opacity: 0.6;
-  border-left: 3px solid var(--rust);
+  border-left: 3px solid var(--ink);
   animation: spec-streaming 1.6s ease-in-out infinite;
 }
 @keyframes spec-streaming {
-  0%, 100% { border-left-color: var(--rust); }
-  50% { border-left-color: color-mix(in srgb, var(--rust) 25%, var(--surface)); }
+  0%, 100% { border-left-color: var(--ink); }
+  50% { border-left-color: color-mix(in srgb, var(--ink) 25%, var(--surface)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .spec-json.streaming { animation: none; }
@@ -338,11 +338,11 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   width: 100%;
   text-align: left;
   font-weight: 600;
-  border-color: var(--rust);
-  color: var(--rust);
-  background: color-mix(in srgb, var(--rust) 7%, #fff);
+  border-color: var(--ink);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 7%, #fff);
 }
-.sidebar-new:hover { background: color-mix(in srgb, var(--rust) 14%, #fff); border-color: var(--rust); }
+.sidebar-new:hover { background: color-mix(in srgb, var(--ink) 14%, #fff); border-color: var(--ink); }
 
 .sidebar-search { width: 100%; font-size: var(--text-sm); padding: 0.3rem 0.5rem; }
 
@@ -716,7 +716,7 @@ details > summary { cursor: pointer; color: var(--muted); }
 .cs-bigplay:hover {
   transform: translate(-50%, -50%) scale(1.07);
   background: rgba(255, 253, 246, 0.95);
-  color: var(--rust);
+  color: var(--ink);
   border-color: var(--ink);
 }
 .cs-stage.is-playing .cs-bigplay { display: none; }
@@ -765,7 +765,7 @@ details > summary { cursor: pointer; color: var(--muted); }
   color: var(--ink);
   cursor: pointer;
 }
-.cs-bar-btn:hover { color: var(--rust); }
+.cs-bar-btn:hover { color: var(--ink); }
 
 /* Theater mode widens the stage — on a screen this narrow there is no
    "narrow vs. wide" left to switch between, so the button does nothing. */
@@ -956,7 +956,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    :fullscreen rules (all keyed on .player-figure) never reached the viewer. */
 .viewer-footer { margin-top: 0.9rem; text-align: center; font-size: var(--text-sm); }
 .viewer-footer a { color: var(--muted); text-decoration: none; }
-.viewer-footer a:hover { color: var(--rust); }
+.viewer-footer a:hover { color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
@@ -1035,7 +1035,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.35rem 0.8rem;
   cursor: pointer;
 }
-.cs-cardgate-pill:hover { border-color: var(--rust); }
+.cs-cardgate-pill:hover { border-color: var(--ink); }
 .cs-cardgate-pill.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
 .cs-cardgate-pill.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
 .cs-cardgate-pill.skip {
@@ -1172,14 +1172,14 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-infocard-sense {
   font-family: var(--sketch-font);
   font-size: var(--text-xs);
-  color: var(--rust);
+  color: var(--ink);
   background: none;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0.05rem 0.45rem;
   cursor: pointer;
 }
-.cs-infocard-sense:hover { border-color: var(--rust); }
+.cs-infocard-sense:hover { border-color: var(--ink); }
 .cs-stage.cs-cardable { cursor: pointer; }
 
 /* Media modal: the read-instead-of-the-figure surface (YouTube, PDF). */
@@ -1400,13 +1400,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   font-size: var(--text-xs);
   color: var(--muted);
 }
-.cs-tray-row input[type="range"] { flex: 1; accent-color: var(--rust); }
+.cs-tray-row input[type="range"] { flex: 1; accent-color: var(--ink); }
 .cs-tray-label { min-width: 6.5rem; }
 .cs-tray-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 .cs-tray-actions { display: flex; justify-content: flex-end; }
 .cs-tray-continue { font-size: var(--text-xs); }
-.cs-tray-btn.open { color: var(--rust); }
-.cs-tray-btn.pulse { animation: tray-pulse 1s ease-in-out 4; color: var(--rust); }
+.cs-tray-btn.open { color: var(--ink); }
+.cs-tray-btn.pulse { animation: tray-pulse 1s ease-in-out 4; color: var(--ink); }
 @keyframes tray-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.35); }
@@ -1509,7 +1509,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--steel);
   cursor: pointer;
 }
-.share-dest:hover { color: var(--rust); }
+.share-dest:hover { color: var(--ink); }
 .share-dest.current { background: var(--paper); color: var(--rust); font-weight: 600; }
 .share-panel-host { flex: 1; min-width: 0; }
 .share-panel > * + * { margin-top: 0.6rem; }

@@ -34,33 +34,36 @@ describe("the palette", () => {
   });
 });
 
-// The task-1 brief's original version of this assertion checked that every
-// var(--rust) use in styles.css sits inside a button.primary selector — i.e.
-// that the accent has exactly one job left. That claim is false of the file
-// as it stands: styles.css has grown roughly two dozen other var(--rust)
-// uses (.tab-btn.active, .library-open.current, .sidebar-new, the
-// .spec-json.streaming indicator, .cs-bar-btn:hover, the playlist dots,
-// .share-dest, the infocard links, the explore tray, …) that the brief's
-// "five other uses" list does not name — and the brief explicitly scopes
-// this task to touch only those five ("change ONLY … the five accent uses
-// named … do not go hunting for other colours"). Asserting the global claim
-// here would be false; weakening it to enumerate ~24 exceptions is exactly
-// the "pass against scattered uses" the brief warns against avoiding. So
-// this checks precisely what Task 1 guarantees instead: the four sites the
-// brief names no longer spend the accent, and button.primary still does.
-// See the task-1 report for the full list of out-of-scope sites found.
-describe("the accent — one job (scoped to this task's four sites)", () => {
-  it("moves mode-btn.active, choices-toggle.has-choice, library-open:hover and cs-progress-fill off the accent", async () => {
-    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-    expect(/\.mode-btn\.active\s*\{[^}]*\}/.exec(css)?.[0]).not.toMatch(/var\(--rust\)/);
-    expect(/\.choices-toggle\.has-choice\s*\{[^}]*\}/.exec(css)?.[0]).not.toMatch(/var\(--rust\)/);
-    expect(/\.library-open:hover\s*\{[^}]*\}/.exec(css)?.[0]).not.toMatch(/var\(--rust\)/);
-    expect(/\.cs-progress-fill\s*\{[^}]*height:\s*100%[^}]*\}/.exec(css)?.[0]).not.toMatch(/var\(--rust\)/);
-  });
+// Round 2 fix: the accent keeps three deliberate roles instead of one —
+// primary action, "you are here", and inline links — and loses everywhere
+// else (hover states, and incidental text/controls). Rather than a narrowed
+// test that only checks the sites this task happened to touch, this is an
+// explicit allowlist: every var(--rust) use in styles.css must sit inside a
+// rule whose selector matches one of these. A future accent use then has to
+// be added here deliberately instead of drifting in unnoticed — which is how
+// the file ended up with 32 uses across three "one job" rounds of intent.
+// :root (where --rust is defined) is not in this list because the token
+// definition itself never contains the literal text "var(--rust)", so the
+// rule-matching regex below never sees it.
+const RUST_ALLOWED_SELECTORS = [
+  "button.primary", // primary action — covers button.primary and button.primary.cancelling:hover
+  ".tab-btn.active", // you are here
+  ".library-open.current",
+  ".pl-dot.current",
+  ".pl-item.current",
+  ".share-dest.current",
+  ".cs-infocard-actions a", // inline links
+  ".cs-infocard-actions .cs-infocard-act",
+  ".cs-mediamodal-bar a",
+];
 
-  it("keeps the accent on button.primary", async () => {
+describe("the accent — an explicit allowlist", () => {
+  it("spends var(--rust) only on the permitted selectors", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-    expect(/button\.primary\s*\{[^}]*\}/.exec(css)?.[0]).toMatch(/var\(--rust\)/);
+    const uses = [...css.matchAll(/([^{}]+)\{([^}]*var\(--rust\)[^}]*)\}/g)].map((m) => m[1].trim());
+    for (const sel of uses) {
+      expect(RUST_ALLOWED_SELECTORS.some((allowed) => sel.includes(allowed)), sel).toBe(true);
+    }
   });
 });
 
