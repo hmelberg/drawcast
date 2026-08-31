@@ -474,6 +474,17 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   border-left: 1px solid var(--line);
 }
 
+/* The drawing has fallen behind the text. State, not an action — --muted, not
+   the accent (tests/palette.test.ts allowlists var(--rust) to a short list of
+   roles this is not one of). */
+.edited-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
 /* ---------- the ▾ menu: a verb with a few ways to do it ---------- */
 .menu { position: relative; display: inline-flex; }
 .menu-panel {

@@ -62,6 +62,13 @@ export interface SessionOptions {
   };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
+  /**
+   * Start playback the moment the first item (or the title page) mounts,
+   * instead of waiting for a click on the poster's Play button. Set when this
+   * session is replacing one whose own Play button was just pressed against
+   * stale text — see beforePlay in ui/controls.ts.
+   */
+  autoplay?: boolean;
 }
 
 export interface SessionHandle {
@@ -204,6 +211,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       attachPlayerControls(host, hd, prefs, controlOpts);
       applyCaptions(hd);
       opts.onItemMounted?.(hd, items[0]);
+      if (opts.autoplay) void hd.timeline.play();
     }
     return {
       destroy: () => {
@@ -400,9 +408,10 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   /**
    * The TV-style opening: the title page mounts as the cover (its finished
    * state is the poster behind the big play button); pressing play fades the
-   * title in and out, then chains into the first item.
+   * title in and out, then chains into the first item. `autoplay` starts that
+   * fade immediately instead of waiting for the click.
    */
-  async function mountTitlePage(title: string): Promise<void> {
+  async function mountTitlePage(title: string, autoplay: boolean): Promise<void> {
     if (destroyed) return;
     idx = -1; // before item 0: no dot current, n jumps to the first item
     handle?.destroy();
@@ -430,6 +439,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       onStep: prev.onStep,
     };
     markCurrent();
+    if (autoplay) void hd.timeline.play();
   }
 
   const onKey = (e: KeyboardEvent): void => {
@@ -447,8 +457,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   };
   document.addEventListener("keydown", onKey);
 
-  if (playlist.meta.title !== undefined) await mountTitlePage(playlist.meta.title);
-  else await mountItem(0, false);
+  if (playlist.meta.title !== undefined) await mountTitlePage(playlist.meta.title, opts.autoplay ?? false);
+  else await mountItem(0, opts.autoplay ?? false);
 
   return {
     destroy: () => {

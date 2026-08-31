@@ -5,6 +5,7 @@
 
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
+import { needsRender } from "./render/policy";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
 import { generateParts } from "./llm/multi";
 import { missingPlaceholders } from "./llm/prompt";
@@ -627,7 +628,7 @@ const insertMenu = createMenu("＋ Insert", [
         viewedPart: () => previewedPart,
         applyPlaylist: (playlist) => {
           specArea.value = formatPlaylist(playlist, settings.specFormat);
-          rerenderBtn.click();
+          ensureRendered();
         },
         setStatus,
       }),
@@ -788,10 +789,13 @@ refreshCounts();
 // Preview column
 const previewHost = h("div", { class: "player-figure" });
 const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
-const rerenderBtn = h("button", { class: "small", title: "Redraw from the edited text" }, "↻ Re-render");
 const formatSel = h("select", { class: "cs-bar-select", title: "Spec text format (parsing accepts both)" });
 formatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
 formatSel.value = settings.specFormat;
+// State, not an action — filled with --muted rather than the accent (see the
+// rust allowlist in tests/palette.test.ts). Lives in the PREVIEW bar because
+// it describes the drawing, not the text.
+const editedDot = h("span", { class: "edited-dot", hidden: "", title: "Edited — plays from the new text" });
 
 const ratingBox = h("span", { class: "rating", hidden: "" });
 const ratingButtons: HTMLButtonElement[] = [];
@@ -882,7 +886,7 @@ const editorWrap = h(
       h(
         "div",
         { class: "pane-bar" },
-        h("span", { class: "bar-group" }, formatSel, rerenderBtn),
+        h("span", { class: "bar-group" }, formatSel),
         h("span", { class: "bar-group" }, insertMenu, pinPortraitsBtn),
         h("span", { class: "bar-group" }, openMenu, saveMenu, importInput),
         h("span", { class: "pane-spacer" }),
@@ -893,7 +897,7 @@ const editorWrap = h(
     h(
       "div",
       { class: "panel editor-preview" },
-      h("div", { class: "pane-bar" }, lintChip, h("span", { class: "pane-spacer" }), reviewBtn, ratingBox, promoteBtn, exportChip),
+      h("div", { class: "pane-bar" }, lintChip, editedDot, h("span", { class: "pane-spacer" }), reviewBtn, ratingBox, promoteBtn, exportChip),
       previewHost,
       lintBox,
     ),
@@ -1825,9 +1829,16 @@ let presentSeq = 0;
 // always into part 1 (the old insertion's hardcoded position).
 let previewedPart = 0;
 
-async function present(): Promise<void> {
-  // Guard against overlapping presents (e.g. Re-render while a mount is in
-  // flight): only the latest call may keep its session.
+/**
+ * `andPlay` closes the Play trap: the Play button that was just pressed lives
+ * INSIDE the session this call is about to destroy, so pressing it can never
+ * itself start the new one. When true, the freshly mounted session is told
+ * (via SessionOptions.autoplay) to start playing on its own the moment it
+ * mounts — the exact call its own brand-new Play button would have made.
+ */
+async function present(andPlay = false): Promise<void> {
+  // Guard against overlapping presents (e.g. an edit landing while a mount is
+  // in flight): only the latest call may keep its session.
   const seq = ++presentSeq;
   const isPlayer = settings.uiMode === "player";
   const host = isPlayer ? playerHost : previewHost;
@@ -1866,12 +1877,19 @@ async function present(): Promise<void> {
       speech: playSpeech,
       prefs: playbackPrefs(),
       captions: captionPrefs(),
+      autoplay: andPlay,
       controls: {
         onPlayingChange: (playing) => document.body.classList.toggle("is-playing", playing),
         speech: playSpeech,
         fullscreenEl: host,
         onTheater: isPlayer ? toggleTheater : undefined,
         trailing: isPlayer ? [switchBtn] : [],
+        // The Play button lives inside THIS session. Pressing it while the text
+        // is ahead replaces the session out from under it (ensureRendered(true)
+        // → present(true) → autoplay above) rather than starting the timeline
+        // that click is about to lose; when nothing changed, this returns
+        // false and the press plays today's session as usual.
+        beforePlay: () => ensureRendered(true),
       },
       onItemMounted: (hd, item) => {
         if (!isPlayer) {
@@ -1937,6 +1955,9 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
     void present();
+    // A history restore filled the textarea, not a keystroke — it already
+    // matches what present() just drew.
+    markRendered(v.text);
   } finally {
     restoring = false;
   }
@@ -1957,7 +1978,6 @@ function applyHistoryUi(): void {
   // While viewing, editing has nowhere to land — lock the pane rather than let
   // hand-edits vanish on the next arrow press.
   specArea.readOnly = viewing;
-  rerenderBtn.disabled = viewing;
   reviseBtn.textContent = viewing ? "Revise from here" : "Revise with AI";
   // Both of these target `lastLogId` — the log entry for the NEWEST version — so
   // while you are viewing an older one they would record against a spec that is
@@ -2007,6 +2027,9 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
   promoteBtn.textContent = "👍 Learn from this"; // applyHistoryUi() above owns .disabled
   if (statusText) setStatus(statusText, "ok");
   void present();
+  // The textarea was just filled by a load/generation, not typed — it must
+  // not read as "edited" the instant it appears.
+  markRendered(specArea.value);
 }
 
 /**
@@ -2122,6 +2145,11 @@ function showMode(mode: "player" | "editor"): void {
   document.body.classList.toggle("mode-editor", mode === "editor");
   playerModeBtn.classList.toggle("active", mode === "player");
   editorModeBtn.classList.toggle("active", mode === "editor");
+  // Switching to Player is "go watch it" — catch the drawing up first.
+  // ensureRendered() already re-presents into the (now-current) host when it
+  // does; only fall back to a bare present() when there was nothing to catch
+  // up on, so a text-unchanged mode switch does not mount twice.
+  if (mode === "player" && ensureRendered()) return;
   void present();
 }
 
@@ -2604,18 +2632,49 @@ async function loadBundledExample(index: number): Promise<void> {
   if (ex.spec) setDoc({ id: null, driveFileId: null, title: ex.spec.title ?? ex.request, prompt: ex.request, playlist: singlePlaylist(ex.spec) }, "Example loaded.");
 }
 
-rerenderBtn.addEventListener("click", () => {
+// The last text a render actually reflected. null until the first present() —
+// needsRender() treats that as "behind" unconditionally, so a fresh boot
+// never confuses "nothing rendered yet" with "nothing changed".
+let lastRenderedText: string | null = null;
+
+/** Un-hides the preview bar's dot exactly when the drawing has fallen behind
+ *  the text — recomputed on every keystroke and everywhere lastRenderedText
+ *  itself changes (through markRendered, its only writer). */
+function refreshEditedDot(): void {
+  editedDot.hidden = !needsRender(specArea.value, lastRenderedText);
+}
+specArea.addEventListener("input", refreshEditedDot);
+
+/** The one place lastRenderedText is written, so the dot can never drift out
+ *  of sync with it by a call site forgetting to refresh it. */
+function markRendered(text: string): void {
+  lastRenderedText = text;
+  refreshEditedDot();
+}
+
+/**
+ * Bring the drawing up to date with the text, if it is behind — the old
+ * ↻ Re-render handler, now driven by needsRender() instead of a click.
+ * Returns whether it re-rendered: callers reachable from a Play button use
+ * that to decide whether the fresh session (which autostarts on its own via
+ * `andPlay`) has already taken care of playback, or whether today's already-
+ * current session still needs to be told to play (see beforePlay in present()).
+ */
+function ensureRendered(andPlay = false): boolean {
+  if (!needsRender(specArea.value, lastRenderedText)) return false;
   const playlist = readPlaylistText(specArea.value);
-  if (!playlist) return;
+  if (!playlist) return false;
   // Same document, edited in place — carry the id forward so autosave() below
   // replaces this entry instead of minting a second one (copy-on-write).
   doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   setStatus("Re-rendered from edited spec.", "ok");
-  void present();
+  void present(andPlay);
   autosave();
-});
+  markRendered(specArea.value);
+  return true;
+}
 
 promoteBtn.addEventListener("click", () => {
   addExemplar({ prompt: doc.prompt || doc.title, spec: firstSpec(doc), ts: new Date().toISOString() });
@@ -3183,7 +3242,7 @@ pinPortraitsBtn.addEventListener("click", () => {
   ).then((all) => {
     const failed = all.flat().filter((r) => !r.ok);
     specArea.value = formatPlaylist(playlist, settings.specFormat);
-    rerenderBtn.click();
+    ensureRendered();
     setStatus(
       failed.length > 0
         ? `Pinned with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
@@ -3315,6 +3374,9 @@ async function saveToDrive(): Promise<void> {
   if (driveSaveInFlight) return;
   driveSaveInFlight = true;
   try {
+    // Catch the drawing up before capturing `target` below — Save must ship
+    // what is on screen, not whatever the last render happened to be.
+    ensureRendered();
     // Everything this save is ABOUT is captured at click time. The first Save
     // opens a consent popup and the page stays interactive behind it, so `doc`
     // may be a different document by the time the await resolves — and writing
@@ -3392,7 +3454,13 @@ formatSel.addEventListener("change", () => {
     formatSel.value = "yaml";
     return;
   }
+  // A reformat changes the TEXT, not the drawing — if it was already caught
+  // up, it still is (in its new spelling); if it was already behind, it stays
+  // behind. Decide before overwriting the value, since needsRender() below
+  // would otherwise always compare against the old spelling.
+  const wasRendered = !needsRender(specArea.value, lastRenderedText);
   specArea.value = formatPlaylist(playlist, next);
+  if (wasRendered) markRendered(specArea.value);
   settings.specFormat = next;
   persist();
 });
@@ -3411,6 +3479,9 @@ exportChipCancel.addEventListener("click", () => exportAbort?.abort());
 
 /** Show the chip and freeze Share — the one entry point now — while one export runs. */
 function beginExport(status: string): void {
+  // Share reads doc() synchronously right after this returns (ui/share.ts) —
+  // catch the drawing up first so an export never ships stale content.
+  ensureRendered();
   exportChipText.textContent = status;
   exportChip.hidden = false;
   shareBtn.disabled = true;
@@ -3471,6 +3542,9 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = ""): Promi
 // the YouTube-into-fresh-playlists trap) lives in ui/share.ts now; this is
 // just the wiring to this app's live state.
 shareBtn.addEventListener("click", () => {
+  // The modal reads `doc` live (below) — catch it up to the text on screen
+  // first, so a link/upload/download never ships a stale drawing.
+  ensureRendered();
   openShare({
     subject: "drawcast",
     doc: () => doc,
@@ -3713,4 +3787,9 @@ stack = seedStack(specArea.value, doc.prompt || doc.title);
 applyHistoryUi();
 if (doc.prompt) promptEl.value = doc.prompt;
 refreshChips();
+// A freshly opened document is not an edit — mark it caught up BEFORE
+// showMode()'s first present() (which, for Player, routes through
+// ensureRendered() and would otherwise mint a bogus history entry the
+// instant the app opens, since lastRenderedText starts out null).
+markRendered(specArea.value);
 showMode(settings.uiMode);

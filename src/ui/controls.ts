@@ -68,6 +68,14 @@ export interface ControlsOptions {
   };
   /** Extra buttons appended at the right end (e.g. the editor/player switch). */
   trailing?: HTMLElement[];
+  /**
+   * Checked just before playback STARTS (never on pause). Returning true means
+   * the caller has already taken over — e.g. the editor found the text had
+   * moved on and replaced this session with a freshly rendered one that
+   * autostarts itself (see SessionOptions.autoplay in playlist/session.ts) —
+   * so this toggle must not also start the timeline it is about to lose.
+   */
+  beforePlay?(): boolean;
 }
 
 /**
@@ -1028,8 +1036,14 @@ export function attachPlayerControls(
   }
 
   const togglePlay = () => {
-    if (hd.timeline.state === "playing") hd.timeline.pause();
-    else void hd.timeline.play();
+    if (hd.timeline.state === "playing") {
+      hd.timeline.pause();
+      return;
+    }
+    // The caller gets first refusal on the START transition only — a fresh
+    // session mounted to replace this one autostarts on its own.
+    if (opts.beforePlay?.()) return;
+    void hd.timeline.play();
   };
   bigPlay.addEventListener("click", (e) => {
     e.stopPropagation();
