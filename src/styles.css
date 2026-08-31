@@ -5,11 +5,11 @@
    the creation workbench. */
 
 :root {
-  --paper: #f5f1e6;
-  --surface: #fffdf6;
+  --paper: #efe9da;   /* the page sits back so panels can lift off it */
+  --surface: #fffdf8;
   --ink: #3d3833;
-  --muted: #8f887c;
-  --line: #d8d2c2;
+  --muted: #6f685c;   /* 4.6:1 on the surface — hints are text, not decoration */
+  --line: #8f8265;    /* a real edge: 3.1:1 against the paper, not 1.33 */
   --rust: #b5482e;
   --steel: #2f6b8f;
   --mustard: #e0a814;
@@ -18,6 +18,12 @@
   --sketch-font: "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive;
   --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono-font: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Three sizes instead of six: body, secondary (hints, notes, counts), and
+     dense (bar controls). The 2rem wordmark is its own thing, not part of
+     this scale. */
+  --text: 1rem;
+  --text-sm: 0.875rem;
+  --text-xs: 0.8rem;
   /* One height for every control in a bar — and the touch minimum the same
      controls grow to when there is no hover to reveal anything. */
   --bar-h: 1.9rem;
@@ -96,7 +102,7 @@ body {
 }
 .mode-btn:hover { color: var(--ink); }
 .mode-btn.active {
-  background: var(--rust);
+  background: var(--ink);
   color: #fff;
 }
 /* The sidebar toggle and the ☰ menu button, pill-shaped like the gear was. */
@@ -229,16 +235,16 @@ body.mode-editor main {
 .choices-toggle:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); color: var(--ink); }
 .choices-toggle[aria-expanded="true"] { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, var(--surface)); }
 /* A pinned template changes every generation — say so while it is out of sight. */
-.choices-toggle.has-choice { color: var(--rust); }
+.choices-toggle.has-choice { color: var(--ink); }
 .quiet-label {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
 }
 .quiet-label select {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   padding: 0.25rem 0.4rem;
   border-color: transparent;
   background: transparent;
@@ -338,14 +344,14 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 }
 .sidebar-new:hover { background: color-mix(in srgb, var(--rust) 14%, #fff); border-color: var(--rust); }
 
-.sidebar-search { width: 100%; font-size: 0.85rem; padding: 0.3rem 0.5rem; }
+.sidebar-search { width: 100%; font-size: var(--text-sm); padding: 0.3rem 0.5rem; }
 
 /* Section headings read at the same size as the tool rows below them — one
    menu, one type scale. */
 .sidebar-heading {
   font-family: inherit;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--ink);
   margin: 0;
   padding: 0.3rem 0.35rem;
@@ -390,7 +396,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   text-align: left;
   padding: 0.3rem 0.35rem;
   border-radius: 5px;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--ink);
   cursor: pointer;
   text-decoration: none;
@@ -400,7 +406,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 
 /* The footer rows configure the app rather than list content — a quieter
    style so the two species read differently. */
-.sidebar-tools .sidebar-row { font-size: 0.85rem; color: var(--muted); }
+.sidebar-tools .sidebar-row { font-size: var(--text-sm); color: var(--muted); }
 .sidebar-tools .sidebar-row:hover { color: var(--ink); }
 
 .sidebar-backdrop { display: none; }
@@ -438,7 +444,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   border-bottom: 1px solid var(--line);
   min-height: 2rem;
 }
-.pane-bar button, .pane-bar select { font-size: 0.82rem; padding: 0.24rem 0.5rem; min-height: var(--bar-h); }
+.pane-bar button, .pane-bar select { font-size: var(--text-xs); padding: 0.24rem 0.5rem; min-height: var(--bar-h); }
 .pane-spacer { flex: 1; }
 /* Three visible groups instead of one flex spacer (spec §4): a divider
    reads as "these controls act on different things" without a label. */
@@ -471,7 +477,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   text-align: left;
   padding: 0.35rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--ink);
   cursor: pointer;
 }
@@ -480,7 +486,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 /* ---------- lint chip ---------- */
 
 .lint-chip {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   cursor: pointer;
@@ -499,7 +505,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   background: color-mix(in srgb, var(--loss) 10%, var(--surface));
 }
 .lint-chip.clean { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--surface)); }
-.lint-box { margin-top: 0.5rem; font-size: 0.85rem; }
+.lint-box { margin-top: 0.5rem; font-size: var(--text-sm); }
 
 /* ---------- modal tabs ---------- */
 
@@ -517,13 +523,13 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   padding: 0.3rem 0.6rem;
   color: var(--muted);
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
 }
 .tab-btn:hover { color: var(--ink); }
 .tab-btn.active { color: var(--rust); border-bottom-color: var(--rust); }
 .tab-panel { min-height: 12rem; }
 
-.row-note { color: var(--muted); font-size: 0.75rem; }
+.row-note { color: var(--muted); font-size: var(--text-xs); }
 .library-open.current { font-weight: 600; color: var(--rust); }
 
 .panel {
@@ -564,7 +570,7 @@ textarea {
 textarea.prompt-source,
 textarea.spec-json {
   font-family: var(--mono-font);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   min-height: 180px;
 }
 textarea.spec-json { min-height: 260px; }
@@ -579,14 +585,14 @@ textarea.prompt-source { min-height: 17rem; }
   border: none;
   background: none;
   padding: 0.2rem 0.2rem;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--steel);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.library-open:hover { color: var(--rust); text-decoration: underline dotted; }
+.library-open:hover { color: var(--ink); text-decoration: underline dotted; }
 /* Deleting is destructive and rarely what you came for, so the ✕ stays
    invisible — and unclickable, or an off-target click would still hit it —
    until the pointer is on that row. It keeps its space in the layout so rows
@@ -613,7 +619,7 @@ textarea.prompt-source { min-height: 17rem; }
 
 button, select, input[type="text"], input[type="password"] {
   font-family: var(--ui-font);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--ink);
   background: #fff;
   border: 1.5px solid var(--line);
@@ -646,7 +652,7 @@ button.primary.cancelling {
 }
 button.primary.cancelling:hover { background: rgba(0, 0, 0, 0.04); border-color: var(--rust); color: var(--rust); }
 
-button.small { padding: 0.25rem 0.5rem; font-size: 0.82rem; }
+button.small { padding: 0.25rem 0.5rem; font-size: var(--text-xs); }
 button:disabled { opacity: 0.5; cursor: default; }
 
 details > summary { cursor: pointer; color: var(--muted); }
@@ -679,7 +685,7 @@ details > summary { cursor: pointer; color: var(--muted); }
   /* 📌 is the one icon-only control this pass leaves icon-only — its title=
      explains an irreversible, expensive action that touch never shows, so it
      gets visible text here instead of losing the explanation outright. */
-  .pin-btn::after { content: " Pin images"; font-size: 0.78rem; }
+  .pin-btn::after { content: " Pin images"; font-size: var(--text-xs); }
 }
 
 /* ---------- the figure / player (cs-*) ---------- */
@@ -740,7 +746,7 @@ details > summary { cursor: pointer; color: var(--muted); }
    video player uses, and legible without a color the theme has to supply. */
 .cs-cc {
   font-family: var(--mono-font);
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.04em;
   opacity: 0.55;
 }
@@ -768,7 +774,7 @@ details > summary { cursor: pointer; color: var(--muted); }
 }
 
 .cs-bar-select {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   padding: 0.12rem 0.25rem;
   border-radius: 4px;
 }
@@ -786,11 +792,11 @@ details > summary { cursor: pointer; color: var(--muted); }
 .cs-progress-fill {
   height: 100%;
   width: 0;
-  background: var(--rust);
+  background: var(--ink);
   transition: width 0.15s linear;
 }
 
-.step-indicator { color: var(--muted); font-size: 0.78rem; min-width: 3ch; text-align: center; }
+.step-indicator { color: var(--muted); font-size: var(--text-xs); min-width: 3ch; text-align: center; }
 
 /* ---------- lint + rating ---------- */
 
@@ -809,7 +815,7 @@ details > summary { cursor: pointer; color: var(--muted); }
 }
 .rating button.lit { color: var(--mustard); }
 
-.count { color: var(--muted); font-size: 0.85rem; }
+.count { color: var(--muted); font-size: var(--text-sm); }
 
 /* ---------- settings dialog ---------- */
 
@@ -877,9 +883,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .dialog-x:hover { color: var(--ink); }
 .settings-field { margin-bottom: 0.9rem; }
-.settings-field label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
+.settings-field label { display: block; font-size: var(--text-sm); color: var(--muted); margin-bottom: 0.25rem; }
 .settings-field input[type="password"], .settings-field select { width: 100%; }
-.settings-note { font-size: 0.78rem; color: var(--muted); }
+.settings-note { font-size: var(--text-xs); color: var(--muted); }
 .settings-field label.settings-check {
   display: flex;
   gap: 0.45rem;
@@ -888,7 +894,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--ink);
 }
 
-.hint { color: var(--muted); font-size: 0.85rem; }
+.hint { color: var(--muted); font-size: var(--text-sm); }
 
 /* ---------- background video export ---------- */
 
@@ -898,7 +904,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   align-items: center;
   gap: 0.35rem;
   max-width: 24rem;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   padding: 0.1rem 0.25rem 0.1rem 0.55rem;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -915,7 +921,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   background: none;
   cursor: pointer;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   padding: 0 0.2rem;
 }
 .pane-bar .export-chip .chip-x:hover { color: var(--loss); }
@@ -948,7 +954,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* The figure itself is a .player-figure here too — see the player-mode block
    above. This used to be a byte-identical .viewer-figure copy, which meant the
    :fullscreen rules (all keyed on .player-figure) never reached the viewer. */
-.viewer-footer { margin-top: 0.9rem; text-align: center; font-size: 0.85rem; }
+.viewer-footer { margin-top: 0.9rem; text-align: center; font-size: var(--text-sm); }
 .viewer-footer a { color: var(--muted); text-decoration: none; }
 .viewer-footer a:hover { color: var(--rust); }
 
@@ -1124,9 +1130,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   font-family: var(--sketch-font);
 }
 .cs-infocard-title { font-size: 1.02rem; color: var(--ink); padding-right: 1.2rem; }
-.cs-infocard-summary { font-size: 0.82rem; line-height: 1.3; color: var(--muted); margin-top: 0.25rem; }
+.cs-infocard-summary { font-size: var(--text-xs); line-height: 1.3; color: var(--muted); margin-top: 0.25rem; }
 .cs-infocard-actions { display: flex; gap: 0.7rem; margin-top: 0.4rem; }
-.cs-infocard-actions a { font-size: 0.82rem; color: var(--rust); text-decoration: none; }
+.cs-infocard-actions a { font-size: var(--text-xs); color: var(--rust); text-decoration: none; }
 .cs-infocard-actions a:hover { text-decoration: underline; }
 .cs-infocard-close {
   position: absolute;
@@ -1141,7 +1147,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-infocard-actions .cs-infocard-act {
   font-family: var(--sketch-font);
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: var(--rust);
   background: none;
   border: none;
@@ -1162,10 +1168,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* "Did you mean" — shown only when the figure's own words do not settle the
    sense. One click picks, and the row is replaced by that sense. */
 .cs-infocard-senses { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; margin-top: 0.4rem; }
-.cs-infocard-senseslabel { font-size: 0.78rem; color: var(--muted); }
+.cs-infocard-senseslabel { font-size: var(--text-xs); color: var(--muted); }
 .cs-infocard-sense {
   font-family: var(--sketch-font);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--rust);
   background: none;
   border: 1px solid var(--line);
@@ -1206,20 +1212,20 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.3rem 0.6rem;
   border-bottom: 1px solid var(--line);
 }
-.cs-mediamodal-bar a { font-size: 0.82rem; color: var(--rust); text-decoration: none; }
+.cs-mediamodal-bar a { font-size: var(--text-xs); color: var(--rust); text-decoration: none; }
 .cs-mediamodal-bar a:hover { text-decoration: underline; }
 .cs-mediamodal-close {
   border: none;
   background: none;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 .cs-mediamodal-frame { flex: 1; width: 100%; border: none; }
 
 /* Identify quiz: activity pills in the tray, Again ↻ on the quiz gate. */
 .cs-tray-acts { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-.cs-tray-pill { font-size: 0.82rem; padding: 0.25rem 0.7rem; }
+.cs-tray-pill { font-size: var(--text-xs); padding: 0.25rem 0.7rem; }
 .cs-quiz-again {
   position: absolute;
   bottom: 1.2rem;
@@ -1241,7 +1247,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   margin: -0.25rem 0 0.55rem;
 }
 .chip {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--steel);
   background: color-mix(in srgb, var(--steel) 10%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--steel) 45%, var(--surface));
@@ -1277,7 +1283,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border: none;
   padding: 0.32rem 0.6rem;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 .tag-suggest-row.active,
 .tag-suggest-row:hover { background: color-mix(in srgb, var(--steel) 10%, var(--surface)); }
@@ -1345,7 +1351,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .pl-chapter > summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.25rem 0;
@@ -1361,7 +1367,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border-radius: 6px;
   padding: 0.3rem 0.4rem;
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--ink);
 }
 .pl-item:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
@@ -1391,21 +1397,21 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .cs-tray-row input[type="range"] { flex: 1; accent-color: var(--rust); }
 .cs-tray-label { min-width: 6.5rem; }
 .cs-tray-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 .cs-tray-actions { display: flex; justify-content: flex-end; }
-.cs-tray-continue { font-size: 0.82rem; }
+.cs-tray-continue { font-size: var(--text-xs); }
 .cs-tray-btn.open { color: var(--rust); }
 .cs-tray-btn.pulse { animation: tray-pulse 1s ease-in-out 4; color: var(--rust); }
 @keyframes tray-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.35); }
 }
-.cs-tray-hint { font-size: 0.82rem; color: var(--muted); }
+.cs-tray-hint { font-size: var(--text-xs); color: var(--muted); }
 /* Exploring: the stage is a workbench — no centered play button over it. */
 .cs-stage.cs-exploring .cs-bigplay { display: none; }
 
@@ -1469,7 +1475,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    separate actions — Improve/Export/Delete — so the title is a plain label instead). */
 .library-title {
   flex: 1;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--steel);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1479,12 +1485,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* Template packs panel (M3): each row stacks a .library-item (title + the two
    checkboxes) over the pack's description hint. */
 .pack-row + .pack-row { margin-top: 0.5rem; }
-.pack-check { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+.pack-check { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--text-sm); color: var(--muted); white-space: nowrap; }
 
 /* Remote packs (M5): official-index browse results + loaded remote-pack rows,
    in the same "Template packs" panel, below the built-in rows. */
 .extra-packs { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); }
-.extra-packs-heading { margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.75rem; }
+.extra-packs-heading { margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.03em; font-size: var(--text-xs); }
 
 .remote-url-input { flex: 1; min-width: 160px; }
 
@@ -1499,7 +1505,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   background: none;
   padding: 0.4rem 0.5rem;
   border-radius: 0.3rem;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--steel);
   cursor: pointer;
 }
@@ -1566,13 +1572,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   .course-split .course-doc { min-height: 30rem; }
   .course-rows-col { position: sticky; top: 0; }
 }
-.course-help { margin: 0 0 0.5rem; font-size: 0.85rem; opacity: 0.75; }
+.course-help { margin: 0 0 0.5rem; font-size: var(--text-sm); opacity: 0.75; }
 .course-ask {
   width: 100%;
   min-height: 3.2rem;
   /* Grown to fit by autoGrow(); this is the ceiling before it scrolls. */
   max-height: 14rem;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   padding: 0.5rem 0.6rem;
   margin-bottom: 0.5rem;
@@ -1583,7 +1589,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   width: 100%;
   min-height: 24rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   padding: 0.6rem;
   resize: vertical;
@@ -1603,12 +1609,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   background: color-mix(in srgb, #b3261e 10%, var(--surface));
   font-weight: 600;
 }
-.course-cost { font-size: 0.82rem; opacity: 0.75; }
-.course-status { min-height: 1.2rem; font-size: 0.85rem; opacity: 0.85; margin-top: 0.4rem; }
+.course-cost { font-size: var(--text-xs); opacity: 0.75; }
+.course-status { min-height: 1.2rem; font-size: var(--text-sm); opacity: 0.85; margin-top: 0.4rem; }
 .course-status-error { color: #b3261e; opacity: 1; }
 .course-warnings {
   margin-top: 0.4rem;
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: #9c6b1f;
   border-left: 3px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
   padding-left: 0.5rem;
@@ -1619,7 +1625,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border-radius: 0.35rem;
   border: 1px solid color-mix(in srgb, #2e7d32 40%, var(--surface));
   background: color-mix(in srgb, #2e7d32 8%, var(--surface));
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 .course-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; }
 .course-link-label { flex: none; min-width: 7rem; opacity: 0.7; }
@@ -1678,7 +1684,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .rv-where {
   flex: 1;
   min-width: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1686,13 +1692,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .rv-input { width: 100%; font-size: 0.88rem; line-height: 1.5; padding: 0.45rem 0.55rem; resize: vertical; }
 .rv-bar { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
-.rv-hint { font-size: 0.78rem; opacity: 0.6; text-align: right; }
+.rv-hint { font-size: var(--text-xs); opacity: 0.6; text-align: right; }
 .rv-list { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.5rem; }
 .rv-note {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   padding: 0.25rem 0.4rem;
   border-left: 3px solid color-mix(in srgb, var(--ink) 25%, transparent);
   border-radius: 0.2rem;
