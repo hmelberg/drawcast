@@ -1497,11 +1497,18 @@ In `ui/controls.ts:730–743`, put `modeSel`, `speedSel`, the mute button and th
 
 47 controls carry a `title=` that touch never shows. For every control that survives this plan with an icon-only label, either give it visible text or move its explanation into the dialog it opens. `📌` is the one permitted survivor:
 
+`📌` is `class: "icon-only"` today and has no `pin-btn` class — add one at its
+construction, or this rule matches nothing and fails silently, which is the
+whole failure mode this step exists to prevent:
+
 ```css
 @media (hover: none) {
   .pin-btn::after { content: " Pin images"; font-size: 0.78rem; }
 }
 ```
+
+Assert in the test that `pin-btn` appears in `main.ts` as well as in the CSS —
+a selector with no element is worse than no selector, because it looks done.
 
 - [ ] **Step 7: Run the whole suite and commit**
 
