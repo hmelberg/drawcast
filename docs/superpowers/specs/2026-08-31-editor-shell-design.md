@@ -1,0 +1,332 @@
+# Design: The editor shell — fewer controls, one pattern, a menu that folds
+
+*2026-08-31. Decisions made in brainstorming with Hans, after auditing the
+shell as it stands (§0). Hans's brief: "The drawcast editor is a bit crowded
+and ugly. See what can be done to make it both better looking and better
+organized… publishing may open a new modal with choices… This could be a
+general pattern. Also make it flexible… courses should have courses listed
+below like examples and libraries, but it should also be possible to 'close'
+the list. And make the design and layout more consistent and professional."*
+
+## Goals
+
+1. **Cut the two pane bars from 14 permanently visible controls to 9**, by
+   moving options out of the bars and into the dialog of the verb they
+   modify — and give what remains a visible structure.
+2. **State that as a rule, once**, so later features land the same way:
+   a button in a bar is a verb; its options live in what it opens.
+3. **One Share verb** covering every way a drawcast leaves the app — link,
+   YouTube, video file, spec file.
+4. **A sidebar of uniform, collapsible sections** — Library, Courses,
+   Examples, Templates — each with a count, each remembering whether it is
+   open, with the configuration rows visually separated below them.
+5. **Courses get their own section**, instead of being nested inside Library.
+6. **One visual vocabulary**: one control size per bar, explicit groups, and
+   an icon only where the icon is the whole meaning.
+
+## Non-goals
+
+- **A topbar rework.** The document title stays out of the topbar and the
+  mode pill keeps its place. Considered and declined as a separate round.
+- **Changing what any of these actions do.** Publishing, uploading,
+  exporting, tracing and saving keep their current behaviour and their
+  current code paths; this moves where they are reached from. The one
+  exception is portrait *placement*, §3.
+- **Course publishing.** It publishes a whole course, not the open document,
+  and stays inside the course panel.
+- **Rethinking `developerMode`.** The 1–5 rating and the Data row are already
+  gated behind it (`main.ts:1190`); they are not part of the crowding.
+- **Batch or multi-destination sharing.** One destination per Share.
+
+## 0. What is actually there — verified, not assumed
+
+The editor shows **about 25 controls at once**, in three bars plus the menu.
+
+**Top toolbar** (`main.ts:786–800`) — prompt textarea, tag chips, the version
+`view-bar`, then `…` `◀ 1/1 ▶` `Generate with AI` `Revise with AI`, with
+Template / Instructions / Model folded behind the `…` (`gen-choices`).
+
+**Spec pane bar** (`main.ts:805–823`) — ten controls in one flat run:
+
+```
+YAML▾  ↻ Re-render   [spacer]   ⬇  ⬆  👤 Portrait  📌  ☁ Open  ☁ Save  ⬆ Publish  ☑ with narration
+```
+
+**Preview pane bar** (`main.ts:828`) — lint chip, `[spacer]`, `✎ Review`,
+`★★★★★`, `👍 Learn from this`, `🎬 Export video`, `▶ YouTube`, export chip.
+The stars and the lint chip only appear in developer mode.
+
+**Sidebar** (`main.ts:843–897`) — `＋ New drawcast`, a search box, two
+`h2`-headed lists (Library, Examples), then seven flat rows: Templates,
+Instructions, Course, Data, Help, Sign in with Google, Settings.
+
+What is already right, and is kept:
+
+- **The modal-with-options pattern already exists.** `ytDialog`
+  (`main.ts:3332–3352`) holds title, description, per-language checkboxes,
+  visibility and burn-captions. This design generalizes that dialog rather
+  than inventing a shape.
+- **`createModal` / `createTabs` / `dialogHead`** (`ui/modal.ts`) already give
+  every dialog the same head, ESC handling and backdrop dismissal.
+- **The type scale in the menu is already one scale** — `.sidebar-heading` and
+  `.sidebar-row` are both `0.92rem`, with a comment saying so
+  (`styles.css:336–345`). What the sections lack is a caret, a count, and the
+  ability to close.
+- **A capability without its credential does not advertise itself.**
+  `driveOpenBtn.hidden = !pickerConfigured()`, `uploadYtBtn.hidden =
+  !googleConfigured()` (`main.ts:574–584`). Carried over verbatim into §2.
+
+What is specifically wrong:
+
+- **`⬆` means two different things in the same bar** — import a file, and
+  Publish — with `⬇` for download beside them.
+- **Four control vocabularies in one row**: icon-only, icon+text, text-only,
+  a bare `<select>`, and a checkbox, separated by nothing but one
+  `.pane-spacer`.
+- **Sizes disagree inside one bar**: `.pane-bar button` is `0.82rem`,
+  `.pane-bar .icon-only` is `0.92rem` (`styles.css:429–430`). The row steps.
+- **`☑ with narration` is a publish option renting permanent bar space.**
+- **The menu mixes two species under identical styling** — content lists you
+  open, and modals you configure.
+- **Courses are nested inside Library** as per-course `<details>`
+  (`main.ts:2550–2555`), so a course is both a library item and not one.
+- **Neither list can be closed.** Each is capped at `max-height: 13rem` and
+  scrolls internally (`styles.css:356–363`).
+
+## 1. The rule
+
+> **A button in a bar is a verb. Its options live in the modal that verb
+> opens.**
+
+No checkbox and no `<select>` sits permanently in a bar beside the button it
+modifies. The two `<select>`s that survive — the spec format and the
+generation choices behind `…` — are not options *of* an adjacent button; they
+describe the pane itself.
+
+This is the general pattern Hans asked for. §2, §3 and §4 are three
+applications of it.
+
+## 2. Share — one verb, four destinations
+
+A single `↗ Share` button replaces **five** controls: `⬇`, `⬆ Publish`,
+`☑ with narration`, `🎬 Export video`, `▶ YouTube`.
+
+It opens a modal with the destinations down the left, that destination's
+options on the right, and one primary button whose label names the act:
+
+| Destination | Options | Button |
+|---|---|---|
+| **Link** | with narration baked in | Publish |
+| **YouTube** | title, description, languages, visibility, burn captions | Upload |
+| **Video file** | burn captions, language | Export |
+| **Spec file** | YAML / JSON | Download |
+
+**No shared options row.** An earlier draft put language and narration at the
+top as common ground. They are not common: baking is Link-only, the language
+checkboxes are YouTube-only, burn-captions differs between the file and the
+upload *on purpose* (`Settings.burnCaptions` vs `burnCaptionsOnUpload`,
+`store.ts:69–81`). Faking commonality would cost more than it buys.
+
+**The last destination is remembered** in `Settings.shareTo`, so a repeat
+publish stays *Share → Enter*.
+
+**Unconfigured destinations stay hidden**, exactly as the buttons do today
+(§0). This is a deliberate carry-over of the existing rule, not an oversight:
+it does mean a user who has never connected Google never learns YouTube
+exists. Revisit separately if that trade turns out wrong.
+
+**Behaviour is unchanged.** `publishDrawcast()` (`main.ts:3094`), the YouTube
+upload path, `exportVideo()` and the spec download keep their code; Share
+calls them. One improvement comes free: when the GitHub repo or token is
+missing, the modal can say so *in place* with a link to Settings, instead of
+today's red status line after the click (`main.ts:3097–3100`).
+
+**Course publishing is not part of Share** — see Non-goals.
+
+## 3. ＋ Insert — and what portrait becomes
+
+`👤 Portrait` becomes an **`＋ Insert ▾`** menu, holding `Portrait…` today and
+`Source…` when someone writes it.
+
+Portraits themselves are a first-class element — cameo mode, four reveal
+effects, four styles (`spec/schema.ts:142–186`), used 20 times in
+`examples.json`, and actively prompted for. The *button* is the problem:
+
+1. It is driven by **`window.prompt()`** (`main.ts:2962`) — one of only two
+   left in the app.
+2. It inserts at hardcoded `x: 170, y: 550, width: 170` **and emits no draw
+   command** (`main.ts:2947–2959`). The element therefore appears through the
+   implicit final-draw rule (`render/plan.ts:515–519`): as an extra step
+   tacked onto the very end of the drawcast, in a fixed corner. Almost always
+   wrong, so the author edits YAML anyway.
+3. On a multi-part playlist it always lands in part 1 regardless of which part
+   is open — the status message says so itself (`main.ts:2958`).
+
+The dialog replaces all three:
+
+```
+┌─ Insert portrait ────────────────────┐
+│  ◉ By name   [ John Maynard Keynes ] │
+│  ○ Image URL [                     ] │
+│  ○ From file [ Choose… ]             │
+│                                      │
+│  Part   [ 1 – Comparative cost   ▾ ] │
+│  Place  [ Cameo ▾ ]  after step [ 4 ]│
+│                            [ Insert ]│
+└──────────────────────────────────────┘
+```
+
+- **All three input paths stay.** Name and URL are largely redundant with
+  asking the AI or typing YAML — what they add is *eager* resolution, so a
+  misspelled name fails loudly now rather than silently at playback
+  (`main.ts:2971–2985`). The file path is **not** redundant:
+  `traceFromBlob()` has no other caller in the editor, and no YAML expresses
+  it.
+- **It emits a real `draw` command** at the chosen step, instead of relying on
+  the implicit tail-draw. This is the one behaviour change in the design.
+- **It targets the chosen part**, defaulting to the part being viewed.
+- **Cameo or corner** picks between the two presentations the schema already
+  has (`schema.ts:175`); corner keeps today's x/y/width defaults.
+
+`📌` stays as it is, next to Insert. It is a document operation over portraits
+*and* sources, not an insert, and its icon is its whole meaning.
+
+## 4. Open and Save
+
+`☁ Open` and `☁ Save` become **`Open ▾`** and **`Save ▾`**, each holding
+*From disk* / *From Google Drive* and *To disk* / *To Google Drive*.
+
+This is what finally kills the `⬆`-means-two-things collision: import stops
+being a stray icon beside Publish and becomes what it is, a way of opening.
+When Google is not configured the menu has one item and collapses back to a
+plain button, so nobody without Drive pays a click.
+
+The resulting bar:
+
+```
+YAML▾  ↻ Re-render  │  ＋ Insert ▾  📌  │  Open ▾  Save ▾  │  ↗ Share
+```
+
+Ten controls become seven, with three explicit groups instead of one spacer.
+The preview bar becomes lint chip · `✎ Review` · `👍 Learn from this` · export
+chip — plus the stars in developer mode.
+
+## 5. The sidebar
+
+Four sections, all built the same way, each a `<details>` with a caret, a
+count, and remembered open state:
+
+```
+ ＋ New drawcast
+ [ Search…                ]
+
+ 📚 Library      (12) ▾
+ 🎓 Courses       (3) ▸
+ ✨ Examples     (24) ▾
+ ✦ Templates      (8) ▸
+ ──────────────────────────
+ Instructions · Data · Help · Sign in · Settings
+```
+
+- **Library** holds loose drawcasts only. The per-course `<details>` grouping
+  inside it (`main.ts:2530–2556`) moves out.
+- **Courses** is new. One row per `SavedCourse` (`store.ts:312–333`); the row
+  opens the course panel, the caret expands that course's lectures inline,
+  reusing the grouping logic being moved out of `refreshLibrary`. A
+  `＋ New course` row ends the section and takes over from today's
+  `🎓 Course` tool row.
+- **Templates** lists the author's own templates, with a `Manage…` row into
+  the existing four-tab modal. The modal is unchanged.
+- **Open state is per section**, in `Settings.sidebarSections`. Library and
+  Examples default open; Courses and Templates default closed — four lists at
+  `max-height: 13rem` would otherwise be a very tall menu.
+- **Search auto-expands.** The filter already covers Library and Examples
+  (`main.ts:917–921`) and now covers all four. A section with matches opens
+  itself while a filter is active and returns to its remembered state when the
+  filter clears — a hit inside a closed section is a hit that does not exist.
+  While filtering, counts read `3 of 12`.
+- **The footer rows get their own quieter style**, so configuration reads
+  differently from content. `.sidebar-tools` already sits at the foot behind a
+  rule (`styles.css:372–378`); it gains a muted colour and a smaller size.
+
+## 6. The consistency pass
+
+- **Delete the size exception.** `.pane-bar .icon-only { font-size: 0.92rem }`
+  (`styles.css:430`) goes; every control in a bar shares one size and one
+  height via a new `--bar-h` token.
+- **Explicit groups.** `.bar-group` with a hairline `--line` divider between
+  groups, replacing the single `.pane-spacer`.
+- **One icon rule.** Icon + text for verbs; icon-only only where the glyph is
+  the whole meaning — `📌`, `✕`, the mode pill. `⬇` and `⬆` disappear into
+  Share and Open.
+- **One panel treatment.** The same border, radius and shadow for the two
+  editor panes and the dialogs.
+
+## 7. Settings
+
+Two additions to `Settings` (`store.ts:41–106`) and `DEFAULT_SETTINGS`:
+
+```ts
+/** Which Share destination was used last, so a repeat publish is one keypress. */
+shareTo: "link" | "youtube" | "video" | "spec";
+/** Sidebar sections that are open, by section id. Absent = the section's default. */
+sidebarSections: Record<string, boolean>;
+```
+
+Defaults: `shareTo: "link"`, `sidebarSections: {}`.
+
+The portrait dialog's default part is deliberately **not** a setting — it is
+read from the live playlist when the dialog opens.
+
+## 8. Testing
+
+`vitest`, `environment: "node"` (`vite.config.ts`) — there is no DOM, so the
+established pattern applies: extract the decidable parts as pure functions and
+test those, plus source-text drift tests (already used against `styles.css` in
+`tests/course-panel.test.ts:77–86`).
+
+**New pure functions, unit-tested:**
+
+- `shareDestinations(caps)` → which destinations are offered, given which
+  credentials exist. Pins the hidden-without-credential rule.
+- `sidebarSections(lib, courses, examples, templates, filter, open)` →
+  sections with counts, which are expanded, and `"3 of 12"` labels under a
+  filter. Pins that Library excludes `courseId` items and that a section with
+  matches auto-expands.
+- `portraitInsert(playlist, choice)` → the spec edit: the element, its part,
+  and the `draw` command. Pins that a draw command is emitted, that the target
+  part is honoured, and that cameo omits x/y/width.
+
+**Drift tests against source:**
+
+- No `.icon-only` rule inside a `.pane-bar` selector.
+- `--bar-h` is defined and used by both bars.
+- No `window.prompt(` in the portrait path.
+
+**Regression:** the existing suite must stay green. `exportSequence` hands out
+the document's own spec objects, so anything that reaches into the playlist —
+Share's YouTube path especially — keeps translating into fresh playlists
+rather than mutating `doc` (the trap recorded on `ytTranslations`,
+`main.ts:3358–3365`).
+
+## 9. Risks
+
+- **Share costs frequent publishing one extra click.** Mitigated by the
+  remembered destination: Share → Enter.
+- **Hiding unconfigured destinations hides discovery** (§2). Carried over
+  knowingly; flagged for a later decision.
+- **`main.ts` is 3828 lines and this touches its spine.** The shell assembly
+  (`main.ts:786–897`) is the part being rewritten; Share, the Insert dialog
+  and the sidebar sections each land in their own module under `src/ui/`
+  rather than growing `main.ts` further.
+- **Four sections make a taller menu than two.** Two default closed, and the
+  `13rem` per-list cap stays.
+
+## 10. Order of work
+
+1. `--bar-h`, `.bar-group`, the icon rule, the panel treatment (§6) — visible
+   immediately, no behaviour change.
+2. `src/ui/share.ts` + the Share modal (§2), absorbing `ytDialog`.
+3. `src/ui/insert.ts` + the portrait dialog (§3), and `Open ▾` / `Save ▾` (§4).
+4. `src/ui/sidebar.ts` + the four sections (§5), moving course grouping out of
+   `refreshLibrary`.
