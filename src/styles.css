@@ -433,6 +433,34 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 .pane-bar button, .pane-bar select { font-size: 0.82rem; padding: 0.24rem 0.5rem; min-height: var(--bar-h); }
 .pane-spacer { flex: 1; }
 
+/* ---------- the ▾ menu: a verb with a few ways to do it ---------- */
+.menu { position: relative; display: inline-flex; }
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  z-index: 30;
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(61, 56, 51, 0.14);
+  padding: 0.25rem;
+}
+.menu-item {
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.menu-item:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
+
 /* ---------- lint chip ---------- */
 
 .lint-chip {
