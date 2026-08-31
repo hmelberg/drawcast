@@ -126,6 +126,14 @@ describe("Open ▾ and Save ▾", () => {
   });
 });
 
+describe("the images menu", () => {
+  it("gathers the image verbs under one menu, and Pin stops hiding in a tooltip", async () => {
+    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/createMenu\("🖼 Images"/);
+    expect(src).not.toMatch(/class:\s*"icon-only[^"]*"[^)]*"📌"/);
+  });
+});
+
 describe("the format picker", () => {
   it("no longer asks YAML or JSON in the editor bar", async () => {
     const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
@@ -152,9 +160,11 @@ describe("the phone", () => {
     expect(text).toMatch(/max-width:\s*780px[\s\S]{0,400}\.cs-theater[^}]*display:\s*none/);
   });
 
-  it("gives the pinned-images button a pin-btn class, in both main.ts and\n     the CSS — a selector with no element is worse than no selector, because\n     it looks done", async () => {
-    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/pin-btn/);
-    expect(await css()).toMatch(/\.pin-btn/);
-  });
+  // The old "gives the pinned-images button a pin-btn class" test lived here
+  // (added in "Sheets, a folded player bar, and the drawing above the fold"):
+  // it guarded against a dangling .pin-btn CSS selector with no element using
+  // it. That whole mechanism — an icon-only 📌 button whose title= became
+  // touch-visible text via .pin-btn::after — is gone now: Pin moved into the
+  // 🖼 Images menu above, where its label is real text on every input, so
+  // there is no icon-only button left to explain. See "the images menu".
 });

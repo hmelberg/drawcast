@@ -35,12 +35,10 @@ import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { validateSpec, SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
-import { resolvePortraits } from "./render/portrait";
-import { resolveSources } from "./render/source";
 import { h } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
 import { openShare } from "./ui/share";
-import { openInsertPortrait } from "./ui/insert";
+import { openInsertPortrait, openPinDialog } from "./ui/insert";
 import { applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
@@ -616,24 +614,38 @@ function refreshExamples(): void {
 }
 refreshExamples();
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
-// A menu of one item renders as a plain button (ui/menu.ts) until "Source…"
-// joins it in a later task.
-const insertMenu = createMenu("＋ Insert", [
+// Both ways a drawing gains images, under one menu: insert a portrait, or
+// pin every portrait/source already in the drawcast into the spec text for
+// good. Used to be a "＋ Insert" menu (Portrait alone, so it rendered as a
+// plain button per ui/menu.ts's one-item rule) plus a separate bare "📌" icon
+// button whose only explanation was a hover title= — invisible on touch, and
+// easy enough to forget that the person who wrote Pin had to ask what it did.
+const applyPlaylist = (playlist: Playlist): void => {
+  specArea.value = formatPlaylist(playlist, "yaml");
+  ensureRendered();
+};
+const imagesMenu = createMenu("🖼 Images", [
   {
-    label: "Portrait…",
+    label: "Insert portrait…",
     onSelect: () =>
       openInsertPortrait({
         readPlaylist: () => readPlaylistText(specArea.value),
         viewedPart: () => previewedPart,
-        applyPlaylist: (playlist) => {
-          specArea.value = formatPlaylist(playlist, "yaml");
-          ensureRendered();
-        },
+        applyPlaylist,
         setStatus,
       }),
   },
-]);
-const pinPortraitsBtn = h("button", { class: "icon-only pin-btn", title: "Pin images: embed every portrait's traced strokes and every source's page image into the spec text, so it renders identically forever, offline, on any machine — and survives a dead link or a discontinued API" }, "📌");
+  {
+    label: "Pin all images",
+    onSelect: () =>
+      openPinDialog({
+        readPlaylist: () => readPlaylistText(specArea.value),
+        applyPlaylist,
+        contactEmail: () => settings.contactEmail,
+        setStatus,
+      }),
+  },
+], { title: "Portraits and sources in this drawcast" });
 // Open ▾ and Save ▾ fold what used to be four buttons (⬆ import, ☁ Open,
 // ☁ Save, plus the ⬇ download now living in Share) into one menu per verb
 // (spec §4) — the ⬆ glyph no longer means two different things. A capability
@@ -882,7 +894,7 @@ const editorWrap = h(
       h(
         "div",
         { class: "pane-bar" },
-        h("span", { class: "bar-group" }, insertMenu, pinPortraitsBtn),
+        h("span", { class: "bar-group" }, imagesMenu),
         h("span", { class: "bar-group" }, openMenu, saveMenu, importInput),
         h("span", { class: "pane-spacer" }),
         shareBtn,
@@ -1819,9 +1831,9 @@ function playbackPrefs(): PlaybackPrefs {
 
 let presentSeq = 0;
 
-// Which part the editor preview last mounted — the ＋ Insert dialog's default
-// "Part", so a portrait lands where you were actually looking instead of
-// always into part 1 (the old insertion's hardcoded position).
+// Which part the editor preview last mounted — the Insert portrait dialog's
+// default "Part", so a portrait lands where you were actually looking instead
+// of always into part 1 (the old insertion's hardcoded position).
 let previewedPart = 0;
 
 /**
@@ -2660,7 +2672,7 @@ function markRendered(text: string): void {
  * up something more relevant. The edited dot is the drawing's visible signal.
  *
  * canRender() restores what a disabled ↻ button used to prevent for free:
- * while viewing an old version (the pane is read-only, but 📌 Pin and Insert
+ * while viewing an old version (the pane is read-only, but Pin and Insert
  * Portrait still write to specArea.value directly) or while an AI call is
  * streaming its own partial text into the same textarea, this must not push
  * a manual edit or autosave — doing either would silently jump the cursor to
@@ -3229,37 +3241,11 @@ function refreshRemotePacksPanel(): void {
 }
 refreshRemotePacksPanel();
 
-// Portrait insertion now lives behind the ＋ Insert menu (ui/insert.ts):
-// openInsertPortrait builds a real draw command at a chosen step, instead of
-// this spot's old raw window.prompt() + implicit-tail-draw placement.
-
-pinPortraitsBtn.addEventListener("click", () => {
-  const playlist = readPlaylistText(specArea.value);
-  if (!playlist) return;
-  const items = itemsOf(playlist);
-  const pinnable = items.some((it) => (it.spec.elements ?? []).some((e) => e.type === "portrait" || e.type === "source"));
-  if (!pinnable) {
-    setStatus("No portrait or source elements to pin.", "error");
-    return;
-  }
-  setStatus("Pinning images…", "ok");
-  // Sources pin for the same reason portraits do, and one more: a resolved
-  // page image outlives the link rot and API deaths that dynamic resolution
-  // accepts as its risk (docs/2026-08-28-source-element-spec.md §2).
-  void Promise.all(
-    items.flatMap((it) => [resolvePortraits(it.spec), resolveSources(it.spec, { contactEmail: settings.contactEmail })]),
-  ).then((all) => {
-    const failed = all.flat().filter((r) => !r.ok);
-    specArea.value = formatPlaylist(playlist, "yaml");
-    ensureRendered();
-    setStatus(
-      failed.length > 0
-        ? `Pinned with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
-        : "Pinned — the spec is now fully self-contained.",
-      failed.length > 0 ? "error" : "ok",
-    );
-  });
-});
+// Portrait insertion and pinning now live behind the 🖼 Images menu
+// (ui/insert.ts): openInsertPortrait builds a real draw command at a chosen
+// step, instead of this spot's old raw window.prompt() + implicit-tail-draw
+// placement, and openPinDialog holds the click handler that used to be wired
+// to a bare 📌 icon button right here.
 
 importInput.addEventListener("change", () => {
   const file = importInput.files?.[0];

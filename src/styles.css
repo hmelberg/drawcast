@@ -712,10 +712,6 @@ details > summary { cursor: pointer; color: var(--muted); }
   }
   .cs-progress-fill { border-radius: 3px; }
   .cs-controlbar { gap: 0.2rem; }
-  /* 📌 is the one icon-only control this pass leaves icon-only — its title=
-     explains an irreversible, expensive action that touch never shows, so it
-     gets visible text here instead of losing the explanation outright. */
-  .pin-btn::after { content: " Pin images"; font-size: var(--text-xs); }
 }
 
 /* ---------- the figure / player (cs-*) ---------- */
