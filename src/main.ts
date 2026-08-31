@@ -707,8 +707,13 @@ saveDiskBtn.addEventListener("click", () => {
   // holds something that fails to parse). Refuses (and says why) rather than
   // shipping that stale version — see prepareSave()'s doc comment.
   const save = prepareSave();
-  if (!save) return;
+  // Close first, unconditionally: prepareSave() already set the red status
+  // itself on refusal (see its doc comment), but that status line lives
+  // behind this modal + its backdrop. Closing only on success left a refused
+  // save looking like a dead button — the dialog just sat there over the
+  // very message explaining why (round-2 fix).
   saveDiskModal.dialog.close();
+  if (!save) return;
   const format: SpecFormat = isSingle(save.playlist) ? (saveDiskFormatSel.value as SpecFormat) : "yaml";
   // YAML ships the editor's own text verbatim; JSON has to be derived (the
   // textarea is always YAML — see saveToDrive's note below).

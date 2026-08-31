@@ -209,3 +209,22 @@ describe("the filename rule", () => {
     expect(src).toMatch(/export function fileSafe\(/);
   });
 });
+
+// Round-2 fix-round-2: prepareSave() already sets the red status itself on
+// refusal (see its own doc comment) — but saveDiskBtn's click handler used to
+// close the "Save to disk" dialog only on the success path, after the early
+// `if (!save) return`. A refused save left the modal + its backdrop standing
+// over .editor-status, so the author saw a button that did nothing and never
+// saw why. The dialog must close unconditionally, before that early return.
+describe("the Save to disk dialog", () => {
+  it("closes before checking whether the save was refused, so the refusal is visible", async () => {
+    const src = await read2(new URL("../src/main.ts", import.meta.url), "utf8");
+    const listener = /saveDiskBtn\.addEventListener\("click",\s*\(\)\s*=>\s*\{([\s\S]*?)\n\}\);/.exec(src)?.[1] ?? "";
+    expect(listener).not.toBe("");
+    const closeAt = listener.indexOf("saveDiskModal.dialog.close()");
+    const guardAt = listener.indexOf("if (!save) return");
+    expect(closeAt).toBeGreaterThan(-1);
+    expect(guardAt).toBeGreaterThan(-1);
+    expect(closeAt).toBeLessThan(guardAt);
+  });
+});

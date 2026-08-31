@@ -200,6 +200,28 @@ describe("dark mode", () => {
 // other direction. These assertions describe the invariant, not just the
 // four sites the reviewer found — a sweep, so a fifth future site fails the
 // same way.
+// Round-2 fix-round-2: parses an actual channel value (hex or rgba) out of a
+// CSS colour literal instead of matching the literal text "#fff"/"white" —
+// so a near-white PAPER tone like rgba(255, 253, 246, 0.93) is caught the
+// same way pure white is. A token reference (var(--surface)) never matches:
+// it carries no literal channel values, and themed-on-themed is exactly the
+// safe case this test isn't after.
+export const isNearWhite = (value: string): boolean => {
+  if (/\bwhite\b/i.test(value)) return true;
+  const hex = /#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/.exec(value);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].split("").map((c) => c + c).join("") : hex[1];
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    if (r >= 240 && g >= 235 && b >= 225) return true;
+  }
+  const rgba = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(value);
+  if (rgba) {
+    const [r, g, b] = rgba.slice(1, 4).map(Number);
+    if (r >= 240 && g >= 235 && b >= 225) return true;
+  }
+  return false;
+};
+
 describe("dark-mode-safe surfaces", () => {
   it("defines a themed --field token, distinct from --surface once dark", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -222,11 +244,35 @@ describe("dark-mode-safe surfaces", () => {
       // after the colon — .sidebar-new's bug was color-mix(in srgb, var(--ink)
       // 7%, #fff), where #fff is the color-mix's second argument, not the
       // whole background value.
-      const literalWhiteBg = /background(?:-color)?:\s*[^;]*(?:#fff\b|#ffffff\b|\bwhite\b)/i.test(body);
+      //
+      // Round-2 fix-round-2: a plain "#fff\b|#ffffff\b|\bwhite\b" grep is
+      // structurally blind to a NEAR-white ground — rgba(255, 253, 246, 0.93),
+      // the figure's own paper tone at reduced opacity — which is exactly
+      // what .cs-bigplay:hover and .cs-keyguide-key used. isNearWhite parses
+      // the actual channel values (hex or rgba) instead of matching literal
+      // "fff"/"white" text, so an off-white paper tone is caught the same way
+      // pure white is.
+      const bgMatch = /background(?:-color)?:\s*([^;]+);?/i.exec(body);
+      const literalWhiteBg = bgMatch ? isNearWhite(bgMatch[1]) : false;
       if (themedFg) checked++;
       expect(themedFg && literalWhiteBg, selector.trim()).toBe(false);
     }
     expect(checked).toBeGreaterThan(10); // the scan itself must not silently shrink to nothing
+  });
+
+  // Proves isNearWhite actually parses channel values rather than matching
+  // literal text — it must catch a translucent off-white rgba() the same way
+  // it catches "#fff"/"white", and it must NOT flag an unrelated dark or
+  // saturated background.
+  it("isNearWhite recognises near-white grounds by channel value, not by literal text", () => {
+    expect(isNearWhite("rgba(255, 253, 246, 0.93)")).toBe(true); // .cs-cardgate-card's ground
+    expect(isNearWhite("rgba(255, 253, 246, 0.3)")).toBe(true); // .cs-bigplay's ground
+    expect(isNearWhite("#fefefe")).toBe(true);
+    expect(isNearWhite("white")).toBe(true);
+    expect(isNearWhite("#fff")).toBe(true);
+    expect(isNearWhite("var(--surface)")).toBe(false); // a themed token, not a literal
+    expect(isNearWhite("rgba(61, 56, 51, 0.85)")).toBe(false); // the figure's dark ink, not near-white
+    expect(isNearWhite("#b5482e")).toBe(false); // the rust accent
   });
 
   it(".mode-btn.active's ink fill takes a paper/surface foreground, not literal white", async () => {
@@ -235,6 +281,36 @@ describe("dark-mode-safe surfaces", () => {
     expect(rule).toMatch(/background:\s*var\(--ink\)/);
     expect(rule).toMatch(/color:\s*var\(--(paper|surface)\)/);
     expect(rule).not.toMatch(/color:\s*#fff/);
+  });
+});
+
+// Round-2 fix-round-2: .cs-cardgate-card (the flashcard question's card) and
+// .cs-cardgate-q (the question text inside it) are separate rules, so the
+// single-rule scan above structurally cannot see this pairing — the near-
+// white ground is on the parent, the themed ink was on the child. Named here
+// explicitly, same idiom as the .mode-btn.active regression test below.
+// This card is an overlay on the FIGURE (it sits over .cs-stage so the
+// drawing shimmers through), not app chrome — the fix is fixed ink to match
+// the figure's own paper, not a themed token, the same call figure-style.ts
+// already makes for .cs-title/.cs-caption/.cs-lookup.
+describe("the flashcard question card (an overlay on the figure, not chrome)", () => {
+  it("keeps its near-white translucent ground — this test would be pointless against a themed one", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const card = /\.cs-cardgate-card\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(isNearWhite(/background(?:-color)?:\s*([^;]+);/i.exec(card)?.[1] ?? "")).toBe(true);
+  });
+
+  it("never puts a themed --ink/--muted token on that ground — border or text", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const card = /\.cs-cardgate-card\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(card).not.toMatch(/var\(--(ink|muted)\)/);
+  });
+
+  it("gives the question text fixed ink instead of the themed token", async () => {
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    const q = /\.cs-cardgate-q\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(q).not.toMatch(/var\(--(ink|muted)\)/);
+    expect(q).toMatch(/color:\s*#[0-9a-fA-F]{3,6}\b/);
   });
 });
 
