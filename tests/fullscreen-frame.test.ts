@@ -41,7 +41,11 @@ describe("one frame for the player and the viewer", () => {
   test("the fullscreen rules are reachable from the viewer", () => {
     // Every :fullscreen rule must be keyed on the shared class — a rule keyed
     // on anything else is a rule one of the two mounts would not get.
-    const selectors = css.match(/[^{}]*:fullscreen[^{}]*(?=\{)/g) ?? [];
+    // A rule that EXCLUDES fullscreen (`:not(:fullscreen)`) is not a fullscreen
+    // rule — it is a pane rule stepping aside so these can apply. Strip that
+    // form before asking whether `:fullscreen` is still being targeted.
+    const selectors = (css.match(/[^{}]*:fullscreen[^{}]*(?=\{)/g) ?? [])
+      .filter((sel) => sel.replace(/:not\(:fullscreen\)/g, "").includes(":fullscreen"));
     expect(selectors.length).toBeGreaterThan(0);
     for (const sel of selectors) expect(sel).toContain(".player-figure:fullscreen");
   });

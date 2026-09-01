@@ -337,7 +337,13 @@ body.mode-editor main {
   flex-direction: column;
   min-width: 0;
 }
-.editor-preview .player-figure { border: none; box-shadow: none; padding: 0; background: none; }
+/* Flat inside the editor pane — but NOT when this same element takes over the
+   screen. `:fullscreen` is a pseudo-class, so `.player-figure:fullscreen` and
+   `.editor-preview .player-figure` weigh the same and this later rule would
+   win: the figure would lose its paper and its padding, leaving dark ink on
+   the browser's black ::backdrop with the controls running to the very edges.
+   Player mode never showed it because nothing overrides its figure. */
+.editor-preview .player-figure:not(:fullscreen) { border: none; box-shadow: none; padding: 0; background: none; }
 
 /* ---------- left sidebar: the one menu ---------- */
 
