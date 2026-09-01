@@ -1,0 +1,262 @@
+# Roadmap — everything outstanding, 2026-09-01
+
+*Hans: "I realize that the spec is now more than a roadmap, but I want to list
+all things and then make a final spec/plan that we implement stepwise based on
+how we prioritize the issues. (So I am not finished)"*
+
+**This file is the list.** It accumulates; nothing here is implemented. The
+three design docs hold the reasoning, this holds the inventory. When the list
+is complete, we pick an order and cut a plan from it.
+
+Sources:
+- **[P]** `specs/2026-09-01-share-pin-prompt-design.md` — Publish, embedding, names, folders
+- **[S]** `specs/2026-09-01-style-and-vocabulary-design.md` — Instructions/References/Templates/Packs
+- **[R]** this file — items not yet worked into a design doc
+
+---
+
+## A. Small and self-contained
+
+| # | Item | Src | Notes |
+|---|---|---|---|
+| A1 | `Insert ▾` moves after `Open ▾` / `Save ▾` | S §7.1 | bar order only |
+| A2 | Publish moves to the preview bar, after `✎ Review` | P §2, S §7.2 | |
+| A3 | `fileSafe` gains a word-boundary length cap | P §8.1 | the one-line cause of long filenames |
+| A4 | Share → **Publish**; "Link" → "Publish to GitHub" | P §1 | |
+| A5 | Player/Editor pill removed; **▶ Player** row in the sidebar | S §7.3 | verified: player mode already has `✎ Edit` in its own control bar |
+| A6 | Subtitle band is too dense — `rgba(24,20,16,0.82)` | R | see §D1 |
+| A7 | Lint chip stops shouting at normal users | R | see §D2 |
+| A8 | `👍 Learn from this` behind `developerMode` | S §6 | |
+
+## B. Medium
+
+| # | Item | Src | Notes |
+|---|---|---|---|
+| B1 | Publish shows destinations the author *can* enable, disabled with a reason | P §0.1 | why "Publish to GitHub" seemed missing |
+| B2 | **Embed images** + **Embed narration** as checkboxes on the published copy | P §3 | must resolve on a **copy** — `exportSequence` hands out the document's own objects |
+| B3 | Editable name field on each save/publish panel | P §8.2 | |
+| B4 | One stable sources index, **before** any per-save folder | P §8.3 | reversed order scatters sources and Open sees one folder |
+| B5 | Instructions → **Style**: an addendum, not the whole prompt; New/Save/Delete | S §4 | deletes improve/download/upload/rename by construction |
+| B6 | Prompt editor moves behind `developerMode`, unchanged | S §5 | |
+| B7 | One `Generate`/`Revise` button, state-determined | R | see §D3 |
+| B8 | Startup state | R | see §D4 |
+
+## C. Larger
+
+| # | Item | Src | Notes |
+|---|---|---|---|
+| C1 | **Comments on published drawcasts via giscus** | R | see §D5 — has a user setup step |
+| C2 | Thumbs up/down | R | §D5 — probably free with C1 |
+| C3 | Share button on the viewer | R | §D5 — Web Share API, small |
+| C4 | New logo | S §7.4 | three directions described; needs to be seen |
+| C5 | Delete `halftone`/`poster`/`line` looks | P §5 | 0 of 114 bundled specs use them |
+| C6 | `Insert → Image…` reduced to disk import only | P §4 | |
+| C7 | **Player behaves and reads like YouTube's** | R | see §D6 |
+| C8 | Mute/sound icon is ugly on macOS | R | §D6 — a symptom of C7 |
+
+## D. Detail on the items not yet in a design doc
+
+### D1. The subtitle band
+
+`figure-style.ts:35` — `linear-gradient(to top, rgba(24,20,16,0.82) 55%,
+rgba(24,20,16,0))`. At 0.82 the band is nearly opaque ink over the drawing.
+
+It exists so words stay readable over whatever is beneath them, which is a real
+constraint — a caption over a pale figure with no ground is unreadable. So the
+fix is not simply "less alpha": it is to keep contrast while taking up less
+visual weight. Options: lower the alpha and add a text shadow; keep the
+gradient but start it lower so it covers less; or drop the band and outline the
+text. **Worth trying at ~0.55 with a shadow first** — cheapest, and it keeps
+the same shape.
+
+This band is burnt into exported video when `burnCaptions` is on, so a change
+here changes every future export. Not a reason not to; a reason to look at one
+before committing.
+
+### D2. The lint chip shows to everyone — and that is inconsistent
+
+Hans: *"The red warnings above the preview player in the editor is mainly just
+annoying."*
+
+Found it, and it is not what the design intended. `setLint` (`main.ts:2236`):
+
+```ts
+if (total === 0) { lintChip.hidden = !settings.developerMode; … }   // clean → dev only
+…
+lintChip.hidden = false;                                            // warnings → EVERYONE
+```
+
+So the **clean** chip is developer-gated and the **warning** chip is not. Round
+one's spec described `developerMode` as showing "the lint list even when
+clean", which reads as: non-developers still see real problems. In practice
+these are layout warnings — label collisions, overlap heuristics — which are
+compiler-quality signals the author cannot act on by editing YAML. So they are
+noise to exactly the person who cannot fix them.
+
+**Options:** (1) gate the chip entirely behind `developerMode`; (2) show only
+`severity: "error"` and hide `warn`. **Recommend 2** — something genuinely
+broken still surfaces, cosmetic complaints stop. (1) if even errors turn out to
+be unactionable.
+
+### D3. One button instead of Generate and Revise
+
+Hans: *"It is confusing that we have 'Generate with AI' and 'Revise with AI' as
+two buttons. One idea would be to have 'revise' as long as we have one loaded
+and 'generate' after we pressed 'new drawcast'."*
+
+Agreed, and the current arrangement is worse than merely redundant: **both
+buttons read the same prompt box and do opposite things to your document.**
+Generate replaces it; Revise edits it. Pressing the wrong one either discards a
+drawcast or fails to start the new one you wanted — and nothing in the UI says
+which is which beyond the verb.
+
+One button, its label set by state:
+
+| State | Button | Prompt placeholder |
+|---|---|---|
+| Empty document (after **＋ New drawcast**) | **Generate** | "Describe a drawcast…" |
+| A drawcast is loaded | **Revise** | "What should change?" |
+
+The placeholder carrying the mode too is what makes it legible *before* you
+type rather than after you read the button.
+
+**The cost, stated:** you can no longer generate something unrelated without
+pressing New first. That is one extra click, and it is the right friction —
+starting a new document should be deliberate, which is exactly the accident the
+two-button version invites.
+
+**It also reinforces D4:** if the app restores your last drawcast on open, the
+button says **Revise**, which correctly warns you that typing here edits
+something rather than making something.
+
+### D4. What the app should show on startup
+
+Hans: *"Right now it starts from where you ended. I am not sure if that is the
+best. Always start the same way. OK, maybe it could be always start with a
+blank spec… but make it very easy to get an example. Well, I am not sure here
+and would like advice."*
+
+Three candidates:
+
+| | For | Against |
+|---|---|---|
+| **Restore last** (today) | you never lose your place | unpredictable; a returning user meets a document they may not remember |
+| **Always blank** | predictable; "new presentation" | a blank editor teaches a first-time user nothing, and discards work |
+| **Always an example** | welcoming, shows what the app is | overwrites nothing but hides your own work behind a click |
+
+**Advice: restore if there is something to restore; show an example on a first
+run.** It is not a compromise so much as the recognition that these are two
+different people. A returning author loses their place under "always blank",
+and losing your place is a worse failure than being surprised. A first-time
+user meets a blank page under "restore", and a blank page is the worst
+introduction this app could give — its whole argument is what it draws.
+
+That needs no mode setting: "have I ever saved anything" already answers it.
+And with D3 in place the restored state is honest, because the button reads
+**Revise**.
+
+**Against "always blank":** nothing is lost by not choosing it — Examples are
+one click in the sidebar, and `＋ New drawcast` is one click to get the blank
+page on purpose.
+
+### D5. Comments, reactions and share on published drawcasts
+
+Hans: *"When we publish to github (both individual and courses), also make it
+possible to 'Allow comments' (using giscus)… these comments should be stored in
+the users github… So I have no editing responsibility. If this is possible?
+Also allow thumbs up and down… and even share."*
+
+**Yes, and the architecture already suits it — with one caveat.**
+
+**What is published today:** publishing commits a **`.yaml`**, not a page
+(`publish/cast.ts`). The link points at drawcast's own hosted viewer with the
+file's location in the URL — `castHref(viewerBase, owner, repo, file)`. So the
+*page* is drawcast's; the *content* is the author's repo.
+
+**Why that is good news here.** The viewer already knows `owner/repo` from the
+link it was opened with. giscus is configured by `data-repo` — so the viewer
+can mount giscus pointed at **the author's** repository, keyed on the cast
+slug. Comments then live in that author's GitHub Discussions. Hans hosts the
+page and owns none of the content, moderates nothing, and stores nothing. That
+is precisely the arrangement he asked for.
+
+**The caveat, which is a user-facing setup step and cannot be automated:** the
+author's repo must have **Discussions enabled** and the **giscus GitHub App
+installed**. Neither is reachable from the fine-grained `Contents: read/write`
+token the app already asks for — enabling Discussions needs admin scope, and
+installing an app is a web flow. So "Allow comments" is a checkbox *plus* a
+short setup the author does once on github.com, and the UI has to say so
+plainly rather than failing quietly.
+
+**Thumbs up/down: probably free.** giscus surfaces the GitHub Discussion's own
+**reactions**, so 👍/👎 arrive with C1 rather than needing a mechanism. Reactions
+*without* comments is the harder ask — giscus is one widget — and storing votes
+externally would mean Hans running a service and owning the data, which
+contradicts the whole point. **Recommend: take the reactions giscus gives, and
+do not build a separate vote store.**
+
+**Share: small and independent.** A button on the viewer using the Web Share
+API with a copy-link fallback. No dependencies, no accounts, works on a phone.
+Can ship before or without C1.
+
+**Courses:** every lecture is its own cast link, so per-lecture comments come
+for free once the viewer mounts giscus — no extra work beyond the course
+publish carrying the same flag.
+
+**Open:** where the flag lives. It is a property of the published artifact, so
+it belongs with **Embed images / Embed narration** in the Publish panel — a
+third checkbox, "Allow comments", with the setup note beside it.
+
+### D6. The player should read like YouTube's — and the mute icon shows why
+
+Hans: *"Basically I want the player (and controls and behaviour) to be a bit
+like a youtube player… Which reminds me: The icon for mute/sound is ugly (at
+least on mac)."*
+
+The mute icon is not a separate complaint; it is the clearest instance of the
+general one.
+
+**The bar mixes two kinds of glyph.** `▶ ⏮ ⏭ ▭ ⛶` are geometric symbols that
+render as monochrome text and take `currentColor`, so they sit in the ink
+palette. `🔊` and `🔇` are true emoji, and macOS renders them as **full-colour
+Apple bitmaps** that ignore `color` entirely. So one control in an otherwise
+inked bar is a small cartoon speaker — which is exactly what "ugly on mac"
+looks like. It will not respond to the dark-mode work either, because a bitmap
+has no `currentColor`.
+
+**The structural difference from YouTube** is the progress bar. YouTube puts a
+full-width scrubber **above** a row of buttons split into a left group
+(play, next, volume, time) and a right group (captions, settings, theater,
+fullscreen). Ours puts the progress bar *inline*, between the transport buttons
+and the selects, so it competes for width with everything else — which is also
+why the bar wraps and why the fold behind `⋯` was needed on a phone.
+
+**Suggested direction**, smallest first:
+
+1. **Replace the emoji with monochrome icons.** Inline SVG taking
+   `currentColor` for every control, so the bar is one material and themes
+   correctly. This alone fixes the mute icon and is independent of everything
+   else.
+2. **Move the progress bar to its own row above the buttons**, full width. This
+   is the change that makes the bar read as a video player, and it removes the
+   width contention that forced the `⋯` fold.
+3. **Group left and right** — transport and volume left; captions, speed,
+   theater, fullscreen right — with the same `.bar-group` idea the editor bars
+   already use.
+4. **Behaviour**: hover-scrub preview, click-anywhere-on-the-bar to seek, and a
+   time readout are the YouTube behaviours we do not have. The step indicator
+   (`3/12`) is drawcast's own idea and probably better than a clock here, since
+   a drawcast is a sequence of drawn steps rather than a continuous tape —
+   worth keeping, worth deciding deliberately.
+
+**Note:** 1 is cheap and self-contained. 2 changes the fullscreen layout, which
+already has its own sizing rules and a drift test, so it needs care there.
+
+## E. Still open, from earlier rounds
+
+- Phone reproduction of the player's idle/gate fix — written blind, never
+  observed.
+- The parked course race: switching courses mid-generation writes the old text
+  under the new id.
+- The author dialog narrowed 880 → 736px on adopting the size scale; one line
+  to revert if it bothers.
