@@ -126,3 +126,77 @@
   three in-place rebuilds" and matched autosave's line too. It now matches the
   rebuild's inline form specifically, which also pins that the id and the name
   travel together.
+
+## Task 3 — the YouTube panel rework
+
+- 2026-09-02: **`ensureTranslations` returns a result, not a boolean, and its
+  progress callback takes the finished sentence.** The brief specified
+  `Promise<boolean>` with `(label, i, n)`. Both callers need the exact same
+  progress line — "Translating into German — 1 of 2…" — so building it in the
+  callback would have duplicated the one sentence the routine exists to own;
+  and the failure TEXT is known only inside (which language, which API error),
+  while the two callers show it in different places (the export chip's status
+  line vs. the panel's own hint). `{ ok, cancelled, message }` lets the routine
+  say what happened and each caller decide where that goes. `cancelled` is a
+  field of its own so a Cancel reads as info and a failure as an error.
+
+- 2026-09-02: **The source language stays in the add-select once its chip is
+  removed.** The brief said the select offers "LANGUAGES minus the source minus
+  already-added". Taken literally, removing the original's chip — an explicitly
+  supported move (upload the German version and nothing else) — would be
+  irreversible without closing and reopening Share. It is now "minus
+  already-queued", labelled "Norwegian (original)" wherever it appears, which
+  behaves identically in the normal case (the source starts as a chip, so it is
+  never in the list) and is recoverable in the case the ruling invented.
+
+- 2026-09-02: **The caption note is a `.hint`, and `.yt-warning` is deleted.**
+  The brief left the choice open. What the line says — the subtitle file
+  downloads with each upload — is a fact about what just happened, not a
+  hazard; the amber warning box was the loudest thing in the panel and said the
+  least. No other rule used `.yt-warning`, so it went with the paragraph.
+
+- 2026-09-02: **The Visibility select lost `.yt-field`.** In the old
+  `.quiet-label` rows "100% width" meant the width of an inline-flex label; in
+  the grid it means the whole field column, and a three-option dropdown
+  stretched across the panel reads as a text field. It starts at the same x as
+  every other field, which is what the grid was for.
+
+- 2026-09-02: **`translateText` falls back to the source text when the model
+  answers with a blank**, mirroring `verifyTranslation`'s rule that a blank is
+  no answer: a description in the wrong language beats no description. An empty
+  description in the FIELD still returns empty without calling anything —
+  publishing without a description is a real choice, and paying to translate
+  nothing is not.
+
+- 2026-09-02: **One `AbortController` for the whole run, re-registered after
+  every render.** `renderVideo` (main.ts) installs its own controller as
+  `exportAbort` while it runs, so the run's controller has to be handed back to
+  `setAbort` before each upload — otherwise Cancel during an upload would abort
+  the render that already finished. The per-upload controllers this replaces
+  ended the run on abort anyway, so nothing observable changed.
+
+- 2026-09-02: **Translation notes (missing strings, lint errors) are reported
+  on the Save-copies path only.** They used to land in `ytStatus` while the
+  modal was open. On the Upload path the modal is closed before phase 1 runs
+  and the chip is carrying progress, so there is nowhere honest to put them
+  without pushing a second sentence into the upload's own result line. The run
+  still returns them; the upload caller ignores them deliberately.
+
+- 2026-09-02: **Settings' burn-in copy was a survivor.** main.ts's checkbox
+  said "YouTube uploads have their own setting in Publish's YouTube panel" —
+  false the moment ruling 4 landed. It now says a YouTube upload never burns
+  them in, and the `burnCaptions` field comment in store.ts says why.
+
+- 2026-09-02: The chip's × darkens to `--ink` on hover, not `--rust`:
+  tests/palette.test.ts's allowlist spends the accent on primary actions and
+  "you are here" only, and caught the first attempt.
+
+- 2026-09-02: **CONCERN for the controller — ruling 1's "a cancel-and-retry
+  does not re-translate" is only true inside one modal session.** The cache is
+  per-session as the brief requires (`prepPanels` clears it), but Upload closes
+  the modal before phase 1 starts, so a cancel during translation is followed by
+  a REOPEN — and the next open clears the cache and pays for those translations
+  again. Making it survive needs a cheap source signature (the specs' text,
+  stringified, blobs elided) so a stale cache can never be uploaded against an
+  edited document; that is a decision about scope, not a detail, so it is left
+  here rather than taken.

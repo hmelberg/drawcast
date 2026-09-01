@@ -5,7 +5,7 @@
 // for strings we put in front of it. Ids, gotos, {var} tokens, quotes and
 // expressions are never sent, so no answer can reach them.
 
-import { callForJson, makeClient, type CallOpts } from "./client";
+import { callForJson, callForText, makeClient, type CallOpts } from "./client";
 import { applyTranslations, translatableStrings, type Translatable } from "../spec/i18n";
 import { layoutSpec } from "../layout/layout";
 import { collectDrawnText } from "../layout/text-map";
@@ -131,4 +131,34 @@ export async function translateSpec(
   // than sniffed — and so it stays right if the copy is ever saved and played.
   if (Object.keys(textMap).length > 0) translated.text_map = { ...spec.text_map, ...textMap };
   return { spec: translated, check };
+}
+
+/**
+ * One loose piece of prose in another language — the YouTube description,
+ * which belongs to no spec and so has no structure to protect. That makes it
+ * the one place a plain text call is right: nothing is extracted from the
+ * answer, the answer IS the result, and a bad one costs a paragraph rather
+ * than a figure.
+ *
+ * An empty description is answered without calling anything: a video with no
+ * description is a real choice, and paying for the model to translate nothing
+ * is not. An empty ANSWER falls back to the source text for the same reason
+ * `verifyTranslation` drops blanks — a description in the wrong language beats
+ * no description at all.
+ */
+export async function translateText(
+  text: string,
+  target: { code: string; label: string },
+  cfg: TranslateConfig,
+  opts: CallOpts = {},
+): Promise<string> {
+  if (text.trim().length === 0) return "";
+  const { text: out } = await callForText(
+    makeClient(cfg.apiKey),
+    cfg.model,
+    `Translate this YouTube video description into ${target.label}; return the translation only.`,
+    [{ role: "user", content: text }],
+    opts,
+  );
+  return out.trim() || text;
 }

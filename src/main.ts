@@ -1418,7 +1418,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "label",
         { class: "settings-check" },
         burnCaptionsCb,
-        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in Publish's YouTube panel.",
+        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). A YouTube upload never burns them in: YouTube carries the subtitle track itself.",
       ),
     ),
   ],

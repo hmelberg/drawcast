@@ -1567,19 +1567,48 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* The disk-save dialog's editable file name (B3) — same "fill the modal"
    treatment as the YouTube panel's fields above. */
 .save-disk-modal input[type="text"] { width: 100%; }
-/* Nineteen languages: a wrapping row of small checkboxes reads faster than a
-   multi-select list, and shows at a glance how many videos are queued. */
-.yt-langs { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
-.yt-langs .yt-lang { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; white-space: nowrap; }
-.yt-warning {
-  margin: 10px 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 0.9em;
-  color: #9c6b1f;
-  border: 1px solid color-mix(in srgb, #9c6b1f 45%, var(--surface));
-  background: color-mix(in srgb, #9c6b1f 10%, var(--surface));
+/* The YouTube panel's five rows (spec §2): a label column and a field column,
+   so Title, Description, the language rows and Visibility all start at the
+   same x — the wall of nineteen checkboxes that used to sit in the middle read
+   as a different kind of thing from the fields around it. Stacked first, two
+   columns once there is width for a label beside a full-width field; below
+   that the modal is a bottom sheet anyway. */
+.yt-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.15rem 0.6rem; align-items: center; }
+.yt-grid > .yt-label { color: var(--muted); font-size: var(--text-sm); }
+@media (min-width: 36rem) {
+  .yt-grid { grid-template-columns: auto minmax(0, 1fr); gap: 0.55rem 0.6rem; }
+  /* A textarea and the chips block are tall: their label belongs at the top
+     of the row, not floating in the middle of it. */
+  .yt-grid > .yt-label-top { align-self: start; padding-top: 0.35rem; }
 }
+/* Each queued language, removable. The source chip is the same object with a
+   quieter fill: it is a fact about the document, not a translation asked for. */
+.yt-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.35rem; }
+.yt-chips:empty { display: none; }
+.yt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.45rem 0.1rem 0.2rem;
+  border-radius: 1rem;
+  border: 1px solid var(--line);
+  background: var(--field);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+.yt-chip-source { background: var(--paper); color: var(--steel); }
+.yt-chip-x {
+  border: none;
+  background: none;
+  padding: 0 0.15rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* The accent is spent on primary actions and "you are here", never on hover
+   (see tests/palette.test.ts's allowlist) — the × just darkens to ink. */
+.yt-chip-x:hover { color: var(--ink); }
+.yt-add-lang { max-width: 14rem; font-size: var(--text-sm); }
 
 /* Phones: a centred box with a 25px ✕ is the worst version of a dialog. A
    sheet pinned to the bottom puts the footer's primary action under the thumb

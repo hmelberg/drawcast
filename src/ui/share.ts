@@ -1,8 +1,9 @@
 // Every way a drawcast leaves the app, behind one verb. The options that used
 // to sit in the toolbar next to Publish live here instead, beside the
-// destination they actually belong to — the language checkboxes are
-// YouTube's, and burn-captions differs between the downloaded file and the
-// upload on purpose (spec §2). The two embed choices belong to BOTH publish
+// destination they actually belong to — the "Translate to" chips are
+// YouTube's, and burning captions into the picture is asked about only where
+// it can be true (the DOWNLOADED file; a YouTube upload carries its subtitle
+// track, spec §2 ruling 4). The two embed choices belong to BOTH publish
 // destinations (GitHub and Drive), so buildEmbedChoices below builds them
 // once and each panel instantiates its own copy (spec §7).
 //
@@ -15,7 +16,7 @@
 import { googleConfigured, requireScope, YOUTUBE_SCOPE } from "../google/auth";
 import { uploadCaptions, uploadVideo, type UploadMeta } from "../google/youtube";
 import { describeApiError } from "../llm/client";
-import { translateSpec } from "../llm/translate";
+import { translateSpec, translateText } from "../llm/translate";
 import { lintCommands } from "../lint/lint";
 import { toVtt } from "../export/captions";
 import { LANGUAGES, languageLabel } from "../export/tts";
@@ -87,8 +88,8 @@ export interface ShareDeps {
   subject: "drawcast" | "course";
   /** The open document/course, read fresh each time — never cached. */
   doc: () => ShareDoc;
-  /** The live settings object; Share writes `shareTo`, `burnCaptions` and
-   *  `burnCaptionsOnUpload` onto it, same as the controls it replaces did. */
+  /** The live settings object; Share writes `shareTo` and `burnCaptions` onto
+   *  it, same as the controls it replaces did. */
   settings: Settings;
   persist: () => void;
   setStatus: (text: string, kind?: "info" | "error" | "ok") => void;
@@ -253,6 +254,29 @@ export function fileSafe(name: string, fallback = "drawcast"): string {
 
 function titleOf(playlist: Playlist, fallback: string): string {
   return playlist.meta.title ?? itemsOf(playlist)[0]?.spec.title ?? fallback;
+}
+
+/**
+ * Which languages an upload records, in which order: the chips the author has
+ * added, deduped, with the SOURCE first whenever it is among them (spec §2
+ * ruling 2). Order matters twice over — the original is what most viewers
+ * want first, and phase 1 translates in this same order, so the queue's shape
+ * is the run's shape.
+ *
+ * Removing the source chip is a real choice (upload the German version and
+ * nothing else), which is why an empty source is simply absent rather than
+ * forced back in. An empty queue is the Upload button's off switch. Pure and
+ * exported so the ordering rule can be tested without a DOM.
+ */
+export function ytQueue(source: string, chips: string[]): string[] {
+  const seen = new Set<string>();
+  const picked: string[] = [];
+  for (const code of chips) {
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    picked.push(code);
+  }
+  return picked.includes(source) ? [source, ...picked.filter((c) => c !== source)] : picked;
 }
 
 /** One language's outcome, for the YouTube summary and the follow-up actions. */
@@ -480,24 +504,35 @@ function build(): ShareSession {
   // openSaveToDisk), which reproduces this panel's picker, formatPlaylist
   // call and filename rule verbatim.
 
-  // ---- YouTube panel — lifted from the dialog it used to be its own modal ----
+  // ---- YouTube panel — five rows, and one language per video ----
+  //
+  // What a language IS here (spec §1): a complete translation of everything —
+  // drawn labels, narration, subtitles — uploaded as its OWN video, recorded
+  // in real time in that language's voice. Subtitle-only translation is free
+  // to viewers through YouTube's own CC auto-translate once the caption file
+  // is attached, so nothing in this panel offers to do it a second time.
+  // Adding a language costs nothing until Upload (ruling 1).
 
-  const ytTitle = h("input", { type: "text", class: "yt-field", "aria-label": "Video title" }) as HTMLInputElement;
-  const ytDesc = h("textarea", { class: "yt-field", rows: "3", "aria-label": "Video description" }) as HTMLTextAreaElement;
-  /** One checkbox per language drawcast can narrate. Ticking a language that
-   *  is not the source translates it there and then, so a failure shows up
-   *  in seconds rather than twenty minutes into a queue of real-time
-   *  recordings. */
-  const ytLangBox = h("div", { class: "yt-langs" });
-  const ytLangCbs = new Map<string, HTMLInputElement>();
-  for (const l of LANGUAGES) {
-    const cb = h("input", { type: "checkbox", value: l.code }) as HTMLInputElement;
-    ytLangCbs.set(l.code, cb);
-    ytLangBox.appendChild(h("label", { class: "yt-lang" }, cb, " " + l.label));
-  }
+  const ytTitle = h("input", { type: "text", class: "yt-field", id: "yt-title", "aria-label": "Video title" }) as HTMLInputElement;
+  const ytDesc = h("textarea", { class: "yt-field", id: "yt-desc", rows: "3", "aria-label": "Video description" }) as HTMLTextAreaElement;
+  /** "Publishes in Norwegian" — a FACT about the document, not a choice, so it
+   *  is text rather than a control. Written by prepPanels(). */
+  const ytSourceLine = h("div", {});
+  /** The queue as chips: the source first, then one per language to translate
+   *  into. Rebuilt wholesale by renderYtLangs() from `ytChips`. */
+  const ytChipRow = h("div", { class: "yt-chips" });
+  /** Adds a chip and nothing else — no API call, no cost (spec §2 ruling 1).
+   *  Its option list is rebuilt with the chips, so a language is never
+   *  offered twice. */
+  const ytAddLang = h("select", { class: "yt-add-lang", id: "yt-add-lang", "aria-label": "Add a language" }) as HTMLSelectElement;
+  const ytLangHint = h("div", { class: "hint" }, "Each translation is a full extra video: drawn labels, narration and subtitles.");
+  /** What the queue will cost in time and budget — shown only when there is a
+   *  translation to pay for (ruling 3). */
+  const ytCost = h("div", { class: "hint" });
   const ytSaveCopy = h("button", {}, "Save the translations as new drawcasts") as HTMLButtonElement;
-  const ytBurnCb = h("input", { type: "checkbox" }) as HTMLInputElement;
-  const ytPrivacy = h("select", { class: "yt-field", "aria-label": "Visibility" }) as HTMLSelectElement;
+  // Not `.yt-field`: a three-option dropdown stretched across the panel reads
+  // as a text field. It starts at the same x as the rest, which is the point.
+  const ytPrivacy = h("select", { id: "yt-privacy", "aria-label": "Visibility" }) as HTMLSelectElement;
   for (const [v, label] of [["private", "Private"], ["unlisted", "Unlisted"], ["public", "Public"]]) {
     ytPrivacy.appendChild(h("option", { value: v }, label));
   }
@@ -505,148 +540,248 @@ function build(): ShareSession {
   const youtubePanel = h(
     "div",
     { class: "share-panel" },
-    h("label", { class: "quiet-label" }, "Title ", ytTitle),
-    h("label", { class: "quiet-label" }, "Description ", ytDesc),
-    h("div", { class: "quiet-label" }, "Languages ", ytLangBox),
-    h("label", { class: "quiet-label" }, "Visibility ", ytPrivacy),
+    // Label column, field column — every field starts at the same x, and the
+    // language rows stop looking like a different kind of thing from the
+    // title (spec §2). The two tall rows top-align their label; the rest centre.
     h(
-      "label",
-      { class: "settings-check" },
-      ytBurnCb,
-      " Burn captions into the picture. Off is usually right here: YouTube shows its own captions over the video, so a burnt-in upload says everything twice. On only for feeds that autoplay muted.",
+      "div",
+      { class: "yt-grid" },
+      h("label", { class: "yt-label", for: "yt-title" }, "Title"),
+      ytTitle,
+      h("label", { class: "yt-label yt-label-top", for: "yt-desc" }, "Description"),
+      ytDesc,
+      h("div", { class: "yt-label" }, "Publishes in"),
+      ytSourceLine,
+      h("label", { class: "yt-label yt-label-top", for: "yt-add-lang" }, "Translate to"),
+      h("div", {}, ytChipRow, ytAddLang, ytLangHint, ytCost),
+      h("label", { class: "yt-label", for: "yt-privacy" }, "Visibility"),
+      ytPrivacy,
     ),
     h(
       "div",
-      { class: "yt-warning" },
-      "The video is uploaded to your own channel with the visibility you chose. Its subtitle file is downloaded at the same time — " +
-        "afterwards you can attach it with one click, or drag it in yourself in YouTube Studio. Either way, YouTube can then translate it for viewers in other languages.",
+      { class: "hint" },
+      "The subtitle file downloads with each upload — attach it with one click afterwards, " +
+        "and YouTube auto-translates captions for viewers.",
     ),
     ytStatus,
   );
   const ytGo = h("button", { class: "primary" }, "Upload") as HTMLButtonElement;
 
   /**
-   * Translated COPIES waiting to be recorded, by language code. They exist
-   * only while the modal is open on this document and are never written back
-   * to it — exportSequence hands out the document's own spec objects, so
-   * translating into fresh playlists is what keeps your drawcast in the
-   * language you wrote it in. Kept even when a language is unticked, so
-   * re-ticking is free.
+   * The languages queued for upload, in the order they were added — the source
+   * among them until the author removes its chip. The ORDER of the run comes
+   * from ytQueue(), not from this array; this is just what the author picked.
    */
-  const ytTranslations = new Map<string, Playlist>();
+  const ytChips: string[] = [];
 
-  /** Ticked languages, in catalog order, source first when it is among them. */
-  function ytSelected(): string[] {
-    const src = sourceLanguage(current.doc().playlist);
-    const picked = LANGUAGES.filter((l) => ytLangCbs.get(l.code)?.checked).map((l) => l.code);
-    return picked.includes(src) ? [src, ...picked.filter((c) => c !== src)] : picked;
-  }
+  /**
+   * Translated COPIES waiting to be recorded, by language code, each with the
+   * description translated alongside it (ruling 5) — a German video described
+   * in English is half a translation. They exist only while the modal is open
+   * on this document and are never written back to it: exportSequence hands
+   * out the document's own spec objects, so translating into fresh playlists
+   * is what keeps your drawcast in the language you wrote it in. Kept when a
+   * chip is removed, so re-adding it is free.
+   */
+  const ytTranslations = new Map<string, { playlist: Playlist; description: string }>();
 
   /** What gets recorded for one language: the translation, or the document itself. */
   function playlistFor(code: string): Playlist {
     const doc = current.doc();
-    return code === sourceLanguage(doc.playlist) ? doc.playlist : (ytTranslations.get(code) ?? doc.playlist);
+    return code === sourceLanguage(doc.playlist) ? doc.playlist : (ytTranslations.get(code)?.playlist ?? doc.playlist);
   }
 
-  /** Ready to upload once at least one language is ticked and translated. */
+  /** The description that video carries. The source language keeps whatever is
+   *  in the field; a translation uses its own, falling back to the field
+   *  rather than uploading nothing if the model returned a blank. */
+  function descriptionFor(code: string): string {
+    const doc = current.doc();
+    if (code === sourceLanguage(doc.playlist)) return ytDesc.value;
+    return ytTranslations.get(code)?.description || ytDesc.value;
+  }
+
+  /** The chips row and the add-select, from `ytChips`. One function so the two
+   *  can never disagree about which languages are already queued. */
+  function renderYtLangs(): void {
+    const source = sourceLanguage(current.doc().playlist);
+    const queue = ytQueue(source, ytChips);
+    ytChipRow.replaceChildren(
+      ...queue.map((code) => {
+        // The original is a chip like any other — removable, for the author
+        // who wants the German video and only the German video (ruling 2) —
+        // but it is not a translation, so it says which one it is.
+        const isSource = code === source;
+        const text = isSource ? `${languageLabel(code)} (original)` : languageLabel(code);
+        const remove = h("button", { class: "yt-chip-x", type: "button", "aria-label": `Remove ${text}` }, "×") as HTMLButtonElement;
+        remove.addEventListener("click", () => {
+          const at = ytChips.indexOf(code);
+          if (at >= 0) ytChips.splice(at, 1);
+          renderYtLangs();
+          refreshYtButtons();
+        });
+        return h("span", { class: isSource ? "yt-chip yt-chip-source" : "yt-chip" }, remove, text);
+      }),
+    );
+    ytAddLang.replaceChildren(
+      h("option", { value: "" }, "＋ Add a language…"),
+      // Whatever is not already queued — including the source, once its chip
+      // has been removed, so that removal is recoverable without reopening.
+      ...LANGUAGES.filter((l) => !queue.includes(l.code)).map((l) =>
+        h("option", { value: l.code }, l.code === source ? `${l.label} (original)` : l.label),
+      ),
+    );
+    ytAddLang.value = "";
+  }
+
+  ytAddLang.addEventListener("change", () => {
+    const code = ytAddLang.value;
+    if (!code) return;
+    if (!ytChips.includes(code)) ytChips.push(code);
+    renderYtLangs();
+    refreshYtButtons();
+  });
+
+  /** Upload is ready as soon as there is something to upload. Nothing here
+   *  waits for a translation any more — the Upload click pays for those
+   *  (ruling 1). */
   function refreshYtButtons(): void {
     const doc = current.doc();
-    const picked = ytSelected();
-    const ready = picked.every((c) => c === sourceLanguage(doc.playlist) || ytTranslations.has(c));
-    ytGo.disabled = picked.length === 0 || !ready;
-    ytGo.textContent = picked.length > 1 ? `Upload ${picked.length} videos` : "Upload";
-    ytSaveCopy.hidden = !picked.some((c) => ytTranslations.has(c));
+    const queue = ytQueue(sourceLanguage(doc.playlist), ytChips);
+    const extras = queue.filter((c) => c !== sourceLanguage(doc.playlist)).length;
+    ytGo.disabled = queue.length === 0;
+    ytGo.textContent = queue.length > 1 ? `Upload ${queue.length} videos` : "Upload";
+    ytSaveCopy.hidden = extras === 0;
     // One language: the field is the title, yours to edit. Several: each
     // video takes its own translated title, because one field cannot hold four.
-    ytTitle.disabled = picked.length > 1;
-    if (picked.length === 1) ytTitle.value = titleOf(playlistFor(picked[0]), doc.title);
+    ytTitle.disabled = queue.length > 1;
+    if (queue.length === 1) ytTitle.value = titleOf(playlistFor(queue[0]), doc.title);
     else ytTitle.value = doc.title;
+    // Time first, money second: a language is minutes of real-time recording
+    // and pennies of API (ruling 3).
+    ytCost.hidden = extras === 0;
+    ytCost.textContent =
+      extras === 0
+        ? ""
+        : `${extras} extra video(s) will be recorded in real time — roughly ${extras} × the drawcast's length — ` +
+          "and each translation spends a little Anthropic and TTS budget.";
   }
 
-  async function translateInto(code: string): Promise<void> {
-    const target = LANGUAGES.find((l) => l.code === code);
-    const apiKey = getApiKey();
-    if (!target || !apiKey) {
-      ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";
-      ytLangCbs.get(code)!.checked = false;
-      return;
-    }
-    ytStatus.textContent = `Translating into ${target.label}…`;
+  /** How a translate run ended, in the words its caller should show. `ok`
+   *  with a message means it finished but something was imperfect. */
+  interface TranslateRun {
+    ok: boolean;
+    cancelled: boolean;
+    message: string;
+  }
+
+  /**
+   * Translate whatever `codes` still needs translating, in order, into the
+   * per-session cache. The ONE translate routine: the Upload click runs it as
+   * phase 1 with the export chip carrying progress, and "Save the translations"
+   * runs it with the modal still open (ruling 6). Neither pays twice — an
+   * entry already in the cache is skipped.
+   *
+   * Fails fast: the first language that cannot be translated stops the run, so
+   * a bad key or a refusal surfaces in seconds rather than twenty minutes into
+   * a queue of real-time recordings. `signal` is the caller's Cancel; the
+   * source language is never translated.
+   */
+  async function ensureTranslations(
+    codes: string[],
+    signal: AbortSignal | undefined,
+    progress: (text: string) => void,
+  ): Promise<TranslateRun> {
     const playlist = current.doc().playlist;
-    const specs: Spec[] = [];
-    const problems: string[] = [];
-    for (const spec of itemsOf(playlist).map((i) => i.spec)) {
-      const schema = spec.template ? scenes[spec.template]?.manifest.params_schema : undefined;
-      const { spec: out, check } = await translateSpec(spec, target, { apiKey, model: current.settings.model }, schema);
-      if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(sourceLanguage(playlist))}`);
-      // Cheap structural guard: ids and gotos are never sent to the model, so
-      // a broken reference here means a bug in the extractor, not a bad answer.
-      const broken = lintCommands(out).filter((i) => i.severity === "error");
-      if (broken.length > 0) problems.push(broken[0].message);
-      specs.push(out);
+    const source = sourceLanguage(playlist);
+    const missing = codes.filter((c) => c !== source && !ytTranslations.has(c));
+    if (missing.length === 0) return { ok: true, cancelled: false, message: "" };
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return { ok: false, cancelled: false, message: "Translating needs your Anthropic API key — add it in Settings." };
     }
-    ytTranslations.set(code, playlistWithSpecs(playlist, specs));
-    ytStatus.textContent = problems.length > 0 ? `Translated into ${target.label} — ${problems.join("; ")}.` : `Translated into ${target.label}.`;
-  }
-
-  for (const [code, cb] of ytLangCbs) {
-    cb.addEventListener("change", () => {
-      if (!cb.checked || code === sourceLanguage(current.doc().playlist) || ytTranslations.has(code)) {
-        refreshYtButtons();
-        return;
-      }
-      void (async () => {
-        ytGo.disabled = true;
-        for (const other of ytLangCbs.values()) other.disabled = true;
-        try {
-          await translateInto(code);
-        } catch (err) {
-          cb.checked = false;
-          ytStatus.textContent = `Could not translate: ${describeApiError(err)}`;
-        } finally {
-          for (const other of ytLangCbs.values()) other.disabled = false;
-          refreshYtButtons();
+    const cfg = { apiKey, model: current.settings.model };
+    const problems: string[] = [];
+    for (const [i, code] of missing.entries()) {
+      const target = LANGUAGES.find((l) => l.code === code);
+      if (!target) continue;
+      progress(`Translating into ${target.label} — ${i + 1} of ${missing.length}…`);
+      try {
+        const specs: Spec[] = [];
+        for (const spec of itemsOf(playlist).map((it) => it.spec)) {
+          const schema = spec.template ? scenes[spec.template]?.manifest.params_schema : undefined;
+          const { spec: out, check } = await translateSpec(spec, target, cfg, schema, { signal });
+          if (check.missing.length > 0) problems.push(`${check.missing.length} string(s) left in ${languageLabel(source)}`);
+          // Cheap structural guard: ids and gotos are never sent to the model,
+          // so a broken reference here means a bug in the extractor, not a bad
+          // answer.
+          const broken = lintCommands(out).filter((it) => it.severity === "error");
+          if (broken.length > 0) problems.push(broken[0].message);
+          specs.push(out);
         }
-      })();
-    });
+        const description = await translateText(ytDesc.value, target, cfg, { signal });
+        ytTranslations.set(code, { playlist: playlistWithSpecs(playlist, specs), description });
+      } catch (err) {
+        if (signal?.aborted) return { ok: false, cancelled: true, message: "Cancelled while translating — nothing was uploaded." };
+        return { ok: false, cancelled: false, message: `Could not translate into ${target.label}: ${describeApiError(err)}` };
+      }
+    }
+    return { ok: true, cancelled: false, message: problems.length > 0 ? `Translated, with notes — ${problems.join("; ")}.` : "" };
   }
 
   ytSaveCopy.addEventListener("click", () => {
-    const deps = current;
-    const doc = deps.doc();
-    // NEW library entries with NEW ids. Never the open document's own id: a
-    // translation is a sibling of the original, never a replacement for it.
-    const saved: string[] = [];
-    for (const code of ytSelected()) {
-      const playlist = ytTranslations.get(code);
-      if (!playlist) continue;
-      const title = titleOf(playlist, doc.title);
-      saveDrawing({
-        id: crypto.randomUUID(),
-        title,
-        prompt: doc.prompt,
-        spec: itemsOf(playlist)[0]?.spec ?? { commands: [] },
-        playlist: isSingle(playlist) ? undefined : formatPlaylist(playlist, "yaml"),
-        parts: itemsOf(playlist).length, // what the library's ▤ marker reads
-        sourcePath: null, // a new sibling drawing, never a saved GitHub source of its own
-        ts: new Date().toISOString(),
-      });
-      saved.push(title);
-    }
-    deps.refreshLibrary();
-    ytStatus.textContent = `Saved ${saved.length} drawcast(s) to your library: ${saved.join(", ")}. The original is untouched.`;
+    void (async () => {
+      const deps = current;
+      const doc = deps.doc();
+      const source = sourceLanguage(doc.playlist);
+      const wanted = ytQueue(source, ytChips).filter((c) => c !== source);
+      if (wanted.length === 0) return;
+      // Its own verb, paying its own way: whatever is queued but not yet
+      // translated is translated now, on this click (ruling 6). The modal is
+      // open, so progress belongs in the panel rather than the export chip.
+      ytSaveCopy.disabled = true;
+      ytGo.disabled = true;
+      try {
+        const run = await ensureTranslations(wanted, undefined, (text) => (ytStatus.textContent = text));
+        if (!run.ok) {
+          ytStatus.textContent = run.message;
+          return;
+        }
+        // NEW library entries with NEW ids. Never the open document's own id: a
+        // translation is a sibling of the original, never a replacement for it.
+        const saved: string[] = [];
+        for (const code of wanted) {
+          const playlist = ytTranslations.get(code)?.playlist;
+          if (!playlist) continue;
+          const title = titleOf(playlist, doc.title);
+          saveDrawing({
+            id: crypto.randomUUID(),
+            title,
+            prompt: doc.prompt,
+            spec: itemsOf(playlist)[0]?.spec ?? { commands: [] },
+            playlist: isSingle(playlist) ? undefined : formatPlaylist(playlist, "yaml"),
+            parts: itemsOf(playlist).length, // what the library's ▤ marker reads
+            sourcePath: null, // a new sibling drawing, never a saved GitHub source of its own
+            ts: new Date().toISOString(),
+          });
+          saved.push(title);
+        }
+        deps.refreshLibrary();
+        ytStatus.textContent =
+          `Saved ${saved.length} drawcast(s) to your library: ${saved.join(", ")}. The original is untouched.` +
+          (run.message ? ` ${run.message}` : "");
+      } finally {
+        ytSaveCopy.disabled = false;
+        refreshYtButtons();
+      }
+    })();
   });
 
   async function runYoutubeUpload(): Promise<void> {
     const deps = current;
-    const targets = ytSelected();
+    const targets = ytQueue(sourceLanguage(deps.doc().playlist), ytChips);
     if (targets.length === 0) return;
     const single = targets.length === 1;
     ytGo.disabled = true;
-    // The panel's answer becomes the standing one — the same channel usually
-    // wants the same treatment every time.
-    deps.settings.burnCaptionsOnUpload = ytBurnCb.checked;
-    deps.persist();
     // Consent FIRST, while this click's transient user activation is still
     // alive. Rendering records each drawcast in real time — minutes apiece —
     // and activation lapses after about five seconds, so a popup opened on
@@ -667,7 +802,21 @@ function build(): ShareSession {
     modal.dialog.close();
     deps.beginExport("Preparing…");
     const done: UploadOutcome[] = [];
+    // ONE controller for the whole run: phase 1's translations and every
+    // upload answer to the same Cancel. It has to be re-registered after each
+    // render, because renderVideo installs its own controller while it runs.
+    const controller = new AbortController();
+    deps.setAbort(controller);
     try {
+      // Phase 1: translate everything queued that is not translated yet
+      // (ruling 1). Seconds each, cancellable, and NOTHING is recorded until
+      // they are all clean — a failure here costs a wait, not an hour of
+      // real-time recording.
+      const run = await ensureTranslations(targets, controller.signal, (text) => deps.setProgress(text));
+      if (!run.ok) {
+        deps.setStatus(run.message, run.cancelled ? "info" : "error");
+        return;
+      }
       for (const [i, code] of targets.entries()) {
         const label = languageLabel(code);
         const of = targets.length > 1 ? ` (${label}, ${i + 1} of ${targets.length})` : "";
@@ -675,19 +824,23 @@ function build(): ShareSession {
         const title = single ? ytTitle.value.trim() || deps.doc().title : titleOf(playlist, deps.doc().title);
         const base = `${fileSafe(title)}${single ? "" : `-${code}`}`;
 
-        const out = await deps.renderVideo(exportSequence(playlist), ytBurnCb.checked, of);
+        // Never burnt in (ruling 4): YouTube carries the subtitle track and
+        // paints its own captions over the picture, so a burnt-in upload says
+        // every sentence twice.
+        const out = await deps.renderVideo(exportSequence(playlist), false, of);
         // Null means the key is missing, the render failed, or the user
         // pressed cancel — all three already said so, and all three end the
         // queue: the rest would fail the same way or was not wanted.
         if (!out) break;
 
-        const controller = new AbortController();
+        // renderVideo replaced the run's controller with its own; put the
+        // run's back so Cancel aborts THIS upload.
         deps.setAbort(controller);
         deps.setProgress(`Uploading${of}…`);
         try {
           const res = await uploadVideo(
             out.blob,
-            { title, description: ytDesc.value, privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"], language: code },
+            { title, description: descriptionFor(code), privacyStatus: ytPrivacy.value as UploadMeta["privacyStatus"], language: code },
             {
               onProgress: (f) => deps.setProgress(`Uploading${of}… ${Math.round(f * 100)}%`),
               signal: controller.signal,
@@ -779,10 +932,11 @@ function build(): ShareSession {
   );
 
   // backdropCloses: false — carried over from the YouTube dialog this absorbed.
-  // A stray outside click must not be able to discard queued translations:
-  // prepPanels() clears ytTranslations on the NEXT open, so losing this one
-  // to an accidental backdrop click would mean paying for those Anthropic
-  // calls a second time.
+  // A stray outside click must not be able to discard a typed title and
+  // description, or the translations "Save the translations as new drawcasts"
+  // just paid for: prepPanels() clears ytTranslations on the NEXT open, so
+  // losing this one to an accidental backdrop click would mean paying for
+  // those Anthropic calls a second time.
   const modal = createModal("↗ Publish", { size: "m", class: "share-modal", backdropCloses: false });
   modal.body.append(layout, emptyHint);
   document.body.append(modal.dialog);
@@ -846,9 +1000,14 @@ function build(): ShareSession {
     driveChoices.refresh(doc, current.subject);
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
-    ytBurnCb.checked = current.settings.burnCaptionsOnUpload;
     ytTranslations.clear();
-    for (const [code, cb] of ytLangCbs) cb.checked = code === sourceLanguage(playlist);
+    // The document's own language is the given: it publishes in it, and its
+    // chip is queued first. Everything else is a translation the author asks
+    // for, one open at a time.
+    ytSourceLine.textContent = languageLabel(sourceLanguage(playlist));
+    ytChips.length = 0;
+    ytChips.push(sourceLanguage(playlist));
+    renderYtLangs();
     ytStatus.textContent = "";
     refreshYtButtons();
   }
