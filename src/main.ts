@@ -656,7 +656,7 @@ const applyPlaylist = (playlist: Playlist): void => {
 };
 const insertMenu = createMenu("Insert", [
   {
-    label: "Portrait…",
+    label: "Image…",
     onSelect: () =>
       openInsertPortrait({
         readPlaylist: () => readPlaylistText(specArea.value),
