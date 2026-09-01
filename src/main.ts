@@ -124,7 +124,7 @@ import {
   type UserPrompt,
 } from "./store";
 import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
-import { ensureFolder, openSpec, readFileText, saveSpec } from "./google/drive";
+import { ensureFolder, isMissingFileError, openSpec, readFileText, saveSpec } from "./google/drive";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
@@ -203,6 +203,15 @@ interface Doc {
    * overwrite what your viewers are reading.
    */
   drivePublishedId?: string;
+  /**
+   * What that published file is CALLED in Drive, without the .yaml. Stored
+   * beside the id because the Drive panel prefills its name field from it: a
+   * republish otherwise renames the author's file back to the document title
+   * every time, since `saveSpec`'s update carries the metadata part. Set and
+   * cleared together with `drivePublishedId` — a name without a file is not a
+   * state worth having.
+   */
+  drivePublishedName?: string;
   /**
    * The path this document's SOURCE was last saved to in the author's repo —
    * distinct from `publishedAs` (the rendered viewer page). Set by
@@ -316,12 +325,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -2148,7 +2157,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2257,6 +2266,7 @@ function autosave(): void {
       parts: itemsOf(doc.playlist).length,
       publishedAs: doc.publishedAs,
       drivePublishedId: doc.drivePublishedId,
+      drivePublishedName: doc.drivePublishedName,
       sourcePath: doc.sourcePath,
       ts: new Date().toISOString(),
     });
@@ -2637,7 +2647,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       `Revised: ${instruction}`,
       { label, kind: "revise" },
     );
@@ -2884,7 +2894,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -3650,6 +3660,18 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
   lastEmbedNote = "";
   const ac = new AbortController();
   try {
+    // Consent FIRST, before a single cent is spent. Baking narration costs
+    // real money per line and takes minutes; leaving the first requireScope
+    // to ensureFolder/saveSpec meant a declined popup threw a paid bake away.
+    // Worse, transient user activation lapses after about five seconds, so a
+    // popup opened on the far side of a bake is BLOCKED by the browser and
+    // the author is told sign-in was cancelled after all that work — exactly
+    // why the YouTube upload asks up front too. The token lands in the cache,
+    // so every Drive call below prompts nobody.
+    if (!(await requireScope(DRIVE_SCOPE))) {
+      setStatus("Google sign-in was cancelled — nothing was published.", "error");
+      return;
+    }
     setStatus("Publishing to Google Drive…");
     // Narration reuse reads back THIS destination's previous copy — the
     // GitHub default would charge for every line again on a Drive republish,
@@ -3662,14 +3684,19 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     // ensureFolder degrades to null (a root-level file) rather than blocking
     // the publish on a failed lookup.
     const folder = doc.drivePublishedId ? null : await ensureFolder();
-    const res = await saveSpec(text, `${fileSafe(name ?? doc.title)}.yaml`, "text/yaml", doc.drivePublishedId ?? null, folder);
+    const base = fileSafe(name ?? doc.title);
+    const res = await saveSpec(text, `${base}.yaml`, "text/yaml", doc.drivePublishedId ?? null, folder);
     if (!res) {
       setStatus("Google sign-in was cancelled — nothing was published.", "error");
       return;
     }
     // Past this line the file has LANDED. Recording the id is what keeps the
-    // link permanent, so it is worth saying if only that part failed.
+    // link permanent, so it is worth saying if only that part failed. The
+    // NAME is recorded beside it for a related reason: the panel prefills
+    // from it, so the next publish leaves the file called what the author
+    // called it instead of quietly renaming it back to the document title.
     doc.drivePublishedId = res.fileId;
+    doc.drivePublishedName = base;
     try {
       autosave();
     } catch (err) {
@@ -3683,6 +3710,26 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     );
   } catch (err) {
     console.error("drawcast: Drive publish failed", err);
+    // The one failure with a way out. `drivePublishedId` outlives the Google
+    // token — it is in localStorage, the token is not — so deleting the file
+    // in Drive, or signing in as a different account, used to make EVERY
+    // later republish 404 with nothing the author could do about it. Forget
+    // the dead id so the next publish creates a new file, and say so out
+    // loud: silently minting a second file would change the link without
+    // telling anyone it had changed.
+    if (doc.drivePublishedId && isMissingFileError(err)) {
+      doc.drivePublishedId = undefined;
+      // The name belonged to that file too. Cleared together, set together —
+      // one invariant instead of a half-remembered publish.
+      doc.drivePublishedName = undefined;
+      try {
+        autosave();
+      } catch (bookkeeping) {
+        console.error("drawcast: could not forget the dead Drive file id", bookkeeping);
+      }
+      setStatus("That Drive file is gone (or belongs to another account) — publish again to create a new one.", "error");
+      return;
+    }
     const e = err as Error;
     setStatus(`Drive publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {

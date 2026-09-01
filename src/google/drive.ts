@@ -113,9 +113,13 @@ export async function saveSpec(text: string, name: string, mimeType: string, fil
  * — it must never be the reason a publish fails, so nothing here throws.
  */
 export async function readFileText(fileId: string): Promise<string | null> {
-  const token = await requireScope(DRIVE_SCOPE);
-  if (!token) return null;
   try {
+    // Inside the try, not before it: requireScope can REJECT as well as
+    // resolve null (a blocked popup, a token endpoint that 500s), and an
+    // exception escaping a function documented as never throwing would fail
+    // the very publish this reuse exists to make cheaper.
+    const token = await requireScope(DRIVE_SCOPE);
+    if (!token) return null;
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -123,6 +127,22 @@ export async function readFileText(fileId: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Did Drive refuse to write a file we believed was ours? `saveSpec` puts the
+ * HTTP status in the message it throws, and 404/403 there mean one specific,
+ * recoverable thing: the file id we are holding is no longer ours to write —
+ * trashed, deleted, or created under a DIFFERENT Google account (the id
+ * outlives the token, since one is in localStorage and the other is not).
+ *
+ * Deliberately narrow. A 500 or a 429 is the same file, temporarily
+ * unreachable; treating those as "gone" would throw away a live publish
+ * target over a hiccup. Lives here because the message format is saveSpec's
+ * own contract, and the two must not drift apart.
+ */
+export function isMissingFileError(err: unknown): boolean {
+  return err instanceof Error && /^Drive (update|save) failed \((403|404)\)/.test(err.message);
 }
 
 /** Loaded on first use only. */

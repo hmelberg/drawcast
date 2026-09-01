@@ -68,6 +68,19 @@ export interface ShareDoc {
    * new one, after the commit lands (B3).
    */
   publishedAs?: string;
+  /**
+   * The Drive file this drawcast was published to before, if it has been.
+   * Read only to decide whether the Drive panel's rename warning has anything
+   * to warn about — before the first publish there is no file to rename.
+   */
+  drivePublishedId?: string;
+  /**
+   * What that Drive file is CALLED, without the .yaml. Prefills the Drive
+   * panel's name field, so republishing keeps the name the author gave it
+   * instead of renaming the file back to the document title (fix round 1).
+   * Written only by `publishDriveCast`, after the file lands — never here.
+   */
+  drivePublishedName?: string;
 }
 
 export interface ShareDeps {
@@ -400,7 +413,7 @@ function build(): ShareSession {
   const driveHint = h(
     "div",
     { class: "hint" },
-    "A finished file, not a link — share it from Drive with whoever should have it; they open it in drawcast, or the link below plays once link-sharing is on.",
+    "A finished file, not a link — share it from Drive with whoever should have it; they open it in drawcast.",
   );
   // A FILENAME, so `fileSafe` — never `slugify`. Normalized on blur (not on
   // every keystroke, which would fight the author's cursor) so the field
@@ -415,13 +428,10 @@ function build(): ShareSession {
   // the old link alive (B3), this one renames the file already published:
   // saveSpec's update carries the metadata part, and a file in a folder is
   // the same file whatever it is called. Say so, since the two sit two rail
-  // rows apart and read identically otherwise.
-  const driveNameRow = h(
-    "div",
-    {},
-    h("label", { class: "quiet-label" }, "Name ", driveNameInput),
-    h("div", { class: "hint" }, "Publishing again renames the same file in Drive; the link keeps working."),
-  );
+  // rows apart and read identically otherwise — but only once there IS a file
+  // to rename (prepPanels hides it before the first publish).
+  const driveNameHint = h("div", { class: "hint" }, "Publishing again renames the same file in Drive; the link keeps working.");
+  const driveNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", driveNameInput), driveNameHint);
   const driveChoices = buildEmbedChoices("drive");
   const drivePanel = h("div", { class: "share-panel" }, driveHint, driveNameRow, ...driveChoices.rows);
   const driveGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
@@ -825,11 +835,14 @@ function build(): ShareSession {
     publishNameRow.hidden = current.subject === "course";
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
     linkChoices.refresh(doc, current.subject);
-    // A filename, not a slug. There is no stored Drive name to prefer here
-    // the way Link prefers `publishedAs`: only the file ID is persisted, so a
-    // republish under an edited name renames the file and the field goes back
-    // to following the title next time it opens (see the ledger).
-    driveNameInput.value = fileSafe(doc.title);
+    // A filename, not a slug — and the name the file ALREADY has wins over
+    // the title, exactly as Link prefers `publishedAs`. Without that, an
+    // author who renamed the file once would have it renamed back to the
+    // document title by their next publish (fix round 1, finding 3).
+    driveNameInput.value = doc.drivePublishedName ?? fileSafe(doc.title);
+    // Nothing has been published yet — there is no file for "publishing again
+    // renames the same file" to be about.
+    driveNameHint.hidden = !doc.drivePublishedId;
     driveChoices.refresh(doc, current.subject);
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";

@@ -356,6 +356,13 @@ export interface SavedDrawing {
    */
   drivePublishedId?: string;
   /**
+   * What that published file is CALLED in Drive, without the .yaml. Kept
+   * beside the id so the Publish panel can prefill it: a republish carries a
+   * name, so without this one it would rename the author's file back to the
+   * document title every time. Set and cleared together with the id.
+   */
+  drivePublishedName?: string;
+  /**
    * The path this drawcast's SOURCE was last saved to in the author's repo —
    * distinct from `publishedAs`, which is the rendered viewer page. Absent or
    * null until a save to GitHub happens (Task 7); carried here, not just on

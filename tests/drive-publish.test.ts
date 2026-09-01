@@ -17,7 +17,7 @@ vi.mock("../src/google/auth", async (importOriginal) => {
 });
 
 import { requireScope } from "../src/google/auth";
-import { readFileText } from "../src/google/drive";
+import { isMissingFileError, readFileText } from "../src/google/drive";
 
 const mockRequireScope = vi.mocked(requireScope);
 
@@ -62,12 +62,60 @@ describe("readFileText — reading the previously published copy back", () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
     await expect(readFileText("FILE1")).resolves.toBeNull();
   });
+
+  it("returns null when the sign-in itself throws, not just when it declines", async () => {
+    // requireScope can reject (a blocked popup, a token endpoint that 500s).
+    // Outside the try that was an exception escaping a function documented as
+    // never throwing — and it would have failed the publish it exists to save.
+    vi.stubGlobal("fetch", vi.fn(async () => reply(true, "x")));
+    mockRequireScope.mockRejectedValue(new Error("popup blocked"));
+    await expect(readFileText("FILE1")).resolves.toBeNull();
+  });
+});
+
+describe("isMissingFileError — the one Drive failure with a recovery", () => {
+  it("recognises a 404 and a 403 from saveSpec's update path", () => {
+    expect(isMissingFileError(new Error("Drive update failed (404): File not found: X."))).toBe(true);
+    expect(isMissingFileError(new Error("Drive update failed (403): insufficientFilePermissions"))).toBe(true);
+  });
+
+  it("recognises them on the create path too", () => {
+    expect(isMissingFileError(new Error("Drive save failed (404): nope"))).toBe(true);
+  });
+
+  it("is false for every other failure — a 500 or a rate limit must NOT drop the file id", () => {
+    expect(isMissingFileError(new Error("Drive update failed (500): backend error"))).toBe(false);
+    expect(isMissingFileError(new Error("Drive update failed (429): rate limit"))).toBe(false);
+    expect(isMissingFileError(new Error("Drive folder lookup failed (404)"))).toBe(false);
+    expect(isMissingFileError(new Error("NetworkError when attempting to fetch"))).toBe(false);
+  });
+
+  it("is false for anything that is not an Error at all", () => {
+    expect(isMissingFileError("Drive update failed (404)")).toBe(false);
+    expect(isMissingFileError(null)).toBe(false);
+    expect(isMissingFileError(undefined)).toBe(false);
+  });
 });
 
 describe("publishDriveCast — the same prepared text, into Drive", () => {
   it("exists and is what the Share modal's Drive panel calls", () => {
     expect(main).toContain("async function publishDriveCast(");
     expect(main).toMatch(/publishDrive:\s*\(choices\)\s*=>\s*publishDriveCast\(choices\)/);
+  });
+
+  it("asks for Drive consent BEFORE spending anything on the copy (fix round 1, finding 1)", () => {
+    // Baking narration costs real money per line and takes minutes. Leaving
+    // the first requireScope to ensureFolder/saveSpec meant a declined — or
+    // browser-blocked, since user activation lapses in about five seconds —
+    // popup threw a paid bake away. Same consent-first ordering the YouTube
+    // upload already uses, and for the same two reasons.
+    const consentAt = driveCast.indexOf("await requireScope(DRIVE_SCOPE)");
+    expect(consentAt).toBeGreaterThan(-1);
+    expect(consentAt).toBeLessThan(driveCast.indexOf("publishTextFor("));
+    expect(consentAt).toBeLessThan(driveCast.indexOf("ensureFolder()"));
+    expect(consentAt).toBeLessThan(driveCast.indexOf("saveSpec("));
+    // It is a guard, not a fetch of a token to pass on: a decline stops here.
+    expect(driveCast).toContain("nothing was published");
   });
 
   it("prepares the copy through the SAME publishTextFor as GitHub, reusing the previous DRIVE copy's narration", () => {
@@ -78,8 +126,24 @@ describe("publishDriveCast — the same prepared text, into Drive", () => {
   });
 
   it("writes a plain .yaml file, never a Google Doc (spec §7: Docs cap at ~1M chars and curl quotes)", () => {
-    expect(driveCast).toMatch(/saveSpec\(\s*text,\s*`\$\{fileSafe\(name \?\? doc\.title\)\}\.yaml`,\s*"text\/yaml"/);
+    expect(driveCast).toMatch(/const base = fileSafe\(name \?\? doc\.title\);/);
+    expect(driveCast).toMatch(/saveSpec\(text, `\$\{base\}\.yaml`, "text\/yaml"/);
     expect(driveCast).not.toContain("application/vnd.google-apps.document");
+  });
+
+  it("recovers from a file that is gone instead of failing forever (fix round 1, finding 2)", () => {
+    // The id lives in localStorage; the Google token does not. Deleting the
+    // file in Drive — or signing in as a different account — made every later
+    // republish 404 with no way out. Clearing the dead id is the recovery, and
+    // it must be LOUD: a silent new file would change the link nobody was told
+    // about.
+    expect(driveCast).toContain("isMissingFileError(err)");
+    expect(driveCast).toContain("doc.drivePublishedId && isMissingFileError(err)");
+    expect(driveCast).toMatch(/doc\.drivePublishedId = undefined;/);
+    expect(driveCast).toContain("That Drive file is gone (or belongs to another account) — publish again to create a new one.");
+    // Cleared in the library too, or a reload brings the dead id straight back.
+    const recovery = driveCast.slice(driveCast.indexOf("isMissingFileError(err)"));
+    expect(recovery).toContain("autosave()");
   });
 
   it("asks for the app folder only when CREATING — saveSpec's PATCH must never carry parents", () => {
@@ -133,6 +197,49 @@ describe("drivePublishedId — the persisted publish target", () => {
     const saved = store.slice(store.indexOf("export interface SavedDrawing {"), store.indexOf("export function isMultiPart"));
     expect(saved).toMatch(/drivePublishedId\?: string;/);
   });
+
+  it("survives every edit that preserves the document — the three in-place Doc rebuilds", () => {
+    // showVersion, revise and ensureRendered rebuild `doc` field by field. A
+    // field missing from one of them is dropped by the next render, and the
+    // next publish quietly mints a second Drive file.
+    // The rebuild form specifically — `field: doc.field` inline, next to the
+    // other two ids a preserved document carries. (autosave writes the same
+    // two names one per line, which is why this matches the whole run.)
+    const rebuild = /drivePublishedId: doc\.drivePublishedId, drivePublishedName: doc\.drivePublishedName, sourcePath: doc\.sourcePath/g;
+    expect(main.match(rebuild)).toHaveLength(3);
+  });
+});
+
+describe("drivePublishedName — the name the file actually has (fix round 1, finding 3)", () => {
+  it("is persisted everywhere its id is", () => {
+    expect(main).toMatch(/drivePublishedName\?: string;/);
+    expect(store.slice(store.indexOf("export interface SavedDrawing {"), store.indexOf("export function isMultiPart"))).toMatch(/drivePublishedName\?: string;/);
+    const autosave = main.slice(main.indexOf("function autosave(): void {"), main.indexOf("Parse + validate playlist text"));
+    expect(autosave).toContain("drivePublishedName: doc.drivePublishedName,");
+    const from = main.slice(main.indexOf("function docFromSaved(saved: SavedDrawing): Doc {"), main.indexOf("function initialDoc(): Doc {"));
+    expect(from.match(/drivePublishedName: saved\.drivePublishedName/g)).toHaveLength(2);
+  });
+
+  it("is recorded from the name the file was actually written under", () => {
+    expect(driveCast).toContain("doc.drivePublishedName = base;");
+  });
+
+  it("is what the panel prefills, so a republish stops renaming the file back to the title", () => {
+    expect(share).toContain("doc.drivePublishedName ?? fileSafe(doc.title)");
+    // Share reads it, so its own document type has to name it.
+    const shareDoc = share.slice(share.indexOf("export interface ShareDoc {"), share.indexOf("export interface ShareDeps {"));
+    expect(shareDoc).toMatch(/drivePublishedName\?: string;/);
+    expect(shareDoc).toMatch(/drivePublishedId\?: string;/);
+  });
+
+  it("reaches Share through main.ts's doc() — which spreads the whole document", () => {
+    // The one line that makes the two fields above arrive at all.
+    expect(main).toMatch(/doc:\s*\(\)\s*=>\s*\(\{\s*\.\.\.doc,/);
+  });
+
+  it("gates the rename warning: nothing to rename before the first publish", () => {
+    expect(share).toMatch(/driveNameHint\.hidden = !doc\.drivePublishedId;/);
+  });
 });
 
 describe("the Drive panel", () => {
@@ -145,9 +252,11 @@ describe("the Drive panel", () => {
   });
 
   it("says what a Drive publish IS — a file to share from Drive, not a link the app hands out", () => {
-    expect(share).toContain(
-      "A finished file, not a link — share it from Drive with whoever should have it; they open it in drawcast, or the link below plays once link-sharing is on.",
-    );
+    expect(share).toContain("A finished file, not a link — share it from Drive with whoever should have it; they open it in drawcast.");
+    // "…or the link below plays once link-sharing is on" pointed at nothing:
+    // the playable link is in the STATUS line after publishing, not in this
+    // panel. Fix round 1, reviewer minor.
+    expect(share).not.toContain("the link below");
   });
 
   it("names the file with fileSafe, not slugify — it is a filename, not a URL", () => {
