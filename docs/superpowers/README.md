@@ -90,20 +90,3 @@ tend to be:
   attached to the document.
 - **Contrast ratios in these documents have twice been asserted without being
   computed.** Both were wrong. If a document states a ratio, recompute it.
-
-## The most useful thing a reviewer can do
-
-In order:
-
-1. **Verify the factual claims.** These documents assert specific behaviours,
-   counts and mechanisms — *"0 of 114 bundled specs use `look`"*,
-   *"`exportSequence` hands out the document's own spec objects"*, *"player
-   mode already has ✎ Edit in its own control bar"*. They are checkable, and
-   this project's record says that is where the errors are.
-2. **Check the three documents against each other.** They were written
-   serially; cross-document contradiction is the failure mode their author
-   cannot see.
-3. **Challenge §F of the roadmap** — the proposed split and, especially, the
-   six places it revises the author's stated intent. Those are judgement calls
-   presented as recommendations, and they are the decisions with the largest
-   consequences.
