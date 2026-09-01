@@ -102,6 +102,20 @@ export interface ReviseOutcome {
   error?: string;
 }
 
+/**
+ * The founding request is provenance, not content: the model may edit anything
+ * else in the document, but a reply that comes back without the `playlist:`
+ * header must not lose `prompt:` — the next save would write a file with no
+ * provenance. Fill-if-absent ONLY: a header the model kept wins, and the
+ * revise instruction itself never lands in the field (ruling §F.3.3).
+ * Returns true when it filled the prompt in, so the caller knows to reformat.
+ */
+export function preserveFoundingPrompt(revised: Playlist, previous: Playlist): boolean {
+  if (revised.meta.prompt !== undefined || previous.meta.prompt === undefined) return false;
+  revised.meta.prompt = previous.meta.prompt;
+  return true;
+}
+
 /** Template ids used anywhere in the document — they need FULL catalog entries, not index stubs. */
 function templatesIn(playlist: Playlist): string[] {
   return [...new Set(itemsOf(playlist).map((i) => i.spec.template).filter((t): t is string => !!t))];
@@ -189,11 +203,17 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
       messages.push({ role: "assistant", content: raw }, { role: "user", content: feedback });
     }
   } catch (err) {
+    // The error path still adopts `best` when one exists (main.ts checks the
+    // playlist, not the error), so the founding prompt is preserved here too.
+    if (best && preserveFoundingPrompt(best.playlist, parsedNow.playlist)) {
+      best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "yaml") };
+    }
     return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err) };
   }
 
-  if (best && hoisted.blobs.size > 0) {
-    restorePortraitStrokes(best.playlist, hoisted.blobs);
+  const promptFilled = best ? preserveFoundingPrompt(best.playlist, parsedNow.playlist) : false;
+  if (best && (hoisted.blobs.size > 0 || promptFilled)) {
+    if (hoisted.blobs.size > 0) restorePortraitStrokes(best.playlist, hoisted.blobs);
     best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "yaml") };
   }
   return {

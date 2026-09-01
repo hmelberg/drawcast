@@ -178,3 +178,34 @@ describe("system blocks", () => {
     expect(blocks[0].text).toContain("{");
   });
 });
+
+// §F.3.3 follow-up ruling (2026-09-01): the founding request is provenance,
+// not content. A revision whose reply omits the `playlist:` header must not
+// lose `prompt:` — the next save would write a file with no provenance. The
+// preservation is fill-if-absent ONLY: a header the model kept wins, and the
+// revise instruction never lands in the field.
+describe("reviseDocument preserves the founding prompt", () => {
+  const HEADERED = `playlist: { prompt: explain trade }\n---\n${GOOD}`;
+
+  test("a reply that drops the header gets the prompt filled back in, playlist and text both", async () => {
+    replies = [GOOD]; // model returns a bare spec, no header
+    const out = await reviseDocument(HEADERED, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(out.playlist!.meta.prompt).toBe("explain trade");
+    expect(out.text).toContain("prompt: explain trade");
+  });
+
+  test("a reply that kept the header is left byte-alone — no reformat", async () => {
+    const echoed = `playlist: { prompt: explain trade }\n---\n${GOOD}`;
+    replies = [echoed];
+    const out = await reviseDocument(HEADERED, "steeper", cfg());
+    expect(out.playlist!.meta.prompt).toBe("explain trade");
+    expect(out.text).toBe(echoed.trimEnd()); // stripFence trims; a REFORMAT would rewrite the flow-style header
+  });
+
+  test("a document that never had a prompt gains none", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(GOOD, "steeper", cfg());
+    expect(out.playlist!.meta.prompt).toBeUndefined();
+  });
+});

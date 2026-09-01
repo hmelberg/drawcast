@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { buildReviseUser, checkPlaylist, parseReviseReply } from "../src/llm/revise";
+import { buildReviseUser, checkPlaylist, parseReviseReply, preserveFoundingPrompt } from "../src/llm/revise";
+import { parsePlaylistText } from "../src/playlist/playlist";
 
 const SPEC_YAML = `title: A line
 domain: { x: [0, 100], y: [0, 100] }
@@ -62,5 +63,27 @@ describe("checkPlaylist", () => {
     const { errors } = checkPlaylist(playlist!);
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0]).not.toMatch(/^item /);
+  });
+});
+
+describe("preserveFoundingPrompt — fill-if-absent only", () => {
+  const p = (prompt?: string) => parsePlaylistText(prompt === undefined ? "title: T\ncommands: []\n" : `playlist: { prompt: ${prompt} }\n---\ntitle: T\ncommands: []\n`);
+
+  test("fills a dropped prompt and says so", () => {
+    const revised = p();
+    expect(preserveFoundingPrompt(revised, p("keep me"))).toBe(true);
+    expect(revised.meta.prompt).toBe("keep me");
+  });
+
+  test("never overwrites a prompt the reply kept", () => {
+    const revised = p("model kept this");
+    expect(preserveFoundingPrompt(revised, p("older"))).toBe(false);
+    expect(revised.meta.prompt).toBe("model kept this");
+  });
+
+  test("invents nothing when the document never had one", () => {
+    const revised = p();
+    expect(preserveFoundingPrompt(revised, p())).toBe(false);
+    expect(revised.meta.prompt).toBeUndefined();
   });
 });
