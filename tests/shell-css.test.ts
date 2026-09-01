@@ -129,7 +129,7 @@ describe("Open ▾ and Save ▾", () => {
 describe("the images menu", () => {
   it("gathers the image verbs under one menu, and Pin stops hiding in a tooltip", async () => {
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/createMenu\("🖼 Images"/);
+    expect(src).toMatch(/createMenu\("Insert"/);
     expect(src).not.toMatch(/class:\s*"icon-only[^"]*"[^)]*"📌"/);
   });
 });
@@ -245,5 +245,32 @@ describe("the fullscreen figure", () => {
       .filter((sel) => sel.includes(".player-figure") && !sel.startsWith(".player-figure"));
     expect(paneRules.length).toBeGreaterThan(0);
     for (const sel of paneRules) expect(sel).toContain(":not(:fullscreen)");
+  });
+});
+
+describe("every modal is connected", () => {
+  it("attaches each dialog it builds — showModal() on a detached <dialog> throws", async () => {
+    // createModal() builds the element but does NOT put it in the document;
+    // every caller must. insert.ts did not, so BOTH its dialogs — Insert
+    // portrait and Pin all images — silently did nothing when clicked. Two
+    // rounds of review checked those dialogs were built correctly and never
+    // that they were connected, and a DOM-less suite cannot see the difference.
+    const { readdir } = await import("node:fs/promises");
+    const dir = new URL("../src/ui/", import.meta.url);
+    const files = (await readdir(dir)).filter((f) => f.endsWith(".ts"));
+    const offenders: string[] = [];
+    for (const f of [...files.map((f) => `../src/ui/${f}`), "../src/main.ts"]) {
+      const src = await readFile(new URL(f, import.meta.url), "utf8");
+      if (src.includes("export function createModal")) continue; // the definer
+      const builds = (src.match(/createModal\(/g) ?? []).length;
+      if (builds === 0) continue;
+      // Aliases count: `const d = m.dialog` then `app.appendChild(d)` attaches
+      // just as well as appending `m.dialog` directly, and main.ts does both.
+      const aliases = [...src.matchAll(/const\s+(\w+)\s*=\s*\w+\.dialog\b/g)].map((m) => m[1]);
+      const attachRe = new RegExp(`append\\w*\\([^)]*(?:\\.dialog${aliases.map((a) => `|\\b${a}\\b`).join("")})[^)]*\\)`, "g");
+      const attaches = (src.match(attachRe) ?? []).length;
+      if (attaches < builds) offenders.push(`${f}: builds ${builds}, attaches ${attaches}`);
+    }
+    expect(offenders).toEqual([]);
   });
 });

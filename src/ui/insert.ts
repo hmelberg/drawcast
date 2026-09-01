@@ -139,6 +139,11 @@ function build(): InsertSession {
   });
 
   const modal = createModal("Insert portrait", { size: "s" });
+  // createModal builds the element but does not put it in the document, and
+  // showModal() on a detached <dialog> throws — the click looks like it does
+  // nothing at all. Every other modal in the app attaches here; these two did
+  // not, so both this dialog and Pin's were dead from the day they shipped.
+  document.body.append(modal.dialog);
   modal.body.append(
     explanation,
     h(
@@ -329,6 +334,7 @@ function buildPinDialog(): PinSession {
   const nothingLine = h("p", { class: "settings-note" }, "No portrait or source elements to pin.");
 
   const modal = createModal("Pin all images", { size: "s" });
+  document.body.append(modal.dialog);
   modal.body.append(explanation, countLine, nothingLine);
 
   // Not appended to the footer here — open() below adds it only when there

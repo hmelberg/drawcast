@@ -654,9 +654,9 @@ const applyPlaylist = (playlist: Playlist): void => {
   specArea.value = formatPlaylist(playlist, "yaml");
   ensureRendered();
 };
-const imagesMenu = createMenu("🖼 Images", [
+const insertMenu = createMenu("Insert", [
   {
-    label: "Insert portrait…",
+    label: "Portrait…",
     onSelect: () =>
       openInsertPortrait({
         readPlaylist: () => readPlaylistText(specArea.value),
@@ -675,7 +675,7 @@ const imagesMenu = createMenu("🖼 Images", [
         setStatus,
       }),
   },
-], { title: "Portraits and sources in this drawcast" });
+], { title: "Add a portrait, or pin every image into the file" });
 // ---- Save → To disk: the YAML/JSON spec download Share's Spec file panel
 // used to do (share.ts's now-deleted specGo) — moved here because downloading
 // your own source is a save, not a share (spec §1). Same formatPlaylist call,
@@ -1023,7 +1023,7 @@ const editorWrap = h(
       h(
         "div",
         { class: "pane-bar" },
-        h("span", { class: "bar-group" }, imagesMenu),
+        h("span", { class: "bar-group" }, insertMenu),
         h("span", { class: "bar-group" }, openMenuHost, saveMenuHost, importInput),
         h("span", { class: "pane-spacer" }),
         shareBtn,
