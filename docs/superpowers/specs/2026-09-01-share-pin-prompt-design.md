@@ -204,3 +204,92 @@ tests, as established.
   that stops being true the prompt goes quiet exactly when it should not.
 - **Deleting the looks is irreversible** without a revert, and a saved drawcast
   using one changes appearance silently rather than erroring.
+
+## 8. Names and folders — currently derived, never chosen
+
+Hans: *"consider whether it should be possible to change the default subfolder"*
+and *"whether people should be able to change the name (currently it is a bit
+long) for all saving and publishing options."*
+
+### 8.1 There are two naming rules, and only one of them is sane
+
+| Rule | Caps length? | Used by |
+|---|---|---|
+| `slugify(title, 40)` (`github.ts:115`) | **yes** — 40 chars, cut at a word boundary | GitHub source save, publish |
+| `fileSafe(title)` (`share.ts:149`) | **no** — strips illegal characters and trims, nothing else | disk save, Drive save, video export, YouTube |
+
+So the GitHub paths are already short, and every *other* destination carries
+the **entire title** as the filename. A drawcast called "Ricardo on trade and
+comparative advantage in the nineteenth century" saves to disk under that whole
+string. That is the "a bit long", and it has a one-line cause: `fileSafe` never
+learned what `slugify` knows.
+
+**Proposed, and cheap:** give `fileSafe` the same word-boundary cap. Keep its
+character rules — a disk file may keep spaces and read as "Ricardo on
+trade.yaml"; it does not need to become a URL slug. This alone fixes the
+complaint with no UI at all.
+
+### 8.2 Letting the author choose the name
+
+Today no destination shows its filename before committing. Disk save has a
+dialog (format only); Drive and GitHub source save have no dialog at all —
+they fire on click; publish derives a slug the author never sees.
+
+**Proposed:** each destination's panel shows the name it is about to use, in an
+editable field, pre-filled. One click still works; editing is available for
+those who want it. Concretely: a name field in the Publish → GitHub panel, in
+Save → To disk, and in Save → To Drive and To GitHub (which need a small dialog
+they do not currently have).
+
+**Open:** whether Save → Drive/GitHub gaining a dialog is worth the friction.
+They are one click today. An alternative is to keep them one click and let the
+name be corrected only from the destination that already has a panel.
+
+### 8.3 The subfolder — and the hazard behind it
+
+One global `settings.coursesDir` currently governs three trees at once:
+
+```
+<coursesDir>/
+  casts/
+    <slug>.yaml          ← published drawcasts
+    sources/
+      <slug>.yaml        ← saved sources
+      index.json         ← the ONLY manifest Open reads
+```
+
+It is set once, in Settings → Publishing, and never at save time.
+
+**The hazard:** `openSourceFromGithub` reads exactly one manifest,
+`sourceIndexPath(dir)` for the *current* `coursesDir`. Round two already
+recorded a deferred minor here — changing `coursesDir` leaves a document listed
+in the old folder's manifest while new saves go to the new one. Making the
+folder **choosable per save** turns that from an edge case into the normal
+case: sources scatter across several folders, each with its own index, and Open
+shows only whichever folder the setting currently points at. Earlier saves
+vanish from the picker without being deleted — the worst kind of loss, because
+nothing failed.
+
+**So a per-save folder requires fixing the index first.** The manifest entry
+already carries a full `path` per source, so the fix is small: keep **one**
+index at a stable location (the repository root, or a fixed `drawcast/`
+folder), independent of wherever the files themselves are written. Then the
+folder becomes free to vary and Open still sees everything.
+
+**Proposed order:** single stable index first, per-save folder second. Doing
+them in the other order ships the scattering.
+
+**Open:** whether the folder belongs in the save panel at all, or whether the
+Settings value plus a per-document memory (`sourcePath`, which already exists
+and already keeps a re-save stable) is enough. A folder field on every save is
+one more decision at a moment the author usually does not want one.
+
+### 8.4 A note on the tree itself
+
+Sources currently land at `<coursesDir>/casts/sources/` — *nested inside*
+`casts/`, because the caller passes `dir: joinPath(settings.coursesDir,
+"casts")`. Round two's review noted the deviation from the spec's
+`<coursesDir>/sources/` and judged it benign, which it is: save and open agree.
+But if §8.3's stable index is built, this is the moment to lift sources out of
+`casts/` — they are not casts, and the nesting will confuse anyone who opens
+the repository.
