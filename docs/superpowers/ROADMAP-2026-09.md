@@ -56,7 +56,12 @@ GitHub, consent-first, 404 recovery, persisted id+name), `#gdrive=` viewer
 route, PPF example teaches by contrast (STYLE 2026-09-01). NOT built (spec §3):
 Drive permission automation, Docs-as-transport, Netlify fetch proxy (fallback
 only if Hans's live `#gdrive` smoke fails). Outstanding verification: Hans's
-live e2e of the Drive publish + `#gdrive` link.
+live e2e of the Drive publish + `#gdrive` link; his eyes on the axis labels
+(did_trends' inline "Time" first) and the Save-vs-Publish Drive filename
+question (same default name in the same folder — wants a naming ruling).
+Follow-up parked: an Upload cancelled during phase-1 translation re-pays
+translations on reopen (cache is per-open by ruling); a source-signature
+cache key would fix it if it ever hurts.
 
 ## C. Larger
 
