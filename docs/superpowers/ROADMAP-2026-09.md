@@ -9,7 +9,7 @@ three design docs hold the reasoning, this holds the inventory. When the list
 is complete, we pick an order and cut a plan from it.
 
 Sources:
-- **[P]** `specs/2026-09-01-share-pin-prompt-design.md` — Publish, embedding, names, folders
+- **[P]** `specs/2026-09-01-publish-design.md` — Publish, embedding, names, folders
 - **[S]** `specs/2026-09-01-style-and-vocabulary-design.md` — Instructions/References/Templates/Packs
 - **[R]** this file — items not yet worked into a design doc
 
@@ -337,6 +337,54 @@ too long"* is a rule about **when a `wait` is earned** — after a dense stretch
 before a turn, when attention is likely gone. That belongs with the other
 engagement rules in `STYLE.md` and then in the compiler prompt, not in the
 chapter machinery. It will be filed there once the direction above is settled.
+
+## F. Proposed split into parts — NOT yet agreed with Hans
+
+Offered 2026-09-01, awaiting his decision. A reviewer should treat this as a
+proposal to critique, not a settled plan.
+
+| | Part | Contains | Why in this position |
+|---|---|---|---|
+| 1 | **Tidy-up** | A1–A8, C5, C6 | Pure UI, flags, CSS. No new concepts, no dependencies, immediately visible. |
+| 2 | **The player** | C7, C8, C9, C10, C11, A6 | Self-contained, and it is what a viewer actually sees. |
+| 3 | **Publish** | A4, B1, B2, B3 | Makes publishing explain itself, including why it appeared missing. |
+| 4 | **Authoring loop** | B7, B8 | Small, changes daily use, independent of the above. |
+| 5 | **Style / Instructions** | B5, B6 | The conceptual rework; deliberately after the mechanical work. |
+| 6 | **Comments** | C1, C2, C3 | External-facing, has a user setup step, best when the rest is stable. |
+| 7 | **Logo** | C4 | Needs an eye, not code. Parallel to any of the above. |
+
+### F.1 Six places the proposal revises Hans's stated intent
+
+Each is a suggestion to simplify, offered because he said: *"I do not want to
+make it too complicated, but also I want the intent of these changes to be
+respected when possible. I am willing to revise and adapt if you have
+suggestions that are more intuitive or makes it significantly easier."*
+
+1. **Drop per-save folders (B4) entirely**; keep the single Settings value. It
+   needs the stable-index rework first, and without that, saves scatter and
+   Open sees one folder. Highest harm, lowest miss.
+2. **Name field only where a panel already exists.** Fix `fileSafe`'s cap (A3),
+   add the field to Publish and Save → disk, and do **not** give Drive and
+   GitHub saves a dialog — they are one click today.
+3. **Hide the lint chip entirely** rather than the "errors only" refinement in
+   D2. One flag beats severity logic. Risk: a genuinely broken layout goes
+   unannounced.
+4. **Split the player part**: icons (C8) are cheap and independent; moving the
+   progress bar touches the fullscreen sizing rules and their drift test.
+5. **On the title (C9), do the prompt half first** — drawcasts opening with a
+   drawn title. The DOM move may then prove unnecessary.
+6. **Thumbs up/down: build nothing.** Take giscus's reactions. An external vote
+   store means Hans running a service and owning the data, contradicting the
+   reason for choosing giscus.
+
+### F.2 Two things defended rather than simplified
+
+- **Embed checkboxes (B2)** — the spec version is already the simplification
+  (no warning prompt). The one thing that must not be cut is resolving on a
+  **copy**: `exportSequence` hands out the document's own objects.
+- **One Generate/Revise button (B7)** — the only item that prevents active data
+  loss. Two buttons reading one prompt box and doing opposite things is how a
+  drawcast gets discarded.
 
 ## E. Still open, from earlier rounds
 
