@@ -110,45 +110,99 @@ source pages. Hans rejected it, and he is right on three counts:
    the file or not". A prompt saying "2 of your 5 are risky" invites "why not
    the other 3?", and that answer is a paragraph.
 
-### 3.2 What it becomes
+### 3.2 Two things get embedded, and they should read as one idea
 
-One count, one number, one choice. When Publish → GitHub is selected and any
-image is still fetched at playback:
+Hans: *"maybe also use embed about speech data too. This is a choice when we
+publish, both google drive as well as github. Also a choice when we publish
+courses."*
 
-> **5 images are fetched from the internet when someone plays this.** They will
-> not load offline, on a filtered network, or if a link dies. **Embed them in
-> the file?** The drawcast then renders identically anywhere, forever — and
-> grows by about 320 KB.
->
-> `[ Embed images ]`
+A drawcast has exactly two things that live outside the file and are fetched
+later:
 
-- Every unembedded image counts, whatever it came from.
-- The **size is stated**, because that is the whole trade and the author is the
-  one who should weigh it. This is the "make it explicit" half.
-- Nothing is shown when every image is already embedded, or there are none.
-- The note never blocks publishing. It informs; the author decides.
-- `Embed images` calls the existing operation — not a copy of it.
+| | What it costs | What it buys |
+|---|---|---|
+| **Images** | size (~15–25 KB a portrait, ~70–140 KB a source page) | renders anywhere, offline, after a link dies |
+| **Narration** | size, plus TTS budget spent once by the author | plays for a viewer who has no key of their own |
 
-Locally-traced images never appear in the count: `traceFromBlob` embeds at
-insert time (`insert.ts:217`), so they are already self-contained.
+They are the same idea and should use the same word. Today one is called
+"pinning" and the other "with narration", which is why neither reads as what it
+is.
 
-### 3.3 Rename: pin → embed
+### 3.3 Both become publish-time choices, and neither touches the document
+
+**Verified:** `publishTextFor(signal, bake)` (`main.ts:3440`) builds
+`formatPlaylist(doc.playlist, "yaml")` and returns a *string* — the baked
+narration goes into the published text and `doc` is never touched. Narration
+embedding is already non-mutating and already a checkbox.
+
+Image embedding can work the same way, and this resolves the tension the
+earlier draft worked around. Instead of a prompt whose button rewrites the
+author's document, **the published copy gets the images embedded and the
+document is left alone**:
+
+```
+☑ Embed images      the published file carries them; your document is unchanged
+☑ Embed narration   the published file speaks; viewers need no key
+```
+
+Two plain checkboxes, one shape, stated cost. That is the "make it explicit"
+half, and it needs no warning prompt at all.
+
+### 3.4 The trap this must not fall into
+
+`exportSequence` hands out the document's **own** spec objects — the hazard
+this project has documented before and that round two's review verified clean.
+`resolvePortraits` and `resolveSources` write `strokes` onto the elements they
+are given. So a publish-time image embed **must resolve on a copy**, or it
+silently rewrites the author's document — exactly what putting it on the
+published side is meant to prevent.
+
+`playlistWithSpecs(playlist, specs)` (`playlist/playlist.ts`) already builds
+fresh entries and is already used for the YouTube translation path for this
+same reason. Use it. A test must assert the document's spec objects are
+unchanged after a publish with embedding on.
+
+### 3.5 Where the choice appears
+
+Embedding is offered wherever the output is **a spec someone else will play**:
+
+| Destination | Embed images | Embed narration | Note |
+|---|---|---|---|
+| Publish → GitHub | yes | yes | today only narration, labelled "with narration" |
+| Save → Google Drive | yes | yes | today neither — Hans asked for both |
+| Save → To disk | yes | yes | same argument: a `.yaml` you email is a spec someone else opens |
+| Publish a **course** | yes | yes | GitHub only — `shareDestinations(caps, "course")` returns `["link"]`, confirmed |
+| Video file / YouTube | — | — | already rendered; images and speech are baked into the frames by definition |
+
+**Open:** whether Save → To disk should carry them. Hans named Drive and
+GitHub. The argument extends — a `.yaml` handed to a colleague has the same
+problem — but it also puts two checkboxes on a save that is currently one
+click.
+
+### 3.6 The menu item stays, for the case publishing does not cover
+
+`Insert → Embed images in the file` remains, and now has a clearly distinct
+job: it changes **your document**, on purpose, for the times you are not
+publishing — working offline, archiving, or about to present on a network you
+do not trust. That last case still has no other entry point.
+
+So the two paths differ in exactly one way, and the copy should say so:
+publishing embeds into **the copy you send**; the menu item embeds into **the
+file you are editing**.
+
+### 3.7 Rename: pin → embed
 
 Hans's own word throughout has been **embed**, and it is the better one. "Pin"
 is jargon that needed a paragraph to explain — which is how he came to ask what
 the button did in the first place. Rename the menu item to **Embed images in
-the file**, the dialog to match, and drop "pin" from the copy entirely. The
-spec field stays `strokes`; only the language the author reads changes.
+the file**, "with narration" to **Embed narration**, and drop "pin" and "bake"
+from the copy entirely. The spec fields stay `strokes` and `audio`; only the
+language the author reads changes.
 
-*(No longer proposed: selective embedding, per-kind counts, and a
-`riskyImages` function. §3.1 removes the reason for all three. Selection, if
-anyone ever wants it, is the author's business and not the system's.)*
-
-### 3.4 Still worth having
-
-The same prompt, reachable when *presenting* rather than publishing — "I am
-about to show this on a network I do not trust." That is the non-publish case
-embedding exists for, and it currently has no entry point at all.
+*(No longer proposed: the warning prompt, selective embedding, per-kind counts,
+and a `riskyImages` function. §3.1 removed the reason for the ranking, and
+§3.3 removed the reason for the prompt — a checkbox that does not touch your
+document needs no warning.)*
 
 ## 4. Open: does `Insert → Image…` earn its place?
 
@@ -200,9 +254,13 @@ would change appearance. Worth confirming Hans has none before cutting.
 tests, as established.
 
 - `unembeddedImages(playlist)` → `{ count, bytes }` for every image still
-  fetched at playback, whatever its source. Pure. Must count across **every
-  part** of a multi-part playlist, not just the first, and must exclude
-  locally-traced images, which are embedded already.
+  fetched at playback, whatever its source — used to label the checkbox with
+  its cost. Pure. Must count across **every part** of a multi-part playlist,
+  not just the first, and must exclude locally-traced images, which are
+  embedded already.
+- **The document is unchanged after publishing with embedding on.** Assert the
+  spec objects `exportSequence` hands out are byte-identical before and after.
+  This is §3.4, and it is the one test that matters most in this section.
 - `shareDestinations` gains a third state — offered, **disabled-with-reason**,
   hidden — and its tests must pin which credential produces which. This is the
   §0.1 fix and the place it will rot.
