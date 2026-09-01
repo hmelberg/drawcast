@@ -43,6 +43,7 @@ Sources:
 | B8 | Startup state | R | see §D4 |
 | B9 ✅ | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
 | B10 ✅ | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
+| B11 | `render()` resolves portraits/sources on the document's **own** spec objects | R | found by the 2026-09-01 final review: root cause of the embed-count lie (fixed at the counter) and of strokes leaking into library saves; fix once — resolve on clones at render entry |
 
 ## C. Larger
 
