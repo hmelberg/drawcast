@@ -1,8 +1,10 @@
 // Standalone viewer mode: loads a spec or a playlist (a multi-document YAML
-// stream) from a link-shared Google Doc or a public GitHub repo, and shows
-// just a player — no editor, no AI, no key. Extra hash params: &style=sketchy
-// &mode=silent &speed=1.5 &advance=auto (kiosk: never wait for clicks).
+// stream) from a link-shared Google Doc, a published Google Drive file, or a
+// public GitHub repo, and shows just a player — no editor, no AI, no key.
+// Extra hash params: &style=sketchy &mode=silent &speed=1.5 &advance=auto
+// (kiosk: never wait for clicks).
 //   https://…/drawcast/#gdoc=1AbC…xyz
+//   https://…/drawcast/#gdrive=1AbC…xyz
 //   https://…/drawcast/#gh=hmelberg/kurs/courses/causal/did.yaml
 
 import "./styles.css";
@@ -15,6 +17,7 @@ import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
+import { pickerKey } from "./google/auth";
 
 export interface GhRef {
   owner: string;
@@ -23,8 +26,10 @@ export interface GhRef {
 }
 
 export interface ViewerRequest {
-  /** A link-shared Google Doc. Exactly one of docId/gh is set. */
+  /** A link-shared Google Doc. Exactly one of docId/driveId/gh is set. */
   docId?: string;
+  /** A published Google Drive file (yaml, "Anyone with the link can view"). */
+  driveId?: string;
   /** A file in a public GitHub repo. */
   gh?: GhRef;
   style: RenderStyle;
@@ -43,20 +48,27 @@ export function rawUrlFor(gh: GhRef): string {
 }
 
 const GH_RE = /[#&]gh[=-]([\w.-]+)\/([\w.-]+)\/([^&\s]+)/;
+const GDRIVE_RE = /[#&]gdrive[=-]([A-Za-z0-9_-]{10,})/;
 /** Documents only, and never a path that climbs out of the repo. */
 const DOC_PATH_RE = /^(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
 
 /**
- * Accepts #gdoc=<id> / #gdoc-<id> and #gh=<owner>/<repo>/<path> / #gh-…,
- * with optional &style= &mode= &speed= &advance=.
+ * Accepts #gdoc=<id> / #gdoc-<id>, #gdrive=<id> / #gdrive-<id>, and
+ * #gh=<owner>/<repo>/<path> / #gh-…, with optional &style= &mode= &speed=
+ * &advance=.
  */
 export function parseViewerHash(hash: string): ViewerRequest | null {
   const gh = GH_RE.exec(hash);
   const doc = /[#&]gdoc[=-]([A-Za-z0-9_-]{10,})/.exec(hash);
-  if (!gh && !doc) return null;
+  const drive = GDRIVE_RE.exec(hash);
+  if (!gh && !doc && !drive) return null;
 
   const params = new URLSearchParams(
-    hash.replace(/^#/, "").replace(/gdoc-([A-Za-z0-9_-]+)/, "gdoc=$1").replace(/gh-/, "gh="),
+    hash
+      .replace(/^#/, "")
+      .replace(/gdrive-([A-Za-z0-9_-]+)/, "gdrive=$1")
+      .replace(/gdoc-([A-Za-z0-9_-]+)/, "gdoc=$1")
+      .replace(/gh-/, "gh="),
   );
   const mode = params.get("mode");
   // Legacy draw links used &backend=custom-svg / clean-svg; map them.
@@ -73,6 +85,9 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     const path = decodeURIComponent(gh[3]);
     if (!DOC_PATH_RE.test(path)) return null;
     return { gh: { owner: gh[1], repo: gh[2], path }, ...common };
+  }
+  if (drive) {
+    return { driveId: drive[1], ...common };
   }
   return { docId: doc![1], ...common };
 }
@@ -98,6 +113,25 @@ async function fetchGdocText(docId: string): Promise<string> {
   );
 }
 
+/**
+ * Fetch a published Drive file via the public-file read endpoint (the file
+ * must be link-shared: "Anyone with the link can view"). Uses the app's
+ * build-time picker key rather than a signed-in token — the same key the
+ * file picker already needs, so a viewer-only build with no key fails with
+ * a build problem, not a sharing problem.
+ */
+async function fetchGdriveText(fileId: string): Promise<string> {
+  const key = pickerKey();
+  if (!key) {
+    throw new Error("This viewer build has no Google API key, so Drive files cannot be fetched.");
+  }
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${key}`);
+  if (res.ok) return await res.text();
+  throw new Error(
+    `Could not fetch the Drive file (HTTP ${res.status}). Make sure sharing is set to "Anyone with the link can view" (Share in Google Drive).`,
+  );
+}
+
 /** Fetch the playlist from a public repo. Private repos are not served here. */
 async function fetchGhText(gh: GhRef): Promise<string> {
   const res = await fetch(rawUrlFor(gh));
@@ -113,7 +147,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
   const titleEl = h("h1", { class: "viewer-title" }, "drawcast");
-  const status = h("div", { class: "viewer-status" }, req.gh ? "Loading drawing from GitHub…" : "Loading drawing from Google Doc…");
+  const status = h(
+    "div",
+    { class: "viewer-status" },
+    req.gh ? "Loading drawing from GitHub…" : req.driveId ? "Loading drawing from Google Drive…" : "Loading drawing from Google Doc…",
+  );
   // The same frame the app's player mounts into, by the same class: the
   // fullscreen rules are written against it, and a viewer-only copy of them
   // would be a copy nobody remembers to keep in step (it wasn't).
@@ -126,7 +164,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, footer));
 
   try {
-    const text = req.gh ? await fetchGhText(req.gh) : await fetchGdocText(req.docId!);
+    const text = req.gh ? await fetchGhText(req.gh) : req.driveId ? await fetchGdriveText(req.driveId) : await fetchGdocText(req.docId!);
     const playlist = parsePlaylistText(text);
     const items = itemsOf(playlist);
     if (items.length === 0) throw new Error("The document contains no drawable items.");

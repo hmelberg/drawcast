@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseViewerHash } from "../src/viewer";
 import { desmartenJson, extractJson } from "../src/spec/extract";
@@ -21,6 +22,26 @@ describe("parseViewerHash", () => {
   test("returns null without a gdoc fragment", () => {
     expect(parseViewerHash("#something-else")).toBeNull();
     expect(parseViewerHash("")).toBeNull();
+  });
+
+  test("accepts #gdrive=<id> and #gdrive-<id> with params", () => {
+    expect(parseViewerHash("#gdrive=1AbC_dEf-123456789")).toMatchObject({ driveId: "1AbC_dEf-123456789", style: "clean", mode: "narrated" });
+    expect(parseViewerHash("#gdrive-1AbC_dEf-123456789&style=sketchy")).toMatchObject({ driveId: "1AbC_dEf-123456789", style: "sketchy" });
+  });
+
+  test("a gdrive id never leaks into gdoc parsing", () => {
+    expect(parseViewerHash("#gdrive=1AbC_dEf-123456789")!.docId).toBeUndefined();
+  });
+});
+
+// Drift guard: entry.ts's dispatch regex is a separate, hand-maintained copy
+// of "which hash prefixes boot the viewer" — a real drawcast.app link with a
+// prefix parseViewerHash accepts but this regex doesn't would silently fall
+// through to the full editor bundle instead of the viewer.
+describe("entry.ts dispatch regex", () => {
+  test("names gdrive alongside gdoc and gh", () => {
+    const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
+    expect(entry).toMatch(/gdrive/);
   });
 });
 
