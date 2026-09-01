@@ -1538,6 +1538,11 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .share-dest:hover { color: var(--ink); }
 .share-dest.current { background: var(--paper); color: var(--rust); font-weight: 600; }
+/* A destination the author could enable but hasn't (spec §0.1's third
+   state) — still a real, clickable row (opens Settings), just muted so the
+   ready ones read first. Its reason sub-line reuses .hint verbatim. */
+.share-dest.dest-off { color: var(--muted); }
+.share-dest.dest-off .hint { margin-top: 0.15rem; }
 .share-panel-host { flex: 1; min-width: 0; }
 .share-panel > * + * { margin-top: 0.6rem; }
 /* The YouTube panel's fields, carried over unchanged from the dialog it used

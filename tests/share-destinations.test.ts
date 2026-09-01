@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { panelVisibility, shareDestinations, type ShareDest, type ShareTo } from "../src/ui/share";
+import { destinationOffers, panelVisibility, shareDestinations, type ShareDest, type ShareTo } from "../src/ui/share";
 
 // Round-2 fix: DESTS is down to three (link/youtube/video — see below), but
 // panelVisibility's own doc comment still said "four panels" from before one
@@ -42,6 +42,33 @@ describe("shareDestinations", () => {
 
   it("can offer nothing at all", () => {
     expect(shareDestinations({ github: false, google: false, tts: false }, "course")).toEqual([]);
+  });
+});
+
+describe("destinationOffers — the §0.1 third state", () => {
+  it("offers GitHub publishing disabled with a route when the repo is missing", () => {
+    const offers = destinationOffers({ github: false, google: true, tts: true }, "drawcast");
+    const link = offers.find((o) => o.id === "link")!;
+    expect(link.enabled).toBe(false);
+    expect(link.reason).toMatch(/Settings/);
+  });
+  it("hides YouTube entirely when Google is not configured — an env credential does not advertise itself", () => {
+    const offers = destinationOffers({ github: true, google: false, tts: true }, "drawcast");
+    expect(offers.map((o) => o.id)).not.toContain("youtube");
+  });
+  it("offers YouTube disabled when only the TTS key is missing", () => {
+    const offers = destinationOffers({ github: true, google: true, tts: false }, "drawcast");
+    const yt = offers.find((o) => o.id === "youtube")!;
+    expect(yt.enabled).toBe(false);
+    expect(yt.reason).toMatch(/TTS key/);
+  });
+  it("with no credentials at all a drawcast still sees two disabled rows, never an empty modal", () => {
+    const offers = destinationOffers({ github: false, google: false, tts: false }, "drawcast");
+    expect(offers.map((o) => o.id)).toEqual(["link", "video"]);
+    expect(offers.every((o) => !o.enabled)).toBe(true);
+  });
+  it("a course is offered the GitHub destination alone, same third-state rules", () => {
+    expect(destinationOffers({ github: false, google: true, tts: true }, "course").map((o) => o.id)).toEqual(["link"]);
   });
 });
 

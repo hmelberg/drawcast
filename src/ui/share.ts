@@ -97,20 +97,60 @@ export interface ShareDeps {
   setAbort: (c: AbortController | null) => void;
 }
 
-const DESTS: (ShareDest & { needs: (c: ShareCaps) => boolean; courses: boolean })[] = [
-  { id: "link", label: "Publish to GitHub", action: "Publish", needs: (c) => c.github, courses: true },
-  { id: "youtube", label: "YouTube", action: "Upload", needs: (c) => c.google && c.tts, courses: false },
-  { id: "video", label: "Video file", action: "Export", needs: (c) => c.tts, courses: false },
+interface DestRow extends ShareDest {
+  /** Hidden entirely when false. Only an environment credential the author
+   *  cannot supply from Settings (Google's client config) says no here — a
+   *  capability like that must never advertise itself (spec §6). */
+  offered: (c: ShareCaps) => boolean;
+  /** Ready to use right now. */
+  ready: (c: ShareCaps) => boolean;
+  /** Why it's disabled, and the route that fixes it — shown when !ready(caps). */
+  reason: string;
+  courses: boolean;
+}
+
+const DESTS: DestRow[] = [
+  { id: "link", label: "Publish to GitHub", action: "Publish", offered: () => true, ready: (c) => c.github, reason: "Set a repository and token in Settings", courses: true },
+  { id: "youtube", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
+  { id: "video", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
 ];
 
+/** One destination as Share's rail offers it: shown, and either ready to
+ *  select or shown disabled with the reason and route to fix it (spec §0.1's
+ *  third state — distinct from `offered`, which decides whether a row shows
+ *  at all). */
+export interface DestOffer {
+  id: ShareTo;
+  label: string;
+  action: string;
+  enabled: boolean;
+  reason?: string;
+}
+
 /**
- * Which destinations to offer. Unconfigured ones stay hidden — a capability
- * without its credential does not advertise itself (spec §6) — and a course
- * gets the link alone: batch video export is not written.
+ * Every destination the rail shows, in order — a course gets the link alone
+ * (batch video export is not written). A credential the author can supply in
+ * Settings (GitHub repo+token; the TTS key) always gets a row, disabled with
+ * its reason when missing; an environment credential (Google) that the
+ * author cannot supply stays hidden instead (spec §0.1).
+ */
+export function destinationOffers(caps: ShareCaps, subject: "drawcast" | "course"): DestOffer[] {
+  return DESTS
+    .filter((d) => (subject === "course" ? d.courses : true) && d.offered(caps))
+    .map(({ id, label, action, ready, reason }) =>
+      ready(caps) ? { id, label, action, enabled: true } : { id, label, action, enabled: false, reason },
+    );
+}
+
+/**
+ * The subset of `destinationOffers` that is actually ready to use.
+ * `shareDestinations` predates the rail's third (disabled-with-reason) state
+ * and several callers/tests still want "just the usable ones" — this keeps
+ * that shape rather than making every caller filter for itself.
  */
 export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course"): ShareDest[] {
-  return DESTS
-    .filter((d) => (subject === "course" ? d.courses : true) && d.needs(caps))
+  return destinationOffers(caps, subject)
+    .filter((o) => o.enabled)
     .map(({ id, label, action }) => ({ id, label, action }));
 }
 
@@ -551,7 +591,7 @@ function build(): ShareSession {
   const emptyHint = h(
     "div",
     { class: "hint" },
-    "Set your GitHub repository and token in Settings to publish. ",
+    "Publishing needs a destination — the rows above say what each one needs. ",
     settingsBtn,
   );
 
@@ -564,12 +604,15 @@ function build(): ShareSession {
   modal.body.append(layout, emptyHint);
   document.body.append(modal.dialog);
 
-  let destinations: ShareDest[] = [];
+  let destinations: DestOffer[] = [];
   let railButtons: HTMLButtonElement[] = [];
 
+  /** `selectDestination` only ever selects an ENABLED offer — a disabled
+   *  row's rail button opens Settings instead (wired in refresh()), never
+   *  this. */
   function selectDestination(id: ShareTo): void {
     // Only a drawcast's choice is worth remembering. A course offers Link
-    // alone (shareDestinations filters to `courses: true` destinations only),
+    // alone (destinationOffers filters to `courses: true` destinations only),
     // so refresh() calling this on every open would overwrite the editor's
     // remembered destination with "link" every time Share is opened from the
     // course panel — silently defeating "Share → Enter" repeat-publish for
@@ -581,12 +624,13 @@ function build(): ShareSession {
       current.settings.shareTo = id;
       current.persist();
     }
-    // Every panel, not just the ones in `destinations` — a filtered-out
+    // Every panel, not just the enabled ones — a disabled/filtered-out
     // destination's panel has never had `.hidden` touched otherwise, and
     // stays visible by default (the bug this pure function pins).
-    const visible = panelVisibility(ALL_DESTS, destinations, id);
+    const enabled = destinations.filter((d) => d.enabled);
+    const visible = panelVisibility(ALL_DESTS, enabled, id);
     for (const key of ALL_DESTS) panels[key].hidden = !visible[key];
-    destinations.forEach((d, i) => railButtons[i].classList.toggle("current", d.id === id));
+    destinations.forEach((d, i) => railButtons[i].classList.toggle("current", d.enabled && d.id === id));
     const left = id === "youtube" ? [h("div", { class: "footer-left" }, ytSaveCopy)] : [];
     modal.footer.replaceChildren(...left, actionBtns[id]);
   }
@@ -613,22 +657,40 @@ function build(): ShareSession {
 
   function refresh(deps: ShareDeps): void {
     current = deps;
-    destinations = shareDestinations(currentCaps(deps.settings), deps.subject);
-    layout.hidden = destinations.length === 0;
-    emptyHint.hidden = destinations.length > 0;
-    if (destinations.length === 0) {
-      modal.footer.replaceChildren();
-      return;
-    }
+    // Never empty: `link` (drawcast and course) and `video` (drawcast) are
+    // always offered, disabled with a reason when their credential is
+    // missing rather than hidden (spec §0.1) — only `youtube`'s env
+    // credential (Google) can drop a row entirely.
+    destinations = destinationOffers(currentCaps(deps.settings), deps.subject);
     prepPanels();
     railButtons = destinations.map((d) => {
-      const b = h("button", { class: "share-dest" }, d.label) as HTMLButtonElement;
-      b.addEventListener("click", () => selectDestination(d.id));
+      const b = h("button", { class: d.enabled ? "share-dest" : "share-dest dest-off" }, d.label) as HTMLButtonElement;
+      if (!d.enabled && d.reason) b.append(h("div", { class: "hint" }, d.reason));
+      b.addEventListener("click", () => {
+        // A `disabled` button would swallow the click — this stays an
+        // enabled button styled `.dest-off`, so it can still route the
+        // author to Settings instead of trying to select an offer that
+        // isn't ready.
+        if (!d.enabled) {
+          modal.dialog.close();
+          current.openSettings();
+          return;
+        }
+        selectDestination(d.id);
+      });
       return b;
     });
     rail.replaceChildren(...railButtons);
+
+    const enabled = destinations.filter((d) => d.enabled);
+    panelHost.hidden = enabled.length === 0;
+    emptyHint.hidden = enabled.length > 0;
+    if (enabled.length === 0) {
+      modal.footer.replaceChildren();
+      return;
+    }
     const remembered = deps.settings.shareTo;
-    selectDestination(destinations.some((d) => d.id === remembered) ? remembered : destinations[0].id);
+    selectDestination(enabled.some((d) => d.id === remembered) ? remembered : enabled[0].id);
   }
 
   return { modal, refresh };
