@@ -1483,6 +1483,13 @@ function applyDeveloperMode(): void {
   const on = settings.developerMode;
   ratingBox.hidden = !on;
   dataRow.hidden = !on;
+  promoteBtn.hidden = !on;
+  // The References tab only makes sense once "Learn from this" is reachable —
+  // gate it the same way, and if it's the one currently showing when the
+  // setting turns off, fall back to Instructions rather than leave an empty
+  // pane behind a hidden button.
+  instructionsTabs.setHidden("references", !on);
+  if (!on) instructionsTabs.show("instructions");
   document.body.classList.toggle("dev-mode", on);
 }
 developerCb.addEventListener("change", () => {

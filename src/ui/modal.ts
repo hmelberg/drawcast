@@ -92,6 +92,8 @@ export interface TabSpec {
 export interface Tabs {
   el: HTMLElement;
   show(id: string): void;
+  /** Hide (or reveal) one tab's button — for a tab gated behind a setting. */
+  setHidden(id: string, hidden: boolean): void;
 }
 
 /** A tab strip over stacked panels; the first tab starts active. */
@@ -105,6 +107,10 @@ export function createTabs(tabs: TabSpec[]): Tabs {
       buttons.get(t.id)?.classList.toggle("active", active);
     }
   };
+  const setHidden = (id: string, hidden: boolean): void => {
+    const b = buttons.get(id);
+    if (b) b.hidden = hidden;
+  };
   for (const t of tabs) {
     const b = h("button", { class: "tab-btn" }, t.label);
     b.addEventListener("click", () => show(t.id));
@@ -113,5 +119,5 @@ export function createTabs(tabs: TabSpec[]): Tabs {
   }
   const el = h("div", { class: "tabs" }, bar, ...tabs.map((t) => t.panel));
   if (tabs.length > 0) show(tabs[0].id);
-  return { el, show };
+  return { el, show, setHidden };
 }
