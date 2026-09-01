@@ -161,11 +161,12 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 3 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(3);
+test("KIT_VERSION is 4 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(4);
   expect(kit.CANVAS.w).toBe(1000);
   expect(kit.COLORS.ink).toBeDefined();
   expect(kit.SKETCH_MS.stroke).toBeGreaterThan(0);
+  expect(kit.AXIS_OVERHANG).toBe(22);
 });
 
 // M1 review finding #1: `kit` is one live, shared object handed to every

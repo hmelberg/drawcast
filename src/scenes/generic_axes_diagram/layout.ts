@@ -114,17 +114,17 @@ export function layoutGenericAxes(params: GenericAxesParams): SceneLayout {
     id: "axes",
     kind: "stroke",
     pts: [
-      [plot.x1 + 22, plot.y0],
+      [plot.x1 + kit.AXIS_OVERHANG, plot.y0],
       [plot.x0, plot.y0],
-      [plot.x0, plot.y1 + 22],
+      [plot.x0, plot.y1 + kit.AXIS_OVERHANG],
     ],
     arrowhead: "both",
     z: Z_STROKE,
     style: defaultStyle({ strokeWidth: 4, roughness: 1.1 }),
     drawOpts: defaultDrawOpts("sketch", SKETCH_MS.axis),
   });
-  push(kit.text("x_label", [plot.x1 + 14, plot.y0 - 52], params.x_label, { fontSize: 28, anchor: "end" }));
-  push(kit.text("y_label", [plot.x0 + 8, plot.y1 + 36], params.y_label, { fontSize: 28, anchor: "start" }));
+  push(kit.axisLabel("x_label", "x", plot, params.x_label, { fontSize: 28 }));
+  push(kit.axisLabel("y_label", "y", plot, params.y_label, { fontSize: 28 }));
 
   // Curves.
   const curves = params.curves.slice(0, 4);

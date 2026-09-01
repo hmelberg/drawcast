@@ -200,3 +200,60 @@
   stringified, blobs elided) so a stale cache can never be uploaded against an
   edited document; that is a decision about scope, not a detail, so it is left
   here rather than taken.
+
+- 2026-09-02: **B13 — the axis captions now hug their arrows, by one shared
+  rule.** `axisLabelPlacement(axis, plot, text, fontSize)` in
+  `src/layout/axes.ts` is the only place the geometry lives; `makeAxes`,
+  `generic_axes_diagram` and 29 pack-template sites (a new `kit.axisLabel`,
+  KIT_VERSION 3 → 4) all go through it. Chosen constants, on the standard
+  1000×750 canvas / 120,95–930,695 plot box: `AXIS_OVERHANG` 22 (the arrow
+  tips, exported so the axis STROKES cite it too — the label and its arrow can
+  no longer drift apart), x label 16 units of clearance between the axis line
+  and the top of its box (was ~34.5) with its right edge ON the arrow tip at
+  x1+22 (was 8 units short of it), y label 8 units above the arrow tip and
+  centred on it, everything held 4 units off the canvas edge.
+
+- 2026-09-02: **The y label's short/long threshold is the canvas edge, and it
+  is measured, not guessed.** Centre the caption on the arrow tip; if that
+  would put its left edge past the canvas margin, slide it right just enough
+  to clear — which lands its start at or left of the y axis, which is what
+  Hans asked for. So "short" means `heuristicMeasure(text).w ≤ 2 × (plot.x0 −
+  4)` = 232 units ≈ 15 characters at 28pt; nothing new had to be invented and
+  the two cases are one expression (`Math.max`).
+
+- 2026-09-02: **The y label rides at the canvas top, not 8 units above its
+  arrow, on the standard plot box.** The arrow tip sits at y = 717 and one
+  28pt line is 35 tall, so there is no room for a real gap — the vertical is a
+  `min()` of "just above the arrow" and "just inside the canvas", and on the
+  standard box the second wins. On a short plot box (the CEAC's y1 = 608) the
+  first wins and the caption follows its own arrow down instead of floating at
+  the top of the canvas. The box therefore still straddles the arrow tip; the
+  INK clears it, and the label–stroke lint's 0.25h core inset stays above y =
+  717 for every font size below ~31pt (all of ours are 20–28).
+
+- 2026-09-02: **Hans's optional in-line x label was worth building, and it
+  fires more than expected.** A caption goes in line with the axis, 10 units
+  past the arrow tip and vertically centred on the axis line, when it is BOTH
+  a short word (≤ 2.5 em ≈ five characters — the semantic half of his "for
+  short words") and fits in the strip of canvas beyond the arrow (the "if
+  possible" half, so it can never encroach on the figure). On the standard
+  plot box only ~3 characters fit, so it is a symbol rule there ("x" in the
+  derivative and logistic examples); but `did_trends` has a shorter plot box
+  and its "Time" now sits inline too. That is a real visual change to a
+  bundled example, made deliberately — it reads as the standard event-study
+  "Time →" — and it is the one place a reviewer should look first if the new
+  placement is ever judged wrong.
+
+- 2026-09-02: **`lorenz_curve` deliberately opts out** and still places both
+  captions by hand (centred under the axis, an 18-unit overhang). A Lorenz
+  diagram is a square unit box with nothing drawn at crossing points along the
+  bottom edge, so the reason the house rule right-justifies — keeping that
+  strip free — does not apply. A comment in `empirics.yaml` says so, since it
+  is now the only axes figure not calling `kit.axisLabel`.
+  `cost_effectiveness_plane` (four quadrants, captions at the ends of the
+  crossing axes) and `plot3d` were out of scope for the same kind of reason.
+
+- 2026-09-02: The examples suite is what made this safe to do at 31 call
+  sites: it lints all 114 bundled specs and fails on a WARNING, not just an
+  error. 32 figures carry axis captions; all 32 were clean before and all 32
+  are clean after, so the tightened placement introduced no collision anywhere.

@@ -15,7 +15,8 @@
 import { compileExpression } from "../spec/expression";
 import { parseNotation, type NoteToken } from "../spec/notation";
 import { parseABC, type AbcTune } from "../spec/abc";
-import { CANVAS } from "../layout/canvas";
+import { CANVAS, type PlotArea } from "../layout/canvas";
+import { AXIS_OVERHANG, axisLabelPlacement } from "../layout/axes";
 import {
   COLORS,
   SKETCH_MS,
@@ -35,7 +36,7 @@ import {
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 3; // v3: parseNotes (the music pack)
+export const KIT_VERSION = 4; // v4: axisLabel + AXIS_OVERHANG (the one axis-caption rule)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -226,6 +227,18 @@ export interface SceneKit {
    */
   area(id: string, pts: Pt[], fill: string, o?: { opacity?: number; ms?: number; holes?: Pt[][]; precise?: boolean }): AreaDrawable;
   text(id: string, pos: Pt, s: string, o?: TextOpts): TextDrawable;
+  /**
+   * The caption for one axis of an L-shaped axes pair, placed by the app's
+   * single axis-label rule (layout/axes.ts) instead of by hand — pass the
+   * plot box the axes were drawn from and the axis it belongs to. The x
+   * caption is right-justified below the axis with its right edge at the
+   * arrowhead (a short symbol goes in line with the axis, just past the
+   * arrow); the y caption is centred on top of its arrow, sliding right only
+   * as far as the canvas edge forces when it is too wide to centre. Axis
+   * strokes must run to `plot.x1 + kit.AXIS_OVERHANG` / `plot.y1 +
+   * kit.AXIS_OVERHANG` for the captions to meet their arrows.
+   */
+  axisLabel(id: string, axis: "x" | "y", plot: PlotArea, s: string, o?: TextOpts): TextDrawable;
   label(id: string, anchor: Pt, side: Side, s: string, o?: { fontSize?: number; color?: string }): LabelRequest;
   group(id: string, children: Drawable[]): GroupDrawable;
   // ---- geometry (all return points in logical y-up coordinates) ----
@@ -350,6 +363,8 @@ export interface SceneKit {
   COLORS: typeof COLORS;
   CANVAS: typeof CANVAS;
   SKETCH_MS: typeof SKETCH_MS;
+  /** How far an axis stroke runs past the plot box — where its arrowhead tips. */
+  AXIS_OVERHANG: typeof AXIS_OVERHANG;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -540,6 +555,11 @@ export const kit: SceneKit = {
       }),
       drawOpts: defaultDrawOpts("instant"),
     };
+  },
+  axisLabel(id, axis, plot, s, o = {}) {
+    const fontSize = o.fontSize ?? 28;
+    const { pos, anchor } = axisLabelPlacement(axis, plot, s, fontSize);
+    return this.text(id, pos, s, { ...o, fontSize, anchor });
   },
   label(id, anchor, side, s, o = {}) {
     return {
@@ -1363,6 +1383,7 @@ export const kit: SceneKit = {
   COLORS,
   CANVAS,
   SKETCH_MS,
+  AXIS_OVERHANG,
 };
 
 Object.freeze(kit);

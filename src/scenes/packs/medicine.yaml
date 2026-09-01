@@ -912,10 +912,10 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Hours", { fontSize: 24, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Concentration", { fontSize: 24, anchor: "start" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, "Hours", { fontSize: 24 }),
+    kit.axisLabel("axes__y_label", "y", plot, "Concentration", { fontSize: 24 }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
 
@@ -1071,10 +1071,10 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Volume (ml)", { fontSize: 24, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Pressure (mmHg)", { fontSize: 24, anchor: "start" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, "Volume (ml)", { fontSize: 24 }),
+    kit.axisLabel("axes__y_label", "y", plot, "Pressure (mmHg)", { fontSize: 24 }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
 

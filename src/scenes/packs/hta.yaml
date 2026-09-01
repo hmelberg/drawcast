@@ -100,10 +100,10 @@ layout: |
   };
 
   push(kit.group("axes", [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Willingness to pay per QALY ($1000s)", { fontSize: 20, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 34], "Probability cost-effective", { fontSize: 20, anchor: "start" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, "Willingness to pay per QALY ($1000s)", { fontSize: 20 }),
+    kit.axisLabel("axes__y_label", "y", plot, "Probability cost-effective", { fontSize: 20 }),
     kit.text("axes__y1", [plot.x0 - 14, Y(1)], "1", { fontSize: 18, anchor: "end", color: C.guide }),
     kit.text("axes__y05", [plot.x0 - 14, Y(0.5)], "0.5", { fontSize: 18, anchor: "end", color: C.guide }),
   ]));
@@ -229,8 +229,8 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 48], xLab, { fontSize: 21, anchor: "end" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 21 }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
 

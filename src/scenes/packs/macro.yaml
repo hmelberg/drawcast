@@ -78,10 +78,10 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Output (Y)", { fontSize: 24, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Interest rate (r)", { fontSize: 24, anchor: "start" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, "Output (Y)", { fontSize: 24 }),
+    kit.axisLabel("axes__y_label", "y", plot, "Interest rate (r)", { fontSize: 24 }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
 
@@ -215,10 +215,10 @@ layout: |
   const push = (dd) => { drawables.push(dd); order.push(dd.id); };
 
   push(kit.group("axes", [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], "Capital per worker (k)", { fontSize: 22, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], "Output per worker", { fontSize: 22, anchor: "start" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, "Capital per worker (k)", { fontSize: 22 }),
+    kit.axisLabel("axes__y_label", "y", plot, "Output per worker", { fontSize: 22 }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
 
@@ -348,10 +348,10 @@ layout: |
   };
 
   const axesChildren = [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + 22, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + 22]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.text("axes__x_label", [plot.x1 + 14, plot.y0 - 52], xLabel, { fontSize: 26, anchor: "end" }),
-    kit.text("axes__y_label", [plot.x0 + 8, plot.y1 + 36], yLabel, { fontSize: 26, anchor: "start" }),
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.axisLabel("axes__x_label", "x", plot, xLabel, { fontSize: 26 }),
+    kit.axisLabel("axes__y_label", "y", plot, yLabel, { fontSize: 26 }),
   ];
   push(kit.group("axes", axesChildren));
 
