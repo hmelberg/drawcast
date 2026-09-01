@@ -90,3 +90,53 @@ tend to be:
   attached to the document.
 - **Contrast ratios in these documents have twice been asserted without being
   computed.** Both were wrong. If a document states a ratio, recompute it.
+
+## Constraints you should know before judging any proposal
+
+- **There are no users but the author.** Nobody else has drawcasts saved or
+  published. So **backwards compatibility is not a constraint**: deleting a
+  feature, changing a default, or dropping a stored format needs no migration
+  path and no deprecation. The project's standing rule is *replace or delete,
+  never freeze*. Do not spend effort flagging missing migration paths — their
+  absence is deliberate.
+- **The author's stated aim**, in his words: *"I do not want to make it too
+  complicated, but also I want the intent of these changes to be respected when
+  possible. I am willing to revise and adapt if you have suggestions that are
+  more intuitive or makes it significantly easier to implement."*
+- Work ships in small parts, each reviewed, each pushed to `main`.
+
+## Your brief
+
+**Focus on §F of `ROADMAP-2026-09.md`** — the proposed seven-part split, and
+especially the six places it revises the author's stated intent. Those are the
+judgement calls with the largest consequences, and they are what has not been
+independently examined. A factual audit of the specs is explicitly *not* what
+is wanted here.
+
+Three questions, in order of value:
+
+**1. Are the six revisions genuinely simpler, or do they quietly drop something
+the author asked for?** Each was offered as a simplification. Judge each on
+whether it serves the intent or merely reduces work:
+
+| | Revision | The intent it is simplifying |
+|---|---|---|
+| 1 | Drop per-save folders entirely | *"consider whether it should be possible to change the default subfolder"* |
+| 2 | Name field only where a panel already exists | *"whether people should be able to change the name… for all saving and publishing options"* |
+| 3 | Hide the lint chip entirely rather than showing errors | *"the red warnings… is mainly just annoying"* |
+| 4 | Split the player part; icons first, layout later | *"I want the player… to be a bit like a youtube player"* |
+| 5 | Do the title prompt-change first, maybe skip the DOM move | *"perhaps the title should be below the video"* |
+| 6 | Take giscus's reactions; build no vote store | *"allow thumbs up and down… might also be saved externally if possible"* |
+
+For each: does it deliver what was asked, deliver something better, or deliver
+less while sounding like a simplification?
+
+**2. Is the seven-part order right?** In particular — does shipping Part 1
+first leave the app in a coherent state, or does it half-apply changes that
+only make sense with a later part? (Part 1 renames Share to Publish and moves
+it; Part 3 changes what Publish contains.)
+
+**3. What is over-engineered, and what did the author miss?** These documents
+were written by one model across one long session, refined by the author's
+pushback. Cross-document contradiction and unexamined assumptions are the
+failure modes it cannot see in its own work.
