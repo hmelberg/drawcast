@@ -145,9 +145,18 @@ function currentCaps(settings: Settings): ShareCaps {
  * third copy of this exact regex inlined at its disk-save call site, plus a
  * second standalone copy for the prompt-library export (its own `fallback`
  * covers that case; every save-destination call site keeps "drawcast").
+ * Capped at 40 characters, cut at a word boundary — the fix for "the name is
+ * a bit long" (P §8.1).
  */
 export function fileSafe(name: string, fallback = "drawcast"): string {
-  return name.replace(/[^\wæøå -]+/gi, "").trim() || fallback;
+  const MAX = 40;
+  let safe = name.replace(/[^\wæøå -]+/gi, "").trim();
+  if (safe.length > MAX) {
+    const cut = safe.slice(0, MAX + 1);
+    const boundary = cut.lastIndexOf(" ");
+    safe = (boundary > MAX / 2 ? cut.slice(0, boundary) : safe.slice(0, MAX)).trim();
+  }
+  return safe || fallback;
 }
 
 function titleOf(playlist: Playlist, fallback: string): string {
