@@ -15,9 +15,9 @@ import { bboxOfText } from "../src/layout/geometry";
 import { heuristicMeasure } from "../src/layout/measure";
 import { leafDrawables, type TextDrawable } from "../src/layout/model";
 
-const plot = plotArea(); // x0 120, y0 95, x1 930, y1 695
+const plot = plotArea(); // x0 120, y0 95, x1 930, y1 675
 const X_TIP = plot.x1 + AXIS_OVERHANG; // 952
-const Y_TIP = plot.y1 + AXIS_OVERHANG; // 717
+const Y_TIP = plot.y1 + AXIS_OVERHANG; // 697
 
 /** The label's box, the way lint and the collision solver see it. */
 function box(axis: "x" | "y", text: string, fontSize = 28) {
@@ -86,13 +86,14 @@ describe("y axis label", () => {
     expect(b.x + b.w / 2).toBeCloseTo(plot.x0, 6);
   });
 
-  test("a short label sits above the arrow tip, not through it", () => {
-    // The tip is only 33 units below the canvas top — less than one 28pt line
-    // — so the box straddles the tip while the INK clears it. What must hold
-    // is that the label rides at the top and stays on canvas.
+  test("a short label CLEARS the arrow tip by the full gap, even on the standard plot", () => {
+    // The regression Hans hit (2026-09-02): with only 33 units of headroom
+    // the canvas-top clamp used to press the label box down ONTO the
+    // arrowhead. PLOT_MARGIN.top now leaves room for arrow + gap + label,
+    // so the gap is real everywhere — and the box still stays on canvas.
     const b = box("y", "Price (P)");
+    expect(b.y - Y_TIP).toBe(12);
     expect(b.y + b.h).toBeLessThanOrEqual(CANVAS.h);
-    expect(b.y + b.h).toBeGreaterThan(Y_TIP);
   });
 
   test("a long label ends at or left of the y axis and stays on canvas", () => {
@@ -116,7 +117,7 @@ describe("y axis label", () => {
     const short = { ...plot, y1: 608 }; // the ceac plot box
     const p = axisLabelPlacement("y", short, "Probability cost-effective", 20);
     const b = bboxOfText({ id: "t", kind: "text", pos: p.pos, text: "Probability cost-effective", fontSize: 20, anchor: p.anchor } as TextDrawable, heuristicMeasure);
-    expect(b.y - (short.y1 + AXIS_OVERHANG)).toBe(8);
+    expect(b.y - (short.y1 + AXIS_OVERHANG)).toBe(12);
   });
 
   test("a long label never crosses the canvas edge", () => {

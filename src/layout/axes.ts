@@ -31,8 +31,10 @@ const X_LABEL_INLINE_GAP = 10;
  * eat into the figure, which is the whole reason the label lives below.
  */
 const X_LABEL_SHORT_EMS = 2.5;
-/** Arrow tip → bottom of the y label's box. */
-const Y_LABEL_GAP = 8;
+/** Arrow tip → bottom of the y label's box. Was 8; Hans 2026-09-02: "there
+ *  should be some space there" — the gap is real (not clamped away) only
+ *  because PLOT_MARGIN.top grew to hold arrow + gap + label, see canvas.ts. */
+const Y_LABEL_GAP = 12;
 /** Never let a label's box touch the canvas edge. */
 const CANVAS_EDGE_MARGIN = 4;
 
@@ -60,9 +62,10 @@ export interface AxisLabelPlacement {
  * clears the edge, which puts its start at or left of the y axis, exactly as
  * Hans asked. That clamp IS the short/long threshold, and it is measured:
  * "short" means w ≤ 2 × (plot.x0 − CANVAS_EDGE_MARGIN), ≈ 15 characters at
- * 28pt on the standard plot box. The label rides just under the canvas top
- * when the arrow is close to it (the standard plot leaves only 33 units of
- * headroom, less than one 28pt line), which is why the vertical is a min().
+ * 28pt on the standard plot box. The min() keeps the label under the canvas
+ * top when a template pushes its plot high; the STANDARD plot now leaves
+ * enough headroom (canvas.ts PLOT_MARGIN.top) that the min never bites there
+ * — before 2026-09-02 it did, and clamped the label down ONTO the arrowhead.
  */
 export function axisLabelPlacement(axis: "x" | "y", plot: PlotArea, text: string, fontSize: number): AxisLabelPlacement {
   const { w, h } = heuristicMeasure(text, fontSize);

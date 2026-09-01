@@ -336,7 +336,7 @@ layout: |
   const showLras = params.show_lras === true;
   const shift = params.shift && (params.shift.curve === "ad" || params.shift.curve === "as") ? params.shift : null;
 
-  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 675 };
   const sx = (v) => plot.x0 + (v / 100) * (plot.x1 - plot.x0);
   const sy = (v) => plot.y0 + (v / 100) * (plot.y1 - plot.y0);
 

@@ -74,7 +74,7 @@ layout: |
   const xGood = typeof params.x_good === "string" && params.x_good.trim() !== "" ? params.x_good : "Good X";
   const yGood = typeof params.y_good === "string" && params.y_good.trim() !== "" ? params.y_good : "Good Y";
 
-  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 675 };
   const xInt = income / priceX;
   const yInt = income / priceY;
   const xStar = alpha * xInt;
@@ -204,7 +204,7 @@ layout: |
   const shadeAttainable = params.shade_attainable !== false;
   const pointsIn = Array.isArray(params.points) ? params.points.slice(0, 6) : [];
 
-  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 675 };
   const R = 90;
   const worldMax = R * 1.35;
   const sx = (v) => plot.x0 + (v / worldMax) * (plot.x1 - plot.x0);
@@ -361,7 +361,7 @@ layout: |
     if (qStar !== null) pStar = price;
   }
 
-  const plot = { x0: 120, y0: 95, x1: 930, y1: 695 };
+  const plot = { x0: 120, y0: 95, x1: 930, y1: 675 };
   const sx = (v) => plot.x0 + (v / 100) * (plot.x1 - plot.x0);
   const sy = (v) => plot.y0 + (v / 100) * (plot.y1 - plot.y0);
 

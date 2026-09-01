@@ -6,7 +6,13 @@
 export const CANVAS = Object.freeze({ w: 1000, h: 750 } as const);
 
 /** Default plot-area margins (logical units) for diagrams with axes. */
-export const PLOT_MARGIN = { left: 120, right: 70, top: 55, bottom: 95 } as const;
+// top: the y arrow overshoots the plot by AXIS_OVERHANG (22) and the y-axis
+// caption sits above the arrowhead (a 28pt label box is 35 units) — 55 units
+// could not hold both, which pinned the label ONTO the arrowhead (Hans
+// 2026-09-02: "there should be some space there"). 75 gives arrow + gap +
+// label room; the pack templates that set their own plot already chose tops
+// in this range (y1 ≤ 630).
+export const PLOT_MARGIN = { left: 120, right: 70, top: 75, bottom: 95 } as const;
 
 export interface PlotArea {
   x0: number;
