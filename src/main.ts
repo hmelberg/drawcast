@@ -124,7 +124,7 @@ import {
   type UserPrompt,
 } from "./store";
 import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
-import { openSpec, saveSpec } from "./google/drive";
+import { ensureFolder, openSpec, saveSpec } from "./google/drive";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
@@ -3613,7 +3613,11 @@ async function saveToDrive(): Promise<void> {
     const name = `${fileSafe(save.title)}.yaml`;
     const mimeType = "text/yaml";
     setStatus("Saving to Drive…");
-    const res = await saveSpec(save.text, name, mimeType, target.driveFileId);
+    // Updates reuse target.driveFileId and never move the file, so only a
+    // brand-new save needs the folder — ensureFolder degrades to null (a
+    // root-level save) rather than blocking the save on a failed lookup.
+    const folder = target.driveFileId ? null : await ensureFolder();
+    const res = await saveSpec(save.text, name, mimeType, target.driveFileId, folder);
     if (!res) {
       setStatus("Drive sign-in was cancelled — nothing was saved.", "error");
       return;
