@@ -25,7 +25,7 @@ Sources:
 | A3 ✅ | `fileSafe` gains a word-boundary length cap | P §8.1 | the one-line cause of long filenames |
 | A4 ✅ | Share → **Publish**; "Link" → "Publish to GitHub" | P §1 | |
 | A5 ✅ | Player/Editor pill removed; **▶ Player** row in the sidebar | S §7.3 | verified: player mode already has `✎ Edit` in its own control bar |
-| A6 | *(→ Part 2)* Subtitle band is too dense — `rgba(24,20,16,0.82)` | R | see §D1 |
+| A6 ✅ | *(→ Part 2)* Subtitle band is too dense — `rgba(24,20,16,0.82)` | R | see §D1 — delivered in Part 2a (2026-09-02): 0.6 alpha (0.55 measured under AA) + stronger shadow, contrast drift-tested |
 | A7 ✅ | Lint chip stops shouting at normal users | R | see §D2 |
 | A8 ✅ | `👍 Learn from this` behind `developerMode` | S §6 | |
 
@@ -43,7 +43,7 @@ Sources:
 | B8 | Startup state | R | see §D4 |
 | B9 ✅ | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
 | B10 ✅ | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
-| B11 | `render()` resolves portraits/sources on the document's **own** spec objects | R | found by the 2026-09-01 final review: root cause of the embed-count lie (fixed at the counter) and of strokes leaking into library saves; fix once — resolve on clones at render entry |
+| B11 ✅ | `render()` resolves portraits/sources on the document's **own** spec objects | R | found by the 2026-09-01 final review: root cause of the embed-count lie (fixed at the counter) and of strokes leaking into library saves; fixed 2026-09-02 — `render/resolve.ts` clones at render entry, guarantee proven with fake resolvers like publish/embed's |
 | B12 | Voice selection for Google TTS | R | Hans 2026-09-02: browser voices are already selectable; cloud TTS should be too — per LANGUAGE (a voice belongs to a language), so the setting is a per-language preference through `voiceFor`, not one global voice. Two layers like speed: durable default in Settings, quick pick in the player bar for auditioning (a selection speaks a sample line). WRINKLE: bake reuse is keyed by line text — a voice change must not mix old-voice cached lines into a re-bake; the reuse key needs the voice in it |
 | B13 ✅ | Axis-label placement | R | Hans 2026-09-02, delivered same day (ce38f62): x-label right-justified ending at/past the arrow tip, tighter to the axis (short words may sit in line with the arrow); y-label centered above the arrow when short, ending at/left of the axis when long; PPF example is the test case |
 
@@ -74,7 +74,7 @@ cache key would fix it if it ever hurts.
 | C5 ✅ | Delete `halftone`/`poster`/`line` looks | P §5 | 0 of 114 bundled specs use them |
 | C6 ✅ | `Insert → Image…` reduced to disk import only | P §4 | |
 | C7 | **Player behaves and reads like YouTube's** | R | see §D6 |
-| C8 | Mute/sound icon is ugly on macOS | R | §D6 — a symptom of C7 |
+| C8 ✅ | Mute/sound icon is ugly on macOS | R | §D6 — delivered in Part 2a (2026-09-02) per review R4: EVERY control glyph became inline currentColor SVG in one pass (`ui/icons.ts`), not just the speaker |
 | C9 | Title moves **below** the player, YouTube-style | R | see §D7 — coupled to the drawcast opening with a drawn title |
 | C10 | Chapter boundaries default to **timed**, not click | R | see §D8 — the mechanism exists; this is a default change |
 | C11 | The continue pill should mean one thing | R | §D8 — chapter gate and authored `wait` currently share it |
