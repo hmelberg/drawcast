@@ -1,6 +1,6 @@
 // The portrait ELEMENT: schema validation, tier-2 rendering (traced strokes
 // vs the sketched placeholder), and the resolver's pure helpers. The codec
-// and tracer have their own suite (tests/portrait-trace.test.ts).
+// has its own suite (tests/portrait-trace.test.ts).
 
 import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
@@ -70,7 +70,11 @@ describe("portrait element", () => {
   });
 });
 
-describe("portrait element — halftone dots", () => {
+describe("portrait element — dot-shape strokes (decode path)", () => {
+  // Nothing generates "dot" shapes anymore (the halftone look is gone), but
+  // the decode/render path in src/layout/tier2.ts still draws whatever
+  // shape kinds a strokes string carries — a pinned/pasted spec from before
+  // this deletion must keep rendering.
   test("dot shapes render as filled circles scaled with the element width", () => {
     const dotted = encodeTrace({
       aspect: 1,
@@ -113,10 +117,8 @@ describe("portrait resolver helpers", () => {
 
   test("cache keys: strokes need none; url and name key separately; version bumps invalidate", () => {
     expect(portraitCacheKey({ type: "portrait", strokes: TRACE })).toBeNull();
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|photo|name|keynes`);
-    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|photo|url|https://x/y.jpg`);
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "line" })).toBe(`p${TRACE_VERSION}|line|name|keynes`);
-    expect(portraitCacheKey({ type: "portrait", of: "Keynes", look: "halftone" })).toBe(`p${TRACE_VERSION}|halftone|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", of: "Keynes" })).toBe(`p${TRACE_VERSION}|name|keynes`);
+    expect(portraitCacheKey({ type: "portrait", url: "https://x/y.jpg" })).toBe(`p${TRACE_VERSION}|url|https://x/y.jpg`);
     expect(portraitCacheKey({ type: "portrait" })).toBeNull();
   });
 

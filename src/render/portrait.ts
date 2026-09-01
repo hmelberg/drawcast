@@ -7,11 +7,10 @@
 // playback never stalls mid-figure and exports resolve before recording.
 
 import type { Spec, SpecElement } from "../spec/types";
-import { decodePhoto, decodeTrace, encodePhoto, encodeTrace } from "../spec/trace";
-import { traceImage } from "./tracer";
+import { decodePhoto, decodeTrace, encodePhoto } from "../spec/trace";
 
 /** Bump when the tracer's output changes — old cache entries stop matching. */
-export const TRACE_VERSION = 5; // v5: photo look; halftone traces at higher resolution
+export const TRACE_VERSION = 6; // v6: single photo look
 
 /** The Wikipedia summary endpoint for a person (CORS-open, returns the infobox thumbnail). */
 export function wikiSummaryUrl(name: string): string {
@@ -19,11 +18,10 @@ export function wikiSummaryUrl(name: string): string {
 }
 
 /** Cache key for a portrait element, or null when it needs no resolution. */
-export function portraitCacheKey(el: Pick<SpecElement, "type" | "of" | "url" | "strokes" | "look">): string | null {
+export function portraitCacheKey(el: Pick<SpecElement, "type" | "of" | "url" | "strokes">): string | null {
   if (el.type !== "portrait" || el.strokes) return null;
-  const look = el.look ?? "photo";
-  if (el.url) return `p${TRACE_VERSION}|${look}|url|${el.url}`;
-  if (el.of) return `p${TRACE_VERSION}|${look}|name|${el.of.trim().toLowerCase()}`;
+  if (el.url) return `p${TRACE_VERSION}|url|${el.url}`;
+  if (el.of) return `p${TRACE_VERSION}|name|${el.of.trim().toLowerCase()}`;
   return null;
 }
 
@@ -76,11 +74,11 @@ export async function cachePut(key: string, encoded: string): Promise<void> {
 // ---- image → trace --------------------------------------------------------
 
 /**
- * Longest image side per look — halftone earns extra resolution (finer dots).
- * `page` is the source element's (src/render/source.ts): a book cover or a
- * PDF page carries TEXT, which at the portrait cap of 240 px is mush.
+ * Longest image side per look. `page` is the source element's
+ * (src/render/source.ts): a book cover or a PDF page carries TEXT, which at
+ * the portrait cap of 240 px is mush.
  */
-export const LOOK_DIM: Record<string, number> = { halftone: 260, poster: 150, line: 150, photo: 240, page: 640 };
+export const LOOK_DIM: Record<string, number> = { photo: 240, page: 640 };
 
 export interface Raster {
   width: number;
@@ -114,13 +112,10 @@ export async function loadRaster(url: string, maxDim: number): Promise<Raster> {
   return { width: px.width, height: px.height, data: px.data, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight };
 }
 
-export type PortraitLook = "halftone" | "poster" | "line" | "photo";
-
-/** Fetch + convert one portrait image URL into the encoded form for `look`. */
-export async function traceFromUrl(url: string, look: PortraitLook = "photo"): Promise<string> {
-  const raster = await loadRaster(url, LOOK_DIM[look] ?? 150);
-  if (look === "photo") return encodePhoto(raster.height / raster.width, styledPhotoDataUri(raster));
-  return encodeTrace(traceImage(raster, { style: look }));
+/** Fetch + convert one portrait image URL into the encoded photo form. */
+export async function traceFromUrl(url: string): Promise<string> {
+  const raster = await loadRaster(url, LOOK_DIM.photo);
+  return encodePhoto(raster.height / raster.width, styledPhotoDataUri(raster));
 }
 
 /**
@@ -197,7 +192,7 @@ export async function resolvePortraits(spec: Spec): Promise<PortraitResolution[]
           if (!imageUrl) throw new Error(`no portrait found on Wikipedia for "${el.of}"`);
         }
         if (!imageUrl) throw new Error("no image source");
-        encoded = await traceFromUrl(imageUrl, (el.look as PortraitLook | undefined) ?? "photo");
+        encoded = await traceFromUrl(imageUrl);
         el.source = el.source ?? imageUrl;
         await cachePut(key, encoded);
       }

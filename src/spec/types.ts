@@ -114,8 +114,6 @@ export interface SpecElement {
   strokes?: string;
   /** Provenance: where the traced image came from (attribution). */
   source?: string;
-  /** Portrait look: photo (faithful framed grayscale, the default), halftone dots, poster regions, or line sketch. */
-  look?: "photo" | "halftone" | "poster" | "line";
   /**
    * Cameo presentation: centered, larger, frameless, fast fade — for the
    * appear-at-first-mention-then-erase pattern. Off = the small framed

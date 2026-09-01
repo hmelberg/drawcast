@@ -174,11 +174,6 @@ const elementSchema = {
       description:
         "portrait: cameo presentation — centered, larger and frameless with a fast fade, made to APPEAR on the beat that first names the person and be ERASED a beat or two later. Omit x/y/width in cameo mode unless you need them. Off = the small framed corner fixture.",
     },
-    look: {
-      type: "string",
-      enum: ["photo", "halftone", "poster", "line"],
-      description: "portrait: photo = faithful framed grayscale (the default — most recognizable); halftone = newspaper-print dots; poster = posterized solid regions; line = pen-sketch edges (suits line art and engravings).",
-    },
     reveal: {
       type: "string",
       enum: ["develop", "iris", "wipe", "drift", "fade"],
