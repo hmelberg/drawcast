@@ -12,6 +12,7 @@ import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
+import { resolvedRenderSpec } from "./resolve";
 import { resolveSources } from "./source";
 import { loadSettings } from "../store";
 import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
@@ -87,6 +88,16 @@ function ensureFonts(): Promise<void> {
 export async function render(spec: Spec, container: HTMLElement, options: RenderOptions = {}): Promise<RenderHandle> {
   ensureFigureStyles();
   await ensureFonts();
+  // Portraits and sources resolve BEFORE layout (layout is synchronous):
+  // cache-warm this is milliseconds; cache-cold it fetches + traces (or
+  // fetches + renders a PDF page) during figure preparation, so playback never
+  // stalls mid-figure and an export always records the finished image.
+  // Failures degrade to the element's sketched placeholder, never a throw.
+  // Resolved on a CLONE (B11): callers hand render the document's own spec
+  // objects, and resolving on those rewrote the author's document as a side
+  // effect of viewing it — see render/resolve.ts. Everything below, including
+  // handle.spec, reads the resolved clone.
+  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, contactEmail: contactEmail() });
   const renderer = rendererFor(options.style ?? "sketchy");
 
   const figure = document.createElement("div");
@@ -108,16 +119,6 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   stage.appendChild(caption);
   figure.appendChild(stage);
   container.appendChild(figure);
-
-  // Portraits and sources resolve BEFORE layout (layout is synchronous):
-  // cache-warm this is milliseconds; cache-cold it fetches + traces (or
-  // fetches + renders a PDF page) during figure preparation, so playback never
-  // stalls mid-figure and an export always records the finished image.
-  // Failures degrade to the element's sketched placeholder, never a throw.
-  await Promise.all([
-    resolvePortraits(spec).catch(() => undefined),
-    resolveSources(spec, { contactEmail: contactEmail() }).catch(() => undefined),
-  ]);
 
   const measure = makeBrowserMeasure();
   const layout = layoutSpec(spec, measure);
