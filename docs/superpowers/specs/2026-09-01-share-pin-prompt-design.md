@@ -79,62 +79,76 @@ Consequence to check when implementing: the preview bar is the one that folds
 on a phone, and the spec bar's group dividers assume three groups. Both need
 re-checking after the move; neither is hard.
 
-## 3. Pinning: the prompt, made kind-aware
+## 3. Embedding: one count, one choice, said plainly
 
-Hans: *"pinning (embedding) mainly belongs in the publish category."* Agreed,
-with the boundary established earlier: **Publish asks the question; Publish
+Hans: *"pinning (embedding) mainly belongs in the publish category"*, and then:
+*"maybe no need to make a distinction between wikipedia and other links when
+pinning. if people want to embed, let them embed, but we make it explicit."*
+
+The boundary established earlier holds: **Publish asks the question; Publish
 does not own the verb.** Baking narration builds the published *text* and
-leaves the document alone; pinning **rewrites `specArea`, pushes a history
+leaves the document alone; embedding **rewrites `specArea`, pushes a history
 entry and autosaves**. A destination choice must not silently enlarge the
 document being edited.
 
-The draft counted every unpinned image. Hans's objection to that is correct and
-the measurements support it:
+### 3.1 The kind-aware draft was wrong, and its own reasoning says so
 
-| | Traced at | Weight each | Fragility |
-|---|---|---|---|
-| Portrait from a **Wikipedia name** | 240px | ~15–25 KB | low — stable article, free CORS-open API |
-| Portrait from a **URL** | 240px | ~15–25 KB | ordinary link rot |
-| **Source page** | **640px** | **~70–140 KB** | high — this project's own notes record PLOS serving PDFs without CORS, Open Library returning 1×1 GIFs instead of 404s, IHSN TLS failures, OpenAlex choking on encoded DOI slashes |
-| Portrait from a **local file** | — | already embedded | none — `traceFromBlob` writes `strokes` at insert (`insert.ts:217`) |
+An earlier draft of this section proposed counting only "risky" images —
+staying quiet about Wikipedia-name portraits and naming only linked images and
+source pages. Hans rejected it, and he is right on three counts:
 
-*(Sizes derived from `LOOK_DIM` and `toDataURL("image/jpeg", 0.8)` plus base64's
-33% overhead; no bundled example is pinned, so nothing could be weighed
-directly.)*
+1. **Availability does not discriminate.** The same draft argued the dominant
+   risk is not link rot but *availability at playback* — offline, on a plane,
+   behind a school or corporate firewall. On a filtered network Wikipedia is
+   exactly as unreachable as anything else. Ranking by provider stability
+   answered the smaller question while the larger one applies uniformly.
+2. **It hard-codes a judgement that will rot.** §7 of this spec already listed
+   that as a risk in the same breath as proposing it: if Wikipedia stops being
+   reliable — Commons deletes files for licensing routinely — the prompt goes
+   quiet exactly when it should not.
+3. **Nobody thinks in those terms.** The author's question is "are my images in
+   the file or not". A prompt saying "2 of your 5 are risky" invites "why not
+   the other 3?", and that answer is a paragraph.
 
-Two things follow:
+### 3.2 What it becomes
 
-- **The cheap pin is the least worth doing and the expensive pin is the most.**
-  A Keynes portrait costs 20 KB to protect something that will resolve fine for
-  years; a source page costs 100 KB to protect a resolver chain that is
-  documented to break.
-- **The real risk is availability at playback, not Wikipedia's stability.**
-  Every play makes a live call. Offline, on a plane, behind a school or
-  corporate firewall, or where Wikimedia is blocked, the image is simply
-  absent. For a lecturer that is the case that bites, and it has nothing to do
-  with whether the article still exists.
+One count, one number, one choice. When Publish → GitHub is selected and any
+image is still fetched at playback:
 
-**Proposed prompt, kind-aware:** when Publish → GitHub is selected, say nothing
-about Wikipedia-name portraits. Name only the risky kinds, and count them:
-
-> **2 source pages and 1 linked image are fetched when someone plays this.**
-> They break if a link dies or an API changes — and none of them load without a
-> network. **Pin them into the file?** The drawcast then renders identically
-> forever, offline and anywhere, at about 250 KB.
+> **5 images are fetched from the internet when someone plays this.** They will
+> not load offline, on a filtered network, or if a link dies. **Embed them in
+> the file?** The drawcast then renders identically anywhere, forever — and
+> grows by about 320 KB.
 >
-> `[ Pin these ]`
+> `[ Embed images ]`
 
-Nothing is shown when there is nothing risky to pin. The note never blocks
-publishing. `Pin these` calls the existing pin — not a copy of it.
+- Every unembedded image counts, whatever it came from.
+- The **size is stated**, because that is the whole trade and the author is the
+  one who should weigh it. This is the "make it explicit" half.
+- Nothing is shown when every image is already embedded, or there are none.
+- The note never blocks publishing. It informs; the author decides.
+- `Embed images` calls the existing operation — not a copy of it.
 
-**Open:** whether pinning becomes **selective** (pin the fragile source, leave
-the Keynes portrait alone) rather than all-or-nothing. It is the better
-behaviour and a larger change: today's operation resolves everything in one
-pass.
+Locally-traced images never appear in the count: `traceFromBlob` embeds at
+insert time (`insert.ts:217`), so they are already self-contained.
 
-**Also worth having:** the same prompt, reachable when *presenting* rather than
-publishing — "I am about to show this on a network I do not trust." That is the
-non-publish case pinning exists for, and it currently has no entry point.
+### 3.3 Rename: pin → embed
+
+Hans's own word throughout has been **embed**, and it is the better one. "Pin"
+is jargon that needed a paragraph to explain — which is how he came to ask what
+the button did in the first place. Rename the menu item to **Embed images in
+the file**, the dialog to match, and drop "pin" from the copy entirely. The
+spec field stays `strokes`; only the language the author reads changes.
+
+*(No longer proposed: selective embedding, per-kind counts, and a
+`riskyImages` function. §3.1 removes the reason for all three. Selection, if
+anyone ever wants it, is the author's business and not the system's.)*
+
+### 3.4 Still worth having
+
+The same prompt, reachable when *presenting* rather than publishing — "I am
+about to show this on a network I do not trust." That is the non-publish case
+embedding exists for, and it currently has no entry point at all.
 
 ## 4. Open: does `Insert → Image…` earn its place?
 
@@ -185,9 +199,10 @@ would change appearance. Worth confirming Hans has none before cutting.
 `vitest`, `environment: "node"` — no DOM. Pure functions plus source-text drift
 tests, as established.
 
-- `riskyImages(playlist)` → counts by kind: `{ sources, linked }`, excluding
-  Wikipedia-name portraits and already-embedded ones. Pure. Must count across
-  **every part** of a multi-part playlist, not just the first.
+- `unembeddedImages(playlist)` → `{ count, bytes }` for every image still
+  fetched at playback, whatever its source. Pure. Must count across **every
+  part** of a multi-part playlist, not just the first, and must exclude
+  locally-traced images, which are embedded already.
 - `shareDestinations` gains a third state — offered, **disabled-with-reason**,
   hidden — and its tests must pin which credential produces which. This is the
   §0.1 fix and the place it will rot.
@@ -200,8 +215,9 @@ tests, as established.
 
 - **Moving Publish rearranges muscle memory** for the one control most likely
   to be used under time pressure.
-- **Kind-aware counting hard-codes a judgement** that Wikipedia is safe. If
-  that stops being true the prompt goes quiet exactly when it should not.
+- **The size estimate is derived, not measured** — from `LOOK_DIM` and JPEG
+  quality plus base64 overhead. If it reads far off in practice, the author
+  stops trusting the one number the decision rests on.
 - **Deleting the looks is irreversible** without a revert, and a saved drawcast
   using one changes appearance silently rather than erroring.
 
