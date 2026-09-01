@@ -3499,13 +3499,23 @@ importInput.addEventListener("change", () => {
  * this function must read: embedding resolves images into a CLONE (see
  * publish/embed.ts), so the published copy carries them and the document on
  * screen is left byte-for-byte as the author wrote it (P §3.4, §F.3).
+ *
+ * The embed COUNT (and, when there is anything to embed, what gets embedded)
+ * reads `editorPlaylist` — the editor text, re-parsed — rather than
+ * `doc.playlist`: render() resolves portraits/sources IN PLACE on the
+ * document's own spec objects on every preview render (render/index.ts), so
+ * by publish time `doc.playlist` may already carry strokes even though the
+ * text on screen (and the Insert-menu Embed dialog, which parses that same
+ * text) says otherwise. When there is nothing to embed, or embedding was not
+ * asked for, publishing reads `doc.playlist` exactly as before.
  */
 async function publishTextFor(signal: AbortSignal, bake: boolean, embedImages: boolean): Promise<string> {
-  const before = unembeddedImages(doc.playlist);
-  const source = embedImages
-    ? await embeddedPlaylist(doc.playlist, { resolvePortraits, resolveSources, contactEmail: settings.contactEmail })
-    : doc.playlist;
-  if (embedImages && before > 0) {
+  const editorPlaylist = embedImages ? (readPlaylistText(specArea.value) ?? doc.playlist) : null;
+  const before = editorPlaylist ? unembeddedImages(editorPlaylist) : 0;
+  let source = doc.playlist;
+  if (embedImages && before > 0 && editorPlaylist) {
+    setStatus("Embedding images…");
+    source = await embeddedPlaylist(editorPlaylist, { resolvePortraits, resolveSources, contactEmail: settings.contactEmail });
     const embedded = before - unembeddedImages(source);
     lastEmbedNote = embedded > 0 ? ` — ${embedded} image(s) embedded` : "";
   }
@@ -3887,7 +3897,14 @@ shareBtn.addEventListener("click", () => {
   ensureRendered();
   openShare({
     subject: "drawcast",
-    doc: () => doc,
+    // playlist: read from the editor text, not doc.playlist — render()
+    // resolves portraits/sources IN PLACE on the document's own spec
+    // objects on every preview render (render/index.ts), so by the time
+    // this modal opens doc.playlist may already carry strokes even though
+    // the text on screen (and the Insert-menu Embed dialog, which parses
+    // that same text) says otherwise. Falls back to doc.playlist only if
+    // the text does not currently parse.
+    doc: () => ({ ...doc, playlist: readPlaylistText(specArea.value) ?? doc.playlist }),
     settings,
     persist,
     setStatus,

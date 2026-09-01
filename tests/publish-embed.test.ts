@@ -144,14 +144,22 @@ describe("Publish's two embed choices", () => {
 });
 
 describe("publishing embeds into the copy, never the document (P §3.4)", () => {
-  it("main.ts's publishTextFor reads `source` throughout, not doc.playlist", async () => {
+  it("main.ts's publishTextFor reads `source` throughout, and counts/embeds from the editor text, not the render-mutated doc.playlist", async () => {
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
     const fn = src.slice(src.indexOf("async function publishTextFor"), src.indexOf("let lastBakeNote"));
-    expect(fn).toContain("embeddedPlaylist(doc.playlist");
-    // Everything downstream of the clone must read the clone. The only
-    // legitimate doc.playlist reads are the two at the top (the count and the
-    // clone's own input) plus `doc.publishedAs`, which is not a playlist.
-    expect(fn.match(/doc\.playlist/g)).toHaveLength(3);
+    // The count AND the clone embeddedPlaylist works from both read
+    // `editorPlaylist` — text re-parsed via readPlaylistText — never
+    // doc.playlist, since render() resolves portraits/sources IN PLACE on
+    // doc.playlist's own spec objects on every preview render.
+    expect(fn).toContain("const editorPlaylist = embedImages ? (readPlaylistText(specArea.value) ?? doc.playlist) : null;");
+    expect(fn).toContain("const before = editorPlaylist ? unembeddedImages(editorPlaylist) : 0;");
+    expect(fn).toContain("embeddedPlaylist(editorPlaylist,");
+    expect(fn).not.toContain("embeddedPlaylist(doc.playlist");
+    // The only legitimate doc.playlist reads left are: the editorPlaylist
+    // fallback and the unconditional `let source = doc.playlist;` default
+    // (used as-is whenever embedImages is false, or there is nothing to
+    // embed) — `doc.publishedAs` is a different field, not a playlist.
+    expect(fn.match(/doc\.playlist/g)).toHaveLength(2);
     for (const onSource of ["formatPlaylist(source", "playlistSpeakLines(source)", "itemsOf(source)", "formatPublished(source"]) {
       expect(fn).toContain(onSource);
     }
@@ -161,6 +169,20 @@ describe("publishing embeds into the copy, never the document (P §3.4)", () => 
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
     expect(src).toContain("image(s) embedded");
     expect(src).toContain("${lastEmbedNote}");
+  });
+
+  it("reports a status before the embed await, so a slow embed does not look stalled", async () => {
+    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+    const fn = src.slice(src.indexOf("async function publishTextFor"), src.indexOf("let lastBakeNote"));
+    const statusAt = fn.indexOf('setStatus("Embedding images…");');
+    const embedAt = fn.indexOf("await embeddedPlaylist(editorPlaylist");
+    expect(statusAt).toBeGreaterThan(-1);
+    expect(embedAt).toBeGreaterThan(statusAt);
+  });
+
+  it("Share's doc() derives the playlist from the editor text, not the render-mutated doc.playlist", async () => {
+    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/doc:\s*\(\)\s*=>\s*\(\{\s*\.\.\.doc,\s*playlist:\s*readPlaylistText\(specArea\.value\)\s*\?\?\s*doc\.playlist\s*\}\)/);
   });
 
   it("course lectures embed on a parsed copy, and skip a lecture with nothing to embed", async () => {
