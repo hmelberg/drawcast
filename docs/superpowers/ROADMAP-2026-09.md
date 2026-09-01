@@ -53,6 +53,7 @@ Sources:
 | C6 | `Insert → Image…` reduced to disk import only | P §4 | |
 | C7 | **Player behaves and reads like YouTube's** | R | see §D6 |
 | C8 | Mute/sound icon is ugly on macOS | R | §D6 — a symptom of C7 |
+| C9 | Title moves **below** the player, YouTube-style | R | see §D7 — coupled to the drawcast opening with a drawn title |
 
 ## D. Detail on the items not yet in a design doc
 
@@ -251,6 +252,38 @@ why the bar wraps and why the fold behind `⋯` was needed on a phone.
 
 **Note:** 1 is cheap and self-contained. 2 changes the fullscreen layout, which
 already has its own sizing rules and a drift test, so it needs care there.
+
+### D7. The title below the player, and what that obliges
+
+Hans: *"like youtube players, perhaps the 'title' should be below the video and
+not on the top (But in that case also try to make sure to start drawcasts with
+a title)."*
+
+Today `.cs-title` is a sibling **above** `.cs-stage` (`render/index.ts:104`),
+so the order is title → drawing → controls. YouTube's is drawing → controls →
+title.
+
+**The parenthesis is the substantive half.** Moving the title below the player
+means the viewer no longer reads what the piece is *before* it starts — the
+first thing they get is a drawing with no label. So the drawcast has to
+introduce itself. Two mechanisms already exist and should be checked before
+anything new is built:
+
+- `makeTitlePage` (`playlist/playlist.ts:282`) already generates a title card,
+  used for playlists (`session.ts:420`). Whether a **single** drawcast gets one
+  is the question to answer first.
+- The compiler prompt's opening rules decide whether a generated drawcast draws
+  its title at all. That is now a STYLE.md entry (2026-09-01) rather than a
+  guess.
+
+**So this item is really two:** move the title (small, and it touches the
+fullscreen sizing rules and their drift test), and make a drawcast open with
+its title on screen (a prompt change, and the more valuable of the two).
+
+**Open:** whether a single drawcast gets a full title card like a playlist does,
+or simply draws its title as the first beat of the first scene. The second is
+lighter and keeps the piece moving, which is what the STYLE.md entry argues
+for.
 
 ## E. Still open, from earlier rounds
 

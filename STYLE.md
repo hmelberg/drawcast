@@ -21,6 +21,39 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-01 — Do not talk to a blank screen: draw something early, even if it only illustrates
+
+Hans: "sometimes the style of drawcasts is not to speak for too long before
+drawing or doing anything on the screen. That becomes boring, add some title
+and be careful not to speak too long before adding something. You may even draw
+something while speaking (whether it is a hook or a question) even if it is
+just for illustration."
+
+Distilled — three rules, in the order they bite:
+
+1. **Something is on screen before the narration is old.** A drawcast that
+   opens with a spoken hook over an empty page has thrown away the one thing it
+   has that a podcast does not. The hook is good; the empty page under it is
+   not.
+2. **A title counts as something.** Opening with the title drawn is the cheapest
+   fix and it doubles as the piece's own label — which matters more now that
+   the title may move below the player (see the roadmap's title-position item),
+   because then the drawing is the only place the viewer reads what this is.
+3. **Speaking and drawing are not turns.** A hook or a question can be spoken
+   *while* something appears — an axis, a shape, a face, even a mark that is
+   only illustrative. Narration that waits for the pen, and a pen that waits for
+   the narration, is the failure mode; they should overlap.
+
+The rule this replaces, implicitly: "set up the question, then draw the answer".
+That produces a correct drawcast and a slow one. The question can be asked over
+a moving pen.
+
+Status: **not yet in the prompt.** Belongs in the compiler prompt's opening
+rules, beside the existing hook-first guidance — and, once Instructions become
+a personal style addendum (see `specs/2026-09-01-style-and-vocabulary-design.md`),
+this is exactly the kind of rule a user would want to state for themselves too.
+
+
 ### 2026-08-27 — Cameo entrances: develop, not fade — and the face must land ON the name
 
 Hans: "When a photo appears in drawcast in order to just sow the person
