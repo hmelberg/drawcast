@@ -57,4 +57,11 @@ describe("portraitInsert", () => {
     expect(el.of).toBe("vacation-photo");
     expect(el.source).toBe("vacation-photo.jpg");
   });
+
+  it("the dialog offers only the disk path — name/url ride in YAML (C6, P §4)", async () => {
+    const src = await import("node:fs/promises").then((m) => m.readFile(new URL("../src/ui/insert.ts", import.meta.url), "utf8"));
+    expect(src).not.toMatch(/portrait-source/); // the radio group is gone
+    expect(src).not.toMatch(/A person's name/);
+    expect(src).toMatch(/type: "file", accept: "image\/\*"/);
+  });
 });
