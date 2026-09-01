@@ -125,7 +125,10 @@ describe("Publish's two embed choices", () => {
 
   it("passes both choices to publish as one object", async () => {
     const src = await readFile(new URL("../src/ui/share.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/publish:\s*\(choices:\s*\{\s*bake:\s*boolean;\s*embedImages:\s*boolean\s*\}\)/);
+    // Task 11 (B3) extended this object with `slug?: string` — bake and
+    // embedImages stay exactly as this task landed them, so pin only that
+    // the two survive together, not that nothing else may follow.
+    expect(src).toMatch(/publish:\s*\(choices:\s*\{\s*bake:\s*boolean;\s*embedImages:\s*boolean/);
   });
 
   it("labels the images box with its count, and says so when there is nothing to embed", async () => {

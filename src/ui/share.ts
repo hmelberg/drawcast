@@ -22,7 +22,7 @@ import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, s
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
-import { parseRepo } from "../publish/github";
+import { parseRepo, slugify } from "../publish/github";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
 import { createModal, type Modal } from "./modal";
@@ -59,6 +59,13 @@ export interface ShareDoc {
    * Left undefined for `subject: "drawcast"`, which has no lectures to count.
    */
   lectureCount?: number;
+  /**
+   * The folder name this drawcast published under before, if it has. Read
+   * once to prefill Link's name field (`publishedAs ?? slugify(title)`) —
+   * never written here; `publishDrawcast` is the only place that records a
+   * new one, after the commit lands (B3).
+   */
+  publishedAs?: string;
 }
 
 export interface ShareDeps {
@@ -76,13 +83,17 @@ export interface ShareDeps {
   openSettings: () => void;
   /**
    * Publish this document to its GitHub Pages home — `publishDrawcast()` or
-   * `publishCourse()` depending on `subject`. The two choices are Link's
-   * checkboxes: `bake` synthesizes the narration into the published copy,
-   * `embedImages` resolves every portrait/source image into it. Both act on
-   * the COPY — publish/embed.ts clones before resolving, so neither can
-   * rewrite the document the author has open (P §3.4).
+   * `publishCourse()` depending on `subject`. The two checkboxes are Link's
+   * `bake` (synthesizes the narration into the published copy) and
+   * `embedImages` (resolves every portrait/source image into it) — both act
+   * on the COPY, since publish/embed.ts clones before resolving, so neither
+   * can rewrite the document the author has open (P §3.4). `slug` is Link's
+   * name field, trimmed — undefined when it was left empty, which happens
+   * only for `subject: "course"` (the field is hidden there; a course has no
+   * single slug of its own). For a drawcast, editing the name mints a NEW
+   * file at the new slug; the old one is never deleted (B3).
    */
-  publish: (choices: { bake: boolean; embedImages: boolean }) => Promise<void>;
+  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string }) => Promise<void>;
   /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
@@ -247,6 +258,19 @@ function build(): ShareSession {
   // Text and visibility come from prepPanels(); empty and hidden for a
   // drawcast, which has no lecture count to show.
   const linkSubjectLine = h("div", { class: "hint" });
+  // The name a drawcast publishes under — prefilled from whatever it
+  // published as before, or a fresh slug of the title on a first publish.
+  // Normalized on blur (not on every keystroke — a mid-word slugify would
+  // fight the author's cursor) so what the field shows is exactly what
+  // `slug:` below will send. Hidden for a course: courses have no single
+  // slug of their own (`publishCourse` derives each lecture's own path), so
+  // the field would have nothing true to prefill or send (B3).
+  const publishNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Publish as" }) as HTMLInputElement;
+  publishNameInput.addEventListener("blur", () => {
+    publishNameInput.value = slugify(publishNameInput.value);
+  });
+  const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
+  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput), publishNameHint);
   // The two things Publish can put INTO the copy it sends. Both default on
   // (P §3.6: what you publish should stand on its own), and neither touches
   // the document the author has open — publish/embed.ts resolves on clones,
@@ -273,13 +297,17 @@ function build(): ShareSession {
     h("span", {}, "Embed narration"),
     bakeHint,
   );
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, embedImagesLabel, bakeLabel);
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, embedImagesLabel, bakeLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
     // `!embedImagesCb.disabled` is the count-is-zero case: nothing to embed,
     // so the answer is no regardless of what the box looks like.
-    const choices = { bake: bakeCb.checked, embedImages: embedImagesCb.checked && !embedImagesCb.disabled };
+    const choices = {
+      bake: bakeCb.checked,
+      embedImages: embedImagesCb.checked && !embedImagesCb.disabled,
+      slug: publishNameInput.value.trim() || undefined,
+    };
     modal.dialog.close();
     void deps.publish(choices);
   });
@@ -671,6 +699,11 @@ function build(): ShareSession {
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
     linkSubjectLine.hidden = current.subject !== "course";
+    // A course derives each lecture's own path (publishCourse), so it has no
+    // single slug for this field to show or send — hidden rather than shown
+    // disabled, since there is nothing here for a course author to decide.
+    publishNameRow.hidden = current.subject === "course";
+    publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
     // A course has no playlist of its own to count (its lectures live in the
     // library — see course.ts's doc()), so it gets the choice without a
     // number rather than a confident, wrong "(0)".

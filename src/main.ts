@@ -690,9 +690,16 @@ const insertMenu = createMenu("Insert", [
 // the app's other small modals, and reused on every open.
 const saveDiskFormatSel = h("select", { "aria-label": "Spec format" }) as HTMLSelectElement;
 saveDiskFormatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
-const saveDiskModal = createModal("Save to disk", { size: "s" });
+// The editable file name (B3) — prefilled from the doc title in
+// openSaveToDisk() below, since `prepareSave()` (and so the real, possibly
+// reparsed `save.title`) only runs once the Save button is clicked.
+const saveDiskNameInput = h("input", { type: "text", "aria-label": "File name" }) as HTMLInputElement;
+const saveDiskModal = createModal("Save to disk", { size: "s", class: "save-disk-modal" });
 app.appendChild(saveDiskModal.dialog);
-saveDiskModal.body.append(h("label", { class: "quiet-label" }, "Format ", saveDiskFormatSel));
+saveDiskModal.body.append(
+  h("label", { class: "quiet-label" }, "Name ", saveDiskNameInput),
+  h("label", { class: "quiet-label" }, "Format ", saveDiskFormatSel),
+);
 const saveDiskBtn = h("button", { class: "primary" }, "Save") as HTMLButtonElement;
 saveDiskModal.footer.append(saveDiskBtn);
 saveDiskFormatSel.addEventListener("change", () => {
@@ -728,7 +735,12 @@ saveDiskBtn.addEventListener("click", () => {
   // YAML ships the editor's own text verbatim; JSON has to be derived (the
   // textarea is always YAML — see saveToDrive's note below).
   const content = format === "yaml" ? save.text : formatPlaylist(save.playlist, format);
-  downloadText(`${fileSafe(save.title)}.${format}`, content);
+  // The typed name still passes through fileSafe (B3) — illegal characters
+  // must never reach downloadText just because the author typed them.
+  // Falling back to `save.title` (not the stale prefill) covers the field
+  // being cleared entirely; that fallback is itself run through fileSafe,
+  // since a cleared field's fallback is exactly the case fileSafe exists for.
+  downloadText(`${fileSafe(saveDiskNameInput.value, fileSafe(save.title))}.${format}`, content);
 });
 function openSaveToDisk(): void {
   // Catch the drawing up to the text on screen first — same reason every
@@ -736,6 +748,10 @@ function openSaveToDisk(): void {
   // document the author has edited past.
   ensureRendered();
   saveDiskFormatSel.value = settings.specFormat;
+  // Prefilled from the OPEN document's title, not prepareSave()'s (possibly
+  // reparsed) title — prepareSave() only runs once Save is clicked, after
+  // this dialog is already showing the field.
+  saveDiskNameInput.value = fileSafe(doc.title);
   saveDiskModal.open();
 }
 
@@ -3523,7 +3539,7 @@ async function publishTextFor(signal: AbortSignal, bake: boolean, embedImages: b
 let lastBakeNote = "";
 let lastEmbedNote = "";
 
-async function publishDrawcast({ bake, embedImages }: { bake: boolean; embedImages: boolean }): Promise<void> {
+async function publishDrawcast({ bake, embedImages, slug }: { bake: boolean; embedImages: boolean; slug?: string }): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
   if (!token || !repo) {
@@ -3544,7 +3560,7 @@ async function publishDrawcast({ bake, embedImages }: { bake: boolean; embedImag
     const out = await publishCast({
       title: doc.title,
       text,
-      slug: doc.publishedAs,
+      slug,
       repo,
       token,
       castsDir: joinPath(settings.coursesDir, "casts"),

@@ -733,7 +733,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
    * so it reports both URLs on the panel's own line, and the one-time Pages
    * instruction the first time a repo is written to.
    */
-  async function publish({ bake, embedImages }: { bake: boolean; embedImages: boolean }): Promise<void> {
+  // `slug` (B3's Link name field) is accepted here only to match
+  // ShareDeps.publish's signature — a course has no single slug of its own
+  // (each lecture's file name is derived by publishCourse from the course
+  // document, below), so Link hides the name field for `subject: "course"`
+  // and this parameter is never read.
+  async function publish({ bake, embedImages }: { bake: boolean; embedImages: boolean; slug?: string }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
