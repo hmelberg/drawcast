@@ -255,6 +255,35 @@
   `cost_effectiveness_plane` (four quadrants, captions at the ends of the
   crossing axes) and `plot3d` were out of scope for the same kind of reason.
 
+- 2026-09-02: **Final whole-branch review, fix wave.** Three findings, all in
+  the YouTube panel plus one vacuous drift test. (1) `refreshYtButtons`
+  unconditionally rewrote `ytTitle.value`, so a chip add/remove or "Save the
+  translations" clobbered a typed title, and a lone TRANSLATED upload shipped
+  the SOURCE-language title because the field was populated before phase 1's
+  translation existed. One mechanism fixes both faces: `ytTitleAuto` tracks
+  what `refreshYtButtons` last wrote, and the equality check
+  `ytTitle.value === ytTitleAuto` IS the dirty flag — no `input` listener.
+  `runYoutubeUpload`'s single-language branch now prefers
+  `titleOf(playlistFor(code), …)` when the queued language isn't the source
+  AND the field is untouched; an edit always wins. `prepPanels` resets the
+  flag to `""` on every fresh open so a stale edit from a closed modal can't
+  block the next open's reset — that reset wasn't in the finding text, but
+  without it a title edited-then-abandoned in one open would silently survive
+  into the next document's Share panel. (2) With translations queued and no
+  Anthropic key, the old order was consent → modal close → phase 1 dies —
+  stranding the author with the chips gone. Moved the `getApiKey()` check
+  before `requireScope`, same message as `ensureTranslations`' own check
+  ("Translating needs your Anthropic API key — add it in Settings."), so the
+  modal never closes on a dead end. (3) `viewer.test.ts`'s "names gdrive
+  alongside gdoc and gh" test asserted `/gdrive/` against the whole file,
+  which a comment alone satisfies; stripped `//` lines first and pinned the
+  literal alternation `/\(gdoc\|gh\|gdrive\)\[=-\]/` against what's left, with
+  a truthy substring guard so a stripping bug that ate everything fails loudly
+  instead of passing vacuously. Added 5 drift-pin tests to
+  `share-youtube.test.ts` for the dirty flag and key pre-flight (ordering
+  assertion in the same string-index style as the existing phase-1 test).
+  `npm test` (175 files, 2852 tests) and `tsc --noEmit` both green.
+
 - 2026-09-02: The examples suite is what made this safe to do at 31 call sites
   (29 caption calls plus the two in `generic_axes_diagram`): it lints all 114
   bundled specs and fails on a WARNING, not just an error. 32 figures carry

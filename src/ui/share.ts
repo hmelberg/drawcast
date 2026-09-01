@@ -575,6 +575,15 @@ function build(): ShareSession {
   const ytChips: string[] = [];
 
   /**
+   * The value refreshYtButtons() last WROTE into the title field. Comparing
+   * ytTitle.value against this IS the dirty flag — no `input` listener needed
+   * (finding 1): as long as the field still reads what we last put there, the
+   * author hasn't typed, and the next auto-write is safe; the moment it
+   * diverges, something the author typed always wins.
+   */
+  let ytTitleAuto = "";
+
+  /**
    * Translated COPIES waiting to be recorded, by language code, each with the
    * description translated alongside it (ruling 5) — a German video described
    * in English is half a translation. They exist only while the modal is open
@@ -654,8 +663,13 @@ function build(): ShareSession {
     // One language: the field is the title, yours to edit. Several: each
     // video takes its own translated title, because one field cannot hold four.
     ytTitle.disabled = queue.length > 1;
-    if (queue.length === 1) ytTitle.value = titleOf(playlistFor(queue[0]), doc.title);
-    else ytTitle.value = doc.title;
+    // Only overwrite what we ourselves last wrote — once the field has
+    // diverged from ytTitleAuto, the author has typed a title, and a chip
+    // add/remove or Save-the-translations must not clobber it (finding 1).
+    if (ytTitle.value === ytTitleAuto) {
+      ytTitleAuto = queue.length === 1 ? titleOf(playlistFor(queue[0]), doc.title) : doc.title;
+      ytTitle.value = ytTitleAuto;
+    }
     // Time first, money second: a language is minutes of real-time recording
     // and pennies of API (ruling 3).
     ytCost.hidden = extras === 0;
@@ -778,9 +792,19 @@ function build(): ShareSession {
 
   async function runYoutubeUpload(): Promise<void> {
     const deps = current;
-    const targets = ytQueue(sourceLanguage(deps.doc().playlist), ytChips);
+    const source = sourceLanguage(deps.doc().playlist);
+    const targets = ytQueue(source, ytChips);
     if (targets.length === 0) return;
     const single = targets.length === 1;
+    // Fail before consent, not after (finding 2): OAuth costs the author a
+    // popup and a click, and dying only once phase 1 runs strands them with
+    // the modal already closed and the chips gone. getApiKey() is the same
+    // getter ensureTranslations spends its own key check on — ask it now,
+    // while the modal is still open to fix it in Settings.
+    if (targets.some((c) => c !== source) && !getApiKey()) {
+      ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";
+      return;
+    }
     ytGo.disabled = true;
     // Consent FIRST, while this click's transient user activation is still
     // alive. Rendering records each drawcast in real time — minutes apiece —
@@ -821,7 +845,14 @@ function build(): ShareSession {
         const label = languageLabel(code);
         const of = targets.length > 1 ? ` (${label}, ${i + 1} of ${targets.length})` : "";
         const playlist = playlistFor(code);
-        const title = single ? ytTitle.value.trim() || deps.doc().title : titleOf(playlist, deps.doc().title);
+        // Single language, translated, field untouched: the field held the
+        // SOURCE title when refreshYtButtons wrote it — phase 1 hadn't run
+        // yet — so prefer the translated title, available now (finding 1).
+        // An edited field always wins.
+        const title =
+          single && (code === source || ytTitle.value !== ytTitleAuto)
+            ? ytTitle.value.trim() || deps.doc().title
+            : titleOf(playlist, deps.doc().title);
         const base = `${fileSafe(title)}${single ? "" : `-${code}`}`;
 
         // Never burnt in (ruling 4): YouTube carries the subtitle track and
@@ -1001,6 +1032,10 @@ function build(): ShareSession {
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytTranslations.clear();
+    // A fresh open always resets the title, same as every other field here —
+    // clearing the flag lets refreshYtButtons()'s auto-write through even if
+    // a previous open's edit is still sitting in the field.
+    ytTitleAuto = "";
     // The document's own language is the given: it publishes in it, and its
     // chip is queued first. Everything else is a translation the author asks
     // for, one open at a time.

@@ -185,6 +185,60 @@ describe("selecting a language costs nothing; Upload pays (ruling 1)", () => {
   });
 });
 
+describe("the title field trusts the author over the auto-fill (finding 1, final review)", () => {
+  it("tracks its own last auto-write, so equality IS the dirty flag — no input listener needed", async () => {
+    const yt = await ytRegion();
+    expect(yt).toContain('let ytTitleAuto = "";');
+  });
+
+  it("refreshYtButtons only overwrites the title while the field still matches its own last write", async () => {
+    const yt = await ytRegion();
+    const fn = yt.slice(yt.indexOf("function refreshYtButtons"), yt.indexOf("async function ensureTranslations"));
+    expect(fn.length).toBeGreaterThan(200);
+    expect(fn).toContain("if (ytTitle.value === ytTitleAuto) {");
+    expect(fn).toMatch(/ytTitleAuto = queue\.length === 1 \? titleOf\(playlistFor\(queue\[0\]\), doc\.title\) : doc\.title;/);
+    expect(fn).toContain("ytTitle.value = ytTitleAuto;");
+  });
+
+  it("a fresh Share open clears the flag, so prepPanels' reset always lands even over a stale edit", async () => {
+    const src = await shareSrc();
+    const prep = src.slice(src.indexOf("function prepPanels()"), src.indexOf("function refresh(deps"));
+    expect(prep.length).toBeGreaterThan(400);
+    expect(prep).toContain('ytTitleAuto = "";');
+  });
+
+  it("a lone translated upload prefers the translated title over the stale source-language field", async () => {
+    const yt = await ytRegion();
+    const run = yt.slice(yt.indexOf("async function runYoutubeUpload"), yt.indexOf("function reportUploads"));
+    expect(run.length).toBeGreaterThan(600);
+    // Untouched + translated (neither the source language nor edited) →
+    // titleOf(playlist, ...), the translation that phase 1 just produced.
+    // The source language itself, or any edit, still wins with the field.
+    expect(run).toMatch(/single && \(code === source \|\| ytTitle\.value !== ytTitleAuto\)/);
+    expect(run).toContain("? ytTitle.value.trim() || deps.doc().title");
+    expect(run).toContain(": titleOf(playlist, deps.doc().title);");
+  });
+});
+
+describe("a missing Anthropic key is caught before consent, not after (finding 2, final review)", () => {
+  it("checks getApiKey() for a queued translation before requireScope, so the modal never closes on a dead end", async () => {
+    const yt = await ytRegion();
+    const run = yt.slice(yt.indexOf("async function runYoutubeUpload"), yt.indexOf("function reportUploads"));
+    expect(run.length).toBeGreaterThan(600);
+    const order = ["targets.some((c) => c !== source) && !getApiKey()", "requireScope(YOUTUBE_SCOPE)", "modal.dialog.close()"];
+    let at = -1;
+    for (const step of order) {
+      const next = run.indexOf(step);
+      expect(next, step).toBeGreaterThan(at);
+      at = next;
+    }
+    // Same wording as the other two dead ends in this panel (the cancelled
+    // sign-in, and ensureTranslations' own key check) — one sentence, not
+    // three ways of saying it.
+    expect(run).toContain('ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";');
+  });
+});
+
 describe("the copy says what a translation costs, once (rulings 3-4)", () => {
   it("shows the cost line only when a translation is queued", async () => {
     const yt = joined(await ytRegion());
