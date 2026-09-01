@@ -4,9 +4,10 @@
 all things and then make a final spec/plan that we implement stepwise based on
 how we prioritize the issues. (So I am not finished)"*
 
-**This file is the list.** It accumulates; nothing here is implemented. The
-three design docs hold the reasoning, this holds the inventory. When the list
-is complete, we pick an order and cut a plan from it.
+**This file is the list.** The three design docs hold the reasoning, this
+holds the inventory. Items marked ✅ were delivered 2026-09-01 (Parts 1 + 3,
+plan `plans/2026-09-01-tidyup-and-publish-plan.md`, rulings in
+`plans/2026-09-01-tidyup-publish-ledger.md`); the rest is outstanding.
 
 Sources:
 - **[P]** `specs/2026-09-01-publish-design.md` — Publish, embedding, names, folders
@@ -19,29 +20,29 @@ Sources:
 
 | # | Item | Src | Notes |
 |---|---|---|---|
-| A1 | `Insert ▾` moves after `Open ▾` / `Save ▾` | S §7.1 | bar order only |
-| A2 | Publish moves to the preview bar, after `✎ Review` | P §2, S §7.2 | |
-| A3 | `fileSafe` gains a word-boundary length cap | P §8.1 | the one-line cause of long filenames |
-| A4 | Share → **Publish**; "Link" → "Publish to GitHub" | P §1 | |
-| A5 | Player/Editor pill removed; **▶ Player** row in the sidebar | S §7.3 | verified: player mode already has `✎ Edit` in its own control bar |
-| A6 | Subtitle band is too dense — `rgba(24,20,16,0.82)` | R | see §D1 |
-| A7 | Lint chip stops shouting at normal users | R | see §D2 |
-| A8 | `👍 Learn from this` behind `developerMode` | S §6 | |
+| A1 ✅ | `Insert ▾` moves after `Open ▾` / `Save ▾` | S §7.1 | bar order only |
+| A2 ✅ | Publish moves to the preview bar, after `✎ Review` | P §2, S §7.2 | |
+| A3 ✅ | `fileSafe` gains a word-boundary length cap | P §8.1 | the one-line cause of long filenames |
+| A4 ✅ | Share → **Publish**; "Link" → "Publish to GitHub" | P §1 | |
+| A5 ✅ | Player/Editor pill removed; **▶ Player** row in the sidebar | S §7.3 | verified: player mode already has `✎ Edit` in its own control bar |
+| A6 | *(→ Part 2)* Subtitle band is too dense — `rgba(24,20,16,0.82)` | R | see §D1 |
+| A7 ✅ | Lint chip stops shouting at normal users | R | see §D2 |
+| A8 ✅ | `👍 Learn from this` behind `developerMode` | S §6 | |
 
 ## B. Medium
 
 | # | Item | Src | Notes |
 |---|---|---|---|
-| B1 | Publish shows destinations the author *can* enable, disabled with a reason | P §0.1 | why "Publish to GitHub" seemed missing |
-| B2 | **Embed images** + **Embed narration** as checkboxes on the published copy | P §3 | must resolve on a **copy** — `exportSequence` hands out the document's own objects; **Publish + courses only** (ruling §F.3 narrows P §3.5's table — no embed on any Save) |
-| B3 | Editable name field on each save/publish panel | P §8.2 | |
+| B1 ✅ | Publish shows destinations the author *can* enable, disabled with a reason | P §0.1 | why "Publish to GitHub" seemed missing |
+| B2 ✅ | **Embed images** + **Embed narration** as checkboxes on the published copy | P §3 | must resolve on a **copy** — `exportSequence` hands out the document's own objects; **Publish + courses only** (ruling §F.3 narrows P §3.5's table — no embed on any Save) |
+| B3 ✅ | Editable name field on each save/publish panel | P §8.2 | |
 | B4 | One stable sources index, **before** any per-save folder | P §8.3 | reversed order scatters sources and Open sees one folder |
 | B5 | Instructions → **Style**: an addendum, not the whole prompt; New/Save/Delete | S §4 | deletes improve/download/upload/rename by construction |
 | B6 | Prompt editor moves behind `developerMode`, unchanged | S §5 | |
 | B7 | One `Generate`/`Revise` button, state-determined | R | see §D3 |
 | B8 | Startup state | R | see §D4 |
-| B9 | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
-| B10 | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
+| B9 ✅ | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
+| B10 ✅ | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
 
 ## C. Larger
 
@@ -51,8 +52,8 @@ Sources:
 | C2 | Thumbs up/down | R | §D5 — probably free with C1 |
 | C3 | Share button on the viewer | R | §D5 — Web Share API, small |
 | C4 | New logo | S §7.4 | three directions described; needs to be seen |
-| C5 | Delete `halftone`/`poster`/`line` looks | P §5 | 0 of 114 bundled specs use them |
-| C6 | `Insert → Image…` reduced to disk import only | P §4 | |
+| C5 ✅ | Delete `halftone`/`poster`/`line` looks | P §5 | 0 of 114 bundled specs use them |
+| C6 ✅ | `Insert → Image…` reduced to disk import only | P §4 | |
 | C7 | **Player behaves and reads like YouTube's** | R | see §D6 |
 | C8 | Mute/sound icon is ugly on macOS | R | §D6 — a symptom of C7 |
 | C9 | Title moves **below** the player, YouTube-style | R | see §D7 — coupled to the drawcast opening with a drawn title |
