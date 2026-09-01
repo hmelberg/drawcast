@@ -206,57 +206,78 @@ function build(): InsertSession {
   };
 }
 
-// The 🖼 Images menu's "Pin all images" item. Was a bare "📌" icon-only
-// button whose ONLY explanation was a hover title= — invisible on touch, and
-// forgettable enough that even the person who wrote this feature had to ask
-// what it did. Same node-safety rule as build() above: nothing DOM-shaped at
-// module scope, so importing this file for its pure exports (portraitInsert)
-// never touches a document that vitest's node environment doesn't have.
+// The 🖼 Images menu's "Embed images in the file" item — the verb used to be
+// "Pin", and before that a bare "📌" icon-only button whose ONLY explanation
+// was a hover title=: invisible on touch, and forgettable enough that even
+// the person who wrote this feature had to ask what it did. Same node-safety
+// rule as build() above: nothing DOM-shaped at module scope, so importing
+// this file for its pure exports (portraitInsert, unembeddedImages) never
+// touches a document that vitest's node environment doesn't have.
 
-export interface PinImagesDeps {
+export interface EmbedImagesDeps {
   /** Parse+validate the current editor text; null means the caller already
    *  reported why through setStatus (mirrors InsertPortraitDeps.readPlaylist).
    *  Called once when the dialog opens, to size the count and explanation
-   *  against what's there right now — and again, fresh, right before pinning
-   *  starts (see the Pin button below), never the same snapshot reused across
-   *  the two: the dialog can sit open a while, and pinning must act on
-   *  whatever is actually in the editor at the moment it runs. */
+   *  against what's there right now — and again, fresh, right before the work
+   *  starts (see the Embed button below), never the same snapshot reused
+   *  across the two: the dialog can sit open a while, and embedding must act
+   *  on whatever is actually in the editor at the moment it runs. */
   readPlaylist: () => Playlist | null;
-  /** Write the pinned playlist back to the editor and re-render from it. */
+  /** Write the embedded playlist back to the editor and re-render from it. */
   applyPlaylist: (playlist: Playlist) => void;
-  /** Unpaywall wants a contact email (render/source.ts); read fresh at pin
+  /** Unpaywall wants a contact email (render/source.ts); read fresh at embed
    *  time rather than captured at open, since Settings can change under an
    *  open dialog. */
   contactEmail: () => string;
   setStatus: (text: string, kind?: "info" | "error" | "ok") => void;
 }
 
-interface PinSession {
-  open(deps: PinImagesDeps): void;
+interface EmbedSession {
+  open(deps: EmbedImagesDeps): void;
 }
 
-let pinSession: PinSession | null = null;
+let embedSession: EmbedSession | null = null;
 
-/** Opens the "Pin all images" dialog. Safe to call repeatedly — the modal is
- *  built once and reused, refreshed with whichever `deps` this call passed
- *  (same pattern as openInsertPortrait above). */
-export function openPinDialog(deps: PinImagesDeps): void {
-  if (!pinSession) pinSession = buildPinDialog();
-  pinSession.open(deps);
+/** Opens the "Embed images in the file" dialog. Safe to call repeatedly — the
+ *  modal is built once and reused, refreshed with whichever `deps` this call
+ *  passed (same pattern as openInsertPortrait above). */
+export function openEmbedDialog(deps: EmbedImagesDeps): void {
+  if (!embedSession) embedSession = buildEmbedDialog();
+  embedSession.open(deps);
 }
 
-function pinnableCount(playlist: Playlist): number {
+/** Every portrait/source element in the document, embedded or not. */
+function imageElements(playlist: Playlist): number {
   return itemsOf(playlist).reduce(
     (n, it) => n + (it.spec.elements ?? []).filter((e) => e.type === "portrait" || e.type === "source").length,
     0,
   );
 }
 
-function buildPinDialog(): PinSession {
+/**
+ * How many images would actually change if this playlist were embedded: the
+ * portrait/source elements that carry no `strokes` yet. Both resolvers skip an
+ * element that already has them, so this — not the total — is the number worth
+ * showing, whether the author is embedding into their own document (the dialog
+ * below) or into the copy Publish sends (ui/share.ts's "Embed images (N)").
+ *
+ * A count, deliberately: an estimate in bytes would have to guess at trace
+ * sizes it cannot know before resolving, and the review cut it.
+ */
+export function unembeddedImages(playlist: Playlist): number {
+  return itemsOf(playlist).reduce(
+    (n, it) =>
+      n +
+      (it.spec.elements ?? []).filter((e) => (e.type === "portrait" || e.type === "source") && !e.strokes).length,
+    0,
+  );
+}
+
+function buildEmbedDialog(): EmbedSession {
   // Reassigned on every open(), read only from inside the handler below —
   // same reason as build()'s `current` above: a reopen must never act on a
   // stale document.
-  let current: PinImagesDeps;
+  let current: EmbedImagesDeps;
 
   // Moved here verbatim in spirit from the old pin button's title= attribute.
   const explanation = h(
@@ -264,23 +285,34 @@ function buildPinDialog(): PinSession {
     { class: "settings-note" },
     "Every portrait's traced strokes and every source's page image are written into the spec text. The drawcast then renders identically forever — offline, on any machine, and after a link dies or an API is discontinued. The document gets larger.",
   );
+  // The distinction that made "Pin" a confusing name (P §3.6): this button
+  // rewrites the file the author has open. Publishing does the same job to the
+  // copy it sends and leaves this document exactly as it is, so nobody has to
+  // come here first just to publish something self-contained.
+  const scopeLine = h(
+    "p",
+    { class: "settings-note" },
+    "This changes this document. Publishing embeds images into the copy it sends without touching the file you are editing.",
+  );
   const countLine = h("p", { class: "settings-note" });
-  // The nothing-to-pin case: today (well, before this change) that was a red
+  // The nothing-to-do case: today (well, before this change) that was a red
   // status line AFTER a click that did nothing. Reported here, at open time,
   // instead — so the button that cannot do anything is never offered at all.
-  const nothingLine = h("p", { class: "settings-note" }, "No portrait or source elements to pin.");
+  // Two ways to get here, and they mean opposite things to the author: no
+  // images at all, or every image already in the file.
+  const nothingLine = h("p", { class: "settings-note" });
 
-  const modal = createModal("Pin all images", { size: "s" });
+  const modal = createModal("Embed images in the file", { size: "s" });
   document.body.append(modal.dialog);
-  modal.body.append(explanation, countLine, nothingLine);
+  modal.body.append(explanation, scopeLine, countLine, nothingLine);
 
   // Not appended to the footer here — open() below adds it only when there
-  // is something to pin, and removes it otherwise (rather than merely
+  // is something to embed, and removes it otherwise (rather than merely
   // hiding it), so .dialog-footer:empty (styles.css) collapses the footer
   // bar away entirely instead of leaving an empty strip under the message.
-  const pinBtn = h("button", { class: "primary" }, "Pin");
+  const embedBtn = h("button", { class: "primary" }, "Embed");
 
-  pinBtn.addEventListener("click", () => {
+  embedBtn.addEventListener("click", () => {
     // Read fresh here — not the playlist counted in open() below — for the
     // same reason insertBtn's handler reads fresh above: nothing may hold a
     // playlist across a wait and then mutate it, once the text underneath
@@ -289,12 +321,16 @@ function buildPinDialog(): PinSession {
     const playlist = current.readPlaylist();
     if (!playlist) return; // readPlaylist already reported why
     const items = itemsOf(playlist);
-    current.setStatus("Pinning images…", "ok");
-    pinBtn.disabled = true;
-    // Sources pin for the same reason portraits do, and one more: a resolved
+    current.setStatus("Embedding images…", "ok");
+    embedBtn.disabled = true;
+    // Sources embed for the same reason portraits do, and one more: a resolved
     // page image outlives the link rot and API deaths that dynamic
     // resolution accepts as its risk (docs/2026-08-28-source-element-spec.md
     // §2).
+    //
+    // Resolving IN PLACE is correct here and only here: this dialog's whole
+    // job is to change the open document. Publish must not, which is why
+    // publish/embed.ts clones first (P §3.4).
     void Promise.all(
       items.flatMap((it) => [resolvePortraits(it.spec), resolveSources(it.spec, { contactEmail: current.contactEmail() })]),
     )
@@ -303,33 +339,42 @@ function buildPinDialog(): PinSession {
         current.applyPlaylist(playlist);
         current.setStatus(
           failed.length > 0
-            ? `Pinned with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
-            : "Pinned — the spec is now fully self-contained.",
+            ? `Embedded with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
+            : "Embedded — the spec is now fully self-contained.",
           failed.length > 0 ? "error" : "ok",
         );
         modal.dialog.close();
       })
       .finally(() => {
-        pinBtn.disabled = false;
+        embedBtn.disabled = false;
       });
   });
 
   return {
     open: (deps) => {
       current = deps;
-      pinBtn.disabled = false;
+      embedBtn.disabled = false;
       const playlist = deps.readPlaylist();
       // Unreadable/invalid text: readPlaylist already reported why through
       // setStatus, same as the old handler's own early return — there is
       // nothing sensible to count, so there is nothing sensible to show.
       if (!playlist) return;
-      const count = pinnableCount(playlist);
+      // The count that decides everything here is the one that would actually
+      // CHANGE — both resolvers skip an element that already has strokes, so
+      // offering the button for a document whose images are all embedded
+      // would offer a no-op.
+      const count = unembeddedImages(playlist);
       explanation.hidden = count === 0;
+      scopeLine.hidden = count === 0;
       countLine.hidden = count === 0;
-      countLine.textContent = count > 0 ? `${count} image${count === 1 ? "" : "s"} will be pinned.` : "";
+      countLine.textContent = count > 0 ? `${count} image${count === 1 ? "" : "s"} will be embedded.` : "";
       nothingLine.hidden = count > 0;
-      pinBtn.remove();
-      if (count > 0) modal.footer.append(pinBtn);
+      nothingLine.textContent =
+        imageElements(playlist) > 0
+          ? "Every image is already in the file."
+          : "No portrait or source elements to embed.";
+      embedBtn.remove();
+      if (count > 0) modal.footer.append(embedBtn);
       modal.open();
     },
   };

@@ -24,6 +24,7 @@ import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { parseRepo } from "../publish/github";
 import { h } from "./dom";
+import { unembeddedImages } from "./insert";
 import { createModal, type Modal } from "./modal";
 
 export type { ShareTo };
@@ -75,11 +76,13 @@ export interface ShareDeps {
   openSettings: () => void;
   /**
    * Publish this document to its GitHub Pages home — `publishDrawcast()` or
-   * `publishCourse()` depending on `subject`. `bake` is Link's narration
-   * checkbox's answer; the function itself is unchanged, Share just moves
-   * where it is called from.
+   * `publishCourse()` depending on `subject`. The two choices are Link's
+   * checkboxes: `bake` synthesizes the narration into the published copy,
+   * `embedImages` resolves every portrait/source image into it. Both act on
+   * the COPY — publish/embed.ts clones before resolving, so neither can
+   * rewrite the document the author has open (P §3.4).
    */
-  publish: (bake: boolean) => Promise<void>;
+  publish: (choices: { bake: boolean; embedImages: boolean }) => Promise<void>;
   /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
@@ -244,20 +247,41 @@ function build(): ShareSession {
   // Text and visibility come from prepPanels(); empty and hidden for a
   // drawcast, which has no lecture count to show.
   const linkSubjectLine = h("div", { class: "hint" });
-  const linkBakeCb = h("input", { type: "checkbox", id: "share-bake" }) as HTMLInputElement;
-  const linkBakeLabel = h(
+  // The two things Publish can put INTO the copy it sends. Both default on
+  // (P §3.6: what you publish should stand on its own), and neither touches
+  // the document the author has open — publish/embed.ts resolves on clones,
+  // and baking builds its audio track beside the playlist rather than in it.
+  // Each label is a two-column grid (box | words, hint under the words), so
+  // every child has to BE an element — a stray " " text node between them
+  // would become an anonymous grid item and take a column of its own.
+  const embedImagesCb = h("input", { type: "checkbox", id: "share-embed-images" }) as HTMLInputElement;
+  const embedImagesText = h("span", {}, "Embed images");
+  const embedImagesHint = h("div", { class: "hint" }, "the published file carries them; your document is unchanged");
+  const embedImagesLabel = h(
     "label",
-    { class: "quiet-label", for: "share-bake", title: "Synthesize the narration once and publish it inside the drawcast, so viewers need no key" },
-    linkBakeCb,
-    "with narration",
+    { class: "publish-choice", for: "share-embed-images" },
+    embedImagesCb,
+    embedImagesText,
+    embedImagesHint,
   );
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, linkBakeLabel);
+  const bakeCb = h("input", { type: "checkbox", id: "share-embed-narration" }) as HTMLInputElement;
+  const bakeHint = h("div", { class: "hint" }, "the published file speaks; viewers need no key");
+  const bakeLabel = h(
+    "label",
+    { class: "publish-choice", for: "share-embed-narration" },
+    bakeCb,
+    h("span", {}, "Embed narration"),
+    bakeHint,
+  );
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, embedImagesLabel, bakeLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
-    const bake = linkBakeCb.checked;
+    // `!embedImagesCb.disabled` is the count-is-zero case: nothing to embed,
+    // so the answer is no regardless of what the box looks like.
+    const choices = { bake: bakeCb.checked, embedImages: embedImagesCb.checked && !embedImagesCb.disabled };
     modal.dialog.close();
-    void deps.publish(bake);
+    void deps.publish(choices);
   });
 
   // ---- Video file panel ----
@@ -647,6 +671,31 @@ function build(): ShareSession {
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
     linkSubjectLine.hidden = current.subject !== "course";
+    // A course has no playlist of its own to count (its lectures live in the
+    // library — see course.ts's doc()), so it gets the choice without a
+    // number rather than a confident, wrong "(0)".
+    const embedCount = current.subject === "course" ? null : unembeddedImages(playlist);
+    embedImagesText.textContent = embedCount === null ? "Embed images" : `Embed images (${embedCount})`;
+    // Both choices default ON — what you publish should stand on its own
+    // (P §3.6) — and neither is remembered between opens: they are decisions
+    // about one publish, not a setting (see the ledger).
+    embedImagesCb.disabled = embedCount === 0;
+    embedImagesCb.checked = embedCount !== 0;
+    embedImagesHint.textContent =
+      embedCount === 0
+        ? "all images are already in the file"
+        : "the published file carries them; your document is unchanged";
+    // Narration is the one choice that can't default on for everyone: baking
+    // needs a Google TTS key, and publishTextFor throws without one — an
+    // on-by-default box would make every publish fail for an author who has
+    // no key. Same third state the rail uses: offered, disabled, with the
+    // route that fixes it.
+    const tts = Boolean(getTtsKey());
+    bakeCb.disabled = !tts;
+    bakeCb.checked = tts;
+    bakeHint.textContent = tts
+      ? "the published file speaks; viewers need no key"
+      : "add a Google TTS key in Settings to publish the narration";
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytBurnCb.checked = current.settings.burnCaptionsOnUpload;

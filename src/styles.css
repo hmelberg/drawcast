@@ -1545,6 +1545,22 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .share-dest.dest-off .hint { margin-top: 0.15rem; }
 .share-panel-host { flex: 1; min-width: 0; }
 .share-panel > * + * { margin-top: 0.6rem; }
+/* Publish's two embed choices. The box and its words sit on one line; what
+   the choice actually costs the reader ("your document is unchanged") sits on
+   the next, indented under the words rather than under the box — a label is
+   inline by default, so without this grid the hint would wrap back to the
+   left margin and read as a separate sentence about nothing. */
+.share-panel .publish-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.45rem;
+  align-items: center;
+  color: var(--ink);
+}
+.share-panel .publish-choice .hint { grid-column: 2; }
+/* A choice that cannot be made (nothing to embed; no TTS key) reads muted,
+   and its hint says which of the two it is. */
+.share-panel .publish-choice input:disabled ~ * { color: var(--muted); }
 /* The YouTube panel's fields, carried over unchanged from the dialog it used
    to be its own modal. */
 .share-modal .yt-field { width: 100%; }

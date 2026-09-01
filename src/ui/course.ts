@@ -20,6 +20,10 @@ import { bakeNarration, bakeSize } from "../export/bake";
 import { synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { parseRepo, readFile } from "../publish/github";
+import { embeddedPlaylist } from "../publish/embed";
+import { resolvePortraits } from "../render/portrait";
+import { resolveSources } from "../render/source";
+import { unembeddedImages } from "./insert";
 import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
@@ -683,12 +687,53 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   }
 
   /**
+   * Resolve every lecture's portraits and sources into the text that gets
+   * published — the course's answer to Publish's "Embed images" checkbox.
+   *
+   * Text-level on purpose: a course has no playlist of its own, so each
+   * lecture is parsed, embedded on the parsed copy (embeddedPlaylist clones
+   * again inside), and re-serialized. The library row this text came from is
+   * never written back, which is the same promise a single drawcast gets —
+   * publishing embeds into the copy it sends, not into your document.
+   *
+   * A lecture with nothing left to embed is skipped entirely rather than
+   * round-tripped through parse+format, so publishing can never reflow the
+   * yaml of a lecture it had no work to do on.
+   */
+  let embeddedTotal = 0;
+
+  async function embedLectures(
+    course: Course,
+    yamlFor: (i: number) => string | null,
+    contactEmail: string,
+    signal: AbortSignal,
+  ): Promise<Map<number, string>> {
+    embeddedTotal = 0;
+    const out = new Map<number, string>();
+    const numbered = course.lectures.map((_, i) => i).filter((i) => yamlFor(i) !== null);
+    for (const [n, index] of numbered.entries()) {
+      // Same cancellation contract as bakeLectures: Cancel between lectures
+      // leaves the repo untouched, because nothing is committed until both
+      // passes are done.
+      if (signal.aborted) throw new Error("Publishing was cancelled.");
+      const playlist = parsePlaylistText(yamlFor(index)!);
+      const before = unembeddedImages(playlist);
+      if (before === 0) continue;
+      working(`Embedding images for lecture ${n + 1} of ${numbered.length}…`);
+      const done = await embeddedPlaylist(playlist, { resolvePortraits, resolveSources, contactEmail });
+      embeddedTotal += before - unembeddedImages(done);
+      out.set(index, formatPlaylist(done, "yaml"));
+    }
+    return out;
+  }
+
+  /**
    * Publishing is a remote write whose result is invisible from here — the
    * exact shape of the three "saved but nothing showed it" bugs in stage A —
    * so it reports both URLs on the panel's own line, and the one-time Pages
    * instruction the first time a repo is written to.
    */
-  async function publish(bake: boolean): Promise<void> {
+  async function publish({ bake, embedImages }: { bake: boolean; embedImages: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -702,7 +747,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       return;
     }
     const library = loadLibrary();
-    const yamlFor = (index: number): string | null => {
+    const savedYaml = (index: number): string | null => {
       const status = course.lectures[index].status;
       if (status?.state !== "done" || !status.id) return null;
       const saved = library.find((d) => d.id === status.id);
@@ -712,9 +757,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     const controller = begin();
     working("Publishing to GitHub…");
     try {
-      // Bake BEFORE the commit, so a cancelled or failed bake leaves the repo
-      // untouched rather than half-published. The result replaces each
-      // lecture's text; everything downstream is unchanged.
+      // Embed BEFORE baking, and both before the commit, so a cancelled or
+      // failed step leaves the repo untouched rather than half-published.
+      // Each lecture's text is embedded on its own parsed copy — the library
+      // row it came from is never rewritten, exactly as a drawcast's own
+      // document is not (publish/embed.ts, P §3.4).
+      const embedded = embedImages ? await embedLectures(course, savedYaml, settings.contactEmail, controller.signal) : null;
+      const yamlFor = (index: number): string | null => embedded?.get(index) ?? savedYaml(index);
       const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);
       const out = await publishCourse({
@@ -746,7 +795,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       }
       showLinks(out.readmeUrl, out.courseUrl, out.pagesUrl, firstTime, out.defaultBranch);
       const narration = baked ? ` Narration included — ${(bakedTotal / 1_048_576).toFixed(1)} MB across ${baked.size} lecture(s), so viewers need no key.` : "";
-      say(`Published ${out.count} files to ${settings.githubRepo}.${narration}`, "ok");
+      // `embedded &&` matters: embeddedTotal survives between publishes, so a
+      // second publish with the box off would otherwise report the first
+      // publish's count.
+      const images = embedded && embeddedTotal > 0 ? ` — ${embeddedTotal} image(s) embedded` : "";
+      say(`Published ${out.count} files to ${settings.githubRepo}${images}.${narration}`, "ok");
     } catch (err) {
       // The stack is what names the culprit; the message alone rarely does.
       console.error("drawcast: publish failed", err);

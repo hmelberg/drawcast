@@ -42,7 +42,7 @@ import { openCoursePanel } from "./ui/course";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { markSvg } from "./brand/mark";
-import { openInsertPortrait, openPinDialog } from "./ui/insert";
+import { openEmbedDialog, openInsertPortrait, unembeddedImages } from "./ui/insert";
 import { applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
@@ -69,6 +69,9 @@ import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize } from "./export/bake";
 import { synthesizeBase64 } from "./export/tts";
 import { publishCast } from "./publish/cast";
+import { embeddedPlaylist } from "./publish/embed";
+import { resolvePortraits } from "./render/portrait";
+import { resolveSources } from "./render/source";
 import { parseRepo, readFile, type RepoRef } from "./publish/github";
 import { parseSourceManifest, saveSource, sourceIndexPath } from "./publish/source";
 import { joinPath } from "./course/publish";
@@ -648,12 +651,12 @@ function refreshExamples(): void {
 }
 refreshExamples();
 const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
-// Both ways a drawing gains images, under one menu: insert a portrait, or
-// pin every portrait/source already in the drawcast into the spec text for
+// Both ways a drawing gains images, under one menu: insert an image, or
+// embed every portrait/source already in the drawcast into the spec text for
 // good. Used to be a "＋ Insert" menu (Portrait alone, so it rendered as a
 // plain button per ui/menu.ts's one-item rule) plus a separate bare "📌" icon
 // button whose only explanation was a hover title= — invisible on touch, and
-// easy enough to forget that the person who wrote Pin had to ask what it did.
+// easy enough to forget that the person who wrote it had to ask what it did.
 const applyPlaylist = (playlist: Playlist): void => {
   specArea.value = formatPlaylist(playlist, "yaml");
   ensureRendered();
@@ -670,16 +673,16 @@ const insertMenu = createMenu("Insert", [
       }),
   },
   {
-    label: "Pin all images",
+    label: "Embed images in the file",
     onSelect: () =>
-      openPinDialog({
+      openEmbedDialog({
         readPlaylist: () => readPlaylistText(specArea.value),
         applyPlaylist,
         contactEmail: () => settings.contactEmail,
         setStatus,
       }),
   },
-], { title: "Add a portrait, or pin every image into the file" });
+], { title: "Add an image, or embed every image into the file" });
 // ---- Save → To disk: the YAML/JSON spec download Share's Spec file panel
 // used to do (share.ts's now-deleted specGo) — moved here because downloading
 // your own source is a save, not a share (spec §1). Same formatPlaylist call,
@@ -2833,8 +2836,8 @@ function markRendered(text: string): void {
  * up something more relevant. The edited dot is the drawing's visible signal.
  *
  * canRender() restores what a disabled ↻ button used to prevent for free:
- * while viewing an old version (the pane is read-only, but Pin and Insert
- * Portrait still write to specArea.value directly) or while an AI call is
+ * while viewing an old version (the pane is read-only, but Insert's two items
+ * still write to specArea.value directly) or while an AI call is
  * streaming its own partial text into the same textarea, this must not push
  * a manual edit or autosave — doing either would silently jump the cursor to
  * newest, or commit the model's half-formed draft as the author's.
@@ -3434,10 +3437,10 @@ function refreshRemotePacksPanel(): void {
 }
 refreshRemotePacksPanel();
 
-// Portrait insertion and pinning now live behind the 🖼 Images menu
+// Image insertion and embedding now live behind the 🖼 Images menu
 // (ui/insert.ts): openInsertPortrait builds a real draw command at a chosen
 // step, instead of this spot's old raw window.prompt() + implicit-tail-draw
-// placement, and openPinDialog holds the click handler that used to be wired
+// placement, and openEmbedDialog holds the click handler that used to be wired
 // to a bare 📌 icon button right here.
 
 importInput.addEventListener("change", () => {
@@ -3472,12 +3475,25 @@ importInput.addEventListener("change", () => {
 // ---- Publishing one drawcast to the author's own public repo ---------------
 
 /**
- * Bake this document's narration, if asked for, and return the text to publish.
- * Reuses whatever the drawcast already published, so a second publish pays only
- * for lines that are new or changed.
+ * Embed the images and bake the narration, if asked for, and return the text to
+ * publish. Reuses whatever the drawcast already published, so a second publish
+ * pays only for lines that are new or changed.
+ *
+ * `source` — never `doc.playlist` past its first line — is what the rest of
+ * this function must read: embedding resolves images into a CLONE (see
+ * publish/embed.ts), so the published copy carries them and the document on
+ * screen is left byte-for-byte as the author wrote it (P §3.4, §F.3).
  */
-async function publishTextFor(signal: AbortSignal, bake: boolean): Promise<string> {
-  const plain = formatPlaylist(doc.playlist, "yaml");
+async function publishTextFor(signal: AbortSignal, bake: boolean, embedImages: boolean): Promise<string> {
+  const before = unembeddedImages(doc.playlist);
+  const source = embedImages
+    ? await embeddedPlaylist(doc.playlist, { resolvePortraits, resolveSources, contactEmail: settings.contactEmail })
+    : doc.playlist;
+  if (embedImages && before > 0) {
+    const embedded = before - unembeddedImages(source);
+    lastEmbedNote = embedded > 0 ? ` — ${embedded} image(s) embedded` : "";
+  }
+  const plain = formatPlaylist(source, "yaml");
   if (!bake) return plain;
   const apiKey = getTtsKey();
   if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
@@ -3490,9 +3506,9 @@ async function publishTextFor(signal: AbortSignal, bake: boolean): Promise<strin
     if (published) existing = parsePlaylistText(published).audio?.lines ?? {};
   }
   const track = await bakeNarration(
-    playlistSpeakLines(doc.playlist),
+    playlistSpeakLines(source),
     {
-      lang: itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang ?? "en",
+      lang: itemsOf(source).find((i) => i.spec.lang)?.spec.lang ?? "en",
       existing,
       synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate }, line.text, line),
     },
@@ -3501,12 +3517,13 @@ async function publishTextFor(signal: AbortSignal, bake: boolean): Promise<strin
   );
   const size = bakeSize(track);
   lastBakeNote = ` Narration included — ${size.lines} line(s), ${(size.inlineBytes / 1_048_576).toFixed(1)} MB, so viewers need no key.`;
-  return formatPublished(doc.playlist, track);
+  return formatPublished(source, track);
 }
 
 let lastBakeNote = "";
+let lastEmbedNote = "";
 
-async function publishDrawcast(bake: boolean): Promise<void> {
+async function publishDrawcast({ bake, embedImages }: { bake: boolean; embedImages: boolean }): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
   if (!token || !repo) {
@@ -3519,10 +3536,11 @@ async function publishDrawcast(bake: boolean): Promise<void> {
   }
   shareBtn.disabled = true;
   lastBakeNote = "";
+  lastEmbedNote = "";
   const ac = new AbortController();
   try {
     setStatus("Publishing to GitHub…");
-    const text = await publishTextFor(ac.signal, bake);
+    const text = await publishTextFor(ac.signal, bake, embedImages);
     const out = await publishCast({
       title: doc.title,
       text,
@@ -3541,7 +3559,7 @@ async function publishDrawcast(bake: boolean): Promise<void> {
     } catch (err) {
       console.error("drawcast: publish succeeded, bookkeeping failed", err);
     }
-    setStatus(`Published to ${out.castUrl}${lastBakeNote}`, "ok");
+    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;
@@ -3856,7 +3874,7 @@ shareBtn.addEventListener("click", () => {
     refreshLibrary,
     refreshAccountRow,
     openSettings,
-    publish: (bake) => publishDrawcast(bake),
+    publish: (choices) => publishDrawcast(choices),
     renderVideo,
     beginExport,
     setProgress: (text) => (exportChipText.textContent = text),
