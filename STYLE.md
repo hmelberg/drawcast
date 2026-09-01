@@ -90,8 +90,10 @@ The rule this replaces, implicitly: "set up the question, then draw the answer".
 That produces a correct drawcast and a slow one. The question can be asked over
 a moving pen.
 
-Status: **not yet in the prompt.** Belongs in the compiler prompt's opening
-rules, beside the existing hook-first guidance — and, once Instructions become
+Status: **in the prompt since 2026-09-02** — folded into the compiler
+prompt's "Start on the canvas" opening rule (title-as-first-beat + speaking
+over a moving pen), the same day the written title moved below the player
+(C9), which is what makes rule 2 load-bearing. Once Instructions become
 a personal style addendum (see `specs/2026-09-01-style-and-vocabulary-design.md`),
 this is exactly the kind of rule a user would want to state for themselves too.
 

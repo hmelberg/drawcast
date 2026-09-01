@@ -24,6 +24,12 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("Situate the topic");
     expect(compilerV1).toContain("No concept is important in itself");
   });
+
+  test("opens with the drawn title — the written one sits below the player now (C9)", () => {
+    expect(compilerV1).toContain("the title counts as something");
+    expect(compilerV1).toContain("BELOW the player");
+    expect(compilerV1).toContain("Speaking and drawing are not turns");
+  });
 });
 
 describe("buildSystemPrompt", () => {

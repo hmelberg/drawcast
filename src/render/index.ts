@@ -106,18 +106,23 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   stage.className = "cs-stage";
   const caption = document.createElement("div");
   caption.className = "cs-caption cs-caption-empty";
-  // Title above the drawing; the caption is a band ACROSS the bottom of it,
-  // the way a video carries its subtitles. Both are figure chrome — neither
-  // is ever placed in canvas coordinates, so neither can collide with the
-  // drawing's own layout.
+  // Title BELOW the drawing, YouTube-style (C9): drawing → control bar →
+  // title (attachPlayerControls inserts the bar directly after the stage, so
+  // appending the title after the stage here yields exactly that order). The
+  // caption is a band ACROSS the bottom of the drawing, the way a video
+  // carries its subtitles. Both are figure chrome — neither is ever placed
+  // in canvas coordinates, so neither can collide with the drawing's own
+  // layout. The piece introduces itself on screen instead: the compiler
+  // prompt's opening rules have the drawcast draw its title as its first
+  // beat (D7's substantive half).
+  stage.appendChild(caption);
+  figure.appendChild(stage);
   if (spec.title) {
     const title = document.createElement("div");
     title.className = "cs-title";
     title.textContent = spec.title;
     figure.appendChild(title);
   }
-  stage.appendChild(caption);
-  figure.appendChild(stage);
   container.appendChild(figure);
 
   const measure = makeBrowserMeasure();
