@@ -4,6 +4,18 @@
 // rules (it keeps only app chrome and overrides like :fullscreen sizes).
 // The var() fallbacks are the app's own :root values, so the rules are
 // self-contained outside drawcast while the app's variables still win inside.
+/**
+ * The subtitle band's ground (A6/D1). At 0.82 the band was nearly opaque ink
+ * over the drawing; 0.6 is the lightest alpha whose blend over bare paper
+ * still gives the caption text ≥ 4.5:1 (measured — tests/caption-band.test.ts
+ * pins it), with a strengthened text shadow carrying the edge over busy
+ * drawings. Exported so the drift test computes on the value the CSS uses.
+ */
+export const CAPTION_BAND = { ink: [24, 20, 16], alpha: 0.6 } as const;
+
+const BAND = `rgba(${CAPTION_BAND.ink.join(", ")}, ${CAPTION_BAND.alpha})`;
+const BAND_CLEAR = `rgba(${CAPTION_BAND.ink.join(", ")}, 0)`;
+
 const FIGURE_CSS = `
 .cs-stage {
   position: relative;
@@ -31,8 +43,8 @@ const FIGURE_CSS = `
   line-height: 1.35;
   text-align: center;
   color: #fbf8f1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
-  background: linear-gradient(to top, rgba(24, 20, 16, 0.82) 55%, rgba(24, 20, 16, 0));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(to top, ${BAND} 55%, ${BAND_CLEAR});
   /* Selecting a phrase to look up is the one gesture the band answers; every
      other click belongs to the drawing underneath (see ui/caption.ts). */
   pointer-events: none;
