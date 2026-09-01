@@ -21,6 +21,48 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-01 — Explain by contrast, and explain what the viewer would wonder about
+
+Hans: "Sometimes explanation by contrast is useful. For instance when
+explaining the production possibilities frontier (one of our examples) the
+curve you draw can be contrasted with a linear curve (or even a non-linear
+curve indicating economies of scale). This contrast makes the viewer
+understand why something has the shape it has. It also increases understanding
+and leads naturally to concepts like marginal rate of substitution, economies
+of scale and so on. […] we can draw one curve/alternative and then erase it
+(if there are many we should erase, if there is only two we might keep both
+sometimes) and draw the other as we explain. Second, we should try to explain
+things the user might wonder about. In this case one might wonder: Why does
+the curve have this shape? Glossing over this and other non-obvious issues
+leads to holes in the understanding. […] Of course there is a limit to this
+(we cannot explain everything from first principles in a drawcast); we should
+strive to focus on non-obvious details and when relevant try to explain by
+using contrasts and alternatives."
+
+Distilled — two rules and a discipline:
+
+1. **Contrast is an explaining instrument, not decoration.** When a shape,
+   formula or claim is non-obvious, draw the *wrong or simpler alternative*
+   first (or alongside) and let the difference carry the explanation: the PPF
+   against a straight line is what makes "why is it bowed?" answerable, and
+   the contrast opens the door to the next concept (MRS, economies of scale)
+   for free. Mechanics: with exactly two alternatives, keeping both on screen
+   is often right; with more than two, draw-then-erase each rejected
+   alternative so the survivor stays clean.
+2. **Answer the question the viewer is silently asking.** Anything
+   non-obvious that the explanation *uses* — and that we do not assume was
+   explained before — gets explained, or the piece leaves a hole exactly
+   where curiosity was. "Why does the curve have this shape?" is the test
+   case: a drawcast that draws the shape without earning it fails.
+3. **The limit:** not first principles — the discipline is to *find* the one
+   or two genuinely non-obvious details and spend the contrast budget there,
+   not to explain everything.
+
+Status: **not yet in the prompt.** Belongs in the compiler prompt's
+explanation rules, near the one-surprise mandate — contrast-then-erase also
+needs the engine's erase/undraw verbs, which exist.
+
+
 ### 2026-09-01 — Do not talk to a blank screen: draw something early, even if it only illustrates
 
 Hans: "sometimes the style of drawcasts is not to speak for too long before
