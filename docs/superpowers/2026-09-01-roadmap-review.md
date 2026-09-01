@@ -116,6 +116,21 @@ Two caveats the documents missed:
 - The "Allow comments" flag lives in the published yaml, so toggling it later
   means republishing; one line of copy in the Publish panel should say so.
 
+## Addendum, same day — R2 resolved by ruling
+
+Hans ruled: **Save writes the document verbatim; Publish prepares a copy.**
+Embed checkboxes appear only on Publish (GitHub + courses); every Save stays
+as it is (Drive/GitHub one click, disk's dialog gains only the name field).
+That dissolves the R2/B2 contradiction in the direction this review could not
+choose on its own — by shrinking B2's destination table rather than adding a
+Drive panel. Revision 2 now holds with no exceptions.
+
+Two further rulings from the same conversation, recorded as roadmap items
+B10 (Drive saves into an app-created `drawcast` folder — `drive.file` is
+per-file, not per-folder, so app-created folders are in scope) and B9
+(`prompt:` round-trips through the yaml header, founding Generate request
+only). Details in ROADMAP §F.3.
+
 ## 4. What held up
 
 Everything else spot-checked clean: the advance default and its per-playlist

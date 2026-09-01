@@ -33,13 +33,15 @@ Sources:
 | # | Item | Src | Notes |
 |---|---|---|---|
 | B1 | Publish shows destinations the author *can* enable, disabled with a reason | P §0.1 | why "Publish to GitHub" seemed missing |
-| B2 | **Embed images** + **Embed narration** as checkboxes on the published copy | P §3 | must resolve on a **copy** — `exportSequence` hands out the document's own objects |
+| B2 | **Embed images** + **Embed narration** as checkboxes on the published copy | P §3 | must resolve on a **copy** — `exportSequence` hands out the document's own objects; **Publish + courses only** (ruling §F.3 narrows P §3.5's table — no embed on any Save) |
 | B3 | Editable name field on each save/publish panel | P §8.2 | |
 | B4 | One stable sources index, **before** any per-save folder | P §8.3 | reversed order scatters sources and Open sees one folder |
 | B5 | Instructions → **Style**: an addendum, not the whole prompt; New/Save/Delete | S §4 | deletes improve/download/upload/rename by construction |
 | B6 | Prompt editor moves behind `developerMode`, unchanged | S §5 | |
 | B7 | One `Generate`/`Revise` button, state-determined | R | see §D3 |
 | B8 | Startup state | R | see §D4 |
+| B9 | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
+| B10 | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
 
 ## C. Larger
 
@@ -346,13 +348,14 @@ proposal to critique, not a settled plan.
 *Reviewed 2026-09-01 by a second model — see
 `2026-09-01-roadmap-review.md`: five of the six revisions endorsed, F.1(3)
 rejected in favour of D2's errors-only chip, one contradiction found (F.1(2)
-vs B2's Save → Drive checkboxes), and a proposal to swap Parts 2 and 3.*
+vs B2's Save → Drive checkboxes — since resolved by ruling, see §F.3), and a
+proposal to swap Parts 2 and 3.*
 
 | | Part | Contains | Why in this position |
 |---|---|---|---|
 | 1 | **Tidy-up** | A1–A8, C5, C6 | Pure UI, flags, CSS. No new concepts, no dependencies, immediately visible. |
 | 2 | **The player** | C7, C8, C9, C10, C11, A6 | Self-contained, and it is what a viewer actually sees. |
-| 3 | **Publish** | A4, B1, B2, B3 | Makes publishing explain itself, including why it appeared missing. |
+| 3 | **Publish** | A4, B1, B2, B3, B9, B10 | Makes publishing explain itself, including why it appeared missing. |
 | 4 | **Authoring loop** | B7, B8 | Small, changes daily use, independent of the above. |
 | 5 | **Style / Instructions** | B5, B6 | The conceptual rework; deliberately after the mechanical work. |
 | 6 | **Comments** | C1, C2, C3 | External-facing, has a user setup step, best when the rest is stable. |
@@ -390,6 +393,36 @@ suggestions that are more intuitive or makes it significantly easier."*
 - **One Generate/Revise button (B7)** — the only item that prevents active data
   loss. Two buttons reading one prompt box and doing opposite things is how a
   drawcast gets discarded.
+
+### F.3 Rulings taken 2026-09-01, in conversation after the review
+
+1. **Save writes the document verbatim; Publish prepares a copy.** Embed
+   checkboxes appear **only** on Publish (GitHub and courses). Save → Drive
+   and Save → GitHub stay one click; Save → disk keeps its dialog (format,
+   plus the B3 name field). This resolves the review's R2/B2 contradiction
+   and settles P §3.5's open question (disk: no). The route to a
+   self-contained save remains `Insert → Embed images in the file` first,
+   then save — the file you send is the file you see. **Accepted gap:** no
+   document-level narration bake; baking is a publishing act (it spends the
+   author's TTS budget for viewers). Buildable later into the spec's `audio`
+   field if ever missed.
+2. **Drive saves stop landing in root** (→ B10). The `drive.file` scope is
+   per-file, not per-folder: the app can create its own folder and save into
+   it with `parents`, it just cannot see folders it did not create. So: on
+   first Drive save, find-or-create a folder named `drawcast` and save there.
+   Name hardcoded first; a Settings value beside the GitHub folder only if a
+   different name is ever wanted. Open is unaffected — the Picker shows every
+   accessible file regardless of folder, so nothing can be lost by
+   scattering (the B4 hazard has no Drive analogue).
+3. **The yaml carries its founding prompt** (→ B9). Today the local library
+   keeps `doc.prompt` but the exported yaml drops it, so a Drive/disk/GitHub
+   round-trip loses the request — which B7's Revise and D4's restore both
+   want. Fix: optional `prompt:` in the playlist header, written from
+   `doc.prompt`, read back on open. **Original Generate request only** —
+   revise instructions stay in version history and the generation log
+   (`doc.prompt` is untouched by revision, `main.ts` revise path; the
+   `⟶ revise:` chains appear only in log entries). The published copy keeps
+   the field — one serializer, no special cases.
 
 ## E. Still open, from earlier rounds
 
