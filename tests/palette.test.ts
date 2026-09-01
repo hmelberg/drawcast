@@ -274,21 +274,13 @@ describe("dark-mode-safe surfaces", () => {
     expect(isNearWhite("rgba(61, 56, 51, 0.85)")).toBe(false); // the figure's dark ink, not near-white
     expect(isNearWhite("#b5482e")).toBe(false); // the rust accent
   });
-
-  it(".mode-btn.active's ink fill takes a paper/surface foreground, not literal white", async () => {
-    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-    const rule = /\.mode-btn\.active\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
-    expect(rule).toMatch(/background:\s*var\(--ink\)/);
-    expect(rule).toMatch(/color:\s*var\(--(paper|surface)\)/);
-    expect(rule).not.toMatch(/color:\s*#fff/);
-  });
 });
 
 // Round-2 fix-round-2: .cs-cardgate-card (the flashcard question's card) and
 // .cs-cardgate-q (the question text inside it) are separate rules, so the
 // single-rule scan above structurally cannot see this pairing — the near-
 // white ground is on the parent, the themed ink was on the child. Named here
-// explicitly, same idiom as the .mode-btn.active regression test below.
+// explicitly, since a single-rule scan can't see it.
 // This card is an overlay on the FIGURE (it sits over .cs-stage so the
 // drawing shimmers through), not app chrome — the fix is fixed ink to match
 // the figure's own paper, not a themed token, the same call figure-style.ts

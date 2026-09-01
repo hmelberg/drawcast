@@ -315,12 +315,12 @@ function initialDoc(): Doc {
 
 const app = document.getElementById("app")!;
 
-// ---------- topbar with the mode toggle ----------
+// ---------- topbar ----------
 // The topbar exists only in editor mode; player mode is chrome-free (the
-// control bar's ✎ Edit button is the way back).
+// control bar's ✎ Edit button is the way back). The Player/Editor switch
+// itself lives in the sidebar's ▶ Player row (A5) — the topbar holds only
+// the wordmark.
 
-const playerModeBtn = h("button", { class: "mode-btn", title: "Watch the current drawcast" }, "▶ Player");
-const editorModeBtn = h("button", { class: "mode-btn", title: "Create and edit drawcasts" }, "✎ Editor");
 const menuBtn = h("button", { class: "icon-btn", title: "Show or hide the menu" }, "☰");
 
 // Rendered inline (not the public/mark.svg <img> the favicon uses) so its
@@ -342,7 +342,6 @@ app.appendChild(
       topbarMark,
       h("div", { class: "wordmark" }, "drawcast"),
     ),
-    h("div", { class: "mode-toggle" }, playerModeBtn, editorModeBtn),
   ),
 );
 
@@ -1061,6 +1060,11 @@ const sidebar = h(
   h(
     "div",
     { class: "sidebar-tools" },
+    (() => {
+      const b = h("button", { class: "sidebar-row" }, "▶ Player");
+      b.addEventListener("click", () => showMode("player"));
+      return b;
+    })(),
     (() => {
       const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
       b.addEventListener("click", () => openInstructionsModal());
@@ -2012,8 +2016,8 @@ async function present(andPlay = false): Promise<void> {
     // skipping lines already baked, which would be paid for twice.
     if (settings.mode === "narrated") speech.prefetch(bakedAudio.unbaked(playlistSpeakLines(doc.playlist)), settings.speed);
     // Player mode has no chrome of its own, so the control bar carries the way
-    // back. The editor already has the Player/Editor pill in the topbar — a
-    // second switch there would only crowd the narrow preview bar.
+    // back. The editor's own way into player mode is the sidebar's ▶ Player
+    // row (A5) — a second switch here would only crowd the narrow preview bar.
     const switchBtn = h("button", { class: "cs-bar-btn", title: "Open the editor" }, "✎ Edit");
     switchBtn.addEventListener("click", () => showMode("editor"));
     // A failed engine load is reported but never blocks the mount — the
@@ -2282,8 +2286,6 @@ function showMode(mode: "player" | "editor"): void {
   persist();
   document.body.classList.toggle("mode-player", mode === "player");
   document.body.classList.toggle("mode-editor", mode === "editor");
-  playerModeBtn.classList.toggle("active", mode === "player");
-  editorModeBtn.classList.toggle("active", mode === "editor");
   // Switching to Player is "go watch it" — catch the drawing up first.
   // ensureRendered() already re-presents into the (now-current) host when it
   // does; only fall back to a bare present() when there was nothing to catch
@@ -2291,9 +2293,6 @@ function showMode(mode: "player" | "editor"): void {
   if (mode === "player" && ensureRendered()) return;
   void present();
 }
-
-playerModeBtn.addEventListener("click", () => showMode("player"));
-editorModeBtn.addEventListener("click", () => showMode("editor"));
 
 // ---------- editor actions ----------
 
