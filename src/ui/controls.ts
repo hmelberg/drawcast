@@ -11,6 +11,7 @@ import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
 import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
 import { h, logicalPoint } from "./dom";
+import { icon } from "./icons";
 import { isTextDrag } from "./caption";
 import type { SubtitleLanguage } from "../spec/subtitles";
 import type { VoiceOption } from "../render/voices";
@@ -583,12 +584,15 @@ export function attachPlayerControls(
   foldTeardown.delete(stageHost);
 
   const total = hd.plan.steps.length;
-  const bigPlay = h("button", { class: "cs-bigplay", title: "Play with narration" }, "▶");
+  // Every control glyph is an inline SVG taking currentColor (see ui/icons.ts)
+  // — one material, so the bar themes as a whole and macOS never swaps a
+  // control for a colour-emoji bitmap.
+  const bigPlay = h("button", { class: "cs-bigplay", title: "Play with narration" }, icon("play"));
   // cs-play is a stable hook: review mode pauses playback by pressing this
   // button rather than reaching into the player's internals.
-  const playBtn = h("button", { class: "cs-bar-btn cs-play", title: "Play / pause" }, "▶");
-  const backBtn = h("button", { class: "cs-bar-btn", title: "Step back one command" }, "⏮");
-  const fwdBtn = h("button", { class: "cs-bar-btn", title: "Step forward one command" }, "⏭");
+  const playBtn = h("button", { class: "cs-bar-btn cs-play", title: "Play / pause" }, icon("play"));
+  const backBtn = h("button", { class: "cs-bar-btn", title: "Step back one command" }, icon("prev"));
+  const fwdBtn = h("button", { class: "cs-bar-btn", title: "Step forward one command" }, icon("next"));
   const progressFill = h("div", { class: "cs-progress-fill" });
   const progress = h("div", { class: "cs-progress", title: "Seek (per command)" }, progressFill);
   const stepInd = h("span", { class: "step-indicator" }, `0/${total}`);
@@ -623,12 +627,12 @@ export function attachPlayerControls(
     // A local const so the closure below narrows it as always-defined; the
     // hoisted `muteBtn` (assigned right after) is only for layout(), which
     // runs after `opts.speech` is known to exist.
-    const muteBtnEl = h("button", { class: "cs-bar-btn", title: "Mute narration (timing unchanged)" }, speech.muted ? "🔇" : "🔊");
+    const muteBtnEl = h("button", { class: "cs-bar-btn", title: "Mute narration (timing unchanged)" }, icon(speech.muted ? "muted" : "volume"));
     muteBtn = muteBtnEl;
     muteBtnEl.addEventListener("click", () => {
       const muted = !speech.muted;
       speech.setMuted(muted);
-      muteBtnEl.textContent = muted ? "🔇" : "🔊";
+      muteBtnEl.replaceChildren(icon(muted ? "muted" : "volume"));
       prefs.onMute?.(muted);
     });
   }
@@ -781,13 +785,13 @@ export function attachPlayerControls(
   if (opts.onTheater) {
     // Hidden outright below 780px (styles.css) — widening the stage does
     // nothing on a screen that has no "narrow vs. wide" to switch between.
-    const theaterBtnEl = h("button", { class: "cs-bar-btn cs-theater", title: "Theater mode (wide)" }, "▭");
+    const theaterBtnEl = h("button", { class: "cs-bar-btn cs-theater", title: "Theater mode (wide)" }, icon("theater"));
     theaterBtnEl.addEventListener("click", () => opts.onTheater?.());
     theaterBtn = theaterBtnEl;
   }
   if (opts.fullscreenEl) {
     const el = opts.fullscreenEl;
-    const fsBtnEl = h("button", { class: "cs-bar-btn", title: "Fullscreen" }, "⛶");
+    const fsBtnEl = h("button", { class: "cs-bar-btn", title: "Fullscreen" }, icon("fullscreen"));
     fsBtnEl.addEventListener("click", () => {
       if (document.fullscreenElement) void document.exitFullscreen();
       else void el.requestFullscreen?.();
@@ -805,7 +809,7 @@ export function attachPlayerControls(
   // createMenu would mean rebuilding them as new, disconnected controls. This
   // reuses the same .menu/.menu-panel look instead, mirroring the CC popover
   // pattern already used a few lines above.
-  const foldTrigger = h("button", { class: "cs-bar-btn", title: "More controls" }, "⋯");
+  const foldTrigger = h("button", { class: "cs-bar-btn", title: "More controls" }, icon("more"));
   const foldPanel = h("div", { class: "menu-panel", hidden: "" });
   const foldRoot = h("span", { class: "menu" }, foldTrigger, foldPanel);
   foldTrigger.addEventListener("click", (e) => {
@@ -1086,8 +1090,8 @@ export function attachPlayerControls(
       if (playing) scheduleIdle(); // hide even without any mouse movement
       else activity(); // paused/done: controls stay visible
       opts.onPlayingChange?.(s === "playing");
-      playBtn.textContent = s === "playing" ? "⏸" : "▶";
-      bigPlay.textContent = s === "done" ? "↺" : "▶";
+      playBtn.replaceChildren(icon(s === "playing" ? "pause" : "play"));
+      bigPlay.replaceChildren(icon(s === "done" ? "replay" : "play"));
       bigPlay.title = s === "done" ? "Replay with narration" : "Play with narration";
     },
     onStep: (done) => {
@@ -1098,6 +1102,6 @@ export function attachPlayerControls(
 
   // Thumbnail state: show the finished drawing as the poster.
   hd.timeline.showPoster();
-  bigPlay.textContent = "▶"; // poster shows play, not replay
+  bigPlay.replaceChildren(icon("play")); // poster shows play, not replay
   bigPlay.title = "Play with narration";
 }

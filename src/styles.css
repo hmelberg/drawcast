@@ -723,6 +723,9 @@ details > summary { cursor: pointer; color: var(--muted); }
   color: rgba(181, 72, 46, 0.7);
   font-size: 1.9rem;
   line-height: 1;
+  /* The play/replay icon is an SVG child now — grid-center it in the circle. */
+  display: grid;
+  place-items: center;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(61, 56, 51, 0.15);
   transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
@@ -781,8 +784,21 @@ details > summary { cursor: pointer; color: var(--muted); }
   font-size: 1.02rem;
   color: var(--ink);
   cursor: pointer;
+  /* Icon buttons and the CC wordmark center the same way. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .cs-bar-btn:hover { color: var(--ink); }
+
+/* Inline SVG control icons (ui/icons.ts): sized by the button's font-size,
+   inked by currentColor — one material with the rest of the bar, themable,
+   immune to macOS swapping emoji-class glyphs for colour bitmaps (D6.1). */
+.cs-icon {
+  width: 1.15em;
+  height: 1.15em;
+  display: block;
+}
 
 /* Theater mode widens the stage — on a screen this narrow there is no
    "narrow vs. wide" left to switch between, so the button does nothing. */
