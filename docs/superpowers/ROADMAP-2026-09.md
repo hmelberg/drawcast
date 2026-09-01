@@ -343,6 +343,11 @@ chapter machinery. It will be filed there once the direction above is settled.
 Offered 2026-09-01, awaiting his decision. A reviewer should treat this as a
 proposal to critique, not a settled plan.
 
+*Reviewed 2026-09-01 by a second model — see
+`2026-09-01-roadmap-review.md`: five of the six revisions endorsed, F.1(3)
+rejected in favour of D2's errors-only chip, one contradiction found (F.1(2)
+vs B2's Save → Drive checkboxes), and a proposal to swap Parts 2 and 3.*
+
 | | Part | Contains | Why in this position |
 |---|---|---|---|
 | 1 | **Tidy-up** | A1–A8, C5, C6 | Pure UI, flags, CSS. No new concepts, no dependencies, immediately visible. |
