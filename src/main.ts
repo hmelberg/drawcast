@@ -124,7 +124,7 @@ import {
   type UserPrompt,
 } from "./store";
 import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
-import { ensureFolder, openSpec, saveSpec } from "./google/drive";
+import { ensureFolder, openSpec, readFileText, saveSpec } from "./google/drive";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 
@@ -190,6 +190,19 @@ interface Doc {
    * shared link already points at.
    */
   publishedAs?: string;
+  /**
+   * The Drive file this document was PUBLISHED to, once it has been
+   * (spec §7). Persisted with the library row, exactly like `publishedAs`
+   * and for the same reason: a republish must update the file whose link is
+   * already out there rather than mint a second one.
+   *
+   * DELIBERATELY distinct from `driveFileId` above, which is Save's working
+   * file and lives only for this session. One drawcast can have both, and
+   * they point at two different files: the source you keep editing, and the
+   * finished copy your audience opens. Crossing them would make a Save
+   * overwrite what your viewers are reading.
+   */
+  drivePublishedId?: string;
   /**
    * The path this document's SOURCE was last saved to in the author's repo —
    * distinct from `publishedAs` (the rendered viewer page). Set by
@@ -303,12 +316,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -2135,7 +2148,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2243,6 +2256,7 @@ function autosave(): void {
       // parsing every row's YAML to count its items would be absurd there.
       parts: itemsOf(doc.playlist).length,
       publishedAs: doc.publishedAs,
+      drivePublishedId: doc.drivePublishedId,
       sourcePath: doc.sourcePath,
       ts: new Date().toISOString(),
     });
@@ -2623,7 +2637,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       `Revised: ${instruction}`,
       { label, kind: "revise" },
     );
@@ -2870,7 +2884,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -3508,8 +3522,27 @@ importInput.addEventListener("change", () => {
  * text on screen (and the Insert-menu Embed dialog, which parses that same
  * text) says otherwise. When there is nothing to embed, or embedding was not
  * asked for, publishing reads `doc.playlist` exactly as before.
+ *
+ * `previousText` is where the already-synthesized narration is read back
+ * from, and it is per-DESTINATION: reuse only saves money if it reads the
+ * copy this publish is about to overwrite. The default is the GitHub
+ * published copy, which is what this function always did; the Drive publish
+ * passes its own hook (spec §7). Any miss — no repo, never published, a
+ * deleted file, a network failure — is null, and null just means paying for
+ * every line again, never a failed publish.
  */
-async function publishTextFor(signal: AbortSignal, bake: boolean, embedImages: boolean): Promise<string> {
+async function publishTextFor(
+  signal: AbortSignal,
+  bake: boolean,
+  embedImages: boolean,
+  previousText: () => Promise<string | null> = async () => {
+    const repo = parseRepo(settings.githubRepo);
+    if (!repo || !doc.publishedAs) return null;
+    return readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
+      fetch(input, { ...init, signal }),
+    ).catch(() => null);
+  },
+): Promise<string> {
   const editorPlaylist = embedImages ? (readPlaylistText(specArea.value) ?? doc.playlist) : null;
   const before = editorPlaylist ? unembeddedImages(editorPlaylist) : 0;
   let source = doc.playlist;
@@ -3523,14 +3556,8 @@ async function publishTextFor(signal: AbortSignal, bake: boolean, embedImages: b
   if (!bake) return plain;
   const apiKey = getTtsKey();
   if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
-  const repo = parseRepo(settings.githubRepo);
-  let existing: AudioTrack["lines"] = {};
-  if (repo && doc.publishedAs) {
-    const published = await readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
-      fetch(input, { ...init, signal }),
-    ).catch(() => null);
-    if (published) existing = parsePlaylistText(published).audio?.lines ?? {};
-  }
+  const published = await previousText();
+  const existing: AudioTrack["lines"] = published ? (parsePlaylistText(published).audio?.lines ?? {}) : {};
   const track = await bakeNarration(
     playlistSpeakLines(source),
     {
@@ -3591,6 +3618,73 @@ async function publishDrawcast({ bake, embedImages, slug }: { bake: boolean; emb
     console.error("drawcast: publish failed", err);
     const e = err as Error;
     setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+  } finally {
+    shareBtn.disabled = false;
+  }
+}
+
+/**
+ * Publish → Google Drive (spec §7-8): the SAME copy publishDrawcast sends to
+ * GitHub — embedded images, baked narration, the author's own choices —
+ * written as a plain `.yaml` file into the app-created `drawcast` folder.
+ *
+ * Never a Google Doc: Docs cap at about a million characters, which a
+ * self-contained publish (images and audio inlined) sails past, and Docs curl
+ * quotes inside the text they store.
+ *
+ * Sharing stays manual (spec §8): the app never touches permissions, so the
+ * status line shows the playable link AND an "Open in Drive" action, which is
+ * where the author flips "Anyone with the link can view".
+ */
+async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; embedImages: boolean; name?: string }): Promise<void> {
+  if (!googleConfigured()) {
+    setStatus("This build has no Google client configured — publishing to Drive is unavailable.", "error");
+    return;
+  }
+  if (itemsOf(doc.playlist).length === 0) {
+    setStatus("There is nothing to publish yet.", "error");
+    return;
+  }
+  shareBtn.disabled = true;
+  lastBakeNote = "";
+  lastEmbedNote = "";
+  const ac = new AbortController();
+  try {
+    setStatus("Publishing to Google Drive…");
+    // Narration reuse reads back THIS destination's previous copy — the
+    // GitHub default would charge for every line again on a Drive republish,
+    // and could hand over lines from a different (older) publish entirely.
+    const text = await publishTextFor(ac.signal, bake, embedImages, () =>
+      doc.drivePublishedId ? readFileText(doc.drivePublishedId) : Promise.resolve(null),
+    );
+    // Parents are a create-time placement; saveSpec's PATCH must never carry
+    // them, so the folder is only looked up when there is no file yet.
+    // ensureFolder degrades to null (a root-level file) rather than blocking
+    // the publish on a failed lookup.
+    const folder = doc.drivePublishedId ? null : await ensureFolder();
+    const res = await saveSpec(text, `${fileSafe(name ?? doc.title)}.yaml`, "text/yaml", doc.drivePublishedId ?? null, folder);
+    if (!res) {
+      setStatus("Google sign-in was cancelled — nothing was published.", "error");
+      return;
+    }
+    // Past this line the file has LANDED. Recording the id is what keeps the
+    // link permanent, so it is worth saying if only that part failed.
+    doc.drivePublishedId = res.fileId;
+    try {
+      autosave();
+    } catch (err) {
+      console.error("drawcast: Drive publish succeeded, bookkeeping failed", err);
+    }
+    setStatusAction(
+      `Published to Drive — ${settings.viewerBase.replace(/\/+$/, "")}/#gdrive=${res.fileId} plays once link-sharing is on.${lastEmbedNote}${lastBakeNote}`,
+      "Open in Drive",
+      () => window.open(`https://drive.google.com/file/d/${res.fileId}/view`, "_blank"),
+      "ok",
+    );
+  } catch (err) {
+    console.error("drawcast: Drive publish failed", err);
+    const e = err as Error;
+    setStatus(`Drive publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
     shareBtn.disabled = false;
   }
@@ -3885,7 +3979,7 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = ""): Promi
   }
 }
 
-// ↗ Share — one modal over Link/YouTube/Video file, replacing the five
+// ↗ Share — one modal over GitHub/Drive/YouTube/Video file, replacing the five
 // controls above (spec §2). Spec file left this modal for Save → To disk
 // (spec §1) — Share is for reaching an audience, not downloading your own
 // source. The panels' own logic (translation, upload, the
@@ -3913,6 +4007,7 @@ shareBtn.addEventListener("click", () => {
     refreshAccountRow,
     openSettings,
     publish: (choices) => publishDrawcast(choices),
+    publishDrive: (choices) => publishDriveCast(choices),
     renderVideo,
     beginExport,
     setProgress: (text) => (exportChipText.textContent = text),

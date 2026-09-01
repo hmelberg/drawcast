@@ -913,6 +913,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       refreshAccountRow: deps.refreshAccountRow,
       openSettings: deps.openSettings,
       publish,
+      // Unreachable by construction: Drive's DESTS row is `courses: false`,
+      // so the rail never offers it here and its button is never mounted.
+      // Present, and loud rather than silent, because the alternative is an
+      // optional field a future caller forgets — and a course publishing
+      // itself into one Drive file would be wrong, not merely surprising:
+      // publishCourse writes a file per lecture.
+      publishDrive: async () => shareStatus("A course publishes to GitHub, not to Drive — its lectures are separate files.", "error"),
       renderVideo: deps.renderVideo,
       beginExport: deps.beginExport,
       setProgress: deps.setProgress,

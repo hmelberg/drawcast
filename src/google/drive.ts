@@ -103,6 +103,28 @@ export async function saveSpec(text: string, name: string, mimeType: string, fil
   return { fileId: j.id };
 }
 
+/**
+ * Read back a file this app wrote — the published copy, so a republish can
+ * reuse the narration lines already synthesized into it (spec §7, mirroring
+ * the GitHub reuse in main.ts's publishTextFor).
+ *
+ * Null for everything that is not a clean read: sign-in declined, the file
+ * trashed or deleted from Drive, a network failure. Reuse is an optimisation
+ * — it must never be the reason a publish fails, so nothing here throws.
+ */
+export async function readFileText(fileId: string): Promise<string | null> {
+  const token = await requireScope(DRIVE_SCOPE);
+  if (!token) return null;
+  try {
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return r.ok ? await r.text() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Loaded on first use only. */
 let pickerReady: Promise<void> | null = null;
 function loadPicker(): Promise<void> {

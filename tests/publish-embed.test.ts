@@ -197,6 +197,47 @@ describe("publishing embeds into the copy, never the document (P §3.4)", () => 
   });
 });
 
+// ---- one prepared copy, several destinations (spec §7) ----------------------
+
+describe("publishTextFor's bake-reuse source is the destination's own previous copy", () => {
+  it("takes previousText, defaulting to the GitHub read it always did", async () => {
+    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+    const fn = src.slice(src.indexOf("async function publishTextFor"), src.indexOf("let lastBakeNote"));
+    expect(fn).toMatch(/previousText:\s*\(\)\s*=>\s*Promise<string \| null>\s*=/);
+    // The default is the GitHub published copy — same repo, same casts dir,
+    // same "a miss just means no reuse" catch as before.
+    expect(fn).toContain("parseRepo(settings.githubRepo)");
+    expect(fn).toContain("`${doc.publishedAs}.yaml`");
+    expect(fn).toContain(".catch(() => null)");
+    // …and the bake path reads it through the parameter, so a caller that
+    // passes its own hook (the Drive publish) reuses ITS previous copy.
+    expect(fn).toMatch(/await previousText\(\)/);
+  });
+
+  it("still only reads a previous copy when baking — the default is never invoked for a plain publish", async () => {
+    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+    const fn = src.slice(src.indexOf("async function publishTextFor"), src.indexOf("let lastBakeNote"));
+    expect(fn.indexOf("if (!bake) return plain;")).toBeLessThan(fn.indexOf("await previousText()"));
+  });
+});
+
+describe("the two embed choices are built once and used by both publish panels", () => {
+  it("the builder hands out rows, a refresh and the choices — no second copy of the wiring", async () => {
+    const src = await readFile(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+    expect(src).toContain("function buildEmbedChoices(");
+    // The link panel's observable behaviour, unchanged and now shared: the
+    // count comes from unembeddedImages, and narration is gated on the TTS key.
+    const builder = src.slice(src.indexOf("function buildEmbedChoices("), src.indexOf("// ---- Link panel"));
+    expect(builder).toContain("unembeddedImages(");
+    expect(builder).toContain("getTtsKey()");
+    expect(builder).toMatch(/embedImages: embedImagesCb\.checked && !embedImagesCb\.disabled/);
+    // Two instances in one document: the checkbox ids must not collide, or a
+    // label's `for` would reach the other panel's box.
+    expect(builder).toMatch(/id: `\$\{key\}-embed-images`/);
+    expect(builder).toMatch(/for: `\$\{key\}-embed-narration`/);
+  });
+});
+
 describe("the rename: pin becomes embed (P §3.7)", () => {
   it("the Insert menu offers embedding, and no user-facing string says pin", async () => {
     const main = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");

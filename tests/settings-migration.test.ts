@@ -32,6 +32,12 @@ describe("migrateShareTo", () => {
   it("leaves the surviving destinations alone", () => {
     for (const v of ["link", "youtube", "video"]) expect(migrateShareTo(v)).toBe(v);
   });
+  it("accepts the Drive destination — a remembered \"drive\" must survive the round trip", () => {
+    // Share writes settings.shareTo on every destination click, so publishing
+    // to Drive once and reloading would otherwise silently snap the modal back
+    // to GitHub: an unrecognised value falls through to "link".
+    expect(migrateShareTo("drive")).toBe("drive");
+  });
   it("falls back to link for anything unrecognised", () => {
     expect(migrateShareTo("nonsense")).toBe("link");
   });
@@ -50,5 +56,10 @@ describe("loadSettings", () => {
 
   it("a fresh browser with no stored settings just gets the default", () => {
     expect(loadSettings().shareTo).toBe("link");
+  });
+
+  it("remembers Drive across a reload", () => {
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, shareTo: "drive" }));
+    expect(loadSettings().shareTo).toBe("drive");
   });
 });

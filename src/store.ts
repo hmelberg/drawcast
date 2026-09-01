@@ -41,17 +41,23 @@ const KEYS = {
 /** Where Share last sent this document. Declared here rather than in the UI:
  *  store.ts is imported by the standalone viewer and must stay UI-free.
  *  "spec" is gone — downloading your own source is a save, not a share
- *  (spec §1), and now lives in Save → To disk. */
-export type ShareTo = "link" | "youtube" | "video";
+ *  (spec §1), and now lives in Save → To disk. "drive" is the second PUBLISH
+ *  destination (spec §7) — a finished file in the author's own Drive, not a
+ *  link the app hands out. */
+export type ShareTo = "link" | "youtube" | "video" | "drive";
 
 /**
  * A settings blob written before the source download moved out of Share can
  * still name "spec" as its remembered destination — that member no longer
  * exists, and Share would open on nothing. Anything else unrecognised falls
  * back to "link" too, rather than trusting an arbitrary stored string.
+ *
+ * Every destination Share can remember has to be named here: Share writes
+ * `shareTo` on each rail click, so a member missing from this list would be
+ * written happily and then silently downgraded to "link" on the next load.
  */
 export function migrateShareTo(v: string): ShareTo {
-  return v === "youtube" || v === "video" ? v : "link";
+  return v === "youtube" || v === "video" || v === "drive" ? v : "link";
 }
 
 export interface Settings {
@@ -340,6 +346,15 @@ export interface SavedDrawing {
    * file a shared link already points at.
    */
   publishedAs?: string;
+  /**
+   * The Drive file id this drawcast was PUBLISHED to, once it has been
+   * (spec §7). Persisted for the same reason as `publishedAs`: a republish
+   * has to update the file whose link is already out there rather than mint a
+   * second one. Distinct from the in-memory `driveFileId` on main.ts's `Doc`,
+   * which is where Save → Drive keeps its working copy — one drawcast can
+   * have both, pointing at two different files.
+   */
+  drivePublishedId?: string;
   /**
    * The path this drawcast's SOURCE was last saved to in the author's repo —
    * distinct from `publishedAs`, which is the rendered viewer page. Absent or

@@ -1,8 +1,10 @@
 // Every way a drawcast leaves the app, behind one verb. The options that used
 // to sit in the toolbar next to Publish live here instead, beside the
-// destination they actually belong to — baking is Link's, the language
-// checkboxes are YouTube's, and burn-captions differs between the downloaded
-// file and the upload on purpose (spec §2).
+// destination they actually belong to — the language checkboxes are
+// YouTube's, and burn-captions differs between the downloaded file and the
+// upload on purpose (spec §2). The two embed choices belong to BOTH publish
+// destinations (GitHub and Drive), so buildEmbedChoices below builds them
+// once and each panel instantiates its own copy (spec §7).
 //
 // Everything that touches the DOM lives inside build(), called lazily from
 // openShare() — never at module scope. vitest runs this suite with no DOM
@@ -95,6 +97,22 @@ export interface ShareDeps {
    */
   publish: (choices: { bake: boolean; embedImages: boolean; slug?: string }) => Promise<void>;
   /**
+   * Publish this document to the author's own Google Drive — the SAME
+   * prepared copy `publish` sends to GitHub, written as a plain `.yaml` file
+   * into the app-created `drawcast` folder (spec §7). `bake` and
+   * `embedImages` mean exactly what they mean above (both act on the copy);
+   * `name` is the Drive panel's name field, a FILENAME (`fileSafe`, not a
+   * slug), undefined when it was left empty. Republishing updates the same
+   * file id rather than minting a second one, so the link already out there
+   * keeps working — and republishing under an edited name RENAMES that file
+   * rather than making a copy, which is what a file in a folder does.
+   *
+   * Required, not optional: Drive is never offered to a course (`courses:
+   * false`), so course.ts's caller passes a stub — but a stub someone had to
+   * write, rather than a field a future caller can silently forget.
+   */
+  publishDrive: (choices: { bake: boolean; embedImages: boolean; name?: string }) => Promise<void>;
+  /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
    * Null means the TTS key is missing, the render failed, or it was
@@ -125,6 +143,13 @@ interface DestRow extends ShareDest {
 
 const DESTS: DestRow[] = [
   { id: "link", label: "Publish to GitHub", action: "Publish", offered: () => true, ready: (c) => c.github, reason: "Set a repository and token in Settings", courses: true },
+  // Drive's only credential is the build's Google client config — an env
+  // credential, so it hides rather than showing a reason nobody can act on.
+  // Once it IS configured there is nothing left to be ready FOR: sign-in
+  // happens at the publish itself, exactly as Save → Drive already does, so
+  // this row never shows the third (disabled) state. Courses stay GitHub-only
+  // (spec §9) — a course is many files, and Drive publishing writes one.
+  { id: "drive", label: "Google Drive", action: "Publish", offered: (c) => c.google, ready: () => true, reason: "", courses: false },
   { id: "youtube", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
   { id: "video", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
 ];
@@ -172,7 +197,7 @@ export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course
 const ALL_DESTS: ShareTo[] = DESTS.map((d) => d.id);
 
 /**
- * Which of the three panels should be visible: exactly the selected one, and
+ * Which of the four panels should be visible: exactly the selected one, and
  * ONLY if it is actually offered right now. A destination that is filtered
  * out of `available` (an unconfigured capability) must never show its panel
  * even if `selected` still names it — a stale/unavailable selection hides
@@ -251,6 +276,87 @@ function build(): ShareSession {
   // below, rather than captured once — so a reopen never shares a stale document.
   let current: ShareDeps;
 
+  /**
+   * The two things a Publish can put INTO the copy it sends. Built as one
+   * unit because BOTH publish destinations — GitHub and Drive — offer exactly
+   * this pair, and the day they stop matching is the day one of them starts
+   * lying about what it sent. Instantiated once per panel; `key` is what
+   * keeps the two checkbox ids apart, since a `<label for>` resolves through
+   * document.getElementById and a duplicate id would let one panel's label
+   * toggle the other panel's box.
+   *
+   * Both default ON (P §3.6: what you publish should stand on its own), and
+   * neither is remembered between opens — they are decisions about one
+   * publish, not a setting (see the ledger). Neither touches the document the
+   * author has open: publish/embed.ts resolves on clones, and baking builds
+   * its audio track beside the playlist rather than in it.
+   *
+   * Each label is a two-column grid (box | words, hint under the words), so
+   * every child has to BE an element — a stray " " text node between them
+   * would become an anonymous grid item and take a column of its own. The
+   * words themselves are left empty here and written by refresh(), which runs
+   * on every open before the modal is shown: one statement of each sentence,
+   * in the place that knows which of the two it is.
+   */
+  function buildEmbedChoices(key: string): {
+    rows: HTMLElement[];
+    refresh: (doc: ShareDoc, subject: "drawcast" | "course") => void;
+    choices: () => { bake: boolean; embedImages: boolean };
+  } {
+    const embedImagesCb = h("input", { type: "checkbox", id: `${key}-embed-images` }) as HTMLInputElement;
+    const embedImagesText = h("span", {});
+    const embedImagesHint = h("div", { class: "hint" });
+    const embedImagesLabel = h(
+      "label",
+      { class: "publish-choice", for: `${key}-embed-images` },
+      embedImagesCb,
+      embedImagesText,
+      embedImagesHint,
+    );
+    const bakeCb = h("input", { type: "checkbox", id: `${key}-embed-narration` }) as HTMLInputElement;
+    const bakeHint = h("div", { class: "hint" });
+    const bakeLabel = h(
+      "label",
+      { class: "publish-choice", for: `${key}-embed-narration` },
+      bakeCb,
+      h("span", {}, "Embed narration"),
+      bakeHint,
+    );
+    return {
+      rows: [embedImagesLabel, bakeLabel],
+      refresh(doc, subject) {
+        // A course has no playlist of its own to count (its lectures live in
+        // the library — see course.ts's doc()), so it gets the choice without
+        // a number rather than a confident, wrong "(0)".
+        const embedCount = subject === "course" ? null : unembeddedImages(doc.playlist);
+        embedImagesText.textContent = embedCount === null ? "Embed images" : `Embed images (${embedCount})`;
+        embedImagesCb.disabled = embedCount === 0;
+        embedImagesCb.checked = embedCount !== 0;
+        embedImagesHint.textContent =
+          embedCount === 0
+            ? "all images are already in the file"
+            : "the published file carries them; your document is unchanged";
+        // Narration is the one choice that can't default on for everyone:
+        // baking needs a Google TTS key, and publishTextFor throws without
+        // one — an on-by-default box would make every publish fail for an
+        // author who has no key. Same third state the rail uses: offered,
+        // disabled, with the route that fixes it.
+        const tts = Boolean(getTtsKey());
+        bakeCb.disabled = !tts;
+        bakeCb.checked = tts;
+        bakeHint.textContent = tts
+          ? "the published file speaks; viewers need no key"
+          : "add a Google TTS key in Settings to publish the narration";
+      },
+      choices: () => ({
+        bake: bakeCb.checked,
+        // `!embedImagesCb.disabled` is the count-is-zero case: nothing to
+        // embed, so the answer is no regardless of what the box looks like.
+        embedImages: embedImagesCb.checked && !embedImagesCb.disabled,
+      }),
+    };
+  }
+
   // ---- Link panel ----
 
   // The only line telling the author whether Publish is about to send one
@@ -271,45 +377,59 @@ function build(): ShareSession {
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
   const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput), publishNameHint);
-  // The two things Publish can put INTO the copy it sends. Both default on
-  // (P §3.6: what you publish should stand on its own), and neither touches
-  // the document the author has open — publish/embed.ts resolves on clones,
-  // and baking builds its audio track beside the playlist rather than in it.
-  // Each label is a two-column grid (box | words, hint under the words), so
-  // every child has to BE an element — a stray " " text node between them
-  // would become an anonymous grid item and take a column of its own.
-  const embedImagesCb = h("input", { type: "checkbox", id: "share-embed-images" }) as HTMLInputElement;
-  const embedImagesText = h("span", {}, "Embed images");
-  const embedImagesHint = h("div", { class: "hint" }, "the published file carries them; your document is unchanged");
-  const embedImagesLabel = h(
-    "label",
-    { class: "publish-choice", for: "share-embed-images" },
-    embedImagesCb,
-    embedImagesText,
-    embedImagesHint,
-  );
-  const bakeCb = h("input", { type: "checkbox", id: "share-embed-narration" }) as HTMLInputElement;
-  const bakeHint = h("div", { class: "hint" }, "the published file speaks; viewers need no key");
-  const bakeLabel = h(
-    "label",
-    { class: "publish-choice", for: "share-embed-narration" },
-    bakeCb,
-    h("span", {}, "Embed narration"),
-    bakeHint,
-  );
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, embedImagesLabel, bakeLabel);
+  // Key "share" so this panel's two boxes keep the exact ids they have always
+  // had ("share-embed-images"/"share-embed-narration") — extracting the rows
+  // into a builder must not be observable from outside this file.
+  const linkChoices = buildEmbedChoices("share");
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
-    // `!embedImagesCb.disabled` is the count-is-zero case: nothing to embed,
-    // so the answer is no regardless of what the box looks like.
-    const choices = {
-      bake: bakeCb.checked,
-      embedImages: embedImagesCb.checked && !embedImagesCb.disabled,
-      slug: publishNameInput.value.trim() || undefined,
-    };
+    const choices = { ...linkChoices.choices(), slug: publishNameInput.value.trim() || undefined };
     modal.dialog.close();
     void deps.publish(choices);
+  });
+
+  // ---- Drive panel — the same prepared copy, as a file instead of a page ----
+
+  // What a Drive publish IS, in one line, because it is the one destination
+  // whose result is not a link the app can hand you: the app never touches
+  // permissions (spec §8), so until the author flips link-sharing in Drive
+  // themselves the file is theirs alone — and sharing it as a FILE (in an
+  // email, a folder, a class Drive) is the point, not a fallback.
+  const driveHint = h(
+    "div",
+    { class: "hint" },
+    "A finished file, not a link — share it from Drive with whoever should have it; they open it in drawcast, or the link below plays once link-sharing is on.",
+  );
+  // A FILENAME, so `fileSafe` — never `slugify`. Normalized on blur (not on
+  // every keystroke, which would fight the author's cursor) so the field
+  // shows exactly the name Drive will hold; emptying it snaps back to the
+  // title-derived default rather than leaving a blank that means something
+  // invisible.
+  const driveNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "File name" }) as HTMLInputElement;
+  driveNameInput.addEventListener("blur", () => {
+    driveNameInput.value = fileSafe(driveNameInput.value, fileSafe(current.doc().title));
+  });
+  // Unlike Link's name field, which mints a NEW file at a new slug and leaves
+  // the old link alive (B3), this one renames the file already published:
+  // saveSpec's update carries the metadata part, and a file in a folder is
+  // the same file whatever it is called. Say so, since the two sit two rail
+  // rows apart and read identically otherwise.
+  const driveNameRow = h(
+    "div",
+    {},
+    h("label", { class: "quiet-label" }, "Name ", driveNameInput),
+    h("div", { class: "hint" }, "Publishing again renames the same file in Drive; the link keeps working."),
+  );
+  const driveChoices = buildEmbedChoices("drive");
+  const drivePanel = h("div", { class: "share-panel" }, driveHint, driveNameRow, ...driveChoices.rows);
+  const driveGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
+  driveGo.addEventListener("click", () => {
+    const deps = current;
+    const choices = { ...driveChoices.choices(), name: driveNameInput.value.trim() || undefined };
+    modal.dialog.close();
+    void deps.publishDrive(choices);
   });
 
   // ---- Video file panel ----
@@ -630,11 +750,11 @@ function build(): ShareSession {
 
   // ---- the modal shell: rail on the left, that destination's panel on the right ----
 
-  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, youtube: youtubePanel, video: videoPanel };
-  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, youtube: ytGo, video: videoGo };
+  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, youtube: youtubePanel, video: videoPanel };
+  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, youtube: ytGo, video: videoGo };
 
   const rail = h("div", { class: "share-rail" });
-  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, youtubePanel, videoPanel);
+  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, youtubePanel, videoPanel);
   const layout = h("div", { class: "share-layout" }, rail, panelHost);
   const settingsBtn = h("button", { class: "small" }, "Open Settings");
   settingsBtn.addEventListener("click", () => {
@@ -704,31 +824,13 @@ function build(): ShareSession {
     // disabled, since there is nothing here for a course author to decide.
     publishNameRow.hidden = current.subject === "course";
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
-    // A course has no playlist of its own to count (its lectures live in the
-    // library — see course.ts's doc()), so it gets the choice without a
-    // number rather than a confident, wrong "(0)".
-    const embedCount = current.subject === "course" ? null : unembeddedImages(playlist);
-    embedImagesText.textContent = embedCount === null ? "Embed images" : `Embed images (${embedCount})`;
-    // Both choices default ON — what you publish should stand on its own
-    // (P §3.6) — and neither is remembered between opens: they are decisions
-    // about one publish, not a setting (see the ledger).
-    embedImagesCb.disabled = embedCount === 0;
-    embedImagesCb.checked = embedCount !== 0;
-    embedImagesHint.textContent =
-      embedCount === 0
-        ? "all images are already in the file"
-        : "the published file carries them; your document is unchanged";
-    // Narration is the one choice that can't default on for everyone: baking
-    // needs a Google TTS key, and publishTextFor throws without one — an
-    // on-by-default box would make every publish fail for an author who has
-    // no key. Same third state the rail uses: offered, disabled, with the
-    // route that fixes it.
-    const tts = Boolean(getTtsKey());
-    bakeCb.disabled = !tts;
-    bakeCb.checked = tts;
-    bakeHint.textContent = tts
-      ? "the published file speaks; viewers need no key"
-      : "add a Google TTS key in Settings to publish the narration";
+    linkChoices.refresh(doc, current.subject);
+    // A filename, not a slug. There is no stored Drive name to prefer here
+    // the way Link prefers `publishedAs`: only the file ID is persisted, so a
+    // republish under an edited name renames the file and the field goes back
+    // to following the title next time it opens (see the ledger).
+    driveNameInput.value = fileSafe(doc.title);
+    driveChoices.refresh(doc, current.subject);
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytBurnCb.checked = current.settings.burnCaptionsOnUpload;
@@ -742,8 +844,9 @@ function build(): ShareSession {
     current = deps;
     // Never empty: `link` (drawcast and course) and `video` (drawcast) are
     // always offered, disabled with a reason when their credential is
-    // missing rather than hidden (spec §0.1) — only `youtube`'s env
-    // credential (Google) can drop a row entirely.
+    // missing rather than hidden (spec §0.1) — only the two Google rows
+    // (`drive`, `youtube`) can drop out entirely, since their credential is
+    // the build's, not one Settings can supply.
     destinations = destinationOffers(currentCaps(deps.settings), deps.subject);
     prepPanels();
     railButtons = destinations.map((d) => {
