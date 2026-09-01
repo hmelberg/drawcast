@@ -1977,7 +1977,7 @@
    "economics"
   ],
   "spec": {
-   "title": "Guns, butter, and the frontier of the possible",
+   "title": "Guns, butter, and why the frontier bows",
    "template": "ppf",
    "params": {
     "good_x": "Guns",
@@ -1990,33 +1990,101 @@
      }
     ]
    },
+   "elements": [
+    {
+     "id": "title_q",
+     "type": "text",
+     "text": "Guns or butter?",
+     "x": 500,
+     "y": 705,
+     "font_size": 30
+    },
+    {
+     "id": "guess_line",
+     "type": "curve",
+     "expr": "74.07 - x",
+     "x_from": 0,
+     "x_to": 74.07,
+     "style": {
+      "color": "#8f887c",
+      "dash": true,
+      "stroke_width": 3.5
+     }
+    },
+    {
+     "id": "guess_label",
+     "type": "text",
+     "text": "Constant trade-off",
+     "x": 290,
+     "y": 288,
+     "font_size": 26,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "frontier_label",
+     "type": "text",
+     "text": "The real frontier",
+     "x": 340,
+     "y": 575,
+     "font_size": 26
+    }
+   ],
    "commands": [
     {
-     "speak": "An economy can only produce so much with the resources it has. Let's see what the frontier of possibility looks like."
-    },
-    {
      "draw": [
+      "title_q",
       "axes"
      ],
-     "speak": "Guns along the bottom, butter up the side — the classic tradeoff."
+     "speak": "Guns along the bottom, butter up the side. An economy has only so many workers and machines — so which mixes of the two can it actually make?"
     },
     {
      "pause": 0.3
     },
     {
      "draw": [
-      "frontier"
+      "guess_line",
+      "guess_label"
      ],
-     "speak": "This bowed curve is the production possibilities frontier: every point on it uses every resource fully."
+     "speak": "Start with the obvious answer: all butter at one end, all guns at the other, and a steady swap in between. That gives a straight line — a constant trade-off."
     },
     {
      "pause": 0.3
+    },
+    {
+     "highlight": {
+      "target": [
+       "guess_line"
+      ],
+      "effect": "glow"
+     },
+     "speak": "But that line assumes every worker is equally good at both jobs. Why should the real frontier bow outward instead?"
+    },
+    {
+     "draw": [
+      "frontier",
+      "frontier_label"
+     ],
+     "speak": "Because resources are not interchangeable. The land and the workers best suited to butter are not the ones best suited to guns."
+    },
+    {
+     "pause": 0.3
+    },
+    {
+     "point": {
+      "at": {
+       "ref": "frontier"
+      },
+      "gesture": "circle"
+     },
+     "speak": "Move the gun-suited workers over first and you give up hardly any butter — so a mixed economy sits out here, beyond the straight line."
     },
     {
      "draw": [
       "attainable"
      ],
-     "speak": "Everything underneath it is attainable with today's resources and technology."
+     "speak": "Everything under this production possibilities frontier is attainable. On the curve itself, every resource is already busy — that is an efficient combination."
     },
     {
      "pause": 0.4
@@ -2026,10 +2094,7 @@
       "pt_0",
       "pt_label_0"
      ],
-     "speak": "But this combination sits outside the frontier — it would take more resources than the economy actually has."
-    },
-    {
-     "pause": 0.3
+     "speak": "This mix sits outside. No rearrangement of today's resources reaches it — only more resources, or better technology, moves the whole frontier out."
     },
     {
      "highlight": {
@@ -2038,7 +2103,7 @@
       ],
       "effect": "glow"
      },
-     "speak": "To reach it, the whole frontier would have to shift outward first — more resources, better technology, or both."
+     "speak": "Read the curve left to right: flat at first, steep at the end. Each extra gun costs more butter than the last — increasing opportunity cost, and the reason the frontier bows."
     }
    ]
   }
