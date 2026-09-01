@@ -5,7 +5,7 @@ description: Event-study plots, difference-in-differences trends, regression dis
 template: event_study
 title: Event-study plot
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   An event-study plot: estimated coefficients as dots with confidence-
@@ -132,7 +132,7 @@ layout: |
 template: did_trends
 title: Difference-in-differences trends
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   The difference-in-differences picture: treated and control group outcome
@@ -275,7 +275,7 @@ layout: |
 template: rd_plot
 title: Regression discontinuity plot
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A regression-discontinuity plot: binned scatter dots on both sides of a
@@ -400,7 +400,7 @@ layout: |
 template: binscatter
 title: Binned scatter plot
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A binned scatter plot: the workhorse figure for showing a relationship

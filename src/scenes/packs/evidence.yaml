@@ -5,7 +5,7 @@ description: Survival curves, forest plots, causal DAGs, epidemic compartments a
 template: survival_curve
 title: Survival curve (Kaplan-Meier)
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A Kaplan-Meier survival curve: one to three right-continuous step functions

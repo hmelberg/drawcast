@@ -5,7 +5,7 @@ description: Consumer choice, PPF, cost curves, payoff matrices and extensive-fo
 template: indifference_budget
 title: Consumer choice (indifference curves & budget line)
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A consumer-choice diagram: a straight budget line (income split between two
@@ -142,7 +142,7 @@ layout: |
 template: ppf
 title: Production possibilities frontier
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A production possibilities frontier (PPF) between two goods: a bowed-out
@@ -268,7 +268,7 @@ layout: |
 template: firm_cost_curves
 title: Firm cost curves (competition & monopoly)
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A firm's short-run cost curves — marginal cost (MC), average total cost

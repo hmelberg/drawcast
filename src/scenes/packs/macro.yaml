@@ -5,7 +5,7 @@ description: IS-LM, the Solow growth model and AD-AS — the macro teaching cano
 template: is_lm
 title: IS-LM
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   The IS-LM diagram: output (Y) against the interest rate (r), a
@@ -135,7 +135,7 @@ layout: |
 template: solow_growth
 title: Solow growth model
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   The Solow growth diagram: capital per worker (k) against output per
@@ -273,7 +273,7 @@ layout: |
 template: ad_as
 title: Aggregate demand - aggregate supply
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A macroeconomic aggregate demand-aggregate supply (AD-AS) diagram: a

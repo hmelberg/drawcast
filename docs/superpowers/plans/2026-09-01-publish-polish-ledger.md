@@ -204,8 +204,10 @@
 - 2026-09-02: **B13 — the axis captions now hug their arrows, by one shared
   rule.** `axisLabelPlacement(axis, plot, text, fontSize)` in
   `src/layout/axes.ts` is the only place the geometry lives; `makeAxes`,
-  `generic_axes_diagram` and 29 pack-template sites (a new `kit.axisLabel`,
-  KIT_VERSION 3 → 4) all go through it. Chosen constants, on the standard
+  `generic_axes_diagram` and **15 pack templates** (29 caption calls — a new
+  `kit.axisLabel`, KIT_VERSION 3 → 4, and each of those 15 bumps its own
+  per-template `kit:` field to 4, the way music.yaml did when kit v3 landed)
+  all go through it. Chosen constants, on the standard
   1000×750 canvas / 120,95–930,695 plot box: `AXIS_OVERHANG` 22 (the arrow
   tips, exported so the axis STROKES cite it too — the label and its arrow can
   no longer drift apart), x label 16 units of clearance between the axis line
@@ -253,7 +255,20 @@
   `cost_effectiveness_plane` (four quadrants, captions at the ends of the
   crossing axes) and `plot3d` were out of scope for the same kind of reason.
 
-- 2026-09-02: The examples suite is what made this safe to do at 31 call
-  sites: it lints all 114 bundled specs and fails on a WARNING, not just an
-  error. 32 figures carry axis captions; all 32 were clean before and all 32
-  are clean after, so the tightened placement introduced no collision anywhere.
+- 2026-09-02: The examples suite is what made this safe to do at 31 call sites
+  (29 caption calls plus the two in `generic_axes_diagram`): it lints all 114
+  bundled specs and fails on a WARNING, not just an error. 32 figures carry
+  axis captions; all 32 were clean before and all 32 are clean after, so the
+  tightened placement introduced no collision anywhere.
+
+- 2026-09-02: **A pack template's `kit:` field is a per-TEMPLATE declaration,
+  not a per-file one, and it is easy to forget.** The first pass converted 15
+  templates to `kit.axisLabel` and left all 15 declaring `kit: 2` — the
+  declaration is only checked in one direction (`doc.ts` rejects a template
+  written for a kit NEWER than the runtime), so nothing failed and no test
+  caught it. It is documentation for the authoring prompt and for anyone
+  porting a template out, so a stale one is a lie that costs nothing today and
+  everything later. Detecting them needs a per-template block walk, and the
+  first attempt over-matched: it flagged `lorenz_curve` because the COMMENT
+  explaining why that template does not call `kit.axisLabel` contains the
+  string `kit.axisLabel`. Skip comment lines when grepping code for usage.

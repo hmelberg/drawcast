@@ -797,7 +797,7 @@ layout: |
 template: pk_curve
 title: Drug concentration curve (pharmacokinetics)
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A pharmacokinetic plasma-concentration-versus-time curve: a single oral
@@ -981,7 +981,7 @@ layout: |
 template: pv_loop
 title: Cardiac pressure-volume loop
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   The cardiac pressure-volume loop: one heartbeat as a closed loop of left-

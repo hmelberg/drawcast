@@ -5,7 +5,7 @@ description: Cost-effectiveness acceptability curves and tornado diagrams — th
 template: ceac
 title: Cost-effectiveness acceptability curve
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A cost-effectiveness acceptability curve (CEAC): the probability that
@@ -139,7 +139,7 @@ layout: |
 template: tornado_diagram
 title: Tornado diagram
 version: 1
-kit: 2
+kit: 4
 status: ready
 description: >-
   A tornado diagram for one-way sensitivity analysis: horizontal bars, one
