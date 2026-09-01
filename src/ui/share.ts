@@ -445,6 +445,7 @@ function build(): ShareSession {
         prompt: doc.prompt,
         spec: itemsOf(playlist)[0]?.spec ?? { commands: [] },
         playlist: isSingle(playlist) ? undefined : formatPlaylist(playlist, "yaml"),
+        parts: itemsOf(playlist).length, // what the library's ▤ marker reads
         sourcePath: null, // a new sibling drawing, never a saved GitHub source of its own
         ts: new Date().toISOString(),
       });

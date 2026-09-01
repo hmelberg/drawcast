@@ -92,6 +92,7 @@ import {
   setGithubToken,
   getTtsKey,
   setTtsKey,
+  isMultiPart,
   loadExemplars,
   loadLibrary,
   loadLogs,
@@ -2218,6 +2219,10 @@ function autosave(): void {
       prompt: doc.prompt,
       spec: firstSpec(doc),
       playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+      // What the library's ▤ marker reads. Stored rather than re-derived per
+      // row: the sidebar rebuilds on every keystroke of the filter box, and
+      // parsing every row's YAML to count its items would be absurd there.
+      parts: itemsOf(doc.playlist).length,
       publishedAs: doc.publishedAs,
       sourcePath: doc.sourcePath,
       ts: new Date().toISOString(),
@@ -2935,8 +2940,12 @@ function refreshSidebarShell(): void {
 }
 
 function row(item: SavedDrawing): HTMLElement {
-  const label = item.playlist ? `${item.title} ▤` : item.title;
-  const openBtn = h("button", { class: "library-open", title: item.playlist ? "Load this playlist" : "Load this drawing" }, label);
+  // NOT `item.playlist` truthiness: since B9 a single generated figure stores
+  // playlist text too (its header carries the founding prompt), and marking
+  // that ▤ "playlist" would make the marker a lie on most rows in the library.
+  const multi = isMultiPart(item);
+  const label = multi ? `${item.title} ▤` : item.title;
+  const openBtn = h("button", { class: "library-open", title: multi ? "Load this playlist" : "Load this drawing" }, label);
   openBtn.addEventListener("click", () => {
     if (blockedByAi("opening another drawcast")) return;
     setDoc(docFromSaved(item), "Loaded from library.");

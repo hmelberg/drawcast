@@ -14,7 +14,7 @@ import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
-import { DEFAULT_META, formatPlaylist, formatPublished, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
+import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { bakeNarration, bakeSize } from "../export/bake";
 import { synthesizeBase64 } from "../export/tts";
@@ -344,6 +344,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         ...saved,
         spec: first && first.kind === "item" ? first.spec : saved.spec,
         playlist: outcome.text,
+        // Recounted, never inherited from `saved`: a revision can add or drop
+        // parts, and a stale count would leave the row's ▤ marker describing
+        // the version before this one.
+        parts: itemsOf(outcome.playlist).length,
         ts: new Date().toISOString(),
       };
       saveDrawing(next);
@@ -515,9 +519,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     saveDrawing({
       id,
       title: lecture.title,
-      prompt: lecture.questions.join(" "),
+      // Taken FROM the document rather than derived a second time here, so the
+      // library row and the published lecture yaml can never disagree about
+      // what was asked (lecturePlaylist stamps it — B9). The fallback covers a
+      // playlist built by something that predates the stamp.
+      prompt: playlist.meta.prompt ?? lecture.questions.join(" "),
       spec: first && first.kind === "item" ? first.spec : { elements: [], commands: [] },
       playlist: formatPlaylist(playlist, "yaml"),
+      parts: itemsOf(playlist).length, // what the library's ▤ marker reads
       courseId: courseId ?? undefined,
       sourcePath: null, // a course lecture; GitHub source-saving is per drawcast, not wired to courses
       ts: new Date().toISOString(),

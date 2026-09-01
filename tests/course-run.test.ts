@@ -99,6 +99,25 @@ describe("lecturePlaylist", () => {
     expect(playlist.entries.filter((e) => e.kind === "chapter")).toHaveLength(2);
   });
 
+  // B9: the founding request travels in the file. A lecture's request is its
+  // teacher's notes — without this the published lecture yaml carries a title
+  // and no trace of what it was asked to cover.
+  it("stamps the lecture's own notes into the playlist header (B9)", () => {
+    const playlist = lecturePlaylist(parseCourse(DOC), 1, {
+      outline: null,
+      specs: [spec("a")],
+      chapterOf: [undefined],
+      failed: [],
+    });
+    expect(playlist.meta.prompt).toBe("What breaks parallel trends?");
+  });
+
+  it("a lecture with no notes IS its title, so that is the request it carries (B9)", () => {
+    const bare = parseCourse("# Course\n\n---\n## Only a title\n");
+    const playlist = lecturePlaylist(bare, 0, { outline: null, specs: [spec("a")], chapterOf: [undefined], failed: [] });
+    expect(playlist.meta.prompt).toBe("Only a title");
+  });
+
   it("names the playlist after the lecture", () => {
     const playlist = lecturePlaylist(parseCourse(DOC), 1, {
       outline: null,

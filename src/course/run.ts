@@ -115,7 +115,14 @@ export function lecturePlaylist(course: Course, index: number, result: PartsResu
       spec: makeNextCard({ next: following.title, position: index + 2, total: course.lectures.length }),
     });
   }
-  return { meta: { ...DEFAULT_META, title: lecture.title }, entries, warnings: [] };
+  // The founding request travels in the file (B9), for a lecture exactly as
+  // for a hand-typed Generate: what the teacher asked this lecture to cover.
+  // The notes, not buildLectureRequest's assembled prompt — that one restates
+  // the whole course around them and goes stale the moment a lecture is
+  // renamed or reordered. A lecture with no notes IS its title, which is how
+  // buildLectureRequest reads it too.
+  const prompt = lecture.questions.join(" ").trim() || lecture.title;
+  return { meta: { ...DEFAULT_META, title: lecture.title, prompt }, entries, warnings: [] };
 }
 
 export interface RunProgress {

@@ -114,3 +114,15 @@ describe("the yaml carries its founding prompt (B9)", () => {
     expect(share).toMatch(/prompt: doc\.prompt/);
   });
 });
+
+// B9 fix round 1: course lectures are generated too, and their yaml is what
+// gets published — the stamp lives in `lecturePlaylist` (unit-tested in
+// tests/course-run.test.ts); this pins the other half, that the library row
+// takes its copy FROM the document rather than deriving a second one.
+describe("a generated course lecture carries its request too (B9)", () => {
+  const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+
+  it("the lecture's library row copies the prompt its playlist already carries", () => {
+    expect(course).toMatch(/prompt: playlist\.meta\.prompt \?\?/);
+  });
+});

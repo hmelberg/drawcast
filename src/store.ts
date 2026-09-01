@@ -318,8 +318,15 @@ export interface SavedDrawing {
   prompt?: string;
   /** First item's spec (kept for poster/back-compat; the whole doc when single). */
   spec: Spec;
-  /** Multi-part drawcasts: the full playlist as serialized multi-doc YAML. */
+  /**
+   * The full document as serialized multi-doc YAML, whenever it does not fit
+   * in `spec` alone. That is no longer the same as "multi-part": since B9 a
+   * single figure carrying its founding prompt has a header too, so this
+   * field's presence says nothing about part count — ask `isMultiPart`.
+   */
   playlist?: string;
+  /** How many items (chapters excluded) the document holds. Absent on rows written before B9. */
+  parts?: number;
   /**
    * The course this lecture belongs to, when it came from one. Lectures are
    * saved the moment they are generated — they cost real money, so they are
@@ -344,6 +351,20 @@ export interface SavedDrawing {
    */
   sourcePath?: string | null;
   ts: string;
+}
+
+/**
+ * Does this row hold a genuinely multi-part drawcast — what the library's ▤
+ * marker and its "Load this playlist" tooltip claim?
+ *
+ * `parts` is what every row written since B9 carries. A row written before it
+ * has none, and for those the presence of `playlist` text IS the right answer:
+ * back then only a real playlist had a header worth storing. Reading the field
+ * that way is not a compatibility shim — it is what that older row's data
+ * actually meant.
+ */
+export function isMultiPart(saved: Pick<SavedDrawing, "parts" | "playlist">): boolean {
+  return saved.parts === undefined ? saved.playlist !== undefined : saved.parts > 1;
 }
 
 export function loadLibrary(): SavedDrawing[] {
