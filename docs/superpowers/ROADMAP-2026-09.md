@@ -54,6 +54,8 @@ Sources:
 | C7 | **Player behaves and reads like YouTube's** | R | see §D6 |
 | C8 | Mute/sound icon is ugly on macOS | R | §D6 — a symptom of C7 |
 | C9 | Title moves **below** the player, YouTube-style | R | see §D7 — coupled to the drawcast opening with a drawn title |
+| C10 | Chapter boundaries default to **timed**, not click | R | see §D8 — the mechanism exists; this is a default change |
+| C11 | The continue pill should mean one thing | R | §D8 — chapter gate and authored `wait` currently share it |
 
 ## D. Detail on the items not yet in a design doc
 
@@ -284,6 +286,57 @@ its title on screen (a prompt change, and the more valuable of the two).
 or simply draws its title as the first beat of the first scene. The second is
 lighter and keeps the piece moving, which is what the STYLE.md entry argues
 for.
+
+### D8. Chapter separation: click or a timed card
+
+Hans: *"chapter separation is currently by click. I wonder if that is ok…
+An alternative would be like a title card intro with some pause… clicking can
+be used when a break is required and/or when the video has been going on for
+'too' long and we need to make sure the user is awake."*
+
+**Most of what he describes already exists.** `makeChapterCard`
+(`playlist.ts:355`) ends with either gate:
+
+```ts
+commands.push(opts.gate === "click" ? { wait: "click" } : { pause: opts.gap ?? 1 });
+```
+
+and the caller passes `gate: advance`, where
+`advance = opts.advanceOverride ?? playlist.meta.advance` — a **per-playlist
+setting** with a viewer URL override (`&advance=auto`). So the timed card is
+not a thing to build; it is a default to change.
+
+**And it is already proven.** `exportSequence` (`playlist.ts:453`) hardcodes
+`gate: "auto"`, and video export auto-resolves every `wait` — *"there is no
+viewer to click during an export"* (`export/video.ts:350`). So **every
+published drawcast video already crosses its chapters on a timer**, and those
+work. The click gate is a live-playback-only behaviour, and the alternative has
+been shipping in every upload all along.
+
+**The real problem is not the click — it is that two different things share one
+pill.** A chapter boundary is *structural*: the piece is moving on, and the
+viewer need do nothing. An authored `wait` is *pedagogical*: stop, think,
+answer, wake up. Both currently present the same "Click to continue ▸" pill, so
+the viewer cannot tell "a section ended" from "you are being asked to engage" —
+and a click that happens constantly stops reading as a request at all.
+
+**Recommendation:**
+
+1. **Chapter boundaries default to `auto`.** A viewer watching a lecture should
+   not have to click to reach section 2, passive watching is a legitimate mode,
+   and the exported videos already demonstrate that the timed card reads fine.
+2. **Keep `meta.advance: "click"`** for the cases that want it — a kiosk, a
+   self-paced exercise, a workshop. It exists, it is per-playlist, and the URL
+   override already covers the "let it run" case.
+3. **Give the two gates different presentation** so the pill means one thing.
+   The chapter card can simply hold and dissolve; the pill belongs to `wait`.
+
+**Hans's second half is a prompt matter, not a structural one.** *"Clicking can
+be used when a break is required and/or when the video has been going on for
+too long"* is a rule about **when a `wait` is earned** — after a dense stretch,
+before a turn, when attention is likely gone. That belongs with the other
+engagement rules in `STYLE.md` and then in the compiler prompt, not in the
+chapter machinery. It will be filed there once the direction above is settled.
 
 ## E. Still open, from earlier rounds
 
