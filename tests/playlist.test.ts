@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   exportSequence,
   formatPlaylist,
+  isSingle,
   itemsOf,
   makeChapterCard,
   makeTitlePage,
@@ -274,5 +275,53 @@ describe("playlistWithSpecs", () => {
     expect(itemsOf(p)[0].spec).toBe(original); // unchanged
     expect(itemsOf(out)[0].spec.title).toBe("New");
     expect(out).not.toBe(p);
+  });
+});
+
+// The library kept doc.prompt but the file dropped it, so any Drive/disk/GitHub
+// round trip lost the request that founded the drawcast. §F.3.3: the founding
+// Generate request travels IN the document — revise instructions do not.
+describe("playlist.prompt — the founding request travels in the file (B9)", () => {
+  test("a single spec with a prompt serializes with a header and round-trips", () => {
+    const p = parsePlaylistText(SPEC_A);
+    p.meta.prompt = "explain comparative advantage";
+    const text = formatPlaylist(p, "yaml");
+    expect(text).toContain("prompt: explain comparative advantage");
+    const back = parsePlaylistText(text);
+    expect(back.meta.prompt).toBe("explain comparative advantage");
+    expect(back).toEqual(p);
+  });
+
+  test("no prompt → no header, exactly as before", () => {
+    const p = parsePlaylistText(SPEC_A);
+    expect(formatPlaylist(p, "yaml")).not.toContain("---");
+  });
+
+  test("isSingle is false once a prompt is set — the header must survive", () => {
+    const p = parsePlaylistText(SPEC_A);
+    p.meta.prompt = "x";
+    expect(isSingle(p)).toBe(false);
+  });
+
+  test("a prompt survives alongside a real playlist header", () => {
+    const p = parsePlaylistText(`playlist: {title: T, prompt: draw the Laffer curve}\n---\n${SPEC_A}\n---\n${SPEC_B}`);
+    expect(p.meta.prompt).toBe("draw the Laffer curve");
+    expect(parsePlaylistText(formatPlaylist(p, "yaml"))).toEqual(p);
+  });
+
+  // Real requests carry #playlist / #parts=3 tags and colons, and a bare `#`
+  // after a space starts a YAML comment — an unquoted dump would truncate the
+  // request at the first tag, silently, on the way to disk.
+  test("a request full of #tags, colons and newlines survives the dump", () => {
+    for (const request of ["explain X #playlist #parts=3", "draw: supply and demand", "line one\nline two", "yes"]) {
+      const p = parsePlaylistText(SPEC_A);
+      p.meta.prompt = request;
+      expect(parsePlaylistText(formatPlaylist(p, "yaml")).meta.prompt).toBe(request);
+    }
+  });
+
+  test("a non-string prompt in the header is ignored, not carried", () => {
+    const p = parsePlaylistText(`playlist: {prompt: 42}\n---\n${SPEC_A}`);
+    expect(p.meta.prompt).toBeUndefined();
   });
 });

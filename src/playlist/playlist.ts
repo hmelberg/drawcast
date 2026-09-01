@@ -16,6 +16,13 @@ export interface PlaylistMeta {
   title?: string;
   /** Shown under the title on the opening title page. */
   subtitle?: string;
+  /**
+   * The founding Generate request, when AI-generated. Original only — revise
+   * instructions live in history. Carried in the file so a Drive/disk/GitHub
+   * round trip (and the published copy) keeps the request that started it;
+   * the localStorage library keeps its own copy in SavedDrawing.prompt.
+   */
+  prompt?: string;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -70,6 +77,7 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   const meta: PlaylistMeta = { ...DEFAULT_META };
   if (typeof raw.title === "string") meta.title = raw.title;
   if (typeof raw.subtitle === "string") meta.subtitle = raw.subtitle;
+  if (typeof raw.prompt === "string") meta.prompt = raw.prompt;
   if (raw.advance !== undefined) {
     if (raw.advance === "click" || raw.advance === "auto") meta.advance = raw.advance;
     else warnings.push(`playlist.advance must be "click" or "auto" (got ${JSON.stringify(raw.advance)}) — using click`);
@@ -192,13 +200,19 @@ export function playlistWithSpecs(playlist: Playlist, specs: Spec[]): Playlist {
   };
 }
 
-/** True when the playlist is just one bare spec (no header worth keeping, no chapters). */
+/**
+ * True when the playlist is just one bare spec (no header worth keeping, no
+ * chapters). A founding `prompt` counts as a header worth keeping: it is the
+ * one field that would otherwise be dropped on every save, so a doc that has
+ * one always serializes WITH its header (§F.3.3's accepted shape change).
+ */
 export function isSingle(playlist: Playlist): boolean {
   return (
     playlist.entries.length === 1 &&
     playlist.entries[0].kind === "item" &&
     playlist.meta.title === undefined &&
     playlist.meta.subtitle === undefined &&
+    playlist.meta.prompt === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -219,6 +233,9 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   const header: Record<string, unknown> = {};
   if (playlist.meta.title !== undefined) header.title = playlist.meta.title;
   if (playlist.meta.subtitle !== undefined) header.subtitle = playlist.meta.subtitle;
+  // Always written when set (like title/subtitle), never compared against a
+  // default — DEFAULT_META has no prompt, and a set one must always survive.
+  if (playlist.meta.prompt !== undefined) header.prompt = playlist.meta.prompt;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;

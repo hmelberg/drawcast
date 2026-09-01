@@ -87,3 +87,30 @@ describe("Publish placement and naming (A1, A2, A4)", () => {
     expect(insertIdx).toBeGreaterThan(openIdx);
   });
 });
+
+// §F.3.3: the exported yaml carries the FOUNDING Generate request. The wiring
+// lives in main.ts's generation paths, which have no unit-testable seam of
+// their own — so guard it by source, the same way the placement tests above do.
+describe("the yaml carries its founding prompt (B9)", () => {
+  it("generation writes the founding prompt into the playlist meta", () => {
+    expect(main).toMatch(/meta\.prompt = rawRequest/);
+  });
+
+  it("setDoc keeps doc.prompt and the meta from drifting, meta winning", () => {
+    expect(main).toMatch(/doc\.prompt = doc\.playlist\.meta\.prompt \?\? doc\.prompt/);
+  });
+
+  it("only the founding request is ever written to meta.prompt — never a revise instruction", () => {
+    // Every assignment in main.ts must be the raw Generate request. A revise
+    // (or a subtitle/translation pass) writing here would overwrite the
+    // founding request that exemplars and the log still pair specs with.
+    const writes = main.match(/\.meta\.prompt\s*=\s*[^;]+/g) ?? [];
+    expect(writes.length).toBeGreaterThan(0);
+    for (const w of writes) expect(w).toMatch(/=\s*rawRequest$/);
+  });
+
+  it("the library's own copy of the prompt still travels with a saved drawing", () => {
+    expect(main).toMatch(/prompt: doc\.prompt/);
+    expect(share).toMatch(/prompt: doc\.prompt/);
+  });
+});

@@ -296,7 +296,10 @@ function docFromSaved(saved: SavedDrawing): Doc {
   const sourcePath = saved.sourcePath ?? null;
   if (saved.playlist) {
     try {
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, sourcePath, title: saved.title, prompt: saved.prompt, playlist: parsePlaylistText(saved.playlist) };
+      const playlist = parsePlaylistText(saved.playlist);
+      // The file's own founding prompt wins (B9); `saved.prompt` is what a
+      // library entry written before B9 has instead — its only copy.
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
@@ -691,9 +694,12 @@ saveDiskModal.footer.append(saveDiskBtn);
 saveDiskFormatSel.addEventListener("change", () => {
   const next = saveDiskFormatSel.value as SpecFormat;
   // A playlist is a multi-document YAML stream and JSON cannot hold that —
-  // same guard the Spec file panel had.
+  // same guard the Spec file panel had. Since B9 a single figure that carries
+  // its founding prompt has a header too, so the message names the header
+  // rather than the part count: "Playlists are YAML-only" read as a lie in
+  // front of a one-figure document.
   if (next === "json" && !isSingle(doc.playlist)) {
-    setStatus("Playlists are YAML-only (a JSON document cannot hold a multi-document stream).", "error");
+    setStatus("This document has a playlist header, so it is YAML-only (a JSON document cannot hold a multi-document stream).", "error");
     saveDiskFormatSel.value = "yaml";
     settings.specFormat = "yaml";
   } else {
@@ -2107,7 +2113,9 @@ function showVersion(index: number): void {
   restoring = true;
   try {
     specArea.value = v.text;
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+    // Same rule as setDoc: the version's own text is authoritative about the
+    // founding request (B9) when it carries one; doc.prompt is the fallback.
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2138,8 +2146,11 @@ function applyHistoryUi(): void {
   // not on screen. Ratings feed the prompt-improvement loop, which makes that a
   // corrupted signal rather than a cosmetic slip.
   ratingButtons.forEach((rb) => (rb.disabled = viewing));
-  // Exemplars are (request, single spec) pairs — a multi-part doc has no such pair.
-  promoteBtn.disabled = viewing || promoted || !isSingle(doc.playlist);
+  // Exemplars are (request, single spec) pairs — a multi-part doc has no such
+  // pair. Counted in ITEMS, not via isSingle: since B9 a generated single
+  // figure carries its founding prompt in the header, which makes isSingle
+  // false — and that is exactly the document this button exists for.
+  promoteBtn.disabled = viewing || promoted || itemsOf(doc.playlist).length !== 1;
 }
 
 histPrev.addEventListener("click", () => showVersion(stack.cursor - 1));
@@ -2158,6 +2169,12 @@ restoreBtn.addEventListener("click", () => {
 
 function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
   doc = next;
+  // One founding request, two homes: the file carries it (playlist.meta.prompt,
+  // B9) and the library keeps its own copy (Doc.prompt → SavedDrawing.prompt).
+  // The file is authoritative WHEN IT HAS ONE — so opening a document that
+  // carries its request adopts it, and a pre-B9 entry (or a bundled example,
+  // which has a request but no header) keeps the copy it came with.
+  doc.prompt = doc.playlist.meta.prompt ?? doc.prompt;
   lastLogId = null; // ratings apply to generations only
   promoted = false; // before applyHistoryUi(), which reads it
   specArea.value = formatPlaylist(doc.playlist, "yaml");
@@ -2515,8 +2532,14 @@ async function generate(): Promise<void> {
     endSpecStream(false); // setDoc below writes the formatted spec over it
     if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
     if (parsed.voiceGender && !outcome.spec.voice) outcome.spec.voice = parsed.voiceGender;
+    const playlist = singlePlaylist(outcome.spec);
+    // The founding request travels IN the document from here on (B9), so a
+    // Drive/disk/GitHub round trip — and the published copy — keeps it. The
+    // cost is visible and accepted (§F.3.3): a generated single figure now
+    // opens with a two-line `playlist:` header above its spec.
+    playlist.meta.prompt = rawRequest;
     setDoc(
-      { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist: singlePlaylist(outcome.spec) },
+      { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist },
       outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
       { label: rawRequest, kind: "generate" },
     );
@@ -2673,6 +2696,10 @@ async function generateMulti(
     entries: result.specs.map((spec) => ({ kind: "item" as const, spec })),
     warnings: [],
   };
+  // Same as generate(): the founding request goes in the file (B9). Written as
+  // its own statement rather than inline above so both generation paths carry
+  // the one expression a drift test can pin.
+  playlist.meta.prompt = rawRequest;
   setDoc(
     { id: null, driveFileId: null, sourcePath: null, title, prompt: rawRequest, playlist },
     result.failed.length > 0
@@ -2816,8 +2843,10 @@ function ensureRendered(andPlay = false): boolean {
   const playlist = readPlaylistText(specArea.value);
   if (!playlist) return false;
   // Same document, edited in place — carry the id forward so autosave() below
-  // replaces this entry instead of minting a second one (copy-on-write).
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: doc.prompt, playlist };
+  // replaces this entry instead of minting a second one (copy-on-write). The
+  // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
+  // header is an edit like any other), with doc.prompt as the fallback.
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
