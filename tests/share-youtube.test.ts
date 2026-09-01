@@ -207,6 +207,13 @@ describe("the title field trusts the author over the auto-fill (finding 1, final
     expect(prep).toContain('ytTitleAuto = "";');
   });
 
+  it("resets ytTitle.value together with ytTitleAuto — the modal is a reused singleton, so the field alone still holds the last open's text and clearing only the flag would never re-arm the auto-write (re-review)", async () => {
+    const src = await shareSrc();
+    const prep = src.slice(src.indexOf("function prepPanels()"), src.indexOf("function refresh(deps"));
+    expect(prep.length).toBeGreaterThan(400);
+    expect(prep).toContain('ytTitle.value = ytTitleAuto = "";');
+  });
+
   it("a lone translated upload prefers the translated title over the stale source-language field", async () => {
     const yt = await ytRegion();
     const run = yt.slice(yt.indexOf("async function runYoutubeUpload"), yt.indexOf("function reportUploads"));

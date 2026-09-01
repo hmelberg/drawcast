@@ -1032,10 +1032,14 @@ function build(): ShareSession {
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytTranslations.clear();
-    // A fresh open always resets the title, same as every other field here —
-    // clearing the flag lets refreshYtButtons()'s auto-write through even if
-    // a previous open's edit is still sitting in the field.
-    ytTitleAuto = "";
+    // A fresh open always resets the title, same as every other field here.
+    // The modal is a reused singleton, so ytTitle.value still holds whatever
+    // the LAST open left in it — clearing ytTitleAuto alone would leave it
+    // unequal to that leftover value forever, and refreshYtButtons()'s
+    // auto-write would never fire again (re-review finding). Reset both
+    // together so the field is blank and matches its own auto-flag, which is
+    // what makes the very next refreshYtButtons() call populate it.
+    ytTitle.value = ytTitleAuto = "";
     // The document's own language is the given: it publishes in it, and its
     // chip is queued first. Everything else is a translation the author asks
     // for, one open at a time.
