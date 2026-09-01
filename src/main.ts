@@ -47,6 +47,7 @@ import { applySection, courseGroup, createSidebarSection, sidebarSections, type 
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
+import { lintChipModel } from "./ui/lint-chip";
 import {
   DEFAULT_META,
   formatPlaylist,
@@ -1434,7 +1435,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
     h(
       "div",
       { class: "settings-field" },
-      h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, the full lint list and the Data panel"),
+      h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, all lint warnings and the Data panel"),
     ),
   ],
   ["backup", h("div", { class: "settings-field" }, backupBtn)],
@@ -2230,31 +2231,27 @@ let lastHandle: RenderHandle | null = null;
 
 /**
  * Lint shows as a chip: nothing at all when the drawing is clean, a count
- * otherwise, expanding to the list on click. Developer mode also reports a
- * clean result, since there the absence of warnings is itself information.
+ * otherwise, expanding to the list on click. Non-developers only ever see
+ * error-severity issues (a genuinely broken layout); warn-severity lint is
+ * developer-only, since the author cannot act on it by editing YAML.
+ * Developer mode also reports a clean result, since there the absence of
+ * warnings is itself information.
  */
 function setLint(hd: RenderHandle): void {
   lastHandle = hd;
   lintBox.replaceChildren();
-  const issues = hd.layout.issues;
-  const warnings = [...hd.layout.warnings, ...hd.plan.warnings];
-  const total = issues.length + warnings.length;
-  if (total === 0) {
-    lintChip.hidden = !settings.developerMode;
-    lintChip.className = "lint-chip clean";
-    lintChip.textContent = "✓ Lint clean";
+  const m = lintChipModel(hd.layout.issues, [...hd.layout.warnings, ...hd.plan.warnings], settings.developerMode);
+  lintChip.hidden = m.hidden;
+  lintChip.className = m.className;
+  lintChip.textContent = m.text;
+  lintChip.title = m.title;
+  if (m.hidden || m.items.length === 0) {
     lintBox.hidden = true;
     lintOpen = false;
     return;
   }
-  const worst = issues.some((i) => i.severity === "error") ? "error" : "warn";
-  lintChip.hidden = false;
-  lintChip.className = `lint-chip ${worst}`;
-  lintChip.textContent = `⚠ ${total}`;
-  lintChip.title = `${total} layout ${total === 1 ? "warning" : "warnings"} — click for details`;
   const ul = h("ul", { class: "lint-list" });
-  for (const i of issues) ul.appendChild(h("li", { class: i.severity }, `${i.rule}: ${i.message}`));
-  for (const w of warnings) ul.appendChild(h("li", {}, w));
+  for (const i of m.items) ul.appendChild(h("li", i.className ? { class: i.className } : {}, i.text));
   lintBox.appendChild(ul);
   lintBox.hidden = !lintOpen;
 }
