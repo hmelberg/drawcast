@@ -798,7 +798,7 @@ function refreshCredentialMenus(): void {
 // One button for every way a drawcast leaves the app — replaces ⬇, ⬆ Publish,
 // ☑ with narration, 🎬 Export video and ▶ YouTube (spec §2). Its modal picks
 // which of those still applies; an unconfigured one just does not appear.
-const shareBtn = h("button", { class: "small", title: "Publish a link, upload to YouTube, or export a video" }, "↗ Share");
+const shareBtn = h("button", { class: "small", title: "Publish to GitHub, upload to YouTube, or export a video" }, "↗ Publish");
 // Background-export progress chip: the render/upload runs without a modal, so
 // this chip in the pane bar is the only visible trace — status text + cancel.
 // (Created here with its pane-bar siblings; wired in the video-export section.)
@@ -1023,17 +1023,15 @@ const editorWrap = h(
       h(
         "div",
         { class: "pane-bar" },
-        h("span", { class: "bar-group" }, insertMenu),
         h("span", { class: "bar-group" }, openMenuHost, saveMenuHost, importInput),
-        h("span", { class: "pane-spacer" }),
-        shareBtn,
+        h("span", { class: "bar-group" }, insertMenu),
       ),
       specArea,
     ),
     h(
       "div",
       { class: "panel editor-preview" },
-      h("div", { class: "pane-bar" }, lintChip, editedDot, h("span", { class: "pane-spacer" }), reviewBtn, ratingBox, promoteBtn, exportChip),
+      h("div", { class: "pane-bar" }, lintChip, editedDot, h("span", { class: "pane-spacer" }), reviewBtn, shareBtn, ratingBox, promoteBtn, exportChip),
       previewHost,
       lintBox,
     ),
@@ -1372,7 +1370,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "label",
         { class: "settings-check" },
         burnCaptionsCb,
-        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in Share's YouTube panel.",
+        " Burn captions into the DOWNLOADED video (a file has no subtitle layer). YouTube uploads have their own setting in Publish's YouTube panel.",
       ),
     ),
   ],

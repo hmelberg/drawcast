@@ -98,7 +98,7 @@ export interface ShareDeps {
 }
 
 const DESTS: (ShareDest & { needs: (c: ShareCaps) => boolean; courses: boolean })[] = [
-  { id: "link", label: "Link", action: "Publish", needs: (c) => c.github, courses: true },
+  { id: "link", label: "Publish to GitHub", action: "Publish", needs: (c) => c.github, courses: true },
   { id: "youtube", label: "YouTube", action: "Upload", needs: (c) => c.google && c.tts, courses: false },
   { id: "video", label: "Video file", action: "Export", needs: (c) => c.tts, courses: false },
 ];
@@ -560,7 +560,7 @@ function build(): ShareSession {
   // prepPanels() clears ytTranslations on the NEXT open, so losing this one
   // to an accidental backdrop click would mean paying for those Anthropic
   // calls a second time.
-  const modal = createModal("↗ Share", { size: "m", class: "share-modal", backdropCloses: false });
+  const modal = createModal("↗ Publish", { size: "m", class: "share-modal", backdropCloses: false });
   modal.body.append(layout, emptyHint);
   document.body.append(modal.dialog);
 

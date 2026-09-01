@@ -142,7 +142,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   const reviseBtn = h("button", { class: "small" }, "✎ Revise");
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
   const saveBtn = h("button", { class: "small" }, "💾 Save");
-  const shareBtn = h("button", { class: "small" }, "↗ Share");
+  const shareBtn = h("button", { class: "small" }, "↗ Publish");
   const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
   matchBtn.hidden = true;
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
