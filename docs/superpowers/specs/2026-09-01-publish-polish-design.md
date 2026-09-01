@@ -18,8 +18,13 @@ is attached. The panel's copy now says this in one line instead of implying it.
    (seconds each, cancellable, progress via the export chip), and only when all
    translations are clean does recording start. The fail-fast property of the
    old translate-on-tick survives by ordering, and the API spend now happens on
-   an explicit verb. The per-modal-session cache stays; a cancel-and-retry does
-   not re-translate.
+   an explicit verb. The translation cache is **per modal open** (amended
+   2026-09-02 during review): within one open nothing is paid twice —
+   Save-copies then Upload reuses, and a multi-language run skips what is
+   cached — but reopening the modal clears it, because the modal re-reads the
+   editor text on every open and a cached translation of an edited document
+   must never be uploadable. Cross-open re-translation is the price of that
+   correctness.
 2. **"Translate to", with the original as a given.** The panel states
    "Publishes in Norwegian" (auto-detected via `sourceLanguage`) as a fact, and
    offers "Translate to: [+ Add a language ▾]" building removable chips. The

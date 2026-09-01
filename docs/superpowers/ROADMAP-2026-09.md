@@ -44,6 +44,19 @@ Sources:
 | B9 ✅ | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
 | B10 ✅ | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
 | B11 | `render()` resolves portraits/sources on the document's **own** spec objects | R | found by the 2026-09-01 final review: root cause of the embed-count lie (fixed at the counter) and of strokes leaking into library saves; fix once — resolve on clones at render entry |
+| B12 | Voice selection for Google TTS | R | Hans 2026-09-02: browser voices are already selectable; cloud TTS should be too — per LANGUAGE (a voice belongs to a language), so the setting is a per-language preference through `voiceFor`, not one global voice. Two layers like speed: durable default in Settings, quick pick in the player bar for auditioning (a selection speaks a sample line). WRINKLE: bake reuse is keyed by line text — a voice change must not mix old-voice cached lines into a re-bake; the reuse key needs the voice in it |
+| B13 | Axis-label placement | R | Hans 2026-09-02, queued next: x-label right-justified ending at/past the arrow tip, tighter to the axis (short words may sit in line with the arrow); y-label centered above the arrow when short, ending at/left of the axis when long; PPF example is the test case |
+
+## 2026-09-01/02 publish-polish round (delivered)
+
+Spec `specs/2026-09-01-publish-polish-design.md`, plan+ledger in `plans/`.
+Delivered: translate-on-publish (chips, "Translate to", cost line, per-language
+descriptions, YouTube burn deleted), Publish → Google Drive (same options as
+GitHub, consent-first, 404 recovery, persisted id+name), `#gdrive=` viewer
+route, PPF example teaches by contrast (STYLE 2026-09-01). NOT built (spec §3):
+Drive permission automation, Docs-as-transport, Netlify fetch proxy (fallback
+only if Hans's live `#gdrive` smoke fails). Outstanding verification: Hans's
+live e2e of the Drive publish + `#gdrive` link.
 
 ## C. Larger
 
