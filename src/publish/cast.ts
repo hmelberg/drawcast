@@ -66,8 +66,16 @@ export interface CastPlanArgs {
   title: string;
   /** The serialized document, published verbatim — baked audio and all. */
   text: string;
-  /** The slug this drawcast was published under before, if it has been. */
+  /** The name requested for this publish (B3's editable Link field) — the
+   *  name to publish under if it is available. May differ from
+   *  `previousSlug` (a rename), equal it (an unedited republish), or be
+   *  absent entirely. */
   slug?: string;
+  /** The slug this drawcast is ALREADY published under, if any — distinct
+   *  from `slug` (merely requested) so a republish under its own, unedited
+   *  name is recognized as OWNING that slug rather than just asking for a
+   *  name that happens to already be taken (by itself). */
+  previousSlug?: string;
   repo: RepoRef;
   castsDir: string;
   viewerBase: string;
@@ -79,12 +87,19 @@ export function castHref(base: string, owner: string, repo: string, path: string
 }
 
 export function buildCastPlan(args: CastPlanArgs): CastPlan {
-  const { title, text, repo, castsDir, viewerBase, index } = args;
+  const { title, text, repo, castsDir, viewerBase, index, previousSlug } = args;
   // A recorded slug is permanent: retitling a drawcast must never move the file
   // a shared link already points at. Only a NEW one has to avoid the names
   // already taken — and republishing must not read its own name as a clash.
-  const taken = new Set(index.casts.map((c) => c.slug).filter((s) => s !== args.slug));
-  const slug = args.slug || slugFor(title || "lecture", taken);
+  const taken = new Set(index.casts.map((c) => c.slug).filter((s) => s !== previousSlug));
+  const requested = args.slug || previousSlug;
+  // A republish under its own, unedited slug keeps it even though that name
+  // is (obviously) "taken" in the index — it's taken by THIS drawcast, which
+  // `taken` already excludes above. Any OTHER requested name — a first
+  // publish whose auto-slug collides with someone else's, or a rename typed
+  // to a name another cast already owns — must never silently steal that
+  // other entry, so it is uniquified exactly like a plain title would be.
+  const slug = requested && (requested === previousSlug || !taken.has(requested)) ? requested : slugFor(requested || title || "lecture", taken);
   const file = `${slug}.yaml`;
   const path = joinPath(castsDir, file);
 
@@ -154,7 +169,11 @@ export function castsReadme(casts: CastEntry[], viewerBase: string, repo: RepoRe
 export interface CastPublishArgs {
   title: string;
   text: string;
+  /** The name requested for this publish — see `CastPlanArgs.slug`. */
   slug?: string;
+  /** The slug this drawcast is already published under, if any — see
+   *  `CastPlanArgs.previousSlug`. */
+  previousSlug?: string;
   repo: RepoRef;
   token: string;
   castsDir: string;

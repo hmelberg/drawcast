@@ -3561,6 +3561,7 @@ async function publishDrawcast({ bake, embedImages, slug }: { bake: boolean; emb
       title: doc.title,
       text,
       slug,
+      previousSlug: doc.publishedAs,
       repo,
       token,
       castsDir: joinPath(settings.coursesDir, "casts"),
