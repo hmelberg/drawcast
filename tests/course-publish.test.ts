@@ -133,9 +133,10 @@ describe("publishCourse", () => {
   it("publishes a document that already carries the names, so the repo copy matches", async () => {
     const { seen, fetchImpl } = fakeGithub();
     await publishCourse({ ...publishArgs, fetchImpl });
-    const tree = seen.find((s) => s.url.includes("/git/trees"))!.body!.tree as { path: string; content?: string }[];
-    const md = tree.find((t) => t.path.endsWith("course.md"))!;
-    expect(md.content).toContain("file: potential-outcomes.yaml");
+    // Content travels as blobs now (the 422 too-large fix) — find the blob
+    // whose decoded body is the course document.
+    const blobs = seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
+    expect(blobs.some((b) => b.includes("file: potential-outcomes.yaml"))).toBe(true);
   });
 
   it("commits to the repo's own default branch", async () => {
@@ -149,10 +150,10 @@ describe("publishCourse", () => {
     const manifest = JSON.stringify({ courses: [{ slug: "stats", title: "Stats", files: [], updated: "1" }] });
     const { seen, fetchImpl } = fakeGithub({ manifest });
     await publishCourse({ ...publishArgs, fetchImpl });
-    const tree = seen.find((s) => s.url.includes("/git/trees"))!.body!.tree as { path: string; content?: string }[];
-    const json = tree.find((t) => t.path === "courses/courses.json")!;
-    expect(json.content).toContain("stats");
-    expect(json.content).toContain("causal-inference");
+    const blobs = seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
+    const json = blobs.find((b) => b.includes('"courses"'))!;
+    expect(json).toContain("stats");
+    expect(json).toContain("causal-inference");
   });
 
   it("survives a repo with no manifest yet", async () => {

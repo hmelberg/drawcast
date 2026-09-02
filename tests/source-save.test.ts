@@ -171,9 +171,8 @@ describe("saveSource", () => {
       token: "t",
       fetchImpl,
     });
-    const treeCalls = calls.filter((c) => c.url.includes("/git/trees") && c.method === "POST");
-    const manifestFile = treeCalls[0].body!.tree as { path: string; content: string }[];
-    const manifestContent = manifestFile.find((f) => f.path === "casts/sources/index.json")!.content;
+    const blobs = calls.filter((c) => c.url.includes("/git/blobs")).map((c) => Buffer.from(c.body!.content as string, "base64").toString("utf8"));
+    const manifestContent = blobs.find((b) => b.includes('"sources"'))!;
     const manifest = JSON.parse(manifestContent) as SourceManifest;
     expect(manifest.sources).toHaveLength(1);
     expect(manifest.sources[0].title).toBe("Ricardo on trade — revised");
@@ -196,9 +195,10 @@ describe("saveSource", () => {
     expect(out.path).toBe("casts/sources/untitled-drawcast-2.yaml");
     const treeCalls = calls.filter((c) => c.url.includes("/git/trees") && c.method === "POST");
     const tree = treeCalls[0].body!.tree as { path: string; content: string }[];
+    const blobs = calls.filter((c) => c.url.includes("/git/blobs")).map((c) => Buffer.from(c.body!.content as string, "base64").toString("utf8"));
     // The manifest committed here must still carry doc A's entry alongside
     // the new one — this is the exact loss the fix exists to prevent.
-    const manifest = JSON.parse(tree.find((f) => f.path === "casts/sources/index.json")!.content) as SourceManifest;
+    const manifest = JSON.parse(blobs.find((b) => b.includes('"sources"'))!) as SourceManifest;
     expect(manifest.sources.map((s) => s.path).sort()).toEqual([
       "casts/sources/untitled-drawcast-2.yaml",
       "casts/sources/untitled-drawcast.yaml",

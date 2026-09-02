@@ -281,8 +281,25 @@ export async function commitFiles(
     if (!state) throw new PublishError("The repository is still empty after the first write — nothing was published.");
   }
 
+  // Blobs first, one request per file, then a tree of SHAs — never inline
+  // content. A course of narration-baked lectures put megabytes of base64
+  // into a single /git/trees body and GitHub refused it (422 "input was too
+  // large to process… consider building the tree incrementally" — Hans's
+  // live publish, 2026-09-02). The blob route is the API's intended path for
+  // big content; base64 encoding also keeps arbitrary bytes JSON-safe. Blobs
+  // are content-addressed and repo-scoped, so the non-fast-forward retry in
+  // commitOnto reuses them for free — which is why they are created HERE,
+  // outside the retry.
+  const blobShas: string[] = [];
+  for (const f of files) {
+    const blob = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/blobs`, {
+      content: toBase64(f.content),
+      encoding: "base64",
+    });
+    blobShas.push(blob.sha);
+  }
   const tree = [
-    ...files.map((f) => ({ path: f.path, mode: MODE_FILE, type: "blob", content: f.content })),
+    ...files.map((f, i) => ({ path: f.path, mode: MODE_FILE, type: "blob", sha: blobShas[i] })),
     // A null sha is how the tree API says "remove this path". There is nothing
     // to remove in a repository that had no commits a moment ago.
     ...(wasEmpty ? [] : deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null }))),

@@ -1,5 +1,8 @@
-// The atomic commit: one revision for the whole course, five calls whatever
-// its size, and a dropped lecture actually removed rather than left reachable.
+// The atomic commit: one revision for the whole course — blobs first (one
+// request per file; inlining content in the tree hit GitHub's 422 "input was
+// too large to process" on a narration-baked course, 2026-09-02), then one
+// tree of SHAs, one commit, one ref move. A dropped lecture is actually
+// removed rather than left reachable.
 
 import { describe, expect, it } from "vitest";
 import { commitFiles } from "../src/publish/github";
@@ -23,11 +26,13 @@ function recorder(): { calls: Call[]; fetchImpl: typeof fetch } {
       ? { object: { sha: "refsha" } }
       : url.includes("/git/commits/")
         ? { tree: { sha: "treesha" } }
-        : url.includes("/git/trees")
-          ? { sha: "newtree" }
-          : url.includes("/git/commits")
-            ? { sha: "newcommit" }
-            : {};
+        : url.includes("/git/blobs")
+          ? { sha: `blob${calls.filter((c) => c.url.includes("/git/blobs")).length}` }
+          : url.includes("/git/trees")
+            ? { sha: "newtree" }
+            : url.includes("/git/commits")
+              ? { sha: "newcommit" }
+              : {};
     return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
   }) as unknown as typeof fetch;
   return { calls, fetchImpl };
@@ -37,54 +42,62 @@ const REPO = { owner: "o", repo: "r" };
 const FILES = [{ path: "courses/c/a.yaml", content: "title: a" }];
 
 describe("commitFiles", () => {
-  it("writes everything in ONE commit, in five calls", async () => {
+  it("writes everything in ONE commit: blobs, then tree, commit, ref move", async () => {
     const { calls, fetchImpl } = recorder();
     await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
-    expect(calls).toHaveLength(5);
-    expect(calls.map((c) => c.method)).toEqual(["GET", "GET", "POST", "POST", "PATCH"]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "GET", "POST", "POST", "POST", "PATCH"]);
+    expect(calls.filter((c) => c.url.includes("/git/commits") && c.method === "POST")).toHaveLength(1);
+    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(1);
   });
 
-  it("stays at five calls for a whole course, not one per file", async () => {
+  it("one blob request per file, still ONE commit for a whole course", async () => {
     const { calls, fetchImpl } = recorder();
     const many = Array.from({ length: 24 }, (_, i) => ({ path: `courses/c/${i}.yaml`, content: `n: ${i}` }));
     await commitFiles(REPO, "t", "main", many, [], "msg", fetchImpl);
-    expect(calls).toHaveLength(5);
+    expect(calls.filter((c) => c.url.includes("/git/blobs"))).toHaveLength(24);
+    expect(calls.filter((c) => c.url.includes("/git/trees"))).toHaveLength(1);
+    expect(calls.filter((c) => c.url.includes("/git/commits") && c.method === "POST")).toHaveLength(1);
   });
 
-  it("sends file content inline in the tree, needing no separate blob calls", async () => {
+  it("the tree carries blob SHAs, never inline content — the 422 too-large fix", async () => {
     const { calls, fetchImpl } = recorder();
     await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
-    const tree = calls[2].body!.tree as Record<string, unknown>[];
-    expect(tree[0]).toEqual({ path: "courses/c/a.yaml", mode: "100644", type: "blob", content: "title: a" });
+    const blob = calls.find((c) => c.url.includes("/git/blobs"))!;
+    expect(blob.body).toEqual({ content: Buffer.from("title: a", "utf8").toString("base64"), encoding: "base64" });
+    const tree = calls.find((c) => c.url.includes("/git/trees"))!.body!.tree as Record<string, unknown>[];
+    expect(tree[0]).toEqual({ path: "courses/c/a.yaml", mode: "100644", type: "blob", sha: "blob1" });
+    for (const entry of tree) expect(entry).not.toHaveProperty("content");
   });
 
   it("bases the tree on the current one, so untouched files survive", async () => {
     const { calls, fetchImpl } = recorder();
     await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
-    expect(calls[2].body!.base_tree).toBe("treesha");
+    expect(calls.find((c) => c.url.includes("/git/trees"))!.body!.base_tree).toBe("treesha");
   });
 
   it("deletes a dropped path with a null sha", async () => {
     const { calls, fetchImpl } = recorder();
     await commitFiles(REPO, "t", "main", FILES, ["courses/c/gone.yaml"], "msg", fetchImpl);
-    const tree = calls[2].body!.tree as Record<string, unknown>[];
+    const tree = calls.find((c) => c.url.includes("/git/trees"))!.body!.tree as Record<string, unknown>[];
     expect(tree).toContainEqual({ path: "courses/c/gone.yaml", mode: "100644", type: "blob", sha: null });
   });
 
   it("parents the new commit on the branch head and moves the ref to it", async () => {
     const { calls, fetchImpl } = recorder();
     await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
-    expect(calls[3].body!.parents).toEqual(["refsha"]);
-    expect(calls[3].body!.tree).toBe("newtree");
-    expect(calls[4].body!.sha).toBe("newcommit");
-    expect(calls[4].url).toContain("/git/refs/heads/main");
+    const commit = calls.find((c) => c.url.endsWith("/git/commits") && c.method === "POST")!;
+    expect(commit.body!.parents).toEqual(["refsha"]);
+    expect(commit.body!.tree).toBe("newtree");
+    const ref = calls.find((c) => c.method === "PATCH")!;
+    expect(ref.body!.sha).toBe("newcommit");
+    expect(ref.url).toContain("/git/refs/heads/main");
   });
 
   it("commits to the branch it was given, not to main by default", async () => {
     const { calls, fetchImpl } = recorder();
     await commitFiles(REPO, "t", "trunk", FILES, [], "msg", fetchImpl);
     expect(calls[0].url).toContain("/git/ref/heads/trunk");
-    expect(calls[4].url).toContain("/git/refs/heads/trunk");
+    expect(calls.find((c) => c.method === "PATCH")!.url).toContain("/git/refs/heads/trunk");
   });
 
   it("refuses to commit nothing", async () => {
