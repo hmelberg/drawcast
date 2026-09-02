@@ -15,7 +15,7 @@
 import { compileExpression } from "../spec/expression";
 import { parseNotation, type NoteToken } from "../spec/notation";
 import { parseABC, type AbcTune } from "../spec/abc";
-import { CANVAS, type PlotArea } from "../layout/canvas";
+import { CANVAS, plotArea, type PlotArea } from "../layout/canvas";
 import { AXIS_OVERHANG, axisLabelPlacement } from "../layout/axes";
 import {
   COLORS,
@@ -36,7 +36,7 @@ import {
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 4; // v4: axisLabel + AXIS_OVERHANG (the one axis-caption rule)
+export const KIT_VERSION = 5; // v5: COLORS.series + plotArea() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -365,6 +365,8 @@ export interface SceneKit {
   SKETCH_MS: typeof SKETCH_MS;
   /** How far an axis stroke runs past the plot box — where its arrowhead tips. */
   AXIS_OVERHANG: typeof AXIS_OVERHANG;
+  /** The standard plot box every axes template uses (layout/canvas.ts) — the default `box` of the data templates. */
+  plotArea: typeof plotArea;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -1384,6 +1386,7 @@ export const kit: SceneKit = {
   CANVAS,
   SKETCH_MS,
   AXIS_OVERHANG,
+  plotArea,
 };
 
 Object.freeze(kit);

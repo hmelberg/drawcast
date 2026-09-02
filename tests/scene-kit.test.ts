@@ -161,8 +161,12 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 4 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(4);
+test("KIT_VERSION is 5 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(5);
+  expect(kit.COLORS.series).toHaveLength(6);
+  for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
+  expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
+  expect(kit.plotArea()).toEqual({ x0: 120, y0: 95, x1: 930, y1: 675 });
   expect(kit.CANVAS.w).toBe(1000);
   expect(kit.COLORS.ink).toBeDefined();
   expect(kit.SKETCH_MS.stroke).toBeGreaterThan(0);

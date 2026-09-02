@@ -136,6 +136,12 @@ export const COLORS = Object.freeze({
   region2: "#87a878",
   regionLoss: "#c96567",
   /**
+   * Ordered series palette for data-driven templates (bar_chart, line_chart,
+   * …): series k takes series[k % 6]. Drawn from the roles above so a chart
+   * shares the figure's ink. Frozen with its parent — the kit exposes it live.
+   */
+  series: Object.freeze(["#b5482e", "#2f6b8f", "#8a5fa8", "#d0865f", "#87a878", "#f2c14e"]),
+  /**
    * A bright warm white for shapes that must read as "unfilled" ON TOP of a
    * tinted ground — a white chess piece on a green board, a knock-out counter
    * inside a filled shape. Deliberately a shade brighter than the app's own
