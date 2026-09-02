@@ -105,5 +105,10 @@ describe("detectNeedTemplate", () => {
 // expanded (tests/pack-defaults.test.ts enforces that invariant against the
 // live constant, so it never drifts silently). History: 50 -> 80 when the
 // medicine pack pushed the default library to 50 ready templates; 80 -> 100
-// on 2026-09-02 with the data pack (see src/scenes/catalog.ts for the
-// current value — deliberately not re-pinned here as a literal).
+// on 2026-09-02 with the data pack.
+test("TEMPLATE_FULL_THRESHOLD is the deliberate 100", () => {
+  // Pinned as a literal so an accidental edit (a stray 10000, which would
+  // silently disable the two-level catalog) fails here; pack-defaults checks
+  // the same constant from below, against the real library size.
+  expect(TEMPLATE_FULL_THRESHOLD).toBe(100); // raised 2026-09-02 with the data pack
+});
