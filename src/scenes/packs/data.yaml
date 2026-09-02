@@ -544,6 +544,12 @@ layout: |
   } else {
     const st = toStages(params.values);
     if (st) series.push({ name: "", stages: st });
+    // Finding P: a `values` TOKEN with no series still mints line_1 — one
+    // anonymous zero series that draws nothing. bar_chart already keeps its
+    // bar_i beats alive before the script has run, and a model copying that
+    // exemplar writes draw: ["axes", "line_1"]; without this the id is
+    // unknown offline and costs a needless repair round.
+    else if (typeof params.values === "string") series.push({ name: "", stages: [[]] });
   }
   // x: numbers (real axis), strings (categories), else indices 1..n.
   const xNum = Array.isArray(params.x) && params.x.length > 0 && params.x.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.x.slice(0, 2000) : null;
@@ -584,6 +590,23 @@ layout: |
   const title = str(params.title, "");
   // A drawn title costs 55 units of plot height (the did_trends convention) — see bar_chart.
   if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
+  // Finding C1 — the same convention one axis over: a series name is drawn
+  // PAST its last point, so the plot must give up the width that label needs.
+  // The default plot ends at 930 and a 19pt name of five characters or more
+  // then runs off the 1000-wide canvas (out-of-canvas, an ERROR). An authored
+  // box pays the same cost: a box says where the plot goes, not that a label
+  // may hang over the canvas edge.
+  const END_SIZE = 19; // the end label's font size
+  const END_GAP = 12; // gap between the last point and its name
+  const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts) — the margin the app's own axis captions keep
+  let endLabelW = 0;
+  for (const s of series) if (s.name) endLabelW = Math.max(endLabelW, kit.textWidth(s.name, END_SIZE));
+  if (endLabelW > 0) {
+    // Never crush the plot below half its width: a name that long is the
+    // author's problem, so let it overflow rather than squeeze the chart.
+    const minX1 = plot.x0 + (plot.x1 - plot.x0) * 0.5;
+    plot.x1 = Math.max(minX1, Math.min(plot.x1, kit.CANVAS.w - CANVAS_EDGE - END_GAP - endLabelW));
+  }
   // Ruling E: clamp the VALUE into [xMin, xMax] / [yMin, yMax] before
   // scaling — exactly as bar_chart clamps y. An xlim/ylim narrower than the
   // data would otherwise place a point (or an axis end-label, which shares
@@ -672,15 +695,31 @@ layout: |
     return pts;
   };
 
-  const ends = [];
   const lines = series.map((s, k) => ({ s, k, pts: pointsOf(s) }));
-  // Dodge end labels apart (46 units) the way did_trends does, in y order.
+  // Finding I6: dodge the end labels apart (46 units) the way did_trends
+  // does, but around the CLUSTER'S OWN CENTRE — the push below only ever
+  // moves a label UP, so four series converging near the top used to walk the
+  // last one clean off the canvas. After centring, the stack is held inside
+  // the axes: its top never rises above the y arrow's tip, its bottom never
+  // sinks below the axis (the cap is applied first, so a stack taller than
+  // the plot keeps its bottom rather than its top). A series with no name or
+  // no points takes no slot at all.
+  const DODGE = 46;
   const labelY = lines.map((L) => (L.pts.length ? L.pts[L.pts.length - 1][1] : plot.y0));
-  const orderIdx = labelY.map((y, i) => i).sort((i, j) => labelY[i] - labelY[j]);
+  const slots = lines.map((L, k) => (L.s.name && L.pts.length ? k : -1)).filter((k) => k >= 0).sort((i, j) => labelY[i] - labelY[j]);
   const dodged = labelY.slice();
-  for (let q = 1; q < orderIdx.length; q++) {
-    const prev = orderIdx[q - 1], cur = orderIdx[q];
-    if (dodged[cur] - dodged[prev] < 46) dodged[cur] = dodged[prev] + 46;
+  for (let q = 1; q < slots.length; q++) {
+    const prev = slots[q - 1], cur = slots[q];
+    if (dodged[cur] - dodged[prev] < DODGE) dodged[cur] = dodged[prev] + DODGE;
+  }
+  if (slots.length > 0) {
+    let want = 0, got = 0;
+    for (const k of slots) { want += labelY[k]; got += dodged[k]; }
+    let shift = (want - got) / slots.length;
+    const cap = plot.y1 + kit.AXIS_OVERHANG;
+    if (dodged[slots[slots.length - 1]] + shift > cap) shift = cap - dodged[slots[slots.length - 1]];
+    if (dodged[slots[0]] + shift < plot.y0) shift = plot.y0 - dodged[slots[0]];
+    for (const k of slots) dodged[k] += shift;
   }
   lines.forEach((L, k) => {
     const id = "line_" + (k + 1);
@@ -691,7 +730,7 @@ layout: |
     else if (pts.length === 1) children.push(kit.stroke(id + "__l", [pts[0], [pts[0][0] + 0.01, pts[0][1]]], { color, strokeWidth: 4, ms: MS.curve }));
     else children.push(kit.stroke(id + "__l", [], { color, strokeWidth: 4, ms: MS.curve }));
     if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })));
-    if (L.s.name && pts.length) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + 12, dodged[k]], L.s.name, { fontSize: 19, anchor: "start", color }));
+    if (L.s.name && pts.length) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color }));
     push(kit.group(id, children));
     anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
   });

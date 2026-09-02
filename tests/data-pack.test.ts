@@ -12,6 +12,7 @@ import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
 import { AXIS_OVERHANG } from "../src/layout/axes";
+import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Spec } from "../src/spec/types";
@@ -334,11 +335,18 @@ describe("line_chart", () => {
     expect(stroke(l, "line_1__l")!.pts.length).toBeGreaterThan(3); // smoothed
   });
 
-  test("the placeholder promise: series with token values keep their ids; x typed alone draws nothing", () => {
+  // Finding P: a `values` TOKEN with no series mints ONE anonymous zero
+  // series, so line_1 exists offline exactly as bar_chart's bar_i beats do —
+  // a model copying the bar_chart exemplar writes draw: ["axes", "line_1"]
+  // and must not get "unknown id" before the script has run.
+  test("the placeholder promise: series with token values keep their ids; a values token alone still mints line_1", () => {
     const l = line({ x: [0, 1, 2], series: [{ name: "A", values: "{sim.a}" }, { name: "B", values: "{sim.b}" }] });
     expect(l.order).toEqual(["axes", "line_1", "line_2"]);
     expect(l.warnings).toEqual([]);
-    expect(line({ x: [0, 1, 2], values: "{sim.y}" }).order).toEqual(["axes"]);
+    const tokenOnly = line({ x: [0, 1, 2], values: "{sim.y}" });
+    expect(tokenOnly.order).toEqual(["axes", "line_1"]);
+    expect(flattenDrawables(tokenOnly.drawables).find((d) => d.id === "line_1__l")).toMatchObject({ pts: [] });
+    expect(tokenOnly.issues).toEqual([]);
   });
 
   test("caps: 6 series, 2000 points", () => {
@@ -432,6 +440,43 @@ describe("line_chart", () => {
   test("a long x_label also clears the last categorical label, no overlap lint", () => {
     const l = line({ x: ["Q1", "Q2", "Q3"], values: [1, 2, 3], x_label: "A long axis caption" });
     expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+  });
+
+  // Finding C1: the end label is drawn PAST the last point, so the plot gives
+  // up the width it needs (did_trends' convention). Before this, "Infected"
+  // at the default x1 = 930 reached 1021 — off the 1000-wide canvas, an ERROR.
+  test("a named series reserves right margin: the end label stays on the canvas", () => {
+    const l = line({ x: [0, 1], series: [{ name: "Infected", values: [1, 2] }] });
+    expect(l.issues.filter((i) => i.rule === "out-of-canvas")).toEqual([]);
+    const t = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
+    expect(t.anchor).toBe("start");
+    expect(t.pos[0] + heuristicMeasure(t.text, t.fontSize).w).toBeLessThanOrEqual(1000);
+  });
+
+  // Finding I6: the dodge resolves around the CLUSTER'S CENTRE and is capped
+  // at the y arrow's tip — four series converging near the top used to walk
+  // the topmost label to y = 759, off the 750-tall canvas.
+  test("four series converging at the top dodge symmetrically and stay under the y arrow", () => {
+    const l = line({
+      x: [0, 1],
+      series: [
+        { name: "A", values: [1, 9] },
+        { name: "B", values: [1, 9.1] },
+        { name: "C", values: [1, 9.2] },
+        { name: "D", values: [1, 9.3] },
+      ],
+    });
+    expect(l.issues.filter((i) => i.rule === "out-of-canvas")).toEqual([]);
+    const ys = ["line_1__t", "line_2__t", "line_3__t", "line_4__t"]
+      .map((id) => (flattenDrawables(l.drawables).find((d) => d.id === id) as TextDrawable).pos[1])
+      .sort((a, b) => a - b);
+    for (const y of ys) expect(y).toBeLessThanOrEqual(plot.y1 + AXIS_OVERHANG);
+    for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(44);
+  });
+
+  test("an unnamed series reserves nothing: the line still ends at plot.x1", () => {
+    const l = line({ x: [0, 1, 2], values: [1, 2, 3] });
+    expect(stroke(l, "line_1__l")!.pts[2][0]).toBeCloseTo(plot.x1, 6);
   });
 });
 

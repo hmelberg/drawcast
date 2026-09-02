@@ -17,6 +17,7 @@ import { parseNotation, type NoteToken } from "../spec/notation";
 import { parseABC, type AbcTune } from "../spec/abc";
 import { CANVAS, plotArea, type PlotArea } from "../layout/canvas";
 import { AXIS_OVERHANG, axisLabelPlacement } from "../layout/axes";
+import { heuristicMeasure } from "../layout/measure";
 import {
   COLORS,
   SKETCH_MS,
@@ -36,7 +37,7 @@ import {
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 5; // v5: COLORS.series + plotArea() (the data pack)
+export const KIT_VERSION = 5; // v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -367,6 +368,13 @@ export interface SceneKit {
   AXIS_OVERHANG: typeof AXIS_OVERHANG;
   /** The standard plot box every axes template uses (layout/canvas.ts) — the default `box` of the data templates. */
   plotArea: typeof plotArea;
+  /**
+   * How wide `text` renders at `fontSize`, by the same heuristic the lint
+   * measures with (layout/measure.ts). Use it to RESERVE room — an end label
+   * beyond the plot, a caption looking for a clear spot — instead of
+   * hard-coding the heuristic's own per-character factor in a template body.
+   */
+  textWidth(text: string, fontSize: number): number;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -1387,6 +1395,9 @@ export const kit: SceneKit = {
   SKETCH_MS,
   AXIS_OVERHANG,
   plotArea,
+  textWidth(text, fontSize) {
+    return heuristicMeasure(text, fontSize).w;
+  },
 };
 
 Object.freeze(kit);
