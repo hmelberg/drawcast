@@ -16,6 +16,8 @@ import {
 } from "../src/code/tokens";
 import { CODE_VERSION, codeCacheKey, decodeCodeResult, runCode, type CodeRunResult } from "../src/code/run";
 import { DATA_CAP_NUMBERS, DATA_CAP_ROWS, dataHarvestScript, parseHarvest } from "../src/code/harvest";
+import { resolveCode } from "../src/render/code";
+import { resolvedRenderSpec } from "../src/render/resolve";
 
 describe("data tokens — grammar", () => {
   test("parses id.var and id.var.col; rejects dotless, spaced and malformed strings", () => {
@@ -222,5 +224,103 @@ describe("code element — show: none", () => {
     expect(l.order).toContain("sim");
     expect(l.order).toContain("sim_line_1");
     expect(flattenDrawables(l.drawables).some((d) => d.id === "sim_line_1")).toBe(true);
+  });
+});
+
+/** A facade wired to a fake runner and an in-memory cache; records requests. */
+function fakeRun(result: CodeRunResult | ((req: { code: string; paths?: string[] }) => CodeRunResult)) {
+  const calls: { code: string; paths?: string[] }[] = [];
+  const store = new Map<string, string>();
+  return {
+    calls,
+    runner: async (req: { code: string; paths?: string[] }) => {
+      calls.push({ code: req.code, paths: req.paths });
+      return typeof result === "function" ? result(req) : result;
+    },
+    cacheGet: async (k: string) => store.get(k) ?? null,
+    cachePut: async (k: string, v: string) => void store.set(k, v),
+  };
+}
+
+const bridged = (show = "none"): Spec =>
+  ({
+    template: "bar_chart",
+    params: { labels: ["a", "b"], values: "{sim.frames}", title: "T", series: [{ name: "s", values: "{sim.s}" }] },
+    elements: [codeEl({ show })],
+    commands: [],
+  }) as unknown as Spec;
+
+describe("code element — resolver substitutes tokens on the clone", () => {
+  test("runs with exactly the referenced paths, sorted, and substitutes their values", async () => {
+    const deps = fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { frames: [[1, 2], [3, 4]], s: [5, 6] } });
+    const s = bridged();
+    const res = await resolveCode(s, deps);
+    expect(deps.calls).toEqual([{ code: "y = [1, 2]", paths: ["frames", "s"] }]);
+    expect(res).toEqual([{ id: "sim", ok: true, error: undefined }]);
+    expect(s.params).toEqual({ labels: ["a", "b"], values: [[1, 2], [3, 4]], title: "T", series: [{ name: "s", values: [5, 6] }] });
+  });
+
+  test("a path the harvest could not serve drops that param; the envelope keeps the reason for the layout warning", async () => {
+    const deps = fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { s: [5] }, dataErrors: { frames: "no variable frames" } });
+    const s = bridged();
+    await resolveCode(s, deps);
+    expect(s.params).toEqual({ labels: ["a", "b"], title: "T", series: [{ name: "s", values: [5] }] });
+    expect(decodeCodeResult(s.elements![0].code_result)?.dataErrors).toEqual({ frames: "no variable frames" });
+  });
+
+  test("a failed run drops every token of that element and stamps the failure", async () => {
+    const deps = fakeRun({ ok: false, stdout: "", stderr: "boom", figures: [], error: "boom" });
+    const s = bridged();
+    const res = await resolveCode(s, deps);
+    expect(res[0].ok).toBe(false);
+    expect(s.params).toEqual({ labels: ["a", "b"], title: "T", series: [{ name: "s" }] });
+  });
+
+  test("a token naming a non-code id is dropped and reported in the failures of no element (lint catches it earlier)", async () => {
+    const deps = fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: {} });
+    const s = { ...bridged(), params: { values: "{ghost.y}", title: "T" } } as unknown as Spec;
+    await resolveCode(s, deps);
+    expect(s.params).toEqual({ title: "T" });
+    expect(deps.calls).toEqual([]); // sim has no tokens and a hidden pane: skipped
+  });
+
+  test("skip rule: a hidden pane with no token never runs; a visible pane always runs; a hidden pane with a token runs", async () => {
+    for (const [show, tokens, runs] of [
+      ["none", false, 0],
+      ["code", false, 0],
+      ["output", false, 1],
+      ["split", false, 1],
+      ["none", true, 1],
+      ["code", true, 1],
+    ] as const) {
+      const deps = fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { y: [1] } });
+      const s = { template: "bar_chart", params: tokens ? { values: "{sim.y}" } : { values: [1] }, elements: [codeEl({ show })], commands: [] } as unknown as Spec;
+      const res = await resolveCode(s, deps);
+      expect(deps.calls.length, `${show} tokens=${tokens}`).toBe(runs);
+      if (runs === 0) expect(res).toEqual([{ id: "sim", ok: true, skipped: true }]);
+    }
+  });
+
+  test("a stamped envelope is reused only when it covers every requested path", async () => {
+    const stampedNoData: CodeRunResult = { ok: true, stdout: "", stderr: "", figures: [] };
+    const s = { ...bridged(), elements: [codeEl({ show: "none" }, stampedNoData)] } as unknown as Spec;
+    const deps = fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { frames: [[1]], s: [2] } });
+    await resolveCode(s, deps);
+    expect(deps.calls.length).toBe(1); // re-ran: the stamp had no data for the paths
+    await resolveCode(s, deps);
+    expect(deps.calls.length).toBe(1); // now covered: reused
+  });
+
+  test("B11 through resolvedRenderSpec: the author's params keep their tokens", async () => {
+    const doc = bridged();
+    const before = JSON.stringify(doc);
+    const copy = await resolvedRenderSpec(doc, {
+      resolvePortraits: async () => undefined,
+      resolveSources: async () => undefined,
+      resolveCode: async (c) => resolveCode(c, fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { frames: [[1, 2]], s: [3] } })),
+      contactEmail: "",
+    });
+    expect(JSON.stringify(doc)).toBe(before);
+    expect(copy.params!.values).toEqual([[1, 2]]);
   });
 });
