@@ -8664,5 +8664,81 @@
    }
   ]
  }
+},
+{
+ "request": "Compare compound growth at 2, 5 and 8 percent by adding one curve at a time to the same chart",
+ "spec": {
+  "title": "Compounding, rate by rate",
+  "elements": [
+   {
+    "id": "rates",
+    "type": "code",
+    "language": "python",
+    "show": "split",
+    "width": 900,
+    "figures": 3,
+    "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nrates = [0.02, 0.05, 0.08]\nfor stage in (1, 2, 3):\n    plt.figure()\n    for rate in rates[:stage]:\n        plt.plot(years, 100 * (1 + rate) ** years, label=f\"{rate:.0%}\")\n    plt.ylim(0, 4800)\n    plt.legend(loc=\"upper left\")"
+   }
+  ],
+  "commands": [
+   {
+    "speak": "Two, five, or eight percent — how different can fifty years really look? Let's draw the answer one rate at a time."
+   },
+   {
+    "draw": [
+     "rates",
+     "rates_line_1",
+     "rates_line_2",
+     "rates_line_3"
+    ],
+    "parallel": true,
+    "speak": "Numpy, matplotlib, and fifty years on the clock."
+   },
+   {
+    "draw": [
+     "rates_line_4",
+     "rates_line_5"
+    ],
+    "parallel": true,
+    "speak": "Three rates, and one snapshot of the chart per stage."
+   },
+   {
+    "draw": [
+     "rates_line_6",
+     "rates_line_7",
+     "rates_line_8"
+    ],
+    "parallel": true,
+    "speak": "Each stage redraws the chart with one more curve on it."
+   },
+   {
+    "draw": [
+     "rates_line_9",
+     "rates_line_10"
+    ],
+    "parallel": true,
+    "speak": "Axes held fixed and a legend — so the picture stands still while it fills."
+   },
+   {
+    "draw": [
+     "rates_fig_1"
+    ],
+    "speak": "Two percent alone: after fifty years, a hundred has not even reached three hundred."
+   },
+   {
+    "draw": [
+     "rates_fig_2"
+    ],
+    "speak": "Add five percent — same axes — and the money passes eleven hundred."
+   },
+   {
+    "draw": [
+     "rates_fig_3"
+    ],
+    "delivery": "grave",
+    "speak": "And eight percent: nearly four thousand seven hundred. Same money, same years. The rate is everything."
+   }
+  ]
+ }
 }
 ]
