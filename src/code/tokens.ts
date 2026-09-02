@@ -79,19 +79,24 @@ export interface SubstituteResult {
 export function substituteDataTokens(params: Record<string, unknown> | undefined, lookup: TokenLookup): SubstituteResult {
   const copy = (params ? JSON.parse(JSON.stringify(params)) : {}) as Record<string, unknown>;
   const failures: SubstituteResult["failures"] = [];
-  // Delete deepest-first so an index removal never shifts a path we still
-  // have to visit: tokens are scanned in document order, so reverse it.
-  const tokens = scanDataTokens(copy).reverse();
+  const tokens = scanDataTokens(copy);
+  // Two passes: first apply all successful lookups (all paths are intact), then
+  // apply all deletions (order-independent: deleting an already-deleted property
+  // is a no-op). This prevents one array element's failure from stranding a
+  // sibling that resolved successfully.
   for (const token of tokens) {
     const r = lookup(token.codeId, token.path);
     if ("value" in r) {
       setAt(copy, token.at, r.value);
-    } else {
+    }
+  }
+  for (const token of tokens) {
+    const r = lookup(token.codeId, token.path);
+    if ("error" in r) {
       deleteNearestProperty(copy, token.at);
       failures.push({ token, error: r.error });
     }
   }
-  failures.reverse();
   return { params: copy, failures };
 }
 

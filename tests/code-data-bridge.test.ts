@@ -99,6 +99,18 @@ describe("data tokens — substitute", () => {
     expect(out).toEqual({ keep: 1 });
   });
 
+  test("one array element resolves while its sibling fails → the whole array goes, no throw", () => {
+    const { params: out, failures } = substituteDataTokens({ values: ["{a.x}", "{b.y}"], keep: 1 }, (id) =>
+      id === "a" ? { value: 1 } : { error: "no such var" },
+    );
+    expect(out).toEqual({ keep: 1 });
+    expect(failures).toEqual([{ token: { codeId: "b", path: "y", at: ["values", 1] }, error: "no such var" }]);
+    const rev = substituteDataTokens({ values: ["{b.y}", "{a.x}"], keep: 1 }, (id) =>
+      id === "a" ? { value: 1 } : { error: "no such var" },
+    );
+    expect(rev.params).toEqual({ keep: 1 });
+  });
+
   test("never mutates its input", () => {
     const before = JSON.stringify(params);
     substituteDataTokens(params, () => ({ value: 1 }));
