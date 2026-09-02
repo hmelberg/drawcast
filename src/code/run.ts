@@ -15,7 +15,7 @@ import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
 // Envelope shape lives in ./envelope (dependency-free — layout imports it
 // directly from there); re-exported here so every existing
 // `from "../code/run"` import keeps working unchanged.
-export { CODE_VERSION, decodeCodeResult, type CodeFigure, type CodeRunResult } from "./envelope";
+export { CODE_VERSION, decodeCodeResult, type CodeFigure, type CodeRunResult, type CodeTable } from "./envelope";
 
 /** Pinned runtime version (openstat-verified) — part of the cache key, so a
  *  runtime upgrade misses cleanly instead of replaying stale output. */

@@ -8752,7 +8752,7 @@
     "language": "python",
     "show": "output",
     "width": 760,
-    "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"city\": [\"Oslo\", \"Bergen\", \"Trondheim\", \"Stavanger\"],\n    \"pop_k\": [717, 291, 214, 149],\n    \"rain_mm\": [763, 2250, 892, 1180],\n})\nprint(df.sort_values(\"rain_mm\", ascending=False).to_string(index=False))"
+    "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"City\": [\"Oslo\", \"Bergen\", \"Trondheim\", \"Stavanger\"],\n    \"Pop (000s)\": [717, 291, 214, 149],\n    \"Rain (mm)\": [763, 2250, 892, 1180],\n})\ndf.sort_values(\"Rain (mm)\", ascending=False)"
    }
   ],
   "commands": [

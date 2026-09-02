@@ -395,3 +395,43 @@ describe("code element — multi-figure beats", () => {
     expect(validateSpec(spec({ language: "python", code: "x", figures: 2 })).ok).toBe(true);
   });
 });
+
+describe("code element — table output", () => {
+  const TBL: CodeRunResult = {
+    ok: true,
+    stdout: "",
+    stderr: "",
+    figures: [],
+    tables: [{ columns: ["City", "Rain"], rows: [["Bergen", "2250"], ["Oslo", "763"]] }],
+  };
+
+  test("a harvested table renders header cells, data cells, and a header rule", () => {
+    const l = layoutSpec(codeSpec({ show: "output" }, TBL), heuristicMeasure);
+    const flat = flattenDrawables(l.drawables);
+    const cells = flat.filter((d) => d.id.startsWith("c1__tbl0__"));
+    const texts = cells.filter((d): d is TextDrawable => d.kind === "text").map((d) => d.text);
+    expect(texts).toContain("City");
+    expect(texts).toContain("Bergen");
+    expect(texts).toContain("2250");
+    expect(cells.some((d) => d.id === "c1__tbl0__tr1" && d.kind === "stroke")).toBe(true); // header underline
+    // table cells live inside the output group, not as their own beats
+    const ids = flat.map((d) => d.id);
+    expect(ids).not.toContain("c1_tbl_1");
+  });
+
+  test("an old cached envelope without a tables field still lays out", () => {
+    const noTables = { ok: true, stdout: "hi", stderr: "", figures: [] } as CodeRunResult;
+    const l = layoutSpec(codeSpec({}, noTables), heuristicMeasure);
+    expect(flattenDrawables(l.drawables).some((d) => d.id === "c1_out")).toBe(true);
+  });
+
+  test("a table beyond the row cap gets a 'more rows' note", () => {
+    const many: CodeRunResult = {
+      ok: true, stdout: "", stderr: "", figures: [],
+      tables: [{ columns: ["n"], rows: Array.from({ length: 40 }, (_, i) => [String(i)]), truncated: 0 }],
+    };
+    const l = layoutSpec(codeSpec({ show: "output" }, many), heuristicMeasure);
+    const texts = flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text").map((d) => d.text);
+    expect(texts.some((t) => /more rows/.test(t))).toBe(true);
+  });
+});

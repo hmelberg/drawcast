@@ -12,7 +12,7 @@
 // so a timeout returns an error envelope to the caller while the WASM finishes
 // in the background, and the next queued run still waits for it to complete.
 
-import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult } from "./run";
+import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult, type CodeTable } from "./run";
 
 const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.js`;
 const RUN_TIMEOUT_MS = 180_000;
@@ -115,7 +115,13 @@ function execWrapper(code: string): string {
     "    exec(compile(__body, '<code>', 'exec'), __g)",
     "    __result = eval(compile(__expr, '<code>', 'eval'), __g)",
     "    if __result is not None:",
-    "        print(__result)",
+    // A trailing DataFrame is drawn as a ruled TABLE (harvested below), not
+    // printed as its cramped text repr — checked by type name so a script
+    // that never imports pandas pays nothing.
+    "        if type(__result).__name__ == 'DataFrame':",
+    "            __g['__show_table'] = __result",
+    "        else:",
+    "            print(__result)",
     "elif __tree:",
     "    exec(compile(__tree, '<code>', 'exec'), __g)",
   ].join("\n");
@@ -188,6 +194,32 @@ async function renderPlotlyFigures(jsons: string[]): Promise<CodeFigure[]> {
   }
   return out;
 }
+
+/** Harvest a trailing DataFrame (stashed as __g['__show_table'] by the
+ *  wrapper) as columns + stringified rows, capped so a giant frame can't
+ *  bloat the cached envelope. Everything is stringified HERE, so layout stays
+ *  pure geometry. */
+const TABLE_CAP = 30;
+const TABLE_HARVEST = `
+import json as __json
+__tables = []
+try:
+    import pandas as __pd
+    __t = __g.get('__show_table')
+    if __t is not None:
+        __cols = [str(c) for c in __t.columns]
+        __all = [['' if __pd.isna(__x) else str(__x) for __x in __r]
+                 for __r in __t.itertuples(index=False, name=None)]
+        __cap = ${TABLE_CAP}
+        __tables.append({
+            "columns": __cols,
+            "rows": __all[:__cap],
+            "truncated": max(0, len(__all) - __cap),
+        })
+except Exception:
+    pass
+__json.dumps(__tables)
+`;
 
 /** Harvest matplotlib figures as base64 PNG + pixel dims; no-op without matplotlib. */
 const HARVEST = `
@@ -273,6 +305,15 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
       /* a failed harvest loses the plot, not the run */
     }
   }
+  let tables: CodeTable[] = [];
+  if (!error && /\b(pandas|DataFrame)\b/.test(req.code)) {
+    try {
+      const raw = await py.runPythonAsync(TABLE_HARVEST);
+      if (typeof raw === "string") tables = JSON.parse(raw) as CodeTable[];
+    } catch {
+      /* a failed table harvest loses the table, not the run */
+    }
+  }
   if (!error && /\bplotly\b/.test(req.code)) {
     try {
       const raw = await py.runPythonAsync(PLOTLY_HARVEST);
@@ -285,7 +326,7 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
       /* a failed chart render loses the chart, not the run */
     }
   }
-  return { ok: !error, stdout: stdout.replace(/\n$/, ""), stderr: stderr.replace(/\n$/, ""), figures, error };
+  return { ok: !error, stdout: stdout.replace(/\n$/, ""), stderr: stderr.replace(/\n$/, ""), figures, tables, error };
 }
 
 export function runPython(req: CodeRunRequest): Promise<CodeRunResult> {

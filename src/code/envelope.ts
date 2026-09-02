@@ -8,7 +8,7 @@
 // here, so existing `from "../code/run"` imports keep working unchanged.
 
 /** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 3;
+export const CODE_VERSION = 4;
 
 export interface CodeFigure {
   /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */
@@ -18,11 +18,22 @@ export interface CodeFigure {
   h: number;
 }
 
+/** A pandas DataFrame left as the trailing expression, drawn as a ruled grid
+ *  (all cells stringified in Python, so layout stays pure geometry). */
+export interface CodeTable {
+  columns: string[];
+  rows: string[][];
+  /** Rows beyond the harvest cap that were dropped (0 = the whole frame). */
+  truncated?: number;
+}
+
 export interface CodeRunResult {
   ok: boolean;
   stdout: string;
   stderr: string;
   figures: CodeFigure[];
+  /** DataFrames drawn as tables (absent on old cached envelopes — treat as []). */
+  tables?: CodeTable[];
   /** Set when the run itself failed (boot failure, timeout, thrown error). */
   error?: string;
   /** Set when the RUNTIME could not load or run at all (offline CDN, no

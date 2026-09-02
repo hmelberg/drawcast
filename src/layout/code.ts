@@ -22,7 +22,7 @@
 // Envelope types come from the dependency-free code/envelope module, not
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
-import { decodeCodeResult } from "../code/envelope";
+import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { CANVAS } from "./canvas";
 import {
   COLORS,
@@ -42,6 +42,8 @@ import type { SpecElement } from "../spec/types";
 const CHAR_W = 0.62;
 /** Vertical advance per wrapped row (matches drawLeaf's tspan spacing). */
 const ROW_H = 1.25;
+/** Layout's own cap on drawn table rows (the harvest already caps at 30). */
+const TABLE_MAX_ROWS = 24;
 /** Extra gap between SOURCE lines, so wrapped continuations read as one. */
 const LINE_GAP = 0.35;
 const PAD = 16;
@@ -124,6 +126,112 @@ function truncateRows(
   };
 }
 
+/** A DataFrame as a ruled grid: header row in guide color over an ink rule,
+ *  then data rows, all mono. Columns are sized to their widest cell (clamped
+ *  to the pane), rows capped to the height budget. Pure geometry — every cell
+ *  was already stringified in Python. Returns drawables + the grid's height. */
+function tableDrawables(
+  table: CodeTable,
+  idPrefix: string,
+  x0: number,
+  yTop: number,
+  paneW: number,
+  budget: number,
+  fontSize: number,
+): { drawables: Drawable[]; height: number } {
+  const cellPad = fontSize * 0.5;
+  const rowH = fontSize * 1.55;
+  const usableW = paneW - 2 * PAD;
+  const nCols = Math.max(1, table.columns.length);
+
+  // Column widths ∝ widest cell (header included), clamped to the pane.
+  const rawW = table.columns.map((c, i) => {
+    let max = c.length;
+    for (const r of table.rows) max = Math.max(max, (r[i] ?? "").length);
+    return max * fontSize * CHAR_W + 2 * cellPad;
+  });
+  const totalRaw = rawW.reduce((a, b) => a + b, 0) || 1;
+  const colW = rawW.map((wv) => (wv / totalRaw) * usableW);
+  const colX = (i: number) => x0 + PAD + colW.slice(0, i).reduce((a, b) => a + b, 0);
+
+  // Cap rows to the budget (leave the header row and one for a truncation note).
+  const headerRows = 1;
+  const maxDataRows = Math.max(1, Math.floor(budget / rowH) - headerRows);
+  const shownRows = table.rows.slice(0, maxDataRows);
+  const droppedInLayout = table.rows.length - shownRows.length;
+  const totalDropped = (table.truncated ?? 0) + droppedInLayout;
+  const nRows = headerRows + shownRows.length + (totalDropped > 0 ? 1 : 0);
+  const gridH = nRows * rowH;
+
+  const rowTop = (r: number) => yTop - r * rowH; // r=0 header top edge
+  const clip = (text: string, wv: number) => {
+    const max = Math.max(1, Math.floor((wv - 2 * cellPad) / (fontSize * CHAR_W)));
+    return text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
+  };
+  const drawables: Drawable[] = [];
+
+  // Header cells.
+  table.columns.forEach((c, i) => {
+    drawables.push({
+      id: `${idPrefix}__th${i}`,
+      kind: "text",
+      pos: [colX(i) + cellPad, rowTop(0) - rowH / 2],
+      text: clip(c, colW[i]),
+      fontSize,
+      anchor: "start",
+      font: "mono",
+      z: Z_TEXT,
+      style: resolveStyle(undefined, { color: COLORS.ink }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: SKETCH_MS.text }),
+    });
+  });
+  // Data cells.
+  shownRows.forEach((row, r) => {
+    row.forEach((cell, i) => {
+      if (i >= nCols) return;
+      drawables.push({
+        id: `${idPrefix}__td${r}_${i}`,
+        kind: "text",
+        pos: [colX(i) + cellPad, rowTop(headerRows + r) - rowH / 2],
+        text: clip(cell ?? "", colW[i]),
+        fontSize,
+        anchor: "start",
+        font: "mono",
+        z: Z_TEXT,
+        style: resolveStyle(undefined, {}),
+        drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: SKETCH_MS.text }),
+      });
+    });
+  });
+  if (totalDropped > 0) {
+    drawables.push({
+      id: `${idPrefix}__tmore`,
+      kind: "text",
+      pos: [x0 + PAD + cellPad, rowTop(nRows - 1) - rowH / 2],
+      text: `… ${totalDropped} more rows`,
+      fontSize,
+      anchor: "start",
+      font: "mono",
+      z: Z_TEXT,
+      style: resolveStyle(undefined, { color: COLORS.guide }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: SKETCH_MS.text }),
+    });
+  }
+  // Rules: the header underline in ink, the rest in guide.
+  for (let r = 1; r < nRows; r++) {
+    const yy = rowTop(r);
+    drawables.push({
+      id: `${idPrefix}__tr${r}`,
+      kind: "stroke",
+      pts: [[x0 + PAD, yy], [x0 + PAD + usableW, yy]],
+      z: Z_STROKE,
+      style: resolveStyle(undefined, { color: r === 1 ? COLORS.ink : COLORS.guide, strokeWidth: r === 1 ? 2 : 1 }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+    });
+  }
+  return { drawables, height: gridH };
+}
+
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const show = el.show ?? "output";
   const w = el.width ?? 880;
@@ -159,6 +267,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     }
   }
   const rawFigures = failed || !result ? [] : result.figures;
+  const rawTables = failed || !result ? [] : result.tables ?? [];
   const figW = outPaneW - 2 * PAD;
 
   // Multi-figure mode: several figures share ONE slot as replaceable slides
@@ -188,6 +297,15 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   let outStack: { blocks: TextBlock[]; height: number } = { blocks: [], height: 0 };
   const figHeights: number[] = [];
   const figWidths: number[] = [];
+  // Tables' height estimate (a header + capped rows), so the panel sizes to
+  // include them; the real grid is drawn in the output children below with
+  // the same row metric.
+  const tableRowH = fontSize * 1.55;
+  const tableHeights = showOut
+    ? rawTables.map((t) => (1 + Math.min(t.rows.length, TABLE_MAX_ROWS) + ((t.truncated ?? 0) > 0 ? 1 : 0)) * tableRowH)
+    : [];
+  const tablesH = tableHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0);
+
   if (showOut) {
     const fit = truncateRows(outTextLines, stdoutBudget, fontSize);
     outRows = fit.rows;
@@ -230,9 +348,13 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const outContentH = showOut
     ? Math.max(
         3 * fontSize * (1 + LINE_GAP), // placeholder floor
-        multiFig
-          ? outStack.height + (slotH > 0 ? slotH + (outStack.height > 0 ? fontSize * LINE_GAP : 0) : 0)
-          : outStack.height + figHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0),
+        outStack.height +
+          (tablesH > 0 ? tablesH + (outStack.height > 0 ? fontSize * LINE_GAP : 0) : 0) +
+          (multiFig
+            ? slotH > 0
+              ? slotH + fontSize * LINE_GAP
+              : 0
+            : figHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0)),
       )
     : 0;
 
@@ -351,8 +473,15 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         });
       });
+      // Tables sit below stdout, above figures — a ruled grid per DataFrame.
+      let contentTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
+      rawTables.forEach((t, k) => {
+        const grid = tableDrawables(t, `${el.id}__tbl${k}`, outX, yTop - PAD - contentTop, outPaneW, tableHeights[k], fontSize);
+        outChildren.push(...grid.drawables);
+        contentTop += grid.height + fontSize * LINE_GAP;
+      });
       if (!multiFig) {
-        let figTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
+        let figTop = contentTop;
         rawFigures.forEach((f, k) => {
           const fh = figHeights[k];
           const fw = figWidths[k];
