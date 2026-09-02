@@ -16,6 +16,7 @@ const KEYS = {
   courses: "drawcast.courses.v1",
   customPrompt: "drawcast.customPrompt.v1", // legacy single slot; migrated into prompts
   prompts: "drawcast.prompts.v1",
+  styles: "drawcast.styles.v1",
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
   githubToken: "drawcast.githubtoken",
@@ -65,6 +66,8 @@ export interface Settings {
   style: RenderStyle;
   /** Prompt variant name, or "custom" for the locally edited prompt. */
   variant: string;
+  /** The active style profile (B5) — null means no addendum. */
+  activeStyleId: string | null;
   mode: "narrated" | "silent" | "instant";
   speed: number;
   voiceURI: string | null;
@@ -135,6 +138,7 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   style: "clean",
   variant: "v1",
+  activeStyleId: null,
   mode: "narrated",
   speed: 1,
   voiceURI: null,
@@ -477,6 +481,36 @@ export function deleteRemotePack(url: string): void {
 }
 
 // ---- User prompt library (named compiler-prompt variants, Loop 2's UI) ----
+
+/**
+ * A style profile (B5, S §3–§4): the author's own teaching style as prose —
+ * "how it draws". It is ADDED to the compiler prompt, last, so it wins where
+ * they disagree (llm/prompt.ts styleBlock). Nothing in it can break
+ * generation, which is the whole point of splitting it from the prompt
+ * variants below. localStorage only, by ruling (S §4.1 option 1): a style
+ * is a paragraph; syncing it is a bigger machine than the thing it syncs.
+ */
+export interface StyleProfile {
+  id: string;
+  name: string;
+  text: string;
+  ts: string;
+}
+
+export function loadStyles(): StyleProfile[] {
+  return readArray<StyleProfile>(KEYS.styles);
+}
+
+/** Insert or update (by id). Newest-edited first. */
+export function saveStyle(p: StyleProfile): void {
+  const all = loadStyles().filter((x) => x.id !== p.id);
+  all.unshift(p);
+  localStorage.setItem(KEYS.styles, JSON.stringify(all));
+}
+
+export function deleteStyle(id: string): void {
+  localStorage.setItem(KEYS.styles, JSON.stringify(loadStyles().filter((x) => x.id !== id)));
+}
 
 export interface UserPrompt {
   id: string;

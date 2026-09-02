@@ -5,7 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import { ensureEnginesForTemplate } from "../scenes/engines";
@@ -85,6 +85,8 @@ export interface GenerateConfig {
   apiKey: string;
   model: string;
   variant: PromptVariant;
+  /** The author's active style profile (B5) — appended after everything, so it wins. */
+  styleText?: string;
   /** The user's own promoted references ("Learn from this"). These win the exemplar slots. */
   exemplars: Exemplar[];
   /** Curated bundled showcases, used only for the slots `exemplars` leaves empty (src/examples.json). */
@@ -227,7 +229,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     fewshots: fewshotsText(),
     exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
   });
-  let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
+  let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   let system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
   const schema = apiSchema();
   const measure = makeBrowserMeasure();
@@ -288,7 +290,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           fewshots: fewshotsText(),
           exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
         });
-        suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
+        suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
         system = systemBlocks(blocks.prefix, suffixText);
         messages.push(
           { role: "assistant", content: raw },

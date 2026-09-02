@@ -90,6 +90,7 @@ import {
   downloadJson,
   downloadBlob,
   downloadText,
+  deleteStyle,
   deleteUserPrompt,
   getApiKey,
   getGithubToken,
@@ -103,6 +104,7 @@ import {
   loadMyTemplates,
   loadRemotePacks,
   loadSettings,
+  loadStyles,
   loadUserPrompts,
   migrateLegacyCustomPrompt,
   deleteRemotePack,
@@ -110,6 +112,7 @@ import {
   saveMyTemplate,
   saveRemotePack,
   saveSettings,
+  saveStyle,
   saveUserPrompt,
   setApiKey,
   loadVendedFlags,
@@ -122,6 +125,7 @@ import {
   loadCourses,
   SETTINGS_TABS,
   type SavedDrawing,
+  type StyleProfile,
   type UserPrompt,
 } from "./store";
 import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut, signedIn } from "./google/auth";
@@ -429,6 +433,8 @@ const generateBtn = h("button", { class: "primary" }, "Generate with AI");
 // mode rather than a permanent fixture — a viewer should never see it.
 const reviewBtn = h("button", { class: "small", title: "Watch and collect notes, then apply them as one revision" }, "✎ Review");
 let review: ReviewHandle | null = null;
+/** The sidebar's prompt-editor entry — developer-gated (B6), assigned where the sidebar is built. */
+let instructionsRow: HTMLButtonElement | null = null;
 const blankBtn = h("button", { class: "sidebar-new", title: "Start a new drawcast from a minimal hand-editable spec" }, "＋ New drawcast");
 
 // ---------- version history: the ◀ ▶ arrows and the viewing bar ----------
@@ -896,6 +902,23 @@ if (migrated && settings.variant === "custom") {
 }
 
 const variantSel = h("select", { title: "The instructions the AI follows when it turns your request into a drawing" });
+
+// ---------- style (B5): the author's teaching style as prose ----------
+// A style profile is ADDED to the prompt, last, so it wins (llm/prompt.ts
+// styleBlock) — unlike the prompt variants above, nothing in it can break
+// generation, which is why it is the user-facing concept and the prompt
+// editor is a developer feature (B6). Two axes, named: Style is how it
+// draws; Templates/Packs are what it can draw (S §3).
+
+const styleProfileSel = h("select", { title: "Your standing style — added to what the AI is told, last, so it wins where they disagree" });
+const styleChoiceLabel = h("label", { class: "quiet-label" }, "Style ", styleProfileSel);
+const instrChoiceLabel = h("label", { class: "quiet-label" }, "Instructions ", variantSel);
+
+function activeStyleText(): string {
+  const id = settings.activeStyleId;
+  if (!id) return "";
+  return loadStyles().find((sp) => sp.id === id)?.text ?? "";
+}
 const promptList = h("div", { class: "library-list" });
 const promptSource = h("textarea", { class: "prompt-source", spellcheck: "false", "aria-label": "Prompt source" });
 const promptSaveBtn = h("button", { class: "small" }, "Save");
@@ -1016,7 +1039,8 @@ const genChoices = h(
   "div",
   { class: "row gen-choices", id: "gen-choices", hidden: "" },
   h("label", { class: "quiet-label" }, "Template ", templateSel),
-  h("label", { class: "quiet-label" }, "Instructions ", variantSel),
+  styleChoiceLabel,
+  instrChoiceLabel,
   h("label", { class: "quiet-label" }, "Model ", modelSel),
 );
 const choicesBtn = h("button", {
@@ -1033,8 +1057,10 @@ const choicesBtn = h("button", {
 function refreshChoicesToggle(): void {
   const tpl = templateChoice === "" ? "Auto" : templateChoice;
   const model = MODELS.find((m) => m.id === modelSel.value)?.label ?? modelSel.value;
+  const styleName = styleProfileSel.options[styleProfileSel.selectedIndex]?.textContent ?? "None";
   const prompt = variantSel.options[variantSel.selectedIndex]?.textContent ?? settings.variant;
-  choicesBtn.title = `Template: ${tpl} · Instructions: ${prompt} · Model: ${model}`;
+  const dev = settings.developerMode ? ` · Instructions: ${prompt}` : "";
+  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
 
@@ -1116,7 +1142,15 @@ const sidebar = h(
       return b;
     })(),
     (() => {
+      const b = h("button", { class: "sidebar-row" }, "🖋 Style");
+      b.addEventListener("click", () => openStyleModal());
+      return b;
+    })(),
+    (() => {
+      // The prompt editor, unchanged but now an advanced feature (B6):
+      // gated in applyDeveloperMode beside the rating and the Data panel.
       const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
+      instructionsRow = b;
       b.addEventListener("click", () => openInstructionsModal());
       return b;
     })(),
@@ -1284,6 +1318,127 @@ function newInstructionsFromActive(): void {
   instructionsTabs.show("instructions");
   copyActivePrompt();
 }
+
+// ---------- style modal (B5): list, New, Save, Delete, a textarea ----------
+// Four controls where Instructions had seven — everything that existed
+// because "your instruction IS the prompt" (Improve, Download, Upload,
+// Rename, Copy, placeholder validation) has no job when the instruction is
+// a paragraph added to the prompt (S §4's table).
+
+const styleList = h("div", { class: "library-list" });
+const styleNameInput = h("input", { type: "text", class: "style-name", "aria-label": "Style name", placeholder: "Name (e.g. My lectures)" }) as HTMLInputElement;
+const styleTextArea = h("textarea", {
+  class: "style-text",
+  rows: "6",
+  "aria-label": "Style text",
+  placeholder: "How you want your drawcasts made — e.g. “Open with a question. Keep one idea per screen. Ground examples in Norwegian data.”",
+}) as HTMLTextAreaElement;
+const styleNewBtn = h("button", { class: "small" }, "New");
+const styleSaveBtn = h("button", { class: "small" }, "Save");
+const styleDeleteBtn = h("button", { class: "small" }, "Delete");
+const styleModal = createModal("🖋 Style", { size: "m" });
+styleModal.body.append(
+  h("div", { class: "hint" }, "Your standing instructions for how drawcasts are made — added to what the AI is told, last, so they win where they disagree. The active one (●) rides on every Generate and Revise."),
+  styleList,
+  styleNameInput,
+  styleTextArea,
+  h("div", { class: "row" }, styleNewBtn, styleSaveBtn, styleDeleteBtn),
+);
+app.appendChild(styleModal.dialog);
+
+/** The profile the editor fields show — follows the active one but survives
+ *  "None" being active (you can edit a profile without using it). */
+let editingStyleId: string | null = null;
+
+function refreshStylePanel(): void {
+  const all = loadStyles();
+  if (editingStyleId && !all.some((sp) => sp.id === editingStyleId)) editingStyleId = null;
+  editingStyleId ??= settings.activeStyleId ?? all[0]?.id ?? null;
+
+  // The quick pick under Generate mirrors the modal's list.
+  styleProfileSel.replaceChildren(h("option", { value: "" }, "None"));
+  for (const sp of all) styleProfileSel.appendChild(h("option", { value: sp.id }, sp.name));
+  styleProfileSel.append(
+    h("option", { value: ACTION_NEW }, "✦ New style…"),
+    h("option", { value: ACTION_MANAGE }, "⚙ Manage styles…"),
+  );
+  styleProfileSel.value = settings.activeStyleId ?? "";
+  if (styleProfileSel.selectedIndex < 0) styleProfileSel.value = "";
+
+  styleList.replaceChildren();
+  const rows: { id: string | null; label: string }[] = [{ id: null, label: "None" }, ...all.map((sp) => ({ id: sp.id as string | null, label: sp.name }))];
+  for (const r of rows) {
+    const active = r.id === settings.activeStyleId;
+    const open = h("button", { class: `library-open${active ? " current" : ""}` }, `${active ? "● " : ""}${r.label}`);
+    open.addEventListener("click", () => {
+      settings.activeStyleId = r.id;
+      persist();
+      if (r.id) editingStyleId = r.id;
+      refreshStylePanel();
+    });
+    styleList.appendChild(h("div", { class: "library-item" }, open));
+  }
+
+  const editing = all.find((sp) => sp.id === editingStyleId);
+  styleNameInput.value = editing?.name ?? "";
+  styleTextArea.value = editing?.text ?? "";
+  styleNameInput.disabled = !editing;
+  styleTextArea.disabled = !editing;
+  styleSaveBtn.disabled = !editing;
+  styleDeleteBtn.disabled = !editing;
+  refreshChoicesToggle();
+}
+
+styleNewBtn.addEventListener("click", () => {
+  const sp: StyleProfile = { id: crypto.randomUUID(), name: "My style", text: "", ts: new Date().toISOString() };
+  saveStyle(sp);
+  // A new style is meant to be used: it becomes the active one at once.
+  settings.activeStyleId = sp.id;
+  persist();
+  editingStyleId = sp.id;
+  refreshStylePanel();
+  styleNameInput.focus();
+  styleNameInput.select();
+});
+styleSaveBtn.addEventListener("click", () => {
+  const editing = loadStyles().find((sp) => sp.id === editingStyleId);
+  if (!editing) return;
+  const name = styleNameInput.value.trim() || "My style";
+  saveStyle({ ...editing, name, text: styleTextArea.value, ts: new Date().toISOString() });
+  refreshStylePanel();
+  setStatus(`Saved "${name}".`, "ok");
+});
+styleDeleteBtn.addEventListener("click", () => {
+  const editing = loadStyles().find((sp) => sp.id === editingStyleId);
+  if (!editing) return;
+  deleteStyle(editing.id);
+  if (settings.activeStyleId === editing.id) {
+    settings.activeStyleId = null;
+    persist();
+  }
+  editingStyleId = null;
+  refreshStylePanel();
+  setStatus(`Deleted "${editing.name}".`, "ok");
+});
+
+function openStyleModal(): void {
+  refreshStylePanel();
+  styleModal.open();
+}
+
+styleProfileSel.addEventListener("change", () => {
+  const picked = styleProfileSel.value;
+  if (isActionValue(picked)) {
+    styleProfileSel.value = settings.activeStyleId ?? "";
+    if (picked === ACTION_NEW) styleNewBtn.click();
+    openStyleModal();
+    return;
+  }
+  settings.activeStyleId = picked === "" ? null : picked;
+  persist();
+  if (picked) editingStyleId = picked;
+  refreshStylePanel();
+});
 
 // ---------- data modal (developer mode only) ----------
 
@@ -1544,6 +1699,11 @@ function applyDeveloperMode(): void {
   // pane behind a hidden button.
   instructionsTabs.setHidden("references", !on);
   if (!on) instructionsTabs.show("instructions");
+  // The prompt editor is an advanced feature (B6): its sidebar row and its
+  // quick pick under Generate go with the same flag. Style replaces them as
+  // the user-facing concept (B5).
+  if (instructionsRow) instructionsRow.hidden = !on;
+  instrChoiceLabel.hidden = !on;
   document.body.classList.toggle("dev-mode", on);
 }
 developerCb.addEventListener("change", () => {
@@ -2558,6 +2718,7 @@ async function generate(): Promise<void> {
       pedagogyReview: true,
       model: settings.model,
       variant: currentVariant(),
+      styleText: activeStyleText(),
       exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
       bundledExemplars: bundledExemplarPool(),
       brief,
@@ -2626,6 +2787,7 @@ async function revise(): Promise<void> {
       apiKey,
       model: settings.model,
       variant: currentVariant(),
+      styleText: activeStyleText(),
       priorityIds: settings.priorityPacks.flatMap((p) => packTemplateIds(p)),
       signal: controller.signal,
       onProgress: ({ label, round, text }) => {
@@ -2710,6 +2872,7 @@ async function generateMulti(
       pedagogyReview: true,
       model: settings.model,
       variant: currentVariant(),
+      styleText: activeStyleText(),
       exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
       bundledExemplars: bundledExemplarPool(),
       forcedTemplate,
@@ -3081,6 +3244,7 @@ function openCourse(id?: string): void {
     apiKey: () => getApiKey(),
     model: () => settings.model,
     variant: () => currentVariant(),
+    styleText: () => activeStyleText(),
     exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
     bundledExemplars: () => bundledExemplarPool(),
     setStatus,
@@ -4304,6 +4468,7 @@ clearLogsBtn.addEventListener("click", () => {
 specArea.value = formatPlaylist(doc.playlist, "yaml");
 stack = seedStack(specArea.value, doc.prompt || doc.title);
 applyHistoryUi();
+refreshStylePanel();
 if (doc.prompt) promptEl.value = doc.prompt;
 refreshChips();
 // A freshly opened document is not an edit — mark it caught up BEFORE

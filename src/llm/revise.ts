@@ -10,7 +10,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
-import { buildSystemBlocks, stripFence, systemBlocks } from "./prompt";
+import { buildSystemBlocks, stripFence, styleBlock, systemBlocks } from "./prompt";
 import { validateSpec } from "../spec/schema";
 import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
@@ -77,6 +77,8 @@ export interface ReviseConfig {
   model: string;
   /** The active compiler prompt — the same one Generate uses, so the cached prefix is reused. */
   variant: PromptVariant;
+  /** The author's active style profile (B5) — appended after everything, so it wins. */
+  styleText?: string;
   /** Priority packs from settings; templates in the document are added automatically. */
   priorityIds?: string[];
   maxRepairs?: number;
@@ -143,7 +145,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     fewshots: fewshotsText(),
     exemplars: "",
   });
-  const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
+  const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   // systemBlocks drops a whitespace-only tail. Passing no exemplars leaves the
   // suffix as just the newline after {{EXEMPLARS}}, which the API rejects.
   const system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);

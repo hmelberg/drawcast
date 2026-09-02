@@ -595,6 +595,10 @@ textarea.spec-json { min-height: 260px; }
 /* The instructions source is the longest text in the app — give it room. */
 textarea.prompt-source { min-height: 17rem; }
 
+/* Style modal (B5): a name and a paragraph — prose fields, not code. */
+.style-name { width: 100%; margin-top: 0.7rem; }
+.style-text { min-height: 7rem; margin-top: 0.4rem; }
+
 .library-list { margin-top: 0.7rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .library-item { display: flex; align-items: center; gap: 0.4rem; }
 .library-open {

@@ -58,6 +58,29 @@ export function systemBlocks(prefix: string, suffix: string): { type: "text"; te
 /** The placeholders every compiler prompt must carry; filled in at generation time. */
 export const PROMPT_PLACEHOLDERS = ["{{SCHEMA}}", "{{CATALOG}}", "{{FEWSHOTS}}", "{{EXEMPLARS}}"] as const;
 
+/**
+ * The author's style profile as a prompt block (B5, S §4): ADDED to the
+ * prompt rather than replacing it, and appended LAST — after every rule of
+ * ours — so it wins where they disagree. Appended to the request suffix by
+ * the callers (compile.ts, revise.ts) instead of living as a placeholder in
+ * the prompt source: user-made prompt forks predate the concept and would
+ * silently drop a placeholder, while an append can never be skipped.
+ * Empty or missing style → empty string, so callers concatenate unconditionally.
+ */
+export function styleBlock(text: string | undefined): string {
+  const t = text?.trim();
+  if (!t) return "";
+  return [
+    "\n\n## The author's own style",
+    "",
+    "The author added these standing instructions for how THEY want their",
+    "drawcasts made. They extend everything above, and where they disagree",
+    "with anything above, the author's instructions win:",
+    "",
+    t,
+  ].join("\n");
+}
+
 /** Placeholders absent from a prompt source. {{SCHEMA}} missing = broken; others = degraded. */
 export function missingPlaceholders(source: string): string[] {
   return PROMPT_PLACEHOLDERS.filter((p) => !source.includes(p));

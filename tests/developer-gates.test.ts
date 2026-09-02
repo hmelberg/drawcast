@@ -21,6 +21,12 @@ describe("developerMode gates (S §6 + review amendment)", () => {
     expect(fn).toMatch(/instructionsTabs\.show\(\s*["']instructions["']\s*\)/);
   });
 
+  it("the prompt editor's sidebar row and quick pick are developer features (B6)", () => {
+    const fn = /function applyDeveloperMode\(\):\s*void\s*\{([\s\S]*?)\n\}/.exec(main)?.[1] ?? "";
+    expect(fn).toMatch(/instructionsRow\.hidden = !on/);
+    expect(fn).toMatch(/instrChoiceLabel\.hidden = !on/);
+  });
+
   it("createTabs exposes a setHidden method on its Tabs interface", () => {
     expect(modal).toMatch(/setHidden\(id: string, hidden: boolean\): void;/);
     const impl = /export function createTabs\(tabs: TabSpec\[\]\): Tabs \{([\s\S]*?)\n\}/.exec(modal)?.[1] ?? "";

@@ -58,6 +58,8 @@ export interface CoursePanelDeps extends CourseShareDeps {
   apiKey: () => string;
   model: () => string;
   variant: () => PromptVariant;
+  /** The author's active style profile (B5) — rides along on every course generation too. */
+  styleText: () => string;
   exemplars: () => Exemplar[];
   bundledExemplars: () => Exemplar[];
   setStatus: (text: string, kind?: "ok" | "error") => void;
@@ -336,6 +338,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           apiKey: key,
           model: deps.model(),
           variant: deps.variant(),
+          styleText: deps.styleText(),
           signal: controller.signal,
         }),
       );
@@ -371,6 +374,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       pedagogyReview: true,
       model: deps.model(),
       variant: deps.variant(),
+      styleText: deps.styleText(),
       exemplars: deps.exemplars(),
       bundledExemplars: deps.bundledExemplars(),
       signal,

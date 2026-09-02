@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { buildSystemPrompt, missingPlaceholders, selectExemplars, stripFence } from "../src/llm/prompt";
+import { buildSystemPrompt, missingPlaceholders, selectExemplars, stripFence, styleBlock } from "../src/llm/prompt";
 
 const compilerV1 = readFileSync(new URL("../src/llm/prompts/compiler-v1.md", import.meta.url), "utf8");
 
@@ -89,5 +89,29 @@ describe("selectExemplars", () => {
   test("ignores exemplars with no overlap at all", () => {
     const picked = selectExemplars("xylophone quantum zebra", pool, 3);
     expect(picked).toEqual([]);
+  });
+});
+
+describe("styleBlock — the author's style is added last, so it wins (B5, S §4)", () => {
+  test("empty, missing and whitespace styles produce nothing", () => {
+    expect(styleBlock(undefined)).toBe("");
+    expect(styleBlock("")).toBe("");
+    expect(styleBlock("   \n ")).toBe("");
+  });
+
+  test("a real style becomes a block that declares the author wins", () => {
+    const b = styleBlock("Open with a question.");
+    expect(b).toContain("Open with a question.");
+    expect(b).toContain("the author's instructions win");
+    expect(b.startsWith("\n\n## ")).toBe(true); // appended, never replacing
+  });
+
+  test("compile and revise both append it to the request suffix", () => {
+    // An append can never be skipped — a user-made prompt fork predating the
+    // concept would silently drop a placeholder. These pin the seam.
+    const compile = readFileSync(new URL("../src/llm/compile.ts", import.meta.url), "utf8");
+    const revise = readFileSync(new URL("../src/llm/revise.ts", import.meta.url), "utf8");
+    expect(compile.match(/suffixText = [^;]*styleBlock\(cfg\.styleText\)/g)?.length).toBe(2);
+    expect(revise.match(/suffixText = [^;]*styleBlock\(cfg\.styleText\)/g)?.length).toBe(1);
   });
 });
