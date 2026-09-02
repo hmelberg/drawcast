@@ -18,6 +18,7 @@ import { CODE_VERSION, codeCacheKey, decodeCodeResult, runCode, type CodeRunResu
 import { DATA_CAP_NUMBERS, DATA_CAP_ROWS, dataHarvestScript, parseHarvest } from "../src/code/harvest";
 import { resolveCode } from "../src/render/code";
 import { resolvedRenderSpec } from "../src/render/resolve";
+import { lintCommands } from "../src/lint/lint";
 
 describe("data tokens — grammar", () => {
   test("parses id.var and id.var.col; rejects dotless, spaced and malformed strings", () => {
@@ -335,5 +336,38 @@ describe("code element — resolver substitutes tokens on the clone", () => {
     });
     expect(JSON.stringify(doc)).toBe(before);
     expect(copy.params!.values).toEqual([[1, 2]]);
+  });
+});
+
+describe("data tokens — static lint", () => {
+  const withParams = (params: object, els: object[] = [codeEl({ show: "none" })]) =>
+    validateSpec({ template: "bar_chart", params, elements: els, commands: [] });
+
+  test("a token must name a code element in this drawcast", () => {
+    expect(withParams({ values: "{sim.y}" }).ok).toBe(true);
+    const r = withParams({ values: "{ghost.y}" });
+    expect(r.ok).toBe(false);
+    expect(r.errors[0]).toContain('"{ghost.y}"');
+    expect(r.errors[0]).toContain("params.values");
+  });
+
+  test("a token naming a non-code element is an error", () => {
+    const r = withParams({ values: "{ax.y}" }, [{ id: "ax", type: "axes" }, codeEl({ show: "none" })]);
+    expect(r.ok).toBe(false);
+    expect(r.errors[0]).toContain('"ax" is not a code element');
+  });
+
+  test("a malformed token is named; prose with braces and dots is not", () => {
+    const r = withParams({ values: "{sim.}" });
+    expect(r.ok).toBe(false);
+    expect(r.errors[0]).toContain("{sim.}");
+    expect(withParams({ title: "Growth {is}. Not a token" }).ok).toBe(true);
+  });
+
+  test("lint warns about a data source nothing references", () => {
+    const unused = { template: "bar_chart", params: { values: [1] }, elements: [codeEl({ show: "none" })], commands: [] } as unknown as Spec;
+    expect(lintCommands(unused).some((i) => i.rule === "code-use" && i.message.includes("show: none") && i.ids.includes("sim"))).toBe(true);
+    const used = { ...unused, params: { values: "{sim.y}" } } as unknown as Spec;
+    expect(lintCommands(used).some((i) => i.message.includes("show: none"))).toBe(false);
   });
 });

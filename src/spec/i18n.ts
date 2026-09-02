@@ -9,6 +9,7 @@
 // rewrite the user's library instead of the copy bound for a video.
 
 import type { AskArgs, Command, QuizArgs, Spec, SpecElement } from "./types";
+import { isDataToken } from "../code/tokens";
 
 /** A string worth translating, with the job it does — a label must stay short. */
 export interface Translatable {
@@ -61,7 +62,7 @@ function rewriteParams(value: unknown, schema: Schema, key: string, role: string
     }
     return out;
   }
-  if (str(value) && paramIsText(schema, key)) return rewrite(value, role);
+  if (str(value) && paramIsText(schema, key) && !isDataToken(value)) return rewrite(value, role);
   return value;
 }
 

@@ -11,6 +11,7 @@ import type { Command, Spec, SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
 import { notationBeats } from "./notation";
 import { parseABC } from "./abc";
+import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -782,6 +783,25 @@ function semanticErrors(spec: Spec): string[] {
     seen.add(el.id);
     errors.push(...elementErrors(el));
   }
+
+  // Data tokens ("{sim.y}") must name a CODE element of this drawcast. A
+  // brace+dot string that fails the grammar is a typo worth naming; anything
+  // else with braces is prose.
+  const codeIds = new Set((spec.elements ?? []).filter((e) => e.type === "code").map((e) => e.id));
+  const allIds = new Set((spec.elements ?? []).map((e) => e.id));
+  for (const t of scanDataTokens(spec.params)) {
+    const where = `params.${t.at.join(".")}`;
+    if (codeIds.has(t.codeId)) continue;
+    if (allIds.has(t.codeId)) errors.push(`${where}: "{${t.codeId}.${t.path}}" — "${t.codeId}" is not a code element (only a code element's variables can feed params)`);
+    else errors.push(`${where}: "{${t.codeId}.${t.path}}" references "${t.codeId}", which is not a code element in this drawcast`);
+  }
+  const walkMalformed = (v: unknown, at: string): void => {
+    if (typeof v === "string") {
+      if (MALFORMED_TOKEN_RE.test(v) && !DATA_TOKEN_RE.test(v)) errors.push(`${at}: "${v}" looks like a data token but is malformed — use "{codeId.variable}" (letters, digits, underscores, dots)`);
+    } else if (Array.isArray(v)) v.forEach((x, i) => walkMalformed(x, `${at}.${i}`));
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v as Record<string, unknown>)) walkMalformed(x, `${at}.${k}`);
+  };
+  walkMalformed(spec.params, "params");
 
   return errors;
 }

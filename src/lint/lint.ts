@@ -8,6 +8,7 @@ import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox } from "../l
 import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
+import { scanDataTokens } from "../code/tokens";
 
 export const FONT_FLOOR = 14;
 const CANVAS_TOLERANCE = 2;
@@ -213,6 +214,7 @@ function lintCode(spec: Spec): LintIssue[] {
   const els = (spec.elements ?? []).filter((e) => e.type === "code");
   if (els.length === 0) return [];
   const issues: LintIssue[] = [];
+  const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {
     const lines = (el.code ?? "").split("\n").filter((l) => l.trim() !== "").length;
     if (lines > 22) {
@@ -228,6 +230,14 @@ function lintCode(spec: Spec): LintIssue[] {
         rule: "code-use",
         ids: [el.id],
         message: `code "${el.id}" uses split view at width ${el.width} — too narrow for two readable panes; use width ≥ 700 or show: "output"`,
+        severity: "warn",
+      });
+    }
+    if (el.show === "none" && !referenced.has(el.id)) {
+      issues.push({
+        rule: "code-use",
+        ids: [el.id],
+        message: `code "${el.id}" is show: none but no param references it — it draws nothing and feeds nothing; reference it as "{${el.id}.<variable>}" or show its output`,
         severity: "warn",
       });
     }

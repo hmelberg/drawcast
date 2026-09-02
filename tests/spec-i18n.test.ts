@@ -208,3 +208,13 @@ describe("every bundled drawcast survives being translated", () => {
     }
   });
 });
+
+describe("data tokens are never text", () => {
+  test("a \"{sim.y}\" param is neither offered to the translator nor rewritten", () => {
+    const schema = { type: "object", properties: { labels: { type: "array", items: { type: "string" } }, title: { type: "string" } } };
+    const s: Spec = { template: "bar_chart", params: { labels: "{sim.df.country}", title: "GDP" }, elements: [], commands: [] };
+    expect(translatableStrings(s, schema).map((t) => t.text)).toEqual(["GDP"]);
+    const out = applyTranslations(s, { "{sim.df.country}": "BROKEN", GDP: "BNP" }, schema);
+    expect(out.params).toEqual({ labels: "{sim.df.country}", title: "BNP" });
+  });
+});
