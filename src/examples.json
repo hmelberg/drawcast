@@ -8478,8 +8478,7 @@
      "language": "python",
      "show": "split",
      "width": 900,
-     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\nplt.hist(x, bins=20)",
-     "code_result": "{\"ok\": true, \"stdout\": \"mean: 0.034\", \"stderr\": \"\", \"figures\": []}"
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\nplt.hist(x, bins=20)"
     }
    ],
    "commands": [
