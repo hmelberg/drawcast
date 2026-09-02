@@ -197,6 +197,11 @@ const elementSchema = {
       description:
         "code: panel layout — output (just the result; the default), split (code pane left, output pane right; give the element width ≥ 700), code (the script alone).",
     },
+    figures: {
+      type: "number",
+      description:
+        "code: how many separate figures the script produces (2 or more; omit for none or one). Each plt.figure() stage becomes its own drawable `<id>_fig_1` … `<id>_fig_K`, ALL SHARING ONE FRAME — drawing the next replaces the previous, so a parameter change or a chart built stage by stage plays as narrated beats. Keep xlim/ylim FIXED across stages so the swap reads as the chart itself changing.",
+    },
     code_result: {
       type: "string",
       description: "code: machine-written execution result (copy VERBATIM if present; never write, edit, or invent it).",
@@ -834,6 +839,9 @@ function elementErrors(el: SpecElement): string[] {
     case "code":
       need(el.language === "python" || el.language === "r", 'needs language: "python" or "r"');
       need(typeof el.code === "string" && el.code.trim() !== "", "needs code (the script)");
+      if (el.figures !== undefined) {
+        need(Number.isInteger(el.figures) && el.figures >= 2, "figures must be an integer >= 2 (omit it for none or one figure)");
+      }
       break;
     default:
       break;

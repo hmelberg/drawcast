@@ -8509,5 +8509,160 @@
     }
    ]
   }
+ },
+{
+ "request": "Flip a fair coin 500 times in Python and just show the share of heads",
+ "spec": {
+  "title": "Is the coin fair?",
+  "elements": [
+   {
+    "id": "flips",
+    "type": "code",
+    "language": "python",
+    "show": "output",
+    "width": 700,
+    "code": "import numpy as np\nrng = np.random.default_rng(11)\nflips = rng.integers(0, 2, size=500)\nprint(\"heads:\", flips.sum(), \"of\", flips.size)\nprint(\"share:\", round(flips.mean(), 3))"
+   }
+  ],
+  "commands": [
+   {
+    "speak": "Five hundred real coin flips are about to happen — right here, in your browser."
+   },
+   {
+    "draw": [
+     "flips"
+    ],
+    "speak": "No animation of a formula. The code runs for real; we only read off what it says."
+   },
+   {
+    "draw": [
+     "flips_out"
+    ],
+    "delivery": "grave",
+    "speak": "Close to half heads — but not exactly half. That little gap is what randomness looks like."
+   }
+  ]
  }
+},
+{
+ "request": "Show compound growth of 100 at 2 percent versus 7 percent over 50 years, stepping through the Python code",
+ "spec": {
+  "title": "The miracle of compounding",
+  "elements": [
+   {
+    "id": "comp",
+    "type": "code",
+    "language": "python",
+    "show": "split",
+    "width": 900,
+    "figures": 2,
+    "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nfor rate in (0.02, 0.07):\n    plt.figure()\n    plt.plot(years, 100 * (1 + rate) ** years)\n    plt.ylim(0, 3200)\nprint(\"2% for 50 years:\", round(100 * 1.02 ** 50))\nprint(\"7% for 50 years:\", round(100 * 1.07 ** 50))"
+   }
+  ],
+  "commands": [
+   {
+    "speak": "Does the interest rate really matter that much? Let's compute it instead of asserting it."
+   },
+   {
+    "draw": [
+     "comp",
+     "comp_line_1",
+     "comp_line_2",
+     "comp_line_3"
+    ],
+    "parallel": true,
+    "speak": "Numpy, matplotlib, and fifty years on the clock."
+   },
+   {
+    "draw": [
+     "comp_line_4",
+     "comp_line_5",
+     "comp_line_6",
+     "comp_line_7"
+    ],
+    "parallel": true,
+    "speak": "One loop, two worlds: the same hundred at two percent and at seven."
+   },
+   {
+    "draw": [
+     "comp_line_8",
+     "comp_line_9"
+    ],
+    "parallel": true,
+    "speak": "And the totals, printed."
+   },
+   {
+    "draw": [
+     "comp_out"
+    ],
+    "speak": "Two percent turns one hundred into two hundred and sixty-nine."
+   },
+   {
+    "draw": [
+     "comp_fig_1"
+    ],
+    "speak": "Here is that half-century at two percent — it looks almost like a straight line."
+   },
+   {
+    "erase": [
+     "comp_fig_1"
+    ]
+   },
+   {
+    "draw": [
+     "comp_fig_2"
+    ],
+    "delivery": "grave",
+    "speak": "Same axes, seven percent: nearly three thousand. That bend is compounding."
+   }
+  ]
+ }
+},
+{
+ "request": "Build a bar chart live in Python: how many primes there are below 10, 20, 30, 40 and 50, adding the bars as you go",
+ "spec": {
+  "title": "The primes thin out",
+  "elements": [
+   {
+    "id": "pcount",
+    "type": "code",
+    "language": "python",
+    "show": "output",
+    "width": 760,
+    "figures": 3,
+    "code": "import matplotlib.pyplot as plt\nlimits = [10, 20, 30, 40, 50]\nprimes = [4, 8, 10, 12, 15]\nfor n in (2, 4, 5):\n    plt.figure()\n    plt.bar([str(l) for l in limits[:n]], primes[:n])\n    plt.xlim(-0.6, 4.6)\n    plt.ylim(0, 16)"
+   }
+  ],
+  "commands": [
+   {
+    "speak": "How fast do the primes thin out? Let's build the chart bar by bar and watch."
+   },
+   {
+    "draw": [
+     "pcount"
+    ],
+    "speak": "The chart comes from the script itself — the axes already leave room for what is coming."
+   },
+   {
+    "draw": [
+     "pcount_fig_1"
+    ],
+    "speak": "Four primes below ten. Eight below twenty — doubling, so far."
+   },
+   {
+    "draw": [
+     "pcount_fig_2"
+    ],
+    "speak": "But the next two decades add only two primes each."
+   },
+   {
+    "draw": [
+     "pcount_fig_3"
+    ],
+    "delivery": "grave",
+    "speak": "Fifteen below fifty. Still growing — but ever more slowly. The primes are thinning out."
+   }
+  ]
+ }
+}
 ]

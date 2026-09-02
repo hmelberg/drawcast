@@ -9,6 +9,15 @@
 //   <id>_out       — the whole output pane. ALWAYS present, like a source's
 //                    promised _quote: an unresolved run keeps the beat and
 //                    draws ruled placeholder lines instead of nothing.
+//   <id>_fig_1..K  — multi-figure mode (el.figures >= 2, or a run that
+//                    produced several figures): each figure is its own beat,
+//                    all sharing ONE slot in the output pane — slides in a
+//                    frame. Drawing the next covers the previous (later
+//                    drawables paint on top), erase plays an exit; with the
+//                    axes limits held fixed across stages the swap reads as
+//                    the chart itself changing. Declared but unresolved
+//                    figures are empty-stroke promises (the quote pattern),
+//                    so storyboard beats survive node tests and offline.
 
 // Envelope types come from the dependency-free code/envelope module, not
 // code/run — layout is a pure geometry layer and must never transitively
@@ -152,6 +161,19 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const rawFigures = failed || !result ? [] : result.figures;
   const figW = outPaneW - 2 * PAD;
 
+  // Multi-figure mode: several figures share ONE slot as replaceable slides
+  // (<id>_fig_N beats). Entered by declaration (el.figures — the promise that
+  // keeps beats alive before the script has run) or by a run that actually
+  // produced several figures.
+  const declaredFigs = typeof el.figures === "number" && el.figures >= 2 ? Math.floor(el.figures) : 0;
+  const multiFig = declaredFigs >= 2 || rawFigures.length >= 2;
+  const figCount = multiFig ? Math.max(declaredFigs, rawFigures.length) : rawFigures.length;
+  if (result && declaredFigs >= 2 && rawFigures.length !== declaredFigs && !failed) {
+    ctx.warnings.push(
+      `code "${el.id}": figures declares ${declaredFigs} but the script produced ${rawFigures.length} — beats for the missing ones stay empty`,
+    );
+  }
+
   // ---- clamp output content to the canvas ----------------------------------
   // A chatty stdout (an unsuppressed plot-call echo, say) or one full-width
   // figure used to grow the panel unbounded, pushing its TOP — the code
@@ -172,25 +194,45 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     if (fit.dropped > 0) truncated = true;
     outStack = stackLines(outRows.map((l) => [l.text]), fontSize);
 
-    // Figures share whatever is left after stdout, top to bottom; each is
-    // scaled down (preserving aspect, so its width shrinks too) to fit the
-    // space actually left for it — a figure never renders taller than that.
-    let remaining = Math.max(0, outBudget - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0));
-    rawFigures.forEach((f, i) => {
-      const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
-      const gapBefore = i > 0 || outStack.height > 0 ? fontSize * LINE_GAP : 0;
-      const avail = Math.max(0, remaining - gapBefore);
-      const fh = Math.min(naturalH, avail);
-      if (fh < naturalH) truncated = true;
-      figHeights.push(fh);
-      figWidths.push(f.h > 0 ? fh * (f.w / f.h) : figW);
-      remaining = Math.max(0, remaining - gapBefore - fh);
-    });
+    if (multiFig) {
+      // One shared slot: every figure is fitted into the SAME space after the
+      // stdout block (preserving aspect), because they are slides meant to
+      // replace one another, not a stack meant to coexist.
+      const slotAvail = Math.max(
+        0,
+        outBudget - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0),
+      );
+      rawFigures.forEach((f) => {
+        const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
+        const fh = Math.min(naturalH, slotAvail);
+        if (fh < naturalH) truncated = true;
+        figHeights.push(fh);
+        figWidths.push(f.h > 0 ? fh * (f.w / f.h) : figW);
+      });
+    } else {
+      // Figures share whatever is left after stdout, top to bottom; each is
+      // scaled down (preserving aspect, so its width shrinks too) to fit the
+      // space actually left for it — a figure never renders taller than that.
+      let remaining = Math.max(0, outBudget - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0));
+      rawFigures.forEach((f, i) => {
+        const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
+        const gapBefore = i > 0 || outStack.height > 0 ? fontSize * LINE_GAP : 0;
+        const avail = Math.max(0, remaining - gapBefore);
+        const fh = Math.min(naturalH, avail);
+        if (fh < naturalH) truncated = true;
+        figHeights.push(fh);
+        figWidths.push(f.h > 0 ? fh * (f.w / f.h) : figW);
+        remaining = Math.max(0, remaining - gapBefore - fh);
+      });
+    }
   }
+  const slotH = multiFig ? figHeights.reduce((a, b) => Math.max(a, b), 0) : 0;
   const outContentH = showOut
     ? Math.max(
         3 * fontSize * (1 + LINE_GAP), // placeholder floor
-        outStack.height + figHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0),
+        multiFig
+          ? outStack.height + (slotH > 0 ? slotH + (outStack.height > 0 ? fontSize * LINE_GAP : 0) : 0)
+          : outStack.height + figHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0),
       )
     : 0;
 
@@ -309,30 +351,72 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         });
       });
-      let figTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
-      rawFigures.forEach((f, k) => {
-        const fh = figHeights[k];
-        const fw = figWidths[k];
-        outChildren.push({
-          id: `${el.id}__fig${k}`,
-          kind: "image",
-          href: f.href,
-          pos: [outX + PAD + figW / 2, yTop - PAD - figTop - fh / 2],
-          w: fw,
-          h: fh,
-          z: Z_STROKE,
-          style: resolveStyle(undefined, {}),
-          reveal: el.reveal ?? "fade",
-          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+      if (!multiFig) {
+        let figTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
+        rawFigures.forEach((f, k) => {
+          const fh = figHeights[k];
+          const fw = figWidths[k];
+          outChildren.push({
+            id: `${el.id}__fig${k}`,
+            kind: "image",
+            href: f.href,
+            pos: [outX + PAD + figW / 2, yTop - PAD - figTop - fh / 2],
+            w: fw,
+            h: fh,
+            z: Z_STROKE,
+            style: resolveStyle(undefined, {}),
+            reveal: el.reveal ?? "fade",
+            drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+          });
+          figTop += fh + fontSize * LINE_GAP;
         });
-        figTop += fh + fontSize * LINE_GAP;
-      });
+      }
     }
   }
   const outId = `${el.id}_out`;
   ctx.extraOrder.push(outId);
   ctx.anchors[outId] = [outX + outPaneW / 2, cy];
   out.push({ id: outId, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children: outChildren });
+
+  // ---- multi-figure beats: slides sharing one slot -------------------------
+  // Top-level (never children of <id>_out) so each is its own storyboard
+  // beat; minted in order, so a later slide paints OVER an earlier one — a
+  // plain draw replaces, an erase-first plays the exit too. When the run has
+  // not happened (node tests, offline) declared beats are empty-stroke
+  // promises, the source element's _quote idiom.
+  if (multiFig) {
+    const slotTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
+    const slotCenter: Pt = [outX + PAD + figW / 2, yTop - PAD - slotTop - slotH / 2];
+    for (let k = 0; k < figCount; k++) {
+      const id = `${el.id}_fig_${k + 1}`;
+      ctx.extraOrder.push(id);
+      ctx.anchors[id] = slotCenter;
+      const f = showOut ? rawFigures[k] : undefined;
+      if (f) {
+        out.push({
+          id,
+          kind: "image",
+          href: f.href,
+          pos: slotCenter,
+          w: figWidths[k],
+          h: figHeights[k],
+          z: Z_STROKE,
+          style: resolveStyle(undefined, {}),
+          reveal: el.reveal ?? "fade",
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+        });
+      } else {
+        out.push({
+          id,
+          kind: "stroke",
+          pts: [],
+          z: Z_STROKE,
+          style: resolveStyle(el.style, {}),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 600 }),
+        });
+      }
+    }
+  }
 
   return out;
 }

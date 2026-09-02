@@ -351,3 +351,47 @@ describe("code element — generation-time execution check", () => {
     expect(out.errors[0]).toContain('"b"');
   });
 });
+
+describe("code element — multi-figure beats", () => {
+  const TWO: CodeRunResult = {
+    ok: true,
+    stdout: "",
+    stderr: "",
+    figures: [
+      { href: "data:image/png;base64,AA", w: 640, h: 480 },
+      { href: "data:image/png;base64,BB", w: 640, h: 480 },
+    ],
+  };
+
+  test("a run with several figures mints <id>_fig_N beats sharing one slot", () => {
+    const l = layoutSpec(codeSpec({ show: "output", figures: 2 }, TWO), heuristicMeasure);
+    const flat = flattenDrawables(l.drawables);
+    const f1 = flat.find((d) => d.id === "c1_fig_1") as ImageDrawable;
+    const f2 = flat.find((d) => d.id === "c1_fig_2") as ImageDrawable;
+    expect(f1.kind).toBe("image");
+    expect(f2.href).toBe("data:image/png;base64,BB");
+    expect(f1.pos).toEqual(f2.pos); // one shared slot — slides, not a stack
+    const out = flat.find((d) => d.id === "c1_out")!;
+    expect(flattenDrawables([out]).some((d) => d.id.includes("_fig_") || d.id.includes("__fig"))).toBe(false);
+  });
+
+  test("declared figures promise beats before the script has run", () => {
+    const l = layoutSpec(codeSpec({ figures: 3 }), heuristicMeasure);
+    const ids = flattenDrawables(l.drawables).map((d) => d.id);
+    expect(ids).toContain("c1_fig_1");
+    expect(ids).toContain("c1_fig_3");
+  });
+
+  test("a single undeclared figure stays inside <id>_out (back-compat)", () => {
+    const l = layoutSpec(codeSpec({}, OK), heuristicMeasure);
+    const ids = flattenDrawables(l.drawables).map((d) => d.id);
+    expect(ids).not.toContain("c1_fig_1");
+    expect(ids).toContain("c1__fig0");
+  });
+
+  test("figures must be an integer >= 2", () => {
+    expect(validateSpec(spec({ language: "python", code: "x", figures: 1 })).ok).toBe(false);
+    expect(validateSpec(spec({ language: "python", code: "x", figures: 2.5 })).ok).toBe(false);
+    expect(validateSpec(spec({ language: "python", code: "x", figures: 2 })).ok).toBe(true);
+  });
+});

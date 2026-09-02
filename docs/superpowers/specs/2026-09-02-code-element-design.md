@@ -59,6 +59,7 @@ New element fields on the flat `SpecElement`:
 | `language` | `"python" \| "r"` | required; future tiers (`brython`, `micropython`) slot in behind the same interface |
 | `code` | `string` | required; the script, newline-separated |
 | `show` | `"output" \| "split" \| "code"` | default `"output"`; `split` = code pane left, output pane right |
+| `figures` | number | optional, ≥ 2: the script produces K figures (one `plt.figure()` per stage); each becomes its own beat `<id>_fig_N`, all sharing ONE slot — slides in a frame, so drawing the next replaces the previous (parameter swaps, charts built stage by stage). Declared so the beats exist before the script has run (the `_quote` promise idiom). |
 | `x`, `y`, `width` | number | usual logical geometry; default large and centered (≈ `x:500, y:400, width:880`); height computed from content |
 | `font_size` | number | optional, code text size |
 
@@ -66,6 +67,9 @@ Sub-drawable ids, addressable by every visibility verb:
 
 - `<id>_line_1 … <id>_line_n` — one per code line (only when code is shown)
 - `<id>_out` — the whole output group (stdout text + figures)
+- `<id>_fig_1 … <id>_fig_K` — multi-figure mode only (`figures` ≥ 2, or a run
+  that produced several): replaceable slides sharing one slot (added 2026-09-02
+  after M1, Hans's parameter-swap/stepwise-bars request)
 - v2: `<id>_out_1 … <id>_out_k` per top-level block
 
 No new command verbs. Line-by-line stepping is ordinary storyboard:
