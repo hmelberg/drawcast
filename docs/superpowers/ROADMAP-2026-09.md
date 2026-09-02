@@ -36,15 +36,15 @@ Sources:
 | B1 ✅ | Publish shows destinations the author *can* enable, disabled with a reason | P §0.1 | why "Publish to GitHub" seemed missing |
 | B2 ✅ | **Embed images** + **Embed narration** as checkboxes on the published copy | P §3 | must resolve on a **copy** — `exportSequence` hands out the document's own objects; **Publish + courses only** (ruling §F.3 narrows P §3.5's table — no embed on any Save) |
 | B3 ✅ | Editable name field on each save/publish panel | P §8.2 | |
-| B4 | One stable sources index, **before** any per-save folder | P §8.3 | reversed order scatters sources and Open sees one folder |
-| B5 | Instructions → **Style**: an addendum, not the whole prompt; New/Save/Delete | S §4 | deletes improve/download/upload/rename by construction |
-| B6 | Prompt editor moves behind `developerMode`, unchanged | S §5 | |
-| B7 | One `Generate`/`Revise` button, state-determined | R | see §D3 |
-| B8 | Startup state | R | see §D4 |
+| B4 ⚖ | One stable sources index, **before** any per-save folder | P §8.3 | RULED 2026-09-02 per review F.1(1): per-save folders are DROPPED (highest harm, lowest miss), the single Settings folder stays — so nothing needs to precede anything. Buildable if Hans reverses |
+| B5 ✅ | Instructions → **Style**: an addendum, not the whole prompt; New/Save/Delete | S §4 | delivered 2026-09-02: StyleProfile {id,name,text} in localStorage (⚖ S §4.1 opt 1), styleBlock() APPENDED to the request suffix (a user prompt fork can't drop a placeholder it never had) so the author wins; rides Generate/Revise/multi/courses; ⚖ S §9.3: own sidebar row |
+| B6 ✅ | Prompt editor moves behind `developerMode`, unchanged | S §5 | delivered 2026-09-02: sidebar row + the … row's Instructions select both gated; … reads Template · Style · Model for normal users |
+| B7 ✅ | One `Generate`/`Revise` button, state-determined | R | see §D3 — delivered 2026-09-02: mode DERIVED (editor text = blank ＋New doc or empty → Generate, else Revise; ui/author-mode.ts), placeholder carries the mode, viewing keeps Revise-from-here, busy keeps Cancel |
+| B8 ✅ | Startup state | R | see §D4 — verified 2026-09-02 as ALREADY implemented: initialDoc() restores the newest library entry, bundled example on first run (D4's advice verbatim); B7's Revise label is what makes the restore honest |
 | B9 ✅ | `prompt:` round-trips through the yaml header | R | ruling §F.3 — original Generate request only; revise trail stays in history/log; all-default single docs gain a header (one test) |
 | B10 ✅ | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
 | B11 ✅ | `render()` resolves portraits/sources on the document's **own** spec objects | R | found by the 2026-09-01 final review: root cause of the embed-count lie (fixed at the counter) and of strokes leaking into library saves; fixed 2026-09-02 — `render/resolve.ts` clones at render entry, guarantee proven with fake resolvers like publish/embed's |
-| B12 | Voice selection for Google TTS | R | Hans 2026-09-02: browser voices are already selectable; cloud TTS should be too — per LANGUAGE (a voice belongs to a language), so the setting is a per-language preference through `voiceFor`, not one global voice. Two layers like speed: durable default in Settings, quick pick in the player bar for auditioning (a selection speaks a sample line). WRINKLE: bake reuse is keyed by line text — a voice change must not mix old-voice cached lines into a re-bake; the reuse key needs the voice in it |
+| B12 ✅ | Voice selection for Google TTS | R | delivered 2026-09-02 exactly as specced: settings.cloudVoices per language, durable picker in Settings → Playback (catalog from the voices API, ▶ Listen) + quick pick in the CC menu (saves the same preference, speaks a sample); dialogue speaker b keeps the contrasting default; the wrinkle closed by recording each clip's voice and comparing in linesToBake — pre-B12 publishes replay and reuse unchanged |
 | B13 ✅ | Axis-label placement | R | Hans 2026-09-02, delivered same day (ce38f62): x-label right-justified ending at/past the arrow tip, tighter to the axis (short words may sit in line with the arrow); y-label centered above the arrow when short, ending at/left of the axis when long; PPF example is the test case. Follow-up 2026-09-02 (Hans: "there should be some space there"): on the standard plot the canvas-top clamp pressed the label ONTO the arrowhead — PLOT_MARGIN.top 55→75 + the four y1:695 literals →675 make the room, Y_LABEL_GAP 8→12 |
 
 ## 2026-09-01/02 publish-polish round (delivered)
@@ -67,13 +67,13 @@ cache key would fix it if it ever hurts.
 
 | # | Item | Src | Notes |
 |---|---|---|---|
-| C1 | **Comments on published drawcasts via giscus** | R | see §D5 — has a user setup step |
-| C2 | Thumbs up/down | R | §D5 — probably free with C1 |
-| C3 | Share button on the viewer | R | §D5 — Web Share API, small |
-| C4 | New logo | S §7.4 | three directions described; needs to be seen |
+| C1 ✅ | **Comments on published drawcasts via giscus** | R | see §D5 — delivered 2026-09-02: the published yaml carries the giscus ids (playlist.meta.comments; the viewer can reach nothing of the author's but the file + its own URL), repo from the cast link, thread keyed to the file path → course lectures free; "Allow comments" checkbox disabled-with-the-route until the ids are pasted (Settings → Publishing). AWAITS Hans's one-time github.com setup + live smoke |
+| C2 ✅ | Thumbs up/down | R | §D5 — built nothing, by recommendation: giscus surfaces the Discussion's own reactions |
+| C3 ✅ | Share button on the viewer | R | §D5 — delivered 2026-09-02: ↗ Share in the viewer footer, Web Share API with clipboard fallback |
+| C4 ◐ | New logo | S §7.4 | the three directions are DRAWN (docs/logo-candidates.html — paper/dark, 64→16px, tab simulation); adoption awaits Hans's eye |
 | C5 ✅ | Delete `halftone`/`poster`/`line` looks | P §5 | 0 of 114 bundled specs use them |
 | C6 ✅ | `Insert → Image…` reduced to disk import only | P §4 | |
-| C7 ◐ | **Player behaves and reads like YouTube's** | R | see §D6 — icons (2026-09-02, Part 2a), title move + chapter gates (same day, below). **Hans's ruling 2026-09-02: the progress bar STAYS inline for now** (D6.2 declined). Still open: hover-scrub/seek preview, time readout, left/right grouping |
+| C7 ✅ | **Player behaves and reads like YouTube's** | R | see §D6 — icons (2026-09-02, Part 2a), title move + chapter gates (same day, below). **Hans's ruling 2026-09-02: the progress bar STAYS inline** (D6.2 declined). Same day: hover-scrub preview (chip = exactly where the click lands, shared seekStep), grouping verified already-delivered by flex layout, and the k/N step readout ruled over a clock (D6.4) |
 | C8 ✅ | Mute/sound icon is ugly on macOS | R | §D6 — delivered in Part 2a (2026-09-02) per review R4: EVERY control glyph became inline currentColor SVG in one pass (`ui/icons.ts`), not just the speaker |
 | C9 ✅ | Title moves **below** the player, YouTube-style | R | see §D7 — delivered 2026-09-02, BOTH halves: DOM order is drawing → bar → title (flex column carries fullscreen), and the compiler prompt's opening rule now makes the drawn title the first beat (STYLE.md 2026-09-01 entry folded in; no full title card for singles, per R5) |
 | C10 ✅ | Chapter boundaries default to **timed**, not click | R | see §D8 — delivered 2026-09-02: DEFAULT_META.advance = auto; click stays per-playlist + URL override; unwritten playlists flip with the default (serializer omits defaults — ruled fine) |
@@ -448,7 +448,7 @@ suggestions that are more intuitive or makes it significantly easier."*
 
 - Phone reproduction of the player's idle/gate fix — written blind, never
   observed.
-- The parked course race: switching courses mid-generation writes the old text
-  under the new id.
+- ~~The parked course race~~ — closed 2026-09-02: all three doors (picker, ＋ New,
+  sidebar rows) refuse while `inFlight` is non-empty.
 - The author dialog narrowed 880 → 736px on adopting the size scale; one line
   to revert if it bothers.

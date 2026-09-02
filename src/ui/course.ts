@@ -189,6 +189,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     shareBtn.disabled = busy;
     undoBtn.disabled = busy;
     cancelBtn.disabled = !busy;
+    // The parked race, closed: switching courses while a generation is in
+    // flight wrote the OLD text under the NEW courseId (the run's write-backs
+    // land on whatever course is open when they resolve). All three doors —
+    // the saved-course picker, ＋ New, and the sidebar rows (see loadCourse's
+    // own guard) — refuse while anything runs.
+    courseSel.disabled = busy;
+    newBtn.disabled = busy;
   }
 
   function begin(): AbortController {
@@ -417,6 +424,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   }
 
   function loadCourse(id: string): void {
+    // The sidebar's course rows reach this through the panel-open path with
+    // an id, bypassing the disabled picker — the guard has to live here.
+    if (inFlight.size > 0) {
+      say("A generation is running — cancel it or let it finish before switching courses.", "error");
+      return;
+    }
     const saved = loadCourses().find((c) => c.id === id);
     if (!saved) return;
     courseId = saved.id;
