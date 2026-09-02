@@ -178,7 +178,9 @@ layout: |
   // did_trends convention: caption just over the arrow, title clear above it.
   // The cost is the same whether the top is the default or the author's box:
   // a box says where the plot goes, not that a title may sit on the caption.
-  if (title) plot.y1 = Math.min(plot.y1, 620);
+  // Never below the plot's own floor: a box that already sits above 620 would
+  // otherwise invert (y1 < y0) and draw the chart upside down.
+  if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
   const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
   const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale
   const m = series.length;
@@ -248,10 +250,13 @@ layout: |
   if (title) {
     // Read the caption's real position rather than assuming one: it is centred
     // at (arrow tip + gap + half its box), and its box grows with its font.
-    // 730 is the last line a 30pt title can sit on and stay inside the canvas.
+    // 40 is what it takes for the two BOXES to clear by the lint's own measure:
+    // half a 30pt title (18.75) + half a 22pt caption (13.75) + the 2-unit pad
+    // lintLayout adds to each side. 730 is the last line a 30pt title can sit
+    // on and stay inside the canvas.
     let ty = Math.min(700, plot.y1 + 25);
     const yCap = axesChildren.find((d) => d.id === "axes__y_label");
-    if (yCap) ty = Math.max(ty, yCap.pos[1] + 30);
+    if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
     ty = Math.min(ty, 730);
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];

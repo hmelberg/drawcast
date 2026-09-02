@@ -9192,13 +9192,7 @@
     "stage": 0,
     "gap": 0.15,
     "y_label": "Share of rolls",
-    "title": "The central limit theorem, one die at a time",
-    "box": {
-     "x": 120,
-     "y": 95,
-     "w": 855,
-     "h": 580
-    }
+    "title": "The central limit theorem, one die at a time"
    },
    "elements": [
     {

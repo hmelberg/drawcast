@@ -100,7 +100,7 @@ describe("bar_chart — the title clears the y caption", () => {
     expect(Math.max(...yAxis.pts.map((p) => p[1]))).toBeCloseTo(TITLED_TOP + AXIS_OVERHANG, 6);
     const cap = textAt(l, "axes__y_label")!;
     const title = textAt(l, "title")!;
-    expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 28);
+    expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 38);
     expect(title.pos[1]).toBeLessThanOrEqual(730);
     expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
@@ -115,10 +115,25 @@ describe("bar_chart — the title clears the y caption", () => {
     expect(yTop(titled)).toBeCloseTo(TITLED_TOP + AXIS_OVERHANG, 6);
     const cap = textAt(titled, "axes__y_label")!;
     const title = textAt(titled, "title")!;
-    expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 28);
+    expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 38);
     expect(title.pos[1]).toBeLessThanOrEqual(730);
     const untitled = layout({ labels: ["a", "b"], values: [1, 2], y_label: "Share of rolls", box });
     expect(yTop(untitled)).toBeCloseTo(box.y + box.h + AXIS_OVERHANG, 6);
+  });
+
+  // The degenerate box: its floor is already above the 620 a title wants, so
+  // the lowering is clamped to the floor and the plot collapses to zero height
+  // rather than inverting. Nothing NaNs, and the y axis still runs upwards.
+  test("a box whose floor is above 620 collapses, never inverts", () => {
+    const l = layout({ labels: ["a", "b"], values: [1, 2], title: "T", y_label: "Y", box: { x: 120, y: 650, w: 800, h: 60 } });
+    const pts = flattenDrawables(l.drawables).flatMap((d) => {
+      const any = d as { pts?: [number, number][]; pos?: [number, number] };
+      return any.pts ?? (any.pos ? [any.pos] : []);
+    });
+    expect(pts.length).toBeGreaterThan(0);
+    for (const p of pts) expect(Number.isFinite(p[0]) && Number.isFinite(p[1]), `${p}`).toBe(true);
+    const yAxis = flattenDrawables(l.drawables).find((d) => d.id === "axes__y") as { pts: [number, number][] };
+    expect(yAxis.pts[1][1]).toBeGreaterThanOrEqual(yAxis.pts[0][1]);
   });
 
   test("no y caption → the title keeps its old place; no title → the plot keeps its old top", () => {
