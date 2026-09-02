@@ -479,6 +479,29 @@ describe("line_chart", () => {
     const l = line({ x: [0, 1, 2], values: [1, 2, 3] });
     expect(stroke(l, "line_1__l")!.pts[2][0]).toBeCloseTo(plot.x1, 6);
   });
+
+  // Ruling T: a curve that ends AT the floor (an epidemic burning out) put its
+  // name straight on top of the inline x caption, which axisLabelPlacement
+  // sets in line with the axis just past the arrow tip. The dodge floor is
+  // therefore plot.y0 + END_LABEL_FLOOR (28): half a 22pt caption box (13.75)
+  // + half a 19pt label box (11.875) + the lint's own 2-unit pad = 27.625.
+  const END_LABEL_FLOOR = 28;
+  test("an end label never sits in the x caption's row", () => {
+    const l = line({ x: [0, 1, 2], series: [{ name: "Infected", values: [5, 1, 0] }], x_label: "Days" });
+    expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+    const t = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
+    expect(t.pos[1]).toBeGreaterThanOrEqual(plot.y0 + END_LABEL_FLOOR);
+    // The caption really is the inline one, sharing the label's row-of-origin.
+    const cap = flattenDrawables(l.drawables).find((d) => d.id === "axes__x_label") as TextDrawable;
+    expect(cap.pos[1]).toBe(plot.y0);
+  });
+
+  test("a line ending mid-plot keeps its label exactly at its own end", () => {
+    const l = line({ x: [0, 1, 2], series: [{ name: "Infected", values: [1, 3, 5] }], x_label: "Days" });
+    const t = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
+    expect(t.pos[1]).toBeCloseTo(stroke(l, "line_1__l")!.pts[2][1], 6);
+    expect(t.pos[1]).toBeGreaterThan(plot.y0 + END_LABEL_FLOOR);
+  });
 });
 
 describe("scatter_plot", () => {
