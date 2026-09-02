@@ -200,3 +200,18 @@ content inline, needing no separate blob calls", exact five-call counts)
 — pins that encode a scaling assumption become the bug's bodyguards.
 Rewritten to pin the new contract, with URL-based lookups instead of call
 positions.
+
+## Live bug 3: /git/trees 502 surfacing as an opaque NetworkError
+
+Hans's console had the truth the error hid: GitHub's edge answered the
+tree call with 502, and 5xx error pages carry NO CORS headers, so Firefox
+reported only "NetworkError when attempting to fetch resource". Fix:
+call() retries thrown fetch errors and 502/503/504 twice with backoff, in
+place — safe because every write on the path is content-addressed or
+idempotent, and far cheaper than re-running a whole publish. Failures now
+name their request ("POST /git/trees failed 3 times… press Publish again,
+nothing was half-committed"), a dead blob names its file and size, and
+blob uploads drive a progress line ("Uploading to GitHub — file k/N…").
+setRetryDelaysForTests() keeps the retry tests instant. Standing lesson:
+a browser "NetworkError" on a CORS API is as likely a 5xx wearing a mask
+as a dropped connection — retry it like one.
