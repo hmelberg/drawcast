@@ -64,6 +64,10 @@ export interface ShareDoc {
   lectureCount?: number;
   /** Whether the last GitHub publish carried comments (C1) — seeds the checkbox. */
   publishedComments?: boolean;
+  /** "123k characters ≈ $19.70" — what Embed narration would spend, priced by
+   *  the caller with the live voice picks (export/tts-cost.ts). Upper bound:
+   *  a republish pays only for lines not already published. */
+  narrationCost?: string;
   /**
    * The folder name this drawcast published under before, if it has. Read
    * once to prefill Link's name field (`publishedAs ?? slugify(title)`) —
@@ -383,8 +387,11 @@ function build(): ShareSession {
         const tts = Boolean(getTtsKey());
         bakeCb.disabled = !tts;
         bakeCb.checked = tts;
+        const speaks = "the published file speaks; viewers need no key";
         bakeHint.textContent = tts
-          ? "the published file speaks; viewers need no key"
+          ? doc.narrationCost
+            ? `${speaks} — up to ${doc.narrationCost} of TTS (lines already published are free again)`
+            : speaks
           : "add a Google TTS key in Settings to publish the narration";
       },
       choices: () => ({

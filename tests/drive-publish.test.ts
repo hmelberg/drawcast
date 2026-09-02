@@ -234,7 +234,7 @@ describe("drivePublishedName — the name the file actually has (fix round 1, fi
 
   it("reaches Share through main.ts's doc() — which spreads the whole document", () => {
     // The one line that makes the two fields above arrive at all.
-    expect(main).toMatch(/doc:\s*\(\)\s*=>\s*\(\{\s*\.\.\.doc,/);
+    expect(main).toMatch(/return \{ \.\.\.doc, playlist/); // doc() grew a body (tts-cost round); the spread is the guarantee
   });
 
   it("gates the rename warning: nothing to rename before the first publish", () => {

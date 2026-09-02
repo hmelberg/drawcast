@@ -69,6 +69,7 @@ import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize } from "./export/bake";
 import { listCloudVoices, stampedVoice, synthesizeBase64 } from "./export/tts";
+import { bakeCost, costLabel } from "./export/tts-cost";
 import { publishCast } from "./publish/cast";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
@@ -1641,7 +1642,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
       h(
         "div",
         { class: "settings-note" },
-        "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. The free tier (~1M characters/month) covers roughly a thousand drawcasts.",
+        "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. Costs are per character and per voice family — the default narrator (Studio) bills at Google's premium rate, and the Publish dialog's Embed-narration box shows the estimate before you spend.",
       ),
     ),
   ],
@@ -4427,7 +4428,10 @@ shareBtn.addEventListener("click", () => {
     // the text on screen (and the Insert-menu Embed dialog, which parses
     // that same text) says otherwise. Falls back to doc.playlist only if
     // the text does not currently parse.
-    doc: () => ({ ...doc, playlist: readPlaylistText(specArea.value) ?? doc.playlist }),
+    doc: () => {
+      const playlist = readPlaylistText(specArea.value) ?? doc.playlist;
+      return { ...doc, playlist, narrationCost: costLabel(bakeCost(playlistSpeakLines(playlist), settings.cloudVoices)) };
+    },
     settings,
     persist,
     setStatus,

@@ -17,6 +17,7 @@ import { generationGate } from "../llm/limit";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { bakeNarration, bakeSize } from "../export/bake";
+import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { stampedVoice, synthesizeBase64 } from "../export/tts";
 import { detectLang } from "../render/speech";
 import { joinPath } from "../course/publish";
@@ -180,6 +181,27 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
    * finished can lose its `status: done` and be generated a third time.
    */
   let runsActive = 0;
+
+  /** The priced narration of each DONE lecture (its saved playlist's speak
+   *  lines, with the live voice picks). Basis for both cost surfaces: the
+   *  Publish dialog's exact figure and the Generate confirm's projection. */
+  function doneLectureCosts(course: Course): BakeCost[] {
+    const settings = loadSettings();
+    const library = loadLibrary();
+    const costs: BakeCost[] = [];
+    for (const lecture of course.lectures) {
+      if (lecture.status?.state !== "done" || !lecture.status.id) continue;
+      const saved = library.find((d) => d.id === lecture.status!.id);
+      const text = saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
+      if (text === null) continue;
+      try {
+        costs.push(bakeCost(playlistSpeakLines(parsePlaylistText(text)), settings.cloudVoices));
+      } catch {
+        /* an unparsable lecture prices as nothing rather than blocking */
+      }
+    }
+    return costs;
+  }
 
   function syncBusy(): void {
     const busy = inFlight.size > 0;
@@ -587,7 +609,15 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         say("Every lecture is already generated.", "ok");
         return;
       }
-      if (!confirm(`${costPreview(course)}\n\nGenerate now?`)) return;
+      // Narration is paid LATER (Publish → Embed narration), but the size of
+      // that later bill belongs in this confirm (Hans 2026-09-02): projected
+      // from the lectures generated so far, or from a measured typical
+      // lecture when none exist yet.
+      const projection = courseNarrationProjection(doneLectureCosts(course), course.lectures.length, loadSettings().cloudVoices);
+      const narrationNote = projection.chars > 0
+        ? `\nNarration, if you later publish with “Embed narration”: roughly ${costLabel(projection)} for all ${course.lectures.length} lectures with the current voice.`
+        : "";
+      if (!confirm(`${costPreview(course)}${narrationNote}\n\nGenerate now?`)) return;
     }
     // Mint the course id before the first lecture is stored, so every lecture
     // this run produces is tagged with the course that owns it.
@@ -950,6 +980,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           // The one line Link's panel shows so Publish never looks the same
           // as publishing a single drawcast (spec §2).
           lectureCount: course.lectures.length,
+          narrationCost: costLabel(addCosts(doneLectureCosts(course))),
         };
       },
       settings: deps.settings,

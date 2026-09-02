@@ -182,7 +182,11 @@ describe("publishing embeds into the copy, never the document (P §3.4)", () => 
 
   it("Share's doc() derives the playlist from the editor text, not the render-mutated doc.playlist", async () => {
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/doc:\s*\(\)\s*=>\s*\(\{\s*\.\.\.doc,\s*playlist:\s*readPlaylistText\(specArea\.value\)\s*\?\?\s*doc\.playlist\s*\}\)/);
+    // The shape grew a narrationCost line (tts-cost round) — what must hold
+    // is the guarantee itself: the playlist Share sees comes from the editor
+    // TEXT, with doc.playlist only as the parse-failure fallback.
+    expect(src).toMatch(/doc:\s*\(\)\s*=>\s*\{\s*const playlist = readPlaylistText\(specArea\.value\)\s*\?\?\s*doc\.playlist;/);
+    expect(src).toMatch(/return \{ \.\.\.doc, playlist, narrationCost/);
   });
 
   it("course lectures embed on a parsed copy, and skip a lecture with nothing to embed", async () => {
