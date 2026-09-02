@@ -14,6 +14,7 @@ import { plotArea } from "../src/layout/canvas";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
+import { templateParamErrors } from "../src/scenes/params-check";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Spec } from "../src/spec/types";
 
@@ -581,12 +582,40 @@ describe("scatter_plot", () => {
   // Ruling H: per-axis precision (decX/decY + fmtX/fmtY) and all four axis
   // end marks (x0, x1, y0, y1) — the plan's shared geometry rules, mirroring
   // line_chart's own end-label test.
+  //
+  // Finding I3 changed the two HIGH marks: they now name the data's own
+  // extreme at that extreme's position instead of the padded limit under the
+  // arrowhead. Both LOW ends here snapped to 0 (x: 0 <= 0.25*50; y: 0.05 <=
+  // 0.25*0.2415 = 0.0604), so they still name the frame at the axis end.
+  // x1: "53" (= 50 + 6 %) -> "50" at X(50) = x0 + (50/53) * width.
+  // y1: "0.26" (= 0.2415 + 8 %) -> "0.24" (decY = 2) at Y(0.2415).
   test("sub-unit y and integer x each get their own axis-label precision, on all four axis ends", () => {
     const l = sc({ x: [0, 50], y: [0.05, 0.2415] });
-    expect((find(l, "axes__y1") as TextDrawable).text).toBe("0.26");
+    const y1 = find(l, "axes__y1") as TextDrawable;
+    expect(y1.text).toBe("0.24");
+    expect(y1.pos[1]).toBeCloseTo(plot.y0 + (0.2415 / (0.2415 * 1.08)) * (plot.y1 - plot.y0), 6);
     expect((find(l, "axes__y0") as TextDrawable).text).toBe("0");
-    expect((find(l, "axes__x1") as TextDrawable).text).toBe("53");
+    expect((find(l, "axes__y0") as TextDrawable).pos[1]).toBeCloseTo(plot.y0, 6);
+    const x1 = find(l, "axes__x1") as TextDrawable;
+    expect(x1.text).toBe("50");
+    expect(x1.pos[0]).toBeCloseTo(plot.x0 + (50 / 53) * (plot.x1 - plot.x0), 6);
     expect((find(l, "axes__x0") as TextDrawable).text).toBe("0");
+    expect((find(l, "axes__x0") as TextDrawable).pos[0]).toBeCloseTo(plot.x0, 6);
+  });
+
+  // Finding I2: data-range axes. Scores that live at 44…93 no longer waste
+  // the bottom half of the plot on empty space — the axis runs from the data
+  // minus 8 % headroom to the data plus 8 %, and BOTH end marks name data.
+  test("an axis whose data sit far from the origin runs over the data range, marks and all", () => {
+    const l = sc({ x: [10, 20], y: [44.2, 93.4] });
+    const pad = (93.4 - 44.2) * 0.08;
+    const y0 = find(l, "axes__y0") as TextDrawable;
+    expect(y0.text).toBe("44.2");
+    expect(y0.pos[1]).toBeCloseTo(plot.y0 + (pad / (93.4 - 44.2 + 2 * pad)) * (plot.y1 - plot.y0), 6);
+    expect((find(l, "axes__y1") as TextDrawable).text).toBe("93.4");
+    // x: 10 > 0.25 * 20, so no snap there either — 6 % headroom on both sides.
+    expect((find(l, "axes__x0") as TextDrawable).text).toBe("10");
+    expect((find(l, "axes__x1") as TextDrawable).text).toBe("20");
   });
 
   // Ruling I: same collision as line_chart's numeric axes__x1 — a stacked
@@ -595,5 +624,77 @@ describe("scatter_plot", () => {
   test("a long x_label drops below axes__x1 with no overlap lint", () => {
     const l = sc({ x: [1, 2, 3], y: [1, 2, 3], x_label: "Hours studied" });
     expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+  });
+
+  // Finding I1: the fit segment is CLIPPED to the plot rectangle, not clamped
+  // at its endpoints. Clamping kept each endpoint's x and moved its y, so
+  // this very fixture captioned "y = 2.00x + 1.00" and drew slope 0.63.
+  test("a fit line outside the ylim is clipped, so the drawn slope is the slope the caption states", () => {
+    const l = sc({ x: [0, 1, 2, 3], y: [1, 3, 5, 7], fit: true, ylim: [0, 3] });
+    const seg = (find(l, "fit_line__l") as StrokeDrawable).pts;
+    expect(seg).toHaveLength(2);
+    // x: 0..3 snaps to the origin, +6 % headroom -> [0, 3.18]; ylim is verbatim.
+    const xOf = (px: number) => ((px - plot.x0) / (plot.x1 - plot.x0)) * 3.18;
+    const yOf = (py: number) => ((py - plot.y0) / (plot.y1 - plot.y0)) * 3;
+    expect((yOf(seg[1][1]) - yOf(seg[0][1])) / (xOf(seg[1][0]) - xOf(seg[0][0]))).toBeCloseTo(2, 6);
+    expect((find(l, "fit_line__t") as TextDrawable).text).toBe("y = 2.00x + 1.00");
+    for (const [px, py] of seg) {
+      expect(px).toBeGreaterThanOrEqual(plot.x0 - 1e-6);
+      expect(px).toBeLessThanOrEqual(plot.x1 + 1e-6);
+      expect(py).toBeGreaterThanOrEqual(plot.y0 - 1e-6);
+      expect(py).toBeLessThanOrEqual(plot.y1 + 1e-6);
+    }
+  });
+
+  // Findings S2/I7: the equation caption tries four spots around the
+  // segment's ends and takes the first that clears every dot, the title and
+  // the axis captions. The hours example (with the smoke's resolved values)
+  // is the case that used to put it on a dot.
+  test("the fit caption finds a clear spot: no overlap and no label-on-stroke in the hours example", () => {
+    const l = sc({
+      x: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      y: [44.2, 56.2, 59.3, 52.9, 58.2, 60.8, 71.4, 71.7, 80.5, 68.9, 93.4, 87.4],
+      fit: [3.73, 42.84],
+      ylim: [0, 100],
+      x_label: "Hours studied",
+      y_label: "Score",
+      box: { x: 470, y: 95, w: 460, h: 560 },
+    });
+    expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+    expect(l.issues).toEqual([]);
+  });
+
+  test("the fit caption also clears the title", () => {
+    const l = sc({ x: [0, 1, 2, 3], y: [1, 3, 5, 7], fit: true, title: "T" });
+    const cap = find(l, "fit_line__t") as TextDrawable;
+    const t = find(l, "title") as TextDrawable;
+    expect(l.issues.filter((i) => i.rule === "overlap-label-label" && i.ids.includes(cap.id) && i.ids.includes(t.id))).toEqual([]);
+  });
+
+  // Finding O (amends Ruling A): a labelled point keeps its beat at EVERY
+  // stage, so a later highlight: {target: ["point_3"]} resolves against stage
+  // 0's order. Nothing is drawn before it appears — an empty-pts stroke.
+  test("a labelled point that appears later still has its point_i beat at stage 0", () => {
+    const l = sc({ x: [0, 1, 2], y: [[1, 2], [1, 2, 3]], labels: ["", "", "C"], stage: 0 });
+    expect(l.order).toEqual(["axes", "points", "point_3"]);
+    expect(find(l, "point_3__t")).toBeUndefined();
+    expect((find(l, "point_3__d") as StrokeDrawable).pts).toEqual([]);
+    const shown = sc({ x: [0, 1, 2], y: [[1, 2], [1, 2, 3]], labels: ["", "", "C"], stage: 1 });
+    const d = find(shown, "point_3__d") as StrokeDrawable;
+    const cx = d.pts.reduce((a, p) => a + p[0], 0) / d.pts.length;
+    const cy = d.pts.reduce((a, p) => a + p[1], 0) / d.pts.length;
+    // x: 0..2 snaps to the origin, +6 % -> [0, 2.12]; y: 1..3 does not snap
+    // (1 > 0.25 * 3), so 8 % of the range on both sides -> [0.84, 3.16].
+    expect(cx).toBeCloseTo(plot.x0 + (2 / 2.12) * (plot.x1 - plot.x0), 6);
+    expect(cy).toBeCloseTo(plot.y0 + ((3 - 0.84) / (3.16 - 0.84)) * (plot.y1 - plot.y0), 6);
+    expect((find(shown, "point_3__t") as TextDrawable).text).toBe("C");
+  });
+
+  // Finding I4: labels take a token like every other data param — the body
+  // already degrades a string to [] (no named beats until the script runs).
+  test("labels accepts a {id.var} token", () => {
+    expect(templateParamErrors("scatter_plot", { x: [1, 2], y: [1, 2], labels: "{sim.names}" })).toEqual([]);
+    expect(templateParamErrors("scatter_plot", { x: [1, 2], y: [1, 2], labels: ["a", "b"] })).toEqual([]);
+    expect(templateParamErrors("scatter_plot", { x: [1, 2], y: [1, 2], labels: 7 }).length).toBeGreaterThan(0);
   });
 });

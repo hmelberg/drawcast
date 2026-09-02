@@ -776,10 +776,10 @@ params:
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
       description: "y of every point: a list (static), a list of lists (STAGES of the same points — depth means staged), or a \"{id.var}\" token."
     labels:
-      type: array
-      items: { type: string }
-      maxItems: 500
-      description: "Optional per-point names; a named point becomes its own beat point_i (empty string = unnamed)."
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 500 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "Optional per-point names; a named point becomes its own beat point_i (empty string = unnamed). A \"{id.var}\" token works, at the cost that the point_i beats exist only after the script runs."
     fit:
       oneOf:
         - { type: boolean }
@@ -853,13 +853,33 @@ layout: |
   let lo = Infinity, hi = -Infinity;
   if (stages) for (const st of stages) for (const v of st.slice(0, n)) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
   if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
+  // Finding I2 (controller ruling): a scatter's axes run over the DATA range
+  // with headroom on BOTH sides — forcing them through 0 spent most of the
+  // plot on empty space for a cloud that lives at 44…93. The one exception is
+  // an origin that is already near: non-negative data whose minimum is within
+  // a quarter of its maximum snaps to 0, because starting a hair above zero
+  // reads as a lie. An explicit xlim/ylim always wins, verbatim. (line_chart
+  // is untouched by this ruling: its x is a shared index space and its y
+  // baseline carries the "how much" reading a trend line is about.)
+  const snapsToZero = (a2, b2) => a2 >= 0 && a2 <= 0.25 * b2;
+  // Headroom is a fraction of the range the axis actually shows, so an axis
+  // that snapped keeps exactly the padding it had when it was forced to 0.
+  const rangeOf = (a2, b2, frac) => {
+    const zero = snapsToZero(a2, b2);
+    const from = zero ? 0 : a2;
+    const room = (b2 - from) * frac;
+    return [zero ? 0 : from - room, b2 + room];
+  };
   const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
-  let yMin = ylim ? Math.min(ylim[0], ylim[1]) : Math.min(0, lo), yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
-  if (!ylim) { const pad = (yMax - yMin) * 0.08; if (yMax > 0) yMax += pad; if (yMin < 0) yMin -= pad; }
+  const ySnapped = !ylim && snapsToZero(lo, hi);
+  const yRange = ylim ? [Math.min(ylim[0], ylim[1]), Math.max(ylim[0], ylim[1])] : rangeOf(lo, hi, 0.08);
+  let yMin = yRange[0], yMax = yRange[1];
   if (yMax - yMin < 1e-9) yMax = yMin + 1;
+  const xLo = n ? Math.min(...xs.slice(0, n)) : 0, xHi = n ? Math.max(...xs.slice(0, n)) : 1;
   const xlim = Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
-  let xMin = xlim ? Math.min(xlim[0], xlim[1]) : n ? Math.min(0, ...xs.slice(0, n)) : 0, xMax = xlim ? Math.max(xlim[0], xlim[1]) : n ? Math.max(...xs.slice(0, n)) : 1;
-  if (!xlim) { const pad = (xMax - xMin) * 0.06; if (xMax > 0) xMax += pad; }
+  const xSnapped = !xlim && snapsToZero(xLo, xHi);
+  const xRange = xlim ? [Math.min(xlim[0], xlim[1]), Math.max(xlim[0], xlim[1])] : rangeOf(xLo, xHi, 0.06);
+  let xMin = xRange[0], xMax = xRange[1];
   if (!(xMax - xMin > 1e-9)) xMax = xMin + 1;
 
   const b = params.box;
@@ -913,10 +933,20 @@ layout: |
   }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   // Ruling H: all four axis end marks — the plan's shared geometry rules.
-  axesChildren.push(kit.text("axes__x0", [plot.x0, plot.y0 - 20], fmtX(xMin), { fontSize: 15, color: C.guide }));
-  axesChildren.push(kit.text("axes__x1", [plot.x1, plot.y0 - 20], fmtX(xMax), { fontSize: 15, color: C.guide }));
-  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
-  axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmtY(yMax), { fontSize: 15, anchor: "end", color: C.guide }));
+  // Finding I3: each mark names the DATA's own extreme at that extreme's own
+  // position ("12" under the last point, not "12.72" under the arrowhead) —
+  // the headroom is breathing room, not a number anyone measured. The
+  // exceptions name the frame instead, because there it IS the frame the
+  // reader must trust: an end the author fixed with xlim/ylim, and a low end
+  // the axis snapped to 0.
+  const xLoV = xlim || xSnapped ? xMin : xLo, xHiV = xlim ? xMax : xHi;
+  const yLoV = ylim || ySnapped ? yMin : lo, yHiV = ylim ? yMax : hi;
+  axesChildren.push(kit.text("axes__x0", [X(xLoV), plot.y0 - 20], fmtX(xLoV), { fontSize: 15, color: C.guide }));
+  // Degenerate data (every point on one x, or the placeholder's zeros) puts
+  // both ends of an axis in the same spot — one mark, not two stacked.
+  if (Math.abs(X(xHiV) - X(xLoV)) >= 1) axesChildren.push(kit.text("axes__x1", [X(xHiV), plot.y0 - 20], fmtX(xHiV), { fontSize: 15, color: C.guide }));
+  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, Y(yLoV)], fmtY(yLoV), { fontSize: 15, anchor: "end", color: C.guide }));
+  if (Math.abs(Y(yHiV) - Y(yLoV)) >= 1) axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, Y(yHiV)], fmtY(yHiV), { fontSize: 15, anchor: "end", color: C.guide }));
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
 
@@ -952,19 +982,30 @@ layout: |
 
   const color = C.series[0];
   const dot = (id, p) => kit.stroke(id, kit.polygon(p, 5, 12), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke });
+  // Finding O (amends Ruling A): a LABELLED point keeps its beat at every
+  // stage. An appearing point still has no dot at stage 0 — Ruling A stands
+  // for what is drawn — but point_i exists all the same, holding an empty-pts
+  // stroke (the zero-series idiom: the id exists, nothing draws), so a later
+  // highlight: {target: ["point_3"]} resolves against stage 0's order instead
+  // of being dropped as an unknown id. `points` likewise exists as soon as
+  // any unlabelled index does, with children only for the dots present now.
+  const centre = [(plot.x0 + plot.x1) / 2, (plot.y0 + plot.y1) / 2];
   const cloud = [];
   const named = [];
-  pos.forEach((p, i) => {
-    if (!p) return;
+  let anyUnnamed = false;
+  for (let i = 0; i < n; i++) {
     const name = labels[i] || "";
-    if (name) named.push({ i, p, name });
-    else cloud.push(dot("points__d" + (i + 1), p));
-  });
-  if (cloud.length) { push(kit.group("points", cloud)); anchors.points = [(plot.x0 + plot.x1) / 2, (plot.y0 + plot.y1) / 2]; }
+    if (name) { named.push({ i, p: pos[i], name }); continue; }
+    anyUnnamed = true;
+    if (pos[i]) cloud.push(dot("points__d" + (i + 1), pos[i]));
+  }
+  if (anyUnnamed) { push(kit.group("points", cloud)); anchors.points = centre; }
   named.forEach(({ i, p, name }) => {
     const id = "point_" + (i + 1);
-    push(kit.group(id, [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 12], name, { fontSize: 16, anchor: "start", color: C.ink })]));
-    anchors[id] = p;
+    push(kit.group(id, p
+      ? [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 12], name, { fontSize: 16, anchor: "start", color: C.ink })]
+      : [kit.stroke(id + "__d", [], { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })]));
+    anchors[id] = p || centre;
   });
 
   // The fitted line: least squares through the CURRENT (interpolated) points,
@@ -988,22 +1029,71 @@ layout: |
     const den = m * sxx - sx * sx;
     if (m >= 2 && Math.abs(den) > 1e-12) { const slope = (m * sxy - sx * sy) / den; fit = { slope, intercept: (sy - slope * sx) / m }; }
   }
-  if (fit) {
-    const ya = fit.intercept + fit.slope * xMin, yb = fit.intercept + fit.slope * xMax;
-    const eq = "y = " + fit.slope.toFixed(2) + "x " + (fit.intercept < 0 ? "- " : "+ ") + Math.abs(fit.intercept).toFixed(2);
-    push(kit.group("fit_line", [
-      kit.stroke("fit_line__l", [[X(xMin), Y(clamp(ya, yMin, yMax))], [X(xMax), Y(clamp(yb, yMin, yMax))]], { color: C.accent, strokeWidth: 3, ms: MS.curve }),
-      kit.text("fit_line__t", [X(xMax) - 8, Y(clamp(yb, yMin, yMax)) + 18], eq, { fontSize: 16, anchor: "end", color: C.accent }),
-    ]));
-    anchors.fit_line = [X((xMin + xMax) / 2), Y(clamp((ya + yb) / 2, yMin, yMax))];
-  }
-
+  // The title's POSITION is needed here (the equation caption dodges it); the
+  // title itself is still drawn last, so the drawing order is unchanged.
+  let titleAt = null;
   if (title) {
     let ty = Math.min(700, plot.y1 + 25);
     const yCap = axesChildren.find((d) => d.id === "axes__y_label");
     if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
-    ty = Math.min(ty, 730);
-    push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
-    anchors.title = [(plot.x0 + plot.x1) / 2, ty];
+    titleAt = [(plot.x0 + plot.x1) / 2, Math.min(ty, 730)];
+  }
+
+  if (fit) {
+    const eq = "y = " + fit.slope.toFixed(2) + "x " + (fit.intercept < 0 ? "- " : "+ ") + Math.abs(fit.intercept).toFixed(2);
+    // Finding I1: CLIP the line to the plot rectangle, never clamp its
+    // endpoints — clamping kept each endpoint's x and moved its y, quietly
+    // drawing a different slope from the one the caption states (a ylim of
+    // [0,3] turned y = 2.00x + 1.00 into a line of slope 0.63). Solve for the
+    // x-interval on which intercept + slope*x stays inside [yMin, yMax] and
+    // intersect it with [xMin, xMax]. Nothing left means the line misses the
+    // frame entirely: the stroke keeps its id and draws nothing.
+    let a = xMin, c = xMax;
+    if (Math.abs(fit.slope) > 1e-12) {
+      const xa = (yMin - fit.intercept) / fit.slope, xb = (yMax - fit.intercept) / fit.slope;
+      a = Math.max(a, Math.min(xa, xb));
+      c = Math.min(c, Math.max(xa, xb));
+    } else if (fit.intercept < yMin || fit.intercept > yMax) { a = 1; c = 0; }
+    const inside = c - a > 1e-9;
+    // Inside the rectangle by construction, so X/Y's clamp is a no-op here.
+    const p0 = [X(a), Y(fit.intercept + fit.slope * a)], p1 = [X(c), Y(fit.intercept + fit.slope * c)];
+    const ends = inside
+      ? [p0, p1]
+      : [[X(xMin), Y(clamp(fit.intercept + fit.slope * xMin, yMin, yMax))], [X(xMax), Y(clamp(fit.intercept + fit.slope * xMax, yMin, yMax))]];
+
+    // Findings S2/I7: the equation used to sit above the right end come what
+    // may — on a dot in the hours example, and inside the title's own row for
+    // any rising fit without a ylim. Try four spots around the segment's ends
+    // (above/below, right end first, anchored toward the plot's interior) and
+    // take the first that clears every dot, the title and the axis captions
+    // by 4 units; if none does, fall back to the first.
+    const CAP = 16, CAP_DY = 18, CLEAR = 4;
+    const capW = kit.textWidth(eq, CAP);
+    const boxAt = (x, y, w, h, anchor) => ({ x: anchor === "end" ? x - w : anchor === "start" ? x : x - w / 2, y: y - h / 2, w: w, h: h });
+    const clearOf = (u, v) => u.x - CLEAR >= v.x + v.w || v.x - CLEAR >= u.x + u.w || u.y - CLEAR >= v.y + v.h || v.y - CLEAR >= u.y + u.h;
+    const obstacles = [];
+    for (const p of pos) if (p) obstacles.push({ x: p[0] - 6, y: p[1] - 6, w: 12, h: 12 });
+    // Text heights follow the lint's own measure: 1.25 x the font size.
+    if (titleAt) obstacles.push(boxAt(titleAt[0], titleAt[1], kit.textWidth(title, 30), 37.5, "middle"));
+    for (const d of axesChildren) if (d.id === "axes__x_label" || d.id === "axes__y_label") obstacles.push(boxAt(d.pos[0], d.pos[1], kit.textWidth(d.text, d.fontSize), d.fontSize * 1.25, d.anchor));
+    const spots = [[1, 1], [1, -1], [0, 1], [0, -1], [1, 1]];
+    let capPos = null, capAnchor = "end";
+    for (const [side, dir] of spots) {
+      capAnchor = side === 1 ? "end" : "start";
+      capPos = [ends[side][0], ends[side][1] + dir * CAP_DY];
+      const box = boxAt(capPos[0], capPos[1], capW, CAP, capAnchor);
+      if (obstacles.every((o) => clearOf(box, o))) break;
+    }
+
+    push(kit.group("fit_line", [
+      kit.stroke("fit_line__l", inside ? [p0, p1] : [], { color: C.accent, strokeWidth: 3, ms: MS.curve }),
+      kit.text("fit_line__t", capPos, eq, { fontSize: CAP, anchor: capAnchor, color: C.accent }),
+    ]));
+    anchors.fit_line = [(ends[0][0] + ends[1][0]) / 2, (ends[0][1] + ends[1][1]) / 2];
+  }
+
+  if (titleAt) {
+    push(kit.text("title", titleAt, title, { fontSize: 30 }));
+    anchors.title = titleAt;
   }
   return { drawables, labels: labelReqs, anchors, order };
