@@ -18,6 +18,7 @@ import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes, stripStrokesForM
 import { itemsOf, parsePlaylistText } from "../src/playlist/playlist";
 import { formatSpec } from "../src/spec/text";
 import { lintCommands } from "../src/lint/lint";
+import { codeExecutionErrors } from "../src/code/check";
 
 const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
@@ -213,5 +214,28 @@ describe("code element — lint", () => {
 
   test("a short single panel lints clean", () => {
     expect(lintCommands(codeSpec({})).filter((i) => i.rule === "code-use")).toEqual([]);
+  });
+});
+
+describe("code element — generation-time execution check", () => {
+  test("a failing script becomes a validation error naming the element", async () => {
+    const bad: CodeRunResult = { ok: false, stdout: "", stderr: "", figures: [], error: "NameError: name 'pd' is not defined" };
+    const out = await codeExecutionErrors(codeSpec({}), async () => bad);
+    expect(out.errors.length).toBe(1);
+    expect(out.errors[0]).toContain('"c1"');
+    expect(out.errors[0]).toContain("NameError");
+  });
+
+  test("clean runs add nothing; stderr chatter becomes a warning", async () => {
+    expect((await codeExecutionErrors(codeSpec({}), async () => OK)).errors).toEqual([]);
+    const noisy: CodeRunResult = { ok: true, stdout: "1", stderr: "FutureWarning: soon", figures: [] };
+    const out = await codeExecutionErrors(codeSpec({}), async () => noisy);
+    expect(out.errors).toEqual([]);
+    expect(out.warnings[0]).toContain("FutureWarning");
+  });
+
+  test("an unavailable runtime never blocks generation", async () => {
+    const out = await codeExecutionErrors(codeSpec({}), async () => { throw new Error("no browser"); });
+    expect(out).toEqual({ errors: [], warnings: [] });
   });
 });

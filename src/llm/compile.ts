@@ -14,6 +14,8 @@ import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import { codeExecutionErrors } from "../code/check";
+import type { CodeRunRequest, CodeRunResult } from "../code/run";
 import fewshots from "./prompts/fewshots.json";
 
 export interface PromptVariant {
@@ -107,6 +109,10 @@ export interface GenerateConfig {
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
   onProgress?: (progress: GenerationProgress) => void;
+  /** Run python code elements during validation and feed failures to repair (default on; node/test contexts inject codeRunner or set false). */
+  executeCode?: boolean;
+  /** Injected runner for the execution check; defaults to the real runCode. */
+  codeRunner?: (req: CodeRunRequest) => Promise<CodeRunResult>;
 }
 
 /** A repair round is warranted only for real problems — warn-level lint is cosmetic. */
@@ -320,6 +326,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         } catch (err) {
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
+        }
+        if (cfg.executeCode !== false && (best.elements ?? []).some((e) => e.type === "code")) {
+          const run = cfg.codeRunner ?? (await import("../code/run")).runCode;
+          const check = await codeExecutionErrors(best, run);
+          validation.errors.push(...check.errors);
+          for (const w of check.warnings) {
+            lintIssues.push({ rule: "code-use", ids: [], message: w, severity: "warn" });
+          }
         }
       }
       rounds.push({ label, spec: json, validationErrors: validation.errors, lintIssues, meta });
