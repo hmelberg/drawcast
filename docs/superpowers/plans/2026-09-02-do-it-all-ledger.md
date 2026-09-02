@@ -84,3 +84,28 @@ kept the lie forever. Full list in commit ccb8900.
   what to change). Adoption is a separate small round (favicon + topbar
   + viewer footer swap).
 - B4 ruling stands unless reversed.
+
+## Follow-up: blank ＋New and the sidebar (Hans, same day)
+
+Hans: empty spec on New; the expanders wear two icons (caret + emoji) and
+the emoji are colorful; the panel scrolls and "that is ugly"; reorder if
+something is more logical.
+
+- **The blank page is the one valid nothing, admitted at the editor's gate
+  only.** First attempt relaxed `validateSpec` — and the generation-loop
+  tests failed immediately, because the pipeline DEPENDS on empty-is-invalid
+  to trigger repair rounds (their INVALID fixture is `{commands: []}`). So:
+  `isBlankSpec` in `checkSaveable` admits exactly the blank page for
+  editing/saving; generation stays strict. The tests were the design
+  argument.
+- **One icon per row.** Section headers keep the caret and lose the emoji;
+  every tool row goes text-only (Player/Style/Instructions/Data/Help/
+  Sign in/Settings) — emoji render as colorful bitmaps, which was also the
+  control-bar lesson (2a). A pinned drift test on "▶ Player" updated.
+- **Accordion sections** (pure `accordionOpenState`): opening one closes
+  the rest; only Library opens by default. At most one 13rem list is ever
+  expanded, so the panel fits the viewport instead of growing its own
+  scrollbar. The search filter still auto-opens every section with hits —
+  a view, not a preference. Order kept (New → Search → Library → Courses →
+  Examples → Templates → tools): create, find, configure — already the
+  logical read.
