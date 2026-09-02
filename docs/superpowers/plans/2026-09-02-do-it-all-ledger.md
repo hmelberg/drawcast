@@ -270,3 +270,12 @@ synthesizer; wired in both cast and course bakes.
 2. Tool rows (Player, Instructions, Data, Help, Sign in, Settings) set like the headings: 600 weight, ink, same size/padding. The "quieter species" rule from the shell redesign is reversed by this ruling.
 3. Style is a fifth `<details>` section after Templates (accordion, searchable): None + every saved style, active marked ● rust, click activates; a trailing "Manage…" row opens the existing modal. The Style tool row is gone.
 4. The sidebar stretches to the workbench (`align-items: stretch` on `body.mode-editor main`), so it ends where the editor ends or later; the viewport max-height + sticky stay, so a long script still keeps the tool rows in reach.
+
+## Follow-up: global text size and family (Hans, 2026-09-02 → 03)
+
+Hans: "control the font size of all (or most) of the text … with an argument in the spec? Or the player … user explicit changes in player should override drawcast makers spec … I do not want it to become complicated." Then: bold/italic/color too, "follow some css conventions … easier for the llm to generate". Evaluated and trimmed together: **v1 = global size + family (spec and Settings), spec-level weight; per-element weight/style wait for a drawcast that needs them; no viewer override for weight; color stays per element (it is information).**
+
+- Spec: top-level `text: { font_size (base, default 26, 16–48), font_family: cursive|sans-serif|monospace, font_weight: normal|bold }` — CSS names snake_cased, CSS keyword values. Schema + prompt "## Text" section.
+- Engine: `layout/text-style.ts` — `effectiveTextStyle` (viewer setting ?? spec ?? default), `scaledMeasure` (layout reserves room for the drawn size), `applyTextStyle` (stamps scaled size + family + weight on text drawables). Applied at the two boundaries in `render()`; templates and the 74 size sites untouched. Caption/title follow via `--cs-text-scale` and a figure-scoped `--sketch-font`.
+- Settings → Playback: "Text size in the player" (Follow / Smaller 22 / Larger 32 / Largest 38), "Font in the player" (Follow / Handwritten / Plain / Typewriter). Applied in Player mode and the standalone viewer only; the editor pane and exports show the spec's defaults.
+- Known: frames sized straight from a font size do not grow with the text (clamp keeps it tolerable); the editor's lint runs at scale 1, so a spec `text.font_size` is not linted; a viewer's Largest can collide where the maker saw none.

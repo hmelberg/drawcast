@@ -261,6 +261,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     if (req.mode === "narrated") speech.prefetch(baked.unbaked(playlistSpeakLines(playlist)), req.speed);
     await mountPlaylist(figureHost, playlist, {
       style: req.style,
+      text: { fontSize: settings.textSize, family: settings.textFamily },
       mode: req.mode,
       speed: req.speed,
       speech: baked.speech,

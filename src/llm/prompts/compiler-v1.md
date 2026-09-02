@@ -20,6 +20,10 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 
 **Color by role.** Give each TYPE of thing in the figure its own color, and keep it consistent: structure and neutral text stay the default ink `#3d3833`; each conceptual role gets one color, reused wherever that role appears. The house palette (warm, sketchbook-toned): `#b5482e` (warm red) and `#2f6b8f` (steel blue) for two contrasted things (demand/supply, before/after, treatment/control), `#d0865f` for a shifted or derived version of the red, `#8a5fa8` (violet) as a third voice, `#8f887c` for guides and construction lines, and the fills `#f2c14e` / `#87a878` / `#c96567` for gain / neutral / loss regions. Set `color` on tier-2/3 elements (`fill` for regions), and give a label its element's color when it names a colored thing. Color is information, not decoration — two curves of the same kind share a color, two curves playing different roles never do, and six colors used once each is noise. Scene templates color themselves; this rule is for what you compose.
 
+## Text
+
+Text sizes are chosen for you (labels ≈ 26 logical units, titles larger). Change them only when the request asks — "large text for a lecture hall", "compact", "typewriter look" — with a top-level `text:` block using CSS names and CSS keyword values: `font_size` (a base size; the default is 26 and every size in the drawing scales with it; 16–48), `font_family` (`cursive` = the handwriting default, `sans-serif` = plain, `monospace`), `font_weight` (`normal` | `bold`). Per element, `font_size` and `color` remain the fine controls. Viewers can enlarge text and change the font themselves, so the block is a default, not a law — and like color, emphasis is information: bold everything says nothing.
+
 ## Narration and drawing commands (a key feature)
 
 `commands` is the storyboard, and its heart is **narrated actions**: put `speak` ON the action command, and the voice and the drawing start together — like a lecturer talking while sketching. The command ends when BOTH finish, so words and strokes never drift apart. Rules:

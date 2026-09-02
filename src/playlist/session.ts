@@ -8,6 +8,7 @@
 // <details> for collapse), per-item dots in the control bar, and n/p keys.
 
 import { render, type RenderHandle, type RenderStyle } from "../render";
+import type { TextOverride } from "../layout/text-style";
 import { speechKey, type SpeakLine } from "../render/delivery";
 import type { PlaybackMode } from "../render/player";
 import type { SpeechManager } from "../render/speech";
@@ -35,6 +36,8 @@ export { itemTitle };
 
 export interface SessionOptions {
   style: RenderStyle;
+  /** The viewer's text override; absent = the spec's defaults (render/index.ts). */
+  text?: TextOverride;
   mode: PlaybackMode;
   speed: number;
   speech: SpeechManager;
@@ -126,7 +129,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       opts.prefs.onMode?.(m);
     },
   };
-  const renderOpts = { style: opts.style, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions };
+  const renderOpts = { style: opts.style, text: opts.text, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions };
 
   // ---- subtitles ----------------------------------------------------------
   // One choice for the whole playlist, held here rather than in the control

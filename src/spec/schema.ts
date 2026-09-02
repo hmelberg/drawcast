@@ -540,6 +540,20 @@ export const specSchema = {
  * it out. Hence two schemas: the model sees the narrower one, the validator
  * uses this.
  */
+/** The global text block: CSS names, CSS keyword values (layout/text-style.ts). */
+const TEXT_FIELDS = {
+  text: {
+    type: "object",
+    description: "Global text defaults. font_size: base size in logical units (default 26; every size scales by it). font_family: cursive (handwriting, the default) | sans-serif | monospace. font_weight: normal | bold.",
+    properties: {
+      font_size: { type: "number", minimum: 16, maximum: 48 },
+      font_family: { type: "string", enum: ["cursive", "sans-serif", "monospace"] },
+      font_weight: { type: "string", enum: ["normal", "bold"] },
+    },
+    additionalProperties: false,
+  },
+} as const;
+
 const TRANSLATION_FIELDS = {
   lang: {
     type: "string",
@@ -560,7 +574,7 @@ const TRANSLATION_FIELDS = {
 /** The authoring schema plus the fields tooling stamps. What validateSpec checks. */
 export const documentSchema = {
   ...specSchema,
-  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS },
+  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS },
 } as const;
 
 const ajv = new AjvCtor({ allErrors: true, strict: false });

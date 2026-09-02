@@ -5,6 +5,7 @@
 
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
+import type { TextFamily } from "./layout/text-style";
 import { canRender, needsRender } from "./render/policy";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
 import { generateParts } from "./llm/multi";
@@ -578,6 +579,26 @@ if (!modelSel.value) modelSel.value = MODELS[0].id;
 const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
 styleSel.value = settings.style;
+// The viewer's text override (Settings → Playback): a base size and a CSS
+// generic family, or "" to follow the drawcast. Applied in Player mode and
+// the published viewer only — the editor pane shows the spec's defaults, so
+// the maker sees what viewers get by default (present()).
+const textSizeSel = h("select", { title: "Text size in the player" });
+textSizeSel.append(
+  h("option", { value: "" }, "Follow the drawcast"),
+  h("option", { value: "22" }, "Smaller"),
+  h("option", { value: "32" }, "Larger"),
+  h("option", { value: "38" }, "Largest"),
+);
+textSizeSel.value = settings.textSize == null ? "" : String(settings.textSize);
+const textFamilySel = h("select", { title: "Font in the player" });
+textFamilySel.append(
+  h("option", { value: "" }, "Follow the drawcast"),
+  h("option", { value: "cursive" }, "Handwritten"),
+  h("option", { value: "sans-serif" }, "Plain"),
+  h("option", { value: "monospace" }, "Typewriter"),
+);
+textFamilySel.value = settings.textFamily ?? "";
 
 const themeSel = h("select", { title: "Appearance" });
 themeSel.append(
@@ -1642,6 +1663,8 @@ backupBtn.addEventListener("click", () => {
 // determine where each field's markup actually lands.
 const settingsBlocks = new Map<string, HTMLElement>([
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
+  ["textSize", h("div", { class: "settings-field" }, h("label", {}, "Text size in the player"), textSizeSel)],
+  ["textFamily", h("div", { class: "settings-field" }, h("label", {}, "Font in the player"), textFamilySel)],
   ["theme", h("div", { class: "settings-field" }, h("label", {}, "Appearance"), themeSel)],
   [
     "apiKey",
@@ -1823,6 +1846,8 @@ function openSettings(): void {
   // identical, so they get the same treatment rather than leaving a landmine
   // for the next setting that grows one.
   cloudPlaybackCb.checked = settings.cloudPlayback;
+  textSizeSel.value = settings.textSize == null ? "" : String(settings.textSize);
+  textFamilySel.value = settings.textFamily ?? "";
   refreshCloudVoiceField();
   skipQuestionsCb.checked = settings.skipQuestions;
   burnCaptionsCb.checked = settings.burnCaptions;
@@ -2452,6 +2477,7 @@ async function present(andPlay = false): Promise<void> {
     });
     const mounted = await mountPlaylist(host, doc.playlist, {
       style: settings.style,
+      text: isPlayer ? { fontSize: settings.textSize, family: settings.textFamily } : undefined,
       mode: settings.mode,
       speed: settings.speed,
       questions: settings.skipQuestions ? "skip" : "on",
@@ -4707,6 +4733,16 @@ modelSel.addEventListener("change", () => {
 });
 styleSel.addEventListener("change", () => {
   settings.style = styleSel.value as RenderStyle;
+  persist();
+  void present();
+});
+textSizeSel.addEventListener("change", () => {
+  settings.textSize = textSizeSel.value === "" ? null : Number(textSizeSel.value);
+  persist();
+  void present();
+});
+textFamilySel.addEventListener("change", () => {
+  settings.textFamily = (textFamilySel.value || null) as TextFamily | null;
   persist();
   void present();
 });

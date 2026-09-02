@@ -2,6 +2,7 @@
 // library (Loop 2), a custom compiler-prompt override, and generation logs
 // that feed the exportable improvement packet (Loop 3).
 
+import type { TextFamily } from "./layout/text-style";
 import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
@@ -64,6 +65,10 @@ export function migrateShareTo(v: string): ShareTo {
 export interface Settings {
   model: string;
   style: RenderStyle;
+  /** Viewer's text size in the player — a base size (22/32/38), or null to follow the drawcast. */
+  textSize: number | null;
+  /** Viewer's font in the player — a CSS generic family, or null to follow the drawcast. */
+  textFamily: TextFamily | null;
   /** Prompt variant name, or "custom" for the locally edited prompt. */
   variant: string;
   /** The active style profile (B5) — null means no addendum. */
@@ -150,6 +155,8 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   style: "clean",
+  textSize: null,
+  textFamily: null,
   variant: "v1",
   activeStyleId: null,
   cloudVoices: {},
@@ -270,7 +277,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
-  { id: "playback", label: "Playback", fields: ["style", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
+  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];

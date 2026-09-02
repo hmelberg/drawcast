@@ -2,6 +2,7 @@
 // dash-offset progressive drawing. Consumes the layout IR; applies the single
 // y-flip at emission time.
 
+import type { TextFamily, TextWeight } from "../layout/text-style";
 import rough from "roughjs";
 import type { RoughSVG } from "roughjs/bin/svg";
 import type { Options as RoughOptions } from "roughjs/bin/core";
@@ -26,6 +27,13 @@ export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', curs
 /** System monospace stack: no webfont fetch, and available to the export
  *  canvas without embedding — code must render identically in the movie. */
 export const MONO_FONT = "'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace";
+/** The "plain" face: the system sans, so nothing to load and nothing to fall back silently. */
+export const SANS_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+/** The CSS stack for a spec-level family (layout/text-style.ts). */
+export function fontStack(family?: TextFamily): string {
+  return family === "sans-serif" ? SANS_FONT : family === "monospace" ? MONO_FONT : SKETCH_FONT;
+}
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /**
@@ -34,7 +42,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
  * cache — otherwise fallback-font widths get cached and labels rendered in the
  * real (wider) font stick out past the canvas edge.
  */
-export function makeBrowserMeasure(): MeasureFn {
+export function makeBrowserMeasure(font: { family: string; weight: TextWeight } = { family: SKETCH_FONT, weight: "normal" }): MeasureFn {
   if (typeof document === "undefined") return heuristicMeasure;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -44,7 +52,8 @@ export function makeBrowserMeasure(): MeasureFn {
   return (text, fontSize) => {
     if (!fontReady) {
       try {
-        fontReady = document.fonts?.check?.(`${fontSize}px 'Patrick Hand'`) ?? false;
+        // Only the handwriting face is a webfont; the system stacks are ready at once.
+        fontReady = font.family !== SKETCH_FONT || (document.fonts?.check?.(`${fontSize}px 'Patrick Hand'`) ?? false);
       } catch {
         fontReady = false;
       }
@@ -52,7 +61,7 @@ export function makeBrowserMeasure(): MeasureFn {
     const key = `${fontSize}|${text}`;
     const hit = cache.get(key);
     if (hit) return hit;
-    ctx.font = `${fontSize}px ${SKETCH_FONT}`;
+    ctx.font = `${font.weight} ${fontSize}px ${font.family}`;
     let w = ctx.measureText(text).width;
     if (!fontReady) w = Math.max(w, heuristicMeasure(text, fontSize).w) * 1.06;
     // small safety margin against font rendering variance
@@ -301,7 +310,8 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     t.setAttribute("stroke-width", "5");
     t.setAttribute("stroke-linejoin", "round");
     t.setAttribute("font-size", String(d.fontSize));
-    t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : SKETCH_FONT);
+    t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : fontStack(d.family));
+    if (d.weight === "bold") t.setAttribute("font-weight", "bold");
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
     if (d.style.opacity < 1) t.setAttribute("opacity", String(d.style.opacity));

@@ -2,6 +2,7 @@
 // All coordinates are logical (1000×750, y-up, origin bottom-left) or domain
 // coordinates when a `domain` is declared — never screen pixels.
 
+import type { SpecText } from "../layout/text-style";
 import type { Instrument, PlayVoice } from "./notation";
 export type { Instrument, PlayVoice } from "./notation";
 
@@ -352,6 +353,13 @@ export interface QuizArgs {
 
 export interface Spec {
   title?: string;
+  /**
+   * Global text defaults — CSS property names, CSS keyword values: a base
+   * `font_size` (every size in the drawing scales by it / 26), a generic
+   * `font_family`, a `font_weight`. The viewer can override size and family
+   * in Settings → Playback; see layout/text-style.ts for the precedence.
+   */
+  text?: SpecText;
   /**
    * BCP-47 primary tag for the language the text is WRITTEN in ("en", "nb",
    * "fr"). Absent means the old behaviour: the language is sniffed per line,

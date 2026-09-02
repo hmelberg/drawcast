@@ -17,12 +17,19 @@ import { resolvedRenderSpec } from "./resolve";
 import { titleIsDrawn } from "./title";
 import { resolveSources } from "./source";
 import { loadSettings } from "../store";
-import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
+import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
+import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride } from "../layout/text-style";
 
 export type { RenderStyle } from "./svg-backend";
 
 export interface RenderOptions {
   style?: RenderStyle;
+  /**
+   * The viewer's text override (Settings → Playback). The spec's own `text:`
+   * block is read here regardless, so callers that never pass this — the
+   * editor pane, the export — show the maker's defaults.
+   */
+  text?: TextOverride;
   mode?: PlaybackMode;
   speed?: number;
   speech?: SpeechLike;
@@ -117,8 +124,15 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   figure.appendChild(stage);
   container.appendChild(figure);
 
-  const measure = makeBrowserMeasure();
-  const layout = layoutSpec(spec, measure);
+  // One text style for the whole figure (layout/text-style.ts): measured at
+  // the size it will be drawn, then stamped on the drawables. The HTML text
+  // — caption band, title — follows through two custom properties on the
+  // figure, scoped there so the app chrome's own --sketch-font is untouched.
+  const textStyle = effectiveTextStyle(spec, options.text);
+  figure.style.setProperty("--cs-text-scale", String(textStyle.scale));
+  figure.style.setProperty("--sketch-font", fontStack(textStyle.family));
+  const measure = scaledMeasure(makeBrowserMeasure({ family: fontStack(textStyle.family), weight: textStyle.weight }), textStyle.scale);
+  const layout = applyTextStyle(layoutSpec(spec, measure), textStyle);
   const bboxes = elementBBoxes(layout, measure);
 
   // A title that is PART of the drawcast — drawn ink, the opening beat the
@@ -142,7 +156,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     const key = cache ? JSON.stringify(Object.entries(params).sort()) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
-    const l = layoutSpec({ ...spec, params: withOverrides(spec.params, params) }, measure);
+    const l = applyTextStyle(layoutSpec({ ...spec, params: withOverrides(spec.params, params) }, measure), textStyle);
     if (key !== undefined) boundaryLayouts.set(key, l);
     return l;
   };

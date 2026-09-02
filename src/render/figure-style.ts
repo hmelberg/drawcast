@@ -39,7 +39,7 @@ const FIGURE_CSS = `
   z-index: 5;
   padding: 0.45rem 0.9rem 0.5rem;
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
-  font-size: 1.15rem;
+  font-size: calc(1.15rem * var(--cs-text-scale, 1));
   line-height: 1.35;
   text-align: center;
   color: #fbf8f1;
@@ -85,7 +85,7 @@ const FIGURE_CSS = `
 .cs-lookup:hover { border-color: #b5482e; }
 .cs-title {
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
-  font-size: 1.3rem;
+  font-size: calc(1.3rem * var(--cs-text-scale, 1));
   /* The figure never reads a chrome token. Its paper is real paper — a sheet
      on a dark desk when the app is dark — and an exported video must look
      like what the editor showed. A themed --ink here would put light text on

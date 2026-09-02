@@ -1,3 +1,5 @@
+import type { TextFamily, TextWeight } from "./text-style";
+
 // The backend-independent layout IR. Scenes and tier-2 layout produce Drawables
 // in logical y-up coordinates; every rendering backend consumes them.
 
@@ -79,8 +81,11 @@ export interface TextDrawable extends BaseDrawable {
   text: string;
   fontSize: number;
   anchor: "start" | "middle" | "end";
-  /** Typeface: absent = the sketch handwriting font; "mono" = the code font. */
+  /** Typeface: absent = the sketch handwriting font; "mono" = the code font (wins over `family`). */
   font?: "mono";
+  /** The global family and weight, stamped by applyTextStyle (layout/text-style.ts). */
+  family?: TextFamily;
+  weight?: TextWeight;
   /** Set when the text is word-wrapped; pos is the center of the whole block. */
   lines?: string[];
 }
