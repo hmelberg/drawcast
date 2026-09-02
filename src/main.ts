@@ -69,6 +69,7 @@ import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize } from "./export/bake";
 import { listCloudVoices, stampedVoice, synthesizeBase64 } from "./export/tts";
+import { bakeClipStore, cachingSynthesizer, clipCacheKey } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { publishCast } from "./publish/cast";
 import { embeddedPlaylist } from "./publish/embed";
@@ -3952,7 +3953,14 @@ async function publishTextFor(
     {
       lang: itemsOf(source).find((i) => i.spec.lang)?.spec.lang ?? "en",
       existing,
-      synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+      // B15: clips land in the local cache the moment they are synthesized,
+      // and the cache answers before the API — a quota failure mid-bake
+      // costs nothing to retry.
+      synthesize: cachingSynthesizer(
+        bakeClipStore,
+        (line) => clipCacheKey(settings.rate, settings.cloudVoices, line),
+        (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+      ),
       // Mirrors what synthesize will do (same detectLang, same decision) —
       // the reuse check and the synthesis must never disagree about the voice.
       voiceOf: (line) => stampedVoice(settings.cloudVoices, detectLang(line.text), line),

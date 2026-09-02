@@ -17,6 +17,7 @@ import { generationGate } from "../llm/limit";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { bakeNarration, bakeSize } from "../export/bake";
+import { bakeClipStore, cachingSynthesizer, clipCacheKey } from "../export/bake-cache";
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { stampedVoice, synthesizeBase64 } from "../export/tts";
 import { detectLang } from "../render/speech";
@@ -734,7 +735,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         {
           lang: playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0] ?? "en",
           existing,
-          synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+          // B15: see export/bake-cache.ts — a 20-lecture bake that dies at
+          // lecture 14 resumes from the local clip cache, not from Google.
+          synthesize: cachingSynthesizer(
+            bakeClipStore,
+            (line) => clipCacheKey(settings.rate, settings.cloudVoices, line),
+            (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+          ),
           voiceOf: (line) => stampedVoice(settings.cloudVoices, detectLang(line.text), line),
         },
         (done, total) =>
