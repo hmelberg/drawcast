@@ -1,0 +1,243 @@
+pack: data
+title: Data charts & tables
+description: Bar charts and tables drawn from data — typed by the author or computed by a code element's script and referenced with "{id.var}" tokens — as vector geometry the animate verb can tween stage by stage.
+---
+template: bar_chart
+title: Bar chart
+version: 1
+kit: 5
+status: ready
+description: >-
+  A bar chart from data: categories along the x axis, one bar per category
+  (grouped bars with `series`), drawn as ink so it animates as geometry.
+  `values` may be one list (a static chart) or a list of lists — STAGES of
+  the same chart — and the numeric `stage` param picks which one is shown;
+  a fractional stage interpolates, so `animate: {stage: 1}` plays the change
+  as bars growing and shrinking. Feed it typed numbers, or a code element's
+  variables via "{id.var}" tokens (labels typed by hand keep the bar_i beats
+  alive before the script has run). Choose this scene for ANY request for a
+  bar chart, a column chart, a histogram (compute the bins in Python), a
+  comparison across categories or years, or "show how these numbers change".
+params:
+  type: object
+  properties:
+    labels:
+      type: array
+      items: { type: string }
+      maxItems: 40
+      description: "Category names under the bars, one per bar. TYPE these by hand even when values come from a script — the storyboard's bar_i beats exist only when the bar count is known before the script runs."
+    values:
+      oneOf:
+        - { type: array, items: { type: number }, maxItems: 40 }
+        - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, maxItems: 12 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "One series: a list of numbers (static), or a list of lists (STAGES — depth means staged; every stage has one number per label, a missing one counts as 0), or a \"{id.var}\" token naming a code element's variable."
+    series:
+      type: array
+      maxItems: 6
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          values:
+            oneOf:
+              - { type: array, items: { type: number }, maxItems: 40 }
+              - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, maxItems: 12 }
+              - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+        required: [values]
+      description: "Several series → grouped bars with a legend. Use INSTEAD of values. Each series' values follow the same static/staged/token rule."
+    stage:
+      type: number
+      minimum: 0
+      description: "Which stage is shown (0-based; default 0). Fractional values interpolate between adjacent stages — the animate verb's target: {\"animate\": {\"stage\": 1}}. Write the starting stage explicitly."
+    value_labels:
+      type: boolean
+      description: "Write each bar's value above it (default false)."
+    gap:
+      type: number
+      minimum: 0
+      maximum: 0.8
+      description: "Space between category groups as a fraction of a slot (default 0.35)."
+    box:
+      type: object
+      properties:
+        x: { type: number }
+        y: { type: number }
+        w: { type: number }
+        h: { type: number }
+      required: [x, y, w, h]
+      description: "Plot area in logical units (lower-left corner, width, height) when the chart shares the canvas with something else — a code panel on the left, say. Default: the standard plot area."
+    ylim:
+      type: array
+      items: { type: number }
+      minItems: 2
+      maxItems: 2
+      description: "Fixed y range [low, high]. Default: 0 to the largest value across ALL stages (plus headroom), so the frame never jumps during a tween."
+    x_label:
+      type: string
+    y_label:
+      type: string
+    title:
+      type: string
+element_ids:
+  axes: the x and y axes with their captions (and a dashed zero line when values go negative)
+  bar_1: "the first category's bar (its fill, outline, category label and value label; bar_2, bar_3, … likewise) — one per label, at every stage"
+  legend: the series legend (only with several series)
+  title: figure title, when set
+examples:
+  - request: "Bar chart of GDP per capita for Norway, Sweden and Denmark."
+    params:
+      labels: ["Norway", "Sweden", "Denmark"]
+      values: [87, 52, 58]
+      y_label: "USD (thousands)"
+      title: "GDP per capita"
+  - request: "Show how the three countries' GDP changed from 2010 to 2020, one stage per year."
+    params:
+      labels: ["Norway", "Sweden", "Denmark"]
+      values: [[87, 52, 58], [67, 52, 61]]
+      stage: 0
+      value_labels: true
+      title: "GDP per capita, 2010 → 2020"
+  - request: "Grouped bars: treated vs control, before and after."
+    params:
+      labels: ["Before", "After"]
+      series:
+        - { name: "Treated", values: [10, 16] }
+        - { name: "Control", values: [10, 11] }
+      y_label: "Outcome"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isNumRow = (a) => Array.isArray(a) && a.every((v) => v === null || (typeof v === "number" && Number.isFinite(v)));
+  // values: number[] (one stage) or number[][] (staged — depth means staged).
+  // Anything else — an unresolved "{code.var}" token before the script has
+  // run, say — is "no data yet".
+  const toStages = (v) => {
+    if (!Array.isArray(v) || v.length === 0) return null;
+    if (Array.isArray(v[0])) return v.every(isNumRow) ? v.slice(0, 12) : null;
+    return isNumRow(v) ? [v] : null;
+  };
+  const series = [];
+  if (Array.isArray(params.series)) {
+    params.series.slice(0, 6).forEach((s, k) => {
+      const st = toStages(s && s.values);
+      if (st) series.push({ name: str(s && s.name, "Series " + (k + 1)), stages: st });
+    });
+  } else {
+    const st = toStages(params.values);
+    if (st) series.push({ name: "", stages: st });
+  }
+  const labels = (Array.isArray(params.labels) ? params.labels : [])
+    .filter((l) => typeof l === "string" || typeof l === "number")
+    .map(String)
+    .slice(0, 40);
+  let n = labels.length;
+  for (const s of series) for (const st of s.stages) n = Math.max(n, st.length);
+  n = Math.min(40, n);
+  // The promise idiom: typed labels but no data yet → n bars of height 0, so
+  // the storyboard's bar_i beats exist offline and before the script has run.
+  if (series.length === 0 && n > 0) series.push({ name: "", stages: [labels.map(() => 0)] });
+  let K = 1;
+  for (const s of series) K = Math.max(K, s.stages.length);
+  const stage = clamp(num(params.stage, 0), 0, K - 1);
+  const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
+  // A series with fewer stages than K holds its last stage; a missing bar is 0.
+  const atStage = (s, k, i) => {
+    const st = s.stages[Math.min(k, s.stages.length - 1)];
+    const v = st[i];
+    return typeof v === "number" ? v : 0;
+  };
+  const value = (s, i) => atStage(s, k0, i) + (atStage(s, k1, i) - atStage(s, k0, i)) * t;
+
+  // Limits over ALL stages, so the frame never jumps mid-tween. Bars start at 0.
+  let lo = 0, hi = 0;
+  for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
+  let yMin = ylim ? Math.min(ylim[0], ylim[1]) : lo;
+  let yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
+  if (!ylim) {
+    const pad = (yMax - yMin) * 0.08;
+    if (yMax > 0) yMax += pad;
+    if (yMin < 0) yMin -= pad;
+  }
+  if (yMax - yMin < 1e-9) yMax = yMin + 1;
+
+  const b = params.box;
+  const plot = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0
+    ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }
+    : kit.plotArea();
+  const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
+  const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale
+  const m = series.length;
+  const slotW = (plot.x1 - plot.x0) / Math.max(1, n);
+  const gap = clamp(num(params.gap, 0.35), 0, 0.8);
+  const groupW = slotW * (1 - gap);
+  const barW = groupW / Math.max(1, m);
+  const xLab = str(params.x_label, "");
+  const yLab = str(params.y_label, "");
+  const showValues = params.value_labels === true;
+  // Value labels carry the data's own precision (at most 2 decimals).
+  let dec = 0;
+  for (const s of series) for (const st of s.stages) for (const v of st) {
+    if (typeof v === "number" && !Number.isInteger(v)) dec = Math.min(2, Math.max(dec, (String(v).split(".")[1] || "").length));
+  }
+  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+
+  const drawables = [], labelReqs = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+  ];
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
+  if (yMin < 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, base], [plot.x1, base]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+  push(kit.group("axes", axesChildren));
+  anchors.axes = [plot.x0, plot.y0];
+
+  const labelSize = n > 12 ? 13 : 17;
+  for (let i = 0; i < n; i++) {
+    const id = "bar_" + (i + 1);
+    const xc = plot.x0 + slotW * (i + 0.5);
+    const children = [];
+    let reach = base;
+    series.forEach((s, j) => {
+      const v = value(s, i);
+      const x = plot.x0 + slotW * i + (slotW - groupW) / 2 + barW * j;
+      const yv = Y(clamp(v, yMin, yMax));
+      const lo2 = Math.min(base, yv), hi2 = Math.max(base, yv);
+      const color = C.series[j % C.series.length];
+      const rect = [[x, lo2], [x + barW, lo2], [x + barW, hi2], [x, hi2]];
+      children.push(kit.area(id + "__f" + j, rect, color, { opacity: 0.55 }));
+      children.push(kit.stroke(id + "__o" + j, rect, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
+      if (showValues) children.push(kit.text(id + "__v" + j, [x + barW / 2, v >= 0 ? hi2 + 13 : lo2 - 13], fmt(v), { fontSize: 15, color: C.guide }));
+      reach = v >= 0 ? Math.max(reach, hi2) : Math.min(reach, lo2);
+    });
+    children.push(kit.text(id + "__l", [xc, plot.y0 - 20], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
+    push(kit.group(id, children));
+    anchors[id] = [xc, (base + reach) / 2];
+  }
+
+  if (m >= 2) {
+    const lx = plot.x1 - 150, ly = plot.y1 - 16;
+    const children = [];
+    series.forEach((s, j) => {
+      const y = ly - j * 24;
+      const color = C.series[j % C.series.length];
+      children.push(kit.area("legend__s" + j, [[lx, y - 8], [lx + 18, y - 8], [lx + 18, y + 8], [lx, y + 8]], color, { opacity: 0.55 }));
+      children.push(kit.text("legend__t" + j, [lx + 26, y], s.name, { fontSize: 16, anchor: "start" }));
+    });
+    push(kit.group("legend", children));
+    anchors.legend = [lx + 70, ly - (m - 1) * 12];
+  }
+
+  const title = str(params.title, "");
+  if (title) {
+    const ty = Math.min(700, plot.y1 + 25);
+    push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
+    anchors.title = [(plot.x0 + plot.x1) / 2, ty];
+  }
+  return { drawables, labels: labelReqs, anchors, order };

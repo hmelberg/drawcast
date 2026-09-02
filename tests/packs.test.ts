@@ -13,6 +13,7 @@ import htaYaml from "../src/scenes/packs/hta.yaml?raw";
 import musicYaml from "../src/scenes/packs/music.yaml?raw";
 import statsYaml from "../src/scenes/packs/stats.yaml?raw";
 import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
+import dataYaml from "../src/scenes/packs/data.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -2752,5 +2753,31 @@ describe("stats pack", () => {
     }
     const cap = flat.find((d) => d.id === "caption") as { text: string };
     expect(cap.text).toBe("19 of 20 caught the truth");
+  });
+});
+
+// Full behavioral coverage (stages, the placeholder promise, box, series
+// colors, ylim, ...) lives in tests/data-pack.test.ts; this is just the
+// registration smoke test every other pack gets here.
+describe("data pack", () => {
+  beforeEach(() => unregisterPack("data"));
+
+  test("registers bar_chart", () => {
+    const r = registerPack("data", dataYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: ["bar_chart"] });
+  });
+
+  test("every data example renders finite, no fallback warnings, no error lint, deterministically", () => {
+    registerPack("data", dataYaml);
+    for (const tid of ["bar_chart"]) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
+        expect(res.warnings, tid).toEqual([]);
+        expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+      }
+      const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
   });
 });

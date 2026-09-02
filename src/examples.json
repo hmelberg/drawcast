@@ -8829,5 +8829,79 @@
    }
   ]
  }
+},
+{
+ "request": "Show Norway, Sweden and Denmark's GDP per capita in 2010, then animate it forward to 2020.",
+ "packs": [
+  "data"
+ ],
+ "spec": {
+  "title": "GDP per capita, 2010 → 2020",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Norway",
+    "Sweden",
+    "Denmark"
+   ],
+   "values": [
+    [
+     87,
+     52,
+     58
+    ],
+    [
+     67,
+     52,
+     61
+    ]
+   ],
+   "stage": 0,
+   "value_labels": true,
+   "title": "GDP per capita, 2010 → 2020"
+  },
+  "commands": [
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Norway, Sweden and Denmark all look wealthy from a distance — a decade tells a rougher story for one of them."
+   },
+   {
+    "draw": [
+     "bar_1",
+     "bar_2",
+     "bar_3"
+    ],
+    "parallel": true,
+    "speak": "2010: Norway near ninety thousand dollars a head, Sweden low fifties, Denmark high fifties."
+   },
+   {
+    "draw": [
+     "title"
+    ],
+    "speak": "Same three bars — now watch what ten years do to them."
+   },
+   {
+    "pause": 0.4
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 3,
+    "speak": "Sweden and Denmark barely move, but Norway drops hard — the oil price crash dragging it down."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ],
+     "effect": "glow"
+    },
+    "speak": "From eighty-seven to sixty-seven thousand — a fifth of Norway's advantage gone in a single decade."
+   }
+  ]
+ }
 }
 ]

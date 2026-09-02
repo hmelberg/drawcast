@@ -100,6 +100,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Hand-sketched world maps: country outlines, highlights and labeled markers.",
     load: async () => (await import("./packs/maps.yaml?raw")).default,
   },
+  data: {
+    id: "data",
+    title: "Data charts & tables",
+    description: "Bar charts and tables drawn from data — typed, or computed by a code element and referenced with \"{id.var}\" tokens — as vector geometry the animate verb tweens stage by stage.",
+    load: async () => (await import("./packs/data.yaml?raw")).default,
+  },
 };
 
 /**
