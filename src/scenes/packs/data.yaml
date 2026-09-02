@@ -415,3 +415,242 @@ layout: |
     anchors.title = [(box.x0 + box.x1) / 2, ty];
   }
   return { drawables, labels: [], anchors, order };
+---
+template: line_chart
+title: Line chart
+version: 1
+kit: 5
+status: ready
+description: >-
+  A line chart from data: one or more series over a numeric or categorical
+  x, each line ending in its own name, drawn as ink so it animates as
+  geometry. `values` may be one list (static) or a list of lists — STAGES
+  of the same chart — and the numeric `stage` param picks which one is
+  shown; a fractional stage interpolates, so `animate: {stage: 1}` plays
+  the change, and a series given prefix by prefix draws itself in from its
+  last point. Feed it typed numbers, or a code element's variables via
+  "{id.var}" tokens (name the series by hand so the line_k beats exist
+  before the script has run). Choose this scene for ANY request for a line
+  chart, a trend over time, a curve computed from data, two scenarios
+  compared over time, or "show how this develops".
+params:
+  type: object
+  properties:
+    x:
+      oneOf:
+        - { type: array, items: { type: number }, maxItems: 2000 }
+        - { type: array, items: { type: string }, maxItems: 2000 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "x positions: numbers (a real axis), strings (categories under the axis), or a \"{id.var}\" token. Omitted: 1, 2, 3, …"
+    values:
+      oneOf:
+        - { type: array, items: { type: number }, maxItems: 2000 }
+        - { type: array, minItems: 1, items: { type: array, items: { type: number }, maxItems: 2000 }, maxItems: 12 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "One series: a list of numbers (static), a list of lists (STAGES — depth means staged; a shorter stage reveals the line prefix by prefix), or a \"{id.var}\" token."
+    series:
+      type: array
+      maxItems: 6
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          values:
+            oneOf:
+              - { type: array, items: { type: number }, maxItems: 2000 }
+              - { type: array, minItems: 1, items: { type: array, items: { type: number }, maxItems: 2000 }, maxItems: 12 }
+              - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+        required: [values]
+      description: "Several lines, each ending in its name. Use INSTEAD of values. Each series' values follow the same static/staged/token rule."
+    stage:
+      type: number
+      minimum: 0
+      x-max-from: ["values", "series.0.values"]
+      description: "Which stage is shown (0-based; default 0). Fractional values interpolate — the animate verb's target: {\"animate\": {\"stage\": 1}}. Write the starting stage explicitly."
+    points:
+      type: boolean
+      description: "Dots at the data points (default false)."
+    smooth:
+      type: boolean
+      description: "Catmull–Rom smoothing through the points (default false; keep off for step-like data)."
+    box:
+      type: object
+      properties: { x: { type: number }, y: { type: number }, w: { type: number }, h: { type: number } }
+      required: [x, y, w, h]
+      description: "Plot area (lower-left corner, width, height) when the chart shares the canvas. Default: the standard plot area."
+    xlim:
+      type: array
+      items: { type: number }
+      minItems: 2
+      maxItems: 2
+      description: "Fixed x range for numeric x."
+    ylim:
+      type: array
+      items: { type: number }
+      minItems: 2
+      maxItems: 2
+      description: "Fixed y range. Default: the data's range across ALL stages plus headroom, so the frame never jumps."
+    x_label: { type: string }
+    y_label: { type: string }
+    title: { type: string }
+element_ids:
+  axes: the x and y axes with their captions and end values
+  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise)"
+  title: figure title, when set
+examples:
+  - request: "Plot 100 growing at 2 and 7 percent over 50 years as two curves."
+    params:
+      x: [0, 10, 20, 30, 40, 50]
+      series:
+        - { name: "2 %", values: [100, 122, 149, 181, 221, 269] }
+        - { name: "7 %", values: [100, 197, 387, 761, 1497, 2946] }
+      y_label: "Value of 100"
+      x_label: "Years"
+  - request: "A line that is revealed point by point as the narration walks along it."
+    params:
+      x: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+      values: [[3, 5], [3, 5, 4], [3, 5, 4, 7, 6]]
+      stage: 0
+      points: true
+      title: "Sales this week"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isNumRow = (a) => Array.isArray(a) && a.every((v) => v === null || (typeof v === "number" && Number.isFinite(v)));
+  const toStages = (v) => {
+    if (!Array.isArray(v) || v.length === 0) return null;
+    if (Array.isArray(v[0])) return v.every(isNumRow) ? v.slice(0, 12) : null;
+    return isNumRow(v) ? [v] : null;
+  };
+  const series = [];
+  if (Array.isArray(params.series)) {
+    params.series.slice(0, 6).forEach((s, k) => {
+      const st = toStages(s && s.values);
+      // A series whose values are not data yet still COUNTS (zero series), so
+      // the line_k beat, its colour and its end label exist before the script runs.
+      series.push({ name: str(s && s.name, "Series " + (k + 1)), stages: st || [[]] });
+    });
+  } else {
+    const st = toStages(params.values);
+    if (st) series.push({ name: "", stages: st });
+  }
+  // x: numbers (real axis), strings (categories), else indices 1..n.
+  const xNum = Array.isArray(params.x) && params.x.length > 0 && params.x.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.x.slice(0, 2000) : null;
+  const xCat = !xNum && Array.isArray(params.x) && params.x.length > 0 && params.x.every((v) => typeof v === "string") ? params.x.slice(0, 2000) : null;
+  let n = xNum ? xNum.length : xCat ? xCat.length : 0;
+  for (const s of series) for (const st of s.stages) n = Math.max(n, st.length);
+  n = Math.min(2000, n);
+  let K = 1;
+  for (const s of series) K = Math.max(K, s.stages.length);
+  const stage = clamp(num(params.stage, 0), 0, K - 1);
+  const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
+  const at = (s, k, i) => { const st = s.stages[Math.min(k, s.stages.length - 1)]; const v = st[i]; return typeof v === "number" ? v : null; };
+
+  // Limits over all stages (y) and all x, so the frame never jumps mid-tween.
+  let lo = Infinity, hi = -Infinity;
+  for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
+  const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
+  let yMin = ylim ? Math.min(ylim[0], ylim[1]) : Math.min(0, lo);
+  let yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
+  if (!ylim) { const pad = (yMax - yMin) * 0.08; if (yMax > 0) yMax += pad; if (yMin < 0) yMin -= pad; }
+  if (yMax - yMin < 1e-9) yMax = yMin + 1;
+  const xs = xNum ? xNum : Array.from({ length: n }, (_, i) => i + 1);
+  const xlim = xNum && Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
+  let xMin = xlim ? Math.min(xlim[0], xlim[1]) : Math.min(...xs), xMax = xlim ? Math.max(xlim[0], xlim[1]) : Math.max(...xs);
+  if (!(xMax - xMin > 1e-9)) xMax = xMin + 1;
+
+  const b = params.box;
+  const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
+  const plot = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : kit.plotArea();
+  const title = str(params.title, "");
+  // A drawn title costs 55 units of plot height (the did_trends convention) — see bar_chart.
+  if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
+  const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
+  const X = xCat
+    ? (i) => plot.x0 + ((plot.x1 - plot.x0) / Math.max(1, n)) * (i + 0.5)
+    : (i) => plot.x0 + ((xs[i] - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  const xLab = str(params.x_label, ""), yLab = str(params.y_label, "");
+  let dec = 0;
+  for (const v of [yMin, yMax]) if (!Number.isInteger(v)) dec = Math.min(2, Math.max(dec, 1));
+  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+
+  const drawables = [], labelReqs = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+  ];
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
+  if (xCat) {
+    const size = n > 12 ? 13 : 17;
+    xCat.forEach((s, i) => axesChildren.push(kit.text("axes__c" + i, [X(i), plot.y0 - 20], s, { fontSize: size })));
+  } else if (n > 0) {
+    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmt(xs[0]), { fontSize: 15, color: C.guide }));
+    axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmt(xs[n - 1]), { fontSize: 15, color: C.guide }));
+  }
+  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmt(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
+  axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmt(yMax), { fontSize: 15, anchor: "end", color: C.guide }));
+  if (yMin < 0 && yMax > 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, Y(0)], [plot.x1, Y(0)]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+  push(kit.group("axes", axesChildren));
+  anchors.axes = [plot.x0, plot.y0];
+
+  // Interpolated points for one series: appearing points grow out of their
+  // predecessor in the older stage, disappearing ones shrink into their
+  // predecessor in the newer stage — a prefix reveal draws the line in.
+  const pointsOf = (s) => {
+    const pts = [];
+    const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(s, k, j); if (v !== null) return [X(j), Y(v)]; } return null; };
+    for (let i = 0; i < n; i++) {
+      const a = at(s, k0, i), c = at(s, k1, i);
+      if (a === null && c === null) continue;
+      // Ruling A: at t === 0 the displayed stage IS k0, so a point absent
+      // from k0 has not appeared yet — reproduce k0's own point count exactly
+      // rather than drawing it already sitting at its predecessor.
+      if (a === null && t === 0) continue;
+      let from, to;
+      if (a !== null && c !== null) { from = [X(i), Y(a)]; to = [X(i), Y(c)]; }
+      else if (a === null) { to = [X(i), Y(c)]; from = pred(k0, i) || to; }
+      else { from = [X(i), Y(a)]; to = pred(k1, i) || from; }
+      pts.push([from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
+    }
+    return pts;
+  };
+
+  const ends = [];
+  const lines = series.map((s, k) => ({ s, k, pts: pointsOf(s) }));
+  // Dodge end labels apart (46 units) the way did_trends does, in y order.
+  const labelY = lines.map((L) => (L.pts.length ? L.pts[L.pts.length - 1][1] : plot.y0));
+  const orderIdx = labelY.map((y, i) => i).sort((i, j) => labelY[i] - labelY[j]);
+  const dodged = labelY.slice();
+  for (let q = 1; q < orderIdx.length; q++) {
+    const prev = orderIdx[q - 1], cur = orderIdx[q];
+    if (dodged[cur] - dodged[prev] < 46) dodged[cur] = dodged[prev] + 46;
+  }
+  lines.forEach((L, k) => {
+    const id = "line_" + (k + 1);
+    const color = C.series[k % C.series.length];
+    const children = [];
+    const pts = L.pts;
+    if (pts.length >= 2) children.push(kit.stroke(id + "__l", params.smooth === true ? kit.smooth(pts) : pts, { color, strokeWidth: 4, ms: MS.curve }));
+    else if (pts.length === 1) children.push(kit.stroke(id + "__l", [pts[0], [pts[0][0] + 0.01, pts[0][1]]], { color, strokeWidth: 4, ms: MS.curve }));
+    else children.push(kit.stroke(id + "__l", [], { color, strokeWidth: 4, ms: MS.curve }));
+    if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })));
+    if (L.s.name && pts.length) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + 12, dodged[k]], L.s.name, { fontSize: 19, anchor: "start", color }));
+    push(kit.group(id, children));
+    anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
+  });
+
+  if (title) {
+    let ty = Math.min(700, plot.y1 + 25);
+    const yCap = axesChildren.find((d) => d.id === "axes__y_label");
+    if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
+    ty = Math.min(ty, 730);
+    push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
+    anchors.title = [(plot.x0 + plot.x1) / 2, ty];
+  }
+  return { drawables, labels: labelReqs, anchors, order };

@@ -12,7 +12,7 @@ import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
 import { AXIS_OVERHANG } from "../src/layout/axes";
-import { flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
+import { flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Spec } from "../src/spec/types";
 
@@ -37,10 +37,11 @@ describe("pack registration", () => {
     expect(DEFAULT_SETTINGS.enabledPacks).toContain("data");
     expect(scenes.bar_chart?.manifest.status).toBe("ready");
     expect(scenes.data_table?.manifest.status).toBe("ready");
+    expect(scenes.line_chart?.manifest.status).toBe("ready");
   });
 
   test("every manifest example lays out with zero warnings and no error lint", () => {
-    for (const tid of ["bar_chart", "data_table"]) {
+    for (const tid of ["bar_chart", "data_table", "line_chart"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params } as Spec);
         expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);
@@ -260,5 +261,76 @@ describe("data_table", () => {
   test("box confines the table", () => {
     const l = table({ columns: ["a"], rows: [[1]], box: { x: 500, y: 100, w: 400, h: 500 } });
     for (const d of texts(l)) expect(d.pos[0]).toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("line_chart", () => {
+  const line = (params: object) => layoutSpec({ template: "line_chart", params } as Spec);
+  const stroke = (l: ReturnType<typeof layoutSpec>, id: string) => flattenDrawables(l.drawables).find((d) => d.id === id) as StrokeDrawable | undefined;
+
+  test("one series: axes, line_1 (polyline + end label), title; y follows the values", () => {
+    const l = line({ x: [0, 1, 2], values: [2, 4, 8], title: "T", y_label: "Y" });
+    expect(l.order).toEqual(["axes", "line_1", "title"]);
+    const pts = stroke(l, "line_1__l")!.pts;
+    expect(pts).toHaveLength(3);
+    expect(pts[2][1]).toBeCloseTo(Y(8, 8, TITLED_TOP), 6);
+    expect(pts[0][1]).toBeCloseTo(Y(2, 8, TITLED_TOP), 6);
+    expect(pts[0][0]).toBeCloseTo(plot.x0, 6);
+    expect(pts[2][0]).toBeCloseTo(plot.x1, 6);
+    expect(l.warnings).toEqual([]);
+  });
+
+  test("series draw several lines with end labels dodged apart and series colours", () => {
+    const l = line({ x: [0, 1], series: [{ name: "A", values: [1, 5] }, { name: "B", values: [1, 5.2] }] });
+    expect(l.order).toEqual(["axes", "line_1", "line_2"]);
+    const tA = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
+    const tB = flattenDrawables(l.drawables).find((d) => d.id === "line_2__t") as TextDrawable;
+    expect(tA.text).toBe("A");
+    expect(Math.abs(tA.pos[1] - tB.pos[1])).toBeGreaterThanOrEqual(44);
+    expect(stroke(l, "line_1__l")!.style.color).toBe("#b5482e");
+    expect(stroke(l, "line_2__l")!.style.color).toBe("#2f6b8f");
+  });
+
+  test("depth means staged: a fractional stage interpolates; limits span all stages", () => {
+    const staged = { x: [0, 1, 2], values: [[2, 4, 8], [4, 8, 2]] };
+    expect(stroke(line({ ...staged, stage: 0.5 }), "line_1__l")!.pts[0][1]).toBeCloseTo(Y(3, 8), 6);
+    expect(stroke(line({ ...staged, stage: 1 }), "line_1__l")!.pts[2][1]).toBeCloseTo(Y(2, 8), 6);
+    expect(stroke(line({ ...staged, stage: 7 }), "line_1__l")!.pts[0][1]).toBeCloseTo(Y(4, 8), 6);
+  });
+
+  test("a point absent from a stage grows out of its predecessor (prefix reveal)", () => {
+    const l = line({ x: [0, 1, 2], values: [[5, 5], [5, 5, 9]], stage: 0.5 });
+    const pts = stroke(l, "line_1__l")!.pts;
+    expect(pts).toHaveLength(3);
+    // third point halfway between the second point (x=1, y=5) and its target (x=2, y=9)
+    expect(pts[2][0]).toBeCloseTo((plot.x0 + plot.x1) / 2 + (plot.x1 - (plot.x0 + plot.x1) / 2) / 2, 6);
+    expect(pts[2][1]).toBeCloseTo((Y(5, 9) + Y(9, 9)) / 2, 6);
+    expect(stroke(line({ x: [0, 1, 2], values: [[5, 5], [5, 5, 9]], stage: 0 }), "line_1__l")!.pts).toHaveLength(2);
+  });
+
+  test("categorical x draws the strings under the axis; absent x uses indices", () => {
+    const l = line({ x: ["Q1", "Q2", "Q3"], values: [1, 2, 3] });
+    const texts = flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text").map((d) => d.text);
+    expect(texts).toEqual(expect.arrayContaining(["Q1", "Q2", "Q3"]));
+    const noX = line({ values: [1, 2, 3] });
+    expect(stroke(noX, "line_1__l")!.pts[1][0]).toBeCloseTo((plot.x0 + plot.x1) / 2, 6);
+  });
+
+  test("points and smooth are optional decorations; the polyline stays the line_k__l stroke", () => {
+    const l = line({ x: [0, 1, 2], values: [1, 2, 3], points: true, smooth: true });
+    expect(flattenDrawables(l.drawables).some((d) => d.id === "line_1__p2")).toBe(true);
+    expect(stroke(l, "line_1__l")!.pts.length).toBeGreaterThan(3); // smoothed
+  });
+
+  test("the placeholder promise: series with token values keep their ids; x typed alone draws nothing", () => {
+    const l = line({ x: [0, 1, 2], series: [{ name: "A", values: "{sim.a}" }, { name: "B", values: "{sim.b}" }] });
+    expect(l.order).toEqual(["axes", "line_1", "line_2"]);
+    expect(l.warnings).toEqual([]);
+    expect(line({ x: [0, 1, 2], values: "{sim.y}" }).order).toEqual(["axes"]);
+  });
+
+  test("caps: 6 series, 2000 points", () => {
+    const many = line({ series: Array.from({ length: 8 }, (_, k) => ({ name: `s${k}`, values: [1, 2] })) });
+    expect(many.order.filter((id) => id.startsWith("line_"))).toHaveLength(6);
   });
 });

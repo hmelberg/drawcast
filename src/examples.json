@@ -9323,5 +9323,157 @@
     }
    ]
   }
+ },
+ {
+  "request": "Replay the compounding example as two curves drawn from the numbers Python computes: 100 at 2 percent and at 7 percent, year by year",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Compounding, as curves",
+   "template": "line_chart",
+   "params": {
+    "x": "{calc.years}",
+    "series": [
+     {
+      "name": "2 %",
+      "values": "{calc.low}"
+     },
+     {
+      "name": "7 %",
+      "values": "{calc.high}"
+     }
+    ],
+    "ylim": [
+     0,
+     3200
+    ],
+    "y_label": "Value of 100",
+    "x_label": "Years",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 460,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "calc",
+     "type": "code",
+     "language": "python",
+     "show": "code",
+     "x": 225,
+     "y": 400,
+     "width": 410,
+     "font_size": 15,
+     "code": "years = list(range(0, 51))\nlow = [100 * 1.02 ** y for y in years]\nhigh = [100 * 1.07 ** y for y in years]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "calc",
+      "calc_line_1"
+     ],
+     "parallel": true,
+     "speak": "Fifty-one years, one per point."
+    },
+    {
+     "draw": [
+      "calc_line_2",
+      "calc_line_3"
+     ],
+     "parallel": true,
+     "speak": "Two lines of Python: the same hundred at two percent and at seven."
+    },
+    {
+     "draw": [
+      "axes",
+      "line_1"
+     ],
+     "parallel": true,
+     "speak": "At two percent the curve is almost a straight line: two hundred and sixty-nine after fifty years."
+    },
+    {
+     "draw": [
+      "line_2"
+     ],
+     "speak": "At seven percent it bends upward and keeps bending: nearly three thousand."
+    },
+    {
+     "highlight": {
+      "target": [
+       "line_2"
+      ]
+     },
+     "delivery": "grave",
+     "speak": "That bend is compounding. The rate is three and a half times higher; the money is eleven times more."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Flatten the curve: an epidemic with and without distancing, computed with a simple SIR model",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Flattening the curve",
+   "template": "line_chart",
+   "params": {
+    "x": "{sir.days}",
+    "series": [
+     {
+      "name": "Infected",
+      "values": "{sir.frames}"
+     }
+    ],
+    "stage": 0,
+    "y_label": "Share infected",
+    "x_label": "Days",
+    "title": "Flattening the curve"
+   },
+   "elements": [
+    {
+     "id": "sir",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "def sir(r0, days=160, gamma=0.1):\n    s, i, out = 0.999, 0.001, []\n    for d in range(days):\n        out.append(round(i, 4))\n        new = r0 * gamma * s * i\n        s, i = s - new, i + new - gamma * i\n    return out\ndays = list(range(160))\nframes = [sir(2.5), sir(1.4)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Same virus, same population. The only thing that changes is how many people each case infects."
+    },
+    {
+     "draw": [
+      "axes",
+      "line_1"
+     ],
+     "parallel": true,
+     "speak": "With every case infecting two and a half others, the wave peaks early and high: a fifth of the population sick at once."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 4,
+     "speak": "Bring that down to one point four, and the same wave spreads out: later, lower, longer."
+    },
+    {
+     "highlight": {
+      "target": [
+       "line_1"
+      ]
+     },
+     "speak": "Fewer people are sick at the same time. That is the whole point of flattening the curve: not fewer cases, but room to treat them."
+    }
+   ]
+  }
  }
 ]
