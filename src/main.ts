@@ -158,6 +158,7 @@ applyTheme();
 const speech = new CloudSpeech(
   () => (settings.cloudPlayback ? getTtsKey() : ""),
   () => settings.cloudVoices,
+  bakeClipStore,
 );
 /** Baked narration for the document on screen; replaced on every mount. */
 let bakedAudio: BakedAudio | null = null;

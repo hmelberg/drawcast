@@ -10,20 +10,16 @@
 // and the published copy remains the durable reuse source. Same IndexedDB
 // idiom as the portrait cache (render/portrait.ts), same in-memory
 // fallback for tests and headless runs.
+//
+// Live playback shares it (Hans 2026-09-02: replaying while editing paid
+// Google on every reload): CloudSpeech reads and writes the same store
+// under the same key, so previewing a line pre-pays its publish and
+// publishing pre-pays its replays. The key itself lives beside
+// narrationVoice() in tts.ts, the one place that decides the voice.
 
-import { narrationVoice } from "./tts";
-import { detectLang } from "../render/speech";
-import { speechKey, type SpeakLine } from "../render/delivery";
+import type { SpeakLine } from "../render/delivery";
 
-/**
- * Everything that determines the audio bytes is in the key: the rate the
- * call would send, the exact voice narrationVoice() decides (language code
- * and name), and speechKey's gender/speaker/delivery/text.
- */
-export function clipCacheKey(rate: number, voices: Record<string, string> | undefined, line: SpeakLine): string {
-  const v = narrationVoice(voices, detectLang(line.text), line);
-  return `${rate}|${v.languageCode}|${v.name ?? ""}|${speechKey(line)}`;
-}
+export { clipCacheKey } from "./tts";
 
 export interface ClipStore {
   get(key: string): Promise<string | null>;

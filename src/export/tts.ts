@@ -7,6 +7,7 @@ import { DELIVERY, effectiveGender, speechKey, type SpeakLine, type SpeakOpts } 
 import { SpeechManager, detectLang } from "../render/speech";
 import { sayable } from "../render/pronounce";
 import { addTtsChars, ttsBudgetError } from "../store";
+import type { ClipStore } from "./bake-cache";
 
 export interface TtsConfig {
   apiKey: string;
@@ -145,6 +146,19 @@ export function stampedVoice(voices: Record<string, string> | undefined, lang: s
   return effectiveGender(opts) === null ? DEFAULT_VOICES[lang]?.name : undefined;
 }
 
+/**
+ * Everything that determines a clip's bytes, as one string: the rate the
+ * call would send, the exact voice narrationVoice() decides (language code
+ * and name), and speechKey's gender/speaker/delivery/text. The publish bake
+ * and CloudSpeech's live playback key their shared clip store by this same
+ * function — so a line previewed in the editor is free at publish time, and
+ * a published line is free on replay.
+ */
+export function clipCacheKey(rate: number, voices: Record<string, string> | undefined, line: SpeakLine): string {
+  const v = narrationVoice(voices, detectLang(line.text), line);
+  return `${rate}|${v.languageCode}|${v.name ?? ""}|${speechKey(line)}`;
+}
+
 /** The voice for a language: the listened-to default when there is one, else
  *  the language code alone and let Google choose within the gender. */
 export function voiceFor(lang: string, gender: "female" | "male"): VoiceChoice {
@@ -261,14 +275,21 @@ export async function synthesizeAll(
 
 /**
  * SpeechManager for LIVE playback with cloud voices: synthesizes lines on
- * demand (cached per rate for the session), plays them through WebAudio with
- * live mute and real pause/resume, and falls back to the browser's
- * speechSynthesis whenever no key is set or a cloud call fails.
+ * demand, plays them through WebAudio with live mute and real pause/resume,
+ * and falls back to the browser's speechSynthesis whenever no key is set or
+ * a cloud call fails.
+ *
+ * Clips are cached twice over. Decoded buffers live in memory for the
+ * session; the encoded MP3s go to `clips` — the bake's 30-day store, keyed
+ * by clipCacheKey — so a reload, a new tab, or the publish itself never pays
+ * Google twice for the same line (Hans 2026-09-02: replaying while editing
+ * cost about $1.82 per lecture per reload on the Studio default).
  */
 export class CloudSpeech extends SpeechManager {
   private getKey: () => string;
   /** B12: live per-language voice preferences, read fresh per line so a pick applies at once. */
   private getVoices: () => Record<string, string>;
+  private clips: ClipStore | null;
   private audioCtx: AudioContext | null = null;
   private gain: GainNode | null = null;
   private baseRate = 1;
@@ -276,10 +297,11 @@ export class CloudSpeech extends SpeechManager {
   private pending = new Map<string, Promise<AudioBuffer>>();
   private active = new Set<AudioBufferSourceNode>();
 
-  constructor(getKey: () => string, getVoices: () => Record<string, string> = () => ({})) {
+  constructor(getKey: () => string, getVoices: () => Record<string, string> = () => ({}), clips: ClipStore | null = null) {
     super();
     this.getKey = getKey;
     this.getVoices = getVoices;
+    this.clips = clips;
   }
 
   override setRate(rate: number): void {
@@ -308,15 +330,17 @@ export class CloudSpeech extends SpeechManager {
 
   private buffer(text: string, rate: number, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
     const voices = this.getVoices();
-    // The pick is part of the cache key: changing the voice mid-session must
-    // not replay lines recorded in the old one.
-    const pref = preferredVoice(voices, detectLang(text), opts?.speaker) ?? "";
-    const key = `${pref}|${rate.toFixed(2)}|${speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender })}`;
+    const line: SpeakLine = { text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender };
+    // The voice pick and the rate are part of the key: changing either
+    // mid-session must not replay lines recorded under the old one. It is
+    // the BAKE's key, so the two caches are one.
+    const key = clipCacheKey(rate, voices, line);
     const hit = this.cache.get(key);
     if (hit) return Promise.resolve(hit);
     const inFlight = this.pending.get(key);
     if (inFlight) return inFlight;
-    const p = synthesizeOne({ apiKey: this.getKey(), rate, voices }, text, audioCtx, opts)
+    const p = this.encoded(key, line, { apiKey: this.getKey(), rate, voices })
+      .then((b64) => audioCtx.decodeAudioData(base64ToBytes(b64).buffer as ArrayBuffer))
       .then((b) => {
         this.cache.set(key, b);
         this.pending.delete(key);
@@ -328,6 +352,20 @@ export class CloudSpeech extends SpeechManager {
       });
     this.pending.set(key, p);
     return p;
+  }
+
+  /**
+   * The base64 MP3 for one line: the shared store first, the API on a miss —
+   * saved the moment it exists, before anything can fail. The store is a
+   * wallet-protector, never a gate: a read error is a miss, a write error
+   * still returns the clip.
+   */
+  private async encoded(key: string, line: SpeakLine, cfg: TtsConfig): Promise<string> {
+    const hit = this.clips ? await this.clips.get(key).catch(() => null) : null;
+    if (hit) return hit;
+    const b64 = await synthesizeBase64(cfg, line.text, line);
+    await this.clips?.put(key, b64).catch(() => undefined);
+    return b64;
   }
 
   /** Warm the cache for upcoming lines (fire-and-forget; errors surface at speak time). */

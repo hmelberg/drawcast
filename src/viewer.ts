@@ -10,6 +10,7 @@
 import "./styles.css";
 import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
+import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
@@ -244,6 +245,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const speech = new CloudSpeech(
       () => (settings.cloudPlayback ? getTtsKey() : ""),
       () => settings.cloudVoices,
+      bakeClipStore,
     );
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
