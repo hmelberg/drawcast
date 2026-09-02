@@ -1,6 +1,9 @@
-// Four sections, all built the same way. Courses come out of the library —
+// Five sections, all built the same way. Courses come out of the library —
 // nesting them there made a course both a library item and not one — and every
 // section can be closed, because a menu that only grows is a menu you scroll.
+// Style is the fifth (Hans 2026-09-02): a user may keep several styles, so
+// they list like examples do, and the headings carry no counts — "(2)" after
+// Library told nobody anything they needed.
 
 import type { SavedCourse, SavedDrawing } from "../store";
 import { h } from "./dom";
@@ -13,6 +16,7 @@ export interface SectionInput {
   courses: { id: string; title: string; lectures: string[] }[];
   examples: { title: string }[];
   templates: { id: string }[];
+  styles: { name: string }[];
 }
 
 export interface SectionModel {
@@ -28,7 +32,7 @@ export interface SectionModel {
 // Library alone opens by default (Hans 2026-09-02: the menu got long enough
 // to scroll — "that is ugly"): with the accordion below, one open list is
 // the sidebar's whole variable height, so it fits the viewport.
-const DEFAULT_OPEN: Record<string, boolean> = { library: true, courses: false, examples: false, templates: false };
+const DEFAULT_OPEN: Record<string, boolean> = { library: true, courses: false, examples: false, templates: false, style: false };
 
 export function sidebarSections(input: SectionInput, filter: string, openState: Record<string, boolean>): SectionModel[] {
   const f = filter.trim().toLowerCase();
@@ -36,6 +40,7 @@ export function sidebarSections(input: SectionInput, filter: string, openState: 
   const libraryTitles = input.library.filter((i) => !i.courseId).map((i) => i.title);
   const exampleTitles = input.examples.map((e) => e.title);
   const templateTitles = input.templates.map((t) => t.id);
+  const styleNames = input.styles.map((s) => s.name);
   // A course counts as a hit on its own title OR any of its lectures' — a
   // course whose title never matches is still where a matching lecture
   // lives, and hiding the course would hide the lecture too.
@@ -45,6 +50,7 @@ export function sidebarSections(input: SectionInput, filter: string, openState: 
     { id: "courses", label: "Courses", shown: courseHits, total: input.courses.length },
     { id: "examples", label: "Examples", shown: exampleTitles.filter(match).length, total: exampleTitles.length },
     { id: "templates", label: "Templates", shown: templateTitles.filter(match).length, total: templateTitles.length },
+    { id: "style", label: "Style", shown: styleNames.filter(match).length, total: styleNames.length },
   ];
   return specs.map(({ id, label, shown, total }) => {
     const remembered = openState[id] ?? DEFAULT_OPEN[id];
@@ -52,11 +58,6 @@ export function sidebarSections(input: SectionInput, filter: string, openState: 
     // section that has hits, and never closes one the author opened.
     return { id, label, shown, total, open: f !== "" && shown > 0 ? true : remembered };
   });
-}
-
-/** "3 of 12" while a filter narrows the list, "(12)" otherwise. */
-export function sectionCountLabel(model: SectionModel): string {
-  return model.shown === model.total ? `(${model.total})` : `${model.shown} of ${model.total}`;
 }
 
 /**
@@ -81,9 +82,9 @@ export interface SidebarSection {
 }
 
 /**
- * One of the sidebar's four uniform sections: a `<details>` whose `<summary>`
- * carries the label and a live count (the native disclosure triangle is the
- * caret — nothing in this codebase suppresses it). `onToggle` fires only on a
+ * One of the sidebar's five uniform sections: a `<details>` whose `<summary>`
+ * carries the label (the native disclosure triangle is the caret — nothing
+ * in this codebase suppresses it). `onToggle` fires only on a
  * genuine click, with the native toggle suppressed (`preventDefault`) — open
  * state is driven entirely by `applySection` afterwards, so a filter's
  * temporary auto-expand (see `sidebarSections`) never overwrites what the
@@ -100,10 +101,12 @@ export function createSidebarSection(onToggle: (nextOpen: boolean) => void): Sid
   return { details, list };
 }
 
-/** Sync a section's header text and open state to its computed model. */
+/** Sync a section's header text and open state to its computed model. The
+ *  label alone: the shown/total pair still drives a filter's auto-open, but
+ *  it is not shown (Hans 2026-09-02). */
 export function applySection(section: SidebarSection, model: SectionModel): void {
   const summary = section.details.querySelector("summary")!;
-  summary.textContent = `${model.label} ${sectionCountLabel(model)}`;
+  summary.textContent = model.label;
   section.details.open = model.open;
 }
 

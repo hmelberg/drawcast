@@ -128,10 +128,14 @@ body.mode-player .topbar,
 body.mode-player .sidebar { display: none; }
 body.mode-player main { padding-top: 1.6rem; }
 
-/* The editor lays the sidebar next to the workbench. */
+/* The editor lays the sidebar next to the workbench. Stretched, not
+   top-aligned (Hans 2026-09-02): the sidebar ends where the editor ends, or
+   later when its own content is longer. Its max-height (below) caps that at
+   the viewport, so on a long script it is still the sticky, scrolling column
+   it was — a stretched box taller than the viewport could never stick. */
 body.mode-editor main {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 1.1rem;
 }
 
@@ -393,6 +397,7 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 .sidebar-row {
   border: none;
   background: none;
+  font-family: inherit;
   text-align: left;
   padding: 0.3rem 0.35rem;
   border-radius: 5px;
@@ -404,10 +409,11 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 }
 .sidebar-row:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
 
-/* The footer rows configure the app rather than list content — a quieter
-   style so the two species read differently. */
-.sidebar-tools .sidebar-row { font-size: var(--text-sm); color: var(--muted); }
-.sidebar-tools .sidebar-row:hover { color: var(--ink); }
+/* The footer rows are set exactly like the section headings — same weight,
+   size, ink and padding (Hans 2026-09-02: "Player, Style and Sign in should
+   be in the same style as the other headings"). The disclosure caret alone
+   tells a section from an action. */
+.sidebar-tools .sidebar-row { font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
 
 .sidebar-backdrop { display: none; }
 @media (max-width: 940px) {

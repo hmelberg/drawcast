@@ -263,3 +263,10 @@ published copy, M replayed free from the local cache, K synthesized") and
 NAMES a re-voicing with its from → to and the route back (Settings →
 Playback). voiceChanges() pure in bake.ts; SynthStats on the caching
 synthesizer; wired in both cast and course bakes.
+
+## Follow-up: four sidebar rulings (Hans, 2026-09-02 evening)
+
+1. No counts after section headings ("not really necessary") — `sectionCountLabel` deleted; the shown/total pair still drives a filter's auto-open, unseen.
+2. Tool rows (Player, Instructions, Data, Help, Sign in, Settings) set like the headings: 600 weight, ink, same size/padding. The "quieter species" rule from the shell redesign is reversed by this ruling.
+3. Style is a fifth `<details>` section after Templates (accordion, searchable): None + every saved style, active marked ● rust, click activates; a trailing "Manage…" row opens the existing modal. The Style tool row is gone.
+4. The sidebar stretches to the workbench (`align-items: stretch` on `body.mode-editor main`), so it ends where the editor ends or later; the viewport max-height + sticky stay, so a long script still keeps the tool rows in reach.

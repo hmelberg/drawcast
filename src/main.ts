@@ -653,6 +653,14 @@ const librarySection = createSidebarSection(onSectionToggle("library"));
 const coursesSection = createSidebarSection(onSectionToggle("courses"));
 const examplesSection = createSidebarSection(onSectionToggle("examples"));
 const templatesSection = createSidebarSection(onSectionToggle("templates"));
+// Style is a section, not a tool row (Hans 2026-09-02: "the user may create
+// multiple styles"): the list is the modal's — None plus every saved style,
+// the active one marked — and "Manage…" opens the modal for editing, exactly
+// as Templates does. Built by refreshStyleSection, below refreshStylePanel.
+const styleSection = createSidebarSection(onSectionToggle("style"));
+const manageStylesRow = h("button", { class: "sidebar-row" }, "Manage…");
+manageStylesRow.addEventListener("click", () => openStyleModal());
+styleSection.details.append(manageStylesRow);
 const examplesList = examplesSection.list;
 // "＋ New course" replaces the old "🎓 Course" tool row — same wiring
 // (openCourse, defined with the other library/course refresh functions
@@ -1121,7 +1129,7 @@ const editorWrap = h(
 
 // ---------- left sidebar: the one menu ----------
 
-const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library, courses, examples and templates" }) as HTMLInputElement;
+const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library, courses, examples, templates and styles" }) as HTMLInputElement;
 const dataRow = h("button", { class: "sidebar-row" }, "Data");
 // Declared here, ABOVE the sidebar, not near refreshAccountRow(): the IIFE
 // below that assigns it runs during module initialisation, before a `let`
@@ -1136,17 +1144,13 @@ const sidebar = h(
   coursesSection.details,
   examplesSection.details,
   templatesSection.details,
+  styleSection.details,
   h(
     "div",
     { class: "sidebar-tools" },
     (() => {
       const b = h("button", { class: "sidebar-row" }, "Player");
       b.addEventListener("click", () => showMode("player"));
-      return b;
-    })(),
-    (() => {
-      const b = h("button", { class: "sidebar-row" }, "Style");
-      b.addEventListener("click", () => openStyleModal());
       return b;
     })(),
     (() => {
@@ -1197,6 +1201,7 @@ sidebarSearch.addEventListener("input", () => {
   refreshLibrary();
   refreshExamples();
   refreshTemplatesSection();
+  refreshStyleSection();
 });
 
 const main = h("main", {}, sidebar, playerWrap, editorWrap);
@@ -1404,6 +1409,33 @@ function refreshStylePanel(): void {
   styleSaveBtn.disabled = !editing;
   styleDeleteBtn.disabled = !editing;
   refreshChoicesToggle();
+  refreshStyleSection();
+}
+
+/** The sidebar's Style section: the modal's list, filtered by the search box. */
+function refreshStyleSection(): void {
+  styleSection.list.replaceChildren();
+  const all = loadStyles();
+  if (all.length === 0) {
+    styleSection.list.appendChild(h("div", { class: "hint" }, "No styles yet."));
+  } else {
+    const rows: { id: string | null; label: string }[] = [{ id: null, label: "None" }, ...all.map((sp) => ({ id: sp.id as string | null, label: sp.name }))];
+    const shown = rows.filter((r) => matchesFilter(r.label));
+    if (shown.length === 0) styleSection.list.appendChild(h("div", { class: "hint" }, "No match."));
+    for (const r of shown) {
+      const active = r.id === settings.activeStyleId;
+      const open = h("button", { class: `library-open${active ? " current" : ""}` }, `${active ? "● " : ""}${r.label}`);
+      open.addEventListener("click", () => {
+        commitStyleEdits();
+        settings.activeStyleId = r.id;
+        persist();
+        if (r.id) editingStyleId = r.id;
+        refreshStylePanel(); // repaints the modal, the quick pick, and this list
+      });
+      styleSection.list.appendChild(h("div", { class: "library-item" }, open));
+    }
+  }
+  refreshSidebarShell();
 }
 
 styleNewBtn.addEventListener("click", () => {
@@ -3333,13 +3365,14 @@ function sidebarInput(): SectionInput {
     }),
     examples: examples.map((ex) => ({ title: ex.title ?? ex.spec?.title ?? ex.request })),
     templates: loadMyTemplates().map((t) => ({ id: t.id })),
+    styles: loadStyles().map((sp) => ({ name: sp.name })),
   };
 }
 
-/** Recomputes all four sections' header text and open state — cheap, and
- *  called after anything that could change what they list or count. */
+/** Recomputes all five sections' header text and open state — cheap, and
+ *  called after anything that could change what they list. */
 function refreshSidebarShell(): void {
-  const sections: Record<string, SidebarSection> = { library: librarySection, courses: coursesSection, examples: examplesSection, templates: templatesSection };
+  const sections: Record<string, SidebarSection> = { library: librarySection, courses: coursesSection, examples: examplesSection, templates: templatesSection, style: styleSection };
   for (const model of sidebarSections(sidebarInput(), sidebarFilter, settings.sidebarSections)) {
     applySection(sections[model.id], model);
   }

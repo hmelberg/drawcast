@@ -6,11 +6,14 @@ const input: SectionInput = {
   courses: [{ id: "c1", title: "Causal inference", lectures: ["Lecture 1", "Lecture 2"] }],
   examples: [{ title: "Supply and demand" }, { title: "Ricardo" }],
   templates: [{ id: "t1" }],
+  styles: [{ name: "Lecture voice" }, { name: "Terse" }],
 };
 
 describe("sidebarSections", () => {
-  it("lists four sections in reading order", () => {
-    expect(sidebarSections(input, "", {}).map((s) => s.id)).toEqual(["library", "courses", "examples", "templates"]);
+  // Style is a section, not a tool row (Hans 2026-09-02): "styles should be a
+  // dropdown like examples and library since the user may create multiple".
+  it("lists five sections in reading order — Style last", () => {
+    expect(sidebarSections(input, "", {}).map((s) => s.id)).toEqual(["library", "courses", "examples", "templates", "style"]);
   });
 
   it("keeps lectures out of the library — a course is not also a loose item", () => {
@@ -20,7 +23,7 @@ describe("sidebarSections", () => {
 
   it("defaults only library open — one expanded list keeps the sidebar inside the viewport", () => {
     const open = Object.fromEntries(sidebarSections(input, "", {}).map((s) => [s.id, s.open]));
-    expect(open).toEqual({ library: true, courses: false, examples: false, templates: false });
+    expect(open).toEqual({ library: true, courses: false, examples: false, templates: false, style: false });
   });
 
   it("honours a remembered state over the default", () => {
@@ -40,6 +43,11 @@ describe("sidebarSections", () => {
     expect([ex.shown, ex.total]).toEqual([1, 2]);
   });
 
+  it("a style name is searchable like everything else", () => {
+    const style = sidebarSections(input, "terse", {}).find((s) => s.id === "style")!;
+    expect([style.shown, style.total, style.open]).toEqual([1, 2, true]);
+  });
+
   it("does not auto-expand a section with no matches", () => {
     expect(sidebarSections(input, "zzz", {}).find((s) => s.id === "courses")!.open).toBe(false);
   });
@@ -54,7 +62,7 @@ describe("sidebarSections", () => {
 describe("accordionOpenState", () => {
   it("opening one section closes the others", () => {
     expect(accordionOpenState({ library: true, examples: true }, "courses", true)).toEqual({
-      library: false, courses: true, examples: false, templates: false,
+      library: false, courses: true, examples: false, templates: false, style: false,
     });
   });
 
