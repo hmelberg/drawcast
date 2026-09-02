@@ -42,6 +42,7 @@ import { openCoursePanel } from "./ui/course";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { markSvg } from "./brand/mark";
+import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertPortrait, unembeddedImages } from "./ui/insert";
 import { applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
@@ -419,8 +420,11 @@ const promptEl = h("textarea", {
   "aria-label": "Describe the drawing",
   placeholder: 'Describe the drawing… e.g. "Show the deadweight loss from a tax, with shaded regions"',
 });
+// ONE button for both verbs (B7/D3): its action, label and the prompt box's
+// placeholder are derived from what the editor holds — see ui/author-mode.ts.
+// Generate replaces the document and Revise edits it; two buttons reading the
+// same prompt box and doing opposite things is how a drawcast got discarded.
 const generateBtn = h("button", { class: "primary" }, "Generate with AI");
-const reviseBtn = h("button", { class: "primary", title: "Change the current drawcast with AI" }, "Revise with AI");
 // Review mode: watch and collect notes, then apply them as one revision. A
 // mode rather than a permanent fixture — a viewer should never see it.
 const reviewBtn = h("button", { class: "small", title: "Watch and collect notes, then apply them as one revision" }, "✎ Review");
@@ -1058,7 +1062,7 @@ const editorWrap = h(
     h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
     viewBar,
-    h("div", { class: "row gen-row" }, choicesBtn, histNav, generateBtn, reviseBtn),
+    h("div", { class: "row gen-row" }, choicesBtn, histNav, generateBtn),
     genChoices,
   ),
   statusEl,
@@ -2182,7 +2186,7 @@ function applyHistoryUi(): void {
   // While viewing, editing has nowhere to land — lock the pane rather than let
   // hand-edits vanish on the next arrow press.
   specArea.readOnly = viewing;
-  reviseBtn.textContent = viewing ? "Revise from here" : "Revise with AI";
+  applyAuthorMode(); // the one button reads viewing (Revise from here) and the derived mode
   // Both of these target `lastLogId` — the log entry for the NEWEST version — so
   // while you are viewing an older one they would record against a spec that is
   // not on screen. Ratings feed the prompt-improvement loop, which makes that a
@@ -2433,12 +2437,10 @@ let aiAbort: AbortController | null = null;
 function setAiBusy(busy: boolean, controller: AbortController | null = null): void {
   aiBusy = busy;
   aiAbort = busy ? controller : null;
-  reviseBtn.disabled = busy;
-  // Generate deliberately stays ENABLED while busy — it IS the cancel button.
-  // One button, one place: the thing that started the call stops it.
-  generateBtn.textContent = busy ? "Cancel" : "Generate with AI";
+  // The button deliberately stays ENABLED while busy — it IS the cancel
+  // button. One button, one place: the thing that started the call stops it.
   generateBtn.classList.toggle("cancelling", busy);
-  generateBtn.title = busy ? "Stop this AI call (Esc)" : "";
+  applyAuthorMode();
 }
 
 function cancelAi(): void {
@@ -2662,8 +2664,6 @@ async function revise(): Promise<void> {
   }
 }
 
-reviseBtn.addEventListener("click", () => void revise());
-
 reviewBtn.addEventListener("click", () => {
   if (review) {
     review.destroy();
@@ -2774,8 +2774,32 @@ const BLANK_SPEC: Spec = {
   ],
 };
 
+/** The blank text ＋ New puts in the editor — authoringMode's "empty document". */
+let blankTextCache: string | null = null;
+function blankDocText(): string {
+  return (blankTextCache ??= formatPlaylist(singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec), "yaml"));
+}
+
+/** One button, one truth (B7): label, tooltip and placeholder all derive from
+ *  the same mode read. Called on every keystroke, every history/document
+ *  change (applyHistoryUi) and every busy transition (setAiBusy). */
+function applyAuthorMode(): void {
+  const mode = authoringMode(specArea.value, blankDocText());
+  const viewing = !atNewest(stack);
+  generateBtn.textContent = authorButtonLabel(mode, { busy: aiBusy, viewing });
+  promptEl.placeholder = promptPlaceholder(mode);
+  generateBtn.title = aiBusy
+    ? "Stop this AI call (Esc)"
+    : mode === "generate" && !viewing
+      ? "Create a drawcast from the description above"
+      : "Change the current drawcast with AI";
+}
+specArea.addEventListener("input", applyAuthorMode);
+
 generateBtn.addEventListener("click", () => {
   if (aiBusy) return cancelAi();
+  // Viewing an old version is always a revise — branching from history.
+  if (!atNewest(stack) || authoringMode(specArea.value, blankDocText()) === "revise") return void revise();
   void generate();
 });
 
