@@ -2,7 +2,17 @@
 
 Plan `2026-09-02-do-it-all-plan.md`. Six feature commits, suite 2861 → 2886.
 Everything open on the roadmap delivered or explicitly ruled; final review
-run over the whole range before push.
+run over the whole range before push — it CONFIRMED eight findings (and
+refuted two), all fixed in the closing commit. The catch that mattered
+most, and that no single task could see: `runsActive` was checked and
+decremented but NEVER incremented — the very race the round claimed to
+close had a dead guard under it, and a per-lecture ⟳ during a batch ran
+two generations concurrently. Also in that class: republish silently
+stripped a live page's comments; unsaved style text died on a row click;
+a stored cloud voice displayed as "Default" while silently driving
+playback; an explicitly preferred voice that 400s would have baked the
+default voice under the preferred name and the reuse check would have
+kept the lie forever. Full list in commit ccb8900.
 
 ## Rulings taken (⚖ in the plan)
 
