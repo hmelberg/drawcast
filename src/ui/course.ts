@@ -16,8 +16,9 @@ import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
-import { bakeNarration, bakeSize } from "../export/bake";
-import { bakeClipStore, cachingSynthesizer, clipCacheKey } from "../export/bake-cache";
+import type { SpeakLine } from "../render/delivery";
+import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
+import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { stampedVoice, synthesizeBase64 } from "../export/tts";
 import { detectLang } from "../render/speech";
@@ -707,6 +708,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
 
   async function bakeLectures(course: Course, yamlFor: (i: number) => string | null, signal: AbortSignal): Promise<Map<number, string>> {
     bakedTotal = 0;
+    bakeStats = { cached: 0, synthesized: 0 };
+    bakeReused = 0;
+    bakeRevoiced.clear();
     const settings = loadSettings();
     const apiKey = getTtsKey();
     if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
@@ -719,6 +723,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       const text = yamlFor(index)!;
       const playlist = parsePlaylistText(text);
       const lines = playlistSpeakLines(playlist);
+      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, detectLang(line.text), line);
       // What this lecture already published, so unchanged lines are free.
       let existing: AudioTrack["lines"] = {};
       const file = course.lectures[index].status?.file;
@@ -741,17 +746,37 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
             bakeClipStore,
             (line) => clipCacheKey(settings.rate, settings.cloudVoices, line),
             (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+            bakeStats,
           ),
-          voiceOf: (line) => stampedVoice(settings.cloudVoices, detectLang(line.text), line),
+          voiceOf,
         },
         (done, total) =>
           working(`Narration for lecture ${n + 1} of ${numbered.length} — ${done}/${total} lines…`),
         signal,
       );
+      // The accounting that answers "why is it synthesizing again?": what was
+      // reused from the published copy, what a changed voice re-bought, what
+      // the local cache replayed free.
+      bakeReused += linesToBake(lines, {}, voiceOf).length - linesToBake(lines, existing, voiceOf).length;
+      for (const c of voiceChanges(lines, existing, voiceOf)) {
+        const k = `${c.from} → ${c.to}`;
+        bakeRevoiced.set(k, (bakeRevoiced.get(k) ?? 0) + c.count);
+      }
       out.set(index, formatPublished(playlist, track));
       bakedTotal += bakeSize(track).inlineBytes;
     }
     return out;
+  }
+
+  /** What the last bake actually did, for the publish report. */
+  let bakeStats: SynthStats = { cached: 0, synthesized: 0 };
+  let bakeReused = 0;
+  const bakeRevoiced = new Map<string, number>();
+
+  function bakeReport(): string {
+    const parts = [`${bakeReused} line(s) reused from the published copy`, `${bakeStats.cached} replayed free from the local cache`, `${bakeStats.synthesized} synthesized`];
+    const revoiced = [...bakeRevoiced.entries()].map(([k, n]) => `${n} line(s) re-voiced ${k}`).join("; ");
+    return ` (${parts.join(", ")}${revoiced ? `. NOTE: ${revoiced} — a voice pick counts as a change; Settings → Playback puts it back` : ""}).`;
   }
 
   /**
@@ -884,7 +909,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         return;
       }
       showLinks(out.readmeUrl, out.courseUrl, out.pagesUrl, firstTime, out.defaultBranch);
-      const narration = baked ? ` Narration included — ${(bakedTotal / 1_048_576).toFixed(1)} MB across ${baked.size} lecture(s), so viewers need no key.` : "";
+      const narration = baked ? ` Narration included — ${(bakedTotal / 1_048_576).toFixed(1)} MB across ${baked.size} lecture(s), so viewers need no key.${bakeReport()}` : "";
       // `embedded &&` matters: embeddedTotal survives between publishes, so a
       // second publish with the box off would otherwise report the first
       // publish's count.

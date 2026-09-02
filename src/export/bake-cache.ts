@@ -35,16 +35,28 @@ export interface ClipStore {
  * every call checks the cache first. Cache failures are invisible: a read
  * error falls through to the API, a write error still returns the clip.
  */
+export interface SynthStats {
+  /** Lines answered by the local cache — replayed free. */
+  cached: number;
+  /** Lines that actually called the API — the ones that cost money. */
+  synthesized: number;
+}
+
 export function cachingSynthesizer(
   store: ClipStore,
   keyOf: (line: SpeakLine) => string,
   synthesize: (line: SpeakLine) => Promise<string>,
+  stats?: SynthStats,
 ): (line: SpeakLine) => Promise<string> {
   return async (line) => {
     const key = keyOf(line);
     const hit = await store.get(key).catch(() => null);
-    if (hit) return hit;
+    if (hit) {
+      if (stats) stats.cached++;
+      return hit;
+    }
     const b64 = await synthesize(line);
+    if (stats) stats.synthesized++;
     // BEFORE returning: the whole point is that a failure right after this
     // line cannot lose the clip.
     await store.put(key, b64).catch(() => undefined);

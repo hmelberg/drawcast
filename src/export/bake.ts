@@ -120,3 +120,36 @@ export function bakeSize(track: AudioTrack): BakeSize {
   }
   return { lines: entries.length, bytes: Math.round(bytes), inlineBytes, ms };
 }
+
+/**
+ * Which lines a bake would re-synthesize ONLY because the voice changed:
+ * clip recorded in one voice, current decision another. Aggregated so the
+ * publish can say "re-voicing 312 lines: en-US-Studio-Q → X" BEFORE the
+ * spend — a silent re-bake reads as a bug to the author who "didn't change
+ * the speech" (an audition pick counts as a change, Hans 2026-09-02).
+ */
+export function voiceChanges(
+  lines: SpeakLine[],
+  existing: AudioTrack["lines"],
+  voiceOf?: (line: SpeakLine) => string | undefined,
+): { from: string; to: string; count: number }[] {
+  const agg = new Map<string, number>();
+  const seen = new Set<string>();
+  for (const line of lines) {
+    if (line.text.trim().length === 0) continue;
+    const key = speechKey(line);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const clip = existing[key];
+    if (!clip) continue;
+    const from = clip.voice ?? "";
+    const to = voiceOf?.(line) ?? "";
+    if (from === to) continue;
+    const k = `${from}\u0000${to}`;
+    agg.set(k, (agg.get(k) ?? 0) + 1);
+  }
+  return [...agg.entries()].map(([k, count]) => {
+    const [from, to] = k.split("\u0000");
+    return { from: from || "(default)", to: to || "(default)", count };
+  });
+}

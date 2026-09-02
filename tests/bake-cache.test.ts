@@ -43,6 +43,16 @@ describe("cachingSynthesizer", () => {
     expect(calls).toBe(1); // the retry after a mid-bake failure is free
   });
 
+  test("stats separate the free replays from the paid calls", async () => {
+    const s = store();
+    const stats = { cached: 0, synthesized: 0 };
+    const synth = cachingSynthesizer(s, (l) => l.text, async () => "MP3", stats);
+    await synth(line("a"));
+    await synth(line("a"));
+    await synth(line("b"));
+    expect(stats).toEqual({ cached: 1, synthesized: 2 });
+  });
+
   test("a failing cache write never fails the synthesis — the clip still returns", async () => {
     const synth = cachingSynthesizer(
       { get: async () => null, put: async () => Promise.reject(new Error("quota")) },

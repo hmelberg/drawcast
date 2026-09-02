@@ -1,7 +1,7 @@
 // Baking narration for publication: what gets synthesized, what gets reused,
 // and what a cancelled bake leaves behind.
 import { describe, expect, test, vi } from "vitest";
-import { bakeNarration, bakeSize, linesToBake } from "../src/export/bake";
+import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../src/export/bake";
 import { speechKey, type SpeakLine } from "../src/render/delivery";
 
 const LINES: SpeakLine[] = [
@@ -169,5 +169,29 @@ describe("voice-aware reuse (B12)", () => {
       new AbortController().signal,
     );
     expect(track.lines[key]).toEqual({ mp3: "NEWVOICE", ms: 0, voice: "en-GB-Neural2-A" });
+  });
+});
+
+describe("voiceChanges — the publish names why it re-buys (2026-09-02)", () => {
+  const key = "|a||The price settles.";
+  const line = { text: "The price settles." };
+
+  test("a clip in another voice is reported as a re-voicing, aggregated", () => {
+    const existing = { [key]: { mp3: "x", ms: 1, voice: "en-US-Studio-Q" } };
+    expect(voiceChanges([line, line], existing, () => "en-US-Chirp3-HD-Charon")).toEqual([
+      { from: "en-US-Studio-Q", to: "en-US-Chirp3-HD-Charon", count: 1 },
+    ]);
+  });
+
+  test("matching voices, missing clips, and blank lines report nothing", () => {
+    expect(voiceChanges([line], { [key]: { mp3: "x", ms: 1, voice: "v" } }, () => "v")).toEqual([]);
+    expect(voiceChanges([line], {}, () => "v")).toEqual([]);
+    expect(voiceChanges([{ text: " " }], {}, () => "v")).toEqual([]);
+  });
+
+  test("an unstamped clip against a named decision reads as (default) → name", () => {
+    expect(voiceChanges([line], { [key]: { mp3: "x", ms: 1 } }, () => "en-US-Studio-Q")).toEqual([
+      { from: "(default)", to: "en-US-Studio-Q", count: 1 },
+    ]);
   });
 });

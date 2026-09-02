@@ -68,9 +68,9 @@ import { exportVideo, narrationLanguage, type ExportResult } from "./export/vide
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
-import { bakeNarration, bakeSize } from "./export/bake";
+import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bake";
 import { listCloudVoices, stampedVoice, synthesizeBase64 } from "./export/tts";
-import { bakeClipStore, cachingSynthesizer, clipCacheKey } from "./export/bake-cache";
+import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { publishCast } from "./publish/cast";
 import { embeddedPlaylist } from "./publish/embed";
@@ -83,6 +83,7 @@ import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
 import { detectLang } from "./render/speech";
+import type { SpeakLine } from "./render/delivery";
 import {
   addExemplar,
   appendLog,
@@ -3966,8 +3967,11 @@ async function publishTextFor(
   if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
   const published = await previousText();
   const existing: AudioTrack["lines"] = published ? (parsePlaylistText(published).audio?.lines ?? {}) : {};
+  const bakeLines = playlistSpeakLines(source);
+  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, detectLang(line.text), line);
+  const stats: SynthStats = { cached: 0, synthesized: 0 };
   const track = await bakeNarration(
-    playlistSpeakLines(source),
+    bakeLines,
     {
       lang: itemsOf(source).find((i) => i.spec.lang)?.spec.lang ?? "en",
       existing,
@@ -3978,16 +3982,25 @@ async function publishTextFor(
         bakeClipStore,
         (line) => clipCacheKey(settings.rate, settings.cloudVoices, line),
         (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+        stats,
       ),
       // Mirrors what synthesize will do (same detectLang, same decision) —
       // the reuse check and the synthesis must never disagree about the voice.
-      voiceOf: (line) => stampedVoice(settings.cloudVoices, detectLang(line.text), line),
+      voiceOf,
     },
     (done, total) => setStatus(`Synthesizing narration — ${done}/${total} lines…`),
     signal,
   );
   const size = bakeSize(track);
-  lastBakeNote = ` Narration included — ${size.lines} line(s), ${(size.inlineBytes / 1_048_576).toFixed(1)} MB, so viewers need no key.`;
+  // The accounting that answers "why is it synthesizing again?" — what the
+  // published copy provided, what the local cache replayed free, what was
+  // actually bought, and whether a voice change (an audition pick counts!)
+  // was the reason.
+  const reused = linesToBake(bakeLines, {}, voiceOf).length - linesToBake(bakeLines, existing, voiceOf).length;
+  const revoiced = voiceChanges(bakeLines, existing, voiceOf)
+    .map((c) => `${c.count} line(s) re-voiced ${c.from} → ${c.to}`)
+    .join("; ");
+  lastBakeNote = ` Narration included — ${size.lines} line(s), ${(size.inlineBytes / 1_048_576).toFixed(1)} MB, so viewers need no key (${reused} reused from the published copy, ${stats.cached} replayed free from the local cache, ${stats.synthesized} synthesized${revoiced ? `. NOTE: ${revoiced} — a voice pick counts as a change; Settings → Playback puts it back` : ""}).`;
   return formatPublished(source, track);
 }
 
