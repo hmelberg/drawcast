@@ -154,3 +154,19 @@ instead of 400ing into the silent no-name fallback. Stamps mirror the
 decision, so a republish re-bakes exactly the undeclared English lines
 into Q and reuses everything else. NOTE for Hans: Studio voices bill at
 Google's premium tier (~10× Neural2 per character).
+
+## Narration cost estimates (Hans, same day)
+
+Measured from his live cast (5 parts, 89 lines, 11,436 chars → the
+TYPICAL_LECTURE_CHARS constant): a 20-lecture course ≈ 229k characters ≈
+$37 at Studio rates, $7 Chirp3 HD, $3.70 Neural2. Built three surfaces,
+all priced by the SAME narrationVoice decision the synthesizer uses
+(export/tts-cost.ts): the course Generate confirm projects the whole
+course (from its own done lectures, else the measured typical lecture);
+the Embed-narration hint shows the exact upper bound (drawcast: editor
+text; course: sum over done lectures) noting republished lines are free;
+the Settings TTS note stops promising a thousand free drawcasts now that
+the default narrator bills premium. Traps: three source-pin tests broke on
+SHAPE changes whose guarantees still held (doc() grew a body, the bake
+hint needed its literal built once) — pins updated to assert the guarantee,
+not the shape.
