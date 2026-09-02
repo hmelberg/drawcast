@@ -8476,18 +8476,37 @@
      "id": "sim",
      "type": "code",
      "language": "python",
-     "show": "output",
-     "code": "import numpy as np\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))",
+     "show": "split",
+     "width": 900,
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\nplt.hist(x, bins=20)",
      "code_result": "{\"ok\": true, \"stdout\": \"mean: 0.034\", \"stderr\": \"\", \"figures\": []}"
     }
    ],
    "commands": [
     {
-     "speak": "Can two hundred random numbers already know where their center is? Let's run it for real: Numpy draws two hundred from a standard normal, seeded so we see the same truth every time."
+     "speak": "Can two hundred random numbers already know where their center is? Let's run it for real."
+    },
+    {
+     "draw": ["sim_line_1", "sim_line_2"],
+     "parallel": true,
+     "speak": "Numpy for the numbers, matplotlib for the picture."
+    },
+    {
+     "draw": ["sim_line_3"],
+     "speak": "A seeded generator — so this figure shows the same truth every time."
+    },
+    {
+     "draw": ["sim_line_4"],
+     "speak": "Two hundred draws from a standard normal."
+    },
+    {
+     "draw": ["sim_line_5", "sim_line_6"],
+     "speak": "Print the mean, and pile the draws into a histogram."
     },
     {
      "draw": ["sim_out"],
-     "speak": "The mean sits near zero. Randomness, obeying a law."
+     "delivery": "grave",
+     "speak": "The mean sits near zero, and the familiar bell is already there — randomness, obeying a law."
     }
    ]
   }

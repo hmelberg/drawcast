@@ -75,7 +75,8 @@ function stackLines(lines: string[][], fontSize: number): { blocks: TextBlock[];
   const blocks: TextBlock[] = [];
   let y = 0;
   for (const rows of lines) {
-    const height = (1 + (rows.length - 1) * ROW_H) * fontSize;
+    // Row height matches the renderer's/lint's 1.25 line box (ROW_H), so adjacent lines clear the overlap lint's 2-unit pad.
+    const height = rows.length * ROW_H * fontSize;
     blocks.push({ rows, center: y + height / 2, height });
     y += height + fontSize * LINE_GAP;
   }
