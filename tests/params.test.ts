@@ -13,6 +13,13 @@ describe("readParam", () => {
     expect(readParam({ a: NaN }, "a")).toBeNull();
     expect(readParam({ a: 5 }, "a.b")).toBeNull();
   });
+  test("array indices are path segments: values.2 reads the third entry, nested too", () => {
+    expect(readParam({ values: [3, 5, 8] }, "values.2")).toBe(8);
+    expect(readParam({ values: [[3, 5], [4, 9]] }, "values.1.0")).toBe(4);
+    expect(readParam({ series: [{ values: [1, 2] }] }, "series.0.values.1")).toBe(2);
+    expect(readParam({ values: [3, 5] }, "values.7")).toBeNull();
+    expect(readParam({ values: [3, 5] }, "values.x")).toBeNull();
+  });
 });
 
 describe("withOverrides", () => {
@@ -34,6 +41,17 @@ describe("withOverrides", () => {
   });
   test("undefined base works", () => {
     expect(withOverrides(undefined, { azimuth: 90 })).toEqual({ azimuth: 90 });
+  });
+  test("array indices are overridable without mutating the array", () => {
+    const base = { values: [3, 5, 8], series: [{ values: [1, 2] }] };
+    const out = withOverrides(base, { "values.2": 40, "series.0.values.1": 9 });
+    expect(out).toEqual({ values: [3, 5, 40], series: [{ values: [1, 9] }] });
+    expect(base.values).toEqual([3, 5, 8]);
+    expect(base.series[0].values).toEqual([1, 2]);
+  });
+  test("a non-integer segment into an array is a collision: the original wins; a missing path never creates an array", () => {
+    expect(withOverrides({ values: [3, 5] }, { "values.x": 1 })).toEqual({ values: [3, 5] });
+    expect(withOverrides({}, { "values.0": 1 })).toEqual({ values: { "0": 1 } });
   });
 });
 

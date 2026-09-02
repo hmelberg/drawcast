@@ -5,12 +5,25 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** The numeric value at a dot path, or null when missing/non-numeric. */
+/** An array index segment ("0", "12") — arrays are records with integer keys. */
+function indexOf(seg: string): number | null {
+  return /^\d+$/.test(seg) ? Number(seg) : null;
+}
+
+/** The numeric value at a dot path, or null when missing/non-numeric. Array
+ *  segments are integer indices (values.2, series.0.values.1). */
 export function readParam(params: Record<string, unknown> | undefined, path: string): number | null {
   let cur: unknown = params;
   for (const seg of path.split(".")) {
-    if (!isRecord(cur)) return null;
-    cur = cur[seg];
+    if (Array.isArray(cur)) {
+      const i = indexOf(seg);
+      if (i === null) return null;
+      cur = cur[i];
+    } else if (isRecord(cur)) {
+      cur = cur[seg];
+    } else {
+      return null;
+    }
   }
   return typeof cur === "number" && Number.isFinite(cur) ? cur : null;
 }
@@ -25,16 +38,28 @@ export function withOverrides(
   const out: Record<string, unknown> = { ...(params ?? {}) };
   for (const [path, value] of Object.entries(overrides)) {
     const segs = path.split(".");
-    let host = out;
+    let host: Record<string, unknown> | unknown[] = out;
     let ok = true;
     for (let i = 0; i < segs.length - 1; i++) {
-      const existing = host[segs[i]];
-      if (existing === undefined) host[segs[i]] = {};
-      else if (isRecord(existing)) host[segs[i]] = { ...existing };
+      const key: string | number = Array.isArray(host) ? (indexOf(segs[i]) ?? -1) : segs[i];
+      if (key === -1) { ok = false; break; }
+      const existing: unknown = (host as Record<string | number, unknown>)[key];
+      let next: Record<string, unknown> | unknown[];
+      if (existing === undefined) next = {};
+      else if (Array.isArray(existing)) next = [...existing];
+      else if (isRecord(existing)) next = { ...existing };
       else { ok = false; break; }
-      host = host[segs[i]] as Record<string, unknown>;
+      (host as Record<string | number, unknown>)[key] = next;
+      host = next;
     }
-    if (ok) host[segs[segs.length - 1]] = value;
+    if (!ok) continue;
+    const last = segs[segs.length - 1];
+    if (Array.isArray(host)) {
+      const i = indexOf(last);
+      if (i !== null) host[i] = value;
+    } else {
+      host[last] = value;
+    }
   }
   return out;
 }
