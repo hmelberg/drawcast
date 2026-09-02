@@ -19,6 +19,8 @@ export interface RenderResolveDeps {
   resolvePortraits: (spec: Spec) => Promise<unknown>;
   /** render/source.ts's resolveSources — mutates the spec it is given. */
   resolveSources: (spec: Spec, opts: { contactEmail: string }) => Promise<unknown>;
+  /** render/code.ts's resolveCode — mutates the spec it is given. */
+  resolveCode: (spec: Spec) => Promise<unknown>;
   contactEmail: string;
 }
 
@@ -32,6 +34,7 @@ export async function resolvedRenderSpec(spec: Spec, deps: RenderResolveDeps): P
   await Promise.all([
     deps.resolvePortraits(copy).catch(() => undefined),
     deps.resolveSources(copy, { contactEmail: deps.contactEmail }).catch(() => undefined),
+    deps.resolveCode(copy).catch(() => undefined),
   ]);
   return copy;
 }

@@ -27,6 +27,7 @@ describe("resolvedRenderSpec — render never writes into the document (B11)", (
       resolveSources: async (s) => {
         el(s, 1).strokes = "img1:aa:data:,x";
       },
+      resolveCode: async () => [],
     });
     expect(out).not.toBe(doc);
     expect(el(out, 0).strokes).toBe("t2:aa");
@@ -42,6 +43,7 @@ describe("resolvedRenderSpec — render never writes into the document (B11)", (
         throw new Error("no network");
       },
       resolveSources: async () => Promise.reject(new Error("paywalled")),
+      resolveCode: async () => [],
     });
     expect(el(out, 0).strokes).toBeUndefined();
   });
@@ -54,6 +56,7 @@ describe("resolvedRenderSpec — render never writes into the document (B11)", (
       resolveSources: async (_s, opts) => {
         seen = opts.contactEmail;
       },
+      resolveCode: async () => [],
     });
     expect(seen).toBe("hans@example.org");
   });

@@ -12,6 +12,7 @@ import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
+import { resolveCode } from "./code";
 import { resolvedRenderSpec } from "./resolve";
 import { titleIsDrawn } from "./title";
 import { resolveSources } from "./source";
@@ -98,7 +99,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // objects, and resolving on those rewrote the author's document as a side
   // effect of viewing it — see render/resolve.ts. Everything below, including
   // handle.spec, reads the resolved clone.
-  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, contactEmail: contactEmail() });
+  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, contactEmail: contactEmail() });
   const renderer = rendererFor(options.style ?? "sketchy");
 
   const figure = document.createElement("div");

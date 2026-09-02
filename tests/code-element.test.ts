@@ -12,6 +12,8 @@ import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type ImageDrawable, type TextDrawable } from "../src/layout/model";
 import { wrapCodeLine } from "../src/layout/code";
+import { resolveCode } from "../src/render/code";
+import { resolvedRenderSpec } from "../src/render/resolve";
 
 const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
@@ -140,5 +142,37 @@ describe("code element — layout", () => {
     expect(rows[0].startsWith("    ")).toBe(true);
     expect(rows[1].startsWith("      ")).toBe(true);
     for (const r of rows) expect(r.length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe("code element — resolver", () => {
+  test("stamps code_result from the runner; skips stamped elements", async () => {
+    const s = codeSpec({});
+    const deps = runDeps(OK);
+    const res = await resolveCode(s, deps);
+    expect(res).toEqual([{ id: "c1", ok: true, error: undefined }]);
+    expect(JSON.parse(s.elements![0].code_result!)).toEqual(OK);
+    await resolveCode(s, deps);
+    expect(deps.calls.length).toBe(1); // second pass: already stamped
+  });
+
+  test("a failed run stamps the error envelope — layout will draw it", async () => {
+    const s = codeSpec({});
+    const bad: CodeRunResult = { ok: false, stdout: "", stderr: "SyntaxError", figures: [], error: "SyntaxError" };
+    const res = await resolveCode(s, runDeps(bad));
+    expect(res[0].ok).toBe(false);
+    expect(decodeCodeResult(s.elements![0].code_result)).toEqual(bad);
+  });
+
+  test("resolvedRenderSpec keeps B11: the author's spec is never stamped", async () => {
+    const s = codeSpec({});
+    const copy = await resolvedRenderSpec(s, {
+      resolvePortraits: async () => undefined,
+      resolveSources: async () => undefined,
+      resolveCode: async (c) => resolveCode(c, runDeps(OK)),
+      contactEmail: "",
+    });
+    expect(s.elements![0].code_result).toBeUndefined();
+    expect(copy.elements![0].code_result).toBeDefined();
   });
 });
