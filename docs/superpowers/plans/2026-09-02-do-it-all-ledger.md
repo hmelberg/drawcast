@@ -133,3 +133,24 @@ first-part shape.
 Standing lesson (the six-silent-deaths class): `LayoutResult.warnings` is
 a channel with no reader outside the editor — anything load-bearing must
 not end there.
+
+## Course publish placement + Studio-Q default (Hans, same day)
+
+Hans could not find course publishing — it existed as a small `↗ Publish`
+in the course modal's FOOTER, visually identical to Save. His ruling: Save
+and Publish go in the top row beside ＋ New; Publish wears primary. Also
+found while answering: the C1 Allow-comments checkbox was silently DROPPED
+by the course publish path — now the giscus wiring is written into every
+lecture's header (before the bake, so formatPublished carries it), and
+each lecture gets its own thread. Course publish stays GitHub-only (the
+Drive refusal was already deliberate and loud).
+
+Default narrator = en-US-Studio-Q (Hans, by ear): UNDECLARED case only —
+`narrationVoice()` is now the one decision synthesis and the bake stamp
+share (pref → undeclared default → gendered table). Authored genders and
+a/b dialogue keep the table. Studio voices reject pitch (Google's
+documented limitation, verified) → delivery pitch omitted for Studio names
+instead of 400ing into the silent no-name fallback. Stamps mirror the
+decision, so a republish re-bakes exactly the undeclared English lines
+into Q and reuses everything else. NOTE for Hans: Studio voices bill at
+Google's premium tier (~10× Neural2 per character).
