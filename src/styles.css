@@ -996,6 +996,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    above. This used to be a byte-identical .viewer-figure copy, which meant the
    :fullscreen rules (all keyed on .player-figure) never reached the viewer. */
 .viewer-footer { margin-top: 0.9rem; text-align: center; font-size: var(--text-sm); }
+/* Comments under the player (C1): giscus renders its own iframe; the box
+   just gives it the page's measure and some air. */
+.viewer-comments { width: 100%; max-width: 900px; margin: 1.2rem auto 0; }
+.viewer-share { margin-right: 0.8rem; }
 .viewer-footer a { color: var(--muted); text-decoration: none; }
 .viewer-footer a:hover { color: var(--ink); }
 

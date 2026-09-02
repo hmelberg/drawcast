@@ -109,7 +109,7 @@ export interface ShareDeps {
    * single slug of its own). For a drawcast, editing the name mints a NEW
    * file at the new slug; the old one is never deleted (B3).
    */
-  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string }) => Promise<void>;
+  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean }) => Promise<void>;
   /**
    * Publish this document to the author's own Google Drive — the SAME
    * prepared copy `publish` sends to GitHub, written as a plain `.yaml` file
@@ -418,11 +418,37 @@ function build(): ShareSession {
   // had ("share-embed-images"/"share-embed-narration") — extracting the rows
   // into a builder must not be observable from outside this file.
   const linkChoices = buildEmbedChoices("share");
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows);
+  // "Allow comments" (C1) is a GitHub-panel choice only: the viewer derives
+  // data-repo from the cast link itself, which a Drive file does not have.
+  // The setup step giscus needs (Discussions on, app installed, ids from
+  // giscus.app) cannot be automated from here — so the box is disabled with
+  // the route that fixes it, the same third state the rail uses (B1).
+  const commentsCb = h("input", { type: "checkbox", id: "share-allow-comments" }) as HTMLInputElement;
+  const commentsHint = h("div", { class: "hint" });
+  const commentsLabel = h(
+    "label",
+    { class: "publish-choice", for: "share-allow-comments" },
+    commentsCb,
+    h("span", {}, "Allow comments"),
+    commentsHint,
+  );
+  function refreshCommentsChoice(): void {
+    const ready = current.settings.giscusRepoId !== "" && current.settings.giscusCategoryId !== "";
+    commentsCb.disabled = !ready;
+    if (!ready) commentsCb.checked = false;
+    commentsHint.textContent = ready
+      ? "viewers comment and react via GitHub Discussions in YOUR repository"
+      : "needs a one-time giscus setup — enable Discussions, install the giscus app, paste the ids in Settings → Publishing";
+  }
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
-    const choices = { ...linkChoices.choices(), slug: publishNameInput.value.trim() || undefined };
+    const choices = {
+      ...linkChoices.choices(),
+      slug: publishNameInput.value.trim() || undefined,
+      allowComments: commentsCb.checked && !commentsCb.disabled,
+    };
     modal.dialog.close();
     void deps.publish(choices);
   });
@@ -1020,6 +1046,7 @@ function build(): ShareSession {
     publishNameRow.hidden = current.subject === "course";
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
     linkChoices.refresh(doc, current.subject);
+    refreshCommentsChoice();
     // A filename, not a slug — and the name the file ALREADY has wins over
     // the title, exactly as Link prefers `publishedAs`. Without that, an
     // author who renamed the file once would have it renamed back to the

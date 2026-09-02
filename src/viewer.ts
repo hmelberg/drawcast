@@ -43,6 +43,31 @@ export interface ViewerRequest {
  * HEAD rather than a branch name: a published link must survive the repo's
  * default branch being renamed.
  */
+/**
+ * The giscus client attributes for one published cast (C1). Pure and
+ * exported for the node suite. data-repo comes from the viewer's own URL;
+ * the ids come from the published file (playlist.meta.comments) — together
+ * they are everything the widget needs, and the discussion is keyed to the
+ * FILE path (mapping "specific"), so every lecture of a course gets its own
+ * thread for free. Comments live in the AUTHOR's GitHub Discussions.
+ */
+export function giscusAttributes(gh: GhRef, comments: { repoId: string; category: string; categoryId: string }): Record<string, string> {
+  return {
+    "data-repo": `${gh.owner}/${gh.repo}`,
+    "data-repo-id": comments.repoId,
+    ...(comments.category ? { "data-category": comments.category } : {}),
+    "data-category-id": comments.categoryId,
+    "data-mapping": "specific",
+    "data-term": gh.path,
+    "data-reactions-enabled": "1",
+    "data-emit-metadata": "0",
+    "data-input-position": "bottom",
+    "data-theme": "preferred_color_scheme",
+    "data-lang": "en",
+    crossorigin: "anonymous",
+  };
+}
+
 export function rawUrlFor(gh: GhRef): string {
   return `https://raw.githubusercontent.com/${gh.owner}/${gh.repo}/HEAD/${gh.path}`;
 }
@@ -156,9 +181,26 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // fullscreen rules are written against it, and a viewer-only copy of them
   // would be a copy nobody remembers to keep in step (it wasn't).
   const figureHost = h("div", { class: "player-figure" });
+  // C3: the Web Share API where it exists (a phone), the clipboard elsewhere.
+  const shareBtn = h("button", { class: "small viewer-share", title: "Share this drawcast" }, "↗ Share") as HTMLButtonElement;
+  shareBtn.addEventListener("click", () => {
+    const url = location.href;
+    const title = document.title;
+    if (navigator.share) {
+      navigator.share({ title, url }).catch(() => {
+        /* cancelled — not an error */
+      });
+      return;
+    }
+    void navigator.clipboard?.writeText(url).then(() => {
+      shareBtn.textContent = "✓ Link copied";
+      window.setTimeout(() => (shareBtn.textContent = "↗ Share"), 1600);
+    });
+  });
   const footer = h(
     "div",
     { class: "viewer-footer" },
+    shareBtn,
     h("a", { href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"),
   );
   app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, footer));
@@ -214,6 +256,17 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       advanceOverride: req.advance,
     });
     status.remove();
+    // Comments (C1): only when the published file asked for them, and only on
+    // a GitHub-published cast — data-repo comes from this page's own URL.
+    if (playlist.meta.comments && req.gh) {
+      const box = h("div", { class: "viewer-comments" });
+      const script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.async = true;
+      for (const [k, v] of Object.entries(giscusAttributes(req.gh, playlist.meta.comments))) script.setAttribute(k, v);
+      box.appendChild(script);
+      footer.insertAdjacentElement("beforebegin", box);
+    }
   } catch (err) {
     status.textContent = (err as Error).message;
     status.classList.add("error");

@@ -1539,6 +1539,26 @@ githubTokenInput.addEventListener("change", () => {
 });
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
+
+// giscus wiring for "Allow comments" (C1). Plain text fields: the ids are
+// opaque strings the giscus.app config page hands the author — validating
+// their shape here would just be a second place to be wrong about it.
+const giscusRepoIdInput = h("input", { type: "text", placeholder: "R_kgDO…", autocomplete: "off" }) as HTMLInputElement;
+const giscusCategoryInput = h("input", { type: "text", placeholder: "Announcements", autocomplete: "off" }) as HTMLInputElement;
+const giscusCategoryIdInput = h("input", { type: "text", placeholder: "DIC_kwDO…", autocomplete: "off" }) as HTMLInputElement;
+giscusRepoIdInput.value = settings.giscusRepoId;
+giscusCategoryInput.value = settings.giscusCategory;
+giscusCategoryIdInput.value = settings.giscusCategoryId;
+for (const [input, write] of [
+  [giscusRepoIdInput, (v: string) => (settings.giscusRepoId = v)],
+  [giscusCategoryInput, (v: string) => (settings.giscusCategory = v)],
+  [giscusCategoryIdInput, (v: string) => (settings.giscusCategoryId = v)],
+] as const) {
+  input.addEventListener("change", () => {
+    write(input.value.trim());
+    persist();
+  });
+}
 coursesDirInput.addEventListener("change", () => {
   settings.coursesDir = coursesDirInput.value.trim().replace(/^\/+|\/+$/g, "");
   coursesDirInput.value = settings.coursesDir;
@@ -1676,6 +1696,22 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "div",
         { class: "settings-note" },
         "Leave empty when the repository is only for courses — each course then gets its own folder at the root, and the course list becomes the site's front page. Set a folder only if the repository holds other things too; note that the list is written as index.html at that level. Nothing needs creating on GitHub first: git has no empty directories, so the folders appear with the files.",
+      ),
+    ),
+  ],
+  [
+    "giscus",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Comments (giscus) — repository ID, category, category ID"),
+      giscusRepoIdInput,
+      giscusCategoryInput,
+      giscusCategoryIdInput,
+      h(
+        "div",
+        { class: "settings-note" },
+        "One-time setup for “Allow comments” on published drawcasts: in YOUR repository enable Discussions and install the giscus app, then paste the two IDs from giscus.app here. Comments and reactions live in your repository's Discussions — this app hosts none of it.",
       ),
     ),
   ],
@@ -3848,6 +3884,7 @@ async function publishTextFor(
   signal: AbortSignal,
   bake: boolean,
   embedImages: boolean,
+  allowComments?: boolean,
   previousText: () => Promise<string | null> = async () => {
     const repo = parseRepo(settings.githubRepo);
     if (!repo || !doc.publishedAs) return null;
@@ -3864,6 +3901,15 @@ async function publishTextFor(
     source = await embeddedPlaylist(editorPlaylist, { resolvePortraits, resolveSources, contactEmail: settings.contactEmail });
     const embedded = before - unembeddedImages(source);
     lastEmbedNote = embedded > 0 ? ` — ${embedded} image(s) embedded` : "";
+  }
+  // "Allow comments" writes the giscus wiring onto the published COPY only
+  // (C1) — Save stays verbatim, and the viewer reads everything it needs
+  // from the file plus its own URL.
+  if (allowComments && settings.giscusRepoId && settings.giscusCategoryId) {
+    source = {
+      ...source,
+      meta: { ...source.meta, comments: { repoId: settings.giscusRepoId, category: settings.giscusCategory, categoryId: settings.giscusCategoryId } },
+    };
   }
   const plain = formatPlaylist(source, "yaml");
   if (!bake) return plain;
@@ -3892,7 +3938,7 @@ async function publishTextFor(
 let lastBakeNote = "";
 let lastEmbedNote = "";
 
-async function publishDrawcast({ bake, embedImages, slug }: { bake: boolean; embedImages: boolean; slug?: string }): Promise<void> {
+async function publishDrawcast({ bake, embedImages, slug, allowComments }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean }): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
   if (!token || !repo) {
@@ -3909,7 +3955,7 @@ async function publishDrawcast({ bake, embedImages, slug }: { bake: boolean; emb
   const ac = new AbortController();
   try {
     setStatus("Publishing to GitHub…");
-    const text = await publishTextFor(ac.signal, bake, embedImages);
+    const text = await publishTextFor(ac.signal, bake, embedImages, allowComments);
     const out = await publishCast({
       title: doc.title,
       text,
@@ -3982,7 +4028,7 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     // Narration reuse reads back THIS destination's previous copy — the
     // GitHub default would charge for every line again on a Drive republish,
     // and could hand over lines from a different (older) publish entirely.
-    const text = await publishTextFor(ac.signal, bake, embedImages, () =>
+    const text = await publishTextFor(ac.signal, bake, embedImages, undefined, () =>
       doc.drivePublishedId ? readFileText(doc.drivePublishedId) : Promise.resolve(null),
     );
     // Parents are a create-time placement; saveSpec's PATCH must never carry

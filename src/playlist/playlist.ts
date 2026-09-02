@@ -23,6 +23,15 @@ export interface PlaylistMeta {
    * the localStorage library keeps its own copy in SavedDrawing.prompt.
    */
   prompt?: string;
+  /**
+   * Comments on the published page (C1): the giscus wiring the VIEWER needs.
+   * Carried in the file because the viewer runs in a stranger's browser — it
+   * can read the repo from its own URL but has no way to reach the author's
+   * settings for the ids. Written onto the published COPY only (Publish
+   * prepares a copy, §F.3.1); an authored one in a local doc rides along
+   * harmlessly. Comments live in the AUTHOR's GitHub Discussions.
+   */
+  comments?: { repoId: string; category: string; categoryId: string };
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -90,6 +99,14 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   if (typeof raw.title === "string") meta.title = raw.title;
   if (typeof raw.subtitle === "string") meta.subtitle = raw.subtitle;
   if (typeof raw.prompt === "string") meta.prompt = raw.prompt;
+  if (isPlainObject(raw.comments)) {
+    const c = raw.comments;
+    if (typeof c.repoId === "string" && typeof c.categoryId === "string") {
+      meta.comments = { repoId: c.repoId, category: typeof c.category === "string" ? c.category : "", categoryId: c.categoryId };
+    } else {
+      warnings.push("playlist.comments needs repoId and categoryId (from giscus.app) — ignored");
+    }
+  }
   if (raw.advance !== undefined) {
     if (raw.advance === "click" || raw.advance === "auto") meta.advance = raw.advance;
     else warnings.push(`playlist.advance must be "click" or "auto" (got ${JSON.stringify(raw.advance)}) — using auto`);
@@ -226,6 +243,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.title === undefined &&
     playlist.meta.subtitle === undefined &&
     playlist.meta.prompt === undefined &&
+    playlist.meta.comments === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -249,6 +267,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   // Always written when set (like title/subtitle), never compared against a
   // default — DEFAULT_META has no prompt, and a set one must always survive.
   if (playlist.meta.prompt !== undefined) header.prompt = playlist.meta.prompt;
+  if (playlist.meta.comments !== undefined) header.comments = playlist.meta.comments;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;
