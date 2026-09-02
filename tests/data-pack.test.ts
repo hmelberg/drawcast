@@ -22,7 +22,7 @@ beforeAll(() => {
 });
 
 const plot = plotArea();
-/** A titled chart with no box lowers its own plot top by 55, to clear the y caption. */
+/** A drawn title costs 55 units of plot height — default top or authored box alike. */
 const TITLED_TOP = plot.y1 - 55;
 /** The y scale bar_chart uses for a chart whose data spans [0, hi] with the 8 % headroom. */
 const Y = (v: number, hi: number, y1 = plot.y1) => plot.y0 + (v / (hi * 1.08)) * (y1 - plot.y0);
@@ -87,8 +87,9 @@ describe("bar_chart — static data", () => {
 // The title and the y-axis caption both want the strip above the plot: the
 // caption is centred at (y arrow tip + 12 + half its box), the title sat at
 // plot.y1 + 25, three units BELOW that tip. They shared a band. The title now
-// reads the caption's actual position out of the axes group, and an untitled
-// default plot keeps its old top so nothing else moves.
+// reads the caption's actual position out of the axes group, and a drawn title
+// costs the plot 55 units of height; an UNTITLED chart keeps its old top, box
+// or no box, so nothing else moves.
 describe("bar_chart — the title clears the y caption", () => {
   const textAt = (l: ReturnType<typeof layoutSpec>, id: string) =>
     flattenDrawables(l.drawables).find((d) => d.id === id) as TextDrawable | undefined;
@@ -104,20 +105,20 @@ describe("bar_chart — the title clears the y caption", () => {
     expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 
-  test("an explicit box is honoured — its own top, and the title still sits above the caption", () => {
-    const l = layout({
-      labels: ["a", "b"],
-      values: [1, 2],
-      title: "A long enough title",
-      y_label: "Share of rolls",
-      box: { x: 120, y: 95, w: 855, h: 580 },
-    });
-    const yAxis = flattenDrawables(l.drawables).find((d) => d.id === "axes__y") as { pts: [number, number][] };
-    expect(Math.max(...yAxis.pts.map((p) => p[1]))).toBeCloseTo(675 + AXIS_OVERHANG, 6);
-    const cap = textAt(l, "axes__y_label")!;
-    const title = textAt(l, "title")!;
-    expect(title.pos[1]).toBeGreaterThan(cap.pos[1]);
+  // A box says WHERE the plot goes, not that a title may sit on the caption:
+  // the 55 units cost the same whether the top is the default or the author's.
+  test("an authored box pays for its title too; without a title its top is honoured unchanged", () => {
+    const box = { x: 120, y: 95, w: 855, h: 580 };
+    const yTop = (l: ReturnType<typeof layoutSpec>) =>
+      Math.max(...(flattenDrawables(l.drawables).find((d) => d.id === "axes__y") as { pts: [number, number][] }).pts.map((p) => p[1]));
+    const titled = layout({ labels: ["a", "b"], values: [1, 2], title: "A long enough title", y_label: "Share of rolls", box });
+    expect(yTop(titled)).toBeCloseTo(TITLED_TOP + AXIS_OVERHANG, 6);
+    const cap = textAt(titled, "axes__y_label")!;
+    const title = textAt(titled, "title")!;
+    expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 28);
     expect(title.pos[1]).toBeLessThanOrEqual(730);
+    const untitled = layout({ labels: ["a", "b"], values: [1, 2], y_label: "Share of rolls", box });
+    expect(yTop(untitled)).toBeCloseTo(box.y + box.h + AXIS_OVERHANG, 6);
   });
 
   test("no y caption → the title keeps its old place; no title → the plot keeps its old top", () => {

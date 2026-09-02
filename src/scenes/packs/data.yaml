@@ -169,15 +169,16 @@ layout: |
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
+  // Always a fresh object (never params.box itself) — the top is adjusted below.
   const plot = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : kit.plotArea();
   const title = str(params.title, "");
   // The title and the y-axis caption both want the strip above the plot, and
-  // the caption gets there first (it hangs off the y arrow's tip). On the
-  // DEFAULT plot there is no room for both, so a titled chart gives the strip
-  // 55 units by starting its plot lower — the did_trends convention: caption
-  // just over the arrow, title clear above it. An author who chose a box
-  // chose their own top, and it is honoured as written.
-  if (title && !boxed) plot.y1 -= 55;
+  // the caption gets there first (it hangs off the y arrow's tip). There is no
+  // room for both, so a DRAWN TITLE COSTS 55 UNITS OF PLOT HEIGHT — the
+  // did_trends convention: caption just over the arrow, title clear above it.
+  // The cost is the same whether the top is the default or the author's box:
+  // a box says where the plot goes, not that a title may sit on the caption.
+  if (title) plot.y1 = Math.min(plot.y1, 620);
   const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
   const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale
   const m = series.length;
