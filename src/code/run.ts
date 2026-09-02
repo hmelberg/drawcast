@@ -11,18 +11,22 @@
 
 import { cacheGet, cachePut } from "../render/portrait";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
+import { RUNTIME_VERSION, cacheTag, type Language } from "./languages";
 
 // Envelope shape lives in ./envelope (dependency-free — layout imports it
 // directly from there); re-exported here so every existing
 // `from "../code/run"` import keeps working unchanged.
 export { CODE_VERSION, decodeCodeResult, type CodeFigure, type CodeRunResult, type CodeTable } from "./envelope";
 
-/** Pinned runtime version (openstat-verified) — part of the cache key, so a
- *  runtime upgrade misses cleanly instead of replaying stale output. */
-export const PYODIDE_VERSION = "314.0.2";
+// Languages, their pinned versions and cache tags live in ./languages (one
+// declaration for types, schema, dispatch and the check); re-exported here.
+export { LANGUAGES, RUNTIME_VERSION, cacheTag, type Language } from "./languages";
+
+/** pyodide's pin — kept under its old name for existing importers. */
+export const PYODIDE_VERSION = RUNTIME_VERSION.python;
 
 export interface CodeRunRequest {
-  language: "python" | "r";
+  language: Language;
   code: string;
   /** Dotted paths to harvest after the run ("y", "df.gdp"). Empty/absent = no harvest. */
   paths?: string[];
@@ -46,7 +50,7 @@ function hash(s: string): string {
 }
 
 export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "paths">): string {
-  const tag = req.language === "python" ? `py${PYODIDE_VERSION}` : "r0";
+  const tag = cacheTag(req.language);
   // The code length rides along with the hash to kill hash-collision risk
   // (two different scripts landing on the same 32-bit FNV-1a digest).
   // Requested paths are part of the key: a spec that adds a reference re-runs
@@ -55,29 +59,31 @@ export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "pa
   return `c${CODE_VERSION}|${tag}|${hash(req.code)}|${req.code.length}|${hash(paths)}`;
 }
 
+type RuntimeModule = { run: (req: CodeRunRequest) => Promise<CodeRunResult> };
+
+/** Every runtime module exports run(req). Reached only here, only lazily —
+ *  each entry is its own code-split chunk, so a spec without that language
+ *  never loads a byte of it. */
+const RUNTIMES: Record<Language, () => Promise<RuntimeModule>> = {
+  python: () => import("./pyodide"),
+  r: () => import("./not-yet"),
+  brython: () => import("./not-yet"),
+  micropython: () => import("./not-yet"),
+};
+
 async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
-  if (req.language === "python") {
-    let mod: typeof import("./pyodide");
-    try {
-      mod = await import("./pyodide");
-    } catch (err) {
-      // A failed chunk load (offline, CDN down) is a runtime problem, not a
-      // script bug — tag it so codeExecutionErrors can warn instead of
-      // blocking generation on it.
-      const tagged = new Error((err as Error).message) as Error & { runtimeUnavailable?: boolean };
-      tagged.runtimeUnavailable = true;
-      throw tagged;
-    }
-    return mod.runPython(req);
+  let mod: RuntimeModule;
+  try {
+    mod = await RUNTIMES[req.language]();
+  } catch (err) {
+    // A failed chunk load (offline, CDN down) is a runtime problem, not a
+    // script bug — tag it so codeExecutionErrors can warn instead of
+    // blocking generation on it.
+    const tagged = new Error((err as Error).message) as Error & { runtimeUnavailable?: boolean };
+    tagged.runtimeUnavailable = true;
+    throw tagged;
   }
-  return {
-    ok: false,
-    stdout: "",
-    stderr: "",
-    figures: [],
-    error: "the R runtime arrives in M2 — use language: python",
-    runtimeUnavailable: true,
-  };
+  return mod.run(req);
 }
 
 export async function runCode(req: CodeRunRequest, deps: CodeRunDeps = {}): Promise<CodeRunResult> {

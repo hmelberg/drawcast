@@ -9,6 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
+import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
 import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
@@ -184,8 +185,9 @@ const elementSchema = {
     // code
     language: {
       type: "string",
-      enum: ["python", "r"],
-      description: "code: the runtime that executes the script. Python runs today; r is not available yet — never emit it.",
+      enum: [...LANGUAGES],
+      description:
+        "code: the runtime that executes the script. python = full CPython (numpy, pandas, matplotlib, plotly, PyPI on demand). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). brython and micropython are not available yet — never emit them.",
     },
     code: {
       type: "string",
@@ -876,7 +878,7 @@ function elementErrors(el: SpecElement): string[] {
       need(!!el.shape, "needs shape");
       break;
     case "code":
-      need(el.language === "python" || el.language === "r", 'needs language: "python" or "r"');
+      need(isLanguage(el.language), `needs language: ${LANGUAGES.map((l) => `"${l}"`).join(" | ")}`);
       need(typeof el.code === "string" && el.code.trim() !== "", "needs code (the script)");
       if (el.figures !== undefined) {
         need(Number.isInteger(el.figures) && el.figures >= 2, "figures must be an integer >= 2 (omit it for none or one figure)");

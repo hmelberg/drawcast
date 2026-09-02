@@ -8,6 +8,7 @@
 import type { Spec } from "../spec/types";
 import type { CodeRunRequest, CodeRunResult } from "./run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "./tokens";
+import { RUNTIME_LABEL } from "./languages";
 
 export interface CodeCheckOutcome {
   errors: string[];
@@ -32,11 +33,11 @@ export async function codeExecutionErrors(
   const byId = pathsByCodeId(scanDataTokens(spec.params));
   const envelopes = new Map<string, CodeRunResult>();
   for (const el of spec.elements ?? []) {
-    if (el.type !== "code" || el.language !== "python" || !el.code) continue;
+    if (el.type !== "code" || !el.language || !el.code) continue;
     const paths = byId[el.id] ?? [];
     let res: CodeRunResult;
     try {
-      res = await run({ language: "python", code: el.code, paths });
+      res = await run({ language: el.language, code: el.code, paths });
     } catch {
       // A throwing injected runner is still just this ONE element's runtime
       // being unavailable — the remaining code elements still get checked.
@@ -46,7 +47,7 @@ export async function codeExecutionErrors(
       // The runtime never loaded (offline CDN, no browser) — the script was
       // never actually verified, so this is a WARNING, never an error: an
       // offline author must not burn a repair round on code that may be fine.
-      out.warnings.push(`code "${el.id}" — the Python runtime could not load — script not verified`);
+      out.warnings.push(`code "${el.id}" — the ${RUNTIME_LABEL[el.language]} runtime could not load — script not verified`);
       continue;
     }
     envelopes.set(el.id, res);

@@ -3,6 +3,7 @@
 // coordinates when a `domain` is declared — never screen pixels.
 
 import type { SpecText } from "../layout/text-style";
+import type { Language } from "../code/languages";
 import type { Instrument, PlayVoice } from "./notation";
 export type { Instrument, PlayVoice } from "./notation";
 
@@ -128,9 +129,9 @@ export interface SpecElement {
    * iris = circle opening, drift = settle-and-fade, fade = plain opacity.
    */
   reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
-  // code (a Python/R script whose code and/or output is drawn in a panel)
-  /** code: the runtime that executes the script. */
-  language?: "python" | "r";
+  // code (a script whose code and/or output is drawn in a panel)
+  /** code: the runtime that executes the script — see src/code/languages.ts. */
+  language?: Language;
   /** code: the script itself, one newline-separated string. */
   code?: string;
   /** code: what the panel shows — output (default), split (code left, output right), code (the script alone), or none (nothing drawn: the element only feeds template params through "{id.var}" tokens). */

@@ -389,3 +389,6 @@ export function runPython(req: CodeRunRequest): Promise<CodeRunResult> {
   settled.then(() => clearTimeout(timeoutId));
   return Promise.race([settled, timeout]);
 }
+
+/** The runtime-module contract run.ts dispatches through. */
+export const run = runPython;
