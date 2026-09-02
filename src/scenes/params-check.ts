@@ -10,7 +10,10 @@ import { scenes } from "./registry";
 
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
 const ajv = new AjvCtor({ allErrors: true, strict: false });
-const compiled = new Map<string, { schema: object; validate: ValidateFunction }>();
+// validate: null marks a template whose params_schema is not itself valid
+// JSON Schema — cached so a broken schema is compiled (and thrown) at most
+// once, not on every round.
+const compiled = new Map<string, { schema: object; validate: ValidateFunction | null }>();
 
 export function templateParamErrors(templateId: string, params: unknown): string[] {
   const scene = scenes[templateId];
@@ -18,10 +21,22 @@ export function templateParamErrors(templateId: string, params: unknown): string
   const schema = scene.manifest.params_schema;
   let entry = compiled.get(templateId);
   if (!entry || entry.schema !== schema) {
-    entry = { schema, validate: ajv.compile(schema) };
+    let validate: ValidateFunction | null;
+    try {
+      validate = ajv.compile(schema);
+    } catch {
+      // validateTemplateDoc only requires params to be an object — it never
+      // checks that it's valid JSON Schema, so a broken schema is a
+      // template-authoring defect, not this spec's fault. Schema validity
+      // belongs to validateTemplateDoc, not here: report nothing, the same
+      // "no verdict" treatment an unknown or stub template already gets,
+      // rather than letting the throw reject the whole generation.
+      validate = null;
+    }
+    entry = { schema, validate };
     compiled.set(templateId, entry);
   }
-  if (entry.validate(params ?? {})) return [];
+  if (!entry.validate || entry.validate(params ?? {})) return [];
   return (entry.validate.errors ?? []).map(
     (e) => `params${e.instancePath || ""} ${e.message ?? "invalid"}${e.params ? " " + JSON.stringify(e.params) : ""}`,
   );

@@ -392,6 +392,22 @@ describe("authoring-time check — data paths", () => {
     expect(out.errors).toEqual([]);
     expect(out.resolvedParams!.values).toEqual([[1, 2]]);
   });
+
+  // Fix round 2 / Finding 1: a runtime-unavailable element never produces an
+  // envelope, so its tokens' failures must be reported as UNJUDGED, not as
+  // evidence the params are wrong (they'd otherwise silently make
+  // `substituted` true downstream and turn a "the CDN was offline" warning
+  // into a strict "must have required property" schema error).
+  test("an unavailable runtime leaves its tokens unjudged: a warning, no error, and strictness is withheld", async () => {
+    const s = bridged("none");
+    const run = async () => ({ ok: false, stdout: "", stderr: "", figures: [], error: "could not load the Python runtime (offline?)", runtimeUnavailable: true }) as CodeRunResult;
+    const out = await codeExecutionErrors(s, run);
+    expect(out.errors).toEqual([]);
+    expect(out.warnings.some((w) => w.includes("could not load"))).toBe(true);
+    expect(out.unresolvedTokens).toBe(2); // frames and s
+    expect(out.resolvedParams).toEqual({ labels: ["a", "b"], title: "T", series: [{ name: "s" }] });
+    expect(paramsStrictness({ tokens: true, substituted: (out.unresolvedTokens ?? 0) === 0, dataPack: false })).toBe(false);
+  });
 });
 
 describe("template params validated against the manifest schema", () => {
@@ -458,6 +474,40 @@ layout: |
       expect(issues.warnings.length).toBe(1);
     } finally {
       delete scenes.tp_probe;
+    }
+  });
+
+  // Fix round 2 / Finding 2: validateTemplateDoc only requires params to be
+  // an object — it never checks that it's valid JSON Schema. A broken
+  // schema must degrade to "report nothing" (like an unknown/stub
+  // template), never throw out of the whole generation.
+  test("a template with an invalid params JSON Schema never throws — reports nothing, twice (second call hits the cached null)", () => {
+    const badYaml = `
+template: tp_bad
+version: 1
+kit: 1
+status: ready
+description: broken schema
+params:
+  type: object
+  properties:
+    values:
+      type: number
+      minimum: not-a-number
+element_ids: {}
+examples: []
+layout: |
+  return { drawables: [], labels: [], anchors: {}, order: [] };
+`;
+    const { doc } = parseTemplateDoc(badYaml);
+    expect(registerTemplateDoc(doc!).ok).toBe(true);
+    try {
+      expect(() => templateParamErrors("tp_bad", { values: "x" })).not.toThrow();
+      expect(templateParamErrors("tp_bad", { values: "x" })).toEqual([]);
+      expect(() => templateParamErrors("tp_bad", { values: "x" })).not.toThrow(); // cached null, not recompiled
+      expect(templateParamErrors("tp_bad", { values: "x" })).toEqual([]);
+    } finally {
+      delete scenes.tp_bad;
     }
   });
 });

@@ -16,6 +16,12 @@ export interface CodeCheckOutcome {
    *  would lay out — so the caller can validate it against the template's
    *  schema. spec.params itself when nothing was referenced. */
   resolvedParams?: Record<string, unknown>;
+  /** Count of tokens dropped from resolvedParams whose element never
+   *  produced an envelope (runtime unavailable, a throwing runner, or a
+   *  token naming an id with no code element) — never actually JUDGED, so a
+   *  caller must not treat their absence from resolvedParams as evidence of
+   *  a real params problem. 0 when nothing was referenced. */
+  unresolvedTokens?: number;
 }
 
 export async function codeExecutionErrors(
@@ -61,14 +67,23 @@ export async function codeExecutionErrors(
   }
   if (Object.keys(byId).length === 0) {
     out.resolvedParams = spec.params;
+    out.unresolvedTokens = 0;
     return out;
   }
-  out.resolvedParams = substituteDataTokens(spec.params, (codeId, path) => {
+  // Elements whose script actually produced an envelope — ok or not, a real
+  // run happened and its outcome is a real judgment. A token naming any
+  // OTHER id (runtime unavailable, a throwing runner, or an id with no code
+  // element at all) never got that judgment, so its deletion below is not
+  // evidence the spec's params are wrong.
+  const verified = new Set(envelopes.keys());
+  const { params, failures } = substituteDataTokens(spec.params, (codeId, path) => {
     const env = envelopes.get(codeId);
     if (!env || !env.ok) return { error: "not run" };
     if (env.dataErrors && path in env.dataErrors) return { error: env.dataErrors[path] };
     if (env.data && path in env.data) return { value: env.data[path] };
     return { error: "not harvested" };
-  }).params;
+  });
+  out.resolvedParams = params;
+  out.unresolvedTokens = failures.filter((f) => !verified.has(f.token.codeId)).length;
   return out;
 }

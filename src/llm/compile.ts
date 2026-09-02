@@ -369,7 +369,11 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           const dataPack = isPackTemplateId(best.template) && packTemplateIds("data").includes(best.template);
           // A check that never ran or timed out (NO_CODE_CHECK) leaves raw
           // token strings in params — only warnings can be honest about them.
-          const substituted = check.resolvedParams !== undefined;
+          // Same for an unavailable runtime: it leaves its tokens unjudged
+          // (dropped from resolvedParams, never actually harvested or
+          // failed), so deleting an unjudged token must not turn into a
+          // schema error either.
+          const substituted = check.resolvedParams !== undefined && (check.unresolvedTokens ?? 0) === 0;
           const issues = templateParamIssues(
             best.template,
             check.resolvedParams ?? best.params,

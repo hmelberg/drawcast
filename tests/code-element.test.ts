@@ -314,7 +314,9 @@ describe("code element — generation-time execution check", () => {
 
   test("an unavailable runtime never blocks generation", async () => {
     const out = await codeExecutionErrors(codeSpec({}), async () => { throw new Error("no browser"); });
-    expect(out).toEqual({ errors: [], warnings: [] });
+    // No data tokens in this fixture's params -> the early-return branch,
+    // which stamps unresolvedTokens: 0 (Task 8 fix round 2).
+    expect(out).toEqual({ errors: [], warnings: [], unresolvedTokens: 0 });
   });
 
   test("a result flagged runtimeUnavailable becomes a WARNING, never an error", async () => {
