@@ -193,6 +193,12 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
               const cloudPick = parseCloudVoiceId(id);
               if (cloudPick) {
                 opts.captions?.onCloudVoice?.(cloudPick.lang, cloudPick.name);
+                // A per-session browser voice would keep preferBrowserVoice in
+                // force and the new preference would be inaudible (final
+                // review 2026-09-02): the pick puts the DEFAULT chain back,
+                // which is the path the preference now colors.
+                voicePick = "";
+                if (handle) applyCaptions(handle);
                 return;
               }
               voicePick = id;

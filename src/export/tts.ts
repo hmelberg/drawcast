@@ -175,7 +175,14 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
       }),
     });
   let res = await call(true);
-  if (res.status === 400) res = await call(false); // voice-name drift: let the API choose
+  // Voice-name drift on OUR defaults: silently let the API choose. But an
+  // explicitly PREFERRED voice must never silently substitute — the bake
+  // stamps clips with the predicted voice (export/bake.ts), so a silent
+  // fallback would label a default-voice clip with the preferred name and
+  // the reuse check would keep the wrong recording on every republish
+  // (final review 2026-09-02). Fail loudly; the author re-picks.
+  if (res.status === 400 && !pref) res = await call(false);
+  else if (res.status === 400 && pref) throw new Error(`the voice "${pref}" was rejected by the API — pick a different ${lang} voice in Settings → Playback`);
   if (!res.ok) throw await ttsError(res);
   const { audioContent } = (await res.json()) as { audioContent?: string };
   if (!audioContent) throw new Error("the TTS response carried no audio");

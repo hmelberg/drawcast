@@ -199,6 +199,8 @@ interface Doc {
    * shared link already points at.
    */
   publishedAs?: string;
+  /** Whether the last GitHub publish carried the giscus wiring (C1). */
+  publishedComments?: boolean;
   /**
    * The Drive file this document was PUBLISHED to, once it has been
    * (spec §7). Persisted with the library row, exactly like `publishedAs`
@@ -334,12 +336,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -1063,7 +1065,11 @@ function refreshChoicesToggle(): void {
   const model = MODELS.find((m) => m.id === modelSel.value)?.label ?? modelSel.value;
   const styleName = styleProfileSel.options[styleProfileSel.selectedIndex]?.textContent ?? "None";
   const prompt = variantSel.options[variantSel.selectedIndex]?.textContent ?? settings.variant;
-  const dev = settings.developerMode ? ` · Instructions: ${prompt}` : "";
+  // The Instructions segment shows for developers — and for ANYONE whose
+  // generations are driven by a non-default prompt fork: hiding the picker
+  // (B6) must not hide the fact (final review 2026-09-02).
+  const showVariant = settings.developerMode || settings.variant !== variants[0].name;
+  const dev = showVariant ? ` · Instructions: ${prompt}` : "";
   choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
@@ -1354,6 +1360,19 @@ app.appendChild(styleModal.dialog);
  *  "None" being active (you can edit a profile without using it). */
 let editingStyleId: string | null = null;
 
+/** Typed-but-unsaved text is committed before anything rewrites the fields
+ *  (row clicks, the quick pick, New) — refreshStylePanel repaints them from
+ *  storage, and repainting over an uncommitted paragraph destroyed it (final
+ *  review 2026-09-02). A style is a paragraph; silently keeping it beats a
+ *  warning dialog. Save remains as the explicit verb. */
+function commitStyleEdits(): void {
+  const editing = loadStyles().find((sp) => sp.id === editingStyleId);
+  if (!editing || styleTextArea.disabled) return;
+  const name = styleNameInput.value.trim() || editing.name;
+  if (name === editing.name && styleTextArea.value === editing.text) return;
+  saveStyle({ ...editing, name, text: styleTextArea.value, ts: new Date().toISOString() });
+}
+
 function refreshStylePanel(): void {
   const all = loadStyles();
   if (editingStyleId && !all.some((sp) => sp.id === editingStyleId)) editingStyleId = null;
@@ -1375,6 +1394,7 @@ function refreshStylePanel(): void {
     const active = r.id === settings.activeStyleId;
     const open = h("button", { class: `library-open${active ? " current" : ""}` }, `${active ? "● " : ""}${r.label}`);
     open.addEventListener("click", () => {
+      commitStyleEdits();
       settings.activeStyleId = r.id;
       persist();
       if (r.id) editingStyleId = r.id;
@@ -1394,6 +1414,7 @@ function refreshStylePanel(): void {
 }
 
 styleNewBtn.addEventListener("click", () => {
+  commitStyleEdits();
   const sp: StyleProfile = { id: crypto.randomUUID(), name: "My style", text: "", ts: new Date().toISOString() };
   saveStyle(sp);
   // A new style is meant to be used: it becomes the active one at once.
@@ -1431,6 +1452,7 @@ function openStyleModal(): void {
 }
 
 styleProfileSel.addEventListener("change", () => {
+  commitStyleEdits();
   const picked = styleProfileSel.value;
   if (isActionValue(picked)) {
     styleProfileSel.value = settings.activeStyleId ?? "";
@@ -1485,7 +1507,12 @@ function refreshCloudVoiceField(): void {
   ensureCloudCatalog([lang], refreshCloudVoiceField);
   cloudVoiceSel.replaceChildren(h("option", { value: "" }, "Default"));
   for (const v of catalog) cloudVoiceSel.appendChild(h("option", { value: v.name }, v.name));
-  cloudVoiceSel.value = settings.cloudVoices[lang] ?? "";
+  // The stored preference stays visible (and clearable) even while the
+  // catalog hasn't arrived — otherwise the select reads "Default" while the
+  // hidden pick keeps driving playback and publishes (final review).
+  const stored = settings.cloudVoices[lang] ?? "";
+  if (stored && !catalog.some((v) => v.name === stored)) cloudVoiceSel.appendChild(h("option", { value: stored }, stored));
+  cloudVoiceSel.value = stored;
   if (cloudVoiceSel.selectedIndex < 0) cloudVoiceSel.value = "";
   const noKey = getTtsKey() === "";
   cloudVoiceSel.disabled = noKey;
@@ -1804,6 +1831,12 @@ developerCb.addEventListener("change", () => {
   persist();
   applyDeveloperMode();
   if (session) setLintFromSession();
+  // Turning the flag off hides the prompt picker but not its effect: say so
+  // when a non-default variant stays live, rather than letting a custom
+  // compiler prompt drive every generation invisibly.
+  if (!settings.developerMode && settings.variant !== variants[0].name) {
+    setStatus(`Custom instructions "${currentVariant().name}" still drive generation — developer mode shows the picker.`, "info");
+  }
 });
 applyDeveloperMode();
 
@@ -2289,7 +2322,13 @@ function captionPrefs(): {
 // voice (export/bake.ts), so changing it re-synthesizes instead of mixing.
 
 const cloudCatalog = new Map<string, { lang: string; name: string }[]>();
+// Every interested party, not just whoever happened to start the fetch: the
+// CC menu kicks callback-less, and the Settings dropdown must still refresh
+// when that fetch lands (final review 2026-09-02 — the onArrive was silently
+// dropped whenever the in-flight sentinel already existed).
+const catalogListeners = new Set<() => void>();
 function ensureCloudCatalog(langs: string[], onArrive?: () => void): void {
+  if (onArrive) catalogListeners.add(onArrive);
   const key = getTtsKey();
   if (!key) return;
   for (const code of langs) {
@@ -2299,7 +2338,7 @@ function ensureCloudCatalog(langs: string[], onArrive?: () => void): void {
     void listCloudVoices(key, lc)
       .then((vs) => {
         cloudCatalog.set(code, vs.map((v) => ({ lang: code, name: v.name })));
-        onArrive?.();
+        for (const cb of catalogListeners) cb();
       })
       .catch(() => cloudCatalog.delete(code));
   }
@@ -2472,7 +2511,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2580,6 +2619,7 @@ function autosave(): void {
       // parsing every row's YAML to count its items would be absurd there.
       parts: itemsOf(doc.playlist).length,
       publishedAs: doc.publishedAs,
+      publishedComments: doc.publishedComments,
       drivePublishedId: doc.drivePublishedId,
       drivePublishedName: doc.drivePublishedName,
       sourcePath: doc.sourcePath,
@@ -3232,7 +3272,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -3970,6 +4010,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments }: { bak
     // Past this line the commit has LANDED. Recording the slug is what keeps
     // the link permanent, so it is worth saying if only that part failed.
     doc.publishedAs = out.slug;
+    doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     try {
       autosave();
     } catch (err) {

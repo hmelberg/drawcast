@@ -62,6 +62,8 @@ export interface ShareDoc {
    * Left undefined for `subject: "drawcast"`, which has no lectures to count.
    */
   lectureCount?: number;
+  /** Whether the last GitHub publish carried comments (C1) — seeds the checkbox. */
+  publishedComments?: boolean;
   /**
    * The folder name this drawcast published under before, if it has. Read
    * once to prefill Link's name field (`publishedAs ?? slugify(title)`) —
@@ -432,10 +434,13 @@ function build(): ShareSession {
     h("span", {}, "Allow comments"),
     commentsHint,
   );
-  function refreshCommentsChoice(): void {
+  function refreshCommentsChoice(doc: ShareDoc): void {
     const ready = current.settings.giscusRepoId !== "" && current.settings.giscusCategoryId !== "";
     commentsCb.disabled = !ready;
-    if (!ready) commentsCb.checked = false;
+    // Re-derived per document on every open, like the sibling checkboxes —
+    // and seeded from the last publish, so a typo-fix republish keeps a live
+    // page's comments instead of silently stripping them (final review).
+    commentsCb.checked = ready && doc.publishedComments === true;
     commentsHint.textContent = ready
       ? "viewers comment and react via GitHub Discussions in YOUR repository"
       : "needs a one-time giscus setup — enable Discussions, install the giscus app, paste the ids in Settings → Publishing";
@@ -1046,7 +1051,7 @@ function build(): ShareSession {
     publishNameRow.hidden = current.subject === "course";
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
     linkChoices.refresh(doc, current.subject);
-    refreshCommentsChoice();
+    refreshCommentsChoice(doc);
     // A filename, not a slug — and the name the file ALREADY has wins over
     // the title, exactly as Link prefers `publishedAs`. Without that, an
     // author who renamed the file once would have it renamed back to the

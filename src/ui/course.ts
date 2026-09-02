@@ -196,6 +196,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     // own guard) — refuse while anything runs.
     courseSel.disabled = busy;
     newBtn.disabled = busy;
+    // …and the fourth door is the textarea itself: a mid-run hand-edit is
+    // autosaved, then silently clobbered by the run's next write-back (which
+    // derives from its start-of-run snapshot). Read-only while anything runs.
+    doc.readOnly = busy;
   }
 
   function begin(): AbortController {
@@ -585,6 +589,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     // this run produces is tagged with the course that owns it.
     persist();
 
+    // The guard above reads this — it was checked and decremented but never
+    // incremented (final review 2026-09-02), so a per-lecture ⟳ during a
+    // batch started a SECOND concurrent run whose write-backs interleaved.
+    runsActive++;
     const controller = begin();
     let last = "";
     try {
