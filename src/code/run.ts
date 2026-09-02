@@ -24,6 +24,8 @@ export const PYODIDE_VERSION = "314.0.2";
 export interface CodeRunRequest {
   language: "python" | "r";
   code: string;
+  /** Dotted paths to harvest after the run ("y", "df.gdp"). Empty/absent = no harvest. */
+  paths?: string[];
   onStatus?: (phase: "loading" | "running", detail: string) => void;
 }
 
@@ -43,11 +45,14 @@ function hash(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code">): string {
+export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "paths">): string {
   const tag = req.language === "python" ? `py${PYODIDE_VERSION}` : "r0";
   // The code length rides along with the hash to kill hash-collision risk
   // (two different scripts landing on the same 32-bit FNV-1a digest).
-  return `c${CODE_VERSION}|${tag}|${hash(req.code)}|${req.code.length}`;
+  // Requested paths are part of the key: a spec that adds a reference re-runs
+  // once; a scrub or animate tick never does. Sorted, so order can't miss.
+  const paths = [...(req.paths ?? [])].sort().join(",");
+  return `c${CODE_VERSION}|${tag}|${hash(req.code)}|${req.code.length}|${hash(paths)}`;
 }
 
 async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {

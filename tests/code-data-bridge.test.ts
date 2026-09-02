@@ -14,6 +14,7 @@ import {
   scanDataTokens,
   substituteDataTokens,
 } from "../src/code/tokens";
+import { CODE_VERSION, codeCacheKey, decodeCodeResult, runCode, type CodeRunResult } from "../src/code/run";
 
 describe("data tokens — grammar", () => {
   test("parses id.var and id.var.col; rejects dotless, spaced and malformed strings", () => {
@@ -119,5 +120,45 @@ describe("data tokens — substitute", () => {
 
   test("undefined params → empty object, no failures", () => {
     expect(substituteDataTokens(undefined, () => ({ value: 1 }))).toEqual({ params: {}, failures: [] });
+  });
+});
+
+describe("code facade — paths ride the request and the cache key", () => {
+  test("CODE_VERSION is 5 (envelope grew data/dataErrors)", () => {
+    expect(CODE_VERSION).toBe(5);
+  });
+
+  test("the key differs by requested paths and is order-independent", () => {
+    const none = codeCacheKey({ language: "python", code: "x = 1" });
+    const a = codeCacheKey({ language: "python", code: "x = 1", paths: ["x"] });
+    const ab = codeCacheKey({ language: "python", code: "x = 1", paths: ["x", "y"] });
+    const ba = codeCacheKey({ language: "python", code: "x = 1", paths: ["y", "x"] });
+    expect(a).not.toBe(none);
+    expect(ab).not.toBe(a);
+    expect(ab).toBe(ba);
+    expect(codeCacheKey({ language: "python", code: "x = 1", paths: [] })).toBe(none);
+  });
+
+  test("an envelope with data decodes and round-trips; old envelopes without it still decode", async () => {
+    const withData: CodeRunResult = { ok: true, stdout: "", stderr: "", figures: [], data: { y: [1, 2] }, dataErrors: { z: "no variable z" } };
+    expect(decodeCodeResult(JSON.stringify(withData))).toEqual(withData);
+    expect(decodeCodeResult(JSON.stringify({ ok: true, stdout: "", stderr: "", figures: [] }))?.data).toBeUndefined();
+  });
+
+  test("the runner receives the paths", async () => {
+    let seen: string[] | undefined;
+    const res = await runCode(
+      { language: "python", code: "y = [1]", paths: ["y"] },
+      {
+        runner: async (req) => {
+          seen = req.paths;
+          return { ok: true, stdout: "", stderr: "", figures: [], data: { y: [1] } };
+        },
+        cacheGet: async () => null,
+        cachePut: async () => undefined,
+      },
+    );
+    expect(seen).toEqual(["y"]);
+    expect(res.data).toEqual({ y: [1] });
   });
 });

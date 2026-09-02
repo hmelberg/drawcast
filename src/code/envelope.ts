@@ -8,7 +8,7 @@
 // here, so existing `from "../code/run"` imports keep working unchanged.
 
 /** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 4;
+export const CODE_VERSION = 5; // v5: data/dataErrors (the code → template bridge)
 
 export interface CodeFigure {
   /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */
@@ -34,6 +34,13 @@ export interface CodeRunResult {
   figures: CodeFigure[];
   /** DataFrames drawn as tables (absent on old cached envelopes — treat as []). */
   tables?: CodeTable[];
+  /** Harvested script variables keyed by the requested dotted path ("y",
+   *  "df.gdp") — plain JSON: numbers, strings, lists, objects, and
+   *  {columns, rows} for a DataFrame (see code/harvest.ts). */
+  data?: Record<string, unknown>;
+  /** Per-path harvest failures (missing name, not data, over a cap). The run
+   *  itself succeeded; only these paths could not be served. */
+  dataErrors?: Record<string, string>;
   /** Set when the run itself failed (boot failure, timeout, thrown error). */
   error?: string;
   /** Set when the RUNTIME could not load or run at all (offline CDN, no
