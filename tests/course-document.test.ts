@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCourse, parseCourse, setCourseOption, setLectureStatus } from "../src/course/document";
+import { referencedLectureIds, formatCourse, parseCourse, setCourseOption, setLectureStatus  } from "../src/course/document";
 
 const DOC = `# Causal Inference
 level: advanced · minutes: 5
@@ -138,5 +138,29 @@ describe("setCourseOption", () => {
     expect(out.indexOf("slug: causal")).toBeLessThan(out.indexOf("## Potential outcomes"));
     expect(parseCourse(out).context.slug).toBe("causal");
     expect(parseCourse(out).lectures[0].options.slug).toBeUndefined();
+  });
+});
+
+describe("referencedLectureIds", () => {
+  it("collects status ids in document order, skipping unfinished lectures", () => {
+    const text = [
+      "# C",
+      "---",
+      "## One",
+      "q?",
+      "status: done · id: aaa · 2026-09-01",
+      "---",
+      "## Two (pending, no id)",
+      "q?",
+      "---",
+      "## Three",
+      "q?",
+      "status: done · id: bbb · 2026-09-01",
+    ].join("\n");
+    expect(referencedLectureIds(text)).toEqual(["aaa", "bbb"]);
+  });
+
+  it("an empty or planless document references nothing", () => {
+    expect(referencedLectureIds("")).toEqual([]);
   });
 });

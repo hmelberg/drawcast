@@ -39,6 +39,7 @@ import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
 import { h, svgFromMarkup } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
+import { referencedLectureIds } from "./course/document";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { markSvg } from "./brand/mark";
@@ -3336,7 +3337,10 @@ function sidebarInput(): SectionInput {
   const library = loadLibrary();
   return {
     library: library.map((d) => ({ title: d.title, courseId: d.courseId })),
-    courses: loadCourses().map((c) => ({ id: c.id, title: c.title, lectures: library.filter((i) => i.courseId === c.id).map((i) => i.title) })),
+    courses: loadCourses().map((c) => {
+      const ids = new Set(referencedLectureIds(c.text));
+      return { id: c.id, title: c.title, lectures: library.filter((i) => ids.has(i.id)).map((i) => i.title) };
+    }),
     examples: examples.map((ex) => ({ title: ex.title ?? ex.spec?.title ?? ex.request })),
     templates: loadMyTemplates().map((t) => ({ id: t.id })),
   };
@@ -3374,7 +3378,13 @@ function row(item: SavedDrawing): HTMLElement {
  *  section below), not here. */
 function refreshLibrary(): void {
   libraryList.replaceChildren();
-  const loose = loadLibrary().filter((i) => !i.courseId); // newest first: saveDrawing unshifts
+  // Loose = not referenced by any course DOCUMENT. A row tagged with a
+  // courseId but no longer referenced (an old version after a plan revision,
+  // or its course deleted) belongs here — under the old `!i.courseId` filter
+  // it was reachable only through the course group that now rightly excludes
+  // it, i.e. invisible. Newest first: saveDrawing unshifts.
+  const referenced = new Set(loadCourses().flatMap((c) => referencedLectureIds(c.text)));
+  const loose = loadLibrary().filter((i) => !referenced.has(i.id));
   const items = loose.filter((i) => matchesFilter(i.title));
   if (items.length === 0) {
     libraryList.appendChild(h("div", { class: "hint" }, loose.length === 0 ? "Nothing saved yet." : "No match."));
@@ -3403,7 +3413,15 @@ function refreshCourses(): void {
   coursesSection.list.replaceChildren();
   const all = loadCourses();
   const library = loadLibrary();
-  const withLectures = all.map((course) => ({ course, lectures: library.filter((i) => i.courseId === course.id) }));
+  // The DOCUMENT's lectures, in its order — never "every row ever tagged
+  // with this courseId", which counts orphaned old versions too (33 vs 20).
+  // Orphans surface in the loose Library list below instead of vanishing.
+  const withLectures = all.map((course) => ({
+    course,
+    lectures: referencedLectureIds(course.text)
+      .map((id) => library.find((d) => d.id === id))
+      .filter((d): d is SavedDrawing => d !== undefined),
+  }));
   const shown = withLectures.filter(({ course, lectures }) => matchesFilter(course.title) || lectures.some((l) => matchesFilter(l.title)));
   if (shown.length === 0) {
     coursesSection.list.appendChild(h("div", { class: "hint" }, all.length === 0 ? "No courses yet." : "No match."));

@@ -234,3 +234,16 @@ export function setLectureStatus(text: string, index: number, status: LectureSta
   lines.splice(at, 0, line);
   return lines.join("\n");
 }
+
+/**
+ * The library ids the course DOCUMENT currently references, in document
+ * order. This — not "every row tagged with the courseId" — is what the
+ * course actually contains: plan revisions and re-minted statuses leave old
+ * versions behind as tagged-but-unreferenced rows, and counting those told
+ * Hans his 20-lecture course had 33 lectures (2026-09-02).
+ */
+export function referencedLectureIds(text: string): string[] {
+  return parseCourse(text)
+    .lectures.map((l) => l.status?.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+}
