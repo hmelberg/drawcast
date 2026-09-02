@@ -9,8 +9,8 @@
 //
 // Honest limitations (M1): no interrupt — pyodide can only be interrupted
 // with a SharedArrayBuffer + COOP/COEP headers, which this app does not set —
-// so a timeout abandons the result while the WASM finishes in the background,
-// and the next queued run waits behind it.
+// so a timeout returns an error envelope to the caller while the WASM finishes
+// in the background, and the next queued run still waits for it to complete.
 
 import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult } from "./run";
 
@@ -132,17 +132,22 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
 }
 
 export function runPython(req: CodeRunRequest): Promise<CodeRunResult> {
-  const task = queue.then(() =>
-    Promise.race([
-      runOne(req),
-      new Promise<CodeRunResult>((resolve) =>
-        setTimeout(
-          () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${RUN_TIMEOUT_MS / 1000}s` }),
-          RUN_TIMEOUT_MS,
-        ),
+  const run = queue.then(() => runOne(req));
+  // The queue chains on the REAL execution, not the raced result: a timed-out
+  // run returns early to its caller below, but the next run still waits here
+  // until the abandoned execution actually finishes — otherwise its late
+  // output would be misattributed into the next run's buffers.
+  queue = run.catch(() => undefined);
+  const envelope = (err: unknown): CodeRunResult => ({
+    ok: false, stdout: "", stderr: "", figures: [], error: (err as Error).message,
+  });
+  return Promise.race([
+    run.catch(envelope),
+    new Promise<CodeRunResult>((resolve) =>
+      setTimeout(
+        () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${RUN_TIMEOUT_MS / 1000}s` }),
+        RUN_TIMEOUT_MS,
       ),
-    ]),
-  );
-  queue = task.catch(() => undefined);
-  return task;
+    ),
+  ]);
 }
