@@ -215,3 +215,14 @@ blob uploads drive a progress line ("Uploading to GitHub — file k/N…").
 setRetryDelaysForTests() keeps the retry tests instant. Standing lesson:
 a browser "NetworkError" on a CORS API is as likely a 5xx wearing a mask
 as a dropped connection — retry it like one.
+
+## The 33-vs-20 lecture count
+
+Two sources of truth disagreed: the sidebar counted every library row ever
+TAGGED with the courseId; the panel showed the course document's lectures.
+Plan revisions and re-minted statuses orphan old rows (tag kept, reference
+gone) — Hans had 13. Now the group lists exactly what the document
+references (`referencedLectureIds`, status ids in document order), and the
+orphans surface in the loose Library list — under the old `!courseId`
+filter they were reachable only through the course group, so excluding
+them there without re-homing them would have made saved work invisible.
