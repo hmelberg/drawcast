@@ -13,7 +13,7 @@ export const FONT_FLOOR = 14;
 const CANVAS_TOLERANCE = 2;
 
 export interface LintIssue {
-  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch" | "ask-var" | "source-use";
+  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch" | "ask-var" | "source-use" | "code-use";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -205,13 +205,52 @@ function lintSources(spec: Spec): LintIssue[] {
 }
 
 /**
+ * Code panels are load-bearing: the script executes in the viewer's browser.
+ * These rules catch the storyboard killers — a script too long to narrate, a
+ * split view too narrow to read, and figure-as-IDE (several panels at once).
+ */
+function lintCode(spec: Spec): LintIssue[] {
+  const els = (spec.elements ?? []).filter((e) => e.type === "code");
+  if (els.length === 0) return [];
+  const issues: LintIssue[] = [];
+  for (const el of els) {
+    const lines = (el.code ?? "").split("\n").filter((l) => l.trim() !== "").length;
+    if (lines > 22) {
+      issues.push({
+        rule: "code-use",
+        ids: [el.id],
+        message: `code "${el.id}" is ${lines} lines — a figure's script should stay under ~14; make the same point in fewer lines`,
+        severity: "warn",
+      });
+    }
+    if ((el.show ?? "output") === "split" && (el.width ?? 880) < 560) {
+      issues.push({
+        rule: "code-use",
+        ids: [el.id],
+        message: `code "${el.id}" uses split view at width ${el.width} — too narrow for two readable panes; use width ≥ 700 or show: "output"`,
+        severity: "warn",
+      });
+    }
+  }
+  if (els.length > 1) {
+    issues.push({
+      rule: "code-use",
+      ids: els.map((e) => e.id),
+      message: `${els.length} code elements in one figure — one panel per figure; give each script its own figure`,
+      severity: "warn",
+    });
+  }
+  return issues;
+}
+
+/**
  * Screen-first lint (spec principle 1): the canvas must start fast and keep
  * moving. Deterministic, spec-level — feeds the same report as lintLayout so
  * the LLM repair round self-corrects talky storyboards.
  */
 export function lintCommands(spec: Spec): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec)];
 
   // {var} tokens must be stored by an EARLIER ask — a later or missing store
   // means the line speaks the literal braces.

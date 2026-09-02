@@ -17,6 +17,7 @@ import { resolvedRenderSpec } from "../src/render/resolve";
 import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes, stripStrokesForModel } from "../src/llm/hoist";
 import { itemsOf, parsePlaylistText } from "../src/playlist/playlist";
 import { formatSpec } from "../src/spec/text";
+import { lintCommands } from "../src/lint/lint";
 
 const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
@@ -195,5 +196,22 @@ describe("code element — hoisting", () => {
   test("stripStrokesForModel drops code_result", () => {
     const stripped = stripStrokesForModel(codeSpec({}, OK));
     expect(stripped.elements![0].code_result).toBeUndefined();
+  });
+});
+
+describe("code element — lint", () => {
+  test("warns on a long script, a narrow split, and multiple panels", () => {
+    const long = Array.from({ length: 25 }, (_, i) => `x${i} = ${i}`).join("\n");
+    expect(lintCommands(codeSpec({ code: long })).some((i) => i.rule === "code-use")).toBe(true);
+    expect(lintCommands(codeSpec({ show: "split", width: 400 })).some((i) => i.rule === "code-use")).toBe(true);
+    const two: Spec = { elements: [
+      { id: "a", type: "code", language: "python", code: "print(1)" },
+      { id: "b", type: "code", language: "python", code: "print(2)" },
+    ], commands: [] } as unknown as Spec;
+    expect(lintCommands(two).some((i) => i.rule === "code-use" && i.ids.length === 2)).toBe(true);
+  });
+
+  test("a short single panel lints clean", () => {
+    expect(lintCommands(codeSpec({})).filter((i) => i.rule === "code-use")).toEqual([]);
   });
 });
