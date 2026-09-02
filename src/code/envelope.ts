@@ -8,7 +8,7 @@
 // here, so existing `from "../code/run"` imports keep working unchanged.
 
 /** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 2;
+export const CODE_VERSION = 3;
 
 export interface CodeFigure {
   /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */

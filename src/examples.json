@@ -8740,5 +8740,92 @@
    }
   ]
  }
+},
+{
+ "request": "Make a small pandas table of Norwegian cities and their rainfall and show it sorted",
+ "spec": {
+  "title": "Rain, ranked",
+  "elements": [
+   {
+    "id": "rain",
+    "type": "code",
+    "language": "python",
+    "show": "output",
+    "width": 760,
+    "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"city\": [\"Oslo\", \"Bergen\", \"Trondheim\", \"Stavanger\"],\n    \"pop_k\": [717, 291, 214, 149],\n    \"rain_mm\": [763, 2250, 892, 1180],\n})\nprint(df.sort_values(\"rain_mm\", ascending=False).to_string(index=False))"
+   }
+  ],
+  "commands": [
+   {
+    "speak": "Which Norwegian city gets the most rain? Let's ask pandas instead of arguing."
+   },
+   {
+    "draw": [
+     "rain"
+    ],
+    "speak": "Four cities, their size, and their yearly rainfall in millimetres — roughly, from the climate normals."
+   },
+   {
+    "draw": [
+     "rain_out"
+    ],
+    "delivery": "grave",
+    "speak": "Sorted, the answer is not close: Bergen, with over two thousand millimetres — nearly three times Oslo."
+   }
+  ]
+ }
+},
+{
+ "request": "Use plotly express in Python to chart GDP per person for the Nordic countries",
+ "spec": {
+  "title": "Nordic GDP per head",
+  "elements": [
+   {
+    "id": "gdp",
+    "type": "code",
+    "language": "python",
+    "show": "split",
+    "width": 900,
+    "code": "import plotly.express as px\ncountries = [\"Norway\", \"Sweden\", \"Denmark\", \"Finland\", \"Iceland\"]\ngdp_pc = [87, 56, 68, 53, 74]\nfig = px.bar(x=countries, y=gdp_pc,\n             labels={\"x\": \"\", \"y\": \"1000 USD per head\"})\n_ = fig.update_layout(width=650, height=430)"
+   }
+  ],
+  "commands": [
+   {
+    "speak": "The Nordics look alike from a distance. Their economies, per person, do not."
+   },
+   {
+    "draw": [
+     "gdp",
+     "gdp_line_1"
+    ],
+    "parallel": true,
+    "speak": "Plotly express — one import."
+   },
+   {
+    "draw": [
+     "gdp_line_2",
+     "gdp_line_3"
+    ],
+    "parallel": true,
+    "speak": "Five countries, and GDP per head in thousands of dollars — round numbers."
+   },
+   {
+    "draw": [
+     "gdp_line_4",
+     "gdp_line_5",
+     "gdp_line_6"
+    ],
+    "parallel": true,
+    "speak": "One line of chart code. The figure just has to sit in a variable."
+   },
+   {
+    "draw": [
+     "gdp_out"
+    ],
+    "delivery": "grave",
+    "speak": "Norway near ninety, Finland near fifty — alike in many things, but not in this one."
+   }
+  ]
+ }
 }
 ]

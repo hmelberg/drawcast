@@ -189,7 +189,7 @@ const elementSchema = {
     code: {
       type: "string",
       description:
-        "code: the script, one newline-separated string. It EXECUTES for real in the viewer's browser at figure-preparation time, so keep it short (≤ ~14 lines), deterministic (SEED any randomness), print() exactly the numbers the narration mentions, and end with at most ONE matplotlib plot. Each line becomes a drawable `<id>_line_1` … `<id>_line_N` and the whole output panel is `<id>_out` — reveal lines with draw on their own narration beats, then draw the output.",
+        "code: the script, one newline-separated string. It EXECUTES for real in the viewer's browser at figure-preparation time, so keep it short (≤ ~14 lines), deterministic (SEED any randomness), print() exactly the numbers the narration mentions, and end with at most ONE plot — matplotlib, or plotly express left in a variable (fig = px.bar(...)); packages auto-install (numpy/pandas/matplotlib ship with the runtime; pure-Python PyPI packages like plotly install on demand). Each line becomes a drawable `<id>_line_1` … `<id>_line_N` and the whole output panel is `<id>_out` — reveal lines with draw on their own narration beats, then draw the output.",
     },
     show: {
       type: "string",

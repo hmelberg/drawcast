@@ -20,6 +20,7 @@ const RUN_TIMEOUT_MS = 180_000;
 interface Pyodide {
   runPythonAsync(code: string): Promise<unknown>;
   loadPackagesFromImports(code: string): Promise<unknown>;
+  loadPackage(name: string): Promise<unknown>;
   setStdout(opts?: { batched: (s: string) => void }): void;
   setStderr(opts?: { batched: (s: string) => void }): void;
 }
@@ -86,6 +87,74 @@ function execWrapper(code: string): string {
   ].join("\n");
 }
 
+/** Harvest plotly figures: any plotly Figure left in a variable by the run
+ *  (the wrapper's __g namespace survives between runPythonAsync calls) comes
+ *  back as its to_json() — rendered to a static PNG by plotly.js below. */
+const PLOTLY_HARVEST = `
+import json as __json
+__pl = []
+try:
+    import plotly.graph_objects as __pgo
+    for __v in list(__g.values()):
+        if isinstance(__v, __pgo.Figure):
+            __pl.append(__v.to_json())
+except Exception:
+    pass
+__json.dumps(__pl)
+`;
+
+/** openstat's production pin — the family's verified plotly.js. */
+const PLOTLY_JS_URL = "https://cdn.plot.ly/plotly-2.32.0.min.js";
+
+interface PlotlyJs {
+  newPlot(el: HTMLElement, data: unknown[], layout: object, config?: object): Promise<unknown>;
+  toImage(el: HTMLElement, opts: { format: string; width: number; height: number; scale?: number }): Promise<string>;
+  purge(el: HTMLElement): void;
+}
+
+let plotlyPromise: Promise<PlotlyJs> | null = null;
+function loadPlotly(): Promise<PlotlyJs> {
+  if (plotlyPromise) return plotlyPromise;
+  plotlyPromise = new Promise<PlotlyJs>((resolve, reject) => {
+    const w = window as unknown as { Plotly?: PlotlyJs };
+    if (w.Plotly) return resolve(w.Plotly);
+    const script = document.createElement("script");
+    script.src = PLOTLY_JS_URL;
+    script.onload = () => (w.Plotly ? resolve(w.Plotly) : reject(new Error("plotly.js loaded but exposed no global")));
+    script.onerror = () => reject(new Error("could not load plotly.js"));
+    document.head.appendChild(script);
+  });
+  plotlyPromise.catch(() => {
+    plotlyPromise = null;
+  });
+  return plotlyPromise;
+}
+
+/** Each plotly figure (fig.to_json()) → offscreen render → static PNG data
+ *  URI at 2× scale, so it drops into the SVG scene and the video export like
+ *  any matplotlib image. Live interactivity is the v2 overlay, not this. */
+async function renderPlotlyFigures(jsons: string[]): Promise<CodeFigure[]> {
+  const plotly = await loadPlotly();
+  const out: CodeFigure[] = [];
+  for (const j of jsons) {
+    const fig = JSON.parse(j) as { data?: unknown[]; layout?: { width?: number; height?: number } };
+    const w = fig.layout?.width ?? 700;
+    const h = fig.layout?.height ?? 450;
+    const holder = document.createElement("div");
+    holder.style.cssText = "position:fixed;left:-10000px;top:0;";
+    document.body.appendChild(holder);
+    try {
+      await plotly.newPlot(holder, fig.data ?? [], { ...fig.layout, width: w, height: h }, { staticPlot: true });
+      const href = await plotly.toImage(holder, { format: "png", width: w, height: h, scale: 2 });
+      out.push({ href, w: w * 2, h: h * 2 });
+    } finally {
+      plotly.purge(holder);
+      holder.remove();
+    }
+  }
+  return out;
+}
+
 /** Harvest matplotlib figures as base64 PNG + pixel dims; no-op without matplotlib. */
 const HARVEST = `
 import json as __json, io as __io, base64 as __b64, struct as __struct
@@ -114,15 +183,37 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   await py.loadPackagesFromImports(req.code).catch(() => undefined);
   let stdout = "";
   let stderr = "";
-  py.setStdout({ batched: (s) => (stdout += s + "\n") });
-  py.setStderr({ batched: (s) => (stderr += s + "\n") });
   let error: string | undefined;
-  try {
-    status("running", "Running…");
-    await py.runPythonAsync(execWrapper(req.code));
-  } catch (err) {
-    // Pyodide's PythonError message carries the full Python traceback.
-    error = (err as Error).message;
+  // Distribution packages auto-load above (numpy, pandas, matplotlib, …). A
+  // pure-PyPI package the distribution lacks surfaces as ModuleNotFoundError:
+  // install it with micropip and retry the WHOLE script — fresh namespace,
+  // fresh buffers, so a half-run attempt leaves no trace — at most twice.
+  for (let attempt = 0; ; attempt++) {
+    stdout = "";
+    stderr = "";
+    py.setStdout({ batched: (s) => (stdout += s + "\n") });
+    py.setStderr({ batched: (s) => (stderr += s + "\n") });
+    error = undefined;
+    try {
+      status("running", "Running…");
+      await py.runPythonAsync(execWrapper(req.code));
+    } catch (err) {
+      // Pyodide's PythonError message carries the full Python traceback.
+      error = (err as Error).message;
+    }
+    py.setStdout();
+    py.setStderr();
+    if (!error || attempt >= 2) break;
+    const missing = /ModuleNotFoundError: No module named '([^']+)'/.exec(error);
+    if (!missing) break;
+    const pkg = missing[1].split(".")[0];
+    status("loading", `Installing ${pkg}…`);
+    try {
+      await py.loadPackage("micropip");
+      await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(pkg)})`);
+    } catch {
+      break; // not on PyPI either — the ModuleNotFoundError stands
+    }
   }
   let figures: CodeFigure[] = [];
   if (!error && /\b(matplotlib|pyplot|plt)\b/.test(req.code)) {
@@ -139,8 +230,18 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
       /* a failed harvest loses the plot, not the run */
     }
   }
-  py.setStdout();
-  py.setStderr();
+  if (!error && /\bplotly\b/.test(req.code)) {
+    try {
+      const raw = await py.runPythonAsync(PLOTLY_HARVEST);
+      const jsons = typeof raw === "string" ? (JSON.parse(raw) as string[]) : [];
+      if (jsons.length > 0) {
+        status("running", "Rendering charts…");
+        figures = figures.concat(await renderPlotlyFigures(jsons));
+      }
+    } catch {
+      /* a failed chart render loses the chart, not the run */
+    }
+  }
   return { ok: !error, stdout: stdout.replace(/\n$/, ""), stderr: stderr.replace(/\n$/, ""), figures, error };
 }
 
