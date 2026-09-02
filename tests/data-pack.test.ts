@@ -84,6 +84,17 @@ describe("bar_chart — static data", () => {
     const many = layout({ labels: Array.from({ length: 50 }, (_, i) => `l${i}`), values: Array.from({ length: 50 }, () => 1) });
     expect(many.order.filter((id) => id.startsWith("bar_"))).toHaveLength(40);
   });
+
+  // Ruling J: bar_i__l's category labels sit in the same row as a stacked
+  // x_label caption, exactly like line_chart's axes__x1/axes__c and
+  // scatter_plot's axes__x1 — X_CAPTION_DROP clears it here too.
+  test("a long x_label drops below the category labels with no overlap lint", () => {
+    const l = layout({ labels: ["a", "b", "c"], values: [1, 2, 3], x_label: "A long axis caption" });
+    expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+    const cap = flattenDrawables(l.drawables).find((d) => d.id === "axes__x_label") as TextDrawable;
+    const catLabel = flattenDrawables(l.drawables).find((d) => d.id === "bar_3__l") as TextDrawable;
+    expect(cap.pos[1]).toBeLessThan(catLabel.pos[1]);
+  });
 });
 
 // The title and the y-axis caption both want the strip above the plot: the
@@ -494,8 +505,11 @@ describe("scatter_plot", () => {
 
   // Ruling H: X/Y clamp the data value into [xMin, xMax]/[yMin, yMax] before
   // scaling, so a narrower ylim never sends a dot or the fit line off-canvas
-  // — the same policy line_chart applies (Ruling E there).
-  test("ylim narrower than the data clamps every dot and the fit line into the plot rectangle", () => {
+  // — the same policy line_chart applies (Ruling E there). Finding 1: the
+  // fit itself must still regress on the REAL data (y = 2x + 66.67 for
+  // (0,1),(1,200),(2,5)), not on the clipped y = 3 the drawing clamps
+  // point 2 to — a clamp for drawing is not a clamp for the numbers.
+  test("ylim narrower than the data clamps every dot and the fit line into the plot rectangle, but fits the real data", () => {
     const l = sc({ x: [0, 1, 2], y: [1, 200, 5], ylim: [0, 3], fit: true });
     for (const id of ["points__d1", "points__d2", "points__d3"]) {
       const d = find(l, id) as StrokeDrawable;
@@ -508,6 +522,15 @@ describe("scatter_plot", () => {
       expect(py).toBeGreaterThanOrEqual(plot.y0 - 1e-6);
       expect(py).toBeLessThanOrEqual(plot.y1 + 1e-6);
     }
+    expect((find(l, "fit_line__t") as TextDrawable).text).toBe("y = 2.00x + 66.67");
+  });
+
+  // Finding 1: the appear/disappear lerp that builds the fit's data points
+  // must mirror the position lerp exactly (same predecessor logic), just in
+  // unclamped data space — a staged fit follows the INTERPOLATED points.
+  test("a staged fit: true regresses on the interpolated data, not the endpoints", () => {
+    const l = sc({ x: [0, 1, 2], y: [[0, 0, 0], [0, 2, 4]], stage: 0.5, fit: true });
+    expect((find(l, "fit_line__t") as TextDrawable).text).toBe("y = 1.00x + 0.00");
   });
 
   // Ruling H: per-axis precision (decX/decY + fmtX/fmtY) and all four axis

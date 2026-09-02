@@ -205,7 +205,15 @@ layout: |
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
     kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
   ];
-  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  // Ruling I/J: a stacked x caption (a long phrase, placed above/left of the
+  // arrow tip rather than inline past it) sits in the same row as bar_i__l's
+  // category labels — drop it one row lower so it clears them.
+  const X_CAPTION_DROP = 28; // a stacked x caption sits one row below the end marks / category labels
+  if (xLab) {
+    const xCaption = kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 });
+    if (xCaption.anchor === "end") xCaption.pos[1] = plot.y0 - 20 - X_CAPTION_DROP;
+    axesChildren.push(xCaption);
+  }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   if (yMin < 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, base], [plot.x1, base]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
   push(kit.group("axes", axesChildren));
@@ -755,7 +763,7 @@ params:
     title: { type: string }
 element_ids:
   axes: the x and y axes with their captions and end values
-  points: every unnamed dot, as one group
+  points: every unnamed dot, as one group — absent when every point is named
   point_1: "a NAMED point (dot + its label) — its own beat; numbered by position (point_2, …)"
   fit_line: the fitted line with its equation
   title: figure title, when set
@@ -791,9 +799,7 @@ layout: |
   let stages = toStages(params.y);
   // The placeholder promise: typed x but y still a token → dots at the floor.
   if (!stages && xs && xs.length > 0) stages = [xs.map(() => 0)];
-  if (!xs || !stages) {
-    // Nothing to place: axes only (a spec with both x and y unresolved).
-  }
+  // Nothing to place: axes only (a spec with both x and y unresolved).
   const n = xs ? Math.min(500, xs.length) : 0;
   const K = stages ? stages.length : 1;
   const stage = clamp(num(params.stage, 0), 0, K - 1);
@@ -874,21 +880,34 @@ layout: |
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
 
-  // Current position of point i (see line_chart for the appear/disappear rule).
+  // Current position of point i (see line_chart for the appear/disappear
+  // rule). `pos` is the CLAMPED screen position (for drawing, per Ruling H);
+  // `val` lerps the same appear/disappear structure but in unclamped DATA
+  // space, so a value outside xlim/ylim keeps its real number for the fit
+  // (Finding 1) instead of the clipped one X()/Y() draws at.
   const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(k, j); if (v !== null) return [X(xs[j]), Y(v)]; } return null; };
-  const pos = [];
+  const predVal = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(k, j); if (v !== null) return [xs[j], v]; } return null; };
+  const pos = [], val = [];
   for (let i = 0; i < n; i++) {
     const a = at(k0, i), c = at(k1, i);
-    if (a === null && c === null) { pos.push(null); continue; }
+    if (a === null && c === null) { pos.push(null); val.push(null); continue; }
     // Ruling A: at t === 0 the displayed stage IS k0, so a point absent from
     // k0 has not appeared yet — reproduce k0's own point count exactly rather
     // than drawing it already sitting at its predecessor.
-    if (a === null && t === 0) { pos.push(null); continue; }
-    let from, to;
-    if (a !== null && c !== null) { from = [X(xs[i]), Y(a)]; to = [X(xs[i]), Y(c)]; }
-    else if (a === null) { to = [X(xs[i]), Y(c)]; from = pred(k0, i) || to; }
-    else { from = [X(xs[i]), Y(a)]; to = pred(k1, i) || from; }
+    if (a === null && t === 0) { pos.push(null); val.push(null); continue; }
+    let from, to, dFrom, dTo;
+    if (a !== null && c !== null) {
+      from = [X(xs[i]), Y(a)]; to = [X(xs[i]), Y(c)];
+      dFrom = [xs[i], a]; dTo = [xs[i], c];
+    } else if (a === null) {
+      to = [X(xs[i]), Y(c)]; from = pred(k0, i) || to;
+      dTo = [xs[i], c]; dFrom = predVal(k0, i) || dTo;
+    } else {
+      from = [X(xs[i]), Y(a)]; to = pred(k1, i) || from;
+      dFrom = [xs[i], a]; dTo = predVal(k1, i) || dFrom;
+    }
     pos.push([from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
+    val.push([dFrom[0] + (dTo[0] - dFrom[0]) * t, dFrom[1] + (dTo[1] - dFrom[1]) * t]);
   }
 
   const color = C.series[0];
@@ -913,14 +932,17 @@ layout: |
   // Ruling C: a fit param that is still an unresolved token string behaves as
   // fit: true (least squares through the current — offline: placeholder —
   // points), so the fit_line beat exists before the script has run.
+  // Finding 1: regress on `val` (unclamped DATA values), not on `pos`
+  // inverted back through X()/Y() — that used to recover the CLAMPED value
+  // (whatever xlim/ylim clipped it to) for any point outside the limits,
+  // silently corrupting the fit. Drawing still uses the clamped `pos`.
   let fit = null;
   if (Array.isArray(params.fit) && params.fit.length === 2 && params.fit.every((v) => typeof v === "number" && Number.isFinite(v))) fit = { slope: params.fit[0], intercept: params.fit[1] };
   else if ((params.fit === true || typeof params.fit === "string") && n >= 2) {
     let sx = 0, sy = 0, sxx = 0, sxy = 0, m = 0;
     for (let i = 0; i < n; i++) {
-      if (!pos[i]) continue;
-      const yv = yMin + ((pos[i][1] - plot.y0) / (plot.y1 - plot.y0)) * (yMax - yMin);
-      const xv = xMin + ((pos[i][0] - plot.x0) / (plot.x1 - plot.x0)) * (xMax - xMin);
+      if (!val[i]) continue;
+      const [xv, yv] = val[i];
       sx += xv; sy += yv; sxx += xv * xv; sxy += xv * yv; m++;
     }
     const den = m * sxx - sx * sx;
