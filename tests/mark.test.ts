@@ -2,16 +2,45 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { markSvg } from "../src/brand/mark";
 
-describe("markSvg", () => {
-  it("draws the same mark every time — roughjs randomises, a logo must not", () => {
-    expect(markSvg()).toBe(markSvg());
-  });
-  it("produces real path data, not an empty shell", () => {
+// Hans 2026-09-02, picking from the three candidates: "1" — a clean play
+// triangle in a rounded rust square. No sketch texture at all: the
+// hand-drawn quality lives in the drawings, and a mark has to read at 16px,
+// where the old roughjs strokes vanished. Two fixed colours in both themes —
+// the square is the app's rust accent, the triangle its paper — so the mark
+// needs no ink, no currentColor, and no theme awareness.
+
+describe("markSvg — the clean play mark", () => {
+  it("is a rounded rust square with a paper play triangle, and nothing else", () => {
     const svg = markSvg();
-    expect(svg).toMatch(/<svg[^>]*viewBox=/);
-    expect((svg.match(/<path/g) ?? []).length).toBeGreaterThanOrEqual(2);
-    expect(svg).toMatch(/d="M/);
+    expect(svg).toMatch(/<svg[^>]*viewBox="0 0 24 24"/);
+    expect(svg).toMatch(/<rect[^>]*rx="[^"]+"[^>]*fill="#b5482e"/);
+    expect(svg).toMatch(/<path[^>]*d="M[^"]*Z"[^>]*fill="#fffefb"/);
+    expect((svg.match(/<(rect|path|circle|polygon|line)\b/g) ?? []).length).toBe(2);
   });
+
+  it("has no ink and no strokes — identical on paper and in dark chrome", () => {
+    const svg = markSvg();
+    expect(svg).not.toContain("#3d3833");
+    expect(svg).not.toContain("currentColor");
+    expect(svg).not.toMatch(/stroke/);
+  });
+
+  it("sizes to the caller without redrawing", () => {
+    expect(markSvg(16)).toMatch(/width="16" height="16"/);
+    expect(markSvg(16).replace('width="16" height="16"', 'width="64" height="64"')).toBe(markSvg(64));
+  });
+
+  it("public/mark.svg — the favicon — is byte-identical to markSvg(64); regenerate with scripts/build-mark.ts", async () => {
+    const file = await readFile(new URL("../public/mark.svg", import.meta.url), "utf8");
+    expect(file).toBe(markSvg(64));
+  });
+
+  it("the topbar renders the mark inline from markSvg, not an <img> copy of the favicon file", async () => {
+    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/h\(\s*"img"\s*,\s*\{\s*class:\s*"mark"/);
+    expect(src).toMatch(/svgFromMarkup\(markSvg\(/);
+  });
+
   it("has retired the squiggle and the emoji favicon", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
     const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
@@ -20,35 +49,9 @@ describe("markSvg", () => {
     expect(html).toMatch(/mark\.svg/);
   });
 
-  // Round-2 fix: public/mark.svg is a fixed-ink favicon file (it cannot read
-  // a CSS custom property) — fine for the tab icon, but main.ts's topbar used
-  // an <img src="./mark.svg"> copy of that SAME fixed ink, so the mark went
-  // near-invisible (1.50:1) against dark's --paper. The fix takes a colour
-  // argument so the topbar's copy can render inline with currentColor instead
-  // and follow --ink like every other chrome element.
-  it("takes a colour argument, defaulting to the fixed ink the favicon file needs", () => {
-    expect(markSvg()).toContain("#3d3833");
-    const inline = markSvg(64, "currentColor");
-    expect(inline).toContain("currentColor");
-    expect(inline).not.toContain("#3d3833");
-  });
-
-  it("draws the same shape regardless of colour — only stroke/fill change", () => {
-    const a = markSvg(64, "currentColor").replace(/currentColor/g, "#3d3833");
-    const b = markSvg();
-    expect(a).toBe(b);
-  });
-
-  it("the topbar renders the mark inline with currentColor — not the fixed-ink <img> file, which would stay invisible in dark mode", async () => {
-    const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(src).not.toMatch(/h\(\s*"img"\s*,\s*\{\s*class:\s*"mark"/);
-    expect(src).toMatch(/markSvg\([^)]*currentColor/);
-  });
-
-  // The standalone viewer (published pages) carried its own leftovers: a
-  // "squiggle" class whose CSS rule is already gone (dead, harmless, but
-  // pointless), and a footer crediting "drawcast ✏️" — the exact emoji this
-  // round's mark was introduced to replace.
+  // The standalone viewer (published pages) once carried a dead "squiggle"
+  // class and a footer crediting "drawcast ✏️" — the emoji the first mark
+  // replaced. Neither may come back.
   it("the standalone viewer has no dead squiggle class and no pencil emoji", async () => {
     const src = await readFile(new URL("../src/viewer.ts", import.meta.url), "utf8");
     expect(src).not.toMatch(/squiggle/);

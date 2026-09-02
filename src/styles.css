@@ -92,8 +92,8 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* The mark, drawn by rough.js like everything else — sized to sit on the
-   wordmark's baseline instead of at its own native 64px. */
+/* The mark — sized to sit on the wordmark's baseline instead of at its own
+   native 64px. */
 .mark {
   width: 1.9rem;
   height: 1.9rem;

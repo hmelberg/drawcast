@@ -80,9 +80,12 @@ kept the lie forever. Full list in commit ccb8900.
   (Settings and CC menu — a pick speaks a sample), Allow comments
   (needs the one-time giscus setup on github.com first), ↗ Share on a
   published cast, the seek-bar hover chip.
-- **C4: open `docs/logo-candidates.html` and pick a direction** (or say
-  what to change). Adoption is a separate small round (favicon + topbar
-  + viewer footer swap).
+- ~~C4: open `docs/logo-candidates.html` and pick a direction~~ **DECIDED
+  2026-09-02: Hans picked 1** (a clean play triangle in a rounded rust
+  square) after seeing all three in the real topbar, both themes, 64→16px.
+  Adopted the same day: `src/brand/mark.ts` is now that SVG (no roughjs, no
+  currentColor variant — two fixed colours serve favicon and topbar alike),
+  favicon regenerated, candidates page deleted.
 - B4 ruling stands unless reversed.
 
 ## Follow-up: blank ＋New and the sidebar (Hans, same day)

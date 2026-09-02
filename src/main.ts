@@ -368,11 +368,11 @@ const app = document.getElementById("app")!;
 
 const menuBtn = h("button", { class: "icon-btn", title: "Show or hide the menu" }, "☰");
 
-// Rendered inline (not the public/mark.svg <img> the favicon uses) so its
-// strokes pick up currentColor -> --ink and stay visible when Settings ->
-// Appearance -> Dark flips the chrome dark. The favicon file itself stays a
-// fixed-ink asset — it is never seen through this page's CSS.
-const topbarMark = svgFromMarkup(markSvg(64, "currentColor"));
+// Rendered inline from the same generator that writes the favicon file, so
+// the two cannot drift. The mark carries its own two colours (rust, paper)
+// and takes nothing from this page's CSS — it looks the same after Settings
+// -> Appearance -> Dark flips the chrome.
+const topbarMark = svgFromMarkup(markSvg(64));
 topbarMark.setAttribute("class", "mark");
 topbarMark.setAttribute("aria-hidden", "true");
 
