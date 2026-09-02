@@ -35,11 +35,45 @@ Suite 2853 → 2860.
    more specific `.cs-stage.is-playing .cs-bigplay { display:none }`
    still wins, so hide-while-playing is unaffected.
 
+## Follow-up round, same day (Hans's ruling on 2b)
+
+Hans: leave the progress bar inline for now; add a little space between the
+y arrowhead and its label; then do title + chapter. Delivered in three
+commits (suite → 2861):
+
+7. **The y-label had NO possible gap on the standard plot — measured, then
+   fixed structurally.** plotArea() left 33 units above the arrow tip for a
+   35-unit label box, so the canvas-top clamp pressed the label onto the
+   arrowhead regardless of Y_LABEL_GAP; PPF (the B13 test case) is a
+   standard-plot template. Fix: PLOT_MARGIN.top 55→75, the four `y1: 695`
+   template literals →675 (every template that chose its own plot already
+   tops out ≤630), Y_LABEL_GAP 8→12. The whole 2861-test suite — including
+   the 114-spec lint sweeps — passed on the new geometry unchanged.
+8. **C9 both halves.** DOM: title appended after the stage; the bar's
+   `afterend` insert lands between them → drawing → bar → title, and the
+   fullscreen flex column carries the order with no sizing change. Prompt:
+   the STYLE.md 2026-09-01 "title counts as something" rule (status was
+   *not yet in the prompt*) folded into the compiler prompt's "Start on the
+   canvas" opening rule; drift test pins it. No full title card for
+   singles, per review R5.
+9. **C10 is a default flip, not a mechanism** — exportSequence has
+   hardcoded auto all along. Serializer omits defaults, so playlists that
+   never wrote `advance` flip with it: ruled fine (replace-don't-freeze,
+   review note 5). The parse-warning fallback text follows the default.
+10. **C11: the pill's words are the distinction.** A click-gated chapter
+   card says "Next chapter ▸"; "Click to continue ▸" now always means an
+   authored `wait`. Under the auto default the chapter card usually just
+   holds `gap` seconds and dissolves (its `clear`), which is D8's
+   recommendation 3 verbatim.
+11. **Progress bar stays inline** — Hans's explicit ruling, recorded on C7.
+   D6's remaining behaviours (hover-scrub, time readout, grouping) stay
+   open there.
+
 ## Open
 
-- Hans's eyes on the new bar (macOS was the complaint) and on the lighter
-  band — one look before 2b builds on this.
-- Part 2b remains: progress-bar row above the buttons, left/right groups,
-  title below the player, chapter-gate default, hover-scrub/seek
-  behaviours (C7, C9, C10, C11) — the half that touches fullscreen
-  sizing and its drift test.
+- Hans's eyes on: the new bar icons (macOS was the complaint), the lighter
+  band, the y-label gap (PPF), the title under the player, and a course
+  crossing chapters on the timer.
+- C7 remainder: hover-scrub/seek preview, time readout, left/right
+  grouping — and the progress-bar row only if Hans ever reverses the
+  ruling.

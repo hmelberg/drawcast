@@ -45,7 +45,7 @@ Sources:
 | B10 ✅ | Drive saves land in an app-created `drawcast` folder | R | ruling §F.3 — `drive.file` covers app-created folders; `parents` on create; name hardcoded first |
 | B11 ✅ | `render()` resolves portraits/sources on the document's **own** spec objects | R | found by the 2026-09-01 final review: root cause of the embed-count lie (fixed at the counter) and of strokes leaking into library saves; fixed 2026-09-02 — `render/resolve.ts` clones at render entry, guarantee proven with fake resolvers like publish/embed's |
 | B12 | Voice selection for Google TTS | R | Hans 2026-09-02: browser voices are already selectable; cloud TTS should be too — per LANGUAGE (a voice belongs to a language), so the setting is a per-language preference through `voiceFor`, not one global voice. Two layers like speed: durable default in Settings, quick pick in the player bar for auditioning (a selection speaks a sample line). WRINKLE: bake reuse is keyed by line text — a voice change must not mix old-voice cached lines into a re-bake; the reuse key needs the voice in it |
-| B13 ✅ | Axis-label placement | R | Hans 2026-09-02, delivered same day (ce38f62): x-label right-justified ending at/past the arrow tip, tighter to the axis (short words may sit in line with the arrow); y-label centered above the arrow when short, ending at/left of the axis when long; PPF example is the test case |
+| B13 ✅ | Axis-label placement | R | Hans 2026-09-02, delivered same day (ce38f62): x-label right-justified ending at/past the arrow tip, tighter to the axis (short words may sit in line with the arrow); y-label centered above the arrow when short, ending at/left of the axis when long; PPF example is the test case. Follow-up 2026-09-02 (Hans: "there should be some space there"): on the standard plot the canvas-top clamp pressed the label ONTO the arrowhead — PLOT_MARGIN.top 55→75 + the four y1:695 literals →675 make the room, Y_LABEL_GAP 8→12 |
 
 ## 2026-09-01/02 publish-polish round (delivered)
 
@@ -73,11 +73,11 @@ cache key would fix it if it ever hurts.
 | C4 | New logo | S §7.4 | three directions described; needs to be seen |
 | C5 ✅ | Delete `halftone`/`poster`/`line` looks | P §5 | 0 of 114 bundled specs use them |
 | C6 ✅ | `Insert → Image…` reduced to disk import only | P §4 | |
-| C7 | **Player behaves and reads like YouTube's** | R | see §D6 |
+| C7 ◐ | **Player behaves and reads like YouTube's** | R | see §D6 — icons (2026-09-02, Part 2a), title move + chapter gates (same day, below). **Hans's ruling 2026-09-02: the progress bar STAYS inline for now** (D6.2 declined). Still open: hover-scrub/seek preview, time readout, left/right grouping |
 | C8 ✅ | Mute/sound icon is ugly on macOS | R | §D6 — delivered in Part 2a (2026-09-02) per review R4: EVERY control glyph became inline currentColor SVG in one pass (`ui/icons.ts`), not just the speaker |
-| C9 | Title moves **below** the player, YouTube-style | R | see §D7 — coupled to the drawcast opening with a drawn title |
-| C10 | Chapter boundaries default to **timed**, not click | R | see §D8 — the mechanism exists; this is a default change |
-| C11 | The continue pill should mean one thing | R | §D8 — chapter gate and authored `wait` currently share it |
+| C9 ✅ | Title moves **below** the player, YouTube-style | R | see §D7 — delivered 2026-09-02, BOTH halves: DOM order is drawing → bar → title (flex column carries fullscreen), and the compiler prompt's opening rule now makes the drawn title the first beat (STYLE.md 2026-09-01 entry folded in; no full title card for singles, per R5) |
+| C10 ✅ | Chapter boundaries default to **timed**, not click | R | see §D8 — delivered 2026-09-02: DEFAULT_META.advance = auto; click stays per-playlist + URL override; unwritten playlists flip with the default (serializer omits defaults — ruled fine) |
+| C11 ✅ | The continue pill should mean one thing | R | §D8 — delivered 2026-09-02: a click-gated chapter card says "Next chapter ▸"; "Click to continue ▸" belongs to the authored `wait` alone (and under the auto default the chapter card usually just holds and dissolves) |
 
 ## D. Detail on the items not yet in a design doc
 
