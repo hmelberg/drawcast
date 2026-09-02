@@ -872,12 +872,25 @@ layout: |
     const room = (b2 - from) * frac;
     return [zero ? 0 : from - room, b2 + room];
   };
+  // Fix: constant data on an axis (hi - lo < 1e-9) used to leave the range a
+  // single point, drawing every dot exactly ON the axis line once the later
+  // degenerate guard only extended it upward. A non-zero value v instead
+  // widens the DATA range itself to [min(0, 2v), max(0, 2v)] before the
+  // snap/headroom logic above runs, so v lands in the middle of an axis that
+  // starts (or ends) at 0. v === 0 is the placeholder promise (typed x, a
+  // still-unresolved y token) and keeps its old floor behaviour untouched.
+  const centerDegenerate = (a2, b2) => {
+    if (!(b2 - a2 < 1e-9) || a2 === 0) return [a2, b2];
+    return [Math.min(0, 2 * a2), Math.max(0, 2 * a2)];
+  };
+  [lo, hi] = centerDegenerate(lo, hi);
   const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
   const ySnapped = !ylim && snapsToZero(lo, hi);
   const yRange = ylim ? [Math.min(ylim[0], ylim[1]), Math.max(ylim[0], ylim[1])] : rangeOf(lo, hi, 0.08);
   let yMin = yRange[0], yMax = yRange[1];
   if (yMax - yMin < 1e-9) yMax = yMin + 1;
-  const xLo = n ? Math.min(...xs.slice(0, n)) : 0, xHi = n ? Math.max(...xs.slice(0, n)) : 1;
+  let xLo = n ? Math.min(...xs.slice(0, n)) : 0, xHi = n ? Math.max(...xs.slice(0, n)) : 1;
+  [xLo, xHi] = centerDegenerate(xLo, xHi);
   const xlim = Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
   const xSnapped = !xlim && snapsToZero(xLo, xHi);
   const xRange = xlim ? [Math.min(xlim[0], xlim[1]), Math.max(xlim[0], xlim[1])] : rangeOf(xLo, xHi, 0.06);
@@ -1067,24 +1080,49 @@ layout: |
     // may — on a dot in the hours example, and inside the title's own row for
     // any rising fit without a ylim. Try four spots around the segment's ends
     // (above/below, right end first, anchored toward the plot's interior) and
-    // take the first that clears every dot, the title and the axis captions
-    // by 4 units; if none does, fall back to the first.
+    // take the first that clears every dot, the title, the axis captions AND
+    // end marks, every named point's label, and the fit segment itself, by 4
+    // units; if none does, fall back to the first.
     const CAP = 16, CAP_DY = 18, CLEAR = 4;
     const capW = kit.textWidth(eq, CAP);
+    // Every text box — the caption's own included — is measured exactly as
+    // the lint measures it: kit.textWidth(text, fontSize) x fontSize * 1.25.
     const boxAt = (x, y, w, h, anchor) => ({ x: anchor === "end" ? x - w : anchor === "start" ? x : x - w / 2, y: y - h / 2, w: w, h: h });
     const clearOf = (u, v) => u.x - CLEAR >= v.x + v.w || v.x - CLEAR >= u.x + u.w || u.y - CLEAR >= v.y + v.h || v.y - CLEAR >= u.y + u.h;
+    // Segment-vs-box crossing (Fix: a candidate the fit line ITSELF runs
+    // through used to be accepted — the lint then flagged the label sitting
+    // on the stroke). True when either endpoint sits inside the box, or the
+    // segment crosses any of the box's four edges.
+    const pointInBox = (p, r) => p[0] >= r.x && p[0] <= r.x + r.w && p[1] >= r.y && p[1] <= r.y + r.h;
+    const segsCross = (p1, p2, p3, p4) => {
+      const cr = (a, b, c) => (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0]);
+      const d1 = cr(p3, p4, p1), d2 = cr(p3, p4, p2), d3 = cr(p1, p2, p3), d4 = cr(p1, p2, p4);
+      return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+    };
+    const segCrossesBox = (a2, b2, r) => {
+      if (pointInBox(a2, r) || pointInBox(b2, r)) return true;
+      const tl = [r.x, r.y], tr = [r.x + r.w, r.y], br = [r.x + r.w, r.y + r.h], bl = [r.x, r.y + r.h];
+      return segsCross(a2, b2, tl, tr) || segsCross(a2, b2, tr, br) || segsCross(a2, b2, br, bl) || segsCross(a2, b2, bl, tl);
+    };
     const obstacles = [];
     for (const p of pos) if (p) obstacles.push({ x: p[0] - 6, y: p[1] - 6, w: 12, h: 12 });
     // Text heights follow the lint's own measure: 1.25 x the font size.
     if (titleAt) obstacles.push(boxAt(titleAt[0], titleAt[1], kit.textWidth(title, 30), 37.5, "middle"));
-    for (const d of axesChildren) if (d.id === "axes__x_label" || d.id === "axes__y_label") obstacles.push(boxAt(d.pos[0], d.pos[1], kit.textWidth(d.text, d.fontSize), d.fontSize * 1.25, d.anchor));
+    // The two axis captions AND the four axis end marks — every text the
+    // axes group draws, built from the same pos/text/fontSize/anchor it was
+    // drawn with.
+    const AXES_OBSTACLE_IDS = new Set(["axes__x_label", "axes__y_label", "axes__x0", "axes__x1", "axes__y0", "axes__y1"]);
+    for (const d of axesChildren) if (AXES_OBSTACLE_IDS.has(d.id)) obstacles.push(boxAt(d.pos[0], d.pos[1], kit.textWidth(d.text, d.fontSize), d.fontSize * 1.25, d.anchor));
+    // Every named point's label, from the same numbers point_i__t is drawn
+    // with (fontSize 16, anchor start, pos [p0 + 10, p1 + 12]).
+    for (const { p, name } of named) if (p) obstacles.push(boxAt(p[0] + 10, p[1] + 12, kit.textWidth(name, 16), 16 * 1.25, "start"));
     const spots = [[1, 1], [1, -1], [0, 1], [0, -1], [1, 1]];
     let capPos = null, capAnchor = "end";
     for (const [side, dir] of spots) {
       capAnchor = side === 1 ? "end" : "start";
       capPos = [ends[side][0], ends[side][1] + dir * CAP_DY];
-      const box = boxAt(capPos[0], capPos[1], capW, CAP, capAnchor);
-      if (obstacles.every((o) => clearOf(box, o))) break;
+      const box = boxAt(capPos[0], capPos[1], capW, CAP * 1.25, capAnchor);
+      if (obstacles.every((o) => clearOf(box, o)) && !segCrossesBox(ends[0], ends[1], box)) break;
     }
 
     push(kit.group("fit_line", [

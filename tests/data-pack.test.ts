@@ -556,6 +556,42 @@ describe("scatter_plot", () => {
     expect(sc({ x: "{sim.x}", y: "{sim.y}" }).order).toEqual(["axes"]);
   });
 
+  // Fix: constant data must not collapse onto the axis. A degenerate range
+  // (hi - lo < 1e-9) around a non-zero v expands to [min(0, 2v), max(0, 2v)]
+  // BEFORE the snap/headroom logic runs, so the dots land in the MIDDLE of
+  // an axis that starts (or ends) at 0, not on the axis line itself.
+  // y: 5,5,5 -> lo=hi=5 -> expands to [0, 10] -> snaps to zero (0 <= 0.25 *
+  // 10) -> + 8 % headroom on the top only -> yMin = 0, yMax = 10 * 1.08 =
+  // 10.8. axes__y1 names the data's own extreme (Finding I3), which is the
+  // EXPANDED range's own hi = 10 (an integer, so it prints bare).
+  test("constant y is centred on the axis, not drawn on it", () => {
+    const l = sc({ x: [1, 2, 3], y: [5, 5, 5] });
+    const lo = plot.y0 + 0.3 * (plot.y1 - plot.y0);
+    const hi = plot.y0 + 0.7 * (plot.y1 - plot.y0);
+    for (const id of ["points__d1", "points__d2", "points__d3"]) {
+      const d = find(l, id) as StrokeDrawable;
+      const cy = d.pts.reduce((a, p) => a + p[1], 0) / d.pts.length;
+      expect(cy).toBeGreaterThan(lo);
+      expect(cy).toBeLessThan(hi);
+    }
+    expect((find(l, "axes__y1") as TextDrawable).text).toBe("10");
+  });
+
+  // x: 4,4,4 -> lo=hi=4 -> expands to [0, 8] -> snaps to zero -> + 6 %
+  // headroom -> xMin = 0, xMax = 8 * 1.06 = 8.48. X(4) = x0 + (4 / 8.48) *
+  // width ~= x0 + 0.472 * width, comfortably inside the middle 40 %.
+  test("constant x is centred on the axis, not drawn on it", () => {
+    const l = sc({ x: [4, 4, 4], y: [1, 2, 3] });
+    const lo = plot.x0 + 0.3 * (plot.x1 - plot.x0);
+    const hi = plot.x0 + 0.7 * (plot.x1 - plot.x0);
+    for (const id of ["points__d1", "points__d2", "points__d3"]) {
+      const d = find(l, id) as StrokeDrawable;
+      const cx = d.pts.reduce((a, p) => a + p[0], 0) / d.pts.length;
+      expect(cx).toBeGreaterThan(lo);
+      expect(cx).toBeLessThan(hi);
+    }
+  });
+
   // Ruling C: a fit that is still a token string behaves as fit: true (least
   // squares through the current — offline: placeholder — points), so the
   // fit_line beat exists (and every command id resolves) before the script
@@ -692,6 +728,27 @@ describe("scatter_plot", () => {
     const cap = find(l, "fit_line__t") as TextDrawable;
     const t = find(l, "title") as TextDrawable;
     expect(l.issues.filter((i) => i.rule === "overlap-label-label" && i.ids.includes(cap.id) && i.ids.includes(t.id))).toEqual([]);
+  });
+
+  // Fix: the caption candidate picker now also rejects a spot the fit
+  // SEGMENT ITSELF crosses. A negative slope through (0,7)..(3,1) puts
+  // "above the right end" (the picker's first-tried spot) right on the
+  // line — the old obstacle set never checked the line, only dots/title/
+  // axis captions, so it picked that spot and the lint flagged the label
+  // sitting on the stroke.
+  test("a negative-slope fit's caption avoids sitting on the fit line itself", () => {
+    const l = sc({ x: [0, 1, 2, 3], y: [7, 5, 3, 1], fit: true });
+    expect(l.issues.filter((i) => i.rule === "overlap-label-stroke")).toEqual([]);
+  });
+
+  // Fix: the caption candidate picker now also treats every named point's
+  // label (point_i__t) as an obstacle, built from the same numbers the
+  // label is drawn with (fontSize 16, anchor start, pos [p0+10, p1+12]).
+  test("the fit caption avoids a named point's label", () => {
+    const l = sc({ x: [0, 1, 2, 3], y: [1, 3, 5, 7], labels: ["", "", "", "D"], fit: true });
+    const cap = find(l, "fit_line__t") as TextDrawable;
+    const lbl = find(l, "point_4__t") as TextDrawable;
+    expect(l.issues.filter((i) => i.rule === "overlap-label-label" && i.ids.includes(cap.id) && i.ids.includes(lbl.id))).toEqual([]);
   });
 
   // Finding O (amends Ruling A): a labelled point keeps its beat at EVERY
