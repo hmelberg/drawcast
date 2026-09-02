@@ -541,6 +541,17 @@ export function shouldIdle(s: { playing: boolean; gateOpen: boolean }): boolean 
   return s.playing && !s.gateOpen;
 }
 
+/** The step a click or hover at clientX = `x` on the seek bar lands on —
+ *  one rule for the click handler and the hover preview, so what the chip
+ *  promises is exactly where the click goes. (The readout stays drawcast's
+ *  own `k/N` step indicator rather than a clock — D6.4, decided: a drawcast
+ *  is a sequence of drawn steps, not a continuous tape.) */
+export function seekStep(x: number, left: number, width: number, total: number): number {
+  if (width <= 0) return 0;
+  const frac = (x - left) / width;
+  return Math.max(0, Math.min(total, Math.round(frac * total)));
+}
+
 /** The bar's secondary controls: always mode and speed, plus mute and/or
  *  captions when the caller wired them up. */
 export type SecondarySlot = "mode" | "speed" | "mute" | "captions";
@@ -1078,9 +1089,21 @@ export function attachPlayerControls(
   progress.addEventListener("click", (e) => {
     e.stopPropagation();
     const rect = progress.getBoundingClientRect();
-    const frac = (e.clientX - rect.left) / rect.width;
-    hd.timeline.renderUpTo(Math.max(0, Math.min(total, Math.round(frac * total))));
+    hd.timeline.renderUpTo(seekStep(e.clientX, rect.left, rect.width, total));
   });
+  // Hover-scrub preview (C7/D6.4): the chip names the step a click would land
+  // on, riding above the cursor. Child of the bar, not the track — the track
+  // clips (overflow:hidden keeps the fill inside its rounded ends).
+  const seekPreview = h("span", { class: "cs-seek-preview" });
+  seekPreview.hidden = true;
+  bar.appendChild(seekPreview);
+  progress.addEventListener("pointermove", (e) => {
+    const rect = progress.getBoundingClientRect();
+    seekPreview.textContent = `${seekStep(e.clientX, rect.left, rect.width, total)}/${total}`;
+    seekPreview.style.left = `${e.clientX - bar.getBoundingClientRect().left}px`;
+    seekPreview.hidden = false;
+  });
+  progress.addEventListener("pointerleave", () => (seekPreview.hidden = true));
 
   hd.timeline.callbacks = {
     onState: (s) => {
