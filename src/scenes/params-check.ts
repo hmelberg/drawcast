@@ -31,3 +31,19 @@ export function templateParamIssues(templateId: string, params: unknown, strict:
   const problems = templateParamErrors(templateId, params).map((p) => `template "${templateId}": ${p}`);
   return strict ? { errors: problems, warnings: [] } : { errors: [], warnings: problems };
 }
+
+/**
+ * Whether a post-substitution params check may be strict (errors) rather
+ * than advisory (warnings). `dataPack` always forces strict — those
+ * templates are the bridge's own, so a schema mismatch is never someone
+ * else's pre-existing content. Otherwise strict requires BOTH `tokens`
+ * (the spec actually referenced code data) AND `substituted` (the check
+ * that resolves those tokens actually ran to completion): a check that
+ * never ran or timed out (NO_CODE_CHECK) leaves raw token strings in
+ * params — only warnings can be honest about them, since the mismatch
+ * a strict read would report ("expected number, got string") is an
+ * artifact of the unresolved token, not a real problem with the spec.
+ */
+export function paramsStrictness(opts: { tokens: boolean; substituted: boolean; dataPack: boolean }): boolean {
+  return (opts.tokens && opts.substituted) || opts.dataPack;
+}

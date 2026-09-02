@@ -16,7 +16,7 @@ import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { codeExecutionErrors, type CodeCheckOutcome } from "../code/check";
 import type { CodeRunRequest, CodeRunResult } from "../code/run";
-import { templateParamIssues } from "../scenes/params-check";
+import { paramsStrictness, templateParamIssues } from "../scenes/params-check";
 import { isPackTemplateId, packTemplateIds } from "../scenes/packs";
 import { scanDataTokens } from "../code/tokens";
 import fewshots from "./prompts/fewshots.json";
@@ -367,7 +367,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         if (best.template) {
           const tokens = scanDataTokens(best.params).length > 0;
           const dataPack = isPackTemplateId(best.template) && packTemplateIds("data").includes(best.template);
-          const issues = templateParamIssues(best.template, check.resolvedParams ?? best.params, tokens || dataPack);
+          // A check that never ran or timed out (NO_CODE_CHECK) leaves raw
+          // token strings in params — only warnings can be honest about them.
+          const substituted = check.resolvedParams !== undefined;
+          const issues = templateParamIssues(
+            best.template,
+            check.resolvedParams ?? best.params,
+            paramsStrictness({ tokens, substituted, dataPack }),
+          );
           validation.errors.push(...issues.errors);
           for (const w of issues.warnings) lintIssues.push({ rule: "code-use", ids: [], message: w, severity: "warn" });
         }

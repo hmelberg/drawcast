@@ -20,7 +20,7 @@ import { resolveCode } from "../src/render/code";
 import { resolvedRenderSpec } from "../src/render/resolve";
 import { lintCommands } from "../src/lint/lint";
 import { codeExecutionErrors } from "../src/code/check";
-import { templateParamErrors, templateParamIssues } from "../src/scenes/params-check";
+import { paramsStrictness, templateParamErrors, templateParamIssues } from "../src/scenes/params-check";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
 import { parseTemplateDoc } from "../src/scenes/doc";
 
@@ -427,6 +427,35 @@ layout: |
       const lenient = templateParamIssues("tp_probe", { values: ["a"] }, false);
       expect(lenient.errors).toEqual([]);
       expect(lenient.warnings.length).toBe(1);
+    } finally {
+      delete scenes.tp_probe;
+    }
+  });
+
+  // Fix round 1: a spec that carries tokens is strict ONLY once substitution
+  // actually happened. A check that never ran or timed out (NO_CODE_CHECK,
+  // resolvedParams undefined) must not go strict — it would blame the
+  // template for a mismatch that's really just the still-unresolved token
+  // string ("{sim.y}" where the schema wants a number array).
+  test("paramsStrictness requires tokens AND substitution; a data-pack template is strict regardless", () => {
+    expect(paramsStrictness({ tokens: true, substituted: true, dataPack: false })).toBe(true);
+    expect(paramsStrictness({ tokens: true, substituted: false, dataPack: false })).toBe(false);
+    expect(paramsStrictness({ tokens: false, substituted: false, dataPack: true })).toBe(true);
+    expect(paramsStrictness({ tokens: false, substituted: false, dataPack: false })).toBe(false);
+  });
+
+  test("tp_probe: a token-bearing spec whose check never ran gets a warning, not an error, for its still-raw token", () => {
+    const { doc } = parseTemplateDoc(yaml);
+    expect(registerTemplateDoc(doc!).ok).toBe(true);
+    try {
+      // Never substituted: params still hold the literal token string, which
+      // is itself schema-invalid (a string where the schema wants number[]).
+      const rawParams = { values: "{sim.y}" };
+      const strict = paramsStrictness({ tokens: true, substituted: false, dataPack: false });
+      expect(strict).toBe(false);
+      const issues = templateParamIssues("tp_probe", rawParams, strict);
+      expect(issues.errors).toEqual([]);
+      expect(issues.warnings.length).toBe(1);
     } finally {
       delete scenes.tp_probe;
     }
