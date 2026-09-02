@@ -19,7 +19,8 @@ export type ElementType =
   | "text"
   | "shape"
   | "portrait"
-  | "source";
+  | "source"
+  | "code";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -126,6 +127,15 @@ export interface SpecElement {
    * iris = circle opening, drift = settle-and-fade, fade = plain opacity.
    */
   reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
+  // code (a Python/R script whose code and/or output is drawn in a panel)
+  /** code: the runtime that executes the script. */
+  language?: "python" | "r";
+  /** code: the script itself, one newline-separated string. */
+  code?: string;
+  /** code: what the panel shows — output (default), split (code left, output right), or the code alone. */
+  show?: "output" | "split" | "code";
+  /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */
+  code_result?: string;
   // source (a book cover, a paper's title page, or one page of either)
   /** DOI of a paper — resolved to its open-access PDF via OpenAlex/Unpaywall. */
   doi?: string;

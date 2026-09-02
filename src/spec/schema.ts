@@ -62,7 +62,7 @@ const elementSchema = {
     id: { type: "string", description: "Unique id, referenced by commands and other elements." },
     type: {
       type: "string",
-      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source"],
+      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code"],
     },
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
@@ -131,7 +131,7 @@ const elementSchema = {
     closed: { type: "boolean", description: "path: close the polyline." },
     x: { type: "number", description: "text/shape: logical x (y-up canvas)." },
     y: { type: "number", description: "text/shape: logical y (y-up canvas)." },
-    width: { type: "number", description: "shape rect / portrait / source: width in logical units (a source defaults to 200 for a cover, 260 for a page)." },
+    width: { type: "number", description: "shape rect / portrait / source / code: width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
     height: { type: "number", description: "shape rect: height in logical units." },
     radius: { type: "number", description: "shape circle: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
@@ -179,6 +179,27 @@ const elementSchema = {
       enum: ["develop", "iris", "wipe", "drift", "fade"],
       description:
         "portrait/source: how a photo or page enters — and, played backwards by erase, exits. wipe = top-down like a print emerging (the default; omit unless you want another), develop = darkroom blur-to-sharp, iris = circle opening from the center, drift = slightly large settling into place, fade = plain opacity.",
+    },
+    // code
+    language: {
+      type: "string",
+      enum: ["python", "r"],
+      description: "code: the runtime that executes the script. Python runs today; r is not available yet — never emit it.",
+    },
+    code: {
+      type: "string",
+      description:
+        "code: the script, one newline-separated string. It EXECUTES for real in the viewer's browser at figure-preparation time, so keep it short (≤ ~14 lines), deterministic (SEED any randomness), print() exactly the numbers the narration mentions, and end with at most ONE matplotlib plot. Each line becomes a drawable `<id>_line_1` … `<id>_line_N` and the whole output panel is `<id>_out` — reveal lines with draw on their own narration beats, then draw the output.",
+    },
+    show: {
+      type: "string",
+      enum: ["output", "split", "code"],
+      description:
+        "code: panel layout — output (just the result; the default), split (code pane left, output pane right; give the element width ≥ 700), code (the script alone).",
+    },
+    code_result: {
+      type: "string",
+      description: "code: machine-written execution result (copy VERBATIM if present; never write, edit, or invent it).",
     },
     style: styleSchema,
     draw: drawSchema,
@@ -809,6 +830,10 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "shape":
       need(!!el.shape, "needs shape");
+      break;
+    case "code":
+      need(el.language === "python" || el.language === "r", 'needs language: "python" or "r"');
+      need(typeof el.code === "string" && el.code.trim() !== "", "needs code (the script)");
       break;
     default:
       break;
