@@ -333,4 +333,50 @@ describe("line_chart", () => {
     const many = line({ series: Array.from({ length: 8 }, (_, k) => ({ name: `s${k}`, values: [1, 2] })) });
     expect(many.order.filter((id) => id.startsWith("line_"))).toHaveLength(6);
   });
+
+  // Fix round 1: numeric x shorter than values used to throw (fmt(xs[n-1])
+  // on undefined) or emit a NaN point — Ruling D caps the index space to the
+  // numeric x it has, silently dropping values beyond it (data_table's own
+  // policy for extra rows).
+  test("numeric x shorter than values: no throw, every point finite, pts capped to x.length", () => {
+    const l = line({ x: [0, 1, 2], values: [1, 2, 3, 4, 5] });
+    const pts = stroke(l, "line_1__l")!.pts;
+    expect(pts).toHaveLength(3);
+    for (const [px, py] of pts) expect(Number.isFinite(px) && Number.isFinite(py)).toBe(true);
+    const x1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__x1") as TextDrawable;
+    expect(x1.text).toBe("2");
+  });
+
+  // Fix round 1: an xlim/ylim narrower than the data used to put points
+  // thousands of units off-canvas — Ruling E clamps every data value into
+  // [xMin, xMax] x [yMin, yMax] before scaling, exactly as bar_chart clamps
+  // y (no geometric line clipping, just a clamped endpoint).
+  test("xlim/ylim narrower than the data clamp every point into the plot rectangle", () => {
+    const xClamped = line({ x: [0, 10, 20, 30], values: [1, 2, 3, 4], xlim: [0, 5] });
+    for (const [px] of stroke(xClamped, "line_1__l")!.pts) {
+      expect(px).toBeGreaterThanOrEqual(plot.x0 - 1e-6);
+      expect(px).toBeLessThanOrEqual(plot.x1 + 1e-6);
+    }
+    const yClamped = line({ values: [1, 200, 5], ylim: [0, 3] });
+    for (const [, py] of stroke(yClamped, "line_1__l")!.pts) {
+      expect(py).toBeGreaterThanOrEqual(plot.y0 - 1e-6);
+      expect(py).toBeLessThanOrEqual(plot.y1 + 1e-6);
+    }
+  });
+
+  // Fix round 1: dec was forced to exactly 1 for any non-integer limit,
+  // rounding sub-unit ranges to one digit ("0.3" for a 0.26 peak) — Ruling F
+  // gives x and y their own precision, and an integer value on that axis is
+  // still shown bare even when its other end needs decimals.
+  test("sub-unit y and integer x each get their own axis-label precision", () => {
+    const l = line({ x: [0, 50], values: [0.05, 0.2415] });
+    const y0 = flattenDrawables(l.drawables).find((d) => d.id === "axes__y0") as TextDrawable;
+    const y1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__y1") as TextDrawable;
+    expect(y1.text).toBe("0.26");
+    expect(y0.text).toBe("0");
+    const x0 = flattenDrawables(l.drawables).find((d) => d.id === "axes__x0") as TextDrawable;
+    const x1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__x1") as TextDrawable;
+    expect(x0.text).toBe("0");
+    expect(x1.text).toBe("50");
+  });
 });
