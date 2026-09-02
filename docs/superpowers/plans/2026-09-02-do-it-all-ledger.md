@@ -109,3 +109,27 @@ something is more logical.
   a view, not a preference. Order kept (New → Search → Library → Courses →
   Examples → Templates → tools): create, find, configure — already the
   logical read.
+
+## Live bug: published pack-template casts drew NOTHING in the viewer
+
+Hans published with narration and got voice + captions over a blank canvas
+(drawcast.app/#gh=hmelberg/dcast/casts/stress-testing-a-discontinuity.yaml).
+Reproduced against the LIVE file in node: part 1 (template `rd_plot`,
+empirics pack) laid out to 0 drawables. Root cause: `viewer.ts` was the one
+entry point that never registered pack templates — main.ts, compiler.ts and
+engine-render.ts all do — and `layoutSpec` treats an unknown template as a
+silent fall-through to the spec's loose elements (its warning is returned
+in `LayoutResult.warnings`, which nothing on the viewer path reads). Part 1
+carries only one annotation, so: blank.
+
+Fixed in two layers: the viewer awaits `ensureEnabledPacks(Object.keys(
+PACK_DEFS))` before mounting — ALL packs, since the AUTHOR's template
+choice must not depend on the viewer's browser settings (engine-render.ts
+had already established that rule) — and an unknown template now throws a
+named, visible error instead of mounting a near-blank page. Pinned by
+tests/viewer-packs.test.ts including a real layout of the live cast's
+first-part shape.
+
+Standing lesson (the six-silent-deaths class): `LayoutResult.warnings` is
+a channel with no reader outside the editor — anything load-bearing must
+not end there.
