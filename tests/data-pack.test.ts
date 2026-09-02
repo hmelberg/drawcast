@@ -392,6 +392,36 @@ describe("line_chart", () => {
     expect(x0.text).toBe("0");
     expect(x1.text).toBe("50");
   });
+
+  // Ruling I: a stacked x caption (a long phrase, not short enough to sit
+  // inline past the arrow) shares its row with axes__x1 — X_CAPTION_DROP
+  // pushes it one row lower so it clears the mark; a short caption still
+  // sits inline at the axis line itself.
+  //
+  // "Years" is NOT actually short here — measured at 5 * 22 * 0.52 = 57.2
+  // logical units, it exceeds both the inline cap (2.5 * fontSize = 55) and
+  // the room the default plot leaves before the canvas edge (beyondArrow =
+  // 34); it already lands in the stacked branch (confirmed against the real
+  // axisLabelPlacement/kit.axisLabel), so it exercises the SAME dropped
+  // placement as the long-phrase case, not the inline one. "Yr" (2
+  // characters, 22.9 units) is what genuinely triggers the inline branch.
+  test("a long x_label drops below axes__x1 with no overlap lint; a short one still lands inline", () => {
+    const long = line({ x: [0, 1, 2], values: [1, 2, 3], x_label: "A long axis caption" });
+    expect(long.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+    const cap = flattenDrawables(long.drawables).find((d) => d.id === "axes__x_label") as TextDrawable;
+    const mark = flattenDrawables(long.drawables).find((d) => d.id === "axes__x1") as TextDrawable;
+    expect(cap.pos[1]).toBeLessThan(mark.pos[1]);
+    const short = line({ x: [0, 1, 2], values: [1, 2, 3], x_label: "Yr" });
+    const shortCap = flattenDrawables(short.drawables).find((d) => d.id === "axes__x_label") as TextDrawable;
+    expect(shortCap.pos[1]).toBe(plot.y0);
+  });
+
+  // Same collision, categorical x this time: the caption shares its row with
+  // the last axes__c category label instead of a numeric mark.
+  test("a long x_label also clears the last categorical label, no overlap lint", () => {
+    const l = line({ x: ["Q1", "Q2", "Q3"], values: [1, 2, 3], x_label: "A long axis caption" });
+    expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+  });
 });
 
 describe("scatter_plot", () => {
@@ -489,5 +519,13 @@ describe("scatter_plot", () => {
     expect((find(l, "axes__y0") as TextDrawable).text).toBe("0");
     expect((find(l, "axes__x1") as TextDrawable).text).toBe("53");
     expect((find(l, "axes__x0") as TextDrawable).text).toBe("0");
+  });
+
+  // Ruling I: same collision as line_chart's numeric axes__x1 — a stacked
+  // x_label drops below the mark row instead of the example's content
+  // changing to dodge it.
+  test("a long x_label drops below axes__x1 with no overlap lint", () => {
+    const l = sc({ x: [1, 2, 3], y: [1, 2, 3], x_label: "Hours studied" });
+    expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
   });
 });

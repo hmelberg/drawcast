@@ -9622,12 +9622,12 @@
      0,
      100
     ],
-    "x_label": "Time",
+    "x_label": "Hours studied",
     "y_label": "Score",
     "box": {
      "x": 470,
      "y": 95,
-     "w": 440,
+     "w": 460,
      "h": 560
     }
    },

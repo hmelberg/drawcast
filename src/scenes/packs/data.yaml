@@ -617,7 +617,15 @@ layout: |
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
     kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
   ];
-  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  // Ruling I: a stacked x caption (a long phrase, placed above/left of the
+  // arrow tip rather than inline past it) sits in the same row as axes__x1
+  // or the last category label — drop it one row lower so it clears them.
+  const X_CAPTION_DROP = 28; // a stacked x caption sits one row below the end marks / category labels
+  if (xLab) {
+    const xCaption = kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 });
+    if (xCaption.anchor === "end") xCaption.pos[1] = plot.y0 - 20 - X_CAPTION_DROP;
+    axesChildren.push(xCaption);
+  }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   if (xCat) {
     const size = n > 12 ? 13 : 17;
@@ -848,7 +856,15 @@ layout: |
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
     kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
   ];
-  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  // Ruling I: a stacked x caption (a long phrase, placed above/left of the
+  // arrow tip rather than inline past it) sits in the same row as axes__x1
+  // or the last category label — drop it one row lower so it clears them.
+  const X_CAPTION_DROP = 28; // a stacked x caption sits one row below the end marks / category labels
+  if (xLab) {
+    const xCaption = kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 });
+    if (xCaption.anchor === "end") xCaption.pos[1] = plot.y0 - 20 - X_CAPTION_DROP;
+    axesChildren.push(xCaption);
+  }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   // Ruling H: all four axis end marks — the plan's shared geometry rules.
   axesChildren.push(kit.text("axes__x0", [plot.x0, plot.y0 - 20], fmtX(xMin), { fontSize: 15, color: C.guide }));
