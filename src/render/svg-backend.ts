@@ -23,6 +23,9 @@ import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, MountResult, RenderedElement } from "./backend";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
+/** System monospace stack: no webfont fetch, and available to the export
+ *  canvas without embedding — code must render identically in the movie. */
+export const MONO_FONT = "'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /**
@@ -298,7 +301,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     t.setAttribute("stroke-width", "5");
     t.setAttribute("stroke-linejoin", "round");
     t.setAttribute("font-size", String(d.fontSize));
-    t.setAttribute("font-family", SKETCH_FONT);
+    t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : SKETCH_FONT);
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
     if (d.style.opacity < 1) t.setAttribute("opacity", String(d.style.opacity));

@@ -79,6 +79,8 @@ export interface TextDrawable extends BaseDrawable {
   text: string;
   fontSize: number;
   anchor: "start" | "middle" | "end";
+  /** Typeface: absent = the sketch handwriting font; "mono" = the code font. */
+  font?: "mono";
   /** Set when the text is word-wrapped; pos is the center of the whole block. */
   lines?: string[];
 }
