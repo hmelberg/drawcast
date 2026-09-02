@@ -28,9 +28,12 @@ Ruling answers that shaped this design (Hans, 2026-09-02):
    Core changes are additive registrations only (type union, schema enum,
    one dispatch case, one resolver injection, engine-registry entries).
 2. **Lazy.** A spec with no `code` element loads zero extra bytes. A Python
-   spec never fetches webR and vice versa. Runtimes are `ENGINE_DEFS`-style
-   lazy loaders pointing at pinned CDN URLs — never bundled, so `dist-engine`
-   stays small and the vendored engine (xplainer) works unchanged.
+   spec never fetches webR and vice versa. Runtime modules are reached only
+   via dynamic `import()` inside `src/code/` (the same code-split effect as
+   the `ENGINE_DEFS` loaders — but the template-engine registry itself stays
+   untouched; it is template machinery), and the runtimes themselves load
+   from pinned CDN URLs — never bundled, so `dist-engine` stays small and the
+   vendored engine (xplainer) works unchanged.
 3. **SVG only.** Code lines are text drawables, stdout is text drawables,
    plots are image drawables with data URIs. No HTML overlay — that is the
    only way scrub, step-back, and video export stay exact
@@ -241,7 +244,6 @@ runCode({ language, code, onStatus? })
 | `src/spec/types.ts` | `"code"` literal + element fields (additive) |
 | `src/spec/schema.ts` | enum + properties + `elementErrors` case |
 | `src/layout/tier2.ts` | one `case "code"` → delegates to new module |
-| `src/scenes/engines.ts` | `pyodide`, `webr`, `plotlyjs` registry entries |
 | `src/render/index.ts` / `resolve.ts` | inject `resolveCode` resolver |
 | `src/llm/hoist.ts` | output fields in `carriesBlob` |
 | `src/render/svg-backend.ts` + measure | `font: "mono"` on text (small, generic) |
