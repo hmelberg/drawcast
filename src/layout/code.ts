@@ -234,11 +234,20 @@ function tableDrawables(
 
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const show = el.show ?? "output";
+  const result = decodeCodeResult(el.code_result);
+  // Harvest failures (a "{sim.df.gdp}" the script could not serve) reach the
+  // lint chip through here: the resolver stamped them on the envelope, and
+  // this is the one place resolve-time trouble becomes a LayoutResult warning.
+  for (const [path, msg] of Object.entries(result?.dataErrors ?? {})) {
+    ctx.warnings.push(`code "${el.id}": {${el.id}.${path}} — ${msg}`);
+  }
+  // A pure data source: nothing drawn, no ids, no anchors — and no PNG string
+  // parsed on every animate tick (this function re-runs per frame).
+  if (show === "none") return [];
   const w = el.width ?? 880;
   const cx = el.x ?? 500;
   const cy = el.y ?? 400;
   const fontSize = el.font_size ?? 17;
-  const result = decodeCodeResult(el.code_result);
   const paneGap = 14;
   const codePaneW = show === "split" ? Math.round(w * 0.55) : w;
   const outPaneW = show === "split" ? w - codePaneW - paneGap : w;

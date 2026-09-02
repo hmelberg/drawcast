@@ -182,3 +182,45 @@ describe("python harvest script (contract only — the runtime is smoke-tested l
     expect(parseHarvest(undefined)).toEqual({ data: {}, errors: {} });
   });
 });
+
+import { validateSpec } from "../src/spec/schema";
+import { layoutSpec } from "../src/layout/layout";
+import { flattenDrawables } from "../src/layout/model";
+import type { Spec } from "../src/spec/types";
+
+const codeEl = (extra: object, result?: CodeRunResult) => ({
+  id: "sim",
+  type: "code",
+  language: "python",
+  code: "y = [1, 2]",
+  ...(result ? { code_result: JSON.stringify(result) } : {}),
+  ...extra,
+});
+
+describe("code element — show: none", () => {
+  test("validates; junk still rejected", () => {
+    expect(validateSpec({ elements: [codeEl({ show: "none" })], commands: [] }).ok).toBe(true);
+    expect(validateSpec({ elements: [codeEl({ show: "hidden" })], commands: [] }).ok).toBe(false);
+  });
+
+  test("draws nothing, mints no ids, and is absent from order", () => {
+    const l = layoutSpec({ elements: [codeEl({ show: "none" }, { ok: true, stdout: "42", stderr: "", figures: [] })], commands: [] } as unknown as Spec);
+    expect(l.drawables).toEqual([]);
+    expect(l.order).toEqual([]);
+  });
+
+  test("harvest failures become layout warnings naming the token, in every mode", () => {
+    const res: CodeRunResult = { ok: true, stdout: "", stderr: "", figures: [], data: {}, dataErrors: { "df.gdp": "no column, key or attribute gdp" } };
+    for (const show of ["none", "code", "output"]) {
+      const l = layoutSpec({ elements: [codeEl({ show }, res)], commands: [] } as unknown as Spec);
+      expect(l.warnings.some((w) => w.includes("{sim.df.gdp}") && w.includes("no column")), show).toBe(true);
+    }
+  });
+
+  test("show: code still mints its lines and stays in order", () => {
+    const l = layoutSpec({ elements: [codeEl({ show: "code" })], commands: [] } as unknown as Spec);
+    expect(l.order).toContain("sim");
+    expect(l.order).toContain("sim_line_1");
+    expect(flattenDrawables(l.drawables).some((d) => d.id === "sim_line_1")).toBe(true);
+  });
+});

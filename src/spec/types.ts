@@ -132,8 +132,8 @@ export interface SpecElement {
   language?: "python" | "r";
   /** code: the script itself, one newline-separated string. */
   code?: string;
-  /** code: what the panel shows — output (default), split (code left, output right), or the code alone. */
-  show?: "output" | "split" | "code";
+  /** code: what the panel shows — output (default), split (code left, output right), code (the script alone), or none (nothing drawn: the element only feeds template params through "{id.var}" tokens). */
+  show?: "output" | "split" | "code" | "none";
   /** code: number of separate figures the script produces (>= 2) — each becomes its own beat `<id>_fig_N`, all sharing one frame. */
   figures?: number;
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */

@@ -514,7 +514,7 @@ Node tests, fake runner (`CodeRunDeps.runner`), no WASM:
 | `src/code/check.ts` | run with paths; `dataErrors` → errors; post-substitution schema validation |
 | `src/render/code.ts` | token scan, substitute, skip rule |
 | `src/render/params.ts` | array indices in `readParam`/`withOverrides` |
-| `src/layout/code.ts` | `show: none` early return |
+| `src/layout/code.ts`, `src/layout/layout.ts` | `show: none`: early return + dataErrors → warnings; the element id is left out of order |
 | `src/layout/model.ts` | `COLORS.series` |
 | `src/scenes/kit.ts` | `KIT_VERSION` 5 (colors only) |
 | `src/scenes/catalog.ts` | `TEMPLATE_FULL_THRESHOLD` 100 |
@@ -529,4 +529,4 @@ Node tests, fake runner (`CodeRunDeps.runner`), no WASM:
 | tests | as §11 |
 
 Not touched: `render/plan.ts`, `render/player.ts`, `render/index.ts`,
-`render/svg-backend.ts`, `layout/layout.ts`, `export/video.ts`.
+`render/svg-backend.ts`, `export/video.ts`.

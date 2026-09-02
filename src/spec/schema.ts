@@ -193,9 +193,9 @@ const elementSchema = {
     },
     show: {
       type: "string",
-      enum: ["output", "split", "code"],
+      enum: ["output", "split", "code", "none"],
       description:
-        "code: panel layout — output (just the result; the default), split (code pane left, output pane right; give the element width ≥ 700), code (the script alone).",
+        "code: panel layout — output (just the result; the default), split (code pane left, output pane right; give the element width ≥ 700), code (the script alone), none (draws NOTHING — the script only feeds template params through \"{id.var}\" tokens).",
     },
     figures: {
       type: "number",

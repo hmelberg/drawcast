@@ -64,6 +64,9 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
     for (const el of spec.elements) {
+      // A show:none code element draws nothing (it only feeds params), so it
+      // must not become a command-addressable id or an implicit final draw.
+      if (el.type === "code" && el.show === "none") continue;
       if (!order.includes(el.id)) order.push(el.id);
     }
     // Ids tier-2 minted itself (a source element's quote highlights) come
