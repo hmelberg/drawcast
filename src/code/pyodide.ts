@@ -341,7 +341,10 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
       data = harvested.data;
       dataErrors = harvested.errors;
     } catch (err) {
-      dataErrors = Object.fromEntries(paths.map((p) => [p, `harvest failed: ${(err as Error).message}`]));
+      // String(err), not err.message: a pyodide PythonError arrives with the
+      // traceback in its message, but a thrown non-Error (a string, a proxy)
+      // has no .message at all and would read "harvest failed: undefined".
+      dataErrors = Object.fromEntries(paths.map((p) => [p, `harvest failed: ${String(err)}`]));
     }
   }
   return {

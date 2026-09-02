@@ -184,6 +184,26 @@ describe("python harvest script (contract only — the runtime is smoke-tested l
     expect(DATA_CAP_ROWS).toBe(200);
   });
 
+  // A path with a comma or a quote in it must survive as ONE JSON string —
+  // the paths literal is built by JSON.stringify per element, not by
+  // string-replacing commas in a serialized array.
+  test("the paths literal is real JSON, whatever the path contains", () => {
+    expect(dataHarvestScript(['df["a, b"]'])).toContain('__paths = ["df[\\"a, b\\"]"]');
+    expect(dataHarvestScript([])).toContain("__paths = []");
+  });
+
+  // Missing values: pd.NA and NaT are not floats and `pd.NA != pd.NA` is
+  // pd.NA (truth-testing it RAISES), so the float NaN sentinel alone cannot
+  // see them. And a missing attribute must read as a sentence, not as a
+  // KeyError's quoted repr.
+  test("carries the pandas-NA guard and reports a missing attribute as a ValueError", () => {
+    const src = dataHarvestScript(["y"]);
+    expect(src).toContain("def __isna");
+    expect(src).toContain('("NAType", "NaTType")');
+    expect(src).toContain('ValueError("no column');
+    expect(src).not.toContain("KeyError(");
+  });
+
   test("parseHarvest guards the payload shape", () => {
     expect(parseHarvest(JSON.stringify({ data: { y: [1] }, errors: { z: "no variable z" } }))).toEqual({ data: { y: [1] }, errors: { z: "no variable z" } });
     expect(parseHarvest("not json")).toEqual({ data: {}, errors: {} });

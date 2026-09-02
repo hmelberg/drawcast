@@ -234,6 +234,12 @@ function tableDrawables(
 
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const show = el.show ?? "output";
+  // A pure data source draws nothing, mints no ids and has no anchors, so the
+  // only thing it can still contribute is a harvest warning. This function
+  // re-runs on EVERY animate tick, and the envelope it would parse carries
+  // figure PNGs — so look for the warning key in the raw string first and skip
+  // the JSON.parse entirely when there is none (spec §10).
+  if (show === "none" && !(el.code_result ?? "").includes('"dataErrors"')) return [];
   const result = decodeCodeResult(el.code_result);
   // Harvest failures (a "{sim.df.gdp}" the script could not serve) reach the
   // lint chip through here: the resolver stamped them on the envelope, and
@@ -241,8 +247,6 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   for (const [path, msg] of Object.entries(result?.dataErrors ?? {})) {
     ctx.warnings.push(`code "${el.id}": {${el.id}.${path}} — ${msg}`);
   }
-  // A pure data source: nothing drawn, no ids, no anchors — and no PNG string
-  // parsed on every animate tick (this function re-runs per frame).
   if (show === "none") return [];
   const w = el.width ?? 880;
   const cx = el.x ?? 500;

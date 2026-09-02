@@ -20,7 +20,7 @@ export interface HarvestPayload {
 export function dataHarvestScript(paths: string[]): string {
   return `
 import json as __json, math as __math
-__paths = ${JSON.stringify(paths).replace(/,/g, ", ")}
+__paths = ${"[" + paths.map((p) => JSON.stringify(p)).join(", ") + "]"}
 __CAP_N = ${DATA_CAP_NUMBERS}
 __CAP_ROWS = ${DATA_CAP_ROWS}
 __out = {"data": {}, "errors": {}}
@@ -31,7 +31,18 @@ def __is_df(o):
 def __is_series(o):
     return type(o).__name__ == "Series"
 
+def __isna(v):
+    # pandas' own missing values are not floats, and pd.NA != pd.NA is pd.NA
+    # (truth-testing it RAISES), so the float-NaN sentinel alone cannot see
+    # them. Match by type name: importing pandas here would be a second cost
+    # for scripts that never used it.
+    if type(v).__name__ in ("NAType", "NaTType"):
+        return True
+    return isinstance(v, float) and v != v
+
 def __scalar(v):
+    if __isna(v):
+        return None
     if v is None:
         return None
     if isinstance(v, bool):
@@ -65,6 +76,8 @@ def __convert(v, path):
         cols = [str(c) for c in v.columns]
         rows = [[__scalar(x) for x in r] for r in v.itertuples(index=False, name=None)]
         return {"columns": cols, "rows": rows}
+    if hasattr(v, "__len__") and hasattr(v, "tolist") and len(v) > __CAP_N:
+        raise ValueError("%d values, the cap is %d — downsample or aggregate in the script" % (len(v), __CAP_N))
     if __is_series(v) or hasattr(v, "tolist"):
         v = v.tolist()
     if isinstance(v, range):
@@ -74,6 +87,8 @@ def __convert(v, path):
         return out
     if isinstance(v, dict):
         return {str(k): __convert(x, path) for k, x in v.items()}
+    if __isna(v):
+        return None
     if v is None or isinstance(v, (bool, int, float, str)):
         return __scalar(v)
     if hasattr(v, "item"):
@@ -94,7 +109,7 @@ for __p in __paths:
             elif hasattr(__obj, __s):
                 __obj = getattr(__obj, __s)
             else:
-                raise KeyError("no column, key or attribute %s" % __s)
+                raise ValueError("no column, key or attribute %s" % __s)
         __val = __convert(__obj, __p)
         __n = __count(__val)
         if __n > __CAP_N:
