@@ -170,3 +170,18 @@ the default narrator bills premium. Traps: three source-pin tests broke on
 SHAPE changes whose guarantees still held (doc() grew a body, the bake
 hint needed its literal built once) — pins updated to assert the guarantee,
 not the shape.
+
+## B15 delivered: resumable narration bake (same day)
+
+`export/bake-cache.ts` — the portrait-cache IndexedDB idiom. Rulings:
+clips are cached the MOMENT they are synthesized (put before return — a
+failure right after cannot lose the clip); the key carries everything
+that determines the audio (rate, the exact narrationVoice decision
+incl. languageCode, speechKey); cache reads/writes never fail the bake
+(read error → API, write error → clip still returns); 30-day lazy
+expiry — the cache is a wallet-protector, the published copy remains the
+durable reuse source. Both bake sites (drawcast publish, course publish)
+wrap their synthesizer; pinned by tests incl. the saved-before-resolving
+order. Deliberately NOT wired: the video export's live synthesis (a
+different path with an AudioContext in the loop) — same trick applies if
+an export quota-death ever hurts.
