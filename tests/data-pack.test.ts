@@ -751,6 +751,59 @@ describe("scatter_plot", () => {
     expect(l.issues.filter((i) => i.rule === "overlap-label-label" && i.ids.includes(cap.id) && i.ids.includes(lbl.id))).toEqual([]);
   });
 
+  // Fix (rule b), and this fixture actually discriminates: pre-fix, the
+  // picker only knew about the two axis CAPTIONS, not the four end marks —
+  // this fit's caption landed squarely on axes__x1 ("11"), and the real
+  // lint reported `overlap-label-label` between "axes__x1" and
+  // "fit_line__t". Post-fix, axes__x0/x1/y0/y1 are obstacles too, so the
+  // picker moves on to a clear spot.
+  test("the fit caption avoids the axis end marks, not just the axis captions", () => {
+    const l = sc({ x: [10, 11], y: [60, 50], fit: true });
+    expect(l.issues.filter((i) => i.rule.includes("overlap") && i.ids.includes("fit_line__t"))).toEqual([]);
+  });
+
+  // Fix (rule c), and this fixture actually discriminates: pre-fix, the
+  // picker's first-tried spot ("above the right end": the right endpoint of
+  // fit_line__l plus an 18-unit offset, anchor end) was accepted because
+  // nothing in the old obstacle set (dots/title/axis captions) sat there —
+  // even though the fit segment itself ran straight through that box. The
+  // real caption ended up 18 units above the line at that x. Post-fix, the
+  // new segment-vs-box check rejects that spot and the picker falls through
+  // to "below the right end" instead — a 2 x 18 = 36-unit jump (measured:
+  // 440.95 -> 404.95). Recheck both claims directly: the caption is not at
+  // the rejected spot, and the segment genuinely does not cross the box the
+  // caption actually got, using the same point-in-box + edge-crossing test
+  // the layout body uses (box = kit.textWidth-equivalent width x fontSize *
+  // 1.25, matching the lint's own measure).
+  test("the fit caption skips a spot the fit segment itself would cross", () => {
+    const l = sc({ x: [0, 5, 10], y: [10, 1, 9], fit: true });
+    const line = find(l, "fit_line__l") as StrokeDrawable;
+    const cap = find(l, "fit_line__t") as TextDrawable;
+    const [a, b] = line.pts;
+    const CAP_DY = 18;
+    const aboveRightEnd: [number, number] = [b[0], b[1] + CAP_DY];
+    expect(cap.pos).not.toEqual(aboveRightEnd);
+
+    const w = heuristicMeasure(cap.text, cap.fontSize).w;
+    const h = cap.fontSize * 1.25;
+    const box = {
+      x: cap.anchor === "end" ? cap.pos[0] - w : cap.anchor === "start" ? cap.pos[0] : cap.pos[0] - w / 2,
+      y: cap.pos[1] - h / 2,
+      w,
+      h,
+    };
+    const pointInBox = (p: [number, number]) => p[0] >= box.x && p[0] <= box.x + box.w && p[1] >= box.y && p[1] <= box.y + box.h;
+    const cross = (u: [number, number], v: [number, number], p: [number, number]) => (p[0] - u[0]) * (v[1] - u[1]) - (p[1] - u[1]) * (v[0] - u[0]);
+    const segsCross = (p1: [number, number], p2: [number, number], p3: [number, number], p4: [number, number]) => {
+      const d1 = cross(p3, p4, p1), d2 = cross(p3, p4, p2), d3 = cross(p1, p2, p3), d4 = cross(p1, p2, p4);
+      return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+    };
+    const tl: [number, number] = [box.x, box.y], tr: [number, number] = [box.x + box.w, box.y];
+    const br: [number, number] = [box.x + box.w, box.y + box.h], bl: [number, number] = [box.x, box.y + box.h];
+    const segCrossesBox = pointInBox(a) || pointInBox(b) || segsCross(a, b, tl, tr) || segsCross(a, b, tr, br) || segsCross(a, b, br, bl) || segsCross(a, b, bl, tl);
+    expect(segCrossesBox).toBe(false);
+  });
+
   // Finding O (amends Ruling A): a labelled point keeps its beat at EVERY
   // stage, so a later highlight: {target: ["point_3"]} resolves against stage
   // 0's order. Nothing is drawn before it appears — an empty-pts stroke.
