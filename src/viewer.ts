@@ -17,6 +17,8 @@ import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
+import { ensureEnabledPacks, PACK_DEFS } from "./scenes/packs";
+import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
 
 export interface GhRef {
@@ -39,10 +41,6 @@ export interface ViewerRequest {
   advance?: "click" | "auto";
 }
 
-/**
- * HEAD rather than a branch name: a published link must survive the repo's
- * default branch being renamed.
- */
 /**
  * The giscus client attributes for one published cast (C1). Pure and
  * exported for the node suite. data-repo comes from the viewer's own URL;
@@ -68,6 +66,10 @@ export function giscusAttributes(gh: GhRef, comments: { repoId: string; category
   };
 }
 
+/**
+ * HEAD rather than a branch name: a published link must survive the repo's
+ * default branch being renamed.
+ */
 export function rawUrlFor(gh: GhRef): string {
   return `https://raw.githubusercontent.com/${gh.owner}/${gh.repo}/HEAD/${gh.path}`;
 }
@@ -206,6 +208,15 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, footer));
 
   try {
+    // Pack templates register BEFORE anything lays out — the viewer was the
+    // one entry point that skipped this (main.ts, compiler.ts and
+    // engine-render.ts all do it), so a published cast on a pack template
+    // (rd_plot, ppf, did_trends…) silently fell through to its loose
+    // elements: voice and captions over a blank canvas (Hans's live bug,
+    // 2026-09-02). ALL packs, not a settings list: the viewer renders other
+    // people's content, and the AUTHOR's template choice must not depend on
+    // what this browser happens to have enabled. Bundled yaml — no network.
+    await ensureEnabledPacks(Object.keys(PACK_DEFS));
     const text = req.gh ? await fetchGhText(req.gh) : req.driveId ? await fetchGdriveText(req.driveId) : await fetchGdocText(req.docId!);
     const playlist = parsePlaylistText(text);
     const items = itemsOf(playlist);
@@ -215,6 +226,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       if (!validation.ok) {
         const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
         throw new Error(`The document's spec is invalid: ${where}${validation.errors[0]}${validation.errors.length > 1 ? ` (+${validation.errors.length - 1} more)` : ""}`);
+      }
+      // Second layer: an unknown template must be a visible error, never a
+      // silent fall-through to a near-blank page (layoutSpec's warning is
+      // returned but nothing in this path reads it).
+      const tpl = item.spec.template;
+      if (tpl && !scenes[tpl]) {
+        throw new Error(`This drawcast uses the template "${tpl}", which this viewer does not know — it may come from a newer app or a remote pack.`);
       }
     }
     const title = playlist.meta.title ?? items[0].spec.title;
