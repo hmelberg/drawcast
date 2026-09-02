@@ -96,7 +96,13 @@ if (!is.null(.__exprs)) withCallingHandlers(
       else paste0("Error in ", callstr, ": ", conditionMessage(e))
   }),
   warning = function(w) { .__warn <<- c(.__warn, paste0("Warning: ", conditionMessage(w))); invokeRestart("muffleWarning") },
-  message = function(m) { .__warn <<- c(.__warn, sub("\n$", "", conditionMessage(m))); invokeRestart("muffleMessage") }
+  message = function(m) {
+    # library(dplyr)'s "Attaching package … masked from" banner is a
+    # packageStartupMessage: console furniture, not the script's output —
+    # muffled silently, so the output pane holds the result, not the banner.
+    if (!inherits(m, "packageStartupMessage")) .__warn <<- c(.__warn, sub("\n$", "", conditionMessage(m)))
+    invokeRestart("muffleMessage")
+  }
 )
 .__jstr <- function(s) {
   s <- gsub("\\", "\\\\", s, fixed = TRUE)
