@@ -226,3 +226,16 @@ references (`referencedLectureIds`, status ids in document order), and the
 orphans surface in the loose Library list — under the old `!courseId`
 filter they were reachable only through the course group, so excluding
 them there without re-homing them would have made saved work invisible.
+
+## Clickable Next (Hans, same day)
+
+The link is as simple as Hans guessed — the same lectureHref the overview
+page uses — carried in the published copy's header (`meta.next`), because
+publish time is the one moment the target URL exists and every republish
+recomputes it (reordering can never stale it; the old makeNextCard ruling
+is superseded and its comment updated). The only machinery is a
+names-first pass: on the FIRST publish the next lecture's file name is
+minted in the same run. Ungenerated successors get no link; the viewer
+renders a real anchor pill on the finished poster (plain click navigates
++ reloads — a bare hash change would not remount; modified clicks keep
+real-link semantics for new tabs).
