@@ -9071,5 +9071,263 @@
     }
    ]
   }
+ },
+ {
+  "request": "Replay the compounding example with a bar chart drawn from the numbers Python computes: 100 at 2 percent, then the same bars at 7 percent",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Compounding, drawn from the numbers",
+   "template": "bar_chart",
+   "params": {
+    "labels": [
+     "0",
+     "10",
+     "20",
+     "30",
+     "40",
+     "50"
+    ],
+    "values": "{calc.frames}",
+    "stage": 0,
+    "ylim": [
+     0,
+     3200
+    ],
+    "value_labels": true,
+    "y_label": "Value of 100",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 470,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "calc",
+     "type": "code",
+     "language": "python",
+     "show": "code",
+     "x": 225,
+     "y": 400,
+     "width": 410,
+     "font_size": 15,
+     "code": "years = [0, 10, 20, 30, 40, 50]\nframes = [[round(100 * (1 + r) ** y) for y in years]\n          for r in (0.02, 0.07)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "calc",
+      "calc_line_1"
+     ],
+     "parallel": true,
+     "speak": "Six checkpoints, a decade apart."
+    },
+    {
+     "draw": [
+      "calc_line_2",
+      "calc_line_3"
+     ],
+     "parallel": true,
+     "speak": "One line of Python computes both worlds: the same hundred at two percent and at seven."
+    },
+    {
+     "draw": [
+      "axes",
+      "bar_1",
+      "bar_2",
+      "bar_3",
+      "bar_4",
+      "bar_5",
+      "bar_6"
+     ],
+     "parallel": true,
+     "speak": "At two percent the bars barely lean forward: a hundred becomes two hundred and sixty-nine in fifty years."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 3,
+     "speak": "Now the same bars at seven percent. They do not lean, they take off."
+    },
+    {
+     "highlight": {
+      "target": [
+       "bar_6"
+      ]
+     },
+     "delivery": "grave",
+     "speak": "Two thousand nine hundred and forty-six against two hundred and sixty-nine. The rate is three and a half times higher; the money is eleven times more."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Show the central limit theorem by averaging dice: one die, two dice, ten dice",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "The central limit theorem, one die at a time",
+   "template": "bar_chart",
+   "params": {
+    "labels": [
+     "1",
+     "",
+     "2",
+     "",
+     "3",
+     "",
+     "4",
+     "",
+     "5",
+     "",
+     "6"
+    ],
+    "values": "{dice.frames}",
+    "stage": 0,
+    "gap": 0.15,
+    "y_label": "Share of rolls",
+    "title": "The central limit theorem, one die at a time",
+    "box": {
+     "x": 120,
+     "y": 95,
+     "w": 855,
+     "h": 580
+    }
+   },
+   "elements": [
+    {
+     "id": "dice",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import numpy as np\nrng = np.random.default_rng(3)\nedges = np.linspace(1, 6, 12)\ndef shares(n):\n    means = rng.integers(1, 7, size=(20000, n)).mean(axis=1)\n    counts, _ = np.histogram(means, bins=edges)\n    return [round(float(c) / 20000, 3) for c in counts]\nframes = [shares(1), shares(2), shares(10)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Nothing about a die is bell-shaped. Watch what averaging does to it."
+    },
+    {
+     "draw": [
+      "axes",
+      "bar_1",
+      "bar_2",
+      "bar_3",
+      "bar_4",
+      "bar_5",
+      "bar_6",
+      "bar_7",
+      "bar_8",
+      "bar_9",
+      "bar_10",
+      "bar_11"
+     ],
+     "parallel": true,
+     "speak": "One die: six equal spikes, a sixth each. Flat as a table."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 3,
+     "speak": "Average two dice and the middle fills in: there are many ways to average three and a half, and only one way to average one."
+    },
+    {
+     "animate": {
+      "stage": 2
+     },
+     "duration": 3,
+     "speak": "Average ten, and the spikes melt into a bell. The bell was never in the die. It comes from the averaging."
+    },
+    {
+     "highlight": {
+      "target": [
+       "bar_6"
+      ]
+     },
+     "speak": "That is the central limit theorem: average enough of almost anything, and you get this shape."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Simpson's paradox with the kidney stone data: a treatment that wins on small stones and on large stones, yet loses overall",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Simpson's paradox: kidney stones",
+   "template": "data_table",
+   "params": {
+    "columns": [
+     "",
+     "Treatment A",
+     "Treatment B"
+    ],
+    "rows": [
+     [
+      "Small stones",
+      "93 % (81 of 87)",
+      "87 % (234 of 270)"
+     ],
+     [
+      "Large stones",
+      "73 % (192 of 263)",
+      "69 % (55 of 80)"
+     ],
+     [
+      "All patients",
+      "78 % (273 of 350)",
+      "83 % (289 of 350)"
+     ]
+    ],
+    "font_size": 22,
+    "box": {
+     "x": 130,
+     "y": 330,
+     "w": 740,
+     "h": 300
+    },
+    "title": "Simpson's paradox: kidney stones"
+   },
+   "commands": [
+    {
+     "draw": [
+      "title",
+      "header"
+     ],
+     "parallel": true,
+     "speak": "Two treatments for kidney stones, from a 1986 British study. Which one is better?"
+    },
+    {
+     "draw": [
+      "row_1"
+     ],
+     "speak": "On small stones, A wins: ninety-three percent success against eighty-seven."
+    },
+    {
+     "draw": [
+      "row_2"
+     ],
+     "speak": "On large stones, A wins again: seventy-three against sixty-nine."
+    },
+    {
+     "draw": [
+      "row_3"
+     ],
+     "delivery": "grave",
+     "speak": "Add the two groups together and B wins. A was given the hard cases, and the hard cases drag its average down. A treatment can be better in every group and worse in total. That is Simpson's paradox."
+    }
+   ]
+  }
  }
 ]
