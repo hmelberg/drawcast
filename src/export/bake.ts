@@ -16,6 +16,13 @@ export interface BakeOptions {
   synthesize(line: SpeakLine): Promise<string>;
   /** Already-baked lines to reuse rather than pay for again. */
   existing?: AudioTrack["lines"];
+  /**
+   * The cloud voice `synthesize` WILL use for this line (B12) — undefined for
+   * the default chain. Reuse compares it against each existing clip's `voice`,
+   * so changing the voice re-bakes instead of mixing old-voice lines in; it
+   * must mirror what the synthesizer actually does (tts.ts preferredVoice).
+   */
+  voiceOf?(line: SpeakLine): string | undefined;
   /** Optional: decode for a real duration. Failing is not fatal. */
   durationMs?(base64: string): Promise<number>;
 }
@@ -28,12 +35,20 @@ export interface BakeOptions {
  * has a different key, so it is synthesized again rather than kept as a
  * recording of words the drawcast no longer says.
  */
-export function linesToBake(lines: SpeakLine[], existing: AudioTrack["lines"]): SpeakLine[] {
+export function linesToBake(
+  lines: SpeakLine[],
+  existing: AudioTrack["lines"],
+  voiceOf?: (line: SpeakLine) => string | undefined,
+): SpeakLine[] {
   const out = new Map<string, SpeakLine>();
   for (const line of lines) {
     if (line.text.trim().length === 0) continue;
     const key = speechKey(line);
-    if (existing[key] || out.has(key)) continue;
+    if (out.has(key)) continue;
+    // A clip only counts as already-baked if it was spoken by the voice this
+    // bake would use — the reuse key carries the voice (B12).
+    const clip = existing[key];
+    if (clip && (clip.voice ?? "") === (voiceOf?.(line) ?? "")) continue;
     out.set(key, line);
   }
   return [...out.values()];
@@ -53,7 +68,7 @@ export async function bakeNarration(
   signal: AbortSignal,
 ): Promise<AudioTrack> {
   const existing = opts.existing ?? {};
-  const todo = linesToBake(lines, existing);
+  const todo = linesToBake(lines, existing, opts.voiceOf);
   const track: AudioTrack = { lang: opts.lang, lines: {} };
 
   // Carry over only what this drawcast still SAYS. A line cut from the script
@@ -74,7 +89,8 @@ export async function bakeNarration(
     } catch {
       // A duration is a nicety; the clip itself is the point.
     }
-    track.lines[speechKey(line)] = { mp3, ms };
+    const voice = opts.voiceOf?.(line);
+    track.lines[speechKey(line)] = voice ? { mp3, ms, voice } : { mp3, ms };
   }
   onProgress(todo.length, todo.length);
   return track;

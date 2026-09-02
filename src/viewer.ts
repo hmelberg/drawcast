@@ -181,7 +181,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       document.title = `${title} — drawcast`;
     }
     const settings = loadSettings();
-    const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
+    const speech = new CloudSpeech(
+      () => (settings.cloudPlayback ? getTtsKey() : ""),
+      () => settings.cloudVoices,
+    );
     speech.setVoice(settings.voiceURI);
     speech.setRate(settings.rate);
     // A declared language picks the narrator's voice. Without it the per-line

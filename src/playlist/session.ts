@@ -16,7 +16,7 @@ import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
 import { subtitleLanguages, subtitleTrack } from "../spec/subtitles";
-import { parseVoiceId, voiceOptions } from "../render/voices";
+import { parseCloudVoiceId, parseVoiceId, voiceOptions } from "../render/voices";
 import type { Spec } from "../spec/types";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
@@ -59,6 +59,12 @@ export interface SessionOptions {
     onAdd?(): void;
     /** A cloud TTS key is present, so Default's label can say so. */
     hasCloudVoice?: boolean;
+    /** Cloud catalog for the quick pick (B12); empty until the host fetched it. */
+    cloudVoices?(): { lang: string; name: string }[];
+    /** The durable per-language preference, to mark the current pick. */
+    cloudPicked?(): Record<string, string>;
+    /** A cloud voice was picked in the bar: save the preference, speak a sample. */
+    onCloudVoice?(lang: string, name: string): void;
   };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
@@ -173,11 +179,22 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
                 voices: opts.speech.voices().map((v) => ({ name: v.name, lang: v.lang, voiceURI: v.voiceURI })),
                 hasBaked: Object.keys(playlist.audio?.lines ?? {}).length > 0,
                 hasCloud: opts.captions?.hasCloudVoice === true,
+                cloud: opts.captions?.cloudVoices?.() ?? [],
+                cloudPicked: opts.captions?.cloudPicked?.() ?? {},
               }),
             get current() {
               return voicePick;
             },
             onPick: (id) => {
+              // A cloud pick sets the durable per-language preference and
+              // never becomes a per-session voice: the default chain (baked →
+              // cloud → browser) stays the played path, now wearing the
+              // preferred voice (B12).
+              const cloudPick = parseCloudVoiceId(id);
+              if (cloudPick) {
+                opts.captions?.onCloudVoice?.(cloudPick.lang, cloudPick.name);
+                return;
+              }
               voicePick = id;
               if (handle) applyCaptions(handle);
             },

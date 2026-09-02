@@ -68,7 +68,7 @@ import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize } from "./export/bake";
-import { synthesizeBase64 } from "./export/tts";
+import { listCloudVoices, preferredVoice, synthesizeBase64 } from "./export/tts";
 import { publishCast } from "./publish/cast";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
@@ -79,6 +79,7 @@ import { joinPath } from "./course/publish";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
+import { detectLang } from "./render/speech";
 import {
   addExemplar,
   appendLog,
@@ -150,7 +151,10 @@ function applyTheme(): void {
 applyTheme();
 // Cloud voices for live playback when a TTS key is set (and the toggle is on);
 // falls back to the browser's speechSynthesis otherwise, per line.
-const speech = new CloudSpeech(() => (settings.cloudPlayback ? getTtsKey() : ""));
+const speech = new CloudSpeech(
+  () => (settings.cloudPlayback ? getTtsKey() : ""),
+  () => settings.cloudVoices,
+);
 /** Baked narration for the document on screen; replaced on every mount. */
 let bakedAudio: BakedAudio | null = null;
 speech.setVoice(settings.voiceURI);
@@ -1465,6 +1469,44 @@ ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
 const cloudPlaybackCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 cloudPlaybackCb.checked = settings.cloudPlayback;
+
+// The durable layer of the per-language cloud voice (B12). The voice list
+// needs a key and a network call, so it fills on Settings open (and again
+// when the catalog arrives); "Default" empties the preference.
+const cloudVoiceLangSel = h("select", { title: "Which language this voice choice applies to" }) as HTMLSelectElement;
+for (const l of LANGUAGES) cloudVoiceLangSel.appendChild(h("option", { value: l.code }, l.label));
+cloudVoiceLangSel.value = "en";
+const cloudVoiceSel = h("select", { title: "The Google voice that narrates this language" }) as HTMLSelectElement;
+const cloudVoiceListenBtn = h("button", { class: "small", title: "Speak a sample line in the selected voice" }, "▶ Listen");
+
+function refreshCloudVoiceField(): void {
+  const lang = cloudVoiceLangSel.value;
+  const catalog = cloudCatalog.get(lang) ?? [];
+  ensureCloudCatalog([lang], refreshCloudVoiceField);
+  cloudVoiceSel.replaceChildren(h("option", { value: "" }, "Default"));
+  for (const v of catalog) cloudVoiceSel.appendChild(h("option", { value: v.name }, v.name));
+  cloudVoiceSel.value = settings.cloudVoices[lang] ?? "";
+  if (cloudVoiceSel.selectedIndex < 0) cloudVoiceSel.value = "";
+  const noKey = getTtsKey() === "";
+  cloudVoiceSel.disabled = noKey;
+  cloudVoiceListenBtn.disabled = noKey || cloudVoiceSel.value === "" && catalog.length === 0;
+}
+cloudVoiceLangSel.addEventListener("change", refreshCloudVoiceField);
+cloudVoiceSel.addEventListener("change", () => {
+  const lang = cloudVoiceLangSel.value;
+  const next = { ...settings.cloudVoices };
+  if (cloudVoiceSel.value === "") delete next[lang];
+  else next[lang] = cloudVoiceSel.value;
+  settings.cloudVoices = next;
+  persist();
+  if (cloudVoiceSel.value !== "") speakVoiceSample(lang, cloudVoiceSel.value);
+});
+cloudVoiceListenBtn.addEventListener("click", () => {
+  const lang = cloudVoiceLangSel.value;
+  const name = cloudVoiceSel.value || settings.cloudVoices[lang] || "";
+  if (name) speakVoiceSample(lang, name);
+  else setStatus("Pick a voice first — Default lets Google choose.", "info");
+});
 const skipQuestionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 skipQuestionsCb.checked = settings.skipQuestions;
 const burnCaptionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
@@ -1562,6 +1604,20 @@ const settingsBlocks = new Map<string, HTMLElement>([
       "div",
       { class: "settings-field" },
       h("label", { class: "settings-check" }, cloudPlaybackCb, " Also use these voices for normal playback (falls back to the browser voice if a call fails)"),
+    ),
+  ],
+  [
+    "cloudVoice",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Cloud narration voice"),
+      h("div", { class: "row cloud-voice-row" }, cloudVoiceLangSel, cloudVoiceSel, cloudVoiceListenBtn),
+      h(
+        "div",
+        { class: "settings-note" },
+        "Per language — a voice belongs to a language. Applies to cloud narration (export, publish-with-narration, and live playback when the box above is on); dialogue's second speaker keeps its contrasting default. Changing it re-synthesizes affected lines on the next publish.",
+      ),
     ),
   ],
   [
@@ -1679,6 +1735,7 @@ function openSettings(): void {
   // identical, so they get the same treatment rather than leaving a landmine
   // for the next setting that grows one.
   cloudPlaybackCb.checked = settings.cloudPlayback;
+  refreshCloudVoiceField();
   skipQuestionsCb.checked = settings.skipQuestions;
   burnCaptionsCb.checked = settings.burnCaptions;
   developerCb.checked = settings.developerMode;
@@ -2154,6 +2211,9 @@ function captionPrefs(): {
   onChange(next: { on: boolean; lang: string }): void;
   onAdd(): void;
   hasCloudVoice: boolean;
+  cloudVoices(): { lang: string; name: string }[];
+  cloudPicked(): Record<string, string>;
+  onCloudVoice(lang: string, name: string): void;
 } {
   return {
     on: settings.captionsOn,
@@ -2165,7 +2225,62 @@ function captionPrefs(): {
     },
     onAdd: openSubtitleDialog,
     hasCloudVoice: settings.cloudPlayback && getTtsKey() !== "",
+    // The quick-pick layer (B12): cloud voices in the CC menu's Voice row.
+    // The catalog fetch is kicked here, synchronously returning whatever has
+    // arrived — the menu simply grows them on its next open.
+    cloudVoices: () => {
+      const langs = [...subtitleLanguagesHere()];
+      ensureCloudCatalog(langs);
+      return langs.flatMap((code) => cloudCatalog.get(code) ?? []);
+    },
+    cloudPicked: () => settings.cloudVoices,
+    onCloudVoice: (lang, name) => {
+      // Fresh object, never mutation: when nothing was stored, `settings.cloudVoices`
+      // IS the shared DEFAULT_SETTINGS instance.
+      settings.cloudVoices = { ...settings.cloudVoices, [lang]: name };
+      persist();
+      refreshCloudVoiceField();
+      speakVoiceSample(lang, name);
+      setStatus(`${languageLabel(lang)} narration voice: ${name}.`, "ok");
+    },
   };
+}
+
+// ---------- cloud voice preference (B12) ----------
+// Per LANGUAGE, because a voice belongs to a language: the durable default
+// lives in Settings, the CC menu's Voice row is the quick pick, and both
+// write the same settings.cloudVoices. The bake's reuse key carries the
+// voice (export/bake.ts), so changing it re-synthesizes instead of mixing.
+
+const cloudCatalog = new Map<string, { lang: string; name: string }[]>();
+function ensureCloudCatalog(langs: string[], onArrive?: () => void): void {
+  const key = getTtsKey();
+  if (!key) return;
+  for (const code of langs) {
+    if (cloudCatalog.has(code)) continue;
+    cloudCatalog.set(code, []); // fetch once; deleted on failure so a retry can happen
+    const lc = LANGUAGES.find((l) => l.code === code)?.languageCode ?? code;
+    void listCloudVoices(key, lc)
+      .then((vs) => {
+        cloudCatalog.set(code, vs.map((v) => ({ lang: code, name: v.name })));
+        onArrive?.();
+      })
+      .catch(() => cloudCatalog.delete(code));
+  }
+}
+
+/** What a voice pick sounds like, immediately — the audition B12 asks for. */
+const VOICE_SAMPLES: Record<string, string> = {
+  en: "Hello! This is how your drawcasts will sound.",
+  nb: "Hei! Slik kommer dine drawcasts til å høres ut.",
+};
+function speakVoiceSample(lang: string, name: string): void {
+  const key = getTtsKey();
+  if (!key) return;
+  const sample = VOICE_SAMPLES[lang] ?? VOICE_SAMPLES.en;
+  void synthesizeBase64({ apiKey: key, rate: settings.rate, lang, voices: { [lang]: name } }, sample)
+    .then((b64) => new Audio(`data:audio/mp3;base64,${b64}`).play())
+    .catch((err: unknown) => setStatus(`Could not play a sample: ${(err as Error).message}`, "error"));
 }
 
 function playbackPrefs(): PlaybackPrefs {
@@ -3761,7 +3876,10 @@ async function publishTextFor(
     {
       lang: itemsOf(source).find((i) => i.spec.lang)?.spec.lang ?? "en",
       existing,
-      synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate }, line.text, line),
+      synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+      // Mirrors what synthesize will do (same detectLang, same speaker rule) —
+      // the reuse check and the synthesis must never disagree about the voice.
+      voiceOf: (line) => preferredVoice(settings.cloudVoices, detectLang(line.text), line.speaker),
     },
     (done, total) => setStatus(`Synthesizing narration — ${done}/${total} lines…`),
     signal,

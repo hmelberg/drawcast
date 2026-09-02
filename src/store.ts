@@ -68,6 +68,9 @@ export interface Settings {
   variant: string;
   /** The active style profile (B5) — null means no addendum. */
   activeStyleId: string | null;
+  /** Per-language cloud narration voice (B12): language code → Google voice
+   *  name. A language not listed uses the built-in default chain. */
+  cloudVoices: Record<string, string>;
   mode: "narrated" | "silent" | "instant";
   speed: number;
   voiceURI: string | null;
@@ -139,6 +142,7 @@ export const DEFAULT_SETTINGS: Settings = {
   style: "clean",
   variant: "v1",
   activeStyleId: null,
+  cloudVoices: {},
   mode: "narrated",
   speed: 1,
   voiceURI: null,
@@ -253,7 +257,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
-  { id: "playback", label: "Playback", fields: ["style", "theme", "voice", "rate", "cloudPlayback", "skipQuestions", "burnCaptions"] },
+  { id: "playback", label: "Playback", fields: ["style", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];

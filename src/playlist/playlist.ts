@@ -51,7 +51,11 @@ export type PlaylistEntry =
  */
 export interface AudioTrack {
   lang: string;
-  lines: Record<string, { mp3: string; ms: number }>;
+  /** `voice` records which cloud voice spoke the clip (B12) — absent on older
+   *  bakes and on default-chain clips. Playback never reads it; the bake's
+   *  reuse check does, so a changed voice re-synthesizes instead of keeping a
+   *  recording in the old one. */
+  lines: Record<string, { mp3: string; ms: number; voice?: string }>;
 }
 
 export interface Playlist {
@@ -134,6 +138,7 @@ function readAudio(raw: unknown, warnings: string[]): AudioTrack | undefined {
   for (const [key, value] of Object.entries(raw.lines)) {
     if (isPlainObject(value) && typeof value.mp3 === "string" && value.mp3.length > 0) {
       lines[key] = { mp3: value.mp3, ms: typeof value.ms === "number" ? value.ms : 0 };
+      if (typeof value.voice === "string" && value.voice.length > 0) lines[key].voice = value.voice;
     }
   }
   return { lang: typeof raw.lang === "string" ? raw.lang : "", lines };

@@ -6,7 +6,7 @@
 // makes "English words in a Norwegian voice" reachable in two clicks. Here it
 // is unreachable by construction.
 import { describe, expect, test } from "vitest";
-import { parseVoiceId, voiceOptions, DEFAULT_VOICE } from "../src/render/voices";
+import { parseVoiceId, voiceOptions, DEFAULT_VOICE, parseCloudVoiceId } from "../src/render/voices";
 
 const voice = (name: string, lang: string) => ({ name, lang, voiceURI: `uri:${name}` });
 
@@ -103,5 +103,31 @@ describe("parseVoiceId", () => {
 
   test("a stale id from another machine parses but selects nothing installed", () => {
     expect(parseVoiceId("nb|uri:GoneForever")).toEqual({ lang: "nb", voiceURI: "uri:GoneForever" });
+  });
+});
+
+describe("cloud quick-pick entries (B12)", () => {
+  const CLOUD = [
+    { lang: "en", name: "en-US-Neural2-F" },
+    { lang: "nb", name: "nb-NO-Wavenet-C" },
+  ];
+
+  test("cloud voices ride under their language group, marked when picked", () => {
+    const opts = voiceOptions({ languages: LANGS, voices: VOICES, cloud: CLOUD, cloudPicked: { nb: "nb-NO-Wavenet-C" } });
+    const en = opts.find((o) => o.id === "cloud:en|en-US-Neural2-F")!;
+    expect(en.lang).toBe("en");
+    expect(en.label).toBe("☁ en-US-Neural2-F");
+    const nb = opts.find((o) => o.id === "cloud:nb|nb-NO-Wavenet-C")!;
+    expect(nb.label).toContain("●");
+  });
+
+  test("a cloud id is never mistaken for a browser voice", () => {
+    expect(parseVoiceId("cloud:en|en-US-Neural2-F")).toBeNull();
+  });
+
+  test("parseCloudVoiceId round-trips and rejects everything else", () => {
+    expect(parseCloudVoiceId("cloud:nb|nb-NO-Wavenet-C")).toEqual({ lang: "nb", name: "nb-NO-Wavenet-C" });
+    expect(parseCloudVoiceId("nb|uri:Nora")).toBeNull();
+    expect(parseCloudVoiceId("")).toBeNull();
   });
 });

@@ -17,7 +17,8 @@ import { generationGate } from "../llm/limit";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { bakeNarration, bakeSize } from "../export/bake";
-import { synthesizeBase64 } from "../export/tts";
+import { preferredVoice, synthesizeBase64 } from "../export/tts";
+import { detectLang } from "../render/speech";
 import { joinPath } from "../course/publish";
 import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
@@ -678,7 +679,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         {
           lang: playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0] ?? "en",
           existing,
-          synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate }, line.text, line),
+          synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+          voiceOf: (line) => preferredVoice(settings.cloudVoices, detectLang(line.text), line.speaker),
         },
         (done, total) =>
           working(`Narration for lecture ${n + 1} of ${numbered.length} — ${done}/${total} lines…`),

@@ -18,6 +18,48 @@ export interface TtsConfig {
    * would be handed to an American voice, fluently mispronounced.
    */
   lang?: string;
+  /**
+   * B12: the author's per-language cloud-voice preferences (a voice belongs
+   * to a language). Applies to the PRIMARY speaker only — dialogue speaker
+   * "b" keeps the gender-contrast default, or both voices in an a/b exchange
+   * would collapse into one.
+   */
+  voices?: Record<string, string>;
+}
+
+/** The languageCode a Google voice name implies ("nb-NO-Wavenet-C" → "nb-NO"). */
+export function voiceLanguageCode(name: string): string {
+  return name.split("-").slice(0, 2).join("-");
+}
+
+/**
+ * The preferred voice NAME for one line, or undefined for the default chain.
+ * Exported so the bake's reuse check computes exactly what synthesis will do
+ * — the two must never drift, or a republished line keeps the wrong voice.
+ */
+export function preferredVoice(voices: Record<string, string> | undefined, lang: string, speaker?: string): string | undefined {
+  if (!voices || (speaker ?? "a") !== "a") return undefined;
+  const name = voices[lang];
+  return name && name.length > 0 ? name : undefined;
+}
+
+export interface CloudVoiceInfo {
+  name: string;
+  gender: "female" | "male";
+}
+
+/**
+ * The cloud catalog for one language, for the pickers (Settings and the CC
+ * menu's Voice row). Chirp/Studio/Journey variants are included as they come;
+ * the API is the authority on what exists.
+ */
+export async function listCloudVoices(apiKey: string, languageCode: string): Promise<CloudVoiceInfo[]> {
+  const res = await fetch(`https://texttospeech.googleapis.com/v1/voices?languageCode=${encodeURIComponent(languageCode)}&key=${encodeURIComponent(apiKey)}`);
+  if (!res.ok) throw await ttsError(res);
+  const body = (await res.json()) as { voices?: { name: string; ssmlGender?: string }[] };
+  return (body.voices ?? [])
+    .map((v) => ({ name: v.name, gender: (v.ssmlGender === "MALE" ? "male" : "female") as "female" | "male" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** A language drawcast can speak, i.e. one Google has neural voices for. This
@@ -108,7 +150,9 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
   const g = effectiveGender(opts) ?? "female";
-  const voice = voiceFor(cfg.lang ?? detectLang(text), g);
+  const lang = cfg.lang ?? detectLang(text);
+  const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
+  const voice = pref ? { languageCode: voiceLanguageCode(pref), name: pref } : voiceFor(lang, g);
   const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
@@ -173,6 +217,8 @@ export async function synthesizeAll(
  */
 export class CloudSpeech extends SpeechManager {
   private getKey: () => string;
+  /** B12: live per-language voice preferences, read fresh per line so a pick applies at once. */
+  private getVoices: () => Record<string, string>;
   private audioCtx: AudioContext | null = null;
   private gain: GainNode | null = null;
   private baseRate = 1;
@@ -180,9 +226,10 @@ export class CloudSpeech extends SpeechManager {
   private pending = new Map<string, Promise<AudioBuffer>>();
   private active = new Set<AudioBufferSourceNode>();
 
-  constructor(getKey: () => string) {
+  constructor(getKey: () => string, getVoices: () => Record<string, string> = () => ({})) {
     super();
     this.getKey = getKey;
+    this.getVoices = getVoices;
   }
 
   override setRate(rate: number): void {
@@ -210,12 +257,16 @@ export class CloudSpeech extends SpeechManager {
   }
 
   private buffer(text: string, rate: number, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
-    const key = `${rate.toFixed(2)}|${speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender })}`;
+    const voices = this.getVoices();
+    // The pick is part of the cache key: changing the voice mid-session must
+    // not replay lines recorded in the old one.
+    const pref = preferredVoice(voices, detectLang(text), opts?.speaker) ?? "";
+    const key = `${pref}|${rate.toFixed(2)}|${speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender })}`;
     const hit = this.cache.get(key);
     if (hit) return Promise.resolve(hit);
     const inFlight = this.pending.get(key);
     if (inFlight) return inFlight;
-    const p = synthesizeOne({ apiKey: this.getKey(), rate }, text, audioCtx, opts)
+    const p = synthesizeOne({ apiKey: this.getKey(), rate, voices }, text, audioCtx, opts)
       .then((b) => {
         this.cache.set(key, b);
         this.pending.delete(key);

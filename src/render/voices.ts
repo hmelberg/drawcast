@@ -38,10 +38,18 @@ export interface VoiceOptionArgs {
   hasBaked?: boolean;
   /** A cloud TTS key is actually present. */
   hasCloud?: boolean;
+  /**
+   * Cloud catalog voices to offer per language (B12) — the quick-pick layer.
+   * Picking one sets the DURABLE per-language preference (Settings holds the
+   * same value), it does not create a per-session bypass.
+   */
+  cloud?: { lang: string; name: string }[];
+  /** The currently preferred cloud voice per language, to mark the pick. */
+  cloudPicked?: Record<string, string>;
 }
 
 export function voiceOptions(args: VoiceOptionArgs): VoiceOption[] {
-  const { languages, voices, hasBaked = false, hasCloud = false } = args;
+  const { languages, voices, hasBaked = false, hasCloud = false, cloud = [], cloudPicked = {} } = args;
   const out: VoiceOption[] = [
     {
       id: DEFAULT_VOICE,
@@ -67,6 +75,15 @@ export function voiceOptions(args: VoiceOptionArgs): VoiceOption[] {
     }
     for (const v of mine) out.push({ id: `${lang.code}|${v.voiceURI}`, label: v.name, lang: lang.code });
   }
+  // Cloud voices ride under the same language groups, after the browser's
+  // (B12). A cloud pick is the author's durable per-language preference —
+  // marked ● so the current one reads as a state, not a one-off.
+  for (const lang of languages) {
+    for (const cv of (cloud ?? []).filter((c) => primary(c.lang) === primary(lang.code))) {
+      const picked = cloudPicked?.[lang.code] === cv.name;
+      out.push({ id: `cloud:${lang.code}|${cv.name}`, label: `☁ ${picked ? "● " : ""}${cv.name}`, lang: lang.code });
+    }
+  }
   return out;
 }
 
@@ -75,9 +92,18 @@ export interface VoiceChoice {
   voiceURI: string;
 }
 
-/** The language and voice an option id names; null for Default. */
+/** A cloud quick-pick's language and voice name, or null for every other id. */
+export function parseCloudVoiceId(id: string): { lang: string; name: string } | null {
+  if (!id.startsWith("cloud:")) return null;
+  const rest = id.slice(6);
+  const at = rest.indexOf("|");
+  if (at < 0) return null;
+  return { lang: rest.slice(0, at), name: rest.slice(at + 1) };
+}
+
+/** The language and voice an option id names; null for Default (and for cloud picks). */
 export function parseVoiceId(id: string): VoiceChoice | null {
-  if (!id || id === DEFAULT_VOICE || id === "cloud" || id.startsWith("none:")) return null;
+  if (!id || id === DEFAULT_VOICE || id === "cloud" || id.startsWith("none:") || id.startsWith("cloud:")) return null;
   // Split ONCE: Chrome's voiceURIs are URLs and Firefox's contain "|", so
   // splitting on every separator would cut one in half and select a voice that
   // does not exist.

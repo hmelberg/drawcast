@@ -139,3 +139,35 @@ describe("bakeSize", () => {
     expect(bakeSize({ lang: "en", lines: {} })).toEqual({ lines: 0, bytes: 0, inlineBytes: 0, ms: 0 });
   });
 });
+
+describe("voice-aware reuse (B12)", () => {
+  test("a clip baked in another voice (or before voices existed) is re-baked", () => {
+    const line = { text: "The price settles." };
+    const key = "|a||The price settles.";
+    // Old bake: no voice recorded. New bake wants a named voice → re-synthesize.
+    expect(linesToBake([line], { [key]: { mp3: "x", ms: 1 } }, () => "nb-NO-Wavenet-C")).toHaveLength(1);
+    // Same voice → reuse.
+    expect(linesToBake([line], { [key]: { mp3: "x", ms: 1, voice: "nb-NO-Wavenet-C" } }, () => "nb-NO-Wavenet-C")).toHaveLength(0);
+    // Preference removed → the default chain differs from the named clip → re-bake.
+    expect(linesToBake([line], { [key]: { mp3: "x", ms: 1, voice: "nb-NO-Wavenet-C" } }, () => undefined)).toHaveLength(1);
+    // No voices anywhere (every pre-B12 publish): reuse as before.
+    expect(linesToBake([line], { [key]: { mp3: "x", ms: 1 } })).toHaveLength(0);
+  });
+
+  test("bakeNarration stamps the voice onto new clips and replaces stale-voiced carryovers", async () => {
+    const line = { text: "The price settles." };
+    const key = "|a||The price settles.";
+    const track = await bakeNarration(
+      [line],
+      {
+        lang: "en",
+        existing: { [key]: { mp3: "OLDVOICE", ms: 5, voice: "en-US-Neural2-D" } },
+        synthesize: async () => "NEWVOICE",
+        voiceOf: () => "en-GB-Neural2-A",
+      },
+      () => {},
+      new AbortController().signal,
+    );
+    expect(track.lines[key]).toEqual({ mp3: "NEWVOICE", ms: 0, voice: "en-GB-Neural2-A" });
+  });
+});
