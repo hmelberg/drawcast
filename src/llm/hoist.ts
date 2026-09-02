@@ -13,9 +13,11 @@ import type { Spec, SpecElement } from "../spec/types";
 /** The sentinel a hoisted strokes field carries through the model round-trip. */
 export const HOISTED = "@pinned";
 
-/** The element types whose `strokes` hold encoded pixels. */
-function carriesBlob(el: SpecElement): boolean {
-  return el.type === "portrait" || el.type === "source";
+/** The field per element type that holds encoded machine output, if any. */
+function blobField(el: SpecElement): "strokes" | "code_result" | null {
+  if (el.type === "portrait" || el.type === "source") return "strokes";
+  if (el.type === "code") return "code_result";
+  return null;
 }
 
 export function hoistPortraitStrokes(docText: string): { text: string; blobs: Map<string, string> } {
@@ -29,9 +31,10 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
   let any = false;
   for (const item of itemsOf(playlist)) {
     for (const el of item.spec.elements ?? []) {
-      if (carriesBlob(el) && el.strokes && el.strokes !== HOISTED) {
-        blobs.set(el.id, el.strokes);
-        el.strokes = HOISTED;
+      const field = blobField(el);
+      if (field && el[field] && el[field] !== HOISTED) {
+        blobs.set(el.id, el[field]!);
+        el[field] = HOISTED;
         any = true;
       }
     }
@@ -44,10 +47,11 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
   if (blobs.size === 0) return;
   for (const item of itemsOf(playlist)) {
     for (const el of item.spec.elements ?? []) {
-      if (carriesBlob(el) && el.strokes === HOISTED) {
+      const field = blobField(el);
+      if (field && el[field] === HOISTED) {
         const blob = blobs.get(el.id);
-        if (blob) el.strokes = blob;
-        else delete el.strokes;
+        if (blob) el[field] = blob;
+        else delete el[field];
       }
     }
   }
@@ -55,9 +59,12 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
 
 /** Exemplar hygiene: a spec copy with portrait/source strokes omitted entirely. */
 export function stripStrokesForModel(spec: Spec): Spec {
-  if (!spec.elements?.some((e) => carriesBlob(e) && e.strokes)) return spec;
+  if (!spec.elements?.some((e) => { const f = blobField(e); return f && e[f]; })) return spec;
   return {
     ...spec,
-    elements: spec.elements.map((e): SpecElement => (carriesBlob(e) && e.strokes ? { ...e, strokes: undefined } : e)),
+    elements: spec.elements.map((e): SpecElement => {
+      const f = blobField(e);
+      return f && e[f] ? { ...e, [f]: undefined } : e;
+    }),
   };
 }

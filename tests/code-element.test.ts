@@ -14,6 +14,9 @@ import { flattenDrawables, type ImageDrawable, type TextDrawable } from "../src/
 import { wrapCodeLine } from "../src/layout/code";
 import { resolveCode } from "../src/render/code";
 import { resolvedRenderSpec } from "../src/render/resolve";
+import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes, stripStrokesForModel } from "../src/llm/hoist";
+import { itemsOf, parsePlaylistText } from "../src/playlist/playlist";
+import { formatSpec } from "../src/spec/text";
 
 const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
@@ -174,5 +177,23 @@ describe("code element — resolver", () => {
     });
     expect(s.elements![0].code_result).toBeUndefined();
     expect(copy.elements![0].code_result).toBeDefined();
+  });
+});
+
+describe("code element — hoisting", () => {
+  const doc = formatSpec(codeSpec({}, OK), "yaml");
+
+  test("code_result is hoisted to the sentinel and restored by id", () => {
+    const { text, blobs } = hoistPortraitStrokes(doc);
+    expect(text).toContain(HOISTED);
+    expect(text).not.toContain("data:image/png");
+    const playlist = parsePlaylistText(text);
+    restorePortraitStrokes(playlist, blobs);
+    expect(itemsOf(playlist)[0].spec.elements![0].code_result).toBe(JSON.stringify(OK));
+  });
+
+  test("stripStrokesForModel drops code_result", () => {
+    const stripped = stripStrokesForModel(codeSpec({}, OK));
+    expect(stripped.elements![0].code_result).toBeUndefined();
   });
 });
