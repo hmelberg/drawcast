@@ -6,6 +6,7 @@ import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
 import { centroid } from "./geometry";
 import { heuristicMeasure } from "./measure";
+import { codeDrawables } from "./code";
 import {
   COLORS,
   LINE_HEIGHT,
@@ -182,6 +183,9 @@ export function layoutElements(
         break;
       case "source":
         drawables.push(...sourceDrawables(el, ctx));
+        break;
+      case "code":
+        drawables.push(...codeDrawables(el, ctx));
         break;
     }
   }

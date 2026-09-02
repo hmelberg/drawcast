@@ -8,6 +8,10 @@ import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 import { CODE_VERSION, codeCacheKey, decodeCodeResult, runCode, type CodeRunResult } from "../src/code/run";
+import { layoutSpec } from "../src/layout/layout";
+import { heuristicMeasure } from "../src/layout/measure";
+import { flattenDrawables, type ImageDrawable, type TextDrawable } from "../src/layout/model";
+import { wrapCodeLine } from "../src/layout/code";
 
 const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
@@ -83,5 +87,58 @@ describe("code facade — envelope and cache", () => {
       { runner: async () => { throw new Error("no runtime"); }, cacheGet: async () => null, cachePut: async () => {} },
     );
     expect(res).toEqual({ ok: false, stdout: "", stderr: "", figures: [], error: "no runtime" });
+  });
+});
+
+const codeSpec = (el: object, result?: CodeRunResult): Spec =>
+  spec({ language: "python", code: "import numpy as np\nprint(np.pi)", ...(result ? { code_result: JSON.stringify(result) } : {}), ...el });
+
+const layoutIds = (s: Spec) => flattenDrawables(layoutSpec(s, heuristicMeasure).drawables).map((d) => d.id);
+
+describe("code element — layout", () => {
+  test("split mode mints per-line ids, an output group, and the panel", () => {
+    const ids = layoutIds(codeSpec({ show: "split" }, OK));
+    expect(ids).toContain("c1");
+    expect(ids).toContain("c1_line_1");
+    expect(ids).toContain("c1_line_2");
+    expect(ids).toContain("c1_out");
+    const line = flattenDrawables(layoutSpec(codeSpec({ show: "split" }, OK), heuristicMeasure).drawables)
+      .find((d) => d.id === "c1_line_1") as TextDrawable;
+    expect(line.kind).toBe("text");
+    expect(line.font).toBe("mono");
+    expect(line.anchor).toBe("start");
+  });
+
+  test("output mode draws no code lines; code mode draws no figures", () => {
+    const outIds = layoutIds(codeSpec({ show: "output" }, OK));
+    expect(outIds).not.toContain("c1_line_1");
+    expect(outIds).toContain("c1_out");
+    const codeIds = layoutIds(codeSpec({ show: "code" }, OK));
+    expect(codeIds).toContain("c1_line_1");
+  });
+
+  test("stdout and figures land inside the output group, aspect preserved", () => {
+    const l = layoutSpec(codeSpec({ show: "output", width: 600 }, OK), heuristicMeasure);
+    const out = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("c1__"));
+    const img = out.find((d) => d.kind === "image") as ImageDrawable;
+    expect(img.href).toBe("data:image/png;base64,AA");
+    expect(img.h / img.w).toBeCloseTo(480 / 640, 2);
+    expect(out.some((d) => d.kind === "text" && (d as TextDrawable).text.includes("42"))).toBe(true);
+  });
+
+  test("an unresolved element still mints <id>_out (placeholder), and a failed run shows the error", () => {
+    expect(layoutIds(codeSpec({}))).toContain("c1_out");
+    const failed = layoutSpec(codeSpec({}, { ok: false, stdout: "", stderr: "NameError: x", figures: [], error: "NameError: x" }), heuristicMeasure);
+    const texts = flattenDrawables(failed.drawables).filter((d): d is TextDrawable => d.kind === "text");
+    expect(texts.some((t) => t.text.includes("NameError"))).toBe(true);
+  });
+
+  test("wrapCodeLine wraps long lines with a hanging indent and preserves leading spaces", () => {
+    expect(wrapCodeLine("short", 40)).toEqual(["short"]);
+    const rows = wrapCodeLine("    value = alpha + beta + gamma + delta", 20);
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows[0].startsWith("    ")).toBe(true);
+    expect(rows[1].startsWith("      ")).toBe(true);
+    for (const r of rows) expect(r.length).toBeLessThanOrEqual(20);
   });
 });
