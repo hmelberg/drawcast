@@ -183,5 +183,49 @@
         { "highlight": { "target": ["bar_1", "bar_6"] }, "speak": "The law of large numbers is not that luck evens out — it is that luck gets diluted." }
       ]
     }
+  },
+  {
+    "request": "In R, show a tidyverse pipeline summarising a small table by group.",
+    "spec": {
+      "title": "Group means, the tidyverse way",
+      "elements": [
+        {
+          "id": "tidy",
+          "type": "code",
+          "language": "r",
+          "show": "split",
+          "width": 900,
+          "code": "library(dplyr)\ndf <- tibble(group = c(\"a\", \"a\", \"b\", \"b\", \"c\"), x = c(2, 4, 6, 8, 10))\ndf |> group_by(group) |> summarise(mean_x = mean(x), n = n())"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "tidy",
+            "tidy_line_1"
+          ],
+          "parallel": true,
+          "speak": "dplyr is the grammar of data manipulation — one verb per step."
+        },
+        {
+          "draw": [
+            "tidy_line_2"
+          ],
+          "speak": "A tiny tibble: three groups, five values."
+        },
+        {
+          "draw": [
+            "tidy_line_3"
+          ],
+          "speak": "Group by, then summarise — the pipe reads like a sentence."
+        },
+        {
+          "draw": [
+            "tidy_out"
+          ],
+          "speak": "And the last line, a tibble, lands as a table."
+        }
+      ]
+    }
   }
 ]

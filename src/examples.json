@@ -9687,5 +9687,64 @@
     }
    ]
   }
+ },
+ {
+   "request": "In R with ggplot2: 200 random draws, their mean, and a histogram, stepped line by line",
+   "spec": {
+     "title": "The law of large numbers, in R",
+     "elements": [
+       {
+         "id": "sim",
+         "type": "code",
+         "language": "r",
+         "show": "split",
+         "width": 900,
+         "code": "library(ggplot2)\nset.seed(7)\ndf <- data.frame(x = rnorm(200))\ncat(\"mean:\", round(mean(df$x), 3), \"\\n\")\nggplot(df, aes(x)) + geom_histogram(bins = 20)"
+       }
+     ],
+     "commands": [
+       {
+         "speak": "Can two hundred random numbers already know where their center is? Let's ask R."
+       },
+       {
+         "draw": [
+           "sim",
+           "sim_line_1"
+         ],
+         "parallel": true,
+         "speak": "ggplot2 for the picture — it installs itself the first time."
+       },
+       {
+         "draw": [
+           "sim_line_2"
+         ],
+         "speak": "A seed, so this figure tells the same truth every time."
+       },
+       {
+         "draw": [
+           "sim_line_3"
+         ],
+         "speak": "Two hundred draws from a standard normal, in a data frame."
+       },
+       {
+         "draw": [
+           "sim_line_4"
+         ],
+         "speak": "Their mean, printed — close to zero, not exactly zero."
+       },
+       {
+         "draw": [
+           "sim_line_5"
+         ],
+         "speak": "And a histogram as the last line, so it draws itself."
+       },
+       {
+         "draw": [
+           "sim_out"
+         ],
+         "speak": "There it is: the bell, and the center it already knows."
+       }
+     ]
+   }
  }
 ]
