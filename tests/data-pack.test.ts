@@ -138,4 +138,16 @@ describe("bar_chart — the placeholder promise", () => {
     expect(l.order).toEqual(["axes"]);
     expect(l.warnings).toEqual([]);
   });
+
+  test("series with unresolved tokens keep their count, legend and colours", () => {
+    const l = layout({ labels: ["Before", "After"], series: [{ name: "Treated", values: "{sim.a}" }, { name: "Control", values: "{sim.b}" }] });
+    expect(l.order).toEqual(["axes", "bar_1", "bar_2", "legend"]);
+    expect(area(l, "bar_1__f1")).toBeDefined();
+    expect(barTop(l, 1, 1)).toBeCloseTo(plot.y0, 6);
+    expect(l.warnings).toEqual([]);
+    const mixed = layout({ labels: ["a"], series: [{ name: "x", values: [3] }, { name: "y", values: "{sim.y}" }] });
+    expect(mixed.order).toEqual(["axes", "bar_1", "legend"]);
+    expect(barTop(mixed, 1, 0)).toBeCloseTo(Y(3, 3), 6);
+    expect(barTop(mixed, 1, 1)).toBeCloseTo(plot.y0, 6);
+  });
 });

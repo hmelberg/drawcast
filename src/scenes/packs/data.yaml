@@ -123,7 +123,10 @@ layout: |
   if (Array.isArray(params.series)) {
     params.series.slice(0, 6).forEach((s, k) => {
       const st = toStages(s && s.values);
-      if (st) series.push({ name: str(s && s.name, "Series " + (k + 1)), stages: st });
+      // A series whose values are not data yet (a "{code.var}" token before the
+      // script has run) still COUNTS: a zero series keeps m, the legend and the
+      // per-series colours identical before and after substitution.
+      series.push({ name: str(s && s.name, "Series " + (k + 1)), stages: st || [[]] });
     });
   } else {
     const st = toStages(params.values);
