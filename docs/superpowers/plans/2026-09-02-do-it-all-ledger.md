@@ -185,3 +185,18 @@ wrap their synthesizer; pinned by tests incl. the saved-before-resolving
 order. Deliberately NOT wired: the video export's live synthesis (a
 different path with an AudioContext in the loop) — same trick applies if
 an export quota-death ever hurts.
+
+## Live bug: GitHub 422 on narration-baked course commits
+
+The B15 bake succeeded — and then the commit died: commitFiles inlined
+every file's content into one /git/trees request, and a course of baked
+lectures (megabytes of base64 audio each) exceeded what GitHub will
+process (422 "input was too large… consider building the tree
+incrementally"). Fix: blobs first (one POST /git/blobs per file, base64),
+tree of SHAs only. Blobs are content-addressed and created OUTSIDE the
+non-fast-forward retry so a rebuilt commit reuses them. NOTE the test
+lesson: three tests had PINNED the inline design as a virtue ("sends file
+content inline, needing no separate blob calls", exact five-call counts)
+— pins that encode a scaling assumption become the bug's bodyguards.
+Rewritten to pin the new contract, with URL-based lookups instead of call
+positions.
