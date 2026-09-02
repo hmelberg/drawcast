@@ -14,7 +14,18 @@ export const FONT_FLOOR = 14;
 const CANVAS_TOLERANCE = 2;
 
 export interface LintIssue {
-  rule: "overlap-label-label" | "overlap-label-stroke" | "out-of-canvas" | "font-too-small" | "slow-start" | "talky-stretch" | "ask-var" | "source-use" | "code-use";
+  rule:
+    | "overlap-label-label"
+    | "overlap-label-stroke"
+    | "out-of-canvas"
+    | "font-too-small"
+    | "slow-start"
+    | "talky-stretch"
+    | "ask-var"
+    | "source-use"
+    | "code-use"
+    /** params measured against the template's own params_schema, not the wire schema. */
+    | "template-params";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -237,7 +248,7 @@ function lintCode(spec: Spec): LintIssue[] {
       issues.push({
         rule: "code-use",
         ids: [el.id],
-        message: `code "${el.id}" is show: none but no param references it — it draws nothing and feeds nothing; reference it as "{${el.id}.<variable>}" or show its output`,
+        message: `data source unused: code "${el.id}" is show: none but no param references it — it draws nothing and feeds nothing; reference it as "{${el.id}.<variable>}" or show its output`,
         severity: "warn",
       });
     }

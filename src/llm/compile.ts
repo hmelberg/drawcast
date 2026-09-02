@@ -380,7 +380,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
             paramsStrictness({ tokens, substituted, dataPack }),
           );
           validation.errors.push(...issues.errors);
-          for (const w of issues.warnings) lintIssues.push({ rule: "code-use", ids: [], message: w, severity: "warn" });
+          for (const w of issues.warnings) lintIssues.push({ rule: "template-params", ids: [], message: w, severity: "warn" });
         }
       }
       rounds.push({ label, spec: json, validationErrors: validation.errors, lintIssues, meta });

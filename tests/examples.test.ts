@@ -19,6 +19,8 @@ import { parsePlaylistText, itemsOf } from "../src/playlist/playlist";
 import { ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { ensureEnginesForSpecs } from "../src/scenes/engines";
 import { isReadyTemplate } from "../src/scenes/catalog";
+import { templateParamErrors } from "../src/scenes/params-check";
+import { withOverrides } from "../src/render/params";
 import type { Command, Spec } from "../src/spec/types";
 
 interface BundledExample {
@@ -86,6 +88,29 @@ describe("bundled examples stay exemplary", () => {
 
   test.each(cases)("%s — names a template that exists (or composes from elements)", (_req, spec) => {
     if (spec.template) expect(isReadyTemplate(spec.template), spec.template).toBe(true);
+  });
+
+  // The compiler validates params against the template's own params_schema on
+  // every generation — strictly, for the data pack. A bundled example that
+  // would not survive that check teaches the model a shape the repair round
+  // then argues with, so it is a defect here too. (Also a drift guard the
+  // other way: a schema tightened without looking at the examples.)
+  test.each(cases)("%s — params satisfy the template's own params_schema", (_req, spec) => {
+    if (!spec.template) return;
+    expect(templateParamErrors(spec.template, spec.params ?? {})).toEqual([]);
+  });
+
+  // An animate target is a promise about a LATER frame: the tests above only
+  // ever see stage 0. A figure that lints clean at rest and collides halfway
+  // through its own animation is exactly the defect an example must not model.
+  test.each(cases)("%s — every stage the storyboard animates to lays out as cleanly as the first", (_req, spec) => {
+    for (const cmd of (spec.commands ?? []) as Command[]) {
+      const stage = cmd.animate?.stage;
+      if (typeof stage !== "number") continue;
+      const at = layoutSpec({ ...spec, params: withOverrides(spec.params, { stage }) });
+      expect(at.warnings, `stage ${stage}`).toEqual([]);
+      expect(at.issues.filter((i) => i.severity === "error"), `stage ${stage}`).toEqual([]);
+    }
   });
 
   // A link only does its job if it reaches a card and sniffs to the right
