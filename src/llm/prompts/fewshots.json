@@ -177,7 +177,7 @@
       ],
       "commands": [
         { "draw": ["title"], "speak": "Is a die fair? Ask it a hundred times, then ten thousand." },
-        { "draw": ["axes", "bar_1", "bar_2", "bar_3", "bar_4", "bar_5", "bar_6"], "parallel": true, "speak": "A hundred rolls: the faces come up unevenly, some near a quarter, some barely a tenth." },
+        { "draw": ["axes", "bar_1", "bar_2", "bar_3", "bar_4", "bar_5", "bar_6"], "parallel": true, "speak": "A hundred rolls: the faces come up unevenly, some at a fifth, some at a seventh." },
         { "point": { "at": { "ref": "bar_6" } }, "speak": "Nothing is wrong with the die — a hundred is just too few." },
         { "animate": { "stage": 1 }, "duration": 3, "speak": "Ten thousand rolls, and every face settles toward one sixth." },
         { "highlight": { "target": ["bar_1", "bar_6"] }, "speak": "The law of large numbers is not that luck evens out — it is that luck gets diluted." }
