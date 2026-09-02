@@ -21,7 +21,7 @@ export const R_DATA_CAP_ROWS = 200;
  *  the figure is fitted into the output pane. The hook runs when ggplot2
  *  loads, before any plot, and a script's own theme_set() still wins.
  *  The value is what the live smoke settled on (spec §5.4). */
-export const GGPLOT_BASE_SIZE = 22;
+export const GGPLOT_BASE_SIZE = 24;
 
 /** Attached with R, or part of it — never something to fetch from the
  *  repo. `webr` is the runtime's own package. */

@@ -27,9 +27,9 @@ const RUN_TIMEOUT_MS = 180_000;
  *  video export stays crisp; pointsize scales base-graphics text with it,
  *  the ggplot2 theme hook in R_BOOT does the same for grid text. The live
  *  smoke pins these (spec §5.4). */
-const PLOT_WIDTH = 1400;
-const PLOT_HEIGHT = 900;
-const PLOT_POINTSIZE = 24;
+const PLOT_WIDTH = 1000;
+const PLOT_HEIGHT = 640;
+const PLOT_POINTSIZE = 20;
 
 type StatusFn = (phase: "loading" | "running", detail: string) => void;
 
