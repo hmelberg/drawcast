@@ -105,6 +105,46 @@ export const VOICES: Record<string, Record<"female" | "male", VoiceChoice>> = {
   nb: { female: { languageCode: "nb-NO", name: "nb-NO-Wavenet-E" }, male: { languageCode: "nb-NO", name: "nb-NO-Wavenet-B" } },
 };
 
+/**
+ * The narrator when the spec declares NOTHING — no voice, no gender, no
+ * speaker (Hans 2026-09-02: "I want the default voice to be en us studio Q",
+ * listened to and chosen by ear). Declared #female/#male and dialogue
+ * speakers keep the gendered table above: an authored gender must not be
+ * overridden by a default, and a/b contrast survives. NOTE: Studio voices
+ * do not support pitch (Google's documented limitation) — synthesizeBase64
+ * omits pitch for them.
+ */
+export const DEFAULT_VOICES: Record<string, VoiceChoice> = {
+  en: { languageCode: "en-US", name: "en-US-Studio-Q" },
+};
+
+/**
+ * The one place that decides which voice speaks a line — the author's
+ * per-language pick first, then the undeclared-narrator default, then the
+ * gendered table. synthesizeBase64 and the bake's stamp both derive from
+ * this, so prediction and synthesis cannot drift.
+ */
+export function narrationVoice(voices: Record<string, string> | undefined, lang: string, opts?: SpeakOpts): VoiceChoice {
+  const pref = preferredVoice(voices, lang, opts?.speaker);
+  if (pref) return { languageCode: voiceLanguageCode(pref), name: pref };
+  const eff = effectiveGender(opts);
+  if (eff === null && DEFAULT_VOICES[lang]) return DEFAULT_VOICES[lang];
+  return voiceFor(lang, eff ?? "female");
+}
+
+/**
+ * What the bake records on a clip (export/bake.ts): the NAMED voice a line
+ * is predicted to use, when that name is a deliberate choice (the author's
+ * pick, or the undeclared-narrator default) — so changing either re-bakes
+ * the affected lines. Gendered-table names stay unstamped, as ever: they
+ * are fallback defaults whose drift resolves silently.
+ */
+export function stampedVoice(voices: Record<string, string> | undefined, lang: string, opts?: SpeakOpts): string | undefined {
+  const pref = preferredVoice(voices, lang, opts?.speaker);
+  if (pref) return pref;
+  return effectiveGender(opts) === null ? DEFAULT_VOICES[lang]?.name : undefined;
+}
+
 /** The voice for a language: the listened-to default when there is one, else
  *  the language code alone and let Google choose within the gender. */
 export function voiceFor(lang: string, gender: "female" | "male"): VoiceChoice {
@@ -152,7 +192,10 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   const g = effectiveGender(opts) ?? "female";
   const lang = cfg.lang ?? detectLang(text);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
-  const voice = pref ? { languageCode: voiceLanguageCode(pref), name: pref } : voiceFor(lang, g);
+  const voice = narrationVoice(cfg.voices, lang, opts);
+  // Studio voices reject pitch (documented); dropping it beats a 400 that
+  // would silently swap the voice via the no-name fallback below.
+  const pitchOk = !(voice.name ?? "").includes("Studio");
   const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
@@ -170,7 +213,7 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
         audioConfig: {
           audioEncoding: "MP3",
           speakingRate: Math.min(4, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1))),
-          ...(delivery ? { pitch: delivery.pitchSt, volumeGainDb: delivery.gainDb } : {}),
+          ...(delivery ? { ...(pitchOk ? { pitch: delivery.pitchSt } : {}), volumeGainDb: delivery.gainDb } : {}),
         },
       }),
     });

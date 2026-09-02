@@ -17,7 +17,7 @@ import { generationGate } from "../llm/limit";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { bakeNarration, bakeSize } from "../export/bake";
-import { preferredVoice, synthesizeBase64 } from "../export/tts";
+import { stampedVoice, synthesizeBase64 } from "../export/tts";
 import { detectLang } from "../render/speech";
 import { joinPath } from "../course/publish";
 import { parseRepo, readFile } from "../publish/github";
@@ -123,7 +123,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   // context, not a working verb.
   const courseSel = h("select", { class: "small course-pick", title: "Saved courses" }) as HTMLSelectElement;
   const newBtn = h("button", { class: "small", title: "Start a new, empty course" }, "＋ New");
-  const modal = createModal("🎓 Course", { size: "l", head: [courseSel, newBtn] });
+  // Save and Publish live in the SAME top row as ＋ New (Hans 2026-09-02):
+  // the footer placement made Publish invisible — he went looking for it on
+  // the course modal's menu and could not find it. Publish is the committing
+  // verb, so it alone wears primary.
+  const saveBtn = h("button", { class: "small" }, "💾 Save");
+  const shareBtn = h("button", { class: "small primary" }, "↗ Publish");
+  const modal = createModal("🎓 Course", { size: "l", head: [courseSel, newBtn, saveBtn, shareBtn] });
   const doc = h("textarea", {
     class: "course-doc",
     spellcheck: "false",
@@ -148,8 +154,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   const planBtn = h("button", { class: "small" }, "✦ Plan");
   const reviseBtn = h("button", { class: "small" }, "✎ Revise");
   const runBtn = h("button", { class: "small primary" }, "▶ Generate");
-  const saveBtn = h("button", { class: "small" }, "💾 Save");
-  const shareBtn = h("button", { class: "small" }, "↗ Publish");
   const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
   matchBtn.hidden = true;
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
@@ -701,7 +705,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           lang: playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0] ?? "en",
           existing,
           synthesize: (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
-          voiceOf: (line) => preferredVoice(settings.cloudVoices, detectLang(line.text), line.speaker),
+          voiceOf: (line) => stampedVoice(settings.cloudVoices, detectLang(line.text), line),
         },
         (done, total) =>
           working(`Narration for lecture ${n + 1} of ${numbered.length} — ${done}/${total} lines…`),
@@ -765,7 +769,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   // (each lecture's file name is derived by publishCourse from the course
   // document, below), so Link hides the name field for `subject: "course"`
   // and this parameter is never read.
-  async function publish({ bake, embedImages }: { bake: boolean; embedImages: boolean; slug?: string }): Promise<void> {
+  async function publish({ bake, embedImages, allowComments }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -795,7 +799,23 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       // row it came from is never rewritten, exactly as a drawcast's own
       // document is not (publish/embed.ts, P §3.4).
       const embedded = embedImages ? await embedLectures(course, savedYaml, settings.contactEmail, controller.signal) : null;
-      const yamlFor = (index: number): string | null => embedded?.get(index) ?? savedYaml(index);
+      const embeddedFor = (index: number): string | null => embedded?.get(index) ?? savedYaml(index);
+      // "Allow comments" writes the giscus wiring into EVERY lecture's header
+      // (C1 — the checkbox used to be silently dropped for courses): each
+      // lecture is its own cast link, so each gets its own Discussions
+      // thread, keyed to its file path by the viewer. Before the bake, so
+      // formatPublished carries the header through unchanged.
+      const commentsMeta =
+        allowComments && settings.giscusRepoId && settings.giscusCategoryId
+          ? { repoId: settings.giscusRepoId, category: settings.giscusCategory, categoryId: settings.giscusCategoryId }
+          : null;
+      const yamlFor = (index: number): string | null => {
+        const text = embeddedFor(index);
+        if (text === null || !commentsMeta) return text;
+        const parsed = parsePlaylistText(text);
+        parsed.meta.comments = commentsMeta;
+        return formatPlaylist(parsed, "yaml");
+      };
       const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);
       const out = await publishCourse({
@@ -1018,7 +1038,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   );
   // Undo/Match on the left — a reflow there moves nothing the author is
   // aiming at; Save/Share on the right, primary last.
-  modal.footer.append(h("span", { class: "footer-left" }, undoBtn, matchBtn), saveBtn, shareBtn);
+  modal.footer.append(h("span", { class: "footer-left" }, undoBtn, matchBtn));
   document.body.append(modal.dialog);
   panel = modal;
   reopen = () => {
