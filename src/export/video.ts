@@ -7,6 +7,7 @@
 
 import { render, type RenderStyle } from "../render";
 import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
+import { titleIsDrawn } from "../render/title";
 import { speechKey, type SpeakLine } from "../render/delivery";
 import { detectLang } from "../render/speech";
 import { subVars } from "../spec/answers";
@@ -481,7 +482,9 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
         currentSvg = svg;
         currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
-        currentTitle = items[i].title ?? "";
+        // The frame's title band stays empty when the drawing draws its own
+        // title — the same no-duplicate rule the live player follows.
+        currentTitle = titleIsDrawn(items[i].title, handle.layout.drawables) ? "" : (items[i].title ?? "");
         if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
         handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
         // Movies never wait on an answer: the card performs — the quiz hovers

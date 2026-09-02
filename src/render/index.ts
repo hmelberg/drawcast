@@ -13,6 +13,7 @@ import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
 import { resolvedRenderSpec } from "./resolve";
+import { titleIsDrawn } from "./title";
 import { resolveSources } from "./source";
 import { loadSettings } from "../store";
 import { makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
@@ -106,28 +107,30 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   stage.className = "cs-stage";
   const caption = document.createElement("div");
   caption.className = "cs-caption cs-caption-empty";
-  // Title BELOW the drawing, YouTube-style (C9): drawing → control bar →
-  // title (attachPlayerControls inserts the bar directly after the stage, so
-  // appending the title after the stage here yields exactly that order). The
-  // caption is a band ACROSS the bottom of the drawing, the way a video
-  // carries its subtitles. Both are figure chrome — neither is ever placed
-  // in canvas coordinates, so neither can collide with the drawing's own
-  // layout. The piece introduces itself on screen instead: the compiler
-  // prompt's opening rules have the drawcast draw its title as its first
-  // beat (D7's substantive half).
+  // The caption is a band ACROSS the bottom of the drawing, the way a video
+  // carries its subtitles — figure chrome, never placed in canvas
+  // coordinates, so it cannot collide with the drawing's own layout. The
+  // TITLE is added after layout below: it only appears when the drawing
+  // does not draw it itself (C9 as Hans clarified it).
   stage.appendChild(caption);
   figure.appendChild(stage);
-  if (spec.title) {
-    const title = document.createElement("div");
-    title.className = "cs-title";
-    title.textContent = spec.title;
-    figure.appendChild(title);
-  }
   container.appendChild(figure);
 
   const measure = makeBrowserMeasure();
   const layout = layoutSpec(spec, measure);
   const bboxes = elementBBoxes(layout, measure);
+
+  // A title that is PART of the drawcast — drawn ink, the opening beat the
+  // compiler prompt asks for — goes on top of the canvas, and then the app
+  // adds NO title text of its own: a chrome title duplicating the drawn one
+  // is exactly what Hans didn't want (C9, clarified 2026-09-02). The HTML
+  // title above the drawing is the fallback for casts that never draw theirs.
+  if (spec.title && !titleIsDrawn(spec.title, layout.drawables)) {
+    const title = document.createElement("div");
+    title.className = "cs-title";
+    title.textContent = spec.title;
+    figure.insertBefore(title, stage);
+  }
 
   // Param-state layouts for the animate command. Boundary layouts (commit,
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick

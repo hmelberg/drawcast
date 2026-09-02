@@ -94,9 +94,10 @@ const FIGURE_CSS = `
   text-align: center;
   width: fit-content;
   padding: 0 0.4rem;
-  /* The title sits BELOW the drawing and its control bar now (C9) — the top
-     margin separates it from the bar, not from a page heading above. */
-  margin: 0.1rem auto 0.05rem;
+  /* Above the drawing — and only for a drawcast that does not DRAW its own
+     title (render/index.ts, C9 as clarified): drawn titles live on the
+     canvas, so this never duplicates one. */
+  margin: 0.05rem auto 0.1rem;
   max-width: 90%;
 }
 `;

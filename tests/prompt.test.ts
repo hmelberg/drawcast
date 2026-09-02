@@ -25,9 +25,10 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("No concept is important in itself");
   });
 
-  test("opens with the drawn title — the written one sits below the player now (C9)", () => {
+  test("opens with the drawn title at the top — the app adds no duplicate around it (C9, clarified)", () => {
     expect(compilerV1).toContain("the title counts as something");
-    expect(compilerV1).toContain("BELOW the player");
+    expect(compilerV1).toContain("at the top of the canvas");
+    expect(compilerV1).toContain("NO separate title text");
     expect(compilerV1).toContain("Speaking and drawing are not turns");
   });
 });

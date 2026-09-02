@@ -77,3 +77,21 @@ commits (suite → 2861):
 - C7 remainder: hover-scrub/seek preview, time readout, left/right
   grouping — and the progress-bar row only if Hans ever reverses the
   ruling.
+
+## C9 revised (Hans, same day)
+
+"I think I made a mistake. The title should not be at the bottom, but at
+the top. What I meant was that I did not want a title text above the
+screen where we draw. But titles that are part of the drawcast go on top
+when that is natural."
+
+The distinction, as implemented: a title that is PART of the drawcast —
+drawn ink at the top of the canvas, the opening beat the prompt asks for —
+makes the app add NO title text of its own, in the live player and in the
+video frame's title band alike (`render/title.ts` titleIsDrawn, shared).
+The HTML title returns to ABOVE the drawing purely as the fallback for
+casts that never draw theirs. Match is exact after case/whitespace
+normalization (wrapped lines joined) — "Markov models" on the canvas does
+not count as drawing "Markov models part I"; a looser rule would silently
+hide real titles on near-misses. The prompt's wording updated to say the
+canvas is the ONLY place the viewer reads the title when it is drawn.
