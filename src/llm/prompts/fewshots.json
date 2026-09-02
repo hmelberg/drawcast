@@ -151,5 +151,37 @@
         { "highlight": { "target": ["label_shortage"], "effect": "pulse" }, "speak": "So the price cap didn't lower the cost of buying — it just made buying impossible for some.", "voice": "b" }
       ]
     }
+  },
+  {
+    "request": "Roll a die 100 times and then 10,000 times and show how the shares of each face settle down",
+    "spec": {
+      "title": "The law of large numbers, one die at a time",
+      "template": "bar_chart",
+      "params": {
+        "labels": ["1", "2", "3", "4", "5", "6"],
+        "values": "{dice.frames}",
+        "stage": 0,
+        "ylim": [0, 0.3],
+        "y_label": "Share of rolls",
+        "value_labels": true,
+        "title": "Six faces, 100 rolls then 10,000"
+      },
+      "elements": [
+        {
+          "id": "dice",
+          "type": "code",
+          "language": "python",
+          "show": "none",
+          "code": "import numpy as np\nrng = np.random.default_rng(7)\ndef shares(n):\n    rolls = rng.integers(1, 7, size=n)\n    return [round(float((rolls == f).mean()), 3) for f in range(1, 7)]\nframes = [shares(100), shares(10000)]"
+        }
+      ],
+      "commands": [
+        { "draw": ["title"], "speak": "Is a die fair? Ask it a hundred times, then ten thousand." },
+        { "draw": ["axes", "bar_1", "bar_2", "bar_3", "bar_4", "bar_5", "bar_6"], "parallel": true, "speak": "A hundred rolls: the faces come up unevenly, some near a quarter, some barely a tenth." },
+        { "point": { "at": { "ref": "bar_6" } }, "speak": "Nothing is wrong with the die — a hundred is just too few." },
+        { "animate": { "stage": 1 }, "duration": 3, "speak": "Ten thousand rolls, and every face settles toward one sixth." },
+        { "highlight": { "target": ["bar_1", "bar_6"] }, "speak": "The law of large numbers is not that luck evens out — it is that luck gets diluted." }
+      ]
+    }
   }
 ]

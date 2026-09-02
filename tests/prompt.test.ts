@@ -31,6 +31,13 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("NO separate title text");
     expect(compilerV1).toContain("Speaking and drawing are not turns");
   });
+
+  test("teaches the data bridge: tokens, depth-means-staged, typed labels", () => {
+    expect(compilerV1).toContain('"{sim.y}"');
+    expect(compilerV1).toContain("Depth means staged");
+    expect(compilerV1).toContain("TYPE the labels");
+    expect(compilerV1).toContain('"show": "none"');
+  });
 });
 
 describe("buildSystemPrompt", () => {

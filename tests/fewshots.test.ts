@@ -1,12 +1,18 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import fewshots from "../src/llm/prompts/fewshots.json";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
 import { lintCommands } from "../src/lint/lint";
+import { ensureEnabledPacks } from "../src/scenes/packs";
 import type { Command, Spec } from "../src/spec/types";
 
 const examples = fewshots as { request: string; spec: Spec }[];
+
+beforeAll(async () => {
+  // The data-bridge few-shot uses the data pack's bar_chart.
+  await ensureEnabledPacks(["data"]);
+});
 
 describe("bundled fewshots stay exemplary", () => {
   test.each(examples.map((ex) => [ex.request, ex.spec] as const))("%s — validates and every command id resolves", (_req, spec) => {

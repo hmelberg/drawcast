@@ -190,7 +190,7 @@ const elementSchema = {
     code: {
       type: "string",
       description:
-        "code: the script, one newline-separated string. It EXECUTES for real in the viewer's browser at figure-preparation time, so keep it short (≤ ~14 lines), deterministic (SEED any randomness), print() exactly the numbers the narration mentions, and end with at most ONE plot — matplotlib, or plotly express left in a variable (fig = px.bar(...)); packages auto-install (numpy/pandas/matplotlib ship with the runtime; pure-Python PyPI packages like plotly install on demand). Each line becomes a drawable `<id>_line_1` … `<id>_line_N` and the whole output panel is `<id>_out` — reveal lines with draw on their own narration beats, then draw the output.",
+        "code: the script, one newline-separated string. It EXECUTES for real in the viewer's browser at figure-preparation time, so keep it short (≤ ~14 lines), deterministic (SEED any randomness), print() exactly the numbers the narration mentions, and end with at most ONE plot — matplotlib, or plotly express left in a variable (fig = px.bar(...)); packages auto-install (numpy/pandas/matplotlib ship with the runtime; pure-Python PyPI packages like plotly install on demand). Each line becomes a drawable `<id>_line_1` … `<id>_line_N` and the whole output panel is `<id>_out` — reveal lines with draw on their own narration beats, then draw the output. A script can also FEED a template: any params value written as \"{<this id>.<variable>}\" is replaced by that variable after the run (lists, numbers, dicts, a DataFrame as {columns, rows}); with show: \"none\" the element draws nothing and only supplies data.",
     },
     show: {
       type: "string",
@@ -423,7 +423,7 @@ const commandSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs.",
+        "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs. A data template's stage param is the canonical target ({\"stage\": 1}); array entries address as values.2.",
     },
     duration: { type: "number", description: "With animate: seconds the animation takes (default 2)." },
     play: {
@@ -496,7 +496,12 @@ export const specSchema = {
       description: 'Narrator voice. Usually stamped from the #male/#female tags — omit unless the request states it. In dialogue this is speaker "a"; speaker "b" gets the contrasting voice.',
     },
     template: { type: "string", description: "Scene template name from the catalog. Omit when composing elements directly." },
-    params: { type: "object", description: "Scene template parameters, per the catalog's parameter schema.", additionalProperties: true },
+    params: {
+      type: "object",
+      description:
+        'Scene template parameters, per the catalog\'s parameter schema. A value may be a "{codeId.variable}" token naming a code element\'s script variable (or "{codeId.df.column}" for a DataFrame column) — the app substitutes the harvested value before drawing.',
+      additionalProperties: true,
+    },
     domain: {
       type: "object",
       description: "Domain coordinate ranges for quantitative diagrams, e.g. {\"x\": [0, 1000], \"y\": [0, 50]} for quantity/price. Curve exprs and point coordinates are in these units.",

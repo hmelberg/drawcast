@@ -8986,5 +8986,90 @@
     }
    ]
   }
+ },
+ {
+  "request": "Show GDP per capita for Norway, Sweden and Denmark in 2010 and 2020, computing the numbers in Python and animating the change",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "GDP per capita, 2010 → 2020",
+   "template": "bar_chart",
+   "params": {
+    "labels": [
+     "Norway",
+     "Sweden",
+     "Denmark"
+    ],
+    "values": "{gdp.frames}",
+    "stage": 0,
+    "value_labels": true,
+    "y_label": "USD (thousands)",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 470,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "gdp",
+     "type": "code",
+     "language": "python",
+     "show": "code",
+     "x": 225,
+     "y": 400,
+     "width": 410,
+     "font_size": 15,
+     "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"country\": [\"Norway\", \"Sweden\", \"Denmark\"],\n    \"y2010\": [87, 52, 58],\n    \"y2020\": [67, 52, 61]})\nframes = [df.y2010.tolist(), df.y2020.tolist()]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "gdp",
+      "gdp_line_1",
+      "gdp_line_2",
+      "gdp_line_3",
+      "gdp_line_4",
+      "gdp_line_5"
+     ],
+     "parallel": true,
+     "speak": "Three countries, two years, one data frame."
+    },
+    {
+     "draw": [
+      "gdp_line_6"
+     ],
+     "speak": "Two lists of three numbers — that is all the chart needs."
+    },
+    {
+     "draw": [
+      "axes",
+      "bar_1",
+      "bar_2",
+      "bar_3"
+     ],
+     "parallel": true,
+     "speak": "In 2010 Norway towered over its neighbours."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 3,
+     "speak": "Ten years on, the oil price took the tower down while Denmark crept up."
+    },
+    {
+     "highlight": {
+      "target": [
+       "bar_1"
+      ]
+     },
+     "speak": "Same bars, same axes — only the numbers moved. That is what a chart drawn from data can do."
+    }
+   ]
+  }
  }
 ]
