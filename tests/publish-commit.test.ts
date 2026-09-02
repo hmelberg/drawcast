@@ -5,7 +5,9 @@
 // removed rather than left reachable.
 
 import { describe, expect, it } from "vitest";
-import { commitFiles } from "../src/publish/github";
+import { commitFiles, setRetryDelaysForTests } from "../src/publish/github";
+
+setRetryDelaysForTests([0, 0]); // retry behavior is under test; real waits are not
 
 interface Call {
   url: string;
@@ -270,5 +272,67 @@ describe("a branch that moved under us", () => {
     }) as unknown as typeof fetch;
     await commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl);
     expect(seen.every((c) => c === "no-store")).toBe(true);
+  });
+});
+
+// Hans's live failure (2026-09-02): /git/trees answered 502 by GitHub's edge
+// — whose error pages carry no CORS headers, so Firefox reported an opaque
+// "NetworkError when attempting to fetch resource". Every write on this path
+// is content-addressed or idempotent, so retrying in place is safe.
+describe("transient failures", () => {
+  function flaky(failures: { match: string; times: number; kind: "throw" | "502" }[]): { calls: Call[]; fetchImpl: typeof fetch } {
+    const calls: Call[] = [];
+    const left = failures.map((f) => ({ ...f }));
+    const fetchImpl = (async (url: string, init: RequestInit = {}) => {
+      calls.push({ url, method: init.method ?? "GET", body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null });
+      const f = left.find((x) => url.includes(x.match) && x.times > 0);
+      if (f) {
+        f.times--;
+        if (f.kind === "throw") throw new TypeError("NetworkError when attempting to fetch resource.");
+        return { ok: false, status: 502, json: async () => ({}), text: async () => "Bad gateway" } as Response;
+      }
+      const body = url.includes("/git/ref/")
+        ? { object: { sha: "refsha" } }
+        : url.includes("/git/commits/")
+          ? { tree: { sha: "treesha" } }
+          : url.includes("/git/blobs")
+            ? { sha: "blob1" }
+            : url.includes("/git/trees")
+              ? { sha: "newtree" }
+              : url.includes("/git/commits")
+                ? { sha: "newcommit" }
+                : {};
+      return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
+    }) as unknown as typeof fetch;
+    return { calls, fetchImpl };
+  }
+
+  it("a 502 on the tree call is retried in place and the publish lands", async () => {
+    const { calls, fetchImpl } = flaky([{ match: "/git/trees", times: 1, kind: "502" }]);
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).resolves.toEqual({ commitSha: "newcommit" });
+    expect(calls.filter((c) => c.url.includes("/git/trees"))).toHaveLength(2);
+  });
+
+  it("a dropped connection (opaque NetworkError) is retried the same way", async () => {
+    const { fetchImpl } = flaky([{ match: "/git/trees", times: 2, kind: "throw" }]);
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).resolves.toEqual({ commitSha: "newcommit" });
+  });
+
+  it("a persistent network failure names the request instead of a bare NetworkError", async () => {
+    const { fetchImpl } = flaky([{ match: "/git/trees", times: 99, kind: "throw" }]);
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).rejects.toThrow(/git\/trees.*3 times.*press Publish again/s);
+  });
+
+  it("a blob that cannot upload names ITS file and size", async () => {
+    const { fetchImpl } = flaky([{ match: "/git/blobs", times: 99, kind: "throw" }]);
+    await expect(commitFiles(REPO, "t", "main", FILES, [], "msg", fetchImpl)).rejects.toThrow(/Uploading "courses\/c\/a\.yaml" \(0\.0 MB\)/);
+  });
+
+  it("reports upload progress per blob", async () => {
+    const { fetchImpl } = flaky([]);
+    const seen: string[] = [];
+    const many = [FILES[0], { path: "courses/c/b.yaml", content: "title: b" }];
+    await commitFiles(REPO, "t", "main", many, [], "msg", fetchImpl, (done, total) => seen.push(`${done}/${total}`));
+    expect(seen).toEqual(["0/2", "1/2", "2/2"]);
   });
 });

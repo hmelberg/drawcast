@@ -863,6 +863,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         viewerBase: settings.viewerBase,
         lectureYaml: publishText,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
+        onUpload: (done, total) => working(done < total ? `Uploading to GitHub — file ${done + 1}/${total}…` : "Committing…"),
       });
       // Past this line the commit has LANDED. Anything that fails below is
       // local bookkeeping, and reporting it as "Publish failed" would send the

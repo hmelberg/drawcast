@@ -38,6 +38,24 @@ function headers(token: string): Record<string, string> {
   };
 }
 
+/**
+ * Transient-failure retry. GitHub's edge answers heavy Git Data calls with
+ * the occasional 502/503/504 — and those error pages carry NO CORS headers,
+ * so the browser surfaces them as an opaque "NetworkError when attempting to
+ * fetch resource" (Hans's live course publish: /git/trees, 502, 2026-09-02).
+ * A multi-megabyte blob upload can also drop mid-flight. Every write on this
+ * path is content-addressed (blob/tree/commit objects) or idempotent (ref to
+ * a fixed sha), so retrying in place is safe — and much cheaper than failing
+ * the whole publish and re-uploading every blob.
+ */
+let retryDelaysMs = [800, 2400];
+/** Test hook: retries themselves are behavior worth testing; real waits are not. */
+export function setRetryDelaysForTests(ds: number[]): void {
+  retryDelaysMs = ds;
+}
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 async function call<T>(
   fetchImpl: typeof fetch,
   token: string,
@@ -45,16 +63,37 @@ async function call<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const res = await fetchImpl(`${API}${path}`, {
-    method,
-    // GitHub sends `Cache-Control: private, max-age=60` on API responses, so a
-    // plain GET of the branch ref can be answered from the browser cache with a
-    // sha that is a minute old. Committing on top of that stale parent is
-    // exactly what GitHub then rejects as "Update is not a fast forward".
-    cache: "no-store",
-    headers: { ...headers(token), ...(body ? { "Content-Type": "application/json" } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  let res: Response;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetchImpl(`${API}${path}`, {
+        method,
+        // GitHub sends `Cache-Control: private, max-age=60` on API responses, so a
+        // plain GET of the branch ref can be answered from the browser cache with a
+        // sha that is a minute old. Committing on top of that stale parent is
+        // exactly what GitHub then rejects as "Update is not a fast forward".
+        cache: "no-store",
+        headers: { ...headers(token), ...(body ? { "Content-Type": "application/json" } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch (err) {
+      // Thrown, not answered: the connection dropped, or an error page with
+      // no CORS headers made the browser hide the status. Retry, then say
+      // WHICH request died — "NetworkError" alone sent us to the console.
+      if (attempt < retryDelaysMs.length) {
+        await sleep(retryDelaysMs[attempt]);
+        continue;
+      }
+      throw new PublishError(
+        `${method} ${path.replace(/^\/repos\/[^/]+\/[^/]+/, "")} failed ${attempt + 1} times (${(err as Error).message}) — GitHub or the connection hiccuped; press Publish again, nothing was half-committed.`,
+      );
+    }
+    if (RETRYABLE_STATUS.has(res.status) && attempt < retryDelaysMs.length) {
+      await sleep(retryDelaysMs[attempt]);
+      continue;
+    }
+    break;
+  }
   if (!res.ok) {
     if (res.status === 401) {
       throw new PublishError(
@@ -257,6 +296,9 @@ export async function commitFiles(
   deletions: string[],
   message: string,
   fetchImpl: typeof fetch = fetch,
+  /** Upload progress — a narration-baked course is many megabytes of blobs,
+   *  and a silent minute reads as a hang. */
+  onUpload?: (done: number, total: number) => void,
 ): Promise<{ commitSha: string }> {
   if (files.length === 0 && deletions.length === 0) {
     throw new PublishError("There is nothing to publish.");
@@ -291,13 +333,21 @@ export async function commitFiles(
   // commitOnto reuses them for free — which is why they are created HERE,
   // outside the retry.
   const blobShas: string[] = [];
-  for (const f of files) {
-    const blob = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/blobs`, {
-      content: toBase64(f.content),
-      encoding: "base64",
-    });
-    blobShas.push(blob.sha);
+  for (const [i, f] of files.entries()) {
+    onUpload?.(i, files.length);
+    try {
+      const blob = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/blobs`, {
+        content: toBase64(f.content),
+        encoding: "base64",
+      });
+      blobShas.push(blob.sha);
+    } catch (err) {
+      // Name the file: "NetworkError" with no noun cost a console excavation.
+      const mb = (f.content.length / 1_048_576).toFixed(1);
+      throw new PublishError(`Uploading "${f.path}" (${mb} MB): ${(err as Error).message}`, (err as PublishError).status);
+    }
   }
+  onUpload?.(files.length, files.length);
   const tree = [
     ...files.map((f, i) => ({ path: f.path, mode: MODE_FILE, type: "blob", sha: blobShas[i] })),
     // A null sha is how the tree API says "remove this path". There is nothing

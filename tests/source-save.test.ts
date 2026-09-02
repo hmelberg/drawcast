@@ -193,8 +193,6 @@ describe("saveSource", () => {
       fetchImpl,
     });
     expect(out.path).toBe("casts/sources/untitled-drawcast-2.yaml");
-    const treeCalls = calls.filter((c) => c.url.includes("/git/trees") && c.method === "POST");
-    const tree = treeCalls[0].body!.tree as { path: string; content: string }[];
     const blobs = calls.filter((c) => c.url.includes("/git/blobs")).map((c) => Buffer.from(c.body!.content as string, "base64").toString("utf8"));
     // The manifest committed here must still carry doc A's entry alongside
     // the new one — this is the exact loss the fix exists to prevent.

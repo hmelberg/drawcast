@@ -139,6 +139,8 @@ export interface PublishArgs {
   viewerBase: string;
   lectureYaml: (index: number) => string | null;
   fetchImpl?: typeof fetch;
+  /** Blob upload progress (commitFiles) — surfaced on the panel's status line. */
+  onUpload?: (done: number, total: number) => void;
 }
 
 export interface PublishResult {
@@ -190,6 +192,7 @@ export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
     withNames.deletions,
     `drawcast: publish course "${course.title || "Untitled course"}"`,
     fetchImpl,
+    args.onUpload,
   );
 
   return {
