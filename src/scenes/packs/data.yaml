@@ -22,14 +22,14 @@ params:
   type: object
   properties:
     labels:
-      type: array
-      items: { type: string }
-      maxItems: 40
-      description: "Category names under the bars, one per bar. TYPE these by hand even when values come from a script — the storyboard's bar_i beats exist only when the bar count is known before the script runs."
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 40 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "Category names under the bars, one per bar. TYPE these by hand even when values come from a script — the storyboard's bar_i beats exist only when the bar count is known before the script runs. A \"{id.var}\" token (a DataFrame column of names, say) works too, at that cost."
     values:
       oneOf:
         - { type: array, items: { type: number }, maxItems: 40 }
-        - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, maxItems: 12 }
+        - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, minItems: 1, maxItems: 12 }
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
       description: "One series: a list of numbers (static), or a list of lists (STAGES — depth means staged; every stage has one number per label, a missing one counts as 0), or a \"{id.var}\" token naming a code element's variable."
     series:
@@ -42,7 +42,7 @@ params:
           values:
             oneOf:
               - { type: array, items: { type: number }, maxItems: 40 }
-              - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, maxItems: 12 }
+              - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, minItems: 1, maxItems: 12 }
               - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
         required: [values]
       description: "Several series → grouped bars with a legend. Use INSTEAD of values. Each series' values follow the same static/staged/token rule."

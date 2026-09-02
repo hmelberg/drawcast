@@ -49,16 +49,23 @@ export function templateParamIssues(templateId: string, params: unknown, strict:
 
 /**
  * Whether a post-substitution params check may be strict (errors) rather
- * than advisory (warnings). `dataPack` always forces strict — those
- * templates are the bridge's own, so a schema mismatch is never someone
- * else's pre-existing content. Otherwise strict requires BOTH `tokens`
- * (the spec actually referenced code data) AND `substituted` (the check
- * that resolves those tokens actually ran to completion): a check that
- * never ran or timed out (NO_CODE_CHECK) leaves raw token strings in
- * params — only warnings can be honest about them, since the mismatch
- * a strict read would report ("expected number, got string") is an
- * artifact of the unresolved token, not a real problem with the spec.
+ * than advisory (warnings). Two conditions, both necessary:
+ *
+ * 1. Something must put this spec in scope at all — either it referenced
+ *    code data (`tokens`) or it names one of the data pack's own templates
+ *    (`dataPack`, where a schema mismatch is never someone else's
+ *    pre-existing hand-fed content).
+ * 2. If it DID reference code data, that reference must have been judged
+ *    (`substituted`): a check that never ran, timed out (NO_CODE_CHECK) or
+ *    met an unavailable runtime leaves its tokens unresolved, and the
+ *    resolver deletes an unjudged token's whole property. Reading that
+ *    strictly blames the spec twice over — once for the raw token string
+ *    the schema never wanted ("expected number, got string"), once for the
+ *    hole the deletion left, which in a data-pack template can trip the
+ *    pack's own `required`/`oneOf`. A data-pack template fed by tokens
+ *    whose script could not be judged (offline, timeout) may therefore
+ *    only warn, exactly like any other template in that position.
  */
 export function paramsStrictness(opts: { tokens: boolean; substituted: boolean; dataPack: boolean }): boolean {
-  return (opts.tokens && opts.substituted) || opts.dataPack;
+  return (opts.dataPack || opts.tokens) && (!opts.tokens || opts.substituted);
 }

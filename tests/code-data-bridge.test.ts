@@ -4,7 +4,7 @@
 // cache key, harvest script, resolver with a fake runner, lint, check).
 // Nothing loads WASM or touches the network.
 
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import {
   DATA_TOKEN_RE,
   MALFORMED_TOKEN_RE,
@@ -23,6 +23,8 @@ import { codeExecutionErrors } from "../src/code/check";
 import { paramsStrictness, templateParamErrors, templateParamIssues } from "../src/scenes/params-check";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
 import { parseTemplateDoc } from "../src/scenes/doc";
+import { registerPack } from "../src/scenes/packs";
+import dataYaml from "../src/scenes/packs/data.yaml?raw";
 
 describe("data tokens — grammar", () => {
   test("parses id.var and id.var.col; rejects dotless, spaced and malformed strings", () => {
@@ -453,11 +455,17 @@ layout: |
   // resolvedParams undefined) must not go strict — it would blame the
   // template for a mismatch that's really just the still-unresolved token
   // string ("{sim.y}" where the schema wants a number array).
-  test("paramsStrictness requires tokens AND substitution; a data-pack template is strict regardless", () => {
+  // Final review: `dataPack` is a reason to be IN scope, never a reason to
+  // skip the "was it judged?" question. A data-pack template fed by a token
+  // whose script could not be judged (offline, timeout) may only warn —
+  // deleting an unjudged token can trip the pack's own required/oneOf.
+  test("paramsStrictness requires tokens AND substitution; a data-pack template is in scope but never exempt", () => {
     expect(paramsStrictness({ tokens: true, substituted: true, dataPack: false })).toBe(true);
     expect(paramsStrictness({ tokens: true, substituted: false, dataPack: false })).toBe(false);
     expect(paramsStrictness({ tokens: false, substituted: false, dataPack: true })).toBe(true);
     expect(paramsStrictness({ tokens: false, substituted: false, dataPack: false })).toBe(false);
+    expect(paramsStrictness({ tokens: true, substituted: false, dataPack: true })).toBe(false);
+    expect(paramsStrictness({ tokens: true, substituted: true, dataPack: true })).toBe(true);
   });
 
   test("tp_probe: a token-bearing spec whose check never ran gets a warning, not an error, for its still-raw token", () => {
@@ -509,5 +517,29 @@ layout: |
     } finally {
       delete scenes.tp_bad;
     }
+  });
+
+  // The real pack, not a probe: the strict gate above only helps if bar_chart's
+  // own schema accepts what the prompt teaches (tokens in BOTH labels and
+  // values) and rejects what it does not — with no oneOf ambiguity for the
+  // degenerate static list.
+  describe("bar_chart's shipped schema", () => {
+    beforeAll(() => {
+      const r = registerPack("data", dataYaml);
+      expect(r.errors).toEqual([]);
+    });
+
+    test("a token in labels as well as values is legal — the prompt bullet shows both", () => {
+      expect(templateParamErrors("bar_chart", { labels: "{gdp.df.country}", values: "{gdp.frames}" })).toEqual([]);
+    });
+
+    test("an empty static list matches exactly one branch (minItems pins the staged one)", () => {
+      expect(templateParamErrors("bar_chart", { labels: ["a"], values: [] })).toEqual([]);
+      expect(templateParamErrors("bar_chart", { labels: ["a"], series: [{ name: "s", values: [] }] })).toEqual([]);
+    });
+
+    test("strings where numbers belong are still an error", () => {
+      expect(templateParamErrors("bar_chart", { labels: ["a"], values: ["x"] }).length).toBeGreaterThan(0);
+    });
   });
 });
