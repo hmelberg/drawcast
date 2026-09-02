@@ -11,6 +11,7 @@ import { registerPack, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs"
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
+import { AXIS_OVERHANG } from "../src/layout/axes";
 import { flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Spec } from "../src/spec/types";
@@ -21,8 +22,10 @@ beforeAll(() => {
 });
 
 const plot = plotArea();
+/** A titled chart with no box lowers its own plot top by 55, to clear the y caption. */
+const TITLED_TOP = plot.y1 - 55;
 /** The y scale bar_chart uses for a chart whose data spans [0, hi] with the 8 % headroom. */
-const Y = (v: number, hi: number) => plot.y0 + (v / (hi * 1.08)) * (plot.y1 - plot.y0);
+const Y = (v: number, hi: number, y1 = plot.y1) => plot.y0 + (v / (hi * 1.08)) * (y1 - plot.y0);
 const area = (l: ReturnType<typeof layoutSpec>, id: string) => flattenDrawables(l.drawables).find((d) => d.id === id) as AreaDrawable | undefined;
 const barTop = (l: ReturnType<typeof layoutSpec>, i: number, j = 0) => Math.max(...area(l, `bar_${i}__f${j}`)!.pts.map((p) => p[1]));
 const layout = (params: object) => layoutSpec({ template: "bar_chart", params } as Spec);
@@ -51,8 +54,8 @@ describe("bar_chart — static data", () => {
   test("mints axes, bar_1..n (with their category label) and the title; bar heights follow the values", () => {
     const l = layout({ labels: ["a", "b", "c"], values: [2, 4, 8], title: "T", y_label: "Y" });
     expect(l.order).toEqual(["axes", "bar_1", "bar_2", "bar_3", "title"]);
-    expect(barTop(l, 3)).toBeCloseTo(Y(8, 8), 6);
-    expect(barTop(l, 1)).toBeCloseTo(Y(2, 8), 6);
+    expect(barTop(l, 3)).toBeCloseTo(Y(8, 8, TITLED_TOP), 6);
+    expect(barTop(l, 1)).toBeCloseTo(Y(2, 8, TITLED_TOP), 6);
     const texts = flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text").map((d) => d.text);
     expect(texts).toEqual(expect.arrayContaining(["a", "b", "c", "T", "Y"]));
     expect(l.warnings).toEqual([]);
@@ -78,6 +81,51 @@ describe("bar_chart — static data", () => {
     expect(Math.max(...pts.map((p) => p[0]))).toBeLessThanOrEqual(900);
     const many = layout({ labels: Array.from({ length: 50 }, (_, i) => `l${i}`), values: Array.from({ length: 50 }, () => 1) });
     expect(many.order.filter((id) => id.startsWith("bar_"))).toHaveLength(40);
+  });
+});
+
+// The title and the y-axis caption both want the strip above the plot: the
+// caption is centred at (y arrow tip + 12 + half its box), the title sat at
+// plot.y1 + 25, three units BELOW that tip. They shared a band. The title now
+// reads the caption's actual position out of the axes group, and an untitled
+// default plot keeps its old top so nothing else moves.
+describe("bar_chart — the title clears the y caption", () => {
+  const textAt = (l: ReturnType<typeof layoutSpec>, id: string) =>
+    flattenDrawables(l.drawables).find((d) => d.id === id) as TextDrawable | undefined;
+
+  test("no box: the plot top drops to 620 and the title sits a clear band above the caption", () => {
+    const l = layout({ labels: ["a", "b"], values: [1, 2], title: "A long enough title", y_label: "Share of rolls" });
+    const yAxis = flattenDrawables(l.drawables).find((d) => d.id === "axes__y") as { pts: [number, number][] };
+    expect(Math.max(...yAxis.pts.map((p) => p[1]))).toBeCloseTo(TITLED_TOP + AXIS_OVERHANG, 6);
+    const cap = textAt(l, "axes__y_label")!;
+    const title = textAt(l, "title")!;
+    expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 28);
+    expect(title.pos[1]).toBeLessThanOrEqual(730);
+    expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  test("an explicit box is honoured — its own top, and the title still sits above the caption", () => {
+    const l = layout({
+      labels: ["a", "b"],
+      values: [1, 2],
+      title: "A long enough title",
+      y_label: "Share of rolls",
+      box: { x: 120, y: 95, w: 855, h: 580 },
+    });
+    const yAxis = flattenDrawables(l.drawables).find((d) => d.id === "axes__y") as { pts: [number, number][] };
+    expect(Math.max(...yAxis.pts.map((p) => p[1]))).toBeCloseTo(675 + AXIS_OVERHANG, 6);
+    const cap = textAt(l, "axes__y_label")!;
+    const title = textAt(l, "title")!;
+    expect(title.pos[1]).toBeGreaterThan(cap.pos[1]);
+    expect(title.pos[1]).toBeLessThanOrEqual(730);
+  });
+
+  test("no y caption → the title keeps its old place; no title → the plot keeps its old top", () => {
+    const noCap = layout({ labels: ["a"], values: [1], title: "T" });
+    expect(textAt(noCap, "title")!.pos[1]).toBeCloseTo(Math.min(700, TITLED_TOP + 25), 6);
+    const noTitle = layout({ labels: ["a"], values: [1], y_label: "Y" });
+    const yAxis = flattenDrawables(noTitle.drawables).find((d) => d.id === "axes__y") as { pts: [number, number][] };
+    expect(Math.max(...yAxis.pts.map((p) => p[1]))).toBeCloseTo(plot.y1 + AXIS_OVERHANG, 6);
   });
 });
 
