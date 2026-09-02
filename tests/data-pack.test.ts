@@ -347,6 +347,18 @@ describe("line_chart", () => {
     expect(x1.text).toBe("2");
   });
 
+  // Fix round 2: the y range and its end-label precision were still scanning
+  // values dropped by the x cap above — [1,2,3,4,5] capped to the plotted
+  // [1,2,3] must calibrate the axis to 3 (padded), not to the unseen 5; the
+  // third point's y pins that (Y(3, 3), not Y(3, 5)).
+  test("limits and end-label precision scan only the plotted prefix, not values the x cap dropped", () => {
+    const l = line({ x: [0, 1, 2], values: [1, 2, 3, 4, 5] });
+    const pts = stroke(l, "line_1__l")!.pts;
+    expect(pts[2][1]).toBeCloseTo(Y(3, 3), 6);
+    const y1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__y1") as TextDrawable;
+    expect(y1.text).toBe("3.2");
+  });
+
   // Fix round 1: an xlim/ylim narrower than the data used to put points
   // thousands of units off-canvas — Ruling E clamps every data value into
   // [xMin, xMax] x [yMin, yMax] before scaling, exactly as bar_chart clamps

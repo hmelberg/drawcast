@@ -552,9 +552,12 @@ layout: |
   const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
   const at = (s, k, i) => { const st = s.stages[Math.min(k, s.stages.length - 1)]; const v = st[i]; return typeof v === "number" ? v : null; };
 
-  // Limits over all stages (y) and all x, so the frame never jumps mid-tween.
+  // Limits over all stages (y) and all x, so the frame never jumps mid-tween
+  // — but only over the PLOTTED prefix of each stage (Ruling D's cap on n):
+  // a value beyond what numeric x can place never appears, so it must not
+  // stretch the scale either.
   let lo = Infinity, hi = -Infinity;
-  for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  for (const s of series) for (const st of s.stages) for (const v of st.slice(0, n)) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
   if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
   const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
   let yMin = ylim ? Math.min(ylim[0], ylim[1]) : Math.min(0, lo);
@@ -593,8 +596,10 @@ layout: |
     for (const v of vals) if (typeof v === "number" && Number.isFinite(v) && !Number.isInteger(v)) d = Math.min(2, Math.max(d, (String(v).split(".")[1] || "").length));
     return d;
   };
+  // Same prefix bound as the limits scan above: a dropped value must not
+  // over-precision the axis either.
   const yVals = [];
-  for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") yVals.push(v);
+  for (const s of series) for (const st of s.stages) for (const v of st.slice(0, n)) if (typeof v === "number") yVals.push(v);
   if (ylim) yVals.push(ylim[0], ylim[1]);
   let decY = digits(yVals);
   if (!Number.isInteger(yMin) || !Number.isInteger(yMax)) decY = Math.min(2, Math.max(decY, 1));
