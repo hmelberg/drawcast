@@ -1,7 +1,9 @@
-// The drawcast mark: a play triangle in a rounded rust square. Hans picked
-// it by eye (2026-09-02) from three candidates drawn after "the logo is ugly,
-// make something new and simple" — over a pen stroke becoming an arrow and a
-// lowercase d with a play-triangle bowl.
+// The drawcast favicon: a play triangle in a rounded rust square. Hans
+// picked it by eye (2026-09-02) from three candidates drawn after "the logo
+// is ugly, make something new and simple" — then, minutes later, took the
+// mark out of the topbar altogether ("no logo might be better, just the
+// drawcast word in handwritten fonts"). So this is drawn for one place: the
+// browser tab, where a page needs an icon and a word cannot be one.
 //
 // Nothing sketched. The first mark was drawn by rough.js like every figure;
 // at 16px its rough strokes vanished, and at 30px next to the cleaner chrome

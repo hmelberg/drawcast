@@ -85,7 +85,12 @@ kept the lie forever. Full list in commit ccb8900.
   square) after seeing all three in the real topbar, both themes, 64→16px.
   Adopted the same day: `src/brand/mark.ts` is now that SVG (no roughjs, no
   currentColor variant — two fixed colours serve favicon and topbar alike),
-  favicon regenerated, candidates page deleted.
+  favicon regenerated, candidates page deleted. **REVERSED minutes later**
+  by Hans: "I regret my choice. I think no logo might be better (just use
+  the drawcast word in handwritten fonts like now)." Ruling: the topbar
+  carries the Patrick Hand wordmark alone; the play square stays as the
+  favicon only (a tab needs an icon). `.mark` rule and the inline render
+  removed; markSvg() serves build-mark.ts and the test.
 - B4 ruling stands unless reversed.
 
 ## Follow-up: blank ＋New and the sidebar (Hans, same day)

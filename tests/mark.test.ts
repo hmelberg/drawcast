@@ -35,10 +35,16 @@ describe("markSvg — the clean play mark", () => {
     expect(file).toBe(markSvg(64));
   });
 
-  it("the topbar renders the mark inline from markSvg, not an <img> copy of the favicon file", async () => {
+  // Hans, minutes after picking it (2026-09-02): "I regret my choice. I
+  // think no logo might be better (just use the drawcast word in
+  // handwritten fonts like now)." So the topbar carries the wordmark alone,
+  // and the mark exists only where a page needs an icon: the browser tab.
+  it("the topbar carries only the wordmark — no mark, and no dead .mark rule", async () => {
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(src).not.toMatch(/h\(\s*"img"\s*,\s*\{\s*class:\s*"mark"/);
-    expect(src).toMatch(/svgFromMarkup\(markSvg\(/);
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    expect(src).not.toMatch(/markSvg|class:\s*"mark"/);
+    expect(src).toMatch(/class: "wordmark" \}, "drawcast"/);
+    expect(css).not.toMatch(/^\.mark\s*\{/m);
   });
 
   it("has retired the squiggle and the emoji favicon", async () => {

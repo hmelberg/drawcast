@@ -37,12 +37,11 @@ import { openDestinations, saveDestinations, OPEN_LABELS, SAVE_LABELS, type Cred
 import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
-import { h, svgFromMarkup } from "./ui/dom";
+import { h } from "./ui/dom";
 import { openCoursePanel } from "./ui/course";
 import { referencedLectureIds } from "./course/document";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
-import { markSvg } from "./brand/mark";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertPortrait, unembeddedImages } from "./ui/insert";
 import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
@@ -364,29 +363,18 @@ const app = document.getElementById("app")!;
 // The topbar exists only in editor mode; player mode is chrome-free (the
 // control bar's ✎ Edit button is the way back). The Player/Editor switch
 // itself lives in the sidebar's ▶ Player row (A5) — the topbar holds only
-// the wordmark.
+// the wordmark. No mark beside it: Hans (2026-09-02) tried a sketched one,
+// then a clean play square, and settled on the handwritten word alone. The
+// play square lives on as the favicon (brand/mark.ts), where a tab needs an
+// icon and a word cannot be one.
 
 const menuBtn = h("button", { class: "icon-btn", title: "Show or hide the menu" }, "☰");
-
-// Rendered inline from the same generator that writes the favicon file, so
-// the two cannot drift. The mark carries its own two colours (rust, paper)
-// and takes nothing from this page's CSS — it looks the same after Settings
-// -> Appearance -> Dark flips the chrome.
-const topbarMark = svgFromMarkup(markSvg(64));
-topbarMark.setAttribute("class", "mark");
-topbarMark.setAttribute("aria-hidden", "true");
 
 app.appendChild(
   h(
     "header",
     { class: "topbar" },
-    h(
-      "div",
-      { class: "topbar-left" },
-      menuBtn,
-      topbarMark,
-      h("div", { class: "wordmark" }, "drawcast"),
-    ),
+    h("div", { class: "topbar-left" }, menuBtn, h("div", { class: "wordmark" }, "drawcast")),
   ),
 );
 
