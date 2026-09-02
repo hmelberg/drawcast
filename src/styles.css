@@ -745,6 +745,29 @@ details > summary { cursor: pointer; color: var(--muted); }
 }
 .cs-stage.is-playing .cs-bigplay { display: none; }
 
+/* The end-of-lecture "Next ▸" link (meta.next on published courses). Fixed
+   ink on the figure's near-white ground, like .cs-bigplay — the figure never
+   themes. */
+.cs-nextlink {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  z-index: 8;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 253, 246, 0.95);
+  border: 1.5px solid #3d3833;
+  color: #3d3833;
+  text-decoration: none;
+  font-size: var(--text-sm);
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(61, 56, 51, 0.15);
+}
+.cs-nextlink:hover { background: #fffefb; border-color: #b5482e; color: #b5482e; }
+
 /* Control bar as its own strip below the drawing — never covers the figure */
 .cs-controlbar {
   position: relative; /* anchors the seek-preview chip */

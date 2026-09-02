@@ -361,13 +361,39 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     hd.timeline.callbacks = {
       onState: (s) => {
         prev.onState?.(s);
-        if (s === "done") void onItemDone();
+        if (s === "done") {
+          void onItemDone();
+          showNextLink();
+        } else {
+          host.querySelector(".cs-nextlink")?.remove();
+        }
       },
       onStep: prev.onStep,
     };
     opts.onItemMounted?.(hd, items[i]);
     markCurrent();
     if (autoplay) void hd.timeline.play();
+  }
+
+  /** The clickable half of the drawn "Next" card: when the LAST item finishes
+   *  and the published copy names its successor (meta.next, written by
+   *  publishCourse), a real link rides the poster — one click to the next
+   *  lecture. A plain hash change would not remount the viewer, hence the
+   *  reload; modified clicks keep real-anchor semantics (new tab). */
+  function showNextLink(): void {
+    const nx = playlist.meta.next;
+    if (!nx || idx < items.length - 1) return;
+    const stage = host.querySelector<HTMLElement>(".cs-stage");
+    if (!stage || stage.querySelector(".cs-nextlink")) return;
+    const a = h("a", { class: "cs-nextlink", href: nx.href, title: `Next lecture: ${nx.title}` }, `Next: ${nx.title} ▸`);
+    a.addEventListener("click", (e) => {
+      e.stopPropagation(); // never also the stage's play/pause toggle
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      location.href = nx.href;
+      location.reload();
+    });
+    stage.appendChild(a);
   }
 
   /** The between-items gate: a gap timer on auto, otherwise the continue pill on the finished drawing. */

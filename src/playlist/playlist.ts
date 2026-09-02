@@ -32,6 +32,14 @@ export interface PlaylistMeta {
    * harmlessly. Comments live in the AUTHOR's GitHub Discussions.
    */
   comments?: { repoId: string; category: string; categoryId: string };
+  /**
+   * The lecture that follows this one in its course — written onto the
+   * PUBLISHED copy by publishCourse, which is the one moment the target URL
+   * exists, and refreshed on every republish so reordering can never stale
+   * it (the objection that kept the drawn next-card link-less). The viewer
+   * shows a clickable "Next ▸" pill when playback finishes.
+   */
+  next?: { title: string; href: string };
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -99,6 +107,13 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   if (typeof raw.title === "string") meta.title = raw.title;
   if (typeof raw.subtitle === "string") meta.subtitle = raw.subtitle;
   if (typeof raw.prompt === "string") meta.prompt = raw.prompt;
+  if (isPlainObject(raw.next)) {
+    if (typeof raw.next.title === "string" && typeof raw.next.href === "string") {
+      meta.next = { title: raw.next.title, href: raw.next.href };
+    } else {
+      warnings.push("playlist.next needs title and href — ignored");
+    }
+  }
   if (isPlainObject(raw.comments)) {
     const c = raw.comments;
     if (typeof c.repoId === "string" && typeof c.categoryId === "string") {
@@ -244,6 +259,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.subtitle === undefined &&
     playlist.meta.prompt === undefined &&
     playlist.meta.comments === undefined &&
+    playlist.meta.next === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -268,6 +284,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   // default — DEFAULT_META has no prompt, and a set one must always survive.
   if (playlist.meta.prompt !== undefined) header.prompt = playlist.meta.prompt;
   if (playlist.meta.comments !== undefined) header.comments = playlist.meta.comments;
+  if (playlist.meta.next !== undefined) header.next = playlist.meta.next;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;
@@ -417,9 +434,11 @@ export interface NextCardOptions {
 }
 
 /**
- * The card a course lecture ends on. Title only: the link target does not exist
- * until the course is published, and a burnt-in URL goes stale the first time
- * the course is reordered. The overview page carries the clickable version.
+ * The card a course lecture ends on. The card itself stays title-only ink —
+ * the CLICK lives in `meta.next`, which publishCourse writes onto the
+ * published copy (where the target URL finally exists) and refreshes on
+ * every republish, so it can never go stale the way a burnt-in URL would.
+ * The viewer renders it as a "Next ▸" pill when playback finishes.
  */
 export function makeNextCard(opts: NextCardOptions): Spec {
   const elements: Spec["elements"] = [

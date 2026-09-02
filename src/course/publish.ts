@@ -16,6 +16,7 @@ import {
   type PublishFile,
   type RepoRef,
 } from "../publish/github";
+import { formatPublished, parsePlaylistText } from "../playlist/playlist";
 import { parseCourse, setCourseOption, setLectureStatus, type Course } from "./document";
 import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
 
@@ -71,12 +72,11 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
     if (lecture.status?.file) taken.add(lecture.status.file.replace(/\.ya?ml$/, ""));
   }
 
+  // Names first, in their own pass: a lecture's "Next ▸" link needs the
+  // FOLLOWING lecture's file name, which does not exist yet while names are
+  // still being minted in order.
   course.lectures.forEach((lecture, i) => {
-    const yaml = args.lectureYaml(i);
-    if (!yaml) {
-      links.push({ title: lecture.title, questions: lecture.questions, href: null });
-      return;
-    }
+    if (!args.lectureYaml(i)) return;
     // A recorded name is permanent: renaming or reordering a lecture must never
     // move the file a published link already points at.
     let name = lecture.status?.file;
@@ -86,7 +86,32 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
       name = `${minted}.yaml`;
     }
     fileOf.set(i, name);
-    files.push({ path: joinPath(dir, name), content: yaml });
+  });
+
+  course.lectures.forEach((lecture, i) => {
+    const yaml = args.lectureYaml(i);
+    if (!yaml) {
+      links.push({ title: lecture.title, questions: lecture.questions, href: null });
+      return;
+    }
+    const name = fileOf.get(i)!;
+    // The published copy carries where to go next (meta.next): the one moment
+    // the target URL exists is right here, and recomputing it on EVERY
+    // publish is what keeps it honest through reordering — including
+    // CLEARING a link that an earlier order left behind on what is now the
+    // last lecture. The next lecture must itself be publishing (have a
+    // file); an ungenerated one has no page to point at.
+    const nextIndex = course.lectures.findIndex((_, j) => j > i && fileOf.has(j));
+    const parsed = parsePlaylistText(yaml);
+    if (nextIndex >= 0) {
+      parsed.meta.next = {
+        title: course.lectures[nextIndex].title,
+        href: lectureHref(viewerBase, repo.owner, repo.repo, joinPath(dir, fileOf.get(nextIndex)!)),
+      };
+    } else {
+      delete parsed.meta.next;
+    }
+    files.push({ path: joinPath(dir, name), content: formatPublished(parsed, parsed.audio ?? null) });
     links.push({
       title: lecture.title,
       questions: lecture.questions,
