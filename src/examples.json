@@ -9475,5 +9475,217 @@
     }
    ]
   }
+ },
+ {
+  "request": "Anscombe's quartet: three datasets with the same regression line, morphing from one to the next",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Same line, different data",
+   "template": "scatter_plot",
+   "params": {
+    "x": [
+     10,
+     8,
+     13,
+     9,
+     11,
+     14,
+     6,
+     4,
+     12,
+     7,
+     5
+    ],
+    "y": [
+     [
+      8.04,
+      6.95,
+      7.58,
+      8.81,
+      8.33,
+      9.96,
+      7.24,
+      4.26,
+      10.84,
+      4.82,
+      5.68
+     ],
+     [
+      9.14,
+      8.14,
+      8.74,
+      8.77,
+      9.26,
+      8.1,
+      6.13,
+      3.1,
+      9.13,
+      7.26,
+      4.74
+     ],
+     [
+      7.46,
+      6.77,
+      12.74,
+      7.11,
+      7.81,
+      8.84,
+      6.08,
+      5.39,
+      8.15,
+      6.42,
+      5.73
+     ]
+    ],
+    "stage": 0,
+    "fit": true,
+    "xlim": [
+     0,
+     16
+    ],
+    "ylim": [
+     0,
+     14
+    ],
+    "title": "Same line, different data"
+   },
+   "commands": [
+    {
+     "draw": [
+      "title",
+      "axes",
+      "points"
+     ],
+     "parallel": true,
+     "speak": "Eleven points. They look like a cloud with a trend."
+    },
+    {
+     "draw": [
+      "fit_line"
+     ],
+     "speak": "The regression line: y equals three plus half of x. Nothing surprising."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 3,
+     "speak": "Now watch the points move to Anscombe's second dataset. A perfect curve, no noise at all. The line does not move."
+    },
+    {
+     "animate": {
+      "stage": 2
+     },
+     "duration": 3,
+     "speak": "And the third: a straight line with one outlier dragging the fit. Same slope, same intercept."
+    },
+    {
+     "highlight": {
+      "target": [
+       "fit_line"
+      ]
+     },
+     "delivery": "grave",
+     "speak": "Three stories the summary statistics cannot tell apart. Always look at the points."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Simulate how exam scores rise with hours studied, and fit the line in Python",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Hours and scores",
+   "template": "scatter_plot",
+   "params": {
+    "x": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ],
+    "y": "{sim.scores}",
+    "fit": "{sim.fit}",
+    "ylim": [
+     0,
+     100
+    ],
+    "x_label": "Time",
+    "y_label": "Score",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 440,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "code",
+     "x": 225,
+     "y": 400,
+     "width": 410,
+     "font_size": 15,
+     "code": "import numpy as np\nrng = np.random.default_rng(11)\nhours = np.arange(1, 13)\nscores = 40 + 4 * hours + rng.normal(0, 6, 12)\nscores = np.clip(scores, 0, 100).round(1)\nslope, intercept = np.polyfit(hours, scores, 1)\nfit = [round(float(slope), 2), round(float(intercept), 2)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "sim",
+      "sim_line_1",
+      "sim_line_2",
+      "sim_line_3"
+     ],
+     "parallel": true,
+     "speak": "Twelve students, one to twelve hours of study."
+    },
+    {
+     "draw": [
+      "sim_line_4",
+      "sim_line_5"
+     ],
+     "parallel": true,
+     "speak": "Scores rise with hours, plus some noise: nobody's brain is a formula."
+    },
+    {
+     "draw": [
+      "axes",
+      "points"
+     ],
+     "parallel": true,
+     "speak": "Here they are. The trend is visible, the scatter is real."
+    },
+    {
+     "draw": [
+      "sim_line_6",
+      "sim_line_7"
+     ],
+     "parallel": true,
+     "speak": "Two lines of numpy fit the least-squares line and hand its slope and intercept to the chart."
+    },
+    {
+     "draw": [
+      "fit_line"
+     ],
+     "speak": "Roughly four points per hour. The line is computed by the script; the chart just draws it."
+    }
+   ]
+  }
  }
 ]

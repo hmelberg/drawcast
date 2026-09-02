@@ -688,3 +688,244 @@ layout: |
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }
   return { drawables, labels: labelReqs, anchors, order };
+---
+template: scatter_plot
+title: Scatter plot
+version: 1
+kit: 5
+status: ready
+description: >-
+  A scatter plot from data: one dot per (x, y) pair, optional per-point
+  labels (a labelled point is its own beat), and an optional fitted line —
+  least squares computed here (`fit: true`) or `[slope, intercept]` handed
+  in from a script (animatable numbers). `y` may be one list (static) or a
+  list of lists (STAGES) and a fractional `stage` interpolates, so the same
+  points can move — Anscombe's quartet, before/after a treatment. Feed it
+  typed numbers or a code element's variables via "{id.var}" tokens (type
+  `x` by hand so the dots exist before the script has run). Choose this
+  scene for ANY request for a scatter plot, a correlation, a regression
+  line through data, or "does x go with y".
+params:
+  type: object
+  properties:
+    x:
+      oneOf:
+        - { type: array, items: { type: number }, maxItems: 500 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "x of every point (numbers), or a \"{id.var}\" token. TYPE these by hand when the beats address points."
+    y:
+      oneOf:
+        - { type: array, items: { type: number }, maxItems: 500 }
+        - { type: array, minItems: 1, items: { type: array, items: { type: number }, maxItems: 500 }, maxItems: 12 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "y of every point: a list (static), a list of lists (STAGES of the same points — depth means staged), or a \"{id.var}\" token."
+    labels:
+      type: array
+      items: { type: string }
+      maxItems: 500
+      description: "Optional per-point names; a named point becomes its own beat point_i (empty string = unnamed)."
+    fit:
+      oneOf:
+        - { type: boolean }
+        - { type: array, items: { type: number }, minItems: 2, maxItems: 2 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "true = least-squares line computed here (follows the points through a stage tween); [slope, intercept] = a line from the script, e.g. np.polyfit — animatable as fit.0 / fit.1."
+    stage:
+      type: number
+      minimum: 0
+      x-max-from: ["y"]
+      description: "Which stage of y is shown (0-based; default 0). Fractional values interpolate — {\"animate\": {\"stage\": 1}}."
+    box:
+      type: object
+      properties: { x: { type: number }, y: { type: number }, w: { type: number }, h: { type: number } }
+      required: [x, y, w, h]
+      description: "Plot area (lower-left corner, width, height). Default: the standard plot area."
+    xlim: { type: array, items: { type: number }, minItems: 2, maxItems: 2, description: "Fixed x range." }
+    ylim: { type: array, items: { type: number }, minItems: 2, maxItems: 2, description: "Fixed y range. Default: the data's range across ALL stages plus headroom." }
+    x_label: { type: string }
+    y_label: { type: string }
+    title: { type: string }
+element_ids:
+  axes: the x and y axes with their captions and end values
+  points: every unnamed dot, as one group
+  point_1: "a NAMED point (dot + its label) — its own beat; numbered by position (point_2, …)"
+  fit_line: the fitted line with its equation
+  title: figure title, when set
+examples:
+  - request: "Scatter of study hours against exam score with a regression line."
+    params:
+      x: [1, 2, 3, 4, 5, 6, 7, 8]
+      y: [52, 55, 61, 58, 70, 74, 79, 83]
+      fit: true
+      x_label: "Hours studied"
+      y_label: "Score"
+  - request: "Show Anscombe's first two datasets as the same fitted line through different points."
+    params:
+      x: [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5]
+      y:
+        - [8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68]
+        - [9.14, 8.14, 8.74, 8.77, 9.26, 8.10, 6.13, 3.10, 9.13, 7.26, 4.74]
+      stage: 0
+      fit: true
+      title: "Same line, different data"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isNumRow = (a) => Array.isArray(a) && a.every((v) => v === null || (typeof v === "number" && Number.isFinite(v)));
+  const toStages = (v) => {
+    if (!Array.isArray(v) || v.length === 0) return null;
+    if (Array.isArray(v[0])) return v.every(isNumRow) ? v.slice(0, 12) : null;
+    return isNumRow(v) ? [v] : null;
+  };
+  const xs = Array.isArray(params.x) && params.x.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.x.slice(0, 500) : null;
+  let stages = toStages(params.y);
+  // The placeholder promise: typed x but y still a token → dots at the floor.
+  if (!stages && xs && xs.length > 0) stages = [xs.map(() => 0)];
+  if (!xs || !stages) {
+    // Nothing to place: axes only (a spec with both x and y unresolved).
+  }
+  const n = xs ? Math.min(500, xs.length) : 0;
+  const K = stages ? stages.length : 1;
+  const stage = clamp(num(params.stage, 0), 0, K - 1);
+  const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
+  const at = (k, i) => { if (!stages) return null; const st = stages[Math.min(k, stages.length - 1)]; const v = st[i]; return typeof v === "number" ? v : null; };
+  const labels = Array.isArray(params.labels) ? params.labels.map((l) => (typeof l === "string" ? l.trim() : "")) : [];
+
+  // Ruling H: limits (and, below, digit counting) scan only the first n
+  // entries of each stage — a stage longer than x contributes nothing beyond
+  // n — but limits still span ALL stages, so the frame never jumps mid-tween.
+  let lo = Infinity, hi = -Infinity;
+  if (stages) for (const st of stages) for (const v of st.slice(0, n)) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
+  const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
+  let yMin = ylim ? Math.min(ylim[0], ylim[1]) : Math.min(0, lo), yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
+  if (!ylim) { const pad = (yMax - yMin) * 0.08; if (yMax > 0) yMax += pad; if (yMin < 0) yMin -= pad; }
+  if (yMax - yMin < 1e-9) yMax = yMin + 1;
+  const xlim = Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
+  let xMin = xlim ? Math.min(xlim[0], xlim[1]) : n ? Math.min(0, ...xs.slice(0, n)) : 0, xMax = xlim ? Math.max(xlim[0], xlim[1]) : n ? Math.max(...xs.slice(0, n)) : 1;
+  if (!xlim) { const pad = (xMax - xMin) * 0.06; if (xMax > 0) xMax += pad; }
+  if (!(xMax - xMin > 1e-9)) xMax = xMin + 1;
+
+  const b = params.box;
+  const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
+  const plot = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : kit.plotArea();
+  const title = str(params.title, "");
+  if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
+  // Ruling H: clamp the data value into [xMin, xMax] / [yMin, yMax] before
+  // scaling — exactly as line_chart does — so a narrower xlim/ylim never
+  // sends a dot or the fit line off-canvas (past the compiler's ±4000 bounds
+  // check, not just cosmetically).
+  const X = (v) => plot.x0 + ((clamp(v, xMin, xMax) - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  const Y = (v) => plot.y0 + ((clamp(v, yMin, yMax) - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
+  const xLab = str(params.x_label, ""), yLab = str(params.y_label, "");
+  // Ruling H: x and y each get their own decimal precision — line_chart's own
+  // digit-counting over the axis's data (and its explicit lim, if given),
+  // combined with whether the (padded) limit itself is non-integer — capped
+  // at 2 either way. A value that IS an integer is always shown bare ("0",
+  // "53"), even on an axis whose other end needs decimals ("0.26").
+  const digits = (vals) => {
+    let d = 0;
+    for (const v of vals) if (typeof v === "number" && Number.isFinite(v) && !Number.isInteger(v)) d = Math.min(2, Math.max(d, (String(v).split(".")[1] || "").length));
+    return d;
+  };
+  const yVals = [];
+  if (stages) for (const st of stages) for (const v of st.slice(0, n)) if (typeof v === "number") yVals.push(v);
+  if (ylim) yVals.push(ylim[0], ylim[1]);
+  let decY = digits(yVals);
+  if (!Number.isInteger(yMin) || !Number.isInteger(yMax)) decY = Math.min(2, Math.max(decY, 1));
+  const xVals = xs ? xs.slice(0, n) : [];
+  if (xlim) xVals.push(xlim[0], xlim[1]);
+  let decX = digits(xVals);
+  if (!Number.isInteger(xMin) || !Number.isInteger(xMax)) decX = Math.min(2, Math.max(decX, 1));
+  const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(dec));
+  const fmtX = fmtAxis(decX), fmtY = fmtAxis(decY);
+
+  const drawables = [], labelReqs = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+  ];
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
+  // Ruling H: all four axis end marks — the plan's shared geometry rules.
+  axesChildren.push(kit.text("axes__x0", [plot.x0, plot.y0 - 20], fmtX(xMin), { fontSize: 15, color: C.guide }));
+  axesChildren.push(kit.text("axes__x1", [plot.x1, plot.y0 - 20], fmtX(xMax), { fontSize: 15, color: C.guide }));
+  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
+  axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmtY(yMax), { fontSize: 15, anchor: "end", color: C.guide }));
+  push(kit.group("axes", axesChildren));
+  anchors.axes = [plot.x0, plot.y0];
+
+  // Current position of point i (see line_chart for the appear/disappear rule).
+  const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(k, j); if (v !== null) return [X(xs[j]), Y(v)]; } return null; };
+  const pos = [];
+  for (let i = 0; i < n; i++) {
+    const a = at(k0, i), c = at(k1, i);
+    if (a === null && c === null) { pos.push(null); continue; }
+    // Ruling A: at t === 0 the displayed stage IS k0, so a point absent from
+    // k0 has not appeared yet — reproduce k0's own point count exactly rather
+    // than drawing it already sitting at its predecessor.
+    if (a === null && t === 0) { pos.push(null); continue; }
+    let from, to;
+    if (a !== null && c !== null) { from = [X(xs[i]), Y(a)]; to = [X(xs[i]), Y(c)]; }
+    else if (a === null) { to = [X(xs[i]), Y(c)]; from = pred(k0, i) || to; }
+    else { from = [X(xs[i]), Y(a)]; to = pred(k1, i) || from; }
+    pos.push([from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
+  }
+
+  const color = C.series[0];
+  const dot = (id, p) => kit.stroke(id, kit.polygon(p, 5, 12), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke });
+  const cloud = [];
+  const named = [];
+  pos.forEach((p, i) => {
+    if (!p) return;
+    const name = labels[i] || "";
+    if (name) named.push({ i, p, name });
+    else cloud.push(dot("points__d" + (i + 1), p));
+  });
+  if (cloud.length) { push(kit.group("points", cloud)); anchors.points = [(plot.x0 + plot.x1) / 2, (plot.y0 + plot.y1) / 2]; }
+  named.forEach(({ i, p, name }) => {
+    const id = "point_" + (i + 1);
+    push(kit.group(id, [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 12], name, { fontSize: 16, anchor: "start", color: C.ink })]));
+    anchors[id] = p;
+  });
+
+  // The fitted line: least squares through the CURRENT (interpolated) points,
+  // or the script's [slope, intercept]. Drawn across the visible x range.
+  // Ruling C: a fit param that is still an unresolved token string behaves as
+  // fit: true (least squares through the current — offline: placeholder —
+  // points), so the fit_line beat exists before the script has run.
+  let fit = null;
+  if (Array.isArray(params.fit) && params.fit.length === 2 && params.fit.every((v) => typeof v === "number" && Number.isFinite(v))) fit = { slope: params.fit[0], intercept: params.fit[1] };
+  else if ((params.fit === true || typeof params.fit === "string") && n >= 2) {
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, m = 0;
+    for (let i = 0; i < n; i++) {
+      if (!pos[i]) continue;
+      const yv = yMin + ((pos[i][1] - plot.y0) / (plot.y1 - plot.y0)) * (yMax - yMin);
+      const xv = xMin + ((pos[i][0] - plot.x0) / (plot.x1 - plot.x0)) * (xMax - xMin);
+      sx += xv; sy += yv; sxx += xv * xv; sxy += xv * yv; m++;
+    }
+    const den = m * sxx - sx * sx;
+    if (m >= 2 && Math.abs(den) > 1e-12) { const slope = (m * sxy - sx * sy) / den; fit = { slope, intercept: (sy - slope * sx) / m }; }
+  }
+  if (fit) {
+    const ya = fit.intercept + fit.slope * xMin, yb = fit.intercept + fit.slope * xMax;
+    const eq = "y = " + fit.slope.toFixed(2) + "x " + (fit.intercept < 0 ? "- " : "+ ") + Math.abs(fit.intercept).toFixed(2);
+    push(kit.group("fit_line", [
+      kit.stroke("fit_line__l", [[X(xMin), Y(clamp(ya, yMin, yMax))], [X(xMax), Y(clamp(yb, yMin, yMax))]], { color: C.accent, strokeWidth: 3, ms: MS.curve }),
+      kit.text("fit_line__t", [X(xMax) - 8, Y(clamp(yb, yMin, yMax)) + 18], eq, { fontSize: 16, anchor: "end", color: C.accent }),
+    ]));
+    anchors.fit_line = [X((xMin + xMax) / 2), Y(clamp((ya + yb) / 2, yMin, yMax))];
+  }
+
+  if (title) {
+    let ty = Math.min(700, plot.y1 + 25);
+    const yCap = axesChildren.find((d) => d.id === "axes__y_label");
+    if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
+    ty = Math.min(ty, 730);
+    push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
+    anchors.title = [(plot.x0 + plot.x1) / 2, ty];
+  }
+  return { drawables, labels: labelReqs, anchors, order };

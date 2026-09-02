@@ -38,10 +38,11 @@ describe("pack registration", () => {
     expect(scenes.bar_chart?.manifest.status).toBe("ready");
     expect(scenes.data_table?.manifest.status).toBe("ready");
     expect(scenes.line_chart?.manifest.status).toBe("ready");
+    expect(scenes.scatter_plot?.manifest.status).toBe("ready");
   });
 
   test("every manifest example lays out with zero warnings and no error lint", () => {
-    for (const tid of ["bar_chart", "data_table", "line_chart"]) {
+    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params } as Spec);
         expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);
@@ -390,5 +391,103 @@ describe("line_chart", () => {
     const x1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__x1") as TextDrawable;
     expect(x0.text).toBe("0");
     expect(x1.text).toBe("50");
+  });
+});
+
+describe("scatter_plot", () => {
+  const sc = (params: object) => layoutSpec({ template: "scatter_plot", params } as Spec);
+  const find = (l: ReturnType<typeof layoutSpec>, id: string) => flattenDrawables(l.drawables).find((d) => d.id === id);
+
+  test("unlabelled points share the points group; labelled ones are their own beats", () => {
+    const l = sc({ x: [1, 2, 3], y: [2, 4, 8], labels: ["", "B", ""] });
+    expect(l.order).toEqual(["axes", "points", "point_2"]);
+    expect(find(l, "points__d1")).toBeDefined();
+    expect(find(l, "points__d2")).toBeUndefined();
+    expect((find(l, "point_2__t") as TextDrawable).text).toBe("B");
+  });
+
+  // Ruling B: the template pads xMax by 6 % — x: 0..3 → xMin 0, xMax 3.18 —
+  // so d4 (x=3) sits at plot.x0 + (3 / 3.18) * (plot.x1 - plot.x0), not at
+  // plot.x1. The fit expectation is simplified to the scale arithmetic: with
+  // y: 1..7, yMin = 0, yMax = 7 * 1.08, and the fitted line at x = 0 is y = 1.
+  test("dots sit at the scaled positions; a fit: true line is least squares", () => {
+    const l = sc({ x: [0, 1, 2, 3], y: [1, 3, 5, 7], fit: true });
+    const d = find(l, "points__d4") as StrokeDrawable;
+    const cx = d.pts.reduce((a, p) => a + p[0], 0) / d.pts.length;
+    expect(cx).toBeCloseTo(plot.x0 + (3 / 3.18) * (plot.x1 - plot.x0), 0);
+    const fit = find(l, "fit_line__l") as StrokeDrawable;
+    expect(fit.pts[0][1]).toBeCloseTo(plot.y0 + (1 / (7 * 1.08)) * (plot.y1 - plot.y0), 4);
+    expect((find(l, "fit_line__t") as TextDrawable).text).toBe("y = 2.00x + 1.00");
+  });
+
+  test("fit: [slope, intercept] draws the given line (animatable numbers)", () => {
+    const l = sc({ x: [0, 4], y: [0, 4], fit: [0.5, 1] });
+    const fit = find(l, "fit_line__l") as StrokeDrawable;
+    expect((find(l, "fit_line__t") as TextDrawable).text).toBe("y = 0.50x + 1.00");
+    expect(fit.pts).toHaveLength(2);
+  });
+
+  // Ruling B: x: [0,1,2] → xMax 2.12 — d3's centre is the midpoint of X(1)
+  // and X(2), not the midpoint of plot.x0/plot.x1.
+  test("staged y interpolates and an appearing point grows out of its predecessor", () => {
+    const l = sc({ x: [0, 1, 2], y: [[1, 1], [1, 1, 3]], stage: 0.5 });
+    expect(l.order).toEqual(["axes", "points"]);
+    const d3 = find(l, "points__d3") as StrokeDrawable;
+    expect(d3).toBeDefined();
+    const cx = d3.pts.reduce((a, p) => a + p[0], 0) / d3.pts.length;
+    expect(cx).toBeCloseTo(plot.x0 + ((1 + 2) / 2 / 2.12) * (plot.x1 - plot.x0), 0);
+  });
+
+  test("placeholder: typed x with a token y → n dots at the floor; both tokens → axes only", () => {
+    const l = sc({ x: [1, 2, 3], y: "{sim.y}" });
+    expect(l.order).toEqual(["axes", "points"]);
+    expect(find(l, "points__d3")).toBeDefined();
+    expect(l.warnings).toEqual([]);
+    expect(sc({ x: "{sim.x}", y: "{sim.y}" }).order).toEqual(["axes"]);
+  });
+
+  // Ruling C: a fit that is still a token string behaves as fit: true (least
+  // squares through the current — offline: placeholder — points), so the
+  // fit_line beat exists (and every command id resolves) before the script
+  // runs.
+  test("a fit that is still a token string behaves as fit: true so fit_line exists before the script runs", () => {
+    const l = sc({ x: [1, 2, 3], y: "{sim.y}", fit: "{sim.fit}" });
+    expect(l.order).toEqual(["axes", "points", "fit_line"]);
+    expect(l.warnings).toEqual([]);
+  });
+
+  test("caps at 500 points", () => {
+    const l = sc({ x: Array.from({ length: 600 }, (_, i) => i), y: Array.from({ length: 600 }, (_, i) => i) });
+    expect(find(l, "points__d500")).toBeDefined();
+    expect(find(l, "points__d501")).toBeUndefined();
+  });
+
+  // Ruling H: X/Y clamp the data value into [xMin, xMax]/[yMin, yMax] before
+  // scaling, so a narrower ylim never sends a dot or the fit line off-canvas
+  // — the same policy line_chart applies (Ruling E there).
+  test("ylim narrower than the data clamps every dot and the fit line into the plot rectangle", () => {
+    const l = sc({ x: [0, 1, 2], y: [1, 200, 5], ylim: [0, 3], fit: true });
+    for (const id of ["points__d1", "points__d2", "points__d3"]) {
+      const d = find(l, id) as StrokeDrawable;
+      const cy = d.pts.reduce((a, p) => a + p[1], 0) / d.pts.length;
+      expect(cy).toBeGreaterThanOrEqual(plot.y0 - 1e-6);
+      expect(cy).toBeLessThanOrEqual(plot.y1 + 1e-6);
+    }
+    const fit = find(l, "fit_line__l") as StrokeDrawable;
+    for (const [, py] of fit.pts) {
+      expect(py).toBeGreaterThanOrEqual(plot.y0 - 1e-6);
+      expect(py).toBeLessThanOrEqual(plot.y1 + 1e-6);
+    }
+  });
+
+  // Ruling H: per-axis precision (decX/decY + fmtX/fmtY) and all four axis
+  // end marks (x0, x1, y0, y1) — the plan's shared geometry rules, mirroring
+  // line_chart's own end-label test.
+  test("sub-unit y and integer x each get their own axis-label precision, on all four axis ends", () => {
+    const l = sc({ x: [0, 50], y: [0.05, 0.2415] });
+    expect((find(l, "axes__y1") as TextDrawable).text).toBe("0.26");
+    expect((find(l, "axes__y0") as TextDrawable).text).toBe("0");
+    expect((find(l, "axes__x1") as TextDrawable).text).toBe("53");
+    expect((find(l, "axes__x0") as TextDrawable).text).toBe("0");
   });
 });

@@ -308,8 +308,10 @@ blanks a figure.
   per-point `labels`, `fit: true \| [slope, intercept]`. `true` = least
   squares computed in the template; the pair = numbers from the script
   (and thus animatable: `animate: {"fit.0": 0.4}`).
-- Ids: `axes`, `points` (all dots), `point_1..n`, `fit_line` (with its
-  equation as caption), `title`.
+- Ids: `axes`; `points` — one group holding every dot that has no label;
+  `point_i` — a labelled point is its own group (dot + label) so it can be
+  its own beat; `fit_line` (with its equation as caption); `title`. A point
+  lives in exactly one of `points`/`point_i`.
 - Caps: 500 points (over cap → error at authoring time, §9).
 
 ### 6.5 `data_table`
