@@ -16,6 +16,9 @@ import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { codeExecutionErrors, type CodeCheckOutcome } from "../code/check";
 import type { CodeRunRequest, CodeRunResult } from "../code/run";
+import { templateParamIssues } from "../scenes/params-check";
+import { isPackTemplateId, packTemplateIds } from "../scenes/packs";
+import { scanDataTokens } from "../code/tokens";
 import fewshots from "./prompts/fewshots.json";
 
 /** Budget for the authoring-time code-execution check (real pyodide WASM in
@@ -336,6 +339,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
         }
+        let check: CodeCheckOutcome = NO_CODE_CHECK;
         if (cfg.executeCode !== false && !cfg.signal?.aborted && (best.elements ?? []).some((e) => e.type === "code")) {
           const run = cfg.codeRunner ?? (await import("../code/run")).runCode;
           // Race the real check against a budget/abort: generation must never
@@ -349,13 +353,23 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
             onAbort = () => resolve(NO_CODE_CHECK);
             cfg.signal?.addEventListener("abort", onAbort, { once: true });
           });
-          const check = await Promise.race<CodeCheckOutcome>([codeExecutionErrors(best, run), budget]);
+          check = await Promise.race<CodeCheckOutcome>([codeExecutionErrors(best, run), budget]);
           if (budgetTimer) clearTimeout(budgetTimer);
           if (onAbort) cfg.signal?.removeEventListener("abort", onAbort);
           validation.errors.push(...check.errors);
           for (const w of check.warnings) {
             lintIssues.push({ rule: "code-use", ids: [], message: w, severity: "warn" });
           }
+        }
+        // Params against the template's own schema, AFTER substitution (spec
+        // §9.2): strict for a spec that carries data tokens and for the data
+        // pack's templates; advisory for a hand-fed pre-existing template.
+        if (best.template) {
+          const tokens = scanDataTokens(best.params).length > 0;
+          const dataPack = isPackTemplateId(best.template) && packTemplateIds("data").includes(best.template);
+          const issues = templateParamIssues(best.template, check.resolvedParams ?? best.params, tokens || dataPack);
+          validation.errors.push(...issues.errors);
+          for (const w of issues.warnings) lintIssues.push({ rule: "code-use", ids: [], message: w, severity: "warn" });
         }
       }
       rounds.push({ label, spec: json, validationErrors: validation.errors, lintIssues, meta });

@@ -7,10 +7,15 @@
 
 import type { Spec } from "../spec/types";
 import type { CodeRunRequest, CodeRunResult } from "./run";
+import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "./tokens";
 
 export interface CodeCheckOutcome {
   errors: string[];
   warnings: string[];
+  /** spec.params with every harvested token substituted — what a render
+   *  would lay out — so the caller can validate it against the template's
+   *  schema. spec.params itself when nothing was referenced. */
+  resolvedParams?: Record<string, unknown>;
 }
 
 export async function codeExecutionErrors(
@@ -18,11 +23,14 @@ export async function codeExecutionErrors(
   run: (req: CodeRunRequest) => Promise<CodeRunResult>,
 ): Promise<CodeCheckOutcome> {
   const out: CodeCheckOutcome = { errors: [], warnings: [] };
+  const byId = pathsByCodeId(scanDataTokens(spec.params));
+  const envelopes = new Map<string, CodeRunResult>();
   for (const el of spec.elements ?? []) {
     if (el.type !== "code" || el.language !== "python" || !el.code) continue;
+    const paths = byId[el.id] ?? [];
     let res: CodeRunResult;
     try {
-      res = await run({ language: "python", code: el.code });
+      res = await run({ language: "python", code: el.code, paths });
     } catch {
       // A throwing injected runner is still just this ONE element's runtime
       // being unavailable — the remaining code elements still get checked.
@@ -35,13 +43,32 @@ export async function codeExecutionErrors(
       out.warnings.push(`code "${el.id}" — the Python runtime could not load — script not verified`);
       continue;
     }
+    envelopes.set(el.id, res);
     if (!res.ok || res.error) {
       out.errors.push(
         `code element "${el.id}" fails when executed — fix the script:\n${(res.error ?? res.stderr).slice(0, 600)}`,
       );
-    } else if (res.stderr.trim() !== "") {
+      continue;
+    }
+    if (res.stderr.trim() !== "") {
       out.warnings.push(`code "${el.id}" writes to stderr (${res.stderr.trim().slice(0, 200)}) — silence it or fix the cause`);
     }
+    // A referenced path the harvest could not serve: the model repairs the
+    // script (assign the variable) or the token (name the right one).
+    for (const [path, msg] of Object.entries(res.dataErrors ?? {})) {
+      out.errors.push(`code "${el.id}": {${el.id}.${path}} — ${msg}`);
+    }
   }
+  if (Object.keys(byId).length === 0) {
+    out.resolvedParams = spec.params;
+    return out;
+  }
+  out.resolvedParams = substituteDataTokens(spec.params, (codeId, path) => {
+    const env = envelopes.get(codeId);
+    if (!env || !env.ok) return { error: "not run" };
+    if (env.dataErrors && path in env.dataErrors) return { error: env.dataErrors[path] };
+    if (env.data && path in env.data) return { value: env.data[path] };
+    return { error: "not harvested" };
+  }).params;
   return out;
 }

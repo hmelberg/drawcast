@@ -19,6 +19,10 @@ import { DATA_CAP_NUMBERS, DATA_CAP_ROWS, dataHarvestScript, parseHarvest } from
 import { resolveCode } from "../src/render/code";
 import { resolvedRenderSpec } from "../src/render/resolve";
 import { lintCommands } from "../src/lint/lint";
+import { codeExecutionErrors } from "../src/code/check";
+import { templateParamErrors, templateParamIssues } from "../src/scenes/params-check";
+import { registerTemplateDoc, scenes } from "../src/scenes/registry";
+import { parseTemplateDoc } from "../src/scenes/doc";
 
 describe("data tokens — grammar", () => {
   test("parses id.var and id.var.col; rejects dotless, spaced and malformed strings", () => {
@@ -369,5 +373,62 @@ describe("data tokens — static lint", () => {
     expect(lintCommands(unused).some((i) => i.rule === "code-use" && i.message.includes("show: none") && i.ids.includes("sim"))).toBe(true);
     const used = { ...unused, params: { values: "{sim.y}" } } as unknown as Spec;
     expect(lintCommands(used).some((i) => i.message.includes("show: none"))).toBe(false);
+  });
+});
+
+describe("authoring-time check — data paths", () => {
+  test("runs with the referenced paths and turns per-path harvest errors into repairable errors", async () => {
+    const s = bridged("none");
+    const run = async (_req: { paths?: string[] }) => ({ ok: true, stdout: "", stderr: "", figures: [], data: { s: [1] }, dataErrors: { frames: "no variable frames" } }) as CodeRunResult;
+    const out = await codeExecutionErrors(s, run);
+    expect(out.errors).toEqual(['code "sim": {sim.frames} — no variable frames']);
+    expect(out.resolvedParams).toEqual({ labels: ["a", "b"], title: "T", series: [{ name: "s", values: [1] }] });
+  });
+
+  test("a clean harvest yields no errors and the substituted params", async () => {
+    const s = bridged("none");
+    const run = async () => ({ ok: true, stdout: "", stderr: "", figures: [], data: { frames: [[1, 2]], s: [3] } }) as CodeRunResult;
+    const out = await codeExecutionErrors(s, run);
+    expect(out.errors).toEqual([]);
+    expect(out.resolvedParams!.values).toEqual([[1, 2]]);
+  });
+});
+
+describe("template params validated against the manifest schema", () => {
+  const yaml = `
+template: tp_probe
+version: 1
+kit: 1
+status: ready
+description: probe
+params:
+  type: object
+  properties:
+    values:
+      type: array
+      items: { type: number }
+      maxItems: 3
+element_ids: {}
+examples: []
+layout: |
+  return { drawables: [], labels: [], anchors: {}, order: [] };
+`;
+  test("reports violations with a path; unknown or stub templates report nothing", () => {
+    const { doc } = parseTemplateDoc(yaml);
+    expect(registerTemplateDoc(doc!).ok).toBe(true);
+    try {
+      expect(templateParamErrors("tp_probe", { values: [1, 2] })).toEqual([]);
+      expect(templateParamErrors("tp_probe", { values: ["a"] })[0]).toContain("/values/0");
+      expect(templateParamErrors("tp_probe", { values: [1, 2, 3, 4] })[0]).toContain("/values");
+      expect(templateParamErrors("nope_never", { values: ["a"] })).toEqual([]);
+      const strict = templateParamIssues("tp_probe", { values: ["a"] }, true);
+      expect(strict.errors.length).toBe(1);
+      expect(strict.warnings).toEqual([]);
+      const lenient = templateParamIssues("tp_probe", { values: ["a"] }, false);
+      expect(lenient.errors).toEqual([]);
+      expect(lenient.warnings.length).toBe(1);
+    } finally {
+      delete scenes.tp_probe;
+    }
   });
 });
