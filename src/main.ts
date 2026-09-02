@@ -580,10 +580,9 @@ const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
 styleSel.value = settings.style;
 // The viewer's text override (Settings → Playback): a base size and a CSS
-// generic family, or "" to follow the drawcast. Applied in Player mode and
-// the published viewer only — the editor pane shows the spec's defaults, so
-// the maker sees what viewers get by default (present()).
-const textSizeSel = h("select", { title: "Text size in the player" });
+// generic family, or "" to follow the drawcast. Applied wherever the app
+// draws — editor pane, Player mode, the published viewer (present()).
+const textSizeSel = h("select", { title: "Text size" });
 textSizeSel.append(
   h("option", { value: "" }, "Follow the drawcast"),
   h("option", { value: "22" }, "Smaller"),
@@ -591,7 +590,7 @@ textSizeSel.append(
   h("option", { value: "38" }, "Largest"),
 );
 textSizeSel.value = settings.textSize == null ? "" : String(settings.textSize);
-const textFamilySel = h("select", { title: "Font in the player" });
+const textFamilySel = h("select", { title: "Font" });
 textFamilySel.append(
   h("option", { value: "" }, "Follow the drawcast"),
   h("option", { value: "cursive" }, "Handwritten"),
@@ -1663,8 +1662,8 @@ backupBtn.addEventListener("click", () => {
 // determine where each field's markup actually lands.
 const settingsBlocks = new Map<string, HTMLElement>([
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
-  ["textSize", h("div", { class: "settings-field" }, h("label", {}, "Text size in the player"), textSizeSel)],
-  ["textFamily", h("div", { class: "settings-field" }, h("label", {}, "Font in the player"), textFamilySel)],
+  ["textSize", h("div", { class: "settings-field" }, h("label", {}, "Text size"), textSizeSel)],
+  ["textFamily", h("div", { class: "settings-field" }, h("label", {}, "Font"), textFamilySel)],
   ["theme", h("div", { class: "settings-field" }, h("label", {}, "Appearance"), themeSel)],
   [
     "apiKey",
@@ -2477,7 +2476,11 @@ async function present(andPlay = false): Promise<void> {
     });
     const mounted = await mountPlaylist(host, doc.playlist, {
       style: settings.style,
-      text: isPlayer ? { fontSize: settings.textSize, family: settings.textFamily } : undefined,
+      // The viewer's text override applies to every mount the app makes —
+      // the editor pane and Player mode alike (Hans 2026-09-03: "these changes
+      // should apply to both the player in the editor (preview) and the single
+      // page player"). Exports never pass it, so they keep the spec's defaults.
+      text: { fontSize: settings.textSize, family: settings.textFamily },
       mode: settings.mode,
       speed: settings.speed,
       questions: settings.skipQuestions ? "skip" : "on",

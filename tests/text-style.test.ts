@@ -176,9 +176,16 @@ describe("wiring — where the override applies and where it must not", () => {
   test("the playlist session passes the override through to every render", () => {
     expect(read("../src/playlist/session.ts")).toMatch(/text: opts\.text/);
   });
-  test("the app applies it in Player mode only — the editor shows the spec's default — and the viewer applies it", () => {
+  // Hans 2026-09-03: "these changes should apply to both the player in the
+  // editor (preview) and the single page player." So the override reaches
+  // every mount the app makes — editor pane and Player mode alike — and the
+  // viewer; only exports, which never pass it, keep the maker's defaults.
+  test("the app applies it in the editor pane and Player mode alike, and the viewer applies it", () => {
     const main = read("../src/main.ts");
-    expect(main).toMatch(/text: isPlayer \? \{ fontSize: settings\.textSize, family: settings\.textFamily \} : undefined/);
+    expect(main).toMatch(/text: \{ fontSize: settings\.textSize, family: settings\.textFamily \},/);
+    expect(main).not.toMatch(/isPlayer \? \{ fontSize/);
+    expect(main).toMatch(/"Text size"\), textSizeSel/);
+    expect(main).toMatch(/"Font"\), textFamilySel/);
     const viewer = read("../src/viewer.ts");
     expect(viewer).toMatch(/text: \{ fontSize: settings\.textSize, family: settings\.textFamily \}/);
   });
