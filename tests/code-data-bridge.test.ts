@@ -307,8 +307,21 @@ describe("code element — resolver substitutes tokens on the clone", () => {
     const deps = fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { frames: [[1]], s: [2] } });
     await resolveCode(s, deps);
     expect(deps.calls.length).toBe(1); // re-ran: the stamp had no data for the paths
+    const again = { ...bridged(), elements: [codeEl({ show: "none" }, decodeCodeResult(s.elements![0].code_result)!)] } as unknown as Spec;
+    const res = await resolveCode(again, deps);
+    expect(deps.calls.length).toBe(1); // covered: reused, no run
+    expect(res).toEqual([{ id: "sim", ok: true }]);
+    expect(again.params!.values).toEqual([[1]]); // substituted from the reused stamp
+  });
+
+  test("a failed run on a hidden pane stamps each of its tokens as a dataError, so the layout still warns", async () => {
+    const deps = fakeRun({ ok: false, stdout: "", stderr: "boom", figures: [], error: "boom" });
+    const s = bridged("none");
     await resolveCode(s, deps);
-    expect(deps.calls.length).toBe(1); // now covered: reused
+    expect(decodeCodeResult(s.elements![0].code_result)?.dataErrors).toEqual({ frames: "boom", s: "boom" });
+    const l = layoutSpec(s);
+    expect(l.warnings.some((w) => w.includes("{sim.frames}") && w.includes("boom"))).toBe(true);
+    expect(l.warnings.some((w) => w.includes("{sim.s}"))).toBe(true);
   });
 
   test("B11 through resolvedRenderSpec: the author's params keep their tokens", async () => {

@@ -67,7 +67,7 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
   }
 
   if (Object.keys(byId).length > 0) {
-    const { params } = substituteDataTokens(spec.params, (codeId, path) => {
+    const { params, failures } = substituteDataTokens(spec.params, (codeId, path) => {
       const el = codeEls.get(codeId);
       if (!el) return { error: `"${codeId}" is not a code element in this drawcast` };
       const env = decodeCodeResult(el.code_result);
@@ -77,6 +77,20 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
       return { error: "not harvested" };
     });
     spec.params = params;
+
+    // A wholly failed run's envelope carries no dataErrors (the harvest only
+    // runs when the script itself succeeded) — but a hidden pane's error
+    // panel is never drawn (layout returns before it), so without stamping
+    // each failed token here, the layout warning that names it would never
+    // fire either: the params would just quietly lose their values.
+    for (const { token, error } of failures) {
+      const el = codeEls.get(token.codeId);
+      if (!el) continue; // not a code element in this spec: the static lint already reports it
+      const env = decodeCodeResult(el.code_result) ?? { ok: false, stdout: "", stderr: "", figures: [], error };
+      env.dataErrors ??= {};
+      if (!(token.path in env.dataErrors)) env.dataErrors[token.path] = error;
+      el.code_result = JSON.stringify(env);
+    }
   }
   return results;
 }
