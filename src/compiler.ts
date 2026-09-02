@@ -51,6 +51,10 @@ export async function compileFigure(request: string, opts: CompileFigureOptions)
     bundledExemplars: usableExemplars(bundledPool, isReadyTemplate),
     maxRepairs: opts.maxRepairs,
     excludeIds: HOST_EXCLUDED_TEMPLATES,
+    // Host apps have no UI for a mid-generation pyodide boot (loading pill,
+    // status text) — spec §6 rules the execute-in-repair-loop check off in
+    // embedded contexts; render still executes the code for real later.
+    executeCode: false,
   });
   if (!outcome.spec) return { yaml: null, spec: null, error: outcome.error ?? "no spec produced", outcome };
   return { yaml: formatSpec(outcome.spec, "yaml"), spec: outcome.spec, outcome };

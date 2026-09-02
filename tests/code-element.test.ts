@@ -10,7 +10,8 @@ import type { Spec } from "../src/spec/types";
 import { CODE_VERSION, codeCacheKey, decodeCodeResult, runCode, type CodeRunResult } from "../src/code/run";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
-import { flattenDrawables, type ImageDrawable, type TextDrawable } from "../src/layout/model";
+import { CANVAS } from "../src/layout/canvas";
+import { flattenDrawables, type ImageDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { wrapCodeLine } from "../src/layout/code";
 import { resolveCode } from "../src/render/code";
 import { resolvedRenderSpec } from "../src/render/resolve";
@@ -93,7 +94,30 @@ describe("code facade — envelope and cache", () => {
       { language: "python", code: "x" },
       { runner: async () => { throw new Error("no runtime"); }, cacheGet: async () => null, cachePut: async () => {} },
     );
-    expect(res).toEqual({ ok: false, stdout: "", stderr: "", figures: [], error: "no runtime" });
+    expect(res).toEqual({ ok: false, stdout: "", stderr: "", figures: [], error: "no runtime", runtimeUnavailable: false });
+  });
+
+  test("a throw tagged runtimeUnavailable propagates that flag into the envelope", async () => {
+    const res = await runCode(
+      { language: "python", code: "x" },
+      {
+        runner: async () => {
+          const err = new Error("could not load the Python runtime (offline?)") as Error & { runtimeUnavailable: boolean };
+          err.runtimeUnavailable = true;
+          throw err;
+        },
+        cacheGet: async () => null,
+        cachePut: async () => {},
+      },
+    );
+    expect(res.runtimeUnavailable).toBe(true);
+    expect(res.ok).toBe(false);
+  });
+
+  test("the R stub reports runtimeUnavailable (M2 not built yet, not a script bug)", async () => {
+    const res = await runCode({ language: "r", code: "1 + 1" }, { cacheGet: async () => null, cachePut: async () => {} });
+    expect(res.runtimeUnavailable).toBe(true);
+    expect(res.ok).toBe(false);
   });
 });
 
@@ -148,6 +172,50 @@ describe("code element — layout", () => {
     expect(rows[1].startsWith("      ")).toBe(true);
     for (const r of rows) expect(r.length).toBeLessThanOrEqual(20);
   });
+
+  test("a figure taller than the canvas is scaled to fit inside the panel, aspect preserved", () => {
+    const tall: CodeRunResult = { ok: true, stdout: "", stderr: "", figures: [{ href: "data:image/png;base64,AA", w: 600, h: 800 }] };
+    // y centered on the canvas so "fits inside the panel" isn't tangled up
+    // with an off-center default y pushing the panel's own top off-canvas.
+    const s = codeSpec({ show: "output", y: CANVAS.h / 2 }, tall);
+    const flat = flattenDrawables(layoutSpec(s, heuristicMeasure).drawables);
+    const frame = flat.find((d) => d.id === "c1__frame") as StrokeDrawable;
+    const img = flat.find((d): d is ImageDrawable => d.kind === "image")!;
+    const rect = frame.shapeHint as { type: "rect"; x: number; y: number; w: number; h: number };
+    expect(rect.type).toBe("rect");
+    // the panel itself never exceeds the canvas-derived cap
+    expect(rect.h).toBeLessThanOrEqual(CANVAS.h - 40);
+    // the image never renders taller than the space left for it in the panel,
+    // and its WIDTH shrank too (proof the scale-down preserves aspect rather
+    // than just clipping the height): a full-bleed image would be 848 wide.
+    expect(img.w).toBeLessThan(848);
+    const [imgX, imgY] = img.pos;
+    expect(imgY - img.h / 2).toBeGreaterThanOrEqual(rect.y - 0.01);
+    expect(imgY + img.h / 2).toBeLessThanOrEqual(rect.y + rect.h + 0.01);
+    expect(imgX - img.w / 2).toBeGreaterThanOrEqual(rect.x - 0.01);
+    expect(imgX + img.w / 2).toBeLessThanOrEqual(rect.x + rect.w + 0.01);
+    expect(img.w / img.h).toBeCloseTo(600 / 800, 2);
+  });
+
+  test("40 stdout lines get truncated with a '… more lines' marker; the panel stays within the canvas", () => {
+    const many: CodeRunResult = {
+      ok: true,
+      stdout: Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n"),
+      stderr: "",
+      figures: [],
+    };
+    const s = codeSpec({ show: "output", y: CANVAS.h / 2 }, many);
+    const layout = layoutSpec(s, heuristicMeasure);
+    const flat = flattenDrawables(layout.drawables);
+    const outTexts = flat.filter((d): d is TextDrawable => d.kind === "text" && d.id.startsWith("c1__out"));
+    expect(outTexts.some((t) => t.text.includes("more lines"))).toBe(true);
+    expect(outTexts.length).toBeLessThan(40); // some rows were actually dropped
+    expect(layout.warnings.some((w) => w.includes("c1") && w.includes("truncated"))).toBe(true);
+    const frame = flat.find((d) => d.id === "c1__frame") as StrokeDrawable;
+    const rect = frame.shapeHint as { type: "rect"; x: number; y: number; w: number; h: number };
+    expect(rect.y).toBeGreaterThanOrEqual(0);
+    expect(rect.y + rect.h).toBeLessThanOrEqual(CANVAS.h);
+  });
 });
 
 describe("code element — resolver", () => {
@@ -167,6 +235,16 @@ describe("code element — resolver", () => {
     const res = await resolveCode(s, runDeps(bad));
     expect(res[0].ok).toBe(false);
     expect(decodeCodeResult(s.elements![0].code_result)).toEqual(bad);
+  });
+
+  test("a previously-stamped FAILURE re-runs on the next pass instead of freezing", async () => {
+    const bad: CodeRunResult = { ok: false, stdout: "", stderr: "boom", figures: [], error: "boom" };
+    const s = codeSpec({}, bad); // pre-stamped with a failing envelope
+    const deps = runDeps(OK);
+    const res = await resolveCode(s, deps);
+    expect(res).toEqual([{ id: "c1", ok: true, error: undefined }]);
+    expect(deps.calls.length).toBe(1); // it DID re-run, not skip
+    expect(decodeCodeResult(s.elements![0].code_result)).toEqual(OK);
   });
 
   test("resolvedRenderSpec keeps B11: the author's spec is never stamped", async () => {
@@ -237,5 +315,39 @@ describe("code element — generation-time execution check", () => {
   test("an unavailable runtime never blocks generation", async () => {
     const out = await codeExecutionErrors(codeSpec({}), async () => { throw new Error("no browser"); });
     expect(out).toEqual({ errors: [], warnings: [] });
+  });
+
+  test("a result flagged runtimeUnavailable becomes a WARNING, never an error", async () => {
+    const unavailable: CodeRunResult = {
+      ok: false,
+      stdout: "",
+      stderr: "",
+      figures: [],
+      error: "could not load the Python runtime (offline?)",
+      runtimeUnavailable: true,
+    };
+    const out = await codeExecutionErrors(codeSpec({}), async () => unavailable);
+    expect(out.errors).toEqual([]);
+    expect(out.warnings.length).toBe(1);
+    expect(out.warnings[0]).toContain('"c1"');
+    expect(out.warnings[0]).toContain("not verified");
+  });
+
+  test("a throwing runner for one element does not abandon the rest", async () => {
+    const two: Spec = {
+      elements: [
+        { id: "a", type: "code", language: "python", code: "print(1)" },
+        { id: "b", type: "code", language: "python", code: "raise ValueError('bad')" },
+      ],
+      commands: [],
+    } as unknown as Spec;
+    const bad: CodeRunResult = { ok: false, stdout: "", stderr: "", figures: [], error: "ValueError: bad" };
+    const out = await codeExecutionErrors(two, async (req) => {
+      if (req.code.includes("raise")) return bad;
+      throw new Error("offline"); // element "a"'s runner call fails
+    });
+    // "a" throws (skipped, never blocks) but "b" still gets checked for real.
+    expect(out.errors.length).toBe(1);
+    expect(out.errors[0]).toContain('"b"');
   });
 });

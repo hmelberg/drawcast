@@ -24,7 +24,16 @@ export async function codeExecutionErrors(
     try {
       res = await run({ language: "python", code: el.code });
     } catch {
-      return out; // runtime unavailable (offline, node) — never block generation
+      // A throwing injected runner is still just this ONE element's runtime
+      // being unavailable — the remaining code elements still get checked.
+      continue;
+    }
+    if (res.runtimeUnavailable) {
+      // The runtime never loaded (offline CDN, no browser) — the script was
+      // never actually verified, so this is a WARNING, never an error: an
+      // offline author must not burn a repair round on code that may be fine.
+      out.warnings.push(`code "${el.id}" — the Python runtime could not load — script not verified`);
+      continue;
     }
     if (!res.ok || res.error) {
       out.errors.push(

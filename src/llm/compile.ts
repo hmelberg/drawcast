@@ -14,9 +14,18 @@ import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
-import { codeExecutionErrors } from "../code/check";
+import { codeExecutionErrors, type CodeCheckOutcome } from "../code/check";
 import type { CodeRunRequest, CodeRunResult } from "../code/run";
 import fewshots from "./prompts/fewshots.json";
+
+/** Budget for the authoring-time code-execution check (real pyodide WASM in
+ *  a hidden run). The underlying run cannot be cancelled once started (no
+ *  interrupt without SharedArrayBuffer/COOP/COEP — see src/code/pyodide.ts),
+ *  so this only unblocks GENERATION on expiry/abort; the abandoned run keeps
+ *  going in the background and still warms the cache for the real render. */
+const AUTHORING_CODE_CHECK_MS = 60_000;
+
+const NO_CODE_CHECK: CodeCheckOutcome = { errors: [], warnings: [] };
 
 export interface PromptVariant {
   name: string;
@@ -327,9 +336,22 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
         }
-        if (cfg.executeCode !== false && (best.elements ?? []).some((e) => e.type === "code")) {
+        if (cfg.executeCode !== false && !cfg.signal?.aborted && (best.elements ?? []).some((e) => e.type === "code")) {
           const run = cfg.codeRunner ?? (await import("../code/run")).runCode;
-          const check = await codeExecutionErrors(best, run);
+          // Race the real check against a budget/abort: generation must never
+          // hang on the WASM runtime. On expiry the check is abandoned (not
+          // cancelled) and generation proceeds without its errors/warnings —
+          // render still executes the code for real, later.
+          let budgetTimer: ReturnType<typeof setTimeout> | undefined;
+          let onAbort: (() => void) | undefined;
+          const budget = new Promise<CodeCheckOutcome>((resolve) => {
+            budgetTimer = setTimeout(() => resolve(NO_CODE_CHECK), AUTHORING_CODE_CHECK_MS);
+            onAbort = () => resolve(NO_CODE_CHECK);
+            cfg.signal?.addEventListener("abort", onAbort, { once: true });
+          });
+          const check = await Promise.race<CodeCheckOutcome>([codeExecutionErrors(best, run), budget]);
+          if (budgetTimer) clearTimeout(budgetTimer);
+          if (onAbort) cfg.signal?.removeEventListener("abort", onAbort);
           validation.errors.push(...check.errors);
           for (const w of check.warnings) {
             lintIssues.push({ rule: "code-use", ids: [], message: w, severity: "warn" });

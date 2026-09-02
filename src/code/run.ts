@@ -10,9 +10,12 @@
 // offline or transient CDN failure must retry on the next render.
 
 import { cacheGet, cachePut } from "../render/portrait";
+import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
 
-/** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 1;
+// Envelope shape lives in ./envelope (dependency-free — layout imports it
+// directly from there); re-exported here so every existing
+// `from "../code/run"` import keeps working unchanged.
+export { CODE_VERSION, decodeCodeResult, type CodeFigure, type CodeRunResult } from "./envelope";
 
 /** Pinned runtime version (openstat-verified) — part of the cache key, so a
  *  runtime upgrade misses cleanly instead of replaying stale output. */
@@ -22,23 +25,6 @@ export interface CodeRunRequest {
   language: "python" | "r";
   code: string;
   onStatus?: (phase: "loading" | "running", detail: string) => void;
-}
-
-export interface CodeFigure {
-  /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */
-  href: string;
-  /** Pixel dimensions, read from the PNG bytes — layout needs the aspect. */
-  w: number;
-  h: number;
-}
-
-export interface CodeRunResult {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-  figures: CodeFigure[];
-  /** Set when the run itself failed (boot failure, timeout, thrown error). */
-  error?: string;
 }
 
 export interface CodeRunDeps {
@@ -59,25 +45,34 @@ function hash(s: string): string {
 
 export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code">): string {
   const tag = req.language === "python" ? `py${PYODIDE_VERSION}` : "r0";
-  return `c${CODE_VERSION}|${tag}|${hash(req.code)}`;
-}
-
-export function decodeCodeResult(raw: string | undefined): CodeRunResult | null {
-  if (!raw) return null;
-  try {
-    const p = JSON.parse(raw) as CodeRunResult;
-    if (typeof p !== "object" || p === null) return null;
-    if (typeof p.ok !== "boolean" || typeof p.stdout !== "string" || typeof p.stderr !== "string") return null;
-    if (!Array.isArray(p.figures)) return null;
-    return p;
-  } catch {
-    return null;
-  }
+  // The code length rides along with the hash to kill hash-collision risk
+  // (two different scripts landing on the same 32-bit FNV-1a digest).
+  return `c${CODE_VERSION}|${tag}|${hash(req.code)}|${req.code.length}`;
 }
 
 async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
-  if (req.language === "python") return (await import("./pyodide")).runPython(req);
-  return { ok: false, stdout: "", stderr: "", figures: [], error: "the R runtime arrives in M2 — use language: python" };
+  if (req.language === "python") {
+    let mod: typeof import("./pyodide");
+    try {
+      mod = await import("./pyodide");
+    } catch (err) {
+      // A failed chunk load (offline, CDN down) is a runtime problem, not a
+      // script bug — tag it so codeExecutionErrors can warn instead of
+      // blocking generation on it.
+      const tagged = new Error((err as Error).message) as Error & { runtimeUnavailable?: boolean };
+      tagged.runtimeUnavailable = true;
+      throw tagged;
+    }
+    return mod.runPython(req);
+  }
+  return {
+    ok: false,
+    stdout: "",
+    stderr: "",
+    figures: [],
+    error: "the R runtime arrives in M2 — use language: python",
+    runtimeUnavailable: true,
+  };
 }
 
 export async function runCode(req: CodeRunRequest, deps: CodeRunDeps = {}): Promise<CodeRunResult> {
@@ -90,7 +85,14 @@ export async function runCode(req: CodeRunRequest, deps: CodeRunDeps = {}): Prom
   try {
     result = await (deps.runner ?? defaultRunner)(req);
   } catch (err) {
-    result = { ok: false, stdout: "", stderr: "", figures: [], error: (err as Error).message };
+    result = {
+      ok: false,
+      stdout: "",
+      stderr: "",
+      figures: [],
+      error: (err as Error).message,
+      runtimeUnavailable: (err as { runtimeUnavailable?: boolean } | undefined)?.runtimeUnavailable === true,
+    };
   }
   if (result.ok) await put(key, JSON.stringify(result)).catch(() => undefined);
   return result;

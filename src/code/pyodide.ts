@@ -33,16 +33,25 @@ declare global {
 let bootPromise: Promise<Pyodide> | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
+/** Marks an error as "the runtime itself couldn't start", not a script bug —
+ *  read back in runPython's envelope() below so codeExecutionErrors can warn
+ *  instead of blocking generation on it. */
+function unavailable(message: string): Error & { runtimeUnavailable: true } {
+  const err = new Error(message) as Error & { runtimeUnavailable: true };
+  err.runtimeUnavailable = true;
+  return err;
+}
+
 function boot(): Promise<Pyodide> {
   if (bootPromise) return bootPromise;
   bootPromise = (async () => {
-    if (typeof document === "undefined") throw new Error("python needs a browser to run in");
+    if (typeof document === "undefined") throw unavailable("python needs a browser to run in");
     if (!window.loadPyodide) {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
         script.src = PYODIDE_URL;
         script.onload = () => resolve();
-        script.onerror = () => reject(new Error("could not load the Python runtime (offline?)"));
+        script.onerror = () => reject(unavailable("could not load the Python runtime (offline?)"));
         document.head.appendChild(script);
       });
     }
@@ -61,15 +70,19 @@ function execWrapper(code: string): string {
     "import ast as __ast",
     `__code = ${JSON.stringify(code)}`,
     "__tree = __ast.parse(__code) if __code.strip() else None",
+    // Each run is an independent script, not a notebook cell: a fresh
+    // namespace per run stops scripts from contaminating each other's
+    // globals, which would otherwise make the IndexedDB cache order-dependent.
+    '__g = {"__name__": "__main__"}',
     "if __tree and __tree.body and isinstance(__tree.body[-1], __ast.Expr):",
     "    __expr = __ast.Expression(__tree.body[-1].value)",
     "    __body = __ast.Module(__tree.body[:-1], type_ignores=[])",
-    "    exec(compile(__body, '<code>', 'exec'), globals())",
-    "    __result = eval(compile(__expr, '<code>', 'eval'), globals())",
+    "    exec(compile(__body, '<code>', 'exec'), __g)",
+    "    __result = eval(compile(__expr, '<code>', 'eval'), __g)",
     "    if __result is not None:",
     "        print(__result)",
     "elif __tree:",
-    "    exec(compile(__tree, '<code>', 'exec'), globals())",
+    "    exec(compile(__tree, '<code>', 'exec'), __g)",
   ].join("\n");
 }
 
@@ -139,15 +152,25 @@ export function runPython(req: CodeRunRequest): Promise<CodeRunResult> {
   // output would be misattributed into the next run's buffers.
   queue = run.catch(() => undefined);
   const envelope = (err: unknown): CodeRunResult => ({
-    ok: false, stdout: "", stderr: "", figures: [], error: (err as Error).message,
+    ok: false,
+    stdout: "",
+    stderr: "",
+    figures: [],
+    error: (err as Error).message,
+    runtimeUnavailable: (err as { runtimeUnavailable?: boolean } | undefined)?.runtimeUnavailable === true,
   });
-  return Promise.race([
-    run.catch(envelope),
-    new Promise<CodeRunResult>((resolve) =>
-      setTimeout(
-        () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${RUN_TIMEOUT_MS / 1000}s` }),
-        RUN_TIMEOUT_MS,
-      ),
-    ),
-  ]);
+  const settled = run.catch(envelope);
+  // Definite-assignment: the executor below runs synchronously, so the id is
+  // set before anything reads it.
+  let timeoutId!: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<CodeRunResult>((resolve) => {
+    timeoutId = setTimeout(
+      () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${RUN_TIMEOUT_MS / 1000}s` }),
+      RUN_TIMEOUT_MS,
+    );
+  });
+  // Clear the watchdog once the real run settles first, so a fast script
+  // doesn't leave a 3-minute timer alive (keeping node/test processes open).
+  settled.then(() => clearTimeout(timeoutId));
+  return Promise.race([settled, timeout]);
 }

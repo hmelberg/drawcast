@@ -8478,7 +8478,7 @@
      "language": "python",
      "show": "split",
      "width": 900,
-     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\nplt.hist(x, bins=20)"
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\n_ = plt.hist(x, bins=20)"
     }
    ],
    "commands": [
@@ -8486,7 +8486,7 @@
      "speak": "Can two hundred random numbers already know where their center is? Let's run it for real."
     },
     {
-     "draw": ["sim_line_1", "sim_line_2"],
+     "draw": ["sim", "sim_line_1", "sim_line_2"],
      "parallel": true,
      "speak": "Numpy for the numbers, matplotlib for the picture."
     },

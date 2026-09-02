@@ -10,7 +10,11 @@
 //                    promised _quote: an unresolved run keeps the beat and
 //                    draws ruled placeholder lines instead of nothing.
 
-import { decodeCodeResult } from "../code/run";
+// Envelope types come from the dependency-free code/envelope module, not
+// code/run — layout is a pure geometry layer and must never transitively
+// pull render/portrait (IndexedDB) in through the execution facade.
+import { decodeCodeResult } from "../code/envelope";
+import { CANVAS } from "./canvas";
 import {
   COLORS,
   SKETCH_MS,
@@ -83,6 +87,34 @@ function stackLines(lines: string[][], fontSize: number): { blocks: TextBlock[];
   return { blocks, height: Math.max(0, y - fontSize * LINE_GAP) };
 }
 
+/** Keep as many leading rows as fit within `budget`; if any must drop, drop
+ *  one extra too and replace it with a "N more lines" marker row in
+ *  `COLORS.guide`, so the cut is visible instead of silently clipping off
+ *  the canvas. Deterministic: the same input always drops the same rows. */
+function truncateRows(
+  rows: { text: string; color?: string }[],
+  budget: number,
+  fontSize: number,
+): { rows: { text: string; color?: string }[]; dropped: number } {
+  if (rows.length === 0) return { rows, dropped: 0 };
+  const rowH = fontSize * ROW_H;
+  const gap = fontSize * LINE_GAP;
+  let used = 0;
+  let fit = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const next = used + (i === 0 ? rowH : gap + rowH);
+    if (next > budget) break;
+    used = next;
+    fit = i + 1;
+  }
+  if (fit >= rows.length) return { rows, dropped: 0 };
+  const kept = Math.max(0, fit - 1);
+  return {
+    rows: [...rows.slice(0, kept), { text: `… (${rows.length - kept} more lines)`, color: COLORS.guide }],
+    dropped: rows.length - kept,
+  };
+}
+
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const show = el.show ?? "output";
   const w = el.width ?? 880;
@@ -117,10 +149,44 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       for (const row of wrapCodeLine(result.stderr.trim(), outMax)) outTextLines.push({ text: row, color: COLORS.guide });
     }
   }
-  const figures = failed || !result ? [] : result.figures;
+  const rawFigures = failed || !result ? [] : result.figures;
   const figW = outPaneW - 2 * PAD;
-  const figHeights = figures.map((f) => (f.w > 0 ? figW * (f.h / f.w) : figW * 0.75));
-  const outStack = stackLines(outTextLines.map((l) => [l.text]), fontSize);
+
+  // ---- clamp output content to the canvas ----------------------------------
+  // A chatty stdout (an unsuppressed plot-call echo, say) or one full-width
+  // figure used to grow the panel unbounded, pushing its TOP — the code
+  // lines — off the 750-unit canvas. Cap the panel and fit everything inside.
+  const maxH = CANVAS.h - 40; // breathing room top+bottom
+  const outBudget = showOut ? maxH - 2 * PAD : 0;
+  // Figures matter more than a wall of print() text: stdout gets at most
+  // half the budget when a figure is present, all of it when there is none.
+  const stdoutBudget = rawFigures.length > 0 ? outBudget / 2 : outBudget;
+  let truncated = false;
+  let outRows: { text: string; color?: string }[] = [];
+  let outStack: { blocks: TextBlock[]; height: number } = { blocks: [], height: 0 };
+  const figHeights: number[] = [];
+  const figWidths: number[] = [];
+  if (showOut) {
+    const fit = truncateRows(outTextLines, stdoutBudget, fontSize);
+    outRows = fit.rows;
+    if (fit.dropped > 0) truncated = true;
+    outStack = stackLines(outRows.map((l) => [l.text]), fontSize);
+
+    // Figures share whatever is left after stdout, top to bottom; each is
+    // scaled down (preserving aspect, so its width shrinks too) to fit the
+    // space actually left for it — a figure never renders taller than that.
+    let remaining = Math.max(0, outBudget - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0));
+    rawFigures.forEach((f, i) => {
+      const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
+      const gapBefore = i > 0 || outStack.height > 0 ? fontSize * LINE_GAP : 0;
+      const avail = Math.max(0, remaining - gapBefore);
+      const fh = Math.min(naturalH, avail);
+      if (fh < naturalH) truncated = true;
+      figHeights.push(fh);
+      figWidths.push(f.h > 0 ? fh * (f.w / f.h) : figW);
+      remaining = Math.max(0, remaining - gapBefore - fh);
+    });
+  }
   const outContentH = showOut
     ? Math.max(
         3 * fontSize * (1 + LINE_GAP), // placeholder floor
@@ -130,8 +196,10 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 
   // ---- panel geometry (y-up: yTop is the LARGER y) -------------------------
   const contentH = Math.max(showCode ? codeStack.height : 0, outContentH);
-  const h = Math.max(60, contentH + 2 * PAD);
-  if (h > 700) ctx.warnings.push(`code "${el.id}": panel is ${Math.round(h)} logical units tall — trim the script or its output`);
+  const h = Math.min(maxH, Math.max(60, contentH + 2 * PAD));
+  if (truncated || contentH + 2 * PAD > maxH) {
+    ctx.warnings.push(`code "${el.id}": output was truncated/scaled to fit the panel within the canvas`);
+  }
   const x0 = cx - w / 2;
   const yTop = cy + h / 2;
   const rect: Pt[] = [
@@ -237,19 +305,20 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           anchor: "start",
           font: "mono",
           z: Z_TEXT,
-          style: resolveStyle(el.style, outTextLines[i]?.color ? { color: outTextLines[i].color } : {}),
+          style: resolveStyle(el.style, outRows[i]?.color ? { color: outRows[i].color } : {}),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         });
       });
       let figTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
-      figures.forEach((f, k) => {
+      rawFigures.forEach((f, k) => {
         const fh = figHeights[k];
+        const fw = figWidths[k];
         outChildren.push({
           id: `${el.id}__fig${k}`,
           kind: "image",
           href: f.href,
           pos: [outX + PAD + figW / 2, yTop - PAD - figTop - fh / 2],
-          w: figW,
+          w: fw,
           h: fh,
           z: Z_STROKE,
           style: resolveStyle(undefined, {}),

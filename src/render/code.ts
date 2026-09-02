@@ -4,7 +4,7 @@
 // heavy runtime loads lazily inside code/run.ts, so a spec without a code
 // element costs nothing.
 
-import { runCode, type CodeRunDeps } from "../code/run";
+import { decodeCodeResult, runCode, type CodeRunDeps } from "../code/run";
 import type { Spec } from "../spec/types";
 
 export interface CodeResolution {
@@ -18,8 +18,15 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
   for (const el of spec.elements ?? []) {
     if (el.type !== "code") continue;
     if (el.code_result) {
-      results.push({ id: el.id, ok: true });
-      continue;
+      // Only a successful stamp is trustworthy cache: a stamped FAILURE (a
+      // transient boot/timeout envelope from an earlier pass, say) must
+      // re-run rather than freeze that error onto the element forever.
+      const decoded = decodeCodeResult(el.code_result);
+      if (decoded?.ok) {
+        results.push({ id: el.id, ok: true });
+        continue;
+      }
+      delete el.code_result;
     }
     if (!el.language || !el.code) {
       results.push({ id: el.id, ok: false, error: "code element needs language and code" });
