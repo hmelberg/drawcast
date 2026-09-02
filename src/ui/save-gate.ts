@@ -12,7 +12,7 @@
 // itself cannot be imported).
 
 import { itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
-import { validateSpec } from "../spec/schema";
+import { isBlankSpec, validateSpec } from "../spec/schema";
 
 export type SaveDecision = { ok: true; playlist: Playlist } | { ok: false; reason: string };
 
@@ -29,6 +29,10 @@ export function checkSaveable(text: string): SaveDecision {
     return { ok: false, reason: "The playlist has no drawable items." };
   }
   for (const item of items) {
+    // ＋ New's empty page is editable and saveable — strict validation is
+    // the GENERATION pipeline's guard (an empty model reply must repair,
+    // not ship), and it stays strict there (spec/schema.ts isBlankSpec).
+    if (isBlankSpec(item.spec)) continue;
     const v = validateSpec(item.spec);
     if (!v.ok) {
       const where = items.length > 1 ? `item ${item.index + 1}: ` : "";

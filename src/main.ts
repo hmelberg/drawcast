@@ -44,7 +44,7 @@ import { checkSaveable } from "./ui/save-gate";
 import { markSvg } from "./brand/mark";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertPortrait, unembeddedImages } from "./ui/insert";
-import { applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
+import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
 import { attachParamsTray } from "./ui/tray";
@@ -441,7 +441,7 @@ const reviewBtn = h("button", { class: "small", title: "Watch and collect notes,
 let review: ReviewHandle | null = null;
 /** The sidebar's prompt-editor entry — developer-gated (B6), assigned where the sidebar is built. */
 let instructionsRow: HTMLButtonElement | null = null;
-const blankBtn = h("button", { class: "sidebar-new", title: "Start a new drawcast from a minimal hand-editable spec" }, "＋ New drawcast");
+const blankBtn = h("button", { class: "sidebar-new", title: "Start a new, empty drawcast" }, "＋ New drawcast");
 
 // ---------- version history: the ◀ ▶ arrows and the viewing bar ----------
 // Arrows navigate, Restore commits, neither ever deletes — see history.ts.
@@ -650,7 +650,7 @@ function onSectionToggle(id: string): (open: boolean) => void {
     const model = sidebarSections(sidebarInput(), sidebarFilter, settings.sidebarSections).find((m) => m.id === id);
     const filterForced = sidebarFilter !== "" && !!model && model.shown > 0;
     if (!filterForced) {
-      settings.sidebarSections[id] = open;
+      settings.sidebarSections = accordionOpenState(settings.sidebarSections, id, open);
       persist();
     }
     refreshSidebarShell();
@@ -1129,7 +1129,7 @@ const editorWrap = h(
 // ---------- left sidebar: the one menu ----------
 
 const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library, courses, examples and templates" }) as HTMLInputElement;
-const dataRow = h("button", { class: "sidebar-row" }, "📊 Data");
+const dataRow = h("button", { class: "sidebar-row" }, "Data");
 // Declared here, ABOVE the sidebar, not near refreshAccountRow(): the IIFE
 // below that assigns it runs during module initialisation, before a `let`
 // declared further down in the file would leave its temporal dead zone.
@@ -1147,34 +1147,34 @@ const sidebar = h(
     "div",
     { class: "sidebar-tools" },
     (() => {
-      const b = h("button", { class: "sidebar-row" }, "▶ Player");
+      const b = h("button", { class: "sidebar-row" }, "Player");
       b.addEventListener("click", () => showMode("player"));
       return b;
     })(),
     (() => {
-      const b = h("button", { class: "sidebar-row" }, "🖋 Style");
+      const b = h("button", { class: "sidebar-row" }, "Style");
       b.addEventListener("click", () => openStyleModal());
       return b;
     })(),
     (() => {
       // The prompt editor, unchanged but now an advanced feature (B6):
       // gated in applyDeveloperMode beside the rating and the Data panel.
-      const b = h("button", { class: "sidebar-row" }, "📝 Instructions");
+      const b = h("button", { class: "sidebar-row" }, "Instructions");
       instructionsRow = b;
       b.addEventListener("click", () => openInstructionsModal());
       return b;
     })(),
     dataRow,
-    h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "❓ Help"),
+    h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "Help"),
     (() => {
-      const b = h("button", { class: "sidebar-row" }, "☁ Sign in with Google");
+      const b = h("button", { class: "sidebar-row" }, "Sign in with Google");
       accountRow = b;
       b.addEventListener("click", () => void toggleAccount());
       b.hidden = !googleConfigured();
       return b;
     })(),
     (() => {
-      const b = h("button", { class: "sidebar-row" }, "⚙ Settings");
+      const b = h("button", { class: "sidebar-row" }, "Settings");
       b.addEventListener("click", () => openSettings());
       return b;
     })(),
@@ -3112,21 +3112,10 @@ async function generateMulti(
   autosave();
 }
 
-const BLANK_SPEC: Spec = {
-  title: "Untitled drawcast",
-  domain: { x: [0, 100], y: [0, 100] },
-  elements: [
-    { id: "ax", type: "axes", x_label: "x", y_label: "y" },
-    { id: "curve1", type: "curve", expr: "80 - 0.6*x" },
-    { id: "label1", type: "label", text: "A curve", attach_to: "curve1", side: "above-right" },
-  ],
-  commands: [
-    { speak: "Start with a pair of axes." },
-    { draw: ["ax"] },
-    { speak: "Then draw a curve and label it." },
-    { draw: ["curve1", "label1"] },
-  ],
-};
+// TRULY empty (Hans 2026-09-02): a blank page, not a starter example — the
+// schema admits it as the one valid nothing (spec/schema.ts). Examples are
+// one click away in the sidebar; the blank page should not pre-write one.
+const BLANK_SPEC: Spec = { elements: [], commands: [] };
 
 /** The blank text ＋ New puts in the editor — authoringMode's "empty document". */
 let blankTextCache: string | null = null;
@@ -3324,7 +3313,7 @@ function refreshAccountRow(): void {
   // No email is shown: reading one needs an `openid`/`email` scope this app
   // never asks for. What the row must guarantee is that a live grant always
   // offers sign-out.
-  accountRow.textContent = signedIn() ? "☁ Signed in — sign out" : "☁ Sign in with Google";
+  accountRow.textContent = signedIn() ? "Signed in — sign out" : "Sign in with Google";
   accountRow.hidden = !googleConfigured();
 }
 

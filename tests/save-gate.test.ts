@@ -42,3 +42,15 @@ describe("checkSaveable", () => {
     if (!d.ok) expect(d.reason).toMatch(/^Spec invalid: item 2: /);
   });
 });
+
+describe("the blank page (＋ New, 2026-09-02)", () => {
+  it("is adoptable and saveable in the editor, exactly as ＋ New writes it", () => {
+    const d = checkSaveable("elements: []\ncommands: []");
+    expect(d.ok).toBe(true);
+  });
+
+  it("does not loosen anything else — commands with nothing to draw still refuse", () => {
+    const d = checkSaveable('commands:\n  - {speak: "hello"}');
+    expect(d.ok).toBe(false);
+  });
+});

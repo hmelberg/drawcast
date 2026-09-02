@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sidebarSections, type SectionInput } from "../src/ui/sidebar";
+import { accordionOpenState, sidebarSections, type SectionInput  } from "../src/ui/sidebar";
 
 const input: SectionInput = {
   library: [{ title: "Ricardo on trade" }, { title: "Lecture 1", courseId: "c1" }, { title: "Lecture 2", courseId: "c1" }],
@@ -18,9 +18,9 @@ describe("sidebarSections", () => {
     expect(lib.total).toBe(1);
   });
 
-  it("defaults library and examples open, courses and templates closed", () => {
+  it("defaults only library open — one expanded list keeps the sidebar inside the viewport", () => {
     const open = Object.fromEntries(sidebarSections(input, "", {}).map((s) => [s.id, s.open]));
-    expect(open).toEqual({ library: true, courses: false, examples: true, templates: false });
+    expect(open).toEqual({ library: true, courses: false, examples: false, templates: false });
   });
 
   it("honours a remembered state over the default", () => {
@@ -48,5 +48,17 @@ describe("sidebarSections", () => {
     const courses = sidebarSections(input, "lecture 1", {}).find((s) => s.id === "courses")!;
     expect(courses.shown).toBe(1);
     expect(courses.open).toBe(true);
+  });
+});
+
+describe("accordionOpenState", () => {
+  it("opening one section closes the others", () => {
+    expect(accordionOpenState({ library: true, examples: true }, "courses", true)).toEqual({
+      library: false, courses: true, examples: false, templates: false,
+    });
+  });
+
+  it("closing writes only the closed one — nothing else springs open", () => {
+    expect(accordionOpenState({ library: true }, "library", false)).toEqual({ library: false });
   });
 });

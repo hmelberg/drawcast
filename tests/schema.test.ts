@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { validateSpec } from "../src/spec/schema";
+import { isBlankSpec, validateSpec  } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 
 const goodSpec: Spec = {
@@ -74,6 +74,13 @@ describe("validateSpec", () => {
   test("rejects a spec with neither template nor elements", () => {
     const r = validateSpec({ commands: [{ speak: "nothing to draw" }] });
     expect(r.ok).toBe(false);
+  });
+
+  test("the empty spec stays INVALID here — generation must repair, never ship a silent blank; the editor admits it via isBlankSpec", () => {
+    expect(validateSpec({ elements: [], commands: [] }).ok).toBe(false);
+    expect(isBlankSpec({ elements: [], commands: [] })).toBe(true);
+    expect(isBlankSpec({ elements: [], commands: [{ speak: "hi" }] } as never)).toBe(false);
+    expect(isBlankSpec({ template: "supply_demand", commands: [] } as never)).toBe(false);
   });
 });
 

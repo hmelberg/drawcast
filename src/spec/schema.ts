@@ -575,6 +575,17 @@ function structuralErrors(spec: unknown): string[] {
   );
 }
 
+/**
+ * The one valid nothing: ＋ New drawcast's blank page (Hans 2026-09-02 —
+ * "when I click new, start with an empty spec"). EDITOR gates accept it
+ * (ui/save-gate.ts); the generation pipeline never does — a model returning
+ * an empty spec is a failed generation that must trigger a repair round,
+ * not silently ship a blank drawcast.
+ */
+export function isBlankSpec(spec: Spec): boolean {
+  return !spec.template && (spec.elements?.length ?? 0) === 0 && (spec.commands?.length ?? 0) === 0;
+}
+
 function semanticErrors(spec: Spec): string[] {
   const errors: string[] = [];
 

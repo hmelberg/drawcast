@@ -25,7 +25,10 @@ export interface SectionModel {
 }
 
 /** Library and Examples are what you reach for; four open lists is a tall menu. */
-const DEFAULT_OPEN: Record<string, boolean> = { library: true, courses: false, examples: true, templates: false };
+// Library alone opens by default (Hans 2026-09-02: the menu got long enough
+// to scroll — "that is ugly"): with the accordion below, one open list is
+// the sidebar's whole variable height, so it fits the viewport.
+const DEFAULT_OPEN: Record<string, boolean> = { library: true, courses: false, examples: false, templates: false };
 
 export function sidebarSections(input: SectionInput, filter: string, openState: Record<string, boolean>): SectionModel[] {
   const f = filter.trim().toLowerCase();
@@ -38,10 +41,10 @@ export function sidebarSections(input: SectionInput, filter: string, openState: 
   // lives, and hiding the course would hide the lecture too.
   const courseHits = input.courses.filter((c) => match(c.title) || c.lectures.some(match)).length;
   const specs: { id: string; label: string; shown: number; total: number }[] = [
-    { id: "library", label: "📚 Library", shown: libraryTitles.filter(match).length, total: libraryTitles.length },
-    { id: "courses", label: "🎓 Courses", shown: courseHits, total: input.courses.length },
-    { id: "examples", label: "✨ Examples", shown: exampleTitles.filter(match).length, total: exampleTitles.length },
-    { id: "templates", label: "✦ Templates", shown: templateTitles.filter(match).length, total: templateTitles.length },
+    { id: "library", label: "Library", shown: libraryTitles.filter(match).length, total: libraryTitles.length },
+    { id: "courses", label: "Courses", shown: courseHits, total: input.courses.length },
+    { id: "examples", label: "Examples", shown: exampleTitles.filter(match).length, total: exampleTitles.length },
+    { id: "templates", label: "Templates", shown: templateTitles.filter(match).length, total: templateTitles.length },
   ];
   return specs.map(({ id, label, shown, total }) => {
     const remembered = openState[id] ?? DEFAULT_OPEN[id];
@@ -54,6 +57,21 @@ export function sidebarSections(input: SectionInput, filter: string, openState: 
 /** "3 of 12" while a filter narrows the list, "(12)" otherwise. */
 export function sectionCountLabel(model: SectionModel): string {
   return model.shown === model.total ? `(${model.total})` : `${model.shown} of ${model.total}`;
+}
+
+/**
+ * Accordion (Hans 2026-09-02): opening a section closes the others, so at
+ * most one list is expanded and the sidebar's height stays bounded — the
+ * outer scrollbar was the complaint. Closing writes only the closed one.
+ * Pure: this computes the next REMEMBERED state; a filter still auto-opens
+ * every section with hits on top of it (sidebarSections), which is a view,
+ * not a preference.
+ */
+export function accordionOpenState(openState: Record<string, boolean>, id: string, open: boolean): Record<string, boolean> {
+  if (!open) return { ...openState, [id]: false };
+  const next: Record<string, boolean> = { ...openState };
+  for (const key of Object.keys(DEFAULT_OPEN)) next[key] = key === id;
+  return next;
 }
 
 export interface SidebarSection {

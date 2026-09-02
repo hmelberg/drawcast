@@ -9,7 +9,7 @@ describe("the Player/Editor pill is gone (A5, S §7.3)", () => {
     expect(main).not.toMatch(/class:\s*"mode-btn/);
   });
   it("a ▶ Player sidebar row opens player mode", () => {
-    expect(main).toMatch(/sidebar-row[^)]*▶ Player/);
+    expect(main).toMatch(/sidebar-row[^)]*"Player"/);
   });
   it("the dead pill CSS is deleted", () => {
     expect(css.replace(/\/\*[\s\S]*?\*\//g, "")).not.toMatch(/\.mode-btn/);
