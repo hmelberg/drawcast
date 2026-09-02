@@ -579,6 +579,31 @@ the repo and a GitHub account to comment.
   default, so the password limiter may not be counting at all. Not in the way
   of anything shipped, but it blocks C.
 
+## Text size and font — done 2026-09-03
+
+A global text style with three sources and one rule: the viewer's setting
+if set, else the spec's `text:` block, else the app default (26, cursive,
+normal). The spec speaks CSS — `font_size` as a base every size scales by,
+`font_family` as a generic family (`cursive` | `sans-serif` | `monospace`),
+`font_weight` (`normal` | `bold`) — so the compiler needs no new vocabulary.
+Applied at two boundaries in `render()` (the measurer and the drawables), so
+templates and the seventy-odd layout size sites never changed. Settings →
+Playback holds "Text size" and "Font"; both apply in the editor preview,
+Player mode and the standalone viewer; exports keep the spec's defaults.
+
+### Deferred: per-element bold and italic
+
+Held back on purpose (Hans, 2026-09-03): weight changes text width, so
+`font_weight` / `font_style` on a single element has to travel from the
+element through the tier-2 text paths, the wrap helper and the measure
+calls into the text drawable — about as much work as the whole global half,
+for a control the compiler will use rarely while color and the pulse/glow
+effects already carry emphasis. Take it up when a drawcast actually needs a
+bold label or an italic aside. The vocabulary is fixed in advance: the same
+CSS names per element, two-valued (`normal` | `bold`, `normal` | `italic`),
+synthesized by the browser on the handwriting face and identical in export.
+No viewer override for either — emphasis is the maker's.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
