@@ -65,6 +65,40 @@ function boot(): Promise<Pyodide> {
   return bootPromise;
 }
 
+/** Hidden runtime deps that a library needs present the first time it is
+ *  imported (they aren't visible top-level imports, so loadPackagesFromImports
+ *  misses them, and the library memoizes a failed lookup if they're absent). */
+const KNOWN_DEPS: Record<string, string[]> = {
+  plotly: ["numpy", "pandas"],
+};
+
+/** Install one package and PROVE it imports. Live-probed ground truth (v314):
+ *  loadPackage installs distribution wheels and silently no-ops for names it
+ *  doesn't know; micropip installs pure-PyPI packages and can fail for
+ *  distribution ones. Neither installer's silence can be trusted, so verify by
+ *  import after each and only a verified import counts. */
+async function installPackage(
+  py: { loadPackage(n: string): Promise<unknown>; runPythonAsync(c: string): Promise<unknown> },
+  pkg: string,
+): Promise<boolean> {
+  const importable = () => py.runPythonAsync(`import importlib as __il\n__il.import_module(${JSON.stringify(pkg)})`);
+  try {
+    await py.loadPackage(pkg).catch(() => undefined);
+    await importable();
+    return true;
+  } catch {
+    /* fall through to micropip */
+  }
+  try {
+    await py.loadPackage("micropip");
+    await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(pkg)})`);
+    await importable();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Notebook semantics: exec the body, eval a trailing expression, print it. */
 function execWrapper(code: string): string {
   return [
@@ -203,16 +237,25 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
     }
     py.setStdout();
     py.setStderr();
-    if (!error || attempt >= 2) break;
-    const missing = /ModuleNotFoundError: No module named '([^']+)'/.exec(error);
+    if (!error || attempt >= 4) break;
+    // Two shapes of "package missing": Python's own ModuleNotFoundError, and
+    // the courtesy ImportError some libraries raise instead (plotly express:
+    // "Plotly Express requires numpy to be installed").
+    const requires = /requires\s+([A-Za-z0-9_.]+)\s+to\s+be\s+installed/.exec(error);
+    const missing = /ModuleNotFoundError: No module named '([^']+)'/.exec(error) ?? requires;
     if (!missing) break;
     const pkg = missing[1].split(".")[0];
     status("loading", `Installing ${pkg}…`);
     try {
-      await py.loadPackage("micropip");
-      await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(pkg)})`);
+      // A package's HIDDEN runtime deps must be present the FIRST time it
+      // imports far enough to check for them — plotly memoizes a failed numpy
+      // lookup deep in _plotly_utils, and clearing sys.modules does not undo
+      // that. So preload known deps BEFORE installing the package itself.
+      // (loadPackagesFromImports only sees the top-level import, not these.)
+      for (const dep of KNOWN_DEPS[pkg] ?? []) await installPackage(py, dep);
+      if (!(await installPackage(py, pkg))) break; // not installable anywhere
     } catch {
-      break; // not on PyPI either — the ModuleNotFoundError stands
+      break;
     }
   }
   let figures: CodeFigure[] = [];

@@ -8786,7 +8786,7 @@
     "language": "python",
     "show": "split",
     "width": 900,
-    "code": "import plotly.express as px\ncountries = [\"Norway\", \"Sweden\", \"Denmark\", \"Finland\", \"Iceland\"]\ngdp_pc = [87, 56, 68, 53, 74]\nfig = px.bar(x=countries, y=gdp_pc,\n             labels={\"x\": \"\", \"y\": \"1000 USD per head\"})\n_ = fig.update_layout(width=650, height=430)"
+    "code": "import numpy as np\nimport pandas as pd\nimport plotly.express as px\ncountries = [\"Norway\", \"Sweden\", \"Denmark\", \"Finland\", \"Iceland\"]\ngdp_pc = [87, 56, 68, 53, 74]\nfig = px.bar(x=countries, y=gdp_pc,\n             labels={\"x\": \"\", \"y\": \"1000 USD per head\"})\n_ = fig.update_layout(width=650, height=430)"
    }
   ],
   "commands": [
@@ -8796,27 +8796,29 @@
    {
     "draw": [
      "gdp",
-     "gdp_line_1"
+     "gdp_line_1",
+     "gdp_line_2",
+     "gdp_line_3"
     ],
     "parallel": true,
-    "speak": "Plotly express — one import."
+    "speak": "Plotly express — plus the numpy and pandas it quietly leans on."
    },
    {
     "draw": [
-     "gdp_line_2",
-     "gdp_line_3"
+     "gdp_line_4",
+     "gdp_line_5"
     ],
     "parallel": true,
     "speak": "Five countries, and GDP per head in thousands of dollars — round numbers."
    },
    {
     "draw": [
-     "gdp_line_4",
-     "gdp_line_5",
-     "gdp_line_6"
+     "gdp_line_6",
+     "gdp_line_7",
+     "gdp_line_8"
     ],
     "parallel": true,
-    "speak": "One line of chart code. The figure just has to sit in a variable."
+    "speak": "One chart call. The figure just has to sit in a variable."
    },
    {
     "draw": [
