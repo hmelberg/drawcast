@@ -15,6 +15,7 @@ import {
   substituteDataTokens,
 } from "../src/code/tokens";
 import { CODE_VERSION, codeCacheKey, decodeCodeResult, runCode, type CodeRunResult } from "../src/code/run";
+import { DATA_CAP_NUMBERS, DATA_CAP_ROWS, dataHarvestScript, parseHarvest } from "../src/code/harvest";
 
 describe("data tokens — grammar", () => {
   test("parses id.var and id.var.col; rejects dotless, spaced and malformed strings", () => {
@@ -160,5 +161,24 @@ describe("code facade — paths ride the request and the cache key", () => {
     );
     expect(seen).toEqual(["y"]);
     expect(res.data).toEqual({ y: [1] });
+  });
+});
+
+describe("python harvest script (contract only — the runtime is smoke-tested live)", () => {
+  test("embeds the requested paths as a JSON literal and both caps", () => {
+    const src = dataHarvestScript(["df.gdp", "y"]);
+    expect(src).toContain('["df.gdp", "y"]');
+    expect(src).toContain(String(DATA_CAP_NUMBERS));
+    expect(src).toContain(String(DATA_CAP_ROWS));
+    expect(src.trim().endsWith("__json.dumps(__out)")).toBe(true);
+    expect(DATA_CAP_NUMBERS).toBe(5000);
+    expect(DATA_CAP_ROWS).toBe(200);
+  });
+
+  test("parseHarvest guards the payload shape", () => {
+    expect(parseHarvest(JSON.stringify({ data: { y: [1] }, errors: { z: "no variable z" } }))).toEqual({ data: { y: [1] }, errors: { z: "no variable z" } });
+    expect(parseHarvest("not json")).toEqual({ data: {}, errors: {} });
+    expect(parseHarvest(JSON.stringify([1, 2]))).toEqual({ data: {}, errors: {} });
+    expect(parseHarvest(undefined)).toEqual({ data: {}, errors: {} });
   });
 });

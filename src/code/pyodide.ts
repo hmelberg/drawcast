@@ -13,6 +13,7 @@
 // in the background, and the next queued run still waits for it to complete.
 
 import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult, type CodeTable } from "./run";
+import { dataHarvestScript, parseHarvest } from "./harvest";
 
 const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.js`;
 const RUN_TIMEOUT_MS = 180_000;
@@ -326,7 +327,33 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
       /* a failed chart render loses the chart, not the run */
     }
   }
-  return { ok: !error, stdout: stdout.replace(/\n$/, ""), stderr: stderr.replace(/\n$/, ""), figures, tables, error };
+  // Data harvest for the template bridge: only the paths the spec referenced,
+  // only after a clean run. A failed harvest is an error PER PATH (the
+  // resolver drops that param and the template default applies) — never a
+  // lost run.
+  let data: Record<string, unknown> | undefined;
+  let dataErrors: Record<string, string> | undefined;
+  const paths = req.paths ?? [];
+  if (!error && paths.length > 0) {
+    status("running", "Reading data…");
+    try {
+      const harvested = parseHarvest(await py.runPythonAsync(dataHarvestScript(paths)));
+      data = harvested.data;
+      dataErrors = harvested.errors;
+    } catch (err) {
+      dataErrors = Object.fromEntries(paths.map((p) => [p, `harvest failed: ${(err as Error).message}`]));
+    }
+  }
+  return {
+    ok: !error,
+    stdout: stdout.replace(/\n$/, ""),
+    stderr: stderr.replace(/\n$/, ""),
+    figures,
+    tables,
+    error,
+    ...(data !== undefined ? { data } : {}),
+    ...(dataErrors !== undefined && Object.keys(dataErrors).length > 0 ? { dataErrors } : {}),
+  };
 }
 
 export function runPython(req: CodeRunRequest): Promise<CodeRunResult> {
