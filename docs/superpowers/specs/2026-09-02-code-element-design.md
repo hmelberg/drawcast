@@ -202,7 +202,17 @@ runCode({ language, code, onStatus? })
    and cacheable precisely so this composes later via `RenderHandle.update`.
 5. **Bake-on-publish option** (outputs stamped into the published YAML, like
    the narration audio bake) for frozen, runtime-free published documents.
-6. Syntax highlighting; editable code cells.
+6. **Interactive output overlay** (`interactive: true`): in the player, a
+   live plotly div (or other widget) is positioned exactly over the static
+   image's rect (via `clientPointFor`) — hover, zoom, widgets — while export,
+   scrubbing, and step-back keep using the static SVG underneath. This is the
+   house "SVG truth + HTML enhancement" pattern (media modal, quiz card):
+   the fallback exists by construction, no hand-maintained export painter.
+   Ruled 2026-09-02: HTML-first was considered and rejected — it would forfeit
+   free line stepping/scrub/camera integration and require a duplicate canvas
+   renderer for video export; interactivity arrives as enhancement instead.
+   A scrollable long-output overlay can use the same trick if ever needed.
+7. Syntax highlighting; editable code cells.
 
 ## 9. Testing
 
