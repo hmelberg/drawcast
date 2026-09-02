@@ -2762,14 +2762,14 @@ describe("stats pack", () => {
 describe("data pack", () => {
   beforeEach(() => unregisterPack("data"));
 
-  test("registers bar_chart", () => {
+  test("registers bar_chart and data_table", () => {
     const r = registerPack("data", dataYaml);
-    expect(r).toMatchObject({ ok: true, templateIds: ["bar_chart"] });
+    expect(r).toMatchObject({ ok: true, templateIds: ["bar_chart", "data_table"] });
   });
 
   test("every data example renders finite, no fallback warnings, no error lint, deterministically", () => {
     registerPack("data", dataYaml);
-    for (const tid of ["bar_chart"]) {
+    for (const tid of ["bar_chart", "data_table"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
         expect(res.warnings, tid).toEqual([]);

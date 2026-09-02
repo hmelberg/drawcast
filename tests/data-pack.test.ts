@@ -33,11 +33,11 @@ describe("pack registration", () => {
     expect(DEFAULT_OFF_PACKS.has("data")).toBe(false);
     expect(DEFAULT_SETTINGS.enabledPacks).toContain("data");
     expect(scenes.bar_chart?.manifest.status).toBe("ready");
+    expect(scenes.data_table?.manifest.status).toBe("ready");
   });
 
-  // Task 11 adds "data_table" to this list and asserts its manifest is ready.
   test("every manifest example lays out with zero warnings and no error lint", () => {
-    for (const tid of ["bar_chart"]) {
+    for (const tid of ["bar_chart", "data_table"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params } as Spec);
         expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);
@@ -149,5 +149,52 @@ describe("bar_chart — the placeholder promise", () => {
     expect(mixed.order).toEqual(["axes", "bar_1", "legend"]);
     expect(barTop(mixed, 1, 0)).toBeCloseTo(Y(3, 3), 6);
     expect(barTop(mixed, 1, 1)).toBeCloseTo(plot.y0, 6);
+  });
+});
+
+describe("data_table", () => {
+  const table = (params: object) => layoutSpec({ template: "data_table", params } as Spec);
+  const texts = (l: ReturnType<typeof layoutSpec>) => flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text");
+
+  test("header + row_1..n from columns/rows; numbers formatted by decimals; integers untouched", () => {
+    const l = table({ columns: ["Year", "2 %", "7 %"], rows: [[0, 100, 100], [10, 121.899, 196.715]], decimals: 1, title: "T" });
+    expect(l.order).toEqual(["header", "row_1", "row_2", "title"]);
+    const t = texts(l).map((d) => d.text);
+    expect(t).toEqual(expect.arrayContaining(["Year", "2 %", "7 %", "0", "100", "10", "121.9", "196.7", "T"]));
+    expect(l.warnings).toEqual([]);
+  });
+
+  test("a whole harvested DataFrame ({columns, rows}) feeds it through data; explicit columns/rows win", () => {
+    const l = table({ data: { columns: ["a", "b"], rows: [[1, "x"], [2, "y"]] } });
+    expect(l.order).toEqual(["header", "row_1", "row_2"]);
+    const explicit = table({ data: { columns: ["a"], rows: [[1]] }, columns: ["z"], rows: [[9], [8], [7]] });
+    expect(explicit.order).toEqual(["header", "row_1", "row_2", "row_3"]);
+    expect(texts(explicit).map((d) => d.text)).toContain("z");
+  });
+
+  test("numeric columns are right-aligned, text columns left-aligned", () => {
+    const l = table({ columns: ["name", "n"], rows: [["a", 1], ["b", 22]] });
+    const cell = (id: string) => texts(l).find((d) => d.id === id)!;
+    expect(cell("row_1__c0").anchor).toBe("start");
+    expect(cell("row_1__c1").anchor).toBe("end");
+  });
+
+  test("rows beyond 24 (or beyond the box) are cut with a 'more rows' line", () => {
+    const rows = Array.from({ length: 40 }, (_, i) => [i, i * 2]);
+    const l = table({ columns: ["i", "2i"], rows });
+    expect(l.order.filter((id) => id.startsWith("row_")).length).toBeLessThanOrEqual(24);
+    expect(l.order).toContain("more");
+    expect(texts(l).some((d) => /more rows/.test(d.text))).toBe(true);
+  });
+
+  test("an unresolved token draws just nothing (no header, no warnings) — rows beats come from typed data", () => {
+    const l = table({ data: "{sim.df}" });
+    expect(l.order).toEqual([]);
+    expect(l.warnings).toEqual([]);
+  });
+
+  test("box confines the table", () => {
+    const l = table({ columns: ["a"], rows: [[1]], box: { x: 500, y: 100, w: 400, h: 500 } });
+    for (const d of texts(l)) expect(d.pos[0]).toBeGreaterThanOrEqual(500);
   });
 });

@@ -318,8 +318,10 @@ blanks a figure.
   **or** `data: "{sim.df}"` (a whole harvested DataFrame — `{columns,
   rows}`; explicit `columns`/`rows` win when both are given), `decimals`
   (default 2; integers untouched), `box`, `title`, `font_size`.
-- Drawn with `kit.table`: header row over an ink rule, guide-colored row
-  rules, columns sized to content and clamped to the box.
+- Drawn as one group per row from `kit.stroke`/`kit.text` (`kit.table` draws
+  a single uniform grid and cannot give per-row ids or content-sized
+  columns): header row over an ink rule, guide-colored row rules, columns
+  sized to content and clamped to the box, numeric columns right-aligned.
 - Ids: `header`, `row_1..n` (a row's cells and its rule — so a table fills
   row by row with ordinary draw beats), `title`.
 - Cap: 24 rows drawn, then one "… N more rows" line. **No `stage` in v1**:

@@ -8903,5 +8903,88 @@
    }
   ]
  }
-}
+},
+ {
+  "request": "A table showing 100 growing at 2 percent versus 7 percent, decade by decade, revealed one row at a time",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Compounding, decade by decade",
+   "template": "data_table",
+   "params": {
+    "columns": [
+     "Year",
+     "At 2 %",
+     "At 7 %"
+    ],
+    "rows": [
+     [
+      0,
+      100,
+      100
+     ],
+     [
+      10,
+      121.9,
+      196.7
+     ],
+     [
+      20,
+      148.6,
+      387
+     ],
+     [
+      30,
+      181.1,
+      761.2
+     ]
+    ],
+    "decimals": 1,
+    "font_size": 24,
+    "box": {
+     "x": 200,
+     "y": 300,
+     "w": 600,
+     "h": 340
+    },
+    "title": "Compounding, decade by decade"
+   },
+   "commands": [
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Does the interest rate really matter? Let the numbers speak, ten years at a time."
+    },
+    {
+     "draw": [
+      "header",
+      "row_1"
+     ],
+     "parallel": true,
+     "speak": "Both start at one hundred."
+    },
+    {
+     "draw": [
+      "row_2"
+     ],
+     "speak": "After ten years: one twenty-two against nearly two hundred."
+    },
+    {
+     "draw": [
+      "row_3"
+     ],
+     "speak": "After twenty: one forty-nine against three eighty-seven."
+    },
+    {
+     "draw": [
+      "row_4"
+     ],
+     "delivery": "grave",
+     "speak": "After thirty: one eighty-one — against seven hundred and sixty. The rate was three and a half times higher; the money is four times more."
+    }
+   ]
+  }
+ }
 ]

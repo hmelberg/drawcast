@@ -244,3 +244,156 @@ layout: |
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }
   return { drawables, labels: labelReqs, anchors, order };
+---
+template: data_table
+title: Data table
+version: 1
+kit: 5
+status: ready
+description: >-
+  A ruled table from data: a header row over an ink rule, then one drawable
+  per row (`row_1`, `row_2`, …) so a table can fill in row by row on
+  narration beats. Columns size to their content; numeric columns are
+  right-aligned and formatted with `decimals`. Feed it typed `columns` and
+  `rows`, or a code element's whole DataFrame with `data: "{id.df}"`. Choose
+  this scene for ANY request to show a table of numbers, a comparison grid,
+  a schedule of values year by year, or the rows of a data frame.
+params:
+  type: object
+  properties:
+    columns:
+      type: array
+      items: { type: string }
+      maxItems: 8
+      description: "Header labels, one per column."
+    rows:
+      type: array
+      maxItems: 200
+      items:
+        type: array
+        items:
+          oneOf: [{ type: number }, { type: string }, { type: "null" }]
+      description: "Cell values, one array per row (numbers stay numbers — they are formatted by decimals; strings are shown as written). At most 24 rows are drawn."
+    data:
+      oneOf:
+        - type: object
+          properties:
+            columns: { type: array, items: { type: string } }
+            rows: { type: array, items: { type: array } }
+          required: [columns, rows]
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "A whole DataFrame — {columns, rows} as the runtime harvests it — usually as a \"{id.df}\" token. Explicit columns/rows win when both are given."
+    decimals:
+      type: integer
+      minimum: 0
+      maximum: 6
+      description: "Decimals for non-integer numbers (default 2)."
+    font_size:
+      type: number
+      minimum: 12
+      maximum: 30
+      description: "Cell text size (default 20)."
+    box:
+      type: object
+      properties:
+        x: { type: number }
+        y: { type: number }
+        w: { type: number }
+        h: { type: number }
+      required: [x, y, w, h]
+      description: "Where the table sits (lower-left corner, width, height) when it shares the canvas. Default: the standard plot area; the table hangs from its top edge."
+    title:
+      type: string
+element_ids:
+  header: the header row (column names over an ink rule)
+  row_1: "the first data row (row_2, row_3, … likewise) — draw them one per beat to fill the table in"
+  more: "the '… N more rows' line when the data exceeds what fits"
+  title: figure title, when set
+examples:
+  - request: "A table of 100 growing at 2 percent and 7 percent, every ten years for thirty years."
+    params:
+      columns: ["Year", "2 %", "7 %"]
+      rows:
+        - [0, 100, 100]
+        - [10, 121.9, 196.7]
+        - [20, 148.6, 387.0]
+        - [30, 181.1, 761.2]
+      decimals: 1
+      title: "Compounding, decade by decade"
+  - request: "Show the three countries and their GDP per capita as a table."
+    params:
+      columns: ["Country", "GDP per capita"]
+      rows:
+        - ["Norway", 87]
+        - ["Sweden", 52]
+        - ["Denmark", 58]
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  // data: a harvested DataFrame ({columns, rows}); a still-unresolved token is a string → no data.
+  const data = params.data && typeof params.data === "object" ? params.data : null;
+  const columns = (Array.isArray(params.columns) ? params.columns : data && Array.isArray(data.columns) ? data.columns : [])
+    .map(String)
+    .slice(0, 8);
+  const rowsIn = Array.isArray(params.rows) ? params.rows : data && Array.isArray(data.rows) ? data.rows : [];
+  const dec = clamp(Math.round(num(params.decimals, 2)), 0, 6);
+  const cell = (c) => (c === null || c === undefined ? "" : typeof c === "number" ? (Number.isInteger(c) ? String(c) : c.toFixed(dec)) : String(c));
+  const rows = rowsIn.filter(Array.isArray).map((r) => columns.map((_, j) => cell(r[j])));
+  const fontSize = clamp(num(params.font_size, 20), 12, 30);
+  const rowH = fontSize * 1.6;
+  const b = params.box;
+  const box = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0
+    ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }
+    : kit.plotArea();
+  const CAP = 24;
+  const fit = Math.max(1, Math.floor((box.y1 - box.y0) / rowH) - 2); // header + a "more" line
+  const shown = rows.slice(0, Math.min(CAP, fit));
+  const more = rows.length - shown.length;
+
+  const drawables = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  if (columns.length === 0) return { drawables, labels: [], anchors, order };
+
+  // Column widths ∝ the widest cell (header included), clamped into the box.
+  const charW = fontSize * 0.55;
+  const raw = columns.map((c, j) => Math.max(c.length, 1, ...shown.map((r) => r[j].length)) * charW + fontSize);
+  const total = raw.reduce((a, v) => a + v, 0) || 1;
+  const widths = raw.map((w) => (w / total) * (box.x1 - box.x0));
+  const colX = (j) => box.x0 + widths.slice(0, j).reduce((a, v) => a + v, 0);
+  const rowTop = (r) => box.y1 - r * rowH; // r = 0 → the header's top edge
+  const numeric = columns.map((_, j) => shown.length > 0 && shown.every((r) => r[j] === "" || /^-?\d[\d.,]*%?$/.test(r[j])));
+  const cellText = (id, r, j, text, color) =>
+    kit.text(id, [numeric[j] ? colX(j) + widths[j] - fontSize / 2 : colX(j) + fontSize / 2, rowTop(r) - rowH / 2], text, {
+      fontSize,
+      anchor: numeric[j] ? "end" : "start",
+      ...(color ? { color } : {}),
+    });
+
+  const head = columns.map((c, j) => cellText("header__c" + j, 0, j, c, C.ink));
+  head.push(kit.stroke("header__rule", [[box.x0, rowTop(1)], [box.x1, rowTop(1)]], { strokeWidth: 2.5, ms: MS.stroke }));
+  push(kit.group("header", head));
+  anchors.header = [(box.x0 + box.x1) / 2, rowTop(0) - rowH / 2];
+
+  shown.forEach((r, i) => {
+    const id = "row_" + (i + 1);
+    const kids = r.map((text, j) => cellText(id + "__c" + j, i + 1, j, text));
+    kids.push(kit.stroke(id + "__rule", [[box.x0, rowTop(i + 2)], [box.x1, rowTop(i + 2)]], { color: C.guide, strokeWidth: 1, instant: true }));
+    push(kit.group(id, kids));
+    anchors[id] = [(box.x0 + box.x1) / 2, rowTop(i + 1) - rowH / 2];
+  });
+
+  if (more > 0) {
+    const y = rowTop(shown.length + 1) - rowH / 2;
+    push(kit.text("more", [box.x0 + fontSize / 2, y], "… " + more + " more rows", { fontSize, anchor: "start", color: C.guide }));
+    anchors.more = [(box.x0 + box.x1) / 2, y];
+  }
+
+  const title = str(params.title, "");
+  if (title) {
+    const ty = Math.min(700, box.y1 + 25);
+    push(kit.text("title", [(box.x0 + box.x1) / 2, ty], title, { fontSize: 30 }));
+    anchors.title = [(box.x0 + box.x1) / 2, ty];
+  }
+  return { drawables, labels: [], anchors, order };
