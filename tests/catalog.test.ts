@@ -100,10 +100,10 @@ describe("detectNeedTemplate", () => {
   });
 });
 
-// Deliberate value, not incidental: it sits above the default library so the
-// out-of-the-box catalog stays fully expanded (tests/pack-defaults.test.ts).
-// Raised 50 -> 80 when the medicine pack pushed the default library to 50
-// ready templates — full entries beat index-only selection at this scale.
-test("threshold is 80", () => {
-  expect(TEMPLATE_FULL_THRESHOLD).toBe(80);
-});
+// TEMPLATE_FULL_THRESHOLD is a deliberate value, not incidental: it sits
+// above the default library so the out-of-the-box catalog stays fully
+// expanded (tests/pack-defaults.test.ts enforces that invariant against the
+// live constant, so it never drifts silently). History: 50 -> 80 when the
+// medicine pack pushed the default library to 50 ready templates; 80 -> 100
+// on 2026-09-02 with the data pack (see src/scenes/catalog.ts for the
+// current value — deliberately not re-pinned here as a literal).

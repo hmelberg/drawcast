@@ -22,7 +22,7 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
  * prefix. The two-level machinery stays as the safety valve for user
  * templates and remote packs pushing past this threshold.
  */
-export const TEMPLATE_FULL_THRESHOLD = 80;
+export const TEMPLATE_FULL_THRESHOLD = 100; // raised 2026-09-02 with the data pack; Hans OK
 
 /** Always promoted to a full entry once the catalog goes two-level. */
 const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];

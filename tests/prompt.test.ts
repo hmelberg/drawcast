@@ -38,6 +38,11 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("TYPE the labels");
     expect(compilerV1).toContain('"show": "none"');
   });
+
+  test("names the other data templates (line_chart, scatter_plot)", () => {
+    expect(compilerV1).toContain("scatter_plot");
+    expect(compilerV1).toContain("line_chart");
+  });
 });
 
 describe("buildSystemPrompt", () => {

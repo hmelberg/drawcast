@@ -47,3 +47,23 @@ describe("sliderSpecs", () => {
     expect(sliderSpecs("nope")).toEqual([]);
   });
 });
+
+describe("x-max-from — a slider bounded by the data's stage count", () => {
+  const schema = { type: "object", properties: { stage: { type: "number", minimum: 0, "x-max-from": ["values", "series.0.values"] } } };
+  test("staged values give max = stages − 1 with a continuous step", () => {
+    expect(sliderSpecs(schema, { values: [[1, 2], [3, 4], [5, 6]] })).toEqual([{ path: "stage", label: "stage", min: 0, max: 2, step: "any" }]);
+  });
+  test("falls through the candidate paths", () => {
+    expect(sliderSpecs(schema, { series: [{ values: [[1], [2]] }] })).toEqual([{ path: "stage", label: "stage", min: 0, max: 1, step: "any" }]);
+  });
+  test("a static list, a token or a single stage yields no slider", () => {
+    expect(sliderSpecs(schema, { values: [1, 2, 3] })).toEqual([]);
+    expect(sliderSpecs(schema, { values: "{sim.frames}" })).toEqual([]);
+    expect(sliderSpecs(schema, { values: [[1, 2]] })).toEqual([]);
+    expect(sliderSpecs(schema)).toEqual([]);
+  });
+  test("a static maximum still wins over the hint", () => {
+    const s = { type: "object", properties: { stage: { type: "number", minimum: 0, maximum: 5, "x-max-from": ["values"] } } };
+    expect(sliderSpecs(s, { values: [[1], [2], [3]] })[0].max).toBe(5);
+  });
+});

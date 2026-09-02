@@ -1,7 +1,9 @@
 // Pure derivation of explore-sliders from a template's params_schema: any
 // number that declares BOTH standard JSON-Schema bounds (minimum/maximum)
-// becomes a slider. No bounds, no slider — ranges are never guessed from
-// prose. Kept DOM-free so node tests can cover it (tray.ts is the DOM half).
+// becomes a slider, or a `minimum` plus a `x-max-from` hint naming the
+// staged param whose stage count bounds it. No bounds, no slider — ranges
+// are never guessed from prose. Kept DOM-free so node tests can cover it
+// (tray.ts is the DOM half).
 
 export interface SliderSpec {
   path: string;
@@ -18,24 +20,49 @@ interface SchemaNode {
   minimum?: unknown;
   maximum?: unknown;
   multipleOf?: unknown;
+  "x-max-from"?: unknown;
 }
 
-function boundedNumber(node: SchemaNode): { min: number; max: number; step: number | "any" } | null {
+/** Walks a dot path (object keys and array indices, e.g. "series.0.values") through params. */
+function resolvePath(params: unknown, path: string): unknown {
+  let cur: unknown = params;
+  for (const seg of path.split(".")) {
+    if (typeof cur !== "object" || cur === null) return undefined;
+    cur = (cur as Record<string, unknown>)[seg];
+  }
+  return cur;
+}
+
+/** A staged value: an array of stages whose first stage is itself an array, with at least 2 stages. */
+function stageCount(value: unknown): number | null {
+  return Array.isArray(value) && Array.isArray(value[0]) && value.length >= 2 ? value.length : null;
+}
+
+function boundedNumber(node: SchemaNode, params?: Record<string, unknown>): { min: number; max: number; step: number | "any" } | null {
   if ((node.type === "number" || node.type === "integer") && typeof node.minimum === "number" && typeof node.maximum === "number" && node.maximum > node.minimum) {
     const fallback = node.type === "integer" ? 1 : "any";
     return { min: node.minimum, max: node.maximum, step: typeof node.multipleOf === "number" ? node.multipleOf : fallback };
   }
+  const hint = node["x-max-from"];
+  if (typeof node.maximum !== "number" && typeof node.minimum === "number" && (typeof hint === "string" || Array.isArray(hint))) {
+    const candidates = typeof hint === "string" ? [hint] : hint;
+    for (const path of candidates) {
+      if (typeof path !== "string") continue;
+      const stages = stageCount(resolvePath(params, path));
+      if (stages !== null) return { min: node.minimum, max: stages - 1, step: "any" };
+    }
+  }
   return null;
 }
 
-export function sliderSpecs(schema: unknown): SliderSpec[] {
+export function sliderSpecs(schema: unknown, params?: Record<string, unknown>): SliderSpec[] {
   const out: SliderSpec[] = [];
   const walk = (node: unknown, path: string): void => {
     if (typeof node !== "object" || node === null) return;
     const n = node as SchemaNode;
     const own =
-      boundedNumber(n) ??
-      (Array.isArray(n.oneOf) ? (n.oneOf.map((b) => boundedNumber((b ?? {}) as SchemaNode)).find(Boolean) ?? null) : null);
+      boundedNumber(n, params) ??
+      (Array.isArray(n.oneOf) ? (n.oneOf.map((b) => boundedNumber((b ?? {}) as SchemaNode, params)).find(Boolean) ?? null) : null);
     if (own && path) {
       out.push({ path, label: path.split(".").at(-1)!, ...own });
       return;

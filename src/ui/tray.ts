@@ -32,7 +32,7 @@ function liveSliders(hd: RenderHandle): { spec: SliderSpec; value: number }[] {
   // The viewer's own committed numbers (a {var} animate) win over the plan's
   // fallbacks — exploration continues from where THEY left the figure.
   const runtime = hd.timeline.getParamOverrides();
-  return sliderSpecs(schema)
+  return sliderSpecs(schema, hd.spec.params)
     .map((spec) => ({ spec, value: runtime[spec.path] ?? readParam(effective, spec.path) }))
     .filter((s): s is { spec: SliderSpec; value: number } => s.value !== null);
 }

@@ -49,6 +49,7 @@ params:
     stage:
       type: number
       minimum: 0
+      x-max-from: ["values", "series.0.values"]
       description: "Which stage is shown (0-based; default 0). Fractional values interpolate between adjacent stages — the animate verb's target: {\"animate\": {\"stage\": 1}}. Write the starting stage explicitly."
     value_labels:
       type: boolean
