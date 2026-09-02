@@ -88,8 +88,12 @@ export const R_WRAPPER = String.raw`
 if (!is.null(.__exprs)) withCallingHandlers(
   tryCatch(.__run(), error = function(e) {
     call <- conditionCall(e)
-    .__err <<- if (is.null(call)) paste0("Error: ", conditionMessage(e))
-      else paste0("Error in ", paste(deparse(call, nlines = 1), collapse = ""), ": ", conditionMessage(e))
+    callstr <- if (is.null(call)) "" else paste(deparse(call, nlines = 1), collapse = "")
+    # A top-level stop() reports the wrapper's own eval() as its call; the
+    # console would say plain "Error: msg", so drop our plumbing's calls.
+    if (grepl("^(eval|withVisible|withAutoprint|source)\\(", callstr)) callstr <- ""
+    .__err <<- if (callstr == "") paste0("Error: ", conditionMessage(e))
+      else paste0("Error in ", callstr, ": ", conditionMessage(e))
   }),
   warning = function(w) { .__warn <<- c(.__warn, paste0("Warning: ", conditionMessage(w))); invokeRestart("muffleWarning") },
   message = function(m) { .__warn <<- c(.__warn, sub("\n$", "", conditionMessage(m))); invokeRestart("muffleMessage") }

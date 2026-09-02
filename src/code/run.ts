@@ -66,7 +66,7 @@ type RuntimeModule = { run: (req: CodeRunRequest) => Promise<CodeRunResult> };
  *  never loads a byte of it. */
 const RUNTIMES: Record<Language, () => Promise<RuntimeModule>> = {
   python: () => import("./pyodide"),
-  r: () => import("./not-yet"),
+  r: () => import("./webr"),
   brython: () => import("./not-yet"),
   micropython: () => import("./not-yet"),
 };
