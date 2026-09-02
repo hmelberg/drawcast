@@ -239,3 +239,19 @@ minted in the same run. Ungenerated successors get no link; the viewer
 renders a real anchor pill on the finished poster (plain click navigates
 + reloads — a bare hash change would not remount; modified clicks keep
 real-link semantics for new tabs).
+
+## "It's embedding the narration again"
+
+Verified against the live repo first: all 20 published lectures carry
+audio and the clips ARE stamped en-US-Studio-Q, and readFile is already
+cache-busted — so neither stale reads nor stamp mismatch-by-default
+explains it. Prime remaining suspect: a CC-menu audition pick silently
+became the durable voice (B12's quick-pick-saves design), making every
+undeclared line's decision differ from the published stamps — a correct
+re-voicing that LOOKS like a bug to an author who "didn't change the
+speech". Fix shipped for the class of confusion rather than the guess:
+the publish report now accounts for every line ("N reused from the
+published copy, M replayed free from the local cache, K synthesized") and
+NAMES a re-voicing with its from → to and the route back (Settings →
+Playback). voiceChanges() pure in bake.ts; SynthStats on the caching
+synthesizer; wired in both cast and course bakes.
