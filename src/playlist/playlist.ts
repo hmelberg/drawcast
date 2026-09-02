@@ -62,7 +62,15 @@ export interface Playlist {
   audio?: AudioTrack;
 }
 
-export const DEFAULT_META: PlaylistMeta = { advance: "click", gap: 1, transitions: "auto" };
+// advance defaults to auto (C10, 2026-09-02): a chapter boundary is
+// structural — the piece is moving on, and a viewer watching a lecture
+// should not have to click to reach section 2. The timed card has been
+// shipping in every exported video all along (exportSequence hardcodes
+// auto). `advance: click` remains per-playlist for kiosks and self-paced
+// exercises, with the &advance= URL override on top. Note the serializer
+// omits default values, so playlists that never wrote `advance` flip with
+// this default — replace-don't-freeze, by ruling.
+export const DEFAULT_META: PlaylistMeta = { advance: "auto", gap: 1, transitions: "auto" };
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -80,7 +88,7 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   if (typeof raw.prompt === "string") meta.prompt = raw.prompt;
   if (raw.advance !== undefined) {
     if (raw.advance === "click" || raw.advance === "auto") meta.advance = raw.advance;
-    else warnings.push(`playlist.advance must be "click" or "auto" (got ${JSON.stringify(raw.advance)}) — using click`);
+    else warnings.push(`playlist.advance must be "click" or "auto" (got ${JSON.stringify(raw.advance)}) — using auto`);
   }
   if (typeof raw.gap === "number") meta.gap = raw.gap;
   if (raw.transitions !== undefined) {

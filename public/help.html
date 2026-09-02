@@ -389,7 +389,7 @@ commands:
         <pre><code>playlist:
   title: A short course on taxes
   subtitle: In six drawings   # optional, under the title on the title page
-  advance: click     # or auto
+  advance: auto      # or click, to wait for the viewer at each part
   gap: 1             # seconds between parts when advancing automatically
   transitions: auto  # auto = soft fades + chapter cards, none = hard cuts
 ---
@@ -448,7 +448,7 @@ commands: [ … ]</code></pre>
             <tr><td><code>&amp;style=sketchy</code></td><td>Hand-drawn instead of clean lines.</td></tr>
             <tr><td><code>&amp;mode=silent</code></td><td><code>silent</code> or <code>instant</code>; the default is narrated.</td></tr>
             <tr><td><code>&amp;speed=1.5</code></td><td>Playback speed.</td></tr>
-            <tr><td><code>&amp;advance=auto</code></td><td>Never wait for a click — for a screen that should loop unattended.</td></tr>
+            <tr><td><code>&amp;advance=click</code></td><td>Wait for a click between parts (the default advances on a timer).</td></tr>
           </tbody>
         </table>
         <p>A multi-part drawcast works the same way: put the whole YAML stream in the one document.</p>

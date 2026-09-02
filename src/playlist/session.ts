@@ -396,7 +396,12 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     }
     handle = hd;
     const stage = host.querySelector<HTMLElement>(".cs-stage");
-    if (stage) hd.timeline.inputGate = clickGate(stage);
+    // The chapter gate wears its own words (C11): "Click to continue ▸" is
+    // the authored wait verb's pill — a request to engage — and a boundary
+    // that borrowed it made every click stop reading as a request. Under the
+    // auto default this gate rarely appears at all; the card holds gap
+    // seconds and dissolves.
+    if (stage) hd.timeline.inputGate = clickGate(stage, "Next chapter ▸");
     hd.timeline.callbacks = {
       onState: (s) => {
         if (s === "done") void mountItem(next.index, true);

@@ -23,7 +23,9 @@ describe("parsePlaylistText — single documents stay exactly as today", () => {
     const p = parsePlaylistText(SPEC_A);
     expect(p.entries).toHaveLength(1);
     expect(p.entries[0]).toMatchObject({ kind: "item" });
-    expect(p.meta.advance).toBe("click");
+    // auto since C10 (2026-09-02): chapter boundaries are structural; the
+    // click gate is opt-in per playlist for kiosks and self-paced work.
+    expect(p.meta.advance).toBe("auto");
     expect(p.meta.transitions).toBe("auto");
   });
 
@@ -65,7 +67,7 @@ describe("parsePlaylistText — multi-document streams", () => {
 
   test("a stream without a header gets default meta", () => {
     const p = parsePlaylistText(`${SPEC_A}\n---\n${SPEC_B}`);
-    expect(p.meta.advance).toBe("click");
+    expect(p.meta.advance).toBe("auto");
     expect(p.entries).toHaveLength(2);
   });
 
@@ -79,9 +81,9 @@ describe("parsePlaylistText — multi-document streams", () => {
     expect(p.entries).toHaveLength(2);
   });
 
-  test("an unknown advance value falls back to click with a warning", () => {
+  test("an unknown advance value falls back to the auto default with a warning", () => {
     const p = parsePlaylistText(`playlist: {advance: sideways}\n---\n${SPEC_A}`);
-    expect(p.meta.advance).toBe("click");
+    expect(p.meta.advance).toBe("auto");
     expect(p.warnings.length).toBeGreaterThan(0);
   });
 });
