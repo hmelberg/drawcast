@@ -49,15 +49,28 @@ export function repoRollupPrefix(owner: string, repo: string): string {
   return `r/${encodeURIComponent(`${owner}/${repo}/`)}`;
 }
 
-export function castKeyOfRollup(blobKey: string): string {
-  return decodeURIComponent(blobKey.slice("r/".length));
+/** `r/<enc>` → the cast key, or null if `<enc>` is not valid percent-encoding.
+ *  This runs over real `list()` output, which can contain keys this module
+ *  never wrote — a stray or legacy blob — so decodeURIComponent's throw on a
+ *  malformed sequence must not propagate. */
+export function castKeyOfRollup(blobKey: string): string | null {
+  try {
+    return decodeURIComponent(blobKey.slice("r/".length));
+  } catch {
+    return null;
+  }
 }
 
-/** `h/<enc>/<day>/<id>` → the cast key, or null if the shape is wrong. */
+/** `h/<enc>/<day>/<id>` → the cast key, or null if the shape is wrong or
+ *  `<enc>` is not valid percent-encoding (see castKeyOfRollup). */
 export function castKeyOfHitKey(blobKey: string): string | null {
   const parts = blobKey.split("/");
   if (parts.length !== 4 || parts[0] !== "h") return null;
-  return decodeURIComponent(parts[1]);
+  try {
+    return decodeURIComponent(parts[1]);
+  } catch {
+    return null;
+  }
 }
 
 export function dayOfHitKey(blobKey: string): string | null {

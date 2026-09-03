@@ -68,6 +68,14 @@ describe("blob key construction", () => {
     expect(castKeyOfRollup(`r/${enc}`)).toBe(key);
     expect(dayOfHitKey("h/nonsense")).toBeNull();
   });
+
+  test("a malformed percent-sequence returns null instead of throwing", () => {
+    // `list()` can hand back keys this module never wrote — a stray or
+    // legacy blob in the same store — so decodeURIComponent must not be
+    // trusted to succeed on them.
+    expect(castKeyOfHitKey("h/broken%2/2026-09-04/abc")).toBeNull();
+    expect(castKeyOfRollup("r/broken%2")).toBeNull();
+  });
 });
 
 describe("dayString", () => {
