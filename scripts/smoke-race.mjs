@@ -59,6 +59,19 @@
 // printed per race so a reader can see the gate is discriminating rather than
 // blind — an implausibly high count is worth a human's eye.
 //
+// SELF-CHECK (proves the exemption still refuses a real collision). Every
+// bar_race template tried against a real furniture overlap has come back
+// clean — its clearsTicker fallback (data.yaml) is, empirically, airtight —
+// so this file has no positive case of its own proving isExpectedCrossing
+// actually refuses a non-racer overlap rather than accidentally exempting
+// everything. So the script defines one minimal, deliberately-broken scene
+// entirely in this file (never touching src/ or a bundled example) that
+// reuses the race_<n> id family and places a value label directly on a
+// ticker-like furniture box past a threshold stage, with NO avoidance — on
+// purpose, permanently. Its expectation is INVERTED: it is required to FAIL
+// checkRace. If it ever stops failing, the exemption has drifted too wide,
+// and that is reported as the gate's real failure.
+//
 // Runs the real app code: a Vite SSR module graph (`server.ssrLoadModule`) —
 // the same mechanism vite-node/Vitest use — loads src/layout/layout.ts,
 // src/scenes/registry.ts etc. directly from TypeScript/`?raw` YAML, so this is
@@ -421,17 +434,17 @@ async function main() {
      * Checks one race (a template + params, over its own maxStage) against
      * the T5-A standard: every INTEGER stage must lint fully clean (no
      * exemption at all); every FRACTIONAL stage must lint clean once expected
-     * crossings (isExpectedCrossing) are set aside. Pushes real failures onto
-     * the shared `lintFailures`; returns how many expected crossings it saw,
-     * for the per-race "expected crossings: N" line.
+     * crossings (isExpectedCrossing) are set aside. Returns the real
+     * (non-exempt) failures found and how many expected crossings it saw —
+     * the caller decides what to do with them (a normal race pushes real
+     * failures onto `lintFailures`; the self-check below inverts that).
      */
-    const checkRace = (label, template, params, raceMaxStage) => {
+    const checkRace = (template, params, raceMaxStage) => {
       let crossings = 0;
+      const realFailures = [];
       for (const stage of integerStages(raceMaxStage)) {
         const l = layoutSpec({ template, params: { ...params, stage } });
-        if (l.issues.length > 0) {
-          lintFailures.push({ label, stage, kind: "integer", issues: l.issues.map(fmtIssue) });
-        }
+        if (l.issues.length > 0) realFailures.push({ stage, kind: "integer", issues: l.issues.map(fmtIssue) });
       }
       for (const stage of midpointStages(raceMaxStage, LINT_SAMPLES)) {
         const l = layoutSpec({ template, params: { ...params, stage } });
@@ -440,14 +453,20 @@ async function main() {
           if (isExpectedCrossing(issue)) crossings++;
           else real.push(issue);
         }
-        if (real.length > 0) lintFailures.push({ label, stage, kind: "fractional", issues: real.map(fmtIssue) });
+        if (real.length > 0) realFailures.push({ stage, kind: "fractional", issues: real.map(fmtIssue) });
       }
+      return { crossings, realFailures };
+    };
+
+    const recordRace = (label, template, params, raceMaxStage) => {
+      const { crossings, realFailures } = checkRace(template, params, raceMaxStage);
+      for (const f of realFailures) lintFailures.push({ label, ...f });
       return crossings;
     };
 
     // The synthetic race itself.
     {
-      const crossings = checkRace("synthetic 20-racer race", "bar_race", race, maxStage);
+      const crossings = recordRace("synthetic 20-racer race", "bar_race", race, maxStage);
       console.log(
         `  synthetic 20-racer/60-stage race: ${maxStage + 1} integer stages + ${LINT_SAMPLES} fractional stages checked — expected crossings: ${crossings}`,
       );
@@ -474,7 +493,7 @@ async function main() {
         const stageSlider = sliders.find((s) => s.path === "stage");
         if (!stageSlider) continue; // single-stage example — covered by examples.test.ts already
         exampleCount++;
-        const crossings = checkRace(`${templateId} example: "${ex.request}"`, templateId, ex.params, stageSlider.max);
+        const crossings = recordRace(`${templateId} example: "${ex.request}"`, templateId, ex.params, stageSlider.max);
         const title = ex.request.length > 56 ? `${ex.request.slice(0, 56)}…` : ex.request;
         console.log(
           `  ${templateId} example "${title}" (max stage ${stageSlider.max}): ${stageSlider.max + 1} integer + ${LINT_SAMPLES} fractional stages checked — expected crossings: ${crossings}`,
@@ -484,12 +503,111 @@ async function main() {
     console.log(`  (${exampleCount} bundled staged examples covered across bar_race + line_chart)`);
     console.log("");
 
+    // -------------------------------------------------------------------
+    // Self-check: prove the exemption still refuses a REAL collision.
+    //
+    // Every failure demonstrated so far (fix round 1) needed a source
+    // perturbation nobody ships: the real bar_race's clearsTicker fallback
+    // (data.yaml) is, empirically, airtight against every legitimate params
+    // combination tried — it always either repositions a value label clear
+    // of the ticker or omits the label rather than draw a collision. So the
+    // shipped script, run against today's real templates, has no positive
+    // proof that isExpectedCrossing actually refuses a non-racer overlap —
+    // only a throwaway copy of the logic, run separately, showed that.
+    //
+    // This fixture closes that gap without touching src/ or the bundled
+    // examples (both off-limits for this harness): a minimal scene, defined
+    // ENTIRELY in this file and registered directly into the in-memory
+    // `scenes` registry for the duration of this run only, reusing the
+    // race_<n> id family so the matcher is genuinely exercised. Below its
+    // threshold stage the racer's value sits harmlessly aside (mirroring "a
+    // long, late-growing bottom-row racer" before it has grown); past it,
+    // the value is placed EXACTLY on the ticker's own box — deliberately,
+    // permanently, with no clearsTicker-style avoidance, because avoiding it
+    // is not the point: catching it is.
+    //
+    // The expectation is INVERTED: this fixture is REQUIRED to produce a
+    // real (non-exempt) failure. If it ever stops failing, isExpectedCrossing
+    // (or something upstream of it) has drifted wide enough to swallow a
+    // genuine defect, and that is reported as the actual gate failure.
+    // -------------------------------------------------------------------
+    console.log("SELF-CHECK — harness-only adversarial fixture (not bar_race, not a bundled example, not in src/)");
+    const SELF_CHECK_TEMPLATE = "__smoke_race_selfcheck";
+    const SELF_CHECK_MAX_STAGE = 5;
+    scenes[SELF_CHECK_TEMPLATE] = {
+      manifest: {
+        name: SELF_CHECK_TEMPLATE,
+        status: "ready",
+        description: "harness self-check fixture — never shipped, never a bundled example",
+        params_schema: { type: "object", properties: {} },
+        element_ids: {},
+        examples: [],
+      },
+      layout(params) {
+        const stage = typeof params.stage === "number" ? params.stage : 0;
+        const N = 4;
+        const drawables = [];
+        const order = [];
+        const push = (d) => {
+          drawables.push(d);
+          order.push(d.id);
+        };
+        const style = { color: "#3d3833", strokeWidth: 3.5, roughness: 1.4, opacity: 1 };
+        const instant = { mode: "instant", duration: 0 };
+        for (let i = 1; i <= N; i++) {
+          const y = 100 + 90 * i; // rows at y = 190, 280, 370, 460 — all well inside the 750-tall canvas
+          push({ id: `race_${i}`, kind: "area", z: 0, style: { ...style, fill: "#8a5fa8" }, drawOpts: instant, pts: [[60, y - 20], [140, y - 20], [140, y + 20], [60, y + 20]] });
+          // anchor "end" at x=200 keeps the whole label (~70 units wide) inside
+          // the 1000-wide canvas with margin either side of every other label.
+          push({ id: `race_${i}_text`, kind: "text", z: 2, style, drawOpts: instant, pos: [200, y], text: `Racer ${i}`, fontSize: 16, anchor: "end" });
+        }
+        const tickerPos = [900, 90]; // bottom-right corner, mirroring bar_race's own ticker spot
+        // Harmless while `stage <= 2` — parked in an empty stretch of canvas
+        // nowhere near any other label (racer hasn't "grown" yet). Driven
+        // EXACTLY onto the ticker's own box past the threshold — no avoidance,
+        // by design: that IS the fixture, not a bug waiting to be fixed.
+        const valuePos = stage > 2 ? [tickerPos[0] - 5, tickerPos[1]] : [400, 650];
+        push({ id: `race_${N}_value`, kind: "text", z: 2, style, drawOpts: instant, pos: valuePos, text: "99", fontSize: 16, anchor: "start" });
+        push({ id: "ticker", kind: "text", z: 2, style: { ...style, opacity: 0.4 }, drawOpts: instant, pos: tickerPos, text: "2020", fontSize: 46, anchor: "end" });
+        return { drawables, order, labels: [], anchors: {} };
+      },
+    };
+    let selfCheckOk;
+    try {
+      const { crossings, realFailures } = checkRace(SELF_CHECK_TEMPLATE, {}, SELF_CHECK_MAX_STAGE);
+      selfCheckOk = realFailures.length > 0;
+      if (selfCheckOk) {
+        const first = realFailures[0];
+        console.log(
+          `  PASSED (as required): the fixture's racer/ticker collision was correctly flagged as a REAL, non-exempt failure ` +
+            `at ${realFailures.length} of ${SELF_CHECK_MAX_STAGE + 1 + LINT_SAMPLES} sampled (integer+fractional) stage(s), e.g. ` +
+            `stage ${first.stage.toFixed(2)}: ${first.issues[0]}`,
+        );
+        console.log(`  expected crossings incidentally seen while sweeping the fixture: ${crossings} (should be 0 — only one racer ever gets a value here)`);
+        console.log("  This is positive proof isExpectedCrossing does NOT exempt a racer/furniture overlap — the gate has teeth.");
+      } else {
+        console.error("  SELF-CHECK FAILED — the adversarial fixture's racer/ticker collision was NOT flagged as a real issue.");
+        console.error("  This means the crossing exemption (or something upstream of it) has drifted wide enough to swallow a");
+        console.error("  genuine defect. Treat THIS as the gate's real failure, not a race result — the fixture is supposed to fail.");
+        lintFailures.push({
+          label: "SELF-CHECK (adversarial fixture)",
+          stage: NaN,
+          kind: "self-check",
+          issues: ["expected checkRace to find a real, non-exempt issue on the fixture's racer/ticker collision; found none — the exemption has drifted too wide"],
+        });
+      }
+    } finally {
+      delete scenes[SELF_CHECK_TEMPLATE]; // never leak the fixture past this run
+    }
+    console.log("");
+
     if (lintFailures.length === 0) {
       console.log("PASS — every integer stage lints fully clean; every fractional-stage issue was an expected crossing.");
     } else {
       console.error(`FAIL — ${lintFailures.length} real (stage, issue) pair(s) found (expected crossings excluded):`);
       for (const f of lintFailures) {
-        console.error(`  ${f.label} @ ${f.kind} stage ${f.stage.toFixed(3)}:`);
+        const where = Number.isNaN(f.stage) ? `${f.label} (${f.kind})` : `${f.label} @ ${f.kind} stage ${f.stage.toFixed(3)}`;
+        console.error(`  ${where}:`);
         for (const issue of f.issues) console.error(`    ${issue}`);
       }
       process.exitCode = 1;
