@@ -212,9 +212,9 @@ const elementSchema = {
     },
     frame: {
       type: "string",
-      enum: ["panel", "window", "screen", "laptop", "none"],
+      enum: ["panel", "window", "screen", "laptop", "crt", "none"],
       description:
-        "code: chrome drawn around the panel — none (bare paper, no frame at all; THE DEFAULT), screen (the code and its output on a computer display: one rounded shell with a chin, no stand), laptop (that display over a keyboard), window (a title bar with three dots), panel (just a light frame). Ask for the screen when the story is that this happened on a computer, and pair it with draw: {mode: \"type\"} so the code is typed onto it.",
+        "code: chrome drawn around the panel — none (bare paper, no frame at all; THE DEFAULT), screen (the code and its output on a computer display: one rounded shell with a chin, no stand), crt (an old tube monitor: chunky shell, bulging glass, little buttons on the chin, on a short foot), laptop (that display over a keyboard), window (a title bar with three dots), panel (just a light frame). Ask for the screen when the story is that this happened on a computer, and pair it with draw: {mode: \"type\"} so the code is typed onto it.",
     },
     figures: {
       type: "number",

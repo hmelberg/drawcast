@@ -433,7 +433,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // Chrome first (it sits behind and around), then the panel's own paper
   // and frame — none of it for frame: none, bare paper.
   const panelChildren: Drawable[] = [...chromeDrawables(el.id, frame, x0, yTop, w, h, el.style, el.draw)];
-  const shelled = frame === "screen" || frame === "laptop"; // its outline is the frame
+  const shelled = frame === "screen" || frame === "laptop" || frame === "crt"; // its outline is the frame
   if (frame !== "none") {
     panelChildren.push(
       {
@@ -663,8 +663,14 @@ const BEZEL = 14;
 const CHIN = 30;
 const SCREEN_R = 24;
 const KEYS_H = 120;
+/** The CRT: a chunky plastic shell, a bulging glass inset in it, a chin with
+ *  small controls, and a short neck on a flat foot. Drawn flat-on — the
+ *  engine is a 2D line renderer and a three-quarter view would have to skew
+ *  the content plane with it — with one thin band down the right edge for
+ *  depth. Its space is opt-in: nothing defaults to a CRT. */
+const CRT = Object.freeze({ side: 34, above: 30, chin: 52, foot: 22, r: 26, depth: 13 });
 
-export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "none";
+export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "crt" | "none";
 
 /** Space the chrome claims outside the panel rectangle, logical units. */
 export function frameSpace(frame: CodeFrame): { above: number; below: number; side: number } {
@@ -675,6 +681,8 @@ export function frameSpace(frame: CodeFrame): { above: number; below: number; si
       return { above: BEZEL, below: CHIN, side: BEZEL };
     case "laptop":
       return { above: BEZEL, below: CHIN + KEYS_H, side: BEZEL };
+    case "crt":
+      return { above: CRT.above, below: CRT.chin + CRT.foot, side: CRT.side };
     default:
       return { above: 0, below: 0, side: 0 };
   }
@@ -707,10 +715,14 @@ function roundRectPts(x: number, y: number, w: number, h: number, r: number, per
 }
 
 function circlePts(c: Pt, r: number, n = 14): Pt[] {
+  return ellipsePts(c, r, r, n);
+}
+
+function ellipsePts(c: Pt, rx: number, ry: number, n = 18): Pt[] {
   const pts: Pt[] = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+    pts.push([c[0] + rx * Math.cos(a), c[1] + ry * Math.sin(a)]);
   }
   return pts;
 }
@@ -784,6 +796,53 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
       }
     }
     out.push({ id: `${id}__keys`, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: sketch(SKETCH_MS.node), children: keys });
+  }
+  if (frame === "crt") {
+    const sx = x0 - CRT.side;
+    const sy = yTop - h - CRT.chin;
+    const sw = w + 2 * CRT.side;
+    const sh = h + CRT.chin + CRT.above;
+    const shell = roundRectPts(sx, sy, sw, sh, CRT.r);
+    out.push({
+      id: `${id}__shell_wash`,
+      kind: "area",
+      pts: shell,
+      precise: true,
+      z: Z_AREA,
+      style: resolveStyle(undefined, { fill: COLORS.guide, opacity: 0.1, strokeWidth: 0 }),
+      drawOpts: instant,
+    });
+    out.push(stroke(`${id}__shell`, shell, true, ink({ strokeWidth: 3.5 }), sketch(SKETCH_MS.node)));
+    // The glass: a bulging pane inset in the plastic, its corners rounder
+    // than the shell's — the one line that says "tube", not "flat panel".
+    out.push(stroke(`${id}__glass`, roundRectPts(x0 - 6, yTop - h - 6, w + 12, h + 12, 34), true, ink({ strokeWidth: 2 }), sketch(SKETCH_MS.node)));
+    // A thin band down the right edge: depth, without skewing the picture.
+    const d = CRT.depth;
+    out.push(
+      stroke(
+        `${id}__depth`,
+        [[sx + sw, sy + CRT.r], [sx + sw + d, sy + CRT.r + d], [sx + sw + d, sy + sh - CRT.r], [sx + sw, sy + sh - CRT.r]],
+        false,
+        resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }),
+        instant,
+      ),
+    );
+    // The chin's controls, small and unlabelled: a power button, a row of
+    // little buttons beside it, and a vent slot at the other end.
+    const chinY = sy + CRT.chin / 2;
+    out.push(stroke(`${id}__power`, circlePts([sx + sw - 40, chinY], 7), true, ink({ strokeWidth: 2.5 }), instant));
+    for (let i = 0; i < 4; i++) {
+      out.push(stroke(`${id}__btn_${i + 1}`, circlePts([sx + sw - 76 - i * 17, chinY], 4.5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
+    }
+    out.push(stroke(`${id}__vent`, roundRectPts(sx + 30, chinY - 5, 96, 10, 5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 }), instant));
+    // A short neck on a flat foot — a tube monitor stands on its own base.
+    // Two separate sides, so nothing draws a line across the foot's face.
+    const cxm = x0 + w / 2;
+    const footY = sy - CRT.foot + 10;
+    const neck = ink({ strokeWidth: 2.5 });
+    out.push(stroke(`${id}__neck_l`, [[cxm - 52, sy], [cxm - 44, footY]], false, neck, sketch(220)));
+    out.push(stroke(`${id}__neck_r`, [[cxm + 52, sy], [cxm + 44, footY]], false, neck, sketch(220)));
+    out.push(stroke(`${id}__foot`, ellipsePts([cxm, footY], 86, 10), true, neck, sketch(400)));
   }
   return out;
 }

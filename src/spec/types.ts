@@ -140,7 +140,7 @@ export interface SpecElement {
   /** code: show the script through a window this many lines tall (≥ 3); stepping past it scrolls, as an editor does. */
   lines?: number;
   /** code: chrome around the panel — panel (default), window (title bar), screen (bezel on a stand), laptop (bezel + keyboard), none. */
-  frame?: "panel" | "window" | "screen" | "laptop" | "none";
+  frame?: "panel" | "window" | "screen" | "laptop" | "crt" | "none";
   /** code: number of separate figures the script produces (>= 2) — each becomes its own beat `<id>_fig_N`, all sharing one frame. */
   figures?: number;
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */
