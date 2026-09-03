@@ -15,6 +15,7 @@ import { bboxOfText } from "../src/layout/geometry";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
 import { FONT_FLOOR, lintLayoutDetailed } from "../src/lint/lint";
+import { softAlpha, contrastAtAlpha, READABLE_FLOOR } from "../src/layout/ink";
 import { COLORS, flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { contrastOfLuminances, relativeLuminance } from "./contrast";
 import { templateParamErrors } from "../src/scenes/params-check";
@@ -898,7 +899,11 @@ describe("line race", () => {
       expect(l.issues).toEqual([]);
       expect(detail.exempt.map((i) => `${i.rule} ${i.ids.join("+")}`)).toEqual(["overlap-label-stroke line_1__t+line_4__l"]);
       const name = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
-      expect(name.style.opacity).toBeCloseTo(0.85, 10);
+      // Dimmed as far as ITS OWN ink can afford and no further: #b5482e
+      // starts at 5.30:1 and stops at 0.770, where it still reads 3.49:1 —
+      // just clear of the pack's readable floor.
+      expect(name.style.opacity).toBeCloseTo(softAlpha(COLORS.series[0]), 10);
+      expect(contrastAtAlpha(COLORS.series[0], name.style.opacity)).toBeGreaterThanOrEqual(READABLE_FLOOR);
       expect(name.crossing).toBe("line_1");
       // The other three are untouched: softening is per label, not per chart.
       for (const id of ["line_2__t", "line_3__t"]) {
@@ -918,10 +923,10 @@ describe("line race", () => {
       }
     });
 
-    test("SOFT = 0.85 is where it is because of the arithmetic, not the eye", () => {
-      // The figure's own paper (src/render/figure-style.ts), the ground the
-      // label is composited over. Recomputed here rather than quoted: this
-      // repo has shipped a wrong contrast number twice.
+    test("how far a label dims is per-ink arithmetic, not a constant — and never below the readable floor", () => {
+      // Recomputed here from scratch (tests/contrast.ts), NOT imported from
+      // src/layout/ink.ts: this repo has shipped a wrong contrast number
+      // twice, so the check has to be able to disagree with the code.
       const GROUND = "#fffefb";
       const chan = (hex: string, i: number) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
       const hex2 = (v: number) => Math.round(v).toString(16).padStart(2, "0");
@@ -931,35 +936,46 @@ describe("line race", () => {
       const ratio = (hex: string) => contrastOfLuminances(relativeLuminance(hex), relativeLuminance(GROUND));
       const at = (ink: string, a: number) => ratio(over(ink, a));
 
-      // The pack's own floor for text a reader is expected to READ: C.guide
-      // at full ink, which is what axis ticks and a racer's value are drawn in.
+      // The floor is the pack's own: C.guide at full ink, which is what axis
+      // ticks and a racer's value label are drawn in — the dimmest text this
+      // app ships and calls readable.
       const FLOOR = at(COLORS.guide, 1);
       expect(FLOOR).toBeCloseTo(3.48, 2);
+      expect(READABLE_FLOOR).toBeCloseTo(FLOOR, 6);
 
-      // Exactly three series inks clear that floor at all…
-      const clears = COLORS.series.filter((ink) => at(ink, 1) >= FLOOR);
-      expect(clears).toEqual(["#b5482e", "#2f6b8f", "#8a5fa8"]);
-      // …and all three still clear it softened, which is what fixes SOFT.
-      for (const ink of clears) expect(at(ink, 0.85), ink).toBeGreaterThanOrEqual(FLOOR);
-      // One step further and the third stops clearing — so 0.85 is the
-      // strongest softening on a 0.05 grid that keeps a readable ink readable.
-      expect(at("#8a5fa8", 0.8)).toBeLessThan(FLOOR);
-
-      // The three lighter inks are already below the floor at FULL opacity —
-      // a palette fact this ruling does not create — and the softening costs
-      // each of them less than half a ratio point.
-      for (const ink of COLORS.series.filter((c) => !clears.includes(c))) {
-        expect(at(ink, 1), ink).toBeLessThan(FLOOR);
-        expect(at(ink, 1) - at(ink, 0.85), ink).toBeLessThan(0.5);
+      // Every ink's answer, independently recomputed. A dimmed label lands AT
+      // or above the floor; an ink with no headroom is left alone entirely.
+      for (const ink of [...COLORS.series, COLORS.ink, COLORS.guide]) {
+        const a = softAlpha(ink);
+        if (at(ink, 1) < FLOOR) {
+          expect(a, `${ink} has no headroom`).toBe(1);
+          continue;
+        }
+        expect(at(ink, a), `${ink} at ${a}`).toBeGreaterThanOrEqual(FLOOR);
+        // …and it really is the LARGEST reduction the floor allows, bar the
+        // cap: one grid step further either breaks the floor or hits 0.7.
+        if (a > 0.7 + 1e-9) expect(at(ink, a - 0.005), `${ink} one step further`).toBeLessThan(FLOOR);
       }
 
-      // And the reason it READS as ink over ink: at full opacity a label
-      // drawn over another is exactly as dark as one label, so a crossing has
-      // no signature at all. Softened, the doubled region is measurably
-      // darker than either name alone.
-      const single = at("#b5482e", 0.85);
-      const doubled = ratio(over("#b5482e", 0.85, over("#b5482e", 0.85)));
-      expect(doubled).toBeGreaterThan(single * 1.2);
+      // The cap binds for the darkest ink and the floor binds for the series
+      // inks that can afford to move — the two halves of the rule, both live.
+      expect(softAlpha(COLORS.ink)).toBeCloseTo(0.7, 10);
+      expect(at(COLORS.ink, 0.7)).toBeGreaterThan(FLOOR);
+      expect(softAlpha(COLORS.series[0])).toBeCloseTo(0.77, 10);
+      expect(softAlpha(COLORS.series[1])).toBeCloseTo(0.76, 10);
+      expect(softAlpha(COLORS.series[2])).toBeCloseTo(0.825, 10);
+      // Three of six series inks are below the floor at FULL opacity — a
+      // palette fact this ruling does not create, and must not paper over.
+      expect(COLORS.series.filter((c) => at(c, 1) < FLOOR)).toEqual(["#d0865f", "#87a878", "#f2c14e"]);
+
+      // And the reason a softened crossing READS as ink over ink: at full
+      // opacity a label drawn over another is exactly as dark as one label,
+      // so a crossing has no signature at all. Softened, the doubled region
+      // is measurably darker than either name alone.
+      const a0 = softAlpha("#b5482e");
+      const single = at("#b5482e", a0);
+      const doubled = ratio(over("#b5482e", a0, over("#b5482e", a0)));
+      expect(doubled).toBeGreaterThan(single * 1.3);
       expect(at("#b5482e", 1)).toBeCloseTo(ratio(over("#b5482e", 1, over("#b5482e", 1))), 10);
     });
   });

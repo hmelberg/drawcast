@@ -530,7 +530,7 @@ layout: |
 template: line_chart
 title: Line chart
 version: 5
-kit: 5
+kit: 6
 status: ready
 description: >-
   A line chart from data: one or more series over a numeric or categorical
@@ -722,7 +722,7 @@ examples:
       # spread with and the collision does not happen at all — 0 dirty stages
       # of 1001 swept between 0 and 5, the same measurement that chose 2 over
       # 3 last round. Where a race's names DO cross, they are dimmed instead
-      # of dropped (SOFT in the body below).
+      # of dropped (kit.softAlpha, in the body below).
       ticker: ["1971", "1981", "1991", "2001", "2011", "2021"]
       stage: 0
       # Elo lives in a narrow band a long way above zero, and the default y
@@ -1303,29 +1303,36 @@ layout: |
     // above is already doing all it can, and what is left is to make the
     // remaining overlap look deliberate rather than broken.
     //
-    // SOFT = 0.85 is measured, not chosen by eye (this repo has shipped a
-    // wrong contrast number twice; the heatmap's threshold block further down
-    // this file is the standard). Ink at opacity a over the figure's paper
-    // (#fffefb, src/render/figure-style.ts) composites in gamma-encoded sRGB —
-    // what an SVG `opacity` actually does — and WCAG 2.1 relative luminance
-    // gives the ratio against that paper. The pack's own floor for text a
-    // reader is expected to READ is C.guide at full ink, 3.48:1 (axis ticks
-    // and a racer's value label are drawn in exactly that). Of the six series
-    // inks only three clear that floor at all — #b5482e 5.30:1, #2f6b8f
-    // 5.75:1, #8a5fa8 4.86:1 — and at a = 0.85 all three still do: 4.05:1,
-    // 4.19:1, 3.65:1. At 0.80 the third falls to 3.33:1 and stops clearing, so
-    // 0.85 is the strongest softening on a 0.05 grid that keeps every ink that
-    // was readable readable. The three lighter inks are already below that
-    // floor at full opacity (#d0865f 2.87, #87a878 2.63, #f2c14e 1.66 — a
-    // palette fact this ruling does not create) and lose at most 0.46 of a
-    // ratio point: 2.41, 2.23, 1.54.
+    // HOW FAR a label dims is PER INK and computed — `kit.softAlpha` (see
+    // src/layout/ink.ts), never a constant. A flat figure treats every ink as
+    // if it had the same headroom, and dimming a label into illegibility just
+    // trades one defect for another. Each ink goes as far as the pack's own
+    // readable floor allows and no further; an ink with no headroom does not
+    // dim at all, and the crossing stays legible, merely less softened.
     //
-    // What makes it READ as ink over ink rather than as a broken glyph pile:
-    // at full opacity a label drawn over another is exactly as dark as one
-    // label, so a crossing has no visual signature at all. At 0.85 the doubled
-    // region is measurably darker than either name alone — 5.09:1 against
-    // 4.05:1 for #b5482e — so the overlap looks like two transparent sheets,
-    // and each name's own body stays clean either side of it.
+    // The floor is C.guide at full ink, 3.48:1 — the dimmest text this pack
+    // ships and calls readable (axis ticks, a racer's value). Ink at opacity a
+    // over the figure's paper (#fffefb, src/render/figure-style.ts) composites
+    // in gamma-encoded sRGB, which is what an SVG `opacity` actually does, and
+    // WCAG 2.1 relative luminance gives the ratio. What falls out, for this
+    // template's own palette:
+    //
+    //   #b5482e  5.30:1 → dims to 0.770, 3.49:1
+    //   #2f6b8f  5.75:1 → dims to 0.760, 3.49:1
+    //   #8a5fa8  4.86:1 → dims to 0.825, 3.49:1
+    //   #d0865f  2.87:1 → 1.000, no headroom, does not dim
+    //   #87a878  2.63:1 → 1.000, no headroom, does not dim
+    //   #f2c14e  1.66:1 → 1.000, no headroom, does not dim
+    //
+    // The last three sit below the floor at FULL opacity — a palette fact this
+    // ruling does not create and must not paper over by dimming them anyway.
+    //
+    // What makes a softened crossing READ as ink over ink rather than as a
+    // broken glyph pile: at full opacity a label drawn over another is exactly
+    // as dark as one label, so a crossing has no visual signature at all.
+    // Softened, the doubled region is measurably darker than either name alone
+    // — 4.83:1 against 3.49:1 for #b5482e — so the overlap looks like two
+    // transparent sheets, and each name's body stays clean either side of it.
     //
     // The softening RAMPS with how deep the collision is (intersection area
     // over the smaller box), so two names easing past each other fade into and
@@ -1334,7 +1341,6 @@ layout: |
     // step: a graze is fine by design, only a stroke through the label's CORE
     // threatens legibility (src/lint/lint.ts).
     const racing = K > 1;
-    const SOFT = 0.85;
     const softness = lines.map(() => 0);
     // The polyline as it will actually be DRAWN — smoothed if asked, and the
     // one-point case widened into the degenerate 2-point stroke the draw below
@@ -1426,7 +1432,7 @@ layout: |
       const cross = racing ? { crossing: id } : {};
       children.push(kit.stroke(id + "__l", drawnPts(pts), { color, strokeWidth: 4, ms: MS.curve, ...cross }));
       if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke, ...cross })));
-      if (L.s.name && pts.length && labelled.has(k)) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color, opacity: 1 - (1 - SOFT) * softness[k], ...cross }));
+      if (L.s.name && pts.length && labelled.has(k)) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color, opacity: 1 - (1 - kit.softAlpha(color)) * softness[k], ...cross }));
       push(kit.group(id, children));
       anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
     });
@@ -1839,7 +1845,7 @@ layout: |
 template: bar_race
 title: Bar chart race
 version: 2
-kit: 5
+kit: 6
 status: ready
 description: >-
   A bar chart race: one horizontal bar per racer, the rows REORDERING as the
@@ -2473,18 +2479,41 @@ layout: |
   // The overtake, made to look deliberate. Two racers crossing are dimmed in
   // proportion to how deeply their labels coincide — a fade INTO the crossing
   // and out of it, not a blink at one frame — so the moment reads as ink laid
-  // over ink rather than as two names fighting. SOFT is the same 0.85
-  // line_chart uses and is measured the same way; see the long note there for
-  // the arithmetic (the pack's own floor for readable text is C.guide at full
-  // ink, 3.48:1; a racer's name is COLORS.ink, 11.49:1, and still reads
-  // 7.24:1 softened; the value label is C.guide itself, 3.48:1 → 2.78:1 for
-  // the frames of the crossing, the one ink the softening takes below that
-  // floor — and its number is also written in the length of its own bar).
+  // over ink rather than as two names fighting.
+  //
+  // HOW FAR each dims is PER INK and computed by `kit.softAlpha`
+  // (src/layout/ink.ts); see line_chart's own note above for the arithmetic.
+  // The two labels of a race answer differently, and the difference matters:
+  //
+  //   the NAME is COLORS.ink, 11.49:1 at full opacity, and dims to 0.700 —
+  //     the cap, not the floor; it could clear the floor down to about 0.59,
+  //     and a cap keeps a dark name from becoming a watermark. At 0.700 it
+  //     reads 4.64:1, and the doubled region of a crossing reads 8.72:1.
+  //   the VALUE is C.guide, which IS the floor (3.48:1) — it has no headroom
+  //     at all and therefore does NOT dim. Two racers' numbers still land on
+  //     each other for the frames of an overtake, at full ink. That is the
+  //     honest answer: dimming them would put the number a viewer is meant to
+  //     read below the level this pack calls readable, and the same number is
+  //     also written in the length of its own bar. Giving value labels a
+  //     darker ink would buy the softening back — a palette decision, not
+  //     this template's to take.
+  //
   // `crossing` (layout/model.ts) is what tells the lint this pair is an
   // overtake and not a defect; it is set ONLY on the two labels, and only in
   // a race with stages to overtake in.
   const racing = K > 1;
-  const SOFT = 0.85;
+  const NAME_SOFT = kit.softAlpha(C.ink), VALUE_SOFT = kit.softAlpha(C.guide);
+  // Two dimmings meet on the same label and they must not COMPOUND. A racer
+  // sliding through the airlock is already at partial ink (`presence` × the
+  // `fade` ramp), and multiplying the crossing on top of that took a name to
+  // 0.570 — 3.27:1, under the readable floor — in the six-teams example. So
+  // the crossing may take a label down to the dimmest its ink may carry and
+  // no further, and it adds NOTHING to a label the airlock has already taken
+  // past that: something on its way out of the field is not a legibility
+  // promise this rule can keep, and dimming it twice only makes it vanish
+  // sooner.
+  const softened = (base, conflict, floorAlpha) =>
+    Math.max(Math.min(base, floorAlpha), base * (1 - (1 - floorAlpha) * conflict));
   if (racing) {
     const textBox = (pos, anchor, s, size) => {
       const w = kit.textWidth(s, size), h = size * 1.25;
@@ -2545,11 +2574,10 @@ layout: |
     // rebuilds every bar on every tween frame, so the second stroke would be
     // ink re-rolled for nothing.
     push(kit.area(s.id, s.rect, s.color, { opacity: FILL * s.opacity }));
-    const soft = s.opacity * (1 - (1 - SOFT) * s.soft);
     const cross = racing ? { crossing: s.id } : {};
-    drawables.push(kit.text(s.id + "_text", s.namePos, s.nameText, { fontSize: NAME_SIZE, anchor: s.nameAnchor, opacity: soft, ...cross }));
+    drawables.push(kit.text(s.id + "_text", s.namePos, s.nameText, { fontSize: NAME_SIZE, anchor: s.nameAnchor, opacity: softened(s.opacity, s.soft, NAME_SOFT), ...cross }));
     anchors[s.id] = vertical ? [s.c, (s.base + s.end) / 2] : [(s.base + s.end) / 2, s.c];
-    if (s.valuePos) drawables.push(kit.text(s.id + "_value", s.valuePos, s.valueText, { fontSize: VALUE_SIZE, anchor: s.valueAnchor, color: C.guide, opacity: soft, ...cross }));
+    if (s.valuePos) drawables.push(kit.text(s.id + "_value", s.valuePos, s.valueText, { fontSize: VALUE_SIZE, anchor: s.valueAnchor, color: C.guide, opacity: softened(s.opacity, s.soft, VALUE_SOFT), ...cross }));
   }
 
   if (title) {

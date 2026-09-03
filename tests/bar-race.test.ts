@@ -12,7 +12,8 @@ import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
 import { heuristicMeasure } from "../src/layout/measure";
 import { lintLayoutDetailed } from "../src/lint/lint";
-import { flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
+import { COLORS, flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
+import { softAlpha, contrastAtAlpha, READABLE_FLOOR } from "../src/layout/ink";
 import type { Spec } from "../src/spec/types";
 
 const plot = plotArea();
@@ -505,11 +506,14 @@ describe("bar_race scale and furniture", () => {
       expect(op(0.46, 1)).toBeLessThan(1);
       expect(op(0.47, 1)).toBeGreaterThan(op(0.5, 1));
       expect(op(0.47, 1)).toBeCloseTo(op(0.53, 1), 10);
-      // Never darker than SOFT — a label is dimmed, never faded out.
-      expect(op(0.5, 1)).toBeGreaterThanOrEqual(0.85);
+      // Never darker than what this ink may afford — a label is dimmed, never
+      // faded out. A racer's name is COLORS.ink; softAlpha caps it at 0.7,
+      // where it still reads 4.64:1 against the figure's paper.
+      expect(op(0.5, 1)).toBeCloseTo(softAlpha(COLORS.ink), 10);
+      expect(contrastAtAlpha(COLORS.ink, op(0.5, 1))).toBeGreaterThanOrEqual(READABLE_FLOOR);
     });
 
-    test("the dimming and the lint's exemption agree: every excused overlap is a visibly dimmed one", () => {
+    test("the dimming and the lint's exemption agree: an excused overlap is dimmed wherever its ink can afford it", () => {
       for (const stage of [0.4, 0.45, 0.5, 0.55, 0.6]) {
         const l = race({ ...SWAP, stage });
         const detail = lintLayoutDetailed(l.drawables, heuristicMeasure);
@@ -517,10 +521,63 @@ describe("bar_race scale and furniture", () => {
         for (const issue of detail.exempt) {
           for (const id of issue.ids) {
             const d = textById(l, id);
-            if (d) expect(d.style.opacity, `stage ${stage}: ${id}`).toBeLessThan(1);
+            if (!d) continue;
+            if (softAlpha(d.style.color) < 1) expect(d.style.opacity, `stage ${stage}: ${id}`).toBeLessThan(1);
+            // Whatever it does, a crossing never pushes a label under the
+            // readable floor — nor under where it already was, for an ink
+            // that starts below it.
+            expect(contrastAtAlpha(d.style.color, d.style.opacity), `stage ${stage}: ${id}`)
+              .toBeGreaterThanOrEqual(Math.min(READABLE_FLOOR, contrastAtAlpha(d.style.color, 1)) - 1e-9);
           }
         }
       }
+    });
+
+    test("an ink with no headroom does not dim at all — a legible collision beats an illegible label", () => {
+      // A racer's value label is C.guide, which IS the pack's readable floor:
+      // no room to give, so it stays at full ink and the overtake is simply
+      // less softened. Dimming it would trade a collision for a number the
+      // viewer cannot read — and the same number is written in its own bar.
+      expect(softAlpha(COLORS.guide)).toBe(1);
+      const l = race({ ...SWAP, stage: 0.5 });
+      expect(textById(l, "race_1_value")!.style.opacity).toBe(1);
+      expect(textById(l, "race_1_text")!.style.opacity).toBeLessThan(1);
+    });
+
+    test("the airlock fade and the crossing never COMPOUND into an unreadable label", () => {
+      // Two dimmings meet on the same label: a racer sliding through the
+      // airlock is already at partial ink, and multiplying the crossing on
+      // top of that took a name to 0.570 — 3.27:1, under the floor — before
+      // this clamp. The bar's own fill opacity is FILL × presence, so the
+      // presence a frame gave a racer is recoverable and the rule is
+      // checkable: a label never goes below min(presence, softAlpha).
+      const FILL = 0.55;
+      let checked = 0;
+      let worstCrossed = Infinity;
+      for (const ex of scenes.bar_race!.manifest.examples) {
+        const values = ex.params.values as unknown[];
+        if (!Array.isArray(values) || !Array.isArray(values[0]) || values.length < 2) continue;
+        for (let i = 0; i <= 120; i++) {
+          const l = race({ ...ex.params, stage: (i / 120) * (values.length - 1) });
+          const flat = flattenDrawables(l.drawables);
+          const presenceOf = new Map(
+            flat.filter((d): d is AreaDrawable => d.kind === "area" && /^race_\d+$/.test(d.id)).map((d) => [d.id, d.style.opacity / FILL]),
+          );
+          for (const t of flat.filter((d): d is TextDrawable => d.kind === "text" && /^race_\d+_(text|value)$/.test(d.id))) {
+            const presence = presenceOf.get(t.id.replace(/_(text|value)$/, ""));
+            if (presence === undefined) continue;
+            checked++;
+            expect(t.style.opacity, `${ex.request} @ ${t.id}`).toBeGreaterThanOrEqual(Math.min(presence, softAlpha(t.style.color)) - 1e-9);
+            // A label the CROSSING actually dimmed, and that is still fully
+            // in the field, always stays readable.
+            if (t.style.opacity < presence - 1e-9 && presence >= 0.5) {
+              worstCrossed = Math.min(worstCrossed, contrastAtAlpha(t.style.color, t.style.opacity));
+            }
+          }
+        }
+      }
+      expect(checked).toBeGreaterThan(1000);
+      expect(worstCrossed).toBeGreaterThanOrEqual(READABLE_FLOOR);
     });
 
     test("`crossing` names the RACER, is set on both its labels, and only in a race with stages to overtake in", () => {
