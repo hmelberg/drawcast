@@ -460,6 +460,46 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
     // (src/scenes/kit.ts multiplies leaf opacity by a depth factor), an
     // unrelated visual change. Apply that one-liner if the mid-tween
     // brightening ever matters, and re-check the 3D scenes when you do.
+    if (leaf.drawOpts.mode === "type") {
+      // The typed reveal: at progress p the node shows the first round(p·n)
+      // characters, row by row for a wrapped line, with a cursor glyph after
+      // the last shown character while typing. A pure function of p, so
+      // scrub, erase (p runs 1→0: the line untypes) and the exporter's fixed
+      // frame clock all agree. The handle reads the DOM's rows, not the
+      // leaf's joined text, so wrapped rows type in reading order.
+      const textEl = g.querySelector("text");
+      const spans = textEl ? [...textEl.querySelectorAll("tspan")] : [];
+      const full = spans.length > 0 ? spans.map((s) => s.textContent ?? "") : [textEl?.textContent ?? ""];
+      const total = full.reduce((a, s) => a + s.length, 0);
+      const CURSOR = "▌";
+      const apply = (n: number, typing: boolean) => {
+        let left = n;
+        let cursorPlaced = false;
+        full.forEach((s, i) => {
+          const take = Math.max(0, Math.min(s.length, left));
+          left -= take;
+          let shown = s.slice(0, take);
+          if (typing && !cursorPlaced && (take < s.length || i === full.length - 1)) {
+            shown += CURSOR;
+            cursorPlaced = true;
+          }
+          if (spans.length > 0) spans[i].textContent = shown;
+          else if (textEl) textEl.textContent = shown;
+        });
+      };
+      return {
+        durationMs: leaf.drawOpts.duration,
+        prepare: () => {
+          g.style.opacity = String(leaf.style.opacity);
+          apply(0, false);
+        },
+        setProgress: (t) => {
+          const typing = t > 0 && t < 1;
+          apply(Math.round(t * total), typing);
+          g.classList.toggle("cs-typing", typing);
+        },
+      };
+    }
     return {
       durationMs: leaf.drawOpts.duration,
       prepare: () => {
