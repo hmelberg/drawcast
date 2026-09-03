@@ -161,8 +161,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 5 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(5);
+test("KIT_VERSION is 6 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(6);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -171,6 +171,10 @@ test("KIT_VERSION is 5 and constants ride on the kit", () => {
   expect(kit.COLORS.ink).toBeDefined();
   expect(kit.SKETCH_MS.stroke).toBeGreaterThan(0);
   expect(kit.AXIS_OVERHANG).toBe(22);
+  // v6: how far an ink may be dimmed, answered by the app's one contrast
+  // module rather than by a constant a body invents (src/layout/ink.ts).
+  expect(kit.softAlpha(kit.COLORS.ink)).toBeLessThan(1);
+  expect(kit.softAlpha(kit.COLORS.guide)).toBe(1); // no headroom: it IS the floor
 });
 
 // M1 review finding #1: `kit` is one live, shared object handed to every

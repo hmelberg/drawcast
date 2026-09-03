@@ -34,10 +34,11 @@ import {
   type StrokeDrawable,
   type TextDrawable,
 } from "../layout/model";
+import { softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 5; // v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 6; // v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -386,6 +387,14 @@ export interface SceneKit {
    * hard-coding the heuristic's own per-character factor in a template body.
    */
   textWidth(text: string, fontSize: number): number;
+  /**
+   * How far a label of this ink may be dimmed and still be read: the largest
+   * reduction whose composite over the figure's paper still clears the pack's
+   * own readable floor, capped so a very dark ink cannot become a watermark.
+   * 1 for an ink with no headroom — that ink does not dim at all. See
+   * src/layout/ink.ts for the arithmetic; a body must never invent its own.
+   */
+  softAlpha(color: string): number;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -1411,6 +1420,7 @@ export const kit: SceneKit = {
   textWidth(text, fontSize) {
     return heuristicMeasure(text, fontSize).w;
   },
+  softAlpha,
 };
 
 Object.freeze(kit);
