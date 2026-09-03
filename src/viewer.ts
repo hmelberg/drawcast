@@ -13,6 +13,7 @@ import { CloudSpeech } from "./export/tts";
 import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
+import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -200,13 +201,17 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       window.setTimeout(() => (shareBtn.textContent = "↗ Share"), 1600);
     });
   });
+  // The count lives under the figure, where a viewer expects it — and where
+  // the title is heading in the player round, so the row is built once.
+  const viewsEl = h("span", { class: "viewer-views" });
+  const metaEl = h("div", { class: "viewer-meta" }, viewsEl);
   const footer = h(
     "div",
     { class: "viewer-footer" },
     shareBtn,
     h("a", { href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"),
   );
-  app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, footer));
+  app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, metaEl, footer));
 
   try {
     // Pack templates register BEFORE anything lays out — the viewer was the
@@ -240,6 +245,23 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     if (title) {
       titleEl.textContent = title;
       document.title = `${title} — drawcast`;
+    }
+    // Counting: after the playlist is parsed, because the flag travels in the
+    // file, and BEFORE mountPlaylist, which takes seconds a visitor may not
+    // stay for. Never awaited — a counting outage must not delay a drawing.
+    if (countingEnabled(playlist.meta) && req.gh) {
+      const castKey = castKeyFor(req.gh);
+      const session = (() => {
+        try {
+          return sessionStorage;
+        } catch {
+          return null; // Private mode can throw on access, not just on use.
+        }
+      })();
+      const pending = firstViewInSession(castKey, session) ? recordView(castKey) : readViewCount(castKey);
+      void pending.then((count) => {
+        if (typeof count === "number") viewsEl.textContent = `${count.toLocaleString()} ${count === 1 ? "view" : "views"}`;
+      });
     }
     const settings = loadSettings();
     const speech = new CloudSpeech(

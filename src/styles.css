@@ -1027,6 +1027,23 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   margin: 0 0 0.9rem;
   align-self: flex-start;
 }
+/* The count sits under the figure, quiet by default: an empty row collapses,
+   so a drawcast published with counting off shows nothing at all rather than
+   a hole or an "N/A". */
+.viewer-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 0;
+  padding: 0.35rem 0.1rem 0;
+}
+.viewer-views {
+  /* var(--text-sm), not a literal: the type-scale allowlist (tests/palette.test.ts)
+     names every literal font-size once, and this is the same size .viewer-footer
+     already uses right below it. */
+  font-size: var(--text-sm);
+  opacity: 0.65;
+}
 .viewer-status { color: var(--muted); margin-bottom: 0.8rem; }
 .viewer-status.error { color: var(--loss); font-weight: 600; }
 /* The figure itself is a .player-figure here too — see the player-mode block
@@ -1272,6 +1289,18 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-stage.cs-cardable { cursor: pointer; }
 /* A code screen takes typing: while paused, the cursor says so. */
 .cs-stage.cs-editable { cursor: text; }
+/* A drawn switch takes a press — and the switchable cursor wins over the
+   editable one, because the chin sits inside the panel's own box. */
+.cs-stage.cs-switchable, .cs-stage.cs-switchable.cs-editable { cursor: pointer; }
+/* The picture a viewer switched off or dimmed: an overlay on the glass, never
+   a drawable, so no movie and no embed can ever show it. */
+.cs-screen-veil {
+  position: absolute;
+  background: #14100c;
+  border-radius: 10px;
+  pointer-events: none;
+  transition: opacity 160ms ease-out;
+}
 
 /* Media modal: the read-instead-of-the-figure surface (YouTube, PDF). */
 .cs-mediamodal {

@@ -33,6 +33,15 @@ export interface PlaylistMeta {
    */
   comments?: { repoId: string; category: string; categoryId: string };
   /**
+   * Whether the published copy reports plays to the view counter. Written
+   * onto the published COPY only, like `comments` — and written ONLY when
+   * false: absent means counting, so everything published before this feature
+   * existed is included without a republish, and an ordinary publish keeps
+   * the file shape it has always had. Off is honoured by the player not
+   * calling at all: nothing is recorded, rather than recorded and filtered.
+   */
+  views?: boolean;
+  /**
    * The lecture that follows this one in its course — written onto the
    * PUBLISHED copy by publishCourse, which is the one moment the target URL
    * exists, and refreshed on every republish so reordering can never stale
@@ -121,6 +130,10 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
     } else {
       warnings.push("playlist.comments needs repoId and categoryId (from giscus.app) — ignored");
     }
+  }
+  if (raw.views !== undefined) {
+    if (typeof raw.views === "boolean") meta.views = raw.views;
+    else warnings.push(`playlist.views must be true or false (got ${JSON.stringify(raw.views)}) — counting`);
   }
   if (raw.advance !== undefined) {
     if (raw.advance === "click" || raw.advance === "auto") meta.advance = raw.advance;
@@ -259,6 +272,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.subtitle === undefined &&
     playlist.meta.prompt === undefined &&
     playlist.meta.comments === undefined &&
+    playlist.meta.views === undefined &&
     playlist.meta.next === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
@@ -284,6 +298,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   // default — DEFAULT_META has no prompt, and a set one must always survive.
   if (playlist.meta.prompt !== undefined) header.prompt = playlist.meta.prompt;
   if (playlist.meta.comments !== undefined) header.comments = playlist.meta.comments;
+  if (playlist.meta.views !== undefined) header.views = playlist.meta.views;
   if (playlist.meta.next !== undefined) header.next = playlist.meta.next;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
