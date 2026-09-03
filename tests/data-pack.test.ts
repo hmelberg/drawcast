@@ -642,12 +642,26 @@ describe("slope mode", () => {
     expect(l.issues.filter((i) => /overlap/i.test(i.message))).toEqual([]);
   });
 
-  test("color_by direction paints risers and fallers differently", () => {
-    const l = slope({ color_by: "direction" });
+  // Fix round 2 (coordinator review): the original fixture (Treated rises at
+  // index 0, Control falls at index 1) made this tautological — default
+  // per-series colouring already gives index 0 and index 1 different inks,
+  // so the assertion passed whether or not direction colouring existed. This
+  // fixture puts index and direction at odds — index 0 FALLS, index 1 and 2
+  // both RISE — so only grouping by rise/fall (not position) can satisfy it.
+  test("color_by direction groups by rise/fall, not by series index", () => {
+    const l = slope({
+      color_by: "direction",
+      series: [
+        { name: "A", values: [16, 10] }, // index 0, falls
+        { name: "B", values: [10, 16] }, // index 1, rises
+        { name: "C", values: [9, 20] }, // index 2, rises
+      ],
+    });
     const strokes = flattenDrawables(l.drawables).filter((d) => d.kind === "stroke") as StrokeDrawable[];
-    const treated = strokes.find((d) => d.id.includes("1"))!;
-    const control = strokes.find((d) => d.id.includes("2"))!;
-    expect(treated.style.color).not.toBe(control.style.color);
+    const colorOf = (id: string) => strokes.find((d) => d.id === id)!.style.color;
+    const a = colorOf("line_1__l"), b = colorOf("line_2__l"), c = colorOf("line_3__l");
+    expect(b).toBe(c); // both rise, share an ink despite different indices
+    expect(a).not.toBe(b); // falls, so differs from the rising pair
   });
 
   test("more than two values per series draws the refusal note", () => {
@@ -677,6 +691,24 @@ describe("slope mode", () => {
     expect(drawables.some((d) => d.id === "axes__col1")).toBe(true);
     expect((drawables.find((d) => d.id === "line_1__l") as StrokeDrawable).pts).toEqual([]);
     expect(drawables.some((d) => d.id === "line_1__t0" || d.id === "line_1__t1")).toBe(false);
+  });
+
+  // Fix round 2 (coordinator review, minor): "the two columns' values may
+  // change per stage" was a named constraint on this feature, but nothing
+  // exercised staging through the slope branch — slopeValue() reuses the
+  // shared at()/k0/k1/t machinery, so a fractional stage should interpolate
+  // both ends exactly like the rest of the chart does.
+  test("a staged slope interpolates both ends at a fractional stage", () => {
+    const l = slope({
+      series: [{ name: "Treated", values: [[10, 16], [20, 24]] }],
+      stage: 0.5,
+    });
+    const texts = flattenDrawables(l.drawables).filter((d) => d.kind === "text") as TextDrawable[];
+    const t0 = texts.find((t) => t.id === "line_1__t0")!;
+    const t1 = texts.find((t) => t.id === "line_1__t1")!;
+    // Stage 0: [10, 16]; stage 1: [20, 24]; halfway: [15, 20].
+    expect(t0.text).toBe("Treated 15");
+    expect(t1.text).toBe("Treated 20");
   });
 });
 
