@@ -10566,5 +10566,434 @@
     }
    ]
   }
+ },
+ {
+   "request": "Flattening the curve, computed in R: an SIR model run at two reproduction numbers, drawn as an animated line chart",
+   "spec": {
+     "title": "Flattening the curve, in R",
+     "template": "line_chart",
+     "params": {
+       "x": "{sir.days}",
+       "series": [
+         {
+           "name": "Infected",
+           "values": "{sir.frames}"
+         }
+       ],
+       "stage": 0,
+       "y_label": "Share infected",
+       "x_label": "Days",
+       "box": {
+         "x": 470,
+         "y": 95,
+         "w": 460,
+         "h": 560
+       }
+     },
+     "elements": [
+       {
+         "id": "sir",
+         "type": "code",
+         "language": "r",
+         "show": "code",
+         "code": "sir <- function(r0, days = 160, gamma = 0.1) {\n  s <- 0.999; i <- 0.001; out <- numeric(days)\n  for (d in seq_len(days)) {\n    out[d] <- round(i, 4)\n    new <- r0 * gamma * s * i\n    s <- s - new; i <- i + new - gamma * i\n  }\n  out\n}\ndays <- 0:159\nframes <- list(sir(2.5), sir(1.4))"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "sir",
+           "sir_line_1",
+           "sir_line_2",
+           "sir_line_3",
+           "sir_line_4",
+           "sir_line_5",
+           "sir_line_6",
+           "sir_line_7",
+           "sir_line_8",
+           "sir_line_9"
+         ],
+         "parallel": true,
+         "speak": "An epidemic in nine lines of R: each day, infections move people from susceptible to infected, and recovery moves them out again."
+       },
+       {
+         "draw": [
+           "sir_line_10",
+           "sir_line_11"
+         ],
+         "parallel": true,
+         "speak": "A hundred and sixty days, run twice: once with each case infecting two and a half others, once with one point four."
+       },
+       {
+         "draw": [
+           "axes",
+           "line_1"
+         ],
+         "parallel": true,
+         "speak": "At two and a half the wave peaks early and high: nearly a quarter of the population sick at once."
+       },
+       {
+         "animate": {
+           "stage": 1
+         },
+         "duration": 4,
+         "speak": "Bring that down to one point four, and the same wave spreads out: later, lower, longer."
+       }
+     ]
+   }
+ },
+ {
+   "request": "Hours studied against exam score, in R: simulate twelve students, fit a line with lm, and hand the slope to a scatter plot",
+   "spec": {
+     "title": "Hours and scores, in R",
+     "template": "scatter_plot",
+     "params": {
+       "x": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         8,
+         9,
+         10,
+         11,
+         12
+       ],
+       "y": "{sim.scores}",
+       "fit": "{sim.fit}",
+       "ylim": [
+         0,
+         100
+       ],
+       "x_label": "Hours studied",
+       "y_label": "Score",
+       "box": {
+         "x": 470,
+         "y": 95,
+         "w": 460,
+         "h": 560
+       }
+     },
+     "elements": [
+       {
+         "id": "sim",
+         "type": "code",
+         "language": "r",
+         "show": "code",
+         "code": "set.seed(11)\nhours <- 1:12\nscores <- 40 + 4 * hours + rnorm(12, 0, 6)\nscores <- round(pmin(scores, 100), 1)\nm <- lm(scores ~ hours)\nb <- unname(coef(m))\nfit <- round(c(b[2], b[1]), 2)"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "sim",
+           "sim_line_1",
+           "sim_line_2",
+           "sim_line_3",
+           "sim_line_4"
+         ],
+         "parallel": true,
+         "speak": "Twelve students, one to twelve hours of study, and a score that rises with hours plus some noise."
+       },
+       {
+         "draw": [
+           "axes",
+           "points"
+         ],
+         "parallel": true,
+         "speak": "Here they are. The trend is visible, the scatter is real."
+       },
+       {
+         "draw": [
+           "sim_line_5",
+           "sim_line_6",
+           "sim_line_7"
+         ],
+         "parallel": true,
+         "speak": "One call to lm fits the least-squares line; coef hands its slope and intercept to the chart."
+       },
+       {
+         "draw": [
+           "fit_line"
+         ],
+         "speak": "About four points per hour, from a starting score in the high thirties."
+       }
+     ]
+   }
+ },
+ {
+   "request": "Hours studied against exam score in light Python: a pandas frame, a statsmodels OLS fit, and the slope handed to a scatter plot",
+   "spec": {
+     "title": "Hours and scores, light Python",
+     "template": "scatter_plot",
+     "params": {
+       "x": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         8,
+         9,
+         10,
+         11,
+         12
+       ],
+       "y": "{sim.scores}",
+       "fit": "{sim.fit}",
+       "ylim": [
+         0,
+         100
+       ],
+       "x_label": "Hours studied",
+       "y_label": "Score",
+       "box": {
+         "x": 470,
+         "y": 95,
+         "w": 460,
+         "h": 560
+       }
+     },
+     "elements": [
+       {
+         "id": "sim",
+         "type": "code",
+         "language": "brython",
+         "show": "code",
+         "code": "import random\nimport pandas as pd\nimport statsmodels.formula.api as smf\nrandom.seed(11)\nhours = list(range(1, 13))\nnoise = [random.gauss(0, 6) for _ in hours]\nraw = [40 + 4 * h for h in hours]\nraw = [r + e for r, e in zip(raw, noise)]\nscores = [round(min(s, 100), 1) for s in raw]\ndf = pd.DataFrame({\"h\": hours, \"s\": scores})\nm = smf.ols(\"s ~ h\", data=df).fit()\np = m.params\nb, a = p[\"h\"], p[\"Intercept\"]\nfit = [round(b, 2), round(a, 2)]"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "sim",
+           "sim_line_1",
+           "sim_line_2",
+           "sim_line_3"
+         ],
+         "parallel": true,
+         "speak": "pandas and statsmodels, in a Python that loads in about a second."
+       },
+       {
+         "draw": [
+           "sim_line_4",
+           "sim_line_5",
+           "sim_line_6",
+           "sim_line_7",
+           "sim_line_8",
+           "sim_line_9"
+         ],
+         "parallel": true,
+         "speak": "Twelve students, and a score that rises with hours plus some noise."
+       },
+       {
+         "draw": [
+           "axes",
+           "points"
+         ],
+         "parallel": true,
+         "speak": "Here they are. The trend is visible, the scatter is real."
+       },
+       {
+         "draw": [
+           "sim_line_10",
+           "sim_line_11",
+           "sim_line_12",
+           "sim_line_13",
+           "sim_line_14"
+         ],
+         "parallel": true,
+         "speak": "A frame, an OLS formula, and the two coefficients handed to the chart."
+       },
+       {
+         "draw": [
+           "fit_line"
+         ],
+         "speak": "About four points per hour, from a starting score in the high thirties."
+       }
+     ]
+   }
+ },
+ {
+   "request": "In light Python: a hundred random draws, then ten thousand, as two matplotlib histograms shown one after the other",
+   "spec": {
+     "title": "A hundred draws, then ten thousand",
+     "elements": [
+       {
+         "id": "h",
+         "type": "code",
+         "language": "brython",
+         "show": "split",
+         "width": 900,
+         "figures": 2,
+         "code": "import random\nimport matplotlib.pyplot as plt\nrandom.seed(7)\nfor n in (100, 10000):\n    xs = [random.gauss(0, 1) for _ in range(n)]\n    plt.figure()\n    _ = plt.hist(xs, bins=20)\n    plt.title(f\"{n:,} draws\")\n    plt.show()"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "h",
+           "h_line_1",
+           "h_line_2",
+           "h_line_3"
+         ],
+         "parallel": true,
+         "speak": "Random draws from a bell curve, and a seed so the figure tells the same truth every time."
+       },
+       {
+         "draw": [
+           "h_line_4",
+           "h_line_5"
+         ],
+         "parallel": true,
+         "speak": "Two sample sizes: a hundred, then ten thousand."
+       },
+       {
+         "draw": [
+           "h_line_6",
+           "h_line_7",
+           "h_line_8",
+           "h_line_9"
+         ],
+         "parallel": true,
+         "speak": "Each pass draws its own histogram and shows it: two figures from one script."
+       },
+       {
+         "draw": [
+           "h_fig_1"
+         ],
+         "speak": "A hundred draws: lumpy, lopsided, only vaguely a bell."
+       },
+       {
+         "draw": [
+           "h_fig_2"
+         ],
+         "speak": "Ten thousand draws, and the bell is unmistakable. Sample size is what smooths it."
+       }
+     ]
+   }
+ },
+ {
+   "request": "Fibonacci and the golden ratio in minimal Python: compute the ratio of consecutive terms and draw how it settles",
+   "spec": {
+     "title": "Fibonacci and the golden ratio",
+     "template": "line_chart",
+     "params": {
+       "x": "{fib.n}",
+       "series": [
+         {
+           "name": "F(n+1) / F(n)",
+           "values": "{fib.ratios}"
+         }
+       ],
+       "ylim": [
+         1.4,
+         2.1
+       ],
+       "y_label": "Ratio",
+       "x_label": "n",
+       "box": {
+         "x": 470,
+         "y": 95,
+         "w": 460,
+         "h": 560
+       }
+     },
+     "elements": [
+       {
+         "id": "fib",
+         "type": "code",
+         "language": "micropython",
+         "show": "code",
+         "code": "a, b = 1, 1\nn, ratios = [], []\nfor i in range(2, 16):\n    a, b = b, a + b\n    n.append(i)\n    ratios.append(round(b / a, 4))"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "fib",
+           "fib_line_1",
+           "fib_line_2"
+         ],
+         "parallel": true,
+         "speak": "Two ones to start, and two empty lists, in a Python that weighs half a megabyte."
+       },
+       {
+         "draw": [
+           "fib_line_3",
+           "fib_line_4",
+           "fib_line_5",
+           "fib_line_6"
+         ],
+         "parallel": true,
+         "speak": "Each step adds the last two numbers and records the ratio between them."
+       },
+       {
+         "draw": [
+           "axes",
+           "line_1"
+         ],
+         "parallel": true,
+         "speak": "The ratio jumps, overshoots, and settles: one point six one eight, the golden ratio."
+       }
+     ]
+   }
+ },
+ {
+   "request": "Screening arithmetic in minimal Python: sensitivity, specificity and prevalence turned into the chance a positive test is right, as a table",
+   "spec": {
+     "title": "What a positive test is worth",
+     "elements": [
+       {
+         "id": "s",
+         "type": "code",
+         "language": "micropython",
+         "show": "split",
+         "width": 900,
+         "code": "import pandas as pd\nsens, spec = 0.9, 0.95\nprev = [0.001, 0.01, 0.1]\nppv = []\nfor p in prev:\n    tp = sens * p\n    fp = (1 - spec) * (1 - p)\n    ppv.append(round(tp / (tp + fp), 3))\npd.DataFrame({\"prevalence\": prev, \"PPV\": ppv})"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "s",
+           "s_line_1",
+           "s_line_2"
+         ],
+         "parallel": true,
+         "speak": "A test that catches ninety percent of cases and clears ninety-five percent of the healthy."
+       },
+       {
+         "draw": [
+           "s_line_3",
+           "s_line_4"
+         ],
+         "parallel": true,
+         "speak": "Three prevalences, from one in a thousand to one in ten."
+       },
+       {
+         "draw": [
+           "s_line_5",
+           "s_line_6",
+           "s_line_7",
+           "s_line_8"
+         ],
+         "parallel": true,
+         "speak": "True positives against false positives: the arithmetic behind a positive result."
+       },
+       {
+         "draw": [
+           "s_line_9",
+           "s_out"
+         ],
+         "speak": "At one in a thousand, a positive result is right less than two percent of the time. Prevalence, not the test, decides."
+       }
+     ]
+   }
  }
 ]
