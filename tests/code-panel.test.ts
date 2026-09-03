@@ -9,6 +9,7 @@ import { lintCommands } from "../src/lint/lint";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
+import { planCommands } from "../src/render/plan";
 import type { Spec } from "../src/spec/types";
 
 const spec = (el: object, commands: object[] = []): Spec =>
@@ -56,6 +57,33 @@ describe("code panel layouts", () => {
     const outs = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("c1__out")) as TextDrawable[];
     expect(outs[0].text).toBe("…");
     expect(outs[outs.length - 1].text).toBe("row 11");
+  });
+});
+
+describe("plan — the window scrolls as lines are drawn, and back on erase", () => {
+  const win = { c1: { ids: ["c1_line_1", "c1_line_2", "c1_line_3", "c1_line_4", "c1_line_5"], bottoms: [20, 40, 60, 80, 100], height: 60 } };
+  const ids = ["c1", ...win.c1.ids, "c1_out"];
+  test("offsets follow the highest visible line", () => {
+    const plan = planCommands(
+      [{ draw: ["c1", "c1_line_1", "c1_line_2", "c1_line_3"] }, { draw: ["c1_line_4"] }, { draw: ["c1_line_5"] }, { erase: ["c1_line_5"] }] as never,
+      ids,
+      { windows: win },
+    );
+    const dy = (s: number, id: string) => plan.states[s].offsets[id]?.[1] ?? 0;
+    expect(dy(0, "c1_line_1")).toBe(0);
+    expect(dy(1, "c1_line_1")).toBe(20);
+    expect(dy(1, "c1_line_5")).toBe(20);
+    expect(dy(2, "c1_line_1")).toBe(40);
+    expect(dy(3, "c1_line_1")).toBe(20);
+    expect(plan.states[2].offsets["c1_out"]).toBeUndefined();
+  });
+  test("a real layout's window plans a scroll only past the window", () => {
+    const l = layoutSpec(spec({ show: "left", code: eight, lines: 4, code_result: OK }), heuristicMeasure);
+    const cmds = Array.from({ length: 8 }, (_, i) => ({ draw: [`c1_line_${i + 1}`] }));
+    const plan = planCommands(cmds as never, l.order, { windows: l.windows });
+    expect(plan.states[3].offsets["c1_line_1"]).toBeUndefined();
+    expect(plan.states[4].offsets["c1_line_1"]![1]).toBeGreaterThan(0);
+    expect(plan.states[7].offsets["c1_line_8"]![1]).toBeGreaterThan(plan.states[4].offsets["c1_line_1"]![1]);
   });
 });
 

@@ -163,6 +163,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
+    windows: layout.windows ?? {},
     ...domainMapping(spec.domain),
     animateBase: spec.template ? spec.params ?? {} : null,
     bboxesFor: (params) => {

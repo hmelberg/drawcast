@@ -6,6 +6,7 @@
 import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import type { CodeWindow } from "../layout/code";
 import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
@@ -95,6 +96,11 @@ export interface Plan {
 export interface PlanOptions {
   /** Layout-time bbox per element id (logical units), for point/camera/highlight targeting. */
   bboxOf?: (id: string) => BBox | null;
+  /** Windowed code panes (layout's `windows`): after every visibility change
+   *  the plan scrolls each so its highest visible line is the bottom row,
+   *  recorded as per-line offsets in the state — the move verb's own store,
+   *  so scrub, step-back and the exporter restore it for free. */
+  windows?: Record<string, CodeWindow>;
   /** Domain → logical point mapping (identity when no domain is declared). */
   toLogical?: (p: Pt) => Pt;
   /** Domain-delta → logical-delta mapping for move.by / move.path. */
@@ -147,6 +153,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     steps.push(step);
     states.push({ visible: [...visible], offsets: { ...offsets }, camera, params: { ...params } });
   };
+  /** The window's scroll: the highest visible line's bottom sits at the
+   *  window's bottom. Every line of the element gets the offset — the hidden
+   *  ones too, so a line drawn later arrives already in place. y-up: a
+   *  positive dy moves a line up, which is what scrolling does. */
+  const applyScroll = () => {
+    for (const w of Object.values(opts.windows ?? {})) {
+      let maxBottom = 0;
+      w.ids.forEach((id, i) => {
+        if (visibleSet.has(id)) maxBottom = Math.max(maxBottom, w.bottoms[i]);
+      });
+      const scroll = Math.max(0, maxBottom - w.height);
+      for (const id of w.ids) {
+        if (scroll === 0) delete offsets[id];
+        else offsets[id] = [0, scroll];
+      }
+    }
+  };
   const makeVisible = (ids: string[]) => {
     for (const id of ids) {
       if (!visibleSet.has(id)) {
@@ -154,10 +177,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         visible.push(id);
       }
     }
+    applyScroll();
   };
   const makeHidden = (ids: string[]) => {
     for (const id of ids) visibleSet.delete(id);
     visible = visible.filter((id) => visibleSet.has(id));
+    applyScroll();
   };
   const resolveIds = (raw: string[] | string | undefined, verb: string): string[] => {
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
