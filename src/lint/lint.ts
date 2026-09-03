@@ -137,6 +137,16 @@ export function lintLayoutDetailed(
     }
   }
 
+  // A clipped text that does not lie wholly inside its clip rectangle is not
+  // painted there — a code line beyond its window sits below the pane (even
+  // below the canvas, for a long script) until the plan scrolls it in — so
+  // it is neither out of canvas nor on top of anything.
+  const clippedAway = (t: TextDrawable, box: BBox): boolean => {
+    const c = t.clip;
+    if (!c) return false;
+    return box.x < c.x - 1 || box.y < c.y - 1 || box.x + box.w > c.x + c.w + 1 || box.y + box.h > c.y + c.h + 1;
+  };
+
   // out-of-canvas
   for (const d of leaves) {
     let box;
@@ -146,6 +156,7 @@ export function lintLayoutDetailed(
       ? { x: d.shapeHint.c[0] - d.shapeHint.r, y: d.shapeHint.c[1] - d.shapeHint.r, w: 2 * d.shapeHint.r, h: 2 * d.shapeHint.r }
       : bboxOfPts(d.pts);
     else continue;
+    if (d.kind === "text" && clippedAway(d, box)) continue;
     if (
       box.x < -CANVAS_TOLERANCE ||
       box.y < -CANVAS_TOLERANCE ||
@@ -160,15 +171,6 @@ export function lintLayoutDetailed(
       });
     }
   }
-
-  // A clipped text that does not lie wholly inside its clip rectangle is not
-  // painted there — a code line beyond its window sits below the pane until
-  // the plan scrolls it in — so it can neither overlap nor be overlapped.
-  const clippedAway = (t: TextDrawable, box: BBox): boolean => {
-    const c = t.clip;
-    if (!c) return false;
-    return box.x < c.x - 1 || box.y < c.y - 1 || box.x + box.w > c.x + c.w + 1 || box.y + box.h > c.y + c.h + 1;
-  };
 
   // label–label overlap (skipped for pairs that are never on screen together)
   for (let i = 0; i < texts.length; i++) {

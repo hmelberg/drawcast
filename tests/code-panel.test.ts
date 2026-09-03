@@ -52,11 +52,14 @@ describe("code panel layouts", () => {
     const frameH = (s: Spec) => (leaf(s, "c1__frame") as { shapeHint?: { h: number } }).shapeHint!.h;
     expect(frameH(spec({ show: "above", code: eight, lines: 3, code_result: OK }))).toBeLessThan(frameH(spec({ show: "above", code: eight, code_result: OK })));
   });
-  test("lines beyond the window are clipped away, so the lint does not see them on the frame", () => {
+  test("lines beyond the window are clipped away, so the lint does not see them on the frame or off the canvas", () => {
     for (const show of ["left", "above", "below"]) {
       const l = layoutSpec(spec({ show, code: eight, lines: 4, code_result: OK }), heuristicMeasure);
       expect(l.issues.map((i) => i.message), show).toEqual([]);
     }
+    const thirty = Array.from({ length: 30 }, (_, i) => `y${i} = ${i}`).join("\n");
+    const l = layoutSpec(spec({ show: "left", code: thirty, lines: 5, code_result: OK }), heuristicMeasure);
+    expect(l.issues.filter((i) => i.rule === "out-of-canvas")).toEqual([]);
   });
   test("with a window the output keeps its LAST rows behind a leading ellipsis", () => {
     const l = layoutSpec(spec({ show: "below", code: eight, lines: 3, font_size: 40, code_result: OK }), heuristicMeasure);
