@@ -78,13 +78,28 @@ function boot(): Promise<Booted> {
   return bootPromise;
 }
 
+/** Brython reports some internal failures (a stdlib module that fails to
+ *  compile, say) through window.alert — a modal that freezes the page for
+ *  every viewer. While the runner is busy, alert() logs instead; the
+ *  script's own failure still comes back as an error envelope. */
+function withAlertMuted<T>(fn: () => T): T {
+  const w = window as unknown as { alert?: (m?: unknown) => void };
+  const original = w.alert;
+  w.alert = (m?: unknown) => console.warn("[drawcast brython] alert muted:", String(m ?? ""));
+  try {
+    return fn();
+  } finally {
+    w.alert = original;
+  }
+}
+
 async function ensureLibs(b: Booted, names: string[], status: StatusFn): Promise<void> {
   for (const name of names) {
     if (registered.has(name)) continue;
     const lib = BRYTHON_LIBS[name];
     status("loading", `Loading ${lib.aliases[0] ?? name}…`);
     const source = await fetchLib(b.base, lib.file);
-    const err = b.mod._register_module(name, source);
+    const err = withAlertMuted(() => b.mod._register_module(name, source));
     if (err) throw new Error(`could not load ${name}: ${err}`);
     for (const alias of lib.aliases) {
       const aerr = b.mod._alias_module(alias, name);
@@ -101,7 +116,16 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   await ensureLibs(b, libsFor(req.code, BRYTHON_LIBS), status);
   status("running", "Running…");
   const paths = req.paths ?? [];
-  const raw = b.mod._run(req.code, JSON.stringify(paths));
+  let raw: string;
+  try {
+    raw = withAlertMuted(() => b.mod._run(req.code, JSON.stringify(paths)));
+  } catch (err) {
+    // A JavaScript-level failure inside Brython (a stdlib module that
+    // half-imported, say) is not a Python exception the runner can catch:
+    // name the runtime so the panel's message reads as its fault, not the
+    // script's.
+    return { ok: false, stdout: "", stderr: "", figures: [], error: `Brython failed inside the script: ${(err as Error).message}` };
+  }
   const env = parseRunnerEnvelope(raw);
   if (!env) throw new Error("the Brython runner returned no envelope");
   return envelopeToResult(env, { paths, status });
