@@ -113,6 +113,23 @@ describe("bundled examples stay exemplary", () => {
     }
   });
 
+  // Hans's race-label ruling, 2026-09-03. He watched the bundled urn race and
+  // saw "some of the labels on the lines disappear (B and C) and some
+  // reappears (C)" — label_top: 3 re-ranking five urns every stage, so Urn B
+  // was never named and Urn C's name came and went as it traded third place
+  // with Urn A. A race keeps its names.
+  test("the urn line race names all five urns — no label_top ranking names off the chart", () => {
+    const urn = examples.find((e) => /five urns/i.test(e.request));
+    expect(urn, "the bundled urn race is gone or renamed").toBeDefined();
+    const params = urn!.spec!.params as Record<string, unknown>;
+    expect(params.label_top).toBeUndefined();
+    expect((params.series as { name: string }[]).map((s) => s.name)).toEqual(["Urn A", "Urn B", "Urn C", "Urn D", "Urn E"]);
+    // The closing beat highlights Urn B by name ("Urn B was not worse at
+    // anything"), which only lands if Urn B is labelled on the chart.
+    const speaks = (urn!.spec!.commands ?? []).map((c) => (c as Command).speak ?? "").join(" ");
+    expect(speaks).toMatch(/Urn B/);
+  });
+
   // A link only does its job if it reaches a card and sniffs to the right
   // kind. A mistyped YouTube id still LOOKS like a link — it just quietly
   // degrades from the embedded player to a plain new tab — so pin both.

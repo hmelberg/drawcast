@@ -14,7 +14,7 @@ import { plotArea } from "../src/layout/canvas";
 import { bboxOfText } from "../src/layout/geometry";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
-import { FONT_FLOOR } from "../src/lint/lint";
+import { FONT_FLOOR, lintLayoutDetailed } from "../src/lint/lint";
 import { COLORS, flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { contrastOfLuminances, relativeLuminance } from "./contrast";
 import { templateParamErrors } from "../src/scenes/params-check";
@@ -829,6 +829,139 @@ describe("line race", () => {
     const yOf = (l: ReturnType<typeof layoutSpec>) =>
       (flattenDrawables(l.drawables).find((d) => d.id === "line_2__t") as TextDrawable).pos[1];
     expect(yOf(line(noTicker))).toBeLessThan(yOf(withTicker));
+  });
+
+  // ------------------------------------------------------------------
+  // Hans's race-label ruling, 2026-09-03, watching the bundled urn race:
+  // "in these examples we may allow some overlap since the point is that
+  // they may move around and sometimes be close. Maybe make
+  // overlap/collisions as nice as possible (some transparency?), but do not
+  // eliminate labels in these race models."
+  // ------------------------------------------------------------------
+  describe("a race keeps every name", () => {
+    const chess = () => scenes.line_chart!.manifest.examples.find((e) => /chess players/i.test(e.request))!.params as Record<string, unknown>;
+    const endNames = (l: ReturnType<typeof layoutSpec>) =>
+      flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text" && /^line_\d+__t$/.test(d.id)).map((d) => d.text);
+
+    test("the chess race no longer drops a name: no label_top, and all four players are named from the stage they enter", () => {
+      const p = chess();
+      expect(p.label_top, "a race does not rank its names off the chart").toBeUndefined();
+      // Karpov from stage 0, Kasparov from 1, Anand from 2, Carlsen from 3 —
+      // a null is ABSENT, so a player has no line and no name before then.
+      const expected: string[][] = [
+        ["Karpov"],
+        ["Karpov", "Kasparov"],
+        ["Karpov", "Kasparov", "Anand"],
+        ["Karpov", "Kasparov", "Anand", "Carlsen"],
+        ["Karpov", "Kasparov", "Anand", "Carlsen"],
+        ["Karpov", "Kasparov", "Anand", "Carlsen"],
+      ];
+      for (let stage = 0; stage <= 5; stage++) {
+        expect(endNames(line({ ...p, stage })).sort(), `stage ${stage}`).toEqual([...expected[stage]].sort());
+      }
+      // …and no name ever leaves once it has arrived, at fractional stages too.
+      for (const stage of [3.1, 3.5, 4.25, 4.75, 4.99]) {
+        expect(endNames(line({ ...p, stage })).length, `stage ${stage}`).toBe(4);
+      }
+    });
+
+    test("naming all four is not merely allowed but BETTER than label_top: 3, which is what the old pin was avoiding", () => {
+      // The previous round measured 5 dirty stages of 1001 at label_top: 3
+      // (a name across Carlsen's line at 2.708) and pinned label_top: 2.
+      // Re-measured the same way: with every name drawn the dodge has a
+      // fourth slot to spread with and the collision does not arise at all.
+      const p = chess();
+      // Measured the same way, over the same 1001 stages — but counting
+      // COLLISIONS, not lint failures: under this ruling the label_top: 3
+      // collision is accepted (and dimmed) rather than reported, so `issues`
+      // no longer tells the two apart. What still tells them apart is that
+      // with every name drawn there is nothing to dim at all.
+      const collisions = (params: Record<string, unknown>) => {
+        let n = 0;
+        for (let i = 0; i <= 1000; i++) {
+          const l = line({ ...params, stage: (i / 1000) * 5 });
+          expect(l.issues, `stage ${(i / 1000) * 5}`).toEqual([]);
+          n += lintLayoutDetailed(l.drawables, heuristicMeasure).exempt.length;
+        }
+        return n;
+      };
+      expect(collisions(p)).toBe(0);
+      expect(collisions({ ...p, label_top: 3 })).toBeGreaterThan(0);
+    });
+
+    test("a name that lands on ANOTHER line's stroke is dimmed and accepted — never deleted", () => {
+      // label_top: 3 is the reproducible collision (Karpov's name across
+      // Carlsen's single entry point at stage 2.708). The lint accepts it as
+      // a crossing, and the ink says so.
+      const l = line({ ...chess(), label_top: 3, stage: 2.708 });
+      const detail = lintLayoutDetailed(l.drawables, heuristicMeasure);
+      expect(l.issues).toEqual([]);
+      expect(detail.exempt.map((i) => `${i.rule} ${i.ids.join("+")}`)).toEqual(["overlap-label-stroke line_1__t+line_4__l"]);
+      const name = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
+      expect(name.style.opacity).toBeCloseTo(0.85, 10);
+      expect(name.crossing).toBe("line_1");
+      // The other three are untouched: softening is per label, not per chart.
+      for (const id of ["line_2__t", "line_3__t"]) {
+        expect((flattenDrawables(l.drawables).find((d) => d.id === id) as TextDrawable).style.opacity, id).toBe(1);
+      }
+    });
+
+    test("`crossing` is stamped only on a chart that MOVES — a static line chart keeps the strict lint", () => {
+      const staged = line({ x: [0, 1], series: [{ name: "A", values: [[1], [1, 2]] }], stage: 0 });
+      const stagedName = flattenDrawables(staged.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
+      expect(stagedName.crossing).toBe("line_1");
+      expect((flattenDrawables(staged.drawables).find((d) => d.id === "line_1__l") as StrokeDrawable).crossing).toBe("line_1");
+
+      const still = line({ x: [0, 1], series: [{ name: "A", values: [1, 2] }, { name: "B", values: [2, 1] }] });
+      for (const id of ["line_1__t", "line_1__l", "line_2__t", "axes__x0"]) {
+        expect(flattenDrawables(still.drawables).find((d) => d.id === id)!.crossing, id).toBeUndefined();
+      }
+    });
+
+    test("SOFT = 0.85 is where it is because of the arithmetic, not the eye", () => {
+      // The figure's own paper (src/render/figure-style.ts), the ground the
+      // label is composited over. Recomputed here rather than quoted: this
+      // repo has shipped a wrong contrast number twice.
+      const GROUND = "#fffefb";
+      const chan = (hex: string, i: number) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+      const hex2 = (v: number) => Math.round(v).toString(16).padStart(2, "0");
+      /** ink at opacity a over `base`, composited in gamma-encoded sRGB — what an SVG `opacity` does. */
+      const over = (ink: string, a: number, base = GROUND) =>
+        "#" + [0, 1, 2].map((i) => hex2(chan(base, i) * (1 - a) + chan(ink, i) * a)).join("");
+      const ratio = (hex: string) => contrastOfLuminances(relativeLuminance(hex), relativeLuminance(GROUND));
+      const at = (ink: string, a: number) => ratio(over(ink, a));
+
+      // The pack's own floor for text a reader is expected to READ: C.guide
+      // at full ink, which is what axis ticks and a racer's value are drawn in.
+      const FLOOR = at(COLORS.guide, 1);
+      expect(FLOOR).toBeCloseTo(3.48, 2);
+
+      // Exactly three series inks clear that floor at all…
+      const clears = COLORS.series.filter((ink) => at(ink, 1) >= FLOOR);
+      expect(clears).toEqual(["#b5482e", "#2f6b8f", "#8a5fa8"]);
+      // …and all three still clear it softened, which is what fixes SOFT.
+      for (const ink of clears) expect(at(ink, 0.85), ink).toBeGreaterThanOrEqual(FLOOR);
+      // One step further and the third stops clearing — so 0.85 is the
+      // strongest softening on a 0.05 grid that keeps a readable ink readable.
+      expect(at("#8a5fa8", 0.8)).toBeLessThan(FLOOR);
+
+      // The three lighter inks are already below the floor at FULL opacity —
+      // a palette fact this ruling does not create — and the softening costs
+      // each of them less than half a ratio point.
+      for (const ink of COLORS.series.filter((c) => !clears.includes(c))) {
+        expect(at(ink, 1), ink).toBeLessThan(FLOOR);
+        expect(at(ink, 1) - at(ink, 0.85), ink).toBeLessThan(0.5);
+      }
+
+      // And the reason it READS as ink over ink: at full opacity a label
+      // drawn over another is exactly as dark as one label, so a crossing has
+      // no signature at all. Softened, the doubled region is measurably
+      // darker than either name alone.
+      const single = at("#b5482e", 0.85);
+      const doubled = ratio(over("#b5482e", 0.85, over("#b5482e", 0.85)));
+      expect(doubled).toBeGreaterThan(single * 1.2);
+      expect(at("#b5482e", 1)).toBeCloseTo(ratio(over("#b5482e", 1, over("#b5482e", 1))), 10);
+    });
   });
 
   // Fix round 1: the example was a SINGLE static frame in disguise — all six

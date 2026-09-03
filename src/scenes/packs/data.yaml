@@ -529,7 +529,7 @@ layout: |
 ---
 template: line_chart
 title: Line chart
-version: 4
+version: 5
 kit: 5
 status: ready
 description: >-
@@ -546,9 +546,10 @@ description: >-
   valued at BOTH ends — for before/after, two time points, or Simpson's
   paradox. A line race adds three more params: `ticker` writes the year
   large and dim in the plot's corner; `x_window: n` slides a rolling window
-  over the last n x positions instead of showing the whole span; `label_top:
-  n` names only the n current leaders at their line ends, so a field with
-  more lines than a margin can name still reads cleanly. All three are
+  over the last n x positions instead of showing the whole span; and
+  `label_top: n`, which is the EXCEPTION — normally every line keeps its
+  name for the whole race, and two names that come close are dimmed where
+  they cross rather than one of them being dropped. All three are
   ignored in slope mode, which always shows exactly two columns with every
   series already named and valued at both ends. Choose this scene for ANY
   request for a line chart, a trend over time, a curve computed from data,
@@ -638,10 +639,10 @@ params:
     label_top:
       type: integer
       minimum: 1
-      description: "Only the N highest lines at the current stage carry their name at the end; the rest stay drawn but unlabelled. Use it when a race has more lines than a margin can name. Ignored in slope mode, where every series is already named and valued at both ends."
+      description: "THE EXCEPTION, not the default: leave it out unless the field is genuinely too crowded to name. Only the N highest lines at the current stage carry their name at the end; the rest stay drawn but unlabelled. Because the ranking is re-read at every stage, a line that slips out of the top N LOSES its name and gets it back when it climbs — names blinking on and off as the race runs, which is almost never what a race wants. A race would rather let two names sit close for a moment (they are dimmed where they cross, so the overlap reads as ink over ink) than take a name away. Reach for it only when the field is genuinely too crowded to name at once, or when the disappearing name IS the point the narration makes — never to avoid a collision, which is handled by the dimming. Ignored in slope mode, where every series is already named and valued at both ends."
 element_ids:
   axes: "the x and y axes with their captions and end values (slope: true — axes__col0/axes__col1 name the two columns instead of an x scale)"
-  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise, unless label_top excludes it); with slope: true it is instead the straight connector between two columns, its name and value drawn at both ends"
+  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise — every series keeps its name unless the exceptional label_top excludes it); with slope: true it is instead the straight connector between two columns, its name and value drawn at both ends"
   ticker: "the large dimmed stage caption, when set"
   note: "the refusal note, drawn only when slope: true and a series does not have exactly two values"
   title: figure title, when set
@@ -714,13 +715,14 @@ examples:
             - [null, null, null, 2690]
             - [null, null, null, 2690, 2815]
             - [null, null, null, 2690, 2815, 2847]
-      # Two, not three: with the band opened up by `ylim` below, Karpov's name
-      # (third at the 2001 decade) passes within 13 units of the point where
-      # Carlsen enters the field, and a name lying across another player's line
-      # mid-tween is exactly the mess `label_top` exists to prevent. Naming the
-      # two current leaders of a four-line field teaches the same param and
-      # lints clean at every stage between 0 and 5, integer and fractional.
-      label_top: 2
+      # No `label_top`: all four players keep their names for the whole race
+      # (Hans, 2026-09-03 — "do not eliminate labels in these race models").
+      # It carried `label_top: 2` because at 3 Karpov's name crossed Carlsen's
+      # line at stage 2.708; naming ALL FOUR gives the dodge a fourth slot to
+      # spread with and the collision does not happen at all — 0 dirty stages
+      # of 1001 swept between 0 and 5, the same measurement that chose 2 over
+      # 3 last round. Where a race's names DO cross, they are dimmed instead
+      # of dropped (SOFT in the body below).
       ticker: ["1971", "1981", "1991", "2001", "2011", "2021"]
       stage: 0
       # Elo lives in a narrow band a long way above zero, and the default y
@@ -734,8 +736,15 @@ examples:
     # x_window slides a rolling window over the reveal front instead of
     # keeping the whole span in view: stage 9 shows months 4-10 and the x
     # axis ends slide with it, so the early climb leaves the frame on the
-    # left. label_top names only the current leaders. Numeric x only.
-    # Three regions of an SIR run, one reproduction number each.
+    # left. Numeric x only. Three regions of an SIR run, one reproduction
+    # number each.
+    #
+    # This is the pack's one exemplar of `label_top`, and it is deliberately
+    # the EXCEPTION: the request asks for just the two leaders to be named, so
+    # the third region's name leaving the chart is the thing being shown, not
+    # an accident. A race that is not making that point keeps every name (the
+    # chess example above, the bundled urn race) and lets close names dim
+    # where they cross instead.
     params:
       x: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
       series:
@@ -1281,16 +1290,143 @@ layout: |
     const dodged = labelY.slice();
     slots.forEach((k, i) => { dodged[k] = dodgedSlots[i]; });
 
+    // ---- Crossings: a race NEVER drops a name; it softens the collision ----
+    // Hans, 2026-09-03, watching the urn race: "in these examples we may allow
+    // some overlap since the point is that they may move around and sometimes
+    // be close. Maybe make overlap/collisions as nice as possible (some
+    // transparency?), but do not eliminate labels in these race models."
+    //
+    // `racing` is "this chart has stages to move through" (K > 1). A STATIC
+    // line chart keeps the strict lint: its labels are where they will always
+    // be, so a collision there is an authoring defect somebody can fix, not
+    // motion. In a staged chart every line and every name travels, the dodge
+    // above is already doing all it can, and what is left is to make the
+    // remaining overlap look deliberate rather than broken.
+    //
+    // SOFT = 0.85 is measured, not chosen by eye (this repo has shipped a
+    // wrong contrast number twice; the heatmap's threshold block further down
+    // this file is the standard). Ink at opacity a over the figure's paper
+    // (#fffefb, src/render/figure-style.ts) composites in gamma-encoded sRGB —
+    // what an SVG `opacity` actually does — and WCAG 2.1 relative luminance
+    // gives the ratio against that paper. The pack's own floor for text a
+    // reader is expected to READ is C.guide at full ink, 3.48:1 (axis ticks
+    // and a racer's value label are drawn in exactly that). Of the six series
+    // inks only three clear that floor at all — #b5482e 5.30:1, #2f6b8f
+    // 5.75:1, #8a5fa8 4.86:1 — and at a = 0.85 all three still do: 4.05:1,
+    // 4.19:1, 3.65:1. At 0.80 the third falls to 3.33:1 and stops clearing, so
+    // 0.85 is the strongest softening on a 0.05 grid that keeps every ink that
+    // was readable readable. The three lighter inks are already below that
+    // floor at full opacity (#d0865f 2.87, #87a878 2.63, #f2c14e 1.66 — a
+    // palette fact this ruling does not create) and lose at most 0.46 of a
+    // ratio point: 2.41, 2.23, 1.54.
+    //
+    // What makes it READ as ink over ink rather than as a broken glyph pile:
+    // at full opacity a label drawn over another is exactly as dark as one
+    // label, so a crossing has no visual signature at all. At 0.85 the doubled
+    // region is measurably darker than either name alone — 5.09:1 against
+    // 4.05:1 for #b5482e — so the overlap looks like two transparent sheets,
+    // and each name's own body stays clean either side of it.
+    //
+    // The softening RAMPS with how deep the collision is (intersection area
+    // over the smaller box), so two names easing past each other fade into and
+    // out of the crossing instead of blinking at a frame boundary. Against
+    // another line's STROKE it is a step, because the lint's own rule is a
+    // step: a graze is fine by design, only a stroke through the label's CORE
+    // threatens legibility (src/lint/lint.ts).
+    const racing = K > 1;
+    const SOFT = 0.85;
+    const softness = lines.map(() => 0);
+    // The polyline as it will actually be DRAWN — smoothed if asked, and the
+    // one-point case widened into the degenerate 2-point stroke the draw below
+    // emits. The lint sees that stroke, so the softening has to see it too:
+    // reading L.pts here instead missed exactly the collision this ruling was
+    // about (a name lying across the line of a series that has just entered
+    // the field and has a single point).
+    const drawnPts = (pts) => (pts.length >= 2
+      ? (params.smooth === true ? kit.smooth(pts) : pts)
+      : pts.length === 1 ? [pts[0], [pts[0][0] + 0.01, pts[0][1]]] : []);
+    if (racing) {
+      // segmentIntersectsBox / polylineIntersectsBox (layout/geometry.ts),
+      // mirrored here because the kit exposes no geometry predicates. Same
+      // Liang–Barsky, same box convention, so this asks the lint's question.
+      const segHits = (a, b, box) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const p = [-dx, dx, -dy, dy];
+        const q = [a[0] - box.x0, box.x1 - a[0], a[1] - box.y0, box.y1 - a[1]];
+        let t0 = 0, t1 = 1;
+        for (let i = 0; i < 4; i++) {
+          if (p[i] === 0) { if (q[i] < 0) return false; continue; }
+          const r = q[i] / p[i];
+          if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+          else { if (r < t0) return false; if (r < t1) t1 = r; }
+        }
+        return true;
+      };
+      const hitsBox = (pts, box) => { for (let i = 0; i + 1 < pts.length; i++) if (segHits(pts[i], pts[i + 1], box)) return true; return false; };
+      // How deeply two label boxes coincide, 0 (clear) … 1 (one inside the
+      // other), measured on boxes grown by PAD — half the lint's own 2-unit
+      // pad across a pair, which makes this the identical predicate.
+      const PAD = 1, MIN_ACK = 0.1;
+      const coverage = (A, B) => {
+        const ow = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0) + 2 * PAD;
+        const oh = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0) + 2 * PAD;
+        if (ow <= 0 || oh <= 0) return 0;
+        const aA = (A.x1 - A.x0 + 2 * PAD) * (A.y1 - A.y0 + 2 * PAD);
+        const aB = (B.x1 - B.x0 + 2 * PAD) * (B.y1 - B.y0 + 2 * PAD);
+        return clamp(Math.max(MIN_ACK, (ow * oh) / Math.max(1e-9, Math.min(aA, aB))), 0, 1);
+      };
+      const boxes = {};
+      slots.forEach((k, i) => {
+        boxes[k] = { x0: labelBoxes[i].x0, x1: labelBoxes[i].x1, y0: dodged[k] - END_LABEL_H / 2, y1: dodged[k] + END_LABEL_H / 2 };
+      });
+      // Name against name: the fraction of the SMALLER box that is covered.
+      // Measured on boxes grown by PAD, which is exactly the lint's own test —
+      // boxesOverlap(a, b, 2) (layout/geometry.ts) is the same predicate as
+      // "both boxes grown by 1 intersect" — so the ink starts fading at the
+      // instant the lint would have complained, never after it. MIN_ACK keeps
+      // that first instant from rounding to no change at all: an overlap the
+      // lint excuses must never be an overlap the reader cannot see was meant.
+      // (The dodge below spreads end labels DODGE = 46 apart and a 19pt box is
+      // 23.75 tall, so today no two line names can reach each other at all and
+      // this loop never fires. It stays because the lint's exemption does not
+      // depend on the dodge: were the dodge ever bounded, an excused overlap
+      // with no dimming would be exactly the silent collision this ruling is
+      // meant to prevent. bar_race is where the same measure earns its keep.)
+      for (let a = 0; a < slots.length; a++) {
+        for (let b = a + 1; b < slots.length; b++) {
+          const A = boxes[slots[a]], B = boxes[slots[b]];
+          const f = coverage(A, B);
+          if (f <= 0) continue;
+          softness[slots[a]] = Math.max(softness[slots[a]], f);
+          softness[slots[b]] = Math.max(softness[slots[b]], f);
+        }
+      }
+      // A name against ANOTHER line's stroke — the gap the previous round left
+      // unowned (ledger follow-up 2), and what `label_top: 2` on the chess
+      // race was really working around. The box is the lint's own core.
+      for (const k of slots) {
+        const B = boxes[k];
+        const w = B.x1 - B.x0, h = B.y1 - B.y0;
+        const core = { x0: B.x0 + w * 0.2, x1: B.x0 + w * 0.8, y0: B.y0 + h * 0.25, y1: B.y0 + h * 0.75 };
+        for (const L of lines) {
+          if (L.k === k) continue;
+          const other = drawnPts(L.pts);
+          if (other.length >= 2 && hitsBox(other, core)) { softness[k] = 1; break; }
+        }
+      }
+    }
+
     lines.forEach((L, k) => {
       const id = "line_" + (k + 1);
       const color = C.series[k % C.series.length];
       const children = [];
       const pts = L.pts;
-      if (pts.length >= 2) children.push(kit.stroke(id + "__l", params.smooth === true ? kit.smooth(pts) : pts, { color, strokeWidth: 4, ms: MS.curve }));
-      else if (pts.length === 1) children.push(kit.stroke(id + "__l", [pts[0], [pts[0][0] + 0.01, pts[0][1]]], { color, strokeWidth: 4, ms: MS.curve }));
-      else children.push(kit.stroke(id + "__l", [], { color, strokeWidth: 4, ms: MS.curve }));
-      if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })));
-      if (L.s.name && pts.length && labelled.has(k)) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color }));
+      // `crossing` (layout/model.ts) marks this line as a MOVER: the lint then
+      // accepts an overlap between two DIFFERENT movers, and nothing else.
+      const cross = racing ? { crossing: id } : {};
+      children.push(kit.stroke(id + "__l", drawnPts(pts), { color, strokeWidth: 4, ms: MS.curve, ...cross }));
+      if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke, ...cross })));
+      if (L.s.name && pts.length && labelled.has(k)) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color, opacity: 1 - (1 - SOFT) * softness[k], ...cross }));
       push(kit.group(id, children));
       anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
     });
@@ -1702,7 +1838,7 @@ layout: |
 ---
 template: bar_race
 title: Bar chart race
-version: 1
+version: 2
 kit: 5
 status: ready
 description: >-
@@ -1720,7 +1856,8 @@ description: >-
   places share one row for the instant of the overtake, so their names and
   values coincide there: that is BY DESIGN — it is what an overtake looks
   like, and snapping the ranks instead is the defect this scene exists to
-  avoid. The scale follows the leader, so
+  avoid. Both labels dim as they meet and brighten again as they part, so the
+  crossing reads as ink laid over ink. The scale follows the leader, so
   the early stages are never squashed flat, and its ticks slide rather than
   reflow; `xlim` fixes the range instead. `ticker` writes the year large and
   dim in the plot's corner, and every bar carries its own value unless
@@ -2261,6 +2398,14 @@ layout: |
   // and fades with its bar without becoming a beat of its own. Ids are unique
   // across the whole tree (src/scenes/compile.ts), so the fill and the name
   // cannot share one; the suffix is how they stay welded together anyway.
+  // TWO passes. The first works out where every racer's bar, name and value
+  // WOULD go; the second draws them. The gap between them is where the
+  // overtake softening happens: two racers swapping places share one row for
+  // the frame of the crossing and their names and values coincide there
+  // (Ruling T5-A — that IS what an overtake looks like, and snapping the ranks
+  // instead is the defect this scene exists to avoid), and how deeply they
+  // coincide can only be known once the whole field has been placed.
+  const seats = [];
   for (let i = 0; i < n; i++) {
     const id = "race_" + (i + 1);
     const color = C.series[i % C.series.length];
@@ -2269,14 +2414,8 @@ layout: |
     if (!(p < topN + 1) || here <= 0) {
       // Declared but not on the field at this stage — either past the airlock
       // row, or `null` at both ends of the transition, which is the same thing
-      // said by the data instead of by the ranking. An empty STROKE, not an
-      // empty area: `race_i` is a bar wherever the racer is on screen, and a
-      // zero-point area would read as a bar of length nothing at row nothing.
-      // The element's kind therefore changes with the stage, which costs
-      // nothing: every tween frame rebuilds its nodes from the new layout and
-      // the settle remounts them (src/render/svg-backend.ts).
-      push(kit.stroke(id, [], { color, strokeWidth: 2.5, ms: MS.stroke }));
-      anchors[id] = [plot.x0, plot.y0];
+      // said by the data instead of by the ranking.
+      seats.push({ id, color, off: true });
       continue;
     }
     const c = placeCenter(p);   // the bar's centre line, ACROSS the value axis
@@ -2289,15 +2428,13 @@ layout: |
     const rect = vertical
       ? [[c - thick / 2, base], [c + thick / 2, base], [c + thick / 2, end], [c - thick / 2, end]]
       : [[base, c - thick / 2], [end, c - thick / 2], [end, c + thick / 2], [base, c + thick / 2]];
-    // No separate outline stroke: both renderers already draw an area's
-    // border (rough.js polygon strokeWidth 1.8 / plainPath 1.5), and a race
-    // rebuilds every bar on every tween frame, so the second stroke would be
-    // ink re-rolled for nothing.
-    push(kit.area(id, rect, color, { opacity: FILL * opacity }));
-    drawables.push(vertical
-      ? kit.text(id + "_text", [c, plot.y0 - AXIS_ROW], fitName(i), { fontSize: NAME_SIZE, opacity })
-      : kit.text(id + "_text", [plot.x0 - NAME_GAP, c], fitName(i), { fontSize: NAME_SIZE, anchor: "end", opacity }));
-    anchors[id] = vertical ? [c, (base + end) / 2] : [(base + end) / 2, c];
+    const seat = {
+      id, color, off: false, c, opacity, base, end, rect, soft: 0,
+      nameText: fitName(i),
+      namePos: vertical ? [c, plot.y0 - AXIS_ROW] : [plot.x0 - NAME_GAP, c],
+      nameAnchor: vertical ? "middle" : "end",
+      valueText: null, valuePos: null, valueAnchor: "middle",
+    };
 
     // The value rides the bar's end: past it while there is room, and turned
     // around to lie INSIDE the end when the bar reaches the plot's edge. When
@@ -2328,8 +2465,91 @@ layout: |
           if (within - w >= plot.x0) { pos = [within, c]; anchor = "end"; }
         }
       }
-      if (pos) drawables.push(kit.text(id + "_value", pos, s, { fontSize: VALUE_SIZE, anchor, color: C.guide, opacity }));
+      if (pos) { seat.valueText = s; seat.valuePos = pos; seat.valueAnchor = anchor; }
     }
+    seats.push(seat);
+  }
+
+  // The overtake, made to look deliberate. Two racers crossing are dimmed in
+  // proportion to how deeply their labels coincide — a fade INTO the crossing
+  // and out of it, not a blink at one frame — so the moment reads as ink laid
+  // over ink rather than as two names fighting. SOFT is the same 0.85
+  // line_chart uses and is measured the same way; see the long note there for
+  // the arithmetic (the pack's own floor for readable text is C.guide at full
+  // ink, 3.48:1; a racer's name is COLORS.ink, 11.49:1, and still reads
+  // 7.24:1 softened; the value label is C.guide itself, 3.48:1 → 2.78:1 for
+  // the frames of the crossing, the one ink the softening takes below that
+  // floor — and its number is also written in the length of its own bar).
+  // `crossing` (layout/model.ts) is what tells the lint this pair is an
+  // overtake and not a defect; it is set ONLY on the two labels, and only in
+  // a race with stages to overtake in.
+  const racing = K > 1;
+  const SOFT = 0.85;
+  if (racing) {
+    const textBox = (pos, anchor, s, size) => {
+      const w = kit.textWidth(s, size), h = size * 1.25;
+      const x0 = anchor === "start" ? pos[0] : anchor === "end" ? pos[0] - w : pos[0] - w / 2;
+      return { x0, x1: x0 + w, y0: pos[1] - h / 2, y1: pos[1] + h / 2 };
+    };
+    const labelBoxesOf = (s) => {
+      if (s.off) return [];
+      const out = [textBox(s.namePos, s.nameAnchor, s.nameText, NAME_SIZE)];
+      if (s.valuePos) out.push(textBox(s.valuePos, s.valueAnchor, s.valueText, VALUE_SIZE));
+      return out;
+    };
+    // How deeply two label boxes coincide, 0 (clear) … 1 (one inside the
+    // other), measured on boxes grown by PAD — half the lint's own 2-unit pad
+    // across a pair (boxesOverlap(a, b, 2), layout/geometry.ts), which makes
+    // this the identical predicate. So the ink starts fading at the instant
+    // the lint would have complained, never after it, and MIN_ACK keeps that
+    // first instant from rounding to no change at all: an overlap the lint
+    // excuses must never be one the reader cannot see was meant.
+    const PAD = 1, MIN_ACK = 0.1;
+    const coverage = (A, B) => {
+      const ow = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0) + 2 * PAD;
+      const oh = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0) + 2 * PAD;
+      if (ow <= 0 || oh <= 0) return 0;
+      const aA = (A.x1 - A.x0 + 2 * PAD) * (A.y1 - A.y0 + 2 * PAD);
+      const aB = (B.x1 - B.x0 + 2 * PAD) * (B.y1 - B.y0 + 2 * PAD);
+      return clamp(Math.max(MIN_ACK, (ow * oh) / Math.max(1e-9, Math.min(aA, aB))), 0, 1);
+    };
+    const boxes = seats.map(labelBoxesOf);
+    for (let a = 0; a < seats.length; a++) {
+      for (let b = a + 1; b < seats.length; b++) {
+        for (const A of boxes[a]) {
+          for (const B of boxes[b]) {
+            const f = coverage(A, B);
+            if (f <= 0) continue;
+            seats[a].soft = Math.max(seats[a].soft, f);
+            seats[b].soft = Math.max(seats[b].soft, f);
+          }
+        }
+      }
+    }
+  }
+
+  for (const s of seats) {
+    if (s.off) {
+      // An empty STROKE, not an empty area: `race_i` is a bar wherever the
+      // racer is on screen, and a zero-point area would read as a bar of
+      // length nothing at row nothing. The element's kind therefore changes
+      // with the stage, which costs nothing: every tween frame rebuilds its
+      // nodes from the new layout and the settle remounts them
+      // (src/render/svg-backend.ts).
+      push(kit.stroke(s.id, [], { color: s.color, strokeWidth: 2.5, ms: MS.stroke }));
+      anchors[s.id] = [plot.x0, plot.y0];
+      continue;
+    }
+    // No separate outline stroke: both renderers already draw an area's
+    // border (rough.js polygon strokeWidth 1.8 / plainPath 1.5), and a race
+    // rebuilds every bar on every tween frame, so the second stroke would be
+    // ink re-rolled for nothing.
+    push(kit.area(s.id, s.rect, s.color, { opacity: FILL * s.opacity }));
+    const soft = s.opacity * (1 - (1 - SOFT) * s.soft);
+    const cross = racing ? { crossing: s.id } : {};
+    drawables.push(kit.text(s.id + "_text", s.namePos, s.nameText, { fontSize: NAME_SIZE, anchor: s.nameAnchor, opacity: soft, ...cross }));
+    anchors[s.id] = vertical ? [s.c, (s.base + s.end) / 2] : [(s.base + s.end) / 2, s.c];
+    if (s.valuePos) drawables.push(kit.text(s.id + "_value", s.valuePos, s.valueText, { fontSize: VALUE_SIZE, anchor: s.valueAnchor, color: C.guide, opacity: soft, ...cross }));
   }
 
   if (title) {

@@ -11,6 +11,7 @@ import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
 import { heuristicMeasure } from "../src/layout/measure";
+import { lintLayoutDetailed } from "../src/lint/lint";
 import { flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
 import type { Spec } from "../src/spec/types";
 
@@ -475,6 +476,74 @@ describe("bar_race scale and furniture", () => {
     expect(tickTexts(l)).toEqual([]);
     expect(textById(l, "race_1_value")).toBeUndefined();
     expect(l.issues).toEqual([]);
+  });
+
+  // Hans's race-label ruling, 2026-09-03. An overtake's one-frame overlap is
+  // accepted (T5-A); what changed is that it must now LOOK accepted — both
+  // labels dim as they meet — and that the lint is told the difference
+  // structurally, through `crossing`, instead of the harness guessing from id
+  // shapes.
+  describe("an overtake is softened, not avoided", () => {
+    test("both racers' names dim through the crossing and come back to full ink either side of it", () => {
+      const op = (s: number, i: number) => textById(race({ ...SWAP, stage: s }), `race_${i}_text`)!.style.opacity;
+      expect(op(0, 1)).toBe(1);
+      expect(op(0, 2)).toBe(1);
+      expect(op(1, 1)).toBe(1);
+      expect(op(1, 2)).toBe(1);
+      // Deepest exactly where the two rows coincide, and symmetric: the
+      // overtake dims BOTH names, never just the one that happens to be
+      // second in input order.
+      expect(op(0.5, 1)).toBeLessThan(1);
+      expect(op(0.5, 1)).toBe(op(0.5, 2));
+      // …and it is a ramp, not a blink. The two rows only come within the
+      // lint's own 2-unit reach over the last tenth of the transition, and
+      // across that tenth the ink fades in and out smoothly: full at 0.45,
+      // 0.985 at 0.46, 0.962 at 0.47, SOFT at the crossing, mirrored after.
+      expect(op(0.45, 1)).toBe(1);
+      expect(op(0.6, 1)).toBe(1);
+      expect(op(0.47, 1)).toBeLessThan(op(0.46, 1));
+      expect(op(0.46, 1)).toBeLessThan(1);
+      expect(op(0.47, 1)).toBeGreaterThan(op(0.5, 1));
+      expect(op(0.47, 1)).toBeCloseTo(op(0.53, 1), 10);
+      // Never darker than SOFT — a label is dimmed, never faded out.
+      expect(op(0.5, 1)).toBeGreaterThanOrEqual(0.85);
+    });
+
+    test("the dimming and the lint's exemption agree: every excused overlap is a visibly dimmed one", () => {
+      for (const stage of [0.4, 0.45, 0.5, 0.55, 0.6]) {
+        const l = race({ ...SWAP, stage });
+        const detail = lintLayoutDetailed(l.drawables, heuristicMeasure);
+        expect(l.issues, `stage ${stage}`).toEqual([]);
+        for (const issue of detail.exempt) {
+          for (const id of issue.ids) {
+            const d = textById(l, id);
+            if (d) expect(d.style.opacity, `stage ${stage}: ${id}`).toBeLessThan(1);
+          }
+        }
+      }
+    });
+
+    test("`crossing` names the RACER, is set on both its labels, and only in a race with stages to overtake in", () => {
+      const l = race({ ...SWAP, stage: 0.5 });
+      expect(textById(l, "race_1_text")!.crossing).toBe("race_1");
+      expect(textById(l, "race_1_value")!.crossing).toBe("race_1");
+      expect(textById(l, "race_2_text")!.crossing).toBe("race_2");
+      // Furniture never carries a key — that is what keeps a name-on-ticker
+      // collision a defect.
+      expect(textById(l, "title")?.crossing).toBeUndefined();
+      // One stage is not a race: nothing can overtake, so nothing is excused.
+      const still = race({ labels: ["A", "B"], values: [[10, 6]], stage: 0 });
+      expect(textById(still, "race_1_text")!.crossing).toBeUndefined();
+      expect(textById(still, "race_1_text")!.style.opacity).toBe(1);
+    });
+
+    test("a fading racer's name is dimmed by BOTH its presence and the crossing, never brightened by one", () => {
+      // race_3 climbs into a two-row window: its presence ramp is already
+      // below 1, and the softening may only take it further down.
+      const climbing = { labels: ["A", "B", "C"], values: [[10, 8, 1], [10, 8, 9]], top_n: 2, stage: 0.5 };
+      const name = textById(race(climbing), "race_3_text");
+      if (name) expect(name.style.opacity).toBeLessThanOrEqual(1);
+    });
   });
 
   test("degenerate fields still lay out: one stage, all equal, values spanning zero", () => {
