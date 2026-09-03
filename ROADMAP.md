@@ -661,6 +661,43 @@ the examples to the compiler together. Both are now pinned. Along the way two
 templates were caught inventing data: `forest_plot` printed
 `1.00 [0.75, 1.30]` for an interval it did not have.
 
+### A race never deletes a label — 2026-09-03
+
+Hans watched the urn race and saw names vanish and come back: `label_top` names
+only the N highest series *at the current stage*, ranked by each line's last
+plotted point, so a line dropping a place lost its name and took it back on the
+way up. His ruling: in a race a label is never eliminated — overlap is fine,
+because the point is that racers move around and pass close, so make the
+collision look deliberate instead.
+
+So the bundled races name every line, and a crossing is *rendered* rather than
+avoided: `lint.ts` gained one narrow `crossing` rule (two labels a race
+template has keyed as movers may overlap each other — a label against an axis,
+ticker, title, note or caption still fails), and the crossing labels dim. How
+far is computed **per ink**: each dims until one 0.005 step further would drop
+it under the pack's readable floor (`COLORS.guide` at full ink, 3.4815:1), and
+an ink with no headroom does not dim at all. The race harness reads that same
+shipped rule rather than keeping its own copy of the idea.
+
+It cost nothing and gained something. With every line named, the dodge simply
+handles it: across 4001 sampled stages the urn race shows all five names in
+every frame, 22.3 units apart, with zero crossings and zero dimming needed —
+and naming all four chess players turned out strictly better than the old
+`label_top`, because the extra dodge slot dissolves the collision that param
+existed to avoid. `label_top` survives as the exception for a chart with more
+lines than a margin can name, and a test now stops a bundled example using it
+without the narration saying so — which caught one that dropped a name at
+stage 11 and explained it at stage 16.
+
+Two things learned in passing. Restoring the exemption cost the harness its
+old rule that nothing may be excused at an integer stage; that is back as an
+invariant over the shipped exempt list, proven by injecting a layout defect
+that had been passing silently. And the mechanism is the **paper halo**, not
+doubled ink: every text is stroked 5 units in the page colour with
+`paint-order: stroke`, and opacity dims halo and glyph together — so an
+undimmed upper name *erases* the lower one, and dimming is what lets both
+survive a crossing as continuous words.
+
 ### Follow-ups this round deliberately left
 
 - **`bar_race` has no `box`.** Every other data-pack template can share a
@@ -679,6 +716,21 @@ templates were caught inventing data: `forest_plot` printed
   `X_CAPTION_DROP`-shaped cleanup.
 - **`bar_chart` maps `null` to 0** while the rest of the pack treats it as
   absent. Documented rather than unified.
+- **A racer's value label cannot dim, so two numbers collide at full ink
+  during an overtake** — measured at 10–25 % of swept stages depending on the
+  example (cities 22 %, funds 25 %), up to full box coverage, and because the
+  halo dims with the glyph the number painted second *erases* the first rather
+  than blending. Names handle this well; numbers have no contrast headroom
+  left. The fix is a darker ink for value labels, which is a palette decision.
+  Related: three of the six series inks already sit below the pack's own
+  readable floor at full opacity (2.87 / 2.63 / 1.66:1) — also palette.
+- **Neither gate reaches a code-fed example's resolved shape.** A bundled
+  example whose params are still `"{id.var}"` tokens reports `staged: false`,
+  so `sweep:round` sees one resting frame and `smoke:race` skips it — which
+  means the urn race and the SIR race, the two that motivated the labels work,
+  have no automated per-stage coverage of what actually ships. The fix is a
+  committed `tests/fixtures/*.json` of resolved params that the gate loads; it
+  never reaches a prompt, so the catalogue's prompt economy does not apply.
 - **A coefficient-fed `event_study`.** The retrofit gives `did_trends` and
   `event_study` a scalar knob, not a vector: they were built as teaching
   diagrams, and plotting real estimates is a redesign. Their descriptions say
