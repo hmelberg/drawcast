@@ -35,8 +35,17 @@ interface FailureRecord {
 const DEFAULT_WINDOW_MS = 60 * 60 * 1000;
 const DEFAULT_MAX_FAILURES = 30;
 
-function defaultStore(): RateStore {
-  return getStore(STORE_NAME) as unknown as RateStore;
+/**
+ * Exported so the one call that reaches the real Blobs API is testable.
+ *
+ * `consistency: "strong"` is load-bearing, not decoration. Blobs reads are
+ * eventually consistent by default, so a caller guessing passwords rapidly
+ * would keep reading a budget that has not caught up with its own failures,
+ * and the limit would never fire — a guard that looks handled and is not.
+ * (Note that `list()` has no consistency option at all; only get does.)
+ */
+export function defaultStore(): RateStore {
+  return getStore({ name: STORE_NAME, consistency: "strong" }) as unknown as RateStore;
 }
 
 function settings(o: LimiterOptions) {
