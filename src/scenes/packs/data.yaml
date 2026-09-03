@@ -1393,3 +1393,292 @@ layout: |
     anchors.title = titleAt;
   }
   return { drawables, labels: labelReqs, anchors, order };
+---
+template: bar_race
+title: Bar chart race
+version: 1
+kit: 5
+status: ready
+description: >-
+  A bar chart race: one horizontal bar per racer, the rows REORDERING as the
+  numbers change, drawn as ink so it animates as geometry. `values` is a list
+  of lists — STAGES of the same field, one row per stage and one number per
+  racer — and the numeric `stage` param picks which one is shown. A
+  fractional stage interpolates the bar lengths AND the rank, so
+  `animate: {stage: 59}` with `easing: "linear"` plays the whole race at one
+  steady speed. `top_n` bounds the field (default 10) and a racer climbing
+  into it slides in and fades up instead of popping; `order: "fixed"` keeps
+  the input order and animates lengths only. Horizontal by default, because
+  that is where long racer names fit. Feed it typed numbers, or a code
+  element's variables via "{id.var}" tokens (type the labels by hand so the
+  race_i beats exist before the script has run). Choose this scene for ANY
+  request for a bar chart race, a leaderboard over time, "who overtook whom",
+  or ranks changing year by year. Up to 200 stages and 40 racers, but a
+  script's harvest caps at 5000 numbers — 20 racers × 200 stages fits,
+  40 racers × 200 stages does not.
+params:
+  type: object
+  properties:
+    labels:
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 40 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "Racer names, in INPUT order — that order fixes each racer's id (race_1, race_2, …) and colour for the whole race, whatever place it is in. TYPE these by hand even when values come from a script, so the race_i beats exist before it has run. A \"{id.var}\" token (a DataFrame column of names, say) works too, at that cost."
+    values:
+      oneOf:
+        - { type: array, items: { type: number }, maxItems: 40 }
+        - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, minItems: 1, maxItems: 200 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "One list of lists: STAGES of the race, one row per stage and one number per label (a missing one counts as 0 — that racer has not entered yet). A single flat list is a one-stage race. Or a \"{id.var}\" token naming a code element's variable."
+    stage:
+      type: number
+      minimum: 0
+      x-max-from: ["values"]
+      description: "Which stage is shown (0-based; default 0). Fractional values interpolate both the lengths and the ranks — the animate verb's target: {\"animate\": {\"stage\": 12}, \"easing\": \"linear\"}. Write the starting stage explicitly."
+    top_n:
+      type: integer
+      minimum: 1
+      maximum: 20
+      description: "How many rows the field shows (default 10, never more than there are racers). The rest wait one row below, sliding in and out through it as they climb and fall."
+    order:
+      type: string
+      enum: ["rank", "fixed"]
+      description: "\"rank\" (default) reorders the rows every frame — the race. \"fixed\" keeps the input order and animates the lengths only, for when the story is growth rather than overtaking."
+    orientation:
+      type: string
+      enum: ["horizontal", "vertical"]
+      description: "\"horizontal\" (default) — long racer names fit beside the bars. \"vertical\" puts the names under columns instead and caps the field at 12."
+    ticker:
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 200 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "One caption per stage — the years, usually — drawn large and dimmed in the plot's corner so the viewer can read the clock while the bars move."
+    value_labels:
+      type: boolean
+      description: "Write each racer's current value at the end of its bar (default true)."
+    xlim:
+      type: array
+      items: { type: number }
+      minItems: 2
+      maxItems: 2
+      description: "Fixed value range [low, high]. Default: 0 to the leader AT THE CURRENT STAGE, so the leader always fills the plot instead of the early stages shrinking into nothing."
+    decimals:
+      type: integer
+      minimum: 0
+      maximum: 4
+      description: "Decimals in the value labels. Default: the data's own precision, at most 2."
+    x_label:
+      type: string
+    title:
+      type: string
+element_ids:
+  axes: the value axis with its caption and ticks
+  race_1: "the first racer's bar (its fill, name and value label; race_2, race_3, … likewise) — one per label, in INPUT order, at every stage"
+  ticker: the large stage caption (the year), when set
+  title: figure title, when set
+examples:
+  - request: "Bar chart race of the four biggest economies from 1990 to 2020."
+    params:
+      labels: ["United States", "China", "Japan", "Germany"]
+      values:
+        - [6.0, 0.4, 3.1, 1.8]
+        - [10.3, 1.2, 4.9, 1.9]
+        - [15.0, 6.1, 5.7, 3.4]
+        - [21.1, 14.7, 5.0, 3.9]
+      stage: 0
+      x_label: "GDP (trillion USD)"
+      title: "The four biggest economies, 1990 → 2020"
+  - request: "Six teams racing on points, but keep only the top three on screen."
+    params:
+      labels: ["Ravens", "Foxes", "Otters", "Badgers", "Herons", "Lynx"]
+      values:
+        - [12, 10, 9, 7, 5, 3]
+        - [21, 24, 15, 16, 11, 9]
+        - [30, 38, 33, 22, 19, 14]
+      stage: 0
+      top_n: 3
+      x_label: "Points"
+      title: "Only the top three stay on screen"
+  - request: "Same five departments in the same rows the whole way — just show the budgets growing."
+    params:
+      labels: ["Surgery", "Medicine", "Psychiatry", "Radiology", "Labs"]
+      values:
+        - [42, 38, 21, 17, 12]
+        - [55, 47, 29, 24, 15]
+      stage: 0
+      order: "fixed"
+      x_label: "Million NOK"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isNumRow = (a) => Array.isArray(a) && a.every((v) => v === null || (typeof v === "number" && Number.isFinite(v)));
+  // values: number[] (one stage) or number[][] (staged — depth means staged),
+  // read exactly as bar_chart reads it. Anything else — a still-unresolved
+  // "{code.var}" token before the script has run — is "no data yet", and the
+  // placeholder promise still lays the field out below: typed labels give the
+  // racer count, so the race_i beats exist before the data does.
+  const toStages = (v) => {
+    if (!Array.isArray(v) || v.length === 0) return null;
+    if (Array.isArray(v[0])) return v.every(isNumRow) ? v.slice(0, 200) : null;
+    return isNumRow(v) ? [v] : null;
+  };
+  const labels = (Array.isArray(params.labels) ? params.labels : [])
+    .filter((l) => typeof l === "string" || typeof l === "number")
+    .map(String)
+    .slice(0, 40);
+  const stages = toStages(params.values) || [[]];
+  let n = labels.length;
+  for (const st of stages) n = Math.max(n, st.length);
+  n = Math.min(40, n);
+  const K = stages.length;
+  const stage = clamp(num(params.stage, 0), 0, K - 1);
+  const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
+  // A racer missing from a stage counts as 0 — it has not entered yet.
+  const valueAtStage = (i, k) => {
+    const st = stages[Math.min(k, K - 1)];
+    const v = st[i];
+    return typeof v === "number" ? v : 0;
+  };
+
+  // Rank at each INTEGER stage, then interpolated. Ranking interpolated
+  // values instead would hold a racer in row 3 until the exact crossing frame
+  // and then jump it to row 4; interpolating the rank glides it across the
+  // whole interval, which is what makes a race read as motion rather than as
+  // snapping. Ties break by input order, so a field of equal numbers is still
+  // stable and repeatable.
+  const fixedRows = params.order === "fixed";
+  const rankAt = (k) => {
+    const idx = Array.from({ length: n }, (_, i) => i);
+    idx.sort((a, b) => (valueAtStage(b, k) - valueAtStage(a, k)) || (a - b));
+    const r = new Array(n);
+    idx.forEach((i, pos) => { r[i] = pos; });
+    return r;
+  };
+  const r0 = rankAt(k0), r1 = rankAt(k1);
+  const rowPos = (i) => (fixedRows ? i : r0[i] + (r1[i] - r0[i]) * t);
+  const value = (i) => valueAtStage(i, k0) + (valueAtStage(i, k1) - valueAtStage(i, k0)) * t;
+
+  const topN = clamp(Math.round(num(params.top_n, 10)), 1, Math.max(1, Math.min(20, n)));
+  // One extra row — the airlock — but only when someone can actually reach
+  // it. A racer climbing in slides up out of it while fading in; one falling
+  // out slides down into it while fading away, so no bar ever pops. It is the
+  // bottom strip of the PLOT rather than a strip below the axis: a row under
+  // the floor runs off the canvas as soon as a small field makes rows tall.
+  const rows = topN + (n > topN ? 1 : 0);
+
+  const plot = kit.plotArea();
+  const title = str(params.title, "");
+  // A drawn title costs 55 units of plot height — the did_trends convention,
+  // see bar_chart.
+  if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
+  const rowH = (plot.y1 - plot.y0) / rows;
+  const barH = rowH * 0.7;
+  // A name never grows so large that two neighbouring rows' names collide:
+  // the lint wants their boxes (fontSize × 1.25) plus its own 2-unit pad on
+  // each side clear of each other, and 0.55 × rowH leaves room for both at
+  // every row count this template allows (at most 21 rows over at least 525
+  // units, so rowH ≥ 25). Never under the lint's own 14-unit floor.
+  const NAME_SIZE = Math.max(14, Math.min(17, Math.floor(rowH * 0.55)));
+  const NAME_GAP = 10; // the bars' baseline → the name's right edge
+  const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts)
+  const nameOf = (i) => (labels[i] !== undefined ? labels[i] : String(i + 1));
+  // Horizontal is the default orientation because this is where long racer
+  // names fit: in the left margin, right-justified at the bars' baseline.
+  // Widen that margin when the names need it — but never past 40 % of the
+  // plot, since a name that long is the author's problem and not a reason to
+  // crush the bars.
+  let nameW = 0;
+  for (let i = 0; i < n; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), NAME_SIZE));
+  const wantX0 = CANVAS_EDGE + nameW + NAME_GAP;
+  if (wantX0 > plot.x0) plot.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+
+  // The scale runs 0 … the leader AT THE INTERPOLATED STAGE, so the leader
+  // always fills the plot. That deliberately departs from line_chart's "range
+  // over ALL stages so the frame never jumps": in a race the leader defines
+  // the scale, and a fixed range squashes the early stages into nothing.
+  // `xlim` fixes the range for anyone who wants a constant one. Every bar
+  // starts at the low end and X clamps into it, so a negative number draws a
+  // bar of no length rather than one running backwards past the names.
+  const xlim = Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
+  const xMin = xlim ? Math.min(xlim[0], xlim[1]) : 0;
+  let xMax = xlim ? Math.max(xlim[0], xlim[1]) : 0;
+  if (!xlim) for (let i = 0; i < n; i++) xMax = Math.max(xMax, value(i));
+  if (xMax - xMin < 1e-9) xMax = xMin + 1;
+  const X = (v) => plot.x0 + ((clamp(v, xMin, xMax) - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+
+  // Row 0 is the leader, at the top. A racer past the airlock row is already
+  // invisible (the ramp below reaches 0 there), so pinning its geometry AT
+  // the last row changes nothing on screen and keeps every drawn point inside
+  // the canvas however tall the rows are.
+  const rowCenter = (p) => plot.y1 - (Math.min(p, rows - 1) + 0.5) * rowH;
+  // The airlock ramp: full ink at row topN - 1, nothing at row topN.
+  const fade = (p) => clamp(topN - p, 0, 1);
+  const FILL = 0.55; // bar_chart's own bar wash
+
+  const drawables = [], labelReqs = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const xLab = str(params.x_label, "");
+  // One axis: the value axis. A race names its rows instead of scaling them,
+  // so there is no second scale to draw.
+  const axesChildren = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
+  ];
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  push(kit.group("axes", axesChildren));
+  anchors.axes = [plot.x0, plot.y0];
+
+  // Ids are race_1 … race_N by INPUT order, never by rank, and the colour
+  // cycles by that same input index. The rough.js seed is hashSeed(drawable.id)
+  // (src/render/svg-backend.ts), so a rank-keyed id would re-roll a bar's
+  // sketchy stroke at the very moment it overtook someone — a flicker exactly
+  // where the viewer is looking. Every racer is declared once, at every
+  // stage: one outside the window contributes no geometry rather than
+  // dropping out of `order`, because the player's plan-time `visible` set is
+  // fixed before the tween and an id minted mid-tween could never join it.
+  //
+  // `race_i` IS the bar's fill (not a group around it): that is the drawable
+  // the seed is taken from, so the id the ink is keyed to is the racer's own.
+  // The name is `race_i_text` — the engine's SUB-DRAWABLE convention, single
+  // underscore (SUB_SUFFIXES in src/layout/model.ts) — so it reveals, moves
+  // and fades with its bar without becoming a beat of its own. Ids are unique
+  // across the whole tree (src/scenes/compile.ts), so the fill and the name
+  // cannot share one; the suffix is how they stay welded together anyway.
+  for (let i = 0; i < n; i++) {
+    const id = "race_" + (i + 1);
+    const color = C.series[i % C.series.length];
+    const p = rowPos(i);
+    if (!(p < topN + 1)) {
+      // Declared but off the field at this stage. An empty STROKE, not an
+      // empty area: `race_i` is a bar wherever the racer is on screen, and a
+      // zero-point area would read as a bar of length nothing at row nothing.
+      // The element's kind therefore changes with the stage, which costs
+      // nothing: every tween frame rebuilds its nodes from the new layout and
+      // the settle remounts them (src/render/svg-backend.ts).
+      push(kit.stroke(id, [], { color, strokeWidth: 2.5, ms: MS.stroke }));
+      anchors[id] = [plot.x0, plot.y0];
+      continue;
+    }
+    const yc = rowCenter(p);
+    const opacity = fade(p);
+    const end = X(value(i));
+    const rect = [[plot.x0, yc - barH / 2], [end, yc - barH / 2], [end, yc + barH / 2], [plot.x0, yc + barH / 2]];
+    // No separate outline stroke: both renderers already draw an area's
+    // border (rough.js polygon strokeWidth 1.8 / plainPath 1.5), and a race
+    // rebuilds every bar on every tween frame, so the second stroke would be
+    // ink re-rolled for nothing.
+    push(kit.area(id, rect, color, { opacity: FILL * opacity }));
+    drawables.push(kit.text(id + "_text", [plot.x0 - NAME_GAP, yc], nameOf(i), { fontSize: NAME_SIZE, anchor: "end", opacity }));
+    anchors[id] = [(plot.x0 + end) / 2, yc];
+  }
+
+  if (title) {
+    // No y caption to clear here, so the title sits just above the plot; 730
+    // is the last line a 30pt title can sit on and stay inside the canvas.
+    const ty = Math.min(730, plot.y1 + 25);
+    push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
+    anchors.title = [(plot.x0 + plot.x1) / 2, ty];
+  }
+  return { drawables, labels: labelReqs, anchors, order };

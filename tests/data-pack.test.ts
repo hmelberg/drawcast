@@ -41,6 +41,7 @@ describe("pack registration", () => {
     expect(scenes.data_table?.manifest.status).toBe("ready");
     expect(scenes.line_chart?.manifest.status).toBe("ready");
     expect(scenes.scatter_plot?.manifest.status).toBe("ready");
+    expect(scenes.bar_race?.manifest.status).toBe("ready");
   });
 
   test("every manifest example lays out with zero warnings and no lint issues, warn or error", () => {
@@ -50,7 +51,7 @@ describe("pack registration", () => {
     // because only `severity === "error"` was checked; that blind spot is
     // load-bearing for this round's later, label-dense templates (race
     // charts, a heatmap), so every issue — not just errors — must be empty.
-    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot"]) {
+    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params } as Spec);
         expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);

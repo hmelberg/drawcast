@@ -8904,6 +8904,96 @@
   ]
  }
 },
+{
+ "request": "Race the four biggest economies from 1990 to 2020 as a bar chart race.",
+ "packs": [
+  "data"
+ ],
+ "spec": {
+  "title": "The four biggest economies, 1990 → 2020",
+  "template": "bar_race",
+  "params": {
+   "labels": [
+    "United States",
+    "China",
+    "Japan",
+    "Germany"
+   ],
+   "values": [
+    [
+     6.0,
+     0.4,
+     3.1,
+     1.8
+    ],
+    [
+     10.3,
+     1.2,
+     4.9,
+     1.9
+    ],
+    [
+     15.0,
+     6.1,
+     5.7,
+     3.4
+    ],
+    [
+     21.1,
+     14.7,
+     5.0,
+     3.9
+    ]
+   ],
+   "stage": 0,
+   "x_label": "GDP (trillion USD)",
+   "title": "The four biggest economies, 1990 → 2020"
+  },
+  "commands": [
+   {
+    "draw": [
+     "axes",
+     "race_1",
+     "race_2",
+     "race_3",
+     "race_4"
+    ],
+    "parallel": true,
+    "speak": "Nineteen ninety. The American economy towers over everyone, and China is barely a line on the page."
+   },
+   {
+    "draw": [
+     "title"
+    ],
+    "speak": "Now watch the rows themselves move — whoever is biggest climbs to the top."
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "easing": "linear",
+    "duration": 2.5,
+    "speak": "Through the nineties Japan holds second place, and China starts to climb off the bottom row."
+   },
+   {
+    "animate": {
+     "stage": 2
+    },
+    "easing": "linear",
+    "duration": 2.5,
+    "speak": "By 2010 China has passed Germany and Japan both — second place, and still accelerating."
+   },
+   {
+    "animate": {
+     "stage": 3
+    },
+    "easing": "linear",
+    "duration": 2.5,
+    "speak": "And by 2020 the race at the top is close: fifteen trillion dollars of growth in one decade."
+   }
+  ]
+ }
+},
  {
   "request": "A table showing 100 growing at 2 percent versus 7 percent, decade by decade, revealed one row at a time",
   "packs": [
