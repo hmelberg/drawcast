@@ -22,9 +22,14 @@ description: >-
   a coefficient vector — but `effect`, `pre_trend` and `ci` take a code
   element's variable via a "{id.var}" token, so the size of the jump and the
   width of the whiskers can be what a regression in Python actually
-  estimated. `periods_pre` and `periods_post` stay typed integers (they set
-  the window, they are not data); until the script has run the figure draws
-  its default schematic, so every coef_i beat already exists.
+  estimated. A token must arrive already on THIS figure's scale: `effect` is
+  CLAMPED to -3..3, `ci` to 0.1..1 and `pre_trend` to -0.5..0.5, silently, so
+  have the script rescale first (divide a dollar effect by its own standard
+  deviation, say) — an unscaled coefficient pins to the edge and draws a
+  confident-looking figure that is wrong. `periods_pre` and `periods_post`
+  stay typed integers (they set the window, they are not data); until the
+  script has run the figure draws its default schematic, so every coef_i beat
+  already exists.
 params:
   type: object
   properties:
@@ -154,9 +159,14 @@ description: >-
   counterfactual outcome paths. This is a SCHEMATIC — the two paths are drawn
   from shape knobs, not from a data series — but `effect` and `treat_at` take
   a code element's variable via a "{id.var}" token, so the divergence can be
-  the coefficient a regression in Python actually estimated. TYPE the
-  `group_labels` by hand; until the script has run the figure draws its
-  default schematic, so every beat already exists.
+  the coefficient a regression in Python actually estimated. A token must
+  arrive already on THIS figure's scale: `effect` is CLAMPED to -4..4 and
+  `treat_at` to 2..8, silently, so have the script rescale first (an effect
+  in dollars or log-odds must be divided down to the schematic's units) — an
+  unscaled estimate pins to the edge, or reads as flat, and draws a
+  confident-looking figure that is wrong. TYPE the `group_labels` by hand;
+  until the script has run the figure draws its default schematic, so every
+  beat already exists.
 params:
   type: object
   properties:

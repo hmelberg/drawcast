@@ -6,7 +6,7 @@
 // applies it at registration (doc.ts's accepts_data flag, registry.ts's
 // registerTemplateDoc).
 
-import { beforeAll, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { widenForDataTokens, DATA_TOKEN_PATTERN } from "../src/scenes/data-schema";
 import { parsePack, registerPack, unregisterPack } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
@@ -246,10 +246,15 @@ const TOKEN_FED_BEATS: Record<(typeof RETROFIT)[number], string[]> = {
 };
 
 describe("the six retrofitted templates accept {id.var}", () => {
+  const PACKS = [["evidence", evidenceYaml], ["hta", htaYaml], ["empirics", empiricsYaml]] as const;
   beforeAll(() => {
-    for (const [id, yaml] of [["evidence", evidenceYaml], ["hta", htaYaml], ["empirics", empiricsYaml]] as const) {
-      expect(registerPack(id, yaml).errors, id).toEqual([]);
-    }
+    for (const [id, yaml] of PACKS) expect(registerPack(id, yaml).errors, id).toEqual([]);
+  });
+  // The file's own idiom above is try/finally + unregisterPack: a block that
+  // registers packs puts the registry back the way it found it, so whoever
+  // appends the next describe does not inherit six templates from this one.
+  afterAll(() => {
+    for (const [id] of PACKS) unregisterPack(id);
   });
 
   const lay = (id: string, params: Record<string, unknown>) => layoutSpec({ template: id, params } as Spec);
@@ -380,5 +385,24 @@ describe("the six retrofitted templates accept {id.var}", () => {
     const l = lay("distribution_curve", TOKEN_FED.distribution_curve);
     expect(l.order).toEqual(expect.arrayContaining(["shade", "shade2"]));
     expect(textOf(l, "shade_label")).toBe("2.5% each tail");
+  });
+
+  // The other half of the placeholder claim. "An unresolved token lays out
+  // like the default" would hold JUST AS WELL if the param were DEAD — a knob
+  // wired to nothing degrades to the default too, and every test above would
+  // stay green while a script's numbers reached the canvas and changed nothing.
+  // So pin the opposite direction: once the resolver has filled it, a
+  // DIFFERENT number must draw a DIFFERENT figure. Both values sit inside each
+  // template's own clamp, so a pass here is the param working, not a clamp
+  // flattening two out-of-range values onto the same edge.
+  test.each([
+    ["distribution_curve", { shade: { from: 1, side: "two" } }, { shade: { from: 2, side: "two" } }],
+    ["forest_plot", { studies: [{ label: "A", est: 0.8, lo: 0.6, hi: 1.05 }, { label: "B", est: 0.65, lo: 0.5, hi: 0.85 }] }, { studies: [{ label: "A", est: 1.4, lo: 1.1, hi: 1.8 }, { label: "B", est: 0.65, lo: 0.5, hi: 0.85 }] }],
+    ["survival_curve", { arms: [{ label: "A", survival: [1, 0.9, 0.8] }] }, { arms: [{ label: "A", survival: [1, 0.6, 0.3] }] }],
+    ["ceac", { strategies: [{ label: "A", midpoint: 30 }] }, { strategies: [{ label: "A", midpoint: 70 }] }],
+    ["did_trends", { effect: 1.8 }, { effect: -2 }],
+    ["event_study", { effect: 1 }, { effect: 2.5 }],
+  ] as const)("%s: a RESOLVED value is live — a different number draws a different figure", (id, a, b) => {
+    expect(JSON.stringify(lay(id, a).drawables), id).not.toBe(JSON.stringify(lay(id, b).drawables));
   });
 });
