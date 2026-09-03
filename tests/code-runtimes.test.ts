@@ -82,8 +82,11 @@ describe("dispatch — node has no browser, so every runtime degrades to an unav
 
 describe("prompt knows the runtimes it may emit", () => {
   const prompt = readFileSync(new URL("../src/llm/prompts/compiler-v1.md", import.meta.url), "utf8");
-  test("R is offered, the old 'never emit r' sentence is gone", () => {
+  test("R and Brython are offered, the old 'never emit' sentences are gone, MicroPython still gated", () => {
     expect(prompt).toContain('"language": "r"');
+    expect(prompt).toContain('"language": "brython"');
     expect(prompt).not.toContain('never emit `"language": "r"`');
+    expect(prompt).not.toContain('Never emit `"brython"`');
+    expect(prompt).toContain('Never emit `"micropython"`');
   });
 });

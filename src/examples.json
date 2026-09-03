@@ -9746,5 +9746,62 @@
        }
      ]
    }
+ },
+ {
+   "request": "In light Python (Brython): a small pandas table with a computed share, sorted, and a plotly express bar chart",
+   "spec": {
+     "title": "GDP per capita, light Python",
+     "elements": [
+       {
+         "id": "gdp",
+         "type": "code",
+         "language": "brython",
+         "show": "split",
+         "width": 900,
+         "code": "import pandas as pd\nimport plotly.express as px\ndf = pd.DataFrame({\"country\": [\"Norway\", \"Sweden\", \"Denmark\"], \"gdp\": [87, 52, 58]})\ndf[\"share\"] = (df[\"gdp\"] / df[\"gdp\"].sum()).round(3)\nprint(df.sort_values(\"gdp\", ascending=False))\nfig = px.bar(df, x=\"country\", y=\"gdp\", title=\"GDP per capita, 2010\")"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "gdp",
+           "gdp_line_1",
+           "gdp_line_2"
+         ],
+         "parallel": true,
+         "speak": "pandas and plotly express — in a runtime that loads in about a second."
+       },
+       {
+         "draw": [
+           "gdp_line_3"
+         ],
+         "speak": "Three countries, one number each."
+       },
+       {
+         "draw": [
+           "gdp_line_4"
+         ],
+         "speak": "A computed column: each country's share of the total."
+       },
+       {
+         "draw": [
+           "gdp_line_5"
+         ],
+         "speak": "Sorted and printed."
+       },
+       {
+         "draw": [
+           "gdp_line_6"
+         ],
+         "speak": "And a bar chart left in a variable draws itself."
+       },
+       {
+         "draw": [
+           "gdp_out"
+         ],
+         "speak": "Norway on top, then Denmark, then Sweden."
+       }
+     ]
+   }
  }
 ]
