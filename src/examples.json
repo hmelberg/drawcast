@@ -11699,5 +11699,259 @@
     }
    ]
   }
+ },
+ {
+  "request": "Show how a correlation matrix settles down as the sample grows: n = 20, 50, 200, 1000",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Correlation needs n",
+   "template": "heatmap",
+   "params": {
+    "rows": [
+     "A",
+     "B",
+     "C",
+     "Noise"
+    ],
+    "cols": [
+     "A",
+     "B",
+     "C",
+     "Noise"
+    ],
+    "values": "{sim.frames}",
+    "stage": 0,
+    "scale": "diverging",
+    "decimals": 2,
+    "title": "Correlation needs n"
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import numpy as np\nrng = np.random.default_rng(11)\ndef corr(n):\n    a = rng.normal(0, 1, n)\n    b = 0.8 * a + rng.normal(0, 0.6, n)\n    c = 0.5 * b + rng.normal(0, 0.9, n)\n    noise = rng.normal(0, 1, n)\n    return np.corrcoef([a, b, c, noise]).round(2).tolist()\nframes = [corr(n) for n in (20, 50, 200, 1000)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes", "legend"],
+     "parallel": true,
+     "speak": "Four measurements, built by a seeded script so we know the truth exactly: A with B is zero point eight, B with C is zero point four nine, A with C is zero point three nine — and the fourth variable is pure noise, correlated with nothing."
+    },
+    {
+     "draw": ["row_1", "row_2", "row_3", "row_4"],
+     "parallel": true,
+     "speak": "This is what twenty draws say. B against C reads zero point seven seven, more than half again the truth, and the noise column is already warm."
+    },
+    {
+     "draw": ["title"],
+     "speak": "Every cell here is an estimate, and at n of twenty the estimates are bad."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 2.5,
+     "speak": "Fifty draws. B against C falls to zero point five four, but the noise column is still finding a correlation of zero point two where there is none."
+    },
+    {
+     "animate": {
+      "stage": 2
+     },
+     "duration": 2.5,
+     "speak": "Two hundred draws: zero point four four, and the noise has cooled to almost nothing."
+    },
+    {
+     "animate": {
+      "stage": 3
+     },
+     "duration": 2.5,
+     "speak": "A thousand, and the matrix has settled onto the truth — zero point seven nine, zero point five, zero point three nine, and a noise column that has faded out."
+    },
+    {
+     "highlight": {
+      "target": ["row_4"]
+     },
+     "speak": "The same structure produced all four of these pictures. A correlation is not something you read off a matrix. It is an estimate, and n is what you pay for it."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Show how Norwegian health spending splits between curative care, long-term care and medicines, and how that split changed from 2005 to 2023",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Where the health krone goes",
+   "template": "bar_chart",
+   "params": {
+    "labels": [
+     "2005",
+     "2011",
+     "2017",
+     "2023"
+    ],
+    "stacked": true,
+    "value_labels": true,
+    "series": [
+     {
+      "name": "Curative care",
+      "values": [
+       81,
+       117.9,
+       160.4,
+       234.5
+      ]
+     },
+     {
+      "name": "Long-term care",
+      "values": [
+       42.9,
+       69.1,
+       96.9,
+       126.1
+      ]
+     },
+     {
+      "name": "Medicines and goods",
+      "values": [
+       24,
+       28.5,
+       37.2,
+       50.7
+      ]
+     },
+     {
+      "name": "Everything else",
+      "values": [
+       18,
+       30,
+       45.4,
+       62.6
+      ]
+     }
+    ],
+    "y_label": "Billion NOK, current prices",
+    "title": "Where the health krone goes"
+   },
+   "commands": [
+    {
+     "draw": ["axes", "legend"],
+     "parallel": true,
+     "speak": "Norwegian health spending, from Statistics Norway's health accounts — table ten eight one four — at four points between 2005 and 2023, in current kroner, rounded to the nearest hundred million."
+    },
+    {
+     "draw": ["bar_1"],
+     "speak": "In 2005 the country spent about a hundred and sixty-six billion kroner on health, and curative care took roughly forty-nine percent of it."
+    },
+    {
+     "draw": ["bar_2", "bar_3"],
+     "parallel": true,
+     "speak": "By 2011 the total was about two hundred and forty-five billion. By 2017, about three hundred and forty."
+    },
+    {
+     "draw": ["bar_4", "title"],
+     "parallel": true,
+     "speak": "And in 2023, about four hundred and seventy-four billion — very nearly three times the 2005 figure in current kroner."
+    },
+    {
+     "highlight": {
+      "target": ["bar_1", "bar_4"]
+     },
+     "speak": "Now look at the shape rather than the height. Curative care was about forty-nine percent of the total in 2005, and about forty-nine percent in 2023. Long-term care went from roughly twenty-six percent to twenty-seven."
+    },
+    {
+     "highlight": {
+      "target": ["legend"]
+     },
+     "speak": "Only one of the four fell as a share: medicines and other goods dispensed outside hospital, from about fourteen percent to about eleven. This is not a country changing its priorities. It is the same shape, three times bigger."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Slope chart of Norwegian life expectancy in 2019 against 2021, coloured by whether it rose or fell",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Two pandemic years in Norway",
+   "template": "line_chart",
+   "params": {
+    "slope": true,
+    "color_by": "direction",
+    "x": [
+     "2019",
+     "2021"
+    ],
+    "series": [
+     {
+      "name": "Men, newborn",
+      "values": [
+       81.19,
+       81.59
+      ]
+     },
+     {
+      "name": "Women, newborn",
+      "values": [
+       84.68,
+       84.73
+      ]
+     },
+     {
+      "name": "Men, now 80",
+      "values": [
+       88.65,
+       88.79
+      ]
+     },
+     {
+      "name": "Women, now 80",
+      "values": [
+       90.16,
+       90.09
+      ]
+     }
+    ],
+    "ylim": [
+     80,
+     91
+    ],
+    "y_label": "Expected age at death",
+    "title": "Two pandemic years in Norway"
+   },
+   "commands": [
+    {
+     "draw": ["axes"],
+     "speak": "Statistics Norway's life tables for 2019 and 2021, the first two pandemic years. The number plotted is not remaining years but the age each group could expect to reach: the age they have already, plus the years still expected."
+    },
+    {
+     "draw": ["line_1", "line_2"],
+     "parallel": true,
+     "speak": "A boy born in 2019 could expect to reach eighty-one point two. A girl, eighty-four point seven."
+    },
+    {
+     "draw": ["line_3", "line_4"],
+     "parallel": true,
+     "speak": "Someone who had already reached eighty could expect to get further than either of them: eighty-eight point seven for a man, ninety point two for a woman. Having survived to eighty is itself information."
+    },
+    {
+     "draw": ["title"],
+     "speak": "Three of the four lines rise. Norwegian mortality across 2020 and 2021 was, on the whole, lower than it had been before the pandemic."
+    },
+    {
+     "highlight": {
+      "target": ["line_4"]
+     },
+     "speak": "The exception is the one drawn in the falling ink: women already eighty, who lost about a month. It is the smallest movement on the chart, and the only one pointing the other way."
+    }
+   ]
+  }
  }
 ]
