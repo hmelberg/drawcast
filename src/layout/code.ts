@@ -332,8 +332,10 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // lines — off the 750-unit canvas. Cap the panel and fit everything inside.
   // The screen's chrome claims its space from the same budget as the panel:
   // the whole assembly (bar or bezel, panel, stand or keyboard) stays
-  // centred on the element's y and inside the canvas.
-  const frame: CodeFrame = el.frame ?? "panel";
+  // centred on the element's y and inside the canvas. A monitor is the
+  // DEFAULT — code and output happen on a computer, so they look like it,
+  // output-only panels included; `frame: "none"` is the way to bare paper.
+  const frame: CodeFrame = el.frame ?? "screen";
   const chrome = frameSpace(frame);
   const maxH = CANVAS.h - 40 - chrome.above - chrome.below; // breathing room top+bottom
   // Stacked panes share the height: the code pane (or its window) is fixed

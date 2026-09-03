@@ -119,7 +119,18 @@ describe("the screen", () => {
     expect(ids(spec({ frame: "screen", code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
     expect(ids(spec({ frame: "laptop", code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__keys", "c1__key_space"]));
     expect(ids(spec({ frame: "none", code_result: OK }))).not.toContain("c1__frame");
-    expect(ids(spec({ code_result: OK }))).toContain("c1__frame");
+    expect(ids(spec({ frame: "panel", code_result: OK }))).toContain("c1__frame");
+    expect(ids(spec({ frame: "panel", code_result: OK }))).not.toContain("c1__bezel");
+  });
+  test("the screen is the default — every drawing panel is a monitor unless it says otherwise", () => {
+    // Output-only included: the panel IS what the computer produced.
+    expect(ids(spec({ code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
+    expect(ids(spec({ show: "left", code: eight, code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
+    // frame: "none" is the way out — no bezel, no stand, no frame at all.
+    const bare = ids(spec({ show: "left", code: eight, code_result: OK, frame: "none" }));
+    for (const id of ["c1__bezel", "c1__stand", "c1__frame", "c1__bar"]) expect(bare).not.toContain(id);
+    // A data-only element draws nothing, so it grows no chrome either.
+    expect(ids(spec({ show: "none", code_result: OK }))).toEqual([]);
   });
   test("chrome reserves its space: the assembly stays centred on y and the content moves inside it", () => {
     const plain = textOf(spec({ show: "left", code: eight, code_result: OK }), "c1_line_1");
