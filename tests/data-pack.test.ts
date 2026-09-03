@@ -14,6 +14,7 @@ import { plotArea } from "../src/layout/canvas";
 import { bboxOfText } from "../src/layout/geometry";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
+import { FONT_FLOOR } from "../src/lint/lint";
 import { COLORS, flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { contrastOfLuminances, relativeLuminance } from "./contrast";
 import { templateParamErrors } from "../src/scenes/params-check";
@@ -1452,6 +1453,76 @@ describe("heatmap", () => {
         for (const p of d.pts) inside(p[0], p[1], d.id);
       }
     }
+  });
+
+  // Review round 1, finding 1: grid.y1 is plot.y1 less the note's row and the
+  // column-name band, and a BOX can be shorter than those bands alone — so
+  // grid.y1 fell UNDER grid.y0 and every cell drew upside down. Coordinates
+  // stay finite through an inversion, so neither the compiler's bounds check
+  // nor the degenerate-grid test above sees it; only the sign of the cell's
+  // height does. The siblings share the title clamp but not this scene's extra
+  // subtraction, so the defect was this template's alone.
+  test("a box too small to hold a grid refuses through the note instead of drawing it inverted", () => {
+    // The reviewer's own repro: a title clamps plot.y1 to 620, under the box's
+    // own floor of 600, so grid.y1 = 592.5 < grid.y0 = 600.
+    const l = map({ ...CORR, title: "Too small", box: { x: 470, y: 600, w: 460, h: 140 } });
+    const note = flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    expect(note?.text).toMatch(/too small/);
+    // Nothing else of the grid is drawn — an inverted figure is not a lesser
+    // one, it is a wrong one — and the title still says what was refused.
+    expect(l.order.filter((id) => /^row_\d+$/.test(id))).toEqual([]);
+    expect(l.order).not.toContain("axes");
+    expect(l.order).toContain("title");
+    expect(l.issues).toEqual([]);
+
+    // The general invariant the refusal protects: no drawn cell is ever
+    // inverted, at any box this scene will actually draw.
+    for (const box of [{ x: 470, y: 95, w: 460, h: 560 }, { x: 300, y: 100, w: 640, h: 300 }, { x: 40, y: 300, w: 920, h: 300 }]) {
+      const drawn = map({ ...CORR, box });
+      for (const d of flattenDrawables(drawn.drawables)) {
+        if (d.kind !== "area") continue;
+        const ys = d.pts.map((p) => p[1]), xs = d.pts.map((p) => p[0]);
+        expect(Math.max(...ys) - Math.min(...ys), `${d.id} height in ${JSON.stringify(box)}`).toBeGreaterThan(0);
+        expect(Math.max(...xs) - Math.min(...xs), `${d.id} width in ${JSON.stringify(box)}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  // Review round 1, finding 2: the row-name size was a constant 18, justified
+  // by arithmetic over the DEFAULT plot area — sound until `box` made that band
+  // unbounded below. Unlike the value labels, which already drop out under the
+  // lint's 14-unit floor, the names never shrank, so a 12-row matrix in a box
+  // under roughly 390 units tall overlapped its own names.
+  test("row names shrink with the rows, then drop below the lint's font floor", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => "Group " + (i + 1));
+    const values = Array.from({ length: 12 }, (_, i) => [i, 12 - i]);
+    const at = (h: number) => map({ rows, cols: ["x", "y"], values, box: { x: 300, y: 100, w: 640, h } });
+    const namesOf = (l: ReturnType<typeof layoutSpec>) =>
+      flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text" && d.id.endsWith("__name"));
+
+    // Tall enough for the full size — the default-plot reasoning still holds.
+    const tall = at(500);
+    expect(tall.issues).toEqual([]);
+    expect(namesOf(tall)).toHaveLength(12);
+    expect(namesOf(tall)[0].fontSize).toBe(18);
+
+    // The band the old constant overlapped in: names must SHRINK, stay at or
+    // above the lint's floor, and still not collide (which `issues` proves).
+    const mid = at(360);
+    expect(mid.issues).toEqual([]);
+    expect(namesOf(mid)).toHaveLength(12);
+    expect(namesOf(mid)[0].fontSize).toBeLessThan(18);
+    expect(namesOf(mid)[0].fontSize).toBeGreaterThanOrEqual(FONT_FLOOR);
+
+    // Shorter still: shrinking further would go under the floor, so the names
+    // are dropped outright — the rule the value labels already follow — and
+    // the grid keeps the width their lane would have taken.
+    const short = at(300);
+    expect(short.issues).toEqual([]);
+    expect(namesOf(short)).toEqual([]);
+    expect(short.order.filter((id) => /^row_\d+$/.test(id))).toHaveLength(12);
+    const cellLeft = Math.min(...cellsOf(short, 1).flatMap((c) => c.pts.map((p) => p[0])));
+    expect(cellLeft).toBeCloseTo(300, 6);
   });
 
   // The trap Task 6 paid a fix round for: a body that renders a shape its own

@@ -2444,15 +2444,28 @@ layout: |
   // own left margin is exactly what that margin is for.
   const leftBound = boxed ? plot.x0 : CANVAS_EDGE;
   const rightBound = boxed ? plot.x1 : kit.CANVAS.w - CANVAS_EDGE;
-  // One size for the row names and the column headers — the same furniture
-  // read along two axes. 18 is safe at every grid this template allows: the
-  // 12-row cap over the shortest band it can have (a title AND a note leave
-  // 620 − 95 − 28 − 32.5 = 464 units) gives rows 38 units tall, where the
-  // lint wants a name box (18 × 1.25) plus its 2-unit pad on each side, 26.5.
-  const SIZE = 18;
   const NOTE_SIZE = 16;
+  const NOTE_ROW = note ? NOTE_SIZE * 1.25 + 8 : 0;  // the refusal's own row, above the column names
+  const LEG_BAND = 40;                               // the scale strip's band, taken out of a BOX's floor
+  const SIZE_MAX = 18, FONT_FLOOR = 14;              // FONT_FLOOR: the lint's own floor (src/lint/lint.ts)
+  // One size for the row names and the column headers — the same furniture read
+  // along two axes — but a SIZED one, not a constant. The binding constraint is
+  // vertical: two neighbouring row names must clear each other by the lint's own
+  // measure, a box of fontSize × 1.25 plus its 2-unit pad on each side, so
+  // fontSize ≤ (rowHeight − 4) / 1.25. The default plot always allows 18; an
+  // AUTHOR'S BOX does not, and a box is unbounded below.
+  //
+  // The row height is estimated against the LARGEST header band this scene can
+  // take (SIZE_MAX → 32.5): shrinking the size only shrinks that band, so the
+  // row this estimate promises is a floor and never an over-estimate. Below the
+  // lint's 14-unit floor the names are DROPPED rather than shrunk further —
+  // exactly the rule the value labels follow further down. What this guarantees:
+  // a drawn row name is at least 14 units and never overlaps its neighbour.
+  const bandEst = (plot.y1 - plot.y0) - NOTE_ROW - (SIZE_MAX * 1.25 + 10) - (boxed && hasData ? LEG_BAND : 0);
+  const nameFit = Math.floor(Math.min(SIZE_MAX, (bandEst / nR - 4) / 1.25));
+  const showNames = nameFit >= FONT_FLOOR;
+  const SIZE = clamp(nameFit, FONT_FLOOR, SIZE_MAX);
   const HEAD_ROW = SIZE * 1.25 + 10;                 // the column-name band above the grid
-  const NOTE_ROW = note ? NOTE_SIZE * 1.25 + 8 : 0;  // the refusal's own row above that
   const fitText = (s, maxW, size) => {
     if (kit.textWidth(s, size) <= maxW) return s;
     let out = s;
@@ -2482,9 +2495,10 @@ layout: |
   // bar_race's own arrangement, for the same reason: that is where a long name
   // fits. Widen the lane when they need it, never past 40 % of the plot.
   let nameW = 0;
-  for (let i = 0; i < nR; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), SIZE));
+  if (showNames) for (let i = 0; i < nR; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), SIZE));
   const wantX0 = leftBound + nameW + NAME_GAP;
-  if (wantX0 > grid.x0) grid.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+  // No names, no lane: the cells take the width the names would have had.
+  if (showNames && wantX0 > grid.x0) grid.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
   // That cap can leave a name wider than the lane it got, and a name drawn past
   // the canvas edge is an ERROR-severity lint, not a cosmetic overflow (and one
   // drawn past a BOX's edge lands on whatever the box was making room for) — so
@@ -2497,7 +2511,7 @@ layout: |
   // BOX's own floor when the author gave one, since a box is the whole figure's
   // allotment. Sized here rather than at drawing time because reserving that
   // band is what moves grid.y0, and chh depends on it.
-  const LEG_SIZE = 15, LEG_H = 16, LEG_STEPS = 10, LEG_BAND = 40;
+  const LEG_SIZE = 15, LEG_H = 16, LEG_STEPS = 10;
   const legLo = diverging ? -maxAbs : sLo, legHi = diverging ? maxAbs : sHi;
   const loS = fmt(legLo), hiS = fmt(legHi);
   // Slid right if the low number would otherwise pass the left bound.
@@ -2513,6 +2527,31 @@ layout: |
   const legW = Math.min(240, legRoom);
   if (showLegend && boxed) grid.y0 = plot.y0 + LEG_BAND;
   const ly = boxed ? plot.y0 + LEG_BAND / 2 : grid.y0 / 2;
+
+  // ---- a box too small to hold a grid refuses, rather than drawing one ----
+  // grid.y1 is plot.y1 less the note's row and the column names' band, and a
+  // BOX can be shorter than those bands alone: `{y: 600, h: 140}` plus a title
+  // (which clamps plot.y1 to 620) leaves grid.y1 = 592.5 UNDER grid.y0 = 600,
+  // so every cell would be drawn upside down. The coordinates stay finite, so
+  // nothing downstream catches it — the compiler's bounds check least of all.
+  // The default plot can never reach here (its shortest band, 464 units, holds
+  // the 12-row cap four times over); only an authored box can, so the refusal
+  // says so. It is the `note` this scene already has, and nothing else is
+  // drawn: an inverted or one-pixel grid is not a lesser figure, it is a wrong
+  // one. Kept short so a narrow box does not truncate away the reason.
+  const MIN_CELL = 12;
+  if (grid.y1 - grid.y0 < MIN_CELL * nR || grid.x1 - grid.x0 < MIN_CELL * nC) {
+    const refusal = "this box is too small for a " + nR + " × " + nC + " grid";
+    const pos = [plot.x0 + 4, (plot.y0 + plot.y1) / 2];
+    push(kit.text("note", pos, fitText(refusal, plot.x1 - plot.x0 - 8, NOTE_SIZE), { fontSize: NOTE_SIZE, color: C.guide, anchor: "start" }));
+    anchors.note = pos;
+    if (title) {
+      const ty = Math.min(730, plot.y1 + 25);
+      push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
+      anchors.title = [(plot.x0 + plot.x1) / 2, ty];
+    }
+    return { drawables, labels: labelReqs, anchors, order };
+  }
 
   const cw = (grid.x1 - grid.x0) / nC, chh = (grid.y1 - grid.y0) / nR;
   const cellX = (j) => grid.x0 + j * cw;
@@ -2575,7 +2614,9 @@ layout: |
         if (showValues) children.push(kit.text(id + "__v" + j, [x + cw / 2, (yTop + yBot) / 2], fmt(v), { fontSize: VAL_SIZE, color: labelInk(ink, a) }));
       }
     }
-    children.push(kit.text(id + "__name", [grid.x0 - NAME_GAP, (yTop + yBot) / 2], fitText(nameOf(i), nameMaxW, SIZE), { fontSize: SIZE, anchor: "end" }));
+    // Rows too short to name go unnamed rather than named illegibly (SIZE,
+    // above) — the column names along the top still say what the grid is.
+    if (showNames) children.push(kit.text(id + "__name", [grid.x0 - NAME_GAP, (yTop + yBot) / 2], fitText(nameOf(i), nameMaxW, SIZE), { fontSize: SIZE, anchor: "end" }));
     push(kit.group(id, children));
     anchors[id] = [(grid.x0 + grid.x1) / 2, (yTop + yBot) / 2];
   }

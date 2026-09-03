@@ -9851,7 +9851,7 @@
      "draw": [
       "row_1"
      ],
-     "speak": "Age against itself is a perfect one, as the diagonal always is. Against blood pressure it is a half: the strongest real number on the row."
+     "speak": "Age against itself is a perfect one, as the diagonal always is. Against blood pressure it is nought point five one \u2014 the strongest pull anywhere off the diagonal."
     },
     {
      "draw": [
@@ -9865,13 +9865,13 @@
       "row_4"
      ],
      "parallel": true,
-     "speak": "BMI and blood pressure are the pair that travel together: nought point four six, the deepest warm cell off the diagonal."
+     "speak": "BMI leans on the other two: a third with age, and nought point four six with blood pressure \u2014 second only to the age and blood pressure cell we started with."
     },
     {
      "draw": [
       "title"
      ],
-     "speak": "Read the grid rather than the numbers. The warm block in the bottom right is the whole story."
+     "speak": "Read the grid rather than the numbers. Income's row and column are the pale ones; everywhere else the variables lean together."
     }
    ]
   }
