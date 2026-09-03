@@ -181,8 +181,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         ),
       );
     }
-    // explore: { code } — the editor instead of the sliders.
-    const editEl = opts.code ? editable.find((e) => e.id === opts.code) : undefined;
+    // explore: { code } — the editor instead of the sliders. Opened from the
+    // ⊕ while paused, a figure with no sliders but an editable script offers
+    // the editor too: the spec's "click to edit while paused" affordance,
+    // reached through the one door the tray already has.
+    const editEl = opts.code
+      ? editable.find((e) => e.id === opts.code)
+      : !opts.gated && liveSliders(hd).length === 0
+        ? editable[0]
+        : undefined;
     if (editEl) {
       tray.appendChild(
         h("div", { class: "cs-tray-hint" }, "✎ Edit the script (or write your own) and press Run — the panel and any chart it feeds update. Continue restores the lesson."),
