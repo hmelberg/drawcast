@@ -74,3 +74,51 @@ export function sliderSpecs(schema: unknown, params?: Record<string, unknown>): 
   walk(schema, "");
   return out;
 }
+
+// ---- what one tray shows (the composition rule) -----------------------------
+// The ⊕ is the figure's whole control surface (interactivity spec §7.2: "the
+// full menu of the scene's interactions"), so it shows everything the figure
+// offers AT ONCE — sliders and any script on screen, never one instead of the
+// other. An authored `explore` beat is the opposite: it shows exactly what it
+// named, because that is the author's invitation, not the viewer's workbench.
+// Kept DOM-free so node tests can hold the rule; tray.ts renders it.
+
+export interface TrayPlan {
+  /** The activity pill row (quiz, play-vs-computer) — never during a gate. */
+  activities: boolean;
+  /** Slider param paths, in the order the schema yielded them. */
+  sliders: string[];
+  /** Script editors to offer; collapsed unless this one is the point. */
+  scripts: { id: string; expanded: boolean }[];
+}
+
+export function trayPlan(input: {
+  sliderPaths: string[];
+  codeIds: string[];
+  /** An authored explore beat holds the run open. */
+  gated?: boolean;
+  /** The beat's `params` filter. */
+  params?: string[];
+  /** The beat's `code` element. */
+  code?: string;
+  /** The code element whose screen the viewer clicked. */
+  open?: string;
+}): TrayPlan {
+  const { sliderPaths, codeIds, gated = false, params, code, open } = input;
+  if (gated) {
+    // Named code alone means the author asked for the keyboard, not the
+    // knobs; naming both asks for both; naming neither is the old slider gate.
+    const scripts = code !== undefined && codeIds.includes(code) ? [{ id: code, expanded: true }] : [];
+    const wantsSliders = params !== undefined || scripts.length === 0;
+    const sliders = !wantsSliders ? [] : params ? sliderPaths.filter((p) => params.includes(p)) : sliderPaths;
+    return { activities: false, sliders, scripts };
+  }
+  // A script opens expanded when it IS the tray (no sliders to compete with)
+  // or when the viewer reached it by clicking that very screen.
+  const expandAll = sliderPaths.length === 0 && open === undefined;
+  return {
+    activities: true,
+    sliders: sliderPaths,
+    scripts: codeIds.map((id) => ({ id, expanded: expandAll || open === id })),
+  };
+}

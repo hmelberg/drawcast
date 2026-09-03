@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { sliderSpecs } from "../src/ui/tray-model";
+import { sliderSpecs, trayPlan } from "../src/ui/tray-model";
 
 describe("sliderSpecs", () => {
   test("finds a top-level bounded number", () => {
@@ -65,5 +65,47 @@ describe("x-max-from — a slider bounded by the data's stage count", () => {
   test("a static maximum still wins over the hint", () => {
     const s = { type: "object", properties: { stage: { type: "number", minimum: 0, maximum: 5, "x-max-from": ["values"] } } };
     expect(sliderSpecs(s, { values: [[1], [2], [3]] })[0].max).toBe(5);
+  });
+});
+
+describe("trayPlan — what one tray shows when a figure offers several things", () => {
+  const base = { sliderPaths: ["n", "rate"], codeIds: ["sim"] };
+
+  test("the ⊕ shows everything the figure offers — sliders AND the script, never one instead of the other", () => {
+    const p = trayPlan(base);
+    expect(p.sliders).toEqual(["n", "rate"]);
+    expect(p.scripts).toEqual([{ id: "sim", expanded: false }]);
+    expect(p.activities).toBe(true);
+  });
+
+  test("a script is the main event when it is the only control, so it opens expanded", () => {
+    expect(trayPlan({ ...base, sliderPaths: [] }).scripts).toEqual([{ id: "sim", expanded: true }]);
+  });
+
+  test("clicking a screen expands that script and no other", () => {
+    const p = trayPlan({ ...base, codeIds: ["a", "b"], open: "b" });
+    expect(p.scripts).toEqual([{ id: "a", expanded: false }, { id: "b", expanded: true }]);
+  });
+
+  test("an authored explore shows exactly what the beat named — that editor, nothing else", () => {
+    const p = trayPlan({ ...base, gated: true, code: "sim" });
+    expect(p.scripts).toEqual([{ id: "sim", expanded: true }]);
+    expect(p.sliders).toEqual([]);
+    expect(p.activities).toBe(false);
+  });
+
+  test("an authored explore naming params shows those sliders and no script", () => {
+    const p = trayPlan({ ...base, gated: true, params: ["rate"] });
+    expect(p.sliders).toEqual(["rate"]);
+    expect(p.scripts).toEqual([]);
+  });
+
+  test("a beat that names both gets both; one that names neither gets every slider", () => {
+    expect(trayPlan({ ...base, gated: true, params: ["n"], code: "sim" })).toMatchObject({ sliders: ["n"], scripts: [{ id: "sim", expanded: true }] });
+    expect(trayPlan({ ...base, gated: true }).sliders).toEqual(["n", "rate"]);
+  });
+
+  test("a filter naming a param the figure has no slider for drops it rather than inventing one", () => {
+    expect(trayPlan({ ...base, gated: true, params: ["nope"] }).sliders).toEqual([]);
   });
 });

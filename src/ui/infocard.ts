@@ -72,6 +72,9 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
   if (targets.size === 0 && !stage.querySelector(".cs-caption")) return;
 
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
+  const editableCode = (hd.spec.elements ?? [])
+    .filter((e) => e.type === "code" && e.show !== "none" && typeof e.code === "string" && typeof e.language === "string")
+    .map((e) => e.id);
   const flip = hd.spec.params?.["flip"] === true;
   const octaves = pianoOctaves(hd.spec.params);
   let boxes: ReadonlyMap<string, BBox> | null = null;
@@ -132,6 +135,13 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     if (!p) return null;
     if (interactions.includes("chess") && chessSquareAt(flip, p) !== null) return null;
     if (interactions.includes("piano") && pianoKeyAt(octaves, p) !== null) return null;
+    // A code screen's natural action is EDITING it (the tray's own paused
+    // click), so a card never opens on one — the same standing-aside the
+    // instruments get above.
+    if (editableCode.length > 0) {
+      const box = hitElement(new Map([...hitBoxes()].filter(([id]) => editableCode.includes(id))), p, 12);
+      if (box !== null) return null;
+    }
     // Hit-test only what is on screen at this boundary: an invisible
     // element's smaller box must never shadow a visible card element (the
     // cameo-over-undrawn-table bug), and a card never opens for something
