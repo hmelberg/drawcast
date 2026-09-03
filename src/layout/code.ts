@@ -47,6 +47,8 @@ const TABLE_MAX_ROWS = 24;
 /** Extra gap between SOURCE lines, so wrapped continuations read as one. */
 const LINE_GAP = 0.35;
 const PAD = 16;
+/** Typing speed of the `type` draw mode, characters per second. */
+const TYPE_CPS = 28;
 
 /** A windowed code pane, published for the plan: its line ids in order, each
  *  line's bottom edge as a distance from the pane's content top (logical
@@ -328,7 +330,12 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // A chatty stdout (an unsuppressed plot-call echo, say) or one full-width
   // figure used to grow the panel unbounded, pushing its TOP — the code
   // lines — off the 750-unit canvas. Cap the panel and fit everything inside.
-  const maxH = CANVAS.h - 40; // breathing room top+bottom
+  // The screen's chrome claims its space from the same budget as the panel:
+  // the whole assembly (bar or bezel, panel, stand or keyboard) stays
+  // centred on the element's y and inside the canvas.
+  const frame: CodeFrame = el.frame ?? "panel";
+  const chrome = frameSpace(frame);
+  const maxH = CANVAS.h - 40 - chrome.above - chrome.below; // breathing room top+bottom
   // Stacked panes share the height: the code pane (or its window) is fixed
   // and the output gets what remains. Side by side, each pane has it all.
   const outBudget = showOut ? Math.max(0, maxH - 2 * PAD - (stacked ? codeContentH + paneGap : 0)) : 0;
@@ -410,7 +417,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     ctx.warnings.push(`code "${el.id}": output was truncated/scaled to fit the panel within the canvas`);
   }
   const x0 = cx - w / 2;
-  const yTop = cy + h / 2;
+  const yTop = cy + (h + chrome.above + chrome.below) / 2 - chrome.above;
   const rect: Pt[] = [
     [x0, yTop - h],
     [x0 + w, yTop - h],
@@ -418,27 +425,32 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     [x0, yTop],
   ];
 
-  const panelChildren: Drawable[] = [
-    {
-      id: `${el.id}__bg`,
-      kind: "area",
-      pts: rect,
-      precise: true,
-      z: Z_AREA,
-      style: resolveStyle(undefined, { fill: COLORS.paper, opacity: 1, strokeWidth: 0 }),
-      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
-    },
-    {
-      id: `${el.id}__frame`,
-      kind: "stroke",
-      pts: rect,
-      closed: true,
-      shapeHint: { type: "rect", x: x0, y: yTop - h, w, h },
-      z: Z_STROKE,
-      style: resolveStyle(el.style, { strokeWidth: 2.5 }),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
-    },
-  ];
+  // Chrome first (it sits behind and around), then the panel's own paper
+  // and frame — none of it for frame: none, bare paper.
+  const panelChildren: Drawable[] = [...chromeDrawables(el.id, frame, x0, yTop, w, h, el.style, el.draw)];
+  if (frame !== "none") {
+    panelChildren.push(
+      {
+        id: `${el.id}__bg`,
+        kind: "area",
+        pts: rect,
+        precise: true,
+        z: Z_AREA,
+        style: resolveStyle(undefined, { fill: COLORS.paper, opacity: 1, strokeWidth: 0 }),
+        drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+      },
+      {
+        id: `${el.id}__frame`,
+        kind: "stroke",
+        pts: rect,
+        closed: true,
+        shapeHint: { type: "rect", x: x0, y: yTop - h, w, h },
+        z: Z_STROKE,
+        style: resolveStyle(el.style, { strokeWidth: 2.5 }),
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
+      },
+    );
+  }
   // Pane origins (y-up). Side by side the code pane sits left or right;
   // stacked, above or below — the divider runs between the two either way.
   const codeX = show === "right" ? x0 + outPaneW + paneGap : x0;
@@ -504,7 +516,12 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         font: "mono",
         z: Z_TEXT,
         style: resolveStyle(el.style, {}),
-        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
+        // Typed lines take as long as their characters at 28 per second (a
+        // 400 ms floor), the same order as a sketch stroke.
+        drawOpts:
+          el.draw?.mode === "type"
+            ? { mode: "type", duration: Math.max(400, Math.round((block.rows.join("").length / TYPE_CPS) * 1000)) }
+            : resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         ...(clip ? { clip } : {}),
       });
     });
@@ -620,5 +637,133 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     }
   }
 
+  return out;
+}
+
+// ---- the screen: chrome around the panel (spec §5) --------------------------
+
+const BAR_H = 28;
+const BEZEL = 18;
+const STAND_H = 56;
+const KEYS_H = 120;
+
+export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "none";
+
+/** Space the chrome claims outside the panel rectangle, logical units. */
+export function frameSpace(frame: CodeFrame): { above: number; below: number; side: number } {
+  switch (frame) {
+    case "window":
+      return { above: BAR_H, below: 0, side: 0 };
+    case "screen":
+      return { above: BEZEL, below: BEZEL + STAND_H, side: BEZEL };
+    case "laptop":
+      return { above: BEZEL, below: BEZEL + KEYS_H, side: BEZEL };
+    default:
+      return { above: 0, below: 0, side: 0 };
+  }
+}
+
+function rectPts(x: number, y: number, w: number, h: number): Pt[] {
+  return [
+    [x, y],
+    [x + w, y],
+    [x + w, y + h],
+    [x, y + h],
+  ];
+}
+
+function circlePts(c: Pt, r: number, n = 14): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/** Chrome drawables for one panel, given its inner rectangle (x0, yTop − h .. yTop). */
+function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number, w: number, h: number, style: SpecElement["style"], draw: SpecElement["draw"]): Drawable[] {
+  const out: Drawable[] = [];
+  const ink = (extra: Parameters<typeof resolveStyle>[1]) => resolveStyle(style, extra);
+  const sketch = (ms: number) => resolveDrawOpts(draw, { mode: "sketch", duration: ms });
+  const instant = resolveDrawOpts(undefined, { mode: "instant", duration: 0 });
+  const stroke = (sid: string, pts: Pt[], closed: boolean, st: ReturnType<typeof resolveStyle>, drawOpts: ReturnType<typeof resolveDrawOpts>, hint?: { x: number; y: number; w: number; h: number }): Drawable => ({
+    id: sid,
+    kind: "stroke",
+    pts,
+    closed,
+    ...(hint ? { shapeHint: { type: "rect" as const, ...hint } } : {}),
+    z: Z_STROKE,
+    style: st,
+    drawOpts,
+  });
+  if (frame === "window") {
+    out.push(stroke(`${id}__bar`, rectPts(x0, yTop, w, BAR_H), true, ink({ strokeWidth: 2.5 }), sketch(SKETCH_MS.node), { x: x0, y: yTop, w, h: BAR_H }));
+    for (let i = 0; i < 3; i++) {
+      out.push(stroke(`${id}__bar_dot_${i + 1}`, circlePts([x0 + 18 + i * 18, yTop + BAR_H / 2], 5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
+    }
+  }
+  if (frame === "screen" || frame === "laptop") {
+    const bx = x0 - BEZEL;
+    const by = yTop - h - BEZEL;
+    const bw = w + 2 * BEZEL;
+    const bh = h + 2 * BEZEL;
+    out.push({
+      id: `${id}__bezel_wash`,
+      kind: "area",
+      pts: rectPts(bx, by, bw, bh),
+      precise: true,
+      z: Z_AREA,
+      style: resolveStyle(undefined, { fill: COLORS.guide, opacity: 0.08, strokeWidth: 0 }),
+      drawOpts: instant,
+    });
+    out.push(stroke(`${id}__bezel`, rectPts(bx, by, bw, bh), true, ink({ strokeWidth: 4 }), sketch(SKETCH_MS.node), { x: bx, y: by, w: bw, h: bh }));
+  }
+  if (frame === "screen") {
+    const cx = x0 + w / 2;
+    const top = yTop - h - BEZEL;
+    const baseY = top - STAND_H + 8;
+    const st = ink({ strokeWidth: 3 });
+    out.push({
+      id: `${id}__stand`,
+      kind: "group",
+      z: Z_STROKE,
+      style: defaultStyle(),
+      drawOpts: sketch(SKETCH_MS.node),
+      children: [
+        stroke(`${id}__stand_l`, [[cx - 14, top], [cx - 22, baseY]], false, st, sketch(300)),
+        stroke(`${id}__stand_r`, [[cx + 14, top], [cx + 22, baseY]], false, st, sketch(300)),
+        stroke(`${id}__stand_base`, [[cx - 100, baseY], [cx + 100, baseY]], false, st, sketch(400)),
+      ],
+    });
+  }
+  if (frame === "laptop") {
+    const sx = x0 - BEZEL;
+    const sw = w + 2 * BEZEL;
+    const hinge = yTop - h - BEZEL;
+    const slabTop = hinge;
+    const slabBottom = hinge - KEYS_H;
+    const keys: Drawable[] = [
+      stroke(`${id}__keys_slab`, rectPts(sx, slabBottom, sw, KEYS_H), true, ink({ strokeWidth: 3 }), sketch(SKETCH_MS.node), { x: sx, y: slabBottom, w: sw, h: KEYS_H }),
+    ];
+    const gap = 6;
+    const keyH = 18;
+    const keyW = (w - 12 * gap) / 13;
+    const keyStyle = resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 });
+    for (let r = 0; r < 4; r++) {
+      const rowTop = slabTop - 12 - r * (keyH + gap);
+      if (r < 3) {
+        for (let k = 0; k < 13; k++) {
+          const kx = x0 + k * (keyW + gap);
+          keys.push(stroke(`${id}__key_${r}_${k}`, rectPts(kx, rowTop - keyH, keyW, keyH), true, keyStyle, instant));
+        }
+      } else {
+        const spaceW = 7 * keyW + 6 * gap;
+        const spaceX = x0 + (w - spaceW) / 2;
+        keys.push(stroke(`${id}__key_space`, rectPts(spaceX, rowTop - keyH, spaceW, keyH), true, keyStyle, instant));
+      }
+    }
+    out.push({ id: `${id}__keys`, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: sketch(SKETCH_MS.node), children: keys });
+  }
   return out;
 }

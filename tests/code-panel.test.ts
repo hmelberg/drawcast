@@ -112,6 +112,36 @@ describe("screen vocabulary", () => {
   });
 });
 
+describe("the screen", () => {
+  const ids = (s: Spec) => flattenDrawables(layoutSpec(s, heuristicMeasure).drawables).map((d) => d.id);
+  test("each frame value draws its own chrome ids, and none draws no frame", () => {
+    expect(ids(spec({ frame: "window", code_result: OK }))).toContain("c1__bar");
+    expect(ids(spec({ frame: "screen", code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
+    expect(ids(spec({ frame: "laptop", code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__keys", "c1__key_space"]));
+    expect(ids(spec({ frame: "none", code_result: OK }))).not.toContain("c1__frame");
+    expect(ids(spec({ code_result: OK }))).toContain("c1__frame");
+  });
+  test("chrome reserves its space: the assembly stays centred on y and the content moves inside it", () => {
+    const plain = textOf(spec({ show: "left", code: eight, code_result: OK }), "c1_line_1");
+    const laptop = textOf(spec({ show: "left", code: eight, code_result: OK, frame: "laptop" }), "c1_line_1");
+    expect(laptop.pos[1]).toBeGreaterThan(plain.pos[1]);
+    const bezel = leaf(spec({ show: "left", code: eight, code_result: OK, frame: "screen" }), "c1__bezel") as { shapeHint?: { h: number } };
+    const frame = leaf(spec({ show: "left", code: eight, code_result: OK, frame: "screen" }), "c1__frame") as { shapeHint?: { h: number } };
+    expect(bezel.shapeHint!.h).toBeGreaterThan(frame.shapeHint!.h);
+    for (const f of ["window", "screen", "laptop"]) {
+      expect(layoutSpec(spec({ show: "left", code: eight, code_result: OK, frame: f }), heuristicMeasure).issues.filter((i) => i.severity === "error"), f).toEqual([]);
+    }
+  });
+  test("draw.mode type gives each code line a typing duration and leaves the frame sketched", () => {
+    const l = flattenDrawables(layoutSpec(spec({ show: "left", code: "x = 1\nlonger_line = 12345678", draw: { mode: "type" }, code_result: OK }), heuristicMeasure).drawables);
+    const l1 = l.find((d) => d.id === "c1_line_1")!;
+    const l2 = l.find((d) => d.id === "c1_line_2")!;
+    expect(l1.drawOpts.mode).toBe("type");
+    expect(l2.drawOpts.duration).toBeGreaterThan(l1.drawOpts.duration);
+    expect(l.find((d) => d.id === "c1__frame")!.drawOpts.mode).toBe("sketch");
+  });
+});
+
 describe("code panel vocabulary", () => {
   test("show names where the code sits; split is gone", () => {
     for (const s of ["output", "left", "right", "above", "below", "code", "none"]) expect(validateSpec(spec({ show: s })).ok).toBe(true);
