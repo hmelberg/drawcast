@@ -187,7 +187,7 @@ const elementSchema = {
       type: "string",
       enum: [...LANGUAGES],
       description:
-        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython is not available yet — never emit it.",
+        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython = the minimal tier (half a megabyte, boots in milliseconds; pandas and plotly.express emulations, a partial standard library) — only when the request asks for it.",
     },
     code: {
       type: "string",

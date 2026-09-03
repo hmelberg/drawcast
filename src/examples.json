@@ -9803,5 +9803,57 @@
        }
      ]
    }
+ },
+ {
+   "request": "In minimal Python (MicroPython): compound interest over five years, printed year by year, with the total growth as the last line",
+   "spec": {
+     "title": "Compound interest, minimal Python",
+     "elements": [
+       {
+         "id": "ci",
+         "type": "code",
+         "language": "micropython",
+         "show": "split",
+         "width": 900,
+         "code": "rate = 0.05\nbalance = 100\nfor year in range(1, 6):\n    balance *= 1 + rate\n    print(year, round(balance, 2))\nround(balance / 100 - 1, 3)"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "ci",
+           "ci_line_1",
+           "ci_line_2"
+         ],
+         "parallel": true,
+         "speak": "Five percent a year on a hundred — in a Python that weighs half a megabyte."
+       },
+       {
+         "draw": [
+           "ci_line_3",
+           "ci_line_4"
+         ],
+         "speak": "Each year the balance grows by five percent of what it already is."
+       },
+       {
+         "draw": [
+           "ci_line_5"
+         ],
+         "speak": "Print the balance year by year."
+       },
+       {
+         "draw": [
+           "ci_line_6"
+         ],
+         "speak": "And the last line: total growth over the five years."
+       },
+       {
+         "draw": [
+           "ci_out"
+         ],
+         "speak": "Not twenty-five percent — twenty-seven point six. That gap is compounding."
+       }
+     ]
+   }
  }
 ]
