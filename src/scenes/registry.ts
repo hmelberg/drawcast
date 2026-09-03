@@ -6,6 +6,7 @@ import type { SceneManifest, SceneModule } from "./types";
 export type { SceneModule } from "./types";
 import { parseTemplateDoc, docToManifest, type TemplateDoc } from "./doc";
 import { compileTemplateDoc } from "./compile";
+import { widenForDataTokens } from "./data-schema";
 import cellDiagramYaml from "./cell_diagram/template.yaml?raw";
 import molecule3dYaml from "./molecule_3d/template.yaml?raw";
 import supplyDemandManifest from "./supply_demand/manifest.json";
@@ -86,10 +87,14 @@ export const scenes: Record<string, SceneModule> = {
 export function registerTemplateDoc(doc: TemplateDoc): { ok: boolean; errors: string[] } {
   const { module, errors } = compileTemplateDoc(doc);
   if (module) {
-    scenes[doc.template] = module;
+    scenes[doc.template] = doc.accepts_data
+      ? { ...module, manifest: { ...module.manifest, params_schema: widenForDataTokens(doc.params) } }
+      : module;
     return { ok: true, errors: [] };
   }
-  scenes[doc.template] = { manifest: { ...docToManifest(doc), status: "stub" } };
+  const manifest = { ...docToManifest(doc), status: "stub" as const };
+  if (doc.accepts_data) manifest.params_schema = widenForDataTokens(doc.params);
+  scenes[doc.template] = { manifest };
   return { ok: false, errors };
 }
 

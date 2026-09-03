@@ -24,6 +24,9 @@ export interface TemplateDoc {
   interactions?: InteractionKind[];
   /** JS function body: (params, kit, engines) => SceneLayout. Required when ready. */
   layout?: string;
+  /** Opt-in: widen params_schema (data-schema.ts) at registration so numeric
+   *  and array leaves also accept a "{id.var}" data token. */
+  accepts_data?: boolean;
 }
 
 export interface DocResult {
@@ -112,6 +115,7 @@ export function validateTemplateDoc(raw: unknown): DocResult {
     errors.push("a ready template needs a layout function body");
   }
   if (d.title !== undefined && typeof d.title !== "string") errors.push("title must be a string");
+  if (d.accepts_data !== undefined && typeof d.accepts_data !== "boolean") errors.push("accepts_data must be a boolean");
 
   return errors.length > 0 ? { errors } : { doc: d as unknown as TemplateDoc, errors: [] };
 }
@@ -127,5 +131,6 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     ...(doc.engines && doc.engines.length > 0 ? { engines: doc.engines } : {}),
     ...(doc.model3d ? { model3d: doc.model3d } : {}),
     ...(doc.interactions && doc.interactions.length > 0 ? { interactions: doc.interactions } : {}),
+    ...(doc.accepts_data ? { accepts_data: true } : {}),
   };
 }

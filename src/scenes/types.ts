@@ -33,6 +33,8 @@ export interface SceneManifest {
   model3d?: { kind: "molecule"; source: "preset" | "smiles" };
   /** Intrinsic interactions the scene offers while paused (free play, exercises). */
   interactions?: InteractionKind[];
+  /** True when params_schema was widened (data-schema.ts) to accept "{id.var}" tokens. */
+  accepts_data?: boolean;
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */
