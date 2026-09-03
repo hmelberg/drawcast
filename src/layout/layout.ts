@@ -37,7 +37,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     hasTemplate: !!(spec.template && scenes[spec.template]?.layout),
     templateTakesBox: templateTakesBox(spec.template),
     boxGiven: isFigureBox((spec.params ?? {})["box"]),
-    code: codeEl ? { x: codeEl.x, width: codeEl.width } : null,
+    code: codeEl ? { x: codeEl.x, width: codeEl.width, show: codeEl.show, code: codeEl.code, fontSize: codeEl.font_size } : null,
   });
   if (split.code && codeEl) Object.assign(codeEl, split.code);
   if (split.box) spec.params = { ...(spec.params ?? {}), box: split.box };

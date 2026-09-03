@@ -39,14 +39,16 @@ import type { SpecElement } from "../spec/types";
 
 /** Mono glyph advance as a fraction of font size — fixed-pitch, so exact
  *  enough to lay out without a browser measurer (deterministic in node). */
-const CHAR_W = 0.62;
+/** Monospace advance as a fraction of the font size — the wrapper measures
+ *  with it, and so does the figure split when it sizes a panel to its script. */
+export const CHAR_W = 0.62;
 /** Vertical advance per wrapped row (matches drawLeaf's tspan spacing). */
 const ROW_H = 1.25;
 /** Layout's own cap on drawn table rows (the harvest already caps at 30). */
 const TABLE_MAX_ROWS = 24;
 /** Extra gap between SOURCE lines, so wrapped continuations read as one. */
 const LINE_GAP = 0.35;
-const PAD = 16;
+export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
 const TYPE_CPS = 28;
 

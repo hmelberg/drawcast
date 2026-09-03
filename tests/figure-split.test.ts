@@ -28,6 +28,24 @@ describe("figureSplit — the rule", () => {
     expect(s.box).toEqual({ x: 470, y: 95, w: 470, h: 560 }); // the hand-tuned convention
   });
 
+  test("a panel of pure code hugs its longest line, and the slack goes to the figure", () => {
+    const short = figureSplit({ ...base, code: { show: "code", code: "years = [0, 10, 20]" } });
+    expect(short.code!.width).toBe(260); // the floor: narrower than this is not code, it is a stripe
+    expect(short.box!.w).toBeGreaterThan(470); // more room than the fixed half ever gave it
+    // A long line still wraps INSIDE the half rather than eating the chart's room.
+    const long = figureSplit({ ...base, code: { show: "code", code: "x".repeat(200) } });
+    expect(long.code!.width).toBe(CODE_HALF.width);
+    // Between the two, the panel is as wide as the script needs.
+    const mid = figureSplit({ ...base, code: { show: "code", code: "x".repeat(30) } });
+    expect(mid.code!.width).toBeGreaterThan(260);
+    expect(mid.code!.width).toBeLessThan(CODE_HALF.width);
+    expect(mid.code!.x).toBe(20 + mid.code!.width / 2); // left edge stays put as it grows
+  });
+
+  test("a panel carrying its own output pane keeps the half — hugging would squeeze the output", () => {
+    expect(figureSplit({ ...base, code: { show: "left", code: "y = 1" } }).code).toEqual({ ...CODE_HALF });
+  });
+
   test("an author's x and width win, and the figure moves to the side they left", () => {
     const s = figureSplit({ ...base, code: { x: 775, width: 410 } }); // script on the RIGHT
     expect(s.code).toBeUndefined();
