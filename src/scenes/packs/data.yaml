@@ -1484,6 +1484,7 @@ params:
       type: string
 element_ids:
   axes: the value axis with its caption and ticks
+  note: the refusal note, drawn only when every number in the race is zero or less and so no bar can have any length
   race_1: "the first racer's bar (its fill, name and value label; race_2, race_3, … likewise) — one per label, in INPUT order, at every stage"
   ticker: the large stage caption (the year), when set
   title: figure title, when set
@@ -1718,7 +1719,13 @@ layout: |
   const xMin = xlim ? Math.min(xlim[0], xlim[1]) : 0;
   let xMax = xlim ? Math.max(xlim[0], xlim[1]) : 0;
   if (!xlim) {
-    for (let i = 0; i < n; i++) xMax = Math.max(xMax, value(i));
+    // The scale is sized by the field ON SCREEN. A racer still at zero
+    // presence is not drawn at all, and scaling the plot for it would collapse
+    // the visible leader to a sliver at exactly the integer stage a storyboard
+    // RESTS on — an unexplained jump in the one frame a viewer reads at
+    // leisure. It joins the scale as it fades in instead, so the axis grows
+    // with something the viewer can see growing.
+    for (let i = 0; i < n; i++) if (presence(i) > 0) xMax = Math.max(xMax, value(i));
     xMax *= 1.08;
   }
   if (xMax - xMin < 1e-9) xMax = xMin + 1;
@@ -1791,7 +1798,20 @@ layout: |
   }
   dec = clamp(dec, 0, 4);
   const fmtVal = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
-  const showValues = params.value_labels !== false && hasData;
+
+  // A body cannot raise a lint issue (SceneLayout has no warning channel), so
+  // a refusal is DRAWN: a short note under the id "note", the same convention
+  // bar_chart and line_chart use. A race whose every number at every stage is
+  // zero or less has no bar with any length at any stage — bars start at the
+  // low end of the scale and clamp into it — so it renders as a bare arrow
+  // with names beside it. That silence needs saying out loud. The value labels
+  // go with it: a column of numbers hugging the axis with no bars beside them
+  // is the same silence, differently dressed, and the note is the explanation
+  // that replaces them.
+  let allNonPositive = hasData;
+  for (const st of stages) for (const v of st) if (typeof v === "number" && v > 0) allNonPositive = false;
+  const note = allNonPositive ? "a race needs values above zero — every number here is zero or less" : null;
+  const showValues = params.value_labels !== false && hasData && !note;
   const VALUE_SIZE = Math.max(14, NAME_SIZE - 2);
   const VALUE_GAP = 8;  // horizontal: the bar's end → the label
   const VALUE_LIFT = 13; // vertical: the column's top → the label's centre
@@ -1838,6 +1858,23 @@ layout: |
     : kit.text("axes__t" + q, [V(v), plot.y0 - AXIS_ROW], fmtTick(v), { fontSize: TICK_SIZE, color: C.guide })));
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
+
+  if (note) {
+    // Top-left inside the plot, bar_chart's own spot. Nothing can collide with
+    // it there: the names live left of plot.x0, and a refusing race draws no
+    // value labels at all. Truncated to the plot's width, the convention the
+    // pack uses everywhere for text that will not fit.
+    const NOTE_SIZE = 16;
+    const notePos = [plot.x0, plot.y1 - 16];
+    const noteMaxW = plot.x1 - plot.x0 - 8;
+    let noteText = note;
+    if (kit.textWidth(noteText, NOTE_SIZE) > noteMaxW) {
+      while (noteText.length > 1 && kit.textWidth(noteText + "…", NOTE_SIZE) > noteMaxW) noteText = noteText.slice(0, -1);
+      noteText = noteText.replace(/\s+$/, "") + "…";
+    }
+    push(kit.text("note", notePos, noteText, { fontSize: NOTE_SIZE, color: C.guide, anchor: "start" }));
+    anchors.note = notePos;
+  }
 
   // The clock. `ticker[round(stage)]` — the NEAREST stage's caption, never a
   // blend, because text does not interpolate and "199½" is not a year. Drawn

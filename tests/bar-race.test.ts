@@ -181,29 +181,45 @@ describe("bar_race scale and furniture", () => {
   });
 
   test("tick values are chosen once and only their positions move", () => {
+    const quarter = race({ ...growing, stage: 0.25 });
     const mid = race({ ...growing, stage: 0.5 });
     const end = race({ ...growing, stage: 1 });
-    // The same tick vocabulary at both ends — ticks slide, they do not reflow.
+    // The same tick vocabulary all the way along — ticks slide, they never
+    // reflow.
     expect(new Set(tickTexts(end)).size).toBeGreaterThan(1);
-    expect(tickTexts(mid).every((t) => tickTexts(end).includes(t))).toBe(true);
-    // …and that is a real constraint, not a tautology. The leader is 55 at the
-    // half stage and 100 at the end: a step re-derived from 55 would land on
-    // tens ("10", "30", "50") and none of those is in the end's twenties
-    // vocabulary, so this fails the moment the values are recomputed per frame.
     expect(tickTexts(end)).toEqual(["0", "20", "40", "60", "80", "100"]);
+    expect(tickTexts(mid).every((t) => tickTexts(end).includes(t))).toBe(true);
+    // The QUARTER stage is the assertion that discriminates, and it does so on
+    // the step derivation itself rather than on any padding around it. The
+    // leader is 32.5 there, and niceStep of 32.5 — or of the 35.1 range around
+    // it — is 10, so a step re-derived from this frame puts "10" and "30" on
+    // the axis, and neither is in the end's twenties vocabulary. (The half
+    // stage does NOT discriminate: niceStep(55) is also 20, so its containment
+    // holds under a per-frame recompute too. It is kept as coverage, not as
+    // proof.)
+    expect(tickTexts(quarter).every((t) => tickTexts(end).includes(t))).toBe(true);
     // Ticks past the current top are DROPPED, and the survivors have SLID
     // outward — same value, new position, which is what "positions are
     // recomputed every frame" means.
+    expect(tickTexts(quarter).length).toBeLessThan(tickTexts(mid).length);
     expect(tickTexts(mid).length).toBeLessThan(tickTexts(end).length);
     const xOf = (l: ReturnType<typeof layoutSpec>, t: string) => tickLabels(l).find((d) => d.text === t)!.pos[0];
+    expect(xOf(quarter, "20")).toBeGreaterThan(xOf(mid, "20"));
     expect(xOf(mid, "20")).toBeGreaterThan(xOf(end, "20"));
     expect(xOf(mid, "0")).toBeCloseTo(xOf(end, "0"), 6);
   });
 
   test("the ticker shows the nearest stage's caption, never a blend", () => {
     const l = race({ ...growing, ticker: ["1990", "2020"], stage: 0.6 });
-    const tick = flattenDrawables(l.drawables).find((d) => d.id === "ticker") as { text: string };
+    const tick = textById(l, "ticker")!;
     expect(tick.text).toBe("2020");
+    // Large, dimmed, and in the plot's far corner — the clock is furniture the
+    // bars run over, not a label competing with them.
+    expect(tick.fontSize).toBe(46);
+    expect(tick.style.opacity).toBeGreaterThan(0);
+    expect(tick.style.opacity).toBeLessThan(0.6);
+    expect(tick.pos[0]).toBeGreaterThan(plot.x0 + (plot.x1 - plot.x0) * 0.75);
+    expect(tick.pos[1]).toBeLessThan(plot.y0 + (plot.y1 - plot.y0) * 0.25);
     // Just past the other side of the midpoint it is still the earlier year:
     // text does not interpolate, so it snaps to the nearer stage.
     expect(textById(race({ ...growing, ticker: ["1990", "2020"], stage: 0.4 }), "ticker")!.text).toBe("1990");
@@ -384,6 +400,55 @@ describe("bar_race scale and furniture", () => {
     }
   });
 
+  test("the scale is sized by the field on screen, not by a racer nobody can see", () => {
+    // B arrives at stage 2. At the INTEGER stage 1 — a frame a storyboard
+    // rests on, and the one a viewer reads at leisure — B's presence is still
+    // 0, so it is not drawn. Sizing the plot for its arriving value would
+    // collapse the visible leader to a sliver with nothing on screen to
+    // explain it; §5.2's promise is continuity in `stage`.
+    const arriving = { labels: ["A", "B"], values: [[10, null], [10, null], [10, 1000]] };
+    const at1 = race({ ...arriving, stage: 1 });
+    expect(bar(at1, 2)).toBeUndefined();
+    expect(barLen(at1, 1)).toBeCloseTo(barLen(race({ ...arriving, stage: 0 }), 1), 6);
+    expect(barLen(at1, 1)).toBeGreaterThan((plot.x1 - plot.x0) * 0.9);
+    // …and the scale then grows WITH the racer as it fades in, so the leader's
+    // collapse happens while something visible is causing it.
+    expect(barLen(race({ ...arriving, stage: 1.5 }), 1)).toBeLessThan(barLen(at1, 1) * 0.2);
+  });
+
+  test("a race whose every number is zero or less refuses, drawn", () => {
+    // Bars start at the low end of the scale and clamp into it, so nothing
+    // here can have any length: the figure would be a bare arrow with names
+    // beside it and no lint issue to explain the silence.
+    const l = race({ labels: ["A", "B"], values: [[-5, -3]] });
+    const n = textById(l, "note")!;
+    expect(n.text).toMatch(/zero or less/);
+    expect(l.order).toContain("note");
+    expect(l.issues).toEqual([]);
+    expect(l.warnings).toEqual([]);
+    // The numbers go with it — a column of values against the axis with no
+    // bars beside them is the same silence, differently dressed.
+    expect(textById(l, "race_1_value")).toBeUndefined();
+    // All zeroes is the same case; a race that merely PASSES THROUGH zero is
+    // not, and neither is one that starts at zero and goes somewhere.
+    expect(textById(race({ labels: ["A"], values: [[0]] }), "note")).toBeDefined();
+    expect(textById(race({ labels: ["A", "B"], values: [[-5, 10]] }), "note")).toBeUndefined();
+    expect(textById(race({ labels: ["A", "B"], values: [[0, 0], [5, 3]] }), "note")).toBeUndefined();
+    // Not data yet is not wrong data: an unresolved token never refuses.
+    expect(textById(race({ labels: ["A"], values: "{sim.v}" }), "note")).toBeUndefined();
+    // And it still lints clean at the row count where the note's own row is
+    // tightest — 20 racers plus the airlock.
+    const crowded = race({
+      labels: Array.from({ length: 21 }, (_, i) => "Racer " + i),
+      values: [Array.from({ length: 21 }, (_, i) => -i)],
+      top_n: 20,
+      title: "Nothing to race",
+      x_label: "Points",
+    });
+    expect(textById(crowded, "note")).toBeDefined();
+    expect(crowded.issues).toEqual([]);
+  });
+
   test("a race still waiting on its script draws no ticks and no values", () => {
     // The placeholder promise again: "not data yet" must not be dressed up as
     // a scale reading 0…1 with a column of zeroes hanging off it.
@@ -396,7 +461,7 @@ describe("bar_race scale and furniture", () => {
   test("degenerate fields still lay out: one stage, all equal, values spanning zero", () => {
     for (const params of [
       { labels: ["A", "B"], values: [[5, 5]] },
-      { labels: ["A", "B"], values: [[0, 0]] },
+      { labels: ["A", "B"], values: [[0, 0]] }, // draws the refusal note; still lays out cleanly
       { labels: ["A", "B"], values: [[-5, 10]], stage: 0 },
       { labels: ["A", "B", "C"], values: [[3, 2, 1]], top_n: 2 }, // C sits exactly ON the airlock row
     ]) {
