@@ -35,6 +35,13 @@ export const BRYTHON_LIBS: Record<string, PyLib> = {
   seaborn_brython: { file: "brython/seaborn_brython.py", aliases: ["seaborn"], deps: ["matplotlib_brython", "plotly_express_brython"] },
 };
 
+/** The minimal tier's set: openstat ships only these two for MicroPython
+ *  (numpy/matplotlib/scipy/statsmodels/seaborn emulations are Brython-only). */
+export const MICROPYTHON_LIBS: Record<string, PyLib> = {
+  pandas_mpy: { file: "micropython/pandas_mpy.py", aliases: ["pandas"], deps: [] },
+  plotly_express_mpy: { file: "micropython/plotly_express_mpy.py", aliases: ["plotly", "plotly.express"], deps: [], tokens: [".plot"] },
+};
+
 const PUBLISHED_BASE = `https://hmelberg.github.io/drawcast/pylib/${PYLIB_VERSION}/`;
 
 function canonicalOf(name: string, libs: Record<string, PyLib>): string | null {
