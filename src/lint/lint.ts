@@ -80,8 +80,43 @@ function coVisible(commands: Command[] | undefined, allIds: string[]): (a: strin
   return (a, b) => a === b || pairs.has(key(a, b));
 }
 
-export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[]): LintIssue[] {
+/**
+ * An ACCEPTED overlap: two drawables that belong to DIFFERENT movers of the
+ * same moving field (`crossing`, layout/model.ts). Two racers swapping places
+ * share a row for the frame of the overtake; a line race's names travel with
+ * lines that pass each other. Hans, 2026-09-03, on the urn line race: "in
+ * these examples we may allow some overlap since the point is that they may
+ * move around and sometimes be close … but do not eliminate labels in these
+ * race models." So the ink is softened by the template and the lint stops
+ * calling it a defect.
+ *
+ * Deliberately narrow — every one of these is still a defect:
+ *  - a mover's label against anything UNKEYED (axes, ticker, title, note, a
+ *    caption, tier-2 elements, another template's furniture): one side has no
+ *    key, so the pair is never a crossing;
+ *  - a mover against ITSELF (same key): a racer's name landing on its own
+ *    value, or a line's name landing on its own stroke, is not an overtake;
+ *  - anything that is not an overlap rule at all (out-of-canvas,
+ *    font-too-small, the command-level rules) — those never consult this.
+ */
+function crossingPair(a: Drawable, b: Drawable): boolean {
+  const ka = a.crossing, kb = b.crossing;
+  return typeof ka === "string" && ka !== "" && typeof kb === "string" && kb !== "" && ka !== kb;
+}
+
+/**
+ * The same lint, with the accepted crossings kept rather than dropped, so a
+ * harness can REPORT what was excused instead of re-deriving the rule (which
+ * is how two differently-shaped exemptions come to exist). `issues` is what
+ * every caller acts on; `exempt` is evidence.
+ */
+export function lintLayoutDetailed(
+  drawables: Drawable[],
+  measure: MeasureFn,
+  commands?: Command[],
+): { issues: LintIssue[]; exempt: LintIssue[] } {
   const issues: LintIssue[] = [];
+  const exempt: LintIssue[] = [];
   const leaves = leafDrawables(drawables);
   const texts = leaves.filter((d): d is TextDrawable => d.kind === "text");
   const strokes = leaves.filter((d): d is StrokeDrawable => d.kind === "stroke");
@@ -133,7 +168,7 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?:
       const a = bboxOfText(texts[i], measure);
       const b = bboxOfText(texts[j], measure);
       if (boxesOverlap(a, b, 2)) {
-        issues.push({
+        (crossingPair(texts[i], texts[j]) ? exempt : issues).push({
           rule: "overlap-label-label",
           ids: [texts[i].id, texts[j].id],
           message: `labels "${texts[i].id}" ("${texts[i].text}") and "${texts[j].id}" ("${texts[j].text}") overlap — choose different preferred sides`,
@@ -152,7 +187,7 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?:
       if (s.id === `${t.id}_leader`) continue;
       if (!coexist(t.id, s.id)) continue;
       if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
-        issues.push({
+        (crossingPair(t, s) ? exempt : issues).push({
           rule: "overlap-label-stroke",
           ids: [t.id, s.id],
           message: `label "${t.id}" ("${t.text}") sits on stroke "${s.id}" — move it to a different side`,
@@ -162,7 +197,11 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?:
     }
   }
 
-  return issues;
+  return { issues, exempt };
+}
+
+export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[]): LintIssue[] {
+  return lintLayoutDetailed(drawables, measure, commands).issues;
 }
 
 const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;

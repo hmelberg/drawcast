@@ -45,6 +45,26 @@ interface BaseDrawable {
   z: number;
   style: ResolvedStyle;
   drawOpts: DrawResolved;
+  /**
+   * Which MOVER of a moving field this drawable belongs to — a race's line
+   * (`line_3`), a racer's row (`race_7`). Set only by the race templates, and
+   * only for a chart that has stages to move through.
+   *
+   * It buys exactly one thing from the lint: two drawables carrying DIFFERENT
+   * crossing keys may overlap without that being a defect, because the whole
+   * point of a race is that its lines and rows move past each other and are
+   * sometimes close (Hans, 2026-09-03: "in these examples we may allow some
+   * overlap since the point is that they may move around and sometimes be
+   * close … but do not eliminate labels in these race models"). Everything
+   * else still fails: a key against an unkeyed axis, ticker, title, note or
+   * caption; a mover against ITSELF (same key — a racer's own name landing on
+   * its own value is not an overtake); and every non-overlap rule.
+   *
+   * The templates that set it also DIM the drawables that actually collide,
+   * so the exemption is never silent on screen — see SOFT in the line_chart
+   * and bar_race bodies (src/scenes/packs/data.yaml).
+   */
+  crossing?: string;
 }
 
 export interface StrokeDrawable extends BaseDrawable {

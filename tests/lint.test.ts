@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { lintCommands, lintLayout } from "../src/lint/lint";
+import { lintCommands, lintLayout, lintLayoutDetailed } from "../src/lint/lint";
 import { heuristicMeasure } from "../src/layout/measure";
 import { defaultStyle, defaultDrawOpts, type Drawable } from "../src/layout/model";
 import type { Spec } from "../src/spec/types";
@@ -74,6 +74,71 @@ describe("lintLayout — co-visibility (the kameo exemption)", () => {
     // keep: ["a"] holds a on screen through the clear — they DO meet.
     expect(lintLayout(overlapping, heuristicMeasure, cmds([{ draw: ["a"] }, { clear: { keep: ["a"] } }, { draw: ["b"] }]))
       .some((i) => i.rule === "overlap-label-label")).toBe(true);
+  });
+});
+
+// Hans's race-label ruling, 2026-09-03: a race may let its labels overlap
+// ("the point is that they may move around and sometimes be close"), and must
+// never drop one to avoid it. `crossing` marks a mover; two DIFFERENT movers
+// may overlap. The tests that matter most here are the ones proving what the
+// exemption still REFUSES — a rule that excuses everything is not a rule.
+describe("lintLayout — the crossing exemption", () => {
+  const keyed = (id: string, pos: [number, number], crossing: string, str = "Some label"): Drawable => ({
+    ...(text(id, pos, 24, str) as Extract<Drawable, { kind: "text" }>),
+    crossing,
+  });
+  const keyedStroke = (id: string, pts: [number, number][], crossing: string): Drawable => ({
+    ...(stroke(id, pts) as Extract<Drawable, { kind: "stroke" }>),
+    crossing,
+  });
+  const rules = (ds: Drawable[]) => lintLayout(ds, heuristicMeasure).map((i) => i.rule);
+
+  test("two DIFFERENT movers' labels may overlap — and the drop is reported as exempt, not lost", () => {
+    const ds = [keyed("line_1__t", [500, 400], "line_1"), keyed("line_2__t", [510, 405], "line_2")];
+    expect(rules(ds)).toEqual([]);
+    const detail = lintLayoutDetailed(ds, heuristicMeasure);
+    expect(detail.issues).toEqual([]);
+    expect(detail.exempt.map((i) => i.rule)).toEqual(["overlap-label-label"]);
+    expect(detail.exempt[0].ids.sort()).toEqual(["line_1__t", "line_2__t"]);
+  });
+
+  test("the SAME mover's two labels overlapping is still a defect — an overtake needs two racers", () => {
+    expect(rules([keyed("race_3_text", [500, 400], "race_3"), keyed("race_3_value", [510, 405], "race_3")]))
+      .toEqual(["overlap-label-label"]);
+  });
+
+  test("a mover's label against UNKEYED furniture is still a defect, whichever side carries the key", () => {
+    expect(rules([keyed("race_1_value", [500, 400], "race_1"), text("ticker", [510, 405])])).toEqual(["overlap-label-label"]);
+    expect(rules([text("title", [500, 400]), keyed("line_2__t", [510, 405], "line_2")])).toEqual(["overlap-label-label"]);
+  });
+
+  test("an empty crossing key is not a key", () => {
+    expect(rules([keyed("a", [500, 400], ""), keyed("b", [510, 405], "")])).toEqual(["overlap-label-label"]);
+    expect(rules([keyed("a", [500, 400], ""), keyed("b", [510, 405], "line_2")])).toEqual(["overlap-label-label"]);
+  });
+
+  test("label-on-stroke: another mover's line is accepted; the axis and the mover's own line are not", () => {
+    const label = keyed("line_1__t", [500, 400], "line_1");
+    expect(rules([keyedStroke("line_2__l", [[100, 400], [900, 400]], "line_2"), label])).toEqual([]);
+    expect(rules([keyedStroke("line_1__l", [[100, 400], [900, 400]], "line_1"), label])).toEqual(["overlap-label-stroke"]);
+    expect(rules([stroke("axes__x", [[100, 400], [900, 400]]), label])).toEqual(["overlap-label-stroke"]);
+  });
+
+  test("the exemption reaches ONLY the two overlap rules — never out-of-canvas or font-too-small", () => {
+    expect(rules([keyed("line_1__t", [-400, 400], "line_1"), keyed("line_2__t", [-410, 405], "line_2")]))
+      .toEqual(["out-of-canvas", "out-of-canvas"]);
+    const tiny = [
+      { ...(text("line_1__t", [500, 400], 8) as Extract<Drawable, { kind: "text" }>), crossing: "line_1" },
+      { ...(text("line_2__t", [505, 403], 8) as Extract<Drawable, { kind: "text" }>), crossing: "line_2" },
+    ];
+    expect(rules(tiny)).toEqual(["font-too-small", "font-too-small"]);
+  });
+
+  test("co-visibility still applies first: two movers that never share the screen produce no issue at all", () => {
+    const ds = [keyed("line_1__t", [500, 400], "line_1"), keyed("line_2__t", [510, 405], "line_2")];
+    const detail = lintLayoutDetailed(ds, heuristicMeasure, [{ draw: ["line_1__t"] }, { erase: ["line_1__t"] }, { draw: ["line_2__t"] }] as never);
+    expect(detail.issues).toEqual([]);
+    expect(detail.exempt).toEqual([]);
   });
 });
 

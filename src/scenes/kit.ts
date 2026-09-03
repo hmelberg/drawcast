@@ -48,6 +48,9 @@ export interface StrokeOpts {
   strokeWidth?: number;
   dash?: boolean;
   opacity?: number;
+  /** Which mover of a moving field this belongs to — see `crossing` on
+   *  BaseDrawable (layout/model.ts). Race templates only. */
+  crossing?: string;
   /** Sketch duration ms (default SKETCH_MS.stroke). */
   ms?: number;
   /** Draw instantly instead of sketching. */
@@ -62,6 +65,9 @@ export interface TextOpts {
    *  (TextDrawable extends BaseDrawable -> style: ResolvedStyle) already
    *  carries opacity; this was the missing plumbing to set it from a template. */
   opacity?: number;
+  /** Which mover of a moving field this label belongs to — see `crossing` on
+   *  BaseDrawable (layout/model.ts). Race templates only. */
+  crossing?: string;
   /** axisLabel only, x axis only: drop a stacked caption below the row of
    *  axis end marks / category labels a data-pack chart draws under it.
    *  See axisLabelPlacement's X_CAPTION_DROP doc comment. Ignored by every
@@ -530,6 +536,7 @@ export const kit: SceneKit = {
       arrowhead: o.arrowhead,
       shapeHint: o.shapeHint,
       z: Z_STROKE,
+      ...(o.crossing !== undefined && { crossing: o.crossing }),
       style: defaultStyle({
         ...(o.color !== undefined && { color: o.color }),
         ...(o.fill !== undefined && { fill: o.fill }),
@@ -564,6 +571,7 @@ export const kit: SceneKit = {
       fontSize: o.fontSize ?? 28,
       anchor: o.anchor ?? "middle",
       z: Z_TEXT,
+      ...(o.crossing !== undefined && { crossing: o.crossing }),
       style: defaultStyle({
         ...(o.color !== undefined && { color: o.color }),
         ...(o.opacity !== undefined && { opacity: o.opacity }),
