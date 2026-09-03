@@ -4,7 +4,7 @@
 
 import { CANVAS } from "../layout/canvas";
 import { RESERVED_VARS, VAR_RE } from "../spec/answers";
-import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox } from "../layout/geometry";
+import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
@@ -161,9 +161,20 @@ export function lintLayoutDetailed(
     }
   }
 
+  // A clipped text that does not lie wholly inside its clip rectangle is not
+  // painted there — a code line beyond its window sits below the pane until
+  // the plan scrolls it in — so it can neither overlap nor be overlapped.
+  const clippedAway = (t: TextDrawable, box: BBox): boolean => {
+    const c = t.clip;
+    if (!c) return false;
+    return box.x < c.x - 1 || box.y < c.y - 1 || box.x + box.w > c.x + c.w + 1 || box.y + box.h > c.y + c.h + 1;
+  };
+
   // label–label overlap (skipped for pairs that are never on screen together)
   for (let i = 0; i < texts.length; i++) {
+    if (clippedAway(texts[i], bboxOfText(texts[i], measure))) continue;
     for (let j = i + 1; j < texts.length; j++) {
+      if (clippedAway(texts[j], bboxOfText(texts[j], measure))) continue;
       if (!coexist(texts[i].id, texts[j].id)) continue;
       const a = bboxOfText(texts[i], measure);
       const b = bboxOfText(texts[j], measure);
@@ -182,6 +193,7 @@ export function lintLayoutDetailed(
   // only a stroke crossing the label's CORE threatens legibility.
   for (const t of texts) {
     const full = bboxOfText(t, measure);
+    if (clippedAway(t, full)) continue;
     const core = { x: full.x + full.w * 0.2, y: full.y + full.h * 0.25, w: full.w * 0.6, h: full.h * 0.5 };
     for (const s of strokes) {
       if (s.id === `${t.id}_leader`) continue;
