@@ -59,6 +59,21 @@ describe("pack registration", () => {
       }
     }
   });
+
+  // Fix round 2 (re-review): layoutSpec lints a shape the body can render,
+  // but says nothing about whether that same shape validates against the
+  // template's OWN declared params_schema — the schema the compiler shows
+  // verbatim alongside the example (src/scenes/catalog.ts) and the strict
+  // data-pack gate checks a generated spec against. Nothing exercised that
+  // until now, which is exactly how the chess example's null values shipped
+  // typed against a schema that still said `number` with no `"null"`.
+  test("every manifest example validates against its own template's params schema", () => {
+    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race"]) {
+      for (const ex of scenes[tid].manifest.examples) {
+        expect(templateParamErrors(tid, ex.params), `${tid}: ${ex.request}`).toEqual([]);
+      }
+    }
+  });
 });
 
 describe("bar_chart — static data", () => {

@@ -574,10 +574,10 @@ params:
       description: "x positions: numbers (a real axis), strings (categories under the axis), or a \"{id.var}\" token. Omitted: 1, 2, 3, …"
     values:
       oneOf:
-        - { type: array, items: { type: number }, maxItems: 2000 }
-        - { type: array, minItems: 1, items: { type: array, items: { type: number }, maxItems: 2000 }, maxItems: 200 }
+        - { type: array, items: { type: [number, "null"] }, maxItems: 2000 }
+        - { type: array, minItems: 1, items: { type: array, items: { type: [number, "null"] }, maxItems: 2000 }, maxItems: 200 }
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
-      description: "One series: a list of numbers (static), a list of lists (STAGES — depth means staged; a shorter stage reveals the line prefix by prefix), or a \"{id.var}\" token."
+      description: "One series: a list of numbers (static), a list of lists (STAGES — depth means staged; a shorter stage reveals the line prefix by prefix; null marks an x position with no value yet, drawing nothing there rather than a fabricated number), or a \"{id.var}\" token."
     series:
       type: array
       maxItems: 12
@@ -587,11 +587,11 @@ params:
           name: { type: string }
           values:
             oneOf:
-              - { type: array, items: { type: number }, maxItems: 2000 }
-              - { type: array, minItems: 1, items: { type: array, items: { type: number }, maxItems: 2000 }, maxItems: 200 }
+              - { type: array, items: { type: [number, "null"] }, maxItems: 2000 }
+              - { type: array, minItems: 1, items: { type: array, items: { type: [number, "null"] }, maxItems: 2000 }, maxItems: 200 }
               - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
         required: [values]
-      description: "Several lines, each ending in its name. Use INSTEAD of values. Each series' values follow the same static/staged/token rule."
+      description: "Several lines, each ending in its name. Use INSTEAD of values. Each series' values follow the same static/staged/token rule; null marks a decade (or any x position) before that line has a value — bar_race's own convention for a racer not yet in the field — drawing nothing there instead of inventing a number."
     stage:
       type: number
       minimum: 0
