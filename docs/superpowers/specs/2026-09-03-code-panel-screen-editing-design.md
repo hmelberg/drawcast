@@ -203,3 +203,51 @@ token-fed chart updating, Continue restoring).
   script runs once per line prefix, cached), wheel scrolling while paused,
   key flashes on the laptop keyboard in time with typing, a worker for the
   light tiers.
+
+## 11. Amendment — the screen is the default and the tray is one surface (2026-09-03, Hans)
+
+Three asks after M3 was live, all shipped the same day; where they conflict
+with §5, §7 or M3's Ruling B, this section wins.
+
+1. **`frame` defaults to `screen`, not `panel`.** Code and output happen on a
+   computer, so they look like it — **output-only panels included** (Hans,
+   asked explicitly: "screen everywhere, but it should be possible to have an
+   argument to say none also"). `frame: "none"` is that way out and already
+   existed. A data-only element (`show: "none"`) draws nothing and so grows no
+   chrome. `frameSpace` already claims the 18 units around and 56 below out of
+   the same height budget, so no bundled example gained a lint issue.
+
+2. **Every script on screen is editable while paused — no verb.** The ⊕ always
+   lists it, and a **paused click on the screen itself** opens that editor: the
+   object's natural action, the affordance §7 deferred. `attachInfoCards`
+   stands aside on those ids the way it already does for the piano keys and the
+   chessboard, so a card never competes with the editor; the cursor turns to a
+   text caret over a code panel while paused. `explore: { code }` remains the
+   authored invitation — the beat that STOPS the lesson and hands over the
+   keyboard — not what makes editing possible.
+
+3. **One tray, every control.** M3's Ruling B (the editor only when the figure
+   has no sliders) is retired. The ⊕ means "what can I do here?", so it shows
+   everything at once: activity pills, sliders, and one section per script —
+   expanded when the editor is the point (the only control, the beat's own
+   `code`, or the screen the viewer clicked), folded behind its own line when it
+   shares the tray with sliders. An authored `explore` stays narrow: exactly
+   what the beat named (`params` → those sliders, `code` → that editor, both →
+   both). The rule is pure and node-tested: `trayPlan` in `ui/tray-model.ts`.
+
+   This needed one piece of machinery. `previewParams` and `previewSpec` each
+   repaint from the honest boundary and know nothing of the other, so a tray
+   holding both would have discarded the viewer's edited script the moment they
+   dragged a slider. The tray now keeps ONE preview state — slider overrides
+   plus per-element script patches — and repaints through a single call, with
+   the sliders having the last word over the re-substituted token params.
+   `settleParams()` is still the only way back.
+
+**Also fixed here, because the screen exposed it:** SVG collapses whitespace,
+so every indented Python line was drawn flush left. Mono text now carries
+`white-space: pre` (SVG2 renderers ignore the legacy `xml:space`), which
+serializes into the video export like any other style.
+
+**New bundled example** — "Five hundred flips": `show: "below"`, the notebook
+shape, with stdout and the plot above and the script typed underneath in a
+six-line scrolling window.
