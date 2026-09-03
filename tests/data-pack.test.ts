@@ -606,6 +606,149 @@ describe("line_chart", () => {
   });
 });
 
+// Task 6: line race — ticker, x_window, label_top. Verbatim tests from the
+// task brief, plus supplementary ones: the brief's own x_window test passes
+// even with NO windowing at all (index 0's numeric x already clamps to
+// plot.x0), and its label_top test only counts labels rather than checking
+// WHICH series keep theirs — both gaps the self-review step called out
+// explicitly, so the extra tests below close them.
+describe("line race", () => {
+  const many = {
+    x: Array.from({ length: 40 }, (_, i) => 1980 + i),
+    series: Array.from({ length: 8 }, (_, k) => ({
+      name: "Player " + (k + 1),
+      values: [Array.from({ length: 40 }, (_, i) => 2600 + k * 20 + i * 2)],
+    })),
+  };
+  const line = (p: object) => layoutSpec({ template: "line_chart", params: p } as Spec);
+
+  test("x_window slides: an early x is off-plot late in the race", () => {
+    const l = line({ ...many, x_window: 10, stage: 0 });
+    // Scoped to the LINE strokes, not every stroke: the x AXIS arrow itself
+    // deliberately overshoots to plot.x0 - 6 (its own arrowhead convention,
+    // same as bar_race's), which would sink a blanket "every stroke" filter
+    // below plot.x0 regardless of x_window — a pre-existing, unrelated
+    // artifact this test should not be sensitive to.
+    const xs = flattenDrawables(l.drawables)
+      .filter((d): d is StrokeDrawable => d.kind === "stroke" && /^line_\d+__l$/.test(d.id))
+      .flatMap((d) => d.pts.map((p) => p[0]));
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(plot.x0 - 1);
+    expect(l.issues.filter((i) => /overlap/i.test(i.message))).toEqual([]);
+  });
+
+  // The verbatim test above holds even with x_window doing NOTHING (numeric x
+  // already clamps its minimum to plot.x0). This proves the window actually
+  // TRACKS the current stage: the same index's screen x moves from the
+  // window's trailing edge (clamped to plot.x0) to its leading edge
+  // (plot.x1) as more of the line reveals, one stage growing the series by
+  // exactly one point at a time.
+  test("x_window's range tracks the reveal front, not a fixed span", () => {
+    const x = Array.from({ length: 20 }, (_, i) => i);
+    const grow = {
+      x,
+      series: [{ name: "Racer", values: Array.from({ length: 20 }, (_, k) => Array.from({ length: k + 1 }, (_, i) => i)) }],
+    };
+    const xOfIndex9 = (stage: number) => {
+      const l = line({ ...grow, x_window: 5, stage });
+      const s = flattenDrawables(l.drawables).find((d) => d.id === "line_1__l") as StrokeDrawable;
+      return s.pts[9][0];
+    };
+    // Stage 9: only indices 0..9 are revealed, so index 9 is the reveal front
+    // itself — the window's own leading edge, at plot.x1.
+    const atFront = xOfIndex9(9);
+    // Stage 19: the whole line (0..19) is revealed; the window is now
+    // [14, 19], so index 9 has fallen off the trailing edge and clamps to
+    // plot.x0. The SAME data point, two different screen positions — proof
+    // the window moved, not just that some points are hidden.
+    const afterItSlidPast = xOfIndex9(19);
+    expect(atFront).toBeCloseTo(plot.x1, 6);
+    expect(afterItSlidPast).toBeCloseTo(plot.x0, 6);
+  });
+
+  test("x_window larger than the data span behaves like no window at all", () => {
+    const l = line({ ...many, x_window: 1000, stage: 0 });
+    expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
+    const s = flattenDrawables(l.drawables).find((d) => d.id === "line_1__l") as StrokeDrawable;
+    expect(s.pts[0][0]).toBeCloseTo(plot.x0, 6); // the earliest point still sits at its own true position
+  });
+
+  test("label_top labels only the leaders", () => {
+    const texts = (p: object) =>
+      flattenDrawables(line(p).drawables).filter((d) => d.kind === "text" && /Player/.test((d as { text: string }).text)).length;
+    expect(texts({ ...many, label_top: 3 })).toBe(3);
+    expect(texts(many)).toBe(8);
+  });
+
+  test("label_top keeps the highest series' names, not just the count", () => {
+    const names = flattenDrawables(line({ ...many, label_top: 3 }).drawables)
+      .filter((d) => d.kind === "text" && /Player/.test((d as { text: string }).text))
+      .map((d) => (d as { text: string }).text)
+      .sort();
+    // Player 8 > Player 7 > Player 6 > … at the last plotted point (each
+    // player's own values grow with k, so the highest indices lead).
+    expect(names).toEqual(["Player 6", "Player 7", "Player 8"]);
+  });
+
+  test("label_top larger than the series count still labels everyone", () => {
+    const texts = flattenDrawables(line({ ...many, label_top: 20 }).drawables).filter((d) => d.kind === "text" && /Player/.test((d as { text: string }).text)).length;
+    expect(texts).toBe(8);
+  });
+
+  test("label_top breaks a tie by input order, deterministically", () => {
+    const tied = {
+      x: [0, 1],
+      series: [
+        { name: "First", values: [10, 50] },
+        { name: "Second", values: [20, 50] },
+      ],
+    };
+    const l = line({ ...tied, label_top: 1 });
+    const names = flattenDrawables(l.drawables).filter(
+      (d): d is TextDrawable => d.kind === "text" && (d.text === "First" || d.text === "Second"),
+    );
+    expect(names.map((d) => d.text)).toEqual(["First"]);
+  });
+
+  test("eight lines are allowed now that the cap is twelve", () => {
+    expect(templateParamErrors("line_chart", many)).toEqual([]);
+  });
+
+  test("ticker, x_window and label_top validate against the template schema", () => {
+    expect(templateParamErrors("line_chart", { ...many, ticker: ["1980", "2019"], x_window: 10, label_top: 3 })).toEqual([]);
+    expect(templateParamErrors("line_chart", { ...many, x_window: 1 }).length).toBeGreaterThan(0); // minimum: 2
+    expect(templateParamErrors("line_chart", { ...many, label_top: 0 }).length).toBeGreaterThan(0); // minimum: 1
+  });
+
+  test("the ticker shows the nearest stage's caption", () => {
+    const l = line({
+      series: [{ name: "A", values: [[1, 2], [1, 3]] }],
+      ticker: ["1990", "2000"],
+      stage: 0.6,
+    });
+    const tick = flattenDrawables(l.drawables).find((d) => d.id === "ticker") as { text: string };
+    expect(tick.text).toBe("2000");
+  });
+
+  test("the chess example lints clean at every stage it has", () => {
+    const chess = {
+      x: [1971, 1981, 1991, 2001, 2011, 2021],
+      series: [
+        { name: "Karpov", values: [[2660, 2725, 2720, 2680, 2619, 2617]] },
+        { name: "Kasparov", values: [[0, 2595, 2800, 2838, 2812, 2812]] },
+        { name: "Anand", values: [[0, 0, 2650, 2770, 2817, 2751]] },
+        { name: "Carlsen", values: [[0, 0, 0, 2690, 2815, 2847]] },
+      ],
+      label_top: 3,
+      ticker: ["1971", "1981", "1991", "2001", "2011", "2021"],
+      y_label: "Elo",
+      title: "Fifty years at the top",
+    };
+    const l = line(chess);
+    expect(l.issues).toEqual([]);
+    expect(l.warnings).toEqual([]);
+  });
+});
+
 // Task 2: slope mode. Real ids confirmed by reading the body (Step 1): a
 // series line is "line_<k>__l" and its (single-sided) end label is
 // "line_<k>__t" — both already match the brief's placeholder id lookups

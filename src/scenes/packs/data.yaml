@@ -533,7 +533,7 @@ layout: |
 ---
 template: line_chart
 title: Line chart
-version: 2
+version: 3
 kit: 5
 status: ready
 description: >-
@@ -548,11 +548,21 @@ description: >-
   before the script has run). `slope: true` switches to a slope chart —
   two labelled columns and one straight connector per series, named and
   valued at BOTH ends — for before/after, two time points, or Simpson's
-  paradox. Choose this scene for ANY request for a line chart, a trend over
-  time, a curve computed from data, two scenarios compared over time, a
-  slope chart, or "show how this develops".
-  Up to 200 stages, but a script's harvest caps at 5000 numbers — 20 series
-  × 200 stages fits, 40 × 200 does not.
+  paradox. A line race adds three more params: `ticker` writes the year
+  large and dim in the plot's corner; `x_window: n` slides a rolling window
+  over the last n x positions instead of showing the whole span; `label_top:
+  n` names only the n current leaders at their line ends, so a field with
+  more lines than a margin can name still reads cleanly. All three are
+  ignored in slope mode, which always shows exactly two columns with every
+  series already named and valued at both ends. Choose this scene for ANY
+  request for a line chart, a trend over time, a curve computed from data,
+  two scenarios compared over time, a slope chart, a line race, or "show how
+  this develops".
+  Up to 200 stages, but each series is its OWN harvest token, capped at
+  5000 numbers independently of the others — a single line fits 200 stages
+  × 25 points, 200 × 40 does not. The 12-series cap is a separate ceiling;
+  it never multiplies against a series' own harvest cap the way bar_chart's
+  single shared `values` token does.
 params:
   type: object
   properties:
@@ -620,9 +630,23 @@ params:
     x_label: { type: string }
     y_label: { type: string }
     title: { type: string }
+    ticker:
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 200 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "One caption per stage (years, say), drawn large and dimmed in the corner as the race runs. The caption never blends: a fractional stage shows the nearer stage's caption."
+    x_window:
+      type: integer
+      minimum: 2
+      description: "Show only the last N x positions, sliding as the stage advances — a rolling window instead of an ever-shrinking line. Leave it out to keep the whole span in view. Numeric x only (a categorical axis already shows every category, so this has no effect there). Ignored in slope mode, which always shows exactly its two columns."
+    label_top:
+      type: integer
+      minimum: 1
+      description: "Only the N highest lines at the current stage carry their name at the end; the rest stay drawn but unlabelled. Use it when a race has more lines than a margin can name. Ignored in slope mode, where every series is already named and valued at both ends."
 element_ids:
   axes: "the x and y axes with their captions and end values (slope: true — axes__col0/axes__col1 name the two columns instead of an x scale)"
-  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise); with slope: true it is instead the straight connector between two columns, its name and value drawn at both ends"
+  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise, unless label_top excludes it); with slope: true it is instead the straight connector between two columns, its name and value drawn at both ends"
+  ticker: "the large dimmed stage caption, when set"
   note: "the refusal note, drawn only when slope: true and a series does not have exactly two values"
   title: figure title, when set
 examples:
@@ -652,6 +676,18 @@ examples:
         - { name: "Both pooled", values: [88, 86] }
       y_label: "Survival (%)"
       title: "Each hospital improved. The average did not."
+  - request: "Race the top chess players' Elo ratings across the decades as lines."
+    params:
+      x: [1971, 1981, 1991, 2001, 2011, 2021]
+      series:
+        - { name: "Karpov", values: [[2660, 2725, 2720, 2680, 2619, 2617]] }
+        - { name: "Kasparov", values: [[0, 2595, 2800, 2838, 2812, 2812]] }
+        - { name: "Anand", values: [[0, 0, 2650, 2770, 2817, 2751]] }
+        - { name: "Carlsen", values: [[0, 0, 0, 2690, 2815, 2847]] }
+      label_top: 3
+      ticker: ["1971", "1981", "1991", "2001", "2011", "2021"]
+      y_label: "Elo"
+      title: "Fifty years at the top"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -737,7 +773,32 @@ layout: |
   if (yMax - yMin < 1e-9) yMax = yMin + 1;
   const xs = xNum ? xNum : Array.from({ length: n }, (_, i) => i + 1);
   const xlim = xNum && Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
-  let xMin = xlim ? Math.min(xlim[0], xlim[1]) : Math.min(...xs), xMax = xlim ? Math.max(xlim[0], xlim[1]) : Math.max(...xs);
+  // x_window: the "reveal front" is the highest INDEX any series currently
+  // shows a point at — the same k0/k1/t machinery "stage" already
+  // interpolates with, so a window that trails "the last N x positions"
+  // slides continuously as more of the line reveals, rather than jumping in
+  // whole-stage steps. xAt interpolates the VALUE at a fractional index (not
+  // just the index), which is what lets the window track unevenly-spaced x
+  // too; an index past either end simply clamps to that end's own value.
+  const revealCountAt = (k) => { let m = 0; for (const s of series) m = Math.max(m, s.stages[Math.min(k, s.stages.length - 1)].length); return m; };
+  const rc0 = revealCountAt(k0), rc1 = revealCountAt(k1);
+  // Named curIdx, not cur — dodgeY below already uses `cur` as a loop
+  // variable in its own scope, and a second one here would only confuse.
+  const curIdx = clamp((rc0 - 1) + ((rc1 - 1) - (rc0 - 1)) * t, 0, Math.max(0, n - 1));
+  const xAt = (idx) => {
+    const i = clamp(idx, 0, Math.max(0, n - 1));
+    const i0 = Math.floor(i), i1 = Math.min(n - 1, i0 + 1), f = i - i0;
+    return xs[i0] + (xs[i1] - xs[i0]) * f;
+  };
+  // Numeric x only (categorical spacing is by INDEX and ignores xMin/xMax
+  // entirely, so a window here would silently do nothing), and never in
+  // slope mode (no continuous x scale to window — see the slope branch
+  // below, which reads xL/xR instead of xMin/xMax and so never sees this).
+  const xWin = xNum && !slope && Number.isInteger(params.x_window) && params.x_window >= 2 ? params.x_window : null;
+  let xMin, xMax;
+  if (xlim) { xMin = Math.min(xlim[0], xlim[1]); xMax = Math.max(xlim[0], xlim[1]); }
+  else if (xWin !== null) { const a = xAt(curIdx - xWin), b = xAt(curIdx); xMin = Math.min(a, b); xMax = Math.max(a, b); }
+  else { xMin = Math.min(...xs); xMax = Math.max(...xs); }
   if (!(xMax - xMin > 1e-9)) xMax = xMin + 1;
 
   const b = params.box;
@@ -805,7 +866,12 @@ layout: |
   // reads as 0 rather than throwing. pad is how far each column sits in
   // from the plot edge — wide enough for the widest "name value" label its
   // OUTER side must hold, so a label never runs past the canvas edge or
-  // crosses into the columns.
+  // crosses into the columns. `x_window` and `label_top` do not reach here:
+  // a slope chart has exactly two columns, so a rolling window has nothing
+  // to roll over (xMin/xMax above sit unread — this branch draws from
+  // xL/xR instead), and every series is already named and valued at BOTH
+  // ends, so "only the top n" would mean picking which HALF of a name to
+  // drop — not a real reading, so label_top is simply ignored.
   const slopeValue = (s, i) => {
     const a = at(s, k0, i), c = at(s, k1, i);
     const va = a === null ? 0 : a, vc = c === null ? 0 : c;
@@ -859,7 +925,14 @@ layout: |
     const size = n > 12 ? 13 : 17;
     xCat.forEach((s, i) => axesChildren.push(kit.text("axes__c" + i, [X(i), plot.y0 - 20], s, { fontSize: size })));
   } else if (n > 0) {
-    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(xs[0]), { fontSize: 15, color: C.guide }));
+    // Finding (this round): axes__x0 defaults to a CENTRED anchor, so a wide
+    // label (a 4-digit year) straddles plot.x0 and reaches back toward
+    // axes__y0's own box in the origin corner — a near-miss the pack's
+    // earlier examples never hit (their x0 label was always a bare "0"). A
+    // START anchor keeps it clear on EVERY width, and costs nothing: this
+    // row sits below plot.y0, where no data stroke ever reaches (Y() clamps
+    // at yMin), so there is nothing else down here to collide with instead.
+    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(xs[0]), { fontSize: 15, anchor: "start", color: C.guide }));
     axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmtX(xs[n - 1]), { fontSize: 15, color: C.guide }));
   }
   axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
@@ -883,6 +956,29 @@ layout: |
     }
     push(kit.text("note", notePos, noteText, { fontSize: NOTE_SIZE, color: C.guide, anchor: "start" }));
     anchors.note = notePos;
+  }
+
+  // The clock. Same rule and id as bar_race (duplicated rather than shared —
+  // the pack's templates are independent bodies by design): ticker[round(
+  // stage)], the NEAREST stage's caption, never a blend, because text does
+  // not interpolate. A "{code.var}" ticker that has not resolved yet still
+  // DECLARES its beat — an id missing from `order` is a dropped command
+  // (src/render/plan.ts) — so it draws as nothing until the captions arrive.
+  // Placed in the plot's bottom-right corner: unlike bar_race's bars (which
+  // can end anywhere), a line's OWN end labels already live outside the
+  // plot's shrunk right edge (Finding C1 above), so there is nothing here to
+  // dodge around — bar_race's fuller version, with its clearsTicker box
+  // math, would be solving a problem this template does not have.
+  const tickerList = Array.isArray(params.ticker)
+    ? params.ticker.filter((s) => typeof s === "string" || typeof s === "number").map(String)
+    : null;
+  const tickerCap = tickerList && tickerList.length > 0
+    ? tickerList[clamp(Math.round(stage), 0, tickerList.length - 1)]
+    : (typeof params.ticker === "string" && params.ticker.trim() !== "" ? "" : null);
+  if (tickerCap !== null) {
+    const pos = [plot.x1 - 8, plot.y0 + 38];
+    push(kit.text("ticker", pos, tickerCap, { fontSize: 46, anchor: "end", color: C.guide, opacity: 0.4 }));
+    anchors.ticker = pos;
   }
 
   // A cluster of label y-positions pushed DODGE units apart, centred on the
@@ -973,7 +1069,17 @@ layout: |
     const lines = series.map((s, k) => ({ s, k, pts: pointsOf(s) }));
     // A series with no name or no points takes no slot at all in the dodge.
     const labelY = lines.map((L) => (L.pts.length ? L.pts[L.pts.length - 1][1] : plot.y0));
-    const slots = lines.map((L, k) => (L.s.name && L.pts.length ? k : -1)).filter((k) => k >= 0);
+    let slots = lines.map((L, k) => (L.s.name && L.pts.length ? k : -1)).filter((k) => k >= 0);
+    // label_top: keep only the N series highest at their OWN last plotted
+    // point — ranked by labelY, the same screen y the dodge below reads, so
+    // "highest" means exactly what the chart already shows as highest, clamp
+    // and all. Ties break by input order (ascending k), a stable, repeatable
+    // pick echoing bar_race's own tie rule. The excluded series still draw
+    // their line — only their name is dropped — and take no slot in the
+    // dodge, so the survivors spread using only the room THEY need.
+    const labelTop = Number.isInteger(params.label_top) && params.label_top >= 1 ? params.label_top : null;
+    if (labelTop !== null) slots = slots.slice().sort((a, b) => (labelY[b] - labelY[a]) || (a - b)).slice(0, labelTop);
+    const labelled = new Set(slots);
     const dodgedSlots = dodgeY(slots.map((k) => labelY[k]));
     const dodged = labelY.slice();
     slots.forEach((k, i) => { dodged[k] = dodgedSlots[i]; });
@@ -987,7 +1093,7 @@ layout: |
       else if (pts.length === 1) children.push(kit.stroke(id + "__l", [pts[0], [pts[0][0] + 0.01, pts[0][1]]], { color, strokeWidth: 4, ms: MS.curve }));
       else children.push(kit.stroke(id + "__l", [], { color, strokeWidth: 4, ms: MS.curve }));
       if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })));
-      if (L.s.name && pts.length) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color }));
+      if (L.s.name && pts.length && labelled.has(k)) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color }));
       push(kit.group(id, children));
       anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
     });
