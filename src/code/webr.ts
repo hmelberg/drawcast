@@ -81,10 +81,16 @@ function boot(): Promise<WebRInstance> {
     } catch {
       throw unavailable("could not load the R runtime (offline?)");
     }
-    const webR = new mod.WebR({ baseUrl: WEBR_BASE });
-    await webR.init();
-    await webR.evalRVoid(R_BOOT);
-    return webR;
+    // Everything up to a working R is the runtime's problem, never the
+    // script's: the 12 MB R.wasm, the filesystem image, the boot script.
+    try {
+      const webR = new mod.WebR({ baseUrl: WEBR_BASE });
+      await webR.init();
+      await webR.evalRVoid(R_BOOT);
+      return webR;
+    } catch (err) {
+      throw unavailable(`the R runtime could not start: ${(err as Error).message}`);
+    }
   })();
   // A failed boot must not poison every later run: clear so the next render retries.
   bootPromise.catch(() => {
@@ -98,9 +104,15 @@ async function ensurePackages(webR: WebRInstance, pkgs: string[], status: Status
   if (missing.length === 0) return;
   status("loading", `Installing ${missing.join(", ")}…`);
   // A package the repo lacks must not sink the run: the script's own
-  // library() call then raises the honest R error the panel shows.
-  await webR.installPackages(missing, { quiet: true }).catch(() => undefined);
-  for (const p of missing) installed.add(p);
+  // library() call then raises the honest R error the panel shows. Only a
+  // SUCCESSFUL install is memoized — a CDN hiccup must retry on the next
+  // run, not poison every later jsonlite/pkg:: use in this page.
+  try {
+    await webR.installPackages(missing, { quiet: true });
+    for (const p of missing) installed.add(p);
+  } catch {
+    /* retried next run */
+  }
 }
 
 function textOf(entries: { type: string; data: unknown }[], type: string): string {
@@ -120,7 +132,8 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   // never pays for it.
   if (paths.length > 0 && !pkgs.includes("jsonlite")) pkgs.push("jsonlite");
   await ensurePackages(webR, pkgs, status);
-  status("running", "Running…");
+  // The data harvest runs inside the same captureR call as the script.
+  status("running", paths.length > 0 ? "Running and reading data…" : "Running…");
   const shelter = await new webR.Shelter();
   try {
     const captured = await shelter.captureR(R_WRAPPER, {
@@ -139,13 +152,13 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
     const stdout = textOf(captured.output, "stdout").replace(/\n$/, "");
     const stderrParts = [textOf(captured.output, "stderr").trim(), rWarn.trim()].filter((s) => s !== "");
     const error = rError !== "" ? rError : undefined;
-    const figures = error
-      ? []
-      : captured.images.map((img) => {
-          const fig = bitmapToFigure(img);
-          img.close();
-          return fig;
-        });
+    const figures = captured.images.map((img) => {
+      // Encoded even on error (then dropped): a bitmap is GPU memory until
+      // close(), and the error path must release it too.
+      const fig = error ? null : bitmapToFigure(img);
+      img.close();
+      return fig;
+    }).filter((f): f is NonNullable<typeof f> => f !== null);
     let tables: CodeTable[] = [];
     if (!error && tableJson !== "") {
       try {
@@ -157,7 +170,6 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
     let data: Record<string, unknown> | undefined;
     let dataErrors: Record<string, string> | undefined;
     if (!error && paths.length > 0) {
-      status("running", "Reading data…");
       if (dataJson === "") {
         dataErrors = Object.fromEntries(paths.map((p) => [p, "harvest failed: jsonlite did not load"]));
       } else {

@@ -14,7 +14,7 @@
 # JS-facing functions (every argument and return is a str):
 #   _register_module(name, source) -> '' or a traceback
 #   _alias_module(alias, canonical) -> '' or a message
-#   _run(code, paths_json) -> json {stdout, error, table, figures, data, errors}
+#   _run(code, paths_json) -> json {stdout, stderr, error, table, figures, data, errors}
 import sys, json
 from io import StringIO
 
@@ -258,10 +258,13 @@ def _run(code, paths_json):
         mpl._show = _show
         mpl._reset()
     buf = StringIO()
+    ebuf = StringIO()
     old = sys.stdout
+    olde = sys.stderr
     captured = True
     try:
         sys.stdout = buf
+        sys.stderr = ebuf
     except Exception:
         captured = False                          # MicroPython: engine buffers
     error = ''
@@ -289,8 +292,14 @@ def _run(code, paths_json):
         if captured:
             try:
                 sys.stdout = old
+                sys.stderr = olde
             except Exception:
                 pass
+        else:
+            # MicroPython flushes a stdout line only on its newline: a partial
+            # last line (print(x, end="")) would otherwise surface as the
+            # NEXT run's first line — and be cached under the wrong script.
+            print()
     if not error:
         if mpl is not None and (mpl._state['traces'] or mpl._state['layout']):
             figures.append(mpl.gcf().to_plotly_json_str())
@@ -303,7 +312,8 @@ def _run(code, paths_json):
                     figures.append(v.to_plotly_json_str())
                 except Exception:
                     pass
-    env = {'stdout': buf.getvalue() if captured else '', 'error': error, 'table': table, 'figures': figures}
+    env = {'stdout': buf.getvalue() if captured else '', 'stderr': ebuf.getvalue() if captured else '',
+           'error': error, 'table': table, 'figures': figures}
     if not error and paths:
         h = _harvest_data(g, paths)
         env['data'] = h['data']

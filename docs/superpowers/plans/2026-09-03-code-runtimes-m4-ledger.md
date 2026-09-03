@@ -38,6 +38,25 @@ Console: nothing.
 
 `npm test` 3571 green (197 files), `tsc` clean, both builds clean (`micropython-*.js` chunk 1.9 kB in each; `not-yet.ts` gone).
 
+## Final review of the whole round (2fb3b38..454de68) — fix wave
+
+Dispatched to an independent reviewer (general-purpose, read-only) over all 22 commits with the spec; it verified claims with tsc, the suite, the real `R_WRAPPER` under Rscript, the pinned `micropython.mjs` source and the published pylib URL. Verdict: fix-first on three bugs; architecture, isolation, injection hygiene and never-cache-failures hold.
+
+Fixed (one commit after 454de68):
+
+- **A (bug)** `webr.ts` memoized a FAILED package install for the page's lifetime, so one CDN hiccup on `jsonlite` broke every later tokened R run. Now only a successful install is memoized.
+- **B (bug)** the R wrapper's "harvest failed: jsonlite did not load" branch was unreachable: `jsonlite::unbox` in the error path and `toJSON` ran outside any handler, so a missing jsonlite halted R and read as a script error (a repair round for an infrastructure failure). Now guarded by `requireNamespace("jsonlite", quietly = TRUE)`; proven locally with `requireNamespace` shadowed to FALSE → `data_json` empty, run still ok.
+- **C (bug, cache poisoning)** MicroPython flushes a stdout line only on its newline, so `print(x, end="")` surfaced as the NEXT run's first line — and that envelope was cached under the wrong script. The runner now ends an uncaptured run with a bare `print()`; verified live: "partial" then "second", no bleed.
+- **D/E (risk)** every boot stage (R.wasm + init + boot script; Brython's `brython()` + runner compile; MicroPython's wasm + runner) and every vendored-library fetch/compile now throw `runtimeUnavailable`, so the authoring check warns instead of burning a repair round on our infrastructure.
+- **F (latent)** `resolvePylib` accepts a 200 only when the body is the runner (`def _run(`), so an SPA host's index.html fallback cannot be memoized as the base.
+- **G/H/I (nits)** other control characters in R table cells → space (a raw `\001` used to drop the whole table at `JSON.parse`); an unknown `language` returns an honest envelope from the facade; ImageBitmaps are closed on the R error path too.
+- **stderr for the dialects** (spec §1 said "stdout and stderr"; the dialects hard-coded `""`): the runner captures `sys.stderr` (Brython: `warnings.warn` and `sys.stderr.write` verified live), MicroPython wires the engine's `stderr` callback, the envelope carries `stderr`.
+- **Drift**: the prompt's own data-bridge example now uses `brython` (it was the very pandas-only script the policy says to write in Brython); comments in `run.ts`, `check.ts`, `pyodide.ts`, `serial.ts`, `brython.ts` (the watchdog does NOT preempt a synchronous infinite loop — say so) and the test header; the spec's §5.1/§5.4/§5.5/§6.2 now describe what was built (rulings B and E, the base-R table serializer, the probe order); `scripts/pylib-sanity.py` reads `PYLIB_VERSION` from `languages.ts`; the cache-tag test's dot-escaping regex was `/\\./` (backslash + any) — now `/\./`; a test that every registry `deps` entry is a key.
+
+Not done from the review (recorded): `test.skipIf(!Rscript)`/`python3` harness tests in vitest (the local harnesses exist as scripts; wiring them into the suite is a follow-up); the webr.mjs jsdelivr fallback URL; excluding recommended R packages from the pre-scan (harmless install call).
+
+Re-verified after the wave: `npm test` 3576 green, tsc clean, both builds clean; live: MicroPython partial-line isolation, Brython stderr, R tokens through jsonlite, pyodide, and the unknown-language envelope.
+
 ## Notes for later
 
 - MicroPython's `json.dumps` and float repr differ from CPython in places (openstat's notes); nothing bit the smoke.

@@ -97,7 +97,12 @@ export function resolvePylib(): Promise<{ base: string; runner: string }> {
     for (const base of candidates) {
       try {
         const r = await fetch(base + "drawcast_runner.py");
-        if (r.ok) return { base, runner: await r.text() };
+        // A host with an SPA fallback answers 200 with its index.html for
+        // any path — only a body that is the runner counts.
+        if (r.ok) {
+          const text = await r.text();
+          if (text.includes("def _run(")) return { base, runner: text };
+        }
       } catch {
         /* next candidate */
       }

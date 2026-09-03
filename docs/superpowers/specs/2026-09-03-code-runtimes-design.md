@@ -186,8 +186,10 @@ template by implementing that one function.
   plotly, svglite all present).
 - Before each run, a pre-scan installs what the shim cannot see and gives
   the status pill something to say: `library(x)`, `require(x)`,
-  `requireNamespace("x")` and `x::` → `webR.installPackages([...])`, base and
-  recommended package names excluded. "Installing ggplot2…" while it runs.
+  `requireNamespace("x")` and `x::` → `webR.installPackages([...])`, base
+  package names excluded (recommended ones such as MASS are not: the
+  install is a cheap no-op when present). "Installing ggplot2…" while it
+  runs. Only a successful install is memoized for the page.
 
 ### 5.2 Run wrapper — console semantics, trailing value
 
@@ -240,12 +242,12 @@ arrives as one `ImageBitmap` in `images`, in order, so `figures: K`
 stage-beats work unchanged (one `plot()` or printed ggplot per stage).
 `png.ts` turns each bitmap into a PNG data URI with its pixel dimensions.
 
-Target size ≈ 1400 × 900 px at 2× so the export stays crisp beside
-matplotlib's dpi-110 output. The canvas device takes width, height,
-pointsize and bg; the first live smoke picks the combination where base and
-ggplot2 text read at the same apparent size as the Python plots (ggplot2's
-theme sizes do not follow pointsize, so the answer may be "render at 1× and
-let layout scale"). Whatever the smoke settles on is pinned in `webr.ts`.
+Settled by the M2 smoke (ledger Ruling E): the canvas device is 1000 × 640
+at pointsize 20 (the device returns bitmaps at 2×, 2000 × 1280), and a
+`packageEvent("ggplot2", "onLoad")` hook sets `theme_gray(base_size = 24)`
+so ggplot2's grid text matches base graphics; a script's own `theme_set()`
+still wins. At these values the text reads like matplotlib's dpi-110 output
+once fitted into the pane.
 
 ### 5.5 Tables
 
@@ -253,8 +255,9 @@ If `.__table` is set: columns as `names()`, at most 30 rows, cells
 stringified in R — numbers via `format(col, digits = getOption("digits"),
 trim = TRUE)` so they match what `print(df)` shows, factors and dates via
 `as.character`, `NA` → empty string — and `truncated` = rows beyond the cap.
-Serialized with `jsonlite::toJSON`, which is installed on first need only
-(a script that just prints never pays for it).
+Serialized in base R (a ten-line JSON string encoder in the wrapper: cells
+are strings, so no package is needed) — a script that prints or ends in a
+frame never pays for jsonlite; only the data bridge does.
 
 ### 5.6 Data bridge (`harvest-r.ts`)
 
@@ -338,13 +341,16 @@ emulation (a dotted alias needs its parent registered first). Libraries
 load lazily by `fetch` + the runner's `_register_module(name, source)` /
 `_alias_module(alias, name)`, once per page.
 
-Hosting: `PYLIB_BASE` defaults to
-`https://hmelberg.github.io/drawcast/pylib/<PYLIB_VERSION>/` (versioned path,
-so a bump never serves a stale cached file); the app's `index.html` sets
-`window.DRAWCAST_PYLIB_BASE` to its own relative `pylib/…` so app builds
-(Pages, Netlify, `vite dev`) serve their own copy. The engine build has
-`publicDir: false`, so the vendored engine in xplainer fetches from the
-default absolute URL and needs nothing shipped.
+Hosting (as built — M3 ledger Ruling B): `resolvePylib()` probes candidates
+in order — an explicit `window.DRAWCAST_PYLIB_BASE`, the page's own
+`pylib/<PYLIB_VERSION>/` (dev server, Pages, Netlify all serve `public/`),
+then `https://hmelberg.github.io/drawcast/pylib/<PYLIB_VERSION>/` — and the
+first whose `drawcast_runner.py` actually is the runner wins (an SPA host
+answering 200 with its index.html is skipped). Memoized; a failure clears
+it. The engine build has `publicDir: false`, so the engine vendored into
+xplainer falls through to the published origin after one 404 and needs
+nothing shipped. The versioned path means a snapshot bump never serves a
+stale cached file.
 
 ### 6.3 One runner source (`drawcast_runner.py`)
 

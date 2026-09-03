@@ -131,7 +131,8 @@ function execWrapper(code: string): string {
 
 /** Harvest plotly figures: any plotly Figure left in a variable by the run
  *  (the wrapper's __g namespace survives between runPythonAsync calls) comes
- *  back as its to_json() — rendered to a static PNG by plotly.js below. */
+ *  back as its to_json() — rendered to a static PNG by the shared plotly
+ *  renderer (./plotly-render). */
 const PLOTLY_HARVEST = `
 import json as __json
 __pl = []

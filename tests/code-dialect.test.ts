@@ -1,6 +1,6 @@
-// The Python-dialect seam (Brython now, MicroPython next): the shared run
-// queue, the runner script's contract as text, the vendored-library
-// registry, and the envelope the runner returns. No WASM, no network — the
+// The Python-dialect seam (Brython and MicroPython): the shared run queue,
+// the runner script's contract as text, the vendored-library registry, and
+// the envelope the runner returns. No WASM, no network — the
 // runner itself is exercised by scripts/pylib-sanity.py (local CPython) and
 // the browser smoke.
 
@@ -100,6 +100,13 @@ describe("pylib registry — which vendored modules a script needs", () => {
   test("an unknown import is not the registry's business (the script's own ModuleNotFoundError is)", () => {
     expect(libsFor("import sklearn\nimport json", BRYTHON_LIBS)).toEqual([]);
   });
+  test("every dependency names a registry key (a typo would throw inside libsFor)", () => {
+    for (const libs of [BRYTHON_LIBS, MICROPYTHON_LIBS]) {
+      for (const [name, lib] of Object.entries(libs)) {
+        for (const d of lib.deps) expect(libs[d], `${name} depends on ${d}`).toBeDefined();
+      }
+    }
+  });
   test("every dotted alias follows its parent, so dotted aliases can register", () => {
     for (const lib of Object.values(BRYTHON_LIBS)) {
       for (const a of lib.aliases) {
@@ -148,9 +155,14 @@ describe("dialect envelope → CodeRunResult", () => {
     expect(bad.ok).toBe(false);
     expect(bad.error).toContain("ZeroDivisionError");
   });
-  test("an engine-side stdout buffer replaces an uncaptured envelope stdout", async () => {
+  test("engine-side stdout/stderr buffers replace uncaptured envelope streams; a captured stderr passes through", async () => {
     const env = parseRunnerEnvelope(JSON.stringify({ stdout: "", error: "", table: null, figures: [] }))!;
-    expect((await envelopeToResult(env, { paths: [], stdout: "from js\n", status: () => undefined })).stdout).toBe("from js");
+    expect(env.stderr).toBe("");
+    const res = await envelopeToResult(env, { paths: [], stdout: "from js\n", stderr: "warned\n", status: () => undefined });
+    expect(res.stdout).toBe("from js");
+    expect(res.stderr).toBe("warned");
+    const captured = parseRunnerEnvelope(JSON.stringify({ stdout: "x\n", stderr: "UserWarning: careful\n", error: "", table: null, figures: [] }))!;
+    expect((await envelopeToResult(captured, { paths: [], status: () => undefined })).stderr).toBe("UserWarning: careful");
   });
   test("junk is rejected", () => {
     expect(parseRunnerEnvelope("nope")).toBeNull();

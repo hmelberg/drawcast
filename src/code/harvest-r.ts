@@ -110,6 +110,7 @@ if (!is.null(.__exprs)) withCallingHandlers(
   s <- gsub("\n", "\\n", s, fixed = TRUE)
   s <- gsub("\r", "\\r", s, fixed = TRUE)
   s <- gsub("\t", "\\t", s, fixed = TRUE)
+  s <- gsub("[[:cntrl:]]", " ", s)
   paste0("\"", s, "\"")
 }
 .__cell <- function(col) {
@@ -129,7 +130,9 @@ if (.__err == "" && !is.null(.__table)) {
     "],\"rows\":[", paste(rows, collapse = ","), "],\"truncated\":", max(0L, n - cap), "}")
 }
 .__paths <- if (nzchar(.__paths)) strsplit(.__paths, "\n", fixed = TRUE)[[1]] else character(0)
-if (.__err == "" && length(.__paths) > 0) {
+# No jsonlite (its install failed) leaves .__data_json empty: the TS side
+# reports every path as "harvest failed" and the run itself still stands.
+if (.__err == "" && length(.__paths) > 0 && requireNamespace("jsonlite", quietly = TRUE)) {
   .__CAP_N <- ${R_DATA_CAP_NUMBERS}L
   .__CAP_ROWS <- ${R_DATA_CAP_ROWS}L
   .__count <- function(x) {

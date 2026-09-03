@@ -10,6 +10,9 @@ export type StatusFn = (phase: "loading" | "running", detail: string) => void;
 
 export interface RunnerEnvelope {
   stdout: string;
+  /** Captured sys.stderr (warnings.warn, sys.stderr.write); '' when the
+   *  dialect could not capture it. */
+  stderr: string;
   error: string;
   table: CodeTable | null;
   figures: string[];
@@ -25,6 +28,7 @@ export function parseRunnerEnvelope(raw: unknown): RunnerEnvelope | null {
     if (typeof p.stdout !== "string" || typeof p.error !== "string" || !Array.isArray(p.figures)) return null;
     return {
       stdout: p.stdout,
+      stderr: typeof p.stderr === "string" ? p.stderr : "",
       error: p.error,
       table: p.table && typeof p.table === "object" ? (p.table as CodeTable) : null,
       figures: p.figures.filter((f): f is string => typeof f === "string"),
@@ -39,14 +43,15 @@ export function parseRunnerEnvelope(raw: unknown): RunnerEnvelope | null {
   }
 }
 
-/** `stdout` overrides the envelope's when the dialect could not capture it
- *  (MicroPython: the engine's own line buffer). */
+/** `stdout`/`stderr` override the envelope's when the dialect could not
+ *  capture them (MicroPython: the engine's own line buffers). */
 export async function envelopeToResult(
   env: RunnerEnvelope,
-  opts: { paths: string[]; stdout?: string; status: StatusFn },
+  opts: { paths: string[]; stdout?: string; stderr?: string; status: StatusFn },
 ): Promise<CodeRunResult> {
   const error = env.error !== "" ? env.error : undefined;
   const stdout = (opts.stdout ?? env.stdout).replace(/\n$/, "");
+  const stderr = (opts.stderr ?? env.stderr).replace(/\n$/, "");
   let figures: CodeRunResult["figures"] = [];
   if (!error && env.figures.length > 0) {
     opts.status("running", "Rendering charts…");
@@ -60,7 +65,7 @@ export async function envelopeToResult(
   return {
     ok: !error,
     stdout,
-    stderr: "",
+    stderr,
     figures,
     tables: !error && env.table ? [env.table] : [],
     error,

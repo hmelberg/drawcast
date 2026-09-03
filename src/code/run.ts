@@ -1,17 +1,20 @@
 // Code execution facade: one narrow envelope between the drawcast spec and
 // whatever runtime actually runs the script. Runtime modules (pyodide.ts,
-// later webr.ts) are reached ONLY via dynamic import, so a spec without a
-// code element never loads a byte of them; tests inject a fake runner.
+// webr.ts, brython.ts, micropython.ts) are reached ONLY via dynamic import,
+// so a spec without a code element never loads a byte of them; tests inject
+// a fake runner.
 //
-// Results are cached in IndexedDB (the portrait/source store) keyed by
-// language + pinned runtime version + a hash of the code, so a script
-// executes once per browser — replays, scrubs and re-renders hit the cache.
-// Failures come back as envelopes, never thrown, and are never cached: an
-// offline or transient CDN failure must retry on the next render.
+// Results are cached in IndexedDB (the portrait/source store) keyed by the
+// language's cache tag (pinned runtime version, and for the dialects the
+// vendored library snapshot) + a hash of the code + the requested data
+// paths, so a script executes once per browser — replays, scrubs and
+// re-renders hit the cache. Failures come back as envelopes, never thrown,
+// and are never cached: an offline or transient CDN failure must retry on
+// the next render.
 
 import { cacheGet, cachePut } from "../render/portrait";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
-import { RUNTIME_VERSION, cacheTag, type Language } from "./languages";
+import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./languages";
 
 // Envelope shape lives in ./envelope (dependency-free — layout imports it
 // directly from there); re-exported here so every existing
@@ -72,6 +75,11 @@ const RUNTIMES: Record<Language, () => Promise<RuntimeModule>> = {
 };
 
 async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
+  // An unvalidated spec can carry any string here; an honest envelope beats
+  // a "the undefined runtime could not load" warning.
+  if (!isLanguage(req.language)) {
+    return { ok: false, stdout: "", stderr: "", figures: [], error: `unknown language "${String(req.language)}"` };
+  }
   let mod: RuntimeModule;
   try {
     mod = await RUNTIMES[req.language]();

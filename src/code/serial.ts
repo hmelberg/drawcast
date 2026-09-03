@@ -5,8 +5,10 @@
 // run returns early to its caller, but the next run still waits until the
 // abandoned execution actually finishes — otherwise its late output would be
 // misattributed into the next run's buffers (no runtime here can interrupt:
-// pyodide and webR would need COOP/COEP headers, Brython runs on the page's
-// own thread).
+// pyodide and webR would need COOP/COEP headers, Brython and MicroPython run
+// on the page's own thread). The watchdog covers async waits — downloads,
+// library fetches, a worker that never answers; a synchronous infinite loop
+// on the main thread cannot be preempted and hangs the tab.
 import type { CodeRunResult } from "./envelope";
 
 export const RUN_TIMEOUT_MS = 180_000;

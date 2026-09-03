@@ -3,9 +3,13 @@
 # developer check before the browser smoke:
 #   python3 scripts/pylib-sanity.py          # the Brython set
 #   python3 scripts/pylib-sanity.py --mpy    # the MicroPython set
-import json, os, sys
+import json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.join(HERE, '..', 'public', 'pylib', '2026-09-03')
+# The snapshot version lives in one place (src/code/languages.ts); read it
+# rather than duplicate it.
+_LANG = open(os.path.join(HERE, '..', 'src', 'code', 'languages.ts')).read()
+PYLIB_VERSION = re.search(r'PYLIB_VERSION = "([^"]+)"', _LANG).group(1)
+ROOT = os.path.join(HERE, '..', 'public', 'pylib', PYLIB_VERSION)
 MPY = '--mpy' in sys.argv
 SUB = 'micropython' if MPY else 'brython'
 LIBS = ([('pandas_mpy', ['pandas']), ('plotly_express_mpy', ['plotly', 'plotly.express'])] if MPY else

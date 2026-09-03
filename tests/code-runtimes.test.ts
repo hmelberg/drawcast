@@ -34,8 +34,8 @@ describe("languages — one declaration", () => {
   test("cache tags pin each runtime's version; the dialects also pin the library snapshot", () => {
     expect(cacheTag("python")).toBe(`py${RUNTIME_VERSION.python}`);
     expect(cacheTag("r")).toBe(`r${RUNTIME_VERSION.r}`);
-    expect(cacheTag("brython")).toMatch(new RegExp(`^bry${RUNTIME_VERSION.brython.replace(/\\./g, "\\\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
-    expect(cacheTag("micropython")).toMatch(new RegExp(`^mpy${RUNTIME_VERSION.micropython.replace(/\\./g, "\\\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
+    expect(cacheTag("brython")).toMatch(new RegExp(`^bry${RUNTIME_VERSION.brython.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
+    expect(cacheTag("micropython")).toMatch(new RegExp(`^mpy${RUNTIME_VERSION.micropython.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
     const keys = new Set(LANGUAGES.map((l) => codeCacheKey({ language: l, code: "1" })));
     expect(keys.size).toBe(LANGUAGES.length);
   });

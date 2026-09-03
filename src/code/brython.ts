@@ -2,7 +2,9 @@
 // runner compiled once with __BRYTHON__.runPythonSource, vendored libraries
 // registered lazily per script through the runner's _register_module.
 // Brython transpiles Python to JavaScript, so a script runs in the page's
-// own thread — no worker, no interrupt; the RunQueue watchdog is the guard.
+// own thread — no worker, no interrupt. The RunQueue watchdog covers the
+// async waits (downloads, library fetches); a synchronous infinite loop in
+// a script hangs the tab, exactly as pyodide on the main thread would.
 //
 // Reached ONLY via dynamic import from run.ts.
 //
@@ -67,9 +69,13 @@ function boot(): Promise<Booted> {
     const { base, runner } = await resolvePylib().catch((e: Error) => {
       throw unavailable(e.message);
     });
-    w.brython!();
-    const mod = w.__BRYTHON__!.runPythonSource(runner, "drawcast_runner");
-    return { mod, base };
+    try {
+      w.brython!();
+      const mod = withAlertMuted(() => w.__BRYTHON__!.runPythonSource(runner, "drawcast_runner"));
+      return { mod, base };
+    } catch (err) {
+      throw unavailable(`the Brython runtime could not start: ${(err as Error).message}`);
+    }
   })();
   // A failed boot must not poison every later run: clear so the next render retries.
   bootPromise.catch(() => {
@@ -98,12 +104,19 @@ async function ensureLibs(b: Booted, names: string[], status: StatusFn): Promise
     if (registered.has(name)) continue;
     const lib = BRYTHON_LIBS[name];
     status("loading", `Loading ${lib.aliases[0] ?? name}…`);
-    const source = await fetchLib(b.base, lib.file);
+    // Our vendored file failing to arrive or to compile is never the
+    // script's fault: tagged unavailable so the check warns, not errors.
+    let source: string;
+    try {
+      source = await fetchLib(b.base, lib.file);
+    } catch (err) {
+      throw unavailable(`could not fetch the ${name} library: ${(err as Error).message}`);
+    }
     const err = withAlertMuted(() => b.mod._register_module(name, source));
-    if (err) throw new Error(`could not load ${name}: ${err}`);
+    if (err) throw unavailable(`could not load ${name}: ${err}`);
     for (const alias of lib.aliases) {
       const aerr = b.mod._alias_module(alias, name);
-      if (aerr) throw new Error(`could not alias ${alias}: ${aerr}`);
+      if (aerr) throw unavailable(`could not alias ${alias}: ${aerr}`);
     }
     registered.add(name);
   }

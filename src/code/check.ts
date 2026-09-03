@@ -1,7 +1,7 @@
-// Authoring-time execution check: actually RUN each python code element the
-// model wrote and turn failures into validation errors the existing repair
-// round fixes — AI-written code that errors gets repaired before the author
-// ever sees it. The runner is injected (node tests use fakes); generation
+// Authoring-time execution check: actually RUN each code element the model
+// wrote — whatever its language — and turn failures into validation errors
+// the existing repair round fixes, so AI-written code that errors gets
+// repaired before the author ever sees it. The runner is injected (node tests use fakes); generation
 // passes the real runCode, which also warms the IndexedDB result cache the
 // first render will then hit.
 
