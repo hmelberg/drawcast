@@ -10995,5 +10995,709 @@
        }
      ]
    }
+ },
+ {
+  "request": "Race eight simulated funds with identical expected returns over twenty years, standing the bars up as columns",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Eight funds. Identical odds.",
+   "template": "bar_race",
+   "params": {
+    "labels": [
+     "Alfa",
+     "Bravo",
+     "Ceres",
+     "Delta",
+     "Eos",
+     "Fenrir",
+     "Gaia",
+     "Hydra"
+    ],
+    "values": "{sim.rows}",
+    "ticker": [
+     "2005",
+     "2006",
+     "2007",
+     "2008",
+     "2009",
+     "2010",
+     "2011",
+     "2012",
+     "2013",
+     "2014",
+     "2015",
+     "2016",
+     "2017",
+     "2018",
+     "2019",
+     "2020",
+     "2021",
+     "2022",
+     "2023",
+     "2024",
+     "2025"
+    ],
+    "stage": 0,
+    "top_n": 5,
+    "orientation": "vertical",
+    "decimals": 0,
+    "x_label": "Value of 100 invested in 2005",
+    "title": "Eight funds. Identical odds."
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import random\nrng = random.Random(20260903)\nlevel, rows = [100.0] * 8, []\nfor year in range(21):\n    rows.append([round(v) for v in level])\n    level = [v * (1 + rng.uniform(-0.15, 0.25)) for v in level]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes", "ticker"],
+     "parallel": true,
+     "speak": "Two thousand and five. Eight funds, every one of them starting at a hundred kroner."
+    },
+    {
+     "draw": ["race_1", "race_2", "race_3", "race_4", "race_5", "race_6", "race_7", "race_8"],
+     "parallel": true,
+     "speak": "A seeded script gives each fund a return every year, drawn from exactly the same range as all the others. Nothing tells them apart but luck."
+    },
+    {
+     "draw": ["title"],
+     "speak": "Only the top five stand on the board. Watch which five."
+    },
+    {
+     "animate": {
+      "stage": 5
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Five years in, Delta leads on a hundred and fifty-one against Alfa's hundred and twenty-six. It has done nothing different."
+    },
+    {
+     "animate": {
+      "stage": 10
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "By 2015 Delta has slipped to fourth and Alfa is ahead on two hundred and six. The board keeps turning over."
+    },
+    {
+     "animate": {
+      "stage": 15
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Two thousand and twenty: Alfa three hundred and twelve, Eos two hundred and ninety-one — and Ceres, which led in 2006, has dropped off the board entirely."
+    },
+    {
+     "animate": {
+      "stage": 20
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "At the end Eos has three hundred and eighty-eight and Fenrir, which never once led, has a hundred and thirty-four."
+    },
+    {
+     "highlight": {
+      "target": [
+       "race_5"
+      ]
+     },
+     "speak": "Five different funds held the top row at some point, and it changed hands ten times. There is no best fund here. The winner is the noise."
+    }
+   ]
+  }
+ },
+ {
+  "request": "A bar chart race with twenty simulated players but only eight places on the scoreboard",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Twenty players. Eight places.",
+   "template": "bar_race",
+   "params": {
+    "labels": [
+     "Ada",
+     "Bo",
+     "Cato",
+     "Dina",
+     "Edda",
+     "Finn",
+     "Gro",
+     "Hakon",
+     "Iver",
+     "Jo",
+     "Kari",
+     "Leif",
+     "Mira",
+     "Nils",
+     "Oda",
+     "Pia",
+     "Rune",
+     "Siri",
+     "Tor",
+     "Vera"
+    ],
+    "values": "{sim.rows}",
+    "ticker": [
+     "Round 1",
+     "Round 2",
+     "Round 3",
+     "Round 4",
+     "Round 5",
+     "Round 6",
+     "Round 7",
+     "Round 8",
+     "Round 9",
+     "Round 10",
+     "Round 11",
+     "Round 12",
+     "Round 13",
+     "Round 14",
+     "Round 15",
+     "Round 16"
+    ],
+    "stage": 0,
+    "top_n": 8,
+    "decimals": 0,
+    "x_label": "Points",
+    "title": "Twenty players. Eight places."
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import random\nrng = random.Random(2026)\nskill = [rng.randrange(2, 9) for _ in range(20)]\ntotal, rows = [0] * 20, []\nfor r in range(16):\n    for i in range(20):\n        total[i] += rng.randrange(1, skill[i] + 4)\n    rows.append(list(total))"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes", "ticker"],
+     "parallel": true,
+     "speak": "Twenty players in a simulated tournament. A seeded script draws each one a scoring range once, then adds points round by round."
+    },
+    {
+     "draw": [
+      "race_1",
+      "race_2",
+      "race_3",
+      "race_4",
+      "race_5",
+      "race_6",
+      "race_7",
+      "race_8",
+      "race_9",
+      "race_10",
+      "race_11",
+      "race_12",
+      "race_13",
+      "race_14",
+      "race_15",
+      "race_16",
+      "race_17",
+      "race_18",
+      "race_19",
+      "race_20"
+     ],
+     "parallel": true,
+     "speak": "Round one. Mira leads on eleven — and twelve of the twenty are already off the board."
+    },
+    {
+     "draw": ["title"],
+     "speak": "The board holds eight. The other twelve wait in the strip below it, sliding in as they climb."
+    },
+    {
+     "animate": {
+      "stage": 3
+     },
+     "easing": "linear",
+     "duration": 3.5,
+     "speak": "By round four Jo is ahead on thirty-four, and Cato — nowhere in round one — has slid in at the bottom."
+    },
+    {
+     "animate": {
+      "stage": 7
+     },
+     "easing": "linear",
+     "duration": 3.5,
+     "speak": "Round eight: Mira again, on sixty-nine, with Tor arriving from below and Vera falling out."
+    },
+    {
+     "animate": {
+      "stage": 11
+     },
+     "easing": "linear",
+     "duration": 3.5,
+     "speak": "Round twelve, and Leif has gone too — both of them were on the board in round one."
+    },
+    {
+     "animate": {
+      "stage": 15
+     },
+     "easing": "linear",
+     "duration": 3.5,
+     "speak": "The finish is a dead heat: Mira and Pia both on a hundred and nineteen."
+    },
+    {
+     "highlight": {
+      "target": [
+       "axes"
+      ]
+     },
+     "speak": "Fourteen of the twenty stood here at some point. Six never did — and you never saw them. A bounded field is a decision about attention, not a fact about the data."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Race a hundred kroner compounding at four different rates for thirty years, keeping the rows in the same order",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Same rows every year. Only the lengths move.",
+   "template": "bar_race",
+   "params": {
+    "labels": [
+     "7 %",
+     "5 %",
+     "3 %",
+     "1 %"
+    ],
+    "values": "{sim.rows}",
+    "ticker": [
+     "Year 0",
+     "Year 1",
+     "Year 2",
+     "Year 3",
+     "Year 4",
+     "Year 5",
+     "Year 6",
+     "Year 7",
+     "Year 8",
+     "Year 9",
+     "Year 10",
+     "Year 11",
+     "Year 12",
+     "Year 13",
+     "Year 14",
+     "Year 15",
+     "Year 16",
+     "Year 17",
+     "Year 18",
+     "Year 19",
+     "Year 20",
+     "Year 21",
+     "Year 22",
+     "Year 23",
+     "Year 24",
+     "Year 25",
+     "Year 26",
+     "Year 27",
+     "Year 28",
+     "Year 29",
+     "Year 30"
+    ],
+    "stage": 0,
+    "order": "fixed",
+    "decimals": 0,
+    "x_label": "Value of 100 kroner",
+    "title": "Same rows every year. Only the lengths move."
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "rows = [[round(100 * (1 + r / 100) ** k) for r in (7, 5, 3, 1)] for k in range(31)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes", "ticker"],
+     "parallel": true,
+     "speak": "A hundred kroner, four interest rates, thirty years. Two lines of Python compute every number on this chart."
+    },
+    {
+     "draw": ["race_1", "race_2", "race_3", "race_4"],
+     "parallel": true,
+     "speak": "Seven percent, five, three, one — and they will hold that order for the entire run."
+    },
+    {
+     "draw": ["title"],
+     "speak": "So the rows are fixed. Nothing overtakes anything here; only the lengths move."
+    },
+    {
+     "animate": {
+      "stage": 10
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "After ten years the seven-percent bar is at a hundred and ninety-seven. The one-percent bar is at a hundred and ten."
+    },
+    {
+     "animate": {
+      "stage": 20
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "After twenty: three hundred and eighty-seven against a hundred and twenty-two."
+    },
+    {
+     "animate": {
+      "stage": 30
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "And after thirty, seven hundred and sixty-one against a hundred and thirty-five."
+    },
+    {
+     "highlight": {
+      "target": [
+       "race_1"
+      ]
+     },
+     "speak": "The ranking never changed once, which is exactly why the rows stayed put. Reordering rows that never reorder is motion for its own sake."
+    }
+   ]
+  }
+ },
+ {
+  "request": "A bar chart race where products launch in different years and one is discontinued partway through",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Nobody is on the board before they launch",
+   "template": "bar_race",
+   "params": {
+    "labels": [
+     "Aurora",
+     "Basalt",
+     "Cinder",
+     "Dune",
+     "Ember",
+     "Frost"
+    ],
+    "values": "{sim.rows}",
+    "ticker": [
+     "Year 1",
+     "Year 2",
+     "Year 3",
+     "Year 4",
+     "Year 5",
+     "Year 6",
+     "Year 7",
+     "Year 8",
+     "Year 9",
+     "Year 10",
+     "Year 11",
+     "Year 12",
+     "Year 13",
+     "Year 14",
+     "Year 15",
+     "Year 16"
+    ],
+    "stage": 0,
+    "top_n": 5,
+    "decimals": 0,
+    "x_label": "Users (thousands)",
+    "title": "Nobody is on the board before they launch"
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import math\nlaunch = [0, 0, 3, 5, 8, 11]\nclosed = [99, 13, 99, 99, 99, 99]\nceiling = [57, 102, 128, 110, 43, 85]\nrows = []\nfor yr in range(16):\n    row = []\n    for i in range(6):\n        age = yr - launch[i]\n        out = age < 0 or yr >= closed[i]\n        row.append(None if out else round(ceiling[i] / (1 + math.exp(-0.6 * (age - 3)))))\n    rows.append(row)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes", "ticker"],
+     "parallel": true,
+     "speak": "Six simulated products, six launch dates. A short script grows each one along a logistic curve toward its own ceiling."
+    },
+    {
+     "draw": ["race_1", "race_2", "race_3", "race_4", "race_5", "race_6"],
+     "parallel": true,
+     "speak": "In year one only two of them exist. The other four are not sitting at zero — they are simply not there. The script writes null, and null means absent."
+    },
+    {
+     "draw": ["title"],
+     "speak": "Basalt is ahead on fourteen thousand users, Aurora on eight."
+    },
+    {
+     "animate": {
+      "stage": 3
+     },
+     "easing": "linear",
+     "duration": 3,
+     "speak": "Year four, and Cinder arrives — at eighteen thousand, not at zero. It enters at the number it actually has."
+    },
+    {
+     "animate": {
+      "stage": 8
+     },
+     "easing": "linear",
+     "duration": 3.5,
+     "speak": "Year nine: Cinder edges past Basalt, ninety-eight to ninety-seven, and Ember appears at the bottom with six thousand."
+    },
+    {
+     "animate": {
+      "stage": 11
+     },
+     "easing": "linear",
+     "duration": 3,
+     "speak": "Year twelve, and Frost launches — a sixth product on a board that holds five, so someone is always waiting below it."
+    },
+    {
+     "animate": {
+      "stage": 13
+     },
+     "easing": "linear",
+     "duration": 3,
+     "speak": "Year fourteen: Basalt is discontinued. It does not fall to zero. It leaves."
+    },
+    {
+     "animate": {
+      "stage": 15
+     },
+     "easing": "linear",
+     "duration": 3,
+     "speak": "And at the end Cinder has a hundred and twenty-seven thousand, Aurora has been flat at fifty-seven since year twelve, and Basalt is simply gone."
+    }
+   ]
+  }
+ },
+ {
+  "request": "A line race over a rolling twelve-month window: four regions' epidemic waves, computed with an SIR model",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "A rolling twelve-month view",
+   "template": "line_chart",
+   "params": {
+    "x": "{sim.months}",
+    "series": [
+     {
+      "name": "Nord",
+      "values": "{sim.nord}"
+     },
+     {
+      "name": "Vest",
+      "values": "{sim.vest}"
+     },
+     {
+      "name": "Ost",
+      "values": "{sim.ost}"
+     },
+     {
+      "name": "Sor",
+      "values": "{sim.sor}"
+     }
+    ],
+    "stage": 0,
+    "x_window": 12,
+    "label_top": 3,
+    "y_label": "Share infected (%)",
+    "x_label": "Month",
+    "title": "A rolling twelve-month view"
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "def wave(r0, gamma=0.6, months=22):\n    s, i, out = 0.999, 0.001, []\n    for m in range(months):\n        out.append(round(100 * i, 2))\n        new = r0 * gamma * s * i\n        s, i = s - new, i + new - gamma * i\n    return out\nmonths = list(range(1, 23))\nnord = [wave(3.8)[:k + 1] for k in range(22)]\nvest = [wave(2.8)[:k + 1] for k in range(22)]\nost = [wave(2.1)[:k + 1] for k in range(22)]\nsor = [wave(1.7)[:k + 1] for k in range(22)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes"],
+     "speak": "Four regions, one virus, four different reproduction numbers. A seven-line SIR model computes every point on this chart."
+    },
+    {
+     "draw": ["line_1", "line_2", "line_3", "line_4"],
+     "parallel": true,
+     "speak": "Month one, and all four regions start from the same tiny seed of infection."
+    },
+    {
+     "draw": ["title"],
+     "speak": "The chart shows twelve months at a time. As the race runs, the oldest month falls off the left edge — watch the axis, not just the lines."
+    },
+    {
+     "animate": {
+      "stage": 7
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Month eight. Nord peaks with half its population infected at once, and the whole story still fits inside the window."
+    },
+    {
+     "animate": {
+      "stage": 11
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Month twelve: Nord has collapsed, Vest peaked at thirty-three two months ago, and the window is now exactly full."
+    },
+    {
+     "animate": {
+      "stage": 16
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Month seventeen, and the axis starts at month five. Nord is no longer named — only the three highest carry a label — and its epidemic is sliding off the edge."
+    },
+    {
+     "animate": {
+      "stage": 21
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Month twenty-two. The view begins at month ten. Sor is the only region still burning, at seven percent, and the largest wave of the whole epidemic is no longer on the chart at all."
+    },
+    {
+     "highlight": {
+      "target": [
+       "axes"
+      ]
+     },
+     "speak": "A rolling window keeps the present readable by forgetting the past. That is the bargain, and it is worth saying out loud."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Line race: five urns growing by preferential attachment, showing the shares fan out from an identical start",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "Five urns. One rule.",
+   "template": "line_chart",
+   "params": {
+    "x": "{sim.balls}",
+    "series": [
+     {
+      "name": "Urn A",
+      "values": "{sim.a}"
+     },
+     {
+      "name": "Urn B",
+      "values": "{sim.b}"
+     },
+     {
+      "name": "Urn C",
+      "values": "{sim.c}"
+     },
+     {
+      "name": "Urn D",
+      "values": "{sim.d}"
+     },
+     {
+      "name": "Urn E",
+      "values": "{sim.e}"
+     }
+    ],
+    "stage": 0,
+    "label_top": 3,
+    "ticker": [
+     "65 balls",
+     "105 balls",
+     "145 balls",
+     "185 balls",
+     "225 balls",
+     "265 balls",
+     "305 balls",
+     "345 balls",
+     "385 balls",
+     "425 balls",
+     "465 balls",
+     "505 balls",
+     "545 balls",
+     "585 balls",
+     "625 balls",
+     "665 balls",
+     "705 balls",
+     "745 balls",
+     "785 balls",
+     "825 balls"
+    ],
+    "y_label": "Share of all balls (%)",
+    "x_label": "Balls added",
+    "title": "Five urns. One rule."
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import random\nrng = random.Random(2026)\ncount, frames = [5] * 5, []\nfor t in range(1, 801):\n    r = rng.randrange(sum(count))\n    for i, n in enumerate(count):\n        if r < n:\n            count[i] += 1\n            break\n        r -= n\n    if t % 40 == 0:\n        frames.append([round(100 * v / sum(count), 1) for v in count])\nshare = lambda i: [[f[i] for f in frames[:k + 1]] for k in range(20)]\na, b, c, d, e = [share(i) for i in range(5)]\nballs = [40 * (k + 1) for k in range(20)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": ["axes", "ticker"],
+     "parallel": true,
+     "speak": "Five urns, five balls each. Every new ball goes into an urn chosen in proportion to how many it already holds — and that is the only rule."
+    },
+    {
+     "draw": ["line_1", "line_2", "line_3", "line_4", "line_5"],
+     "parallel": true,
+     "speak": "Sixty-five balls in, the shares are already uneven: Urn C has twenty-nine percent, Urn B thirteen."
+    },
+    {
+     "draw": ["title"],
+     "speak": "Nothing distinguishes these urns. No urn is better. Only the rule is at work."
+    },
+    {
+     "animate": {
+      "stage": 3
+     },
+     "easing": "linear",
+     "duration": 3.5,
+     "speak": "By a hundred and eighty-five balls, Urn E has taken the lead on thirty percent — and Urn B has fallen to seven and a half."
+    },
+    {
+     "animate": {
+      "stage": 9
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Four hundred and twenty-five balls, and the fan has stopped opening. Urn E is on thirty-two, Urn B on six and a half."
+    },
+    {
+     "animate": {
+      "stage": 19
+     },
+     "easing": "linear",
+     "duration": 4,
+     "speak": "Eight hundred and twenty-five balls. Urn E has a third of them, Urn B a sixteenth — and the lead has not changed hands since the hundred and eighty-fifth ball."
+    },
+    {
+     "highlight": {
+      "target": [
+       "line_2"
+      ]
+     },
+     "speak": "Urn B was not worse at anything. It fell behind early, and under this rule falling behind is close to permanent. Success compounds, and so does the lack of it."
+    }
+   ]
+  }
  }
 ]
