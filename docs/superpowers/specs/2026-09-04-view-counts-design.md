@@ -167,10 +167,11 @@ Counting happens only in the `#gh=` viewer. A drawcast opened from a local file,
 from the editor, or through the vendored engine (`src/engine-element.ts`) has no
 published key and is never counted.
 
-**Badge:** rendered next to `.viewer-title` (`src/viewer.ts:177`), not in the
-control bar, which is about to be reworked in the player round. Hidden entirely
-when counting is off or when no number comes back — never "N/A", never "0" from
-a failure.
+**Badge:** rendered into a `.viewer-meta` row placed directly *below* the
+player figure — not beside the title and not in the control bar. Both of those
+move in the player round; a meta row under the player is where the count
+belongs in that layout too, so it is built once. Hidden entirely when counting
+is off or when no number comes back — never "N/A", never "0" from a failure.
 
 ## 9. The publish option
 
@@ -233,9 +234,20 @@ Live smoke: publish a drawcast, open its link, badge shows 1, reload shows 1,
 - **Per-source breakdown.** A source token in the key
   (`h/<enc>/<date>/<source>/<uuid>`) would keep counting-by-prefix intact, but
   referrers are coarse and often absent.
-- **The player round** (next, separately specced): fit-to-window sizing for
+- **The player round** (next, separately specced). Its frame is a YouTube-like
+  separation: the player is a hard boundary containing everything that changes
+  what you see (stage, controls, params tray, code panels), while everything
+  *about* the drawcast — title, view count, share, comments — sits below it as
+  page furniture. Fullscreen already honours that boundary
+  (`tests/fullscreen-frame.test.ts` enforces that every `:fullscreen` selector
+  names `.player-figure`); the non-fullscreen layout does not yet. Unlike
+  YouTube the box must be allowed to grow taller when a tray or code panel
+  opens, rather than being pinned to a video-shaped rectangle. Concretely:
+  fit-to-window sizing for
   `#gh=` links, giscus comments below the drawcast, the `.viewer-footer` strip
-  replaced by a share icon in the control line, a poster frame showing the final
+  dropped and Share moved to an icon — in the control line as Hans first asked,
+  or in the meta row beside the count as YouTube would have it; that round
+  decides. A poster frame showing the final
   image before play (designed so a user- or LLM-supplied start image can replace
   it later), the replay icon wrongly flashing at chapter boundaries, and
   drawcasts sometimes ending on an empty chapter.
