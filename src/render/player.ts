@@ -37,6 +37,7 @@ export interface PlayerCallbacks {
 
 const ERASE_SPEED = 0.55; // erasing runs faster than drawing
 const CLEAR_MS = 550;
+const SCROLL_MS = 250; // a code window sliding one or more rows
 // Instant elements (durationMs 0, e.g. explicit instant text) would clear in
 // 0 ms — a snap where everything else fades. The floor keeps clear soft.
 const CLEAR_MIN_MS = 250;
@@ -708,6 +709,10 @@ export class Player {
       case "draw": {
         await this.narrationBarrier();
         if (signal.aborted) return;
+        // A windowed code pane scrolls first, so the new line lands at the
+        // bottom row before its ink appears.
+        await this.tweenScroll(index, signal);
+        if (signal.aborted) return;
         const els = this.els(step.ids);
         const ms = this.paced(els, step, 1);
         if (step.parallel) {
@@ -723,10 +728,12 @@ export class Player {
       case "show":
         await this.narrationBarrier();
         if (signal.aborted) return;
+        await this.tweenScroll(index, signal);
         for (const el of this.els(step.ids)) el.finish();
         return;
       case "hide":
         for (const el of this.els(step.ids)) el.hide();
+        await this.tweenScroll(index, signal);
         return;
       case "erase": {
         await this.narrationBarrier();
@@ -741,6 +748,8 @@ export class Player {
             if (signal.aborted) return;
           }
         }
+        // The pane settles back only once the erased line is gone.
+        await this.tweenScroll(index, signal);
         return;
       }
       case "clear": {
@@ -912,6 +921,33 @@ export class Player {
    * Drive onTick(t) with t ∈ [0,1] over a duration, honoring pause and the
    * live speed multiplier. Always ends with onTick(1) unless aborted.
    */
+  /**
+   * Offsets that differ between a step's before and after states without a
+   * move verb are a code window's scroll (the plan writes them after every
+   * visibility change): slide them over SCROLL_MS so the pane reads as an
+   * editor scrolling, not a jump. renderUpTo applies the after-state's
+   * offsets outright, so scrub and step-back need nothing here.
+   */
+  private async tweenScroll(index: number, signal: AbortSignal): Promise<void> {
+    const before = this.stateAt(index);
+    const after = this.plan.states[index];
+    const ids = new Set([...Object.keys(before.offsets), ...Object.keys(after.offsets)]);
+    const moves: { el: RenderedElement; from: Pt; to: Pt }[] = [];
+    for (const id of ids) {
+      const a = before.offsets[id] ?? [0, 0];
+      const b = after.offsets[id] ?? [0, 0];
+      if (a[0] === b[0] && a[1] === b[1]) continue;
+      const el = this.elements.get(id);
+      if (el?.setOffset) moves.push({ el, from: a, to: b });
+    }
+    if (moves.length === 0) return;
+    const ease = EASINGS["ease-in-out"];
+    await this.progress(SCROLL_MS, signal, (t) => {
+      const e = ease(t);
+      for (const m of moves) m.el.setOffset!(m.from[0] + (m.to[0] - m.from[0]) * e, m.from[1] + (m.to[1] - m.from[1]) * e);
+    });
+  }
+
   private progress(ms: number, signal: AbortSignal, onTick: (t: number) => void): Promise<void> {
     if (ms <= 0) {
       onTick(1);
