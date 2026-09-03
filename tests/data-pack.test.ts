@@ -231,6 +231,70 @@ describe("bar_chart — the placeholder promise", () => {
   });
 });
 
+describe("stacked bars", () => {
+  const stacked = (extra: object = {}) =>
+    layout({
+      labels: ["A", "B"],
+      series: [
+        { name: "One", values: [3, 1] },
+        { name: "Two", values: [1, 3] },
+      ],
+      stacked: true,
+      ...extra,
+    });
+
+  test("segments sit on top of each other, totals equal across categories", () => {
+    const l = stacked();
+    const seg = (i: number, j: number) => area(l, `bar_${i}__f${j}`)!.pts.map((p) => p[1]);
+    // Series 0 starts at the axis; series 1 starts where series 0 ended.
+    expect(Math.min(...seg(1, 0))).toBeCloseTo(plot.y0, 1);
+    expect(Math.min(...seg(1, 1))).toBeCloseTo(Math.max(...seg(1, 0)), 1);
+    // Both stacks total 4, so both reach the same height.
+    expect(Math.max(...seg(1, 1))).toBeCloseTo(Math.max(...seg(2, 1)), 1);
+  });
+
+  test("the y scale comes from stack totals, not the largest single value", () => {
+    const l = stacked();
+    // Totals are 4; a grouped chart would scale to the largest bar, 3.
+    const top = Math.max(...area(l, "bar_1__f1")!.pts.map((p) => p[1]));
+    expect(top).toBeCloseTo(Y(4, 4), 0);
+  });
+
+  test("mixed signs refuse to stack: a drawn note names the series, bars group instead", () => {
+    const l = layout({
+      labels: ["A"],
+      series: [
+        { name: "Up", values: [3] },
+        { name: "Down", values: [-2] },
+      ],
+      stacked: true,
+    });
+    // A template body has no warning channel — SceneLayout carries drawables,
+    // and `issues` come from lintLayout. A refusal is therefore DRAWN, under
+    // the id `note`, so the author sees it on the figure.
+    const note = flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    expect(note?.text).toMatch(/stacked/i);
+    expect(note?.text).toMatch(/Down/);
+    // Grouped fallback: the two bars are side by side, so their x spans differ.
+    const x = (j: number) => area(l, `bar_1__f${j}`)!.pts.map((p) => p[0]);
+    expect(Math.min(...x(0))).not.toBeCloseTo(Math.min(...x(1)), 1);
+  });
+
+  test("a fractional stage interpolates stacked segment heights", () => {
+    const l = layout({
+      labels: ["A"],
+      series: [
+        { name: "One", values: [[2], [4]] },
+        { name: "Two", values: [[2], [2]] },
+      ],
+      stacked: true,
+      stage: 0.5,
+    });
+    // Series 0 is 2 → 4, half-way is 3; the stack total is 5.
+    expect(Math.max(...area(l, "bar_1__f0")!.pts.map((p) => p[1]))).toBeCloseTo(Y(3, 6), 0);
+  });
+});
+
 describe("data_table", () => {
   const table = (params: object) => layoutSpec({ template: "data_table", params } as Spec);
   const texts = (l: ReturnType<typeof layoutSpec>) => flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text");

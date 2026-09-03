@@ -4,7 +4,7 @@ description: Bar charts and tables drawn from data — typed by the author or co
 ---
 template: bar_chart
 title: Bar chart
-version: 1
+version: 2
 kit: 5
 status: ready
 description: >-
@@ -54,6 +54,9 @@ params:
     value_labels:
       type: boolean
       description: "Write each bar's value above it (default false)."
+    stacked:
+      type: boolean
+      description: "Stack the series on top of each other instead of grouping them side by side (requires `series`). The y scale then comes from the stack TOTAL. Use for composition — how a total splits — not for comparing series to each other. Values must all be positive: a stack of mixed signs misstates the total, so it falls back to grouped bars and reports the problem."
     gap:
       type: number
       minimum: 0
@@ -85,6 +88,7 @@ element_ids:
   bar_1: "the first category's bar (its fill, outline, category label and value label; bar_2, bar_3, … likewise) — one per label, at every stage"
   legend: the series legend (only with several series)
   title: figure title, when set
+  note: the refusal note, drawn only when a request could not be honoured
 examples:
   - request: "Bar chart of GDP per capita for Norway, Sweden and Denmark."
     params:
@@ -106,6 +110,17 @@ examples:
         - { name: "Treated", values: [10, 16] }
         - { name: "Control", values: [10, 11] }
       y_label: "Outcome"
+  - request: "Stacked bars: how total health spending splits between hospitals, primary care and drugs, 2015 vs 2020."
+    params:
+      labels: ["2015", "2020"]
+      stacked: true
+      value_labels: true
+      series:
+        - { name: "Hospitals", values: [52, 61] }
+        - { name: "Primary care", values: [24, 29] }
+        - { name: "Drugs", values: [14, 18] }
+      y_label: "Billion NOK"
+      title: "Health spending by sector"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -155,9 +170,33 @@ layout: |
   };
   const value = (s, i) => atStage(s, k0, i) + (atStage(s, k1, i) - atStage(s, k0, i)) * t;
 
-  // Limits over ALL stages, so the frame never jumps mid-tween. Bars start at 0.
+  const wantStacked = params.stacked === true && series.length > 1;
+  const negatives = wantStacked
+    ? series.filter((s) => s.stages.some((st) => st.some((v) => typeof v === "number" && v < 0)))
+    : [];
+  const stacked = wantStacked && negatives.length === 0;
+  // A body cannot raise a lint issue (SceneLayout has no warning channel), so
+  // a refusal is drawn: a short note under the id "note", above the plot.
+  const note = wantStacked && negatives.length > 0
+    ? `stacked bars need non-negative values — "${negatives[0].name}" has one, so these are grouped`
+    : null;
+
+  // Limits over ALL stages, so the frame never jumps mid-tween. Bars start at
+  // 0. Stacked charts scale to the STACK TOTAL per label per stage, not the
+  // largest single value — a grouped-bar scan would under-scale the columns.
   let lo = 0, hi = 0;
-  for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (stacked) {
+    for (let k = 0; k < K; k++) {
+      for (let i = 0; i < n; i++) {
+        let tot = 0;
+        for (const s of series) { const v = atStage(s, k, i); if (typeof v === "number") tot += v; }
+        hi = Math.max(hi, tot);
+        lo = Math.min(lo, 0);
+      }
+    }
+  } else {
+    for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  }
   const ylim = Array.isArray(params.ylim) && params.ylim.length === 2 && params.ylim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.ylim : null;
   let yMin = ylim ? Math.min(ylim[0], ylim[1]) : lo;
   let yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
@@ -220,6 +259,21 @@ layout: |
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
 
+  if (note) {
+    const notePos = [plot.x0, plot.y1 - 16];
+    push(kit.text("note", notePos, note, { fontSize: 16, color: C.guide, anchor: "start" }));
+    anchors.note = notePos;
+  }
+
+  // Stacked: one column per category, segments piled bottom-up in series
+  // order. The baseline is the running total BELOW this segment, computed
+  // from interpolated values so a fractional stage re-proportions smoothly.
+  const baseFor = (i, j) => {
+    let b = 0;
+    for (let q = 0; q < j; q++) b += value(series[q], i);
+    return b;
+  };
+
   const labelSize = n > 12 ? 13 : 17;
   for (let i = 0; i < n; i++) {
     const id = "bar_" + (i + 1);
@@ -228,16 +282,32 @@ layout: |
     let reach = base;
     series.forEach((s, j) => {
       const v = value(s, i);
-      const x = plot.x0 + slotW * i + (slotW - groupW) / 2 + barW * j;
-      const yv = Y(clamp(v, yMin, yMax));
-      const lo2 = Math.min(base, yv), hi2 = Math.max(base, yv);
+      // Grouped bars sit side by side within the category slot; stacked bars
+      // share the whole slot width and pile on top of the running total.
+      const x = stacked
+        ? plot.x0 + slotW * i + (slotW - groupW) / 2
+        : plot.x0 + slotW * i + (slotW - groupW) / 2 + barW * j;
+      const w = stacked ? groupW : barW;
+      const segBase = stacked ? baseFor(i, j) : 0;
+      const yBase = stacked ? Y(clamp(segBase, yMin, yMax)) : base;
+      const yv = stacked ? Y(clamp(segBase + v, yMin, yMax)) : Y(clamp(v, yMin, yMax));
+      const lo2 = Math.min(yBase, yv), hi2 = Math.max(yBase, yv);
       const color = C.series[j % C.series.length];
-      const rect = [[x, lo2], [x + barW, lo2], [x + barW, hi2], [x, hi2]];
+      const rect = [[x, lo2], [x + w, lo2], [x + w, hi2], [x, hi2]];
       children.push(kit.area(id + "__f" + j, rect, color, { opacity: 0.55 }));
       children.push(kit.stroke(id + "__o" + j, rect, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
-      if (showValues) children.push(kit.text(id + "__v" + j, [x + barW / 2, v >= 0 ? hi2 + 13 : lo2 - 13], fmt(v), { fontSize: 15, color: C.guide }));
+      // A stacked segment gets its own label only when it is tall enough to
+      // hold one (26 units of drawn height); the stack total is written
+      // above the column instead, once, below.
+      if (showValues && (!stacked || hi2 - lo2 >= 26)) {
+        children.push(kit.text(id + "__v" + j, [x + w / 2, v >= 0 ? hi2 + 13 : lo2 - 13], fmt(v), { fontSize: 15, color: C.guide }));
+      }
       reach = v >= 0 ? Math.max(reach, hi2) : Math.min(reach, lo2);
     });
+    if (stacked && showValues) {
+      const total = series.reduce((sum, s) => sum + value(s, i), 0);
+      children.push(kit.text(id + "__total", [xc, Y(clamp(total, yMin, yMax)) + 13], fmt(total), { fontSize: 15, color: C.guide }));
+    }
     children.push(kit.text(id + "__l", [xc, plot.y0 - 20], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
     push(kit.group(id, children));
     anchors[id] = [xc, (base + reach) / 2];
