@@ -662,20 +662,29 @@ layout: |
   const series = [];
   if (Array.isArray(params.series)) {
     params.series.slice(0, 6).forEach((s, k) => {
-      const st = toStages(s && s.values);
+      const raw = s && s.values;
+      const st = toStages(raw);
       // A series whose values are not data yet still COUNTS (zero series), so
-      // the line_k beat, its colour and its end label exist before the script runs.
-      series.push({ name: str(s && s.name, "Series " + (k + 1)), stages: st || [[]] });
+      // the line_k beat, its colour and its end label exist before the script
+      // runs. `token` remembers WHY it has no data (a still-unresolved
+      // "{code.var}" string, not malformed literal data) — the placeholder
+      // promise: the editor lints before the script has run, so a token must
+      // lay out as a quiet placeholder, never as an error. Slope mode's
+      // exactly-two-values check reads this below, the same way the limits
+      // scan already treats a token series as contributing nothing rather
+      // than a violation.
+      series.push({ name: str(s && s.name, "Series " + (k + 1)), stages: st || [[]], token: typeof raw === "string" });
     });
   } else {
-    const st = toStages(params.values);
-    if (st) series.push({ name: "", stages: st });
+    const raw = params.values;
+    const st = toStages(raw);
+    if (st) series.push({ name: "", stages: st, token: false });
     // Finding P: a `values` TOKEN with no series still mints line_1 — one
     // anonymous zero series that draws nothing. bar_chart already keeps its
     // bar_i beats alive before the script has run, and a model copying that
     // exemplar writes draw: ["axes", "line_1"]; without this the id is
     // unknown offline and costs a needless repair round.
-    else if (typeof params.values === "string") series.push({ name: "", stages: [[]] });
+    else if (typeof raw === "string") series.push({ name: "", stages: [[]], token: true });
   }
   // Slope mode: two labelled columns, one straight connector per series,
   // name and value at BOTH ends. A body cannot raise a lint issue
@@ -683,9 +692,12 @@ layout: |
   // exactly-two-values rule draws a refusal note instead — bar_chart's own
   // stacked-refusal convention, same `note` id, and the same graceful
   // fallback: `slope` stays false below and the rest of the body draws the
-  // ordinary (non-slope) line chart it always has.
+  // ordinary (non-slope) line chart it always has. A token series is exempt
+  // — "not data yet" is not "wrong data" — so a slope chart fed entirely by
+  // an unresolved script variable draws its frame with no connectors rather
+  // than refusing before the script has had a chance to run.
   const wantSlope = params.slope === true;
-  const wrong = wantSlope ? series.filter((s) => s.stages.some((st) => st.length !== 2)) : [];
+  const wrong = wantSlope ? series.filter((s) => !s.token && s.stages.some((st) => st.length !== 2)) : [];
   const note = wrong.length > 0
     ? `a slope chart needs exactly two values per series — "${wrong[0].name || "series 1"}" has ${wrong[0].stages[0].length}`
     : null;
@@ -801,7 +813,10 @@ layout: |
   let padCols = 0;
   if (slope) {
     let maxW = 0;
-    for (const s of series) maxW = Math.max(maxW, kit.textWidth(slopeText(s, 0), SLOPE_LABEL_SIZE), kit.textWidth(slopeText(s, 1), SLOPE_LABEL_SIZE));
+    // A token series draws no label (see the slope drawing branch below), so
+    // it reserves no pad — otherwise a placeholder frame, fed entirely by an
+    // unresolved script variable, would pad columns for a "0" that never draws.
+    for (const s of series) if (!s.token) maxW = Math.max(maxW, kit.textWidth(slopeText(s, 0), SLOPE_LABEL_SIZE), kit.textWidth(slopeText(s, 1), SLOPE_LABEL_SIZE));
     // Never invert the columns onto each other: at most 40 % of the plot
     // width goes to either side's labels.
     padCols = Math.min((plot.x1 - plot.x0) * 0.4, maxW + SLOPE_LABEL_GAP);
@@ -895,15 +910,27 @@ layout: |
 
   if (slope) {
     // Slope branch: exactly two points per series (guaranteed by `wrong`
-    // above), one straight connector, name + value dodged INDEPENDENTLY on
-    // each side — a series near the top on the left can sit anywhere on the
-    // right, so the two columns never share one dodge pass.
+    // above, which exempts token series), one straight connector, name +
+    // value dodged INDEPENDENTLY on each side — a series near the top on
+    // the left can sit anywhere on the right, so the two columns never
+    // share one dodge pass. A token series (not data yet) still mints its
+    // line_k beat but draws an empty connector and no labels — the same
+    // "beat exists, draws nothing" placeholder the ordinary line chart
+    // gives a zero-point series below — and takes no slot in either dodge.
     const leftY = series.map((s) => Y(slopeValue(s, 0)));
     const rightY = series.map((s) => Y(slopeValue(s, 1)));
-    const leftDodged = dodgeY(leftY);
-    const rightDodged = dodgeY(rightY);
+    const drawnSlots = series.map((s, k) => (s.token ? -1 : k)).filter((k) => k >= 0);
+    const leftDodgedSlots = dodgeY(drawnSlots.map((k) => leftY[k]));
+    const rightDodgedSlots = dodgeY(drawnSlots.map((k) => rightY[k]));
+    const leftDodged = leftY.slice(), rightDodged = rightY.slice();
+    drawnSlots.forEach((k, i) => { leftDodged[k] = leftDodgedSlots[i]; rightDodged[k] = rightDodgedSlots[i]; });
     series.forEach((s, k) => {
       const id = "line_" + (k + 1);
+      if (s.token) {
+        push(kit.group(id, [kit.stroke(id + "__l", [], { color: C.series[k % C.series.length], strokeWidth: 4, ms: MS.curve })]));
+        anchors[id] = [(xL + xR) / 2, plot.y0];
+        return;
+      }
       const p0 = [xL, leftY[k]], p1 = [xR, rightY[k]];
       const rising = slopeValue(s, 1) > slopeValue(s, 0);
       const color = colorByDirection ? (rising ? C.series[0] : C.series[1]) : C.series[k % C.series.length];

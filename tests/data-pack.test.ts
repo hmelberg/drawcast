@@ -656,6 +656,28 @@ describe("slope mode", () => {
     expect(note?.text).toMatch(/slope/i);
     expect(note?.text).toMatch(/two/i);
   });
+
+  // Fix round: the placeholder promise — the editor lints BEFORE the script
+  // has run, so a still-unresolved "{code.var}" token must lay out as a
+  // quiet placeholder, never an error state. The exactly-two-values check
+  // must exempt a token-fed series exactly as the limits scan already does
+  // (Finding P), so a slope chart fed by a script draws its frame (two
+  // columns, the captions) with no connector, not the refusal note, before
+  // the script has had any chance to run.
+  test("a still-unresolved values token draws the frame with no connector, not the refusal note", () => {
+    const l = layoutSpec({
+      template: "line_chart",
+      params: { slope: true, x: ["Before", "After"], values: "{sim.pairs}" },
+    } as Spec);
+    expect(flattenDrawables(l.drawables).find((d) => d.id === "note")).toBeUndefined();
+    expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(l.order).toEqual(["axes", "line_1"]);
+    const drawables = flattenDrawables(l.drawables);
+    expect(drawables.some((d) => d.id === "axes__col0")).toBe(true);
+    expect(drawables.some((d) => d.id === "axes__col1")).toBe(true);
+    expect((drawables.find((d) => d.id === "line_1__l") as StrokeDrawable).pts).toEqual([]);
+    expect(drawables.some((d) => d.id === "line_1__t0" || d.id === "line_1__t1")).toBe(false);
+  });
 });
 
 describe("scatter_plot", () => {
