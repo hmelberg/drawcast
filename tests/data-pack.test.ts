@@ -656,32 +656,70 @@ describe("line race", () => {
   });
 
   // The verbatim test above holds even with x_window doing NOTHING (numeric x
-  // already clamps its minimum to plot.x0). This proves the window actually
-  // TRACKS the current stage: the same index's screen x moves from the
-  // window's trailing edge (clamped to plot.x0) to its leading edge
-  // (plot.x1) as more of the line reveals, one stage growing the series by
-  // exactly one point at a time.
-  test("x_window's range tracks the reveal front, not a fixed span", () => {
+  // already clamps its minimum to plot.x0). This pins the GUARANTEE instead —
+  // the window shows the window — rather than the mechanism that used to
+  // implement it. The mechanism was clamping, and clamping was the bug: an
+  // out-of-window point landed exactly ON plot.x0, so the spent history piled
+  // up as a full-height vertical stroke along the y axis instead of leaving
+  // the frame. Points outside [xMin, xMax] are now dropped and the polyline
+  // clipped at the trailing edge, so the assertions below are about WHICH
+  // span is drawn and how many points sit on the edge — both of which stay
+  // true however the window is implemented next.
+  test("x_window shows the window: the span slides and spent history leaves the frame", () => {
     const x = Array.from({ length: 20 }, (_, i) => i);
     const grow = {
       x,
       series: [{ name: "Racer", values: Array.from({ length: 20 }, (_, k) => Array.from({ length: k + 1 }, (_, i) => i)) }],
     };
-    const xOfIndex9 = (stage: number) => {
+    const ptsAt = (stage: number) => {
       const l = line({ ...grow, x_window: 5, stage });
-      const s = flattenDrawables(l.drawables).find((d) => d.id === "line_1__l") as StrokeDrawable;
-      return s.pts[9][0];
+      return (flattenDrawables(l.drawables).find((d) => d.id === "line_1__l") as StrokeDrawable).pts;
     };
-    // Stage 9: only indices 0..9 are revealed, so index 9 is the reveal front
-    // itself — the window's own leading edge, at plot.x1.
-    const atFront = xOfIndex9(9);
-    // Stage 19: the whole line (0..19) is revealed; the window is now
-    // [14, 19], so index 9 has fallen off the trailing edge and clamps to
-    // plot.x0. The SAME data point, two different screen positions — proof
-    // the window moved, not just that some points are hidden.
-    const afterItSlidPast = xOfIndex9(19);
-    expect(atFront).toBeCloseTo(plot.x1, 6);
-    expect(afterItSlidPast).toBeCloseTo(plot.x0, 6);
+    // Stage 9: indices 0..9 revealed, window [4, 9] — six points, spanning the
+    // full plot width. Indices 0..3 have left the frame entirely.
+    const early = ptsAt(9);
+    expect(early).toHaveLength(6);
+    expect(early[0][0]).toBeCloseTo(plot.x0, 6);
+    expect(early[early.length - 1][0]).toBeCloseTo(plot.x1, 6);
+    // Stage 19: the whole line is revealed, window [14, 19] — the SAME six
+    // points wide, but a different six points.
+    const late = ptsAt(19);
+    expect(late).toHaveLength(6);
+    expect(late[0][0]).toBeCloseTo(plot.x0, 6);
+    expect(late[late.length - 1][0]).toBeCloseTo(plot.x1, 6);
+    // values[i] === i, so screen y identifies the datum: the trailing edge
+    // climbed from the value 4 to the value 14. The window moved, and it is
+    // not merely hiding points inside a fixed span.
+    expect(late[0][1]).toBeGreaterThan(early[0][1]);
+    // The regression this replaced a mechanism-pin to catch: before the clip,
+    // fifteen out-of-window points were stacked on plot.x0 at stage 19, a
+    // full-height stroke drawn on the axis. Exactly one point belongs there.
+    expect(late.filter((p) => Math.abs(p[0] - plot.x0) < 1e-6)).toHaveLength(1);
+    expect(early.filter((p) => Math.abs(p[0] - plot.x0) < 1e-6)).toHaveLength(1);
+  });
+
+  // The windowed axis used to LIE: X() clamps every value into [xMin, xMax],
+  // so both end labels land on plot.x0 / plot.x1, but they printed xs[0] and
+  // xs[n-1] regardless. A rolling twelve-month window over 22 months read
+  // "1 … 22" under a plot showing months 10-22 — at every stage, with zero
+  // lint issues, because nothing in the repo looked at the label text.
+  test("a windowed x axis names the window's own ends, not the data's", () => {
+    const x = Array.from({ length: 22 }, (_, i) => i + 1);
+    const grow = {
+      x,
+      series: [{ name: "Region", values: Array.from({ length: 22 }, (_, k) => Array.from({ length: k + 1 }, (_, i) => i + 1)) }],
+    };
+    const ends = (p: object) => {
+      const l = line({ ...grow, ...p });
+      const t = (id: string) => (flattenDrawables(l.drawables).find((d) => d.id === id) as TextDrawable).text;
+      return [t("axes__x0"), t("axes__x1")];
+    };
+    expect(ends({ x_window: 12, stage: 21 })).toEqual(["10", "22"]);
+    expect(ends({ x_window: 12, stage: 16 })).toEqual(["5", "17"]);
+    // Early on the window is not yet full, so it still starts at the data's
+    // own first x — and with no window at all nothing changes.
+    expect(ends({ x_window: 12, stage: 5 })).toEqual(["1", "6"]);
+    expect(ends({ stage: 21 })).toEqual(["1", "22"]);
   });
 
   test("x_window larger than the data span behaves like no window at all", () => {

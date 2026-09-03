@@ -11236,7 +11236,7 @@
      },
      "easing": "linear",
      "duration": 3.5,
-     "speak": "Round twelve, and Leif has gone too — both of them were on the board in round one."
+     "speak": "Round twelve, and the swap is Oda in, Siri out — one more of the nineteen entries this board makes in sixteen rounds."
     },
     {
      "animate": {
@@ -11459,7 +11459,7 @@
      },
      "easing": "linear",
      "duration": 3,
-     "speak": "Year twelve, and Frost launches — a sixth product on a board that holds five, so someone is always waiting below it."
+     "speak": "Year twelve, and Frost launches — a sixth product on a board that holds five, so for the first time someone is waiting below the line."
     },
     {
      "animate": {
@@ -11560,7 +11560,7 @@
      },
      "easing": "linear",
      "duration": 4,
-     "speak": "Month seventeen, and the axis starts at month five. Nord is no longer named — only the three highest carry a label — and its epidemic is sliding off the edge."
+     "speak": "Month seventeen, and the axis now starts at month five: the north's first four months have already left the frame. Its name has gone too — label_top names the three highest at the END of their lines, and the north ended low."
     },
     {
      "animate": {
@@ -11929,7 +11929,7 @@
    "commands": [
     {
      "draw": ["axes"],
-     "speak": "Statistics Norway's life tables for 2019 and 2021, the first two pandemic years. The number plotted is not remaining years but the age each group could expect to reach: the age they have already, plus the years still expected."
+     "speak": "Statistics Norway's life tables for 2019 against 2021 — the last year before the pandemic, and the second year of it. The number plotted is not remaining years but the age each group could expect to reach: the age they have already, plus the years still expected."
     },
     {
      "draw": ["line_1", "line_2"],

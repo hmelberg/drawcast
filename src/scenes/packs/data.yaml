@@ -930,6 +930,37 @@ layout: |
   const X = xCat
     ? (i) => plot.x0 + ((plot.x1 - plot.x0) / Math.max(1, n)) * (i + 0.5)
     : (i) => plot.x0 + ((clamp(xs[i], xMin, xMax) - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  // A sliding window must actually WINDOW the line. Ruling E clamps rather
+  // than clips, which is right for an authored xlim (the line visibly ends AT
+  // the limit) and wrong here: an out-of-window point lands exactly ON
+  // plot.x0, so a rolling 12-month window over 22 months stacked NINE points
+  // of spent history into one full-height vertical stroke painted along the y
+  // axis — the very thing the window exists to take away, and a picture that
+  // contradicts any narration about history leaving the frame. So series
+  // points use an UNCLAMPED x here and the polyline is CLIPPED at the
+  // trailing edge instead, entering the frame at the height where it crosses
+  // (so the line still reaches plot.x0 — it is cut, not shortened). The
+  // LEADING edge still clamps: xMax is the reveal front itself, so nothing
+  // legitimately sits right of it. Only the windowed path differs; with no
+  // x_window, XW IS X and clipToWindow is the identity.
+  const XW = xWin === null ? X : (i) => plot.x0 + ((Math.min(xs[i], xMax) - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  const clipToWindow = (pts) => {
+    if (xWin === null) return pts;
+    const L = plot.x0, out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i], q = pts[i - 1];
+      if (p[0] < L - 1e-9) continue;
+      // Only when this point is strictly INSIDE: a point sitting exactly on
+      // the trailing edge (an integer stage, where xMin is a real data x) is
+      // already the crossing, and adding one would double it up.
+      if (q && q[0] < L - 1e-9 && p[0] > L + 1e-9 && p[0] > q[0]) {
+        const f = (L - q[0]) / (p[0] - q[0]);
+        out.push([L, q[1] + (p[1] - q[1]) * f]);
+      }
+      out.push(p);
+    }
+    return out;
+  };
   const xLab = str(params.x_label, ""), yLab = str(params.y_label, "");
   // Ruling F: x and y get their own decimal precision — bar_chart's own
   // digit-counting over the axis's data (and its explicit lim, if given),
@@ -1205,7 +1236,7 @@ layout: |
     // X/Y already clamp the value into [xMin, xMax] / [yMin, yMax] (Ruling E).
     const pointsOf = (s) => {
       const pts = [];
-      const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(s, k, j); if (v !== null) return [X(j), Y(v)]; } return null; };
+      const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(s, k, j); if (v !== null) return [XW(j), Y(v)]; } return null; };
       for (let i = 0; i < n; i++) {
         const a = at(s, k0, i), c = at(s, k1, i);
         if (a === null && c === null) continue;
@@ -1214,12 +1245,14 @@ layout: |
         // rather than drawing it already sitting at its predecessor.
         if (a === null && t === 0) continue;
         let from, to;
-        if (a !== null && c !== null) { from = [X(i), Y(a)]; to = [X(i), Y(c)]; }
-        else if (a === null) { to = [X(i), Y(c)]; from = pred(k0, i) || to; }
-        else { from = [X(i), Y(a)]; to = pred(k1, i) || from; }
+        if (a !== null && c !== null) { from = [XW(i), Y(a)]; to = [XW(i), Y(c)]; }
+        else if (a === null) { to = [XW(i), Y(c)]; from = pred(k0, i) || to; }
+        else { from = [XW(i), Y(a)]; to = pred(k1, i) || from; }
         pts.push([from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
       }
-      return pts;
+      // XW leaves out-of-window points where they really are (off-plot to the
+      // left); this is what turns that into a windowed line.
+      return clipToWindow(pts);
     };
 
     const lines = series.map((s, k) => ({ s, k, pts: pointsOf(s) }));
