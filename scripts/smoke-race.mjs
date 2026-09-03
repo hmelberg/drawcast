@@ -413,8 +413,10 @@ async function main() {
     // Part 2 — per-stage runtime lint
     // =========================================================================
     console.log("PER-STAGE RUNTIME LINT — layoutSpec(spec, stage).issues, every integer stage");
-    console.log("plus 12 fractional stages. ANY issue at ANY stage fails; the accepted");
-    console.log("crossings are counted from lintLayoutDetailed's own `exempt` list.");
+    console.log("plus 12 fractional stages. ANY issue at ANY stage fails; so does ANY accepted");
+    console.log("crossing at an INTEGER stage (nothing should need excusing where ranks are a");
+    console.log("plain sort — that is how a PERMANENT collision announces itself). The crossing");
+    console.log("counts below come from lintLayoutDetailed's own `exempt` list.");
     console.log("-".repeat(78));
 
     const LINT_SAMPLES = 12;
@@ -427,8 +429,13 @@ async function main() {
      * — so they are collected separately, from the same function, purely to
      * be reported. The caller decides what to do with the failures (a normal
      * race pushes them onto `lintFailures`; the self-check below inverts it).
+     *
+     * `strictIntegers` (default on) restores the teeth the old gate had for
+     * free and the structural rule gave away — see NOTHING IS EXCUSED AT AN
+     * INTEGER STAGE below. The self-check fixture turns it OFF, because its
+     * case-3 collision is deliberately permanent.
      */
-    const checkRace = (template, params, raceMaxStage) => {
+    const checkRace = (template, params, raceMaxStage, { strictIntegers = true } = {}) => {
       let crossings = 0;
       const realFailures = [];
       const sweep = (stage, kind) => {
@@ -436,6 +443,39 @@ async function main() {
         if (l.issues.length > 0) realFailures.push({ stage, kind, issues: l.issues.map(fmtIssue), raw: l.issues, lint: true });
         const exempt = lintLayoutDetailed(l.drawables, heuristicMeasure).exempt;
         crossings += exempt.length;
+        // NOTHING IS EXCUSED AT AN INTEGER STAGE. The old gate refused every
+        // exemption at an integer stage; moving the rule into lintLayout gave
+        // that up without saying so, and a PERMANENT collision — one present
+        // at every stage, not just across a crossing — then passed in silence.
+        // Demonstrated, not theorised: injecting NAME_SIZE = slot × 1.30 into
+        // bar_race (a plausible layout regression, no `crossing` tampering)
+        // left the strict example tests green and this gate complaining only
+        // about 17 incidental title collisions, while 2623 permanent
+        // name-on-name pile-ups went unreported. The only trace was a printed
+        // crossing count of 2623 against a healthy 28 — a number a human has
+        // to happen to notice.
+        //
+        // The invariant, over the SHIPPED `exempt` list (no second classifier,
+        // no id regex): a race needs nothing excused at an integer stage.
+        // Ranks are a plain sort there, no interpolation, so two racers cannot
+        // legitimately share a row; a line race's dodge has the whole frame to
+        // spread names in. Measured before restoring it: 0 accepted crossings
+        // at integer stages across all six bundled bar_race examples, all
+        // three line races and the synthetic race — so this costs nothing
+        // today and fires 2187 times on the injected defect.
+        //
+        // It is a GATE, not a lint. Hans's ruling still stands in the app: a
+        // race that genuinely needs a crossing at an integer stage draws it
+        // softened and lints clean. This only asks a human to look.
+        if (strictIntegers && kind === "integer" && exempt.length > 0) {
+          realFailures.push({
+            stage,
+            kind,
+            issues: exempt.map((i) => `[gate] crossing excused at an INTEGER stage, where ranks are a plain sort and nothing should need excusing — a permanent collision looks exactly like this: ${fmtIssue(i)}`),
+            raw: exempt,
+            lint: false,
+          });
+        }
         // AN EXCUSED OVERLAP MUST NOT BE A SILENT ONE — where the ink can
         // afford it. The lint accepts a crossing because the template dims
         // the ink that collides; if the two ever disagree, the exemption
@@ -595,7 +635,11 @@ async function main() {
     };
     let selfCheckOk;
     try {
-      const { crossings, realFailures } = checkRace(SELF_CHECK_TEMPLATE, {}, SELF_CHECK_MAX_STAGE);
+      // strictIntegers off: case 3 is a PERMANENT overlap on purpose, which is
+      // exactly what that invariant exists to catch in a real race. Leaving it
+      // on would make the fixture fail for the wrong reason and hide whether
+      // the three assertions below actually hold.
+      const { crossings, realFailures } = checkRace(SELF_CHECK_TEMPLATE, {}, SELF_CHECK_MAX_STAGE, { strictIntegers: false });
       // Only a failure the LINT itself produced counts here. The
       // undimmed-crossing gate check above also carries the pair's ids, and
       // counting it would let a too-wide exemption look like a catch: widen
@@ -641,7 +685,9 @@ async function main() {
     console.log("");
 
     if (lintFailures.length === 0) {
-      console.log("PASS — every stage swept, integer and fractional, lints fully clean; the only overlaps dropped were accepted crossings between two different movers.");
+      console.log("PASS — every stage swept, integer and fractional, lints fully clean; nothing at all");
+      console.log("       was excused at an integer stage; and the only overlaps dropped elsewhere were");
+      console.log("       accepted crossings between two different movers, each visibly dimmed.");
     } else {
       console.error(`FAIL — ${lintFailures.length} real (stage, issue) pair(s) found (accepted crossings excluded):`);
       for (const f of lintFailures) {
