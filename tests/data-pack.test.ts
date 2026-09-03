@@ -36,7 +36,7 @@ const barTop = (l: ReturnType<typeof layoutSpec>, i: number, j = 0) => Math.max(
 const layout = (params: object) => layoutSpec({ template: "bar_chart", params } as Spec);
 
 describe("pack registration", () => {
-  test("data is a bundled pack, enabled by default, with the two M1 templates", () => {
+  test("data is a bundled pack, enabled by default, with all six of its templates ready", () => {
     expect(PACK_DEFS.data.id).toBe("data");
     expect(DEFAULT_OFF_PACKS.has("data")).toBe(false);
     expect(DEFAULT_SETTINGS.enabledPacks).toContain("data");
@@ -748,6 +748,51 @@ describe("line race", () => {
     expect(tick.text).toBe("2000");
   });
 
+  // Final whole-branch review. The ticker used to claim it was "disjoint by
+  // construction" from the end labels: a fully revealed line's label sits past
+  // plot.x1 (the plot was shrunk by exactly its width) and the ticker's box
+  // ends at plot.x1 - 8. That holds only when every series is fully revealed —
+  // which is precisely what a race is not. Mid-reveal the front is inside the
+  // plot and a LOW line's end label, drawn rightward from that front, lands on
+  // the year: measured here at stages 6…7.5, "Control group" over "2001"/
+  // "2006". bar_race already treats the ticker as an obstacle (clearsTicker);
+  // now both race surfaces do.
+  test("a mid-reveal end label clears the ticker's box", () => {
+    const grow = (vals: number[]) => vals.map((_, i) => vals.slice(0, i + 1));
+    const years = [1971, 1976, 1981, 1986, 1991, 1996, 2001, 2006, 2011, 2016];
+    const staged = {
+      x: years,
+      ticker: years.map(String),
+      series: [
+        { name: "Treatment group", values: grow([10, 40, 70, 95, 120, 150, 180, 210, 240, 270]) },
+        { name: "Control group", values: grow([8, 9, 11, 12, 13, 14, 15, 16, 17, 18]) },
+      ],
+    };
+    for (const stage of [6, 6.5, 7, 7.5]) {
+      const l = line({ ...staged, stage });
+      expect(l.issues, `stage ${stage}`).toEqual([]);
+      // …and the mechanism, not just the lint's verdict: the two boxes are
+      // genuinely apart, by the lint's own 2-unit pad on each side.
+      const texts = flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text");
+      const tick = bboxOfText(texts.find((d) => d.id === "ticker")!, heuristicMeasure);
+      const name = bboxOfText(texts.find((d) => d.id === "line_2__t")!, heuristicMeasure);
+      const apart =
+        name.x + name.w + 2 <= tick.x || name.x >= tick.x + tick.w + 2 ||
+        name.y + name.h + 2 <= tick.y || name.y >= tick.y + tick.h + 2;
+      expect(apart, `stage ${stage}: ${JSON.stringify(name)} vs ${JSON.stringify(tick)}`).toBe(true);
+      // The lift is spent only where it is needed: the label's x-box DOES
+      // still run across the year's, so this is a dodge, not an accident of
+      // the reveal having moved on.
+      expect(name.x < tick.x + tick.w + 2 && name.x + name.w + 2 > tick.x, `stage ${stage}`).toBe(true);
+    }
+    // A ticker-less race is untouched: no floor to raise, no lift.
+    const noTicker = { ...staged, ticker: undefined, stage: 7 };
+    const withTicker = line({ ...staged, stage: 7 });
+    const yOf = (l: ReturnType<typeof layoutSpec>) =>
+      (flattenDrawables(l.drawables).find((d) => d.id === "line_2__t") as TextDrawable).pos[1];
+    expect(yOf(line(noTicker))).toBeLessThan(yOf(withTicker));
+  });
+
   // Fix round 1: the example was a SINGLE static frame in disguise — all six
   // decades already revealed at K=1, so `stage` could only ever be 0 and the
   // pack's teaching example for a race never actually raced. Pulled straight
@@ -769,6 +814,28 @@ describe("line race", () => {
       expect(l.issues, `stage ${stage}`).toEqual([]);
       expect(l.warnings, `stage ${stage}`).toEqual([]);
     }
+  });
+
+  // Final whole-branch review: lint-clean is not the same as legible. The
+  // example shipped with no ylim, and line_chart forces its y floor through
+  // zero (Math.min(0, lo)) — so four ratings between 2595 and 2847 shared 8 %
+  // of the plot's height, the dodge spread their names 46 apart (wider than
+  // the whole data band), and Karpov and Kasparov read as two overlapping
+  // horizontal strokes. Its bar_race sibling has always fixed its own scale
+  // (xlim: [2500, 2900]); this pins that the line version does too.
+  test("the chess example's lines fill the plot, not a sliver of it", () => {
+    const chess = scenes.line_chart!.manifest.examples.find((e) => /chess players/i.test(e.request))!.params as {
+      ylim?: number[];
+    };
+    expect(chess.ylim, "an explicit ylim is what makes the band readable").toEqual([2550, 2900]);
+    const l = line({ ...chess, stage: 5 });
+    const ys = flattenDrawables(l.drawables)
+      .filter((d): d is StrokeDrawable => d.kind === "stroke" && /^line_\d+__l$/.test(d.id))
+      .flatMap((d) => d.pts.map((p) => p[1]));
+    const band = Math.max(...ys) - Math.min(...ys);
+    // The plot is 525 units tall (95 → 620, the title's own top). Before the
+    // fix this band measured 43 units — 8 %.
+    expect(band / (plot.y1 - 55 - plot.y0)).toBeGreaterThan(0.6);
   });
 });
 
@@ -858,6 +925,42 @@ describe("slope mode", () => {
     expect(drawables.some((d) => d.id === "axes__col1")).toBe(true);
     expect((drawables.find((d) => d.id === "line_1__l") as StrokeDrawable).pts).toEqual([]);
     expect(drawables.some((d) => d.id === "line_1__t0" || d.id === "line_1__t1")).toBe(false);
+  });
+
+  // Final whole-branch review. `values` promises that a null "marks an x
+  // position with no value yet, drawing nothing there rather than a fabricated
+  // number", and Task 6 widened the schema so a null now genuinely reaches
+  // this branch (it could not when the slope code was written, which is why it
+  // defensively read null as 0). A connector dropped to an invented 0, with
+  // "A 0" printed at its end, is exactly the fabricated number the promise
+  // forbids — so a null at either column blanks the series the way a token
+  // series is blanked: the beat lives, the ink does not.
+  test("a null at either column draws no connector and no label, never a fabricated 0", () => {
+    const withValues = (values: (number | null)[]) =>
+      layoutSpec({
+        template: "line_chart",
+        params: {
+          slope: true,
+          x: ["Before", "After"],
+          series: [{ name: "A", values }, { name: "B", values: [4, 6] }],
+        },
+      } as Spec);
+    // The schema really does admit it — this is not an unreachable branch.
+    expect(templateParamErrors("line_chart", { slope: true, x: ["Before", "After"], series: [{ name: "A", values: [null, 5] }] })).toEqual([]);
+    for (const values of [[null, 5], [4, null], [null, null]] as (number | null)[][]) {
+      const l = withValues(values);
+      const d = flattenDrawables(l.drawables);
+      const label = `values ${JSON.stringify(values)}`;
+      expect(l.order, label).toContain("line_1"); // the beat still exists
+      expect((d.find((x) => x.id === "line_1__l") as StrokeDrawable).pts, label).toEqual([]);
+      expect(d.some((x) => x.id === "line_1__t0" || x.id === "line_1__t1"), label).toBe(false);
+      expect(d.filter((x): x is TextDrawable => x.kind === "text").map((x) => x.text), label).not.toContain("A 0");
+      // Absent is not WRONG: no refusal note, and B draws in full beside it.
+      expect(d.find((x) => x.id === "note"), label).toBeUndefined();
+      expect((d.find((x) => x.id === "line_2__l") as StrokeDrawable).pts.length, label).toBe(2);
+      expect(d.filter((x) => x.id === "line_2__t0" || x.id === "line_2__t1").length, label).toBe(2);
+      expect(l.issues, label).toEqual([]);
+    }
   });
 
   // Fix round 2 (coordinator review, minor): "the two columns' values may

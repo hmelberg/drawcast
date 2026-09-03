@@ -10,7 +10,9 @@
     "build:engine": "tsc && vite build --config vite.engine.config.ts && node scripts/check-engine-build.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke:race": "node scripts/smoke-race.mjs",
+    "sweep:round": "node scripts/sweep-round-examples.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

@@ -18,7 +18,7 @@ description: >-
   alive before the script has run). Choose this scene for ANY request for a
   bar chart, a column chart, a histogram (compute the bins in Python), a
   comparison across categories or years, or "show how these numbers change".
-  Up to 200 stages, but a script's harvest caps at 5000 numbers — 20 series
+  Up to 200 stages, but a script's harvest caps at 5000 numbers — 20 bars
   × 200 stages fits, 40 × 200 does not.
 params:
   type: object
@@ -33,7 +33,7 @@ params:
         - { type: array, items: { type: number }, maxItems: 40 }
         - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, minItems: 1, maxItems: 200 }
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
-      description: "One series: a list of numbers (static), or a list of lists (STAGES — depth means staged; every stage has one number per label, a missing one counts as 0), or a \"{id.var}\" token naming a code element's variable."
+      description: "One series: a list of numbers (static), or a list of lists (STAGES — depth means staged; every stage has one number per label, a missing one counts as 0), or a \"{id.var}\" token naming a code element's variable. NOTE the one asymmetry in this pack: a bar has no ABSENT state, so `null` is rejected outright when typed here, and a `null` arriving from a script counts as 0 — a bar of no height. Every other data template (line_chart, bar_race, heatmap) reads `null` as \"no value at this position\" and draws nothing there, so convert a harvested pandas `None` deliberately rather than assuming it means the same thing on both sides."
     series:
       type: array
       maxItems: 6
@@ -365,7 +365,7 @@ layout: |
     // half a 30pt title (18.75) + half a 22pt caption (13.75) + the 2-unit pad
     // lintLayout adds to each side. 730 is the last line a 30pt title can sit
     // on and stay inside the canvas.
-    let ty = Math.min(700, plot.y1 + 25);
+    let ty = Math.min(730, plot.y1 + 25);
     const yCap = axesChildren.find((d) => d.id === "axes__y_label");
     if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
     ty = Math.min(ty, 730);
@@ -601,7 +601,7 @@ params:
       description: "Catmull–Rom smoothing through the points (default false; keep off for step-like data)."
     slope:
       type: boolean
-      description: "Slope chart: exactly two values per series, drawn as one straight connector each, with the name and value at BOTH ends. Choose it for before/after, two time points, or Simpson's paradox (each group's line rising while the pooled line falls). Every series must have exactly two values."
+      description: "Slope chart: exactly two values per series, drawn as one straight connector each, with the name and value at BOTH ends. Choose it for before/after, two time points, or Simpson's paradox (each group's line rising while the pooled line falls). Every series must have exactly two values; a series with a null at either end draws nothing at all — no connector, no labels — because null is absent, not zero, and a connector dropping to a fabricated 0 would argue something the data does not."
     color_by:
       type: string
       enum: ["series", "direction"]
@@ -622,7 +622,7 @@ params:
       items: { type: number }
       minItems: 2
       maxItems: 2
-      description: "Fixed y range. Default: the data's range across ALL stages plus headroom, so the frame never jumps."
+      description: "Fixed y range. Default: ZERO (or the data's minimum, if it goes negative) up to the data's maximum across ALL stages plus headroom — the same window at every stage, so the frame never jumps. Because that floor is forced through 0, a series living in a narrow band far above zero (Elo ratings, index levels, a price near 100) fills only a sliver of the plot and its lines read as one flat stroke: give those an explicit ylim around the band."
     x_label: { type: string }
     y_label: { type: string }
     title: { type: string }
@@ -714,9 +714,20 @@ examples:
             - [null, null, null, 2690]
             - [null, null, null, 2690, 2815]
             - [null, null, null, 2690, 2815, 2847]
-      label_top: 3
+      # Two, not three: with the band opened up by `ylim` below, Karpov's name
+      # (third at the 2001 decade) passes within 13 units of the point where
+      # Carlsen enters the field, and a name lying across another player's line
+      # mid-tween is exactly the mess `label_top` exists to prevent. Naming the
+      # two current leaders of a four-line field teaches the same param and
+      # lints clean at every stage between 0 and 5, integer and fractional.
+      label_top: 2
       ticker: ["1971", "1981", "1991", "2001", "2011", "2021"]
       stage: 0
+      # Elo lives in a narrow band a long way above zero, and the default y
+      # range runs from 0 (see `ylim`) — without this the four lines share 8 %
+      # of the plot's height and read as one flat stroke. bar_race's own chess
+      # example fixes its scale the same way (xlim: [2500, 2900]).
+      ylim: [2550, 2900]
       y_label: "Elo"
       title: "Fifty years at the top"
 layout: |
@@ -892,32 +903,47 @@ layout: |
   if (!Number.isInteger(xMin) || !Number.isInteger(xMax)) decX = Math.min(2, Math.max(decX, 1));
   const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(dec));
   const fmtX = fmtAxis(decX), fmtY = fmtAxis(decY);
-  // Slope layout: two inset columns instead of a continuous x scale. A
-  // point missing from a stage (null, same convention as atStage elsewhere)
-  // reads as 0 rather than throwing. pad is how far each column sits in
-  // from the plot edge — wide enough for the widest "name value" label its
-  // OUTER side must hold, so a label never runs past the canvas edge or
-  // crosses into the columns. `x_window` and `label_top` do not reach here:
-  // a slope chart has exactly two columns, so a rolling window has nothing
-  // to roll over (xMin/xMax above sit unread — this branch draws from
-  // xL/xR instead), and every series is already named and valued at BOTH
-  // ends, so "only the top n" would mean picking which HALF of a name to
-  // drop — not a real reading, so label_top is simply ignored.
+  // Slope layout: two inset columns instead of a continuous x scale. pad is
+  // how far each column sits in from the plot edge — wide enough for the
+  // widest "name value" label its OUTER side must hold, so a label never runs
+  // past the canvas edge or crosses into the columns. `x_window` and
+  // `label_top` do not reach here: a slope chart has exactly two columns, so a
+  // rolling window has nothing to roll over (xMin/xMax above sit unread — this
+  // branch draws from xL/xR instead), and every series is already named and
+  // valued at BOTH ends, so "only the top n" would mean picking which HALF of
+  // a name to drop — not a real reading, so label_top is simply ignored.
+  //
+  // A `null` endpoint BLANKS the series (slopeBlank below) rather than reading
+  // as 0: `values` promises that null "marks an x position with no value yet,
+  // drawing nothing there rather than a fabricated number", and a connector
+  // dropped to an invented 0 with "Name 0" printed at its end is exactly the
+  // fabricated number that promise forbids. A blanked series is treated the
+  // way a token series already is — its line_k beat still exists, drawing an
+  // empty connector and no labels — because "no value here" and "no value
+  // yet" want the same silence. The 0 fallback inside slopeValue therefore
+  // only ever runs for a series that is not drawn (leftY/rightY map over ALL
+  // series); it stays as a guard against a NaN escaping into Y().
   const slopeValue = (s, i) => {
     const a = at(s, k0, i), c = at(s, k1, i);
     const va = a === null ? 0 : a, vc = c === null ? 0 : c;
     return va + (vc - va) * t;
   };
+  // Which stages a displayed value actually reads: at t === 0 the shown stage
+  // IS k0 (Ruling A), so k1's own nulls have no say yet; past it the value is
+  // a blend and BOTH ends must be real for the blend to mean anything.
+  const nullCol = (s, i) => at(s, k0, i) === null || (t > 0 && at(s, k1, i) === null);
+  const slopeBlank = (s) => s.token || nullCol(s, 0) || nullCol(s, 1);
   const slopeText = (s, i) => (s.name ? s.name + " " : "") + fmtY(slopeValue(s, i));
   const SLOPE_LABEL_SIZE = 17;
   const SLOPE_LABEL_GAP = 10;
   let padCols = 0;
   if (slope) {
     let maxW = 0;
-    // A token series draws no label (see the slope drawing branch below), so
-    // it reserves no pad — otherwise a placeholder frame, fed entirely by an
-    // unresolved script variable, would pad columns for a "0" that never draws.
-    for (const s of series) if (!s.token) maxW = Math.max(maxW, kit.textWidth(slopeText(s, 0), SLOPE_LABEL_SIZE), kit.textWidth(slopeText(s, 1), SLOPE_LABEL_SIZE));
+    // A token or null-ended series draws no label (see the slope drawing branch
+    // below), so it reserves no pad — otherwise a placeholder frame, fed
+    // entirely by an unresolved script variable, would pad columns for a "0"
+    // that never draws.
+    for (const s of series) if (!slopeBlank(s)) maxW = Math.max(maxW, kit.textWidth(slopeText(s, 0), SLOPE_LABEL_SIZE), kit.textWidth(slopeText(s, 1), SLOPE_LABEL_SIZE));
     // Never invert the columns onto each other: at most 40 % of the plot
     // width goes to either side's labels.
     padCols = Math.min((plot.x1 - plot.x0) * 0.4, maxW + SLOPE_LABEL_GAP);
@@ -991,21 +1017,35 @@ layout: |
   // not interpolate. A "{code.var}" ticker that has not resolved yet still
   // DECLARES its beat — an id missing from `order` is a dropped command
   // (src/render/plan.ts) — so it draws as nothing until the captions arrive.
-  // Placed in the plot's bottom-right corner: unlike bar_race's bars (which
-  // can end anywhere), a line's OWN end labels already live outside the
-  // plot's shrunk right edge (Finding C1 above), so there is nothing here to
-  // dodge around — bar_race's fuller version, with its clearsTicker box
-  // math, would be solving a problem this template does not have.
+  // Placed in the plot's bottom-right corner. What that guarantees is only
+  // this: a FULLY revealed line's end label sits past plot.x1 (Finding C1
+  // shrank the plot by exactly that label's width), and the ticker's own box
+  // ends AT plot.x1 - 8, so the two cannot meet. It guarantees nothing during
+  // a prefix reveal, which is the whole point of a ticker: the front is then
+  // mid-plot, and a low line's end label — drawn to the RIGHT of the front,
+  // reaching further right by its own width — lands squarely on the year.
+  // Measured, on a plain two-series race: at stage 7 of 9 the ticker "2006"
+  // and "Control group" overlapped. So the ticker IS an obstacle here, the
+  // same one bar_race treats it as, and tickerBox/clearsTicker below are
+  // bar_race's own box math, one axis over — the two race surfaces agree.
   const tickerList = Array.isArray(params.ticker)
     ? params.ticker.filter((s) => typeof s === "string" || typeof s === "number").map(String)
     : null;
   const tickerCap = tickerList && tickerList.length > 0
     ? tickerList[clamp(Math.round(stage), 0, tickerList.length - 1)]
     : (typeof params.ticker === "string" && params.ticker.trim() !== "" ? "" : null);
+  const TICKER_SIZE = 46;
+  let tickerBox = null;
   if (tickerCap !== null) {
     const pos = [plot.x1 - 8, plot.y0 + 38];
-    push(kit.text("ticker", pos, tickerCap, { fontSize: 46, anchor: "end", color: C.guide, opacity: 0.4 }));
+    push(kit.text("ticker", pos, tickerCap, { fontSize: TICKER_SIZE, anchor: "end", color: C.guide, opacity: 0.4 }));
     anchors.ticker = pos;
+    // An unresolved "{code.var}" ticker draws the empty string — no ink, so
+    // no obstacle — exactly as in bar_race.
+    if (tickerCap !== "") {
+      const w = kit.textWidth(tickerCap, TICKER_SIZE), h = TICKER_SIZE * 1.25;
+      tickerBox = { x0: pos[0] - w, x1: pos[0], y0: pos[1] - h / 2, y1: pos[1] + h / 2 };
+    }
   }
 
   // A cluster of label y-positions pushed DODGE units apart, centred on the
@@ -1016,7 +1056,24 @@ layout: |
   // the slope branch can call it once per SIDE instead of once per chart.
   const DODGE = 46;
   const END_LABEL_FLOOR = 28; // an end label never sits in the x caption's row (its 19pt box clears a 22pt inline caption centred on the axis: 13.75 + 11.875 + the lint's 2-unit pad = 27.625)
-  const dodgeY = (ys) => {
+  // How high the LOWEST label of a cluster may sit. The x caption's row is the
+  // floor everywhere; where the ticker is drawn, a label whose own x-box runs
+  // into the year's box must clear it as well — bar_race's clearsTicker test
+  // (the lint's 2-unit pad on each side, boxesOverlap in layout/geometry.ts),
+  // resolved as a floor because a cluster dodges vertically and its bottom is
+  // the end that reaches the year. Callers pass one box per dodged label
+  // ({x0, x1, h} — the label's own width and side); a caller with no boxes to
+  // offer (or a chart with no ticker) keeps the plain floor.
+  const tickerFloor = (boxes) => {
+    let floor = plot.y0 + END_LABEL_FLOOR;
+    if (tickerBox && Array.isArray(boxes)) {
+      for (const b of boxes) {
+        if (b && b.x1 + 2 > tickerBox.x0 && b.x0 < tickerBox.x1 + 2) floor = Math.max(floor, tickerBox.y1 + 2 + b.h / 2);
+      }
+    }
+    return floor;
+  };
+  const dodgeY = (ys, boxes) => {
     const order = ys.map((_, i) => i).sort((a, b) => ys[a] - ys[b]);
     const dodged = ys.slice();
     for (let q = 1; q < order.length; q++) {
@@ -1024,12 +1081,13 @@ layout: |
       if (dodged[cur] - dodged[prev] < DODGE) dodged[cur] = dodged[prev] + DODGE;
     }
     if (order.length > 0) {
+      const floor = tickerFloor(boxes);
       let want = 0, got = 0;
       for (const k of order) { want += ys[k]; got += dodged[k]; }
       let shift = (want - got) / order.length;
       const cap = plot.y1 + kit.AXIS_OVERHANG;
       if (dodged[order[order.length - 1]] + shift > cap) shift = cap - dodged[order[order.length - 1]];
-      if (dodged[order[0]] + shift < plot.y0 + END_LABEL_FLOOR) shift = plot.y0 + END_LABEL_FLOOR - dodged[order[0]];
+      if (dodged[order[0]] + shift < floor) shift = floor - dodged[order[0]];
       for (const k of order) dodged[k] += shift;
     }
     return dodged;
@@ -1040,20 +1098,32 @@ layout: |
     // above, which exempts token series), one straight connector, name +
     // value dodged INDEPENDENTLY on each side — a series near the top on
     // the left can sit anywhere on the right, so the two columns never
-    // share one dodge pass. A token series (not data yet) still mints its
-    // line_k beat but draws an empty connector and no labels — the same
-    // "beat exists, draws nothing" placeholder the ordinary line chart
-    // gives a zero-point series below — and takes no slot in either dodge.
+    // share one dodge pass. A BLANK series — a token (not data yet) or one
+    // with a null at either column (no value there) — still mints its line_k
+    // beat but draws an empty connector and no labels — the same "beat
+    // exists, draws nothing" placeholder the ordinary line chart gives a
+    // zero-point series below — and takes no slot in either dodge.
     const leftY = series.map((s) => Y(slopeValue(s, 0)));
     const rightY = series.map((s) => Y(slopeValue(s, 1)));
-    const drawnSlots = series.map((s, k) => (s.token ? -1 : k)).filter((k) => k >= 0);
-    const leftDodgedSlots = dodgeY(drawnSlots.map((k) => leftY[k]));
-    const rightDodgedSlots = dodgeY(drawnSlots.map((k) => rightY[k]));
+    const drawnSlots = series.map((s, k) => (slopeBlank(s) ? -1 : k)).filter((k) => k >= 0);
+    // Each side's labels have their own x-box: the left column's hang back
+    // from xL (anchor "end"), the right column's run out from xR — only the
+    // right ones can ever reach the ticker, and only when the pad is narrow.
+    // (A ticker DOES reach a slope chart: the draw above has no !slope guard,
+    // whatever the manifest's "ignored in slope mode" says of the three race
+    // params — x_window and label_top really are ignored here, the ticker is
+    // not. Whichever way that divergence is settled later, these boxes cost
+    // nothing when there is no ticker: tickerFloor returns the plain floor.)
+    const SLOPE_LABEL_H = SLOPE_LABEL_SIZE * 1.25;
+    const leftBoxes = drawnSlots.map((k) => { const w = kit.textWidth(slopeText(series[k], 0), SLOPE_LABEL_SIZE); return { x0: xL - SLOPE_LABEL_GAP - w, x1: xL - SLOPE_LABEL_GAP, h: SLOPE_LABEL_H }; });
+    const rightBoxes = drawnSlots.map((k) => { const w = kit.textWidth(slopeText(series[k], 1), SLOPE_LABEL_SIZE); return { x0: xR + SLOPE_LABEL_GAP, x1: xR + SLOPE_LABEL_GAP + w, h: SLOPE_LABEL_H }; });
+    const leftDodgedSlots = dodgeY(drawnSlots.map((k) => leftY[k]), leftBoxes);
+    const rightDodgedSlots = dodgeY(drawnSlots.map((k) => rightY[k]), rightBoxes);
     const leftDodged = leftY.slice(), rightDodged = rightY.slice();
     drawnSlots.forEach((k, i) => { leftDodged[k] = leftDodgedSlots[i]; rightDodged[k] = rightDodgedSlots[i]; });
     series.forEach((s, k) => {
       const id = "line_" + (k + 1);
-      if (s.token) {
+      if (slopeBlank(s)) {
         push(kit.group(id, [kit.stroke(id + "__l", [], { color: C.series[k % C.series.length], strokeWidth: 4, ms: MS.curve })]));
         anchors[id] = [(xL + xR) / 2, plot.y0];
         return;
@@ -1107,7 +1177,15 @@ layout: |
     const labelTop = Number.isInteger(params.label_top) && params.label_top >= 1 ? params.label_top : null;
     if (labelTop !== null) slots = slots.slice().sort((a, b) => (labelY[b] - labelY[a]) || (a - b)).slice(0, labelTop);
     const labelled = new Set(slots);
-    const dodgedSlots = dodgeY(slots.map((k) => labelY[k]));
+    // The end label is drawn at (last point + END_GAP) with anchor "start", so
+    // its box runs RIGHTWARD from the reveal front — which is how a mid-plot
+    // front can still put a name on top of the corner's year.
+    const END_LABEL_H = END_SIZE * 1.25;
+    const labelBoxes = slots.map((k) => {
+      const x = lines[k].pts[lines[k].pts.length - 1][0] + END_GAP;
+      return { x0: x, x1: x + kit.textWidth(lines[k].s.name, END_SIZE), h: END_LABEL_H };
+    });
+    const dodgedSlots = dodgeY(slots.map((k) => labelY[k]), labelBoxes);
     const dodged = labelY.slice();
     slots.forEach((k, i) => { dodged[k] = dodgedSlots[i]; });
 
@@ -1127,7 +1205,7 @@ layout: |
   }
 
   if (title) {
-    let ty = Math.min(700, plot.y1 + 25);
+    let ty = Math.min(730, plot.y1 + 25);
     const yCap = axesChildren.find((d) => d.id === "axes__y_label");
     if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
     ty = Math.min(ty, 730);
@@ -1440,7 +1518,7 @@ layout: |
   // title itself is still drawn last, so the drawing order is unchanged.
   let titleAt = null;
   if (title) {
-    let ty = Math.min(700, plot.y1 + 25);
+    let ty = Math.min(730, plot.y1 + 25);
     const yCap = axesChildren.find((d) => d.id === "axes__y_label");
     if (yCap) ty = Math.max(ty, yCap.pos[1] + 40);
     titleAt = [(plot.x0 + plot.x1) / 2, Math.min(ty, 730)];
@@ -1620,7 +1698,7 @@ params:
       type: string
 element_ids:
   axes: the value axis with its caption and ticks
-  note: the refusal note, drawn only when every number in the race is zero or less and so no bar can have any length
+  note: the refusal note, drawn when no bar can have any length — every number in the race is zero or less, or every cell is an explicit null (every racer absent)
   race_1: "the first racer's bar (its fill, name and value label; race_2, race_3, … likewise) — one per label, in INPUT order, at every stage"
   ticker: the large stage caption (the year), when set
   title: figure title, when set
@@ -1944,9 +2022,18 @@ layout: |
   // go with it: a column of numbers hugging the axis with no bars beside them
   // is the same silence, differently dressed, and the note is the explanation
   // that replaces them.
-  let allNonPositive = hasData;
-  for (const st of stages) for (const v of st) if (typeof v === "number" && v > 0) allNonPositive = false;
-  const note = allNonPositive ? "a race needs values above zero — every number here is zero or less" : null;
+  // Two different silences, two different explanations. "Every number is zero
+  // or less" is the wrong thing to say about a field where there are no
+  // numbers at all: an all-`null` race is not a race of small values, it is a
+  // race where nobody has arrived (null = absent, the encoding `absentAt`
+  // reads above), and a viewer told "zero or less" would go looking for
+  // negative numbers that are not there.
+  let allNonPositive = hasData, anyNumber = false;
+  for (const st of stages) for (const v of st) if (typeof v === "number") { anyNumber = true; if (v > 0) allNonPositive = false; }
+  const note = !hasData ? null
+    : !anyNumber ? "every racer here is absent — no stage has a value yet"
+    : allNonPositive ? "a race needs values above zero — every number here is zero or less"
+    : null;
   const showValues = params.value_labels !== false && hasData && !note;
   const VALUE_SIZE = Math.max(14, NAME_SIZE - 2);
   const VALUE_GAP = 8;  // horizontal: the bar's end → the label
@@ -2236,7 +2323,7 @@ element_ids:
   axes: the grid's rule and the column names along its top
   row_1: "the first row of cells — its wash, its numbers and its row name (row_2, row_3, … likewise); draw them one per beat to walk down the matrix"
   legend: the scale — which wash means which number
-  note: the refusal note, drawn only when the matrix is bigger than 12 × 12
+  note: "the refusal note — drawn when the matrix is bigger than 12 × 12, and when an authored `box` is too small to hold the grid (in that case it is the ONLY thing drawn besides the title)"
   title: figure title, when set
 examples:
   - request: "Correlation matrix of age, income, BMI and blood pressure."

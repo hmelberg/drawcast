@@ -449,6 +449,25 @@ describe("bar_race scale and furniture", () => {
     expect(crowded.issues).toEqual([]);
   });
 
+  // Final whole-branch review: an all-null field hit the same refusal and got
+  // the same sentence, but "every number here is zero or less" is a wrong
+  // explanation for it — null means ABSENT (the encoding absentAt reads), not
+  // small, and a viewer told this would go hunting for negative numbers that
+  // do not exist. The silence is real either way; the reason is not the same.
+  test("a race whose every cell is null says the racers are absent, not that the numbers are too small", () => {
+    const l = race({ labels: ["A", "B"], values: [[null, null], [null, null]] });
+    const n = textById(l, "note")!;
+    expect(n.text).toMatch(/absent/i);
+    expect(n.text).not.toMatch(/zero or less/);
+    expect(l.order).toContain("note");
+    expect(l.issues).toEqual([]);
+    // One real number anywhere and it is a race again — no note at all.
+    expect(textById(race({ labels: ["A", "B"], values: [[null, null], [null, 5]] }), "note")).toBeUndefined();
+    // A field that mixes absence with numbers that are all ≤ 0 keeps the OTHER
+    // explanation: there ARE numbers here, and every one of them is too small.
+    expect(textById(race({ labels: ["A", "B"], values: [[-5, null]] }), "note")!.text).toMatch(/zero or less/);
+  });
+
   test("a race still waiting on its script draws no ticks and no values", () => {
     // The placeholder promise again: "not data yet" must not be dressed up as
     // a scale reading 0…1 with a column of zeroes hanging off it.
