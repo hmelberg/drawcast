@@ -9788,6 +9788,95 @@
   }
  },
  {
+  "request": "A correlation matrix of four health variables, revealed row by row.",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "What moves with what",
+   "template": "heatmap",
+   "params": {
+    "rows": [
+     "Age",
+     "Income",
+     "BMI",
+     "Blood pressure"
+    ],
+    "cols": [
+     "Age",
+     "Income",
+     "BMI",
+     "Blood pressure"
+    ],
+    "values": [
+     [
+      1,
+      -0.12,
+      0.34,
+      0.51
+     ],
+     [
+      -0.12,
+      1,
+      0.08,
+      -0.21
+     ],
+     [
+      0.34,
+      0.08,
+      1,
+      0.46
+     ],
+     [
+      0.51,
+      -0.21,
+      0.46,
+      1
+     ]
+    ],
+    "scale": "diverging",
+    "decimals": 2,
+    "title": "What moves with what"
+   },
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "legend"
+     ],
+     "parallel": true,
+     "speak": "Four variables, each one crossed with every other. Warm means they rise together, cool means one falls as the other rises, and the denser the wash the stronger the pull."
+    },
+    {
+     "draw": [
+      "row_1"
+     ],
+     "speak": "Age against itself is a perfect one, as the diagonal always is. Against blood pressure it is a half: the strongest real number on the row."
+    },
+    {
+     "draw": [
+      "row_2"
+     ],
+     "speak": "Income is the loner here. Barely anything with age, and only a faint cool cell against blood pressure."
+    },
+    {
+     "draw": [
+      "row_3",
+      "row_4"
+     ],
+     "parallel": true,
+     "speak": "BMI and blood pressure are the pair that travel together: nought point four six, the deepest warm cell off the diagonal."
+    },
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Read the grid rather than the numbers. The warm block in the bottom right is the whole story."
+    }
+   ]
+  }
+ },
+ {
    "request": "In R with ggplot2: 200 random draws, their mean, and a histogram, stepped line by line",
    "spec": {
      "title": "The law of large numbers, in R",

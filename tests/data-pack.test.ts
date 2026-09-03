@@ -13,7 +13,8 @@ import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
-import { flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
+import { COLORS, flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
+import { contrastOfLuminances, relativeLuminance } from "./contrast";
 import { templateParamErrors } from "../src/scenes/params-check";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Spec } from "../src/spec/types";
@@ -42,6 +43,7 @@ describe("pack registration", () => {
     expect(scenes.line_chart?.manifest.status).toBe("ready");
     expect(scenes.scatter_plot?.manifest.status).toBe("ready");
     expect(scenes.bar_race?.manifest.status).toBe("ready");
+    expect(scenes.heatmap?.manifest.status).toBe("ready");
   });
 
   test("every manifest example lays out with zero warnings and no lint issues, warn or error", () => {
@@ -51,7 +53,7 @@ describe("pack registration", () => {
     // because only `severity === "error"` was checked; that blind spot is
     // load-bearing for this round's later, label-dense templates (race
     // charts, a heatmap), so every issue — not just errors — must be empty.
-    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race"]) {
+    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race", "heatmap"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params } as Spec);
         expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);
@@ -68,7 +70,7 @@ describe("pack registration", () => {
   // until now, which is exactly how the chess example's null values shipped
   // typed against a schema that still said `number` with no `"null"`.
   test("every manifest example validates against its own template's params schema", () => {
-    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race"]) {
+    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race", "heatmap"]) {
       for (const ex of scenes[tid].manifest.examples) {
         expect(templateParamErrors(tid, ex.params), `${tid}: ${ex.request}`).toEqual([]);
       }
@@ -1232,5 +1234,195 @@ describe("scatter_plot", () => {
     expect(templateParamErrors("scatter_plot", { x: [1, 2, 3], y: [1, null, 3] })).toEqual([]);
     expect(templateParamErrors("scatter_plot", { x: [1, 2, 3], y: [[1, null, 3], [1, 2, 3]] })).toEqual([]);
     expect(templateParamErrors("scatter_plot", { x: [1, null, 3], y: [1, 2, 3] }).length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// heatmap (M3): correlation, confusion, transition and risk matrices.
+//
+// The encoding ruling is what these tests are really about. A continuous
+// colour ramp fights the hand-drawn ground and walks straight into this
+// repo's contrast trap (a number asserted rather than calculated, twice
+// learned), so the encoding is fill OPACITY of one ink — or two inks either
+// side of zero. That makes the VALUE LABEL's ink a choice, and the choice
+// must be arithmetic: the tests below composite the cell themselves from the
+// drawable's own fill and opacity and check the body picked the ink with the
+// better computed contrast. A hardcoded cutoff cannot pass them.
+// ---------------------------------------------------------------------------
+
+/** The figure's own paper, the ground a cell's wash composites over (src/render/figure-style.ts). */
+const FIGURE_GROUND = "#fffefb";
+const map = (params: object) => layoutSpec({ template: "heatmap", params } as Spec);
+const CORR = {
+  rows: ["Age", "Income", "BMI"],
+  cols: ["Age", "Income", "BMI"],
+  values: [[1, 0.3, 0.5], [0.3, 1, -0.2], [0.5, -0.2, 1]],
+};
+const cellsOf = (l: ReturnType<typeof layoutSpec>, row: number) =>
+  flattenDrawables(l.drawables).filter((d): d is AreaDrawable => d.kind === "area" && d.id.startsWith(`row_${row}__`));
+const valuesOf = (l: ReturnType<typeof layoutSpec>, row: number) =>
+  flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text" && d.id.startsWith(`row_${row}__v`));
+/**
+ * A cell's own luminance: its ink composited over the figure's paper in
+ * gamma-encoded sRGB (what an SVG `opacity` actually does), then WCAG 2.1
+ * relative luminance. Channels stay fractional — rounding to 8-bit hex first
+ * would put a cell sitting near the flip's crossover on the wrong side of it.
+ */
+const cellLum = (c: AreaDrawable) => {
+  const ch = (hex: string, i: number) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  const a = c.style.opacity;
+  const lin = [0, 1, 2].map((i) => {
+    const v = (ch(FIGURE_GROUND, i) * (1 - a) + ch(c.style.fill!, i) * a) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+};
+
+describe("heatmap", () => {
+  test("one drawable group per row, cells in column order", () => {
+    const l = map(CORR);
+    expect(l.order.filter((id) => id.startsWith("row_"))).toEqual(["row_1", "row_2", "row_3"]);
+    // "column order" has to mean something on the canvas, not just in the id
+    // list: cell j sits left of cell j+1.
+    const xs = cellsOf(l, 1).map((c) => c.pts.reduce((a, p) => a + p[0], 0) / c.pts.length);
+    expect(xs).toHaveLength(3);
+    expect(xs[0]).toBeLessThan(xs[1]);
+    expect(xs[1]).toBeLessThan(xs[2]);
+  });
+
+  test("a bigger value gets a denser wash", () => {
+    const cells = cellsOf(map(CORR), 1);
+    // Row 1 is [1, 0.3, 0.5], so the wash must order c0 > c2 > c1. Only the
+    // identity permutation of the three columns satisfies that — a reversed
+    // or rotated row fails it, which the brief's plain c0 > c1 would not.
+    expect(cells[0].style.opacity).toBeGreaterThan(cells[2].style.opacity);
+    expect(cells[2].style.opacity).toBeGreaterThan(cells[1].style.opacity);
+  });
+
+  test("the label ink flips by COMPUTED luminance, never by a guessed cutoff", () => {
+    const l = map(CORR);
+    const texts = valuesOf(l, 1);
+    const lum = (hex: string) => {
+      const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    // The darkest cell (1.0) carries light ink; the palest (0.3) carries dark ink.
+    const dark = texts.find((t) => t.text.startsWith("1"))!;
+    const pale = texts.find((t) => /0\.3/.test(t.text))!;
+    expect(lum(dark.style.color)).toBeGreaterThan(lum(pale.style.color));
+
+    // And the rule itself, cell by cell: whichever of the two inks has the
+    // better contrast against THIS cell's composited luminance is the one
+    // drawn. Nothing here names a threshold — it falls out of the arithmetic.
+    const cells = cellsOf(l, 1);
+    expect(cells).toHaveLength(texts.length);
+    for (let j = 0; j < cells.length; j++) {
+      const L = cellLum(cells[j]);
+      const best = [COLORS.ink, COLORS.paper]
+        .map((ink) => ({ ink, ratio: contrastOfLuminances(L, relativeLuminance(ink)) }))
+        .sort((a, b) => b.ratio - a.ratio)[0].ink;
+      expect(texts[j].style.color, `cell ${j} (${texts[j].text})`).toBe(best);
+    }
+  });
+
+  test("diverging scale puts negatives in the other ink", () => {
+    const cells = cellsOf(map({ ...CORR, scale: "diverging" }), 2);
+    // Row 2 is [0.3, 1, -0.2] — the last cell is the only negative one.
+    expect(cells[2].style.fill).not.toBe(cells[0].style.fill);
+    expect(cells[0].style.fill).toBe(cells[1].style.fill);
+  });
+
+  test("more than 12 rows or columns draws the refusal note", () => {
+    const noteOf = (l: ReturnType<typeof layoutSpec>) => flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    const big = { rows: Array.from({ length: 13 }, (_, i) => "r" + i), cols: ["a"], values: Array.from({ length: 13 }, () => [1]) };
+    const tall = map(big);
+    expect(noteOf(tall)?.text).toMatch(/12/);
+    // …and the first 12 rows are still drawn, rather than the whole thing failing.
+    expect(tall.order.filter((id) => /^row_\d+$/.test(id))).toHaveLength(12);
+    expect(tall.issues).toEqual([]);
+
+    // The other half of the cap: too many COLUMNS refuses the same way.
+    const wide = map({ rows: ["a"], cols: Array.from({ length: 15 }, (_, i) => "c" + i), values: [Array.from({ length: 15 }, () => 1)] });
+    expect(noteOf(wide)?.text).toMatch(/12/);
+    expect(flattenDrawables(wide.drawables).filter((d) => d.kind === "area" && d.id.startsWith("row_1__"))).toHaveLength(12);
+    expect(wide.issues).toEqual([]);
+
+    // A grid inside the cap says nothing at all.
+    expect(noteOf(map(CORR))).toBeUndefined();
+  });
+
+  // The controller's ruling for this task: a staged heatmap must fix its
+  // scale over ALL stages. Normalising per stage would re-wash every cell on
+  // every tween frame — the same class of flicker this round has been fixing
+  // in the race charts' axes all day.
+  test("a staged heatmap normalises its wash across ALL stages, so it cannot flicker mid-tween", () => {
+    const staged = { rows: ["a", "b"], cols: ["x", "y"], values: [[[1, 2], [3, 4]], [[1, 2], [3, 8]]] };
+    const at0 = cellsOf(map({ ...staged, stage: 0 }), 1)[0];
+    const at1 = cellsOf(map({ ...staged, stage: 1 }), 1)[0];
+    // Cell (1,1) is 1 at both stages. Per-stage normalisation would wash it
+    // at 1/4 then 1/8 — the same number, two different inks.
+    expect(at1.style.opacity).toBeCloseTo(at0.style.opacity, 10);
+    // The stage-1 maximum (8) is what sets full wash, at BOTH stages.
+    const top = cellsOf(map({ ...staged, stage: 1 }), 2)[1];
+    expect(at0.style.opacity).toBeCloseTo(top.style.opacity / 8, 10);
+    // A fractional stage interpolates the value: 4 → 8 is 6 at half way.
+    const mid = cellsOf(map({ ...staged, stage: 0.5 }), 2)[1];
+    expect(mid.style.opacity).toBeCloseTo((top.style.opacity * 6) / 8, 10);
+  });
+
+  // The placeholder promise (M1): typed row and column names give the grid
+  // its shape before the script has run, so the row_i beats a storyboard
+  // names exist offline. An unresolved token is a quiet placeholder, never
+  // an error state.
+  test("an unresolved {code.var} token lays the grid out as a quiet placeholder", () => {
+    const l = map({ rows: ["Actual: no", "Actual: yes"], cols: ["Predicted: no", "Predicted: yes"], values: "{clf.cm}" });
+    expect(l.order.filter((id) => /^row_\d+$/.test(id))).toEqual(["row_1", "row_2"]);
+    expect(l.order).toContain("axes");
+    expect(l.issues).toEqual([]);
+    // Nothing invented: no wash, no numbers, and no legend for a scale that
+    // has no numbers behind it yet.
+    expect(cellsOf(l, 1)).toEqual([]);
+    expect(valuesOf(l, 1)).toEqual([]);
+    expect(l.order).not.toContain("legend");
+  });
+
+  // The trap Task 6 paid a fix round for: a body that renders a shape its own
+  // params schema rejects. src/scenes/catalog.ts shows the schema and the
+  // examples to the compiler together, so the two must agree — staged grids
+  // and null cells above all, since those are the shapes the body goes out of
+  // its way to accept.
+  test("the params schema accepts every shape the body renders, and rejects the rest", () => {
+    const ok = (p: object, what: string) => expect(templateParamErrors("heatmap", p), what).toEqual([]);
+    ok({ rows: ["a"], cols: ["x"], values: [[1]] }, "a flat grid");
+    ok({ rows: ["a"], cols: ["x"], values: [[[1]], [[2]]] }, "staged grids");
+    ok({ rows: ["a"], cols: ["x"], values: [[1, null]] }, "a masked cell");
+    ok({ rows: "{c.r}", cols: "{c.c}", values: "{c.cm}" }, "tokens throughout");
+    ok({ rows: ["a"], cols: ["x"], values: [[1]], stage: 0.5, scale: "diverging", value_labels: false, decimals: 3, title: "t" }, "every param at once");
+    expect(templateParamErrors("heatmap", { values: "not a token" }).length, "a bare string").toBeGreaterThan(0);
+    expect(templateParamErrors("heatmap", { scale: "rainbow" }).length, "an unknown scale").toBeGreaterThan(0);
+  });
+
+  test("degenerate grids stay finite and clean", () => {
+    const grids: [string, object][] = [
+      ["a single cell", { rows: ["a"], cols: ["x"], values: [[7]] }],
+      ["one row, many columns", { rows: ["a"], cols: ["w", "x", "y", "z"], values: [[1, 2, 3, 4]] }],
+      ["every value identical", { rows: ["a", "b"], cols: ["x", "y"], values: [[5, 5], [5, 5]] }],
+      ["every value zero", { rows: ["a", "b"], cols: ["x", "y"], values: [[0, 0], [0, 0]] }],
+      ["values spanning zero on the sequential scale", { rows: ["a", "b"], cols: ["x", "y"], values: [[-4, -1], [2, 6]] }],
+      ["a ragged values array", { rows: ["a", "b"], cols: ["x", "y"], values: [[1], [2, 3]] }],
+      ["more rows than row names", { rows: ["a"], cols: ["x"], values: [[1], [2], [3]] }],
+      ["a masked cell (null)", { rows: ["a", "b"], cols: ["x", "y"], values: [[1, null], [3, 4]] }],
+    ];
+    for (const [what, params] of grids) {
+      const l = map(params);
+      expect(l.warnings, what).toEqual([]);
+      expect(l.issues, what).toEqual([]);
+      for (const d of flattenDrawables(l.drawables)) {
+        if (d.kind === "area" || d.kind === "stroke") for (const p of d.pts) expect(Number.isFinite(p[0]) && Number.isFinite(p[1]), what).toBe(true);
+        if (d.kind === "area") expect(Number.isFinite(d.style.opacity) && d.style.opacity >= 0 && d.style.opacity <= 1, `${what}: ${d.id}`).toBe(true);
+      }
+    }
+    // A masked cell draws nothing at all rather than a fabricated zero.
+    expect(cellsOf(map({ rows: ["a", "b"], cols: ["x", "y"], values: [[1, null], [3, 4]] }), 1)).toHaveLength(1);
   });
 });

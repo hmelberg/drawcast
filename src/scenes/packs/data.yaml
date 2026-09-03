@@ -2145,3 +2145,417 @@ layout: |
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }
   return { drawables, labels: labelReqs, anchors, order };
+---
+template: heatmap
+title: Heatmap / matrix
+version: 1
+kit: 5
+status: ready
+description: >-
+  A heatmap: a grid of cells whose FILL DENSITY is the number — one row
+  drawable per matrix row (`row_1`, `row_2`, …) so a reveal can walk down
+  it. `rows` and `cols` name the axes, `values` is a 2-D grid (row-major,
+  one list per row), and every cell carries its own number unless
+  `value_labels: false`. `scale: "sequential"` (default) washes one ink
+  from the low end of the data to the high — counts, rates, a confusion
+  matrix; `scale: "diverging"` uses TWO inks either side of zero, warm
+  above and cool below, both normalised by the largest absolute value — a
+  correlation matrix, a difference table, anything where the sign is the
+  story. `values` may also be a list of GRIDS — stages of the same matrix —
+  and the numeric `stage` param picks which one is shown; a fractional
+  stage interpolates, so `animate: {stage: 1}` plays the change as the wash
+  deepening and fading. The scale is fixed across every stage, so the
+  colours never flicker mid-tween. Write `null` for a masked cell (the
+  upper triangle of a correlation matrix, a combination that cannot
+  happen): it draws as blank rather than as a fabricated zero. Feed it
+  typed numbers, or a code element's variables via "{id.var}" tokens (type
+  the row and column names by hand so the row_i beats exist before the
+  script has run). Choose this scene for ANY request for a heatmap, a
+  correlation matrix, a confusion matrix, a transition or migration matrix,
+  a risk matrix, a cross-tabulation shown as colour, or "which combinations
+  are highest". At most 12 rows × 12 columns — past that a cell is too
+  small to hold its own number, and the scene says so on the canvas.
+params:
+  type: object
+  properties:
+    rows:
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 40 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "Row names, top to bottom, one per row of `values`. TYPE these by hand even when the numbers come from a script — the storyboard's row_i beats exist only when the row count is known before the script runs. A \"{id.var}\" token works too, at that cost. At most 12 are drawn."
+    cols:
+      oneOf:
+        - { type: array, items: { type: string }, maxItems: 40 }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "Column names, left to right, written along the top of the grid. At most 12 are drawn."
+    values:
+      oneOf:
+        - { type: array, maxItems: 40, items: { type: array, items: { type: [number, "null"] }, maxItems: 40 } }
+        - { type: array, minItems: 1, maxItems: 200, items: { type: array, minItems: 1, maxItems: 40, items: { type: array, items: { type: [number, "null"] }, maxItems: 40 } } }
+        - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
+      description: "The matrix, row-major: one list of numbers per row (a 2-D grid), or a list of such grids — STAGES of the same matrix, depth means staged. `null` marks a MASKED cell, drawn blank rather than as a fabricated zero. Or a \"{id.var}\" token naming a code element's variable (a confusion matrix, a correlation matrix)."
+    stage:
+      type: number
+      minimum: 0
+      # Deliberately no `x-max-from: ["values"]`. That hint means "count the
+      # stages in this param", and its stage counter (sliderSpecs, in
+      # src/ui/tray-model.ts) reads a nested array as staged — true for every
+      # other template in this pack, false here, where a plain 2-D matrix is
+      # already nested. A static grid would get an explore slider ranging over
+      # its own ROWS. No hint, no slider, until that counter learns depth.
+      description: "Which stage is shown (0-based; default 0). Fractional values interpolate between adjacent grids — the animate verb's target: {\"animate\": {\"stage\": 1}}. Write the starting stage explicitly."
+    scale:
+      type: string
+      enum: ["sequential", "diverging"]
+      description: "\"sequential\" (default) grades ONE ink from the data's low end to its high — counts, rates, a confusion matrix. \"diverging\" uses two inks either side of zero, warm for positive and cool for negative, each normalised by the largest absolute value, so +0.4 and −0.4 read equally strong — correlations, differences, anything whose SIGN is the story."
+    value_labels:
+      type: boolean
+      description: "Write each cell's number inside it (default true). Turned off automatically when the cells are too small to hold a readable one."
+    decimals:
+      type: integer
+      minimum: 0
+      maximum: 4
+      description: "Decimals in the cell numbers. Default: the data's own precision, at most 2."
+    title:
+      type: string
+element_ids:
+  axes: the grid's rule and the column names along its top
+  row_1: "the first row of cells — its wash, its numbers and its row name (row_2, row_3, … likewise); draw them one per beat to walk down the matrix"
+  legend: the scale — which wash means which number
+  note: the refusal note, drawn only when the matrix is bigger than 12 × 12
+  title: figure title, when set
+examples:
+  - request: "Correlation matrix of age, income, BMI and blood pressure."
+    params:
+      rows: ["Age", "Income", "BMI", "Blood pressure"]
+      cols: ["Age", "Income", "BMI", "Blood pressure"]
+      values:
+        - [1, -0.12, 0.34, 0.51]
+        - [-0.12, 1, 0.08, -0.21]
+        - [0.34, 0.08, 1, 0.46]
+        - [0.51, -0.21, 0.46, 1]
+      scale: "diverging"
+      decimals: 2
+      title: "What moves with what"
+  - request: "Show the confusion matrix from the classifier I fit in Python."
+    params:
+      rows: ["Actual: no", "Actual: yes"]
+      cols: ["Predicted: no", "Predicted: yes"]
+      values: "{clf.cm}"
+      decimals: 0
+      title: "Confusion matrix"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  // values: number[][] (one grid) or number[][][] (STAGES of the same grid —
+  // the pack's depth-means-staged rule, one level deeper here because a
+  // heatmap's datum is already 2-D). `null` is a MASKED cell — the upper
+  // triangle of a correlation matrix, a combination that cannot happen — and
+  // draws as blank rather than as a fabricated zero, line_chart's own
+  // convention. Anything else (an unresolved "{code.var}" token before the
+  // script has run) is "no data yet", and the placeholder promise below still
+  // lays the grid out from the typed row and column names.
+  const isCell = (v) => v === null || (typeof v === "number" && Number.isFinite(v));
+  const isRow = (a) => Array.isArray(a) && a.every(isCell);
+  const isGrid = (g) => Array.isArray(g) && g.length > 0 && g.every(isRow);
+  const toStages = (v) => {
+    if (!Array.isArray(v) || v.length === 0) return null;
+    if (isGrid(v)) return [v];
+    return v.every(isGrid) ? v.slice(0, 200) : null;
+  };
+  const names = (v) => (Array.isArray(v) ? v : [])
+    .filter((s) => typeof s === "string" || typeof s === "number")
+    .map(String);
+  const rowNames = names(params.rows), colNames = names(params.cols);
+  const staged = toStages(params.values);
+  const hasData = staged !== null;
+  const stages = staged || [[]];
+  let R0 = rowNames.length, C0 = colNames.length;
+  for (const g of stages) {
+    R0 = Math.max(R0, g.length);
+    for (const r of g) C0 = Math.max(C0, r.length);
+  }
+  // Cap 12 × 12: past that a cell cannot hold its own number, so the grid
+  // stops being a table of values and becomes a texture. A body cannot raise
+  // a lint issue (SceneLayout has no warning channel), so the refusal is
+  // DRAWN — a short note under the id "note", the convention bar_chart,
+  // line_chart and bar_race all use — and the first 12 × 12 is still shown.
+  const CAP = 12;
+  const nR = Math.min(CAP, R0), nC = Math.min(CAP, C0);
+  const note = R0 > CAP || C0 > CAP
+    ? "at most 12 rows × 12 columns fit — showing the first " + (
+        R0 > CAP && C0 > CAP ? nR + " × " + nC + " of " + R0 + " × " + C0
+        : R0 > CAP ? nR + " of " + R0 + " rows"
+        : nC + " of " + C0 + " columns")
+    : null;
+
+  const K = stages.length;
+  const stage = clamp(num(params.stage, 0), 0, K - 1);
+  const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
+  // A grid with fewer stages than K holds its last one; a row shorter than the
+  // column count (a ragged array) is masked past its end, not padded with 0.
+  const at = (k, i, j) => {
+    const g = stages[Math.min(k, K - 1)];
+    const r = g[i];
+    const v = Array.isArray(r) ? r[j] : undefined;
+    return typeof v === "number" ? v : null;
+  };
+  // A cell masked at one end of a transition holds the value it really has at
+  // the other — bar_race's rule, for the same reason: only two real numbers
+  // ever interpolate into each other, so a cell never grows out of a number
+  // that never existed.
+  const value = (i, j) => {
+    const a = at(k0, i, j), b = at(k1, i, j);
+    if (a === null && b === null) return null;
+    if (a === null) return b;
+    if (b === null) return a;
+    return a + (b - a) * t;
+  };
+
+  // The SCALE is fixed over ALL stages, exactly as bar_chart fixes its y
+  // limits: re-normalising per stage would re-wash every cell on every tween
+  // frame and the whole grid would flicker as it animated — the same class of
+  // defect as an axis that reflows mid-race. Only the DRAWN cells count:
+  // a row or column past the cap is not drawn, so it must not set the scale
+  // either (scatter_plot's Ruling H).
+  let lo = Infinity, hi = -Infinity, maxAbs = 0;
+  for (const g of stages) {
+    for (let i = 0; i < Math.min(nR, g.length); i++) {
+      const r = g[i];
+      for (let j = 0; j < Math.min(nC, r.length); j++) {
+        const v = r[j];
+        if (typeof v !== "number") continue;
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+        maxAbs = Math.max(maxAbs, Math.abs(v));
+      }
+    }
+  }
+  if (!Number.isFinite(lo)) { lo = 0; hi = 0; }
+  const diverging = params.scale === "diverging";
+  // sequential runs over the data's own range with 0 always inside it, so an
+  // empty cell reads as empty and a full one as the maximum; it stays monotone
+  // in the value even when the data spans zero. diverging measures DISTANCE
+  // from zero against the largest absolute value, so +0.4 and −0.4 are equally
+  // dense and only the ink differs.
+  const sLo = Math.min(0, lo), sHi = Math.max(0, hi), sSpan = sHi - sLo;
+  const frac = (v) => clamp(diverging
+    ? (maxAbs > 1e-12 ? Math.abs(v) / maxAbs : 0)
+    : (sSpan > 1e-12 ? (v - sLo) / sSpan : 0), 0, 1);
+
+  // THE ENCODING: fill OPACITY of one ink (sequential) or two inks either side
+  // of zero (diverging) — never a continuous colour ramp. A ramp fights the
+  // hand-drawn ground and puts the reading in a hue nobody can measure; a
+  // graded ink wash keeps it in a quantity anyone can.
+  const WASH = 0.9;
+  const WARM = C.demand, COOL = C.supply;
+  const inkOf = (v) => (diverging && v < 0 ? COOL : diverging ? WARM : COOL);
+  // Exact fills, not the kit's default shaded region: the cell's DENSITY is
+  // the datum, and a hachured region's density comes from its hatch spacing,
+  // not from its opacity — the wash would stop tracking the number, and the
+  // luminance computed just below would be a lie about what is on screen.
+  //
+  // The label ink is CHOSEN, and chosen by arithmetic. A cell is `ink` painted
+  // at `a` over the figure's own paper (#fffefb, src/render/figure-style.ts),
+  // so composite in gamma-encoded sRGB — what an SVG `opacity` actually does —
+  // and take the WCAG 2.1 relative luminance of the result:
+  //   c  = ground·(1 − a) + ink·a                          (per channel, 0…255)
+  //   c' = c/255 ≤ 0.03928 ? (c/255)/12.92 : ((c/255 + 0.055)/1.055)^2.4
+  //   L  = 0.2126·r' + 0.7152·g' + 0.0722·b'
+  // then keep whichever ink contrasts better by (L₁+0.05)/(L₂+0.05). The
+  // threshold is not a guess: the two ratios cross where the ink stops winning,
+  // at L* = √((L_light+0.05)·(L_dark+0.05)) − 0.05 = 0.2532 for this palette,
+  // and the worst contrast a label can be given is that crossing's own ratio,
+  // 3.35:1. Both fall out of the arithmetic below; neither is asserted, and
+  // 3.35 is the FLOOR of a two-ink flip — no wash cap can raise it, since some
+  // value can always land on the crossing.
+  //
+  // What the cap does change is the top end, which is why WASH is 0.9: the
+  // densest cell then reads 4.53:1 (cool) and 4.32:1 (warm) against the light
+  // ink. At 0.7 the flip would never happen at all — every cell still reads
+  // better in dark ink there, at 3.0:1.
+  const GROUND = "#fffefb";
+  const LUM_W = [0.2126, 0.7152, 0.0722];
+  const chan = (hex, i) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  const lumOfChannels = (f) => {
+    let L = 0;
+    for (let i = 0; i < 3; i++) {
+      const c = f(i) / 255;
+      L += LUM_W[i] * (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    }
+    return L;
+  };
+  const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  const L_DARK = lumOfChannels((i) => chan(C.ink, i));
+  const L_LIGHT = lumOfChannels((i) => chan(C.paper, i));
+  const labelInk = (ink, a) => {
+    const L = lumOfChannels((i) => chan(GROUND, i) * (1 - a) + chan(ink, i) * a);
+    return ratio(L, L_LIGHT) > ratio(L, L_DARK) ? C.paper : C.ink;
+  };
+
+  const plot = kit.plotArea();
+  const title = str(params.title, "");
+  // A drawn title costs 55 units of plot height — the did_trends convention
+  // the whole pack follows (see bar_chart).
+  if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
+
+  const drawables = [], labelReqs = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  // No rows or no columns is not a grid at all — data_table's own early
+  // return, rather than a frame drawn around nothing.
+  if (nR === 0 || nC === 0) return { drawables, labels: labelReqs, anchors, order };
+
+  const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts)
+  const NAME_GAP = 10;   // the grid's left edge → the row name's right edge
+  // One size for the row names and the column headers — the same furniture
+  // read along two axes. 18 is safe at every grid this template allows: the
+  // 12-row cap over the shortest band it can have (a title AND a note leave
+  // 620 − 95 − 28 − 32.5 = 464 units) gives rows 38 units tall, where the
+  // lint wants a name box (18 × 1.25) plus its 2-unit pad on each side, 26.5.
+  const SIZE = 18;
+  const NOTE_SIZE = 16;
+  const HEAD_ROW = SIZE * 1.25 + 10;                 // the column-name band above the grid
+  const NOTE_ROW = note ? NOTE_SIZE * 1.25 + 8 : 0;  // the refusal's own row above that
+  const fitText = (s, maxW, size) => {
+    if (kit.textWidth(s, size) <= maxW) return s;
+    let out = s;
+    while (out.length > 1 && kit.textWidth(out + "…", size) > maxW) out = out.slice(0, -1);
+    return out.replace(/\s+$/, "") + "…";
+  };
+  const nameOf = (i) => (rowNames[i] !== undefined ? rowNames[i] : String(i + 1));
+  const colOf = (j) => (colNames[j] !== undefined ? colNames[j] : String(j + 1));
+
+  const grid = { x0: plot.x0, y0: plot.y0, x1: plot.x1, y1: plot.y1 - NOTE_ROW - HEAD_ROW };
+  // Row names live in the left margin, right-justified at the grid's edge —
+  // bar_race's own arrangement, for the same reason: that is where a long name
+  // fits. Widen the margin when they need it, never past 40 % of the plot.
+  let nameW = 0;
+  for (let i = 0; i < nR; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), SIZE));
+  const wantX0 = CANVAS_EDGE + nameW + NAME_GAP;
+  if (wantX0 > grid.x0) grid.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+  // That cap can leave a name wider than the margin it got, and a name drawn
+  // past the canvas edge is an ERROR-severity lint, not a cosmetic overflow —
+  // so truncate to the room it has, the pack's convention everywhere.
+  const nameMaxW = grid.x0 - NAME_GAP - CANVAS_EDGE;
+
+  const cw = (grid.x1 - grid.x0) / nC, chh = (grid.y1 - grid.y0) / nR;
+  const cellX = (j) => grid.x0 + j * cw;
+  const cellTop = (i) => grid.y1 - i * chh; // row 0 is the TOP row
+
+  // Cell numbers carry the data's own precision (at most 2 decimals), exactly
+  // as bar_chart and bar_race do, unless `decimals` says otherwise.
+  let dec = Math.round(num(params.decimals, -1));
+  if (!(dec >= 0)) {
+    dec = 0;
+    for (const g of stages) for (let i = 0; i < Math.min(nR, g.length); i++) for (let j = 0; j < Math.min(nC, g[i].length); j++) {
+      const v = g[i][j];
+      if (typeof v === "number" && !Number.isInteger(v)) dec = Math.min(2, Math.max(dec, (String(v).split(".")[1] || "").length));
+    }
+  }
+  dec = clamp(dec, 0, 4);
+  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+
+  // The widest number ANY stage will ever show sizes the cell text once, so a
+  // later stage's longer number never overflows a cell sized for stage 0.
+  let widest = "";
+  if (hasData) for (const g of stages) for (let i = 0; i < Math.min(nR, g.length); i++) for (let j = 0; j < Math.min(nC, g[i].length); j++) {
+    const v = g[i][j];
+    if (typeof v !== "number") continue;
+    const s = fmt(v);
+    if (s.length > widest.length) widest = s;
+  }
+  let VAL_SIZE = clamp(Math.floor(Math.min(18, chh * 0.38)), 14, 18);
+  while (VAL_SIZE > 14 && kit.textWidth(widest, VAL_SIZE) > cw - 10) VAL_SIZE--;
+  // 14 is the lint's own font floor, so a number that still does not fit at 14
+  // is not written at all: the wash is the reading in a grid that fine, and a
+  // cropped or overlapping number would be worse than none.
+  const showValues = hasData && params.value_labels !== false && widest !== ""
+    && kit.textWidth(widest, VAL_SIZE) <= cw - 10 && VAL_SIZE * 1.25 + 4 <= chh;
+
+  // ---- axes: the grid's rule, plus the column names along its top ----
+  const axesChildren = [
+    kit.stroke("axes__frame", [[grid.x0, grid.y0], [grid.x1, grid.y0], [grid.x1, grid.y1], [grid.x0, grid.y1]], { closed: true, strokeWidth: 3, ms: MS.axis }),
+  ];
+  // The interior rules are drawn instantly in the guide ink — 22 sketched
+  // hairlines would spend the scene's whole opening on graph paper, and the
+  // frame is what carries the hand.
+  for (let i = 1; i < nR; i++) axesChildren.push(kit.stroke("axes__h" + i, [[grid.x0, cellTop(i)], [grid.x1, cellTop(i)]], { color: C.guide, strokeWidth: 1.5, instant: true }));
+  for (let j = 1; j < nC; j++) axesChildren.push(kit.stroke("axes__v" + j, [[cellX(j), grid.y0], [cellX(j), grid.y1]], { color: C.guide, strokeWidth: 1.5, instant: true }));
+  for (let j = 0; j < nC; j++) axesChildren.push(kit.text("axes__col" + j, [cellX(j) + cw / 2, grid.y1 + HEAD_ROW / 2], fitText(colOf(j), cw - 6, SIZE), { fontSize: SIZE }));
+  push(kit.group("axes", axesChildren));
+  anchors.axes = [grid.x0, grid.y0];
+
+  if (note) {
+    // Its own row above the column names — not bar_chart's top-left corner of
+    // the plot, which in this template is where the first column's name sits.
+    const notePos = [plot.x0, plot.y1 - NOTE_ROW / 2];
+    const noteMaxW = plot.x1 - plot.x0 - 8;
+    push(kit.text("note", notePos, fitText(note, noteMaxW, NOTE_SIZE), { fontSize: NOTE_SIZE, color: C.guide, anchor: "start" }));
+    anchors.note = notePos;
+  }
+
+  // ---- one drawable per ROW: its cells in column order, then its name ----
+  // Per-cell ids would flood the storyboard (144 beats at the cap); a row is
+  // the unit a narration actually walks down.
+  for (let i = 0; i < nR; i++) {
+    const id = "row_" + (i + 1);
+    const yTop = cellTop(i), yBot = yTop - chh;
+    const children = [];
+    if (hasData) {
+      for (let j = 0; j < nC; j++) {
+        const v = value(i, j);
+        if (v === null) continue; // a masked cell draws nothing at all
+        const a = frac(v) * WASH;
+        const ink = inkOf(v);
+        const x = cellX(j);
+        children.push(kit.area(id + "__c" + j, [[x, yBot], [x + cw, yBot], [x + cw, yTop], [x, yTop]], ink, { opacity: a, precise: true, ms: MS.region }));
+        if (showValues) children.push(kit.text(id + "__v" + j, [x + cw / 2, (yTop + yBot) / 2], fmt(v), { fontSize: VAL_SIZE, color: labelInk(ink, a) }));
+      }
+    }
+    children.push(kit.text(id + "__name", [grid.x0 - NAME_GAP, (yTop + yBot) / 2], fitText(nameOf(i), nameMaxW, SIZE), { fontSize: SIZE, anchor: "end" }));
+    push(kit.group(id, children));
+    anchors[id] = [(grid.x0 + grid.x1) / 2, (yTop + yBot) / 2];
+  }
+
+  // ---- the legend: the wash, read as a strip, under the grid ----
+  // Skipped when there is nothing behind it — no data yet, or a grid with no
+  // range at all (every number the same), where a scale would say nothing.
+  if (hasData && (diverging ? maxAbs > 1e-12 : sSpan > 1e-12)) {
+    const LEG_SIZE = 15, LEG_H = 16, STEPS = 10;
+    const legLo = diverging ? -maxAbs : sLo, legHi = diverging ? maxAbs : sHi;
+    const loS = fmt(legLo), hiS = fmt(legHi);
+    // Nothing else lives under the grid — a heatmap has no x axis to label —
+    // so the strip takes the bottom margin, centred in it. grid.y0 is the
+    // plot's own floor (95), so the strip and its numbers sit at 47.5 ± 9,
+    // clear of the canvas edge with room to spare.
+    const ly = grid.y0 / 2;
+    const legW = Math.min(240, (grid.x1 - grid.x0) * 0.6);
+    // Slid right if the low label would otherwise run off the canvas edge.
+    const lx = Math.max(grid.x0, CANVAS_EDGE + kit.textWidth(loS, LEG_SIZE) + 8);
+    const children = [];
+    for (let k = 0; k < STEPS; k++) {
+      // The segment's own midpoint, so the strip samples the ramp evenly:
+      // sequential runs 0 → 1 of one ink, diverging −1 → +1 across two.
+      const u = diverging ? -1 + (2 * (k + 0.5)) / STEPS : (k + 0.5) / STEPS;
+      const x = lx + (k / STEPS) * legW, w = legW / STEPS;
+      children.push(kit.area("legend__s" + k, [[x, ly - LEG_H / 2], [x + w, ly - LEG_H / 2], [x + w, ly + LEG_H / 2], [x, ly + LEG_H / 2]],
+        diverging && u < 0 ? COOL : diverging ? WARM : COOL, { opacity: Math.abs(u) * WASH, precise: true, ms: MS.region }));
+    }
+    children.push(kit.stroke("legend__box", [[lx, ly - LEG_H / 2], [lx + legW, ly - LEG_H / 2], [lx + legW, ly + LEG_H / 2], [lx, ly + LEG_H / 2]], { closed: true, color: C.guide, strokeWidth: 1.5, instant: true }));
+    children.push(kit.text("legend__lo", [lx - 8, ly], loS, { fontSize: LEG_SIZE, anchor: "end", color: C.guide }));
+    children.push(kit.text("legend__hi", [lx + legW + 8, ly], hiS, { fontSize: LEG_SIZE, anchor: "start", color: C.guide }));
+    push(kit.group("legend", children));
+    anchors.legend = [lx + legW / 2, ly];
+  }
+
+  if (title) {
+    // No axis caption hangs over this plot (the column names sit inside the
+    // band the title clears), so the title takes its usual line just above.
+    const ty = Math.min(730, plot.y1 + 25);
+    push(kit.text("title", [(grid.x0 + grid.x1) / 2, ty], title, { fontSize: 30 }));
+    anchors.title = [(grid.x0 + grid.x1) / 2, ty];
+  }
+  return { drawables, labels: labelReqs, anchors, order };

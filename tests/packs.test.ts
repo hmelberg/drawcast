@@ -2762,14 +2762,14 @@ describe("stats pack", () => {
 describe("data pack", () => {
   beforeEach(() => unregisterPack("data"));
 
-  test("registers bar_chart, data_table, line_chart, scatter_plot and bar_race", () => {
+  test("registers bar_chart, data_table, line_chart, scatter_plot, bar_race and heatmap", () => {
     const r = registerPack("data", dataYaml);
-    expect(r).toMatchObject({ ok: true, templateIds: ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race"] });
+    expect(r).toMatchObject({ ok: true, templateIds: ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race", "heatmap"] });
   });
 
   test("every data example renders finite, no fallback warnings, no error lint, deterministically", () => {
     registerPack("data", dataYaml);
-    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race"]) {
+    for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot", "bar_race", "heatmap"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);
         expect(res.warnings, tid).toEqual([]);
