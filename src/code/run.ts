@@ -67,7 +67,7 @@ type RuntimeModule = { run: (req: CodeRunRequest) => Promise<CodeRunResult> };
 const RUNTIMES: Record<Language, () => Promise<RuntimeModule>> = {
   python: () => import("./pyodide"),
   r: () => import("./webr"),
-  brython: () => import("./not-yet"),
+  brython: () => import("./brython"),
   micropython: () => import("./not-yet"),
 };
 
