@@ -261,7 +261,17 @@ layout: |
 
   if (note) {
     const notePos = [plot.x0, plot.y1 - 16];
-    push(kit.text("note", notePos, note, { fontSize: 16, color: C.guide, anchor: "start" }));
+    // Truncated so a long series name cannot run into the legend: the legend
+    // sits at plot.x1 - 150 whenever a note can exist (both require
+    // series.length > 1), so that is the note's hard right edge.
+    const NOTE_SIZE = 16;
+    const noteMaxW = plot.x1 - 150 - plot.x0 - 20;
+    let noteText = note;
+    if (kit.textWidth(noteText, NOTE_SIZE) > noteMaxW) {
+      while (noteText.length > 1 && kit.textWidth(noteText + "…", NOTE_SIZE) > noteMaxW) noteText = noteText.slice(0, -1);
+      noteText = noteText.replace(/\s+$/, "") + "…";
+    }
+    push(kit.text("note", notePos, noteText, { fontSize: NOTE_SIZE, color: C.guide, anchor: "start" }));
     anchors.note = notePos;
   }
 
@@ -280,6 +290,11 @@ layout: |
     const xc = plot.x0 + slotW * (i + 0.5);
     const children = [];
     let reach = base;
+    // Whether the TOP segment (the last series, drawn last) got its own
+    // value label — that label's anchor is, by construction of baseFor,
+    // mathematically the same point the stack-total label wants, so the
+    // total must be lifted clear of it rather than reusing the anchor.
+    let topSegLabelled = false;
     series.forEach((s, j) => {
       const v = value(s, i);
       // Grouped bars sit side by side within the category slot; stacked bars
@@ -301,12 +316,21 @@ layout: |
       // above the column instead, once, below.
       if (showValues && (!stacked || hi2 - lo2 >= 26)) {
         children.push(kit.text(id + "__v" + j, [x + w / 2, v >= 0 ? hi2 + 13 : lo2 - 13], fmt(v), { fontSize: 15, color: C.guide }));
+        if (stacked && j === series.length - 1) topSegLabelled = true;
       }
       reach = v >= 0 ? Math.max(reach, hi2) : Math.min(reach, lo2);
     });
     if (stacked && showValues) {
       const total = series.reduce((sum, s) => sum + value(s, i), 0);
-      children.push(kit.text(id + "__total", [xc, Y(clamp(total, yMin, yMax)) + 13], fmt(total), { fontSize: 15, color: C.guide }));
+      const totalY = Y(clamp(total, yMin, yMax));
+      // totalY + 13 is exactly where the top segment's own "__v" label sits
+      // (segBase + v === total for the last series) — lift the total clear
+      // of it, rather than colliding two labels on one point, when that
+      // label was drawn. 24 mirrors the legend's own row spacing below,
+      // already proven to clear the lint's label-label overlap check
+      // (font size 15-16, pad 2: two rows need >20.75 units apart).
+      const totalOff = topSegLabelled ? 37 : 13;
+      children.push(kit.text(id + "__total", [xc, totalY + totalOff], fmt(total), { fontSize: 15, color: C.guide }));
     }
     children.push(kit.text(id + "__l", [xc, plot.y0 - 20], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
     push(kit.group(id, children));
@@ -314,7 +338,17 @@ layout: |
   }
 
   if (m >= 2) {
-    const lx = plot.x1 - 150, ly = plot.y1 - 16;
+    let lx = plot.x1 - 150;
+    if (stacked && n > 0) {
+      // Stacked bars can reach much higher than grouped ones (a stack draws
+      // the TOTAL, not the largest single value), so a legend fixed
+      // top-right risks a tall rightmost column running into it. Put it
+      // over whichever end category — first or last — is shorter; the
+      // legend's own ~150-unit width only ever reaches an outermost column.
+      const stackTop = (i) => Y(clamp(series.reduce((sum, s) => sum + value(s, i), 0), yMin, yMax));
+      if (stackTop(0) < stackTop(n - 1)) lx = plot.x0 + 12;
+    }
+    const ly = plot.y1 - 16;
     const children = [];
     series.forEach((s, j) => {
       const y = ly - j * 24;

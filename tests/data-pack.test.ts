@@ -43,12 +43,18 @@ describe("pack registration", () => {
     expect(scenes.scatter_plot?.manifest.status).toBe("ready");
   });
 
-  test("every manifest example lays out with zero warnings and no error lint", () => {
+  test("every manifest example lays out with zero warnings and no lint issues, warn or error", () => {
+    // Scoped to the data pack's own templates only — not the catalog-wide
+    // exemplar tests, which are somebody else's surface. A `warn`-severity
+    // lint issue (overlap-label-label, say) used to slip through here
+    // because only `severity === "error"` was checked; that blind spot is
+    // load-bearing for this round's later, label-dense templates (race
+    // charts, a heatmap), so every issue — not just errors — must be empty.
     for (const tid of ["bar_chart", "data_table", "line_chart", "scatter_plot"]) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params } as Spec);
         expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);
-        expect(res.issues.filter((i) => i.severity === "error"), `${tid}: ${ex.request}`).toEqual([]);
+        expect(res.issues, `${tid}: ${ex.request}`).toEqual([]);
       }
     }
   });
@@ -292,6 +298,37 @@ describe("stacked bars", () => {
     });
     // Series 0 is 2 → 4, half-way is 3; the stack total is 5.
     expect(Math.max(...area(l, "bar_1__f0")!.pts.map((p) => p[1]))).toBeCloseTo(Y(3, 6), 0);
+  });
+
+  test("value labels: the stack total clears the top segment's own label instead of colliding with it", () => {
+    const l = stacked({ value_labels: true });
+    // Category A's top segment (series "Two", value 1 on a stack of 4) is
+    // tall enough to earn its own label — the collision case: its anchor is
+    // mathematically the same point the total label wants (segBase + v is
+    // the stack total for the last series).
+    const segLabel = flattenDrawables(l.drawables).find((d) => d.id === "bar_1__v1") as TextDrawable;
+    const totalLabel = flattenDrawables(l.drawables).find((d) => d.id === "bar_1__total") as TextDrawable;
+    expect(segLabel).toBeDefined();
+    expect(totalLabel).toBeDefined();
+    expect(segLabel.pos[0]).toBeCloseTo(totalLabel.pos[0], 6); // same column
+    expect(totalLabel.pos[1] - segLabel.pos[1]).toBeCloseTo(24, 6); // lifted clear, not stacked on top of it
+  });
+
+  test("a long series name truncates the refusal note so it clears the legend", () => {
+    const longName = "A very long series name that would otherwise run straight into the legend box";
+    const l = layout({
+      labels: ["A"],
+      series: [
+        { name: "Up", values: [3] },
+        { name: longName, values: [-2] },
+      ],
+      stacked: true,
+    });
+    const note = flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable;
+    expect(note.text).toMatch(/…$/);
+    const legendX = plot.x1 - 150; // where the legend's swatch starts (m >= 2 whenever a note can exist)
+    const noteW = heuristicMeasure(note.text, note.fontSize).w;
+    expect(note.pos[0] + noteW).toBeLessThan(legendX);
   });
 });
 
