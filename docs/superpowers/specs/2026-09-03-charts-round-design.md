@@ -35,7 +35,7 @@ overturn the answer I gave in the M2 planning session:
 | M | Contents | Why this order |
 |---|---|---|
 | **M1** | `stacked: true` on `bar_chart`; `slope: true` on `line_chart` | Params on tested templates; inherit the stage tween, legend, colours and token plumbing for free |
-| **M2** | `bar_race` template; race extensions to `line_chart`; `easing` on animate; animate speaks while it runs | The new capability, and the one whose smoothness risk is worth finding early |
+| **M2** | `bar_race` template; race extensions to `line_chart`; `easing` on animate; a test pinning narration-under-tween | The new capability, and the one whose smoothness risk is worth finding early |
 | **M3** | `heatmap` template | No substitute in the catalog; `payoff_matrix` is game-theory-shaped and `data_table` is text |
 | **M4** | Token-tolerance retrofit of six existing templates | Highest value per line, but it edits templates with bundled examples, so it goes last |
 
@@ -195,21 +195,18 @@ animate command, reusing `EASINGS` from `src/render/effects.ts`. **Absent
 means today's smoothstep, byte for byte** — no existing cast changes. Races
 say `easing: linear`.
 
-### 7.2 Animate speaks while it runs
+### 7.2 Animate already speaks while it runs — pin it
 
-Today `animate` awaits the narration barrier and only then moves, so a
-narrated animate speaks first and animates after. `draw` does the opposite:
-it waits for the *previous* line, then starts its own and draws under it.
+Commentary over a running race ("in 1985 Kasparov overtakes Karpov") is the
+point, and the player already delivers it. The narrated-action prelude
+(`player.ts:494-514`) starts the voice and runs the action under it with
+`Promise.all`; the `narrationBarrier()` at the head of the animate case
+waits only for a *previous* non-blocking `speak`, exactly as `play` does.
 
-Animate adopts the draw rule: wait for the previous line, start this
-command's `speak`, tween under it, and let the next command wait for both.
-Commentary over a running race is the point ("in 1985 Kasparov overtakes
-Karpov"), and segmenting a race into narrated chunks still works for anyone
-who wants beat-by-beat commentary.
-
-This changes the timing of every existing narrated animate. That is
-intentional and consistent with `draw`; the repo has no released casts to
-protect.
+So no player change. What is missing is a test: nothing pins this, and a
+future edit to the barrier would silently serialize every narrated race.
+M2 adds a regression test asserting that a narrated animate's tween starts
+before its narration resolves, and the spec records why the barrier stays.
 
 ### 7.3 The smoothness budget
 
