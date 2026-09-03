@@ -1327,12 +1327,24 @@ layout: |
     // The last three sit below the floor at FULL opacity — a palette fact this
     // ruling does not create and must not paper over by dimming them anyway.
     //
-    // What makes a softened crossing READ as ink over ink rather than as a
-    // broken glyph pile: at full opacity a label drawn over another is exactly
-    // as dark as one label, so a crossing has no visual signature at all.
-    // Softened, the doubled region is measurably darker than either name alone
-    // — 4.83:1 against 3.49:1 for #b5482e — so the overlap looks like two
-    // transparent sheets, and each name's body stays clean either side of it.
+    // WHY the dimming is what saves the crossing, and it is not the glyphs.
+    // Every text carries a 5-unit paper halo — stroke #fffefb, paint-order
+    // stroke (src/render/svg-backend.ts) — so a label is a glyph inside a
+    // paper cut-out, and it is that CUT-OUT, not the ink, that lands on the
+    // neighbour: two glyph outlines rarely coincide, but the halo band around
+    // every letter is 5 units wide and covers whatever is under it. `opacity`
+    // dims the halo with the glyph, which is the whole mechanism:
+    //
+    //   at full ink the upper name's halo is opaque paper, and inside that
+    //     band the lower name reads 1.00:1 — it is not obscured, it is ERASED,
+    //     which is exactly why an unsoftened crossing looks broken rather than
+    //     busy;
+    //   softened, the halo is translucent and the lower name shows through it
+    //     — 1.47:1 for a racer's name at 0.700, 1.28:1 for #b5482e at 0.770.
+    //
+    // That is a faint band, not a clean read, and it is the honest claim: what
+    // the dimming buys is that BOTH names survive the crossing as continuous
+    // words, with their unoverlapped parts at full strength either side of it.
     //
     // The softening RAMPS with how deep the collision is (intersection area
     // over the smaller box), so two names easing past each other fade into and
@@ -2491,12 +2503,14 @@ layout: |
   //     reads 4.64:1, and the doubled region of a crossing reads 8.72:1.
   //   the VALUE is C.guide, which IS the floor (3.48:1) — it has no headroom
   //     at all and therefore does NOT dim. Two racers' numbers still land on
-  //     each other for the frames of an overtake, at full ink. That is the
-  //     honest answer: dimming them would put the number a viewer is meant to
+  //     each other for the frames of an overtake, at full ink, and because
+  //     every text carries an opaque 5-unit paper halo the number painted
+  //     second ERASES the first there (1.00:1). That is the honest answer,
+  //     not a good one: dimming would put the number a viewer is meant to
   //     read below the level this pack calls readable, and the same number is
-  //     also written in the length of its own bar. Giving value labels a
-  //     darker ink would buy the softening back — a palette decision, not
-  //     this template's to take.
+  //     written in the length of its own bar. Giving value labels a darker
+  //     ink would buy the softening back — a palette decision, not this
+  //     template's to take.
   //
   // `crossing` (layout/model.ts) is what tells the lint this pair is an
   // overtake and not a defect; it is set ONLY on the two labels, and only in

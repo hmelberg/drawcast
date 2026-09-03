@@ -968,15 +968,24 @@ describe("line race", () => {
       // palette fact this ruling does not create, and must not paper over.
       expect(COLORS.series.filter((c) => at(c, 1) < FLOOR)).toEqual(["#d0865f", "#87a878", "#f2c14e"]);
 
-      // And the reason a softened crossing READS as ink over ink: at full
-      // opacity a label drawn over another is exactly as dark as one label,
-      // so a crossing has no signature at all. Softened, the doubled region
-      // is measurably darker than either name alone.
-      const a0 = softAlpha("#b5482e");
-      const single = at("#b5482e", a0);
-      const doubled = ratio(over("#b5482e", a0, over("#b5482e", a0)));
-      expect(doubled).toBeGreaterThan(single * 1.3);
-      expect(at("#b5482e", 1)).toBeCloseTo(ratio(over("#b5482e", 1, over("#b5482e", 1))), 10);
+      // And the real reason the dimming saves a crossing — which is the HALO,
+      // not the glyphs. Every text is drawn with a 5-unit paper stroke under
+      // it (stroke #fffefb, paint-order stroke, src/render/svg-backend.ts),
+      // so a label is a glyph inside a paper cut-out and it is the cut-out
+      // that lands on its neighbour. `opacity` dims halo and glyph together.
+      const HALO = "#fffefb";
+      const band = (ink: string, a: number) => ratio(over(HALO, a, over(ink, a)));
+      for (const ink of [COLORS.ink, "#b5482e"]) {
+        // Undimmed, the upper label's halo is opaque paper: the lower name is
+        // not obscured there, it is ERASED.
+        expect(band(ink, 1), ink).toBeCloseTo(1, 6);
+        // Softened, it shows through.
+        expect(band(ink, softAlpha(ink)), ink).toBeGreaterThan(1.1);
+      }
+      expect(band(COLORS.ink, softAlpha(COLORS.ink))).toBeCloseTo(1.47, 2);
+      // The value label has no headroom, so its halo never thins: the number
+      // painted second erases the first. Recorded, not fixed — see the report.
+      expect(band(COLORS.guide, softAlpha(COLORS.guide))).toBeCloseTo(1, 6);
     });
   });
 
