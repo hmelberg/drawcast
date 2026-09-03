@@ -41,6 +41,9 @@ export type ShapeHint =
   | { type: "rect"; x: number; y: number; w: number; h: number };
 
 interface BaseDrawable {
+  /** Clip rectangle in canvas space (y-up; y is the bottom), fixed even when
+   *  the leaf is offset — a windowed code line scrolls under it. */
+  clip?: { x: number; y: number; w: number; h: number };
   id: string;
   z: number;
   style: ResolvedStyle;

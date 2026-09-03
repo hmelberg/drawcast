@@ -48,10 +48,21 @@ const TABLE_MAX_ROWS = 24;
 const LINE_GAP = 0.35;
 const PAD = 16;
 
+/** A windowed code pane, published for the plan: its line ids in order, each
+ *  line's bottom edge as a distance from the pane's content top (logical
+ *  units, positive down), and the window's content height. The plan scrolls
+ *  so the highest visible line's bottom sits at the window's bottom. */
+export interface CodeWindow {
+  ids: string[];
+  bottoms: number[];
+  height: number;
+}
+
 export interface CodeCtx {
   anchors: Record<string, Pt>;
   extraOrder: string[];
   warnings: string[];
+  windows: Record<string, CodeWindow>;
 }
 
 /** Wrap one source line at maxChars with a hanging indent that preserves the
@@ -106,6 +117,7 @@ function truncateRows(
   rows: { text: string; color?: string }[],
   budget: number,
   fontSize: number,
+  keep: "head" | "tail" = "head",
 ): { rows: { text: string; color?: string }[]; dropped: number } {
   if (rows.length === 0) return { rows, dropped: 0 };
   const rowH = fontSize * ROW_H;
@@ -120,6 +132,14 @@ function truncateRows(
   }
   if (fit >= rows.length) return { rows, dropped: 0 };
   const kept = Math.max(0, fit - 1);
+  // "tail" is the terminal's view — the newest rows stay, the oldest have
+  // scrolled away behind a leading ellipsis.
+  if (keep === "tail") {
+    return {
+      rows: [{ text: "…", color: COLORS.guide }, ...rows.slice(rows.length - kept)],
+      dropped: rows.length - kept,
+    };
+  }
   return {
     rows: [...rows.slice(0, kept), { text: `… (${rows.length - kept} more lines)`, color: COLORS.guide }],
     dropped: rows.length - kept,
@@ -253,15 +273,23 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const cy = el.y ?? 400;
   const fontSize = el.font_size ?? 17;
   const paneGap = 14;
-  const codePaneW = show === "left" ? Math.round(w * 0.55) : w;
-  const outPaneW = show === "left" ? w - codePaneW - paneGap : w;
+  const sideBySide = show === "left" || show === "right";
+  const stacked = show === "above" || show === "below";
+  const codePaneW = sideBySide ? Math.round(w * 0.55) : w;
+  const outPaneW = sideBySide ? w - codePaneW - paneGap : w;
   const showCode = show !== "output";
   const showOut = show !== "code";
+  // The window (el.lines): the code pane is this many rows tall; lines beyond
+  // it sit below the pane, clipped, until the plan's scroll offsets slide
+  // them up as the storyboard steps past the window.
+  const windowRows = typeof el.lines === "number" && el.lines >= 3 ? Math.floor(el.lines) : 0;
 
   // ---- code pane content ---------------------------------------------------
   const sourceLines = (el.code ?? "").replace(/\s+$/, "").split("\n");
   const codeMax = Math.max(8, Math.floor((codePaneW - 2 * PAD) / (fontSize * CHAR_W)));
   const codeStack = showCode ? stackLines(sourceLines.map((l) => wrapCodeLine(l, codeMax)), fontSize) : { blocks: [], height: 0 };
+  const windowH = windowRows > 0 ? windowRows * fontSize * ROW_H + (windowRows - 1) * fontSize * LINE_GAP : codeStack.height;
+  const codeContentH = showCode ? Math.min(codeStack.height, windowH) : 0;
 
   // ---- output pane content -------------------------------------------------
   const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * CHAR_W)));
@@ -301,7 +329,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // figure used to grow the panel unbounded, pushing its TOP — the code
   // lines — off the 750-unit canvas. Cap the panel and fit everything inside.
   const maxH = CANVAS.h - 40; // breathing room top+bottom
-  const outBudget = showOut ? maxH - 2 * PAD : 0;
+  // Stacked panes share the height: the code pane (or its window) is fixed
+  // and the output gets what remains. Side by side, each pane has it all.
+  const outBudget = showOut ? Math.max(0, maxH - 2 * PAD - (stacked ? codeContentH + paneGap : 0)) : 0;
   // Figures matter more than a wall of print() text: stdout gets at most
   // half the budget when a figure is present, all of it when there is none.
   const stdoutBudget = rawFigures.length > 0 ? outBudget / 2 : outBudget;
@@ -320,7 +350,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const tablesH = tableHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0);
 
   if (showOut) {
-    const fit = truncateRows(outTextLines, stdoutBudget, fontSize);
+    // A windowed panel reads like a terminal: the newest rows stay, the
+    // oldest scroll away behind an ellipsis.
+    const fit = truncateRows(outTextLines, stdoutBudget, fontSize, windowRows > 0 ? "tail" : "head");
     outRows = fit.rows;
     if (fit.dropped > 0) truncated = true;
     outStack = stackLines(outRows.map((l) => [l.text]), fontSize);
@@ -372,7 +404,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     : 0;
 
   // ---- panel geometry (y-up: yTop is the LARGER y) -------------------------
-  const contentH = Math.max(showCode ? codeStack.height : 0, outContentH);
+  const contentH = stacked ? codeContentH + paneGap + outContentH : Math.max(codeContentH, outContentH);
   const h = Math.min(maxH, Math.max(60, contentH + 2 * PAD));
   if (truncated || contentH + 2 * PAD > maxH) {
     ctx.warnings.push(`code "${el.id}": output was truncated/scaled to fit the panel within the canvas`);
@@ -407,14 +439,33 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
     },
   ];
-  if (show === "left") {
-    const dx = x0 + codePaneW + paneGap / 2;
+  // Pane origins (y-up). Side by side the code pane sits left or right;
+  // stacked, above or below — the divider runs between the two either way.
+  const codeX = show === "right" ? x0 + outPaneW + paneGap : x0;
+  const outX = show === "left" ? x0 + codePaneW + paneGap : x0;
+  const codeTop = show === "below" ? yTop - PAD - outContentH - paneGap : yTop - PAD;
+  const outTop = show === "above" ? yTop - PAD - codeContentH - paneGap : yTop - PAD;
+  if (sideBySide) {
+    const dx = (show === "left" ? x0 + codePaneW : x0 + outPaneW) + paneGap / 2;
     panelChildren.push({
       id: `${el.id}__divider`,
       kind: "stroke",
       pts: [
         [dx, yTop - PAD / 2],
         [dx, yTop - h + PAD / 2],
+      ],
+      z: Z_STROKE,
+      style: resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2, dash: true }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+    });
+  } else if (stacked) {
+    const dy = (show === "above" ? codeTop - codeContentH : outTop - outContentH) - paneGap / 2;
+    panelChildren.push({
+      id: `${el.id}__divider`,
+      kind: "stroke",
+      pts: [
+        [x0 + PAD / 2, dy],
+        [x0 + w - PAD / 2, dy],
       ],
       z: Z_STROKE,
       style: resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2, dash: true }),
@@ -429,11 +480,19 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 
   // ---- code lines: one top-level drawable per SOURCE line ------------------
   if (showCode) {
+    // Every line at its natural row, even past the window: the plan scrolls
+    // the whole column by offsetting each line, and the clip (the pane's
+    // rectangle, fixed in canvas space) hides what has left the window.
+    const clip = windowRows > 0 ? { x: codeX, y: codeTop - windowH, w: codePaneW, h: windowH } : undefined;
+    const bottoms: number[] = [];
+    const lineIds: string[] = [];
     codeStack.blocks.forEach((block, i) => {
       const id = `${el.id}_line_${i + 1}`;
-      const pos: Pt = [x0 + PAD, yTop - PAD - block.center];
+      const pos: Pt = [codeX + PAD, codeTop - block.center];
       ctx.extraOrder.push(id);
       ctx.anchors[id] = pos;
+      lineIds.push(id);
+      bottoms.push(block.center + block.height / 2);
       out.push({
         id,
         kind: "text",
@@ -446,19 +505,20 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         z: Z_TEXT,
         style: resolveStyle(el.style, {}),
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
+        ...(clip ? { clip } : {}),
       });
     });
+    if (windowRows > 0) ctx.windows[el.id] = { ids: lineIds, bottoms, height: windowH };
   }
 
   // ---- output pane: one group, always minted -------------------------------
-  const outX = show === "left" ? x0 + codePaneW + paneGap : x0;
   const outChildren: Drawable[] = [];
   if (showOut) {
     if (!result) {
       // Unresolved (node tests, offline, runtime missing): the source
       // element's ruled-placeholder idiom, so the beat draws SOMETHING.
       for (let i = 0; i < 3; i++) {
-        const ly = yTop - PAD - fontSize * (0.8 + i * 1.6);
+        const ly = outTop - fontSize * (0.8 + i * 1.6);
         outChildren.push({
           id: `${el.id}__rule${i}`,
           kind: "stroke",
@@ -476,7 +536,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         outChildren.push({
           id: `${el.id}__out${i}`,
           kind: "text",
-          pos: [outX + PAD, yTop - PAD - block.center],
+          pos: [outX + PAD, outTop - block.center],
           text: block.rows.join(" "),
           fontSize,
           anchor: "start",
@@ -489,7 +549,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       // Tables sit below stdout, above figures — a ruled grid per DataFrame.
       let contentTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
       rawTables.forEach((t, k) => {
-        const grid = tableDrawables(t, `${el.id}__tbl${k}`, outX, yTop - PAD - contentTop, outPaneW, tableHeights[k], fontSize);
+        const grid = tableDrawables(t, `${el.id}__tbl${k}`, outX, outTop - contentTop, outPaneW, tableHeights[k], fontSize);
         outChildren.push(...grid.drawables);
         contentTop += grid.height + fontSize * LINE_GAP;
       });
@@ -502,7 +562,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
             id: `${el.id}__fig${k}`,
             kind: "image",
             href: f.href,
-            pos: [outX + PAD + figW / 2, yTop - PAD - figTop - fh / 2],
+            pos: [outX + PAD + figW / 2, outTop - figTop - fh / 2],
             w: fw,
             h: fh,
             z: Z_STROKE,
@@ -528,7 +588,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // promises, the source element's _quote idiom.
   if (multiFig) {
     const slotTop = outStack.height + (outStack.height > 0 ? fontSize * LINE_GAP : 0);
-    const slotCenter: Pt = [outX + PAD + figW / 2, yTop - PAD - slotTop - slotH / 2];
+    const slotCenter: Pt = [outX + PAD + figW / 2, outTop - slotTop - slotH / 2];
     for (let k = 0; k < figCount; k++) {
       const id = `${el.id}_fig_${k + 1}`;
       ctx.extraOrder.push(id);

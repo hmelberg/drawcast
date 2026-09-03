@@ -7,6 +7,7 @@ import { applyTextMap } from "./text-map";
 import type { Spec } from "../spec/types";
 import { lintLayout, type LintIssue } from "../lint/lint";
 import { layoutElements } from "./tier2";
+import type { CodeWindow } from "./code";
 import { annotationDrawables } from "./annotate";
 import { placeLabels, type LabelRequest, type Obstacle } from "./labels";
 import { bboxOfPts, bboxOfText, expandBox, type BBox } from "./geometry";
@@ -20,6 +21,9 @@ export interface LayoutResult {
   order: string[];
   issues: LintIssue[];
   warnings: string[];
+  /** Windowed code panes (el.lines), keyed by element id — the plan scrolls
+   *  their lines so the highest visible one is the window's bottom row. */
+  windows?: Record<string, CodeWindow>;
 }
 
 export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure): LayoutResult {
@@ -28,6 +32,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   const drawables: Drawable[] = [];
   const labelRequests: LabelRequest[] = [];
   const order: string[] = [];
+  let windows: Record<string, CodeWindow> = {};
   let seedAnchors: Record<string, Pt> = {};
   let seedCurveSamples: Record<string, Pt[]> = {};
 
@@ -63,6 +68,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
+    windows = tier2.windows;
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
@@ -109,7 +115,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   }
 
   const issues = lintLayout(drawables, measure, spec.commands);
-  return { drawables, order, issues, warnings };
+  return { drawables, order, issues, warnings, windows };
 }
 
 /**

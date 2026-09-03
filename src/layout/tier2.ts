@@ -6,7 +6,7 @@ import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
 import { centroid } from "./geometry";
 import { heuristicMeasure } from "./measure";
-import { codeDrawables } from "./code";
+import { codeDrawables, type CodeWindow } from "./code";
 import {
   COLORS,
   LINE_HEIGHT,
@@ -39,6 +39,8 @@ export interface Tier2Result {
    */
   extraOrder: string[];
   warnings: string[];
+  /** Windowed code panes (el.lines), keyed by element id — the plan scrolls them. */
+  windows: Record<string, CodeWindow>;
 }
 
 interface Ctx {
@@ -53,6 +55,7 @@ interface Ctx {
   anchors: Record<string, Pt>;
   extraOrder: string[];
   warnings: string[];
+  windows: Record<string, CodeWindow>;
 }
 
 export function layoutElements(
@@ -75,6 +78,7 @@ export function layoutElements(
     nodeRadius: new Map(),
     anchors: { ...seedAnchors },
     extraOrder: [],
+    windows: {},
     warnings: [],
   };
 
@@ -190,7 +194,7 @@ export function layoutElements(
     }
   }
 
-  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings };
+  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings, windows: ctx.windows };
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
