@@ -529,7 +529,7 @@ layout: |
 ---
 template: line_chart
 title: Line chart
-version: 3
+version: 4
 kit: 5
 status: ready
 description: >-
@@ -730,6 +730,57 @@ examples:
       ylim: [2550, 2900]
       y_label: "Elo"
       title: "Fifty years at the top"
+  - request: "A line race showing only the last six months as it runs, naming just the two leaders."
+    # x_window slides a rolling window over the reveal front instead of
+    # keeping the whole span in view: stage 9 shows months 4-10 and the x
+    # axis ends slide with it, so the early climb leaves the frame on the
+    # left. label_top names only the current leaders. Numeric x only.
+    # Three regions of an SIR run, one reproduction number each.
+    params:
+      x: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      series:
+        - name: "Nord"
+          values:
+            - [0.1]
+            - [0.1, 0.27]
+            - [0.1, 0.27, 0.72]
+            - [0.1, 0.27, 0.72, 1.9]
+            - [0.1, 0.27, 0.72, 1.9, 4.99]
+            - [0.1, 0.27, 0.72, 1.9, 4.99, 12.6]
+            - [0.1, 0.27, 0.72, 1.9, 4.99, 12.6, 28.77]
+            - [0.1, 0.27, 0.72, 1.9, 4.99, 12.6, 28.77, 50.13]
+            - [0.1, 0.27, 0.72, 1.9, 4.99, 12.6, 28.77, 50.13, 43.21]
+            - [0.1, 0.27, 0.72, 1.9, 4.99, 12.6, 28.77, 50.13, 43.21, 14.43]
+        - name: "Vest"
+          values:
+            - [0.1]
+            - [0.1, 0.21]
+            - [0.1, 0.21, 0.43]
+            - [0.1, 0.21, 0.43, 0.89]
+            - [0.1, 0.21, 0.43, 0.89, 1.84]
+            - [0.1, 0.21, 0.43, 0.89, 1.84, 3.73]
+            - [0.1, 0.21, 0.43, 0.89, 1.84, 3.73, 7.4]
+            - [0.1, 0.21, 0.43, 0.89, 1.84, 3.73, 7.4, 13.94]
+            - [0.1, 0.21, 0.43, 0.89, 1.84, 3.73, 7.4, 13.94, 23.67]
+            - [0.1, 0.21, 0.43, 0.89, 1.84, 3.73, 7.4, 13.94, 23.67, 33.02]
+        - name: "Ost"
+          values:
+            - [0.1]
+            - [0.1, 0.17]
+            - [0.1, 0.17, 0.27]
+            - [0.1, 0.17, 0.27, 0.45]
+            - [0.1, 0.17, 0.27, 0.45, 0.75]
+            - [0.1, 0.17, 0.27, 0.45, 0.75, 1.23]
+            - [0.1, 0.17, 0.27, 0.45, 0.75, 1.23, 2.01]
+            - [0.1, 0.17, 0.27, 0.45, 0.75, 1.23, 2.01, 3.24]
+            - [0.1, 0.17, 0.27, 0.45, 0.75, 1.23, 2.01, 3.24, 5.13]
+            - [0.1, 0.17, 0.27, 0.45, 0.75, 1.23, 2.01, 3.24, 5.13, 7.86]
+      stage: 0
+      x_window: 6
+      label_top: 2
+      y_label: "Share infected (%)"
+      x_label: "Month"
+      title: "A rolling six-month window"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -985,8 +1036,16 @@ layout: |
     // START anchor keeps it clear on EVERY width, and costs nothing: this
     // row sits below plot.y0, where no data stroke ever reaches (Y() clamps
     // at yMin), so there is nothing else down here to collide with instead.
-    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(xs[0]), { fontSize: 15, anchor: "start", color: C.guide }));
-    axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmtX(xs[n - 1]), { fontSize: 15, color: C.guide }));
+    // A windowed (or xlim-narrowed) axis draws its end labels at plot.x0 /
+    // plot.x1 because X() CLAMPS every value into [xMin, xMax] — so the label
+    // must name where it LANDS, not the raw xs it came from. Unclamped, a
+    // rolling 12-month window over 22 months read "1 … 22" under a plot that
+    // showed months 10-22: an axis lying about its own extent. clamp() here is
+    // the identity whenever the whole span is in view, so an ordinary chart is
+    // unchanged; it mirrors what axes__y0/axes__y1 already do (they print
+    // yMin/yMax, never the data's own first and last).
+    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(clamp(xs[0], xMin, xMax)), { fontSize: 15, anchor: "start", color: C.guide }));
+    axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmtX(clamp(xs[n - 1], xMin, xMax)), { fontSize: 15, color: C.guide }));
   }
   axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
   axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmtY(yMax), { fontSize: 15, anchor: "end", color: C.guide }));
@@ -1763,6 +1822,27 @@ examples:
       decimals: 1
       x_label: "Millions"
       title: "The world's largest cities"
+  - request: "Race eight simulated funds as standing columns, keeping the top five on screen."
+    # orientation: "vertical" stands the bars up as columns with the names
+    # underneath (the field caps at 12 there). Every fourth year of a seeded
+    # random walk in which all eight funds draw their annual return from the
+    # SAME range: nothing tells them apart, and the board still churns.
+    params:
+      labels: ["Alfa", "Bravo", "Ceres", "Delta", "Eos", "Fenrir", "Gaia", "Hydra"]
+      values:
+        - [100, 100, 100, 100, 100, 100, 100, 100]
+        - [133, 115, 140, 164, 117, 93, 92, 118]
+        - [198, 128, 149, 149, 135, 100, 108, 155]
+        - [233, 184, 141, 195, 214, 112, 85, 212]
+        - [329, 254, 141, 174, 249, 125, 164, 195]
+        - [321, 272, 185, 257, 388, 134, 249, 220]
+      ticker: ["2005", "2009", "2013", "2017", "2021", "2025"]
+      stage: 0
+      top_n: 5
+      orientation: "vertical"
+      decimals: 0
+      x_label: "Value of 100 invested"
+      title: "Eight funds, identical odds"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
