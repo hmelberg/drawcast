@@ -249,6 +249,10 @@ export interface Command {
   animate?: Record<string, number | string>;
   /** With animate: seconds the animation takes (default 2). */
   duration?: number;
+  /** With animate: velocity profile over the whole tween (default: today's
+   *  smoothstep — ease in AND out). A long race wants `linear` so the
+   *  middle years run at constant speed instead of blurring past. */
+  easing?: Easing;
   /**
    * Play synthesized notes: a notation string ("C4:q E4:q G4:h", chords with
    * +, R for rests), up to four parallel voices [{notes, instrument}], or a

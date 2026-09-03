@@ -451,9 +451,9 @@ describe("line_chart", () => {
     expect(tokenOnly.issues).toEqual([]);
   });
 
-  test("caps: 6 series, 2000 points", () => {
-    const many = line({ series: Array.from({ length: 8 }, (_, k) => ({ name: `s${k}`, values: [1, 2] })) });
-    expect(many.order.filter((id) => id.startsWith("line_"))).toHaveLength(6);
+  test("caps: 12 series, 2000 points", () => {
+    const many = line({ series: Array.from({ length: 14 }, (_, k) => ({ name: `s${k}`, values: [1, 2] })) });
+    expect(many.order.filter((id) => id.startsWith("line_"))).toHaveLength(12);
   });
 
   // Fix round 1: numeric x shorter than values used to throw (fmt(xs[n-1])

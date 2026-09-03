@@ -48,7 +48,7 @@ export type PlanStep = (
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
-  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; varTargets?: Record<string, string> }
+  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string> }
   | {
       kind: "play";
       voices: PlayVoice[];
@@ -440,7 +440,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
       params = { ...params, ...targets };
-      pushStep({ kind: "animate", targets, starts, seconds: cmd.duration ?? 2, ...(Object.keys(varTargets).length > 0 ? { varTargets } : {}) });
+      pushStep({
+        kind: "animate",
+        targets,
+        starts,
+        seconds: cmd.duration ?? 2,
+        ...(cmd.easing !== undefined ? { easing: cmd.easing } : {}),
+        ...(Object.keys(varTargets).length > 0 ? { varTargets } : {}),
+      });
       if (opts.bboxesFor) bboxOf = opts.bboxesFor(params);
     } else if (cmd.play !== undefined) {
       let raw;

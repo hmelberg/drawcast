@@ -842,8 +842,12 @@ export class Player {
           }
         }
         const visible = new Set(before.visible);
+        // Absent easing keeps the historical smoothstep exactly; a long race
+        // asks for `linear` so the middle years do not blur past while the
+        // ends crawl.
+        const ease = step.easing ? EASINGS[step.easing] : (t: number) => t * t * (3 - 2 * t);
         await this.progress(step.seconds * 1000, signal, (t) => {
-          const e = t * t * (3 - 2 * t); // smoothstep
+          const e = ease(t);
           const cur: Record<string, number> = { ...before.params };
           for (const key of Object.keys(targets)) {
             const start = step.starts[key];

@@ -428,6 +428,11 @@ const commandSchema = {
         "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs. A data template's stage param is the canonical target ({\"stage\": 1}); array entries address as values.2.",
     },
     duration: { type: "number", description: "With animate: seconds the animation takes (default 2)." },
+    easing: {
+      type: "string",
+      enum: ["linear", "ease-in", "ease-out", "ease-in-out"],
+      description: "With animate: velocity profile over the whole tween (default: today's smoothstep). A long race (many seconds) reads better as \"linear\" — constant speed — than the default's ease in/out, which blurs the middle and crawls at the ends.",
+    },
     play: {
       description:
         'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass) — or a whole tune as {"abc": "K:C\\nC D E F|…"} in ABC notation. ONLY for figures genuinely about sound or music.',
@@ -731,6 +736,9 @@ function semanticErrors(spec: Spec): string[] {
     }
     if (cmd.duration !== undefined && verb !== "animate") {
       errors.push(`commands[${i}]: duration only applies to animate (other verbs carry their own duration fields)`);
+    }
+    if (cmd.easing !== undefined && verb !== "animate") {
+      errors.push(`commands[${i}]: easing only applies to animate (move carries its own nested easing field)`);
     }
     if ((cmd.tempo !== undefined || cmd.instrument !== undefined || cmd.press !== undefined || cmd.reveal !== undefined) && verb !== "play") {
       errors.push(`commands[${i}]: tempo, instrument, press and reveal only apply to a play command`);

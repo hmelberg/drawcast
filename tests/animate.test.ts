@@ -159,4 +159,25 @@ describe("the animate action", () => {
       expect(f["demand_shift.amount"]).toBe(20);
     }
   });
+
+  // tests/animate-easing.test.ts pins that an explicit `easing` reaches the
+  // PlanStep, but the plan never evaluates a curve — the actual smoothstep
+  // vs. linear math only runs here, in the player. Smoothstep's derivative is
+  // 0 at t=0 (it eases IN), so its earliest frame sits far below the
+  // elapsed-time fraction; linear tracks that fraction exactly. This is the
+  // property a thirty-second race depends on `easing: "linear"` for.
+  test("explicit `easing: linear` actually changes the curve the player drives, not just the plan step", async () => {
+    const firstNonZeroFrame = async (extra: Record<string, unknown>) => {
+      const plan = planCommands([{ animate: { "demand_shift.amount": 100 }, duration: 0.3, ...extra }], [], { animateBase: BASE });
+      const { rp, frames } = makeReprojector();
+      const player = new Player(plan, new Map(), new StubSpeech(), null, { mode: "silent" });
+      player.reprojector = rp;
+      await player.play();
+      const hit = frames.find((f) => (f["demand_shift.amount"] as number) > 0);
+      return hit!["demand_shift.amount"] as number;
+    };
+    const smoothstepFirst = await firstNonZeroFrame({});
+    const linearFirst = await firstNonZeroFrame({ easing: "linear" });
+    expect(smoothstepFirst).toBeLessThan(linearFirst * 0.5);
+  });
 });
