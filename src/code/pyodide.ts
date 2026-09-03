@@ -14,10 +14,10 @@
 
 import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult, type CodeTable } from "./run";
 import { dataHarvestScript, parseHarvest } from "./harvest";
+import { RunQueue } from "./serial";
 import { renderPlotlyFigures } from "./plotly-render";
 
 const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.js`;
-const RUN_TIMEOUT_MS = 180_000;
 
 interface Pyodide {
   runPythonAsync(code: string): Promise<unknown>;
@@ -34,10 +34,10 @@ declare global {
 }
 
 let bootPromise: Promise<Pyodide> | null = null;
-let queue: Promise<unknown> = Promise.resolve();
+const queue = new RunQueue();
 
 /** Marks an error as "the runtime itself couldn't start", not a script bug —
- *  read back in runPython's envelope() below so codeExecutionErrors can warn
+ *  read back by RunQueue's errorEnvelope so codeExecutionErrors can warn
  *  instead of blocking generation on it. */
 function unavailable(message: string): Error & { runtimeUnavailable: true } {
   const err = new Error(message) as Error & { runtimeUnavailable: true };
@@ -312,34 +312,7 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
 }
 
 export function runPython(req: CodeRunRequest): Promise<CodeRunResult> {
-  const run = queue.then(() => runOne(req));
-  // The queue chains on the REAL execution, not the raced result: a timed-out
-  // run returns early to its caller below, but the next run still waits here
-  // until the abandoned execution actually finishes — otherwise its late
-  // output would be misattributed into the next run's buffers.
-  queue = run.catch(() => undefined);
-  const envelope = (err: unknown): CodeRunResult => ({
-    ok: false,
-    stdout: "",
-    stderr: "",
-    figures: [],
-    error: (err as Error).message,
-    runtimeUnavailable: (err as { runtimeUnavailable?: boolean } | undefined)?.runtimeUnavailable === true,
-  });
-  const settled = run.catch(envelope);
-  // Definite-assignment: the executor below runs synchronously, so the id is
-  // set before anything reads it.
-  let timeoutId!: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<CodeRunResult>((resolve) => {
-    timeoutId = setTimeout(
-      () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${RUN_TIMEOUT_MS / 1000}s` }),
-      RUN_TIMEOUT_MS,
-    );
-  });
-  // Clear the watchdog once the real run settles first, so a fast script
-  // doesn't leave a 3-minute timer alive (keeping node/test processes open).
-  settled.then(() => clearTimeout(timeoutId));
-  return Promise.race([settled, timeout]);
+  return queue.run(() => runOne(req));
 }
 
 /** The runtime-module contract run.ts dispatches through. */

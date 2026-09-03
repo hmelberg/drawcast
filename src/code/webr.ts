@@ -18,10 +18,10 @@ import { RUNTIME_VERSION } from "./languages";
 import { parseHarvest } from "./harvest";
 import { R_BOOT, R_WRAPPER, rPackagesIn } from "./harvest-r";
 import { bitmapToFigure } from "./png";
+import { RunQueue } from "./serial";
 
 const WEBR_BASE = `https://webr.r-wasm.org/v${RUNTIME_VERSION.r}/`;
 const WEBR_URL = `${WEBR_BASE}webr.mjs`;
-const RUN_TIMEOUT_MS = 180_000;
 
 /** Canvas device size for one plot page: 2× the pane's logical width so the
  *  video export stays crisp; pointsize scales base-graphics text with it,
@@ -59,11 +59,11 @@ interface WebRInstance {
 type WebRModule = { WebR: new (opts: { baseUrl: string }) => WebRInstance };
 
 let bootPromise: Promise<WebRInstance> | null = null;
-let queue: Promise<unknown> = Promise.resolve();
+const queue = new RunQueue();
 const installed = new Set<string>();
 
 /** Marks an error as "the runtime itself couldn't start", not a script bug —
- *  read back in runR's envelope() below so codeExecutionErrors can warn
+ *  read back by RunQueue's errorEnvelope so codeExecutionErrors can warn
  *  instead of blocking generation on it. */
 function unavailable(message: string): Error & { runtimeUnavailable: true } {
   const err = new Error(message) as Error & { runtimeUnavailable: true };
@@ -182,32 +182,7 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
 }
 
 export function runR(req: CodeRunRequest): Promise<CodeRunResult> {
-  const run = queue.then(() => runOne(req));
-  // The queue chains on the REAL execution, not the raced result: a timed-out
-  // run returns early to its caller below, but the next run still waits here
-  // until the abandoned execution actually finishes — otherwise its late
-  // output would be misattributed into the next run's buffers.
-  queue = run.catch(() => undefined);
-  const envelope = (err: unknown): CodeRunResult => ({
-    ok: false,
-    stdout: "",
-    stderr: "",
-    figures: [],
-    error: (err as Error).message,
-    runtimeUnavailable: (err as { runtimeUnavailable?: boolean } | undefined)?.runtimeUnavailable === true,
-  });
-  const settled = run.catch(envelope);
-  let timeoutId!: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<CodeRunResult>((resolve) => {
-    timeoutId = setTimeout(
-      () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${RUN_TIMEOUT_MS / 1000}s` }),
-      RUN_TIMEOUT_MS,
-    );
-  });
-  // Clear the watchdog once the real run settles first, so a fast script
-  // doesn't leave a 3-minute timer alive (keeping node/test processes open).
-  settled.then(() => clearTimeout(timeoutId));
-  return Promise.race([settled, timeout]);
+  return queue.run(() => runOne(req));
 }
 
 /** The runtime-module contract run.ts dispatches through. */
