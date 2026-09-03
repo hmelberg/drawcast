@@ -108,7 +108,7 @@ describe("stacked bars", () => {
     expect(top).toBeCloseTo(Y(4, 4), 0);
   });
 
-  test("mixed signs refuse to stack: an issue names the series, bars group instead", () => {
+  test("mixed signs refuse to stack: a drawn note names the series, bars group instead", () => {
     const l = layout({
       labels: ["A"],
       series: [
@@ -117,7 +117,12 @@ describe("stacked bars", () => {
       ],
       stacked: true,
     });
-    expect(l.issues.some((i) => /stacked/i.test(i.message) && /Down/.test(i.message))).toBe(true);
+    // A template body has no warning channel — SceneLayout carries drawables,
+    // and `issues` come from lintLayout. A refusal is therefore DRAWN, under
+    // the id `note`, so the author sees it on the figure.
+    const note = flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    expect(note?.text).toMatch(/stacked/i);
+    expect(note?.text).toMatch(/Down/);
     // Grouped fallback: the two bars are side by side, so their x spans differ.
     const x = (j: number) => area(l, `bar_1__f${j}`)!.pts.map((p) => p[0]);
     expect(Math.min(...x(0))).not.toBeCloseTo(Math.min(...x(1)), 1);
@@ -167,13 +172,16 @@ limits are computed:
     ? series.filter((s) => s.stages.some((st) => st.some((v) => typeof v === "number" && v < 0)))
     : [];
   const stacked = wantStacked && negatives.length === 0;
-  if (wantStacked && negatives.length > 0) {
-    issue(`stacked bars need non-negative values — "${negatives[0].name}" has a negative value, so the bars are grouped instead`);
-  }
+  // A body cannot raise a lint issue (SceneLayout has no warning channel), so
+  // a refusal is drawn: a short note under the id `note`, above the plot.
+  const note = wantStacked && negatives.length > 0
+    ? `stacked bars need non-negative values — "${negatives[0].name}" has one, so these are grouped`
+    : null;
 ```
 
-Use the pack's existing issue helper (the same call the token placeholder
-path uses — grep `issues.push` in the body and follow it).
+When `note` is set, push a `TextDrawable` with `id: "note"` at the top of the
+plot area in the muted ink, and add `note` to `order` and to `element_ids`
+("the refusal note, drawn only when a request could not be honoured").
 
 Limits, when `stacked`: replace the per-value min/max scan with a per-stage,
 per-label **total** scan:
@@ -309,9 +317,11 @@ describe("slope mode", () => {
     expect(treated.style.color).not.toBe(control.style.color);
   });
 
-  test("more than two values per series reports a problem", () => {
+  test("more than two values per series draws the refusal note", () => {
     const l = slope({ series: [{ name: "A", values: [1, 2, 3] }] });
-    expect(l.issues.some((i) => /slope/i.test(i.message) && /two/i.test(i.message))).toBe(true);
+    const note = flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    expect(note?.text).toMatch(/slope/i);
+    expect(note?.text).toMatch(/two/i);
   });
 });
 ```
@@ -342,14 +352,17 @@ Bump `line_chart`'s `version`.
 In the line_chart body, after series normalisation:
 
 ```js
-  const slope = params.slope === true;
-  if (slope) {
-    const wrong = series.filter((s) => s.stages.some((st) => st.length !== 2));
-    if (wrong.length > 0) issue(`slope charts need exactly two values per series — "${wrong[0].name || "series 1"}" has ${wrong[0].stages[0].length}`);
-  }
+  const wantSlope = params.slope === true;
+  const wrong = wantSlope ? series.filter((s) => s.stages.some((st) => st.length !== 2)) : [];
+  // Drawn, not linted — a body has no warning channel. Same `note` id and
+  // placement bar_chart uses for its stacked refusal.
+  const note = wrong.length > 0
+    ? `a slope chart needs exactly two values per series — "${wrong[0].name || "series 1"}" has ${wrong[0].stages[0].length}`
+    : null;
+  const slope = wantSlope && wrong.length === 0;
 ```
 
-When `slope` and no such issue: skip the x axis arrow and the numeric x
+When `slope`: skip the x axis arrow and the numeric x
 ticks; place two column ticks at `plotArea().x0 + pad` and
 `plotArea().x1 - pad` carrying `x[0]` and `x[1]`; draw each series as a
 single stroke between its two points; and emit `name value` labels outside
@@ -1109,9 +1122,10 @@ describe("heatmap", () => {
     expect(cells[2].style.fill).not.toBe(cells[0].style.fill);
   });
 
-  test("more than 12 rows or columns reports a problem", () => {
+  test("more than 12 rows or columns draws the refusal note", () => {
     const big = { rows: Array.from({ length: 13 }, (_, i) => "r" + i), cols: ["a"], values: Array.from({ length: 13 }, () => [1]) };
-    expect(map(big).issues.some((i) => /12/.test(i.message))).toBe(true);
+    const note = flattenDrawables(map(big).drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    expect(note?.text).toMatch(/12/);
   });
 });
 ```
@@ -1127,7 +1141,9 @@ Params: `rows`, `cols`, `values` (2-D, optionally staged: a list of 2-D
 grids), `stage`, `scale` (`sequential` default, `diverging`),
 `value_labels` (default true), `decimals`, `title`. All accept tokens.
 
-Body: cells fill the plot area, 12 × 12 max (issue past that). Fill is one
+Body: cells fill the plot area, 12 × 12 max — past that, draw the `note`
+refusal (the same id and placement Tasks 1 and 2 use) and render the first
+12 × 12. Fill is one
 ink at graded opacity (`sequential`), or two inks either side of zero
 (`diverging`), normalised by the largest absolute value across all stages so
 the wash does not flicker mid-tween. The label ink flips when the **computed**
