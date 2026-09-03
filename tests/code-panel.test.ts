@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import { lintCommands } from "../src/lint/lint";
 import { layoutSpec } from "../src/layout/layout";
+import { frameSpace } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
 import { planCommands } from "../src/render/plan";
@@ -51,7 +52,9 @@ describe("code panel layouts", () => {
   });
   test("with a window the panel is the window's height, not the script's", () => {
     const frameH = (s: Spec) => (leaf(s, "c1__frame") as { shapeHint?: { h: number } }).shapeHint!.h;
-    expect(frameH(spec({ show: "above", code: eight, lines: 3, code_result: OK }))).toBeLessThan(frameH(spec({ show: "above", code: eight, code_result: OK })));
+    expect(frameH(spec({ show: "above", code: eight, lines: 3, frame: "panel", code_result: OK }))).toBeLessThan(
+      frameH(spec({ show: "above", code: eight, frame: "panel", code_result: OK })),
+    );
   });
   test("lines beyond the window are clipped away, so the lint does not see them on the frame or off the canvas", () => {
     for (const show of ["left", "above", "below"]) {
@@ -116,35 +119,50 @@ describe("the screen", () => {
   const ids = (s: Spec) => flattenDrawables(layoutSpec(s, heuristicMeasure).drawables).map((d) => d.id);
   test("each frame value draws its own chrome ids, and none draws no frame", () => {
     expect(ids(spec({ frame: "window", code_result: OK }))).toContain("c1__bar");
-    expect(ids(spec({ frame: "screen", code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
+    expect(ids(spec({ frame: "screen", code_result: OK }))).toContain("c1__bezel");
     expect(ids(spec({ frame: "laptop", code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__keys", "c1__key_space"]));
     expect(ids(spec({ frame: "none", code_result: OK }))).not.toContain("c1__frame");
     expect(ids(spec({ frame: "panel", code_result: OK }))).toContain("c1__frame");
     expect(ids(spec({ frame: "panel", code_result: OK }))).not.toContain("c1__bezel");
   });
-  test("the screen is the default — every drawing panel is a monitor unless it says otherwise", () => {
-    // Output-only included: the panel IS what the computer produced.
-    expect(ids(spec({ code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
-    expect(ids(spec({ show: "left", code: eight, code_result: OK }))).toEqual(expect.arrayContaining(["c1__bezel", "c1__stand"]));
-    // frame: "none" is the way out — no bezel, no stand, no frame at all.
-    const bare = ids(spec({ show: "left", code: eight, code_result: OK, frame: "none" }));
-    for (const id of ["c1__bezel", "c1__stand", "c1__frame", "c1__bar"]) expect(bare).not.toContain(id);
-    // A data-only element draws nothing, so it grows no chrome either.
+  test("bare paper is the default; a frame is something the lesson asks for", () => {
+    const bare = ids(spec({ show: "left", code: eight, code_result: OK }));
+    for (const id of ["c1__bezel", "c1__frame", "c1__bar", "c1__bg"]) expect(bare).not.toContain(id);
+    expect(bare).toContain("c1_line_1"); // the code itself is still there
+    // A data-only element draws nothing at all.
     expect(ids(spec({ show: "none", code_result: OK }))).toEqual([]);
+  });
+  test("the display has ONE outline and no stand — its shell replaces the panel frame", () => {
+    for (const f of ["screen", "laptop"]) {
+      const drawn = ids(spec({ show: "left", code: eight, code_result: OK, frame: f }));
+      expect(drawn, f).toContain("c1__bezel");
+      expect(drawn, f).not.toContain("c1__frame"); // never two rectangles
+      expect(drawn, f).not.toContain("c1__stand"); // a foot only steals canvas
+    }
+    // The shell is a rounded path, so it carries no rect shapeHint.
+    expect((leaf(spec({ code_result: OK, frame: "screen" }), "c1__bezel") as { shapeHint?: unknown }).shapeHint).toBeUndefined();
+    // Sides stay thin, the chin is deeper — the display shape, not a box.
+    expect(frameSpace("screen")).toEqual({ above: 14, below: 30, side: 14 });
   });
   test("chrome reserves its space: the assembly stays centred on y and the content moves inside it", () => {
     const plain = textOf(spec({ show: "left", code: eight, code_result: OK }), "c1_line_1");
     const laptop = textOf(spec({ show: "left", code: eight, code_result: OK, frame: "laptop" }), "c1_line_1");
     expect(laptop.pos[1]).toBeGreaterThan(plain.pos[1]);
-    const bezel = leaf(spec({ show: "left", code: eight, code_result: OK, frame: "screen" }), "c1__bezel") as { shapeHint?: { h: number } };
-    const frame = leaf(spec({ show: "left", code: eight, code_result: OK, frame: "screen" }), "c1__frame") as { shapeHint?: { h: number } };
-    expect(bezel.shapeHint!.h).toBeGreaterThan(frame.shapeHint!.h);
+    // The shell wraps the panel: taller than the paper it holds, and deeper
+    // below it (the chin) than above.
+    const shell = (leaf(spec({ show: "left", code: eight, code_result: OK, frame: "screen" }), "c1__bezel") as { pts: [number, number][] }).pts;
+    const paper = (leaf(spec({ show: "left", code: eight, code_result: OK, frame: "screen" }), "c1__bg") as { pts: [number, number][] }).pts;
+    const ys = (pts: [number, number][]) => pts.map((p) => p[1]);
+    expect(Math.max(...ys(shell))).toBeGreaterThan(Math.max(...ys(paper)));
+    expect(Math.min(...ys(paper)) - Math.min(...ys(shell))).toBeGreaterThan(Math.max(...ys(shell)) - Math.max(...ys(paper)));
     for (const f of ["window", "screen", "laptop"]) {
       expect(layoutSpec(spec({ show: "left", code: eight, code_result: OK, frame: f }), heuristicMeasure).issues.filter((i) => i.severity === "error"), f).toEqual([]);
     }
   });
   test("draw.mode type gives each code line a typing duration and leaves the frame sketched", () => {
-    const l = flattenDrawables(layoutSpec(spec({ show: "left", code: "x = 1\nlonger_line = 12345678", draw: { mode: "type" }, code_result: OK }), heuristicMeasure).drawables);
+    const l = flattenDrawables(
+      layoutSpec(spec({ show: "left", code: "x = 1\nlonger_line = 12345678", draw: { mode: "type" }, frame: "panel", code_result: OK }), heuristicMeasure).drawables,
+    );
     const l1 = l.find((d) => d.id === "c1_line_1")!;
     const l2 = l.find((d) => d.id === "c1_line_2")!;
     expect(l1.drawOpts.mode).toBe("type");
@@ -187,5 +205,16 @@ describe("indentation is content", () => {
     const body = textOf(spec({ show: "left", code: "for i in range(3):\n    print(i)", code_result: OK }), "c1_line_2");
     expect(body.text.startsWith("    print(i)")).toBe(true);
     expect(body.font).toBe("mono"); // the backend preserves whitespace for mono text
+  });
+});
+
+describe("the window's edges", () => {
+  test("the clip bleeds below the last row (so an underscore survives) but never above the first", () => {
+    const l = layoutSpec(spec({ show: "left", code: eight, lines: 4, code_result: OK }), heuristicMeasure);
+    const line1 = flattenDrawables(l.drawables).find((d) => d.id === "c1_line_1")! as { clip?: { y: number; h: number } };
+    const win = l.windows!["c1"];
+    const clip = line1.clip!;
+    expect(clip.h).toBeGreaterThan(win.height); // bleed, not a taller window
+    expect(clip.h - win.height).toBeLessThan(5); // a hair, not a row
   });
 });

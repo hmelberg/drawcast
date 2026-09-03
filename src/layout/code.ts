@@ -332,10 +332,11 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // lines — off the 750-unit canvas. Cap the panel and fit everything inside.
   // The screen's chrome claims its space from the same budget as the panel:
   // the whole assembly (bar or bezel, panel, stand or keyboard) stays
-  // centred on the element's y and inside the canvas. A monitor is the
-  // DEFAULT — code and output happen on a computer, so they look like it,
-  // output-only panels included; `frame: "none"` is the way to bare paper.
-  const frame: CodeFrame = el.frame ?? "screen";
+  // centred on the element's y and inside the canvas. Bare paper is the
+  // DEFAULT (Hans, 2026-09-04): the drawing carries the figure, and chrome
+  // is something a lesson asks for — `frame: "screen"` when the story is
+  // "this happened on a computer".
+  const frame: CodeFrame = el.frame ?? "none";
   const chrome = frameSpace(frame);
   const maxH = CANVAS.h - 40 - chrome.above - chrome.below; // breathing room top+bottom
   // Stacked panes share the height: the code pane (or its window) is fixed
@@ -430,6 +431,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // Chrome first (it sits behind and around), then the panel's own paper
   // and frame — none of it for frame: none, bare paper.
   const panelChildren: Drawable[] = [...chromeDrawables(el.id, frame, x0, yTop, w, h, el.style, el.draw)];
+  const shelled = frame === "screen" || frame === "laptop"; // its outline is the frame
   if (frame !== "none") {
     panelChildren.push(
       {
@@ -441,7 +443,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         style: resolveStyle(undefined, { fill: COLORS.paper, opacity: 1, strokeWidth: 0 }),
         drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
       },
-      {
+    );
+    if (!shelled) {
+      panelChildren.push({
         id: `${el.id}__frame`,
         kind: "stroke",
         pts: rect,
@@ -450,8 +454,8 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         z: Z_STROKE,
         style: resolveStyle(el.style, { strokeWidth: 2.5 }),
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
-      },
-    );
+      });
+    }
   }
   // Pane origins (y-up). Side by side the code pane sits left or right;
   // stacked, above or below — the divider runs between the two either way.
@@ -497,7 +501,12 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     // Every line at its natural row, even past the window: the plan scrolls
     // the whole column by offsetting each line, and the clip (the pane's
     // rectangle, fixed in canvas space) hides what has left the window.
-    const clip = windowRows > 0 ? { x: codeX, y: codeTop - windowH, w: codePaneW, h: windowH } : undefined;
+    // A hair of bleed at the BOTTOM only: the row box is exactly 1.25 em, so a
+    // flush edge shaves the descenders of the last visible row (an underscore
+    // vanishes entirely). The top edge stays exact, or a scrolled-away line
+    // would peek back in.
+    const bleed = fontSize * 0.18;
+    const clip = windowRows > 0 ? { x: codeX, y: codeTop - windowH - bleed, w: codePaneW, h: windowH + bleed } : undefined;
     const bottoms: number[] = [];
     const lineIds: string[] = [];
     codeStack.blocks.forEach((block, i) => {
@@ -645,8 +654,12 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 // ---- the screen: chrome around the panel (spec §5) --------------------------
 
 const BAR_H = 28;
-const BEZEL = 18;
-const STAND_H = 56;
+/** The display's bezel: thin at the sides and top, deeper at the chin — a
+ *  Studio-Display shape rather than a box on a foot. A stand would only steal
+ *  vertical canvas from the very content it holds (Hans, 2026-09-04). */
+const BEZEL = 14;
+const CHIN = 30;
+const SCREEN_R = 24;
 const KEYS_H = 120;
 
 export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "none";
@@ -657,9 +670,9 @@ export function frameSpace(frame: CodeFrame): { above: number; below: number; si
     case "window":
       return { above: BAR_H, below: 0, side: 0 };
     case "screen":
-      return { above: BEZEL, below: BEZEL + STAND_H, side: BEZEL };
+      return { above: BEZEL, below: CHIN, side: BEZEL };
     case "laptop":
-      return { above: BEZEL, below: BEZEL + KEYS_H, side: BEZEL };
+      return { above: BEZEL, below: CHIN + KEYS_H, side: BEZEL };
     default:
       return { above: 0, below: 0, side: 0 };
   }
@@ -671,6 +684,23 @@ function rectPts(x: number, y: number, w: number, h: number): Pt[] {
     [x + w, y],
     [x + w, y + h],
     [x, y + h],
+  ];
+}
+
+/** A rounded rectangle as a closed point list — the display's outline. Drawn
+ *  as a path (no rect shapeHint), so rough.js sketches the curves. */
+function roundRectPts(x: number, y: number, w: number, h: number, r: number, per = 4): Pt[] {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  const arc = (cx: number, cy: number, a0: number, a1: number): Pt[] =>
+    Array.from({ length: per + 1 }, (_, i) => {
+      const a = a0 + (a1 - a0) * (i / per);
+      return [cx + rr * Math.cos(a), cy + rr * Math.sin(a)] as Pt;
+    });
+  return [
+    ...arc(x + w - rr, y + rr, -Math.PI / 2, 0),
+    ...arc(x + w - rr, y + h - rr, 0, Math.PI / 2),
+    ...arc(x + rr, y + h - rr, Math.PI / 2, Math.PI),
+    ...arc(x + rr, y + rr, Math.PI, 1.5 * Math.PI),
   ];
 }
 
@@ -706,43 +736,29 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
     }
   }
   if (frame === "screen" || frame === "laptop") {
+    // ONE outline, not two: the display's rounded shell IS the panel's frame,
+    // so the inner rectangle is suppressed (see codeDrawables). The chin sits
+    // under the screen the way a Studio Display's does.
     const bx = x0 - BEZEL;
-    const by = yTop - h - BEZEL;
+    const by = yTop - h - CHIN;
     const bw = w + 2 * BEZEL;
-    const bh = h + 2 * BEZEL;
+    const bh = h + CHIN + BEZEL;
+    const shell = roundRectPts(bx, by, bw, bh, SCREEN_R);
     out.push({
       id: `${id}__bezel_wash`,
       kind: "area",
-      pts: rectPts(bx, by, bw, bh),
+      pts: shell,
       precise: true,
       z: Z_AREA,
-      style: resolveStyle(undefined, { fill: COLORS.guide, opacity: 0.08, strokeWidth: 0 }),
+      style: resolveStyle(undefined, { fill: COLORS.guide, opacity: 0.13, strokeWidth: 0 }),
       drawOpts: instant,
     });
-    out.push(stroke(`${id}__bezel`, rectPts(bx, by, bw, bh), true, ink({ strokeWidth: 4 }), sketch(SKETCH_MS.node), { x: bx, y: by, w: bw, h: bh }));
-  }
-  if (frame === "screen") {
-    const cx = x0 + w / 2;
-    const top = yTop - h - BEZEL;
-    const baseY = top - STAND_H + 8;
-    const st = ink({ strokeWidth: 3 });
-    out.push({
-      id: `${id}__stand`,
-      kind: "group",
-      z: Z_STROKE,
-      style: defaultStyle(),
-      drawOpts: sketch(SKETCH_MS.node),
-      children: [
-        stroke(`${id}__stand_l`, [[cx - 14, top], [cx - 22, baseY]], false, st, sketch(300)),
-        stroke(`${id}__stand_r`, [[cx + 14, top], [cx + 22, baseY]], false, st, sketch(300)),
-        stroke(`${id}__stand_base`, [[cx - 100, baseY], [cx + 100, baseY]], false, st, sketch(400)),
-      ],
-    });
+    out.push(stroke(`${id}__bezel`, shell, true, ink({ strokeWidth: 3.5 }), sketch(SKETCH_MS.node)));
   }
   if (frame === "laptop") {
     const sx = x0 - BEZEL;
     const sw = w + 2 * BEZEL;
-    const hinge = yTop - h - BEZEL;
+    const hinge = yTop - h - CHIN;
     const slabTop = hinge;
     const slabBottom = hinge - KEYS_H;
     const keys: Drawable[] = [

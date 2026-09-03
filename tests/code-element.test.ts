@@ -177,7 +177,7 @@ describe("code element — layout", () => {
     const tall: CodeRunResult = { ok: true, stdout: "", stderr: "", figures: [{ href: "data:image/png;base64,AA", w: 600, h: 800 }] };
     // y centered on the canvas so "fits inside the panel" isn't tangled up
     // with an off-center default y pushing the panel's own top off-canvas.
-    const s = codeSpec({ show: "output", y: CANVAS.h / 2 }, tall);
+    const s = codeSpec({ show: "output", y: CANVAS.h / 2, frame: "panel" }, tall); // frame: the panel rect is what this measures
     const flat = flattenDrawables(layoutSpec(s, heuristicMeasure).drawables);
     const frame = flat.find((d) => d.id === "c1__frame") as StrokeDrawable;
     const img = flat.find((d): d is ImageDrawable => d.kind === "image")!;
@@ -204,7 +204,7 @@ describe("code element — layout", () => {
       stderr: "",
       figures: [],
     };
-    const s = codeSpec({ show: "output", y: CANVAS.h / 2 }, many);
+    const s = codeSpec({ show: "output", y: CANVAS.h / 2, frame: "panel" }, many); // frame: the panel rect is what this measures
     const layout = layoutSpec(s, heuristicMeasure);
     const flat = flattenDrawables(layout.drawables);
     const outTexts = flat.filter((d): d is TextDrawable => d.kind === "text" && d.id.startsWith("c1__out"));

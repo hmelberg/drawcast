@@ -214,7 +214,7 @@ const elementSchema = {
       type: "string",
       enum: ["panel", "window", "screen", "laptop", "none"],
       description:
-        "code: chrome drawn around the panel — screen (a monitor bezel on a stand; THE DEFAULT, output-only panels included), laptop (the bezel with a keyboard below), window (a title bar with three dots), panel (just a light frame), none (bare paper, no frame at all — the way out when the figure should not look like a computer). Pair the screen or laptop with draw: {mode: \"type\"} so the code is typed on it.",
+        "code: chrome drawn around the panel — none (bare paper, no frame at all; THE DEFAULT), screen (the code and its output on a computer display: one rounded shell with a chin, no stand), laptop (that display over a keyboard), window (a title bar with three dots), panel (just a light frame). Ask for the screen when the story is that this happened on a computer, and pair it with draw: {mode: \"type\"} so the code is typed onto it.",
     },
     figures: {
       type: "number",
