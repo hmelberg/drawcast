@@ -531,7 +531,7 @@ layout: |
 ---
 template: line_chart
 title: Line chart
-version: 1
+version: 2
 kit: 5
 status: ready
 description: >-
@@ -543,9 +543,12 @@ description: >-
   the change, and a series given prefix by prefix draws itself in from its
   last point. Feed it typed numbers, or a code element's variables via
   "{id.var}" tokens (name the series by hand so the line_k beats exist
-  before the script has run). Choose this scene for ANY request for a line
-  chart, a trend over time, a curve computed from data, two scenarios
-  compared over time, or "show how this develops".
+  before the script has run). `slope: true` switches to a slope chart —
+  two labelled columns and one straight connector per series, named and
+  valued at BOTH ends — for before/after, two time points, or Simpson's
+  paradox. Choose this scene for ANY request for a line chart, a trend over
+  time, a curve computed from data, two scenarios compared over time, a
+  slope chart, or "show how this develops".
 params:
   type: object
   properties:
@@ -586,6 +589,13 @@ params:
     smooth:
       type: boolean
       description: "Catmull–Rom smoothing through the points (default false; keep off for step-like data)."
+    slope:
+      type: boolean
+      description: "Slope chart: exactly two values per series, drawn as one straight connector each, with the name and value at BOTH ends. Choose it for before/after, two time points, or Simpson's paradox (each group's line rising while the pooled line falls). Every series must have exactly two values."
+    color_by:
+      type: string
+      enum: ["series", "direction"]
+      description: "Slope charts only. \"direction\" paints rising lines and falling lines in two inks — what makes the contrast argue. Default \"series\" keeps one colour per line."
     box:
       type: object
       properties: { x: { type: number }, y: { type: number }, w: { type: number }, h: { type: number } }
@@ -607,8 +617,9 @@ params:
     y_label: { type: string }
     title: { type: string }
 element_ids:
-  axes: the x and y axes with their captions and end values
-  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise)"
+  axes: "the x and y axes with their captions and end values (slope: true — axes__col0/axes__col1 name the two columns instead of an x scale)"
+  line_1: "the first series: its polyline, optional dots, and its name at the end (line_2, … likewise); with slope: true it is instead the straight connector between two columns, its name and value drawn at both ends"
+  note: "the refusal note, drawn only when slope: true and a series does not have exactly two values"
   title: figure title, when set
 examples:
   - request: "Plot 100 growing at 2 and 7 percent over 50 years as two curves."
@@ -626,6 +637,17 @@ examples:
       stage: 0
       points: true
       title: "Sales this week"
+  - request: "Simpson's paradox as a slope chart: both hospitals improve, the pooled average falls."
+    params:
+      slope: true
+      color_by: "direction"
+      x: ["2019", "2024"]
+      series:
+        - { name: "Hospital A", values: [93, 96] }
+        - { name: "Hospital B", values: [78, 84] }
+        - { name: "Both pooled", values: [88, 86] }
+      y_label: "Survival (%)"
+      title: "Each hospital improved. The average did not."
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -655,6 +677,20 @@ layout: |
     // unknown offline and costs a needless repair round.
     else if (typeof params.values === "string") series.push({ name: "", stages: [[]] });
   }
+  // Slope mode: two labelled columns, one straight connector per series,
+  // name and value at BOTH ends. A body cannot raise a lint issue
+  // (SceneLayout has no warning channel), so a series that fails the
+  // exactly-two-values rule draws a refusal note instead — bar_chart's own
+  // stacked-refusal convention, same `note` id, and the same graceful
+  // fallback: `slope` stays false below and the rest of the body draws the
+  // ordinary (non-slope) line chart it always has.
+  const wantSlope = params.slope === true;
+  const wrong = wantSlope ? series.filter((s) => s.stages.some((st) => st.length !== 2)) : [];
+  const note = wrong.length > 0
+    ? `a slope chart needs exactly two values per series — "${wrong[0].name || "series 1"}" has ${wrong[0].stages[0].length}`
+    : null;
+  const slope = wantSlope && wrong.length === 0;
+  const colorByDirection = slope && params.color_by === "direction";
   // x: numbers (real axis), strings (categories), else indices 1..n.
   const xNum = Array.isArray(params.x) && params.x.length > 0 && params.x.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.x.slice(0, 2000) : null;
   const xCat = !xNum && Array.isArray(params.x) && params.x.length > 0 && params.x.every((v) => typeof v === "string") ? params.x.slice(0, 2000) : null;
@@ -705,7 +741,10 @@ layout: |
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts) — the margin the app's own axis captions keep
   let endLabelW = 0;
   for (const s of series) if (s.name) endLabelW = Math.max(endLabelW, kit.textWidth(s.name, END_SIZE));
-  if (endLabelW > 0) {
+  // A slope chart's own pad (below, after fmtY exists) reserves margin for
+  // BOTH columns' "name value" labels — this shrink is for the ordinary
+  // single trailing end label, and would double up with it.
+  if (!slope && endLabelW > 0) {
     // Never crush the plot below half its width: a name that long is the
     // author's problem, so let it overflow rather than squeeze the chart.
     const minX1 = plot.x0 + (plot.x1 - plot.x0) * 0.5;
@@ -745,14 +784,41 @@ layout: |
   if (!Number.isInteger(xMin) || !Number.isInteger(xMax)) decX = Math.min(2, Math.max(decX, 1));
   const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(dec));
   const fmtX = fmtAxis(decX), fmtY = fmtAxis(decY);
+  // Slope layout: two inset columns instead of a continuous x scale. A
+  // point missing from a stage (null, same convention as atStage elsewhere)
+  // reads as 0 rather than throwing. pad is how far each column sits in
+  // from the plot edge — wide enough for the widest "name value" label its
+  // OUTER side must hold, so a label never runs past the canvas edge or
+  // crosses into the columns.
+  const slopeValue = (s, i) => {
+    const a = at(s, k0, i), c = at(s, k1, i);
+    const va = a === null ? 0 : a, vc = c === null ? 0 : c;
+    return va + (vc - va) * t;
+  };
+  const slopeText = (s, i) => (s.name ? s.name + " " : "") + fmtY(slopeValue(s, i));
+  const SLOPE_LABEL_SIZE = 17;
+  const SLOPE_LABEL_GAP = 10;
+  let padCols = 0;
+  if (slope) {
+    let maxW = 0;
+    for (const s of series) maxW = Math.max(maxW, kit.textWidth(slopeText(s, 0), SLOPE_LABEL_SIZE), kit.textWidth(slopeText(s, 1), SLOPE_LABEL_SIZE));
+    // Never invert the columns onto each other: at most 40 % of the plot
+    // width goes to either side's labels.
+    padCols = Math.min((plot.x1 - plot.x0) * 0.4, maxW + SLOPE_LABEL_GAP);
+  }
+  const xL = plot.x0 + padCols, xR = plot.x1 - padCols;
 
   const drawables = [], labelReqs = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
-  const axesChildren = [
-    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-  ];
+  const axesChildren = [];
+  // Slope charts drop the x arrow — there is no continuous x scale to point
+  // along, just two columns — and its numeric/categorical ticks below give
+  // way to two column ticks at xL/xR instead.
+  if (!slope) {
+    axesChildren.push(kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }));
+  }
+  axesChildren.push(kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }));
   // Ruling I: a stacked x caption (a long phrase, placed above/left of the
   // arrow tip rather than inline past it) sits in the same row as axes__x1
   // or the last category label — drop it one row lower so it clears them.
@@ -763,7 +829,14 @@ layout: |
     axesChildren.push(xCaption);
   }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
-  if (xCat) {
+  if (slope) {
+    // Two column ticks replace the numeric/categorical x marks: x[0] under
+    // the left column, x[1] under the right, in the same row category
+    // labels use elsewhere.
+    const colText = (i) => (xCat ? (xCat[i] !== undefined ? xCat[i] : String(i + 1)) : fmtX(xs[i] !== undefined ? xs[i] : i + 1));
+    axesChildren.push(kit.text("axes__col0", [xL, plot.y0 - 20], colText(0), { fontSize: 17 }));
+    axesChildren.push(kit.text("axes__col1", [xR, plot.y0 - 20], colText(1), { fontSize: 17 }));
+  } else if (xCat) {
     const size = n > 12 ? 13 : 17;
     xCat.forEach((s, i) => axesChildren.push(kit.text("axes__c" + i, [X(i), plot.y0 - 20], s, { fontSize: size })));
   } else if (n > 0) {
@@ -776,70 +849,118 @@ layout: |
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
 
-  // Interpolated points for one series: appearing points grow out of their
-  // predecessor in the older stage, disappearing ones shrink into their
-  // predecessor in the newer stage — a prefix reveal draws the line in.
-  // X/Y already clamp the value into [xMin, xMax] / [yMin, yMax] (Ruling E).
-  const pointsOf = (s) => {
-    const pts = [];
-    const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(s, k, j); if (v !== null) return [X(j), Y(v)]; } return null; };
-    for (let i = 0; i < n; i++) {
-      const a = at(s, k0, i), c = at(s, k1, i);
-      if (a === null && c === null) continue;
-      // Ruling A: at t === 0 the displayed stage IS k0, so a point absent
-      // from k0 has not appeared yet — reproduce k0's own point count exactly
-      // rather than drawing it already sitting at its predecessor.
-      if (a === null && t === 0) continue;
-      let from, to;
-      if (a !== null && c !== null) { from = [X(i), Y(a)]; to = [X(i), Y(c)]; }
-      else if (a === null) { to = [X(i), Y(c)]; from = pred(k0, i) || to; }
-      else { from = [X(i), Y(a)]; to = pred(k1, i) || from; }
-      pts.push([from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
+  if (note) {
+    const notePos = [plot.x0, plot.y1 - 16];
+    // line_chart draws no legend to dodge (unlike bar_chart's stacked
+    // refusal) — truncated only so a long series name cannot run the note
+    // past the plot's OWN right edge (plot.x1, which honours an authored
+    // box, not the bare canvas edge).
+    const NOTE_SIZE = 16;
+    const noteMaxW = plot.x1 - plot.x0 - 8;
+    let noteText = note;
+    if (kit.textWidth(noteText, NOTE_SIZE) > noteMaxW) {
+      while (noteText.length > 1 && kit.textWidth(noteText + "…", NOTE_SIZE) > noteMaxW) noteText = noteText.slice(0, -1);
+      noteText = noteText.replace(/\s+$/, "") + "…";
     }
-    return pts;
-  };
+    push(kit.text("note", notePos, noteText, { fontSize: NOTE_SIZE, color: C.guide, anchor: "start" }));
+    anchors.note = notePos;
+  }
 
-  const lines = series.map((s, k) => ({ s, k, pts: pointsOf(s) }));
-  // Finding I6: dodge the end labels apart (46 units) the way did_trends
-  // does, but around the CLUSTER'S OWN CENTRE — the push below only ever
-  // moves a label UP, so four series converging near the top used to walk the
-  // last one clean off the canvas. After centring, the stack is held inside
-  // the axes: its top never rises above the y arrow's tip, its bottom never
-  // sinks into the x caption's row (Ruling T — a curve that ends at the floor,
-  // an epidemic burning out, put its name straight on top of "Days"). The cap
-  // is applied first, so a stack taller than the plot keeps its bottom rather
-  // than its top. A series with no name or no points takes no slot at all.
+  // A cluster of label y-positions pushed DODGE units apart, centred on the
+  // cluster's own mean (not just shoved upward, so a tight cluster stays
+  // centred instead of drifting off one end), then capped inside the axes —
+  // never above the y arrow's tip, never into the x caption's row. Finding
+  // I6 / Ruling T's algorithm, factored out of the per-series loop below so
+  // the slope branch can call it once per SIDE instead of once per chart.
   const DODGE = 46;
   const END_LABEL_FLOOR = 28; // an end label never sits in the x caption's row (its 19pt box clears a 22pt inline caption centred on the axis: 13.75 + 11.875 + the lint's 2-unit pad = 27.625)
-  const labelY = lines.map((L) => (L.pts.length ? L.pts[L.pts.length - 1][1] : plot.y0));
-  const slots = lines.map((L, k) => (L.s.name && L.pts.length ? k : -1)).filter((k) => k >= 0).sort((i, j) => labelY[i] - labelY[j]);
-  const dodged = labelY.slice();
-  for (let q = 1; q < slots.length; q++) {
-    const prev = slots[q - 1], cur = slots[q];
-    if (dodged[cur] - dodged[prev] < DODGE) dodged[cur] = dodged[prev] + DODGE;
+  const dodgeY = (ys) => {
+    const order = ys.map((_, i) => i).sort((a, b) => ys[a] - ys[b]);
+    const dodged = ys.slice();
+    for (let q = 1; q < order.length; q++) {
+      const prev = order[q - 1], cur = order[q];
+      if (dodged[cur] - dodged[prev] < DODGE) dodged[cur] = dodged[prev] + DODGE;
+    }
+    if (order.length > 0) {
+      let want = 0, got = 0;
+      for (const k of order) { want += ys[k]; got += dodged[k]; }
+      let shift = (want - got) / order.length;
+      const cap = plot.y1 + kit.AXIS_OVERHANG;
+      if (dodged[order[order.length - 1]] + shift > cap) shift = cap - dodged[order[order.length - 1]];
+      if (dodged[order[0]] + shift < plot.y0 + END_LABEL_FLOOR) shift = plot.y0 + END_LABEL_FLOOR - dodged[order[0]];
+      for (const k of order) dodged[k] += shift;
+    }
+    return dodged;
+  };
+
+  if (slope) {
+    // Slope branch: exactly two points per series (guaranteed by `wrong`
+    // above), one straight connector, name + value dodged INDEPENDENTLY on
+    // each side — a series near the top on the left can sit anywhere on the
+    // right, so the two columns never share one dodge pass.
+    const leftY = series.map((s) => Y(slopeValue(s, 0)));
+    const rightY = series.map((s) => Y(slopeValue(s, 1)));
+    const leftDodged = dodgeY(leftY);
+    const rightDodged = dodgeY(rightY);
+    series.forEach((s, k) => {
+      const id = "line_" + (k + 1);
+      const p0 = [xL, leftY[k]], p1 = [xR, rightY[k]];
+      const rising = slopeValue(s, 1) > slopeValue(s, 0);
+      const color = colorByDirection ? (rising ? C.series[0] : C.series[1]) : C.series[k % C.series.length];
+      const children = [
+        kit.stroke(id + "__l", [p0, p1], { color, strokeWidth: 4, ms: MS.curve }),
+        kit.text(id + "__t0", [xL - SLOPE_LABEL_GAP, leftDodged[k]], slopeText(s, 0), { fontSize: SLOPE_LABEL_SIZE, anchor: "end", color }),
+        kit.text(id + "__t1", [xR + SLOPE_LABEL_GAP, rightDodged[k]], slopeText(s, 1), { fontSize: SLOPE_LABEL_SIZE, anchor: "start", color }),
+      ];
+      push(kit.group(id, children));
+      anchors[id] = [(xL + xR) / 2, (p0[1] + p1[1]) / 2];
+    });
+  } else {
+    // Interpolated points for one series: appearing points grow out of their
+    // predecessor in the older stage, disappearing ones shrink into their
+    // predecessor in the newer stage — a prefix reveal draws the line in.
+    // X/Y already clamp the value into [xMin, xMax] / [yMin, yMax] (Ruling E).
+    const pointsOf = (s) => {
+      const pts = [];
+      const pred = (k, i) => { for (let j = i - 1; j >= 0; j--) { const v = at(s, k, j); if (v !== null) return [X(j), Y(v)]; } return null; };
+      for (let i = 0; i < n; i++) {
+        const a = at(s, k0, i), c = at(s, k1, i);
+        if (a === null && c === null) continue;
+        // Ruling A: at t === 0 the displayed stage IS k0, so a point absent
+        // from k0 has not appeared yet — reproduce k0's own point count exactly
+        // rather than drawing it already sitting at its predecessor.
+        if (a === null && t === 0) continue;
+        let from, to;
+        if (a !== null && c !== null) { from = [X(i), Y(a)]; to = [X(i), Y(c)]; }
+        else if (a === null) { to = [X(i), Y(c)]; from = pred(k0, i) || to; }
+        else { from = [X(i), Y(a)]; to = pred(k1, i) || from; }
+        pts.push([from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
+      }
+      return pts;
+    };
+
+    const lines = series.map((s, k) => ({ s, k, pts: pointsOf(s) }));
+    // A series with no name or no points takes no slot at all in the dodge.
+    const labelY = lines.map((L) => (L.pts.length ? L.pts[L.pts.length - 1][1] : plot.y0));
+    const slots = lines.map((L, k) => (L.s.name && L.pts.length ? k : -1)).filter((k) => k >= 0);
+    const dodgedSlots = dodgeY(slots.map((k) => labelY[k]));
+    const dodged = labelY.slice();
+    slots.forEach((k, i) => { dodged[k] = dodgedSlots[i]; });
+
+    lines.forEach((L, k) => {
+      const id = "line_" + (k + 1);
+      const color = C.series[k % C.series.length];
+      const children = [];
+      const pts = L.pts;
+      if (pts.length >= 2) children.push(kit.stroke(id + "__l", params.smooth === true ? kit.smooth(pts) : pts, { color, strokeWidth: 4, ms: MS.curve }));
+      else if (pts.length === 1) children.push(kit.stroke(id + "__l", [pts[0], [pts[0][0] + 0.01, pts[0][1]]], { color, strokeWidth: 4, ms: MS.curve }));
+      else children.push(kit.stroke(id + "__l", [], { color, strokeWidth: 4, ms: MS.curve }));
+      if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })));
+      if (L.s.name && pts.length) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color }));
+      push(kit.group(id, children));
+      anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
+    });
   }
-  if (slots.length > 0) {
-    let want = 0, got = 0;
-    for (const k of slots) { want += labelY[k]; got += dodged[k]; }
-    let shift = (want - got) / slots.length;
-    const cap = plot.y1 + kit.AXIS_OVERHANG;
-    if (dodged[slots[slots.length - 1]] + shift > cap) shift = cap - dodged[slots[slots.length - 1]];
-    if (dodged[slots[0]] + shift < plot.y0 + END_LABEL_FLOOR) shift = plot.y0 + END_LABEL_FLOOR - dodged[slots[0]];
-    for (const k of slots) dodged[k] += shift;
-  }
-  lines.forEach((L, k) => {
-    const id = "line_" + (k + 1);
-    const color = C.series[k % C.series.length];
-    const children = [];
-    const pts = L.pts;
-    if (pts.length >= 2) children.push(kit.stroke(id + "__l", params.smooth === true ? kit.smooth(pts) : pts, { color, strokeWidth: 4, ms: MS.curve }));
-    else if (pts.length === 1) children.push(kit.stroke(id + "__l", [pts[0], [pts[0][0] + 0.01, pts[0][1]]], { color, strokeWidth: 4, ms: MS.curve }));
-    else children.push(kit.stroke(id + "__l", [], { color, strokeWidth: 4, ms: MS.curve }));
-    if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })));
-    if (L.s.name && pts.length) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color }));
-    push(kit.group(id, children));
-    anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];
-  });
 
   if (title) {
     let ty = Math.min(700, plot.y1 + 25);

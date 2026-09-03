@@ -605,6 +605,59 @@ describe("line_chart", () => {
   });
 });
 
+// Task 2: slope mode. Real ids confirmed by reading the body (Step 1): a
+// series line is "line_<k>__l" and its (single-sided) end label is
+// "line_<k>__t" — both already match the brief's placeholder id lookups
+// (".includes(\"1\")"/".includes(\"2\")" on strokes). The one correction
+// needed was TextDrawable's own field name: it carries `pos`, not `at`.
+describe("slope mode", () => {
+  const slope = (extra: object = {}) =>
+    layoutSpec({
+      template: "line_chart",
+      params: {
+        slope: true,
+        x: ["Before", "After"],
+        series: [
+          { name: "Treated", values: [10, 16] },
+          { name: "Control", values: [12, 9] },
+        ],
+        ...extra,
+      },
+    } as Spec);
+
+  test("both ends carry a name and a value", () => {
+    const texts = flattenDrawables(slope().drawables).filter((d) => d.kind === "text") as TextDrawable[];
+    const treated = texts.filter((t) => /Treated/.test(t.text));
+    expect(treated.length).toBe(2);
+    expect(Math.min(...treated.map((t) => t.pos[0]))).toBeLessThan(Math.max(...treated.map((t) => t.pos[0])));
+  });
+
+  test("labels on the same side never overlap", () => {
+    const l = slope({
+      series: [
+        { name: "A", values: [10, 10.05] },
+        { name: "B", values: [10.1, 10] },
+      ],
+    });
+    expect(l.issues.filter((i) => /overlap/i.test(i.message))).toEqual([]);
+  });
+
+  test("color_by direction paints risers and fallers differently", () => {
+    const l = slope({ color_by: "direction" });
+    const strokes = flattenDrawables(l.drawables).filter((d) => d.kind === "stroke") as StrokeDrawable[];
+    const treated = strokes.find((d) => d.id.includes("1"))!;
+    const control = strokes.find((d) => d.id.includes("2"))!;
+    expect(treated.style.color).not.toBe(control.style.color);
+  });
+
+  test("more than two values per series draws the refusal note", () => {
+    const l = slope({ series: [{ name: "A", values: [1, 2, 3] }] });
+    const note = flattenDrawables(l.drawables).find((d) => d.id === "note") as TextDrawable | undefined;
+    expect(note?.text).toMatch(/slope/i);
+    expect(note?.text).toMatch(/two/i);
+  });
+});
+
 describe("scatter_plot", () => {
   const sc = (params: object) => layoutSpec({ template: "scatter_plot", params } as Spec);
   const find = (l: ReturnType<typeof layoutSpec>, id: string) => flattenDrawables(l.drawables).find((d) => d.id === id);
