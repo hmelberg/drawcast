@@ -105,6 +105,31 @@ describe("countCast", () => {
     expect((await countCast(KEY, { ...opts(store, DAY3, seq), deleteBudget: 0 })).total).toBe(3);
   });
 
+  test("a hit landing for a day already rolled up is dropped, not added to the rollup total", async () => {
+    // Pins THE COUNTING RULE directly: a future "simplification" that made
+    // mergeDays add the raw count instead of ignoring it would inflate this
+    // to 6, silently double-counting the straggler.
+    const { store, data } = fakeStore();
+    data.set("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml", { "2026-09-04": 5 });
+    data.set("h/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml/2026-09-04/stray", "");
+    const res = await countCast(KEY, opts(store, DAY3));
+    expect(res.total).toBe(5);
+    expect(res.days).toEqual({ "2026-09-04": 5 });
+  });
+
+  test("a delete budget smaller than the raw count leaves the remainder for next time", async () => {
+    // deleteBudget: 0 (above) returns before the loop body ever runs. This
+    // pins the boundary inside the loop — budget-- <= 0 firing partway
+    // through a day's keys, not just before the first one.
+    const { store, data } = fakeStore();
+    const seq = { n: 0 };
+    for (let i = 0; i < 3; i++) await recordHit(KEY, opts(store, DAY2, seq));
+    await countCast(KEY, opts(store, DAY3, seq)); // writes the rollup, deletes nothing yet
+    const res = await countCast(KEY, { ...opts(store, DAY3, seq), deleteBudget: 2 });
+    expect(res.total).toBe(3);
+    expect([...data.keys()].filter((k) => k.includes("2026-09-04")).length).toBe(1);
+  });
+
   test("an unseen cast is zero, not an error", async () => {
     const { store } = fakeStore();
     expect((await countCast(KEY, opts(store, DAY2))).total).toBe(0);

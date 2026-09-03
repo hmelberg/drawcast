@@ -126,10 +126,21 @@ function totalOf(days: Record<string, number>): number {
  * Fold finished days into the rollup, then delete what the rollup now covers.
  *
  * Writing and deleting are deliberately separate passes over separate days: a
- * day is written to the rollup on one read and its raws are deleted on a
- * later one. Two readers racing therefore compute the same number from the
- * same complete listing, so they write the same value — the race is benign in
- * a way an increment never is.
+ * day is written to the rollup on one read and its raws are deleted only on a
+ * later one — never in the same pass. So any reader that reaches the delete
+ * loop below has, on that same call, already read a rollup that already
+ * contained that day: deleting is gated on `fresh` being empty, i.e. every
+ * past day already has a durable rollup value.
+ *
+ * That is what makes `countCast` reading the rollup AFTER listing the raws
+ * (not before) race-safe. A reader's own rollup read then happens no earlier
+ * than its own listing, so if this reader's listing raced a concurrent
+ * delete and came back short, its rollup read — being no older — will still
+ * see the rollup value that delete's writer already committed, and this
+ * reader will use that value instead of recomputing a smaller one from its
+ * own partial listing. Reading the rollup first would break exactly this: a
+ * straggling reader could see an empty rollup, then a partial, post-delete
+ * listing, and overwrite a correct rollup value with an undercount.
  */
 async function compact(
   store: ViewStore,
@@ -161,7 +172,6 @@ export async function countCast(castKey: string, o: ViewOptions & { assumeHit?: 
   const { store, now, deleteBudget } = settings(o);
   const s = store();
   const enc = encodeCastKey(castKey);
-  const rollup = await readRollup(s, enc);
   const listed = (await s.list({ prefix: hitPrefix(enc) })).blobs;
   const raw = groupByDay(listed);
   // `list` is eventually consistent and has no strong option, so a hit
@@ -172,6 +182,10 @@ export async function countCast(castKey: string, o: ViewOptions & { assumeHit?: 
     const day = dayOfHitKey(o.assumeHit);
     if (day) (raw[day] ??= []).push(o.assumeHit);
   }
+  // Read after listing, not before: see the comment on compact() for why
+  // that ordering — not `consistency: "strong"` — is what keeps a reader
+  // racing a concurrent compaction pass from overwriting a correct rollup.
+  const rollup = await readRollup(s, enc);
   const days = mergeDays(rollup, raw);
   await compact(s, enc, rollup, raw, dayString(now()), deleteBudget);
   return { total: totalOf(days), days };
