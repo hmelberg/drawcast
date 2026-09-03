@@ -30,18 +30,22 @@ export class RunQueue {
   constructor(private readonly timeoutMs = RUN_TIMEOUT_MS) {}
 
   run(work: () => Promise<CodeRunResult>): Promise<CodeRunResult> {
-    const real = this.queue.then(work);
-    this.queue = real.catch(() => undefined);
-    const settled = real.catch(errorEnvelope);
-    // Definite-assignment: the executor below runs synchronously, so the id
-    // is set before anything reads it.
-    let timeoutId!: ReturnType<typeof setTimeout>;
+    // The watchdog measures EXECUTION, not the wait in the queue: a script
+    // queued behind a slow one must not be timed out for the other's sins.
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let expire!: (r: CodeRunResult) => void;
     const timeout = new Promise<CodeRunResult>((resolve) => {
+      expire = resolve;
+    });
+    const real = this.queue.then(() => {
       timeoutId = setTimeout(
-        () => resolve({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${this.timeoutMs / 1000}s` }),
+        () => expire({ ok: false, stdout: "", stderr: "", figures: [], error: `timed out after ${this.timeoutMs / 1000}s` }),
         this.timeoutMs,
       );
+      return work();
     });
+    this.queue = real.catch(() => undefined);
+    const settled = real.catch(errorEnvelope);
     // Clear the watchdog once the real run settles first, so a fast script
     // doesn't leave a 3-minute timer alive (keeping node/test processes open).
     settled.then(() => clearTimeout(timeoutId));
