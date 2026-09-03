@@ -1408,8 +1408,13 @@ description: >-
   `animate: {stage: 59}` with `easing: "linear"` plays the whole race at one
   steady speed. `top_n` bounds the field (default 10) and a racer climbing
   into it slides in and fades up instead of popping; `order: "fixed"` keeps
-  the input order and animates lengths only. Horizontal by default, because
-  that is where long racer names fit. Feed it typed numbers, or a code
+  the input order and animates lengths only. The scale follows the leader, so
+  the early stages are never squashed flat, and its ticks slide rather than
+  reflow; `xlim` fixes the range instead. `ticker` writes the year large and
+  dim in the plot's corner, and every bar carries its own value unless
+  `value_labels: false`. Horizontal by default, because that is where long
+  racer names fit; `orientation: "vertical"` stands the bars up as columns
+  with the names underneath and caps the field at 12. Feed it typed numbers, or a code
   element's variables via "{id.var}" tokens (type the labels by hand so the
   race_i beats exist before the script has run). Choose this scene for ANY
   request for a bar chart race, a leaderboard over time, "who overtook whom",
@@ -1429,7 +1434,7 @@ params:
         - { type: array, items: { type: number }, maxItems: 40 }
         - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, minItems: 1, maxItems: 200 }
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
-      description: "One list of lists: STAGES of the race, one row per stage and one number per label (a missing one counts as 0 — that racer has not entered yet). A single flat list is a one-stage race. Or a \"{id.var}\" token naming a code element's variable."
+      description: "One list of lists: STAGES of the race, one row per stage and one number per label. A missing number counts as 0, and a 0 simply puts that racer last — write 0 for a racer that has not entered yet (or has left), rather than leaving the row short. A single flat list is a one-stage race. Or a \"{id.var}\" token naming a code element's variable."
     stage:
       type: number
       minimum: 0
@@ -1508,6 +1513,35 @@ examples:
       stage: 0
       order: "fixed"
       x_label: "Million NOK"
+  - request: "Bar chart race: the world's top chess players by Elo, 1971 to 2021."
+    params:
+      labels: ["Fischer", "Karpov", "Kasparov", "Kramnik", "Anand", "Carlsen"]
+      values:
+        - [2760, 2660, 0, 0, 0, 0]
+        - [2780, 2725, 2595, 0, 0, 0]
+        - [0, 2720, 2800, 2695, 2650, 0]
+        - [0, 0, 2830, 2780, 2770, 2690]
+        - [0, 0, 0, 2790, 2800, 2870]
+      ticker: ["1971", "1981", "1991", "2001", "2021"]
+      stage: 0
+      top_n: 5
+      xlim: [2500, 2900]
+      x_label: "Elo rating"
+      title: "The top of the chess world"
+  - request: "Race the five largest cities by population, one stage per decade."
+    params:
+      labels: ["Tokyo", "Delhi", "Shanghai", "São Paulo", "Mexico City"]
+      values:
+        - [23.3, 9.7, 13.0, 14.8, 15.6]
+        - [28.4, 15.7, 16.6, 17.0, 18.0]
+        - [36.9, 22.0, 20.3, 19.7, 20.1]
+        - [37.3, 29.4, 27.1, 22.0, 21.8]
+      ticker: ["1990", "2000", "2010", "2020"]
+      stage: 0
+      value_labels: true
+      decimals: 1
+      x_label: "Millions"
+      title: "The world's largest cities"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -1528,7 +1562,12 @@ layout: |
     .filter((l) => typeof l === "string" || typeof l === "number")
     .map(String)
     .slice(0, 40);
-  const stages = toStages(params.values) || [[]];
+  const staged = toStages(params.values);
+  // "No data yet" is a state of its own, not a field of zeroes: the scale, its
+  // ticks and the value labels all stay off until a number exists, so the
+  // placeholder frame shows typed names and nothing it cannot know.
+  const hasData = staged !== null;
+  const stages = staged || [[]];
   let n = labels.length;
   for (const st of stages) n = Math.max(n, st.length);
   n = Math.min(40, n);
@@ -1560,7 +1599,15 @@ layout: |
   const rowPos = (i) => (fixedRows ? i : r0[i] + (r1[i] - r0[i]) * t);
   const value = (i) => valueAtStage(i, k0) + (valueAtStage(i, k1) - valueAtStage(i, k0)) * t;
 
-  const topN = clamp(Math.round(num(params.top_n, 10)), 1, Math.max(1, Math.min(20, n)));
+  // The whole template is ONE layout read along two axes. `vertical` swaps
+  // which axis carries the value and which carries the field, and every
+  // measurement below is written in those terms — "the slot" is a row's height
+  // when the bars lie down and a column's width when they stand up. Vertical
+  // caps the field at 12 because a name under a column has only that column's
+  // width to live in, where a name beside a row has the whole left margin.
+  const vertical = params.orientation === "vertical";
+  const FIELD_CAP = vertical ? 12 : 20;
+  const topN = clamp(Math.round(num(params.top_n, 10)), 1, Math.max(1, Math.min(FIELD_CAP, n)));
   // One extra row — the airlock — but only when someone can actually reach
   // it. A racer climbing in slides up out of it while fading in; one falling
   // out slides down into it while fading away, so no bar ever pops. It is the
@@ -1573,14 +1620,22 @@ layout: |
   // A drawn title costs 55 units of plot height — the did_trends convention,
   // see bar_chart.
   if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
-  const rowH = (plot.y1 - plot.y0) / rows;
-  const barH = rowH * 0.7;
+  // The FIELD axis's pitch: one row's height lying down, one column's width
+  // standing up. (Reading it before the left margin below is safe: the margin
+  // only ever moves plot.x0, which the horizontal branch does not use here.)
+  const slot = (vertical ? plot.x1 - plot.x0 : plot.y1 - plot.y0) / rows;
+  const thick = slot * 0.7;
   // A name never grows so large that two neighbouring rows' names collide:
   // the lint wants their boxes (fontSize × 1.25) plus its own 2-unit pad on
-  // each side clear of each other, and 0.55 × rowH leaves room for both at
+  // each side clear of each other, and 0.55 × the slot leaves room for both at
   // every row count this template allows (at most 21 rows over at least 525
-  // units, so rowH ≥ 25). Never under the lint's own 14-unit floor.
-  const NAME_SIZE = Math.max(14, Math.min(17, Math.floor(rowH * 0.55)));
+  // units, so the slot is ≥ 25). Never under the lint's own 14-unit floor. Vertical
+  // names all share ONE row under the axis, so they never collide vertically
+  // at all — truncation to the column's width, not shrinking, is what keeps
+  // each in its own lane.
+  const NAME_SIZE = vertical
+    ? (rows > 8 ? 14 : 17)
+    : Math.max(14, Math.min(17, Math.floor(slot * 0.55)));
   const NAME_GAP = 10; // the bars' baseline → the name's right edge
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts)
   const nameOf = (i) => (labels[i] !== undefined ? labels[i] : String(i + 1));
@@ -1588,18 +1643,23 @@ layout: |
   // names fit: in the left margin, right-justified at the bars' baseline.
   // Widen that margin when the names need it — but never past 40 % of the
   // plot, since a name that long is the author's problem and not a reason to
-  // crush the bars.
-  let nameW = 0;
-  for (let i = 0; i < n; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), NAME_SIZE));
-  const wantX0 = CANVAS_EDGE + nameW + NAME_GAP;
-  if (wantX0 > plot.x0) plot.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+  // crush the bars. Vertical needs no such margin: its names sit under the
+  // columns, and the default left margin already holds the value axis's ticks.
+  if (!vertical) {
+    let nameW = 0;
+    for (let i = 0; i < n; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), NAME_SIZE));
+    const wantX0 = CANVAS_EDGE + nameW + NAME_GAP;
+    if (wantX0 > plot.x0) plot.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+  }
   // That cap can leave a name wider than the margin it actually got, and a
   // name drawn past the canvas edge is an ERROR-severity lint (out-of-canvas,
   // src/lint/lint.ts), not a cosmetic overflow: "United Kingdom of Great
   // Britain and Northern Ireland" at 17pt is 460 units against a 430-unit
   // margin. So truncate it to the room it has — the same convention the
-  // pack's `note` drawables use for text that will not fit.
-  const nameMaxW = plot.x0 - NAME_GAP - CANVAS_EDGE;
+  // pack's `note` drawables use for text that will not fit. Vertically the
+  // room is the column's own width, less the 6 units that keep two
+  // neighbouring names clear of the lint's 2-unit pad on each side.
+  const nameMaxW = vertical ? slot - 6 : plot.x0 - NAME_GAP - CANVAS_EDGE;
   const fitName = (i) => {
     let s = nameOf(i);
     if (kit.textWidth(s, NAME_SIZE) <= nameMaxW) return s;
@@ -1612,21 +1672,101 @@ layout: |
   // over ALL stages so the frame never jumps": in a race the leader defines
   // the scale, and a fixed range squashes the early stages into nothing.
   // `xlim` fixes the range for anyone who wants a constant one. Every bar
-  // starts at the low end and X clamps into it, so a negative number draws a
+  // starts at the low end and V clamps into it, so a negative number draws a
   // bar of no length rather than one running backwards past the names.
+  // The 8 % of headroom over the leader is where its value label rides: with
+  // the leader flush against the plot edge there is nowhere to put the number
+  // that matters most.
   const xlim = Array.isArray(params.xlim) && params.xlim.length === 2 && params.xlim.every((v) => typeof v === "number" && Number.isFinite(v)) ? params.xlim : null;
   const xMin = xlim ? Math.min(xlim[0], xlim[1]) : 0;
   let xMax = xlim ? Math.max(xlim[0], xlim[1]) : 0;
-  if (!xlim) for (let i = 0; i < n; i++) xMax = Math.max(xMax, value(i));
+  if (!xlim) {
+    for (let i = 0; i < n; i++) xMax = Math.max(xMax, value(i));
+    xMax *= 1.08;
+  }
   if (xMax - xMin < 1e-9) xMax = xMin + 1;
-  const X = (v) => plot.x0 + ((clamp(v, xMin, xMax) - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  // The VALUE axis: x when the bars lie down, y when they stand up.
+  const V = (v) => {
+    const f = (clamp(v, xMin, xMax) - xMin) / (xMax - xMin);
+    return vertical ? plot.y0 + f * (plot.y1 - plot.y0) : plot.x0 + f * (plot.x1 - plot.x0);
+  };
 
-  // Row 0 is the leader, at the top. A racer past the airlock row is already
-  // invisible (the ramp below reaches 0 there), so pinning its geometry AT
-  // the last row changes nothing on screen and keeps every drawn point inside
-  // the canvas however tall the rows are.
-  const rowCenter = (p) => plot.y1 - (Math.min(p, rows - 1) + 0.5) * rowH;
-  // The airlock ramp: full ink at row topN - 1, nothing at row topN.
+  // Tick VALUES are chosen ONCE — from the magnitude the race ends at, or from
+  // a fixed `xlim` — and only their POSITIONS are recomputed per frame; a tick
+  // outside the current range is simply dropped. So the ticks SLIDE outward as
+  // the leader grows instead of reflowing to a new vocabulary on every tween
+  // frame, which would make the whole axis flicker under the bars.
+  const niceStep = (span) => {
+    const raw = span / 5; // aim for about five intervals
+    if (!(raw > 0)) return 0;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    return (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  };
+  // The next rung of the same 1/2/5 ladder — the one coarsening below climbs.
+  const nextStep = (s) => {
+    const mag = Math.pow(10, Math.floor(Math.log10(s) + 1e-9));
+    const norm = s / mag;
+    return (norm < 1.5 ? 2 : norm < 3.5 ? 5 : 10) * mag;
+  };
+  let endHi = xMin, peak = xMin;
+  if (xlim) {
+    // A fixed range never widens, so there is no spike to survive.
+    endHi = xMax;
+    peak = xMax;
+  } else {
+    for (let i = 0; i < n; i++) endHi = Math.max(endHi, valueAtStage(i, K - 1));
+    for (const st of stages) for (const v of st) if (typeof v === "number") peak = Math.max(peak, v);
+    // A race that ENDS at nothing — everyone has left the field — would leave
+    // the axis with no vocabulary at all. Fall back to the largest number the
+    // race ever reaches, which is still one fixed choice, not a per-frame one.
+    if (endHi <= xMin) endHi = peak;
+    peak *= 1.08; // the same headroom the live range carries
+  }
+  let tickStep = hasData ? niceStep(endHi - xMin) : 0;
+  // One vocabulary for the whole race has to survive the race's PEAK too: a
+  // race that spikes far above where it finishes would otherwise cram fifty
+  // ticks onto the axis at the top of the spike. Coarsen the step — ONCE, from
+  // numbers that do not change with the stage, never per frame — until the
+  // widest range the race ever shows holds at most a dozen of them.
+  while (tickStep > 0 && (peak - xMin) / tickStep > 12) tickStep = nextStep(tickStep);
+  const ticks = [];
+  // Stepping by MULTIPLES rather than by repeated addition: 0.1 added thirty
+  // times is not 3, and a tick labelled "2.9999999999999996" is a bug.
+  if (tickStep > 0) {
+    for (let m = Math.ceil(xMin / tickStep - 1e-9); ticks.length < 24; m++) {
+      const v = m * tickStep;
+      if (v > xMax + 1e-9) break;
+      ticks.push(v);
+    }
+  }
+  const tickDec = tickStep >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(tickStep || 1)));
+  const fmtTick = (v) => (tickDec === 0 ? String(Math.round(v)) : v.toFixed(tickDec));
+
+  // Value labels carry the data's own precision (at most 2 decimals), exactly
+  // as bar_chart does, unless `decimals` says otherwise.
+  let dec = Math.round(num(params.decimals, -1));
+  if (!(dec >= 0)) {
+    dec = 0;
+    for (const st of stages) for (const v of st) {
+      if (typeof v === "number" && !Number.isInteger(v)) dec = Math.min(2, Math.max(dec, (String(v).split(".")[1] || "").length));
+    }
+  }
+  dec = clamp(dec, 0, 4);
+  const fmtVal = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+  const showValues = params.value_labels !== false && hasData;
+  const VALUE_SIZE = Math.max(14, NAME_SIZE - 2);
+  const VALUE_GAP = 8;  // horizontal: the bar's end → the label
+  const VALUE_LIFT = 13; // vertical: the column's top → the label's centre
+
+  // Place 0 is the leader — the top row, or the leftmost column. A racer past
+  // the airlock row is already invisible (the ramp below reaches 0 there), so
+  // pinning its geometry AT the last place changes nothing on screen and keeps
+  // every drawn point inside the canvas however tall the rows are.
+  const placeCenter = (p) => (vertical
+    ? plot.x0 + (Math.min(p, rows - 1) + 0.5) * slot
+    : plot.y1 - (Math.min(p, rows - 1) + 0.5) * slot);
+  // The airlock ramp: full ink at place topN - 1, nothing at place topN.
   const fade = (p) => clamp(topN - p, 0, 1);
   const FILL = 0.55; // bar_chart's own bar wash
 
@@ -1634,14 +1774,66 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   const xLab = str(params.x_label, "");
-  // One axis: the value axis. A race names its rows instead of scaling them,
-  // so there is no second scale to draw.
+  const TICK_SIZE = 15;
+  const AXIS_ROW = 20; // axis line → the row of small labels under it (ticks lying down, names standing up) — line_chart's own row
+  const X_CAPTION_DROP = 28; // a stacked caption sits one row below the ticks
+  // The value axis, and only the value axis where the bars lie down: a race
+  // NAMES its rows instead of scaling them, so there is no second scale to
+  // draw. Standing up, the columns need a baseline to stand on as well, and
+  // the caption and the ticks move with the value to the y axis.
   const axesChildren = [
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
   ];
-  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 }));
+  if (vertical) axesChildren.push(kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }));
+  // `axes__cap` rather than the pack's usual `axes__x_label`: x_label captions
+  // the VALUE axis, and which axis that is flips with the orientation.
+  let valueCap = null;
+  if (xLab) {
+    valueCap = kit.axisLabel("axes__cap", vertical ? "y" : "x", plot, xLab, { fontSize: 22 });
+    // Ruling I/J again: a stacked x caption (a phrase, placed under the arrow
+    // tip rather than in line past it) lands in the very row the ticks use —
+    // drop it one row lower, exactly as bar_chart and line_chart do.
+    if (!vertical && valueCap.anchor === "end") valueCap.pos[1] = plot.y0 - AXIS_ROW - X_CAPTION_DROP;
+    axesChildren.push(valueCap);
+  }
+  ticks.forEach((v, q) => axesChildren.push(vertical
+    ? kit.text("axes__t" + q, [plot.x0 - 12, V(v)], fmtTick(v), { fontSize: TICK_SIZE, anchor: "end", color: C.guide })
+    : kit.text("axes__t" + q, [V(v), plot.y0 - AXIS_ROW], fmtTick(v), { fontSize: TICK_SIZE, color: C.guide })));
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
+
+  // The clock. `ticker[round(stage)]` — the NEAREST stage's caption, never a
+  // blend, because text does not interpolate and "199½" is not a year. Drawn
+  // large and dimmed in the plot's quiet corner: bottom-right when the bars
+  // lie down (the short ones sit at the bottom) and top-right when they stand
+  // up (the short ones stand on the right). Pushed before the field so it
+  // paints behind it, and so its box is known when the value labels below
+  // pick their side.
+  const tickerList = Array.isArray(params.ticker)
+    ? params.ticker.filter((s) => typeof s === "string" || typeof s === "number").map(String)
+    : null;
+  // A "{code.var}" ticker that has not resolved yet still DECLARES its beat.
+  // An id missing from `order` is a dropped command (src/render/plan.ts), so
+  // the storyboard that names `ticker` before the script has run would lose
+  // the beat outright; it draws as nothing at all until the captions arrive.
+  const tickerCap = tickerList && tickerList.length > 0
+    ? tickerList[clamp(Math.round(stage), 0, tickerList.length - 1)]
+    : (typeof params.ticker === "string" && params.ticker.trim() !== "" ? "" : null);
+  const TICKER_SIZE = 46;
+  let tickerBox = null;
+  if (tickerCap !== null) {
+    const pos = [plot.x1 - 8, vertical ? plot.y1 - 30 : plot.y0 + 38];
+    push(kit.text("ticker", pos, tickerCap, { fontSize: TICKER_SIZE, anchor: "end", color: C.guide, opacity: 0.4 }));
+    anchors.ticker = pos;
+    if (tickerCap !== "") {
+      const w = kit.textWidth(tickerCap, TICKER_SIZE), h = TICKER_SIZE * 1.25;
+      tickerBox = { x0: pos[0] - w, x1: pos[0], y0: pos[1] - h / 2, y1: pos[1] + h / 2 };
+    }
+  }
+  // The lint's own 2-unit pad on each side (boxesOverlap in layout/geometry.ts).
+  const clearsTicker = (b) => !tickerBox
+    || b.x1 + 2 <= tickerBox.x0 || b.x0 >= tickerBox.x1 + 2
+    || b.y1 + 2 <= tickerBox.y0 || b.y0 >= tickerBox.y1 + 2;
 
   // Ids are race_1 … race_N by INPUT order, never by rank, and the colour
   // cycles by that same input index. The rough.js seed is hashSeed(drawable.id)
@@ -1674,23 +1866,68 @@ layout: |
       anchors[id] = [plot.x0, plot.y0];
       continue;
     }
-    const yc = rowCenter(p);
+    const c = placeCenter(p);   // the bar's centre line, ACROSS the value axis
     const opacity = fade(p);
-    const end = X(value(i));
-    const rect = [[plot.x0, yc - barH / 2], [end, yc - barH / 2], [end, yc + barH / 2], [plot.x0, yc + barH / 2]];
+    const base = V(xMin);       // every bar starts at the low end of the scale
+    const end = V(value(i));
+    // The one place the two orientations part company: lying down the bar runs
+    // out along x from the axis and its name sits in the left margin; standing
+    // up it runs up along y and its name sits under the column.
+    const rect = vertical
+      ? [[c - thick / 2, base], [c + thick / 2, base], [c + thick / 2, end], [c - thick / 2, end]]
+      : [[base, c - thick / 2], [end, c - thick / 2], [end, c + thick / 2], [base, c + thick / 2]];
     // No separate outline stroke: both renderers already draw an area's
     // border (rough.js polygon strokeWidth 1.8 / plainPath 1.5), and a race
     // rebuilds every bar on every tween frame, so the second stroke would be
     // ink re-rolled for nothing.
     push(kit.area(id, rect, color, { opacity: FILL * opacity }));
-    drawables.push(kit.text(id + "_text", [plot.x0 - NAME_GAP, yc], fitName(i), { fontSize: NAME_SIZE, anchor: "end", opacity }));
-    anchors[id] = [(plot.x0 + end) / 2, yc];
+    drawables.push(vertical
+      ? kit.text(id + "_text", [c, plot.y0 - AXIS_ROW], fitName(i), { fontSize: NAME_SIZE, opacity })
+      : kit.text(id + "_text", [plot.x0 - NAME_GAP, c], fitName(i), { fontSize: NAME_SIZE, anchor: "end", opacity }));
+    anchors[id] = vertical ? [c, (base + end) / 2] : [(base + end) / 2, c];
+
+    // The value rides the bar's end: past it while there is room, and turned
+    // around to lie INSIDE the end when the bar reaches the plot's edge. When
+    // the ticker is in the way it slides further in still, to the year's near
+    // edge — the leader's number is the one a viewer most wants, so it must
+    // not be the one the giant dimmed clock swallows. Only a bar with no room
+    // on either side goes unlabelled.
+    if (showValues) {
+      const s = fmtVal(value(i));
+      const w = kit.textWidth(s, VALUE_SIZE), h = VALUE_SIZE * 1.25;
+      let pos = null, anchor = "middle";
+      if (vertical) {
+        const vBox = (y) => ({ x0: c - w / 2, x1: c + w / 2, y0: y - h / 2, y1: y + h / 2 });
+        const above = end + VALUE_LIFT;
+        if (above + h / 2 <= plot.y1 && clearsTicker(vBox(above))) pos = [c, above];
+        else {
+          let inside = end - VALUE_LIFT;
+          if (!clearsTicker(vBox(inside))) inside = Math.min(inside, tickerBox.y0 - VALUE_LIFT);
+          if (inside - h / 2 >= plot.y0) pos = [c, inside];
+        }
+      } else {
+        const hBox = (x1) => ({ x0: x1 - w, x1, y0: c - h / 2, y1: c + h / 2 });
+        const past = end + VALUE_GAP;
+        if (past + w <= plot.x1 && clearsTicker({ x0: past, x1: past + w, y0: c - h / 2, y1: c + h / 2 })) { pos = [past, c]; anchor = "start"; }
+        else {
+          let within = end - VALUE_GAP;
+          if (!clearsTicker(hBox(within))) within = Math.min(within, tickerBox.x0 - VALUE_GAP);
+          if (within - w >= plot.x0) { pos = [within, c]; anchor = "end"; }
+        }
+      }
+      if (pos) drawables.push(kit.text(id + "_value", pos, s, { fontSize: VALUE_SIZE, anchor, color: C.guide, opacity }));
+    }
   }
 
   if (title) {
-    // No y caption to clear here, so the title sits just above the plot; 730
-    // is the last line a 30pt title can sit on and stay inside the canvas.
-    const ty = Math.min(730, plot.y1 + 25);
+    // Lying down there is no caption above the plot to clear, so the title
+    // sits just over it. Standing up the value caption hangs off the y arrow's
+    // tip and gets there first — 40 is what it takes for the two BOXES to
+    // clear by the lint's own measure (half a 30pt title + half a 22pt caption
+    // + its 2-unit pad on each side), the same sum bar_chart works out. 730 is
+    // the last line a 30pt title can sit on and stay inside the canvas.
+    let ty = Math.min(730, plot.y1 + 25);
+    if (vertical && valueCap) ty = Math.min(730, Math.max(ty, valueCap.pos[1] + 40));
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }

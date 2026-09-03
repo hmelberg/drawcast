@@ -9,8 +9,12 @@ import dataYaml from "../src/scenes/packs/data.yaml?raw";
 import { registerPack } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
-import { flattenDrawables, type AreaDrawable } from "../src/layout/model";
+import { plotArea } from "../src/layout/canvas";
+import { heuristicMeasure } from "../src/layout/measure";
+import { flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
 import type { Spec } from "../src/spec/types";
+
+const plot = plotArea();
 
 beforeAll(() => {
   expect(registerPack("data", dataYaml).errors).toEqual([]);
@@ -139,5 +143,201 @@ describe("bar_race", () => {
     expect(drawn.length).toBeLessThan(long.length);
     // A name that fits is left exactly alone.
     expect(racerName(l, 2)).toBe("France");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Everything the viewer actually READS: the scale and its ticks, the running
+// year, the value on the bar, and the vertical field.
+// ---------------------------------------------------------------------------
+
+const textById = (l: ReturnType<typeof layoutSpec>, id: string) =>
+  flattenDrawables(l.drawables).find((d) => d.kind === "text" && d.id === id) as TextDrawable | undefined;
+// The value axis's tick labels. They live inside the `axes` group — ids are
+// unique across the whole tree (src/scenes/compile.ts), so they cannot all BE
+// "axes"; `axes__t0…` is the pack's own double-underscore child convention.
+const tickLabels = (l: ReturnType<typeof layoutSpec>) =>
+  flattenDrawables(l.drawables).filter((d): d is TextDrawable => d.kind === "text" && /^axes__t\d+$/.test(d.id));
+const tickTexts = (l: ReturnType<typeof layoutSpec>) => tickLabels(l).map((d) => d.text);
+const barBox = (l: ReturnType<typeof layoutSpec>, i: number) => {
+  const pts = bar(l, i)!.pts;
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+};
+
+describe("bar_race scale and furniture", () => {
+  const growing = { labels: ["A", "B"], values: [[10, 5], [100, 50]] };
+
+  test("the scale follows the leader, so the leader always fills the plot", () => {
+    const early = race({ ...growing, stage: 0 });
+    const late = race({ ...growing, stage: 1 });
+    expect(barLen(early, 1)).toBeCloseTo(barLen(late, 1), 0);
+  });
+
+  test("xlim fixes the scale instead", () => {
+    const early = race({ ...growing, stage: 0, xlim: [0, 100] });
+    const late = race({ ...growing, stage: 1, xlim: [0, 100] });
+    expect(barLen(early, 1)).toBeLessThan(barLen(late, 1) * 0.2);
+  });
+
+  test("tick values are chosen once and only their positions move", () => {
+    const mid = race({ ...growing, stage: 0.5 });
+    const end = race({ ...growing, stage: 1 });
+    // The same tick vocabulary at both ends — ticks slide, they do not reflow.
+    expect(new Set(tickTexts(end)).size).toBeGreaterThan(1);
+    expect(tickTexts(mid).every((t) => tickTexts(end).includes(t))).toBe(true);
+    // …and that is a real constraint, not a tautology. The leader is 55 at the
+    // half stage and 100 at the end: a step re-derived from 55 would land on
+    // tens ("10", "30", "50") and none of those is in the end's twenties
+    // vocabulary, so this fails the moment the values are recomputed per frame.
+    expect(tickTexts(end)).toEqual(["0", "20", "40", "60", "80", "100"]);
+    // Ticks past the current top are DROPPED, and the survivors have SLID
+    // outward — same value, new position, which is what "positions are
+    // recomputed every frame" means.
+    expect(tickTexts(mid).length).toBeLessThan(tickTexts(end).length);
+    const xOf = (l: ReturnType<typeof layoutSpec>, t: string) => tickLabels(l).find((d) => d.text === t)!.pos[0];
+    expect(xOf(mid, "20")).toBeGreaterThan(xOf(end, "20"));
+    expect(xOf(mid, "0")).toBeCloseTo(xOf(end, "0"), 6);
+  });
+
+  test("the ticker shows the nearest stage's caption, never a blend", () => {
+    const l = race({ ...growing, ticker: ["1990", "2020"], stage: 0.6 });
+    const tick = flattenDrawables(l.drawables).find((d) => d.id === "ticker") as { text: string };
+    expect(tick.text).toBe("2020");
+    // Just past the other side of the midpoint it is still the earlier year:
+    // text does not interpolate, so it snaps to the nearer stage.
+    expect(textById(race({ ...growing, ticker: ["1990", "2020"], stage: 0.4 }), "ticker")!.text).toBe("1990");
+    // A beat the manifest advertises has to be addressable, not just drawn.
+    expect(l.order).toContain("ticker");
+    // No ticker param, no ticker drawable — and no dangling id either.
+    const bare = race({ ...growing, stage: 0 });
+    expect(textById(bare, "ticker")).toBeUndefined();
+    expect(bare.order).not.toContain("ticker");
+  });
+
+  test("vertical orientation puts names under the bars and caps the field at 12", () => {
+    const field = {
+      labels: Array.from({ length: 15 }, (_, i) => "P" + i),
+      values: [Array.from({ length: 15 }, (_, i) => 15 - i)],
+      orientation: "vertical",
+      stage: 0,
+    };
+    const l = race(field);
+    expect(l.issues.filter((i) => /overlap/i.test(i.message))).toEqual([]);
+    expect(bar(l, 13)).toBeUndefined();
+
+    // Bars grow UPWARD out of the baseline, and the leader's is tall and
+    // narrow — the horizontal fallback would be the exact reverse.
+    const b1 = barBox(l, 1), b2 = barBox(l, 2);
+    expect(b1.y0).toBeCloseTo(b2.y0, 6); // one shared baseline
+    expect(b1.y1 - b1.y0).toBeGreaterThan(b2.y1 - b2.y0);
+    expect(b1.x1 - b1.x0).toBeLessThan(b1.y1 - b1.y0);
+    // The name sits UNDER its own column, centred on it — not off in a margin.
+    const name = textById(l, "race_1_text")!;
+    expect(name.text).toBe("P0");
+    expect(name.anchor).toBe("middle");
+    expect(name.pos[1]).toBeLessThan(b1.y0);
+    expect(name.pos[0]).toBeCloseTo((b1.x0 + b1.x1) / 2, 6);
+    // The value rides ABOVE the column here, not off its end.
+    expect(textById(l, "race_1_value")!.pos[1]).toBeGreaterThan(b1.y1);
+
+    // Twelve is the cap: top_n 20 gets 12 rows plus the one airlock row, where
+    // the same request horizontally gets the full 20.
+    const capped = race({ ...field, top_n: 20 });
+    expect(bar(capped, 13)).toBeDefined();
+    expect(bar(capped, 14)).toBeUndefined();
+    const wide = race({ ...field, orientation: "horizontal", top_n: 20 });
+    expect(bar(wide, 15)).toBeDefined();
+  });
+
+  test("value labels stay inside the plot at full length", () => {
+    const l = race({ labels: ["A"], values: [[100]], value_labels: true, stage: 0, decimals: 0 });
+    const label = textById(l, "race_1_value")!;
+    expect(label.text).toBe("100");
+    expect(label.pos[0]).toBeLessThan(plot.x1);
+    expect(l.issues).toEqual([]);
+    // The hard case: a fixed scale the leader reaches EXACTLY, so there is no
+    // headroom left outside the bar. The label turns and rides inside its own
+    // end rather than running off the plot.
+    const full = race({ labels: ["A"], values: [[100]], value_labels: true, xlim: [0, 100], decimals: 0 });
+    const rid = textById(full, "race_1_value")!;
+    expect(rid.anchor).toBe("end");
+    expect(rid.pos[0]).toBeLessThanOrEqual(plot.x1);
+    expect(full.issues.filter((i) => i.rule === "out-of-canvas")).toEqual([]);
+  });
+
+  test("the clock never swallows a number a bar is carrying", () => {
+    // `order: "fixed"` is what puts the LONGEST bar in the BOTTOM row — right
+    // under the ticker's own corner. The number a viewer most wants must not
+    // be the one that disappears: it turns around and rides the year's near
+    // edge instead.
+    const l = race({ labels: ["A", "B", "C", "D"], values: [[1, 2, 3, 100]], order: "fixed", ticker: ["1999"], x_label: "N" });
+    const v = textById(l, "race_4_value")!;
+    const clock = textById(l, "ticker")!;
+    expect(v.text).toBe("100");
+    expect(v.anchor).toBe("end");
+    expect(v.pos[0]).toBeLessThan(clock.pos[0] - heuristicMeasure(clock.text, clock.fontSize).w);
+    expect(l.issues).toEqual([]);
+  });
+
+  test("value labels are on by default and off when asked", () => {
+    expect(textById(race({ labels: ["A"], values: [[7]] }), "race_1_value")!.text).toBe("7");
+    expect(textById(race({ labels: ["A"], values: [[7]], value_labels: false }), "race_1_value")).toBeUndefined();
+  });
+
+  test("the tick vocabulary survives a race that spikes and a race that ends at nothing", () => {
+    // A spike: the leader peaks at 1000 mid-race and finishes at 100. The
+    // step comes from the finish, so the peak frame would carry fifty ticks
+    // unless the step is coarsened ONCE, from numbers no frame can change.
+    const spike = { labels: ["A"], values: [[100], [1000], [100]] };
+    expect(tickTexts(race({ ...spike, stage: 1 })).length).toBeLessThanOrEqual(13);
+    expect(tickTexts(race({ ...spike, stage: 2 })).every((t) => tickTexts(race({ ...spike, stage: 1 })).includes(t))).toBe(true);
+    // …and the axis still reaches the leader at the top of the spike, rather
+    // than stopping a quarter of the way along with the rest of the ticks cut.
+    const atPeak = tickLabels(race({ ...spike, stage: 1 }));
+    expect(atPeak[atPeak.length - 1].pos[0]).toBeGreaterThan(plot.x0 + (plot.x1 - plot.x0) * 0.8);
+    // A race everyone has left by the last stage: the final stage's magnitude
+    // is 0 and would name no ticks at all, so the vocabulary falls back to the
+    // largest number the race ever reaches.
+    expect(tickTexts(race({ labels: ["A"], values: [[80], [0]], stage: 0 })).length).toBeGreaterThan(1);
+    // A fixed range never widens, so data far outside it must not coarsen the
+    // ticks away — xlim's own span is the only thing that sizes them.
+    expect(tickTexts(race({ labels: ["A"], values: [[9999]], xlim: [0, 10] }))).toEqual(["0", "2", "4", "6", "8", "10"]);
+  });
+
+  test("a ticker still waiting on its script keeps its beat", () => {
+    // An id missing from `order` is a DROPPED command (src/render/plan.ts) —
+    // so a "{code.var}" ticker has to declare the beat before it can fill it.
+    const l = race({ labels: ["A"], values: [[7]], ticker: "{sim.years}" });
+    expect(l.order).toContain("ticker");
+    expect(textById(l, "ticker")!.text).toBe("");
+    expect(l.issues).toEqual([]);
+    // …and an unresolved clock claims no room: the value label keeps the side
+    // it would have had with no ticker at all.
+    expect(textById(l, "race_1_value")!.anchor).toBe("start");
+  });
+
+  test("a race still waiting on its script draws no ticks and no values", () => {
+    // The placeholder promise again: "not data yet" must not be dressed up as
+    // a scale reading 0…1 with a column of zeroes hanging off it.
+    const l = race({ labels: ["Oslo", "Bergen"], values: "{sim.v}", stage: 0 });
+    expect(tickTexts(l)).toEqual([]);
+    expect(textById(l, "race_1_value")).toBeUndefined();
+    expect(l.issues).toEqual([]);
+  });
+
+  test("degenerate fields still lay out: one stage, all equal, values spanning zero", () => {
+    for (const params of [
+      { labels: ["A", "B"], values: [[5, 5]] },
+      { labels: ["A", "B"], values: [[0, 0]] },
+      { labels: ["A", "B"], values: [[-5, 10]], stage: 0 },
+      { labels: ["A", "B", "C"], values: [[3, 2, 1]], top_n: 2 }, // C sits exactly ON the airlock row
+    ]) {
+      const l = race(params);
+      expect(l.warnings, JSON.stringify(params)).toEqual([]);
+      expect(l.issues, JSON.stringify(params)).toEqual([]);
+      // A negative number never draws a bar running backwards past the names.
+      for (const i of [1, 2]) expect(barBox(l, i).x0, JSON.stringify(params)).toBeGreaterThanOrEqual(plot.x0 - 1e-6);
+    }
   });
 });

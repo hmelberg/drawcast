@@ -8946,6 +8946,14 @@
     ]
    ],
    "stage": 0,
+   "ticker": [
+    "1990",
+    "2000",
+    "2010",
+    "2020"
+   ],
+   "value_labels": true,
+   "decimals": 1,
    "x_label": "GDP (trillion USD)",
    "title": "The four biggest economies, 1990 → 2020"
   },
@@ -8953,6 +8961,7 @@
    {
     "draw": [
      "axes",
+     "ticker",
      "race_1",
      "race_2",
      "race_3",
