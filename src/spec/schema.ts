@@ -196,9 +196,14 @@ const elementSchema = {
     },
     show: {
       type: "string",
-      enum: ["output", "split", "code", "none"],
+      enum: ["output", "left", "right", "above", "below", "code", "none"],
       description:
-        "code: panel layout — output (just the result; the default), split (code pane left, output pane right; give the element width ≥ 700), code (the script alone), none (draws NOTHING — the script only feeds template params through \"{id.var}\" tokens).",
+        "code: where the CODE sits relative to its output — output (just the result; the default), left / right (code pane on that side, 55 % of the width; give the element width ≥ 700), above / below (code pane stacked over or under the output at full width — pair with lines on a long script), code (the script alone), none (draws NOTHING — the script only feeds template params through \"{id.var}\" tokens).",
+    },
+    lines: {
+      type: "number",
+      description:
+        "code: show the script through a window this many lines tall (≥ 3); stepping past the window scrolls it, as an editor does. Use with above/below, or whenever a script runs long.",
     },
     figures: {
       type: "number",
@@ -890,6 +895,9 @@ function elementErrors(el: SpecElement): string[] {
       need(typeof el.code === "string" && el.code.trim() !== "", "needs code (the script)");
       if (el.figures !== undefined) {
         need(Number.isInteger(el.figures) && el.figures >= 2, "figures must be an integer >= 2 (omit it for none or one figure)");
+      }
+      if (el.lines !== undefined) {
+        need(Number.isInteger(el.lines) && el.lines >= 3, "lines must be an integer >= 3 (omit it to show the whole script)");
       }
       break;
     default:

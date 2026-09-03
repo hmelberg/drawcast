@@ -316,7 +316,7 @@ describe("code element — resolver substitutes tokens on the clone", () => {
       ["none", false, 0],
       ["code", false, 0],
       ["output", false, 1],
-      ["split", false, 1],
+      ["left", false, 1],
       ["none", true, 1],
       ["code", true, 1],
     ] as const) {

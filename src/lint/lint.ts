@@ -275,11 +275,22 @@ function lintCode(spec: Spec): LintIssue[] {
         severity: "warn",
       });
     }
-    if ((el.show ?? "output") === "split" && (el.width ?? 880) < 560) {
+    const show = el.show ?? "output";
+    if ((show === "left" || show === "right") && (el.width ?? 880) < 560) {
       issues.push({
         rule: "code-use",
         ids: [el.id],
-        message: `code "${el.id}" uses split view at width ${el.width} — too narrow for two readable panes; use width ≥ 700 or show: "output"`,
+        message: `code "${el.id}" puts the code ${show} of the output at width ${el.width} — too narrow for two readable panes; use width ≥ 700, show: "above", or show: "output"`,
+        severity: "warn",
+      });
+    }
+    // A stacked layout shares the 750-unit canvas height between the two
+    // panes: a long script leaves the output no room unless it scrolls.
+    if ((show === "above" || show === "below") && el.lines === undefined && lines > 12) {
+      issues.push({
+        rule: "code-use",
+        ids: [el.id],
+        message: `code "${el.id}": ${lines} lines ${show} the output leave little room for it on the canvas — set lines (a window of 6–8) or use show: "left"`,
         severity: "warn",
       });
     }

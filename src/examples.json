@@ -8476,7 +8476,7 @@
      "id": "sim",
      "type": "code",
      "language": "python",
-     "show": "split",
+     "show": "left",
      "width": 900,
      "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\n_ = plt.hist(x, bins=20)"
     }
@@ -8553,7 +8553,7 @@
     "id": "comp",
     "type": "code",
     "language": "python",
-    "show": "split",
+    "show": "left",
     "width": 900,
     "figures": 2,
     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nfor rate in (0.02, 0.07):\n    plt.figure()\n    plt.plot(years, 100 * (1 + rate) ** years)\n    plt.ylim(0, 3200)\nprint(\"2% for 50 years:\", round(100 * 1.02 ** 50))\nprint(\"7% for 50 years:\", round(100 * 1.07 ** 50))"
@@ -8674,7 +8674,7 @@
     "id": "rates",
     "type": "code",
     "language": "python",
-    "show": "split",
+    "show": "left",
     "width": 900,
     "figures": 3,
     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nrates = [0.02, 0.05, 0.08]\nfor stage in (1, 2, 3):\n    plt.figure()\n    for rate in rates[:stage]:\n        plt.plot(years, 100 * (1 + rate) ** years, label=f\"{rate:.0%}\")\n    plt.ylim(0, 4800)\n    plt.legend(loc=\"upper left\")"
@@ -8784,7 +8784,7 @@
     "id": "gdp",
     "type": "code",
     "language": "python",
-    "show": "split",
+    "show": "left",
     "width": 900,
     "code": "import numpy as np\nimport pandas as pd\nimport plotly.express as px\ncountries = [\"Norway\", \"Sweden\", \"Denmark\", \"Finland\", \"Iceland\"]\ngdp_pc = [87, 56, 68, 53, 74]\nfig = px.bar(x=countries, y=gdp_pc,\n             labels={\"x\": \"\", \"y\": \"1000 USD per head\"})\n_ = fig.update_layout(width=650, height=430)"
    }
@@ -9981,7 +9981,7 @@
          "id": "sim",
          "type": "code",
          "language": "r",
-         "show": "split",
+         "show": "left",
          "width": 900,
          "code": "library(ggplot2)\nset.seed(7)\ndf <- data.frame(x = rnorm(200))\ncat(\"mean:\", round(mean(df$x), 3), \"\\n\")\nggplot(df, aes(x)) + geom_histogram(bins = 20)"
        }
@@ -10040,7 +10040,7 @@
          "id": "gdp",
          "type": "code",
          "language": "brython",
-         "show": "split",
+         "show": "left",
          "width": 900,
          "code": "import pandas as pd\nimport plotly.express as px\ndf = pd.DataFrame({\"country\": [\"Norway\", \"Sweden\", \"Denmark\"], \"gdp\": [87, 52, 58]})\ndf[\"share\"] = (df[\"gdp\"] / df[\"gdp\"].sum()).round(3)\nprint(df.sort_values(\"gdp\", ascending=False))\nfig = px.bar(df, x=\"country\", y=\"gdp\", title=\"GDP per capita, 2010\")"
        }
@@ -10097,7 +10097,7 @@
          "id": "ci",
          "type": "code",
          "language": "micropython",
-         "show": "split",
+         "show": "left",
          "width": 900,
          "code": "rate = 0.05\nbalance = 100\nfor year in range(1, 6):\n    balance *= 1 + rate\n    print(year, round(balance, 2))\nround(balance / 100 - 1, 3)"
        }
@@ -10828,7 +10828,7 @@
          "id": "h",
          "type": "code",
          "language": "brython",
-         "show": "split",
+         "show": "left",
          "width": 900,
          "figures": 2,
          "code": "import random\nimport matplotlib.pyplot as plt\nrandom.seed(7)\nfor n in (100, 10000):\n    xs = [random.gauss(0, 1) for _ in range(n)]\n    plt.figure()\n    _ = plt.hist(xs, bins=20)\n    plt.title(f\"{n:,} draws\")\n    plt.show()"
@@ -10953,7 +10953,7 @@
          "id": "s",
          "type": "code",
          "language": "micropython",
-         "show": "split",
+         "show": "left",
          "width": 900,
          "code": "import pandas as pd\nsens, spec = 0.9, 0.95\nprev = [0.001, 0.01, 0.1]\nppv = []\nfor p in prev:\n    tp = sens * p\n    fp = (1 - spec) * (1 - p)\n    ppv.append(round(tp / (tp + fp), 3))\npd.DataFrame({\"prevalence\": prev, \"PPV\": ppv})"
        }

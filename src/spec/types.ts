@@ -134,8 +134,10 @@ export interface SpecElement {
   language?: Language;
   /** code: the script itself, one newline-separated string. */
   code?: string;
-  /** code: what the panel shows — output (default), split (code left, output right), code (the script alone), or none (nothing drawn: the element only feeds template params through "{id.var}" tokens). */
-  show?: "output" | "split" | "code" | "none";
+  /** code: where the CODE sits relative to its output — output (just the result; the default), left / right (code pane on that side), above / below (stacked at full width), code (the script alone), or none (nothing drawn: the element only feeds template params through "{id.var}" tokens). */
+  show?: "output" | "left" | "right" | "above" | "below" | "code" | "none";
+  /** code: show the script through a window this many lines tall (≥ 3); stepping past it scrolls, as an editor does. */
+  lines?: number;
   /** code: number of separate figures the script produces (>= 2) — each becomes its own beat `<id>_fig_N`, all sharing one frame. */
   figures?: number;
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */

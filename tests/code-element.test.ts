@@ -34,7 +34,7 @@ describe("code element — schema", () => {
   });
 
   test("show, width, font_size and code_result are accepted; junk is not", () => {
-    expect(validateSpec(spec({ language: "python", code: "print(1)", show: "split", width: 880, font_size: 17 })).ok).toBe(true);
+    expect(validateSpec(spec({ language: "python", code: "print(1)", show: "left", width: 880, font_size: 17 })).ok).toBe(true);
     expect(validateSpec(spec({ language: "python", code: "print(1)", code_result: "{}" })).ok).toBe(true);
     expect(validateSpec(spec({ language: "python", code: "print(1)", show: "sideways" })).ok).toBe(false);
     expect(validateSpec(spec({ language: "python", code: "print(1)", nonsense: 1 })).ok).toBe(false);
@@ -127,13 +127,13 @@ const codeSpec = (el: object, result?: CodeRunResult): Spec =>
 const layoutIds = (s: Spec) => flattenDrawables(layoutSpec(s, heuristicMeasure).drawables).map((d) => d.id);
 
 describe("code element — layout", () => {
-  test("split mode mints per-line ids, an output group, and the panel", () => {
-    const ids = layoutIds(codeSpec({ show: "split" }, OK));
+  test("left mode mints per-line ids, an output group, and the panel", () => {
+    const ids = layoutIds(codeSpec({ show: "left" }, OK));
     expect(ids).toContain("c1");
     expect(ids).toContain("c1_line_1");
     expect(ids).toContain("c1_line_2");
     expect(ids).toContain("c1_out");
-    const line = flattenDrawables(layoutSpec(codeSpec({ show: "split" }, OK), heuristicMeasure).drawables)
+    const line = flattenDrawables(layoutSpec(codeSpec({ show: "left" }, OK), heuristicMeasure).drawables)
       .find((d) => d.id === "c1_line_1") as TextDrawable;
     expect(line.kind).toBe("text");
     expect(line.font).toBe("mono");
@@ -279,10 +279,10 @@ describe("code element — hoisting", () => {
 });
 
 describe("code element — lint", () => {
-  test("warns on a long script, a narrow split, and multiple panels", () => {
+  test("warns on a long script, a narrow side-by-side, and multiple panels", () => {
     const long = Array.from({ length: 25 }, (_, i) => `x${i} = ${i}`).join("\n");
     expect(lintCommands(codeSpec({ code: long })).some((i) => i.rule === "code-use")).toBe(true);
-    expect(lintCommands(codeSpec({ show: "split", width: 400 })).some((i) => i.rule === "code-use")).toBe(true);
+    expect(lintCommands(codeSpec({ show: "left", width: 400 })).some((i) => i.rule === "code-use")).toBe(true);
     const two: Spec = { elements: [
       { id: "a", type: "code", language: "python", code: "print(1)" },
       { id: "b", type: "code", language: "python", code: "print(2)" },

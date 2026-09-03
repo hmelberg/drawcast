@@ -253,8 +253,8 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const cy = el.y ?? 400;
   const fontSize = el.font_size ?? 17;
   const paneGap = 14;
-  const codePaneW = show === "split" ? Math.round(w * 0.55) : w;
-  const outPaneW = show === "split" ? w - codePaneW - paneGap : w;
+  const codePaneW = show === "left" ? Math.round(w * 0.55) : w;
+  const outPaneW = show === "left" ? w - codePaneW - paneGap : w;
   const showCode = show !== "output";
   const showOut = show !== "code";
 
@@ -407,7 +407,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
     },
   ];
-  if (show === "split") {
+  if (show === "left") {
     const dx = x0 + codePaneW + paneGap / 2;
     panelChildren.push({
       id: `${el.id}__divider`,
@@ -451,7 +451,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   }
 
   // ---- output pane: one group, always minted -------------------------------
-  const outX = show === "split" ? x0 + codePaneW + paneGap : x0;
+  const outX = show === "left" ? x0 + codePaneW + paneGap : x0;
   const outChildren: Drawable[] = [];
   if (showOut) {
     if (!result) {
