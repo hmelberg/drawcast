@@ -2165,7 +2165,12 @@ description: >-
   and the numeric `stage` param picks which one is shown; a fractional
   stage interpolates, so `animate: {stage: 1}` plays the change as the wash
   deepening and fading. The scale is fixed across every stage, so the
-  colours never flicker mid-tween. Write `null` for a masked cell (the
+  colours never flicker mid-tween. `animate` is the ONLY way to move a
+  staged heatmap: this scene has no stage slider in the explore tray,
+  because the tray cannot yet tell a matrix from stages of a matrix.
+  `box` puts the grid somewhere other than the whole plot — beside a code
+  panel, usually — and everything but the title then lives inside it.
+  Write `null` for a masked cell (the
   upper triangle of a correlation matrix, a combination that cannot
   happen): it draws as blank rather than as a fabricated zero. Feed it
   typed numbers, or a code element's variables via "{id.var}" tokens (type
@@ -2207,7 +2212,7 @@ params:
     scale:
       type: string
       enum: ["sequential", "diverging"]
-      description: "\"sequential\" (default) grades ONE ink from the data's low end to its high — counts, rates, a confusion matrix. \"diverging\" uses two inks either side of zero, warm for positive and cool for negative, each normalised by the largest absolute value, so +0.4 and −0.4 read equally strong — correlations, differences, anything whose SIGN is the story."
+      description: "\"sequential\" (default) grades ONE ink from the data's low end to its high — counts, rates, a confusion matrix. \"diverging\" uses two inks either side of zero, warm for positive and cool for negative, each normalised by the largest absolute value, so +0.4 and −0.4 read equally strong. CHOOSE DIVERGING WHENEVER THE NUMBERS STRADDLE ZERO: a sequential ramp is monotone in the value, so on signed data the most NEGATIVE cell is the palest rather than the strongest, which is right for a ranking and wrong for a correlation. Diverging is what correlations, differences and anything whose SIGN is the story want."
     value_labels:
       type: boolean
       description: "Write each cell's number inside it (default true). Turned off automatically when the cells are too small to hold a readable one."
@@ -2216,6 +2221,15 @@ params:
       minimum: 0
       maximum: 4
       description: "Decimals in the cell numbers. Default: the data's own precision, at most 2."
+    box:
+      type: object
+      properties:
+        x: { type: number }
+        y: { type: number }
+        w: { type: number }
+        h: { type: number }
+      required: [x, y, w, h]
+      description: "Where the grid sits in logical units (lower-left corner, width, height) when it shares the canvas with something else — a code panel on the left, say. Everything the scene draws except the title then stays INSIDE the box: the row names, the column names and the scale strip all come out of its own margins. Default: the standard plot area, whose left and bottom margins hold the names and the scale instead."
     title:
       type: string
 element_ids:
@@ -2244,6 +2258,15 @@ examples:
       values: "{clf.cm}"
       decimals: 0
       title: "Confusion matrix"
+  - request: "Compute the correlation matrix with pandas and show it next to the code."
+    params:
+      rows: ["Age", "BMI", "Systolic"]
+      cols: ["Age", "BMI", "Systolic"]
+      values: "{corr.m}"
+      scale: "diverging"
+      decimals: 2
+      box: { x: 470, y: 95, w: 460, h: 560 }
+      title: "What pandas found"
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -2396,10 +2419,14 @@ layout: |
     return ratio(L, L_LIGHT) > ratio(L, L_DARK) ? C.paper : C.ink;
   };
 
-  const plot = kit.plotArea();
+  const b = params.box;
+  const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
+  // Always a fresh object (never params.box itself) — the top is adjusted below.
+  const plot = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : kit.plotArea();
   const title = str(params.title, "");
   // A drawn title costs 55 units of plot height — the did_trends convention
-  // the whole pack follows (see bar_chart).
+  // the whole pack follows (see bar_chart), box or no box: a box says where
+  // the figure goes, not that a title may sit on the column names.
   if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
 
   const drawables = [], labelReqs = [], anchors = {}, order = [];
@@ -2410,6 +2437,13 @@ layout: |
 
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts)
   const NAME_GAP = 10;   // the grid's left edge → the row name's right edge
+  // How far LEFT of the grid this scene's furniture — the row names and the
+  // legend's low number — may reach. A box means "the whole figure fits in
+  // here", and what a box usually makes room for is a code panel on the left,
+  // so nothing may spill past its edge. Without a box the default plot area's
+  // own left margin is exactly what that margin is for.
+  const leftBound = boxed ? plot.x0 : CANVAS_EDGE;
+  const rightBound = boxed ? plot.x1 : kit.CANVAS.w - CANVAS_EDGE;
   // One size for the row names and the column headers — the same furniture
   // read along two axes. 18 is safe at every grid this template allows: the
   // 12-row cap over the shortest band it can have (a title AND a note leave
@@ -2428,25 +2462,10 @@ layout: |
   const nameOf = (i) => (rowNames[i] !== undefined ? rowNames[i] : String(i + 1));
   const colOf = (j) => (colNames[j] !== undefined ? colNames[j] : String(j + 1));
 
-  const grid = { x0: plot.x0, y0: plot.y0, x1: plot.x1, y1: plot.y1 - NOTE_ROW - HEAD_ROW };
-  // Row names live in the left margin, right-justified at the grid's edge —
-  // bar_race's own arrangement, for the same reason: that is where a long name
-  // fits. Widen the margin when they need it, never past 40 % of the plot.
-  let nameW = 0;
-  for (let i = 0; i < nR; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), SIZE));
-  const wantX0 = CANVAS_EDGE + nameW + NAME_GAP;
-  if (wantX0 > grid.x0) grid.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
-  // That cap can leave a name wider than the margin it got, and a name drawn
-  // past the canvas edge is an ERROR-severity lint, not a cosmetic overflow —
-  // so truncate to the room it has, the pack's convention everywhere.
-  const nameMaxW = grid.x0 - NAME_GAP - CANVAS_EDGE;
-
-  const cw = (grid.x1 - grid.x0) / nC, chh = (grid.y1 - grid.y0) / nR;
-  const cellX = (j) => grid.x0 + j * cw;
-  const cellTop = (i) => grid.y1 - i * chh; // row 0 is the TOP row
-
   // Cell numbers carry the data's own precision (at most 2 decimals), exactly
-  // as bar_chart and bar_race do, unless `decimals` says otherwise.
+  // as bar_chart and bar_race do, unless `decimals` says otherwise. Read
+  // before the geometry because the legend's own two numbers, whose widths
+  // decide whether a legend fits at all, are formatted the same way.
   let dec = Math.round(num(params.decimals, -1));
   if (!(dec >= 0)) {
     dec = 0;
@@ -2457,6 +2476,47 @@ layout: |
   }
   dec = clamp(dec, 0, 4);
   const fmt = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+
+  const grid = { x0: plot.x0, y0: plot.y0, x1: plot.x1, y1: plot.y1 - NOTE_ROW - HEAD_ROW };
+  // Row names live in the lane left of the grid, right-justified at its edge —
+  // bar_race's own arrangement, for the same reason: that is where a long name
+  // fits. Widen the lane when they need it, never past 40 % of the plot.
+  let nameW = 0;
+  for (let i = 0; i < nR; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), SIZE));
+  const wantX0 = leftBound + nameW + NAME_GAP;
+  if (wantX0 > grid.x0) grid.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+  // That cap can leave a name wider than the lane it got, and a name drawn past
+  // the canvas edge is an ERROR-severity lint, not a cosmetic overflow (and one
+  // drawn past a BOX's edge lands on whatever the box was making room for) — so
+  // truncate to the room it has, the pack's convention everywhere.
+  const nameMaxW = grid.x0 - NAME_GAP - leftBound;
+
+  // ---- the legend's room, decided before the grid's floor ----
+  // The strip sits under the grid: in the canvas's bottom margin by default (a
+  // heatmap has no x axis to label, so that margin is empty), but out of the
+  // BOX's own floor when the author gave one, since a box is the whole figure's
+  // allotment. Sized here rather than at drawing time because reserving that
+  // band is what moves grid.y0, and chh depends on it.
+  const LEG_SIZE = 15, LEG_H = 16, LEG_STEPS = 10, LEG_BAND = 40;
+  const legLo = diverging ? -maxAbs : sLo, legHi = diverging ? maxAbs : sHi;
+  const loS = fmt(legLo), hiS = fmt(legHi);
+  // Slid right if the low number would otherwise pass the left bound.
+  const lx = Math.max(grid.x0, leftBound + kit.textWidth(loS, LEG_SIZE) + 8);
+  const legRoom = rightBound - 8 - kit.textWidth(hiS, LEG_SIZE) - lx;
+  // Nothing behind it — no data yet, or a grid with no range at all (every
+  // number the same) — and a scale would say nothing; too little room and it
+  // would say it illegibly. Either way the band is not reserved.
+  const showLegend = hasData
+    && (diverging ? maxAbs > 1e-12 : sSpan > 1e-12)
+    && legRoom >= 60
+    && (!boxed || plot.y0 + LEG_BAND + 24 <= grid.y1);
+  const legW = Math.min(240, legRoom);
+  if (showLegend && boxed) grid.y0 = plot.y0 + LEG_BAND;
+  const ly = boxed ? plot.y0 + LEG_BAND / 2 : grid.y0 / 2;
+
+  const cw = (grid.x1 - grid.x0) / nC, chh = (grid.y1 - grid.y0) / nR;
+  const cellX = (j) => grid.x0 + j * cw;
+  const cellTop = (i) => grid.y1 - i * chh; // row 0 is the TOP row
 
   // The widest number ANY stage will ever show sizes the cell text once, so a
   // later stage's longer number never overflows a cell sized for stage 0.
@@ -2521,34 +2581,31 @@ layout: |
   }
 
   // ---- the legend: the wash, read as a strip, under the grid ----
-  // Skipped when there is nothing behind it — no data yet, or a grid with no
-  // range at all (every number the same), where a scale would say nothing.
-  if (hasData && (diverging ? maxAbs > 1e-12 : sSpan > 1e-12)) {
-    const LEG_SIZE = 15, LEG_H = 16, STEPS = 10;
-    const legLo = diverging ? -maxAbs : sLo, legHi = diverging ? maxAbs : sHi;
-    const loS = fmt(legLo), hiS = fmt(legHi);
-    // Nothing else lives under the grid — a heatmap has no x axis to label —
-    // so the strip takes the bottom margin, centred in it. grid.y0 is the
-    // plot's own floor (95), so the strip and its numbers sit at 47.5 ± 9,
-    // clear of the canvas edge with room to spare.
-    const ly = grid.y0 / 2;
-    const legW = Math.min(240, (grid.x1 - grid.x0) * 0.6);
-    // Slid right if the low label would otherwise run off the canvas edge.
-    const lx = Math.max(grid.x0, CANVAS_EDGE + kit.textWidth(loS, LEG_SIZE) + 8);
+  // Its room, its numbers and whether it has anything to show were settled
+  // above, where reserving its band moved the grid's floor.
+  //
+  // The BEAT is declared either way. An id missing from `order` is a dropped
+  // command (src/render/plan.ts), so a storyboard that draws `legend` before
+  // the script has run — which is exactly the figure the placeholder promise
+  // exists for — would lose that beat outright rather than have it draw
+  // nothing. bar_race's `ticker` keeps its own beat alive the same way.
+  {
     const children = [];
-    for (let k = 0; k < STEPS; k++) {
+    if (showLegend) for (let k = 0; k < LEG_STEPS; k++) {
       // The segment's own midpoint, so the strip samples the ramp evenly:
       // sequential runs 0 → 1 of one ink, diverging −1 → +1 across two.
-      const u = diverging ? -1 + (2 * (k + 0.5)) / STEPS : (k + 0.5) / STEPS;
-      const x = lx + (k / STEPS) * legW, w = legW / STEPS;
+      const u = diverging ? -1 + (2 * (k + 0.5)) / LEG_STEPS : (k + 0.5) / LEG_STEPS;
+      const x = lx + (k / LEG_STEPS) * legW, w = legW / LEG_STEPS;
       children.push(kit.area("legend__s" + k, [[x, ly - LEG_H / 2], [x + w, ly - LEG_H / 2], [x + w, ly + LEG_H / 2], [x, ly + LEG_H / 2]],
         diverging && u < 0 ? COOL : diverging ? WARM : COOL, { opacity: Math.abs(u) * WASH, precise: true, ms: MS.region }));
     }
-    children.push(kit.stroke("legend__box", [[lx, ly - LEG_H / 2], [lx + legW, ly - LEG_H / 2], [lx + legW, ly + LEG_H / 2], [lx, ly + LEG_H / 2]], { closed: true, color: C.guide, strokeWidth: 1.5, instant: true }));
-    children.push(kit.text("legend__lo", [lx - 8, ly], loS, { fontSize: LEG_SIZE, anchor: "end", color: C.guide }));
-    children.push(kit.text("legend__hi", [lx + legW + 8, ly], hiS, { fontSize: LEG_SIZE, anchor: "start", color: C.guide }));
+    if (showLegend) {
+      children.push(kit.stroke("legend__box", [[lx, ly - LEG_H / 2], [lx + legW, ly - LEG_H / 2], [lx + legW, ly + LEG_H / 2], [lx, ly + LEG_H / 2]], { closed: true, color: C.guide, strokeWidth: 1.5, instant: true }));
+      children.push(kit.text("legend__lo", [lx - 8, ly], loS, { fontSize: LEG_SIZE, anchor: "end", color: C.guide }));
+      children.push(kit.text("legend__hi", [lx + legW + 8, ly], hiS, { fontSize: LEG_SIZE, anchor: "start", color: C.guide }));
+    }
     push(kit.group("legend", children));
-    anchors.legend = [lx + legW / 2, ly];
+    anchors.legend = showLegend ? [lx + legW / 2, ly] : [(grid.x0 + grid.x1) / 2, grid.y0];
   }
 
   if (title) {

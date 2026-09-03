@@ -11,6 +11,7 @@ import { registerPack, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs"
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { plotArea } from "../src/layout/canvas";
+import { bboxOfText } from "../src/layout/geometry";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
 import { COLORS, flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
@@ -1379,11 +1380,78 @@ describe("heatmap", () => {
     expect(l.order.filter((id) => /^row_\d+$/.test(id))).toEqual(["row_1", "row_2"]);
     expect(l.order).toContain("axes");
     expect(l.issues).toEqual([]);
-    // Nothing invented: no wash, no numbers, and no legend for a scale that
-    // has no numbers behind it yet.
+    // Nothing invented: no wash, and no numbers.
     expect(cellsOf(l, 1)).toEqual([]);
     expect(valuesOf(l, 1)).toEqual([]);
-    expect(l.order).not.toContain("legend");
+    // The legend BEAT survives even though a scale with no numbers behind it
+    // has nothing to draw: an id missing from `order` is a dropped command,
+    // so a storyboard written against element_ids before the script has run
+    // would lose the beat outright. bar_race's `ticker` keeps its beat the
+    // same way. It is declared, and it is empty.
+    expect(l.order).toContain("legend");
+    const legend = flattenDrawables(l.drawables).find((d) => d.id === "legend")!;
+    expect(legend.kind).toBe("group");
+    expect(flattenDrawables([legend])).toHaveLength(1);
+  });
+
+  // The code→template data bridge chose templates over a new element type
+  // precisely so a chart could sit BESIDE the script that computed it, which
+  // is what `box` is for. Declaring the param is not the same as the geometry
+  // working: this lays a real grid out beside a real code panel and checks
+  // that every piece of the scene except the title — the row names in their
+  // lane, the column names, the cells, and the scale strip that by default
+  // lives in the canvas's bottom margin — stays inside the box the author
+  // gave, rather than reaching left into the panel or down past its floor.
+  test("box keeps the whole scene inside it, so a heatmap can sit beside its own script", () => {
+    const box = { x: 470, y: 95, w: 460, h: 560 };
+    const spec = {
+      template: "heatmap",
+      params: {
+        rows: ["Age", "BMI", "Systolic"],
+        cols: ["Age", "BMI", "Systolic"],
+        values: [[1, 0.41, 0.55], [0.41, 1, 0.38], [0.55, 0.38, 1]],
+        scale: "diverging",
+        decimals: 2,
+        box,
+        title: "What pandas found",
+      },
+      elements: [
+        {
+          id: "corr",
+          type: "code",
+          language: "python",
+          show: "code",
+          x: 225,
+          y: 400,
+          width: 410,
+          font_size: 15,
+          code: 'import pandas as pd\ndf = pd.read_csv("cohort.csv")\nm = df[["age", "bmi", "sbp"]].corr().round(2)\nm = m.values.tolist()',
+        },
+      ],
+    } as unknown as Spec;
+    const l = layoutSpec(spec);
+    expect(l.warnings).toEqual([]);
+    expect(l.issues).toEqual([]);
+    // The legend is drawn — the box paid for it out of its own floor, so this
+    // is the boxed geometry and not the default one falling through.
+    expect(l.order).toContain("legend");
+
+    const inside = (x: number, y: number, id: string) => {
+      expect(x, `${id} x`).toBeGreaterThanOrEqual(box.x - 0.5);
+      expect(x, `${id} x`).toBeLessThanOrEqual(box.x + box.w + 0.5);
+      expect(y, `${id} y`).toBeGreaterThanOrEqual(box.y - 0.5);
+      expect(y, `${id} y`).toBeLessThanOrEqual(box.y + box.h + 0.5);
+    };
+    for (const d of flattenDrawables(l.drawables)) {
+      if (d.id === "title" || d.id.startsWith("corr")) continue; // the title sits above the box, by the pack's convention
+      if (d.kind === "text") {
+        const bb = bboxOfText(d, heuristicMeasure);
+        inside(bb.x, bb.y, d.id);
+        inside(bb.x + bb.w, bb.y + bb.h, d.id);
+      } else if (d.kind === "area" || d.kind === "stroke") {
+        for (const p of d.pts) inside(p[0], p[1], d.id);
+      }
+    }
   });
 
   // The trap Task 6 paid a fix round for: a body that renders a shape its own

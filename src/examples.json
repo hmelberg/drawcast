@@ -9877,6 +9877,102 @@
   }
  },
  {
+  "request": "Compute a correlation matrix with pandas and show it next to the code.",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "What pandas found",
+   "template": "heatmap",
+   "params": {
+    "rows": [
+     "Age",
+     "BMI",
+     "Systolic"
+    ],
+    "cols": [
+     "Age",
+     "BMI",
+     "Systolic"
+    ],
+    "values": "{corr.m}",
+    "scale": "diverging",
+    "decimals": 2,
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 460,
+     "h": 560
+    },
+    "title": "What pandas found"
+   },
+   "elements": [
+    {
+     "id": "corr",
+     "type": "code",
+     "language": "python",
+     "show": "code",
+     "x": 225,
+     "y": 400,
+     "width": 410,
+     "font_size": 15,
+     "code": "import numpy as np, pandas as pd\nrng = np.random.default_rng(7)\nage = rng.normal(50, 12, 400)\nbmi = 22 + 0.06 * age + rng.normal(0, 2.5, 400)\nsbp = 95 + 0.45 * age + 1.1 * bmi + rng.normal(0, 8, 400)\ndf = pd.DataFrame({\"age\": age, \"bmi\": bmi, \"sbp\": sbp})\nm = df.corr().round(2).values.tolist()"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "corr",
+      "corr_line_1",
+      "corr_line_2"
+     ],
+     "parallel": true,
+     "speak": "Four hundred people, and a seed so the figure tells the same truth every time."
+    },
+    {
+     "draw": [
+      "corr_line_3",
+      "corr_line_4",
+      "corr_line_5"
+     ],
+     "parallel": true,
+     "speak": "Age, then a BMI that drifts up with it, then a blood pressure built from both plus noise."
+    },
+    {
+     "draw": [
+      "corr_line_6",
+      "corr_line_7"
+     ],
+     "parallel": true,
+     "speak": "One line of pandas turns those three columns into a correlation matrix, and hands it straight to the grid."
+    },
+    {
+     "draw": [
+      "axes",
+      "legend"
+     ],
+     "parallel": true,
+     "speak": "Here is the frame it fills: three variables crossed with each other, warm for together and cool for apart."
+    },
+    {
+     "draw": [
+      "row_1",
+      "row_2",
+      "row_3"
+     ],
+     "parallel": true,
+     "speak": "Every cell warm, and the strongest pull is age against blood pressure — which is what we built into the numbers."
+    },
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "The script computes it, the grid draws it, and nothing in between was typed by hand."
+    }
+   ]
+  }
+ },
+ {
    "request": "In R with ggplot2: 200 random draws, their mean, and a histogram, stepped line by line",
    "spec": {
      "title": "The law of large numbers, in R",
