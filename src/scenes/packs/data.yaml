@@ -249,13 +249,9 @@ layout: |
   ];
   // Ruling I/J: a stacked x caption (a long phrase, placed above/left of the
   // arrow tip rather than inline past it) sits in the same row as bar_i__l's
-  // category labels — drop it one row lower so it clears them.
-  const X_CAPTION_DROP = 28; // a stacked x caption sits one row below the end marks / category labels
-  if (xLab) {
-    const xCaption = kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 });
-    if (xCaption.anchor === "end") xCaption.pos[1] = plot.y0 - 20 - X_CAPTION_DROP;
-    axesChildren.push(xCaption);
-  }
+  // category labels — captionDrop (axisLabelPlacement, layout/axes.ts) drops
+  // it one row lower so it clears them.
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22, captionDrop: true }));
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   if (yMin < 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, base], [plot.x1, base]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
   push(kit.group("axes", axesChildren));
@@ -941,13 +937,9 @@ layout: |
   axesChildren.push(kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }));
   // Ruling I: a stacked x caption (a long phrase, placed above/left of the
   // arrow tip rather than inline past it) sits in the same row as axes__x1
-  // or the last category label — drop it one row lower so it clears them.
-  const X_CAPTION_DROP = 28; // a stacked x caption sits one row below the end marks / category labels
-  if (xLab) {
-    const xCaption = kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 });
-    if (xCaption.anchor === "end") xCaption.pos[1] = plot.y0 - 20 - X_CAPTION_DROP;
-    axesChildren.push(xCaption);
-  }
+  // or the last category label — captionDrop (axisLabelPlacement,
+  // layout/axes.ts) drops it one row lower so it clears them.
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22, captionDrop: true }));
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   if (slope) {
     // Two column ticks replace the numeric/categorical x marks: x[0] under
@@ -1170,10 +1162,10 @@ params:
       description: "x of every point (numbers), or a \"{id.var}\" token. TYPE these by hand when the beats address points."
     y:
       oneOf:
-        - { type: array, items: { type: number }, maxItems: 500 }
-        - { type: array, minItems: 1, items: { type: array, items: { type: number }, maxItems: 500 }, maxItems: 12 }
+        - { type: array, items: { type: [number, "null"] }, maxItems: 500 }
+        - { type: array, minItems: 1, items: { type: array, items: { type: [number, "null"] }, maxItems: 500 }, maxItems: 12 }
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
-      description: "y of every point: a list (static), a list of lists (STAGES of the same points — depth means staged), or a \"{id.var}\" token."
+      description: "y of every point: a list (static), a list of lists (STAGES of the same points — depth means staged; null marks a point with no value yet at that stage), or a \"{id.var}\" token."
     labels:
       oneOf:
         - { type: array, items: { type: string }, maxItems: 500 }
@@ -1336,13 +1328,9 @@ layout: |
   ];
   // Ruling I: a stacked x caption (a long phrase, placed above/left of the
   // arrow tip rather than inline past it) sits in the same row as axes__x1
-  // or the last category label — drop it one row lower so it clears them.
-  const X_CAPTION_DROP = 28; // a stacked x caption sits one row below the end marks / category labels
-  if (xLab) {
-    const xCaption = kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22 });
-    if (xCaption.anchor === "end") xCaption.pos[1] = plot.y0 - 20 - X_CAPTION_DROP;
-    axesChildren.push(xCaption);
-  }
+  // or the last category label — captionDrop (axisLabelPlacement,
+  // layout/axes.ts) drops it one row lower so it clears them.
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22, captionDrop: true }));
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   // Ruling H: all four axis end marks — the plan's shared geometry rules.
   // Finding I3: each mark names the DATA's own extreme at that extreme's own
@@ -1353,7 +1341,14 @@ layout: |
   // the axis snapped to 0.
   const xLoV = xlim || xSnapped ? xMin : xLo, xHiV = xlim ? xMax : xHi;
   const yLoV = ylim || ySnapped ? yMin : lo, yHiV = ylim ? yMax : hi;
-  axesChildren.push(kit.text("axes__x0", [X(xLoV), plot.y0 - 20], fmtX(xLoV), { fontSize: 15, color: C.guide }));
+  // Task 6 found (and fixed) the identical pattern in line_chart: axes__x0
+  // defaults to a CENTRED anchor, so a wide label (a 4-digit year) straddles
+  // its x position and reaches back toward axes__y0's own box in the origin
+  // corner. A START anchor keeps it clear on EVERY width, and costs nothing:
+  // this row sits below plot.y0, where no data stroke ever reaches (Y()
+  // clamps at yMin), so there is nothing else down here to collide with
+  // instead.
+  axesChildren.push(kit.text("axes__x0", [X(xLoV), plot.y0 - 20], fmtX(xLoV), { fontSize: 15, anchor: "start", color: C.guide }));
   // Degenerate data (every point on one x, or the placeholder's zeros) puts
   // both ends of an axis in the same spot — one mark, not two stacked.
   if (Math.abs(X(xHiV) - X(xLoV)) >= 1) axesChildren.push(kit.text("axes__x1", [X(xHiV), plot.y0 - 20], fmtX(xHiV), { fontSize: 15, color: C.guide }));
@@ -1974,7 +1969,6 @@ layout: |
   const xLab = str(params.x_label, "");
   const TICK_SIZE = 15;
   const AXIS_ROW = 20; // axis line → the row of small labels under it (ticks lying down, names standing up) — line_chart's own row
-  const X_CAPTION_DROP = 28; // a stacked caption sits one row below the ticks
   // The value axis, and only the value axis where the bars lie down: a race
   // NAMES its rows instead of scaling them, so there is no second scale to
   // draw. Standing up, the columns need a baseline to stand on as well, and
@@ -1987,11 +1981,12 @@ layout: |
   // the VALUE axis, and which axis that is flips with the orientation.
   let valueCap = null;
   if (xLab) {
-    valueCap = kit.axisLabel("axes__cap", vertical ? "y" : "x", plot, xLab, { fontSize: 22 });
     // Ruling I/J again: a stacked x caption (a phrase, placed under the arrow
     // tip rather than in line past it) lands in the very row the ticks use —
-    // drop it one row lower, exactly as bar_chart and line_chart do.
-    if (!vertical && valueCap.anchor === "end") valueCap.pos[1] = plot.y0 - AXIS_ROW - X_CAPTION_DROP;
+    // captionDrop (axisLabelPlacement, layout/axes.ts) drops it one row
+    // lower, exactly as bar_chart and line_chart do. No effect when vertical
+    // (axis is "y" there, so this caption is never in the ticks' row).
+    valueCap = kit.axisLabel("axes__cap", vertical ? "y" : "x", plot, xLab, { fontSize: 22, captionDrop: true });
     axesChildren.push(valueCap);
   }
   ticks.forEach((v, q) => axesChildren.push(vertical

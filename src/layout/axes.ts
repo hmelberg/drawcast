@@ -38,11 +38,42 @@ const Y_LABEL_GAP = 12;
 /** Never let a label's box touch the canvas edge. */
 const CANVAS_EDGE_MARGIN = 4;
 
+/**
+ * How far a STACKED x caption (the "end"-anchor branch below: a long phrase
+ * that can't sit in line past the arrow, so it drops below the axis instead)
+ * moves down from its ordinary row so it clears a row of axis end marks /
+ * category labels drawn under it — `plot.y0 - 20`, the offset the data pack's
+ * bar_chart, line_chart, scatter_plot and bar_race bodies all draw that row
+ * at. Ruling I/J (data pack, 2026-09-02/03): without the drop, a phrase-length
+ * x_label collides with axes__x1 (or the last category label) and the lint
+ * flags an overlap. Opt in per call via `axisLabelPlacement`'s `captionDrop`
+ * option (or `kit.axisLabel`'s) — every OTHER pack's x caption (economics,
+ * macro, medicine, …) draws no such row and must NOT move, so this is never
+ * applied unconditionally.
+ *
+ * 28 is measured, not a round guess: it is the same "one row" quantity the
+ * data pack's sibling constant END_LABEL_FLOOR derives explicitly elsewhere
+ * (line_chart, data.yaml) — half a 22pt caption box (13.75) + half a label
+ * box (11.875) + the lint's own 2-unit pad = 27.625, and 28 is the smallest
+ * integer that clears it.
+ */
+export const X_CAPTION_DROP = 28;
+
 export interface AxisLabelPlacement {
   pos: Pt;
   anchor: "start" | "middle" | "end";
   /** x axis only: the label sits IN LINE with the axis, past the arrow tip. */
   inline: boolean;
+}
+
+/** Options for `axisLabelPlacement`, beyond axis/plot/text/fontSize. */
+export interface AxisLabelPlacementOpts {
+  /** x axis only: when the caption lands in the stacked ("end"-anchor)
+   *  branch, drop it X_CAPTION_DROP further so it clears the row of axis
+   *  end marks / category labels a data-pack chart draws below it. See
+   *  X_CAPTION_DROP's own doc comment. No effect on the y axis or on the
+   *  inline branch. */
+  captionDrop?: boolean;
 }
 
 /**
@@ -67,7 +98,13 @@ export interface AxisLabelPlacement {
  * enough headroom (canvas.ts PLOT_MARGIN.top) that the min never bites there
  * — before 2026-09-02 it did, and clamped the label down ONTO the arrowhead.
  */
-export function axisLabelPlacement(axis: "x" | "y", plot: PlotArea, text: string, fontSize: number): AxisLabelPlacement {
+export function axisLabelPlacement(
+  axis: "x" | "y",
+  plot: PlotArea,
+  text: string,
+  fontSize: number,
+  opts: AxisLabelPlacementOpts = {},
+): AxisLabelPlacement {
   const { w, h } = heuristicMeasure(text, fontSize);
   if (axis === "x") {
     const tipX = plot.x1 + AXIS_OVERHANG;
@@ -75,7 +112,13 @@ export function axisLabelPlacement(axis: "x" | "y", plot: PlotArea, text: string
     if (w <= Math.min(beyondArrow, X_LABEL_SHORT_EMS * fontSize)) {
       return { pos: [tipX + X_LABEL_INLINE_GAP, plot.y0], anchor: "start", inline: true };
     }
-    return { pos: [tipX, plot.y0 - X_LABEL_GAP - h / 2], anchor: "end", inline: false };
+    // Ruling I/J: a stacked caption sits in the same row as the end marks /
+    // category labels a data-pack chart draws at plot.y0 - 20 — the caller
+    // opts in with captionDrop, and the override replaces (not adjusts) the
+    // ordinary X_LABEL_GAP/h-based y, exactly as the four template bodies did
+    // by hand before this was hoisted here.
+    const y = opts.captionDrop ? plot.y0 - 20 - X_CAPTION_DROP : plot.y0 - X_LABEL_GAP - h / 2;
+    return { pos: [tipX, y], anchor: "end", inline: false };
   }
   const tipY = plot.y1 + AXIS_OVERHANG;
   return {

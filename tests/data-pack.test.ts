@@ -1033,6 +1033,24 @@ describe("scatter_plot", () => {
     expect((find(l, "axes__x0") as TextDrawable).pos[0]).toBeCloseTo(plot.x0, 6);
   });
 
+  // Task 6 found and fixed the identical pattern in line_chart (axes__x0 vs
+  // axes__y0 in the origin corner) but left scatter_plot's copy alone as out
+  // of scope. axes__x0 here defaults to a CENTRED anchor, so a WIDE numeric
+  // x0 label (a 4-digit year, forced to sit exactly at plot.x0 by xlim's low
+  // end) straddles plot.x0 and reaches back toward axes__y0's own box in the
+  // origin corner (also forced to plot.y0 by ylim's low end) — the same
+  // near-miss line_chart hit, fixed the same way: a START anchor.
+  test("a wide numeric x0 label does not collide with axes__y0 in the origin corner", () => {
+    const l = sc({ x: [1971, 1980, 1990], y: [0, 50, 100], xlim: [1971, 2020], ylim: [0, 100] });
+    const x0 = find(l, "axes__x0") as TextDrawable;
+    const y0 = find(l, "axes__y0") as TextDrawable;
+    expect(x0.text).toBe("1971");
+    expect(x0.pos[0]).toBeCloseTo(plot.x0, 6);
+    expect(y0.text).toBe("0");
+    expect(y0.pos[1]).toBeCloseTo(plot.y0, 6);
+    expect(l.issues.filter((i) => i.rule.includes("overlap"))).toEqual([]);
+  });
+
   // Finding I2: data-range axes. Scores that live at 44…93 no longer waste
   // the bottom half of the plot on empty space — the axis runs from the data
   // minus 8 % headroom to the data plus 8 %, and BOTH end marks name data.
@@ -1200,5 +1218,19 @@ describe("scatter_plot", () => {
     expect(templateParamErrors("scatter_plot", { x: [1, 2], y: [1, 2], labels: "{sim.names}" })).toEqual([]);
     expect(templateParamErrors("scatter_plot", { x: [1, 2], y: [1, 2], labels: ["a", "b"] })).toEqual([]);
     expect(templateParamErrors("scatter_plot", { x: [1, 2], y: [1, 2], labels: 7 }).length).toBeGreaterThan(0);
+  });
+
+  // Routed from Task 6's line_chart fix (the same trap that cost that
+  // template a fix round): the body's own isNumRow (line ~1223) already
+  // tolerates null in y — a stage with no value yet at that x, exactly
+  // line_chart's/bar_race's null convention — but the schema still said
+  // bare `number`, so an exemplar using null would be rejected by the
+  // template's own params schema even though the body renders it fine. x
+  // has no such tolerance (its own check, just above isNumRow, is strict
+  // `typeof v === "number"`), so x is correctly left alone.
+  test("y tolerates null (a stage with no value yet), flat and staged; x does not", () => {
+    expect(templateParamErrors("scatter_plot", { x: [1, 2, 3], y: [1, null, 3] })).toEqual([]);
+    expect(templateParamErrors("scatter_plot", { x: [1, 2, 3], y: [[1, null, 3], [1, 2, 3]] })).toEqual([]);
+    expect(templateParamErrors("scatter_plot", { x: [1, null, 3], y: [1, 2, 3] }).length).toBeGreaterThan(0);
   });
 });

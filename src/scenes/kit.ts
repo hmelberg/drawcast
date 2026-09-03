@@ -62,6 +62,11 @@ export interface TextOpts {
    *  (TextDrawable extends BaseDrawable -> style: ResolvedStyle) already
    *  carries opacity; this was the missing plumbing to set it from a template. */
   opacity?: number;
+  /** axisLabel only, x axis only: drop a stacked caption below the row of
+   *  axis end marks / category labels a data-pack chart draws under it.
+   *  See axisLabelPlacement's X_CAPTION_DROP doc comment. Ignored by every
+   *  other kit call that takes TextOpts. */
+  captionDrop?: boolean;
 }
 
 export interface NewickNode {
@@ -568,7 +573,7 @@ export const kit: SceneKit = {
   },
   axisLabel(id, axis, plot, s, o = {}) {
     const fontSize = o.fontSize ?? 28;
-    const { pos, anchor } = axisLabelPlacement(axis, plot, s, fontSize);
+    const { pos, anchor } = axisLabelPlacement(axis, plot, s, fontSize, { captionDrop: o.captionDrop });
     return this.text(id, pos, s, { ...o, fontSize, anchor });
   },
   label(id, anchor, side, s, o = {}) {
