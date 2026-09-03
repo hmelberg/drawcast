@@ -181,3 +181,11 @@ describe("code panel vocabulary", () => {
     expect(lintCommands(spec({ show: "right", width: 400 })).some((i) => i.rule === "code-use")).toBe(true);
   });
 });
+
+describe("indentation is content", () => {
+  test("a code line keeps its leading spaces — mono text is drawn with whitespace preserved", () => {
+    const body = textOf(spec({ show: "left", code: "for i in range(3):\n    print(i)", code_result: OK }), "c1_line_2");
+    expect(body.text.startsWith("    print(i)")).toBe(true);
+    expect(body.font).toBe("mono"); // the backend preserves whitespace for mono text
+  });
+});

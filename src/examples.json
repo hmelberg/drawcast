@@ -12100,5 +12100,77 @@
        }
      ]
    }
+ },
+ {
+  "request": "Flip a coin five hundred times in light Python and plot the running share of heads — the plot above the code on the screen, typed line by line",
+  "title": "The share settles",
+  "spec": {
+   "title": "Five hundred flips",
+   "elements": [
+    {
+     "id": "p",
+     "type": "code",
+     "language": "brython",
+     "show": "below",
+     "lines": 6,
+     "width": 840,
+     "draw": {
+      "mode": "type"
+     },
+     "code": "import random\nimport matplotlib.pyplot as plt\nrandom.seed(7)\nheads, share = 0, []\nfor i in range(1, 501):\n    heads += 1 if random.random() < 0.5 else 0\n    share.append(heads / i)\nprint(\"after 10:\", round(share[9], 2), \" after 500:\", round(share[-1], 3))\n_ = plt.plot(share)\n_ = plt.plot([0.5] * 500)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "p",
+      "p_line_1",
+      "p_line_2"
+     ],
+     "parallel": true,
+     "speak": "Random numbers and a plot — that is everything this needs."
+    },
+    {
+     "draw": [
+      "p_line_3",
+      "p_line_4"
+     ],
+     "speak": "Seed it, so the same five hundred flips come back every time, and start a tally."
+    },
+    {
+     "draw": [
+      "p_line_5",
+      "p_line_6",
+      "p_line_7"
+     ],
+     "speak": "Flip five hundred times, add a head or nothing, and after every flip store the share so far."
+    },
+    {
+     "draw": [
+      "p_line_8"
+     ],
+     "speak": "Print where the share stands after ten flips, and after all five hundred."
+    },
+    {
+     "draw": [
+      "p_line_9",
+      "p_line_10"
+     ],
+     "speak": "Then draw it, with a flat line at one half to aim at."
+    },
+    {
+     "draw": [
+      "p_out"
+     ],
+     "speak": "Run it. The first few flips send the share swinging; by five hundred it has settled close to a half."
+    },
+    {
+     "explore": {
+      "code": "p"
+     },
+     "speak": "Change five hundred to fifty and run it yourself — the same law, a far rougher line."
+    }
+   ]
+  }
  }
 ]

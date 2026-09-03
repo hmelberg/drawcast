@@ -311,6 +311,10 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     t.setAttribute("stroke-linejoin", "round");
     t.setAttribute("font-size", String(d.fontSize));
     t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : fontStack(d.family));
+    // In mono text the whitespace IS content — a Python body loses its
+    // meaning if SVG collapses the leading spaces of an indented line.
+    // SVG2 renderers take this from CSS, not the legacy xml:space.
+    if (d.font === "mono") t.style.whiteSpace = "pre";
     if (d.weight === "bold") t.setAttribute("font-weight", "bold");
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
