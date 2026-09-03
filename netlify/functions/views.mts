@@ -43,6 +43,7 @@ function corsHeaders(req: Request): Record<string, string> {
     ...(ALLOWED_ORIGINS.includes(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "content-type",
+    "Vary": "Origin",
   };
 }
 
@@ -60,9 +61,10 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
     if (!isValidCastKey(key)) return json({ error: "key" }, 400, headers);
     try {
       return json({ count: await deps.record(key) }, 200, headers);
-    } catch {
+    } catch (e) {
       // A counting outage is not the player's problem: answer 200 with no
       // number so the badge simply stays hidden.
+      console.warn(`record ${key} failed (allowing):`, e instanceof Error ? e.message : String(e));
       return json({ count: null }, 200, headers);
     }
   }
@@ -77,7 +79,8 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
     if (!isValidCastKey(cast)) return json({ error: "key" }, 400, headers);
     try {
       return json({ count: (await deps.readCast(cast)).total }, 200, headers);
-    } catch {
+    } catch (e) {
+      console.warn(`readCast ${cast} failed (allowing):`, e instanceof Error ? e.message : String(e));
       return json({ count: null }, 200, headers);
     }
   }
@@ -85,8 +88,17 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
   if (repo) {
     const m = REPO_RE.exec(repo);
     if (!m) return json({ error: "repo" }, 400, headers);
-    const counts = await deps.readRepo(m[1], m[2]);
-    return json(counts, 200, { ...headers, "Cache-Control": "public, max-age=60" });
+    try {
+      const counts = await deps.readRepo(m[1], m[2]);
+      return json(counts, 200, { ...headers, "Cache-Control": "public, max-age=60" });
+    } catch (e) {
+      // The POST and ?cast= paths degrade silently: they serve the player, where a null
+      // count simply hides the badge and playback continues. This path serves the author
+      // reading their numbers, so a silent success-but-empty response would
+      // indistinguishably report zero views during an outage—worse than an error.
+      console.warn(`readRepo ${repo} failed (rejecting):`, e instanceof Error ? e.message : String(e));
+      return json({ error: "unavailable" }, 503, headers);
+    }
   }
 
   return json({ error: "ask for ?cast= or ?repo=" }, 400, headers);

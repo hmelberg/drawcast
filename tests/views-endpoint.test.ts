@@ -104,6 +104,12 @@ describe("reading counts", () => {
     expect((await handleViewsRequest(get("?repo=nope"), deps())).status).toBe(400);
   });
 
+  test("a repo read failure is a 503 (not silent like player paths)", async () => {
+    const res = await handleViewsRequest(get("?repo=hmelberg/kurs"), deps({ readRepo: async () => { throw new Error("blobs down"); } }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "unavailable" });
+  });
+
   test("neither cast nor repo is a 400", async () => {
     expect((await handleViewsRequest(get(""), deps())).status).toBe(400);
   });
@@ -114,5 +120,30 @@ describe("reading counts", () => {
       deps(),
     );
     expect(res.status).toBe(405);
+  });
+
+  test("when both cast and repo are present, cast takes precedence", async () => {
+    const d = deps();
+    const res = await handleViewsRequest(
+      get(`?cast=${encodeURIComponent(KEY)}&repo=hmelberg/kurs`),
+      d,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ count: 7 });
+  });
+
+  test("POST ignores any query string in the URL", async () => {
+    const d = deps();
+    const res = await handleViewsRequest(
+      new Request("https://drawcast.app/.netlify/functions/views?ignored=param", {
+        method: "POST",
+        headers: { "content-type": "text/plain", origin: "https://drawcast.app" },
+        body: KEY,
+      }),
+      d,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ count: 7 });
+    expect(d.recorded).toEqual([KEY]);
   });
 });
