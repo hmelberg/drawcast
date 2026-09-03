@@ -729,23 +729,27 @@ describe("line race", () => {
     expect(tick.text).toBe("2000");
   });
 
-  test("the chess example lints clean at every stage it has", () => {
-    const chess = {
-      x: [1971, 1981, 1991, 2001, 2011, 2021],
-      series: [
-        { name: "Karpov", values: [[2660, 2725, 2720, 2680, 2619, 2617]] },
-        { name: "Kasparov", values: [[0, 2595, 2800, 2838, 2812, 2812]] },
-        { name: "Anand", values: [[0, 0, 2650, 2770, 2817, 2751]] },
-        { name: "Carlsen", values: [[0, 0, 0, 2690, 2815, 2847]] },
-      ],
-      label_top: 3,
-      ticker: ["1971", "1981", "1991", "2001", "2011", "2021"],
-      y_label: "Elo",
-      title: "Fifty years at the top",
-    };
-    const l = line(chess);
-    expect(l.issues).toEqual([]);
-    expect(l.warnings).toEqual([]);
+  // Fix round 1: the example was a SINGLE static frame in disguise — all six
+  // decades already revealed at K=1, so `stage` could only ever be 0 and the
+  // pack's teaching example for a race never actually raced. Pulled straight
+  // from the registered manifest (not a hand-copied fixture) so this test
+  // fails the moment the bundled example and this check drift apart, and
+  // swept across every integer stage AND several fractional ones — the
+  // check the old single-stage fixture could not even express.
+  test("the chess example races genuinely: lints clean and the ticker advances at every stage, including fractional ones", () => {
+    const chess = scenes.line_chart!.manifest.examples.find((e) => /chess players/i.test(e.request))!.params;
+    for (let stage = 0; stage <= 5; stage++) {
+      const l = line({ ...chess, stage });
+      expect(l.issues, `stage ${stage}`).toEqual([]);
+      expect(l.warnings, `stage ${stage}`).toEqual([]);
+      const tick = flattenDrawables(l.drawables).find((d) => d.id === "ticker") as TextDrawable;
+      expect(tick.text, `stage ${stage}`).toBe(String(1971 + stage * 10));
+    }
+    for (const stage of [0.5, 1.5, 2.5, 3.5, 4.5]) {
+      const l = line({ ...chess, stage });
+      expect(l.issues, `stage ${stage}`).toEqual([]);
+      expect(l.warnings, `stage ${stage}`).toEqual([]);
+    }
   });
 });
 

@@ -679,13 +679,48 @@ examples:
   - request: "Race the top chess players' Elo ratings across the decades as lines."
     params:
       x: [1971, 1981, 1991, 2001, 2011, 2021]
+      # Six GENUINE stages, one per decade — stage k reveals one more point
+      # of each series (its historical values up to and including decade k),
+      # so animate: {stage: 5}, easing: "linear" walks the race forward and
+      # the end labels travel with the lines. null marks a decade before a
+      # player was rated (not yet in the field) rather than inventing a 0
+      # rating — the same convention bar_race's own chess example uses.
       series:
-        - { name: "Karpov", values: [[2660, 2725, 2720, 2680, 2619, 2617]] }
-        - { name: "Kasparov", values: [[0, 2595, 2800, 2838, 2812, 2812]] }
-        - { name: "Anand", values: [[0, 0, 2650, 2770, 2817, 2751]] }
-        - { name: "Carlsen", values: [[0, 0, 0, 2690, 2815, 2847]] }
+        - name: "Karpov"
+          values:
+            - [2660]
+            - [2660, 2725]
+            - [2660, 2725, 2720]
+            - [2660, 2725, 2720, 2680]
+            - [2660, 2725, 2720, 2680, 2619]
+            - [2660, 2725, 2720, 2680, 2619, 2617]
+        - name: "Kasparov"
+          values:
+            - [null]
+            - [null, 2595]
+            - [null, 2595, 2800]
+            - [null, 2595, 2800, 2838]
+            - [null, 2595, 2800, 2838, 2812]
+            - [null, 2595, 2800, 2838, 2812, 2812]
+        - name: "Anand"
+          values:
+            - [null]
+            - [null, null]
+            - [null, null, 2650]
+            - [null, null, 2650, 2770]
+            - [null, null, 2650, 2770, 2817]
+            - [null, null, 2650, 2770, 2817, 2751]
+        - name: "Carlsen"
+          values:
+            - [null]
+            - [null, null]
+            - [null, null, null]
+            - [null, null, null, 2690]
+            - [null, null, null, 2690, 2815]
+            - [null, null, null, 2690, 2815, 2847]
       label_top: 3
       ticker: ["1971", "1981", "1991", "2001", "2011", "2021"]
+      stage: 0
       y_label: "Elo"
       title: "Fifty years at the top"
 layout: |
