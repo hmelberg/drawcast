@@ -777,7 +777,31 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       // Overlay for gesture effects (highlight echoes, laser pointer) — always on top.
       const overlay = document.createElementNS(SVG_NS, "g") as SVGGElement;
       overlay.setAttribute("class", "cs-overlay");
-      svg.append(layers[0], layers[1], layers[2], overlay);
+      // Clip rectangles for windowed leaves (a code pane's window), shared by
+      // rect so one <clipPath> serves every line of a pane. In <defs> so the
+      // exporter's serialization carries them with the drawing.
+      const defs = document.createElementNS(SVG_NS, "defs");
+      const clipIds = new Map<string, string>();
+      const clipFor = (clip: NonNullable<Drawable["clip"]>): string => {
+        const key = `${clip.x},${clip.y},${clip.w},${clip.h}`;
+        let id = clipIds.get(key);
+        if (!id) {
+          id = `cs-clip-${clipIds.size + 1}`;
+          const cp = document.createElementNS(SVG_NS, "clipPath");
+          cp.setAttribute("id", id);
+          cp.setAttribute("clipPathUnits", "userSpaceOnUse");
+          const r = document.createElementNS(SVG_NS, "rect");
+          r.setAttribute("x", clip.x.toFixed(1));
+          r.setAttribute("y", toSvgY(clip.y + clip.h).toFixed(1));
+          r.setAttribute("width", clip.w.toFixed(1));
+          r.setAttribute("height", clip.h.toFixed(1));
+          cp.appendChild(r);
+          defs.appendChild(cp);
+          clipIds.set(key, id);
+        }
+        return id;
+      };
+      svg.append(defs, layers[0], layers[1], layers[2], overlay);
 
       // Paint order: z layer, then IR order within the layer. Extracted so
       // swapGeometry/remount can rebuild nodes for a new layout without
@@ -797,7 +821,18 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
             if (dx !== 0 || dy !== 0) g.setAttribute("transform", `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
-            layers[z].appendChild(g);
+            // A clipped leaf scrolls INSIDE a fixed window: the clip sits on
+            // a static wrapper, the offset transform stays on the leaf's own
+            // group (the handle's setOffset targets that one), so the window
+            // never moves with the line.
+            if (leaf.clip) {
+              const wrap = document.createElementNS(SVG_NS, "g") as SVGGElement;
+              wrap.setAttribute("clip-path", `url(#${clipFor(leaf.clip)})`);
+              wrap.appendChild(g);
+              layers[z].appendChild(wrap);
+            } else {
+              layers[z].appendChild(g);
+            }
             entry.push({ g, leaf });
           }
           into.set(id, entry);
