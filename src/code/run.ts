@@ -68,7 +68,7 @@ const RUNTIMES: Record<Language, () => Promise<RuntimeModule>> = {
   python: () => import("./pyodide"),
   r: () => import("./webr"),
   brython: () => import("./brython"),
-  micropython: () => import("./not-yet"),
+  micropython: () => import("./micropython"),
 };
 
 async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
