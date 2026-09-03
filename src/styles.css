@@ -1907,3 +1907,21 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--ink);
 }
 .cs-menu-select:disabled { opacity: 0.45; }
+
+/* The explore tray's code editor (explore: { code }) — the viewer edits the
+   script under the figure and watches the panel above re-run. */
+.cs-tray-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  background: var(--field);
+  color: var(--ink);
+}
+.cs-tray-run { font-size: var(--text-xs); }
+.cs-tray-status { font-size: var(--text-xs); color: var(--muted); }

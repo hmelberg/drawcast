@@ -13,6 +13,7 @@ import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxe
 import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import type { SpecElement } from "../spec/types";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
@@ -25,7 +26,7 @@ export interface Reprojector {
    *  animate/sliders except under free-play previews (a fen string, a moves
    *  array). revealNew shows ids the previewed layout mints that the plan's
    *  visible set has never heard of (a chess piece on a fresh square). */
-  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean): void;
+  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean, elements?: SpecElement[]): void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
 }
@@ -422,6 +423,20 @@ export class Player {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
     this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, opts.revealNew);
+    this.geometryDirty = true;
+  }
+
+  /**
+   * Paint the current boundary with a patched SPEC — the code editor's
+   * preview: edited elements (a script and its fresh envelope) and, when the
+   * script feeds tokens, the re-substituted params. Ids the patched layout
+   * mints that the plan never drew (new code lines, a new output row) are
+   * revealed. settleParams() is the way back, as for slider previews.
+   */
+  previewSpec(patch: { elements?: SpecElement[]; params?: Record<string, unknown> }): void {
+    if (!this.reprojector) return;
+    const scene = this.stateAt(this.completed);
+    this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, new Set(scene.visible), scene.offsets, true, patch.elements);
     this.geometryDirty = true;
   }
 

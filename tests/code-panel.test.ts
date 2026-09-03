@@ -142,6 +142,17 @@ describe("the screen", () => {
   });
 });
 
+describe("explore: { code } — the editor verb", () => {
+  test("validates and reaches the plan step with the element id", () => {
+    const s = spec({ show: "left", code: "x = 1" }, [{ draw: ["c1"] }, { explore: { code: "c1" } }]);
+    expect(validateSpec(s).ok).toBe(true);
+    const plan = planCommands(s.commands, ["c1", "c1_line_1", "c1_out"]);
+    const step = plan.steps.find((st) => st.kind === "explore") as { kind: "explore"; code?: string } | undefined;
+    expect(step?.code).toBe("c1");
+    expect(validateSpec(spec({}, [{ explore: { code: 7 } }])).ok).toBe(false);
+  });
+});
+
 describe("code panel vocabulary", () => {
   test("show names where the code sits; split is gone", () => {
     for (const s of ["output", "left", "right", "above", "below", "code", "none"]) expect(validateSpec(spec({ show: s })).ok).toBe(true);

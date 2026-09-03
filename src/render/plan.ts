@@ -20,7 +20,7 @@ export type PlanStep = (
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
   | { kind: "label"; name: string }
-  | { kind: "explore"; params?: string[] }
+  | { kind: "explore"; params?: string[]; code?: string }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
   | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
   | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean; rightGoto?: string; wrongGoto?: string; widget?: "click" | "piano" | "chess"; answerBox?: BBox }
@@ -222,7 +222,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       labels[cmd.label] = steps.length;
       pushStep({ kind: "label", name: cmd.label });
     } else if (cmd.explore !== undefined) {
-      pushStep({ kind: "explore", ...(cmd.explore.params !== undefined ? { params: cmd.explore.params } : {}) });
+      pushStep({
+        kind: "explore",
+        ...(cmd.explore.params !== undefined ? { params: cmd.explore.params } : {}),
+        ...(cmd.explore.code !== undefined ? { code: cmd.explore.code } : {}),
+      });
     } else if (cmd.if !== undefined) {
       const f = cmd.if;
       const pair = (["gt", "lt", "gte", "lte", "eq", "ne"] as const).find((k) => f[k] !== undefined);

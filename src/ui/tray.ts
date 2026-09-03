@@ -8,6 +8,9 @@
 // they attach no controls — so none of this can appear in a recording.
 
 import type { RenderHandle } from "../render";
+import type { SpecElement } from "../spec/types";
+import { decodeCodeResult, runCode } from "../code/run";
+import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
 import { INITIAL_STATE } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { scenes } from "../scenes/registry";
@@ -51,7 +54,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // paused). One declared source (interactivity spec §6), never sniffed.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const playable = interactions.includes("piano");
-  if (liveSliders(hd).length === 0 && interactions.length === 0) return;
+  // A visible code element is editable while paused (explore: { code }).
+  const editable = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && typeof e.code === "string");
+  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -75,6 +80,49 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     for (const k of Object.keys(overrides)) delete overrides[k];
   };
 
+  /**
+   * The code editor's Run: the viewer's script goes through the same facade
+   * as the author's (same runtime, same cache, same envelope), the fresh
+   * envelope is stamped on a cloned element list, and — when a template
+   * param names this element — the tokens are re-substituted into the
+   * AUTHORED params (the resolved clone holds values, not tokens). The
+   * preview paints the current boundary with the patch; settleParams() on
+   * Continue/close/Play restores the lesson, so nothing persists.
+   */
+  const runEdited = async (el: SpecElement, code: string, status: HTMLElement, btn: HTMLButtonElement): Promise<void> => {
+    if (!el.language) return;
+    const paths = pathsByCodeId(scanDataTokens(hd.authored.params))[el.id] ?? [];
+    btn.disabled = true;
+    status.textContent = "Running…";
+    try {
+      const result = await runCode({
+        language: el.language,
+        code,
+        paths,
+        onStatus: (_phase, detail) => {
+          status.textContent = detail;
+        },
+      });
+      const elements = (hd.spec.elements ?? []).map((e) => (e.id === el.id ? { ...e, code, code_result: JSON.stringify(result) } : e));
+      let params: Record<string, unknown> | undefined;
+      if (paths.length > 0) {
+        params = substituteDataTokens(hd.authored.params, (codeId, path) => {
+          const env = decodeCodeResult(elements.find((e) => e.id === codeId)?.code_result);
+          if (!env || !env.ok) return { error: env?.error ?? "the script did not run" };
+          if (env.dataErrors && path in env.dataErrors) return { error: env.dataErrors[path] };
+          if (env.data && path in env.data) return { value: env.data[path] };
+          return { error: "not harvested" };
+        }).params;
+      }
+      hd.timeline.previewSpec({ elements, params });
+      status.textContent = result.ok ? "Ran ✓ — Continue restores the lesson" : "The script failed — see the panel";
+    } catch (err) {
+      status.textContent = `Could not run: ${(err as Error).message}`;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
   const trayBtn = h("button", { class: "cs-bar-btn cs-tray-btn", title: "Explore this figure" }, "⊕");
 
   const close = (): void => {
@@ -93,7 +141,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     hd.timeline.renderUpTo(hd.timeline.position);
   };
 
-  const open = (opts: { filter?: string[]; gated?: boolean } = {}): void => {
+  const open = (opts: { filter?: string[]; gated?: boolean; code?: string } = {}): void => {
     // Snap to the boundary first: it aborts any in-flight step and lands
     // paused, so previews never paint over half-drawn strokes. NOT when an
     // explore gate called us — the run is parked on the gate's promise, and
@@ -133,7 +181,22 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         ),
       );
     }
-    for (const { spec, value } of liveSliders(hd).filter((s) => !opts.filter || opts.filter.includes(s.spec.path))) {
+    // explore: { code } — the editor instead of the sliders.
+    const editEl = opts.code ? editable.find((e) => e.id === opts.code) : undefined;
+    if (editEl) {
+      tray.appendChild(
+        h("div", { class: "cs-tray-hint" }, "✎ Edit the script (or write your own) and press Run — the panel and any chart it feeds update. Continue restores the lesson."),
+      );
+      const rows = Math.min(12, Math.max(4, (editEl.code ?? "").split("\n").length + 1));
+      const area = h("textarea", { class: "cs-tray-code", rows: String(rows), spellcheck: "false", "aria-label": "Script" }) as HTMLTextAreaElement;
+      area.value = editEl.code ?? "";
+      const status = h("span", { class: "cs-tray-status" }, "");
+      const runBtn = h("button", { class: "cs-tray-run" }, "Run ▶");
+      runBtn.addEventListener("click", () => void runEdited(editEl, area.value, status, runBtn));
+      tray.appendChild(area);
+      tray.appendChild(h("div", { class: "cs-tray-actions" }, runBtn, status));
+    }
+    for (const { spec, value } of editEl ? [] : liveSliders(hd).filter((s) => !opts.filter || opts.filter.includes(s.spec.path))) {
       const range = h("input", {
         type: "range",
         min: String(spec.min),
@@ -216,7 +279,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         signal.removeEventListener("abort", onAbort);
         resolve();
       };
-      open({ filter: step.params, gated: true });
+      open({ filter: step.params, gated: true, code: step.code });
     });
 
   // Ambient nudge: a personalized animate just played — the ⊕ can take it

@@ -4,7 +4,7 @@
 
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { LintIssue } from "../lint/lint";
-import type { Spec } from "../spec/types";
+import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
 import { withNewIdsVisible, withOverrides } from "./params";
 import { planCommands, type Plan } from "./plan";
@@ -44,7 +44,10 @@ export interface RenderHandle {
   timeline: Player;
   layout: LayoutResult;
   plan: Plan;
+  /** The resolved clone the figure was laid out from (portraits, sources and code results stamped; tokens substituted). */
   spec: Spec;
+  /** The spec as passed to render — tokens intact — for previews that re-run a script. */
+  authored: Spec;
   lint(): LintIssue[];
   /**
    * M5 stub: applies a shallow spec diff and re-renders in place.
@@ -106,6 +109,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // objects, and resolving on those rewrote the author's document as a side
   // effect of viewing it — see render/resolve.ts. Everything below, including
   // handle.spec, reads the resolved clone.
+  // The spec as authored, kept on the handle: the code editor re-substitutes
+  // "{id.path}" tokens into THESE params (the resolved clone below has the
+  // values, not the tokens).
+  const authored = spec;
   spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, contactEmail: contactEmail() });
   const renderer = rendererFor(options.style ?? "sketchy");
 
@@ -151,12 +158,17 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
   // is a distinct param set — caching them would hoard hundreds of layouts).
   const boundaryLayouts = new Map<string, LayoutResult>();
-  const layoutFor = (params: Record<string, unknown>, cache: boolean): LayoutResult => {
-    if (Object.keys(params).length === 0) return layout;
-    const key = cache ? JSON.stringify(Object.entries(params).sort()) : undefined;
+  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult => {
+    if (Object.keys(params).length === 0 && !elements) return layout;
+    // An elements override is the code editor's preview: never cached, its
+    // key would be the whole patched script.
+    const key = cache && !elements ? JSON.stringify(Object.entries(params).sort()) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
-    const l = applyTextStyle(layoutSpec({ ...spec, params: withOverrides(spec.params, params) }, measure), textStyle);
+    const l = applyTextStyle(
+      layoutSpec({ ...spec, params: withOverrides(spec.params, params), ...(elements ? { elements } : {}) }, measure),
+      textStyle,
+    );
     if (key !== undefined) boundaryLayouts.set(key, l);
     return l;
   };
@@ -188,8 +200,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, revealNew) => {
-        const l = layoutFor(params, false);
+      frame: (params, visible, offsets, revealNew, elements) => {
+        const l = layoutFor(params, false, elements);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
@@ -205,6 +217,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     layout,
     plan,
     spec,
+    authored,
     lint: () => layout.issues,
     update: async (diff) => {
       player.dispose();

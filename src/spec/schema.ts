@@ -318,9 +318,14 @@ const commandSchema = {
     explore: {
       type: "object",
       description:
-        "Open the explore tray (the \u2295 sliders) and wait for the viewer to press Continue \u2014 the authored 'now try numbers yourself' moment, placed right after a personalized reveal. params restricts which sliders show. App only: movies and skip-questions playback drop the whole beat, its narration included, so never put content the movie needs in its speak.",
+        "Open the explore tray (the \u2295 sliders) and wait for the viewer to press Continue \u2014 the authored 'now try numbers yourself' moment, placed right after a personalized reveal. params restricts which sliders show; code opens a code editor instead. App only: movies and skip-questions playback drop the whole beat, its narration included, so never put content the movie needs in its speak.",
       properties: {
         params: { type: "array", items: { type: "string" }, description: "Slider param paths to show (default: all)." },
+        code: {
+          type: "string",
+          description:
+            "Id of a code element to open in the editor instead of the sliders: the viewer edits or replaces the script, presses Run, and sees the output pane and any template it feeds change; Continue restores the lesson. Place it right after the output beat.",
+        },
       },
       additionalProperties: false,
     },
