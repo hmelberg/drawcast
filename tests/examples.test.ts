@@ -9,6 +9,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import bundledExamples from "../src/examples.json";
 import fewshots from "../src/llm/prompts/fewshots.json";
 import { scenes } from "../src/scenes/registry";
+import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
@@ -128,6 +129,34 @@ describe("bundled examples stay exemplary", () => {
     // anything"), which only lands if Urn B is labelled on the chart.
     const speaks = (urn!.spec!.commands ?? []).map((c) => (c as Command).speak ?? "").join(" ");
     expect(speaks).toMatch(/Urn B/);
+  });
+
+  // `crossing` is a LICENCE: a keyed drawable may overlap another keyed one
+  // without the lint calling it a defect. Nothing in the type system says who
+  // may hand that licence out — and src/llm/author.ts ships kit.ts verbatim to
+  // the template-authoring model, "Race templates only" comment and all, while
+  // user templates and remote packs register through the same path. So pin the
+  // roster: with every bundled pack enabled, only line_chart and bar_race may
+  // produce a keyed drawable. A third template appearing here is either a
+  // deliberate extension (update this list, and say why) or an authored
+  // template quietly buying itself an exemption.
+  test("only line_chart and bar_race stamp `crossing` — the exemption is not a licence anyone can take", () => {
+    const keyed = new Set<string>();
+    for (const scene of Object.values(scenes)) {
+      if (!scene.layout) continue; // a stub draws nothing
+      for (const ex of scene.manifest.examples) {
+        let out;
+        try {
+          out = scene.layout(ex.params as Record<string, unknown>);
+        } catch {
+          continue; // a body that refuses these params is somebody else's test
+        }
+        for (const d of flattenDrawables(out.drawables)) {
+          if (typeof (d as { crossing?: unknown }).crossing === "string") keyed.add(scene.manifest.name);
+        }
+      }
+    }
+    expect([...keyed].sort()).toEqual(["bar_race", "line_chart"]);
   });
 
   // The other half of the same ruling. `label_top` is allowed to stay where
