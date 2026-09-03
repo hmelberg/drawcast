@@ -5,7 +5,7 @@ import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
 import type { Spec } from "../spec/types";
-import { lintLayout, type LintIssue } from "../lint/lint";
+import { coVisible, lintLayout, type LintIssue } from "../lint/lint";
 import { layoutElements } from "./tier2";
 import type { CodeWindow } from "./code";
 import { annotationDrawables } from "./annotate";
@@ -14,6 +14,7 @@ import { bboxOfPts, bboxOfText, expandBox, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
+import { figureSplit } from "./figure-split";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -28,6 +29,18 @@ export interface LayoutResult {
 
 export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure): LayoutResult {
   const spec = normalizeSpec(rawSpec) as Spec;
+  // A template and a script on screen each get their own half of the canvas
+  // before anything is laid out — the default the two used to lack, so a
+  // chart no longer lands on top of the code that computed it.
+  const codeEl = (spec.elements ?? []).find((e) => e.type === "code" && e.show !== "none");
+  const split = figureSplit({
+    hasTemplate: !!(spec.template && scenes[spec.template]?.layout),
+    templateTakesBox: templateTakesBox(spec.template),
+    boxGiven: isFigureBox((spec.params ?? {})["box"]),
+    code: codeEl ? { x: codeEl.x, width: codeEl.width } : null,
+  });
+  if (split.code && codeEl) Object.assign(codeEl, split.code);
+  if (split.box) spec.params = { ...(spec.params ?? {}), box: split.box };
   const warnings: string[] = [];
   const drawables: Drawable[] = [];
   const labelRequests: LabelRequest[] = [];
@@ -35,6 +48,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   let windows: Record<string, CodeWindow> = {};
   let seedAnchors: Record<string, Pt> = {};
   let seedCurveSamples: Record<string, Pt[]> = {};
+  let templateIds: string[] = [];
 
   if (spec.template) {
     const scene = scenes[spec.template];
@@ -45,6 +59,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     } else {
       try {
         const sceneLayout = scene.layout(spec.params ?? {});
+        templateIds = sceneLayout.order;
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
         order.push(...sceneLayout.order);
@@ -115,7 +130,74 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   }
 
   const issues = lintLayout(drawables, measure, spec.commands);
+  if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
   return { drawables, order, issues, warnings, windows };
+}
+
+function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const b of boxes) {
+    if (!b) continue;
+    x0 = Math.min(x0, b.x);
+    y0 = Math.min(y0, b.y);
+    x1 = Math.max(x1, b.x + b.w);
+    y1 = Math.max(y1, b.y + b.h);
+  }
+  return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** Does this template accept a `box`? Most own the whole canvas instead. */
+function templateTakesBox(template: string | undefined): boolean {
+  if (!template) return false;
+  const schema = scenes[template]?.manifest.params_schema as { properties?: Record<string, unknown> } | undefined;
+  return schema?.properties?.box !== undefined;
+}
+
+function isFigureBox(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const b = v as Record<string, unknown>;
+  return ["x", "y", "w", "h"].every((k) => typeof b[k] === "number" && Number.isFinite(b[k] as number));
+}
+
+/**
+ * The one thing the split cannot fix by default: an author who placed the
+ * script and the figure on the same ground. Only pairs that are actually on
+ * screen together count — a code panel erased before the chart is drawn was
+ * never in its way — and only a real overlap, not a graze.
+ */
+function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Drawable[], measure: MeasureFn, spec: Spec): LintIssue[] {
+  if (templateIds.length === 0) return [];
+  // The panel's INK, not a nominal box: its frame (when it has one), its
+  // lines and its output pane are separate top-level drawables, and with
+  // frame: "none" the group itself draws nothing at all. Empty space inside a
+  // frameless panel is not something a figure can overlap.
+  const code = unionOfBoxes(
+    drawables
+      .filter((d) => d.id === codeId || d.id.startsWith(`${codeId}_`))
+      .map((d) => unionBBoxForId(drawables, d.id, measure)),
+  );
+  if (!code) return [];
+  const together = coVisible(spec.commands, drawables.map((d) => d.id));
+  for (const id of templateIds) {
+    if (!together(codeId, id)) continue;
+    const b = unionBBoxForId(drawables, id, measure);
+    if (!b) continue;
+    const overlapW = Math.min(code.x + code.w, b.x + b.w) - Math.max(code.x, b.x);
+    const overlapH = Math.min(code.y + code.h, b.y + b.h) - Math.max(code.y, b.y);
+    if (overlapW > 20 && overlapH > 20) {
+      return [
+        {
+          rule: "overlap-code-figure",
+          ids: [codeId, id],
+          message:
+            `code panel "${codeId}" and the ${spec.template} figure ("${id}") are drawn on the same ground — ` +
+            `give the code element x/width, or the template a box, so each has its own area`,
+          severity: "warn",
+        },
+      ];
+    }
+  }
+  return [];
 }
 
 /**

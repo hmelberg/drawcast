@@ -17,6 +17,8 @@ export interface LintIssue {
   rule:
     | "overlap-label-label"
     | "overlap-label-stroke"
+    /** a code panel and the template figure beside it drawn on the same ground */
+    | "overlap-code-figure"
     | "out-of-canvas"
     | "font-too-small"
     | "slow-start"
@@ -42,7 +44,7 @@ export interface LintIssue {
  * here (the plan already warns about them); anything not provably transient
  * ends up coexisting, so approximation errs toward keeping warnings.
  */
-function coVisible(commands: Command[] | undefined, allIds: string[]): (a: string, b: string) => boolean {
+export function coVisible(commands: Command[] | undefined, allIds: string[]): (a: string, b: string) => boolean {
   if (!commands || commands.length === 0) return () => true;
   const visible = new Set<string>();
   const managed = new Set<string>();
