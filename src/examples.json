@@ -11952,5 +11952,68 @@
     }
    ]
   }
+ },
+ {
+   "request": "Type a short Python script on a laptop, line by line, and show what it prints: day-on-day price changes",
+   "spec": {
+     "title": "Typed on a laptop",
+     "elements": [
+       {
+         "id": "t",
+         "type": "code",
+         "language": "brython",
+         "show": "above",
+         "lines": 5,
+         "frame": "laptop",
+         "width": 820,
+         "draw": {
+           "mode": "type"
+         },
+         "code": "prices = [100, 104, 99, 110, 115]\nchanges = []\nfor a, b in zip(prices, prices[1:]):\n    changes.append(round((b - a) / a * 100, 1))\nprint(\"day-on-day %:\", changes)\nprint(\"average:\", round(sum(changes) / len(changes), 2))\nmax(changes)"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "t",
+           "t_line_1"
+         ],
+         "parallel": true,
+         "speak": "Five days of prices. Let's type the script that reads them."
+       },
+       {
+         "draw": [
+           "t_line_2",
+           "t_line_3"
+         ],
+         "speak": "An empty list, and a loop over each day paired with the next."
+       },
+       {
+         "draw": [
+           "t_line_4"
+         ],
+         "speak": "The change from one day to the next, as a percent, rounded."
+       },
+       {
+         "draw": [
+           "t_line_5",
+           "t_line_6"
+         ],
+         "speak": "Print the changes, and their average."
+       },
+       {
+         "draw": [
+           "t_line_7"
+         ],
+         "speak": "And the biggest single jump, left as the last line so it shows."
+       },
+       {
+         "draw": [
+           "t_out"
+         ],
+         "speak": "Run it: four changes, an average near four percent, and one day that jumped eleven."
+       }
+     ]
+   }
  }
 ]
