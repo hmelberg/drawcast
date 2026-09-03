@@ -317,6 +317,73 @@ describe("bar_race scale and furniture", () => {
     expect(textById(l, "race_1_value")!.anchor).toBe("start");
   });
 
+  // `null` is ABSENCE — not in the field — and 0 is the number zero. The
+  // distinction earns its keep at the transition: a racer that arrives must
+  // arrive AT its value, not climb into it from a number the data never
+  // contained. "Kasparov 1345" is the defect these three tests forbid.
+  const entering = { labels: ["A", "B"], values: [[10, null], [10, 40]] };
+  const leaving = { labels: ["A", "B"], values: [[10, 40], [10, null]] };
+
+  test("null means absent: ranked last, drawn as nothing, still holding its beat", () => {
+    const l = race({ ...entering, stage: 0 });
+    expect(bar(l, 2)).toBeUndefined();
+    expect(textById(l, "race_2_value")).toBeUndefined();
+    expect(textById(l, "race_2_text")).toBeUndefined();
+    // …but never dropped from `order`: the player's plan-time `visible` set is
+    // fixed before the tween, so a racer that arrives mid-cast can only do so
+    // under an id that was there all along (the Task 4 re-entry invariant).
+    expect(l.order).toContain("race_2");
+    // Absent ranks BELOW a genuine zero — 0 is a value, absence is not.
+    const zeroVsNull = race({ labels: ["A", "B", "C"], values: [[5, 0, null]], top_n: 3 });
+    expect(rowY(zeroVsNull, 2)).toBeLessThan(rowY(zeroVsNull, 1)); // B (0) sits under A (5)
+    expect(bar(zeroVsNull, 3)).toBeUndefined();                    // C (null) is not there at all
+    expect(textById(zeroVsNull, "race_2_value")!.text).toBe("0");  // and zero still reads as zero
+  });
+
+  test("a racer arrives AT its value instead of growing into it", () => {
+    const at = (s: number) => race({ ...entering, stage: s });
+    for (const s of [0.01, 0.25, 0.5, 0.75, 1]) {
+      expect(textById(at(s), "race_2_value")!.text, `stage ${s}`).toBe("40");
+      expect(barLen(at(s), 2), `stage ${s}`).toBeCloseTo(barLen(at(1), 2), 6);
+    }
+    // It fades in over the transition rather than popping — the same gesture
+    // the airlock makes, driven by the data instead of by the ranking.
+    const op = (s: number) => bar(at(s), 2)!.style.opacity;
+    expect(op(0.25)).toBeGreaterThan(0);
+    expect(op(0.25)).toBeLessThan(op(0.75));
+    expect(op(0.75)).toBeLessThan(op(1));
+  });
+
+  test("a racer leaving holds the last length it really had", () => {
+    const at = (s: number) => race({ ...leaving, stage: s });
+    for (const s of [0, 0.25, 0.5, 0.75, 0.99]) {
+      expect(textById(at(s), "race_2_value")!.text, `stage ${s}`).toBe("40");
+      expect(barLen(at(s), 2), `stage ${s}`).toBeCloseTo(barLen(at(0), 2), 6);
+    }
+    expect(bar(at(0.25), 2)!.style.opacity).toBeGreaterThan(bar(at(0.75), 2)!.style.opacity);
+    expect(bar(at(1), 2)).toBeUndefined();
+  });
+
+  test("the bundled chess race never draws a rating the data does not contain", () => {
+    // The few-shot itself, swept: every value label at every quarter stage has
+    // to be a real rating or lie between two real ones. Before `null`, an
+    // unrated player interpolated 0 → 2690 and the chart drew "1345".
+    const ex = (scenes.bar_race!.manifest.examples as { request: string; params: Record<string, unknown> }[])
+      .find((e) => /chess/i.test(e.request))!;
+    const rated = (ex.params.values as (number | null)[][]).flat().filter((v): v is number => typeof v === "number");
+    const floor = Math.min(...rated), ceil = Math.max(...rated);
+    expect(rated).not.toContain(0);
+    for (let q = 0; q <= 16; q++) {
+      const l = race({ ...ex.params, stage: q / 4 });
+      for (const d of flattenDrawables(l.drawables)) {
+        if (d.kind !== "text" || !/^race_\d+_value$/.test(d.id)) continue;
+        const v = Number((d as TextDrawable).text);
+        expect(v, `stage ${q / 4} ${d.id} = ${(d as TextDrawable).text}`).toBeGreaterThanOrEqual(floor);
+        expect(v, `stage ${q / 4} ${d.id} = ${(d as TextDrawable).text}`).toBeLessThanOrEqual(ceil);
+      }
+    }
+  });
+
   test("a race still waiting on its script draws no ticks and no values", () => {
     // The placeholder promise again: "not data yet" must not be dressed up as
     // a scale reading 0…1 with a column of zeroes hanging off it.

@@ -1408,7 +1408,13 @@ description: >-
   `animate: {stage: 59}` with `easing: "linear"` plays the whole race at one
   steady speed. `top_n` bounds the field (default 10) and a racer climbing
   into it slides in and fades up instead of popping; `order: "fixed"` keeps
-  the input order and animates lengths only. The scale follows the leader, so
+  the input order and animates lengths only. Write `null` (never 0) for a
+  racer not in the field at a stage — it is ranked last, drawn as nothing, and
+  arrives at its real value rather than growing into it. Two racers swapping
+  places share one row for the instant of the overtake, so their names and
+  values coincide there: that is BY DESIGN — it is what an overtake looks
+  like, and snapping the ranks instead is the defect this scene exists to
+  avoid. The scale follows the leader, so
   the early stages are never squashed flat, and its ticks slide rather than
   reflow; `xlim` fixes the range instead. `ticker` writes the year large and
   dim in the plot's corner, and every bar carries its own value unless
@@ -1431,10 +1437,10 @@ params:
       description: "Racer names, in INPUT order — that order fixes each racer's id (race_1, race_2, …) and colour for the whole race, whatever place it is in. TYPE these by hand even when values come from a script, so the race_i beats exist before it has run. A \"{id.var}\" token (a DataFrame column of names, say) works too, at that cost."
     values:
       oneOf:
-        - { type: array, items: { type: number }, maxItems: 40 }
-        - { type: array, items: { type: array, items: { type: number }, maxItems: 40 }, minItems: 1, maxItems: 200 }
+        - { type: array, items: { type: [number, "null"] }, maxItems: 40 }
+        - { type: array, items: { type: array, items: { type: [number, "null"] }, maxItems: 40 }, minItems: 1, maxItems: 200 }
         - { type: string, pattern: "^\\{[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_.]*\\}$" }
-      description: "One list of lists: STAGES of the race, one row per stage and one number per label. A missing number counts as 0, and a 0 simply puts that racer last — write 0 for a racer that has not entered yet (or has left), rather than leaving the row short. A single flat list is a one-stage race. Or a \"{id.var}\" token naming a code element's variable."
+      description: "One list of lists: STAGES of the race, one row per stage and one number per label. Write `null` — NOT 0 — for a racer that is not in the field at that stage, whether it has not arrived yet or has already gone: it is ranked last, drawn as nothing, and when it does arrive it enters AT its real value instead of growing into it from a number that never existed. 0 is a real value and means zero. A missing entry (a row shorter than the labels) counts as 0. A single flat list is a one-stage race. Or a \"{id.var}\" token naming a code element's variable."
     stage:
       type: number
       minimum: 0
@@ -1517,11 +1523,11 @@ examples:
     params:
       labels: ["Fischer", "Karpov", "Kasparov", "Kramnik", "Anand", "Carlsen"]
       values:
-        - [2760, 2660, 0, 0, 0, 0]
-        - [2780, 2725, 2595, 0, 0, 0]
-        - [0, 2720, 2800, 2695, 2650, 0]
-        - [0, 0, 2830, 2780, 2770, 2690]
-        - [0, 0, 0, 2790, 2800, 2870]
+        - [2760, 2660, null, null, null, null]
+        - [2780, 2725, 2595, null, null, null]
+        - [null, 2720, 2800, 2695, 2650, null]
+        - [null, null, 2830, 2780, 2770, 2690]
+        - [null, null, null, 2790, 2800, 2870]
       ticker: ["1971", "1981", "1991", "2001", "2021"]
       stage: 0
       top_n: 5
@@ -1574,7 +1580,12 @@ layout: |
   const K = stages.length;
   const stage = clamp(num(params.stage, 0), 0, K - 1);
   const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
-  // A racer missing from a stage counts as 0 — it has not entered yet.
+  // ABSENCE has its own encoding: an explicit `null` means "not in the field
+  // at this stage" — not arrived, or already gone — and is NOT the number 0.
+  // Zero is a real value and scales like one. A row shorter than the labels
+  // still reads its missing entries as 0, which is the old lenient shape and
+  // stays that way.
+  const absentAt = (i, k) => stages[Math.min(k, K - 1)][i] === null;
   const valueAtStage = (i, k) => {
     const st = stages[Math.min(k, K - 1)];
     const v = st[i];
@@ -1586,18 +1597,44 @@ layout: |
   // and then jump it to row 4; interpolating the rank glides it across the
   // whole interval, which is what makes a race read as motion rather than as
   // snapping. Ties break by input order, so a field of equal numbers is still
-  // stable and repeatable.
+  // stable and repeatable. An absent racer ranks after EVERY present one —
+  // below a racer sitting at a genuine 0 — and is compared by that flag alone,
+  // never by a sentinel value (−Infinity minus −Infinity is NaN, and a NaN
+  // comparator scrambles the whole field).
   const fixedRows = params.order === "fixed";
   const rankAt = (k) => {
     const idx = Array.from({ length: n }, (_, i) => i);
-    idx.sort((a, b) => (valueAtStage(b, k) - valueAtStage(a, k)) || (a - b));
+    idx.sort((a, b) => {
+      const aa = absentAt(a, k), ab = absentAt(b, k);
+      if (aa !== ab) return aa ? 1 : -1;
+      return (aa ? 0 : valueAtStage(b, k) - valueAtStage(a, k)) || (a - b);
+    });
     const r = new Array(n);
     idx.forEach((i, pos) => { r[i] = pos; });
     return r;
   };
   const r0 = rankAt(k0), r1 = rankAt(k1);
   const rowPos = (i) => (fixedRows ? i : r0[i] + (r1[i] - r0[i]) * t);
-  const value = (i) => valueAtStage(i, k0) + (valueAtStage(i, k1) - valueAtStage(i, k0)) * t;
+  // How much of the racer is on screen: 1 present, 0 absent, and a ramp across
+  // a stage where that changes — so arriving and leaving fade, exactly as the
+  // airlock fades a racer that merely falls out of the window. This is the
+  // opacity ramp; the LENGTH deliberately does not follow it (below).
+  const presence = (i) => {
+    const a = absentAt(i, k0) ? 0 : 1, b = absentAt(i, k1) ? 0 : 1;
+    return a + (b - a) * t;
+  };
+  // A racer ARRIVES AT its value; it does not grow into it from a number that
+  // never existed. So a stage that only one end of the transition has a value
+  // for holds THAT value across the whole transition — the bar fades in at its
+  // true length, and fades out still showing the last length it really had —
+  // and only two real numbers ever interpolate into each other.
+  const value = (i) => {
+    const a = absentAt(i, k0), b = absentAt(i, k1);
+    if (a && b) return 0;
+    if (a) return valueAtStage(i, k1);
+    if (b) return valueAtStage(i, k0);
+    return valueAtStage(i, k0) + (valueAtStage(i, k1) - valueAtStage(i, k0)) * t;
+  };
 
   // The whole template is ONE layout read along two axes. `vertical` swaps
   // which axis carries the value and which carries the field, and every
@@ -1855,8 +1892,11 @@ layout: |
     const id = "race_" + (i + 1);
     const color = C.series[i % C.series.length];
     const p = rowPos(i);
-    if (!(p < topN + 1)) {
-      // Declared but off the field at this stage. An empty STROKE, not an
+    const here = presence(i);
+    if (!(p < topN + 1) || here <= 0) {
+      // Declared but not on the field at this stage — either past the airlock
+      // row, or `null` at both ends of the transition, which is the same thing
+      // said by the data instead of by the ranking. An empty STROKE, not an
       // empty area: `race_i` is a bar wherever the racer is on screen, and a
       // zero-point area would read as a bar of length nothing at row nothing.
       // The element's kind therefore changes with the stage, which costs
@@ -1867,7 +1907,7 @@ layout: |
       continue;
     }
     const c = placeCenter(p);   // the bar's centre line, ACROSS the value axis
-    const opacity = fade(p);
+    const opacity = fade(p) * here;
     const base = V(xMin);       // every bar starts at the low end of the scale
     const end = V(value(i));
     // The one place the two orientations part company: lying down the bar runs
