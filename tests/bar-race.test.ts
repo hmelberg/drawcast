@@ -27,6 +27,10 @@ const barLen = (l: ReturnType<typeof layoutSpec>, i: number) => {
   const xs = bar(l, i)!.pts.map((p) => p[0]);
   return Math.max(...xs) - Math.min(...xs);
 };
+// A racer's name: the sub-drawable welded to its bar. "race_1_" is not a
+// prefix of "race_10_text", so this stays exact past nine racers.
+const racerName = (l: ReturnType<typeof layoutSpec>, i: number) =>
+  (flattenDrawables(l.drawables).find((d) => d.kind === "text" && d.id.startsWith(`race_${i}_`)) as { text: string } | undefined)?.text;
 
 // Two racers that swap between stage 0 and stage 1.
 const SWAP = { labels: ["A", "B"], values: [[10, 6], [6, 10]] };
@@ -81,6 +85,12 @@ describe("bar_race", () => {
     expect(bar(l, 2)).toBeDefined();
     // Third place sits in the fading airlock row; fourth is not drawn at all.
     expect(bar(l, 4)).toBeUndefined();
+    // …but it is still DECLARED. The player's plan-time `visible` set is
+    // fixed before the tween (src/render/index.ts), so a racer that re-enters
+    // the field mid-cast can only do so under an id that was in `order` all
+    // along — dropping the off-field beat would leave every other assertion
+    // here green and break re-entry.
+    expect(l.order).toContain("race_4");
   });
 
   test("a racer climbing into the field fades in rather than popping", () => {
@@ -95,5 +105,39 @@ describe("bar_race", () => {
   test("order: fixed keeps input order and animates lengths only", () => {
     const fixed = { ...SWAP, order: "fixed" };
     expect(rowY(race({ ...fixed, stage: 0 }), 1)).toBeCloseTo(rowY(race({ ...fixed, stage: 1 }), 1), 3);
+    // "lengths only" is the other half: the row holds still, the bar does not.
+    // A falls 10 → 6 while the leader is 10 at both stages, so it keeps 60 %.
+    const [len0, len1] = [0, 1].map((s) => barLen(race({ ...fixed, stage: s }), 1));
+    expect(len1).toBeCloseTo(len0 * 0.6, 6);
+  });
+
+  test("a race still waiting on its script draws named, zero-length bars", () => {
+    // The placeholder promise: the editor lints BEFORE any script has run, so
+    // a still-unresolved "{id.var}" token must lay out as a quiet placeholder
+    // — the beats and the typed names present, the data merely absent — and
+    // never as an error state.
+    const l = race({ labels: ["Oslo", "Bergen", "Tromsø"], values: "{sim.v}", stage: 0 });
+    expect(l.warnings).toEqual([]);
+    expect(l.issues).toEqual([]);
+    expect(l.order.filter((id) => id.startsWith("race_"))).toEqual(["race_1", "race_2", "race_3"]);
+    expect([1, 2, 3].map((i) => barLen(l, i))).toEqual([0, 0, 0]);
+    expect([1, 2, 3].map((i) => racerName(l, i))).toEqual(["Oslo", "Bergen", "Tromsø"]);
+    // Not data yet is not wrong data: no refusal note is drawn.
+    expect(flattenDrawables(l.drawables).some((d) => d.id === "note")).toBe(false);
+  });
+
+  test("a name too long for its margin is truncated, not run off the canvas", () => {
+    // The left margin stops widening at 40 % of the plot, so a long enough
+    // name would otherwise be drawn past x = 0 — out-of-canvas, which is an
+    // ERROR, not a cosmetic overflow.
+    const long = "United Kingdom of Great Britain and Northern Ireland"; // 52 chars
+    const l = race({ labels: [long, "France"], values: [[10, 6]] });
+    expect(l.warnings).toEqual([]);
+    expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
+    const drawn = racerName(l, 1)!;
+    expect(drawn.endsWith("…")).toBe(true);
+    expect(drawn.length).toBeLessThan(long.length);
+    // A name that fits is left exactly alone.
+    expect(racerName(l, 2)).toBe("France");
   });
 });

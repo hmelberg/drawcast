@@ -1593,6 +1593,19 @@ layout: |
   for (let i = 0; i < n; i++) nameW = Math.max(nameW, kit.textWidth(nameOf(i), NAME_SIZE));
   const wantX0 = CANVAS_EDGE + nameW + NAME_GAP;
   if (wantX0 > plot.x0) plot.x0 = Math.min(wantX0, plot.x0 + (plot.x1 - plot.x0) * 0.4);
+  // That cap can leave a name wider than the margin it actually got, and a
+  // name drawn past the canvas edge is an ERROR-severity lint (out-of-canvas,
+  // src/lint/lint.ts), not a cosmetic overflow: "United Kingdom of Great
+  // Britain and Northern Ireland" at 17pt is 460 units against a 430-unit
+  // margin. So truncate it to the room it has — the same convention the
+  // pack's `note` drawables use for text that will not fit.
+  const nameMaxW = plot.x0 - NAME_GAP - CANVAS_EDGE;
+  const fitName = (i) => {
+    let s = nameOf(i);
+    if (kit.textWidth(s, NAME_SIZE) <= nameMaxW) return s;
+    while (s.length > 1 && kit.textWidth(s + "…", NAME_SIZE) > nameMaxW) s = s.slice(0, -1);
+    return s.replace(/\s+$/, "") + "…";
+  };
 
   // The scale runs 0 … the leader AT THE INTERPOLATED STAGE, so the leader
   // always fills the plot. That deliberately departs from line_chart's "range
@@ -1670,7 +1683,7 @@ layout: |
     // rebuilds every bar on every tween frame, so the second stroke would be
     // ink re-rolled for nothing.
     push(kit.area(id, rect, color, { opacity: FILL * opacity }));
-    drawables.push(kit.text(id + "_text", [plot.x0 - NAME_GAP, yc], nameOf(i), { fontSize: NAME_SIZE, anchor: "end", opacity }));
+    drawables.push(kit.text(id + "_text", [plot.x0 - NAME_GAP, yc], fitName(i), { fontSize: NAME_SIZE, anchor: "end", opacity }));
     anchors[id] = [(plot.x0 + end) / 2, yc];
   }
 
