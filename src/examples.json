@@ -12015,5 +12015,90 @@
        }
      ]
    }
+ },
+ {
+   "request": "Compounding at two rates as bars fed by a light Python script, then hand the viewer the script to change the rates and run it",
+   "spec": {
+     "title": "Change the rates yourself",
+     "template": "bar_chart",
+     "params": {
+       "labels": [
+         "0",
+         "10",
+         "20",
+         "30",
+         "40",
+         "50"
+       ],
+       "values": "{calc.frames}",
+       "stage": 0,
+       "ylim": [
+         0,
+         3200
+       ],
+       "value_labels": true,
+       "y_label": "Value of 100",
+       "box": {
+         "x": 470,
+         "y": 95,
+         "w": 470,
+         "h": 560
+       }
+     },
+     "elements": [
+       {
+         "id": "calc",
+         "type": "code",
+         "language": "brython",
+         "show": "code",
+         "code": "years = [0, 10, 20, 30, 40, 50]\nrates = (0.02, 0.07)\nframes = [[round(100 * (1 + r) ** y) for y in years]\n          for r in rates]"
+       }
+     ],
+     "commands": [
+       {
+         "draw": [
+           "calc",
+           "calc_line_1",
+           "calc_line_2"
+         ],
+         "parallel": true,
+         "speak": "Six checkpoints a decade apart, and two rates: two percent and seven."
+       },
+       {
+         "draw": [
+           "calc_line_3",
+           "calc_line_4"
+         ],
+         "parallel": true,
+         "speak": "One expression computes both worlds from the same hundred."
+       },
+       {
+         "draw": [
+           "axes",
+           "bar_1",
+           "bar_2",
+           "bar_3",
+           "bar_4",
+           "bar_5",
+           "bar_6"
+         ],
+         "parallel": true,
+         "speak": "At two percent the bars barely lean forward."
+       },
+       {
+         "animate": {
+           "stage": 1
+         },
+         "duration": 3,
+         "speak": "At seven percent the same hundred is nearly three thousand after fifty years."
+       },
+       {
+         "explore": {
+           "code": "calc"
+         },
+         "speak": "Now change the rates yourself and run it — the bars follow your script."
+       }
+     ]
+   }
  }
 ]
