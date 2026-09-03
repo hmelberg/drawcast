@@ -11552,7 +11552,7 @@
      },
      "easing": "linear",
      "duration": 4,
-     "speak": "Month twelve: Nord has collapsed, Vest peaked at thirty-three two months ago, and the window is now exactly full."
+     "speak": "Month twelve: Nord has collapsed — and watch its name go with it. Only the three highest lines are named at any moment, and Sor has just taken the label the north lost. Vest peaked at thirty-three two months ago, and the window is now exactly full."
     },
     {
      "animate": {
@@ -11560,7 +11560,7 @@
      },
      "easing": "linear",
      "duration": 4,
-     "speak": "Month seventeen, and the axis now starts at month five: the north's first four months have already left the frame. Its name has gone too — label_top names the three highest at the END of their lines, and the north ended low."
+     "speak": "Month seventeen, and the axis now starts at month five: the north's first four months have already left the frame. Its name went five months ago, and its line runs on unnamed along the bottom — this chart names the three highest at the END of their lines, and the north ended low."
     },
     {
      "animate": {

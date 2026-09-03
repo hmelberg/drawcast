@@ -130,6 +130,20 @@ describe("bundled examples stay exemplary", () => {
     expect(speaks).toMatch(/Urn B/);
   });
 
+  // The other half of the same ruling. `label_top` is allowed to stay where
+  // the disappearing name IS the lesson — but only where the viewer is told,
+  // and told when it happens, not five stages later. Without this guard a
+  // future example could pick the param up and reproduce exactly the surprise
+  // Hans reported.
+  test("a bundled race that ranks names off the chart says so out loud", () => {
+    const ranked = examples.filter((e) => (e.spec?.params as { label_top?: number } | undefined)?.label_top !== undefined);
+    for (const ex of ranked) {
+      const speaks = (ex.spec!.commands ?? []).map((c) => (c as Command).speak ?? "");
+      const tells = speaks.some((t) => /\bnamed?\b|\bname\b|\blabel/i.test(t));
+      expect(tells, `${ex.request}: uses label_top but never tells the viewer a name is being withheld`).toBe(true);
+    }
+  });
+
   // A link only does its job if it reaches a card and sniffs to the right
   // kind. A mistyped YouTube id still LOOKS like a link — it just quietly
   // degrades from the embedded player to a plain new tab — so pin both.

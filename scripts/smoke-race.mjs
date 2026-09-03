@@ -329,6 +329,9 @@ async function main() {
     // crossings it dropped. No classification of its own lives in this file.
     const { lintLayoutDetailed } = await server.ssrLoadModule("/src/lint/lint.ts");
     const { heuristicMeasure } = await server.ssrLoadModule("/src/layout/measure.ts");
+    // The app's one answer to "how far may this ink be dimmed?" — imported,
+    // not re-derived, for the same reason the crossing rule is.
+    const { softAlpha } = await server.ssrLoadModule("/src/layout/ink.ts");
     const { registerPack } = await server.ssrLoadModule("/src/scenes/packs.ts");
     const { scenes } = await server.ssrLoadModule("/src/scenes/registry.ts");
     const { sliderSpecs } = await server.ssrLoadModule("/src/ui/tray-model.ts");
@@ -433,23 +436,27 @@ async function main() {
         if (l.issues.length > 0) realFailures.push({ stage, kind, issues: l.issues.map(fmtIssue), raw: l.issues, lint: true });
         const exempt = lintLayoutDetailed(l.drawables, heuristicMeasure).exempt;
         crossings += exempt.length;
-        // AN EXCUSED OVERLAP MUST NOT BE A SILENT ONE. The lint accepts a
-        // crossing because the template dims the ink that collides; if the
-        // two ever disagree, the exemption becomes an invisible licence to
-        // ship a collision that still looks broken. (That disagreement was
-        // real: line_chart first measured L.pts while the lint measured the
-        // degenerate 2-point stroke a single-point series actually draws, so
-        // an exempted overlap went undimmed.) Every TEXT named in an exempt
-        // issue must therefore carry less than full ink.
+        // AN EXCUSED OVERLAP MUST NOT BE A SILENT ONE — where the ink can
+        // afford it. The lint accepts a crossing because the template dims
+        // the ink that collides; if the two ever disagree, the exemption
+        // becomes an invisible licence to ship a collision that still looks
+        // broken. (That disagreement was real: line_chart first measured
+        // L.pts while the lint measured the degenerate 2-point stroke a
+        // single-point series actually draws, so an exempted overlap went
+        // undimmed.) So every TEXT named in an exempt issue must carry less
+        // than full ink — UNLESS its ink has no headroom to give, which
+        // softAlpha answers: an ink already at the readable floor does not
+        // dim, because dimming it would trade a collision for an unreadable
+        // label. That is a ruled-on outcome, not a gap in the check.
         const byId = new Map(leafDrawables(l.drawables).map((d) => [d.id, d]));
         for (const issue of exempt) {
           for (const id of issue.ids) {
             const d = byId.get(id);
-            if (d && d.kind === "text" && d.style.opacity >= 1) {
+            if (d && d.kind === "text" && d.style.opacity >= 1 && softAlpha(d.style.color) < 1) {
               realFailures.push({
                 stage,
                 kind,
-                issues: [`[gate] undimmed accepted crossing: "${id}" is excused by the crossing rule but drawn at full ink — ${fmtIssue(issue)}`],
+                issues: [`[gate] undimmed accepted crossing: "${id}" is excused by the crossing rule but drawn at full ink, and its ink ${d.style.color} could have dimmed to ${softAlpha(d.style.color).toFixed(3)} — ${fmtIssue(issue)}`],
                 raw: [issue],
                 lint: false, // a gate-invariant failure, NOT the lint refusing the pair
               });
