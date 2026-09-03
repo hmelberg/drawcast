@@ -10139,5 +10139,432 @@
        }
      ]
    }
+ },
+ {
+  "request": "Shade the rejection region of a two-sided test at five percent, with the critical value computed in Python",
+  "packs": [
+   "evidence"
+  ],
+  "spec": {
+   "title": "Where the five percent lives",
+   "template": "distribution_curve",
+   "params": {
+    "kind": "normal",
+    "shade": {
+     "from": "{crit.z}",
+     "side": "two",
+     "label": "2.5% in each tail"
+    },
+    "title": "Two-sided test at 5%"
+   },
+   "elements": [
+    {
+     "id": "crit",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "from scipy.stats import norm\nalpha = 0.05\nz = round(float(norm.ppf(1 - alpha / 2)), 2)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axis",
+      "curve",
+      "mean_line",
+      "title"
+     ],
+     "parallel": true,
+     "speak": "Every estimate we make lands somewhere under a curve like this one."
+    },
+    {
+     "draw": [
+      "sd_tick_0",
+      "sd_tick_1",
+      "sd_tick_2",
+      "sd_tick_3"
+     ],
+     "parallel": true,
+     "speak": "One standard deviation out, then two — the rungs we judge a result against."
+    },
+    {
+     "draw": [
+      "shade",
+      "shade2",
+      "shade_label"
+     ],
+     "parallel": true,
+     "delivery": "grave",
+     "speak": "Python solved for the cutoff instead of us quoting it: beyond one point nine six, either way, lies the five percent we agreed to call surprising."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Pool four trials of a treatment's risk ratio in Python and draw the forest plot from the computed pooled estimate",
+  "packs": [
+   "evidence"
+  ],
+  "spec": {
+   "title": "Four trials, one answer",
+   "template": "forest_plot",
+   "params": {
+    "measure": "RR",
+    "studies": [
+     {
+      "label": "Anderson 2015",
+      "est": 0.82,
+      "lo": 0.63,
+      "hi": 1.07,
+      "weight": 6
+     },
+     {
+      "label": "Bianchi 2017",
+      "est": 0.71,
+      "lo": 0.55,
+      "hi": 0.92,
+      "weight": 8
+     },
+     {
+      "label": "Carter 2019",
+      "est": 0.9,
+      "lo": 0.68,
+      "hi": 1.19,
+      "weight": 5
+     },
+     {
+      "label": "Diallo 2021",
+      "est": 0.65,
+      "lo": 0.48,
+      "hi": 0.88,
+      "weight": 7
+     }
+    ],
+    "pooled": {
+     "est": "{meta.pooled.est}",
+     "lo": "{meta.pooled.lo}",
+     "hi": "{meta.pooled.hi}"
+    },
+    "title": "Risk of relapse, pooled"
+   },
+   "elements": [
+    {
+     "id": "meta",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import numpy as np\nest = np.array([0.82, 0.71, 0.90, 0.65])\nlo = np.array([0.63, 0.55, 0.68, 0.48])\nhi = np.array([1.07, 0.92, 1.19, 0.88])\nse = (np.log(hi) - np.log(lo)) / (2 * 1.96)\nw = 1 / se ** 2\nmu = (w * np.log(est)).sum() / w.sum()\nhalf = 1.96 / np.sqrt(w.sum())\npooled = {k: round(float(np.exp(v)), 3) for k, v in\n          [(\"est\", mu), (\"lo\", mu - half), (\"hi\", mu + half)]}"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axis",
+      "null_line",
+      "title"
+     ],
+     "parallel": true,
+     "speak": "A risk ratio of one means the treatment changed nothing. That dashed line is the claim we are testing."
+    },
+    {
+     "draw": [
+      "study_label_0",
+      "ci_0",
+      "study_0",
+      "est_label_0",
+      "study_label_1",
+      "ci_1",
+      "study_1",
+      "est_label_1"
+     ],
+     "parallel": true,
+     "speak": "Anderson and Bianchi. Each square is an estimate, each whisker the interval it lives inside."
+    },
+    {
+     "draw": [
+      "study_label_2",
+      "ci_2",
+      "study_2",
+      "est_label_2",
+      "study_label_3",
+      "ci_3",
+      "study_3",
+      "est_label_3"
+     ],
+     "parallel": true,
+     "speak": "Carter and Diallo. Every one of them leans left, and not one of them settles the question alone."
+    },
+    {
+     "draw": [
+      "pooled",
+      "pooled_label"
+     ],
+     "parallel": true,
+     "delivery": "grave",
+     "speak": "So Python pooled them, weighting each trial by its precision. The diamond is what four uncertain trials say together: a real reduction, and an interval that finally clears the line."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Compute Kaplan-Meier survival for a treated and a control arm from the death counts, and draw the two curves",
+  "packs": [
+   "evidence"
+  ],
+  "spec": {
+   "title": "Two arms, counted month by month",
+   "template": "survival_curve",
+   "params": {
+    "arms": [
+     {
+      "label": "Treatment",
+      "survival": "{km.treated}",
+      "color": "demand"
+     },
+     {
+      "label": "Standard care",
+      "survival": "{km.control}",
+      "color": "supply"
+     }
+    ],
+    "time_label": "Months",
+    "show_median": false,
+    "title": "Kaplan-Meier, computed from the counts"
+   },
+   "elements": [
+    {
+     "id": "km",
+     "type": "code",
+     "language": "brython",
+     "show": "none",
+     "code": "def km(at_risk, deaths):\n    s, out = 1.0, []\n    for d in deaths:\n        s *= 1 - d / at_risk\n        at_risk -= d\n        out.append(round(s, 3))\n    return out\n\ntreated = km(120, [0, 9, 11, 10, 7, 6])\ncontrol = km(118, [0, 18, 20, 15, 12, 9])"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "title"
+     ],
+     "parallel": true,
+     "speak": "Survival curves are not fitted. They are counted: who is still here at each check-up."
+    },
+    {
+     "draw": [
+      "arm_1",
+      "arm_label_1"
+     ],
+     "speak": "Standard care. Every step down is a month's deaths divided by everyone still at risk that month."
+    },
+    {
+     "draw": [
+      "arm_0",
+      "arm_label_0"
+     ],
+     "delivery": "grave",
+     "speak": "The treated arm falls too — but slower, and the gap between the staircases is the whole trial."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Run a probabilistic sensitivity analysis in Python and let it place the crossing on the acceptability curve",
+  "packs": [
+   "hta"
+  ],
+  "spec": {
+   "title": "What a QALY has to be worth",
+   "template": "ceac",
+   "params": {
+    "strategies": [
+     {
+      "label": "New drug",
+      "midpoint": "{psa.mid}",
+      "rising": true
+     },
+     {
+      "label": "Standard care",
+      "midpoint": "{psa.mid}",
+      "rising": false
+     }
+    ],
+    "thresholds": [
+     30,
+     50
+    ],
+    "x_max": 100,
+    "title": "Probability the new drug is cost-effective"
+   },
+   "elements": [
+    {
+     "id": "psa",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import numpy as np\nrng = np.random.default_rng(4)\ncost = rng.normal(9000, 3000, 4000)\nqaly = rng.normal(0.22, 0.09, 4000)\nwtp = np.arange(1, 101)\np = np.array([(1000 * w * qaly - cost > 0).mean() for w in wtp])\nmid = float(wtp[np.abs(p - 0.5).argmin()])"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "half_line",
+      "title"
+     ],
+     "parallel": true,
+     "speak": "Across the bottom: what we are willing to pay for one extra year of good health."
+    },
+    {
+     "draw": [
+      "threshold_0",
+      "threshold_1"
+     ],
+     "parallel": true,
+     "speak": "Two thresholds a health service might actually name — thirty thousand, and fifty."
+    },
+    {
+     "draw": [
+      "curve_0",
+      "curve_label_0",
+      "curve_1",
+      "curve_label_1"
+     ],
+     "parallel": true,
+     "delivery": "grave",
+     "speak": "Four thousand simulated patients decided where these curves cross. Below that price the old drug still wins; above it, the new one does. The evidence did not give us a yes or a no — it gave us a price."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Compute the difference-in-differences estimate for the New Jersey minimum wage in Python and size the divergence with it",
+  "packs": [
+   "empirics"
+  ],
+  "spec": {
+   "title": "The difference between two differences",
+   "template": "did_trends",
+   "params": {
+    "effect": "{did.effect}",
+    "treat_at": 5,
+    "group_labels": [
+     "New Jersey",
+     "Pennsylvania"
+    ],
+    "y_label": "Jobs per store",
+    "show_counterfactual": true,
+    "title": "A minimum-wage rise next door"
+   },
+   "elements": [
+    {
+     "id": "did",
+     "type": "code",
+     "language": "brython",
+     "show": "none",
+     "code": "fte = {(\"NJ\", \"pre\"): 20.44, (\"NJ\", \"post\"): 21.03,\n       (\"PA\", \"pre\"): 23.33, (\"PA\", \"post\"): 21.17}\neffect = round((fte[(\"NJ\", \"post\")] - fte[(\"NJ\", \"pre\")])\n               - (fte[(\"PA\", \"post\")] - fte[(\"PA\", \"pre\")]), 2)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "title"
+     ],
+     "parallel": true,
+     "speak": "In 1992 New Jersey raised its minimum wage. Pennsylvania, next door, did not."
+    },
+    {
+     "draw": [
+      "control_line",
+      "treated_line"
+     ],
+     "parallel": true,
+     "speak": "Before the change the two states moved together — that shared shape is the whole assumption this method rests on."
+    },
+    {
+     "draw": [
+      "treat_line"
+     ],
+     "speak": "Here the wage floor goes up, in one state only."
+    },
+    {
+     "draw": [
+      "counterfactual",
+      "effect_arrow"
+     ],
+     "parallel": true,
+     "delivery": "grave",
+     "speak": "The dashed path is New Jersey had nothing happened. Python took one difference from the other: jobs did not fall. They rose."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Estimate the post-reform effect and its standard error in Python, then plot the event study with those numbers",
+  "packs": [
+   "empirics"
+  ],
+  "spec": {
+   "title": "Nothing, nothing, nothing — then something",
+   "template": "event_study",
+   "params": {
+    "periods_pre": 5,
+    "periods_post": 5,
+    "effect": "{es.effect}",
+    "ci": "{es.ci}",
+    "pre_trend": 0,
+    "y_label": "Admissions",
+    "title": "What happened after the reform"
+   },
+   "elements": [
+    {
+     "id": "es",
+     "type": "code",
+     "language": "python",
+     "show": "none",
+     "code": "import numpy as np\nrng = np.random.default_rng(3)\npre = rng.normal(0.0, 0.5, 60)\npost = rng.normal(1.2, 0.5, 60)\neffect = round(float(post.mean() - pre.mean()), 2)\nse = np.sqrt(post.var(ddof=1) / 60 + pre.var(ddof=1) / 60)\nci = round(float(1.96 * se), 2)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "zero_line",
+      "title"
+     ],
+     "parallel": true,
+     "speak": "Event time runs across the bottom: quarters before the reform, then quarters after."
+    },
+    {
+     "draw": [
+      "coef_0",
+      "coef_1",
+      "coef_2",
+      "coef_3",
+      "coef_4"
+     ],
+     "parallel": true,
+     "speak": "Before the reform, every estimate sits on zero and its whisker covers zero. That flatness is the licence to believe what comes next."
+    },
+    {
+     "draw": [
+      "treat_line"
+     ],
+     "speak": "The reform lands here."
+    },
+    {
+     "draw": [
+      "coef_5",
+      "coef_6",
+      "coef_7",
+      "coef_8",
+      "coef_9"
+     ],
+     "parallel": true,
+     "delivery": "grave",
+     "speak": "And the coefficients jump — by the amount Python estimated, with whiskers Python's own standard error set. The picture is not an illustration of the result. It is the result."
+    }
+   ]
+  }
  }
 ]

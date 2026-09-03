@@ -4,9 +4,10 @@ description: Survival curves, forest plots, causal DAGs, epidemic compartments a
 ---
 template: survival_curve
 title: Survival curve (Kaplan-Meier)
-version: 1
+version: 2
 kit: 4
 status: ready
+accepts_data: true
 description: >-
   A Kaplan-Meier survival curve: one to three right-continuous step functions
   (the classic KM staircase — a flat segment at the current survival
@@ -15,7 +16,12 @@ description: >-
   each arm's curve crosses 50% survival. Choose this scene for ANY request
   about survival analysis, Kaplan-Meier curves, a survival curve, time-to-
   event data, censoring, median survival, or comparing survival between
-  treatment arms or groups.
+  treatment arms or groups. Each arm's `survival` list takes typed numbers or
+  a code element's variable via a "{id.var}" token — the Kaplan-Meier
+  estimate a script actually computed. TYPE every arm's `label` by hand: the
+  typed names are what keep the arm_i beats alive before the script has run,
+  and an arm still waiting for its numbers draws flat at 100 % survival with
+  no median guide, never an invented staircase.
 params:
   type: object
   properties:
@@ -179,9 +185,10 @@ layout: |
 ---
 template: forest_plot
 title: Forest plot (meta-analysis)
-version: 1
+version: 2
 kit: 2
 status: ready
+accepts_data: true
 description: >-
   A meta-analysis forest plot: one row per study with a square point-
   estimate marker (sized by weight) and a horizontal confidence-interval
@@ -193,7 +200,12 @@ description: >-
   Choose this scene for ANY request about a forest plot, meta-analysis,
   pooled estimate, pooled effect, confidence interval, risk ratio, odds
   ratio, hazard ratio, mean difference, heterogeneity, or combining evidence
-  across studies.
+  across studies. Every estimate takes a typed number or a code element's
+  variable via a "{id.var}" token — a meta-analysis the script actually ran.
+  TYPE each study's `label` (and `measure`) by hand: the typed names are what
+  keep the study_i / ci_i / pooled beats alive before the script has run, and
+  a row still waiting for its numbers draws on the null line with a dash for
+  its value, never an invented interval.
 params:
   type: object
   properties:
@@ -264,6 +276,16 @@ layout: |
   const nullVal = typeof params.null_line === "number" && Number.isFinite(params.null_line) ? params.null_line : (isLog ? 1 : 0);
 
   const studiesRaw = Array.isArray(params.studies) ? params.studies.slice(0, 8) : [];
+  // PENDING rows. A "{id.var}" token the resolver has not filled yet is still
+  // a string where a number belongs — and the editor lints before the script
+  // has run, so that is the normal state of a script-fed forest plot, not an
+  // error. Such a row keeps its place, its typed name and its beats, but
+  // collapses onto the null line with no whisker width and a dash in the value
+  // column: a figure waiting for numbers must never SHOW numbers it invented.
+  // (A hand-authored row missing an endpoint lands here too — the schema
+  // requires all three, so there is nothing honest to draw for it either.)
+  const finite = (v) => typeof v === "number" && Number.isFinite(v);
+  const pending = (s) => !(finite(s && s.est) && finite(s && s.lo) && finite(s && s.hi));
   // Only fall back to a fully canned pair when the caller supplied NO real
   // studies at all — a single real study (schema wants 2+, but a caller
   // might still send one) renders as its own one-row plot instead of being
@@ -272,14 +294,20 @@ layout: |
     { label: "Study A", est: 0.8, lo: 0.6, hi: 1.05 },
     { label: "Study B", est: 0.65, lo: 0.5, hi: 0.85 },
   ]).map((s, i) => {
-    const est = typeof s.est === "number" && Number.isFinite(s.est) ? s.est : nullVal;
-    const lo = typeof s.lo === "number" && Number.isFinite(s.lo) ? s.lo : est * (isLog ? 0.75 : 1) - (isLog ? 0 : 1);
-    const hi = typeof s.hi === "number" && Number.isFinite(s.hi) ? s.hi : est * (isLog ? 1.3 : 1) + (isLog ? 0 : 1);
-    const weight = Math.min(10, Math.max(1, typeof s.weight === "number" && Number.isFinite(s.weight) ? s.weight : 5));
+    const waiting = pending(s);
+    const est = waiting ? nullVal : s.est;
+    const weight = Math.min(10, Math.max(1, finite(s.weight) ? s.weight : 5));
     const label = typeof s.label === "string" && s.label.trim() !== "" ? s.label : "Study " + (i + 1);
-    return { label, est, lo, hi, weight };
+    return { label, est, lo: waiting ? nullVal : s.lo, hi: waiting ? nullVal : s.hi, weight, waiting };
   });
-  const pooledIn = params.pooled && typeof params.pooled.est === "number" && typeof params.pooled.lo === "number" && typeof params.pooled.hi === "number" ? params.pooled : null;
+  const pooledRaw = params.pooled && typeof params.pooled === "object" ? params.pooled : null;
+  // A pooled estimate fed by tokens still mints its diamond and its label —
+  // an author's `draw: ["pooled"]` beat must resolve before the script runs —
+  // as a zero-width diamond on the null with a dash for its value.
+  const pooledIn = pooledRaw
+    ? (pending(pooledRaw) ? { est: nullVal, lo: nullVal, hi: nullVal, waiting: true } : { est: pooledRaw.est, lo: pooledRaw.lo, hi: pooledRaw.hi, waiting: false })
+    : null;
+  const PENDING_TEXT = "—";
 
   const toDomain = (v) => (isLog ? Math.log(Math.max(1e-6, v)) : v);
   const domainVals = [toDomain(nullVal)];
@@ -321,7 +349,8 @@ layout: |
     push(kit.stroke("study_" + i, kit.polygon([estPx, y], halfSize, 4, Math.PI / 4), { closed: true, color: C.ink, fill: C.ink, strokeWidth: 2, ms: MS.dot }));
     anchors["study_" + i] = [estPx, y];
     push(kit.text("study_label_" + i, [LABEL_X, y], s.label, { fontSize: 19, anchor: "end" }));
-    push(kit.text("est_label_" + i, [EST_X, y], s.est.toFixed(2) + " [" + s.lo.toFixed(2) + ", " + s.hi.toFixed(2) + "]", { fontSize: 17, anchor: "start" }));
+    const estText = s.waiting ? PENDING_TEXT : s.est.toFixed(2) + " [" + s.lo.toFixed(2) + ", " + s.hi.toFixed(2) + "]";
+    push(kit.text("est_label_" + i, [EST_X, y], estText, { fontSize: 17, anchor: "start" }));
   });
 
   if (pooledIn) {
@@ -329,7 +358,7 @@ layout: |
     const halfH = 15;
     push(kit.stroke("pooled", [[loPx, POOLED_Y], [estPx, POOLED_Y + halfH], [hiPx, POOLED_Y], [estPx, POOLED_Y - halfH]], { closed: true, color: C.accent, fill: C.accent, strokeWidth: 2.5, ms: MS.dot }));
     anchors.pooled = [estPx, POOLED_Y];
-    const estStr = pooledIn.est.toFixed(2) + " [" + pooledIn.lo.toFixed(2) + ", " + pooledIn.hi.toFixed(2) + "]";
+    const estStr = pooledIn.waiting ? PENDING_TEXT : pooledIn.est.toFixed(2) + " [" + pooledIn.lo.toFixed(2) + ", " + pooledIn.hi.toFixed(2) + "]";
     push(kit.group("pooled_label", [
       kit.text("pooled_label__name", [LABEL_X, POOLED_Y], "Pooled", { fontSize: 19, anchor: "end", color: C.accent }),
       kit.text("pooled_label__stats", [EST_X, POOLED_Y], estStr, { fontSize: 17, anchor: "start", color: C.accent }),
@@ -648,9 +677,10 @@ layout: |
 ---
 template: distribution_curve
 title: Probability distribution curve
-version: 1
+version: 2
 kit: 2
 status: ready
+accepts_data: true
 description: >-
   A probability distribution curve — a normal (Gaussian) bell curve, or a
   right- or left-skewed curve — with a dashed mean guide, optional tick marks
@@ -659,7 +689,12 @@ description: >-
   this scene for ANY request about a normal distribution, bell curve,
   probability distribution, standard deviation, z-score, p-value, a
   statistical significance threshold, a critical region, a skewed
-  distribution, or shading the tail(s) of a distribution.
+  distribution, or shading the tail(s) of a distribution. The shade
+  boundaries take typed numbers or a code element's variable via a "{id.var}"
+  token — a critical value or z-score the script computed — and until it has
+  run the curve draws with the boundary at ±1σ, so the shade beats exist from
+  the first frame. TYPE the shade's `label` and `side` by hand: a token can
+  supply a number, never a mode or a caption.
 params:
   type: object
   properties:

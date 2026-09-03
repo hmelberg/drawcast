@@ -4,9 +4,10 @@ description: Event-study plots, difference-in-differences trends, regression dis
 ---
 template: event_study
 title: Event-study plot
-version: 1
+version: 2
 kit: 4
 status: ready
+accepts_data: true
 description: >-
   An event-study plot: estimated coefficients as dots with confidence-
   interval whiskers at each event time, a dashed zero line, a dashed
@@ -16,7 +17,14 @@ description: >-
   economics. Choose this scene for ANY request about event studies,
   dynamic difference-in-differences coefficients, pre-trends or
   pre-trend tests, treatment-effect dynamics around a policy change, or
-  coefficient-with-confidence-interval plots over event time.
+  coefficient-with-confidence-interval plots over event time. This is a
+  SCHEMATIC — the coefficients are generated from shape knobs, not read from
+  a coefficient vector — but `effect`, `pre_trend` and `ci` take a code
+  element's variable via a "{id.var}" token, so the size of the jump and the
+  width of the whiskers can be what a regression in Python actually
+  estimated. `periods_pre` and `periods_post` stay typed integers (they set
+  the window, they are not data); until the script has run the figure draws
+  its default schematic, so every coef_i beat already exists.
 params:
   type: object
   properties:
@@ -131,9 +139,10 @@ layout: |
 ---
 template: did_trends
 title: Difference-in-differences trends
-version: 1
+version: 2
 kit: 4
 status: ready
+accepts_data: true
 description: >-
   The difference-in-differences picture: treated and control group outcome
   lines over time moving in parallel before a policy, a dashed vertical
@@ -142,7 +151,12 @@ description: >-
   counterfactual and actual at the end. Choose this scene for ANY request
   about difference-in-differences, DiD, parallel trends, treated vs control
   groups over time, policy evaluation with before/after comparison, or
-  counterfactual outcome paths.
+  counterfactual outcome paths. This is a SCHEMATIC — the two paths are drawn
+  from shape knobs, not from a data series — but `effect` and `treat_at` take
+  a code element's variable via a "{id.var}" token, so the divergence can be
+  the coefficient a regression in Python actually estimated. TYPE the
+  `group_labels` by hand; until the script has run the figure draws its
+  default schematic, so every beat already exists.
 params:
   type: object
   properties:

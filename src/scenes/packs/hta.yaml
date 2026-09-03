@@ -4,9 +4,10 @@ description: Cost-effectiveness acceptability curves and tornado diagrams — th
 ---
 template: ceac
 title: Cost-effectiveness acceptability curve
-version: 1
+version: 2
 kit: 4
 status: ready
+accepts_data: true
 description: >-
   A cost-effectiveness acceptability curve (CEAC): the probability that
   each strategy is cost-effective (y, 0 to 1) against the willingness-to-
@@ -16,7 +17,13 @@ description: >-
   conventional thresholds. Choose this scene for ANY request about CEACs,
   acceptability curves, probabilistic sensitivity analysis summaries, the
   probability a treatment is cost-effective, or willingness-to-pay
-  thresholds per QALY.
+  thresholds per QALY. Every number here — a strategy's `midpoint` and
+  `width`, the `thresholds` list, `x_max` — takes a typed value or a code
+  element's variable via a "{id.var}" token, so a PSA run in Python can place
+  the crossing itself. TYPE each strategy's `label` and `rising` by hand: a
+  token supplies a number, never a name or a direction, and until the script
+  has run the curves draw at their default crossing so the curve_i beats
+  already exist.
 params:
   type: object
   properties:
