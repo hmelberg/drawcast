@@ -604,6 +604,87 @@ CSS names per element, two-valued (`normal` | `bold`, `normal` | `italic`),
 synthesized by the browser on the handwriting face and identical in export.
 No viewer override for either — emphasis is the maker's.
 
+## Charts and races — done 2026-09-03
+
+Hans asked which further chart types were worth building, and the evaluation
+overturned the answer given in the M2 planning session. Histogram and box plot
+were already answered — `bar_chart`'s own description routes histograms to it,
+the data-bridge spec had ruled both out, and the catalogue already ships
+`sampling_dist`, `galton_board`, `distribution_curve` and `binscatter`. The
+scarce asset was never chart types: token substitution is not pack-gated
+(`render/code.ts`, `spec/schema.ts` check only that the id names a code
+element), so what the data pack actually owned was token-tolerant *schemas*,
+staged values and the numeric `stage` the animate verb tweens — an idiom that
+reached four templates of sixty-four.
+
+Delivered: `stacked` on `bar_chart`; `slope` with `color_by: "direction"` on
+`line_chart`; a new **`bar_race`** (horizontal or vertical, ranked or fixed, a
+`top_n` field racers slide into and out of, a year ticker, value labels riding
+the bars); the **line race** as three additions to `line_chart` (`ticker`, a
+sliding `x_window`, `label_top`) rather than a new template, because
+`line_chart` already did staged values, prefix reveal and end labels; optional
+`easing` on the animate command, where absent keeps the historical smoothstep
+byte for byte; a new **`heatmap`** (graded ink wash, a label flip decided by
+computed luminance, `box`); the **`accepts_data`** flag, which widens a
+template's params schema in one place instead of sixty hand edits; and six
+templates retrofitted onto it — `distribution_curve`, `forest_plot`,
+`survival_curve`, `ceac`, `did_trends`, `event_study`.
+
+Two rulings decide whether a race looks right, and both are in
+`plans/2026-09-03-charts-round-ledger.md` with the other twenty-two. Rank is
+computed at each integer stage and then **interpolated**, never recomputed from
+interpolated values — ranking the interpolation holds a racer in its row until
+the crossing frame and then jumps it, and the difference was proved against a
+naive twin that snaps. And a racer's ids and colours follow the **racer, not
+the rank**, because the rough.js seed is `hashSeed(drawable.id)`: a rank-keyed
+id re-rolls a bar's sketchy stroke at the exact moment of an overtake.
+
+`null` in a values row means **absent, not zero**, across `bar_race`,
+`line_chart` and `heatmap` — the chess race was labelling an unrated player
+"1345" mid-tween until it did.
+
+Performance: `npm run smoke:race` measures **~1.5 ms median and 4 ms
+worst-case per frame** (layout plus rough.js path generation) against a 16.7 ms
+budget for 60 fps. It is a CPU-time proxy and says so — it excludes DOM
+construction, paint and compositing, and the number must never be quoted as
+"fps in Chrome". The same harness lints every stage of a race, exempting the
+one-frame overlap of an overtake (which is what an overtake looks like) and
+nothing else, and carries an adversarial self-check that must fail so drift in
+that exemption announces itself. `npm run sweep:round` lints every bundled
+example at every stage it can reach.
+
+Two gaps in the round's own evidence were found and closed: the bundled-example
+test asserted only `severity === "error"`, so every warn-level overlap shipped
+silently — and nothing anywhere checked that a template's examples satisfy that
+template's own schema, which matters because `catalog.ts` shows the schema and
+the examples to the compiler together. Both are now pinned. Along the way two
+templates were caught inventing data: `forest_plot` printed
+`1.00 [0.75, 1.30]` for an interval it did not have.
+
+### Follow-ups this round deliberately left
+
+- **`bar_race` has no `box`.** Every other data-pack template can share a
+  canvas with a code panel; the heatmap gained one mid-round on an argument
+  that applies verbatim to a race.
+- **Label-versus-unlabeled-stroke collisions.** The dodge defends labels
+  against each other and against the ticker, not against a third series' line.
+  It is why the chess line race ships `label_top: 2`.
+- **`tray-model.ts` cannot tell a matrix from stages of a matrix**, so
+  `heatmap` opts out of the stage slider and moves by `animate` alone.
+- **`ticker` is documented as "ignored in slope mode" but is not** — the draw
+  has no `!slope` guard. The behaviour is safe; the description is wrong, and
+  descriptions feed few-shots.
+- **Hoist the ellipsis-truncation loop into the kit** (`kit.ellipsize`): four
+  bodies inline it and a fifth has already factored it — the next
+  `X_CAPTION_DROP`-shaped cleanup.
+- **`bar_chart` maps `null` to 0** while the rest of the pack treats it as
+  absent. Documented rather than unified.
+- **A coefficient-fed `event_study`.** The retrofit gives `did_trends` and
+  `event_study` a scalar knob, not a vector: they were built as teaching
+  diagrams, and plotting real estimates is a redesign. Their descriptions say
+  SCHEMATIC out loud and name their silent clamps; an author with real
+  coefficients has `line_chart` and `scatter_plot`.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
