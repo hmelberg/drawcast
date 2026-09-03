@@ -31,11 +31,33 @@
 // ledger): the offline `examples.test.ts` only ever lays out a spec at its
 // resting stage (or the exact integer stage an `animate` command names), so it
 // can never see an overlap that exists only strictly between two integer
-// stages. This script samples fractional stages across a race and asserts
-// `layoutSpec(spec, stage).issues` is empty at every one — for a synthetic
-// 20-racer/60-stage race, and for every genuinely staged bar_race and
-// line_chart example bundled in the data pack, read from the registered
-// template manifests (not hand-copied) so the shipped few-shots stay covered.
+// stages. This script checks EVERY integer stage of a race, and 12 fractional
+// stages sampled across it, and asserts `layoutSpec(spec, stage).issues` is
+// empty — for a synthetic 20-racer/60-stage race, and for every genuinely
+// staged bar_race and line_chart example bundled in the data pack, read from
+// the registered template manifests (not hand-copied) so the shipped
+// few-shots stay covered.
+//
+// EXPECTED-CROSSING EXEMPTION (implements a recorded ruling, T5-A, from this
+// round — not a weakening added to get this gate green). When two racers'
+// interpolated ranks cross, they occupy the same row for the frame of the
+// crossing and their names/values coincide there: that is what an overtake
+// looks like, and the alternative is the rank-snapping bar_race exists to
+// avoid (its own manifest description says so). The evidence standard T5-A
+// set is "every INTEGER stage lints clean" — integer stages are where a
+// viewer pauses, scrubs and reads, and there is no rank interpolation at an
+// integer stage at all (ranks are a plain sort there), so two racers can
+// never legitimately share a row at one. So: at every INTEGER stage, ANY
+// issue fails, no exemption. At a FRACTIONAL stage, an `overlap-label-label`
+// between two DIFFERENT racers' own labels (the `race_<n>` / `race_<n>_text`
+// / `race_<n>_value` id family) is counted as an expected crossing and does
+// NOT fail; every other issue at a fractional stage still fails, including
+// out-of-canvas, font-too-small, overlap-label-stroke, and any overlap that
+// touches furniture (axes, ticker, title, note) or two sub-drawables of the
+// SAME racer. A crossing is two racers passing each other; a label colliding
+// with the furniture, or with itself, is not. Expected-crossing counts are
+// printed per race so a reader can see the gate is discriminating rather than
+// blind — an implausibly high count is worth a human's eye.
 //
 // Runs the real app code: a Vite SSR module graph (`server.ssrLoadModule`) —
 // the same mechanism vite-node/Vitest use — loads src/layout/layout.ts,
@@ -255,6 +277,34 @@ function midpointStages(maxStage, n) {
   return Array.from({ length: n }, (_, i) => ((i + 0.5) / n) * maxStage);
 }
 
+/** Every integer stage from 0 to maxStage inclusive — the frames a viewer
+ *  actually pauses, scrubs and reads (T5-A's evidence standard). */
+function integerStages(maxStage) {
+  return Array.from({ length: Math.floor(maxStage) + 1 }, (_, k) => k);
+}
+
+/** A bar_race racer's own drawable id — its bar (`race_<n>`) or a
+ *  `race_<n>_text` / `race_<n>_value` sub-drawable (SUB_SUFFIXES,
+ *  src/layout/model.ts). Returns the racer's numeric index, or null for any
+ *  other id (axes, ticker, title, note, ...). */
+function racerIndex(id) {
+  const m = /^race_(\d+)(?:_text|_value)?$/.exec(id);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * True for the ONE class of issue T5-A accepts: an overlap-label-label
+ * between two DIFFERENT racers' own labels, at a fractional stage. See the
+ * header comment for the ruling and the reasoning. Two sub-drawables of the
+ * SAME racer overlapping each other (ra === rb) is a real defect, not a
+ * crossing, and is deliberately NOT exempted here.
+ */
+function isExpectedCrossing(issue) {
+  if (issue.rule !== "overlap-label-label") return false;
+  const [ra, rb] = issue.ids.map(racerIndex);
+  return ra !== null && rb !== null && ra !== rb;
+}
+
 function median(sorted) {
   const n = sorted.length;
   return n % 2 === 1 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
@@ -297,7 +347,7 @@ async function main() {
     // Part 1 — performance measurement (CPU-time proxy)
     // =========================================================================
     console.log("=".repeat(78));
-    console.log("RACE PERFORMANCE — CPU-time proxy (Node), NOT painted-frame fps in Chrome");
+    console.log("RACE PERFORMANCE — CPU-time proxy (Node): layout + rough.js path generation");
     console.log("=".repeat(78));
 
     const RACERS = 20;
@@ -335,50 +385,80 @@ async function main() {
     console.log("");
     console.log(`  layout only   (layoutSpec)        median ${fmt(median(layouts))}   worst ${fmt(layouts[layouts.length - 1])}`);
     console.log(`  rough.js gen  (generator.toPaths) median ${fmt(median(roughs))}   worst ${fmt(roughs[roughs.length - 1])}`);
-    console.log(`  TOTAL/frame   (layout + rough)     median ${fmt(medTotal)}   worst ${fmt(worstTotal)}   p95 ${fmt(p95Total)}`);
     console.log("");
-    for (const [label, budget] of [["60 fps (16.7 ms/frame)", 16.7], ["50 fps (20 ms/frame — the §7.3 gate)", 20]]) {
+    console.log(`  RESULT: median ${fmt(medTotal)} / worst ${fmt(worstTotal)} per frame of layout + rough.js path generation (p95 ${fmt(p95Total)}).`);
+    console.log("");
+    for (const [label, budget] of [["16.7 ms (the 60 fps frame budget)", 16.7], ["20 ms (the §7.3 gate's 50 fps frame budget)", 20]]) {
       const medOk = medTotal <= budget;
       const worstOk = worstTotal <= budget;
       console.log(
-        `  vs ${label}: median leaves ${(budget - medTotal).toFixed(2)} ms slack (${medOk ? "fits" : "OVER budget"}); ` +
-          `worst-case leaves ${(budget - worstTotal).toFixed(2)} ms slack (${worstOk ? "fits" : "OVER budget"})`,
+        `  headroom vs ${label}: median leaves ${(budget - medTotal).toFixed(2)} ms (${medOk ? "fits" : "OVER budget"}); ` +
+          `worst-case leaves ${(budget - worstTotal).toFixed(2)} ms (${worstOk ? "fits" : "OVER budget"})`,
       );
     }
     console.log("");
-    console.log("  This is a CPU-TIME PROXY measured in Node, not fps measured in a browser.");
-    console.log("  It EXCLUDES: DOM node construction/attachment (createElementNS + setAttribute");
-    console.log("  per path — real work .draw() does that .toPaths() skips), browser layout/paint,");
-    console.log("  and GPU compositing. Treat it as the floor a real browser frame cannot beat,");
-    console.log("  not as a measured frame rate. Record the numbers above in the ledger.");
+    console.log("  This is a CPU-TIME PROXY measured in Node — it is NOT a frames-per-second");
+    console.log("  figure and is never converted into one. It EXCLUDES: DOM node construction");
+    console.log("  and attachment (createElementNS + setAttribute per path — real work .draw()");
+    console.log("  does that .toPaths() skips), browser layout/paint, and GPU compositing. What");
+    console.log("  matters is the headroom against 16.7 ms above, not a derived rate. Record the");
+    console.log("  median/worst ms above in the ledger — do not restate them as an fps number.");
     console.log("=".repeat(78));
     console.log("");
 
     // =========================================================================
     // Part 2 — per-stage runtime lint
     // =========================================================================
-    console.log("PER-STAGE RUNTIME LINT — layoutSpec(spec, stage).issues at fractional stages");
+    console.log("PER-STAGE RUNTIME LINT — layoutSpec(spec, stage).issues, every integer stage");
+    console.log("plus 12 fractional stages, with the T5-A expected-crossing exemption applied");
+    console.log("only at fractional stages (see header comment for the ruling).");
     console.log("-".repeat(78));
 
     const LINT_SAMPLES = 12;
+    const fmtIssue = (i) => `[${i.severity}] ${i.rule}: ${i.message}`;
 
-    const lintOne = (label, template, params, stage) => {
-      const l = layoutSpec({ template, params: { ...params, stage } });
-      if (l.issues.length > 0) {
-        lintFailures.push({ label, stage, issues: l.issues.map((i) => `[${i.severity}] ${i.rule}: ${i.message}`) });
+    /**
+     * Checks one race (a template + params, over its own maxStage) against
+     * the T5-A standard: every INTEGER stage must lint fully clean (no
+     * exemption at all); every FRACTIONAL stage must lint clean once expected
+     * crossings (isExpectedCrossing) are set aside. Pushes real failures onto
+     * the shared `lintFailures`; returns how many expected crossings it saw,
+     * for the per-race "expected crossings: N" line.
+     */
+    const checkRace = (label, template, params, raceMaxStage) => {
+      let crossings = 0;
+      for (const stage of integerStages(raceMaxStage)) {
+        const l = layoutSpec({ template, params: { ...params, stage } });
+        if (l.issues.length > 0) {
+          lintFailures.push({ label, stage, kind: "integer", issues: l.issues.map(fmtIssue) });
+        }
       }
+      for (const stage of midpointStages(raceMaxStage, LINT_SAMPLES)) {
+        const l = layoutSpec({ template, params: { ...params, stage } });
+        const real = [];
+        for (const issue of l.issues) {
+          if (isExpectedCrossing(issue)) crossings++;
+          else real.push(issue);
+        }
+        if (real.length > 0) lintFailures.push({ label, stage, kind: "fractional", issues: real.map(fmtIssue) });
+      }
+      return crossings;
     };
 
     // The synthetic race itself.
-    for (const stage of midpointStages(maxStage, LINT_SAMPLES)) lintOne("synthetic 20-racer race", "bar_race", race, stage);
-    console.log(`  synthetic 20-racer/60-stage race: ${LINT_SAMPLES} fractional stages checked`);
+    {
+      const crossings = checkRace("synthetic 20-racer race", "bar_race", race, maxStage);
+      console.log(
+        `  synthetic 20-racer/60-stage race: ${maxStage + 1} integer stages + ${LINT_SAMPLES} fractional stages checked — expected crossings: ${crossings}`,
+      );
+    }
 
     // Every bundled bar_race / line_chart example that is genuinely staged
     // (a stage slider exists — sliderSpecs is the app's own derivation of
     // that, src/ui/tray-model.ts), read straight off the registered manifest.
     // A single-stage example has only one frame to ever lay out, and that
     // frame is already exhaustively covered by tests/examples.test.ts, so it
-    // is skipped here as redundant rather than re-checked at 12 copies of the
+    // is skipped here as redundant rather than re-checked at N copies of the
     // same stage.
     let exampleCount = 0;
     for (const templateId of ["bar_race", "line_chart"]) {
@@ -394,21 +474,22 @@ async function main() {
         const stageSlider = sliders.find((s) => s.path === "stage");
         if (!stageSlider) continue; // single-stage example — covered by examples.test.ts already
         exampleCount++;
-        for (const stage of midpointStages(stageSlider.max, LINT_SAMPLES)) {
-          lintOne(`${templateId} example: "${ex.request}"`, templateId, ex.params, stage);
-        }
-        console.log(`  ${templateId} example "${ex.request.slice(0, 56)}${ex.request.length > 56 ? "…" : ""}" (max stage ${stageSlider.max}): ${LINT_SAMPLES} fractional stages checked`);
+        const crossings = checkRace(`${templateId} example: "${ex.request}"`, templateId, ex.params, stageSlider.max);
+        const title = ex.request.length > 56 ? `${ex.request.slice(0, 56)}…` : ex.request;
+        console.log(
+          `  ${templateId} example "${title}" (max stage ${stageSlider.max}): ${stageSlider.max + 1} integer + ${LINT_SAMPLES} fractional stages checked — expected crossings: ${crossings}`,
+        );
       }
     }
     console.log(`  (${exampleCount} bundled staged examples covered across bar_race + line_chart)`);
     console.log("");
 
     if (lintFailures.length === 0) {
-      console.log(`PASS — no lint issue at any sampled fractional stage.`);
+      console.log("PASS — every integer stage lints fully clean; every fractional-stage issue was an expected crossing.");
     } else {
-      console.error(`FAIL — ${lintFailures.length} sampled (stage, issue) pair(s) found:`);
+      console.error(`FAIL — ${lintFailures.length} real (stage, issue) pair(s) found (expected crossings excluded):`);
       for (const f of lintFailures) {
-        console.error(`  ${f.label} @ stage ${f.stage.toFixed(3)}:`);
+        console.error(`  ${f.label} @ ${f.kind} stage ${f.stage.toFixed(3)}:`);
         for (const issue of f.issues) console.error(`    ${issue}`);
       }
       process.exitCode = 1;
