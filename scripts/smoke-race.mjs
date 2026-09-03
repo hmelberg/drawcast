@@ -38,39 +38,43 @@
 // the registered template manifests (not hand-copied) so the shipped
 // few-shots stay covered.
 //
-// EXPECTED-CROSSING EXEMPTION (implements a recorded ruling, T5-A, from this
-// round — not a weakening added to get this gate green). When two racers'
-// interpolated ranks cross, they occupy the same row for the frame of the
-// crossing and their names/values coincide there: that is what an overtake
-// looks like, and the alternative is the rank-snapping bar_race exists to
-// avoid (its own manifest description says so). The evidence standard T5-A
-// set is "every INTEGER stage lints clean" — integer stages are where a
-// viewer pauses, scrubs and reads, and there is no rank interpolation at an
-// integer stage at all (ranks are a plain sort there), so two racers can
-// never legitimately share a row at one. So: at every INTEGER stage, ANY
-// issue fails, no exemption. At a FRACTIONAL stage, an `overlap-label-label`
-// between two DIFFERENT racers' own labels (the `race_<n>` / `race_<n>_text`
-// / `race_<n>_value` id family) is counted as an expected crossing and does
-// NOT fail; every other issue at a fractional stage still fails, including
-// out-of-canvas, font-too-small, overlap-label-stroke, and any overlap that
-// touches furniture (axes, ticker, title, note) or two sub-drawables of the
-// SAME racer. A crossing is two racers passing each other; a label colliding
-// with the furniture, or with itself, is not. Expected-crossing counts are
-// printed per race so a reader can see the gate is discriminating rather than
-// blind — an implausibly high count is worth a human's eye.
+// EXPECTED-CROSSING EXEMPTION — now ONE rule, and it lives in src/lint/lint.ts
+// (2026-09-03, Hans's race-label ruling). This script used to carry its own
+// id-pattern matcher (`isExpectedCrossing`, matching /^race_(\d+)…/) and apply
+// it only at fractional stages. That was a second, differently-shaped copy of
+// a rule the lint did not know about, and it could only ever describe
+// bar_race. The rule now belongs to the drawables themselves: a race template
+// stamps `crossing: "<mover id>"` on the labels and lines that MOVE, and
+// lintLayout accepts an overlap between two DIFFERENT movers — and nothing
+// else. So this harness no longer classifies anything; it reads the same
+// function every caller reads.
 //
-// SELF-CHECK (proves the exemption still refuses a real collision). Every
-// bar_race template tried against a real furniture overlap has come back
-// clean — its clearsTicker fallback (data.yaml) is, empirically, airtight —
-// so this file has no positive case of its own proving isExpectedCrossing
-// actually refuses a non-racer overlap rather than accidentally exempting
-// everything. So the script defines one minimal, deliberately-broken scene
-// entirely in this file (never touching src/ or a bundled example) that
-// reuses the race_<n> id family and places a value label directly on a
-// ticker-like furniture box past a threshold stage, with NO avoidance — on
-// purpose, permanently. Its expectation is INVERTED: it is required to FAIL
-// checkRace. If it ever stops failing, the exemption has drifted too wide,
-// and that is reported as the gate's real failure.
+// What that means here: `layoutSpec(spec, stage).issues` is already the real
+// list at EVERY stage, integer or fractional, so any issue at any stage fails
+// the gate. The accepted crossings are still reported — `lintLayoutDetailed`
+// returns them as `exempt`, so the counts printed per race come from the
+// shipped rule rather than from a restatement of it. An implausibly high
+// count is still worth a human's eye.
+//
+// Why the integer/fractional split is gone: it encoded "two racers can never
+// legitimately share a row at an integer stage", which stays true (ranks are
+// a plain sort there, no interpolation) — but it is now enforced by geometry
+// rather than by the gate, and the ruling extends the acceptance to a line
+// race, whose names can sit close at any stage at all, integer included.
+//
+// SELF-CHECK (proves the exemption still refuses a real collision, and proves
+// it fires when it should). The real bar_race has never produced a furniture
+// overlap — its clearsTicker fallback (data.yaml) is, empirically, airtight —
+// so this file defines one minimal, deliberately-broken scene entirely in
+// itself (never touching src/ or a bundled example) that carries `crossing`
+// keys and asserts three things at once:
+//   1. a mover's label driven onto the UNKEYED ticker is a real failure;
+//   2. two labels of the SAME mover overlapping is a real failure;
+//   3. two DIFFERENT movers' labels overlapping is exempt — and shows up in
+//      `exempt`, so the exemption is proven to fire, not merely to be absent.
+// Expectations 1 and 2 are INVERTED: the fixture is REQUIRED to fail. If it
+// ever stops failing, the exemption has drifted too wide, and that is
+// reported as the gate's real failure.
 //
 // Runs the real app code: a Vite SSR module graph (`server.ssrLoadModule`) —
 // the same mechanism vite-node/Vitest use — loads src/layout/layout.ts,
@@ -296,28 +300,6 @@ function integerStages(maxStage) {
   return Array.from({ length: Math.floor(maxStage) + 1 }, (_, k) => k);
 }
 
-/** A bar_race racer's own drawable id — its bar (`race_<n>`) or a
- *  `race_<n>_text` / `race_<n>_value` sub-drawable (SUB_SUFFIXES,
- *  src/layout/model.ts). Returns the racer's numeric index, or null for any
- *  other id (axes, ticker, title, note, ...). */
-function racerIndex(id) {
-  const m = /^race_(\d+)(?:_text|_value)?$/.exec(id);
-  return m ? Number(m[1]) : null;
-}
-
-/**
- * True for the ONE class of issue T5-A accepts: an overlap-label-label
- * between two DIFFERENT racers' own labels, at a fractional stage. See the
- * header comment for the ruling and the reasoning. Two sub-drawables of the
- * SAME racer overlapping each other (ra === rb) is a real defect, not a
- * crossing, and is deliberately NOT exempted here.
- */
-function isExpectedCrossing(issue) {
-  if (issue.rule !== "overlap-label-label") return false;
-  const [ra, rb] = issue.ids.map(racerIndex);
-  return ra !== null && rb !== null && ra !== rb;
-}
-
 function median(sorted) {
   const n = sorted.length;
   return n % 2 === 1 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
@@ -342,6 +324,11 @@ async function main() {
     const { leafDrawables } = await server.ssrLoadModule("/src/layout/model.ts");
     const { toSvgY } = await server.ssrLoadModule("/src/layout/canvas.ts");
     const { isExactArea } = await server.ssrLoadModule("/src/render/svg-backend.ts");
+    // The SHIPPED rule, read straight off the module every other caller reads
+    // — `issues` is what layoutSpec already returned, `exempt` is the accepted
+    // crossings it dropped. No classification of its own lives in this file.
+    const { lintLayoutDetailed } = await server.ssrLoadModule("/src/lint/lint.ts");
+    const { heuristicMeasure } = await server.ssrLoadModule("/src/layout/measure.ts");
     const { registerPack } = await server.ssrLoadModule("/src/scenes/packs.ts");
     const { scenes } = await server.ssrLoadModule("/src/scenes/registry.ts");
     const { sliderSpecs } = await server.ssrLoadModule("/src/ui/tray-model.ts");
@@ -423,38 +410,55 @@ async function main() {
     // Part 2 — per-stage runtime lint
     // =========================================================================
     console.log("PER-STAGE RUNTIME LINT — layoutSpec(spec, stage).issues, every integer stage");
-    console.log("plus 12 fractional stages, with the T5-A expected-crossing exemption applied");
-    console.log("only at fractional stages (see header comment for the ruling).");
+    console.log("plus 12 fractional stages. ANY issue at ANY stage fails; the accepted");
+    console.log("crossings are counted from lintLayoutDetailed's own `exempt` list.");
     console.log("-".repeat(78));
 
     const LINT_SAMPLES = 12;
     const fmtIssue = (i) => `[${i.severity}] ${i.rule}: ${i.message}`;
 
     /**
-     * Checks one race (a template + params, over its own maxStage) against
-     * the T5-A standard: every INTEGER stage must lint fully clean (no
-     * exemption at all); every FRACTIONAL stage must lint clean once expected
-     * crossings (isExpectedCrossing) are set aside. Returns the real
-     * (non-exempt) failures found and how many expected crossings it saw —
-     * the caller decides what to do with them (a normal race pushes real
-     * failures onto `lintFailures`; the self-check below inverts that).
+     * Checks one race (a template + params, over its own maxStage): every
+     * stage, integer and fractional, must have an EMPTY `issues` list. The
+     * accepted crossings never reach that list at all — lintLayout drops them
+     * — so they are collected separately, from the same function, purely to
+     * be reported. The caller decides what to do with the failures (a normal
+     * race pushes them onto `lintFailures`; the self-check below inverts it).
      */
     const checkRace = (template, params, raceMaxStage) => {
       let crossings = 0;
       const realFailures = [];
-      for (const stage of integerStages(raceMaxStage)) {
+      const sweep = (stage, kind) => {
         const l = layoutSpec({ template, params: { ...params, stage } });
-        if (l.issues.length > 0) realFailures.push({ stage, kind: "integer", issues: l.issues.map(fmtIssue) });
-      }
-      for (const stage of midpointStages(raceMaxStage, LINT_SAMPLES)) {
-        const l = layoutSpec({ template, params: { ...params, stage } });
-        const real = [];
-        for (const issue of l.issues) {
-          if (isExpectedCrossing(issue)) crossings++;
-          else real.push(issue);
+        if (l.issues.length > 0) realFailures.push({ stage, kind, issues: l.issues.map(fmtIssue), raw: l.issues, lint: true });
+        const exempt = lintLayoutDetailed(l.drawables, heuristicMeasure).exempt;
+        crossings += exempt.length;
+        // AN EXCUSED OVERLAP MUST NOT BE A SILENT ONE. The lint accepts a
+        // crossing because the template dims the ink that collides; if the
+        // two ever disagree, the exemption becomes an invisible licence to
+        // ship a collision that still looks broken. (That disagreement was
+        // real: line_chart first measured L.pts while the lint measured the
+        // degenerate 2-point stroke a single-point series actually draws, so
+        // an exempted overlap went undimmed.) Every TEXT named in an exempt
+        // issue must therefore carry less than full ink.
+        const byId = new Map(leafDrawables(l.drawables).map((d) => [d.id, d]));
+        for (const issue of exempt) {
+          for (const id of issue.ids) {
+            const d = byId.get(id);
+            if (d && d.kind === "text" && d.style.opacity >= 1) {
+              realFailures.push({
+                stage,
+                kind,
+                issues: [`[gate] undimmed accepted crossing: "${id}" is excused by the crossing rule but drawn at full ink — ${fmtIssue(issue)}`],
+                raw: [issue],
+                lint: false, // a gate-invariant failure, NOT the lint refusing the pair
+              });
+            }
+          }
         }
-        if (real.length > 0) realFailures.push({ stage, kind: "fractional", issues: real.map(fmtIssue) });
-      }
+      };
+      for (const stage of integerStages(raceMaxStage)) sweep(stage, "integer");
+      for (const stage of midpointStages(raceMaxStage, LINT_SAMPLES)) sweep(stage, "fractional");
       return { crossings, realFailures };
     };
 
@@ -504,32 +508,32 @@ async function main() {
     console.log("");
 
     // -------------------------------------------------------------------
-    // Self-check: prove the exemption still refuses a REAL collision.
+    // Self-check: prove the exemption fires where it should and REFUSES
+    // everywhere else.
     //
-    // Every failure demonstrated so far (fix round 1) needed a source
-    // perturbation nobody ships: the real bar_race's clearsTicker fallback
-    // (data.yaml) is, empirically, airtight against every legitimate params
-    // combination tried — it always either repositions a value label clear
-    // of the ticker or omits the label rather than draw a collision. So the
-    // shipped script, run against today's real templates, has no positive
-    // proof that isExpectedCrossing actually refuses a non-racer overlap —
-    // only a throwaway copy of the logic, run separately, showed that.
+    // The real bar_race has never produced a furniture overlap — its
+    // clearsTicker fallback (data.yaml) is, empirically, airtight against
+    // every legitimate params combination tried — so the shipped script, run
+    // against today's real templates, has no positive proof of either half of
+    // the rule. This fixture supplies both without touching src/ or a bundled
+    // example (both off-limits for this harness): a minimal scene defined
+    // ENTIRELY in this file and registered into the in-memory `scenes`
+    // registry for the duration of this run only, carrying real `crossing`
+    // keys so the shipped predicate is genuinely exercised.
     //
-    // This fixture closes that gap without touching src/ or the bundled
-    // examples (both off-limits for this harness): a minimal scene, defined
-    // ENTIRELY in this file and registered directly into the in-memory
-    // `scenes` registry for the duration of this run only, reusing the
-    // race_<n> id family so the matcher is genuinely exercised. Below its
-    // threshold stage the racer's value sits harmlessly aside (mirroring "a
-    // long, late-growing bottom-row racer" before it has grown); past it,
-    // the value is placed EXACTLY on the ticker's own box — deliberately,
-    // permanently, with no clearsTicker-style avoidance, because avoiding it
-    // is not the point: catching it is.
-    //
-    // The expectation is INVERTED: this fixture is REQUIRED to produce a
-    // real (non-exempt) failure. If it ever stops failing, isExpectedCrossing
-    // (or something upstream of it) has drifted wide enough to swallow a
-    // genuine defect, and that is reported as the actual gate failure.
+    // Three deliberate collisions, permanently, on purpose:
+    //   1. race_4_value driven EXACTLY onto the ticker's own box past stage 2
+    //      (the ticker carries NO crossing key — furniture never does), with
+    //      no clearsTicker-style avoidance. MUST be a real failure.
+    //   2. race_3_value laid on race_3_text — the SAME mover, which is not an
+    //      overtake however much it looks like one. MUST be a real failure.
+    //   3. race_1_text and race_2_text laid on each other — two DIFFERENT
+    //      movers. MUST NOT be a failure, and MUST appear in `exempt`, so
+    //      "no failure" is proven to be the exemption firing rather than the
+    //      collision quietly not existing.
+    // Expectations 1 and 2 are INVERTED: the fixture is REQUIRED to fail. If
+    // it ever stops failing, or 3 stops being exempted, the rule has drifted
+    // and that is reported as the gate's real failure.
     // -------------------------------------------------------------------
     console.log("SELF-CHECK — harness-only adversarial fixture (not bar_race, not a bundled example, not in src/)");
     const SELF_CHECK_TEMPLATE = "__smoke_race_selfcheck";
@@ -557,17 +561,27 @@ async function main() {
         for (let i = 1; i <= N; i++) {
           const y = 100 + 90 * i; // rows at y = 190, 280, 370, 460 — all well inside the 750-tall canvas
           push({ id: `race_${i}`, kind: "area", z: 0, style: { ...style, fill: "#8a5fa8" }, drawOpts: instant, pts: [[60, y - 20], [140, y - 20], [140, y + 20], [60, y + 20]] });
-          // anchor "end" at x=200 keeps the whole label (~70 units wide) inside
-          // the 1000-wide canvas with margin either side of every other label.
-          push({ id: `race_${i}_text`, kind: "text", z: 2, style, drawOpts: instant, pos: [200, y], text: `Racer ${i}`, fontSize: 16, anchor: "end" });
+          // Case 3: racer 2's name is parked ON racer 1's row, permanently —
+          // two different movers, so this pair must never be reported.
+          // anchor "end" at x=200 keeps the whole label (~70 units wide)
+          // inside the 1000-wide canvas with margin either side.
+          const ly = i === 2 ? 190 : y;
+          // Racers 1 and 2 are the accepted crossing, so they carry the
+          // softened ink a real template gives a crossing — the gate requires
+          // an excused overlap to be a visibly dimmed one.
+          const ink = i <= 2 ? { ...style, opacity: 0.85 } : style;
+          push({ id: `race_${i}_text`, kind: "text", z: 2, style: ink, drawOpts: instant, crossing: `race_${i}`, pos: [200, ly], text: `Racer ${i}`, fontSize: 16, anchor: "end" });
         }
+        // Case 2: racer 3's own value laid on racer 3's own name. Same
+        // crossing key, so it is a defect, not an overtake.
+        push({ id: "race_3_value", kind: "text", z: 2, style, drawOpts: instant, crossing: "race_3", pos: [200, 370], text: "77", fontSize: 16, anchor: "end" });
         const tickerPos = [900, 90]; // bottom-right corner, mirroring bar_race's own ticker spot
-        // Harmless while `stage <= 2` — parked in an empty stretch of canvas
-        // nowhere near any other label (racer hasn't "grown" yet). Driven
-        // EXACTLY onto the ticker's own box past the threshold — no avoidance,
-        // by design: that IS the fixture, not a bug waiting to be fixed.
+        // Case 1: harmless while `stage <= 2` — parked in an empty stretch of
+        // canvas nowhere near any other label (racer hasn't "grown" yet).
+        // Driven EXACTLY onto the ticker's own box past the threshold.
         const valuePos = stage > 2 ? [tickerPos[0] - 5, tickerPos[1]] : [400, 650];
-        push({ id: `race_${N}_value`, kind: "text", z: 2, style, drawOpts: instant, pos: valuePos, text: "99", fontSize: 16, anchor: "start" });
+        push({ id: `race_${N}_value`, kind: "text", z: 2, style, drawOpts: instant, crossing: `race_${N}`, pos: valuePos, text: "99", fontSize: 16, anchor: "start" });
+        // Furniture: NO crossing key, ever. This is what makes case 1 fail.
         push({ id: "ticker", kind: "text", z: 2, style: { ...style, opacity: 0.4 }, drawOpts: instant, pos: tickerPos, text: "2020", fontSize: 46, anchor: "end" });
         return { drawables, order, labels: [], anchors: {} };
       },
@@ -575,25 +589,43 @@ async function main() {
     let selfCheckOk;
     try {
       const { crossings, realFailures } = checkRace(SELF_CHECK_TEMPLATE, {}, SELF_CHECK_MAX_STAGE);
-      selfCheckOk = realFailures.length > 0;
+      // Only a failure the LINT itself produced counts here. The
+      // undimmed-crossing gate check above also carries the pair's ids, and
+      // counting it would let a too-wide exemption look like a catch: widen
+      // crossingPair and the ticker pair becomes exempt-but-undimmed, which
+      // fails the gate for a completely different reason.
+      const flagged = (a, b) => realFailures.some((f) => f.lint && f.raw.some((i) => i.ids.includes(a) && i.ids.includes(b)));
+      const caughtTicker = flagged("race_4_value", "ticker");
+      const caughtSameMover = flagged("race_3_text", "race_3_value");
+      const excusedCrossPair = !flagged("race_1_text", "race_2_text");
+      const exemptionFired = crossings > 0;
+      selfCheckOk = caughtTicker && caughtSameMover && excusedCrossPair && exemptionFired;
+      const verdict = (ok, what) => `${ok ? "ok" : "FAILED"} — ${what}`;
+      console.log(`  ${verdict(caughtTicker, "a mover's label on the UNKEYED ticker is a real failure (furniture is never a crossing)")}`);
+      console.log(`  ${verdict(caughtSameMover, "the SAME mover's name and value overlapping is a real failure (not an overtake)")}`);
+      console.log(`  ${verdict(excusedCrossPair, "two DIFFERENT movers' names overlapping is not reported")}`);
+      console.log(`  ${verdict(exemptionFired, `the exemption actually fired — ${crossings} accepted crossing(s) seen across ${SELF_CHECK_MAX_STAGE + 1 + LINT_SAMPLES} sampled stages (so 'not reported' is the rule working, not the collision missing)`)}`);
       if (selfCheckOk) {
         const first = realFailures[0];
         console.log(
-          `  PASSED (as required): the fixture's racer/ticker collision was correctly flagged as a REAL, non-exempt failure ` +
-            `at ${realFailures.length} of ${SELF_CHECK_MAX_STAGE + 1 + LINT_SAMPLES} sampled (integer+fractional) stage(s), e.g. ` +
+          `  PASSED (as required): ${realFailures.length} of ${SELF_CHECK_MAX_STAGE + 1 + LINT_SAMPLES} sampled (integer+fractional) stage(s) produced a real failure, e.g. ` +
             `stage ${first.stage.toFixed(2)}: ${first.issues[0]}`,
         );
-        console.log(`  expected crossings incidentally seen while sweeping the fixture: ${crossings} (should be 0 — only one racer ever gets a value here)`);
-        console.log("  This is positive proof isExpectedCrossing does NOT exempt a racer/furniture overlap — the gate has teeth.");
+        console.log("  The crossing exemption has teeth: it excuses two movers passing each other and nothing else.");
       } else {
-        console.error("  SELF-CHECK FAILED — the adversarial fixture's racer/ticker collision was NOT flagged as a real issue.");
-        console.error("  This means the crossing exemption (or something upstream of it) has drifted wide enough to swallow a");
-        console.error("  genuine defect. Treat THIS as the gate's real failure, not a race result — the fixture is supposed to fail.");
+        console.error("  SELF-CHECK FAILED — see the ok/FAILED lines above.");
+        console.error("  The crossing rule (src/lint/lint.ts) has drifted: it is either swallowing a genuine defect or");
+        console.error("  no longer excusing a genuine overtake. Treat THIS as the gate's real failure, not a race result.");
         lintFailures.push({
           label: "SELF-CHECK (adversarial fixture)",
           stage: NaN,
           kind: "self-check",
-          issues: ["expected checkRace to find a real, non-exempt issue on the fixture's racer/ticker collision; found none — the exemption has drifted too wide"],
+          issues: [
+            `ticker collision caught: ${caughtTicker}`,
+            `same-mover collision caught: ${caughtSameMover}`,
+            `different-mover collision excused: ${excusedCrossPair}`,
+            `exemption fired at all (accepted crossings > 0): ${exemptionFired} (${crossings})`,
+          ],
         });
       }
     } finally {
@@ -602,9 +634,9 @@ async function main() {
     console.log("");
 
     if (lintFailures.length === 0) {
-      console.log("PASS — every integer stage lints fully clean; every fractional-stage issue was an expected crossing.");
+      console.log("PASS — every stage swept, integer and fractional, lints fully clean; the only overlaps dropped were accepted crossings between two different movers.");
     } else {
-      console.error(`FAIL — ${lintFailures.length} real (stage, issue) pair(s) found (expected crossings excluded):`);
+      console.error(`FAIL — ${lintFailures.length} real (stage, issue) pair(s) found (accepted crossings excluded):`);
       for (const f of lintFailures) {
         const where = Number.isNaN(f.stage) ? `${f.label} (${f.kind})` : `${f.label} @ ${f.kind} stage ${f.stage.toFixed(3)}`;
         console.error(`  ${where}:`);
