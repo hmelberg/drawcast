@@ -31,7 +31,8 @@ export interface ResolvedStyle {
 }
 
 export interface DrawResolved {
-  mode: "sketch" | "instant";
+  /** type = a text leaf reveals character by character (code lines); every other leaf treats it as sketch. */
+  mode: "sketch" | "instant" | "type";
   /** milliseconds */
   duration: number;
 }
@@ -237,7 +238,7 @@ export const SKETCH_MS = Object.freeze({
   text: 400,
 } as const);
 
-export function defaultDrawOpts(mode: "sketch" | "instant" = "sketch", durationMs?: number): DrawResolved {
+export function defaultDrawOpts(mode: "sketch" | "instant" | "type" = "sketch", durationMs?: number): DrawResolved {
   return { mode, duration: mode === "instant" ? 0 : (durationMs ?? SKETCH_MS.stroke) };
 }
 

@@ -275,9 +275,21 @@ function lintSources(spec: Spec): LintIssue[] {
  * split view too narrow to read, and figure-as-IDE (several panels at once).
  */
 function lintCode(spec: Spec): LintIssue[] {
-  const els = (spec.elements ?? []).filter((e) => e.type === "code");
-  if (els.length === 0) return [];
   const issues: LintIssue[] = [];
+  // draw.mode: type is the code lines' typed reveal; anywhere else it is
+  // silently sketch (layout/resolve.ts), which an author should hear about.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "code" && el.draw?.mode === "type") {
+      issues.push({
+        rule: "code-use",
+        ids: [el.id],
+        message: `"${el.id}" asks for draw.mode "type", which only code lines honour — it draws as sketch`,
+        severity: "warn",
+      });
+    }
+  }
+  const els = (spec.elements ?? []).filter((e) => e.type === "code");
+  if (els.length === 0) return issues;
   const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {
     const lines = (el.code ?? "").split("\n").filter((l) => l.trim() !== "").length;

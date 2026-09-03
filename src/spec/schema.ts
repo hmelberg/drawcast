@@ -37,7 +37,12 @@ const drawSchema = {
   type: "object",
   description: "How this element animates when drawn.",
   properties: {
-    mode: { type: "string", enum: ["sketch", "instant"], description: "sketch = progressive handwriting-style drawing; instant = appears at once." },
+    mode: {
+      type: "string",
+      enum: ["sketch", "instant", "type"],
+      description:
+        "sketch = progressive handwriting-style drawing; instant = appears at once; type = characters appear at typing speed with a cursor (code lines only — on any other element it draws as sketch).",
+    },
     duration: { type: "number", description: "Animation duration in seconds (sketch mode)." },
   },
   additionalProperties: false,
@@ -204,6 +209,12 @@ const elementSchema = {
       type: "number",
       description:
         "code: show the script through a window this many lines tall (≥ 3); stepping past the window scrolls it, as an editor does. Use with above/below, or whenever a script runs long.",
+    },
+    frame: {
+      type: "string",
+      enum: ["panel", "window", "screen", "laptop", "none"],
+      description:
+        "code: chrome drawn around the panel — panel (a light frame; the default), window (a title bar with three dots), screen (a monitor bezel on a stand), laptop (the bezel with a keyboard below), none (bare paper). Pair a screen or laptop with draw: {mode: \"type\"} so the code is typed on it.",
     },
     figures: {
       type: "number",

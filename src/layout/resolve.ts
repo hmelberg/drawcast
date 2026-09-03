@@ -15,7 +15,11 @@ export function resolveStyle(style: SpecStyle | undefined, base?: Partial<Resolv
 }
 
 export function resolveDrawOpts(draw: SpecDraw | undefined, defaults?: Partial<DrawResolved>): DrawResolved {
-  const mode = draw?.mode ?? defaults?.mode ?? "sketch";
+  // "type" is a text-leaf reveal that only code lines honour: the layout
+  // asks for it through `defaults` on exactly those leaves; everywhere else
+  // an author's draw.mode: type means sketch.
+  const requested = draw?.mode ?? defaults?.mode ?? "sketch";
+  const mode = requested === "type" && defaults?.mode !== "type" ? "sketch" : requested;
   const base = defaultDrawOpts(mode, defaults?.duration);
   if (draw?.duration !== undefined) {
     return { mode, duration: mode === "instant" ? 0 : draw.duration * 1000 };

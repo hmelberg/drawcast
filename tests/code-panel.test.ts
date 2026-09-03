@@ -10,6 +10,7 @@ import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
 import { planCommands } from "../src/render/plan";
+import { resolveDrawOpts } from "../src/layout/resolve";
 import type { Spec } from "../src/spec/types";
 
 const spec = (el: object, commands: object[] = []): Spec =>
@@ -93,6 +94,21 @@ describe("plan — the window scrolls as lines are drawn, and back on erase", ()
     expect(plan.states[3].offsets["c1_line_1"]).toBeUndefined();
     expect(plan.states[4].offsets["c1_line_1"]![1]).toBeGreaterThan(0);
     expect(plan.states[7].offsets["c1_line_8"]![1]).toBeGreaterThan(plan.states[4].offsets["c1_line_1"]![1]);
+  });
+});
+
+describe("screen vocabulary", () => {
+  test("frame values validate; junk does not", () => {
+    for (const f of ["panel", "window", "screen", "laptop", "none"]) expect(validateSpec(spec({ frame: f })).ok).toBe(true);
+    expect(validateSpec(spec({ frame: "tv" })).ok).toBe(false);
+  });
+  test("draw.mode type validates on any element but is only honoured on code lines", () => {
+    expect(validateSpec(spec({ draw: { mode: "type" } })).ok).toBe(true);
+    const s = { elements: [{ id: "t", type: "text", text: "hi", x: 100, y: 100, draw: { mode: "type" } }], commands: [] } as unknown as Spec;
+    expect(validateSpec(s).ok).toBe(true);
+    expect(lintCommands(s).some((i) => /type/.test(i.message))).toBe(true);
+    expect(resolveDrawOpts({ mode: "type" }).mode).toBe("sketch");
+    expect(resolveDrawOpts({ mode: "type" }, { mode: "type", duration: 500 }).mode).toBe("type");
   });
 });
 

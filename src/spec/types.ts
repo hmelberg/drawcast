@@ -50,7 +50,8 @@ export interface SpecStyle {
 }
 
 export interface SpecDraw {
-  mode?: "sketch" | "instant";
+  /** sketch = progressive drawing; instant = at once; type = characters at typing speed with a cursor (code lines only; elsewhere sketch). */
+  mode?: "sketch" | "instant" | "type";
   /** seconds */
   duration?: number;
 }
@@ -138,6 +139,8 @@ export interface SpecElement {
   show?: "output" | "left" | "right" | "above" | "below" | "code" | "none";
   /** code: show the script through a window this many lines tall (≥ 3); stepping past it scrolls, as an editor does. */
   lines?: number;
+  /** code: chrome around the panel — panel (default), window (title bar), screen (bezel on a stand), laptop (bezel + keyboard), none. */
+  frame?: "panel" | "window" | "screen" | "laptop" | "none";
   /** code: number of separate figures the script produces (>= 2) — each becomes its own beat `<id>_fig_N`, all sharing one frame. */
   figures?: number;
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */
