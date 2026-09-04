@@ -18,4 +18,7 @@ describe("session learner hooks", () => {
     expect(fire).toBeGreaterThan(done);
     expect(src).toMatch(/if \(i === items\.length - 1 && !doneReported\) \{\s*doneReported = true;\s*opts\.onDone\?\.\(\);/);
   });
+  test("both mount paths chain through the same helper (single-item lecture and multi-item playlist)", () => {
+    expect(src.match(/chainCallbacks\(hd, /g)?.length).toBe(2);
+  });
 });
