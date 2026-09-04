@@ -10,7 +10,7 @@ export const CODE_RE = /^[a-z]{3,7}-[a-z]{3,7}-[a-z]{3,7}$/;
 /** Mirrors the cast-key rule in netlify/lib/view-key.mts (and src/views.ts). */
 const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
 const OPENED_PREFIX = "drawcast.learned:";
-const LEARNER_PARAM_RE = /([?&#])learner=([^&#]*)&?/;
+const LEARNER_PARAM_RE = /([?&#])learner=([^&#]*)/;
 
 export interface LearnerEntry {
   code: string;
@@ -75,7 +75,12 @@ export function forgetLearner(storage: StorageLike | null, courseKey: string): v
 /** The code riding a URL, in the hash (viewer) or the query (course page). */
 export function learnerParam(url: string): string | null {
   const m = LEARNER_PARAM_RE.exec(url);
-  return m ? normalizeCode(decodeURIComponent(m[2])) : null;
+  if (!m) return null;
+  try {
+    return normalizeCode(decodeURIComponent(m[2]));
+  } catch {
+    return null; // a malformed percent-escape is not a code, not a crash
+  }
 }
 
 /** The same URL without the learner parameter — a copied link never carries a code. */

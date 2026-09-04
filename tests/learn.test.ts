@@ -77,6 +77,10 @@ describe("the learner param", () => {
     expect(learnerParam("https://drawcast.app/#gh=a/b/c.yaml")).toBeNull();
     expect(learnerParam("https://drawcast.app/#gh=a/b/c.yaml&learner=nope")).toBeNull();
   });
+  test("a malformed percent-escape is null, not a throw", () => {
+    expect(learnerParam("https://drawcast.app/#gh=a/b/c.yaml&learner=100%")).toBeNull();
+    expect(learnerParam("https://drawcast.app/#gh=a/b/c.yaml&learner=fjell%zz")).toBeNull();
+  });
   test("stripping removes only that parameter, wherever it sits", () => {
     expect(stripLearnerParam("https://drawcast.app/#gh=a/b/c.yaml&learner=fjell-rev-havn&mode=silent")).toBe("https://drawcast.app/#gh=a/b/c.yaml&mode=silent");
     expect(stripLearnerParam("https://drawcast.app/#gh=a/b/c.yaml&learner=fjell-rev-havn")).toBe("https://drawcast.app/#gh=a/b/c.yaml");
