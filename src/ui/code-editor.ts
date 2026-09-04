@@ -17,6 +17,7 @@
 import type { BBox } from "../layout/geometry";
 import { LINE_PITCH } from "../layout/code";
 import { MONO_FONT } from "../render/svg-backend";
+import { attachCodeTyping } from "./code-typing";
 import { clientPointFor, h } from "./dom";
 
 /** The card's padding plus its border, in pixels — kept in step with the
@@ -106,6 +107,7 @@ export function mountCodeEditor(stage: HTMLElement, opts: CodeEditorOpts): CodeE
     class: "cs-codeedit-area",
     spellcheck: "false",
     "aria-label": `${opts.language} script`,
+    title: "Tab indents · Shift-Tab outdents · Ctrl-Space suggests · Esc closes the editor",
   }) as HTMLTextAreaElement;
   area.value = opts.value();
   // The SAME stack the SVG text nodes get, not a copy of it in the stylesheet:
@@ -118,6 +120,11 @@ export function mountCodeEditor(stage: HTMLElement, opts: CodeEditorOpts): CodeE
   const closeBtn = h("button", { class: "cs-codeedit-close", title: "Close the editor (Esc)" }, "✕");
   const chin = h("div", { class: "cs-codeedit-chin" }, runBtn, status, contBtn, closeBtn);
   const card = h("div", { class: "cs-codeedit", role: "dialog", "aria-label": "Edit the script on screen" }, area, chin);
+
+  // Tab, Shift-Tab, Enter and the word list. Attached BEFORE the card's own
+  // key handler below, so an Escape that only dismisses the suggestion list is
+  // spent there (stopImmediatePropagation) and never closes the editor too.
+  const typing = attachCodeTyping(area, { language: opts.language });
 
   // The stage's explore guard swallows clicks so a stray one cannot resume;
   // ours are ours (the guard lets .cs-codeedit through, and this keeps the
@@ -193,6 +200,7 @@ export function mountCodeEditor(stage: HTMLElement, opts: CodeEditorOpts): CodeE
     if (closed) return;
     closed = true;
     window.removeEventListener("resize", onResize);
+    typing.detach();
     ro?.disconnect();
     unregister();
     card.remove();

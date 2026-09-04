@@ -1360,6 +1360,39 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-codeedit-chin button:hover:not(:disabled) { background: #f2ece0; }
 .cs-codeedit-chin button:disabled { opacity: 0.5; cursor: default; }
 
+/* The script editors' word list (ui/code-typing.ts). Fixed to the document so
+   neither the card's box nor the tray's scroll can clip it; app chrome, not
+   drawing, so it wears the app's own surface. */
+.cs-suggest {
+  position: fixed;
+  z-index: 40;
+  min-width: 12rem;
+  max-width: 20rem;
+  padding: 0.15rem 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(61, 56, 51, 0.18);
+  overflow: hidden;
+}
+.cs-suggest-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+.cs-suggest-row.active,
+.cs-suggest-row:hover { background: color-mix(in srgb, var(--steel) 10%, var(--surface)); }
+.cs-suggest-word { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); }
+.cs-suggest-kind { color: var(--muted); white-space: nowrap; }
+
 /* Media modal: the read-instead-of-the-figure surface (YouTube, PDF). */
 .cs-mediamodal {
   position: absolute;
@@ -2006,6 +2039,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
+  /* Code lines are lines: no soft wrap (and the suggest popup counts rows). */
+  white-space: pre;
+  overflow: auto;
+  tab-size: 4;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0.4rem 0.5rem;

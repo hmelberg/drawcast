@@ -302,3 +302,43 @@ drawn type size; a Run through the card re-ran the script and repainted the
 panel's output; growing the script from 4 to 13 lines moved and grew the card
 with the re-laid-out pane; Escape, Continue and playing from the bar each left
 the stage thawed and the authored script back on screen.
+
+## 13 — Amendment: the keyboard (2026-09-05, Hans)
+
+"1. make tab work 2. add some rudimentary autosuggest" — both text areas, since
+they are one editor. The rules are pure (`src/ui/code-complete.ts`), the DOM is
+`src/ui/code-typing.ts`, and `attachCodeTyping` is called by the card and by the
+tray's section alike.
+
+- **Tab** indents to the next tab stop (four spaces for the Python runtimes,
+  two for R), a selection spanning lines shifts every line it touches, and
+  **Shift-Tab** takes one level off. A code area keeps Tab, so **Escape, then
+  Tab** is the way to leave the field.
+- **Enter** keeps the block: the new line starts at the current indentation,
+  one level deeper after a `:` (or a `{` in R). Without it Tab is half a
+  keyboard — every new line would start back at column 0.
+- **The word list** follows the caret after two characters (or on Ctrl-Space):
+  the words already in the script first, then that language's builtins and
+  keywords. ↑/↓ moves, Tab or Enter accepts, Escape dismisses the list without
+  closing the editor (the card's own Escape is spent on the list first —
+  `stopImmediatePropagation`, and the typing handler is attached before the
+  card's). It says nothing inside a comment or a string, offers only the
+  script's own words after a dot (an attribute is never a keyword), and gives
+  **microdata no curated vocabulary at all**: those verbs already live in the
+  prompt, the docs and the emulator, and a sixth copy here is the one that
+  would drift.
+- Edits go through `execCommand("insertText")` where the browser still offers
+  it, because splicing `.value` by hand wipes the text area's undo stack;
+  ctrl-Z was checked in the live smoke.
+- The list is `position: fixed` on the document — nothing clips it — and moves
+  into `document.fullscreenElement` when there is one, since a fullscreen
+  element paints only its own descendants.
+- `.cs-tray-code` stopped soft-wrapping: code lines are lines, and the caret
+  geometry counts rows.
+
+**Measured in the live smoke:** Enter after `for i in range(10):` opened four
+spaces; `tot` listed `total` "in this script" and Tab accepted it; Tab at
+column 9 moved to column 12 and Shift-Tab took the level off; ctrl-Z undid it;
+the first Escape closed the list and the second closed the card; the same three
+behaviours in the tray's area, with the list unclipped; and a completion
+accepted on the card arrived in the tray's text area, since it is one draft.

@@ -38,6 +38,7 @@ import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { mountCodeEditor, type CodeEditorHandle, type EditorSurface } from "./code-editor";
+import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
 import { mountQuiz } from "./quiz";
 import { mountChessVs } from "./chessvs";
@@ -116,6 +117,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const surfaces = new Set<EditorSurface & { id: string }>();
   /** The subset the tray itself mounted — dropped whenever it rebuilds. */
   const trayOwned = new Set<EditorSurface & { id: string }>();
+  /** Tab/Enter/suggest wiring for the tray's own text areas, same. */
+  let trayTyping: CodeTyping[] = [];
   const clearPreview = (): void => {
     for (const k of Object.keys(overrides)) delete overrides[k];
     patches.clear();
@@ -326,6 +329,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // or a Run would post its status into detached nodes.
     for (const s of [...surfaces]) if (trayOwned.has(s)) surfaces.delete(s);
     trayOwned.clear();
+    for (const t of trayTyping) t.detach();
+    trayTyping = [];
     tray.replaceChildren();
     // What this tray shows: everything the figure offers when the VIEWER
     // opened it, exactly what the beat named when an explore did (the rule
@@ -437,9 +442,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         ),
       );
       const rows = Math.min(12, Math.max(4, (el.code ?? "").split("\n").length + 1));
-      const area = h("textarea", { class: "cs-tray-code", rows: String(rows), spellcheck: "false", "aria-label": "Script" }) as HTMLTextAreaElement;
+      const area = h("textarea", {
+        class: "cs-tray-code",
+        rows: String(rows),
+        spellcheck: "false",
+        "aria-label": "Script",
+        title: "Tab indents · Shift-Tab outdents · Ctrl-Space suggests",
+      }) as HTMLTextAreaElement;
       area.value = draftOf(el);
       area.addEventListener("input", () => setDraft(el.id, area.value));
+      trayTyping.push(attachCodeTyping(area, { language: el.language ?? "" }));
       const status = h("span", { class: "cs-tray-status" }, "");
       const runBtn = h("button", { class: "cs-tray-run" }, "Run ▶");
       runBtn.addEventListener("click", () => void runEdited(el, area.value));
