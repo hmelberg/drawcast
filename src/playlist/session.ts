@@ -73,7 +73,9 @@ export interface SessionOptions {
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
   /** A live viewer answered a quiz/ask in the current item (spec §4). */
   onAnswer?(answer: AnswerEvent, item: PlaylistItem): void;
-  /** The LAST item finished — once per mount, whether or not meta.next is set. */
+  /** The LAST item finished — once per mount, whether or not meta.next is set.
+   *  Fires from either mount path: the single-drawcast lecture (the common
+   *  case) as well as a multi-item playlist. */
   onDone?(): void;
   /**
    * Start playback the moment the first item (or the title page) mounts,

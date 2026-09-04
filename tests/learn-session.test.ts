@@ -21,4 +21,16 @@ describe("session learner hooks", () => {
   test("both mount paths chain through the same helper (single-item lecture and multi-item playlist)", () => {
     expect(src.match(/chainCallbacks\(hd, /g)?.length).toBe(2);
   });
+  test("onItemDone and showNextLink stay no-ops for a single-item playlist (multi-item behaviour is unchanged)", () => {
+    const guard = "if (items.length <= 1) return;";
+    expect(src.split(guard).length - 1).toBe(2);
+    expect(src).toMatch(/function onItemDone\([^)]*\)[^{]*\{\s*if \(items\.length <= 1\) return;/);
+    expect(src).toMatch(/function showNextLink\([^)]*\)[^{]*\{\s*if \(items\.length <= 1\) return;/);
+  });
+  test("the single-item path chains after attachPlayerControls installs its own callbacks", () => {
+    const controls = src.indexOf("attachPlayerControls(host, hd, prefs, controlOpts)");
+    const chain = src.indexOf("chainCallbacks(hd, 0)");
+    expect(controls).toBeGreaterThan(0);
+    expect(chain).toBeGreaterThan(controls);
+  });
 });
