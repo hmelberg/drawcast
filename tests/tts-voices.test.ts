@@ -285,3 +285,65 @@ describe("a rejected voice reports why", () => {
     }
   });
 });
+
+// Hans, 2026-09-04: "don't send fields that are null".
+//
+// The measurement behind the rule: of 42 delivery uses in the bundled
+// examples, 40 are `grave` — and grave's pitchSt and gainDb are BOTH 0. So
+// on 95 % of them drawcast announced a pitch and a gain it was not applying,
+// and that announcement is exactly what a Chirp voice 400s on. A field that
+// carries the API's own default is not a setting; it is noise with a failure
+// mode.
+describe("the request carries only fields that do something", () => {
+  const bodyOf = async (voiceName: string, opts: { delivery?: "soft" | "grave" | "brisk"; rate?: number }) => {
+    const g = globalThis as unknown as { fetch: unknown };
+    const original = g.fetch;
+    let sent: { audioConfig: Record<string, unknown> } | undefined;
+    g.fetch = async (_url: string, init: { body: string }) => {
+      sent = JSON.parse(init.body) as { audioConfig: Record<string, unknown> };
+      return { ok: true, status: 200, json: async () => ({ audioContent: "AAA" }) };
+    };
+    try {
+      await synthesizeBase64(
+        { apiKey: "K", rate: opts.rate ?? 1, voices: { nb: voiceName }, lang: "nb" },
+        "Vi ser på tallene.",
+        opts.delivery ? { delivery: opts.delivery } : {},
+      );
+    } finally {
+      g.fetch = original;
+    }
+    return sent!.audioConfig;
+  };
+
+  test("grave nudges only the pace, so only the pace is sent — on ANY voice family", async () => {
+    for (const voice of ["nb-NO-Wavenet-E", "nb-NO-Chirp3-HD-Charon"]) {
+      const cfg = await bodyOf(voice, { delivery: "grave" });
+      expect(cfg).not.toHaveProperty("pitch");
+      expect(cfg).not.toHaveProperty("volumeGainDb");
+      expect(cfg.speakingRate).toBeCloseTo(0.88);
+    }
+  });
+
+  test("brisk likewise", async () => {
+    const cfg = await bodyOf("nb-NO-Wavenet-E", { delivery: "brisk" });
+    expect(cfg).not.toHaveProperty("pitch");
+    expect(cfg).not.toHaveProperty("volumeGainDb");
+  });
+
+  test("soft really does colour the voice, so it really does send those fields", async () => {
+    const cfg = await bodyOf("nb-NO-Wavenet-E", { delivery: "soft" });
+    expect(cfg.pitch).toBe(-1.5);
+    expect(cfg.volumeGainDb).toBe(-3);
+  });
+
+  test("the neutral speaking rate is the API's own default and is not sent either", async () => {
+    const cfg = await bodyOf("nb-NO-Wavenet-E", { rate: 1 });
+    expect(cfg).not.toHaveProperty("speakingRate");
+    expect(cfg.audioEncoding).toBe("MP3");
+  });
+
+  test("a rate the author actually changed is sent", async () => {
+    expect((await bodyOf("nb-NO-Wavenet-E", { rate: 1.2 })).speakingRate).toBeCloseTo(1.2);
+    expect((await bodyOf("nb-NO-Wavenet-E", { rate: 0.9 })).speakingRate).toBeCloseTo(0.9);
+  });
+});

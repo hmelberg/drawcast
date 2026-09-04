@@ -274,6 +274,9 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   const voice = narrationVoice(cfg.voices, lang, opts);
   const limits = audioLimits(voice.name);
   const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
+  const rate = Math.min(limits.maxRate, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1)));
+  const pitch = limits.pitch ? (delivery?.pitchSt ?? 0) : 0;
+  const gain = limits.gain ? (delivery?.gainDb ?? 0) : 0;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
       method: "POST",
@@ -287,10 +290,18 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
           withName && voice.name
             ? { languageCode: voice.languageCode, name: voice.name }
             : { languageCode: voice.languageCode, ssmlGender: g === "male" ? "MALE" : "FEMALE" },
+        // Only fields that DO something (Hans, 2026-09-04). Of the delivery
+        // uses in the bundled examples, 40 of 42 are `grave`, whose pitchSt
+        // and gainDb are both 0 — so the old body announced a pitch and a
+        // gain it was not applying, and that announcement is precisely what
+        // a Chirp voice 400s on. A field carrying the API's own default is
+        // not a setting; it is noise with a failure mode. The per-family
+        // limits above still apply to the fields that DO carry a value.
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: Math.min(limits.maxRate, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1))),
-          ...(delivery ? { ...(limits.pitch ? { pitch: delivery.pitchSt } : {}), ...(limits.gain ? { volumeGainDb: delivery.gainDb } : {}) } : {}),
+          ...(rate === 1 ? {} : { speakingRate: rate }),
+          ...(pitch === 0 ? {} : { pitch }),
+          ...(gain === 0 ? {} : { volumeGainDb: gain }),
         },
       }),
     });

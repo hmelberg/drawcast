@@ -823,7 +823,33 @@ wrote to localStorage unguarded while `loadUsage` read through the guarded
 helper. A browser that refuses storage turned a paid, SUCCESSFUL synthesis
 into a failed publish. A usage counter must never fail the work it counts.
 
-### 4. The label
+### 4. The rule that should have been there all along
+
+Hans, after the third round: clean it up with "don't send fields that are
+null". The measurement behind it — of the 42 `delivery` uses in the bundled
+examples, **40 are `grave`, whose pitchSt and gainDb are both 0**, and
+`brisk` (also all-zero) is used exactly 0 times. So on 95 % of the uses the
+request announced a pitch and a gain it was not applying, and that
+announcement is what a Chirp voice rejects.
+
+`audioConfig` now carries only fields that do something: no `pitch` or
+`volumeGainDb` when the delivery does not colour the voice, and no
+`speakingRate` when it is the API's own default of 1. `soft`, the one
+delivery that genuinely colours, still sends both.
+
+This fixes the failure at the source rather than per voice family. The
+per-family table stays, because `soft` on a Chirp voice still has real values
+to suppress and the rate cap is still real — the two rules compose.
+
+The general lesson, worth more than the fix: **a field carrying the API's own
+default is not a setting, it is noise with a failure mode.** It cannot help,
+and it can be rejected.
+
+Left alone deliberately: the browser speechSynthesis path sets
+`utterance.pitch = 1` for a neutral delivery, which is equally a no-op — but
+nothing there can reject it. This is a rule about network requests.
+
+### 5. The label
 
 "Which language this voice choice applies to" is a scope selector, not a
 narration-language setting — the narration language comes from the document.
