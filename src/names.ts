@@ -69,7 +69,7 @@ export interface Registration {
   lectures?: string[];
 }
 
-export async function registerName(api: string, reg: Registration, fetchImpl: typeof fetch = fetch): Promise<"ok" | "taken" | "key" | "invalid" | "error"> {
+export async function registerName(api: string, reg: Registration, fetchImpl: typeof fetch = fetch): Promise<"ok" | "taken" | "owner" | "key" | "invalid" | "error"> {
   if (normalizeName(reg.name) !== reg.name) return "invalid";
   try {
     const res = await fetchImpl(`${apiBase(api)}/_/api/name`, {
@@ -79,6 +79,7 @@ export async function registerName(api: string, reg: Registration, fetchImpl: ty
     });
     if (res.ok) return "ok";
     if (res.status === 409) return "taken";
+    if (res.status === 403) return "owner";
     if (res.status === 401) return "key";
     if (res.status === 400) return "invalid";
     return "error";
@@ -88,17 +89,72 @@ export async function registerName(api: string, reg: Registration, fetchImpl: ty
 }
 
 /** The status suffix after a publish (spec §7). */
-export function nameNote(outcome: "ok" | "taken" | "key" | "invalid" | "error", name: string): string {
+export function nameNote(outcome: "ok" | "taken" | "owner" | "key" | "invalid" | "error", name: string): string {
   switch (outcome) {
     case "ok":
       return ` · also at https://drawcast.app/#${name}`;
     case "taken":
       return ` · the name "${name}" is taken by someone else (set name: in the document to pick another)`;
+    case "owner":
+      return " · the name was not registered: this course is owned by another author";
     case "key":
       return " · name not registered: the author key was rejected (Settings → Publishing)";
     case "invalid":
       return ` · "${name}" is not a valid name`;
     default:
       return " · name not registered (registry unreachable)";
+  }
+}
+
+// ---- The claim (teachers round, spec §3) ----------------------------------
+// Publishing with an author key makes the publisher the course's owner in
+// the teacher dashboard. The claim runs BEFORE the name registration, so a
+// name is only ever registered by the course's owner.
+
+export interface CourseClaim {
+  key: string;
+  course: string;
+  title?: string;
+  page?: string;
+  lectures?: string[];
+}
+
+export type ClaimOutcome = "ok" | "owner" | "key" | "invalid" | "error";
+
+/** The claim a course registration implies: same target, title, page, lectures. */
+export function courseClaim(key: string, reg: Omit<Registration, "key">): CourseClaim {
+  return { key, course: reg.target, title: reg.title, page: reg.page, lectures: reg.lectures };
+}
+
+export async function claimCourse(api: string, claim: CourseClaim, fetchImpl: typeof fetch = fetch): Promise<ClaimOutcome> {
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/course`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(claim),
+    });
+    if (res.ok) return "ok";
+    if (res.status === 403) return "owner";
+    if (res.status === 401) return "key";
+    if (res.status === 400) return "invalid";
+    return "error";
+  } catch {
+    return "error";
+  }
+}
+
+/** The status suffix after a course publish (spec §5). */
+export function claimNote(outcome: ClaimOutcome): string {
+  switch (outcome) {
+    case "ok":
+      return " · you own this course";
+    case "owner":
+      return " · this course is owned by another author — not claimed";
+    case "key":
+      return " · author key rejected";
+    case "invalid":
+      return " · course not claimed (the registry rejected the request)";
+    default:
+      return " · course not claimed (registry unreachable)";
   }
 }
