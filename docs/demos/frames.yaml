@@ -28,6 +28,36 @@ commands:
   - draw: [p_out]
     speak: The first flips swing wildly; by four hundred the share has settled near a half.
 ---
+title: On a home computer
+elements:
+  - id: p
+    type: code
+    language: brython
+    show: below
+    lines: 4
+    width: 780
+    frame: c64
+    draw:
+      mode: type
+    code: |
+      import random
+      import matplotlib.pyplot as plt
+      random.seed(7)
+      heads, share = 0, []
+      for i in range(1, 401):
+          heads += 1 if random.random() < 0.5 else 0
+          share.append(heads / i)
+      _ = plt.plot(share)
+      _ = plt.plot([0.5] * 400)
+commands:
+  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]
+    parallel: true
+    speak: The tube standing on a keyboard, the way a desk looked in 1982.
+  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
+    speak: Every flip adds a head or nothing, and the running share is stored after each one.
+  - draw: [p_out]
+    speak: Pause here and press the buttons on the chin — they work. The round one is the power.
+---
 title: On a flat screen
 elements:
   - id: p
