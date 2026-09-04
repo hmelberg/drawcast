@@ -30,6 +30,13 @@ describe("hash helpers", () => {
     expect(nameInHash("")).toBeNull();
     expect(nameInHash("#mode=silent")).toBeNull();
   });
+  test("a malformed percent-escape is not a name, not a crash", () => {
+    expect(() => nameInHash("#100%")).not.toThrow();
+    expect(nameInHash("#100%")).toBeNull();
+    expect(() => isNameHash("#fjell%zz")).not.toThrow();
+    expect(isNameHash("#fjell%zz")).toBe(false);
+    expect(nameInHash("#Learn-Russian%2F3")).toBe("learn-russian/3");
+  });
   test("isNameHash", () => {
     expect(isNameHash("#learn-russian")).toBe(true);
     expect(isNameHash("#gh=o/r/p.yaml")).toBe(false);

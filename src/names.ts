@@ -24,7 +24,11 @@ export function nameInHash(hash: string): string | null {
   if (!hash.startsWith("#")) return null;
   const first = hash.slice(1).split("&", 1)[0];
   if (first.includes("=")) return null;
-  return normalizeName(decodeURIComponent(first));
+  try {
+    return normalizeName(decodeURIComponent(first));
+  } catch {
+    return null; // a malformed percent-escape is not a name, not a crash
+  }
 }
 
 export function isNameHash(hash: string): boolean {
