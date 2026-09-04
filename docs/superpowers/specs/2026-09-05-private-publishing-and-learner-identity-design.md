@@ -167,6 +167,12 @@ machine makes that distinction matter.
 4. **Logging in** — §4. Optional, and it ends in exactly the same place as
    the other three: a code in local storage.
 
+**`me` joins `RESERVED_PREFIXES`** (`names.ts:11`, mirrored in `names.py` and
+pinned by `tests/names.test.ts`). `#me=<code>` is safe on its own — a first
+segment containing `=` is never read as a name (`nameInHash`, `names.ts:26`)
+— but bare `#me` is, so a course called `me` would otherwise take the
+learner's own page away from them.
+
 ## 4. One handshake, two users
 
 Because a session cannot cross the origin boundary (§0), logging in is a way
