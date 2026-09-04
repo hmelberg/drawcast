@@ -10,7 +10,7 @@
 import { render, type RenderHandle, type RenderStyle } from "../render";
 import type { TextOverride } from "../layout/text-style";
 import { speechKey, type SpeakLine } from "../render/delivery";
-import type { PlaybackMode } from "../render/player";
+import type { AnswerEvent, PlaybackMode } from "../render/player";
 import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
@@ -71,6 +71,10 @@ export interface SessionOptions {
   };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
+  /** A live viewer answered a quiz/ask in the current item (spec §4). */
+  onAnswer?(answer: AnswerEvent, item: PlaylistItem): void;
+  /** The LAST item finished — once per mount, whether or not meta.next is set. */
+  onDone?(): void;
   /**
    * Start playback the moment the first item (or the title page) mounts,
    * instead of waiting for a click on the poster's Play button. Set when this
@@ -248,6 +252,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   let idx = 0;
+  let doneReported = false;
 
   const dots = items.map((it, i) => {
     const d = h("button", { class: "pl-dot", title: itemTitle(it) });
@@ -367,11 +372,19 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         if (s === "done") {
           void onItemDone();
           showNextLink();
+          if (i === items.length - 1 && !doneReported) {
+            doneReported = true;
+            opts.onDone?.();
+          }
         } else {
           host.querySelector(".cs-nextlink")?.remove();
         }
       },
       onStep: prev.onStep,
+      onAnswer: (a) => {
+        prev.onAnswer?.(a);
+        opts.onAnswer?.(a, items[i]);
+      },
     };
     opts.onItemMounted?.(hd, items[i]);
     markCurrent();
