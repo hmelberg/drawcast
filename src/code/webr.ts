@@ -145,7 +145,9 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
       withAutoprint: false,
       captureStreams: true,
       captureConditions: true,
-      captureGraphics: { width: PLOT_WIDTH, height: PLOT_HEIGHT, pointsize: PLOT_POINTSIZE, bg: "white" },
+      // bg transparent, like matplotlib's savefig: the plot sits on the
+      // panel's paper rather than on a white rectangle of its own.
+      captureGraphics: { width: PLOT_WIDTH, height: PLOT_HEIGHT, pointsize: PLOT_POINTSIZE, bg: "transparent" },
       throwJsException: true,
     });
     const [rError, rWarn, tableJson, dataJson] = (await captured.result.toArray()).map((s) => s ?? "");

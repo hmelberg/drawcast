@@ -22,7 +22,10 @@ const FIGURE_CSS = `
   width: 100%;
   aspect-ratio: 4 / 3;
   background: #fffefb;
-  border: 1px solid #eee8da;
+  /* No border: the host (the app's figure card, or a page embedding the
+     engine) already draws whatever edge it wants, and a second hairline in
+     nearly the same tone reads as a white frame around the drawing rather
+     than as the paper it is (Hans, 2026-09-05). */
   border-radius: 4px;
   overflow: hidden;
 }

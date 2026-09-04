@@ -8,7 +8,7 @@
 // here, so existing `from "../code/run"` imports keep working unchanged.
 
 /** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 5; // v5: data/dataErrors (the code → template bridge)
+export const CODE_VERSION = 6; // v6: figures come out transparent (they sit on the panel's paper)
 
 export interface CodeFigure {
   /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */

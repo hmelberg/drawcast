@@ -209,7 +209,9 @@ if __plt is not None:
     for __n in __plt.get_fignums():
         __fig = __plt.figure(__n)
         __buf = __io.BytesIO()
-        __fig.savefig(__buf, format="png", bbox_inches="tight", dpi=110)
+        # transparent: the chart lands ON the panel's paper instead of
+        # bringing a white card of its own to the screen.
+        __fig.savefig(__buf, format="png", bbox_inches="tight", dpi=110, transparent=True)
         __data = __buf.getvalue()
         __w, __h = __struct.unpack(">II", __data[16:24])
         __figs.append({"data": __b64.b64encode(__data).decode("ascii"), "w": __w, "h": __h})

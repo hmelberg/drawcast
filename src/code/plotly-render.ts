@@ -51,7 +51,11 @@ export async function renderPlotlyFigures(jsons: string[]): Promise<CodeFigure[]
     holder.style.cssText = "position:fixed;left:-10000px;top:0;";
     document.body.appendChild(holder);
     try {
-      await plotly.newPlot(holder, fig.data ?? [], { ...fig.layout, width: w, height: h }, { staticPlot: true });
+      // Transparent grounds FIRST, so a script that sets its own background
+      // still wins: the chart belongs on the panel's paper, not on plotly's
+      // white card (the same rule matplotlib's savefig and webR's device get).
+      const ground = { paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)" };
+      await plotly.newPlot(holder, fig.data ?? [], { ...ground, ...fig.layout, width: w, height: h }, { staticPlot: true });
       const href = await plotly.toImage(holder, { format: "png", width: w, height: h, scale: 2 });
       out.push({ href, w: w * 2, h: h * 2 });
     } finally {
