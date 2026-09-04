@@ -671,7 +671,7 @@ const BAR_H = 28;
 const BEZEL = 14;
 const CHIN = 30;
 const SCREEN_R = 24;
-const KEYS_H = 110;
+const KEYS_H = 128;
 /** The home computer's case: a wedge deep enough to be the monitor's table. */
 const BOARD_H = 106;
 /** The CRT: a chunky plastic shell, a bulging glass inset in it, a chin with
@@ -785,10 +785,10 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
   }
   if (frame === "laptop" || frame === "c64") {
     const wedge = frame === "c64";
-    // The keyboard, drawn once for both machines: a slab, three rows of keys
-    // with the stagger a real board has, a wide space bar, and — on the home
-    // computer — a block of function keys down the right and a deeper case
-    // that the monitor stands on.
+    // The base, drawn once for both machines. The laptop's is a thin deck
+    // with a trackpad under the keys and a scoop at the front lip; the home
+    // computer's is a deeper wedge whose keys fill it, with function keys down
+    // the right — and it is the table the monitor stands on.
     const sx = x0 - (wedge ? CRT.side : BEZEL);
     const sw = w + 2 * (wedge ? CRT.side : BEZEL);
     const slabTop = yTop - h - (wedge ? CRT.chin : CHIN);
@@ -797,9 +797,14 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
     const keys: Drawable[] = [
       stroke(`${id}__keys_slab`, roundRectPts(sx, slabBottom, sw, slabH, wedge ? 10 : 8), true, ink({ strokeWidth: 3 }), sketch(SKETCH_MS.node), undefined),
     ];
+    const hairline = resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 });
     if (wedge) {
       // The case's front lip: the wedge that makes it a breadbox, not a tray.
-      keys.push(stroke(`${id}__keys_lip`, [[sx + 8, slabBottom + 13], [sx + sw - 8, slabBottom + 13]], false, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
+      keys.push(stroke(`${id}__keys_lip`, [[sx + 8, slabBottom + 13], [sx + sw - 8, slabBottom + 13]], false, hairline, instant));
+    } else {
+      // The hinge bar: a short line inside the deck's top edge, which is what
+      // makes a deck read as the lid's other half rather than as a tray.
+      keys.push(stroke(`${id}__hinge`, [[sx + sw * 0.3, slabTop - 7], [sx + sw * 0.7, slabTop - 7]], false, hairline, instant));
     }
     // Four rows of small keys with the stagger a real board has, a wide space
     // bar on the bottom row, and — on the home computer — a column of function
@@ -812,7 +817,9 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
     const cols = 16;
     const boardW = sw - 2 * pad - (fnW > 0 ? fnW + 12 : 0);
     const keyW = (boardW - (cols - 1) * gap) / cols;
-    const keyH = (slabH - 26 - (rows - 1) * gap) / rows;
+    // The laptop keeps a band at the bottom of the deck for the trackpad.
+    const padBand = wedge ? 0 : 34;
+    const keyH = (slabH - 26 - padBand - (rows - 1) * gap) / rows;
     const keyStyle = resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 });
     const top0 = slabTop - 14;
     for (let r = 0; r < rows - 1; r++) {
@@ -837,6 +844,11 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
     for (let f = 0; f < rows && fnW > 0; f++) {
       const fy = top0 - f * (keyH + gap);
       keys.push(stroke(`${id}__key_fn_${f + 1}`, roundRectPts(sx + sw - pad - fnW, fy - keyH, fnW, keyH, 2.5), true, keyStyle, instant));
+    }
+    if (padBand > 0) {
+      const tpW = sw * 0.2;
+      const tpH = padBand - 12;
+      keys.push(stroke(`${id}__trackpad`, roundRectPts(sx + (sw - tpW) / 2, slabBottom + 10, tpW, tpH, 5), true, keyStyle, instant));
     }
     out.push({ id: `${id}__keys`, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: sketch(SKETCH_MS.node), children: keys });
   }

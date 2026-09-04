@@ -6,7 +6,7 @@
 import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import { lintCommands } from "../src/lint/lint";
-import { layoutSpec } from "../src/layout/layout";
+import { elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { frameSpace } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
@@ -131,6 +131,28 @@ describe("the screen", () => {
     expect(drawn).not.toContain("c1__frame"); // the shell IS the frame
     expect(frameSpace("crt").below).toBeGreaterThan(frameSpace("screen").below); // a tube stands on something
     expect(layoutSpec(spec({ show: "left", code: eight, code_result: OK, frame: "crt" }), heuristicMeasure).issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+  test("the laptop is a deck: a hinge bar, staggered key rows, a space bar and a trackpad", () => {
+    const drawn = ids(spec({ show: "left", code: eight, code_result: OK, frame: "laptop" }));
+    expect(drawn).toEqual(expect.arrayContaining(["c1__hinge", "c1__keys_slab", "c1__key_space", "c1__trackpad"]));
+    expect(drawn).not.toContain("c1__key_fn_1"); // function keys belong to the wedge
+    // The home computer's case is the wedge: function keys, a front lip, no trackpad.
+    const wedge = ids(spec({ show: "left", code: eight, code_result: OK, frame: "c64" }));
+    expect(wedge).toEqual(expect.arrayContaining(["c1__keys_slab", "c1__key_fn_1", "c1__keys_lip"]));
+    expect(wedge).not.toContain("c1__trackpad");
+    expect(wedge).not.toContain("c1__foot"); // it stands on the keyboard, not on a plinth
+  });
+  test("the keyboard is part of the panel's own box, so a click on it reaches the element", () => {
+    // What makes "click the keyboard to edit the script" work without any
+    // wiring of its own: the deck is drawn INSIDE the element's group.
+    const l = layoutSpec(spec({ show: "left", code: eight, code_result: OK, frame: "laptop" }), heuristicMeasure);
+    const box = elementBBoxes(l, heuristicMeasure).get("c1")!;
+    const key = leaf(spec({ show: "left", code: eight, code_result: OK, frame: "laptop" }), "c1__key_space") as { pts: [number, number][] };
+    const kx = key.pts[0][0];
+    const ky = key.pts[0][1];
+    expect(kx).toBeGreaterThanOrEqual(box.x);
+    expect(ky).toBeGreaterThanOrEqual(box.y);
+    expect(ky).toBeLessThanOrEqual(box.y + box.h);
   });
   test("bare paper is the default; a frame is something the lesson asks for", () => {
     const bare = ids(spec({ show: "left", code: eight, code_result: OK }));
