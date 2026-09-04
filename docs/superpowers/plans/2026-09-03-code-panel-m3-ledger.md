@@ -38,3 +38,11 @@ Not exercised: an R or MicroPython edit through the tray (the facade is the same
 
 - A viewer's edit that changes the number of code lines re-mints `_line_i` ids; `revealNew` shows the new ones, so the panel never shows a stale line count.
 - `ylim` stays authored: a viewer's larger numbers clamp against the chart's axis (the template's own behaviour), which is honest — the lesson's frame stays.
+
+---
+
+**2026-09-05 — Ruling A superseded on placement.** The editor now also lies ON
+the code pane (`src/ui/code-editor.ts`, `panes` published by the layout), with
+the tray keeping its own text area so the viewer picks. What Ruling A was
+protecting is intact: one gate, one Continue, one preview state, one draft per
+script shared by both surfaces. See §12 of the design spec.

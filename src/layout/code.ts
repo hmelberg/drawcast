@@ -34,6 +34,7 @@ import {
   type Drawable,
   type Pt,
 } from "./model";
+import type { BBox } from "./geometry";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { SpecElement } from "../spec/types";
 
@@ -48,6 +49,10 @@ const ROW_H = 1.25;
 const TABLE_MAX_ROWS = 24;
 /** Extra gap between SOURCE lines, so wrapped continuations read as one. */
 const LINE_GAP = 0.35;
+/** Baseline-to-baseline distance between two unwrapped source lines, in em —
+ *  the pitch the in-place editor's text area copies so its rows land on the
+ *  drawn ones. */
+export const LINE_PITCH = ROW_H + LINE_GAP;
 export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
 const TYPE_CPS = 28;
@@ -67,6 +72,7 @@ export interface CodeCtx {
   extraOrder: string[];
   warnings: string[];
   windows: Record<string, CodeWindow>;
+  panes: Record<string, BBox>;
 }
 
 /** Wrap one source line at maxChars with a hanging indent that preserves the
@@ -474,6 +480,15 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const outX = show === "left" ? x0 + codePaneW + paneGap : x0;
   const codeTop = show === "below" ? yTop - PAD - outContentH - paneGap : yTop - PAD;
   const outTop = show === "above" ? yTop - PAD - codeContentH - paneGap : yTop - PAD;
+  // The rectangle the source lines actually occupy — what the in-place editor
+  // lays itself over (spec §7's `__pane_tl`/`__pane_br`, published as one box
+  // rather than two anchors because LayoutResult carries boxes, not anchors).
+  // The CONTENT rect, not the pane's paper: it is the drawn text an overlay
+  // must cover exactly, and a windowed pane's box is the window, so the
+  // editor sits where the lines are even when the column has scrolled.
+  // Nothing when the code is not drawn (`show: "output"`) — there is no pane
+  // to type on, and the tray's editor is the door there.
+  if (showCode) ctx.panes[el.id] = { x: codeX + PAD, y: codeTop - codeContentH, w: codePaneW - 2 * PAD, h: codeContentH };
   if (sideBySide) {
     const dx = (show === "left" ? x0 + codePaneW : x0 + outPaneW) + paneGap / 2;
     panelChildren.push({

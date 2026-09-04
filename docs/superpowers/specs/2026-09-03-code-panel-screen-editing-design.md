@@ -251,3 +251,54 @@ serializes into the video export like any other style.
 **New bundled example** — "Five hundred flips": `show: "below"`, the notebook
 shape, with stdout and the plot above and the script typed underneath in a
 six-line scrolling window.
+
+## 12 — Amendment: the editor comes back to the pane, and the tray keeps its copy (2026-09-05, Hans)
+
+Hans asked whether a script could be edited **where it stands on screen**,
+rather than only in the tray under the player — and then: implement it, "men
+man kan kanskje beholde den i skuffen også … da kan brukeren velge." So §7's
+original placement ships after all, next to M3's tray editor rather than
+instead of it. **Ruling A of the M3 ledger is superseded on placement only**;
+everything it protected (one gate, one Continue, one preview state) still
+holds, because the two surfaces are ONE editor.
+
+**What was added**
+
+1. **The pane rectangle.** `layoutSpec` now publishes `panes[<id>]` beside
+   `windows[<id>]`: the rectangle the source lines occupy, in logical y-up
+   units — the CONTENT box, not the pane's paper, so a card laid on it covers
+   the drawn lines exactly, and a windowed pane's box is the window. Absent
+   when the panel draws no code (`show: "output"`, `show: "none"`), which is
+   what makes "is there anything to type on?" a question the geometry answers.
+   (§7's `__pane_tl`/`__pane_br` anchors were the original wording; anchors do
+   not reach the UI — `LayoutResult` carries boxes — so it is one box.)
+2. **`src/ui/code-editor.ts`.** The card: a text area in the panel's own mono
+   font (`MONO_FONT`, the same string the SVG text nodes get) at the panel's
+   own size, with Run, Continue and ✕ in a chin under it. `clientPointFor`
+   places it, `window.resize` + a `ResizeObserver` keep it there, and it hides
+   itself while the code half is switched off. `editorRect` is the pure half:
+   a one-line script still gets six rows to type in, a narrow pane widens to a
+   usable width, and a card near the bottom edge lifts so its chin stays on
+   the picture.
+3. **Two doors, one editor.** A paused click on the screen now opens the card
+   (the object's natural action, §11.2, finally where the object is); the ⊕
+   still opens the tray's text area, which grew an `✎ On the screen` button.
+   The tray keeps ONE draft per script and every mounted surface is told when
+   it changes, so typing in one and finishing in the other is one edit, and a
+   Run started at either door reports its progress at both. Continue and the
+   drafts are shared with the preview state: `settleParams` still restores the
+   lesson, and nothing a viewer typed persists.
+4. **Falls back, never fails.** A panel with no pane (output-only, or the code
+   half switched off, or not drawn yet at this boundary) sends the viewer to
+   the tray's copy instead — the editor that needs no geometry at all.
+
+**Not changed:** `explore: { code }` still opens the tray (one gate, and the
+card is one button away). The card is an HTML overlay like the veil, so movies
+and `<drawcast-figure>` — which mount no control bar — can never contain it.
+
+**Measured in the live smoke** (micropython, `show: "left"`, `frame: "screen"`):
+the text area's first character lands within 1 px of the drawn line's, at the
+drawn type size; a Run through the card re-ran the script and repainted the
+panel's output; growing the script from 4 to 13 lines moved and grew the card
+with the re-laid-out pane; Escape, Continue and playing from the bar each left
+the stage thawed and the authored script back on screen.

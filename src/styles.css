@@ -1304,6 +1304,62 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   transition: opacity 160ms ease-out;
 }
 
+/* The in-place script editor (ui/code-editor.ts): the card that lies ON the
+   code pane while the player is paused, so a script is edited where it is
+   drawn. It wears the FIGURE's paper and ink, never the app's variables — the
+   drawing stays light in either theme, and a dark card here would be a hole
+   in the picture. Its padding + border is CARD_INSET in code-editor.ts. */
+.cs-codeedit {
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-sizing: border-box;
+  padding: 4px;
+  background: #fdfbf5;
+  border: 2px solid #3d3833;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(30, 24, 16, 0.18);
+}
+.cs-codeedit-area {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #3d3833;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 4;
+}
+.cs-codeedit-chin { display: flex; align-items: center; gap: 0.3rem; }
+.cs-codeedit-status {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: #6b645b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cs-codeedit-chin button {
+  font-size: var(--text-xs);
+  padding: 0.1rem 0.45rem;
+  border: 1px solid #cdc5b4;
+  border-radius: 5px;
+  background: #fffefb;
+  color: #3d3833;
+  cursor: pointer;
+}
+.cs-codeedit-chin button:hover:not(:disabled) { background: #f2ece0; }
+.cs-codeedit-chin button:disabled { opacity: 0.5; cursor: default; }
+
 /* Media modal: the read-instead-of-the-figure surface (YouTube, PDF). */
 .cs-mediamodal {
   position: absolute;
@@ -1957,6 +2013,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--ink);
 }
 .cs-tray-run { font-size: var(--text-xs); }
+/* The other door: the same script, edited on the panel itself. */
+.cs-tray-onscreen { font-size: var(--text-xs); }
+.cs-tray-onscreen:disabled { opacity: 0.45; }
 .cs-tray-status { font-size: var(--text-xs); color: var(--muted); }
 /* One tray holds every control the figure has, so a script that shares it
    with sliders folds behind its own line until the viewer wants it. */

@@ -4,7 +4,7 @@
 import { CANVAS, linearScale, plotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
-import { centroid } from "./geometry";
+import { centroid, type BBox } from "./geometry";
 import { heuristicMeasure } from "./measure";
 import { codeDrawables, type CodeWindow } from "./code";
 import {
@@ -41,6 +41,9 @@ export interface Tier2Result {
   warnings: string[];
   /** Windowed code panes (el.lines), keyed by element id — the plan scrolls them. */
   windows: Record<string, CodeWindow>;
+  /** Each drawn code pane's text rectangle, keyed by element id — where the
+   *  in-place editor lays itself down. */
+  panes: Record<string, BBox>;
 }
 
 interface Ctx {
@@ -56,6 +59,7 @@ interface Ctx {
   extraOrder: string[];
   warnings: string[];
   windows: Record<string, CodeWindow>;
+  panes: Record<string, BBox>;
 }
 
 export function layoutElements(
@@ -79,6 +83,7 @@ export function layoutElements(
     anchors: { ...seedAnchors },
     extraOrder: [],
     windows: {},
+    panes: {},
     warnings: [],
   };
 
@@ -194,7 +199,7 @@ export function layoutElements(
     }
   }
 
-  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings, windows: ctx.windows };
+  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings, windows: ctx.windows, panes: ctx.panes };
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {

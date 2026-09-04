@@ -25,6 +25,10 @@ export interface LayoutResult {
   /** Windowed code panes (el.lines), keyed by element id — the plan scrolls
    *  their lines so the highest visible one is the window's bottom row. */
   windows?: Record<string, CodeWindow>;
+  /** Each drawn code pane's text rectangle (logical, y-up), keyed by element
+   *  id — where ui/code-editor lays its text area down. Absent for a panel
+   *  that draws no code. */
+  panes?: Record<string, BBox>;
 }
 
 export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure): LayoutResult {
@@ -46,6 +50,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   const labelRequests: LabelRequest[] = [];
   const order: string[] = [];
   let windows: Record<string, CodeWindow> = {};
+  let panes: Record<string, BBox> = {};
   let seedAnchors: Record<string, Pt> = {};
   let seedCurveSamples: Record<string, Pt[]> = {};
   let templateIds: string[] = [];
@@ -84,6 +89,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
     windows = tier2.windows;
+    panes = tier2.panes;
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
@@ -131,7 +137,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
 
   const issues = lintLayout(drawables, measure, spec.commands);
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows };
+  return { drawables, order, issues, warnings, windows, panes };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
