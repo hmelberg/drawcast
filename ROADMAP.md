@@ -825,6 +825,14 @@ Three seams, each testable where it lives:
 - **One printing command per element.** Tables stack under the text, so two
   of them lose their interleaving. This is also the teaching rhythm — one
   beat per command — so it is a rule, not a regret.
+- **Give the output the full width.** The emulator echoes every command and
+  answers in a full Norwegian sentence, so `show: "left"` starves the output
+  pane: the bundled example lost its own summarize table to a
+  "… (4 more lines)" before this was caught by loading it. Use
+  `show: "below"` with `lines:` on the code. And `summarize` always prints
+  NINE columns (it has no option to print fewer), which needs
+  `width: 960` + `font_size: 16` — anything narrower clips the mean itself.
+  `tabulate` is two columns and reads at any size.
 - **`collapse` before the data bridge.** 10 000 people is over the harvest's
   5000-number cap, which is the honest lesson too: you aggregate, you never
   plot individuals.

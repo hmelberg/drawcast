@@ -12187,8 +12187,10 @@
      "id": "md",
      "type": "code",
      "language": "microdata",
-     "show": "left",
-     "width": 920,
+     "show": "below",
+     "lines": 6,
+     "width": 960,
+     "font_size": 16,
      "frame": "screen",
      "draw": {
       "mode": "type"
