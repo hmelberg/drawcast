@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { referencedLectureIds, formatCourse, parseCourse, setCourseOption, setLectureStatus  } from "../src/course/document";
+import { referencedLectureIds, formatCourse, parseCourse, removeCourseOption, setCourseOption, setLectureStatus  } from "../src/course/document";
 
 const DOC = `# Causal Inference
 level: advanced · minutes: 5
@@ -138,6 +138,41 @@ describe("setCourseOption", () => {
     expect(out.indexOf("slug: causal")).toBeLessThan(out.indexOf("## Potential outcomes"));
     expect(parseCourse(out).context.slug).toBe("causal");
     expect(parseCourse(out).lectures[0].options.slug).toBeUndefined();
+  });
+});
+
+describe("removeCourseOption", () => {
+  const WITH = setCourseOption(DOC, "enroll", "https://drawcast.anvil.app");
+
+  it("removes the header key and nothing else", () => {
+    const out = removeCourseOption(WITH, "enroll");
+    expect(out).not.toContain("enroll:");
+    expect(out).toBe(DOC);
+    expect(parseCourse(out).enroll).toBeUndefined();
+  });
+
+  it("is a no-op when the key is absent", () => {
+    expect(removeCourseOption(DOC, "enroll")).toBe(DOC);
+  });
+
+  it("drops only its own part of a shared option line", () => {
+    const text = "# T\nenroll: https://x.y · name: learn\n\n## A\nq\n";
+    const out = removeCourseOption(text, "enroll");
+    expect(out).toBe("# T\nname: learn\n\n## A\nq\n");
+    expect(parseCourse(out).name).toBe("learn");
+    const other = removeCourseOption("# T\nname: learn · enroll: https://x.y\n\n## A\nq\n", "enroll");
+    expect(other).toBe("# T\nname: learn\n\n## A\nq\n");
+  });
+
+  it("never touches a lecture's own option of the same name", () => {
+    const text = "# T\nenroll: https://x.y\n\n## A\nq\nenroll: keep-me\n";
+    const out = removeCourseOption(text, "enroll");
+    expect(out).toBe("# T\n\n## A\nq\nenroll: keep-me\n");
+    expect(parseCourse(out).lectures[0].options.enroll).toBe("keep-me");
+  });
+
+  it("set then remove round-trips the document", () => {
+    expect(removeCourseOption(setCourseOption(DOC, "enroll", "https://drawcast.anvil.app"), "enroll")).toBe(DOC);
   });
 });
 
