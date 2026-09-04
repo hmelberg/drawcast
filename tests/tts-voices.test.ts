@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { clipCacheKey, isUsableVoice, listCloudVoices, preferredVoice, voiceLang, voiceLanguageCode } from "../src/export/tts";
+import { audioLimits, clipCacheKey, isUsableVoice, listCloudVoices, preferredVoice, synthesizeBase64, voiceLang, voiceLanguageCode } from "../src/export/tts";
 
 // B12 pure helpers: the bake's reuse check and the synthesizer both call
 // preferredVoice, so its rules ARE the contract.
@@ -186,5 +186,102 @@ describe("clipCacheKey — the declared language reaches the key", () => {
     // The bake and live playback share this key; changing it for undeclared
     // documents would silently re-charge every existing drawcast.
     expect(clipCacheKey(1, voices, line)).toBe(clipCacheKey(1, voices, line, undefined));
+  });
+});
+
+// Hans, 2026-09-04, the decisive clue: baking a course with a Chirp 3: HD
+// Norwegian voice succeeded for the first three lectures and failed on the
+// fourth or fifth. So the voice itself is fine — one LINE is not. The only
+// per-line difference in the request is `delivery`, which is the sole reason
+// `pitch` and `volumeGainDb` are ever sent, and Chirp 3: HD rejects pitch.
+// A publish therefore died at the first soft/grave/brisk line in the series.
+describe("audioLimits — what prosody a voice family accepts", () => {
+  test("Chirp 3: HD takes no pitch and no gain, and caps the rate at 2", () => {
+    const c = audioLimits("nb-NO-Chirp3-HD-Charon");
+    expect(c.pitch).toBe(false);
+    expect(c.gain).toBe(false);
+    expect(c.maxRate).toBe(2);
+  });
+
+  test("Studio takes no pitch — the limitation this code already knew about", () => {
+    expect(audioLimits("en-US-Studio-Q").pitch).toBe(false);
+    expect(audioLimits("en-US-Studio-Q").gain).toBe(true);
+  });
+
+  test("the ordinary families take everything", () => {
+    for (const n of ["nb-NO-Wavenet-E", "en-US-Neural2-F", "en-GB-Standard-A"]) {
+      expect(audioLimits(n)).toEqual({ pitch: true, gain: true, maxRate: 4 });
+    }
+  });
+
+  test("an unnamed voice (the API picks) is treated as ordinary", () => {
+    expect(audioLimits(undefined).pitch).toBe(true);
+  });
+});
+
+describe("synthesizeBase64 — the request a delivery line actually sends", () => {
+  const bodyOf = async (voiceName: string, delivery: "soft" | "grave") => {
+    const g = globalThis as unknown as { fetch: unknown };
+    const original = g.fetch;
+    let sent: Record<string, never> | undefined;
+    g.fetch = async (_url: string, init: { body: string }) => {
+      sent = JSON.parse(init.body) as Record<string, never>;
+      return { ok: true, status: 200, json: async () => ({ audioContent: "AAA" }) };
+    };
+    try {
+      await synthesizeBase64({ apiKey: "K", rate: 1, voices: { nb: voiceName }, lang: "nb" }, "Vi ser på tallene.", { delivery });
+    } finally {
+      g.fetch = original;
+    }
+    return sent as unknown as { audioConfig: Record<string, unknown>; voice: Record<string, unknown> };
+  };
+
+  test("a Chirp voice gets no pitch and no volumeGainDb — the fields it 400s on", async () => {
+    const body = await bodyOf("nb-NO-Chirp3-HD-Charon", "soft");
+    expect(body.voice.name).toBe("nb-NO-Chirp3-HD-Charon");
+    expect(body.audioConfig).not.toHaveProperty("pitch");
+    expect(body.audioConfig).not.toHaveProperty("volumeGainDb");
+    expect(body.audioConfig.speakingRate).toBeLessThanOrEqual(2);
+  });
+
+  test("an ordinary voice keeps the whole prosody nudge", async () => {
+    const body = await bodyOf("nb-NO-Wavenet-E", "soft");
+    expect(body.audioConfig.pitch).toBe(-1.5);
+    expect(body.audioConfig.volumeGainDb).toBe(-3);
+  });
+});
+
+describe("a rejected voice reports why", () => {
+  // The old message named the voice and stopped there, discarding the API's
+  // own sentence — which is exactly the sentence that says WHICH field it
+  // objected to. Two rounds of guessing came out of that.
+  test("the API's own reason survives into the error", async () => {
+    const g = globalThis as unknown as { fetch: unknown };
+    const original = g.fetch;
+    g.fetch = async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "This voice does not support pitch parameters." } }),
+    });
+    try {
+      await expect(
+        synthesizeBase64({ apiKey: "K", rate: 1, voices: { nb: "nb-NO-Chirp3-HD-Charon" }, lang: "nb" }, "Hei.", {}),
+      ).rejects.toThrow(/does not support pitch parameters/);
+    } finally {
+      g.fetch = original;
+    }
+  });
+
+  test("and so does the guidance about picking another voice", async () => {
+    const g = globalThis as unknown as { fetch: unknown };
+    const original = g.fetch;
+    g.fetch = async () => ({ ok: false, status: 400, json: async () => ({ error: { message: "boom" } }) });
+    try {
+      await expect(
+        synthesizeBase64({ apiKey: "K", rate: 1, voices: { nb: "nb-NO-Chirp3-HD-Charon" }, lang: "nb" }, "Hei.", {}),
+      ).rejects.toThrow(/nb-NO-Chirp3-HD-Charon/);
+    } finally {
+      g.fetch = original;
+    }
   });
 });

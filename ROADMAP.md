@@ -794,7 +794,36 @@ Cost of the fix, stated plainly: a drawcast that DOES declare `nb` re-bakes
 the lines whose sniff disagreed with the declaration. Those clips were in the
 wrong voice, so re-paying for them is the point.
 
-### 3. The label
+### 3. And then it failed again, on a Chirp voice
+
+Hans picked `nb-NO-Chirp3-HD-Charon` — a properly locale-prefixed name that
+passes `isUsableVoice`, and it reached the `nb` slot, so fixes 1 and 2 both
+worked. It still 400ed. His observation was the whole diagnosis: baking the
+course **succeeded for three lectures and died on the fourth or fifth**.
+
+So the voice was never the problem — one LINE was. The only per-line
+difference in the request is `delivery`, which is the sole reason `pitch` and
+`volumeGainDb` are ever sent, and Chirp 3: HD rejects pitch outright (and
+caps speakingRate at 2.0). The publish ran until the series' first
+soft/grave/brisk line and stopped there.
+
+`audioLimits(voiceName)` replaces the old `!name.includes("Studio")` pitch
+test with a per-family table: Chirp takes no pitch, no gain, rate ≤ 2;
+Studio takes no pitch; everything else takes the lot. Dropping a field costs
+a subtle prosody nudge on those voices; sending it costs the publish.
+
+**And the reason this took three rounds:** the 400 handler threw our own
+guidance and DISCARDED the API's sentence — the one that names the offending
+field. It now carries both. Two rounds of guessing came out of that, and the
+lesson generalises: an error that replaces an upstream explanation with
+advice is worse than one that appends to it.
+
+A bookkeeping defect on the same path, found by the new test: `saveUsage`
+wrote to localStorage unguarded while `loadUsage` read through the guarded
+helper. A browser that refuses storage turned a paid, SUCCESSFUL synthesis
+into a failed publish. A usage counter must never fail the work it counts.
+
+### 4. The label
 
 "Which language this voice choice applies to" is a scope selector, not a
 narration-language setting — the narration language comes from the document.
@@ -803,9 +832,11 @@ directly above the voice it governs. Not changed yet; noted.
 
 ### Not verified against the live API
 
-The filter is tested against a stubbed `voices.list` answer carrying a Gemini
-voice, and the naming rule against the real names Google documents. Nobody
-here has a TTS key, so the end-to-end publish was not re-run.
+Nobody here has a TTS key, so no round was re-run end to end: the filter is
+tested against a stubbed `voices.list` answer, the request body against a
+stubbed synthesize call, and the naming and prosody rules against what Google
+documents. Hans's next publish is the real test — and now it will say what
+the API actually objected to.
 
 ## microdata as a fifth runtime — done 2026-09-04
 

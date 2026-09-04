@@ -67,6 +67,29 @@ export function isUsableVoice(name: string): boolean {
 }
 
 /**
+ * What prosody a voice family accepts. Not every voice takes the whole
+ * audioConfig, and the API answers an unsupported field with a 400 — which
+ * fails the WHOLE publish, not the line.
+ *
+ * Found the hard way (Hans, 2026-09-04): a course baked with a Chirp 3: HD
+ * Norwegian voice succeeded for three lectures and died on the fourth. The
+ * voice was never the problem — `delivery` was. It is the only reason
+ * `pitch` and `volumeGainDb` are ever sent, so the publish ran until the
+ * series' first soft/grave/brisk line and 400ed there. Chirp 3: HD rejects
+ * pitch outright and caps speakingRate at 2.0; Studio rejects pitch (the
+ * case this code already knew, as a substring test on one family).
+ *
+ * Dropping a field costs a subtle prosody nudge on those voices. Failing the
+ * publish costs the publish.
+ */
+export function audioLimits(voiceName: string | undefined): { pitch: boolean; gain: boolean; maxRate: number } {
+  const name = voiceName ?? "";
+  if (name.includes("Chirp")) return { pitch: false, gain: false, maxRate: 2 };
+  if (name.includes("Studio")) return { pitch: false, gain: true, maxRate: 4 };
+  return { pitch: true, gain: true, maxRate: 4 };
+}
+
+/**
  * The preferred voice NAME for one line, or undefined for the default chain.
  * Exported so the bake's reuse check computes exactly what synthesis will do
  * — the two must never drift, or a republished line keeps the wrong voice.
@@ -249,9 +272,7 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   const lang = voiceLang(cfg.lang, text);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
   const voice = narrationVoice(cfg.voices, lang, opts);
-  // Studio voices reject pitch (documented); dropping it beats a 400 that
-  // would silently swap the voice via the no-name fallback below.
-  const pitchOk = !(voice.name ?? "").includes("Studio");
+  const limits = audioLimits(voice.name);
   const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
@@ -268,8 +289,8 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
             : { languageCode: voice.languageCode, ssmlGender: g === "male" ? "MALE" : "FEMALE" },
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: Math.min(4, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1))),
-          ...(delivery ? { ...(pitchOk ? { pitch: delivery.pitchSt } : {}), volumeGainDb: delivery.gainDb } : {}),
+          speakingRate: Math.min(limits.maxRate, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1))),
+          ...(delivery ? { ...(limits.pitch ? { pitch: delivery.pitchSt } : {}), ...(limits.gain ? { volumeGainDb: delivery.gainDb } : {}) } : {}),
         },
       }),
     });
@@ -281,7 +302,13 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   // the reuse check would keep the wrong recording on every republish
   // (final review 2026-09-02). Fail loudly; the author re-picks.
   if (res.status === 400 && !pref) res = await call(false);
-  else if (res.status === 400 && pref) throw new Error(`the voice "${pref}" was rejected by the API — pick a different ${lang} voice in Settings → Playback`);
+  else if (res.status === 400 && pref) {
+    // The API's own sentence says WHICH field it objected to. Throwing our
+    // guidance alone discarded it, and cost two rounds of guessing at a
+    // Chirp voice's rejected pitch (Hans, 2026-09-04).
+    const why = (await ttsError(res)).message;
+    throw new Error(`the voice "${pref}" was rejected by the API: ${why} — pick a different ${lang} voice in Settings → Playback`);
+  }
   if (!res.ok) throw await ttsError(res);
   const { audioContent } = (await res.json()) as { audioContent?: string };
   if (!audioContent) throw new Error("the TTS response carried no audio");

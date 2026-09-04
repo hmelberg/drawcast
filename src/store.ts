@@ -803,7 +803,15 @@ export function loadUsage(): UsageLedger {
 }
 
 function saveUsage(u: UsageLedger): void {
-  localStorage.setItem(KEYS.usage, JSON.stringify(u));
+  // A usage counter must never fail the work it is counting. loadUsage reads
+  // through the guarded `read` helper; this write was the one unguarded half,
+  // so a browser that refuses storage (private mode, a blocked third-party
+  // context) turned a paid, SUCCESSFUL synthesis into a failed publish.
+  try {
+    localStorage.setItem(KEYS.usage, JSON.stringify(u));
+  } catch {
+    /* the clip is already synthesized; losing the tally is the cheaper loss */
+  }
 }
 
 export function addAnthropicTokens(n: number): void {
