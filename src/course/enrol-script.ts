@@ -43,10 +43,10 @@ export const ENROL_SCRIPT = String.raw`(function () {
     try { history.replaceState(null, "", location.pathname + (location.hash || "")); } catch (e) {}
   }
 
-  // Ruling A: data-cast lives on both the <li> and its <a> (spec markup),
-  // so link rewriting and progress marks use distinct selectors — rewriting
+  // Ruling A: data-cast lives on both the <li> and its <a> (spec markup), so
+  // link rewriting (a[data-cast], re-queried in rewriteLinks) and progress
+  // marks (li[data-cast], here) use distinct selectors — rewriting
   // "[data-cast]" as a whole would also clobber the anchor's innerHTML.
-  var anchors = document.querySelectorAll("a[data-cast]");
   var lis = document.querySelectorAll("li[data-cast]");
   // Every render rebuilds the marks from THIS, not from what the last render
   // left behind: prepending into the live innerHTML stacked a second score
@@ -55,8 +55,16 @@ export const ENROL_SCRIPT = String.raw`(function () {
   for (var oi = 0; oi < lis.length; oi++) originals.push(lis[oi].innerHTML);
   function restore() { for (var ri = 0; ri < lis.length; ri++) lis[ri].innerHTML = originals[ri]; }
   /** code === null strips the parameter instead of adding one — after
-   *  "Forget me" the links must not keep carrying a deleted code. */
+   *  "Forget me" the links must not keep carrying a deleted code.
+   *
+   *  The anchors are looked up HERE, at every call, and never cached: writing
+   *  li.innerHTML above destroys the <a data-cast> inside and parses a fresh
+   *  one with the pristine href, so a list captured at script start would be
+   *  a handful of detached nodes and the live links would keep the href they
+   *  were published with. The page and the viewer are cross-origin — this
+   *  link is the only way the code travels. */
   function rewriteLinks(code) {
+    var anchors = document.querySelectorAll("a[data-cast]");
     for (var i = 0; i < anchors.length; i++) {
       var a = anchors[i];
       var href = a.getAttribute("href");
@@ -82,7 +90,7 @@ export const ENROL_SCRIPT = String.raw`(function () {
   }
   function showProgress(e) {
     fetch(api + "/_/api/progress?code=" + encodeURIComponent(e.code)).then(function (r) { return r.ok ? r.json() : null; }).then(function (p) {
-      if (!p || !p.lectures) { $("join-progress-note").textContent = "Progress is unavailable right now."; return; }
+      if (!p || !p.lectures) { $("join-progress-note").textContent = "Progress is unavailable right now."; rewriteLinks(e.code); return; }
       var byCast = {};
       for (var i = 0; i < p.lectures.length; i++) byCast[p.lectures[i].cast] = p.lectures[i];
       restore(); // a lecture this code has no progress for must lose the last code's mark
@@ -92,8 +100,11 @@ export const ENROL_SCRIPT = String.raw`(function () {
         var m = mark(lecture);
         li.innerHTML = "<span class=\"mark\" title=\"click for your answers\">" + esc(m.label) + "</span>" + originals[j] + (m.total ? "<div class=\"review\" hidden>" + answersHtml(lecture) + "</div>" : "");
       }
+      // The rebuild just re-parsed every link: put the code back on the
+      // anchors the browser has NOW, not on the ones we started with.
+      rewriteLinks(e.code);
       $("join-progress-note").textContent = "✓ completed · ○ opened · click a score to review your answers";
-    }, function () { $("join-progress-note").textContent = "Progress is unavailable right now."; });
+    }, function () { $("join-progress-note").textContent = "Progress is unavailable right now."; rewriteLinks(e.code); });
   }
   function render() {
     var e = entry();

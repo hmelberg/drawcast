@@ -15,11 +15,31 @@ const LEARN = { courseKey: "hmelberg/dcast/learn-russian", enroll: "https://draw
 class El {
   attrs: Record<string, string> = {};
   textContent = "";
-  innerHTML = "";
   value = "";
   hidden = false;
   handlers: Record<string, ((e: { preventDefault(): void }) => void)[]> = {};
+  /** The <a data-cast> this <li> contains right now. Assigning innerHTML
+   *  re-parses the markup in a real browser: the anchor node that was in
+   *  there is detached and a NEW one appears, carrying the href the page was
+   *  published with. Modelling that is the whole point — a NodeList captured
+   *  before the progress rebuild is a list of detached nodes afterwards. */
+  anchor: El | null = null;
+  /** The href in the published markup, restored by every re-parse. */
+  pristine = "";
+  /** True once a re-parse has thrown this node out of the document. */
+  detached = false;
+  private html = "";
   constructor(public id: string, attrs: Record<string, string> = {}) { this.attrs = attrs; }
+  get innerHTML() { return this.html; }
+  set innerHTML(v: string) {
+    this.html = v;
+    const old = this.anchor;
+    if (!old) return;
+    old.detached = true;
+    const fresh = new El("a", { "data-cast": old.attrs["data-cast"], href: old.pristine });
+    fresh.pristine = old.pristine;
+    this.anchor = fresh;
+  }
   getAttribute(k: string) { return this.attrs[k] ?? null; }
   setAttribute(k: string, v: string) { this.attrs[k] = v; }
   addEventListener(type: string, fn: (e: { preventDefault(): void }) => void) { (this.handlers[type] ??= []).push(fn); }
@@ -30,7 +50,11 @@ class El {
 // the script uses two distinct selectors (a[data-cast] for link rewriting,
 // li[data-cast] for progress marks/review) instead of one that would also
 // rewrite the anchor's innerHTML.
-function fakeDom(join: El | null, lis: El[], anchors: El[]) {
+//
+// "a[data-cast]" is answered from the anchors the <li>s hold AT CALL TIME, so
+// a rebuild of the marks hands the script a different set of nodes — the same
+// way a browser does.
+function fakeDom(join: El | null, lis: El[]) {
   const byId: Record<string, El> = {};
   for (const id of ["join-form", "join-name", "join-email", "join-button", "join-status", "join-you", "join-code", "join-progress-note", "join-forget", "join-switch", "join-switch-box", "join-switch-input", "join-switch-button"]) byId[id] = new El(id);
   return {
@@ -38,7 +62,7 @@ function fakeDom(join: El | null, lis: El[], anchors: El[]) {
     document: {
       querySelector: (sel: string) => (sel === ".join" ? join : null),
       getElementById: (id: string) => byId[id] ?? null,
-      querySelectorAll: (sel: string) => (sel === "a[data-cast]" ? anchors : sel === "li[data-cast]" ? lis : []),
+      querySelectorAll: (sel: string) => (sel === "a[data-cast]" ? lis.map((li) => li.anchor as El) : sel === "li[data-cast]" ? lis : []),
     },
   };
 }
@@ -50,9 +74,15 @@ function memoryStorage() {
 
 async function run(opts: { search?: string; storage?: ReturnType<typeof memoryStorage>; fetch?: typeof fetch; join?: boolean }) {
   const join = opts.join === false ? null : new El("join", { "data-course": LEARN.courseKey, "data-enroll": LEARN.enroll, "data-title": "Learn Russian" });
-  const anchors = LINKS.map((l) => new El("a", { "data-cast": l.cast, href: l.href }));
-  const lis = LINKS.map((l) => new El("li", { "data-cast": l.cast }));
-  const dom = fakeDom(join, lis, anchors);
+  const lis = LINKS.map((l) => {
+    const li = new El("li", { "data-cast": l.cast });
+    const a = new El("a", { "data-cast": l.cast, href: l.href });
+    a.pristine = l.href;
+    li.anchor = a;
+    return li;
+  });
+  const anchors = lis.map((li) => li.anchor as El); // the nodes at script start — stale after any rebuild
+  const dom = fakeDom(join, lis);
   const storage = opts.storage ?? memoryStorage();
   const replaced: string[] = [];
   const location = { search: opts.search ?? "", pathname: "/dcast/learn-russian/", hash: "", origin: "https://hmelberg.github.io", href: "https://hmelberg.github.io/dcast/learn-russian/" + (opts.search ?? "") };
@@ -61,7 +91,9 @@ async function run(opts: { search?: string; storage?: ReturnType<typeof memorySt
   new Function("document", "localStorage", "fetch", "location", "history", ENROL_SCRIPT)(dom.document, storage, fetchImpl, location, history);
   await new Promise((r) => setTimeout(r, 0));
   await new Promise((r) => setTimeout(r, 0));
-  return { ...dom, lis, anchors, storage, replaced, fetchImpl };
+  /** The anchors the document holds NOW — what the script must decorate. */
+  const current = (): El[] => lis.map((li) => li.anchor as El);
+  return { ...dom, lis, anchors, current, storage, replaced, fetchImpl };
 }
 
 describe("the page markup", () => {
@@ -222,14 +254,31 @@ describe("the script", () => {
     storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
     const f = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })) as unknown as typeof fetch;
     const r = await run({ storage, fetch: f });
-    expect(r.anchors[0].getAttribute("href")).toBe(LINKS[0].href + "&learner=fjell-rev-havn");
+    expect(r.current()[0].getAttribute("href")).toBe(LINKS[0].href + "&learner=fjell-rev-havn");
     r.byId["join-forget"].fire("click");
     await new Promise((res) => setTimeout(res, 0));
     await new Promise((res) => setTimeout(res, 0));
-    for (let i = 0; i < r.anchors.length; i++) {
-      expect(r.anchors[i].getAttribute("href")).toBe(LINKS[i].href);
-      expect(r.anchors[i].getAttribute("href")).not.toContain("&learner=");
-    }
+    r.current().forEach((a, i) => {
+      expect(a.getAttribute("href")).toBe(LINKS[i].href);
+      expect(a.getAttribute("href")).not.toContain("&learner=");
+    });
+  });
+
+  test("the progress rebuild re-parses the links, so the code is written onto the anchors the page has NOW", async () => {
+    // The regression this pins: restore()/showProgress assign li.innerHTML,
+    // which destroys the <a data-cast> inside and parses a fresh one with the
+    // published href. A NodeList captured at script start is detached nodes
+    // from then on, and the live links would lose the code — the course page
+    // and the viewer are cross-origin, so the link is its only channel.
+    const storage = memoryStorage();
+    storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
+    const progress = { name: null, course: {}, lectures: [{ cast: LINKS[0].cast, opened: true, completed: true, answers: [] }] };
+    const f = vi.fn(async () => new Response(JSON.stringify(progress), { status: 200 })) as unknown as typeof fetch;
+    const r = await run({ storage, fetch: f });
+    expect(r.anchors.every((a) => a.detached)).toBe(true); // the rebuild threw these away
+    expect(r.current().some((a) => r.anchors.includes(a))).toBe(false);
+    r.current().forEach((a, i) => expect(a.getAttribute("href")).toBe(LINKS[i].href + "&learner=fjell-rev-havn"));
+    expect(r.lis[0].innerHTML.split('class="mark"').length - 1).toBe(1);
   });
 
   test("switching codes twice leaves one mark, not a stack of them", async () => {
@@ -243,7 +292,8 @@ describe("the script", () => {
       await new Promise((res) => setTimeout(res, 0));
     }
     expect(r.lis[0].innerHTML.split('class="mark"').length - 1).toBe(1);
-    expect(r.anchors[0].getAttribute("href")).toBe(LINKS[0].href + "&learner=fjell-rev-havn");
+    r.current().forEach((a, i) => expect(a.getAttribute("href")).toBe(LINKS[i].href + "&learner=fjell-rev-havn"));
+    expect(r.current()[0].getAttribute("href")).not.toContain("havn-ulv-bok");
   });
 
   test("use another code reveals the switch box first", async () => {
