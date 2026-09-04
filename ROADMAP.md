@@ -737,6 +737,142 @@ survive a crossing as continuous words.
   SCHEMATIC out loud and name their silent clamps; an author with real
   coefficients has `line_chart` and `scatter_plot`.
 
+## View counts — done 2026-09-04
+
+How often a published drawcast has been played. GitHub gives nothing here —
+Pages has no analytics, and the repo traffic API counts views of the
+*repository page on github.com* plus clones, needs write access, and keeps 14
+days — so counting happens where we already own the code: the viewer. Every
+`#gh=` link runs our player, so the content path `owner/repo/path.yaml` is
+already a permanent identifier, and **nothing in the publish flow changed**:
+everything published before this shipped counts from the day it deployed.
+
+Each view writes one Blob keyed by that path; totals are derived by counting
+keys. Writes never read, so simultaneous views — a class opening a lecture
+together — cannot lose hits the way a read-modify-write counter does (Blobs
+has no compare-and-set). Finished days fold into a per-cast rollup so a read
+never grows with lifetime views, and **a day present in the rollup is counted
+from the rollup only, its raw keys ignored** — that one rule is what makes
+compaction safe to interrupt, duplicate, or race.
+
+Reads are public but *keyed*: you must name a repo. drawcast.app is a shared
+viewer, so a list-everything endpoint would expose other people's publishing;
+scoping to a named repo leaks nothing that is not already public on GitHub.
+`meta.views: false` rides in the published file when the author unticks
+**Count views**, and off means the player never calls — nothing is recorded,
+rather than recorded and filtered.
+
+### The bug the suite could not see
+
+All 4170 tests were green while the counter was **broken in production**:
+writes landed, but the listing never returned them, so every badge would have
+read `1` forever and the dashboard stayed empty. The cause was an encoding
+asymmetry in the Blobs SDK — `set` sends the key raw in the URL path while
+`list` sends its prefix through `URLSearchParams` — so the percent-encoded
+key got a different number of layers per operation.
+
+Two separate reviews had named this exact area as unverifiable without live
+Blobs and load-bearing for the design; it was deferred, and it was the bug.
+Every test drives an injected fake store, which is right for unit tests and
+worth nothing against an API that does not behave like the fake. **The
+generalisable lesson: a fake that never disagrees with the real thing is not
+evidence about the real thing.**
+
+### Remaining
+
+- **The author-side e2e.** Publish a real drawcast and confirm the badge
+  renders in the player. The chain is verified from the endpoint down —
+  `POST → 1 → 2 → 3`, read-back agrees, repo grouping correct, and repo-prefix
+  isolation re-checked with raw-slash keys — but the badge's own rendering
+  needs a GitHub token to reach.
+- **A live smoke script.** The bug above was found by hand with `curl`. That
+  probe sequence belongs in `scripts/` beside `smoke:race`, because it is the
+  only test in this feature that can fail for a real reason.
+- **Five stray smoke hits** sit in the store under the deliberately fake repo
+  `hmelberg/drawcast-smoketest`. Harmless — only a query naming that exact repo
+  sees them — but there is no delete path, which is itself worth noticing.
+
+### Follow-ups this round deliberately left
+
+- **Course index landings.** The generated course page on `github.io` is
+  script-free HTML the player never sees, so someone who opens a course and
+  never clicks a lecture is invisible. A small inline script in `coursePage()`
+  would count them, at the cost of changing published output and needing every
+  course republished. Per-lecture counts — the more useful number, since they
+  show drop-off from lecture 1 to lecture 7 — work regardless.
+- **Per-source breakdown.** A source token in the key
+  (`h/<cast>/<day>/<source>/<uuid>`) keeps counting-by-prefix intact and would
+  separate arrivals from the Pages course page, the repo README, and pasted
+  links. Left out because referrers are coarse and often absent, so the answer
+  would be indicative rather than true.
+- **A stats page.** v1 reads raw JSON at
+  `/.netlify/functions/views?repo=<owner>/<name>`. Because reads are public and
+  keyed, any dashboard is just a *client* of that URL — an in-app `#stats=`
+  route, or the Anvil app that was weighed against this design and lost on
+  delivery friction, not on merit. No migration either way.
+- **The initial-rollup race is narrowed, not closed.** Two readers can still
+  both see a day's rollup absent, list different eventually-consistent counts,
+  and have the smaller write land last. `Math.max` against a re-read rollup
+  plus a 15-minute post-midnight grace window shrink the window; only
+  compare-and-set would close it, and Blobs has none.
+- **`countRepo` is written for correctness, not speed.** It awaits one rollup
+  read per cast serially, and `rawByCast` rebuilds its array per hit (O(n²) in
+  one cast's raw keys). Both are one-line fixes worth taking the day a
+  dashboard actually renders this.
+- **`countRepo` accepts any key that decodes.** An `isValidCastKey` filter
+  would drop a stray blob that decodes but was never a cast; today it would
+  surface as a phantom row.
+- **The client's key check mirrors the server's regex but not its 300-byte
+  cap**, so an over-length key costs one pointless request — for a key the
+  viewer could not have opened anyway.
+- **Comments still lack the course seed.** `SavedCourse` gained
+  `publishedViews` so an opted-out course stays opted out across a republish;
+  `publishedComments` has the identical hole and did not get the same
+  treatment. It matters less because a comments box reappearing is *visible* —
+  the author notices — whereas counting resuming is not.
+- **Smaller ones:** `Vary: Origin` still rides along on GET responses whose
+  `Access-Control-Allow-Origin` is now `*`, fragmenting CDN cache for nothing;
+  `.viewer-meta` keeps ~5px of padding when the badge is empty; the response's
+  `days`/`total` come from the pre-compact rollup, so it can momentarily report
+  less than what was just made durable.
+
+### The player round — agreed, not started
+
+Framed as a YouTube-like separation: the player is a hard boundary containing
+everything that changes what you see (stage, controls, params tray, code
+panels), while everything *about* the drawcast — title, view count, share,
+comments — sits below it as page furniture. Fullscreen already honours that
+boundary (`tests/fullscreen-frame.test.ts` enforces that every `:fullscreen`
+selector names `.player-figure`); the non-fullscreen layout does not yet.
+Unlike YouTube the box must be free to grow taller when a tray or code panel
+opens, rather than being pinned to a video-shaped rectangle.
+
+- **Fit-to-window sizing for `#gh=` links.** Measured on a live drawcast: the
+  shell appears at 1055 ms with `.player-figure` at **960×16 px** — an empty
+  bordered strip — and jumps to 960×752 only when the figure mounts. There is
+  no animation; the box is content-sized, so it has no height until `render()`
+  fills it. And `.viewer-wrap`'s `min(960px, 96vw)` at 4:3 is ~750px tall, so
+  on a 730px viewport the play bar lands *below the fold* and the page
+  scrolls. One fix removes both: size the viewer's figure from the viewport,
+  hoisting `.viewer-body .player-figure` into the existing fullscreen rules
+  rather than writing a fourth copy of them.
+- **Comments below the drawcast**, out of the player's fixed-height column.
+- **The `.viewer-footer` strip goes**, Share becoming an icon — in the control
+  line, or in the meta row beside the count; that round decides.
+- **A poster frame**: the drawcast's final image before play instead of a
+  blank stage, cleared on play, designed so a user- or LLM-supplied start
+  image can replace the default later (`meta.poster`, defaulting to the final
+  frame). Sizing, poster and title-below want doing together — the page then
+  looks finished at 200 ms instead of at 6 seconds.
+- **The replay icon flashes at chapter boundaries** in a multi-chapter
+  drawcast; it should appear only at the true end.
+- **Drawcasts sometimes end on an empty chapter.** The last frame should hold
+  whatever was on screen.
+- **Same root cause, separate symptom:** the figure box collapses to the 16px
+  strip and re-expands at *every* playlist item change, mid-playback, because
+  `destroy()` removes the figure before the next one renders. The viewer's copy
+  goes away with the sizing fix; the app player's does not.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
