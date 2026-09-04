@@ -106,8 +106,12 @@ export function nameNote(outcome: "ok" | "taken" | "owner" | "key" | "invalid" |
       return ` · "${name}" is not a valid name`;
     case "rate":
       return " · name not registered: too many were made in the last hour — try again later";
-    default:
+    case "error":
       return " · name not registered (registry unreachable)";
+    default: {
+      const unreachable: never = outcome;
+      return unreachable;
+    }
   }
 }
 
@@ -162,7 +166,11 @@ export function claimNote(outcome: ClaimOutcome): string {
       return " · course not claimed (the registry rejected the request)";
     case "rate":
       return " · course not claimed: too many were made in the last hour — try again later";
-    default:
+    case "error":
       return " · course not claimed (registry unreachable)";
+    default: {
+      const unreachable: never = outcome;
+      return unreachable;
+    }
   }
 }

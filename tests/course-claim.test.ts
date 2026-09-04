@@ -104,6 +104,27 @@ describe("claimNote", () => {
   });
 });
 
+describe("nameNote and claimNote cover every outcome (switches are exhaustive — tsc is the real backstop; this is the runtime one)", () => {
+  // Typed to the exact union each function accepts: adding a member here
+  // that isn't part of the union fails to compile, so the array can't drift
+  // from what nameNote/claimNote actually handle.
+  type NameOutcome = Parameters<typeof nameNote>[0];
+  const NAME_OUTCOMES: readonly NameOutcome[] = ["ok", "taken", "owner", "key", "invalid", "rate", "error"];
+  const CLAIM_OUTCOMES: readonly ClaimOutcome[] = ["ok", "owner", "key", "invalid", "rate", "error"];
+
+  test("every nameNote outcome produces a distinct, non-empty note", () => {
+    const notes = NAME_OUTCOMES.map((o) => nameNote(o, "learn-russian"));
+    for (const note of notes) expect(note.length).toBeGreaterThan(0);
+    expect(new Set(notes).size).toBe(NAME_OUTCOMES.length);
+  });
+
+  test("every claimNote outcome produces a distinct, non-empty note", () => {
+    const notes = CLAIM_OUTCOMES.map((o) => claimNote(o));
+    for (const note of notes) expect(note.length).toBeGreaterThan(0);
+    expect(new Set(notes).size).toBe(CLAIM_OUTCOMES.length);
+  });
+});
+
 describe("registerName learns the registry's new 403", () => {
   // The Anvil side now answers 403 when a course name is registered by
   // someone who does not own the course. Without this arm the app calls that
