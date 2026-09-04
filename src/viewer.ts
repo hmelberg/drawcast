@@ -15,9 +15,10 @@ import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import {
-  apiBase, courseKeyOf, firstOpenInSession, forgetLearner, learnerFor, normalizeCode, reportingAllowed, saveLearner, sendEvent, stripLearnerParam,
+  apiBase, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, forgetLearner, learnerFor, normalizeCode, reportingAllowed, saveLearner, sendEvent, stripLearnerParam,
   type LearnerEntry,
 } from "./learn";
+import { ghHashFor, nameInHash, resolveName } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -230,6 +231,32 @@ async function fetchGhText(gh: GhRef): Promise<string> {
       ? `Could not find ${gh.path} in ${gh.owner}/${gh.repo}. The repository must be public and the path must be right — and a just-published file can take a few minutes to appear.`
       : `Could not fetch the drawcast (HTTP ${res.status}).`,
   );
+}
+
+/**
+ * A named link (spec §7): ask the registry what the name points at, then
+ * carry on exactly as if the target had been in the hash. The address bar
+ * keeps the name — replaceState would not fire hashchange, but there is
+ * nothing to gain from rewriting it either.
+ */
+export async function runNamed(hash: string): Promise<void> {
+  const name = nameInHash(hash);
+  const status = h("p", { class: "viewer-status" }, "Looking up the name…");
+  document.body.append(status);
+  const resolved = name ? await resolveName(DEFAULT_ENROLL_API, name) : null;
+  if (!resolved) {
+    status.textContent = `No drawcast called "${name ?? hash}".`;
+    status.classList.add("error");
+    return;
+  }
+  if (resolved.kind === "course") {
+    if (resolved.page) location.replace(resolved.page);
+    else status.textContent = "This course has no page to open.";
+    return;
+  }
+  status.remove();
+  const req = parseViewerHash(ghHashFor(hash, resolved.target));
+  if (req) await runViewer(req);
 }
 
 export async function runViewer(req: ViewerRequest): Promise<void> {
