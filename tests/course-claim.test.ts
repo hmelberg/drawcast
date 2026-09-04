@@ -78,7 +78,7 @@ describe("claimCourse", () => {
     [403, "owner"],
     [401, "key"],
     [400, "invalid"],
-    [429, "error"],
+    [429, "rate"],
     [500, "error"],
   ];
   test.each(statuses)("maps %i to %s", async (status, outcome) => {
@@ -94,11 +94,12 @@ describe("claimCourse", () => {
 });
 
 describe("claimNote", () => {
-  test("the spec's three notes, and two for the registry itself", () => {
+  test("the spec's three notes, the registry's own two, and the rate limit", () => {
     expect(claimNote("ok")).toBe(" · you own this course");
     expect(claimNote("owner")).toBe(" · this course is owned by another author — not claimed");
     expect(claimNote("key")).toBe(" · author key rejected");
     expect(claimNote("invalid")).toBe(" · course not claimed (the registry rejected the request)");
+    expect(claimNote("rate")).toBe(" · course not claimed: too many were made in the last hour — try again later");
     expect(claimNote("error")).toBe(" · course not claimed (registry unreachable)");
   });
 });
@@ -109,11 +110,21 @@ describe("registerName learns the registry's new 403", () => {
   // "registry unreachable" — a permanent, explainable condition reported as a
   // network failure. It matters most in the window where the server round is
   // deployed and this one is not yet.
-  test("403 is `owner`, and says so", async () => {
+  test("403 is `owner`, and says so — worded for both callers (F4: registerName is shared with the cast publish)", async () => {
     const forbidding = (async () => new Response('{"error":"owner"}', { status: 403 })) as typeof fetch;
     const outcome = await registerName(DEFAULT_ENROLL_API, { key: "k", name: "learn-russian", kind: "course", target: "h/d/learn-russian" }, forbidding);
     expect(outcome).toBe("owner");
-    expect(nameNote("owner", "learn-russian")).toBe(" · the name was not registered: this course is owned by another author");
+    expect(nameNote("owner", "learn-russian")).toBe(" · the name was not registered: you do not own what it points at");
+  });
+
+  // F5: the documented contract includes 429 {"error":"rate"} — folding it
+  // into "error" reports a temporary, actionable condition as a permanent,
+  // unexplainable one.
+  test("429 is `rate`, and says so", async () => {
+    const limiting = (async () => new Response('{"error":"rate"}', { status: 429 })) as typeof fetch;
+    const outcome = await registerName(DEFAULT_ENROLL_API, { key: "k", name: "learn-russian", kind: "course", target: "h/d/learn-russian" }, limiting);
+    expect(outcome).toBe("rate");
+    expect(nameNote("rate", "learn-russian")).toBe(" · name not registered: too many were made in the last hour — try again later");
   });
 });
 
@@ -140,13 +151,18 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
     expect(publishFn).toMatch(/publishCourse\(\{\s*text,/);
   });
 
-  test("the claim runs after the commit landed and BEFORE the name, which is registered only for a course the key owns", () => {
+  test("the claim runs after the commit landed and BEFORE the name, which is registered on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
     const after = course.slice(course.indexOf("await publishCourse("));
     expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(authorKey, reg\)/);
     expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
+    // F3: the condition and the ordering are pinned as two separate
+    // assertions, neither coupled to how the statement wraps across lines —
+    // the ordering assertion alone already carries the real guarantee (claim
+    // before name), and the condition assertion just needs the text to exist
+    // somewhere in the function, not glued to `registerName(` on one line.
     expect(after.indexOf("claimCourse(")).toBeLessThan(after.indexOf("registerName("));
     expect(after).toMatch(/claimNote\(/);
-    expect(after).toMatch(/if \(claimed === "ok"\)[^\n]*registerName\(/);
+    expect(after).toMatch(/claimed === "ok" \|\| claimed === "error"/);
   });
 
   test("Settings → Publishing says what the key does now", () => {

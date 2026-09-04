@@ -949,7 +949,15 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         // never runs for a course this key does not own.
         const claimed = await claimCourse(DEFAULT_ENROLL_API, courseClaim(authorKey, reg), bounded);
         nameSuffix = claimNote(claimed);
-        if (claimed === "ok") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, bounded), reg.name);
+        // "error" means we do not know whether this key owns the course — a
+        // 404 from an Anvil app not yet redeployed, a timeout, anything that
+        // is not one of the explicit ownership answers below. Registering the
+        // name anyway falls back to the pre-round behaviour, where /name runs
+        // the ownership check itself and answers 403 before touching a name
+        // row (spec's own belt-and-braces). "owner", "key" and "invalid" ARE
+        // explicit answers, so the name step never runs for them — and
+        // neither does "rate": the registry is refusing calls, not unsure.
+        if (claimed === "ok" || claimed === "error") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, bounded), reg.name);
       }
       if (bookkeeping) {
         say(
