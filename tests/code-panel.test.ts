@@ -13,6 +13,8 @@ import { flattenDrawables, type TextDrawable } from "../src/layout/model";
 import { planCommands } from "../src/render/plan";
 import { resolveDrawOpts } from "../src/layout/resolve";
 import type { Spec } from "../src/spec/types";
+import { readFileSync } from "node:fs";
+import bundledExamples from "../src/examples.json";
 
 const spec = (el: object, commands: object[] = []): Spec =>
   ({ elements: [{ id: "c1", type: "code", language: "python", code: "print(1)", ...el }], commands }) as unknown as Spec;
@@ -245,5 +247,21 @@ describe("the window's edges", () => {
     const clip = line1.clip!;
     expect(clip.h).toBeGreaterThan(win.height); // bleed, not a taller window
     expect(clip.h - win.height).toBeLessThan(5); // a hair, not a row
+  });
+});
+
+describe("the frames demo", () => {
+  test("the bundled example and the shareable document are the same text", () => {
+    // Two doors to one demo: the Examples list and
+    // /#gh=hmelberg/drawcast/docs/demos/frames.yaml. They must never drift.
+    const bundled = (bundledExamples as { title?: string; playlist?: string }[]).find((e) => e.title === "Five frames, one script");
+    expect(bundled?.playlist).toBe(readFileSync("docs/demos/frames.yaml", "utf8"));
+  });
+
+  test("it shows every frame the vocabulary has", () => {
+    const doc = readFileSync("docs/demos/frames.yaml", "utf8");
+    for (const f of ["crt", "c64", "screen", "laptop"]) expect(doc, f).toContain(`frame: ${f}`);
+    // …and one scene with no frame at all, the default.
+    expect(doc.split("---").length - 1).toBe(5); // header + five scenes
   });
 });
