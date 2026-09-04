@@ -70,7 +70,7 @@ import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bake";
-import { listCloudVoices, stampedVoice, synthesizeBase64 } from "./export/tts";
+import { listCloudVoices, stampedVoice, synthesizeBase64, voiceLang } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { castRegistration, publishCast } from "./publish/cast";
@@ -85,7 +85,6 @@ import { joinPath } from "./course/publish";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
-import { detectLang } from "./render/speech";
 import type { SpeakLine } from "./render/delivery";
 import {
   addExemplar,
@@ -4048,23 +4047,28 @@ async function publishTextFor(
   const published = await previousText();
   const existing: AudioTrack["lines"] = published ? (parsePlaylistText(published).audio?.lines ?? {}) : {};
   const bakeLines = playlistSpeakLines(source);
-  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, detectLang(line.text), line);
+  // The declared language, kept UNDEFINED when nothing declares one: passing
+  // a guessed "en" here would re-key every existing undeclared drawcast and
+  // re-charge its whole narration. Live playback reads the same tag through
+  // speech.setLangHint, so a line previewed in the editor is still free here.
+  const declaredLang = itemsOf(source).find((i) => i.spec.lang)?.spec.lang;
+  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, voiceLang(declaredLang, line.text), line);
   const stats: SynthStats = { cached: 0, synthesized: 0 };
   const track = await bakeNarration(
     bakeLines,
     {
-      lang: itemsOf(source).find((i) => i.spec.lang)?.spec.lang ?? "en",
+      lang: declaredLang ?? "en",
       existing,
       // B15: clips land in the local cache the moment they are synthesized,
       // and the cache answers before the API — a quota failure mid-bake
       // costs nothing to retry.
       synthesize: cachingSynthesizer(
         bakeClipStore,
-        (line) => clipCacheKey(settings.rate, settings.cloudVoices, line),
-        (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+        (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
+        (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line),
         stats,
       ),
-      // Mirrors what synthesize will do (same detectLang, same decision) —
+      // Mirrors what synthesize will do (same language decision, same voice) —
       // the reuse check and the synthesis must never disagree about the voice.
       voiceOf,
     },

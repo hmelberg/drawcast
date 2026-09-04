@@ -74,7 +74,9 @@ export interface SpeechLike {
 export class SpeechManager {
   private synth: SpeechSynthesis | null;
   private voiceURI: string | null = null;
-  private langHint: string | null = null;
+  /** Protected: CloudSpeech (export/tts.ts) picks its cloud voice by the
+   *  same declared language the browser-voice path below uses. */
+  protected langHint: string | null = null;
   private rate = 1;
   private mutedFlag = false;
   private listeners: (() => void)[] = [];

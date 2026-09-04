@@ -29,8 +29,41 @@ export interface TtsConfig {
 }
 
 /** The languageCode a Google voice name implies ("nb-NO-Wavenet-C" → "nb-NO"). */
+/**
+ * The language that picks a line's voice: the document's DECLARED language
+ * when it has one, else sniffed from the text.
+ *
+ * Sniffing alone was the old behaviour and it quietly mis-voiced Norwegian
+ * drawcasts (Hans, 2026-09-04): detectLang knows Norwegian by its letters
+ * and a short stopword list, so "Microdata har 10 000 enheter" reads as
+ * English and got the English voice — and with it the English slot of the
+ * author's per-language picks. The declared tag is reduced to its primary
+ * subtag because that is what VOICES and settings.cloudVoices are keyed by:
+ * a spec saying "nb-NO" must still find the author's "nb" pick.
+ */
+export function voiceLang(declared: string | undefined, text: string): string {
+  const tag = (declared ?? "").trim();
+  return tag === "" ? detectLang(text) : tag.split("-")[0].toLowerCase();
+}
+
 export function voiceLanguageCode(name: string): string {
   return name.split("-").slice(0, 2).join("-");
+}
+
+/**
+ * A voice this client can actually synthesize with: one whose NAME carries
+ * its locale, because voiceLanguageCode derives the request's languageCode
+ * from the name alone.
+ *
+ * Gemini-TTS voices are bare words — "Charon", "Puck", "Kore" — and
+ * voices.list offers them beside the ordinary ones. Two things break on
+ * them: the language code would be sent as "Charon", and Gemini-TTS also
+ * requires a `voice.model_name` this client never sends. Either way the call
+ * 400s, so such a voice must never be offered or obeyed. Supporting them
+ * properly means sending the model name, and is its own piece of work.
+ */
+export function isUsableVoice(name: string): boolean {
+  return /^[a-z]{2,3}-[A-Z]{2}-/.test(name);
 }
 
 /**
@@ -41,7 +74,12 @@ export function voiceLanguageCode(name: string): string {
 export function preferredVoice(voices: Record<string, string> | undefined, lang: string, speaker?: string): string | undefined {
   if (!voices || (speaker ?? "a") !== "a") return undefined;
   const name = voices[lang];
-  return name && name.length > 0 ? name : undefined;
+  // A stored name this client cannot synthesize with is not a preference,
+  // it is a value an older build let through: obeying it fails the whole
+  // publish (Hans, 2026-09-04). Falling back is safe HERE and not at the API
+  // — stampedVoice reads this same function, so the clip is stamped with the
+  // voice that actually sang it and the reuse check cannot mislabel it.
+  return name && isUsableVoice(name) ? name : undefined;
 }
 
 export interface CloudVoiceInfo {
@@ -59,6 +97,10 @@ export async function listCloudVoices(apiKey: string, languageCode: string): Pro
   if (!res.ok) throw await ttsError(res);
   const body = (await res.json()) as { voices?: { name: string; ssmlGender?: string }[] };
   return (body.voices ?? [])
+    // The API lists more than this client can call: a voice it cannot
+    // synthesize with is worse than a missing one, because the failure only
+    // surfaces at publish time, after the author has committed to the pick.
+    .filter((v) => isUsableVoice(v.name))
     .map((v) => ({ name: v.name, gender: (v.ssmlGender === "MALE" ? "male" : "female") as "female" | "male" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -154,8 +196,8 @@ export function stampedVoice(voices: Record<string, string> | undefined, lang: s
  * function — so a line previewed in the editor is free at publish time, and
  * a published line is free on replay.
  */
-export function clipCacheKey(rate: number, voices: Record<string, string> | undefined, line: SpeakLine): string {
-  const v = narrationVoice(voices, detectLang(line.text), line);
+export function clipCacheKey(rate: number, voices: Record<string, string> | undefined, line: SpeakLine, lang?: string): string {
+  const v = narrationVoice(voices, voiceLang(lang, line.text), line);
   return `${rate}|${v.languageCode}|${v.name ?? ""}|${speechKey(line)}`;
 }
 
@@ -204,7 +246,7 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
   const g = effectiveGender(opts) ?? "female";
-  const lang = cfg.lang ?? detectLang(text);
+  const lang = voiceLang(cfg.lang, text);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
   const voice = narrationVoice(cfg.voices, lang, opts);
   // Studio voices reject pitch (documented); dropping it beats a 400 that
@@ -334,12 +376,16 @@ export class CloudSpeech extends SpeechManager {
     // The voice pick and the rate are part of the key: changing either
     // mid-session must not replay lines recorded under the old one. It is
     // the BAKE's key, so the two caches are one.
-    const key = clipCacheKey(rate, voices, line);
+    // The declared language governs the voice, exactly as it does for the
+    // browser-voice path — the cloud path used to sniff each line, which
+    // handed Norwegian lines with no æøå to the English voice.
+    const lang = this.langHint ?? undefined;
+    const key = clipCacheKey(rate, voices, line, lang);
     const hit = this.cache.get(key);
     if (hit) return Promise.resolve(hit);
     const inFlight = this.pending.get(key);
     if (inFlight) return inFlight;
-    const p = this.encoded(key, line, { apiKey: this.getKey(), rate, voices })
+    const p = this.encoded(key, line, { apiKey: this.getKey(), rate, voices, lang })
       .then((b64) => audioCtx.decodeAudioData(base64ToBytes(b64).buffer as ArrayBuffer))
       .then((b) => {
         this.cache.set(key, b);

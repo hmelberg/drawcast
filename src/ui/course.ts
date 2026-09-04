@@ -21,8 +21,7 @@ import type { SpeakLine } from "../render/delivery";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
-import { stampedVoice, synthesizeBase64 } from "../export/tts";
-import { detectLang } from "../render/speech";
+import { stampedVoice, synthesizeBase64, voiceLang } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, nameNote, registerName } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
@@ -738,7 +737,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       const text = yamlFor(index)!;
       const playlist = parsePlaylistText(text);
       const lines = playlistSpeakLines(playlist);
-      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, detectLang(line.text), line);
+      // Undefined when nothing declares one — see the same decision in main.ts.
+      const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
+      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, voiceLang(declaredLang, line.text), line);
       // What this lecture already published, so unchanged lines are free.
       let existing: AudioTrack["lines"] = {};
       const file = course.lectures[index].status?.file;
@@ -753,14 +754,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       const track = await bakeNarration(
         lines,
         {
-          lang: playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0] ?? "en",
+          lang: declaredLang ?? "en",
           existing,
           // B15: see export/bake-cache.ts — a 20-lecture bake that dies at
           // lecture 14 resumes from the local clip cache, not from Google.
           synthesize: cachingSynthesizer(
             bakeClipStore,
-            (line) => clipCacheKey(settings.rate, settings.cloudVoices, line),
-            (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices }, line.text, line),
+            (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
+            (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line),
             bakeStats,
           ),
           voiceOf,

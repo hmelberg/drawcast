@@ -737,6 +737,76 @@ survive a crossing as continuous words.
   SCHEMATIC out loud and name their silent clamps; an author with real
   coefficients has `line_chart` and `scatter_plot`.
 
+## The voice a publish uses — fixed 2026-09-04
+
+Hans, from a real failure on drawcast.app: he set a Norwegian voice in
+Settings → Playback and the publish died with
+
+    the voice "Charon" was rejected by the API — pick a different en voice
+
+Two independent defects, and a UI label that invited the confusion.
+
+### 1. The picker offered voices publish cannot use
+
+`voices.list` returns Gemini-TTS voices beside the ordinary ones, and their
+names are BARE WORDS — "Charon", "Puck", "Kore". Two things break on such a
+name: `voiceLanguageCode` derives the request's languageCode by splitting the
+NAME on "-", so it sent `languageCode: "Charon"`; and Gemini-TTS additionally
+requires a `voice.model_name` this client never sends. Either way every call
+400s — a voice that can only fail, offered in a dropdown, with the failure
+surfacing at publish time after the author has committed to the pick.
+
+One rule now, `isUsableVoice`, read in both directions: `listCloudVoices`
+filters the dropdown, and `preferredVoice` ignores a name an older build
+already stored — otherwise filtering the dropdown would not have unstuck
+Hans, whose `cloudVoices.en` still held "Charon". Falling back is safe HERE
+and not at the API, because `stampedVoice` reads the same function: the clip
+is stamped with the voice that actually sang it, so the reuse check cannot
+mislabel a recording (the rule that made an API-side silent substitution
+unacceptable in the first place).
+
+Supporting Gemini voices properly means sending `voice.model_name` and
+pinning a model whose name is still moving ("gemini-2.5-flash-tts",
+"gemini-3.1-flash-tts-preview"). Left as its own piece of work.
+
+### 2. The declared language never reached the cloud voice
+
+`spec.lang` was already threaded to `speech.setLangHint`, and the BROWSER
+voice path honoured it — but the cloud path sniffed every line with
+`detectLang`, which knows Norwegian only by its letters and a short stopword
+list. "Microdata har 10 000 enheter" reads as English, so a Norwegian
+drawcast handed that line to the English voice, and with it to the English
+slot of the author's per-language picks. That is why Hans's Norwegian pick
+did not apply and a stale English one did.
+
+`voiceLang(declared, text)` is now the one place that decides, used by
+`synthesizeBase64`, `clipCacheKey` and the two bakes. It also reduces a
+regional tag to its primary subtag, because `VOICES` and
+`settings.cloudVoices` are keyed "nb"/"en" — a spec saying "nb-NO" used to
+miss the author's "nb" pick entirely.
+
+**The declared language stays UNDEFINED when nothing declares one.** The bake
+had `?? "en"` for its track metadata, and reusing that for the voice would
+have re-keyed every existing undeclared drawcast and re-charged its whole
+narration. Undeclared documents keep the old sniffing key, byte for byte.
+
+Cost of the fix, stated plainly: a drawcast that DOES declare `nb` re-bakes
+the lines whose sniff disagreed with the declaration. Those clips were in the
+wrong voice, so re-paying for them is the point.
+
+### 3. The label
+
+"Which language this voice choice applies to" is a scope selector, not a
+narration-language setting — the narration language comes from the document.
+Hans read it as the latter, which is a fair reading of a dropdown that sits
+directly above the voice it governs. Not changed yet; noted.
+
+### Not verified against the live API
+
+The filter is tested against a stubbed `voices.list` answer carrying a Gemini
+voice, and the naming rule against the real names Google documents. Nobody
+here has a TTS key, so the end-to-end publish was not re-run.
+
 ## microdata as a fifth runtime — done 2026-09-04
 
 Hans wants an introduction to microdata.no built in drawcast, and chose
