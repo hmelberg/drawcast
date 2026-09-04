@@ -75,6 +75,12 @@ describe("ask answers", () => {
     await player.play();
     expect(events).toEqual([]);
   });
+  test("skip on a check-mode ask reports no attempt and false", async () => {
+    const { player, events } = makePlayer([{ ask: { question: "Case?", answer: "genitive", retry: true, wrong: "No." } }]);
+    player.askGate = async () => null;
+    await player.play();
+    expect(events[0]).toMatchObject({ given: [], correct: false });
+  });
   test("the auto path reports nothing", async () => {
     const { player, events } = makePlayer([{ ask: { question: "Case?", answer: "genitive" } }]);
     await player.play();

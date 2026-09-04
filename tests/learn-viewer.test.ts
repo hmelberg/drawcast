@@ -28,6 +28,14 @@ describe("the viewer reports to the learner backend", () => {
     expect(strip).toBeGreaterThan(save);
     expect(src).toMatch(/stripLearnerParam\(location\.href\)/);
   });
+  test("a code in the address is cleaned away even when the cast has no backend to report to", () => {
+    expect(src).toMatch(/if \(req\.learner\) \{/);
+    expect(src).toMatch(/if \(enroll\) saveLearner\(/);
+  });
+  test("an answer is keyed by (item, step): the playlist item index plus the step inside it", () => {
+    expect(src).toMatch(/onAnswer: reporter\s*\?\s*\(a, _item, index\) =>/);
+    expect(src).toMatch(/kind: "answer", cast: learnerCast, item: index, step: a\.index/);
+  });
   test("opened, answer and completed are wired and never awaited", () => {
     expect(src).toMatch(/kind: "opened"/);
     expect(src).toMatch(/onAnswer: /);

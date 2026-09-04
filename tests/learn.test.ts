@@ -118,12 +118,25 @@ describe("sendEvent", () => {
     expect(init.keepalive).toBe(true);
     expect(JSON.parse(init.body as string)).toEqual({ code: "fjell-rev-havn", kind: "opened", cast: CAST });
   });
-  test("an answer carries step, question, attempts, expected and correct", async () => {
+  test("an answer carries item, step, question, attempts, expected and correct", async () => {
     const f = fetchReturning(200, { ok: true });
-    await sendEvent(ENTRY, { kind: "answer", cast: CAST, step: 4, question: "Which case?", given: ["dative", "genitive"], expected: "genitive", correct: true }, f);
+    await sendEvent(ENTRY, { kind: "answer", cast: CAST, item: 2, step: 4, question: "Which case?", given: ["dative", "genitive"], expected: "genitive", correct: true }, f);
     expect(JSON.parse(callOf(f)[1].body as string)).toEqual({
-      code: "fjell-rev-havn", kind: "answer", cast: CAST, step: 4, question: "Which case?", given: ["dative", "genitive"], expected: "genitive", correct: true,
+      code: "fjell-rev-havn", kind: "answer", cast: CAST, item: 2, step: 4, question: "Which case?", given: ["dative", "genitive"], expected: "genitive", correct: true,
     });
+  });
+  test("the attempts are trimmed to what the server accepts: the last 10, 2000 characters each", async () => {
+    const f = fetchReturning(200, { ok: true });
+    const tries = Array.from({ length: 12 }, (_, i) => `try-${i}`);
+    await sendEvent(ENTRY, { kind: "answer", cast: CAST, item: 0, step: 1, question: "Q", given: tries, expected: "x", correct: false }, f);
+    const sent = JSON.parse(callOf(f)[1].body as string) as { given: string[] };
+    expect(sent.given).toEqual(tries.slice(2));
+    expect(sent.given.length).toBe(10);
+    const g = fetchReturning(200, { ok: true });
+    await sendEvent(ENTRY, { kind: "answer", cast: CAST, item: 0, step: 1, question: "Q", given: ["a".repeat(3000)], expected: "b".repeat(3000), correct: false }, g);
+    const long = JSON.parse(callOf(g)[1].body as string) as { given: string[]; expected: string };
+    expect(long.given[0].length).toBe(2000);
+    expect(long.expected.length).toBe(2000);
   });
   test("a bad cast key never becomes a request; failures return false", async () => {
     const f = fetchReturning(200, { ok: true });

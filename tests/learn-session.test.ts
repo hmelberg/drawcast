@@ -6,9 +6,9 @@ import { describe, expect, test } from "vitest";
 const src = readFileSync(new URL("../src/playlist/session.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
 
 describe("session learner hooks", () => {
-  test("onAnswer is chained after the previous callback and passes the item", () => {
-    expect(src).toMatch(/onAnswer\?\(answer: AnswerEvent, item: PlaylistItem\): void/);
-    expect(src).toMatch(/onAnswer: \(a\) => \{\s*prev\.onAnswer\?\.\(a\);\s*opts\.onAnswer\?\.\(a, items\[i\]\);/);
+  test("onAnswer is chained after the previous callback and passes the item AND its index", () => {
+    expect(src).toMatch(/onAnswer\?\(answer: AnswerEvent, item: PlaylistItem, index: number\): void/);
+    expect(src).toMatch(/onAnswer: \(a\) => \{\s*prev\.onAnswer\?\.\(a\);\s*opts\.onAnswer\?\.\(a, items\[i\], i\);/);
   });
   test("onDone fires inside the done branch, only for the last item, once", () => {
     expect(src).toMatch(/onDone\?\(\): void/);

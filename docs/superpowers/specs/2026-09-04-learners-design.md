@@ -207,8 +207,8 @@ answers, `Cache-Control: no-store`.
 | endpoint | in | out |
 |---|---|---|
 | `POST /_/api/enroll` | `{course, title, page, run?, name?, email?}` | `{code, name, email_sent}`; `400 {error:"email"}` when the run requires one |
-| `POST /_/api/event` | `{code, kind, cast, step?, question?, given?, correct?}` | `{ok:true}`; updates `last_seen`; `404` unknown code |
-| `GET /_/api/progress?code=` | — | `{name, course, lectures:[{cast, opened, completed, answers:[{step, question, given, expected, correct}]}]}` |
+| `POST /_/api/event` | `{code, kind, cast, item?, step?, question?, given?, correct?}` | `{ok:true}`; updates `last_seen`; `404` unknown code |
+| `GET /_/api/progress?code=` | — | `{name, course, lectures:[{cast, opened, completed, answers:[{item, step, question, given, expected, correct}]}]}` |
 | `POST /_/api/forget` | `{code}` | `{ok:true}`; deletes enrolment + events |
 | `GET /_/api/name?n=` | — | `{kind, target}` or `404` — §7 |
 | `POST /_/api/name` | `{key, name, kind, target, page?, lectures?}` | `{ok:true}`; `401` bad author key, `409` taken by someone else; own names update. For a course, `page` and the ordered `lectures` (cast keys) travel along and create the course row if it does not exist yet — §7 |
@@ -250,7 +250,7 @@ rule: nothing here may throw into playback; every failure returns `null`.
 |---|---|---|
 | `opened` | first time this browser session opens the cast (own session marker, `drawcast.learned:`) | — |
 | `completed` | the last item of the playlist reaches `done` — the point `showNextLink` runs | — |
-| `answer` | a **live viewer's** answer lands (never movies, never gate-less players) | `step` (index), `question`, `given` (string[] — every attempt, verbatim), `expected` (the correct choice's text, or the ask's `answer`), `correct` |
+| `answer` | a **live viewer's** answer lands (never movies, never gate-less players) | `item` (0-based item index within the lecture's playlist), `step` (index), `question`, `given` (string[] — every attempt, verbatim), `expected` (the correct choice's text, or the ask's `answer`), `correct` |
 
 - **Which questions report:** every `quiz`, and every `ask` that has an
   `answer` (check mode). An `ask` without `answer` (collect mode: a name, a
@@ -260,7 +260,11 @@ rule: nothing here may throw into playback; every failure returns `null`.
   the player already scores as wrong). **Ask with retry:** the attempts are
   collected in the retry loop and sent once when the outcome lands, so one
   event per question landing, all wrong tries preserved.
-- `given` entries are capped at 2000 characters client-side.
+- Answers are keyed by **(item, step)**: `step` counts plan steps inside one
+  playlist item, and a generated lecture is one item per part, so `step` alone
+  collides across parts.
+- `given` is capped at 10 attempts (the last 10) and 2000 characters an entry,
+  client-side — the server's own limits.
 - Reported only when `learners[courseKey]` exists **and** its `api` equals
   the playlist's `meta.enroll` when that is present — the code goes to the
   app that issued it, whatever a YAML says.

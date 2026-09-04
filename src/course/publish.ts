@@ -20,7 +20,7 @@ import { formatPublished, parsePlaylistText } from "../playlist/playlist";
 import { parseCourse, setCourseOption, setLectureStatus, type Course } from "./document";
 import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
 import { apiBase } from "../learn";
-import type { Registration } from "../names";
+import { normalizeName, type Registration } from "../names";
 
 /**
  * Join a repo path, tolerating an empty directory. The default IS empty: a
@@ -54,8 +54,12 @@ export function courseRegistration(
   // A course that has never been published has no slug yet, and so no name to
   // register — the caller only ever asks AFTER a publish, which mints one.
   if (!slug) return null;
+  // `name: Learn-Russian` in the document is the same name as `learn-russian`
+  // — the registry is lower-case (names.ts). A name the rule rejects outright
+  // travels as written, so registerName can report it as invalid.
+  const wanted = course.name ?? slug;
   return {
-    name: course.name ?? slug,
+    name: normalizeName(wanted) ?? wanted,
     kind: "course",
     target: courseKeyFor(repo, joinPath(coursesDir, slug)),
     page: pageUrl,

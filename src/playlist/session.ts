@@ -71,8 +71,11 @@ export interface SessionOptions {
   };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
-  /** A live viewer answered a quiz/ask in the current item (spec §4). */
-  onAnswer?(answer: AnswerEvent, item: PlaylistItem): void;
+  /** A live viewer answered a quiz/ask in the current item (spec §4). The
+   *  item's index travels with it because AnswerEvent.index counts plan
+   *  steps WITHIN one item — a lecture's parts each restart it, so only the
+   *  pair (item, step) names a question across the whole playlist. */
+  onAnswer?(answer: AnswerEvent, item: PlaylistItem, index: number): void;
   /** The LAST item finished — once per mount, whether or not meta.next is set.
    *  Fires from either mount path: the single-drawcast lecture (the common
    *  case) as well as a multi-item playlist. */
@@ -383,10 +386,11 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
 
   /** Wires a mounted item's timeline callbacks after the controls install
    *  their own (see the AFTER comment above): forwards onStep untouched,
-   *  forwards onAnswer to the host with the item attached, and on the LAST
-   *  item's "done" fires opts.onDone once for the whole mount. Shared by both
-   *  mount paths — the single-drawcast branch above (i is always 0 there)
-   *  and mountItem — so onAnswer/onDone reach the host either way. */
+   *  forwards onAnswer to the host with the item and its index attached,
+   *  and on the LAST item's "done" fires opts.onDone once for the whole
+   *  mount. Shared by both mount paths — the single-drawcast branch above
+   *  (i is always 0 there) and mountItem — so onAnswer/onDone reach the
+   *  host either way. */
   function chainCallbacks(hd: RenderHandle, i: number): void {
     const prev = hd.timeline.callbacks;
     hd.timeline.callbacks = {
@@ -406,7 +410,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       onStep: prev.onStep,
       onAnswer: (a) => {
         prev.onAnswer?.(a);
-        opts.onAnswer?.(a, items[i]);
+        opts.onAnswer?.(a, items[i], i);
       },
     };
   }

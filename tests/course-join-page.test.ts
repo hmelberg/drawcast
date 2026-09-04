@@ -199,6 +199,53 @@ describe("the script", () => {
     expect(r.byId["join-you"].hidden).toBe(false);
   });
 
+  test("a malformed ?learner= escape leaves the join box working", async () => {
+    // decodeURIComponent("100%") throws — unguarded, it took the whole script
+    // down before a single listener was attached.
+    const r = await run({ search: "?learner=100%" });
+    expect(r.byId["join-form"].handlers["submit"]?.length).toBe(1);
+    expect(r.byId["join-form"].hidden).toBe(false);
+    expect(r.storage.data["drawcast.learners"]).toBeUndefined();
+    expect(r.replaced).toEqual(["/dcast/learn-russian/"]);
+  });
+
+  test("a malformed ?run= escape enrols without a run instead of throwing", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ code: "a-b-c", name: null, email_sent: false }), { status: 200 })) as unknown as typeof fetch;
+    const r = await run({ fetch: f, search: "?run=100%" });
+    r.byId["join-form"].fire("submit");
+    await new Promise((res) => setTimeout(res, 0));
+    expect(JSON.parse(((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit])[1].body as string).run).toBeNull();
+  });
+
+  test("forget also takes the code off the lecture links", async () => {
+    const storage = memoryStorage();
+    storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
+    const f = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })) as unknown as typeof fetch;
+    const r = await run({ storage, fetch: f });
+    expect(r.anchors[0].getAttribute("href")).toBe(LINKS[0].href + "&learner=fjell-rev-havn");
+    r.byId["join-forget"].fire("click");
+    await new Promise((res) => setTimeout(res, 0));
+    await new Promise((res) => setTimeout(res, 0));
+    for (let i = 0; i < r.anchors.length; i++) {
+      expect(r.anchors[i].getAttribute("href")).toBe(LINKS[i].href);
+      expect(r.anchors[i].getAttribute("href")).not.toContain("&learner=");
+    }
+  });
+
+  test("switching codes twice leaves one mark, not a stack of them", async () => {
+    const progress = { name: null, course: {}, lectures: [{ cast: LINKS[0].cast, opened: true, completed: true, answers: [] }] };
+    const f = vi.fn(async () => new Response(JSON.stringify(progress), { status: 200 })) as unknown as typeof fetch;
+    const r = await run({ fetch: f });
+    for (const code of [" Havn-Ulv-Bok ", "fjell-rev-havn"]) {
+      r.byId["join-switch-input"].value = code;
+      r.byId["join-switch-button"].fire("click");
+      await new Promise((res) => setTimeout(res, 0));
+      await new Promise((res) => setTimeout(res, 0));
+    }
+    expect(r.lis[0].innerHTML.split('class="mark"').length - 1).toBe(1);
+    expect(r.anchors[0].getAttribute("href")).toBe(LINKS[0].href + "&learner=fjell-rev-havn");
+  });
+
   test("use another code reveals the switch box first", async () => {
     const r = await run({});
     expect(r.byId["join-switch-box"].hidden).toBe(true);

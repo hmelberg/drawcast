@@ -912,15 +912,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       publishedViews = countViews !== false;
       const firstTime = !published.has(settings.githubRepo);
       published.add(settings.githubRepo);
-      // Only now, with the commit landed, is there something for a
-      // drawcast.app/#name to point at. No author key, no registration —
-      // publishing is complete either way, so a registry that is down or a
-      // name someone else already owns never turns a successful publish into
-      // a failed one; it only changes the note at the end of the line.
-      let nameSuffix = "";
-      const authorKey = getAuthorKey();
-      const reg = authorKey ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
-      if (authorKey && reg) nameSuffix = nameNote(await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }), reg.name);
+      // Bookkeeping BEFORE the registry: writing the permanent file names back
+      // into the document is what keeps the links in it pointing at the files
+      // that were just committed, and a slow (or hanging) registry call in
+      // front of it would leave them orphaned for as long as it lasted.
+      let bookkeeping: Error | null = null;
       try {
         checkpoint();
         doc.value = out.text; // now carries each lecture's permanent file name
@@ -928,8 +924,27 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         render();
       } catch (err) {
         console.error("drawcast: publish succeeded, bookkeeping failed", err);
+        bookkeeping = err as Error;
+      }
+      // Only now, with the commit landed, is there something for a
+      // drawcast.app/#name to point at. No author key, no registration —
+      // publishing is complete either way, so a registry that is down or a
+      // name someone else already owns never turns a successful publish into
+      // a failed one; it only changes the note at the end of the line. The
+      // timeout is what keeps that promise: an unreachable registry costs ten
+      // seconds, not the rest of the session.
+      let nameSuffix = "";
+      const authorKey = getAuthorKey();
+      const reg = authorKey ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
+      if (authorKey && reg) {
+        const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
+          fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+        );
+        nameSuffix = nameNote(outcome, reg.name);
+      }
+      if (bookkeeping) {
         say(
-          `Published to ${out.courseUrl} — but the file names could not be written back into the document (${(err as Error).name}: ${(err as Error).message}). Press Publish again after checking the document.`,
+          `Published to ${out.courseUrl} — but the file names could not be written back into the document (${bookkeeping.name}: ${bookkeeping.message}). Press Publish again after checking the document.${nameSuffix}`,
           "error",
         );
         return;

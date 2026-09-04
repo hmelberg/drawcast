@@ -25,16 +25,20 @@ export const ENROL_SCRIPT = String.raw`(function () {
   function forget() { var m = read(); delete m[course]; write(m); }
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function normalize(raw) { var s = String(raw || "").trim().toLowerCase().split(/\s+/).join("-"); return CODE_RE.test(s) ? s : null; }
+  // A malformed percent-escape ("?learner=100%") must not throw: this script
+  // runs top to bottom before a single listener is attached, so one bad
+  // character in the address would take the whole join box down with it.
+  function dec(s) { try { return decodeURIComponent(s); } catch (e) { return null; } }
   function post(path, body) {
     return fetch(api + "/_/api/" + path, { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }, function () { return { ok: r.ok, status: r.status, body: {} }; }); });
   }
   function pageUrl() { return location.origin + location.pathname; }
-  function runSlug() { var m = /[?&]run=([^&#]+)/.exec(location.search || ""); return m ? decodeURIComponent(m[1]) : null; }
+  function runSlug() { var m = /[?&]run=([^&#]+)/.exec(location.search || ""); return m ? dec(m[1]) : null; }
 
   var arriving = /[?&]learner=([^&#]+)/.exec(location.search || "");
   if (arriving) {
-    var code = normalize(decodeURIComponent(arriving[1]));
+    var code = normalize(dec(arriving[1]));
     if (code) save(code, (entry() || {}).name);
     try { history.replaceState(null, "", location.pathname + (location.hash || "")); } catch (e) {}
   }
@@ -44,13 +48,21 @@ export const ENROL_SCRIPT = String.raw`(function () {
   // "[data-cast]" as a whole would also clobber the anchor's innerHTML.
   var anchors = document.querySelectorAll("a[data-cast]");
   var lis = document.querySelectorAll("li[data-cast]");
+  // Every render rebuilds the marks from THIS, not from what the last render
+  // left behind: prepending into the live innerHTML stacked a second score
+  // onto the first every time a code was switched.
+  var originals = [];
+  for (var oi = 0; oi < lis.length; oi++) originals.push(lis[oi].innerHTML);
+  function restore() { for (var ri = 0; ri < lis.length; ri++) lis[ri].innerHTML = originals[ri]; }
+  /** code === null strips the parameter instead of adding one — after
+   *  "Forget me" the links must not keep carrying a deleted code. */
   function rewriteLinks(code) {
     for (var i = 0; i < anchors.length; i++) {
       var a = anchors[i];
       var href = a.getAttribute("href");
       if (href == null) continue;
       href = href.replace(/&learner=[^&]*/, "");
-      a.setAttribute("href", href + "&learner=" + code);
+      a.setAttribute("href", code ? href + "&learner=" + code : href);
     }
   }
   function mark(lecture) {
@@ -73,11 +85,12 @@ export const ENROL_SCRIPT = String.raw`(function () {
       if (!p || !p.lectures) { $("join-progress-note").textContent = "Progress is unavailable right now."; return; }
       var byCast = {};
       for (var i = 0; i < p.lectures.length; i++) byCast[p.lectures[i].cast] = p.lectures[i];
+      restore(); // a lecture this code has no progress for must lose the last code's mark
       for (var j = 0; j < lis.length; j++) {
         var li = lis[j], lecture = byCast[li.getAttribute("data-cast")];
         if (!lecture) continue;
         var m = mark(lecture);
-        li.innerHTML = "<span class=\"mark\" title=\"click for your answers\">" + esc(m.label) + "</span>" + li.innerHTML + (m.total ? "<div class=\"review\" hidden>" + answersHtml(lecture) + "</div>" : "");
+        li.innerHTML = "<span class=\"mark\" title=\"click for your answers\">" + esc(m.label) + "</span>" + originals[j] + (m.total ? "<div class=\"review\" hidden>" + answersHtml(lecture) + "</div>" : "");
       }
       $("join-progress-note").textContent = "✓ completed · ○ opened · click a score to review your answers";
     }, function () { $("join-progress-note").textContent = "Progress is unavailable right now."; });
@@ -91,6 +104,10 @@ export const ENROL_SCRIPT = String.raw`(function () {
       $("join-code").textContent = e.code;
       rewriteLinks(e.code);
       showProgress(e);
+    } else {
+      restore();
+      rewriteLinks(null);
+      $("join-progress-note").textContent = "";
     }
   }
 

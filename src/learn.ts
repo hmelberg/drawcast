@@ -110,6 +110,8 @@ export function firstOpenInSession(castKey: string, storage: Pick<Storage, "getI
 }
 
 export interface AnswerPayload {
+  /** 0-based index of the playlist item this answer belongs to (spec §4). */
+  item: number;
   step: number;
   question: string;
   /** Every attempt, verbatim; [] for a skipped quiz. */
@@ -120,15 +122,25 @@ export interface AnswerPayload {
 
 export type LearnEvent = { kind: "opened" | "completed"; cast: string } | ({ kind: "answer"; cast: string } & AnswerPayload);
 
+/** The server's own limits (spec §3): at most 10 attempts, 2000 characters
+ *  each. Trimming here means a long retry streak still records its answer
+ *  instead of coming back a 400 the player would silently swallow. */
+const MAX_ATTEMPTS = 10;
+const MAX_TEXT = 2000;
+
 export async function sendEvent(entry: LearnerEntry, ev: LearnEvent, fetchImpl: typeof fetch = fetch): Promise<boolean> {
   if (!CAST_KEY_RE.test(ev.cast)) return false;
+  const payload: LearnEvent =
+    ev.kind === "answer"
+      ? { ...ev, given: ev.given.slice(-MAX_ATTEMPTS).map((g) => g.slice(0, MAX_TEXT)), expected: ev.expected.slice(0, MAX_TEXT) }
+      : ev;
   try {
     const res = await fetchImpl(`${apiBase(entry.api)}/_/api/event`, {
       method: "POST",
       // text/plain keeps this a simple request: no preflight, and keepalive
       // lets a `completed` fired on the last frame outlive the tab.
       headers: { "content-type": "text/plain" },
-      body: JSON.stringify({ code: entry.code, ...ev }),
+      body: JSON.stringify({ code: entry.code, ...payload }),
       keepalive: true,
     });
     return res.ok;
@@ -141,7 +153,7 @@ export interface ProgressLecture {
   cast: string;
   opened: boolean;
   completed: boolean;
-  answers: { step: number; question: string | null; given: string[]; expected: string | null; correct: boolean }[];
+  answers: { item: number; step: number; question: string | null; given: string[]; expected: string | null; correct: boolean }[];
 }
 
 export interface Progress {

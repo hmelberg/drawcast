@@ -4117,20 +4117,26 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
-    // The name is registered only now, against a commit that exists: a
-    // drawcast.app/#name pointing at a file that was never written would be
-    // worse than no name at all. Without an author key there is nothing to
-    // register with, and the publish simply carries no name.
-    let note = "";
-    const authorKey = getAuthorKey();
-    if (authorKey) {
-      const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
-      note = nameNote(await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }), reg.name);
-    }
+    // Bookkeeping first: saving the slug is what keeps the published link
+    // permanent, and it must not wait behind a network call to the registry.
     try {
       autosave();
     } catch (err) {
       console.error("drawcast: publish succeeded, bookkeeping failed", err);
+    }
+    // The name is registered only now, against a commit that exists: a
+    // drawcast.app/#name pointing at a file that was never written would be
+    // worse than no name at all. Without an author key there is nothing to
+    // register with, and the publish simply carries no name. The timeout
+    // bounds an unreachable registry at ten seconds.
+    let note = "";
+    const authorKey = getAuthorKey();
+    if (authorKey) {
+      const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
+        fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+      );
+      note = nameNote(outcome, reg.name);
     }
     setStatus(`Published to ${out.castUrl}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {

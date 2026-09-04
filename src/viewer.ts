@@ -372,8 +372,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       const courseKey = courseKeyOf(learnerCast);
       const local = safeLocalStorage();
       const enroll = playlist.meta.enroll ? apiBase(playlist.meta.enroll) : undefined;
-      if (req.learner && enroll) {
-        saveLearner(local, courseKey, { code: req.learner, api: enroll, name: learnerFor(local, courseKey)?.name ?? null });
+      if (req.learner) {
+        // Storing needs a backend to report to; CLEANING the address does not
+        // — a code that arrived on a cast without meta.enroll is still a code
+        // the next person to copy this link must not inherit.
+        if (enroll) saveLearner(local, courseKey, { code: req.learner, api: enroll, name: learnerFor(local, courseKey)?.name ?? null });
         try {
           history.replaceState(null, "", stripLearnerParam(location.href));
         } catch {
@@ -429,8 +432,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       controls: { speech, fullscreenEl: figureHost, trailing },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),
       onAnswer: reporter
-        ? (a) => {
-            void sendEvent(reporter, { kind: "answer", cast: learnerCast, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct });
+        ? (a, _item, index) => {
+            // (item, step) together: a.index counts steps inside ONE playlist
+            // item, and a generated lecture is one item per part (spec §4).
+            void sendEvent(reporter, { kind: "answer", cast: learnerCast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct });
           }
         : undefined,
       onDone: reporter

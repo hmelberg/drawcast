@@ -89,7 +89,7 @@ export function coursePage(course: Course, links: PageLink[], learn?: { courseKe
   <input id="join-name" placeholder="Name (optional)" autocomplete="name">
   <input id="join-email" type="email" placeholder="Email (optional — lets you find your code again)" autocomplete="email">
   <button id="join-button" type="submit">Join</button>
-  <p class="privacy">We store your name, email and answers so you and the course's teachers can see your progress. "Forget me" deletes all of it.</p>
+  <p class="privacy">We store your name, email and answers so you and the course's teachers can see your progress. "Forget me" deletes all of it. The learner backend is hosted in the UK.</p>
 </form>
 <div id="join-you" hidden>
   <b>Your course code:</b> <code id="join-code"></code>
