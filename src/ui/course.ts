@@ -16,6 +16,7 @@ import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
+import { applyViewsFlag } from "../views";
 import type { SpeakLine } from "../render/delivery";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
@@ -831,7 +832,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   // (each lecture's file name is derived by publishCourse from the course
   // document, below), so Link hides the name field for `subject: "course"`
   // and this parameter is never read.
-  async function publish({ bake, embedImages, allowComments }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean }): Promise<void> {
+  async function publish({ bake, embedImages, allowComments, countViews }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -873,10 +874,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           : null;
       const yamlFor = (index: number): string | null => {
         const text = embeddedFor(index);
-        if (text === null || !commentsMeta) return text;
+        if (text === null) return text;
+        if (!commentsMeta && countViews !== false) return text;
         const parsed = parsePlaylistText(text);
-        parsed.meta.comments = commentsMeta;
-        return formatPlaylist(parsed, "yaml");
+        if (commentsMeta) parsed.meta.comments = commentsMeta;
+        return formatPlaylist(applyViewsFlag(parsed, countViews !== false), "yaml");
       };
       const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);

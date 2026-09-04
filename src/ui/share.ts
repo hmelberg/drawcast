@@ -64,6 +64,8 @@ export interface ShareDoc {
   lectureCount?: number;
   /** Whether the last GitHub publish carried comments (C1) — seeds the checkbox. */
   publishedComments?: boolean;
+  /** Whether the last GitHub publish counted views — seeds the checkbox. */
+  publishedViews?: boolean;
   /** "123k characters ≈ $19.70" — what Embed narration would spend, priced by
    *  the caller with the live voice picks (export/tts-cost.ts). Upper bound:
    *  a republish pays only for lines not already published. */
@@ -115,7 +117,7 @@ export interface ShareDeps {
    * single slug of its own). For a drawcast, editing the name mints a NEW
    * file at the new slug; the old one is never deleted (B3).
    */
-  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean }) => Promise<void>;
+  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }) => Promise<void>;
   /**
    * Publish this document to the author's own Google Drive — the SAME
    * prepared copy `publish` sends to GitHub, written as a plain `.yaml` file
@@ -452,7 +454,22 @@ function build(): ShareSession {
       ? "viewers comment and react via GitHub Discussions in YOUR repository"
       : "needs a one-time giscus setup — enable Discussions, install the giscus app, paste the ids in Settings → Publishing";
   }
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel);
+  // "Count views": the published player reports plays to drawcast's counter.
+  // Unlike comments this needs no setup, so it is never disabled — and it
+  // defaults ON, with the last publish's answer winning when there is one, so
+  // a republish cannot silently start counting a drawcast that opted out.
+  const countViewsCb = h("input", { type: "checkbox", id: "share-count-views" }) as HTMLInputElement;
+  const countViewsLabel = h(
+    "label",
+    { class: "publish-choice", for: "share-count-views" },
+    countViewsCb,
+    h("span", {}, "Count views"),
+    h("div", { class: "hint" }, "the published page reports plays, so you can see how often it is watched"),
+  );
+  function refreshCountViewsChoice(doc: ShareDoc): void {
+    countViewsCb.checked = doc.publishedViews !== false;
+  }
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
@@ -460,6 +477,7 @@ function build(): ShareSession {
       ...linkChoices.choices(),
       slug: publishNameInput.value.trim() || undefined,
       allowComments: commentsCb.checked && !commentsCb.disabled,
+      countViews: countViewsCb.checked,
     };
     modal.dialog.close();
     void deps.publish(choices);
@@ -1059,6 +1077,7 @@ function build(): ShareSession {
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
     linkChoices.refresh(doc, current.subject);
     refreshCommentsChoice(doc);
+    refreshCountViewsChoice(doc);
     // A filename, not a slug — and the name the file ALREADY has wins over
     // the title, exactly as Link prefers `publishedAs`. Without that, an
     // author who renamed the file once would have it renamed back to the

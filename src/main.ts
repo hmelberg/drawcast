@@ -64,6 +64,7 @@ import {
   type Playlist,
 } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
+import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
@@ -206,6 +207,8 @@ interface Doc {
   publishedAs?: string;
   /** Whether the last GitHub publish carried the giscus wiring (C1). */
   publishedComments?: boolean;
+  /** Whether the last GitHub publish counted views. */
+  publishedViews?: boolean;
   /**
    * The Drive file this document was PUBLISHED to, once it has been
    * (spec §7). Persisted with the library row, exactly like `publishedAs`
@@ -341,12 +344,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -2565,7 +2568,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2674,6 +2677,7 @@ function autosave(): void {
       parts: itemsOf(doc.playlist).length,
       publishedAs: doc.publishedAs,
       publishedComments: doc.publishedComments,
+      publishedViews: doc.publishedViews,
       drivePublishedId: doc.drivePublishedId,
       drivePublishedName: doc.drivePublishedName,
       sourcePath: doc.sourcePath,
@@ -3315,7 +3319,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -3986,6 +3990,7 @@ async function publishTextFor(
   bake: boolean,
   embedImages: boolean,
   allowComments?: boolean,
+  countViews = true,
   previousText: () => Promise<string | null> = async () => {
     const repo = parseRepo(settings.githubRepo);
     if (!repo || !doc.publishedAs) return null;
@@ -4012,6 +4017,7 @@ async function publishTextFor(
       meta: { ...source.meta, comments: { repoId: settings.giscusRepoId, category: settings.giscusCategory, categoryId: settings.giscusCategoryId } },
     };
   }
+  source = applyViewsFlag(source, countViews);
   const plain = formatPlaylist(source, "yaml");
   if (!bake) return plain;
   const apiKey = getTtsKey();
@@ -4058,7 +4064,7 @@ async function publishTextFor(
 let lastBakeNote = "";
 let lastEmbedNote = "";
 
-async function publishDrawcast({ bake, embedImages, slug, allowComments }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean }): Promise<void> {
+async function publishDrawcast({ bake, embedImages, slug, allowComments, countViews }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
   if (!token || !repo) {
@@ -4075,7 +4081,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments }: { bak
   const ac = new AbortController();
   try {
     setStatus("Publishing to GitHub…");
-    const text = await publishTextFor(ac.signal, bake, embedImages, allowComments);
+    const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);
     const out = await publishCast({
       title: doc.title,
       text,
@@ -4091,6 +4097,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments }: { bak
     // the link permanent, so it is worth saying if only that part failed.
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
+    doc.publishedViews = countViews !== false;
     try {
       autosave();
     } catch (err) {
@@ -4149,7 +4156,7 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     // Narration reuse reads back THIS destination's previous copy — the
     // GitHub default would charge for every line again on a Drive republish,
     // and could hand over lines from a different (older) publish entirely.
-    const text = await publishTextFor(ac.signal, bake, embedImages, undefined, () =>
+    const text = await publishTextFor(ac.signal, bake, embedImages, undefined, true, () =>
       doc.drivePublishedId ? readFileText(doc.drivePublishedId) : Promise.resolve(null),
     );
     // Parents are a create-time placement; saveSpec's PATCH must never carry

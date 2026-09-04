@@ -97,3 +97,21 @@ export async function readViewCount(
   }
   return null;
 }
+
+/**
+ * Return the playlist a publish should send. Counting on writes nothing —
+ * absent already means counting, and writing `views: true` would push every
+ * single-drawcast file from a bare spec into a `playlist:` header for a value
+ * that is the default.
+ *
+ * Exported and called by BOTH publishers on purpose. `meta.comments` was set
+ * independently in main.ts and course.ts, and the course path silently
+ * dropped the checkbox until someone noticed; one rule cannot drift.
+ *
+ * Never mutates: publish prepares a COPY, and the author's open document must
+ * come out unchanged (P §3.4).
+ */
+export function applyViewsFlag<T extends { meta: { views?: boolean } }>(playlist: T, countViews: boolean): T {
+  if (countViews) return playlist;
+  return { ...playlist, meta: { ...playlist.meta, views: false } };
+}

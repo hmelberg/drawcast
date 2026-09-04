@@ -371,6 +371,8 @@ export interface SavedDrawing {
   publishedAs?: string;
   /** Whether the last GitHub publish carried the giscus wiring (C1) — seeds the checkbox on the next publish so a typo-fix republish doesn't silently strip a live page's comments. */
   publishedComments?: boolean;
+  /** Whether the last GitHub publish counted views — seeds the checkbox so a republish cannot silently re-enable counting. */
+  publishedViews?: boolean;
   /**
    * The Drive file id this drawcast was PUBLISHED to, once it has been
    * (spec §7). Persisted for the same reason as `publishedAs`: a republish
