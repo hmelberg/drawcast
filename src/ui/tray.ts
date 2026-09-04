@@ -104,17 +104,21 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     patches.clear();
   };
 
-  /** Paint the boundary with everything the viewer has changed so far. */
+  /** Paint the boundary with everything the viewer has changed so far — the
+   *  sliders, an edited script, and whatever the panel's switches turned off.
+   *  ONE call, because the reprojector rebuilds geometry without minting new
+   *  element handles, so a second pass would be talking to stale nodes. */
   const repaint = (): void => {
-    if (patches.size === 0) {
+    const view = panelViewFor(stage);
+    if (patches.size === 0 && (!view || view.idle())) {
       hd.timeline.previewParams(overrides);
-      panelViewFor(stage)?.apply();
       return;
     }
-    const elements = (hd.spec.elements ?? []).map((e) => {
+    let elements = (hd.spec.elements ?? []).map((e) => {
       const p = patches.get(e.id);
       return p ? { ...e, code: p.code, code_result: p.result } : e;
     });
+    if (view) elements = view.patch(elements);
     // A template param naming a patched element gets the viewer's numbers:
     // the tokens are re-substituted into the AUTHORED params (the resolved
     // clone holds values, not tokens), then the sliders have the last word.
@@ -128,8 +132,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         return { error: "not harvested" };
       }).params;
     }
-    hd.timeline.previewSpec({ elements, params: { ...params, ...overrides } });
-    panelViewFor(stage)?.apply(); // a repaint must not un-hide what a switch hid
+    hd.timeline.previewSpec({ elements, params: { ...params, ...overrides }, hide: view?.hidden() });
+    view?.apply(); // the veil follows the glass, which may have moved
   };
 
   /**
@@ -177,6 +181,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    *  this commits even though the boundary's params compare equal. */
   const restore = (): void => {
     clearPreview();
+    panelViewFor(stage)?.reset();
     hd.timeline.renderUpTo(hd.timeline.position);
   };
 
@@ -315,6 +320,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // The run is waiting on the explore gate: settle honest geometry
         // WITHOUT aborting it, then let it continue.
         clearPreview();
+        panelViewFor(stage)?.reset();
         hd.timeline.settleParams();
         close();
         const r = gateResolve;
@@ -339,6 +345,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     else if (gateResolve) {
       // Closing during an explore gate means "continue".
       clearPreview();
+      panelViewFor(stage)?.reset();
       hd.timeline.settleParams();
       close();
       const r = gateResolve;
@@ -350,6 +357,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     }
   });
   bar.appendChild(trayBtn);
+  // One composition point: a switch press repaints through the tray, so an
+  // edited script and a dragged slider survive it (and it survives them).
+  if (stage) panelViewFor(stage)?.setComposer(repaint);
 
   // Right-click v1 (interactivity spec §13): "left-click does, right-click
   // asks what's possible." Inside the stage the native menu never opens;
@@ -446,6 +456,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     prevOnState?.(s);
     if (s === "playing" && !tray.hidden) {
       clearPreview();
+      panelViewFor(stage)?.reset();
       close();
     }
   };

@@ -129,7 +129,7 @@ describe("the screen", () => {
   });
   test("the crt is a shell, a glass and a chin of little buttons — standing on nothing", () => {
     const drawn = ids(spec({ show: "left", code: eight, code_result: OK, frame: "crt" }));
-    expect(drawn).toEqual(expect.arrayContaining(["c1__shell", "c1__glass", "c1__power", "c1__btn_1", "c1__vent"]));
+    expect(drawn).toEqual(expect.arrayContaining(["c1__shell", "c1__glass", "c1__power", "c1__btn_code", "c1__btn_out", "c1__vent"]));
     expect(drawn).not.toContain("c1__frame"); // the shell IS the frame
     expect(drawn).not.toContain("c1__foot"); // it reads better without one (Hans, 2026-09-04)
     expect(frameSpace("crt").below).toBe(46); // the chin, and nothing under it
@@ -157,11 +157,15 @@ describe("the screen", () => {
     expect(ky).toBeGreaterThanOrEqual(box.y);
     expect(ky).toBeLessThanOrEqual(box.y + box.h);
   });
-  test("every machine with a chin has a power button, and the frameless ones have none", () => {
-    for (const f of ["screen", "laptop", "crt", "c64"]) {
-      expect(ids(spec({ show: "left", code: eight, code_result: OK, frame: f })), f).toContain("c1__power");
+  test("a monitor carries three buttons; a laptop and bare paper carry none", () => {
+    // Three meanings, three buttons — power, the code, the output.
+    for (const f of ["screen", "crt", "c64"]) {
+      expect(ids(spec({ show: "left", code: eight, code_result: OK, frame: f })), f).toEqual(
+        expect.arrayContaining(["c1__power", "c1__btn_code", "c1__btn_out"]),
+      );
     }
-    for (const f of ["panel", "window", "none"]) {
+    // A MacBook has no buttons on its chin, and drawing some would be a lie.
+    for (const f of ["laptop", "panel", "window", "none"]) {
       expect(ids(spec({ show: "left", code: eight, code_result: OK, frame: f })), f).not.toContain("c1__power");
     }
   });

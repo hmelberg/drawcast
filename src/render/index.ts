@@ -207,6 +207,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         // against the plan-time layout so honest hidden ids stay hidden.
         const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
         mounted.swapGeometry!(l, vis, offsets);
+        return l; // what is now PAINTED — the player hands it to anything hit-testing
+
       },
       commit: (params) => mounted.remount!(layoutFor(params, true)),
     };

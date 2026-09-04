@@ -1,8 +1,9 @@
-// The CRT's switches: what a press does, and what it hides. The DOM half
-// (hit-testing, the veil, the tooltip) is the live smoke's.
+// The panel's view state: what a press does, what the panel then SHOWS, and
+// what stays hidden. The DOM half (hit-testing, the veil, the tray row) is
+// the live smoke's.
 
 import { describe, expect, test } from "vitest";
-import { hiddenIds, pressSwitch, veilOpacity, SWITCHES_ON, type SwitchState } from "../src/ui/panel-view";
+import { hiddenIds, pressSwitch, shownFor, veilOpacity, SWITCHES_ON, type SwitchState } from "../src/ui/panel-view";
 
 const parts = { lines: ["c1_line_1", "c1_line_2"], out: ["c1_out", "c1_fig_1"] };
 
@@ -10,38 +11,42 @@ describe("pressSwitch", () => {
   test("power turns the picture off and on again", () => {
     const off = pressSwitch(SWITCHES_ON, "power");
     expect(off.on).toBe(false);
-    expect(veilOpacity(off)).toBeGreaterThan(0.9);
+    expect(veilOpacity(off)).toBe(1); // off is OFF: nothing ghosts through
     expect(pressSwitch(off, "power")).toEqual(SWITCHES_ON);
   });
 
-  test("brightness cycles and comes back to bright", () => {
-    let s: SwitchState = SWITCHES_ON;
-    const seen = [veilOpacity(s)];
-    for (let i = 0; i < 3; i++) {
-      s = pressSwitch(s, "dim");
-      seen.push(veilOpacity(s));
-    }
-    expect(seen[1]).toBeGreaterThan(seen[0]);
-    expect(seen[2]).toBeGreaterThan(seen[1]);
-    expect(seen[3]).toBe(seen[0]); // back to bright
-  });
-
-  test("a dark screen has no brightness to set", () => {
-    const off = pressSwitch(SWITCHES_ON, "power");
-    expect(pressSwitch(off, "dim")).toEqual(off);
-  });
-
-  test("the code and the output are hidden independently, and each comes back", () => {
+  test("the code and the output are switched independently, and each comes back", () => {
     const noCode = pressSwitch(SWITCHES_ON, "code");
-    expect(hiddenIds(noCode, parts)).toEqual(parts.lines);
+    expect(noCode).toMatchObject({ code: false, output: true, on: true });
     const neither = pressSwitch(noCode, "output");
-    expect(hiddenIds(neither, parts)).toEqual([...parts.lines, ...parts.out]);
-    expect(hiddenIds(pressSwitch(pressSwitch(neither, "code"), "output"), parts)).toEqual([]);
+    expect(neither).toMatchObject({ code: false, output: false });
+    expect(pressSwitch(pressSwitch(neither, "code"), "output")).toEqual(SWITCHES_ON);
+  });
+});
+
+describe("what the panel shows", () => {
+  const st = (over: Partial<SwitchState>): SwitchState => ({ ...SWITCHES_ON, ...over });
+
+  test("turning one half off hands the whole screen to the other", () => {
+    expect(shownFor(st({ code: false }), "left")).toBe("output");
+    expect(shownFor(st({ output: false }), "left")).toBe("code");
+    // …whatever the author asked for: a stacked panel expands the same way.
+    expect(shownFor(st({ code: false }), "below")).toBe("output");
   });
 
-  test("switching the code off leaves the picture on — they are different switches", () => {
-    const noCode = pressSwitch(SWITCHES_ON, "code");
-    expect(noCode.on).toBe(true);
-    expect(veilOpacity(noCode)).toBe(0);
+  test("with both halves on, the authored layout is untouched", () => {
+    expect(shownFor(SWITCHES_ON, "below")).toBe("below");
+    expect(shownFor(SWITCHES_ON, undefined)).toBeUndefined();
+  });
+
+  test("with both off the panel keeps its size and simply holds nothing", () => {
+    const none = st({ code: false, output: false });
+    expect(shownFor(none, "left")).toBe("left"); // not re-laid out…
+    expect(hiddenIds(none, parts)).toEqual([...parts.lines, ...parts.out]); // …just emptied
+  });
+
+  test("a half switched off on its own hides no ids — the layout did the work", () => {
+    expect(hiddenIds(st({ code: false }), parts)).toEqual([]);
+    expect(hiddenIds(SWITCHES_ON, parts)).toEqual([]);
   });
 });

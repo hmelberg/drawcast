@@ -25,7 +25,9 @@ function makeReprojector() {
   const frames: Record<string, unknown>[] = [];
   const commits: Record<string, number>[] = [];
   const rp: Reprojector = {
-    frame: (p) => frames.push({ ...p }),
+    frame: (p) => {
+      frames.push({ ...p });
+    },
     commit: (p) => {
       commits.push({ ...p });
       return new Map<string, RenderedElement>();
@@ -89,7 +91,9 @@ describe("previewParams", () => {
     const player = makePlayer();
     const calls: { params: Record<string, unknown>; revealNew?: boolean }[] = [];
     player.reprojector = {
-      frame: (p, _v, _o, revealNew) => calls.push({ params: { ...p }, revealNew }),
+      frame: (p, _v, _o, revealNew) => {
+        calls.push({ params: { ...p }, revealNew });
+      },
       commit: () => new Map(),
     };
     player.renderUpTo(1);

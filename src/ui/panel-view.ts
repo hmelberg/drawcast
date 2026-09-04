@@ -17,6 +17,7 @@
 // Playing on restores everything — free play is an excursion (§13).
 
 import type { RenderHandle } from "../render";
+import type { SpecElement } from "../spec/types";
 import { bboxOfPts, type BBox } from "../layout/geometry";
 import { leafDrawables, type Drawable } from "../layout/model";
 import { INITIAL_STATE } from "../render/plan";
@@ -24,19 +25,15 @@ import { clientPointFor, h, logicalPoint } from "./dom";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
 
-/** How dark the picture gets, cycling: bright → dim → dimmer → bright. */
-const DIM_STEPS = [0, 0.3, 0.55] as const;
-
-export type SwitchKind = "power" | "code" | "output" | "dim";
+export type SwitchKind = "power" | "code" | "output";
 
 export interface SwitchState {
   on: boolean;
-  dim: number;
   code: boolean;
   output: boolean;
 }
 
-export const SWITCHES_ON: SwitchState = { on: true, dim: 0, code: true, output: true };
+export const SWITCHES_ON: SwitchState = { on: true, code: true, output: true };
 
 /** What one press does. Pure, so the behaviour is testable without a DOM. */
 export function pressSwitch(state: SwitchState, kind: SwitchKind): SwitchState {
@@ -47,21 +44,32 @@ export function pressSwitch(state: SwitchState, kind: SwitchKind): SwitchState {
       return { ...state, code: !state.code };
     case "output":
       return { ...state, output: !state.output };
-    case "dim":
-      // A dark screen has no brightness to set; power is the way back.
-      return state.on ? { ...state, dim: (state.dim + 1) % DIM_STEPS.length } : state;
   }
 }
 
-/** The overlay's opacity for a state: an off monitor is OFF (the picture must
- *  not ghost through it), a dimmed one is a wash. */
+/** The overlay's opacity: an off monitor is OFF — the picture must not ghost. */
 export function veilOpacity(state: SwitchState): number {
-  return state.on ? DIM_STEPS[state.dim] : 1;
+  return state.on ? 0 : 1;
 }
 
-/** The drawable ids a state hides: the code lines, the output pane, or neither. */
+/**
+ * What the panel should SHOW for a state, given what its author asked for.
+ * Turning one half off hands the whole screen to the other — the layout does
+ * that already when `show` names one pane, so the switch just says so and the
+ * panel re-lays out. With both off the authored value stays and the halves are
+ * hidden instead, so the screen keeps its size and simply holds nothing.
+ */
+export function shownFor(state: SwitchState, authored: string | undefined): string | undefined {
+  if (state.code && state.output) return authored;
+  if (!state.code && !state.output) return authored;
+  if (!state.code) return "output";
+  return "code";
+}
+
+/** The drawable ids a state hides — only when NEITHER half is shown; a single
+ *  half off is expressed by re-laying out through shownFor instead. */
 export function hiddenIds(state: SwitchState, ids: { lines: string[]; out: string[] }): string[] {
-  return [...(state.code ? [] : ids.lines), ...(state.output ? [] : ids.out)];
+  return state.code || state.output ? [] : [...ids.lines, ...ids.out];
 }
 
 /**
@@ -69,6 +77,13 @@ export function hiddenIds(state: SwitchState, ids: { lines: string[]; out: strin
  * across ALL leaves, not through drawablesForId: a chin button is a CHILD of
  * the panel group, and drawablesForId only ever looks at top-level ids.
  */
+function bgBoxOf(leaves: Drawable[], id: string): BBox | null {
+  for (const d of leaves) {
+    if (d.id === id && d.kind === "area" && d.pts.length > 0) return bboxOfPts(d.pts);
+  }
+  return null;
+}
+
 function boxOf(leaves: Drawable[], id: string): BBox | null {
   for (const d of leaves) {
     if (d.id === id && d.kind === "stroke" && d.pts.length > 0) return bboxOfPts(d.pts);
@@ -84,8 +99,20 @@ export interface PanelView {
   hasScreen(id: string): boolean;
   state(id: string): SwitchState;
   press(id: string, kind: SwitchKind): void;
+  /** The element list with each panel's `show` set to what the switches say —
+   *  the tray composes this with its own patches so neither overwrites the
+   *  other. */
+  patch(elements: SpecElement[]): SpecElement[];
+  /** Ids to subtract from the boundary's visible set (only a fully dark panel). */
+  hidden(): Set<string>;
+  /** True when nothing is switched off — the caller can take the cheap path. */
+  idle(): boolean;
   /** Re-assert the current state after something else repainted the figure. */
   apply(): void;
+  /** Everything back on, and the figure repainted honestly. */
+  reset(): void;
+  /** The tray's repaint, when there is a tray: one composed preview call. */
+  setComposer(fn: (() => void) | null): void;
   /** Called whenever a press changes anything, so a tray row can re-render. */
   onChange(cb: () => void): void;
 }
@@ -100,9 +127,8 @@ export function panelViewFor(stage: HTMLElement | null | undefined): PanelView |
 /** The chin, left to right: what each drawn button actually does. */
 const CHIN: readonly (readonly [string, SwitchKind, string])[] = [
   ["__power", "power", "Picture off / on"],
-  ["__btn_1", "code", "Show / hide the code"],
-  ["__btn_2", "output", "Show / hide the output"],
-  ["__btn_3", "dim", "Brightness"],
+  ["__btn_code", "code", "Show / hide the code"],
+  ["__btn_out", "output", "Show / hide the output"],
 ] as const;
 
 /**
@@ -114,7 +140,11 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
   // drawn buttons, because a button you cannot see is not an affordance.
   const crts = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none");
   if (crts.length === 0) return;
-  const leaves = leafDrawables(hd.layout.drawables);
+  // What is PAINTED, not what was planned: switching a half off re-lays the
+  // panel out, and a hit box or a veil computed from the plan-time layout
+  // would then be aiming at where the buttons used to be.
+  const live = (): Drawable[] => leafDrawables((hd.timeline.paintedLayout() ?? hd.layout).drawables);
+  const leaves = live();
 
   const switches = new Map<string, { el: string; kind: SwitchKind; label: string }>();
   const glass = new Map<string, BBox>();
@@ -122,7 +152,9 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
   const parts = new Map<string, { lines: string[]; out: string[] }>();
   const mounted: string[] = hd.layout.order;
   for (const el of crts) {
-    const g = boxOf(leaves, `${el.id}__glass`);
+    // A tube has glass; a flat display's screen IS the panel's paper. Bare
+    // paper has neither, and so has no picture to switch off.
+    const g = boxOf(leaves, `${el.id}__glass`) ?? boxOf(leaves, `${el.id}__frame`) ?? bgBoxOf(leaves, `${el.id}__bg`);
     if (g) glass.set(el.id, g);
     for (const [suffix, kind, label] of CHIN) {
       if (boxOf(leaves, `${el.id}${suffix}`)) switches.set(`${el.id}${suffix}`, { el: el.id, kind, label });
@@ -140,18 +172,24 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
   const boxes = (): Map<string, BBox> => {
     const n = hd.timeline.position;
     const visible = n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible;
+    const now = live();
     const map = new Map<string, BBox>();
     for (const [id, sw] of switches) {
       if (!visible.some((v) => v === sw.el || v.startsWith(`${sw.el}_`))) continue;
-      const b = boxOf(leaves, id);
+      const b = boxOf(now, id);
       if (b) map.set(id, b);
     }
     return map;
   };
 
+  const screenBox = (elId: string): BBox | null => {
+    const now = live();
+    return boxOf(now, `${elId}__glass`) ?? boxOf(now, `${elId}__frame`) ?? bgBoxOf(now, `${elId}__bg`) ?? glass.get(elId) ?? null;
+  };
+
   const paintVeil = (elId: string): void => {
     const st = state.get(elId);
-    const box = glass.get(elId);
+    const box = screenBox(elId);
     if (!box) return;
     const opacity = st ? veilOpacity(st) : 0;
     let veil = veils.get(elId);
@@ -179,14 +217,34 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
     veil.style.opacity = String(opacity);
   };
 
-  /** Everything the switches currently hide, across every panel. */
-  const applyHidden = (): void => {
+  /** Everything a fully dark panel hides, across every panel. */
+  const hidden = (): Set<string> => {
     const ids = new Set<string>();
     for (const [elId, st] of state) {
       const p = parts.get(elId);
       if (p) for (const id of hiddenIds(st, p)) ids.add(id);
     }
-    hd.timeline.previewHidden(ids);
+    return ids;
+  };
+
+  /** Each panel's `show` as the switches leave it. */
+  const patch = (elements: SpecElement[]): SpecElement[] =>
+    state.size === 0
+      ? elements
+      : elements.map((e) => {
+          const st = state.get(e.id);
+          if (!st) return e;
+          const show = shownFor(st, e.show);
+          return show === e.show ? e : { ...e, show: show as SpecElement["show"] };
+        });
+
+  const idle = (): boolean => [...state.values()].every((st) => st.on && st.code && st.output);
+
+  /** One composed preview: the tray's when there is one, ours otherwise. */
+  let composer: (() => void) | null = null;
+  const applyView = (): void => {
+    if (composer) composer();
+    else hd.timeline.previewSpec({ elements: patch(hd.spec.elements ?? []), hide: hidden() });
   };
 
   const clearAll = (): void => {
@@ -200,8 +258,8 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
   /** One press, from a drawn button or from the tray's row. */
   const press = (elId: string, kind: SwitchKind): void => {
     state.set(elId, pressSwitch(state.get(elId) ?? SWITCHES_ON, kind));
-    paintVeil(elId);
-    applyHidden();
+    applyView();
+    paintVeil(elId); // after the repaint: the glass may have moved under it
     for (const cb of listeners) cb();
   };
 
@@ -210,9 +268,19 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
     hasScreen: (id) => glass.has(id),
     state: (id) => state.get(id) ?? SWITCHES_ON,
     press,
+    patch,
+    hidden,
+    idle,
     apply: () => {
-      applyHidden();
       for (const id of state.keys()) paintVeil(id);
+    },
+    reset: () => {
+      const had = state.size > 0;
+      clearAll();
+      if (had) applyView();
+    },
+    setComposer: (fn) => {
+      composer = fn;
     },
     onChange: (cb) => listeners.push(cb),
   });
@@ -260,7 +328,11 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
     prevStep?.(completed, total);
     clearAll();
   };
-  window.addEventListener("resize", () => {
+  // The stage changes size when the tray opens under it, not only when the
+  // window does — a veil pinned in pixels must follow both.
+  const repaintVeils = (): void => {
     for (const id of state.keys()) paintVeil(id);
-  });
+  };
+  window.addEventListener("resize", repaintVeils);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(repaintVeils).observe(stage);
 }

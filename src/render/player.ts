@@ -7,6 +7,7 @@
 
 import type { Plan, PlanStep, SceneState } from "./plan";
 import { answersMatch, subVars } from "../spec/answers";
+import type { LayoutResult } from "../layout/layout";
 import { INITIAL_STATE } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
@@ -26,7 +27,7 @@ export interface Reprojector {
    *  animate/sliders except under free-play previews (a fen string, a moves
    *  array). revealNew shows ids the previewed layout mints that the plan's
    *  visible set has never heard of (a chess piece on a fresh square). */
-  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean, elements?: SpecElement[]): void;
+  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean, elements?: SpecElement[]): LayoutResult | void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
 }
@@ -174,6 +175,13 @@ export class Player {
   }
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
+  /**
+   * The layout currently PAINTED, when a preview has replaced the plan-time
+   * one. Anything hit-testing drawn geometry — a switch on a monitor's chin,
+   * an overlay pinned to its glass — must ask for this, or it will be aiming
+   * at where things were before the preview moved them.
+   */
+  private painted: LayoutResult | null = null;
   /**
    * Frame scheduler, injectable like inputGate: the exporter swaps in one
    * that keeps ticking while the tab is hidden (a Web Worker interval).
@@ -353,22 +361,6 @@ export class Player {
     if (!keepPlaying) this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
   }
 
-  /**
-   * Hide ids that the boundary would otherwise show — a VIEWER preview, like
-   * previewParams: the switches on a drawn monitor turn the code or the output
-   * off without touching the storyboard. Passing an empty set restores the
-   * boundary exactly; any honest movement repaints anyway.
-   */
-  previewHidden(ids: ReadonlySet<string>): void {
-    const scene = this.stateAt(this.completed);
-    const visible = new Set(scene.visible);
-    for (const [id, el] of this.elements) {
-      if (!visible.has(id)) continue;
-      if (ids.has(id)) el.hide();
-      else el.finish();
-    }
-  }
-
   /** Apply a scene's visibility/offsets/pointer/camera to the currently mounted elements. */
   private applyScene(scene: SceneState): void {
     const visible = new Set(scene.visible);
@@ -421,6 +413,7 @@ export class Player {
 
   private applyParams(params: Record<string, number>): void {
     if (!this.reprojector) return;
+    this.painted = null; // back to the plan-time geometry
     const merged = this.withVarOverrides(params);
     if (!this.geometryDirty && Player.sameParams(this.appliedParams, merged)) return;
     this.elements = this.reprojector.commit(merged);
@@ -438,7 +431,7 @@ export class Player {
   previewParams(overrides: Record<string, unknown>, opts: { revealNew?: boolean } = {}): void {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
-    this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, opts.revealNew);
+    this.painted = this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, opts.revealNew) || null;
     this.geometryDirty = true;
   }
 
@@ -449,11 +442,22 @@ export class Player {
    * mints that the plan never drew (new code lines, a new output row) are
    * revealed. settleParams() is the way back, as for slider previews.
    */
-  previewSpec(patch: { elements?: SpecElement[]; params?: Record<string, unknown> }): void {
+  previewSpec(patch: { elements?: SpecElement[]; params?: Record<string, unknown>; hide?: ReadonlySet<string> }): void {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
-    this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, new Set(scene.visible), scene.offsets, true, patch.elements);
+    // `hide` is the viewer's own subtraction — a switch on a drawn monitor
+    // turning a half off. It goes through the SAME call as everything else,
+    // because the reprojector rebuilds geometry without minting new element
+    // handles: anything applied afterwards would be talking to stale nodes.
+    const visible = new Set(scene.visible);
+    for (const id of patch.hide ?? []) visible.delete(id);
+    this.painted = this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, true, patch.elements) || null;
     this.geometryDirty = true;
+  }
+
+  /** The layout on screen right now: a preview's, or the plan's. */
+  paintedLayout(): LayoutResult | null {
+    return this.painted;
   }
 
   dispose(): void {

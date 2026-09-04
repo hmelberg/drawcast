@@ -743,6 +743,37 @@ function ellipsePts(c: Pt, rx: number, ry: number, n = 18): Pt[] {
   return pts;
 }
 
+/**
+ * A monitor's three buttons, right-aligned on its chin: the large power
+ * circle, then the two that turn the CODE and the OUTPUT off. Ids are what
+ * the UI hit-tests, so they name their meaning rather than their position.
+ */
+function chinButtons(
+  id: string,
+  right: number,
+  cy: number,
+  ink: (extra: Parameters<typeof resolveStyle>[1]) => ReturnType<typeof resolveStyle>,
+  instant: ReturnType<typeof resolveDrawOpts>,
+  r = 5.5,
+): Drawable[] {
+  const small = resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 });
+  const stroke = (sid: string, pts: Pt[], st: ReturnType<typeof resolveStyle>): Drawable => ({
+    id: sid,
+    kind: "stroke",
+    pts,
+    closed: true,
+    z: Z_STROKE,
+    style: st,
+    drawOpts: instant,
+  });
+  const gap = r * 3.2;
+  return [
+    stroke(`${id}__power`, circlePts([right - gap, cy], r), ink({ strokeWidth: 2.5 })),
+    stroke(`${id}__btn_code`, circlePts([right - 2.2 * gap, cy], r * 0.72), small),
+    stroke(`${id}__btn_out`, circlePts([right - 3.2 * gap, cy], r * 0.72), small),
+  ];
+}
+
 /** Chrome drawables for one panel, given its inner rectangle (x0, yTop − h .. yTop). */
 function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number, w: number, h: number, style: SpecElement["style"], draw: SpecElement["draw"]): Drawable[] {
   const out: Drawable[] = [];
@@ -784,9 +815,10 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
       drawOpts: instant,
     });
     out.push(stroke(`${id}__bezel`, shell, true, ink({ strokeWidth: 3.5 }), sketch(SKETCH_MS.node)));
-    // Every machine with a chin gets a power button, and it works: a small
-    // circle low on the right, the way a display's does.
-    out.push(stroke(`${id}__power`, circlePts([bx + bw - 26, by + CHIN / 2], 5.5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
+    // A monitor's chin carries its three buttons — power, and the two that
+    // say what the screen shows. The laptop is deliberately bare: a MacBook
+    // has no buttons on its chin, and drawing some would be a lie.
+    if (frame === "screen") out.push(...chinButtons(id, bx + bw, by + CHIN / 2, ink, instant));
   }
   if (frame === "laptop" || frame === "c64") {
     const wedge = frame === "c64";
@@ -887,13 +919,11 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
         instant,
       ),
     );
-    // The chin's controls, small and unlabelled: a power button, a row of
-    // little buttons beside it, and a vent slot at the other end.
+    // The chin's controls, small and unlabelled: power, and the two that say
+    // what the screen shows. Three, not five — more buttons than meanings is
+    // how a monitor becomes a puzzle (Hans, 2026-09-04).
     const chinY = sy + CRT.chin / 2;
-    out.push(stroke(`${id}__power`, circlePts([sx + sw - 40, chinY], 7), true, ink({ strokeWidth: 2.5 }), instant));
-    for (let i = 0; i < 4; i++) {
-      out.push(stroke(`${id}__btn_${i + 1}`, circlePts([sx + sw - 76 - i * 17, chinY], 4.5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
-    }
+    out.push(...chinButtons(id, sx + sw, chinY, ink, instant, 7));
     out.push(stroke(`${id}__vent`, roundRectPts(sx + 30, chinY - 5, 96, 10, 5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 }), instant));
   }
   return out;

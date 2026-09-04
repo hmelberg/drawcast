@@ -48,7 +48,9 @@ function makeReprojector() {
   const frames: Record<string, unknown>[] = [];
   const commits: Record<string, number>[] = [];
   const rp: Reprojector = {
-    frame: (p) => frames.push({ ...p }),
+    frame: (p) => {
+      frames.push({ ...p });
+    },
     commit: (p) => { commits.push({ ...p }); return new Map<string, RenderedElement>(); },
   };
   return { rp, frames, commits };
