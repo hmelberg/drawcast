@@ -49,7 +49,19 @@ export interface CastCount {
   days: Record<string, number>;
 }
 
-const DEFAULT_DELETE_BUDGET = 500;
+// Serial deletes could never drain a popular (or curl-inflated) cast: every
+// read pays the full listing cost, and the drain removes at most this many
+// raws per request. Deleting in parallel chunks lets the same wall-clock
+// budget (one Netlify Functions invocation) clear far more of the backlog,
+// so the budget can rise well past what a strictly serial pass could ever
+// attempt inside a function timeout.
+const DEFAULT_DELETE_BUDGET = 2000;
+
+// How many `store.delete()` calls are in flight at once. Bounded so one
+// compaction pass cannot fire thousands of concurrent requests at Blobs;
+// wide enough that the round-trip latency of one chunk, not per-key latency,
+// dominates the wall-clock cost of draining `deleteBudget` keys.
+const DELETE_CONCURRENCY = 25;
 
 /**
  * Strong consistency is load-bearing: compaction writes a rollup and then
@@ -142,6 +154,16 @@ function totalOf(days: Record<string, number>): number {
  * straggling reader could see an empty rollup, then a partial, post-delete
  * listing, and overwrite a correct rollup value with an undercount.
  */
+/**
+ * How long after UTC midnight compaction leaves "yesterday" alone. `list()`
+ * is eventually consistent, so the first reads of a new day can still be
+ * missing writes from the tail end of the day that just ended — exactly the
+ * writes compaction is about to fold into a rollup and then delete the
+ * evidence for. This window gives the listing time to catch up while that is
+ * still reversible.
+ */
+const GRACE_MS = 15 * 60 * 1000;
+
 async function compact(
   store: ViewStore,
   enc: string,
@@ -149,21 +171,37 @@ async function compact(
   raw: Record<string, string[]>,
   today: string,
   deleteBudget: number,
+  nowMs: number,
 ): Promise<void> {
+  // `today` is always `dayString(nowMs)`, so this is just "how far into
+  // today are we" — see GRACE_MS above for why that matters here.
+  const todayStartMs = Date.parse(`${today}T00:00:00.000Z`);
+  if (nowMs - todayStartMs < GRACE_MS) return;
+
   const past = Object.keys(raw).filter((d) => d < today);
   const fresh = past.filter((d) => rollup[d] === undefined);
   if (fresh.length > 0) {
-    const merged = { ...rollup };
-    for (const d of fresh) merged[d] = raw[d].length;
+    // Re-read the rollup fresh, right before writing, instead of trusting the
+    // copy `countCast` read earlier: two readers can race this same
+    // compaction (most likely just as the grace window above ends) and each
+    // compute a different, partial count for the same day from their own
+    // listing. Taking the max against whatever is durable right now means
+    // whichever of them writes last can only grow the stored total, never
+    // shrink an already-committed larger one.
+    const current = await readRollup(store, enc);
+    const merged: Record<string, number> = { ...rollup, ...current };
+    for (const d of fresh) merged[d] = Math.max(rollup[d] ?? 0, current[d] ?? 0, raw[d].length);
     await store.setJSON(rollupKey(enc), merged);
     return; // Deleting waits for the next read, once the rollup is durable.
   }
-  let budget = deleteBudget;
-  for (const d of past) {
-    for (const key of raw[d]) {
-      if (budget-- <= 0) return;
-      await store.delete(key);
-    }
+  // Flattened first so `deleteBudget` still means exactly what it always
+  // has — "attempt at most this many deletes this pass" — while the deletes
+  // themselves run in parallel chunks rather than one `await` at a time, so
+  // a large backlog can actually drain inside one function invocation.
+  const keys = past.flatMap((d) => raw[d]);
+  const toDelete = keys.slice(0, deleteBudget);
+  for (let i = 0; i < toDelete.length; i += DELETE_CONCURRENCY) {
+    await Promise.all(toDelete.slice(i, i + DELETE_CONCURRENCY).map((key) => store.delete(key)));
   }
 }
 
@@ -187,7 +225,8 @@ export async function countCast(castKey: string, o: ViewOptions & { assumeHit?: 
   // racing a concurrent compaction pass from overwriting a correct rollup.
   const rollup = await readRollup(s, enc);
   const days = mergeDays(rollup, raw);
-  await compact(s, enc, rollup, raw, dayString(now()), deleteBudget);
+  const nowMs = now();
+  await compact(s, enc, rollup, raw, dayString(nowMs), deleteBudget, nowMs);
   return { total: totalOf(days), days };
 }
 

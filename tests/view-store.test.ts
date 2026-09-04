@@ -134,6 +134,83 @@ describe("countCast", () => {
     const { store } = fakeStore();
     expect((await countCast(KEY, opts(store, DAY2))).total).toBe(0);
   });
+
+  test("the delete pass runs deletes concurrently rather than one at a time — a serial pass could never drain a large backlog inside a function timeout", async () => {
+    const { store, data } = fakeStore();
+    const seq = { n: 0 };
+    for (let i = 0; i < 40; i++) await recordHit(KEY, opts(store, DAY2, seq));
+    await countCast(KEY, opts(store, DAY3, seq)); // writes the rollup, deletes nothing yet
+
+    const real = store();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const tracking: ViewStore = {
+      ...real,
+      delete: async (key) => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await Promise.resolve(); // yield so overlapping deletes can stack up
+        inFlight--;
+        return real.delete(key);
+      },
+    };
+    await countCast(KEY, { ...opts(store, DAY3, seq), store: () => tracking, deleteBudget: 40 });
+    expect(maxInFlight).toBeGreaterThan(1);
+    expect(data.size).toBe(1); // rollup only — all 40 raws drained in one pass
+  });
+
+  describe("the grace window after UTC midnight", () => {
+    // Just past midnight on day 3 — inside the 15-minute grace period, so day
+    // 2 (now "yesterday") must be left alone: eventual consistency has not
+    // necessarily caught up on a listing taken this soon after the rollover.
+    const JUST_AFTER_MIDNIGHT = Date.UTC(2026, 8, 5, 0, 5);
+
+    test("a day is not folded into a rollup within the grace window", async () => {
+      const { store, data } = fakeStore();
+      const seq = { n: 0 };
+      for (let i = 0; i < 3; i++) await recordHit(KEY, opts(store, DAY2, seq));
+      const res = await countCast(KEY, opts(store, JUST_AFTER_MIDNIGHT, seq));
+      expect(res.total).toBe(3); // still counted, straight from the raw keys
+      expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toBeUndefined();
+      expect([...data.keys()].filter((k) => k.includes("2026-09-04")).length).toBe(3);
+    });
+
+    test("compaction resumes once the grace window has passed", async () => {
+      const { store, data } = fakeStore();
+      const seq = { n: 0 };
+      for (let i = 0; i < 3; i++) await recordHit(KEY, opts(store, DAY2, seq));
+      await countCast(KEY, opts(store, JUST_AFTER_MIDNIGHT, seq)); // skipped — still in the window
+      expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toBeUndefined();
+      await countCast(KEY, opts(store, DAY3, seq)); // well past it now
+      expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toEqual({ "2026-09-04": 3 });
+    });
+  });
+
+  test("a smaller read racing a concurrent compaction cannot shrink an already-committed larger rollup", async () => {
+    // Simulates two readers folding the same day at once: this reader's OWN
+    // rollup read (inside countCast, before compact runs) is stale — as if it
+    // ran moments before a concurrent, fuller listing committed 5 for that
+    // day. The re-read compact() does immediately before writing must see
+    // that 5 and never let this reader's own smaller count (2) replace it.
+    const { store, data } = fakeStore();
+    const seq = { n: 0 };
+    await recordHit(KEY, opts(store, DAY2, seq));
+    await recordHit(KEY, opts(store, DAY2, seq)); // this reader's own listing sees only 2
+
+    const real = store();
+    const rollupBlobKey = "r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml";
+    let getCalls = 0;
+    const racing: ViewStore = {
+      ...real,
+      get: async (key, o) => {
+        getCalls++;
+        if (getCalls === 1) return null; // countCast's own pre-compact read: stale
+        return key === rollupBlobKey ? { "2026-09-04": 5 } : real.get(key, o);
+      },
+    };
+    await countCast(KEY, { ...opts(store, DAY3, seq), store: () => racing });
+    expect(data.get(rollupBlobKey)).toEqual({ "2026-09-04": 5 });
+  });
 });
 
 describe("countRepo", () => {
