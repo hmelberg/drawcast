@@ -89,7 +89,14 @@ export const ENROL_SCRIPT = String.raw`(function () {
     return out + "</ol>";
   }
   function showProgress(e) {
+    // Both continuations below start with the same staleness guard: this GET
+    // was made for ONE code, and "Forget me" (or a switch) while it is in
+    // flight changes which code the page belongs to. A late answer for a code
+    // that is no longer the entry must touch nothing — otherwise it writes the
+    // forgotten code back onto the links it was just taken off.
     fetch(api + "/_/api/progress?code=" + encodeURIComponent(e.code)).then(function (r) { return r.ok ? r.json() : null; }).then(function (p) {
+      var cur = entry();
+      if (!cur || cur.code !== e.code) return;
       if (!p || !p.lectures) { $("join-progress-note").textContent = "Progress is unavailable right now."; rewriteLinks(e.code); return; }
       var byCast = {};
       for (var i = 0; i < p.lectures.length; i++) byCast[p.lectures[i].cast] = p.lectures[i];
@@ -104,7 +111,12 @@ export const ENROL_SCRIPT = String.raw`(function () {
       // anchors the browser has NOW, not on the ones we started with.
       rewriteLinks(e.code);
       $("join-progress-note").textContent = "✓ completed · ○ opened · click a score to review your answers";
-    }, function () { $("join-progress-note").textContent = "Progress is unavailable right now."; rewriteLinks(e.code); });
+    }, function () {
+      var cur = entry();
+      if (!cur || cur.code !== e.code) return;
+      $("join-progress-note").textContent = "Progress is unavailable right now.";
+      rewriteLinks(e.code);
+    });
   }
   function render() {
     var e = entry();

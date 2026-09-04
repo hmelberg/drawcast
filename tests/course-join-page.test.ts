@@ -67,6 +67,15 @@ function fakeDom(join: El | null, lis: El[]) {
   };
 }
 
+const tick = (): Promise<void> => new Promise((res) => setTimeout(res, 0));
+
+/** A fetch that hangs until the test lets it land. */
+function deferred() {
+  let go = (): void => {};
+  const promise = new Promise<void>((res) => { go = () => res(); });
+  return { promise, resolve: () => go() };
+}
+
 function memoryStorage() {
   const data: Record<string, string> = {};
   return { getItem: (k: string) => data[k] ?? null, setItem: (k: string, v: string) => { data[k] = v; }, removeItem: (k: string) => { delete data[k]; }, data };
@@ -294,6 +303,55 @@ describe("the script", () => {
     expect(r.lis[0].innerHTML.split('class="mark"').length - 1).toBe(1);
     r.current().forEach((a, i) => expect(a.getAttribute("href")).toBe(LINKS[i].href + "&learner=fjell-rev-havn"));
     expect(r.current()[0].getAttribute("href")).not.toContain("havn-ulv-bok");
+  });
+
+  test("a progress response that lands after Forget me is ignored", async () => {
+    const storage = memoryStorage();
+    storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
+    const gate = deferred();
+    const progress = { name: null, course: {}, lectures: [{ cast: LINKS[0].cast, opened: true, completed: true, answers: [] }] };
+    const f = vi.fn(async (url: string) => {
+      if (url.endsWith("/forget")) return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      await gate.promise; // the GET is still in flight while the learner forgets
+      return new Response(JSON.stringify(progress), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await run({ storage, fetch: f });
+    r.byId["join-forget"].fire("click");
+    await tick();
+    await tick();
+    expect(JSON.parse(r.storage.data["drawcast.learners"])).toEqual({});
+    r.current().forEach((a, i) => expect(a.getAttribute("href")).toBe(LINKS[i].href));
+    gate.resolve(); // the answer for the forgotten code arrives now
+    for (let i = 0; i < 4; i++) await tick();
+    r.current().forEach((a, i) => expect(a.getAttribute("href")).toBe(LINKS[i].href));
+    expect(r.lis[0].innerHTML).not.toContain('class="mark"');
+  });
+
+  test("a slow progress response for the previous code never wins over the current one", async () => {
+    const first = deferred(), second = deferred();
+    const bodyFor = (cast: string) => JSON.stringify({ name: null, course: {}, lectures: [{ cast, opened: true, completed: true, answers: [] }] });
+    const f = vi.fn(async (url: string) => {
+      if (url.includes("code=havn-ulv-bok")) {
+        await first.promise;
+        return new Response(bodyFor(LINKS[0].cast), { status: 200 });
+      }
+      await second.promise;
+      return new Response(bodyFor(LINKS[1].cast), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await run({ fetch: f });
+    for (const code of ["havn-ulv-bok", "fjell-rev-havn"]) {
+      r.byId["join-switch-input"].value = code;
+      r.byId["join-switch-button"].fire("click");
+      await tick();
+    }
+    second.resolve(); // the current code answers first…
+    for (let i = 0; i < 4; i++) await tick();
+    first.resolve(); // …and the abandoned one answers last
+    for (let i = 0; i < 4; i++) await tick();
+    r.current().forEach((a, i) => expect(a.getAttribute("href")).toBe(LINKS[i].href + "&learner=fjell-rev-havn"));
+    expect(r.current()[0].getAttribute("href")).not.toContain("havn-ulv-bok");
+    expect(r.lis[1].innerHTML.split('class="mark"').length - 1).toBe(1);
+    expect(r.lis[0].innerHTML).not.toContain('class="mark"'); // only the second code's lecture is marked
   });
 
   test("use another code reveals the switch box first", async () => {
