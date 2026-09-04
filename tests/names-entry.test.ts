@@ -25,4 +25,12 @@ describe("runNamed", () => {
     expect(viewer).toMatch(/parseViewerHash\(ghHashFor\(hash, resolved\.target\)\)/);
     expect(viewer).toMatch(/No drawcast called/);
   });
+
+  test("parses the resolved target before clearing the lookup status, so a bad target still shows a message", () => {
+    const parseCall = viewer.indexOf("parseViewerHash(ghHashFor(");
+    const statusRemove = viewer.indexOf("status.remove()");
+    expect(parseCall).toBeGreaterThan(0);
+    expect(statusRemove).toBeGreaterThan(parseCall);
+    expect(viewer).toMatch(/points at something this viewer cannot play/);
+  });
 });

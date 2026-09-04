@@ -241,6 +241,8 @@ async function fetchGhText(gh: GhRef): Promise<string> {
  */
 export async function runNamed(hash: string): Promise<void> {
   const name = nameInHash(hash);
+  // Same centering runViewer gets, before we know whether we'll ever reach it.
+  document.body.classList.add("viewer-body");
   const status = h("p", { class: "viewer-status" }, "Looking up the name…");
   document.body.append(status);
   const resolved = name ? await resolveName(DEFAULT_ENROLL_API, name) : null;
@@ -251,12 +253,22 @@ export async function runNamed(hash: string): Promise<void> {
   }
   if (resolved.kind === "course") {
     if (resolved.page) location.replace(resolved.page);
-    else status.textContent = "This course has no page to open.";
+    else {
+      status.textContent = "This course has no page to open.";
+      status.classList.add("error");
+    }
+    return;
+  }
+  // Parse BEFORE clearing the lookup status: a malformed registry entry
+  // must still leave a message on screen, not a blank page.
+  const req = parseViewerHash(ghHashFor(hash, resolved.target));
+  if (!req) {
+    status.textContent = `The name "${name}" points at something this viewer cannot play.`;
+    status.classList.add("error");
     return;
   }
   status.remove();
-  const req = parseViewerHash(ghHashFor(hash, resolved.target));
-  if (req) await runViewer(req);
+  await runViewer(req);
 }
 
 export async function runViewer(req: ViewerRequest): Promise<void> {
