@@ -1,4 +1,4 @@
-# Design: Private publishing and one drawcast account
+# Design: Private publishing, one drawcast account, and a catalogue
 
 Date: 2026-09-05. Status: draft for Hans's review. Successor to
 `2026-09-04-learners-design.md` (whose §11 named four seams and left them
@@ -6,12 +6,12 @@ unbuilt — this is those seams, measured) and
 `2026-09-04-teachers-ownership-design.md` (ownership by author key, which
 this generalises into a session token).
 
-**Rewritten the same day.** The first version of this file made a three-word
-learner code the identity and an account optional. Hans chose the other way
-round — one account, three ways to sign in — which deletes more than it adds:
-the codes, the four ways in, the email matching, the join box, and 1032 lines
-of word list. That version is in this file's git history (`b5e1cd9`), and §9
-records why it lost.
+**Rewritten twice the same day.** The first version made a three-word learner
+code the identity and an account optional (`b5e1cd9`). Hans chose the other
+way round — one account, three ways to sign in — which deletes more than it
+adds (`e06abf8`). This version adds what a publisher decides: whether the
+work is **listed**, who may **watch** it, how someone **gets in**, and
+whether enrolment brings **mail over time**.
 
 ## Goals
 
@@ -21,27 +21,31 @@ records why it lost.
 - `drawcast.app/#spanish` is **one address** whether the thing behind it is
   public or private, a course or a single cast.
 - **One account.** Signing in on the drawcast server means being signed in in
-  the app, without the user having to think about how that works — and
-  without anyone ever copying a key between two windows.
-- **Private and closed are possible only on the drawcast server.** GitHub
-  Pages and Drive cannot gate a file; that is what the third target is for.
+  the app, without the user having to think about how — and without anyone
+  copying a key between two windows.
+- **The existence of a work and the availability of its content are separate
+  decisions.** A closed course can still be findable; a listed course can
+  still be shut.
+- **A catalogue of everything made with drawcast**, so a course has somewhere
+  to be found and a community has somewhere to form.
+- Enrolment is **one click** for someone signed in — or a **request** a
+  teacher approves, when the course wants that.
 - **Baked voice stays possible** on the drawcast server — the quality is
-  worth the bytes — as a choice per course, not a default.
-- Enrolling in a course is **one click** for someone signed in, because the
-  name and the address already exist.
+  worth the bytes — as a choice per course.
 
 ## Non-goals
 
-- **Learner codes.** Deleted as a user-facing concept — §9.
-- **Anonymous progress.** An open course can be watched by anyone; being
+- **Learner codes.** Deleted as a user-facing concept — §11.
+- **Anonymous progress.** An open work can be watched by anyone; being
   followed requires an account.
-- **A player hosted inside Anvil** — weighed and deferred, §9.
+- **A player hosted inside Anvil** — weighed and deferred, §11.
 - **Credits and payment** (round B, `2026-09-04-credits-sketch.md`).
 - **DRM.** A gate decides who gets the file; what they do with it afterwards
   is not this design's business.
-- **Drip mail.** Still unbuilt from the learners spec; still not here.
-- **"Save to drawcast"** — a private draft store beside Drive. Named as
-  round 3 in §10 so it stops being a footnote, not designed here.
+- **Search ranking, recommendations, comments on the catalogue.** §6 lists
+  what v1 holds back and why.
+- **"Save to drawcast"** — a private draft store beside Drive. Named as a
+  round in §12 so it stops being a footnote; not designed here.
 
 ## 0. What already exists — verified and measured, not assumed
 
@@ -69,7 +73,7 @@ Measured against `hmelberg/dcast` and the live Anvil app on 2026-09-05:
   `anvil/<course>/<file>.yaml`, so events, progress, the teacher grid,
   `meta.next` and the CSV export need no change at all.
 - **But `req.gh` gates two things** the new source must also reach: view
-  counting (`viewer.ts:366`) and learner reporting (`:382–413`).
+  counting (`viewer.ts:366`) and progress reporting (`:382–413`).
 - **Drive cannot be private.** The viewer fetches Drive files with an API key
   (`viewer.ts:233`), which serves public files only.
 - **An Anvil session cannot gate a cross-origin fetch.**
@@ -80,6 +84,19 @@ Measured against `hmelberg/dcast` and the live Anvil app on 2026-09-05:
 - **An account already implies a publishing credential.** `my_author_key()`
   mints one on first call (`dashboard_server.py:233`); this design turns that
   single column into a table of revocable tokens.
+- **A course row already exists for anything published with a credential.**
+  `POST /course` stores key, title, page and the ordered lecture keys
+  (teachers spec §3) — which is most of a catalogue entry already.
+- **Single published drawcasts have no row.** The teachers spec excluded
+  them deliberately ("they have no dashboard"); §6 gives them one.
+- **View counting already exists, in Netlify Blobs**, not Anvil
+  (`netlify/functions/views.mts`), read publicly by key — the view-counts
+  ROADMAP note already anticipates "any dashboard is just a client of that
+  URL".
+- **Anvil Business has scheduled tasks** (learners spec §0), which is what
+  drip mail needs (§10).
+- **`runs.drip` exists and is never read** — `none | on_complete | all`,
+  written by `new_run` and the dashboard, acted on nowhere.
 - **Social login is three flags.** `anvil.yaml` has `use_email: true`,
   `use_google/use_facebook/use_microsoft: false`, with all three services
   installed; `allow_signup: true`, `enable_automatically: true`,
@@ -136,16 +153,17 @@ endpoints keep taking a bearer secret in the body, so `POST /course` and
 
 **The editor never requires an account.** Writing, drawing, generating,
 saving locally and publishing to GitHub or Drive all work signed out, exactly
-as today. Signing in is required for the drawcast server, for names, and for
-progress.
+as today. Signing in is required for the drawcast server, for names, for
+listing and for progress.
 
 ## 2. What a person is
 
 ```
-users         (Anvil Users) · email · admin · created
+users         (Anvil Users) · email · name · admin · created
 tokens        secret (unique) · user → · created · last_used · label
-enrollments   user → · run → · created · last_seen
+enrollments   user → · run → · state (pending|active|rejected) · created · last_seen · drip_index · drip_at
 events        enrollment → · kind · cast · item · step · question · given · expected · correct · at
+stars         user → · work → · at
 ```
 
 There is **no learners table**. Everyone who is followed has an account, so
@@ -158,15 +176,20 @@ are deleted. So is `runs.require_email` — the account has an address.
 
 **No migration.** There are no real learners yet; the rows go.
 
-## 3. Enrolling
+## 3. Getting in
 
 For someone signed in, joining is **one click**: the name and the address
 already exist, so there is no form. For someone signed out, the button says
 *Sign in to join* and the handshake returns them to the same place.
 
-`POST /_/api/enroll {course, run?}` authorises from the token; the run must
-be open, or the answer names the teacher to ask. A person may hold enrolments
-in many courses — the account is the identity, so nothing collides.
+`POST /_/api/enroll {course, run?}` authorises from the token. The run must
+be open, or the answer names the teacher to ask.
+
+**When the run wants approval** (§5), the enrolment is created `pending`, the
+teachers get a mail, and the applicant sees *Awaiting approval from the
+course's teachers*. A teacher approves or declines in the run's dashboard;
+either way the applicant is told. A `rejected` row is kept rather than
+deleted, so the same person does not silently re-apply every week.
 
 `POST /_/api/forget {course?}` leaves one course, or deletes the account's
 enrolments and events entirely. Signing out is a different thing again and
@@ -207,38 +230,81 @@ unchanged. The arithmetic the author is choosing between:
 > The same course unbaked is ≈ 7 MB in total, with the voice made in the
 > browser at play time.
 
-Neither is wrong. Baked wins on quality and works offline; unbaked wins on
-storage, transfer and publish time.
-
 **Cast keys.** A server-hosted cast is keyed `anvil/<course-slug>/<file>.yaml`.
 It matches `CAST_KEY_RE`, and `courseKeyOf` yields `anvil/<course-slug>` — so
 the course key, the events, the progress aggregation and the dashboard grid
 all keep working unmodified.
 
-## 5. Two controls, not one
+## 5. Four questions the publisher answers
 
-Two properties are constantly confused and must stay separate:
+One "private?" flag would be a lie, because four different things are being
+decided. Each gets its own control, each with an obvious default:
 
-**Who can watch** — `access`:
+| # | question | field | default |
+|---|---|---|---|
+| 1 | May others know this exists? | `listed: on \| off` | **on** |
+| 2 | Who can watch it? | `access: open \| signed-in \| enrolled` | `open` |
+| 3 | How does someone get in? | `join: anyone \| approval` | `anyone` |
+| 4 | Do enrolled people get mail over time? | `drip: none \| interval \| on_complete` | `none` |
 
-| value | meaning |
-|---|---|
-| `open` | anyone with the link |
-| `signed-in` | any account |
-| `enrolled` | enrolled in a run of this course |
+**They are independent, and that is the point.** A course may be listed and
+closed — found in the catalogue, entered only by request. A course may be
+unlisted and open — anyone with the link, nobody else. Listing publishes the
+*title, summary and author*, never the lectures; question 2 alone decides the
+content.
 
-**Whether people may join themselves** — `signup: on | off`. Off means the
-teacher enrols people (or a closed run refuses everyone).
+**The target constrains question 2.** On GitHub, `access` can only be `open`,
+because the files are public and no amount of UI changes that. On the
+drawcast server all three are free. In one line: **on GitHub, sign-up buys
+progress. On the drawcast server it buys progress and a door.**
 
-They are orthogonal, and the target constrains one of them: **on GitHub,
-`access` can only be `open`**, because the files are public and no amount of
-UI changes that. `signup` may still be on — it buys progress, never privacy.
-On the drawcast server both are free.
+**Question 3 only appears when question 2 says `enrolled`,** and therefore
+only on the drawcast server. Approving people into a course whose files are
+public would be theatre.
 
-That is the rule in one line: **on GitHub, sign-up buys progress. On the
-drawcast server it buys progress and a door.**
+**Question 4 only appears when people can enrol at all** — §10.
 
-## 6. The viewer: a fourth source
+`listed`, `access`, `join` and `drip` are reserved course-document keys
+beside `enroll:` and `name:`, kept out of `course.context` and written by the
+publish dialog the way `applyJoinBox` already handles `enroll:`.
+
+## 6. The catalogue
+
+Everything published with a credential already leaves a row on the server
+(§0), so the catalogue is mostly a flag and a public read.
+
+**One table, two kinds.** A single published drawcast becomes a `courses` row
+with `kind: cast` and no runs, rather than a second table with its own
+ownership, listing and naming rules. It is a small abuse of the name and it
+keeps the claim, the name registry and the catalogue query in one place.
+
+New columns on `courses`: `kind`, `listed`, `summary`, `topics`,
+`published_at`, `stars_count`.
+
+`GET /_/api/catalogue?sort=&q=&page=` — public, cacheable, returns only
+`listed` rows: title, summary, author display name, topics, kind, whether it
+is open or needs enrolment, and where to go. A closed course appears with
+*Request access* rather than *Open*, which is exactly the reason listing and
+access are separate.
+
+**The page lives on the server**, beside the account home (§8) — it is a
+list, and `dash.py` already renders lists.
+
+**Stars need an account**, which is why they are worth having: one row per
+(user, work), toggled by `POST /_/api/star`, denormalised into `stars_count`
+for sorting.
+
+**v1 sorts by date and stars. Views wait.** Counting lives in Netlify Blobs
+for GitHub-hosted casts and would live in Anvil for server-hosted ones — two
+sources to merge before "sort by views" means anything. Merging them is a
+cleanup, not a feature, and it should not hold up the catalogue. Search in v1
+is a plain substring match over title, summary and topics.
+
+**Held back deliberately:** ranking, recommendations, comments, and any
+notion of a featured list. A catalogue that can be gamed needs rules about
+gaming; a list sorted by date and stars does not.
+
+## 7. The viewer: a fourth source
 
 `#anvil=<course-slug>/<file>` next to `gh`, `gdoc` and `gdrive`, resolved
 against the default server; `&app=<base>` overrides it for an author running
@@ -254,7 +320,7 @@ progress reporting — both currently gated on `req.gh` — keep working.
 private one. The 403 must render as *"This lecture is part of <course> —
 join to watch"* with a link, never as a generic fetch error.
 
-## 7. Resolving a name, and where each page lives
+## 8. Resolving a name, and where each page lives
 
 `GET /_/api/name?n=spanish` answers a **pointer, not content** —
 `{kind, target, page, api}`, a few hundred bytes, public and cacheable. The
@@ -265,7 +331,7 @@ would make one endpoint both public and secret at once.
 | host | pages |
 |---|---|
 | **drawcast.app** | the editor; a course view; every lecture |
-| **drawcast.anvil.app** | the account home — your courses and your progress — and, for teachers, the dashboard that exists today |
+| **drawcast.anvil.app** | the account home — your courses and your progress — the catalogue, and for teachers the dashboard that exists today |
 | **GitHub Pages** | a static shop window for a public course |
 
 **A public course's page stays static.** The published `index.html` becomes
@@ -282,19 +348,16 @@ string builder. One implementation, two hosts.
 
 Keeping the static page matters for one reason: hash routes get no link
 previews and no indexing, so for an open course that page is the thing you
-share.
+share, and the thing a search engine can find.
 
-## 8. What the author does
+## 9. What the author does
 
 - **Settings → Publishing** replaces the author-key field with **Sign in** /
   *Signed in as hans@…*, and a *Sign out everywhere* that revokes tokens.
 - **Share → Publish** gains a third target beside GitHub and Google Drive.
   It requires being signed in, because storage belongs to an account.
-- **Who can watch** and **Allow sign-up** are the two controls from §5,
-  shown on both targets with `access` locked to `open` on GitHub.
-- The course document gains `access:` and `signup:` beside `enroll:` and
-  `name:` — reserved keys kept out of `course.context`, written and removed
-  by the publish dialog the way `applyJoinBox` already handles `enroll:`.
+- The four questions from §5, shown as four controls, with the ones that do
+  not apply hidden rather than disabled.
 - Per-lecture `#free` marks a preview lecture in a private course: it
   publishes to GitHub and plays without an account, while the rest go to the
   server.
@@ -333,7 +396,32 @@ undone. Three details:
 **`me` joins `RESERVED_PREFIXES`**, so a course cannot take the account
 home's own address if it ever moves into the app.
 
-## 9. Alternatives weighed and rejected
+## 10. Drip mail
+
+`runs.drip` has existed since the learners round and has never been read
+(§0). It becomes real here, with one added field, `runs.drip_days` (default
+7), and two on the enrolment: `drip_index` and `drip_at`.
+
+- `interval` — the next lecture's link every `drip_days` days.
+- `on_complete` — the next lecture's link when the previous one is finished,
+  which the `completed` event already reports.
+- `none` — nothing.
+
+A **daily scheduled task** (Anvil Business, §0) finds enrolments whose next
+drip is due, sends one mail, and advances the index. It stops at the last
+lecture, and it never sends to a `pending` or `rejected` enrolment.
+
+The mail carries a plain link — `drawcast.app/#spanish/3`. No token rides
+along: the account is the identity and the browser is either signed in or one
+silent handshake away. That is a straight simplification over the code era,
+where every mailed link had to carry `?learner=`.
+
+**Every drip mail carries an unsubscribe link** that sets `drip_optout` on
+that enrolment — per course, not per person, because opting out of one
+course's mail is not opting out of another's. Bulk mail also wants the
+from-address on Hans's own domain (Business plan) before the first send.
+
+## 11. Alternatives weighed and rejected
 
 - **Learner codes** (the first version of this file). A three-word code as
   the identity, with the account optional. It worked, and it cost: a second
@@ -341,7 +429,7 @@ home's own address if it ever moves into the app.
   email-matching rule when a login met an existing code, "forget me on this
   device" beside "forget me", and 1032 lines of word list. An account gives
   the same recovery through a mechanism that has to exist anyway. **The
-  price is anonymous progress**, which is accepted: an open course can still
+  price is anonymous progress**, which is accepted: an open work can still
   be watched by anyone, it is simply not followed.
 - **Google Drive for private casts.** The viewer's Drive fetch uses an API
   key, which reads public files only (§0). Private Drive means OAuth in the
@@ -351,9 +439,12 @@ home's own address if it ever moves into the app.
   with the author's token puts the server in the path anyway, having added a
   dependency without removing one. Flipping a public repo private also kills
   every link already shared.
+- **A separate table for single casts.** Ownership, naming, listing and the
+  catalogue query would each need two code paths. `kind: cast` on `courses`
+  costs one column.
 - **A course-page renderer on the server.** A second implementation of
   `coursePage`, in Python, to keep in step with the TypeScript one. The app
-  renders the private case instead (§7).
+  renders the private case instead (§8).
 - **A player hosted inside Anvil.** Genuinely attractive: same origin as the
   session, so no token crosses anything. Rejected **for now** because it is a
   second front-end deployment — not just `dist-engine`, which xplainer
@@ -363,7 +454,7 @@ home's own address if it ever moves into the app.
   storage, endpoints and gate are identical, so choosing it later moves the
   front end and nothing else.
 
-## 10. Delivery order
+## 12. Delivery order
 
 **Round 0 — one private cast, and the handshake.** The `tokens` table
 replacing `users.author_key`; `#signin` / `redeem` / `signout`; Sign in in
@@ -374,41 +465,53 @@ open — and the three measurements everything after depends on: upload of a
 5–7 MB body, whether a Media URL is directly servable, and what a baked
 lecture costs to serve.
 
-**Round 1 — accounts and enrolment.** One-click join, the account home on the
-server, `access` and `signup` (§5), the GitHub page reduced to static, and
-`ENROL_SCRIPT` deleted. Social login enabled.
+**Round 1 — accounts, enrolment and the four questions.** One-click join and
+approval (§3, §5), the account home on the server, the GitHub page reduced to
+static, `ENROL_SCRIPT` deleted, social login enabled.
 
-**Round 2 — private courses.** Many lectures, `#free` previews, `enrolled`
-as a real gate, the dashboard unchanged because the cast key never changed.
+**Round 2 — the catalogue.** `kind`, `listed`, summary and topics; the public
+listing endpoint; the catalogue page; stars. Small, and worth its own round
+because it is the first thing a stranger sees.
 
-**Round 3 — Save to drawcast.** A private draft store beside Drive: the same
-`POST /cast` with a draft flag, listed in the library. Named here, designed
-when the rounds above are live.
+**Round 3 — private courses.** Many lectures, `#free` previews, `enrolled` as
+a real gate, the dashboard unchanged because the cast key never changed.
 
-## 11. Testing
+**Round 4 — drip mail** (§10), which needs the scheduled task and the sender
+domain.
 
-Unit — server: token mint, redeem, single use, expiry, revocation;
-`return` allowlisting; the access rule as a pure function of (access, run
-open, enrolment present, owner); cast-key parsing for the `anvil/` shape; the
-name floor and the `me` reservation, pinned equal to the TypeScript rule.
+**Round 5 — Save to drawcast.** A private draft store beside Drive: the same
+`POST /cast` with a draft flag, listed in the library.
+
+## 13. Testing
+
+Unit — server: token mint, redeem, single use, expiry, revocation; `return`
+allowlisting; the access rule as a pure function of (access, run open,
+enrolment state, owner); the approval transitions; cast-key parsing for the
+`anvil/` shape; the catalogue query returning only `listed` rows; the name
+floor and the `me` reservation, pinned equal to the TypeScript rule.
 
 Unit — drawcast: `parseViewerHash` for `#anvil=`; `fetchAnvilText`'s
 concatenation with and without audio; the redeem branch and the `t=` strip;
-`access:` and `signup:` round-tripping through `parseCourse`/`formatCourse`.
+`listed` / `access` / `join` / `drip` round-tripping through
+`parseCourse`/`formatCourse`.
 
 By hand, round 0: publish one baked lecture privately; open it signed in;
 open it in a second browser and be sent to sign-in; measure first byte and
 total for the spec and for the audio against the same lecture on GitHub.
 
 By hand, round 1: sign in with Google on a fresh browser and land back where
-you started without seeing a form; join a course in one click; answer a quiz
-wrongly; see it on the account home and in the teacher's grid; sign out and
-confirm the record survives.
+you started without seeing a form; join a course in one click; request access
+to an approval course and be approved from the dashboard; answer a quiz
+wrongly; see it on the account home and in the teacher's grid.
 
-## 12. Decisions and risks
+## 14. Decisions and risks
 
+- **Listing defaults to on, including for closed courses.** That is what
+  makes the catalogue useful, and it is the surprising default of the four —
+  a private course's *existence* becomes public unless the author says
+  otherwise. The publish dialog must therefore say plainly what gets listed:
+  title, summary and author, never the lectures. One click turns it off.
 - **An account is now required to be followed.** The cost of deleting codes.
-  Open courses stay watchable by anyone; they are simply not tracked.
 - **Open signup becomes the intent**, reversing what the teachers round
   deliberately kept narrow (`allow_signup` and `enable_automatically` are
   already true; social login is three more flags). A reversal, not a silent
@@ -418,29 +521,29 @@ confirm the record survives.
   worth turning off, deliberately.
 - **The `users` table stops being teachers only.** `_user_by_email`'s
   full-table scan must be re-read against a table with student rows in it.
-- **The account home lives on the server, the content in the app.** Two
-  hosts a person sees. Justified by where the session is, and by not writing
-  `coursePage` twice.
+- **A catalogue is a moderation surface.** The moment strangers can list
+  things, someone lists something that should not be there. v1's answer is
+  that `users.admin` can unlist any row, and that nothing is featured or
+  ranked. That is enough for a community of colleagues and not enough for a
+  public product.
+- **Drip mail is bulk mail.** Unsubscribe per enrolment, a sender on Hans's
+  own domain, and a scheduled task that cannot double-send if it runs twice.
 - **A gate is not DRM.** After the check the browser holds the YAML.
 - **The server becomes the single point of failure for private playback.**
   Public courses keep GitHub's CDN.
 - **Baked audio is the author's bandwidth** — 2.4 GB per cohort for a baked
-  20-lecture course (§4). Per-course choice, default off on the server.
-- **The 8-character floor buys time; it is not a policy.** Who may hold how
-  many, whether an unused name lapses, whether short ones are ever reserved
-  — still open. Lowering it later costs one constant.
+  20-lecture course (§4).
+- **The 8-character floor buys time; it is not a policy.**
 - **Anvil's pull stays manual.** Every delivery ends with "pull in the
   editor, choose source code".
 
-## 13. Open
+## 15. Open
 
 - **The Anvil plan's storage and bandwidth quota.** Ten baked courses are
-  ≈ 0.8 GB stored and a few GB of transfer per cohort. Nothing here changes
-  shape if the quota is generous; if it is not, baked audio becomes the
-  exception rather than a free choice. This number has to come from Hans's
-  plan page before round 0 is worth starting.
+  ≈ 0.8 GB stored and a few GB of transfer per cohort. This number has to
+  come from Hans's plan page before round 0 is worth starting.
 - **Names.** The third publish target is called "the drawcast server"
-  throughout this document as a placeholder. The list probably reads
-  **GitHub · Google Drive · drawcast**; the access control probably reads
-  *Who can watch: anyone with the link / anyone signed in / enrolled
-  students*. Hans's call.
+  throughout as a placeholder. The list probably reads **GitHub · Google
+  Drive · drawcast**; the four controls probably read *Show in the catalogue*
+  / *Who can watch* / *How people join* / *Send lectures by mail*. Hans's
+  call.
