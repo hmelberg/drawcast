@@ -278,8 +278,8 @@ rule: nothing here may throw into playback; every failure returns `null`.
 
 ## 5. The viewer menu
 
-In `#gh=` viewer mode only (the editor has no course context), the More
-menu gets one entry:
+In `#gh=` viewer mode only (the editor has no course context), the control
+bar gets one trailing 🎓 button (the `trailing` extension point):
 
 - With a code for this course: **🎓 fjell-rev-havn** (or the name). Opens a
   small dialog: *Use another code* (paste field) and *Stop reporting*
@@ -348,8 +348,10 @@ before private courses exist.
   caller in `main.ts`) register after the GitHub write succeeds, so a name
   never points at nothing. A course registration carries the page URL and
   the ordered lecture keys (§3), which is what derived names and the
-  course-page redirect below resolve from. A publish without an author key
-  simply skips names.
+  course-page redirect below resolve from. The name defaults to the publish
+  slug (`course.context.slug`, or the cast's slug); `name:` in the course
+  document overrides it. Registration needs the author key in Settings →
+  Publishing; without one, publishing simply skips names.
 - **Resolving.** `src/entry.ts` gains a third branch: a hash that matches
   the rule boots the viewer, which asks `GET /_/api/name` and then
   continues exactly as if the target had been in the hash — `#learn-russian/3`

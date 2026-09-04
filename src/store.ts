@@ -21,6 +21,7 @@ const KEYS = {
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
   githubToken: "drawcast.githubtoken",
+  authorKey: "drawcast.authorkey",
   myTemplates: "drawcast.myTemplates.v1",
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
@@ -278,7 +279,7 @@ export function saveSettings(s: Settings): void {
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
-  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir", "giscus"] },
+  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "authorKey", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];
 
@@ -302,6 +303,20 @@ export function getGithubToken(): string {
 export function setGithubToken(token: string): void {
   if (token) localStorage.setItem(KEYS.githubToken, token);
   else localStorage.removeItem(KEYS.githubToken);
+}
+
+/**
+ * The author key from the drawcast Anvil dashboard (spec §7): lets a publish
+ * register its name in the drawcast.app registry. Same shape as the GitHub
+ * token — a personal credential, never a shared one.
+ */
+export function getAuthorKey(): string {
+  return localStorage.getItem(KEYS.authorKey) ?? "";
+}
+
+export function setAuthorKey(key: string): void {
+  if (key) localStorage.setItem(KEYS.authorKey, key);
+  else localStorage.removeItem(KEYS.authorKey);
 }
 
 export function getTtsKey(): string {

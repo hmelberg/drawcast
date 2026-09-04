@@ -86,3 +86,19 @@ export async function registerName(api: string, reg: Registration, fetchImpl: ty
     return "error";
   }
 }
+
+/** The status suffix after a publish (spec §7). */
+export function nameNote(outcome: "ok" | "taken" | "key" | "invalid" | "error", name: string): string {
+  switch (outcome) {
+    case "ok":
+      return ` · also at https://drawcast.app/#${name}`;
+    case "taken":
+      return ` · the name "${name}" is taken by someone else (set name: in the document to pick another)`;
+    case "key":
+      return " · name not registered: the author key was rejected (Settings → Publishing)";
+    case "invalid":
+      return ` · "${name}" is not a valid name`;
+    default:
+      return " · name not registered (registry unreachable)";
+  }
+}

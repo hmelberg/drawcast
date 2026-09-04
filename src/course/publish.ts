@@ -20,6 +20,7 @@ import { formatPublished, parsePlaylistText } from "../playlist/playlist";
 import { parseCourse, setCourseOption, setLectureStatus, type Course } from "./document";
 import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
 import { apiBase } from "../learn";
+import type { Registration } from "../names";
 
 /**
  * Join a repo path, tolerating an empty directory. The default IS empty: a
@@ -40,6 +41,27 @@ export function courseKeyFor(repo: { owner: string; repo: string }, dir: string)
 export function lectureCastKeys(course: Course, repo: { owner: string; repo: string }, coursesDir: string): string[] {
   const dir = joinPath(coursesDir, course.context.slug ?? "");
   return course.lectures.flatMap((l) => (l.status?.file ? [`${courseKeyFor(repo, dir)}/${l.status.file}`] : []));
+}
+
+/** What a course publish registers (spec §7): `name:` if set, else the slug. */
+export function courseRegistration(
+  course: Course,
+  repo: { owner: string; repo: string },
+  coursesDir: string,
+  pageUrl: string,
+): Omit<Registration, "key"> | null {
+  const slug = course.context.slug;
+  // A course that has never been published has no slug yet, and so no name to
+  // register — the caller only ever asks AFTER a publish, which mints one.
+  if (!slug) return null;
+  return {
+    name: course.name ?? slug,
+    kind: "course",
+    target: courseKeyFor(repo, joinPath(coursesDir, slug)),
+    page: pageUrl,
+    title: course.title,
+    lectures: lectureCastKeys(course, repo, coursesDir),
+  };
 }
 
 export interface PublishPlan {
