@@ -59,6 +59,15 @@ describe("both publishers use the one rule", () => {
     expect(store).toMatch(/publishedViews\?:\s*boolean/);
   });
 
+  test("an AI revision carries the opt-out forward too, not just Save/publish bookkeeping — this is the third time this class of omission has appeared", () => {
+    // Revise rebuilds the Doc from scratch (it is not a mutation like the
+    // publish-bookkeeping assignments above), so every persisted field has to
+    // be listed by hand here or autosave() on the next line drops it forever.
+    const revise = main.slice(main.indexOf("async function revise("), main.indexOf("reviewBtn.addEventListener("));
+    expect(revise).toMatch(/publishedComments:\s*doc\.publishedComments/);
+    expect(revise).toMatch(/publishedViews:\s*doc\.publishedViews/);
+  });
+
   test("a course seeds it too, from its own persisted row — a course has no single Doc to hang this on", () => {
     const store = readFileSync(new URL("../src/store.ts", import.meta.url), "utf8");
     const savedCourse = store.slice(store.indexOf("interface SavedCourse"), store.indexOf("export function loadCourses"));
