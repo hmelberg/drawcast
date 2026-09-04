@@ -82,6 +82,28 @@ describe("recordView", () => {
     expect(await recordView(KEY, ["/x"], fetchReturning(200, { count: null }))).toBeNull();
   });
 
+  test("a 5xx from the first endpoint does not retry — the write may already have landed, and a retry would double-count it", async () => {
+    const calls: string[] = [];
+    const f = vi.fn(async (url: string) => {
+      calls.push(url);
+      return new Response("boom", { status: 500 });
+    }) as unknown as typeof fetch;
+    expect(await recordView(KEY, ["/a", "/b"], f)).toBeNull();
+    expect(calls).toEqual(["/a"]);
+  });
+
+  test("404 and 405 still fall through — the GitHub Pages relative URL genuinely 404s there", async () => {
+    const calls: string[] = [];
+    const f = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url === "/a") return new Response("nope", { status: 404 });
+      if (url === "/b") return new Response("nope", { status: 405 });
+      return new Response(JSON.stringify({ count: 3 }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await recordView(KEY, ["/a", "/b", "/c"], f)).toBe(3);
+    expect(calls).toEqual(["/a", "/b", "/c"]);
+  });
+
   test("an invalid key never leaves the browser", async () => {
     const f = fetchReturning(200, { count: 1 });
     expect(await recordView("nope", ["/x"], f)).toBeNull();

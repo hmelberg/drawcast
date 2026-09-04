@@ -71,7 +71,15 @@ export async function recordView(
         body: key,
         keepalive: true,
       });
-      if (!res.ok) continue;
+      // Unlike readViewCount below, a retry here is not free: on drawcast.app
+      // POST and GET are the SAME function, so a 5xx or timeout arriving
+      // AFTER the write already landed would fall through to the next
+      // endpoint and write a second hit key for one play. 404/405 are the
+      // exception — that is the genuine "wrong endpoint" case (the GitHub
+      // Pages relative URL has nothing to POST to) and must still fall
+      // through, or that deploy never counts a view at all.
+      if (res.status === 404 || res.status === 405) continue;
+      if (!res.ok) return null;
       return countOf(await res.json());
     } catch {
       /* try the next endpoint */
