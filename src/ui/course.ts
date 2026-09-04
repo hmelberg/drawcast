@@ -1075,6 +1075,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           publishedViews,
           // The join box's current state, straight from the document (spec §5).
           joinBox: course.enroll !== undefined,
+          // What unchecking would delete — an author running their own Anvil
+          // app is the one who needs to see this before the line is gone (F2).
+          enrollUrl: course.enroll,
         };
       },
       settings: deps.settings,

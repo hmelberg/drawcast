@@ -25,6 +25,7 @@ import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, s
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
+import { DEFAULT_ENROLL_API } from "../learn";
 import { parseRepo, slugify } from "../publish/github";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
@@ -96,6 +97,12 @@ export interface ShareDoc {
    * "Allow sign-up" checkbox; course only — undefined for a drawcast.
    */
   joinBox?: boolean;
+  /**
+   * The `enroll:` URL the course document currently carries, when it is not
+   * the default app — shown so an author with their own Anvil backend can
+   * see what unchecking would delete (F2). Course only.
+   */
+  enrollUrl?: string;
 }
 
 export interface ShareDeps {
@@ -486,16 +493,26 @@ function build(): ShareSession {
   // default. Seeded from the document itself, so a republish shows what the
   // page currently does, and a new course starts with it off.
   const signupCb = h("input", { type: "checkbox", id: "share-allow-signup" }) as HTMLInputElement;
+  const signupHint = h("div", { class: "hint" });
   const signupLabel = h(
     "label",
     { class: "publish-choice", for: "share-allow-signup" },
     signupCb,
     h("span", {}, "Allow sign-up on the course page"),
-    h("div", { class: "hint" }, "the course page gets a join box: learners get a course code, and you see their progress and answers in the teacher dashboard"),
+    signupHint,
   );
+  const SIGNUP_HINT_DEFAULT = "the course page gets a join box: learners get a course code, and you see their progress and answers in the teacher dashboard";
   function refreshSignupChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
     signupLabel.hidden = subject !== "course";
     signupCb.checked = doc.joinBox === true;
+    // An author running their OWN Anvil backend needs to see that URL before
+    // unchecking deletes it — the course document was the only record of it
+    // (F2). The default app's own URL is not worth naming; it is what
+    // checking the box writes back in either case.
+    signupHint.textContent =
+      doc.enrollUrl && doc.enrollUrl !== DEFAULT_ENROLL_API
+        ? `your own app: ${doc.enrollUrl} — unchecking removes this line from the course document`
+        : SIGNUP_HINT_DEFAULT;
   }
   const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel, signupLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;

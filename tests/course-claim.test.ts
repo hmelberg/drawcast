@@ -142,8 +142,23 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
     expect(share).toMatch(/joinBox\?:\s*boolean/);
   });
 
+  // F2: unchecking the join box deletes the course document's `enroll:` line
+  // — the only record of an author's own Anvil backend. The hint has to name
+  // that URL before the delete, not after.
+  test("Share names the author's own enroll URL in the hint, so unchecking is never silent (F2)", () => {
+    expect(share).toMatch(/enrollUrl\?:\s*string/);
+    expect(share).toMatch(/import \{ DEFAULT_ENROLL_API \} from "\.\.\/learn"/);
+    expect(share).toMatch(/doc\.enrollUrl && doc\.enrollUrl !== DEFAULT_ENROLL_API/);
+    expect(share).toMatch(/your own app: \$\{doc\.enrollUrl\}/);
+    // The hint is re-derived per document, like the checkbox itself — not set
+    // once at build time.
+    const refresh = share.slice(share.indexOf("function refreshSignupChoice("), share.indexOf("const linkPanel ="));
+    expect(refresh).toMatch(/signupHint\.textContent =/);
+  });
+
   test("the course panel seeds the box from enroll: and applies the choice to the text BEFORE publishing", () => {
     expect(course).toMatch(/joinBox: course\.enroll !== undefined/);
+    expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
     expect(publishFn).toMatch(/applyJoinBox\(doc\.value, allowSignup\)/);
     expect(publishFn.indexOf("applyJoinBox(")).toBeLessThan(publishFn.indexOf("await publishCourse("));
