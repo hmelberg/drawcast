@@ -73,7 +73,9 @@ import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bak
 import { listCloudVoices, stampedVoice, synthesizeBase64 } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
-import { publishCast } from "./publish/cast";
+import { castRegistration, publishCast } from "./publish/cast";
+import { nameNote, registerName } from "./names";
+import { DEFAULT_ENROLL_API } from "./learn";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
@@ -101,6 +103,8 @@ import {
   getApiKey,
   getGithubToken,
   setGithubToken,
+  getAuthorKey,
+  setAuthorKey,
   getTtsKey,
   setTtsKey,
   isMultiPart,
@@ -1612,6 +1616,11 @@ githubTokenInput.addEventListener("change", () => {
   // convention), so it never goes through persist() — refresh explicitly.
   refreshCredentialMenus();
 });
+const authorKeyInput = h("input", { type: "password", placeholder: "from the drawcast Anvil dashboard", autocomplete: "off" }) as HTMLInputElement;
+authorKeyInput.value = getAuthorKey();
+authorKeyInput.addEventListener("change", () => {
+  setAuthorKey(authorKeyInput.value.trim());
+});
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 
@@ -1760,6 +1769,16 @@ const settingsBlocks = new Map<string, HTMLElement>([
         { class: "settings-note" },
         "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
       ),
+    ),
+  ],
+  [
+    "authorKey",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Author key"),
+      authorKeyInput,
+      h("div", { class: "settings-note" }, "Registers drawcast.app/#<name> links when you publish. Optional."),
     ),
   ],
   [
@@ -4098,12 +4117,28 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
+    // Bookkeeping first: saving the slug is what keeps the published link
+    // permanent, and it must not wait behind a network call to the registry.
     try {
       autosave();
     } catch (err) {
       console.error("drawcast: publish succeeded, bookkeeping failed", err);
     }
-    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}`, "ok");
+    // The name is registered only now, against a commit that exists: a
+    // drawcast.app/#name pointing at a file that was never written would be
+    // worse than no name at all. Without an author key there is nothing to
+    // register with, and the publish simply carries no name. The timeout
+    // bounds an unreachable registry at ten seconds.
+    let note = "";
+    const authorKey = getAuthorKey();
+    if (authorKey) {
+      const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
+        fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+      );
+      note = nameNote(outcome, reg.name);
+    }
+    setStatus(`Published to ${out.castUrl}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;

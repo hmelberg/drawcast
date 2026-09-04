@@ -14,6 +14,11 @@ import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
+import {
+  apiBase, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, forgetLearner, learnerFor, normalizeCode, reportingAllowed, saveLearner, sendEvent, stripLearnerParam,
+  type LearnerEntry,
+} from "./learn";
+import { ghHashFor, nameInHash, resolveName } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -41,6 +46,8 @@ export interface ViewerRequest {
   speed: number;
   /** Override of the playlist's advance mode (kiosk/loop playback). */
   advance?: "click" | "auto";
+  /** A course code arriving on the link (spec §1); stored, then stripped from the URL. */
+  learner?: string;
 }
 
 /**
@@ -108,6 +115,7 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     mode: (mode === "silent" || mode === "instant" ? mode : "narrated") as ViewerRequest["mode"],
     speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
     advance: (advance === "auto" || advance === "click" ? advance : undefined) as ViewerRequest["advance"],
+    learner: normalizeCode(params.get("learner")) ?? undefined,
   };
 
   if (gh) {
@@ -119,6 +127,59 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     return { driveId: drive[1], ...common };
   }
   return { docId: doc![1], ...common };
+}
+
+/**
+ * The 🎓 control (spec §5): shows who this browser reports as for the
+ * current course, lets a learner paste a code from their email, or stop.
+ * A change reloads — the session captured the learner at mount, and a
+ * reload is the honest way to re-wire everything.
+ */
+export function learnerButton(courseKey: string, entry: LearnerEntry | null, api: string | undefined, storage: Storage | null): HTMLElement {
+  const btn = h("button", { class: "cs-bar-btn", title: entry ? `Reporting as ${entry.name ?? entry.code}` : "Course code…" }, "🎓");
+  const panel = h("div", { class: "menu-panel learner-panel", hidden: "" });
+  const root = h("span", { class: "menu" }, btn, panel);
+  const status = h("div", { class: "learner-status" }, entry ? `You are ${entry.name ?? entry.code}` : "Paste the course code from your email:");
+  const input = h("input", { class: "learner-input", placeholder: "fjell-rev-havn", value: "" }) as HTMLInputElement;
+  const use = h("button", { class: "cs-bar-btn", type: "button" }, "Use this code");
+  const stop = h("button", { class: "cs-bar-btn", type: "button" }, "Stop reporting");
+  use.addEventListener("click", () => {
+    const code = normalizeCode(input.value);
+    if (!code) {
+      status.textContent = "That is not a course code (three words, like fjell-rev-havn).";
+      return;
+    }
+    saveLearner(storage, courseKey, { code, api: api ?? entry?.api ?? "", name: null });
+    location.reload();
+  });
+  stop.addEventListener("click", () => {
+    forgetLearner(storage, courseKey);
+    location.reload();
+  });
+  panel.append(status, input, use);
+  if (entry) panel.append(stop);
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+  });
+  panel.addEventListener("click", (e) => e.stopPropagation());
+  const onDocClick = (e: MouseEvent): void => {
+    if (panel.hidden) return;
+    if (e.target instanceof Node && (panel.contains(e.target) || btn.contains(e.target))) return;
+    panel.hidden = true;
+    e.stopPropagation();
+  };
+  document.addEventListener("click", onDocClick, true);
+  return root;
+}
+
+/** localStorage can throw on mere access in private-mode Safari, not just on use. */
+function safeLocalStorage(): Storage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
 }
 
 /** Fetch the doc text via the public export endpoints (doc must be link-shared). */
@@ -170,6 +231,44 @@ async function fetchGhText(gh: GhRef): Promise<string> {
       ? `Could not find ${gh.path} in ${gh.owner}/${gh.repo}. The repository must be public and the path must be right — and a just-published file can take a few minutes to appear.`
       : `Could not fetch the drawcast (HTTP ${res.status}).`,
   );
+}
+
+/**
+ * A named link (spec §7): ask the registry what the name points at, then
+ * carry on exactly as if the target had been in the hash. The address bar
+ * keeps the name — replaceState would not fire hashchange, but there is
+ * nothing to gain from rewriting it either.
+ */
+export async function runNamed(hash: string): Promise<void> {
+  const name = nameInHash(hash);
+  // Same centering runViewer gets, before we know whether we'll ever reach it.
+  document.body.classList.add("viewer-body");
+  const status = h("p", { class: "viewer-status" }, "Looking up the name…");
+  document.body.append(status);
+  const resolved = name ? await resolveName(DEFAULT_ENROLL_API, name) : null;
+  if (!resolved) {
+    status.textContent = `No drawcast called "${name ?? hash}".`;
+    status.classList.add("error");
+    return;
+  }
+  if (resolved.kind === "course") {
+    if (resolved.page) location.replace(resolved.page);
+    else {
+      status.textContent = "This course has no page to open.";
+      status.classList.add("error");
+    }
+    return;
+  }
+  // Parse BEFORE clearing the lookup status: a malformed registry entry
+  // must still leave a message on screen, not a blank page.
+  const req = parseViewerHash(ghHashFor(hash, resolved.target));
+  if (!req) {
+    status.textContent = `The name "${name}" points at something this viewer cannot play.`;
+    status.classList.add("error");
+    return;
+  }
+  status.remove();
+  await runViewer(req);
 }
 
 export async function runViewer(req: ViewerRequest): Promise<void> {
@@ -263,6 +362,42 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         if (typeof count === "number") viewsEl.textContent = `${count.toLocaleString()} ${count === 1 ? "view" : "views"}`;
       });
     }
+    // Learners (spec §1, §4): remember an arriving code, then report for the
+    // course this cast belongs to — but only to the app that issued the code.
+    let learner: LearnerEntry | null = null;
+    let learnerCast = "";
+    const trailing: HTMLElement[] = [];
+    if (req.gh) {
+      learnerCast = castKeyFor(req.gh);
+      const courseKey = courseKeyOf(learnerCast);
+      const local = safeLocalStorage();
+      const enroll = playlist.meta.enroll ? apiBase(playlist.meta.enroll) : undefined;
+      if (req.learner) {
+        // Storing needs a backend to report to; CLEANING the address does not
+        // — a code that arrived on a cast without meta.enroll is still a code
+        // the next person to copy this link must not inherit.
+        if (enroll) saveLearner(local, courseKey, { code: req.learner, api: enroll, name: learnerFor(local, courseKey)?.name ?? null });
+        try {
+          history.replaceState(null, "", stripLearnerParam(location.href));
+        } catch {
+          /* a copied address keeps the code; nothing else changes */
+        }
+      }
+      const entry = learnerFor(local, courseKey);
+      if (reportingAllowed(entry, enroll)) {
+        learner = entry;
+        const session = (() => {
+          try {
+            return sessionStorage;
+          } catch {
+            return null;
+          }
+        })();
+        if (firstOpenInSession(learnerCast, session)) void sendEvent(learner, { kind: "opened", cast: learnerCast });
+      }
+      if (enroll || entry) trailing.push(learnerButton(courseKey, learner, enroll, local));
+    }
+    const reporter = learner;
     const settings = loadSettings();
     const speech = new CloudSpeech(
       () => (settings.cloudPlayback ? getTtsKey() : ""),
@@ -294,8 +429,20 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         onChange: (next) => saveSettings({ ...loadSettings(), captionsOn: next.on, captionLang: next.lang }),
         hasCloudVoice: settings.cloudPlayback && getTtsKey() !== "",
       },
-      controls: { speech, fullscreenEl: figureHost },
+      controls: { speech, fullscreenEl: figureHost, trailing },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),
+      onAnswer: reporter
+        ? (a, _item, index) => {
+            // (item, step) together: a.index counts steps inside ONE playlist
+            // item, and a generated lecture is one item per part (spec §4).
+            void sendEvent(reporter, { kind: "answer", cast: learnerCast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct });
+          }
+        : undefined,
+      onDone: reporter
+        ? () => {
+            void sendEvent(reporter, { kind: "completed", cast: learnerCast });
+          }
+        : undefined,
       advanceOverride: req.advance,
     });
     status.remove();

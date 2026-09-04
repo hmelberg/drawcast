@@ -49,6 +49,14 @@ export interface PlaylistMeta {
    * shows a clickable "Next ▸" pill when playback finishes.
    */
   next?: { title: string; href: string };
+  /**
+   * The learner backend (spec §2): the Anvil base URL from the course
+   * document's `enroll:` line, written onto the PUBLISHED copy by
+   * publishCourse so a lecture opened straight from an email link still
+   * knows where events go. The viewer only reports when the stored code
+   * came from this very app.
+   */
+  enroll?: string;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -123,6 +131,7 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
       warnings.push("playlist.next needs title and href — ignored");
     }
   }
+  if (typeof raw.enroll === "string") meta.enroll = raw.enroll;
   if (isPlainObject(raw.comments)) {
     const c = raw.comments;
     if (typeof c.repoId === "string" && typeof c.categoryId === "string") {
@@ -274,6 +283,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.comments === undefined &&
     playlist.meta.views === undefined &&
     playlist.meta.next === undefined &&
+    playlist.meta.enroll === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -300,6 +310,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   if (playlist.meta.comments !== undefined) header.comments = playlist.meta.comments;
   if (playlist.meta.views !== undefined) header.views = playlist.meta.views;
   if (playlist.meta.next !== undefined) header.next = playlist.meta.next;
+  if (playlist.meta.enroll !== undefined) header.enroll = playlist.meta.enroll;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;

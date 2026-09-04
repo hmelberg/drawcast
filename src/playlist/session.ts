@@ -10,7 +10,7 @@
 import { render, type RenderHandle, type RenderStyle } from "../render";
 import type { TextOverride } from "../layout/text-style";
 import { speechKey, type SpeakLine } from "../render/delivery";
-import type { PlaybackMode } from "../render/player";
+import type { AnswerEvent, PlaybackMode } from "../render/player";
 import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
@@ -71,6 +71,15 @@ export interface SessionOptions {
   };
   /** Called with each item's handle after it mounts (editor lint, title sync). */
   onItemMounted?(hd: RenderHandle, item: PlaylistItem): void;
+  /** A live viewer answered a quiz/ask in the current item (spec §4). The
+   *  item's index travels with it because AnswerEvent.index counts plan
+   *  steps WITHIN one item — a lecture's parts each restart it, so only the
+   *  pair (item, step) names a question across the whole playlist. */
+  onAnswer?(answer: AnswerEvent, item: PlaylistItem, index: number): void;
+  /** The LAST item finished — once per mount, whether or not meta.next is set.
+   *  Fires from either mount path: the single-drawcast lecture (the common
+   *  case) as well as a multi-item playlist. */
+  onDone?(): void;
   /**
    * Start playback the moment the first item (or the title page) mounts,
    * instead of waiting for a click on the poster's Play button. Set when this
@@ -121,6 +130,10 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   let destroyed = false;
   let gateAbort: AbortController | null = null;
   let modeRef: PlaybackMode = opts.mode;
+  // Guards opts.onDone: it must fire once for the whole mount, even though a
+  // single-drawcast playlist mounts its one item on a path that returns
+  // before the multi-item state below (idx, dots, panel) is ever set up.
+  let doneReported = false;
 
   const prefs: PlaybackPrefs = {
     ...opts.prefs,
@@ -236,6 +249,11 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       shownSpec = items[0].spec;
       attachPlayerControls(host, hd, prefs, controlOpts);
       applyCaptions(hd);
+      // Chain here too (see chainCallbacks): a single-drawcast playlist is a
+      // lecture's normal shape, so onAnswer/onDone must still reach the host.
+      // onItemDone/showNextLink are the multi-item "next" affordance and stay
+      // no-ops here (guarded by items.length in their own bodies).
+      chainCallbacks(hd, 0);
       opts.onItemMounted?.(hd, items[0]);
       if (opts.autoplay) void hd.timeline.play();
     }
@@ -360,6 +378,20 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     applyCaptions(hd);
     // Chain AFTER the controls install their callbacks (and their showPoster),
     // so the poster's initial "done" never triggers an advance.
+    chainCallbacks(hd, i);
+    opts.onItemMounted?.(hd, items[i]);
+    markCurrent();
+    if (autoplay) void hd.timeline.play();
+  }
+
+  /** Wires a mounted item's timeline callbacks after the controls install
+   *  their own (see the AFTER comment above): forwards onStep untouched,
+   *  forwards onAnswer to the host with the item and its index attached,
+   *  and on the LAST item's "done" fires opts.onDone once for the whole
+   *  mount. Shared by both mount paths — the single-drawcast branch above
+   *  (i is always 0 there) and mountItem — so onAnswer/onDone reach the
+   *  host either way. */
+  function chainCallbacks(hd: RenderHandle, i: number): void {
     const prev = hd.timeline.callbacks;
     hd.timeline.callbacks = {
       onState: (s) => {
@@ -367,15 +399,20 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         if (s === "done") {
           void onItemDone();
           showNextLink();
+          if (i === items.length - 1 && !doneReported) {
+            doneReported = true;
+            opts.onDone?.();
+          }
         } else {
           host.querySelector(".cs-nextlink")?.remove();
         }
       },
       onStep: prev.onStep,
+      onAnswer: (a) => {
+        prev.onAnswer?.(a);
+        opts.onAnswer?.(a, items[i], i);
+      },
     };
-    opts.onItemMounted?.(hd, items[i]);
-    markCurrent();
-    if (autoplay) void hd.timeline.play();
   }
 
   /** The clickable half of the drawn "Next" card: when the LAST item finishes
@@ -384,6 +421,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
    *  lecture. A plain hash change would not remount the viewer, hence the
    *  reload; modified clicks keep real-anchor semantics (new tab). */
   function showNextLink(): void {
+    // A single-drawcast playlist has no "next item" chaining (no idx, no
+    // dots) — that affordance is multi-item only, and stays absent here.
+    if (items.length <= 1) return;
     const nx = playlist.meta.next;
     if (!nx || idx < items.length - 1) return;
     const stage = host.querySelector<HTMLElement>(".cs-stage");
@@ -408,6 +448,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   async function onItemDone(): Promise<void> {
+    // A single-drawcast playlist has no next item to chain into (idx is
+    // never even set up on that path) — same no-op boundary as showNextLink.
+    if (items.length <= 1) return;
     // Instant mode is for inspecting final states — never auto-chain there.
     if (destroyed || idx >= items.length - 1 || modeRef === "instant") return;
     const next = items[idx + 1];

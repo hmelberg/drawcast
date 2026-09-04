@@ -34,6 +34,10 @@ export interface Course {
   title: string;
   /** Shared context injected into every lecture request. */
   context: Record<string, string>;
+  /** Learner backend base URL (spec §2) — reserved, never context. */
+  enroll?: string;
+  /** Name override for drawcast.app/#<name> (spec §7); defaults to the slug. */
+  name?: string;
   intro?: string;
   lectures: CourseLecture[];
   warnings: string[];
@@ -151,6 +155,8 @@ export function parseCourse(text: string): Course {
     if (options.length > 0) {
       for (const [key, value] of options) {
         if (current) current.options[key] = value;
+        else if (key === "enroll") course.enroll = value;
+        else if (key === "name") course.name = value;
         else course.context[key] = value;
       }
       continue;
@@ -169,6 +175,8 @@ export function formatCourse(course: Course): string {
   // One key per line: parse accepts the "·" form too, but emitting one per line
   // makes parse → format → parse stable without preserving cosmetic grouping.
   for (const [key, value] of Object.entries(course.context)) out.push(`${key}: ${value}`);
+  if (course.enroll) out.push(`enroll: ${course.enroll}`);
+  if (course.name) out.push(`name: ${course.name}`);
   if (course.intro) out.push("", course.intro);
   for (const lecture of course.lectures) {
     out.push("", "---", `## ${lecture.title}`);

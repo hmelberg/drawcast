@@ -19,6 +19,7 @@ import {
   type PublishFile,
   type RepoRef,
 } from "./github";
+import type { Registration } from "../names";
 
 export interface CastEntry {
   slug: string;
@@ -84,6 +85,15 @@ export interface CastPlanArgs {
 
 export function castHref(base: string, owner: string, repo: string, path: string): string {
   return `${base.replace(/\/+$/, "")}/#gh=${owner}/${repo}/${path}`;
+}
+
+/**
+ * What a drawcast publish registers (spec §7). A cast has no document to carry
+ * a `name:` override, so its slug — the name that is already permanent — is
+ * the name.
+ */
+export function castRegistration(slug: string, repo: RepoRef, castsDir: string, page: string): Omit<Registration, "key"> {
+  return { name: slug, kind: "cast", target: `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}.yaml`)}`, page };
 }
 
 export function buildCastPlan(args: CastPlanArgs): CastPlan {

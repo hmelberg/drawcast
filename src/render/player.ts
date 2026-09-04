@@ -32,9 +32,23 @@ export interface Reprojector {
   commit(params: Record<string, number>): Map<string, RenderedElement>;
 }
 
+/** One graded answer from a LIVE viewer (never a movie's auto path): what
+ *  was chosen or typed, every attempt in order, and what would have been
+ *  right. The viewer forwards these to the learner endpoint (src/learn.ts). */
+export interface AnswerEvent {
+  /** The step index — the question's slot in this drawcast's plan. */
+  index: number;
+  kind: "quiz" | "ask";
+  question: string;
+  given: string[];
+  expected: string;
+  correct: boolean;
+}
+
 export interface PlayerCallbacks {
   onState?(state: PlayerState): void;
   onStep?(completed: number, total: number): void;
+  onAnswer?(answer: AnswerEvent): void;
 }
 
 const ERASE_SPEED = 0.55; // erasing runs faster than drawing
@@ -658,6 +672,16 @@ export class Player {
         // definition; a live viewer's Skip counts as wrong — a test is a test.
         this.outcomes.set(index, this.autoAnswers || this.quizGate === null ? true : chosen === step.correct);
         this.updateScoreVars();
+        if (!this.autoAnswers && this.quizGate !== null) {
+          this.callbacks.onAnswer?.({
+            index,
+            kind: "quiz",
+            question: step.question,
+            given: chosen === null ? [] : [step.choices[chosen]],
+            expected: step.choices[step.correct],
+            correct: chosen === step.correct,
+          });
+        }
         const reveal = step.right ?? step.choices[step.correct];
         if (chosen === step.correct) {
           if (step.right) await this.speakLine(step.right, step, signal);
@@ -680,6 +704,7 @@ export class Player {
         // the default in collect mode — one uniform string contract.
         const auto = step.answer ?? step.fallback ?? "";
         let typed: string | null;
+        const attempts: string[] = [];
         if (step.widget !== undefined && (this.autoAnswers || !this.askGate)) {
           // Widget asks demonstrate with the laser instead of the typing card:
           // the pointer taps the answer element (SVG — it exports), then the
@@ -707,6 +732,7 @@ export class Player {
           typed = auto;
         } else if (this.askGate) {
           typed = await this.askGate(signal, step);
+          if (typed !== null) attempts.push(typed);
         } else {
           await this.waitScaled(1600, signal);
           typed = auto;
@@ -725,11 +751,15 @@ export class Player {
           if (signal.aborted) return;
           if (!step.retry || !this.askGate) break;
           typed = await this.askGate(signal, step);
+          if (typed !== null) attempts.push(typed);
           if (signal.aborted) return;
           if (step.store && typed !== null) this.vars.set(step.store.toLowerCase(), typed);
         }
         this.outcomes.set(index, isRight(typed));
         this.updateScoreVars();
+        if (!this.autoAnswers && this.askGate !== null) {
+          this.callbacks.onAnswer?.({ index, kind: "ask", question: step.question, given: attempts, expected: answer, correct: isRight(typed) });
+        }
         if (isRight(typed)) {
           if (step.right) await this.speakLine(step.right, step, signal);
         } else if (step.reveal) {

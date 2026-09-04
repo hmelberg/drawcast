@@ -498,6 +498,8 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
   color: var(--ink);
   cursor: pointer;
 }
+.learner-panel { min-width: 16rem; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.6rem; }
+.learner-input { font: inherit; padding: 0.3rem 0.5rem; }
 .menu-item:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
 
 /* ---------- lint chip ---------- */

@@ -5,7 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { publishCourse } from "../course/publish";
+import { courseRegistration, publishCourse } from "../course/publish";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
@@ -24,12 +24,14 @@ import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost
 import { stampedVoice, synthesizeBase64 } from "../export/tts";
 import { detectLang } from "../render/speech";
 import { joinPath } from "../course/publish";
+import { nameNote, registerName } from "../names";
+import { DEFAULT_ENROLL_API } from "../learn";
 import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
 import { resolvePortraits } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { unembeddedImages } from "./insert";
-import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { getAuthorKey, getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 import { openShare, type ShareDeps } from "./share";
@@ -910,6 +912,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       publishedViews = countViews !== false;
       const firstTime = !published.has(settings.githubRepo);
       published.add(settings.githubRepo);
+      // Bookkeeping BEFORE the registry: writing the permanent file names back
+      // into the document is what keeps the links in it pointing at the files
+      // that were just committed, and a slow (or hanging) registry call in
+      // front of it would leave them orphaned for as long as it lasted.
+      let bookkeeping: Error | null = null;
       try {
         checkpoint();
         doc.value = out.text; // now carries each lecture's permanent file name
@@ -917,8 +924,27 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         render();
       } catch (err) {
         console.error("drawcast: publish succeeded, bookkeeping failed", err);
+        bookkeeping = err as Error;
+      }
+      // Only now, with the commit landed, is there something for a
+      // drawcast.app/#name to point at. No author key, no registration —
+      // publishing is complete either way, so a registry that is down or a
+      // name someone else already owns never turns a successful publish into
+      // a failed one; it only changes the note at the end of the line. The
+      // timeout is what keeps that promise: an unreachable registry costs ten
+      // seconds, not the rest of the session.
+      let nameSuffix = "";
+      const authorKey = getAuthorKey();
+      const reg = authorKey ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
+      if (authorKey && reg) {
+        const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
+          fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+        );
+        nameSuffix = nameNote(outcome, reg.name);
+      }
+      if (bookkeeping) {
         say(
-          `Published to ${out.courseUrl} — but the file names could not be written back into the document (${(err as Error).name}: ${(err as Error).message}). Press Publish again after checking the document.`,
+          `Published to ${out.courseUrl} — but the file names could not be written back into the document (${bookkeeping.name}: ${bookkeeping.message}). Press Publish again after checking the document.${nameSuffix}`,
           "error",
         );
         return;
@@ -929,7 +955,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       // second publish with the box off would otherwise report the first
       // publish's count.
       const images = embedded && embeddedTotal > 0 ? ` — ${embeddedTotal} image(s) embedded` : "";
-      say(`Published ${out.count} files to ${settings.githubRepo}${images}.${narration}`, "ok");
+      say(`Published ${out.count} files to ${settings.githubRepo}${images}.${narration}${nameSuffix}`, "ok");
     } catch (err) {
       // The stack is what names the culprit; the message alone rarely does.
       console.error("drawcast: publish failed", err);
