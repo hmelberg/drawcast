@@ -422,7 +422,16 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     ctx.warnings.push(`code "${el.id}": output was truncated/scaled to fit the panel within the canvas`);
   }
   const x0 = cx - w / 2;
-  const yTop = cy + (h + chrome.above + chrome.below) / 2 - chrome.above;
+  // The assembly (chrome included) centres on the element's y, then is nudged
+  // to stay ON the canvas — a tall panel on a deep frame used to push its own
+  // top off the top edge — and, when there is slack, to clear the narration
+  // band at the bottom rather than stand its foot behind it.
+  let yTop = cy + (h + chrome.above + chrome.below) / 2 - chrome.above;
+  const CAPTION_H = 64;
+  const overTop = yTop + chrome.above - (CANVAS.h - 8);
+  if (overTop > 0) yTop -= overTop;
+  const underBottom = CAPTION_H - (yTop - h - chrome.below);
+  if (underBottom > 0) yTop += Math.max(0, Math.min(underBottom, CANVAS.h - 8 - (yTop + chrome.above)));
   const rect: Pt[] = [
     [x0, yTop - h],
     [x0 + w, yTop - h],
@@ -433,7 +442,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // Chrome first (it sits behind and around), then the panel's own paper
   // and frame — none of it for frame: none, bare paper.
   const panelChildren: Drawable[] = [...chromeDrawables(el.id, frame, x0, yTop, w, h, el.style, el.draw)];
-  const shelled = frame === "screen" || frame === "laptop" || frame === "crt"; // its outline is the frame
+  const shelled = frame !== "panel" && frame !== "window" && frame !== "none"; // a display's outline IS its frame
   if (frame !== "none") {
     panelChildren.push(
       {
@@ -662,15 +671,17 @@ const BAR_H = 28;
 const BEZEL = 14;
 const CHIN = 30;
 const SCREEN_R = 24;
-const KEYS_H = 120;
+const KEYS_H = 110;
+/** The home computer's case: a wedge deep enough to be the monitor's table. */
+const BOARD_H = 106;
 /** The CRT: a chunky plastic shell, a bulging glass inset in it, a chin with
  *  small controls, and a short neck on a flat foot. Drawn flat-on — the
  *  engine is a 2D line renderer and a three-quarter view would have to skew
  *  the content plane with it — with one thin band down the right edge for
  *  depth. Its space is opt-in: nothing defaults to a CRT. */
-const CRT = Object.freeze({ side: 34, above: 30, chin: 52, foot: 22, r: 26, depth: 13 });
+const CRT = Object.freeze({ side: 34, above: 28, chin: 46, foot: 20, r: 26, depth: 13 });
 
-export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "crt" | "none";
+export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "crt" | "c64" | "none";
 
 /** Space the chrome claims outside the panel rectangle, logical units. */
 export function frameSpace(frame: CodeFrame): { above: number; below: number; side: number } {
@@ -683,6 +694,9 @@ export function frameSpace(frame: CodeFrame): { above: number; below: number; si
       return { above: BEZEL, below: CHIN + KEYS_H, side: BEZEL };
     case "crt":
       return { above: CRT.above, below: CRT.chin + CRT.foot, side: CRT.side };
+    case "c64":
+      // No foot: the monitor stands ON the keyboard, the way it did in 1982.
+      return { above: CRT.above, below: CRT.chin + BOARD_H, side: CRT.side };
     default:
       return { above: 0, below: 0, side: 0 };
   }
@@ -769,35 +783,64 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
     });
     out.push(stroke(`${id}__bezel`, shell, true, ink({ strokeWidth: 3.5 }), sketch(SKETCH_MS.node)));
   }
-  if (frame === "laptop") {
-    const sx = x0 - BEZEL;
-    const sw = w + 2 * BEZEL;
-    const hinge = yTop - h - CHIN;
-    const slabTop = hinge;
-    const slabBottom = hinge - KEYS_H;
+  if (frame === "laptop" || frame === "c64") {
+    const wedge = frame === "c64";
+    // The keyboard, drawn once for both machines: a slab, three rows of keys
+    // with the stagger a real board has, a wide space bar, and — on the home
+    // computer — a block of function keys down the right and a deeper case
+    // that the monitor stands on.
+    const sx = x0 - (wedge ? CRT.side : BEZEL);
+    const sw = w + 2 * (wedge ? CRT.side : BEZEL);
+    const slabTop = yTop - h - (wedge ? CRT.chin : CHIN);
+    const slabH = wedge ? BOARD_H : KEYS_H;
+    const slabBottom = slabTop - slabH;
     const keys: Drawable[] = [
-      stroke(`${id}__keys_slab`, rectPts(sx, slabBottom, sw, KEYS_H), true, ink({ strokeWidth: 3 }), sketch(SKETCH_MS.node), { x: sx, y: slabBottom, w: sw, h: KEYS_H }),
+      stroke(`${id}__keys_slab`, roundRectPts(sx, slabBottom, sw, slabH, wedge ? 10 : 8), true, ink({ strokeWidth: 3 }), sketch(SKETCH_MS.node), undefined),
     ];
-    const gap = 6;
-    const keyH = 18;
-    const keyW = (w - 12 * gap) / 13;
+    if (wedge) {
+      // The case's front lip: the wedge that makes it a breadbox, not a tray.
+      keys.push(stroke(`${id}__keys_lip`, [[sx + 8, slabBottom + 13], [sx + sw - 8, slabBottom + 13]], false, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
+    }
+    // Four rows of small keys with the stagger a real board has, a wide space
+    // bar on the bottom row, and — on the home computer — a column of function
+    // keys down the right. Keys are drawn instantly: a keyboard is furniture,
+    // and sixty sketched rectangles would be the slowest thing on the canvas.
+    const fnW = wedge ? 42 : 0;
+    const pad = 34;
+    const gap = 4;
+    const rows = 4;
+    const cols = 16;
+    const boardW = sw - 2 * pad - (fnW > 0 ? fnW + 12 : 0);
+    const keyW = (boardW - (cols - 1) * gap) / cols;
+    const keyH = (slabH - 26 - (rows - 1) * gap) / rows;
     const keyStyle = resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 });
-    for (let r = 0; r < 4; r++) {
-      const rowTop = slabTop - 12 - r * (keyH + gap);
-      if (r < 3) {
-        for (let k = 0; k < 13; k++) {
-          const kx = x0 + k * (keyW + gap);
-          keys.push(stroke(`${id}__key_${r}_${k}`, rectPts(kx, rowTop - keyH, keyW, keyH), true, keyStyle, instant));
-        }
-      } else {
-        const spaceW = 7 * keyW + 6 * gap;
-        const spaceX = x0 + (w - spaceW) / 2;
-        keys.push(stroke(`${id}__key_space`, rectPts(spaceX, rowTop - keyH, spaceW, keyH), true, keyStyle, instant));
+    const top0 = slabTop - 14;
+    for (let r = 0; r < rows - 1; r++) {
+      const rowTop = top0 - r * (keyH + gap);
+      const stagger = r * keyW * 0.3;
+      for (let k = 0; k < cols; k++) {
+        const kx = sx + pad + stagger + k * (keyW + gap);
+        if (kx + keyW > sx + pad + boardW) continue;
+        keys.push(stroke(`${id}__key_${r}_${k}`, roundRectPts(kx, rowTop - keyH, keyW, keyH, 2.5), true, keyStyle, instant));
       }
+    }
+    // The bottom row: two modifiers, the space bar, two more.
+    const bottomTop = top0 - (rows - 1) * (keyH + gap);
+    const spaceW = boardW * 0.46;
+    const sideW = (boardW - spaceW - 4 * gap) / 4;
+    let bx = sx + pad;
+    for (let i = 0; i < 5; i++) {
+      const kw = i === 2 ? spaceW : sideW;
+      keys.push(stroke(i === 2 ? `${id}__key_space` : `${id}__key_mod_${i}`, roundRectPts(bx, bottomTop - keyH, kw, keyH, 2.5), true, keyStyle, instant));
+      bx += kw + gap;
+    }
+    for (let f = 0; f < rows && fnW > 0; f++) {
+      const fy = top0 - f * (keyH + gap);
+      keys.push(stroke(`${id}__key_fn_${f + 1}`, roundRectPts(sx + sw - pad - fnW, fy - keyH, fnW, keyH, 2.5), true, keyStyle, instant));
     }
     out.push({ id: `${id}__keys`, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: sketch(SKETCH_MS.node), children: keys });
   }
-  if (frame === "crt") {
+  if (frame === "crt" || frame === "c64") {
     const sx = x0 - CRT.side;
     const sy = yTop - h - CRT.chin;
     const sw = w + 2 * CRT.side;
@@ -835,14 +878,16 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
       out.push(stroke(`${id}__btn_${i + 1}`, circlePts([sx + sw - 76 - i * 17, chinY], 4.5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
     }
     out.push(stroke(`${id}__vent`, roundRectPts(sx + 30, chinY - 5, 96, 10, 5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 }), instant));
-    // A short neck on a flat foot — a tube monitor stands on its own base.
-    // Two separate sides, so nothing draws a line across the foot's face.
+    // A short neck on a plinth — only when the tube stands on its own; on the
+    // home computer it stands on the keyboard instead.
     const cxm = x0 + w / 2;
-    const footY = sy - CRT.foot + 10;
+    if (frame === "c64") return out;
+    const plinthH = 14;
+    const plinthTop = sy - (CRT.foot - plinthH);
     const neck = ink({ strokeWidth: 2.5 });
-    out.push(stroke(`${id}__neck_l`, [[cxm - 52, sy], [cxm - 44, footY]], false, neck, sketch(220)));
-    out.push(stroke(`${id}__neck_r`, [[cxm + 52, sy], [cxm + 44, footY]], false, neck, sketch(220)));
-    out.push(stroke(`${id}__foot`, ellipsePts([cxm, footY], 86, 10), true, neck, sketch(400)));
+    out.push(stroke(`${id}__neck_l`, [[cxm - 44, sy], [cxm - 34, plinthTop]], false, neck, sketch(220)));
+    out.push(stroke(`${id}__neck_r`, [[cxm + 44, sy], [cxm + 34, plinthTop]], false, neck, sketch(220)));
+    out.push(stroke(`${id}__foot`, roundRectPts(cxm - 92, plinthTop - plinthH, 184, plinthH, 6), true, neck, sketch(400)));
   }
   return out;
 }

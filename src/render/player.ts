@@ -353,6 +353,22 @@ export class Player {
     if (!keepPlaying) this.setState(n >= this.plan.steps.length ? "done" : n === 0 ? "idle" : "paused");
   }
 
+  /**
+   * Hide ids that the boundary would otherwise show — a VIEWER preview, like
+   * previewParams: the switches on a drawn monitor turn the code or the output
+   * off without touching the storyboard. Passing an empty set restores the
+   * boundary exactly; any honest movement repaints anyway.
+   */
+  previewHidden(ids: ReadonlySet<string>): void {
+    const scene = this.stateAt(this.completed);
+    const visible = new Set(scene.visible);
+    for (const [id, el] of this.elements) {
+      if (!visible.has(id)) continue;
+      if (ids.has(id)) el.hide();
+      else el.finish();
+    }
+  }
+
   /** Apply a scene's visibility/offsets/pointer/camera to the currently mounted elements. */
   private applyScene(scene: SceneState): void {
     const visible = new Set(scene.visible);

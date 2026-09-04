@@ -18,6 +18,7 @@ import type { VoiceOption } from "../render/voices";
 import { gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { attachInfoCards } from "./infocard";
+import { attachScreenSwitches } from "./screen-switches";
 import { scenes } from "../scenes/registry";
 
 export interface PlaybackPrefs {
@@ -974,6 +975,7 @@ export function attachPlayerControls(
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
   attachInfoCards(stage, hd); // no-op unless the spec carries card elements
+  attachScreenSwitches(stage, hd); // no-op unless a code panel is drawn on a CRT
   if (interactions.includes("piano")) {
     const octaves = pianoOctaves(hd.spec.params);
     // A keyboard is an instrument: no scroll-panning from the stage, so a
