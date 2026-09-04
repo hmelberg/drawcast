@@ -892,10 +892,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           ? { repoId: settings.giscusRepoId, category: settings.giscusCategory, categoryId: settings.giscusCategoryId }
           : null;
       const yamlFor = (index: number): string | null => {
-        const text = embeddedFor(index);
-        if (text === null) return text;
-        if (!commentsMeta && countViews !== false) return text;
-        const parsed = parsePlaylistText(text);
+        const yaml = embeddedFor(index);
+        if (yaml === null) return yaml;
+        if (!commentsMeta && countViews !== false) return yaml;
+        const parsed = parsePlaylistText(yaml);
         if (commentsMeta) parsed.meta.comments = commentsMeta;
         return formatPlaylist(applyViewsFlag(parsed, countViews !== false), "yaml");
       };

@@ -221,10 +221,12 @@ export function setCourseOption(text: string, key: string, value: string): strin
 }
 
 /**
- * Remove a course-level `key:` option from the header without reformatting
- * anything else — the inverse of setCourseOption. A line carrying several
- * options ("enroll: … · name: …") loses only this key's part; a lecture's
- * own option of the same name is never touched.
+ * Remove a course-level `key:` option from the header — the inverse of
+ * setCourseOption. A line carrying several options ("enroll: … · name: …")
+ * loses only this key's part; a lecture's own option of the same name is
+ * never touched. A surviving shared line IS reformatted, though: its
+ * remaining parts are trimmed and rejoined with a normalised " · ", so it may
+ * not come back byte-identical even where nothing meaningful changed.
  */
 export function removeCourseOption(text: string, key: string): string {
   const lines = text.split("\n");
