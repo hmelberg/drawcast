@@ -77,12 +77,22 @@ export function defaultClientIp(req: Request): string {
  * never collide with keys.mts's password-failure keys, even though both run
  * through the very same rate-limits store under the very same client IPs.
  *
- * The cap is deliberately loose: a classroom behind one NAT can legitimately
- * produce hundreds of views an hour from a single address, so this exists to
- * stop unbounded abuse (a curl loop against one cast), not to throttle real
- * use.
+ * This exists to bound per-IP KEY GROWTH in Blobs — one address hammering
+ * the store, not the accuracy of anyone's count — because the actual defence
+ * against that cost tail is the parallelised compaction drain (view-store's
+ * DELETE_CONCURRENCY / DEFAULT_DELETE_BUDGET): this cap is defence in depth
+ * behind it, not the primary bound.
+ *
+ * That is also why it is set this high rather than tuned tight: drawcast's
+ * primary use case is university lecture views, and a lecture hall or campus
+ * behind one shared NAT can legitimately produce thousands of real views an
+ * hour across a handful of lectures. Undercounting real views by throttling
+ * them is the one failure this feature cannot have — the whole point of a
+ * view count is that it can be trusted — so this errs generous and exists
+ * only to stop pathological abuse (a curl loop hammering one cast), never to
+ * throttle real classroom use.
  */
-const VIEW_WRITE_BUDGET = { windowMs: 60 * 60 * 1000, maxFailures: 300 };
+const VIEW_WRITE_BUDGET = { windowMs: 60 * 60 * 1000, maxFailures: 2000 };
 
 export function viewBudgetId(ip: string): string {
   return `views:${ip}`;
