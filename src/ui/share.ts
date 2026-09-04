@@ -90,6 +90,12 @@ export interface ShareDoc {
    * Written only by `publishDriveCast`, after the file lands — never here.
    */
   drivePublishedName?: string;
+  /**
+   * Whether the course document carries an `enroll:` line, i.e. whether the
+   * published course page shows the join box (learners round). Seeds the
+   * "Allow sign-up" checkbox; course only — undefined for a drawcast.
+   */
+  joinBox?: boolean;
 }
 
 export interface ShareDeps {
@@ -116,8 +122,12 @@ export interface ShareDeps {
    * only for `subject: "course"` (the field is hidden there; a course has no
    * single slug of its own). For a drawcast, editing the name mints a NEW
    * file at the new slug; the old one is never deleted (B3).
+   *
+   * `allowSignup` is the course-only join-box choice (teachers round): true
+   * writes `enroll: <default app>` into the course document before
+   * publishing, false removes the line; undefined for `subject: "drawcast"`.
    */
-  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }) => Promise<void>;
+  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }) => Promise<void>;
   /**
    * Publish this document to the author's own Google Drive — the SAME
    * prepared copy `publish` sends to GitHub, written as a plain `.yaml` file
@@ -469,7 +479,25 @@ function build(): ShareSession {
   function refreshCountViewsChoice(doc: ShareDoc): void {
     countViewsCb.checked = doc.publishedViews !== false;
   }
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel);
+  // "Allow sign-up on the course page" (teachers round, spec §5): a course
+  // only. On, the publish writes `enroll: <default app>` into the course
+  // document; off, it removes the line. An author running their own Anvil
+  // app keeps whatever URL they typed — applyJoinBox only ever writes the
+  // default. Seeded from the document itself, so a republish shows what the
+  // page currently does, and a new course starts with it off.
+  const signupCb = h("input", { type: "checkbox", id: "share-allow-signup" }) as HTMLInputElement;
+  const signupLabel = h(
+    "label",
+    { class: "publish-choice", for: "share-allow-signup" },
+    signupCb,
+    h("span", {}, "Allow sign-up on the course page"),
+    h("div", { class: "hint" }, "the course page gets a join box: learners get a course code, and you see their progress and answers in the teacher dashboard"),
+  );
+  function refreshSignupChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
+    signupLabel.hidden = subject !== "course";
+    signupCb.checked = doc.joinBox === true;
+  }
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel, signupLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
@@ -478,6 +506,7 @@ function build(): ShareSession {
       slug: publishNameInput.value.trim() || undefined,
       allowComments: commentsCb.checked && !commentsCb.disabled,
       countViews: countViewsCb.checked,
+      allowSignup: deps.subject === "course" ? signupCb.checked : undefined,
     };
     modal.dialog.close();
     void deps.publish(choices);
@@ -1078,6 +1107,7 @@ function build(): ShareSession {
     linkChoices.refresh(doc, current.subject);
     refreshCommentsChoice(doc);
     refreshCountViewsChoice(doc);
+    refreshSignupChoice(doc, current.subject);
     // A filename, not a slug — and the name the file ALREADY has wins over
     // the title, exactly as Link prefers `publishedAs`. Without that, an
     // author who renamed the file once would have it renamed back to the

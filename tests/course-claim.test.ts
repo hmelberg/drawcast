@@ -1,5 +1,6 @@
 // The claim (teachers round, spec §3/§5) and the join-box checkbox's rule.
 // Pure halves here; Task 3 appends the source guards for the DOM wiring.
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseCourse } from "../src/course/document";
 import { applyJoinBox, courseRegistration } from "../src/course/publish";
@@ -113,5 +114,42 @@ describe("registerName learns the registry's new 403", () => {
     const outcome = await registerName(DEFAULT_ENROLL_API, { key: "k", name: "learn-russian", kind: "course", target: "h/d/learn-russian" }, forbidding);
     expect(outcome).toBe("owner");
     expect(nameNote("owner", "learn-russian")).toBe(" · the name was not registered: this course is owned by another author");
+  });
+});
+
+describe("the join-box checkbox and the claim are wired (source guards — no jsdom here)", () => {
+  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+  const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+  const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+
+  test("Share offers the box for a course only, seeded from the document, and sends the choice", () => {
+    expect(share).toMatch(/id: "share-allow-signup"/);
+    expect(share).toMatch(/Allow sign-up on the course page/);
+    expect(share).toMatch(/signupLabel\.hidden = subject !== "course"/);
+    expect(share).toMatch(/signupCb\.checked = doc\.joinBox === true/);
+    expect(share).toMatch(/allowSignup: deps\.subject === "course" \? signupCb\.checked : undefined/);
+    expect(share).toMatch(/joinBox\?:\s*boolean/);
+  });
+
+  test("the course panel seeds the box from enroll: and applies the choice to the text BEFORE publishing", () => {
+    expect(course).toMatch(/joinBox: course\.enroll !== undefined/);
+    const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    expect(publishFn).toMatch(/applyJoinBox\(doc\.value, allowSignup\)/);
+    expect(publishFn.indexOf("applyJoinBox(")).toBeLessThan(publishFn.indexOf("await publishCourse("));
+    // The text handed to publishCourse is the one the choice was applied to.
+    expect(publishFn).toMatch(/publishCourse\(\{\s*text,/);
+  });
+
+  test("the claim runs after the commit landed and BEFORE the name, which is registered only for a course the key owns", () => {
+    const after = course.slice(course.indexOf("await publishCourse("));
+    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(authorKey, reg\)/);
+    expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
+    expect(after.indexOf("claimCourse(")).toBeLessThan(after.indexOf("registerName("));
+    expect(after).toMatch(/claimNote\(/);
+    expect(after).toMatch(/if \(claimed === "ok"\)[^\n]*registerName\(/);
+  });
+
+  test("Settings → Publishing says what the key does now", () => {
+    expect(main).toMatch(/makes you the owner of the course in the teacher dashboard/);
   });
 });

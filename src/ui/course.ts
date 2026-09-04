@@ -5,7 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { courseRegistration, publishCourse } from "../course/publish";
+import { applyJoinBox, courseRegistration, publishCourse } from "../course/publish";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
@@ -24,7 +24,7 @@ import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost
 import { stampedVoice, synthesizeBase64 } from "../export/tts";
 import { detectLang } from "../render/speech";
 import { joinPath } from "../course/publish";
-import { nameNote, registerName } from "../names";
+import { claimCourse, claimNote, courseClaim, nameNote, registerName } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
@@ -846,7 +846,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   // (each lecture's file name is derived by publishCourse from the course
   // document, below), so Link hides the name field for `subject: "course"`
   // and this parameter is never read.
-  async function publish({ bake, embedImages, allowComments, countViews }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }): Promise<void> {
+  async function publish({ bake, embedImages, allowComments, countViews, allowSignup }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -854,7 +854,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       say("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
       return;
     }
-    const course = parseCourse(doc.value);
+    // The join-box choice is applied to the TEXT first, so the copy that goes
+    // out and the copy written back (out.text) agree on the enroll: line. The
+    // editor's own document changes only when the commit lands, with the rest
+    // of the bookkeeping below.
+    const text = allowSignup === undefined ? doc.value : applyJoinBox(doc.value, allowSignup);
+    const course = parseCourse(text);
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
       return;
@@ -897,7 +902,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);
       const out = await publishCourse({
-        text: doc.value,
+        text,
         repo,
         token,
         coursesDir: settings.coursesDir,
@@ -937,10 +942,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       const authorKey = getAuthorKey();
       const reg = authorKey ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
       if (authorKey && reg) {
-        const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
-          fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
-        );
-        nameSuffix = nameNote(outcome, reg.name);
+        const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
+        // The claim FIRST (teachers round, spec §5): publishing with a key is
+        // what makes the author the course's owner in the teacher dashboard,
+        // and a name may only be registered by the owner — so the name step
+        // never runs for a course this key does not own.
+        const claimed = await claimCourse(DEFAULT_ENROLL_API, courseClaim(authorKey, reg), bounded);
+        nameSuffix = claimNote(claimed);
+        if (claimed === "ok") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, bounded), reg.name);
       }
       if (bookkeeping) {
         say(
@@ -1056,6 +1065,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           lectureCount: course.lectures.length,
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
           publishedViews,
+          // The join box's current state, straight from the document (spec §5).
+          joinBox: course.enroll !== undefined,
         };
       },
       settings: deps.settings,
