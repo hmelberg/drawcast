@@ -264,9 +264,33 @@ public would be theatre.
 
 **Question 4 only appears when people can enrol at all** — §10.
 
-`listed`, `access`, `join` and `drip` are reserved course-document keys
-beside `enroll:` and `name:`, kept out of `course.context` and written by the
-publish dialog the way `applyJoinBox` already handles `enroll:`.
+**One truth, two editors.** All four live on the **server**, not in the course
+document. A teacher changes them in the dashboard at any time — closing
+enrolment mid-course, unlisting a work, turning on approval — and the change
+takes effect at once, for everyone, without republishing anything.
+
+The document's `listed:`, `access:`, `join:` and `drip:` keys are the
+**seed**: applied when the course row is first created, ignored on every
+publish after that. `formatCourse` still round-trips them, so a course can be
+recreated from its document.
+
+The publish dialog therefore **reads the current settings from the server**
+when it opens — it is already talking to the server for the name check — and
+shows the live state rather than the document's memory of it. Changing a
+control there is an explicit edit that writes through, exactly as the
+dashboard's does. When the server cannot be reached, the dialog falls back to
+the document's values, says so, and publishing changes no setting.
+
+The alternative — the document winning on every publish — means a
+republished lecture silently re-opens an enrolment a teacher closed two weeks
+earlier. That is the kind of surprise that costs a teacher their trust in the
+whole tool, and it is why these four are the server's and not the file's.
+
+**GitHub locks `access` to `open` in both editors.** A teacher able to set
+`enrolled` on a course whose lectures are public files would believe the door
+was shut when it was not. The control is therefore shown disabled, with the
+reason spelled out: *these lectures are public files on GitHub — move the
+course to the drawcast server to close it.*
 
 ## 6. The catalogue
 
@@ -356,8 +380,9 @@ share, and the thing a search engine can find.
   *Signed in as hans@…*, and a *Sign out everywhere* that revokes tokens.
 - **Share → Publish** gains a third target beside GitHub and Google Drive.
   It requires being signed in, because storage belongs to an account.
-- The four questions from §5, shown as four controls, with the ones that do
-  not apply hidden rather than disabled.
+- The four questions from §5, shown as four controls. One that cannot apply
+  at all is hidden (`join` when nobody enrols); one the target forbids is
+  shown disabled with its reason (`access` on GitHub).
 - Per-lecture `#free` marks a preview lecture in a private course: it
   publishes to GitHub and plays without an account, while the rest go to the
   server.
@@ -395,6 +420,30 @@ undone. Three details:
 
 **`me` joins `RESERVED_PREFIXES`**, so a course cannot take the account
 home's own address if it ever moves into the app.
+
+**Removing a work.** The dashboard deletes a course or a single cast —
+**owner or admin only**, never a teacher who was added to a run: editing a
+run's settings and destroying the course are different powers.
+
+Deleting takes the stored spec and audio, the runs, the enrolments and the
+events. Three things the confirmation has to say, because each is a way to
+be wrong about what just happened:
+
+- **Progress dies with it.** If any run has learners, the dialog says how
+  many and offers the CSV export first — the export already exists.
+- **GitHub is untouched.** For a work published there, deleting removes the
+  row, the listing and the dashboard entry; the lectures stay in the repo,
+  because drawcast never had the right to rewrite someone's history. The
+  wording says so rather than implying a wider reach than it has.
+- **The name outlives the work.** Its `names` row is kept, pointing at
+  nothing, and resolves to *this drawcast has been removed* — it is **not**
+  returned to the pool. Releasing `spanish` the moment a course is deleted
+  would let the next registrant inherit every link already shared, which is
+  a hijack with extra steps. The owner may re-point the name at another work
+  or delete it explicitly, and that is the only way it becomes free.
+
+Unlisting (§5) is the reversible half of this and should be the first thing
+offered: a work that should merely stop being found does not need deleting.
 
 ## 10. Drip mail
 
@@ -467,11 +516,14 @@ lecture costs to serve.
 
 **Round 1 — accounts, enrolment and the four questions.** One-click join and
 approval (§3, §5), the account home on the server, the GitHub page reduced to
-static, `ENROL_SCRIPT` deleted, social login enabled.
+static, `ENROL_SCRIPT` deleted, social login enabled. The dashboard gains the
+settings card that edits `access`, `join` and `drip` on a live course, and
+the delete that only an owner sees (§9).
 
 **Round 2 — the catalogue.** `kind`, `listed`, summary and topics; the public
-listing endpoint; the catalogue page; stars. Small, and worth its own round
-because it is the first thing a stranger sees.
+listing endpoint; the catalogue page; stars; unlisting from the same settings
+card. Small, and worth its own round because it is the first thing a stranger
+sees.
 
 **Round 3 — private courses.** Many lectures, `#free` previews, `enrolled` as
 a real gate, the dashboard unchanged because the cast key never changed.
@@ -528,6 +580,10 @@ wrongly; see it on the account home and in the teacher's grid.
   public product.
 - **Drip mail is bulk mail.** Unsubscribe per enrolment, a sender on Hans's
   own domain, and a scheduled task that cannot double-send if it runs twice.
+- **Deletion is the one irreversible button** in a tool that otherwise only
+  adds. Owner-only, a confirmation that counts the learners whose records
+  go with it, an export offered first, and unlisting presented as the
+  reversible alternative.
 - **A gate is not DRM.** After the check the browser holds the YAML.
 - **The server becomes the single point of failure for private playback.**
   Public courses keep GitHub's CDN.
