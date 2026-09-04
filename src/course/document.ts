@@ -189,6 +189,15 @@ export function formatCourse(course: Course): string {
   return out.join("\n") + "\n";
 }
 
+/** The header ends where the first lecture (`##`) begins. */
+function headerEnd(lines: string[]): number {
+  const firstLecture = lines.findIndex((l) => {
+    const h = HEADING_RE.exec(l.trim());
+    return h !== null && h[1].length === 2;
+  });
+  return firstLecture === -1 ? lines.length : firstLecture;
+}
+
 /**
  * Write a course-level `key: value` into the header without reformatting
  * anything else — the same surgical contract as setLectureStatus. Used for
@@ -198,11 +207,7 @@ export function formatCourse(course: Course): string {
 export function setCourseOption(text: string, key: string, value: string): string {
   const lines = text.split("\n");
   const line = `${key}: ${value}`;
-  const firstLecture = lines.findIndex((l) => {
-    const h = HEADING_RE.exec(l.trim());
-    return h !== null && h[1].length === 2;
-  });
-  const end = firstLecture === -1 ? lines.length : firstLecture;
+  const end = headerEnd(lines);
 
   const existing = lines.slice(0, end).findIndex((l) => new RegExp(`^\\s*${key}\\s*:`).test(l));
   if (existing >= 0) {
@@ -213,6 +218,35 @@ export function setCourseOption(text: string, key: string, value: string): strin
   const title = lines.findIndex((l) => /^#\s+/.test(l.trim()));
   lines.splice(title >= 0 ? title + 1 : 0, 0, line);
   return lines.join("\n");
+}
+
+/**
+ * Remove a course-level `key:` option from the header — the inverse of
+ * setCourseOption. A line carrying several options ("enroll: … · name: …")
+ * loses only this key's part; a lecture's own option of the same name is
+ * never touched. A surviving shared line IS reformatted, though: its
+ * remaining parts are trimmed and rejoined with a normalised " · ", so it may
+ * not come back byte-identical even where nothing meaningful changed.
+ */
+export function removeCourseOption(text: string, key: string): string {
+  const lines = text.split("\n");
+  const end = headerEnd(lines);
+  const keyRe = new RegExp(`^\\s*${key}\\s*:`);
+  const out: string[] = [];
+  lines.forEach((line, i) => {
+    if (i >= end) {
+      out.push(line);
+      return;
+    }
+    const parts = line.split("·");
+    if (!parts.some((p) => keyRe.test(p))) {
+      out.push(line);
+      return;
+    }
+    const kept = parts.map((p) => p.trim()).filter((p) => p !== "" && !keyRe.test(p));
+    if (kept.length > 0) out.push(kept.join(" · "));
+  });
+  return out.join("\n");
 }
 
 /**

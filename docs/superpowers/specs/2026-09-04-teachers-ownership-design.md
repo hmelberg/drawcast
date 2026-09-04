@@ -1,9 +1,22 @@
 # Design: Teachers and ownership — a course belongs to whoever published it
 
-Date: 2026-09-04. Status: draft for Hans's review. Round A after the learners
-round (`2026-09-04-learners-design.md`, delivered the same day). Round B
-(credits for paying users) is sketched separately in
+Date: 2026-09-04. Status: approved by Hans and IMPLEMENTED. Round A after the
+learners round (`2026-09-04-learners-design.md`, delivered the same day).
+Round B (credits for paying users) is sketched separately in
 `2026-09-04-credits-sketch.md` and is NOT part of this spec.
+
+Delivered 2026-09-04 in two plans: the Anvil backend in `drawcast-anvil`
+(`docs/superpowers/plans/2026-09-04-teachers-anvil.md`, merged to `master`)
+and this client (`docs/superpowers/plans/2026-09-04-teachers-drawcast.md`).
+Two amendments the rounds made to the text below, both deliberate: the
+sign-up checkbox writes the default app's URL only when the document has no
+`enroll:` line of its own, so an author's own Anvil backend survives a
+republish (§5 says `setCourseOption` unconditionally); and a name is
+registered when the claim answers `ok` OR when the registry could not be
+reached at all, since `POST /name` runs the same ownership check itself and
+an unreachable registry is not evidence of anything (§5 gates on the claim).
+Both endpoints also answer `429 rate`, which the client reports as its own
+outcome rather than as an unreachable registry.
 
 ## Goals
 

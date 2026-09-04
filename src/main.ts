@@ -1778,7 +1778,11 @@ const settingsBlocks = new Map<string, HTMLElement>([
       { class: "settings-field" },
       h("label", {}, "Author key"),
       authorKeyInput,
-      h("div", { class: "settings-note" }, "Registers drawcast.app/#<name> links when you publish. Optional."),
+      h(
+        "div",
+        { class: "settings-note" },
+        "Publishing with an author key makes you the owner of the course in the teacher dashboard (drawcast.anvil.app — sign up there, press Author key there) and registers drawcast.app/#<name> links. Optional.",
+      ),
     ),
   ],
   [

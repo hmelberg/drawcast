@@ -17,9 +17,9 @@ import {
   type RepoRef,
 } from "../publish/github";
 import { formatPublished, parsePlaylistText } from "../playlist/playlist";
-import { parseCourse, setCourseOption, setLectureStatus, type Course } from "./document";
+import { parseCourse, removeCourseOption, setCourseOption, setLectureStatus, type Course } from "./document";
 import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
-import { apiBase } from "../learn";
+import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { normalizeName, type Registration } from "../names";
 
 /**
@@ -66,6 +66,19 @@ export function courseRegistration(
     title: course.title,
     lectures: lectureCastKeys(course, repo, coursesDir),
   };
+}
+
+/**
+ * The Share panel's "Allow sign-up on the course page" box, applied to the
+ * document text before a publish (teachers round, spec §5). On: write the
+ * default app's URL unless the author already typed an `enroll:` of their
+ * own — the box manages the default app only, never someone's own backend.
+ * Off: remove the line, whatever it carried, so the page loses its join box.
+ */
+export function applyJoinBox(text: string, on: boolean, api: string = DEFAULT_ENROLL_API): string {
+  const has = parseCourse(text).enroll !== undefined;
+  if (on) return has ? text : setCourseOption(text, "enroll", api);
+  return has ? removeCourseOption(text, "enroll") : text;
 }
 
 export interface PublishPlan {

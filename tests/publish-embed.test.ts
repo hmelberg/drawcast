@@ -191,7 +191,7 @@ describe("publishing embeds into the copy, never the document (P §3.4)", () => 
 
   it("course lectures embed on a parsed copy, and skip a lecture with nothing to embed", async () => {
     const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/async function publish\(\{ bake, embedImages, allowComments, countViews \}/);
+    expect(src).toMatch(/async function publish\(\{ bake, embedImages, allowComments, countViews, allowSignup \}/);
     expect(src).toContain("async function embedLectures");
     expect(src).toContain("embeddedPlaylist(playlist, { resolvePortraits, resolveSources, contactEmail })");
     // Nothing to embed → the lecture's yaml is left byte-identical rather
