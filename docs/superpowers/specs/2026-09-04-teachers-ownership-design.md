@@ -79,7 +79,6 @@ key on first call so a fresh account never has to press "Make a new key".
 Author-key protected (like `POST /name`), budget bucket `course` 60/h/IP.
 
 ```
-{ key, name?, kind?, target?... }        -- NOT this; that is /name
 { key: <author key>, course: <course key>, title, page, lectures: [cast keys] }
 → 200 { ok: true, owned: true }
 → 401 { error: "key" }      unknown/disabled author key
