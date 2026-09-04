@@ -76,6 +76,21 @@ export function giscusAttributes(gh: GhRef, comments: { repoId: string; category
 }
 
 /**
+ * The attributes of the box the giscus widget mounts into. The class is the
+ * point: giscus's client.js takes the page URL, DELETES THE FRAGMENT
+ * (`b.hash = ""`), and sends the login there — but a cast lives ONLY in the
+ * fragment, so a login used to come back to a bare drawcast.app, which boots
+ * the editor. The one fragment giscus does keep is the id of the element it
+ * finds by class `.giscus`, appended as `#<id>`; hand it this page's own hash
+ * and the login returns to the lecture the reader left. No hash (a dev
+ * localhost, an embed) means no id — an empty one would be worse than none.
+ */
+export function giscusContainerAttrs(hash: string): Record<string, string> {
+  const id = hash.replace(/^#/, "");
+  return id ? { class: "viewer-comments giscus", id } : { class: "viewer-comments" };
+}
+
+/**
  * HEAD rather than a branch name: a published link must survive the repo's
  * default branch being renamed.
  */
@@ -449,11 +464,19 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // Comments (C1): only when the published file asked for them, and only on
     // a GitHub-published cast — data-repo comes from this page's own URL.
     if (playlist.meta.comments && req.gh) {
-      const box = h("div", { class: "viewer-comments" });
+      const castHash = location.hash;
+      const box = h("div", giscusContainerAttrs(castHash));
       const script = document.createElement("script");
       script.src = "https://giscus.app/client.js";
       script.async = true;
       for (const [k, v] of Object.entries(giscusAttributes(req.gh, playlist.meta.comments))) script.setAttribute(k, v);
+      // Coming back FROM a login, client.js swallows its own ?giscus= token
+      // with a replaceState — to a URL it built with the fragment stripped.
+      // The page is already playing; put the cast back in the address bar so
+      // a reload or a copied link still opens the lecture, not the editor.
+      script.addEventListener("load", () => {
+        if (castHash && location.hash !== castHash) history.replaceState(null, "", `${location.pathname}${location.search}${castHash}`);
+      });
       box.appendChild(script);
       footer.insertAdjacentElement("beforebegin", box);
     }

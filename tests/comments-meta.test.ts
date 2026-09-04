@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { formatPlaylist, isSingle, parsePlaylistText } from "../src/playlist/playlist";
-import { giscusAttributes } from "../src/viewer";
+import { giscusAttributes, giscusContainerAttrs } from "../src/viewer";
 
 // C1: the published file carries the giscus wiring — the viewer runs in a
 // stranger's browser and can reach nothing else of the author's.
@@ -43,5 +43,25 @@ describe("giscusAttributes", () => {
   test("an empty category is omitted rather than sent as an empty string", () => {
     const attrs = giscusAttributes({ owner: "o", repo: "r", path: "p.yaml" }, { ...COMMENTS, category: "" });
     expect("data-category" in attrs).toBe(false);
+  });
+});
+
+describe("giscusContainerAttrs", () => {
+  test("the cast's own hash becomes the container id, so a login comes back to it", () => {
+    const attrs = giscusContainerAttrs("#gh=hmelberg/dcast/kurs/lecture.yaml");
+    expect(attrs.id).toBe("gh=hmelberg/dcast/kurs/lecture.yaml");
+    // giscus only reads the id of an element it finds by CLASS.
+    expect(attrs.class.split(/\s+/)).toContain("giscus");
+    expect(attrs.class.split(/\s+/)).toContain("viewer-comments");
+  });
+
+  test("a named cast comes back to its name", () => {
+    expect(giscusContainerAttrs("#registerdata-i-praksis").id).toBe("registerdata-i-praksis");
+  });
+
+  test("no hash means no id to hand giscus — and then no empty id either", () => {
+    const attrs = giscusContainerAttrs("");
+    expect("id" in attrs).toBe(false);
+    expect(attrs.class).toBe("viewer-comments");
   });
 });
