@@ -1,0 +1,18 @@
+{
+  "version": "2026-09-04",
+  "source": "microdata",
+  "copied": "2026-09-04",
+  "files": {
+    "m2py.py": "3e49298d5944f65c",
+    "functions.py": "4eca287edeed4e4e",
+    "mockdata_core.py": "ff13c2962880acda",
+    "mockdata_realism.py": "fa42a2bc7a17cc5a",
+    "protect.py": "764ac3c40ab2f4cd",
+    "names.json": "9c0cb6e0ffe7ec8f",
+    "variable_metadata.json": "f8ad822143f08b71",
+    "codelists/NUDB_BU.json": "493ebd04f3af4b92",
+    "codelists/NUDB_KOMM_16.json": "8634ccc4b59c0146",
+    "codelists/REGSYS_ARB_YRKE_STYRK08.json": "d3bc62ac65cc142c",
+    "codelists/REGSYS_VIRK_NACE1_SN07.json": "cf685d91c3d5cd8c"
+  }
+}

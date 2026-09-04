@@ -7,7 +7,7 @@
 // Dependency-free on purpose: imported by spec/types.ts and spec/schema.ts,
 // which must not transitively pull IndexedDB or any runtime loader.
 
-export const LANGUAGES = ["python", "r", "brython", "micropython"] as const;
+export const LANGUAGES = ["python", "r", "brython", "micropython", "microdata"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 export function isLanguage(x: unknown): x is Language {
@@ -20,23 +20,35 @@ export const RUNTIME_LABEL: Record<Language, string> = {
   r: "R",
   brython: "Brython",
   micropython: "MicroPython",
+  microdata: "microdata",
 };
 
 /** Pinned runtime versions — part of the cache key, so an upgrade misses
  *  cleanly instead of replaying stale output. python: pyodide (openstat's
  *  verified pin); r: webR; brython: the jsdelivr bundle; micropython: the
- *  pyscript WebAssembly build openstat runs. */
+ *  pyscript WebAssembly build openstat runs; microdata: the SAME pyodide —
+ *  the m2py emulator is a Python program, so its interpreter pin is
+ *  pyodide's and its own snapshot rides in MDLIB_VERSION below. */
+const PYODIDE_PIN = "314.0.2";
+
 export const RUNTIME_VERSION: Record<Language, string> = {
-  python: "314.0.2",
+  python: PYODIDE_PIN,
   r: "0.6.0",
   brython: "3.12.0",
   micropython: "1.27.0",
+  microdata: PYODIDE_PIN,
 };
 
 /** The vendored pure-Python library snapshot (public/pylib/<version>/) the
  *  dialects load. A new snapshot changes outputs exactly like a runtime
  *  upgrade, so it rides in the dialects' cache tag. */
 export const PYLIB_VERSION = "2026-09-03";
+
+/** The vendored microdata emulator snapshot (public/mdlib/<version>/) —
+ *  m2py.py and the metadata it reads, copied from the microdata repo by
+ *  scripts/sync-mdlib.mjs. A new snapshot changes what a script prints
+ *  exactly like a runtime upgrade, so it rides in microdata's cache tag. */
+export const MDLIB_VERSION = "2026-09-04";
 
 export function cacheTag(language: Language): string {
   switch (language) {
@@ -48,5 +60,7 @@ export function cacheTag(language: Language): string {
       return `bry${RUNTIME_VERSION.brython}+${PYLIB_VERSION}`;
     case "micropython":
       return `mpy${RUNTIME_VERSION.micropython}+${PYLIB_VERSION}`;
+    case "microdata":
+      return `md${RUNTIME_VERSION.microdata}+${MDLIB_VERSION}`;
   }
 }

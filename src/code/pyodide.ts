@@ -22,7 +22,13 @@ const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/p
 interface Pyodide {
   runPythonAsync(code: string): Promise<unknown>;
   loadPackagesFromImports(code: string): Promise<unknown>;
-  loadPackage(name: string): Promise<unknown>;
+  /** pyodide accepts one name or a list; a list loads them in one pass. */
+  loadPackage(name: string | string[]): Promise<unknown>;
+  /** The interpreter's global namespace. Arguments go through it rather
+   *  than being interpolated into source: the microdata runtime hands the
+   *  emulator a 640 kB catalogue, and that has no business being compiled
+   *  as a string literal. */
+  globals: { set(name: string, value: unknown): void; delete(name: string): void };
   setStdout(opts?: { batched: (s: string) => void }): void;
   setStderr(opts?: { batched: (s: string) => void }): void;
 }
@@ -45,10 +51,24 @@ function unavailable(message: string): Error & { runtimeUnavailable: true } {
   return err;
 }
 
+/** The one pyodide in the page, and the one queue that serializes it.
+ *  Exported for the microdata runtime (./microdata), which runs the m2py
+ *  emulator on this SAME interpreter: a second instance would double a
+ *  30-megabyte download, and a second queue would let two scripts interleave
+ *  inside one WASM heap. Never import this module statically — pyodide's
+ *  loader chunk would land on every page. */
+export function bootPyodide(): Promise<Pyodide> {
+  return boot();
+}
+
+export const pyodideQueue = queue;
+
+export type { Pyodide };
+
 function boot(): Promise<Pyodide> {
   if (bootPromise) return bootPromise;
   bootPromise = (async () => {
-    if (typeof document === "undefined") throw unavailable("python needs a browser to run in");
+    if (typeof document === "undefined") throw unavailable("this runtime needs a browser to run in");
     if (!window.loadPyodide) {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
@@ -70,7 +90,7 @@ function boot(): Promise<Pyodide> {
 /** Hidden runtime deps that a library needs present the first time it is
  *  imported (they aren't visible top-level imports, so loadPackagesFromImports
  *  misses them, and the library memoizes a failed lookup if they're absent). */
-const KNOWN_DEPS: Record<string, string[]> = {
+export const KNOWN_DEPS: Record<string, string[]> = {
   plotly: ["numpy", "pandas"],
 };
 
@@ -78,8 +98,10 @@ const KNOWN_DEPS: Record<string, string[]> = {
  *  loadPackage installs distribution wheels and silently no-ops for names it
  *  doesn't know; micropip installs pure-PyPI packages and can fail for
  *  distribution ones. Neither installer's silence can be trusted, so verify by
- *  import after each and only a verified import counts. */
-async function installPackage(
+ *  import after each and only a verified import counts. Exported for the
+ *  microdata runtime, which needs the same "install what the script turned
+ *  out to want" behaviour on the same interpreter. */
+export async function installPackage(
   py: { loadPackage(n: string): Promise<unknown>; runPythonAsync(c: string): Promise<unknown> },
   pkg: string,
 ): Promise<boolean> {

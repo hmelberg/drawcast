@@ -1,6 +1,6 @@
 {
   "name": "drawcast",
-  "description": "drawcast — animated, narrated, hand-drawn explainer figures from a structured drawing spec, with an AI editor",
+  "description": "drawcast \u2014 animated, narrated, hand-drawn explainer figures from a structured drawing spec, with an AI editor",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:race": "node scripts/smoke-race.mjs",
-    "sweep:round": "node scripts/sweep-round-examples.mjs"
+    "sweep:round": "node scripts/sweep-round-examples.mjs",
+    "sync:mdlib": "node scripts/sync-mdlib.mjs",
+    "sanity:mdlib": "python3 scripts/mdlib-sanity.py"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

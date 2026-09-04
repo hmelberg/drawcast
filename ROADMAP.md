@@ -737,6 +737,119 @@ survive a crossing as continuous words.
   SCHEMATIC out loud and name their silent clamps; an author with real
   coefficients has `line_chart` and `scatter_plot`.
 
+## microdata as a fifth runtime — done 2026-09-04
+
+Hans wants an introduction to microdata.no built in drawcast, and chose
+"teach the LANGUAGE first". So microdata became a `code` element language
+rather than a new element, a template, or a mock UI:
+
+```yaml
+elements:
+  - id: md
+    type: code
+    language: microdata
+    show: left
+    frame: screen
+    draw: { mode: type }
+    code: |
+      require no.ssb.fdb:54 as fd
+      create-dataset lonn
+      import fd/INNTEKT_WLONN 2022-01-01 as inntekt
+      summarize inntekt
+```
+
+Everything the lesson needs then came for free: `draw.mode: type` writes the
+script out character by character, `md_line_3` makes each command its own
+beat, `lines:` scrolls it like an editor, the output is REAL (so it cannot
+rot against hand-written results), the result cache means a re-watch costs
+nothing, `{md.df}` feeds `data_table` and the chart templates, and the code
+panel is already editable and re-runnable while paused — so "try it
+yourself" needed no new code at all.
+
+### How it runs
+
+drawcast does NOT reimplement the microdata parser. `m2py.py` — the real
+emulator, 10k lines — is a Python program, and drawcast already runs pyodide,
+so the emulator is vendored (`scripts/sync-mdlib.mjs` →
+`public/mdlib/<MDLIB_VERSION>/`, 1.3 MB, stamped with a manifest) and runs on
+the SAME pyodide instance and the SAME RunQueue as the `python` language. A
+second instance would double a 30 MB download; a second queue would let two
+scripts interleave inside one WASM heap.
+
+Three seams, each testable where it lives:
+
+- `src/code/microdata-output.ts` — what the emulator's answer MEANS. Pure and
+  node-tested (`tests/microdata-output.test.ts`), the harvest.ts idiom.
+- `public/mdlib/<v>/drawcast_microdata_runner.py` — the Python seam, tested
+  by `npm run sanity:mdlib` under local CPython, since vitest cannot run m2py.
+- `src/code/microdata.ts` — fetch, install, call. Thin on purpose.
+
+### What the emulator does that no other runtime does
+
+1. **It answers with one string.** Figures and tables ride inside it as
+   `__micro_transform_start_<type>__` blocks. `figure` payloads are plotly
+   JSON (straight into the shared renderer); `tablehtml` is pandas' own
+   `to_html`, parsed back to `{columns, rows}` so drawcast draws its own
+   ruled grid and no HTML ever enters the app. A Series is written with
+   `header=False` and has NO thead — those get one blank header per column,
+   because the grid sizes itself from `columns.length`.
+2. **Failure is LOGGED, not raised.** A bad command prints `FEIL …` and the
+   run "succeeds". Without detection the repair round would never fire and a
+   broken script would show its error as if it were the answer. Matched
+   case-sensitively on both catalogues' prefixes; `\b` keeps "Feilverdier"
+   out.
+3. **A missing package is logged in Norwegian.** `barchart` does not raise
+   ModuleNotFoundError — it raises the emulator's own "plotly må være
+   installert … pip install plotly". Matching only Python's wording left
+   EVERY chart command broken. Caught by the live browser smoke, not by a
+   unit test — `missingModule` now reads the `pip install <pkg>` tail, and
+   plotly/statsmodels/lifelines install on demand and the script re-runs.
+4. **An invented variable does not fail — it gets invented data.** The
+   mock-data engine fabricates a plausible column for any name, so a
+   hallucinated `INNTEKT_FANTASI` would run clean and teach a variable that
+   does not exist. Only the shipped catalogue (736 names) can see it, so the
+   runtime refuses the script before running and names near matches for the
+   repair round.
+
+### Rulings
+
+- **Disclosure control OFF** (Hans, 2026-09-04). Set explicitly at boot
+  rather than inherited, so an upstream release cannot quietly reshape a
+  lesson's output; a script can still opt in with `// m2py: dc=on`.
+- **A fresh interpreter per run.** Caught by the sanity script: a reused one
+  let run B see run A's datasets, and the result cache is keyed by the SCRIPT
+  — B would be cached under a key that never mentions A and replay wrongly
+  the moment the two figures were drawn in the other order. Costs ~15 ms.
+- **10 000 rows**, the emulator's own default, so a number a learner sees
+  here is the number they see on microdata.no.
+- **One printing command per element.** Tables stack under the text, so two
+  of them lose their interleaving. This is also the teaching rhythm — one
+  beat per command — so it is a rule, not a regret.
+- **`collapse` before the data bridge.** 10 000 people is over the harvest's
+  5000-number cap, which is the honest lesson too: you aggregate, you never
+  plot individuals.
+- **No `microdata-vocab.ts`.** The design called for the 80-command list in
+  one place, but nothing consumes it: the emulator itself is the authority,
+  and `check.ts` runs the script. The prompt carries a teaching subset.
+- **The snapshot is copied, never hand-edited.** `sync-mdlib.mjs` stamps a
+  manifest of sha-prefixes; `--check` verifies it; a vitest guard fails if
+  `MDLIB_VERSION` names a snapshot that is not on disk, and another fails if
+  `__pycache__` (which vite would publish) is left in it.
+
+### Deliberately not done this round
+
+- The `microdata_screen` template — the app chrome as a drawn figure, with
+  the script and output supplied by a `frame: "none"` code element placed
+  inside it. Pure pack YAML, no core change. Hans chose language first.
+- Generic `hotspots` on `SceneLayout` (click a part of a figure → jump to a
+  labelled beat), which is how a clickable screen should be built. NOT the
+  piano/chess pattern: hand-written TS hit-boxes that must be kept in sync
+  with a template's constants.
+- Baking `code_result` into a published cast, so a learner never boots a
+  runtime. Worth doing for courses generally, but a learner here is meant to
+  edit and re-run, so the runtime loads anyway.
+- statx / py2m / r2m, the other modes in the microdata repo.
+
 ## View counts — done 2026-09-04
 
 How often a published drawcast has been played. GitHub gives nothing here —

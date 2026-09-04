@@ -14,8 +14,8 @@ const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
 
 describe("languages — one declaration", () => {
-  test("the four languages, each with a label and a pinned version", () => {
-    expect([...LANGUAGES]).toEqual(["python", "r", "brython", "micropython"]);
+  test("the five languages, each with a label and a pinned version", () => {
+    expect([...LANGUAGES]).toEqual(["python", "r", "brython", "micropython", "microdata"]);
     for (const l of LANGUAGES) {
       expect(RUNTIME_LABEL[l]).toBeTruthy();
       expect(RUNTIME_VERSION[l]).toMatch(/^\d+\.\d+\.\d+$/);
@@ -36,6 +36,10 @@ describe("languages — one declaration", () => {
     expect(cacheTag("r")).toBe(`r${RUNTIME_VERSION.r}`);
     expect(cacheTag("brython")).toMatch(new RegExp(`^bry${RUNTIME_VERSION.brython.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
     expect(cacheTag("micropython")).toMatch(new RegExp(`^mpy${RUNTIME_VERSION.micropython.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
+    // microdata runs ON pyodide, so its tag pins BOTH the interpreter and the
+    // vendored m2py snapshot — a new snapshot must miss the cache cleanly.
+    expect(cacheTag("microdata")).toMatch(new RegExp(`^md${RUNTIME_VERSION.microdata.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}[a-z]?$`));
+    expect(RUNTIME_VERSION.microdata).toBe(RUNTIME_VERSION.python);
     const keys = new Set(LANGUAGES.map((l) => codeCacheKey({ language: l, code: "1" })));
     expect(keys.size).toBe(LANGUAGES.length);
   });

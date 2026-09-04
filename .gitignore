@@ -10,3 +10,6 @@ dist-engine/
 .env
 .env.*
 !.env.example
+
+# CPython bytecode from scripts/mdlib-sanity.py — the snapshot ships verbatim
+__pycache__/

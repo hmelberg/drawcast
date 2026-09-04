@@ -8486,523 +8486,536 @@
      "speak": "Can two hundred random numbers already know where their center is? Let's run it for real."
     },
     {
-     "draw": ["sim", "sim_line_1", "sim_line_2"],
+     "draw": [
+      "sim",
+      "sim_line_1",
+      "sim_line_2"
+     ],
      "parallel": true,
      "speak": "Numpy for the numbers, matplotlib for the picture."
     },
     {
-     "draw": ["sim_line_3"],
+     "draw": [
+      "sim_line_3"
+     ],
      "speak": "A seeded generator — so this figure shows the same truth every time."
     },
     {
-     "draw": ["sim_line_4"],
+     "draw": [
+      "sim_line_4"
+     ],
      "speak": "Two hundred draws from a standard normal."
     },
     {
-     "draw": ["sim_line_5", "sim_line_6"],
+     "draw": [
+      "sim_line_5",
+      "sim_line_6"
+     ],
      "speak": "Print the mean, and pile the draws into a histogram."
     },
     {
-     "draw": ["sim_out"],
+     "draw": [
+      "sim_out"
+     ],
      "delivery": "grave",
      "speak": "The mean sits near zero, and the familiar bell is already there — randomness, obeying a law."
     }
    ]
   }
  },
-{
- "request": "Flip a fair coin 500 times in Python and just show the share of heads",
- "spec": {
-  "title": "Is the coin fair?",
-  "elements": [
-   {
-    "id": "flips",
-    "type": "code",
-    "language": "python",
-    "show": "output",
-    "width": 700,
-    "code": "import numpy as np\nrng = np.random.default_rng(11)\nflips = rng.integers(0, 2, size=500)\nprint(\"heads:\", flips.sum(), \"of\", flips.size)\nprint(\"share:\", round(flips.mean(), 3))"
-   }
-  ],
-  "commands": [
-   {
-    "speak": "Five hundred real coin flips are about to happen — right here, in your browser."
-   },
-   {
-    "draw": [
-     "flips"
-    ],
-    "speak": "No animation of a formula. The code runs for real; we only read off what it says."
-   },
-   {
-    "draw": [
-     "flips_out"
-    ],
-    "delivery": "grave",
-    "speak": "Close to half heads — but not exactly half. That little gap is what randomness looks like."
-   }
-  ]
- }
-},
-{
- "request": "Show compound growth of 100 at 2 percent versus 7 percent over 50 years, stepping through the Python code",
- "spec": {
-  "title": "The miracle of compounding",
-  "elements": [
-   {
-    "id": "comp",
-    "type": "code",
-    "language": "python",
-    "show": "left",
-    "width": 900,
-    "figures": 2,
-    "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nfor rate in (0.02, 0.07):\n    plt.figure()\n    plt.plot(years, 100 * (1 + rate) ** years)\n    plt.ylim(0, 3200)\nprint(\"2% for 50 years:\", round(100 * 1.02 ** 50))\nprint(\"7% for 50 years:\", round(100 * 1.07 ** 50))"
-   }
-  ],
-  "commands": [
-   {
-    "speak": "Does the interest rate really matter that much? Let's compute it instead of asserting it."
-   },
-   {
-    "draw": [
-     "comp",
-     "comp_line_1",
-     "comp_line_2",
-     "comp_line_3"
-    ],
-    "parallel": true,
-    "speak": "Numpy, matplotlib, and fifty years on the clock."
-   },
-   {
-    "draw": [
-     "comp_line_4",
-     "comp_line_5",
-     "comp_line_6",
-     "comp_line_7"
-    ],
-    "parallel": true,
-    "speak": "One loop, two worlds: the same hundred at two percent and at seven."
-   },
-   {
-    "draw": [
-     "comp_line_8",
-     "comp_line_9"
-    ],
-    "parallel": true,
-    "speak": "And the totals, printed."
-   },
-   {
-    "draw": [
-     "comp_out"
-    ],
-    "speak": "Two percent turns one hundred into two hundred and sixty-nine."
-   },
-   {
-    "draw": [
-     "comp_fig_1"
-    ],
-    "speak": "Here is that half-century at two percent — it looks almost like a straight line."
-   },
-   {
-    "erase": [
-     "comp_fig_1"
-    ]
-   },
-   {
-    "draw": [
-     "comp_fig_2"
-    ],
-    "delivery": "grave",
-    "speak": "Same axes, seven percent: nearly three thousand. That bend is compounding."
-   }
-  ]
- }
-},
-{
- "request": "Build a bar chart live in Python: how many primes there are below 10, 20, 30, 40 and 50, adding the bars as you go",
- "spec": {
-  "title": "The primes thin out",
-  "elements": [
-   {
-    "id": "pcount",
-    "type": "code",
-    "language": "python",
-    "show": "output",
-    "width": 760,
-    "figures": 3,
-    "code": "import matplotlib.pyplot as plt\nlimits = [10, 20, 30, 40, 50]\nprimes = [4, 8, 10, 12, 15]\nfor n in (2, 4, 5):\n    plt.figure()\n    plt.bar([str(l) for l in limits[:n]], primes[:n])\n    plt.xlim(-0.6, 4.6)\n    plt.ylim(0, 16)"
-   }
-  ],
-  "commands": [
-   {
-    "speak": "How fast do the primes thin out? Let's build the chart bar by bar and watch."
-   },
-   {
-    "draw": [
-     "pcount"
-    ],
-    "speak": "The chart comes from the script itself — the axes already leave room for what is coming."
-   },
-   {
-    "draw": [
-     "pcount_fig_1"
-    ],
-    "speak": "Four primes below ten. Eight below twenty — doubling, so far."
-   },
-   {
-    "draw": [
-     "pcount_fig_2"
-    ],
-    "speak": "But the next two decades add only two primes each."
-   },
-   {
-    "draw": [
-     "pcount_fig_3"
-    ],
-    "delivery": "grave",
-    "speak": "Fifteen below fifty. Still growing — but ever more slowly. The primes are thinning out."
-   }
-  ]
- }
-},
-{
- "request": "Compare compound growth at 2, 5 and 8 percent by adding one curve at a time to the same chart",
- "spec": {
-  "title": "Compounding, rate by rate",
-  "elements": [
-   {
-    "id": "rates",
-    "type": "code",
-    "language": "python",
-    "show": "left",
-    "width": 900,
-    "figures": 3,
-    "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nrates = [0.02, 0.05, 0.08]\nfor stage in (1, 2, 3):\n    plt.figure()\n    for rate in rates[:stage]:\n        plt.plot(years, 100 * (1 + rate) ** years, label=f\"{rate:.0%}\")\n    plt.ylim(0, 4800)\n    plt.legend(loc=\"upper left\")"
-   }
-  ],
-  "commands": [
-   {
-    "speak": "Two, five, or eight percent — how different can fifty years really look? Let's draw the answer one rate at a time."
-   },
-   {
-    "draw": [
-     "rates",
-     "rates_line_1",
-     "rates_line_2",
-     "rates_line_3"
-    ],
-    "parallel": true,
-    "speak": "Numpy, matplotlib, and fifty years on the clock."
-   },
-   {
-    "draw": [
-     "rates_line_4",
-     "rates_line_5"
-    ],
-    "parallel": true,
-    "speak": "Three rates, and one snapshot of the chart per stage."
-   },
-   {
-    "draw": [
-     "rates_line_6",
-     "rates_line_7",
-     "rates_line_8"
-    ],
-    "parallel": true,
-    "speak": "Each stage redraws the chart with one more curve on it."
-   },
-   {
-    "draw": [
-     "rates_line_9",
-     "rates_line_10"
-    ],
-    "parallel": true,
-    "speak": "Axes held fixed and a legend — so the picture stands still while it fills."
-   },
-   {
-    "draw": [
-     "rates_fig_1"
-    ],
-    "speak": "Two percent alone: after fifty years, a hundred has not even reached three hundred."
-   },
-   {
-    "draw": [
-     "rates_fig_2"
-    ],
-    "speak": "Add five percent — same axes — and the money passes eleven hundred."
-   },
-   {
-    "draw": [
-     "rates_fig_3"
-    ],
-    "delivery": "grave",
-    "speak": "And eight percent: nearly four thousand seven hundred. Same money, same years. The rate is everything."
-   }
-  ]
- }
-},
-{
- "request": "Make a small pandas table of Norwegian cities and their rainfall and show it sorted",
- "spec": {
-  "title": "Rain, ranked",
-  "elements": [
-   {
-    "id": "rain",
-    "type": "code",
-    "language": "python",
-    "show": "output",
-    "width": 760,
-    "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"City\": [\"Oslo\", \"Bergen\", \"Trondheim\", \"Stavanger\"],\n    \"Pop (000s)\": [717, 291, 214, 149],\n    \"Rain (mm)\": [763, 2250, 892, 1180],\n})\ndf.sort_values(\"Rain (mm)\", ascending=False)"
-   }
-  ],
-  "commands": [
-   {
-    "speak": "Which Norwegian city gets the most rain? Let's ask pandas instead of arguing."
-   },
-   {
-    "draw": [
-     "rain"
-    ],
-    "speak": "Four cities, their size, and their yearly rainfall in millimetres — roughly, from the climate normals."
-   },
-   {
-    "draw": [
-     "rain_out"
-    ],
-    "delivery": "grave",
-    "speak": "Sorted, the answer is not close: Bergen, with over two thousand millimetres — nearly three times Oslo."
-   }
-  ]
- }
-},
-{
- "request": "Use plotly express in Python to chart GDP per person for the Nordic countries",
- "spec": {
-  "title": "Nordic GDP per head",
-  "elements": [
-   {
-    "id": "gdp",
-    "type": "code",
-    "language": "python",
-    "show": "left",
-    "width": 900,
-    "code": "import numpy as np\nimport pandas as pd\nimport plotly.express as px\ncountries = [\"Norway\", \"Sweden\", \"Denmark\", \"Finland\", \"Iceland\"]\ngdp_pc = [87, 56, 68, 53, 74]\nfig = px.bar(x=countries, y=gdp_pc,\n             labels={\"x\": \"\", \"y\": \"1000 USD per head\"})\n_ = fig.update_layout(width=650, height=430)"
-   }
-  ],
-  "commands": [
-   {
-    "speak": "The Nordics look alike from a distance. Their economies, per person, do not."
-   },
-   {
-    "draw": [
-     "gdp",
-     "gdp_line_1",
-     "gdp_line_2",
-     "gdp_line_3"
-    ],
-    "parallel": true,
-    "speak": "Plotly express — plus the numpy and pandas it quietly leans on."
-   },
-   {
-    "draw": [
-     "gdp_line_4",
-     "gdp_line_5"
-    ],
-    "parallel": true,
-    "speak": "Five countries, and GDP per head in thousands of dollars — round numbers."
-   },
-   {
-    "draw": [
-     "gdp_line_6",
-     "gdp_line_7",
-     "gdp_line_8"
-    ],
-    "parallel": true,
-    "speak": "One chart call. The figure just has to sit in a variable."
-   },
-   {
-    "draw": [
-     "gdp_out"
-    ],
-    "delivery": "grave",
-    "speak": "Norway near ninety, Finland near fifty — alike in many things, but not in this one."
-   }
-  ]
- }
-},
-{
- "request": "Show Norway, Sweden and Denmark's GDP per capita in 2010, then animate it forward to 2020.",
- "packs": [
-  "data"
- ],
- "spec": {
-  "title": "GDP per capita, 2010 → 2020",
-  "template": "bar_chart",
-  "params": {
-   "labels": [
-    "Norway",
-    "Sweden",
-    "Denmark"
+ {
+  "request": "Flip a fair coin 500 times in Python and just show the share of heads",
+  "spec": {
+   "title": "Is the coin fair?",
+   "elements": [
+    {
+     "id": "flips",
+     "type": "code",
+     "language": "python",
+     "show": "output",
+     "width": 700,
+     "code": "import numpy as np\nrng = np.random.default_rng(11)\nflips = rng.integers(0, 2, size=500)\nprint(\"heads:\", flips.sum(), \"of\", flips.size)\nprint(\"share:\", round(flips.mean(), 3))"
+    }
    ],
-   "values": [
-    [
-     87,
-     52,
-     58
-    ],
-    [
-     67,
-     52,
-     61
-    ]
-   ],
-   "stage": 0,
-   "value_labels": true,
-   "title": "GDP per capita, 2010 → 2020"
-  },
-  "commands": [
-   {
-    "draw": [
-     "axes"
-    ],
-    "speak": "Norway, Sweden and Denmark all look wealthy from a distance — a decade tells a rougher story for one of them."
-   },
-   {
-    "draw": [
-     "bar_1",
-     "bar_2",
-     "bar_3"
-    ],
-    "parallel": true,
-    "speak": "2010: Norway near ninety thousand dollars a head, Sweden low fifties, Denmark high fifties."
-   },
-   {
-    "draw": [
-     "title"
-    ],
-    "speak": "Same three bars — now watch what ten years do to them."
-   },
-   {
-    "pause": 0.4
-   },
-   {
-    "animate": {
-     "stage": 1
+   "commands": [
+    {
+     "speak": "Five hundred real coin flips are about to happen — right here, in your browser."
     },
-    "duration": 3,
-    "speak": "Sweden and Denmark barely move, but Norway drops hard — the oil price crash dragging it down."
-   },
-   {
-    "highlight": {
-     "target": [
-      "bar_1"
+    {
+     "draw": [
+      "flips"
      ],
-     "effect": "glow"
+     "speak": "No animation of a formula. The code runs for real; we only read off what it says."
     },
-    "speak": "From eighty-seven to sixty-seven thousand — a fifth of Norway's advantage gone in a single decade."
-   }
-  ]
- }
-},
-{
- "request": "Race the four biggest economies from 1990 to 2020 as a bar chart race.",
- "packs": [
-  "data"
- ],
- "spec": {
-  "title": "The four biggest economies, 1990 → 2020",
-  "template": "bar_race",
-  "params": {
-   "labels": [
-    "United States",
-    "China",
-    "Japan",
-    "Germany"
+    {
+     "draw": [
+      "flips_out"
+     ],
+     "delivery": "grave",
+     "speak": "Close to half heads — but not exactly half. That little gap is what randomness looks like."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Show compound growth of 100 at 2 percent versus 7 percent over 50 years, stepping through the Python code",
+  "spec": {
+   "title": "The miracle of compounding",
+   "elements": [
+    {
+     "id": "comp",
+     "type": "code",
+     "language": "python",
+     "show": "left",
+     "width": 900,
+     "figures": 2,
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nfor rate in (0.02, 0.07):\n    plt.figure()\n    plt.plot(years, 100 * (1 + rate) ** years)\n    plt.ylim(0, 3200)\nprint(\"2% for 50 years:\", round(100 * 1.02 ** 50))\nprint(\"7% for 50 years:\", round(100 * 1.07 ** 50))"
+    }
    ],
-   "values": [
-    [
-     6.0,
-     0.4,
-     3.1,
-     1.8
-    ],
-    [
-     10.3,
-     1.2,
-     4.9,
-     1.9
-    ],
-    [
-     15.0,
-     6.1,
-     5.7,
-     3.4
-    ],
-    [
-     21.1,
-     14.7,
-     5.0,
-     3.9
-    ]
+   "commands": [
+    {
+     "speak": "Does the interest rate really matter that much? Let's compute it instead of asserting it."
+    },
+    {
+     "draw": [
+      "comp",
+      "comp_line_1",
+      "comp_line_2",
+      "comp_line_3"
+     ],
+     "parallel": true,
+     "speak": "Numpy, matplotlib, and fifty years on the clock."
+    },
+    {
+     "draw": [
+      "comp_line_4",
+      "comp_line_5",
+      "comp_line_6",
+      "comp_line_7"
+     ],
+     "parallel": true,
+     "speak": "One loop, two worlds: the same hundred at two percent and at seven."
+    },
+    {
+     "draw": [
+      "comp_line_8",
+      "comp_line_9"
+     ],
+     "parallel": true,
+     "speak": "And the totals, printed."
+    },
+    {
+     "draw": [
+      "comp_out"
+     ],
+     "speak": "Two percent turns one hundred into two hundred and sixty-nine."
+    },
+    {
+     "draw": [
+      "comp_fig_1"
+     ],
+     "speak": "Here is that half-century at two percent — it looks almost like a straight line."
+    },
+    {
+     "erase": [
+      "comp_fig_1"
+     ]
+    },
+    {
+     "draw": [
+      "comp_fig_2"
+     ],
+     "delivery": "grave",
+     "speak": "Same axes, seven percent: nearly three thousand. That bend is compounding."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Build a bar chart live in Python: how many primes there are below 10, 20, 30, 40 and 50, adding the bars as you go",
+  "spec": {
+   "title": "The primes thin out",
+   "elements": [
+    {
+     "id": "pcount",
+     "type": "code",
+     "language": "python",
+     "show": "output",
+     "width": 760,
+     "figures": 3,
+     "code": "import matplotlib.pyplot as plt\nlimits = [10, 20, 30, 40, 50]\nprimes = [4, 8, 10, 12, 15]\nfor n in (2, 4, 5):\n    plt.figure()\n    plt.bar([str(l) for l in limits[:n]], primes[:n])\n    plt.xlim(-0.6, 4.6)\n    plt.ylim(0, 16)"
+    }
    ],
-   "stage": 0,
-   "ticker": [
-    "1990",
-    "2000",
-    "2010",
-    "2020"
+   "commands": [
+    {
+     "speak": "How fast do the primes thin out? Let's build the chart bar by bar and watch."
+    },
+    {
+     "draw": [
+      "pcount"
+     ],
+     "speak": "The chart comes from the script itself — the axes already leave room for what is coming."
+    },
+    {
+     "draw": [
+      "pcount_fig_1"
+     ],
+     "speak": "Four primes below ten. Eight below twenty — doubling, so far."
+    },
+    {
+     "draw": [
+      "pcount_fig_2"
+     ],
+     "speak": "But the next two decades add only two primes each."
+    },
+    {
+     "draw": [
+      "pcount_fig_3"
+     ],
+     "delivery": "grave",
+     "speak": "Fifteen below fifty. Still growing — but ever more slowly. The primes are thinning out."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Compare compound growth at 2, 5 and 8 percent by adding one curve at a time to the same chart",
+  "spec": {
+   "title": "Compounding, rate by rate",
+   "elements": [
+    {
+     "id": "rates",
+     "type": "code",
+     "language": "python",
+     "show": "left",
+     "width": 900,
+     "figures": 3,
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nyears = np.arange(0, 51)\nrates = [0.02, 0.05, 0.08]\nfor stage in (1, 2, 3):\n    plt.figure()\n    for rate in rates[:stage]:\n        plt.plot(years, 100 * (1 + rate) ** years, label=f\"{rate:.0%}\")\n    plt.ylim(0, 4800)\n    plt.legend(loc=\"upper left\")"
+    }
    ],
-   "value_labels": true,
-   "decimals": 1,
-   "x_label": "GDP (trillion USD)",
-   "title": "The four biggest economies, 1990 → 2020"
-  },
-  "commands": [
-   {
-    "draw": [
-     "axes",
-     "ticker",
-     "race_1",
-     "race_2",
-     "race_3",
-     "race_4"
+   "commands": [
+    {
+     "speak": "Two, five, or eight percent — how different can fifty years really look? Let's draw the answer one rate at a time."
+    },
+    {
+     "draw": [
+      "rates",
+      "rates_line_1",
+      "rates_line_2",
+      "rates_line_3"
+     ],
+     "parallel": true,
+     "speak": "Numpy, matplotlib, and fifty years on the clock."
+    },
+    {
+     "draw": [
+      "rates_line_4",
+      "rates_line_5"
+     ],
+     "parallel": true,
+     "speak": "Three rates, and one snapshot of the chart per stage."
+    },
+    {
+     "draw": [
+      "rates_line_6",
+      "rates_line_7",
+      "rates_line_8"
+     ],
+     "parallel": true,
+     "speak": "Each stage redraws the chart with one more curve on it."
+    },
+    {
+     "draw": [
+      "rates_line_9",
+      "rates_line_10"
+     ],
+     "parallel": true,
+     "speak": "Axes held fixed and a legend — so the picture stands still while it fills."
+    },
+    {
+     "draw": [
+      "rates_fig_1"
+     ],
+     "speak": "Two percent alone: after fifty years, a hundred has not even reached three hundred."
+    },
+    {
+     "draw": [
+      "rates_fig_2"
+     ],
+     "speak": "Add five percent — same axes — and the money passes eleven hundred."
+    },
+    {
+     "draw": [
+      "rates_fig_3"
+     ],
+     "delivery": "grave",
+     "speak": "And eight percent: nearly four thousand seven hundred. Same money, same years. The rate is everything."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Make a small pandas table of Norwegian cities and their rainfall and show it sorted",
+  "spec": {
+   "title": "Rain, ranked",
+   "elements": [
+    {
+     "id": "rain",
+     "type": "code",
+     "language": "python",
+     "show": "output",
+     "width": 760,
+     "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"City\": [\"Oslo\", \"Bergen\", \"Trondheim\", \"Stavanger\"],\n    \"Pop (000s)\": [717, 291, 214, 149],\n    \"Rain (mm)\": [763, 2250, 892, 1180],\n})\ndf.sort_values(\"Rain (mm)\", ascending=False)"
+    }
+   ],
+   "commands": [
+    {
+     "speak": "Which Norwegian city gets the most rain? Let's ask pandas instead of arguing."
+    },
+    {
+     "draw": [
+      "rain"
+     ],
+     "speak": "Four cities, their size, and their yearly rainfall in millimetres — roughly, from the climate normals."
+    },
+    {
+     "draw": [
+      "rain_out"
+     ],
+     "delivery": "grave",
+     "speak": "Sorted, the answer is not close: Bergen, with over two thousand millimetres — nearly three times Oslo."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Use plotly express in Python to chart GDP per person for the Nordic countries",
+  "spec": {
+   "title": "Nordic GDP per head",
+   "elements": [
+    {
+     "id": "gdp",
+     "type": "code",
+     "language": "python",
+     "show": "left",
+     "width": 900,
+     "code": "import numpy as np\nimport pandas as pd\nimport plotly.express as px\ncountries = [\"Norway\", \"Sweden\", \"Denmark\", \"Finland\", \"Iceland\"]\ngdp_pc = [87, 56, 68, 53, 74]\nfig = px.bar(x=countries, y=gdp_pc,\n             labels={\"x\": \"\", \"y\": \"1000 USD per head\"})\n_ = fig.update_layout(width=650, height=430)"
+    }
+   ],
+   "commands": [
+    {
+     "speak": "The Nordics look alike from a distance. Their economies, per person, do not."
+    },
+    {
+     "draw": [
+      "gdp",
+      "gdp_line_1",
+      "gdp_line_2",
+      "gdp_line_3"
+     ],
+     "parallel": true,
+     "speak": "Plotly express — plus the numpy and pandas it quietly leans on."
+    },
+    {
+     "draw": [
+      "gdp_line_4",
+      "gdp_line_5"
+     ],
+     "parallel": true,
+     "speak": "Five countries, and GDP per head in thousands of dollars — round numbers."
+    },
+    {
+     "draw": [
+      "gdp_line_6",
+      "gdp_line_7",
+      "gdp_line_8"
+     ],
+     "parallel": true,
+     "speak": "One chart call. The figure just has to sit in a variable."
+    },
+    {
+     "draw": [
+      "gdp_out"
+     ],
+     "delivery": "grave",
+     "speak": "Norway near ninety, Finland near fifty — alike in many things, but not in this one."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Show Norway, Sweden and Denmark's GDP per capita in 2010, then animate it forward to 2020.",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "GDP per capita, 2010 → 2020",
+   "template": "bar_chart",
+   "params": {
+    "labels": [
+     "Norway",
+     "Sweden",
+     "Denmark"
     ],
-    "parallel": true,
-    "speak": "Nineteen ninety. The American economy towers over everyone, and China is barely a line on the page."
-   },
-   {
-    "draw": [
-     "title"
+    "values": [
+     [
+      87,
+      52,
+      58
+     ],
+     [
+      67,
+      52,
+      61
+     ]
     ],
-    "speak": "Now watch the rows themselves move — whoever is biggest climbs to the top."
+    "stage": 0,
+    "value_labels": true,
+    "title": "GDP per capita, 2010 → 2020"
    },
-   {
-    "animate": {
-     "stage": 1
+   "commands": [
+    {
+     "draw": [
+      "axes"
+     ],
+     "speak": "Norway, Sweden and Denmark all look wealthy from a distance — a decade tells a rougher story for one of them."
     },
-    "easing": "linear",
-    "duration": 2.5,
-    "speak": "Through the nineties Japan holds second place, and China starts to climb off the bottom row."
+    {
+     "draw": [
+      "bar_1",
+      "bar_2",
+      "bar_3"
+     ],
+     "parallel": true,
+     "speak": "2010: Norway near ninety thousand dollars a head, Sweden low fifties, Denmark high fifties."
+    },
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Same three bars — now watch what ten years do to them."
+    },
+    {
+     "pause": 0.4
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 3,
+     "speak": "Sweden and Denmark barely move, but Norway drops hard — the oil price crash dragging it down."
+    },
+    {
+     "highlight": {
+      "target": [
+       "bar_1"
+      ],
+      "effect": "glow"
+     },
+     "speak": "From eighty-seven to sixty-seven thousand — a fifth of Norway's advantage gone in a single decade."
+    }
+   ]
+  }
+ },
+ {
+  "request": "Race the four biggest economies from 1990 to 2020 as a bar chart race.",
+  "packs": [
+   "data"
+  ],
+  "spec": {
+   "title": "The four biggest economies, 1990 → 2020",
+   "template": "bar_race",
+   "params": {
+    "labels": [
+     "United States",
+     "China",
+     "Japan",
+     "Germany"
+    ],
+    "values": [
+     [
+      6.0,
+      0.4,
+      3.1,
+      1.8
+     ],
+     [
+      10.3,
+      1.2,
+      4.9,
+      1.9
+     ],
+     [
+      15.0,
+      6.1,
+      5.7,
+      3.4
+     ],
+     [
+      21.1,
+      14.7,
+      5.0,
+      3.9
+     ]
+    ],
+    "stage": 0,
+    "ticker": [
+     "1990",
+     "2000",
+     "2010",
+     "2020"
+    ],
+    "value_labels": true,
+    "decimals": 1,
+    "x_label": "GDP (trillion USD)",
+    "title": "The four biggest economies, 1990 → 2020"
    },
-   {
-    "animate": {
-     "stage": 2
+   "commands": [
+    {
+     "draw": [
+      "axes",
+      "ticker",
+      "race_1",
+      "race_2",
+      "race_3",
+      "race_4"
+     ],
+     "parallel": true,
+     "speak": "Nineteen ninety. The American economy towers over everyone, and China is barely a line on the page."
     },
-    "easing": "linear",
-    "duration": 2.5,
-    "speak": "By 2010 China has passed Germany and Japan both — second place, and still accelerating."
-   },
-   {
-    "animate": {
-     "stage": 3
+    {
+     "draw": [
+      "title"
+     ],
+     "speak": "Now watch the rows themselves move — whoever is biggest climbs to the top."
     },
-    "easing": "linear",
-    "duration": 2.5,
-    "speak": "And by 2020 the race at the top is close: fifteen trillion dollars of growth in one decade."
-   }
-  ]
- }
-},
+    {
+     "animate": {
+      "stage": 1
+     },
+     "easing": "linear",
+     "duration": 2.5,
+     "speak": "Through the nineties Japan holds second place, and China starts to climb off the bottom row."
+    },
+    {
+     "animate": {
+      "stage": 2
+     },
+     "easing": "linear",
+     "duration": 2.5,
+     "speak": "By 2010 China has passed Germany and Japan both — second place, and still accelerating."
+    },
+    {
+     "animate": {
+      "stage": 3
+     },
+     "easing": "linear",
+     "duration": 2.5,
+     "speak": "And by 2020 the race at the top is close: fifteen trillion dollars of growth in one decade."
+    }
+   ]
+  }
+ },
  {
   "request": "A table showing 100 growing at 2 percent versus 7 percent, decade by decade, revealed one row at a time",
   "packs": [
@@ -9851,7 +9864,7 @@
      "draw": [
       "row_1"
      ],
-     "speak": "Age against itself is a perfect one, as the diagonal always is. Against blood pressure it is nought point five one \u2014 the strongest pull anywhere off the diagonal."
+     "speak": "Age against itself is a perfect one, as the diagonal always is. Against blood pressure it is nought point five one — the strongest pull anywhere off the diagonal."
     },
     {
      "draw": [
@@ -9865,7 +9878,7 @@
       "row_4"
      ],
      "parallel": true,
-     "speak": "BMI leans on the other two: a third with age, and nought point four six with blood pressure \u2014 second only to the age and blood pressure cell we started with."
+     "speak": "BMI leans on the other two: a third with age, and nought point four six with blood pressure — second only to the age and blood pressure cell we started with."
     },
     {
      "draw": [
@@ -9973,172 +9986,172 @@
   }
  },
  {
-   "request": "In R with ggplot2: 200 random draws, their mean, and a histogram, stepped line by line",
-   "spec": {
-     "title": "The law of large numbers, in R",
-     "elements": [
-       {
-         "id": "sim",
-         "type": "code",
-         "language": "r",
-         "show": "left",
-         "width": 900,
-         "code": "library(ggplot2)\nset.seed(7)\ndf <- data.frame(x = rnorm(200))\ncat(\"mean:\", round(mean(df$x), 3), \"\\n\")\nggplot(df, aes(x)) + geom_histogram(bins = 20)"
-       }
+  "request": "In R with ggplot2: 200 random draws, their mean, and a histogram, stepped line by line",
+  "spec": {
+   "title": "The law of large numbers, in R",
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "r",
+     "show": "left",
+     "width": 900,
+     "code": "library(ggplot2)\nset.seed(7)\ndf <- data.frame(x = rnorm(200))\ncat(\"mean:\", round(mean(df$x), 3), \"\\n\")\nggplot(df, aes(x)) + geom_histogram(bins = 20)"
+    }
+   ],
+   "commands": [
+    {
+     "speak": "Can two hundred random numbers already know where their center is? Let's ask R."
+    },
+    {
+     "draw": [
+      "sim",
+      "sim_line_1"
      ],
-     "commands": [
-       {
-         "speak": "Can two hundred random numbers already know where their center is? Let's ask R."
-       },
-       {
-         "draw": [
-           "sim",
-           "sim_line_1"
-         ],
-         "parallel": true,
-         "speak": "ggplot2 for the picture — it installs itself the first time."
-       },
-       {
-         "draw": [
-           "sim_line_2"
-         ],
-         "speak": "A seed, so this figure tells the same truth every time."
-       },
-       {
-         "draw": [
-           "sim_line_3"
-         ],
-         "speak": "Two hundred draws from a standard normal, in a data frame."
-       },
-       {
-         "draw": [
-           "sim_line_4"
-         ],
-         "speak": "Their mean, printed — close to zero, not exactly zero."
-       },
-       {
-         "draw": [
-           "sim_line_5"
-         ],
-         "speak": "And a histogram as the last line, so it draws itself."
-       },
-       {
-         "draw": [
-           "sim_out"
-         ],
-         "speak": "There it is: the bell, and the center it already knows."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "ggplot2 for the picture — it installs itself the first time."
+    },
+    {
+     "draw": [
+      "sim_line_2"
+     ],
+     "speak": "A seed, so this figure tells the same truth every time."
+    },
+    {
+     "draw": [
+      "sim_line_3"
+     ],
+     "speak": "Two hundred draws from a standard normal, in a data frame."
+    },
+    {
+     "draw": [
+      "sim_line_4"
+     ],
+     "speak": "Their mean, printed — close to zero, not exactly zero."
+    },
+    {
+     "draw": [
+      "sim_line_5"
+     ],
+     "speak": "And a histogram as the last line, so it draws itself."
+    },
+    {
+     "draw": [
+      "sim_out"
+     ],
+     "speak": "There it is: the bell, and the center it already knows."
+    }
+   ]
+  }
  },
  {
-   "request": "In light Python (Brython): a small pandas table with a computed share, sorted, and a plotly express bar chart",
-   "spec": {
-     "title": "GDP per capita, light Python",
-     "elements": [
-       {
-         "id": "gdp",
-         "type": "code",
-         "language": "brython",
-         "show": "left",
-         "width": 900,
-         "code": "import pandas as pd\nimport plotly.express as px\ndf = pd.DataFrame({\"country\": [\"Norway\", \"Sweden\", \"Denmark\"], \"gdp\": [87, 52, 58]})\ndf[\"share\"] = (df[\"gdp\"] / df[\"gdp\"].sum()).round(3)\nprint(df.sort_values(\"gdp\", ascending=False))\nfig = px.bar(df, x=\"country\", y=\"gdp\", title=\"GDP per capita, 2010\")"
-       }
+  "request": "In light Python (Brython): a small pandas table with a computed share, sorted, and a plotly express bar chart",
+  "spec": {
+   "title": "GDP per capita, light Python",
+   "elements": [
+    {
+     "id": "gdp",
+     "type": "code",
+     "language": "brython",
+     "show": "left",
+     "width": 900,
+     "code": "import pandas as pd\nimport plotly.express as px\ndf = pd.DataFrame({\"country\": [\"Norway\", \"Sweden\", \"Denmark\"], \"gdp\": [87, 52, 58]})\ndf[\"share\"] = (df[\"gdp\"] / df[\"gdp\"].sum()).round(3)\nprint(df.sort_values(\"gdp\", ascending=False))\nfig = px.bar(df, x=\"country\", y=\"gdp\", title=\"GDP per capita, 2010\")"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "gdp",
+      "gdp_line_1",
+      "gdp_line_2"
      ],
-     "commands": [
-       {
-         "draw": [
-           "gdp",
-           "gdp_line_1",
-           "gdp_line_2"
-         ],
-         "parallel": true,
-         "speak": "pandas and plotly express — in a runtime that loads in about a second."
-       },
-       {
-         "draw": [
-           "gdp_line_3"
-         ],
-         "speak": "Three countries, one number each."
-       },
-       {
-         "draw": [
-           "gdp_line_4"
-         ],
-         "speak": "A computed column: each country's share of the total."
-       },
-       {
-         "draw": [
-           "gdp_line_5"
-         ],
-         "speak": "Sorted and printed."
-       },
-       {
-         "draw": [
-           "gdp_line_6"
-         ],
-         "speak": "And a bar chart left in a variable draws itself."
-       },
-       {
-         "draw": [
-           "gdp_out"
-         ],
-         "speak": "Norway on top, then Denmark, then Sweden."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "pandas and plotly express — in a runtime that loads in about a second."
+    },
+    {
+     "draw": [
+      "gdp_line_3"
+     ],
+     "speak": "Three countries, one number each."
+    },
+    {
+     "draw": [
+      "gdp_line_4"
+     ],
+     "speak": "A computed column: each country's share of the total."
+    },
+    {
+     "draw": [
+      "gdp_line_5"
+     ],
+     "speak": "Sorted and printed."
+    },
+    {
+     "draw": [
+      "gdp_line_6"
+     ],
+     "speak": "And a bar chart left in a variable draws itself."
+    },
+    {
+     "draw": [
+      "gdp_out"
+     ],
+     "speak": "Norway on top, then Denmark, then Sweden."
+    }
+   ]
+  }
  },
  {
-   "request": "In minimal Python (MicroPython): compound interest over five years, printed year by year, with the total growth as the last line",
-   "spec": {
-     "title": "Compound interest, minimal Python",
-     "elements": [
-       {
-         "id": "ci",
-         "type": "code",
-         "language": "micropython",
-         "show": "left",
-         "width": 900,
-         "code": "rate = 0.05\nbalance = 100\nfor year in range(1, 6):\n    balance *= 1 + rate\n    print(year, round(balance, 2))\nround(balance / 100 - 1, 3)"
-       }
+  "request": "In minimal Python (MicroPython): compound interest over five years, printed year by year, with the total growth as the last line",
+  "spec": {
+   "title": "Compound interest, minimal Python",
+   "elements": [
+    {
+     "id": "ci",
+     "type": "code",
+     "language": "micropython",
+     "show": "left",
+     "width": 900,
+     "code": "rate = 0.05\nbalance = 100\nfor year in range(1, 6):\n    balance *= 1 + rate\n    print(year, round(balance, 2))\nround(balance / 100 - 1, 3)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "ci",
+      "ci_line_1",
+      "ci_line_2"
      ],
-     "commands": [
-       {
-         "draw": [
-           "ci",
-           "ci_line_1",
-           "ci_line_2"
-         ],
-         "parallel": true,
-         "speak": "Five percent a year on a hundred — in a Python that weighs half a megabyte."
-       },
-       {
-         "draw": [
-           "ci_line_3",
-           "ci_line_4"
-         ],
-         "speak": "Each year the balance grows by five percent of what it already is."
-       },
-       {
-         "draw": [
-           "ci_line_5"
-         ],
-         "speak": "Print the balance year by year."
-       },
-       {
-         "draw": [
-           "ci_line_6"
-         ],
-         "speak": "And the last line: total growth over the five years."
-       },
-       {
-         "draw": [
-           "ci_out"
-         ],
-         "speak": "Not twenty-five percent — twenty-seven point six. That gap is compounding."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "Five percent a year on a hundred — in a Python that weighs half a megabyte."
+    },
+    {
+     "draw": [
+      "ci_line_3",
+      "ci_line_4"
+     ],
+     "speak": "Each year the balance grows by five percent of what it already is."
+    },
+    {
+     "draw": [
+      "ci_line_5"
+     ],
+     "speak": "Print the balance year by year."
+    },
+    {
+     "draw": [
+      "ci_line_6"
+     ],
+     "speak": "And the last line: total growth over the five years."
+    },
+    {
+     "draw": [
+      "ci_out"
+     ],
+     "speak": "Not twenty-five percent — twenty-seven point six. That gap is compounding."
+    }
+   ]
+  }
  },
  {
   "request": "Shade the rejection region of a two-sided test at five percent, with the critical value computed in Python",
@@ -10568,433 +10581,433 @@
   }
  },
  {
-   "request": "Flattening the curve, computed in R: an SIR model run at two reproduction numbers, drawn as an animated line chart",
-   "spec": {
-     "title": "Flattening the curve, in R",
-     "template": "line_chart",
-     "params": {
-       "x": "{sir.days}",
-       "series": [
-         {
-           "name": "Infected",
-           "values": "{sir.frames}"
-         }
-       ],
-       "stage": 0,
-       "y_label": "Share infected",
-       "x_label": "Days",
-       "box": {
-         "x": 470,
-         "y": 95,
-         "w": 460,
-         "h": 560
-       }
+  "request": "Flattening the curve, computed in R: an SIR model run at two reproduction numbers, drawn as an animated line chart",
+  "spec": {
+   "title": "Flattening the curve, in R",
+   "template": "line_chart",
+   "params": {
+    "x": "{sir.days}",
+    "series": [
+     {
+      "name": "Infected",
+      "values": "{sir.frames}"
+     }
+    ],
+    "stage": 0,
+    "y_label": "Share infected",
+    "x_label": "Days",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 460,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "sir",
+     "type": "code",
+     "language": "r",
+     "show": "code",
+     "code": "sir <- function(r0, days = 160, gamma = 0.1) {\n  s <- 0.999; i <- 0.001; out <- numeric(days)\n  for (d in seq_len(days)) {\n    out[d] <- round(i, 4)\n    new <- r0 * gamma * s * i\n    s <- s - new; i <- i + new - gamma * i\n  }\n  out\n}\ndays <- 0:159\nframes <- list(sir(2.5), sir(1.4))"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "sir",
+      "sir_line_1",
+      "sir_line_2",
+      "sir_line_3",
+      "sir_line_4",
+      "sir_line_5",
+      "sir_line_6",
+      "sir_line_7",
+      "sir_line_8",
+      "sir_line_9"
+     ],
+     "parallel": true,
+     "speak": "An epidemic in nine lines of R: each day, infections move people from susceptible to infected, and recovery moves them out again."
+    },
+    {
+     "draw": [
+      "sir_line_10",
+      "sir_line_11"
+     ],
+     "parallel": true,
+     "speak": "A hundred and sixty days, run twice: once with each case infecting two and a half others, once with one point four."
+    },
+    {
+     "draw": [
+      "axes",
+      "line_1"
+     ],
+     "parallel": true,
+     "speak": "At two and a half the wave peaks early and high: nearly a quarter of the population sick at once."
+    },
+    {
+     "animate": {
+      "stage": 1
      },
-     "elements": [
-       {
-         "id": "sir",
-         "type": "code",
-         "language": "r",
-         "show": "code",
-         "code": "sir <- function(r0, days = 160, gamma = 0.1) {\n  s <- 0.999; i <- 0.001; out <- numeric(days)\n  for (d in seq_len(days)) {\n    out[d] <- round(i, 4)\n    new <- r0 * gamma * s * i\n    s <- s - new; i <- i + new - gamma * i\n  }\n  out\n}\ndays <- 0:159\nframes <- list(sir(2.5), sir(1.4))"
-       }
-     ],
-     "commands": [
-       {
-         "draw": [
-           "sir",
-           "sir_line_1",
-           "sir_line_2",
-           "sir_line_3",
-           "sir_line_4",
-           "sir_line_5",
-           "sir_line_6",
-           "sir_line_7",
-           "sir_line_8",
-           "sir_line_9"
-         ],
-         "parallel": true,
-         "speak": "An epidemic in nine lines of R: each day, infections move people from susceptible to infected, and recovery moves them out again."
-       },
-       {
-         "draw": [
-           "sir_line_10",
-           "sir_line_11"
-         ],
-         "parallel": true,
-         "speak": "A hundred and sixty days, run twice: once with each case infecting two and a half others, once with one point four."
-       },
-       {
-         "draw": [
-           "axes",
-           "line_1"
-         ],
-         "parallel": true,
-         "speak": "At two and a half the wave peaks early and high: nearly a quarter of the population sick at once."
-       },
-       {
-         "animate": {
-           "stage": 1
-         },
-         "duration": 4,
-         "speak": "Bring that down to one point four, and the same wave spreads out: later, lower, longer."
-       }
-     ]
-   }
+     "duration": 4,
+     "speak": "Bring that down to one point four, and the same wave spreads out: later, lower, longer."
+    }
+   ]
+  }
  },
  {
-   "request": "Hours studied against exam score, in R: simulate twelve students, fit a line with lm, and hand the slope to a scatter plot",
-   "spec": {
-     "title": "Hours and scores, in R",
-     "template": "scatter_plot",
-     "params": {
-       "x": [
-         1,
-         2,
-         3,
-         4,
-         5,
-         6,
-         7,
-         8,
-         9,
-         10,
-         11,
-         12
-       ],
-       "y": "{sim.scores}",
-       "fit": "{sim.fit}",
-       "ylim": [
-         0,
-         100
-       ],
-       "x_label": "Hours studied",
-       "y_label": "Score",
-       "box": {
-         "x": 470,
-         "y": 95,
-         "w": 460,
-         "h": 560
-       }
-     },
-     "elements": [
-       {
-         "id": "sim",
-         "type": "code",
-         "language": "r",
-         "show": "code",
-         "code": "set.seed(11)\nhours <- 1:12\nscores <- 40 + 4 * hours + rnorm(12, 0, 6)\nscores <- round(pmin(scores, 100), 1)\nm <- lm(scores ~ hours)\nb <- unname(coef(m))\nfit <- round(c(b[2], b[1]), 2)"
-       }
+  "request": "Hours studied against exam score, in R: simulate twelve students, fit a line with lm, and hand the slope to a scatter plot",
+  "spec": {
+   "title": "Hours and scores, in R",
+   "template": "scatter_plot",
+   "params": {
+    "x": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ],
+    "y": "{sim.scores}",
+    "fit": "{sim.fit}",
+    "ylim": [
+     0,
+     100
+    ],
+    "x_label": "Hours studied",
+    "y_label": "Score",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 460,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "r",
+     "show": "code",
+     "code": "set.seed(11)\nhours <- 1:12\nscores <- 40 + 4 * hours + rnorm(12, 0, 6)\nscores <- round(pmin(scores, 100), 1)\nm <- lm(scores ~ hours)\nb <- unname(coef(m))\nfit <- round(c(b[2], b[1]), 2)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "sim",
+      "sim_line_1",
+      "sim_line_2",
+      "sim_line_3",
+      "sim_line_4"
      ],
-     "commands": [
-       {
-         "draw": [
-           "sim",
-           "sim_line_1",
-           "sim_line_2",
-           "sim_line_3",
-           "sim_line_4"
-         ],
-         "parallel": true,
-         "speak": "Twelve students, one to twelve hours of study, and a score that rises with hours plus some noise."
-       },
-       {
-         "draw": [
-           "axes",
-           "points"
-         ],
-         "parallel": true,
-         "speak": "Here they are. The trend is visible, the scatter is real."
-       },
-       {
-         "draw": [
-           "sim_line_5",
-           "sim_line_6",
-           "sim_line_7"
-         ],
-         "parallel": true,
-         "speak": "One call to lm fits the least-squares line; coef hands its slope and intercept to the chart."
-       },
-       {
-         "draw": [
-           "fit_line"
-         ],
-         "speak": "About four points per hour, from a starting score in the high thirties."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "Twelve students, one to twelve hours of study, and a score that rises with hours plus some noise."
+    },
+    {
+     "draw": [
+      "axes",
+      "points"
+     ],
+     "parallel": true,
+     "speak": "Here they are. The trend is visible, the scatter is real."
+    },
+    {
+     "draw": [
+      "sim_line_5",
+      "sim_line_6",
+      "sim_line_7"
+     ],
+     "parallel": true,
+     "speak": "One call to lm fits the least-squares line; coef hands its slope and intercept to the chart."
+    },
+    {
+     "draw": [
+      "fit_line"
+     ],
+     "speak": "About four points per hour, from a starting score in the high thirties."
+    }
+   ]
+  }
  },
  {
-   "request": "Hours studied against exam score in light Python: a pandas frame, a statsmodels OLS fit, and the slope handed to a scatter plot",
-   "spec": {
-     "title": "Hours and scores, light Python",
-     "template": "scatter_plot",
-     "params": {
-       "x": [
-         1,
-         2,
-         3,
-         4,
-         5,
-         6,
-         7,
-         8,
-         9,
-         10,
-         11,
-         12
-       ],
-       "y": "{sim.scores}",
-       "fit": "{sim.fit}",
-       "ylim": [
-         0,
-         100
-       ],
-       "x_label": "Hours studied",
-       "y_label": "Score",
-       "box": {
-         "x": 470,
-         "y": 95,
-         "w": 460,
-         "h": 560
-       }
-     },
-     "elements": [
-       {
-         "id": "sim",
-         "type": "code",
-         "language": "brython",
-         "show": "code",
-         "code": "import random\nimport pandas as pd\nimport statsmodels.formula.api as smf\nrandom.seed(11)\nhours = list(range(1, 13))\nnoise = [random.gauss(0, 6) for _ in hours]\nraw = [40 + 4 * h for h in hours]\nraw = [r + e for r, e in zip(raw, noise)]\nscores = [round(min(s, 100), 1) for s in raw]\ndf = pd.DataFrame({\"h\": hours, \"s\": scores})\nm = smf.ols(\"s ~ h\", data=df).fit()\np = m.params\nb, a = p[\"h\"], p[\"Intercept\"]\nfit = [round(b, 2), round(a, 2)]"
-       }
+  "request": "Hours studied against exam score in light Python: a pandas frame, a statsmodels OLS fit, and the slope handed to a scatter plot",
+  "spec": {
+   "title": "Hours and scores, light Python",
+   "template": "scatter_plot",
+   "params": {
+    "x": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ],
+    "y": "{sim.scores}",
+    "fit": "{sim.fit}",
+    "ylim": [
+     0,
+     100
+    ],
+    "x_label": "Hours studied",
+    "y_label": "Score",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 460,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "sim",
+     "type": "code",
+     "language": "brython",
+     "show": "code",
+     "code": "import random\nimport pandas as pd\nimport statsmodels.formula.api as smf\nrandom.seed(11)\nhours = list(range(1, 13))\nnoise = [random.gauss(0, 6) for _ in hours]\nraw = [40 + 4 * h for h in hours]\nraw = [r + e for r, e in zip(raw, noise)]\nscores = [round(min(s, 100), 1) for s in raw]\ndf = pd.DataFrame({\"h\": hours, \"s\": scores})\nm = smf.ols(\"s ~ h\", data=df).fit()\np = m.params\nb, a = p[\"h\"], p[\"Intercept\"]\nfit = [round(b, 2), round(a, 2)]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "sim",
+      "sim_line_1",
+      "sim_line_2",
+      "sim_line_3"
      ],
-     "commands": [
-       {
-         "draw": [
-           "sim",
-           "sim_line_1",
-           "sim_line_2",
-           "sim_line_3"
-         ],
-         "parallel": true,
-         "speak": "pandas and statsmodels, in a Python that loads in about a second."
-       },
-       {
-         "draw": [
-           "sim_line_4",
-           "sim_line_5",
-           "sim_line_6",
-           "sim_line_7",
-           "sim_line_8",
-           "sim_line_9"
-         ],
-         "parallel": true,
-         "speak": "Twelve students, and a score that rises with hours plus some noise."
-       },
-       {
-         "draw": [
-           "axes",
-           "points"
-         ],
-         "parallel": true,
-         "speak": "Here they are. The trend is visible, the scatter is real."
-       },
-       {
-         "draw": [
-           "sim_line_10",
-           "sim_line_11",
-           "sim_line_12",
-           "sim_line_13",
-           "sim_line_14"
-         ],
-         "parallel": true,
-         "speak": "A frame, an OLS formula, and the two coefficients handed to the chart."
-       },
-       {
-         "draw": [
-           "fit_line"
-         ],
-         "speak": "About four points per hour, from a starting score in the high thirties."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "pandas and statsmodels, in a Python that loads in about a second."
+    },
+    {
+     "draw": [
+      "sim_line_4",
+      "sim_line_5",
+      "sim_line_6",
+      "sim_line_7",
+      "sim_line_8",
+      "sim_line_9"
+     ],
+     "parallel": true,
+     "speak": "Twelve students, and a score that rises with hours plus some noise."
+    },
+    {
+     "draw": [
+      "axes",
+      "points"
+     ],
+     "parallel": true,
+     "speak": "Here they are. The trend is visible, the scatter is real."
+    },
+    {
+     "draw": [
+      "sim_line_10",
+      "sim_line_11",
+      "sim_line_12",
+      "sim_line_13",
+      "sim_line_14"
+     ],
+     "parallel": true,
+     "speak": "A frame, an OLS formula, and the two coefficients handed to the chart."
+    },
+    {
+     "draw": [
+      "fit_line"
+     ],
+     "speak": "About four points per hour, from a starting score in the high thirties."
+    }
+   ]
+  }
  },
  {
-   "request": "In light Python: a hundred random draws, then ten thousand, as two matplotlib histograms shown one after the other",
-   "spec": {
-     "title": "A hundred draws, then ten thousand",
-     "elements": [
-       {
-         "id": "h",
-         "type": "code",
-         "language": "brython",
-         "show": "left",
-         "width": 900,
-         "figures": 2,
-         "code": "import random\nimport matplotlib.pyplot as plt\nrandom.seed(7)\nfor n in (100, 10000):\n    xs = [random.gauss(0, 1) for _ in range(n)]\n    plt.figure()\n    _ = plt.hist(xs, bins=20)\n    plt.title(f\"{n:,} draws\")\n    plt.show()"
-       }
+  "request": "In light Python: a hundred random draws, then ten thousand, as two matplotlib histograms shown one after the other",
+  "spec": {
+   "title": "A hundred draws, then ten thousand",
+   "elements": [
+    {
+     "id": "h",
+     "type": "code",
+     "language": "brython",
+     "show": "left",
+     "width": 900,
+     "figures": 2,
+     "code": "import random\nimport matplotlib.pyplot as plt\nrandom.seed(7)\nfor n in (100, 10000):\n    xs = [random.gauss(0, 1) for _ in range(n)]\n    plt.figure()\n    _ = plt.hist(xs, bins=20)\n    plt.title(f\"{n:,} draws\")\n    plt.show()"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "h",
+      "h_line_1",
+      "h_line_2",
+      "h_line_3"
      ],
-     "commands": [
-       {
-         "draw": [
-           "h",
-           "h_line_1",
-           "h_line_2",
-           "h_line_3"
-         ],
-         "parallel": true,
-         "speak": "Random draws from a bell curve, and a seed so the figure tells the same truth every time."
-       },
-       {
-         "draw": [
-           "h_line_4",
-           "h_line_5"
-         ],
-         "parallel": true,
-         "speak": "Two sample sizes: a hundred, then ten thousand."
-       },
-       {
-         "draw": [
-           "h_line_6",
-           "h_line_7",
-           "h_line_8",
-           "h_line_9"
-         ],
-         "parallel": true,
-         "speak": "Each pass draws its own histogram and shows it: two figures from one script."
-       },
-       {
-         "draw": [
-           "h_fig_1"
-         ],
-         "speak": "A hundred draws: lumpy, lopsided, only vaguely a bell."
-       },
-       {
-         "draw": [
-           "h_fig_2"
-         ],
-         "speak": "Ten thousand draws, and the bell is unmistakable. Sample size is what smooths it."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "Random draws from a bell curve, and a seed so the figure tells the same truth every time."
+    },
+    {
+     "draw": [
+      "h_line_4",
+      "h_line_5"
+     ],
+     "parallel": true,
+     "speak": "Two sample sizes: a hundred, then ten thousand."
+    },
+    {
+     "draw": [
+      "h_line_6",
+      "h_line_7",
+      "h_line_8",
+      "h_line_9"
+     ],
+     "parallel": true,
+     "speak": "Each pass draws its own histogram and shows it: two figures from one script."
+    },
+    {
+     "draw": [
+      "h_fig_1"
+     ],
+     "speak": "A hundred draws: lumpy, lopsided, only vaguely a bell."
+    },
+    {
+     "draw": [
+      "h_fig_2"
+     ],
+     "speak": "Ten thousand draws, and the bell is unmistakable. Sample size is what smooths it."
+    }
+   ]
+  }
  },
  {
-   "request": "Fibonacci and the golden ratio in minimal Python: compute the ratio of consecutive terms and draw how it settles",
-   "spec": {
-     "title": "Fibonacci and the golden ratio",
-     "template": "line_chart",
-     "params": {
-       "x": "{fib.n}",
-       "series": [
-         {
-           "name": "F(n+1) / F(n)",
-           "values": "{fib.ratios}"
-         }
-       ],
-       "ylim": [
-         1.4,
-         2.1
-       ],
-       "y_label": "Ratio",
-       "x_label": "n",
-       "box": {
-         "x": 470,
-         "y": 95,
-         "w": 460,
-         "h": 560
-       }
-     },
-     "elements": [
-       {
-         "id": "fib",
-         "type": "code",
-         "language": "micropython",
-         "show": "code",
-         "code": "a, b = 1, 1\nn, ratios = [], []\nfor i in range(2, 16):\n    a, b = b, a + b\n    n.append(i)\n    ratios.append(round(b / a, 4))"
-       }
+  "request": "Fibonacci and the golden ratio in minimal Python: compute the ratio of consecutive terms and draw how it settles",
+  "spec": {
+   "title": "Fibonacci and the golden ratio",
+   "template": "line_chart",
+   "params": {
+    "x": "{fib.n}",
+    "series": [
+     {
+      "name": "F(n+1) / F(n)",
+      "values": "{fib.ratios}"
+     }
+    ],
+    "ylim": [
+     1.4,
+     2.1
+    ],
+    "y_label": "Ratio",
+    "x_label": "n",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 460,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "fib",
+     "type": "code",
+     "language": "micropython",
+     "show": "code",
+     "code": "a, b = 1, 1\nn, ratios = [], []\nfor i in range(2, 16):\n    a, b = b, a + b\n    n.append(i)\n    ratios.append(round(b / a, 4))"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "fib",
+      "fib_line_1",
+      "fib_line_2"
      ],
-     "commands": [
-       {
-         "draw": [
-           "fib",
-           "fib_line_1",
-           "fib_line_2"
-         ],
-         "parallel": true,
-         "speak": "Two ones to start, and two empty lists, in a Python that weighs half a megabyte."
-       },
-       {
-         "draw": [
-           "fib_line_3",
-           "fib_line_4",
-           "fib_line_5",
-           "fib_line_6"
-         ],
-         "parallel": true,
-         "speak": "Each step adds the last two numbers and records the ratio between them."
-       },
-       {
-         "draw": [
-           "axes",
-           "line_1"
-         ],
-         "parallel": true,
-         "speak": "The ratio jumps, overshoots, and settles: one point six one eight, the golden ratio."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "Two ones to start, and two empty lists, in a Python that weighs half a megabyte."
+    },
+    {
+     "draw": [
+      "fib_line_3",
+      "fib_line_4",
+      "fib_line_5",
+      "fib_line_6"
+     ],
+     "parallel": true,
+     "speak": "Each step adds the last two numbers and records the ratio between them."
+    },
+    {
+     "draw": [
+      "axes",
+      "line_1"
+     ],
+     "parallel": true,
+     "speak": "The ratio jumps, overshoots, and settles: one point six one eight, the golden ratio."
+    }
+   ]
+  }
  },
  {
-   "request": "Screening arithmetic in minimal Python: sensitivity, specificity and prevalence turned into the chance a positive test is right, as a table",
-   "spec": {
-     "title": "What a positive test is worth",
-     "elements": [
-       {
-         "id": "s",
-         "type": "code",
-         "language": "micropython",
-         "show": "left",
-         "width": 900,
-         "code": "import pandas as pd\nsens, spec = 0.9, 0.95\nprev = [0.001, 0.01, 0.1]\nppv = []\nfor p in prev:\n    tp = sens * p\n    fp = (1 - spec) * (1 - p)\n    ppv.append(round(tp / (tp + fp), 3))\npd.DataFrame({\"prevalence\": prev, \"PPV\": ppv})"
-       }
+  "request": "Screening arithmetic in minimal Python: sensitivity, specificity and prevalence turned into the chance a positive test is right, as a table",
+  "spec": {
+   "title": "What a positive test is worth",
+   "elements": [
+    {
+     "id": "s",
+     "type": "code",
+     "language": "micropython",
+     "show": "left",
+     "width": 900,
+     "code": "import pandas as pd\nsens, spec = 0.9, 0.95\nprev = [0.001, 0.01, 0.1]\nppv = []\nfor p in prev:\n    tp = sens * p\n    fp = (1 - spec) * (1 - p)\n    ppv.append(round(tp / (tp + fp), 3))\npd.DataFrame({\"prevalence\": prev, \"PPV\": ppv})"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "s",
+      "s_line_1",
+      "s_line_2"
      ],
-     "commands": [
-       {
-         "draw": [
-           "s",
-           "s_line_1",
-           "s_line_2"
-         ],
-         "parallel": true,
-         "speak": "A test that catches ninety percent of cases and clears ninety-five percent of the healthy."
-       },
-       {
-         "draw": [
-           "s_line_3",
-           "s_line_4"
-         ],
-         "parallel": true,
-         "speak": "Three prevalences, from one in a thousand to one in ten."
-       },
-       {
-         "draw": [
-           "s_line_5",
-           "s_line_6",
-           "s_line_7",
-           "s_line_8"
-         ],
-         "parallel": true,
-         "speak": "True positives against false positives: the arithmetic behind a positive result."
-       },
-       {
-         "draw": [
-           "s_line_9",
-           "s_out"
-         ],
-         "speak": "At one in a thousand, a positive result is right less than two percent of the time. Prevalence, not the test, decides."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "A test that catches ninety percent of cases and clears ninety-five percent of the healthy."
+    },
+    {
+     "draw": [
+      "s_line_3",
+      "s_line_4"
+     ],
+     "parallel": true,
+     "speak": "Three prevalences, from one in a thousand to one in ten."
+    },
+    {
+     "draw": [
+      "s_line_5",
+      "s_line_6",
+      "s_line_7",
+      "s_line_8"
+     ],
+     "parallel": true,
+     "speak": "True positives against false positives: the arithmetic behind a positive result."
+    },
+    {
+     "draw": [
+      "s_line_9",
+      "s_out"
+     ],
+     "speak": "At one in a thousand, a positive result is right less than two percent of the time. Prevalence, not the test, decides."
+    }
+   ]
+  }
  },
  {
   "request": "Race eight simulated funds with identical expected returns over twenty years, standing the bars up as columns",
@@ -11057,17 +11070,31 @@
    ],
    "commands": [
     {
-     "draw": ["axes", "ticker"],
+     "draw": [
+      "axes",
+      "ticker"
+     ],
      "parallel": true,
      "speak": "Two thousand and five. Eight funds, every one of them starting at a hundred kroner."
     },
     {
-     "draw": ["race_1", "race_2", "race_3", "race_4", "race_5", "race_6", "race_7", "race_8"],
+     "draw": [
+      "race_1",
+      "race_2",
+      "race_3",
+      "race_4",
+      "race_5",
+      "race_6",
+      "race_7",
+      "race_8"
+     ],
      "parallel": true,
      "speak": "A seeded script gives each fund a return every year, drawn from exactly the same range as all the others. Nothing tells them apart but luck."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "Only the top five stand on the board. Watch which five."
     },
     {
@@ -11180,7 +11207,10 @@
    ],
    "commands": [
     {
-     "draw": ["axes", "ticker"],
+     "draw": [
+      "axes",
+      "ticker"
+     ],
      "parallel": true,
      "speak": "Twenty players in a simulated tournament. A seeded script draws each one a scoring range once, then adds points round by round."
     },
@@ -11211,7 +11241,9 @@
      "speak": "Round one. Mira leads on eleven — and twelve of the twenty are already off the board."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "The board holds eight. The other twelve wait in the strip below it, sliding in as they climb."
     },
     {
@@ -11323,17 +11355,27 @@
    ],
    "commands": [
     {
-     "draw": ["axes", "ticker"],
+     "draw": [
+      "axes",
+      "ticker"
+     ],
      "parallel": true,
      "speak": "A hundred kroner, four interest rates, thirty years. Two lines of Python compute every number on this chart."
     },
     {
-     "draw": ["race_1", "race_2", "race_3", "race_4"],
+     "draw": [
+      "race_1",
+      "race_2",
+      "race_3",
+      "race_4"
+     ],
      "parallel": true,
      "speak": "Seven percent, five, three, one — and they will hold that order for the entire run."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "So the rows are fixed. Nothing overtakes anything here; only the lengths move."
     },
     {
@@ -11424,17 +11466,29 @@
    ],
    "commands": [
     {
-     "draw": ["axes", "ticker"],
+     "draw": [
+      "axes",
+      "ticker"
+     ],
      "parallel": true,
      "speak": "Six simulated products, six launch dates. A short script grows each one along a logistic curve toward its own ceiling."
     },
     {
-     "draw": ["race_1", "race_2", "race_3", "race_4", "race_5", "race_6"],
+     "draw": [
+      "race_1",
+      "race_2",
+      "race_3",
+      "race_4",
+      "race_5",
+      "race_6"
+     ],
      "parallel": true,
      "speak": "In year one only two of them exist. The other four are not sitting at zero — they are simply not there. The script writes null, and null means absent."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "Basalt is ahead on fourteen thousand users, Aurora on eight."
     },
     {
@@ -11526,16 +11580,25 @@
    ],
    "commands": [
     {
-     "draw": ["axes"],
+     "draw": [
+      "axes"
+     ],
      "speak": "Four regions, one virus, four different reproduction numbers. A seven-line SIR model computes every point on this chart."
     },
     {
-     "draw": ["line_1", "line_2", "line_3", "line_4"],
+     "draw": [
+      "line_1",
+      "line_2",
+      "line_3",
+      "line_4"
+     ],
      "parallel": true,
      "speak": "Month one, and all four regions start from the same tiny seed of infection."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "The chart shows twelve months at a time. As the race runs, the oldest month falls off the left edge — watch the axis, not just the lines."
     },
     {
@@ -11651,17 +11714,28 @@
    ],
    "commands": [
     {
-     "draw": ["axes", "ticker"],
+     "draw": [
+      "axes",
+      "ticker"
+     ],
      "parallel": true,
      "speak": "Five urns, five balls each. Every new ball goes into an urn chosen in proportion to how many it already holds — and that is the only rule."
     },
     {
-     "draw": ["line_1", "line_2", "line_3", "line_4", "line_5"],
+     "draw": [
+      "line_1",
+      "line_2",
+      "line_3",
+      "line_4",
+      "line_5"
+     ],
      "parallel": true,
      "speak": "Sixty-five balls in, the shares are already uneven: Urn C has twenty-nine percent, Urn B thirteen."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "Nothing distinguishes these urns. No urn is better. Only the rule is at work."
     },
     {
@@ -11737,17 +11811,27 @@
    ],
    "commands": [
     {
-     "draw": ["axes", "legend"],
+     "draw": [
+      "axes",
+      "legend"
+     ],
      "parallel": true,
      "speak": "Four measurements, built by a seeded script so we know the truth exactly: A with B is zero point eight, B with C is zero point four nine, A with C is zero point three nine — and the fourth variable is pure noise, correlated with nothing."
     },
     {
-     "draw": ["row_1", "row_2", "row_3", "row_4"],
+     "draw": [
+      "row_1",
+      "row_2",
+      "row_3",
+      "row_4"
+     ],
      "parallel": true,
      "speak": "This is what twenty draws say. B against C reads zero point seven seven, more than half again the truth, and the noise column is already warm."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "Every cell here is an estimate, and at n of twenty the estimates are bad."
     },
     {
@@ -11773,7 +11857,9 @@
     },
     {
      "highlight": {
-      "target": ["row_4"]
+      "target": [
+       "row_4"
+      ]
      },
      "speak": "The same structure produced all four of these pictures. A correlation is not something you read off a matrix. It is an estimate, and n is what you pay for it."
     }
@@ -11840,33 +11926,49 @@
    },
    "commands": [
     {
-     "draw": ["axes", "legend"],
+     "draw": [
+      "axes",
+      "legend"
+     ],
      "parallel": true,
      "speak": "Norwegian health spending, from Statistics Norway's health accounts — table ten eight one four — at four points between 2005 and 2023, in current kroner, rounded to the nearest hundred million."
     },
     {
-     "draw": ["bar_1"],
+     "draw": [
+      "bar_1"
+     ],
      "speak": "In 2005 the country spent about a hundred and sixty-six billion kroner on health, and curative care took roughly forty-nine percent of it."
     },
     {
-     "draw": ["bar_2", "bar_3"],
+     "draw": [
+      "bar_2",
+      "bar_3"
+     ],
      "parallel": true,
      "speak": "By 2011 the total was about two hundred and forty-five billion. By 2017, about three hundred and forty."
     },
     {
-     "draw": ["bar_4", "title"],
+     "draw": [
+      "bar_4",
+      "title"
+     ],
      "parallel": true,
      "speak": "And in 2023, about four hundred and seventy-four billion — very nearly three times the 2005 figure in current kroner."
     },
     {
      "highlight": {
-      "target": ["bar_1", "bar_4"]
+      "target": [
+       "bar_1",
+       "bar_4"
+      ]
      },
      "speak": "Now look at the shape rather than the height. Curative care was about forty-nine percent of the total in 2005, and about forty-nine percent in 2023. Long-term care went from roughly twenty-six percent to twenty-seven."
     },
     {
      "highlight": {
-      "target": ["legend"]
+      "target": [
+       "legend"
+      ]
      },
      "speak": "Only one of the four fell as a share: medicines and other goods dispensed outside hospital, from about fourteen percent to about eleven. This is not a country changing its priorities. It is the same shape, three times bigger."
     }
@@ -11927,26 +12029,38 @@
    },
    "commands": [
     {
-     "draw": ["axes"],
+     "draw": [
+      "axes"
+     ],
      "speak": "Statistics Norway's life tables for 2019 against 2021 — the last year before the pandemic, and the second year of it. The number plotted is not remaining years but the age each group could expect to reach: the age they have already, plus the years still expected."
     },
     {
-     "draw": ["line_1", "line_2"],
+     "draw": [
+      "line_1",
+      "line_2"
+     ],
      "parallel": true,
      "speak": "A boy born in 2019 could expect to reach eighty-one point two. A girl, eighty-four point seven."
     },
     {
-     "draw": ["line_3", "line_4"],
+     "draw": [
+      "line_3",
+      "line_4"
+     ],
      "parallel": true,
      "speak": "Someone who had already reached eighty could expect to get further than either of them: eighty-eight point seven for a man, ninety point two for a woman. Having survived to eighty is itself information."
     },
     {
-     "draw": ["title"],
+     "draw": [
+      "title"
+     ],
      "speak": "Three of the four lines rise. Norwegian mortality across 2020 and 2021 was, on the whole, lower than it had been before the pandemic."
     },
     {
      "highlight": {
-      "target": ["line_4"]
+      "target": [
+       "line_4"
+      ]
      },
      "speak": "The exception is the one drawn in the falling ink: women already eighty, who lost about a month. It is the smallest movement on the chart, and the only one pointing the other way."
     }
@@ -11954,152 +12068,152 @@
   }
  },
  {
-   "request": "Type a short Python script on a laptop, line by line, and show what it prints: day-on-day price changes",
-   "spec": {
-     "title": "Typed on a laptop",
-     "elements": [
-       {
-         "id": "t",
-         "type": "code",
-         "language": "brython",
-         "show": "above",
-         "lines": 5,
-         "frame": "laptop",
-         "width": 820,
-         "draw": {
-           "mode": "type"
-         },
-         "code": "prices = [100, 104, 99, 110, 115]\nchanges = []\nfor a, b in zip(prices, prices[1:]):\n    changes.append(round((b - a) / a * 100, 1))\nprint(\"day-on-day %:\", changes)\nprint(\"average:\", round(sum(changes) / len(changes), 2))\nmax(changes)"
-       }
+  "request": "Type a short Python script on a laptop, line by line, and show what it prints: day-on-day price changes",
+  "spec": {
+   "title": "Typed on a laptop",
+   "elements": [
+    {
+     "id": "t",
+     "type": "code",
+     "language": "brython",
+     "show": "above",
+     "lines": 5,
+     "frame": "laptop",
+     "width": 820,
+     "draw": {
+      "mode": "type"
+     },
+     "code": "prices = [100, 104, 99, 110, 115]\nchanges = []\nfor a, b in zip(prices, prices[1:]):\n    changes.append(round((b - a) / a * 100, 1))\nprint(\"day-on-day %:\", changes)\nprint(\"average:\", round(sum(changes) / len(changes), 2))\nmax(changes)"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "t",
+      "t_line_1"
      ],
-     "commands": [
-       {
-         "draw": [
-           "t",
-           "t_line_1"
-         ],
-         "parallel": true,
-         "speak": "Five days of prices. Let's type the script that reads them."
-       },
-       {
-         "draw": [
-           "t_line_2",
-           "t_line_3"
-         ],
-         "speak": "An empty list, and a loop over each day paired with the next."
-       },
-       {
-         "draw": [
-           "t_line_4"
-         ],
-         "speak": "The change from one day to the next, as a percent, rounded."
-       },
-       {
-         "draw": [
-           "t_line_5",
-           "t_line_6"
-         ],
-         "speak": "Print the changes, and their average."
-       },
-       {
-         "draw": [
-           "t_line_7"
-         ],
-         "speak": "And the biggest single jump, left as the last line so it shows."
-       },
-       {
-         "draw": [
-           "t_out"
-         ],
-         "speak": "Run it: four changes, an average near four percent, and one day that jumped eleven."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "Five days of prices. Let's type the script that reads them."
+    },
+    {
+     "draw": [
+      "t_line_2",
+      "t_line_3"
+     ],
+     "speak": "An empty list, and a loop over each day paired with the next."
+    },
+    {
+     "draw": [
+      "t_line_4"
+     ],
+     "speak": "The change from one day to the next, as a percent, rounded."
+    },
+    {
+     "draw": [
+      "t_line_5",
+      "t_line_6"
+     ],
+     "speak": "Print the changes, and their average."
+    },
+    {
+     "draw": [
+      "t_line_7"
+     ],
+     "speak": "And the biggest single jump, left as the last line so it shows."
+    },
+    {
+     "draw": [
+      "t_out"
+     ],
+     "speak": "Run it: four changes, an average near four percent, and one day that jumped eleven."
+    }
+   ]
+  }
  },
  {
-   "request": "Compounding at two rates as bars fed by a light Python script, then hand the viewer the script to change the rates and run it",
-   "spec": {
-     "title": "Change the rates yourself",
-     "template": "bar_chart",
-     "params": {
-       "labels": [
-         "0",
-         "10",
-         "20",
-         "30",
-         "40",
-         "50"
-       ],
-       "values": "{calc.frames}",
-       "stage": 0,
-       "ylim": [
-         0,
-         3200
-       ],
-       "value_labels": true,
-       "y_label": "Value of 100",
-       "box": {
-         "x": 470,
-         "y": 95,
-         "w": 470,
-         "h": 560
-       }
-     },
-     "elements": [
-       {
-         "id": "calc",
-         "type": "code",
-         "language": "brython",
-         "show": "code",
-         "code": "years = [0, 10, 20, 30, 40, 50]\nrates = (0.02, 0.07)\nframes = [[round(100 * (1 + r) ** y) for y in years]\n          for r in rates]"
-       }
+  "request": "Compounding at two rates as bars fed by a light Python script, then hand the viewer the script to change the rates and run it",
+  "spec": {
+   "title": "Change the rates yourself",
+   "template": "bar_chart",
+   "params": {
+    "labels": [
+     "0",
+     "10",
+     "20",
+     "30",
+     "40",
+     "50"
+    ],
+    "values": "{calc.frames}",
+    "stage": 0,
+    "ylim": [
+     0,
+     3200
+    ],
+    "value_labels": true,
+    "y_label": "Value of 100",
+    "box": {
+     "x": 470,
+     "y": 95,
+     "w": 470,
+     "h": 560
+    }
+   },
+   "elements": [
+    {
+     "id": "calc",
+     "type": "code",
+     "language": "brython",
+     "show": "code",
+     "code": "years = [0, 10, 20, 30, 40, 50]\nrates = (0.02, 0.07)\nframes = [[round(100 * (1 + r) ** y) for y in years]\n          for r in rates]"
+    }
+   ],
+   "commands": [
+    {
+     "draw": [
+      "calc",
+      "calc_line_1",
+      "calc_line_2"
      ],
-     "commands": [
-       {
-         "draw": [
-           "calc",
-           "calc_line_1",
-           "calc_line_2"
-         ],
-         "parallel": true,
-         "speak": "Six checkpoints a decade apart, and two rates: two percent and seven."
-       },
-       {
-         "draw": [
-           "calc_line_3",
-           "calc_line_4"
-         ],
-         "parallel": true,
-         "speak": "One expression computes both worlds from the same hundred."
-       },
-       {
-         "draw": [
-           "axes",
-           "bar_1",
-           "bar_2",
-           "bar_3",
-           "bar_4",
-           "bar_5",
-           "bar_6"
-         ],
-         "parallel": true,
-         "speak": "At two percent the bars barely lean forward."
-       },
-       {
-         "animate": {
-           "stage": 1
-         },
-         "duration": 3,
-         "speak": "At seven percent the same hundred is nearly three thousand after fifty years."
-       },
-       {
-         "explore": {
-           "code": "calc"
-         },
-         "speak": "Now change the rates yourself and run it — the bars follow your script."
-       }
-     ]
-   }
+     "parallel": true,
+     "speak": "Six checkpoints a decade apart, and two rates: two percent and seven."
+    },
+    {
+     "draw": [
+      "calc_line_3",
+      "calc_line_4"
+     ],
+     "parallel": true,
+     "speak": "One expression computes both worlds from the same hundred."
+    },
+    {
+     "draw": [
+      "axes",
+      "bar_1",
+      "bar_2",
+      "bar_3",
+      "bar_4",
+      "bar_5",
+      "bar_6"
+     ],
+     "parallel": true,
+     "speak": "At two percent the bars barely lean forward."
+    },
+    {
+     "animate": {
+      "stage": 1
+     },
+     "duration": 3,
+     "speak": "At seven percent the same hundred is nearly three thousand after fifty years."
+    },
+    {
+     "explore": {
+      "code": "calc"
+     },
+     "speak": "Now change the rates yourself and run it — the bars follow your script."
+    }
+   ]
+  }
  },
  {
   "request": "Flip a coin five hundred times in light Python and plot the running share of heads — the plot above the code on the screen, typed line by line",
@@ -12177,5 +12291,81 @@
   "request": "Show the same script on five different machines: a tube monitor, a home computer, a flat screen, a laptop, and bare paper",
   "title": "Five frames, one script",
   "playlist": "playlist:\n  title: Five frames, one script\n---\ntitle: On a CRT\nelements:\n  - id: p\n    type: code\n    language: brython\n    show: below\n    lines: 5\n    width: 800\n    frame: crt\n    draw:\n      mode: type\n    code: |\n      import random\n      import matplotlib.pyplot as plt\n      random.seed(7)\n      heads, share = 0, []\n      for i in range(1, 401):\n          heads += 1 if random.random() < 0.5 else 0\n          share.append(heads / i)\n      _ = plt.plot(share)\n      _ = plt.plot([0.5] * 400)\ncommands:\n  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]\n    parallel: true\n    speak: An old tube monitor, drawn in ink — and a coin about to be flipped four hundred times.\n  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]\n    speak: Every flip adds a head or nothing, and the running share is stored after each one.\n  - draw: [p_out]\n    speak: The first flips swing wildly; by four hundred the share has settled near a half.\n---\ntitle: On a home computer\nelements:\n  - id: p\n    type: code\n    language: brython\n    show: below\n    lines: 4\n    width: 780\n    frame: c64\n    draw:\n      mode: type\n    code: |\n      import random\n      import matplotlib.pyplot as plt\n      random.seed(7)\n      heads, share = 0, []\n      for i in range(1, 401):\n          heads += 1 if random.random() < 0.5 else 0\n          share.append(heads / i)\n      _ = plt.plot(share)\n      _ = plt.plot([0.5] * 400)\ncommands:\n  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]\n    parallel: true\n    speak: The tube standing on a keyboard, the way a desk looked in 1982.\n  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]\n    speak: Every flip adds a head or nothing, and the running share is stored after each one.\n  - draw: [p_out]\n    speak: Pause here and press the buttons on the chin — they work. The round one is the power.\n---\ntitle: On a flat screen\nelements:\n  - id: p\n    type: code\n    language: brython\n    show: below\n    lines: 5\n    width: 800\n    frame: screen\n    draw:\n      mode: type\n    code: |\n      import random\n      import matplotlib.pyplot as plt\n      random.seed(7)\n      heads, share = 0, []\n      for i in range(1, 401):\n          heads += 1 if random.random() < 0.5 else 0\n          share.append(heads / i)\n      _ = plt.plot(share)\n      _ = plt.plot([0.5] * 400)\ncommands:\n  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]\n    parallel: true\n    speak: The same script, on the flat display — one rounded shell, a chin, and no stand.\n  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]\n    speak: Every flip adds a head or nothing, and the running share is stored after each one.\n  - draw: [p_out]\n    speak: The picture gets the height the foot used to take.\n---\ntitle: On a laptop\nelements:\n  - id: p\n    type: code\n    language: brython\n    show: below\n    lines: 5\n    width: 800\n    frame: laptop\n    draw:\n      mode: type\n    code: |\n      import random\n      import matplotlib.pyplot as plt\n      random.seed(7)\n      heads, share = 0, []\n      for i in range(1, 401):\n          heads += 1 if random.random() < 0.5 else 0\n          share.append(heads / i)\n      _ = plt.plot(share)\n      _ = plt.plot([0.5] * 400)\ncommands:\n  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]\n    parallel: true\n    speak: And the same display over a keyboard.\n  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]\n    speak: Every flip adds a head or nothing, and the running share is stored after each one.\n  - draw: [p_out]\n    speak: Three frames, one script — the chrome is the lesson's choice, never the default.\n---\ntitle: On bare paper\nelements:\n  - id: p\n    type: code\n    language: brython\n    show: below\n    lines: 5\n    width: 800\n    draw:\n      mode: type\n    code: |\n      import random\n      import matplotlib.pyplot as plt\n      random.seed(7)\n      heads, share = 0, []\n      for i in range(1, 401):\n          heads += 1 if random.random() < 0.5 else 0\n          share.append(heads / i)\n      _ = plt.plot(share)\n      _ = plt.plot([0.5] * 400)\ncommands:\n  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]\n    parallel: true\n    speak: And with no frame at all — the default.\n  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]\n    speak: Every flip adds a head or nothing, and the running share is stored after each one.\n  - draw: [p_out]\n    speak: Nothing around the code but the paper it is written on — and the plus button still hides the code or the output, because that is the panel's doing, not the frame's.\n"
+ },
+ {
+  "request": "Teach the first microdata script: build a dataset, import two variables, and summarise women's wages",
+  "spec": {
+   "title": "Your first microdata script",
+   "elements": [
+    {
+     "id": "md",
+     "type": "code",
+     "language": "microdata",
+     "show": "left",
+     "width": 920,
+     "frame": "screen",
+     "draw": {
+      "mode": "type"
+     },
+     "code": "require no.ssb.fdb:54 as fd\ncreate-dataset lonn\nimport fd/BEFOLKNING_KJOENN as kjonn\nimport fd/INNTEKT_WLONN 2022-01-01 as inntekt\nkeep if kjonn == '2'\nsummarize inntekt"
+    }
+   ],
+   "commands": [
+    {
+     "speak": "microdata.no holds the income of every person in Norway — and you never get to see a single one of them. So how do you ask it anything?"
+    },
+    {
+     "draw": [
+      "md",
+      "md_line_1"
+     ],
+     "parallel": true,
+     "speak": "You write a script. This first line says which register database we are asking: the FDB, version fifty-four, which we will call fd."
+    },
+    {
+     "draw": [
+      "md_line_2"
+     ],
+     "speak": "A dataset starts empty. You give it a name, and it becomes the thing every later command works on."
+    },
+    {
+     "draw": [
+      "md_line_3"
+     ],
+     "speak": "Now we pull in a variable — sex, for everyone in the population."
+    },
+    {
+     "draw": [
+      "md_line_4"
+     ],
+     "speak": "And wage income, as it stood on the first of January twenty twenty-two. A date matters: income is a fact about a moment, not about a person."
+    },
+    {
+     "draw": [
+      "md_line_5"
+     ],
+     "speak": "Keep only the women. Notice what you are NOT doing — you never look at a row, you describe which rows you want."
+    },
+    {
+     "draw": [
+      "md_line_6"
+     ],
+     "speak": "And summarise. One word, and the server does the counting."
+    },
+    {
+     "draw": [
+      "md_out"
+     ],
+     "delivery": "grave",
+     "speak": "Back comes a table, never a person. That is the whole bargain of microdata: you get the statistics, the individuals stay behind the wall."
+    },
+    {
+     "explore": {
+      "code": "md"
+     },
+     "speak": "Change the year, or keep the men instead, and run it yourself."
+    }
+   ]
+  }
  }
 ]
