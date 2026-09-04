@@ -133,7 +133,7 @@ describe("the script", () => {
     const storage = memoryStorage();
     storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: "Kari" } });
     const progress = { name: "Kari", course: {}, lectures: [
-      { cast: LINKS[0].cast, opened: true, completed: true, answers: [{ step: 2, question: "Which case?", given: ["dative", "genitive"], expected: "genitive", correct: true }, { step: 5, question: "Gender?", given: ["m"], expected: "f", correct: false }] },
+      { cast: LINKS[0].cast, opened: true, completed: true, answers: [{ step: 2, question: "Which case?", given: ["dative", "genitive"], expected: "genitive", correct: true }, { step: 5, question: "Gender? <script>alert(1)</script>", given: ["<img src=x onerror=1>"], expected: "f", correct: false }] },
       { cast: LINKS[1].cast, opened: true, completed: false, answers: [] },
     ] };
     const f = vi.fn(async () => new Response(JSON.stringify(progress), { status: 200 })) as unknown as typeof fetch;
@@ -144,7 +144,12 @@ describe("the script", () => {
     expect(r.lis[0].innerHTML).toContain("Which case?");
     expect(r.lis[0].innerHTML).toContain("dative → genitive");
     expect(r.lis[0].innerHTML).toContain("expected: f");
+    // esc() escapes &<>" — proving the question's <script> and the answer's
+    // <img onerror=...> never survive as live tags. (Their literal "=" text
+    // is not HTML-special and is expected to remain as inert page text.)
+    expect(r.lis[0].innerHTML).toContain("&lt;script&gt;");
     expect(r.lis[0].innerHTML).not.toContain("<script");
+    expect(r.lis[0].innerHTML).not.toContain("<img");
   });
 
   test("forget posts the code, clears storage and shows the form again", async () => {
@@ -161,6 +166,30 @@ describe("the script", () => {
     expect(r.byId["join-form"].hidden).toBe(false);
   });
 
+  test("a failed forget (500) keeps the local code and asks to try again", async () => {
+    const storage = memoryStorage();
+    storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
+    const f = vi.fn(async (url: string) => (url.endsWith("/forget") ? new Response(JSON.stringify({ error: "server" }), { status: 500 }) : new Response("{}", { status: 404 }))) as unknown as typeof fetch;
+    const r = await run({ storage, fetch: f });
+    r.byId["join-forget"].fire("click");
+    await new Promise((res) => setTimeout(res, 0));
+    await new Promise((res) => setTimeout(res, 0));
+    expect(JSON.parse(storage.data["drawcast.learners"])).toEqual({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
+    expect(r.byId["join-status"].textContent).toMatch(/try again/i);
+  });
+
+  test("a 404 forget (code unknown to the server) clears the local code anyway", async () => {
+    const storage = memoryStorage();
+    storage.data["drawcast.learners"] = JSON.stringify({ [LEARN.courseKey]: { code: "fjell-rev-havn", api: LEARN.enroll, name: null } });
+    const f = vi.fn(async (url: string) => (url.endsWith("/forget") ? new Response(JSON.stringify({ error: "code" }), { status: 404 }) : new Response("{}", { status: 404 }))) as unknown as typeof fetch;
+    const r = await run({ storage, fetch: f });
+    r.byId["join-forget"].fire("click");
+    await new Promise((res) => setTimeout(res, 0));
+    await new Promise((res) => setTimeout(res, 0));
+    expect(JSON.parse(storage.data["drawcast.learners"])).toEqual({});
+    expect(r.byId["join-form"].hidden).toBe(false);
+  });
+
   test("use another code stores what was pasted", async () => {
     const r = await run({});
     r.byId["join-switch-input"].value = " Havn-Ulv-Bok ";
@@ -168,5 +197,12 @@ describe("the script", () => {
     await new Promise((res) => setTimeout(res, 0));
     expect(JSON.parse(r.storage.data["drawcast.learners"])[LEARN.courseKey].code).toBe("havn-ulv-bok");
     expect(r.byId["join-you"].hidden).toBe(false);
+  });
+
+  test("use another code reveals the switch box first", async () => {
+    const r = await run({});
+    expect(r.byId["join-switch-box"].hidden).toBe(true);
+    r.byId["join-switch"].fire("click");
+    expect(r.byId["join-switch-box"].hidden).toBe(false);
   });
 });

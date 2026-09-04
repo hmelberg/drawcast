@@ -20,14 +20,14 @@ export const ENROL_SCRIPT = String.raw`(function () {
   function store() { try { return localStorage; } catch (e) { return null; } }
   function read() { var s = store(); if (!s) return {}; try { var v = JSON.parse(s.getItem(KEY) || "{}"); return v && typeof v === "object" ? v : {}; } catch (e) { return {}; } }
   function write(map) { var s = store(); if (!s) return; try { s.setItem(KEY, JSON.stringify(map)); } catch (e) {} }
-  function entry() { var e = read()[course]; return e && typeof e.code === "string" ? e : null; }
+  function entry() { var e = read()[course]; return e && typeof e.code === "string" && typeof e.api === "string" ? e : null; }
   function save(code, name) { var m = read(); m[course] = { code: code, api: api, name: name || null }; write(m); }
   function forget() { var m = read(); delete m[course]; write(m); }
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function normalize(raw) { var s = String(raw || "").trim().toLowerCase().split(/\s+/).join("-"); return CODE_RE.test(s) ? s : null; }
   function post(path, body) {
     return fetch(api + "/_/api/" + path, { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }, function () { return { ok: r.ok, body: {} }; }); });
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }, function () { return { ok: r.ok, status: r.status, body: {} }; }); });
   }
   function pageUrl() { return location.origin + location.pathname; }
   function runSlug() { var m = /[?&]run=([^&#]+)/.exec(location.search || ""); return m ? decodeURIComponent(m[1]) : null; }
@@ -115,7 +115,11 @@ export const ENROL_SCRIPT = String.raw`(function () {
     ev.preventDefault();
     var e = entry();
     if (!e) return;
-    post("forget", { code: e.code }).then(function () { forget(); $("join-status").textContent = "Forgotten. Your data has been deleted."; render(); }, function () { $("join-status").textContent = "Could not reach the server — try again."; });
+    post("forget", { code: e.code }).then(function (r) {
+      if (r.ok) { forget(); $("join-status").textContent = "Forgotten. Your data has been deleted."; render(); return; }
+      if (r.status === 404 && r.body && r.body.error === "code") { forget(); $("join-status").textContent = "This code was not known to the server — removed from this browser."; render(); return; }
+      $("join-status").textContent = "Could not delete right now — please try again.";
+    }, function () { $("join-status").textContent = "Could not reach the server — try again."; });
   });
   $("join-switch").addEventListener("click", function (ev) { ev.preventDefault(); $("join-switch-box").hidden = false; });
   $("join-switch-button").addEventListener("click", function (ev) {
