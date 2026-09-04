@@ -17,6 +17,7 @@ import { fetchMdlibFile, resolveMdlib } from "./mdlib";
 import { missingModule, parseMicrodataOutput, unknownVariableError } from "./microdata-output";
 import { renderPlotlyFigures } from "./plotly-render";
 import { KNOWN_DEPS, bootPyodide, installPackage, pyodideQueue, type Pyodide } from "./pyodide";
+import { publishMicrodataVariables } from "./vocabulary";
 import type { CodeFigure, CodeRunRequest, CodeRunResult } from "./run";
 
 /** Where the snapshot is written inside pyodide's filesystem. */
@@ -62,7 +63,12 @@ function boot(status: (phase: "loading" | "running", detail: string) => void): P
     for (const [name, source] of sources) await call(py, "_md_install", [name, source]);
     const catalog = sources.find(([n]) => n === "variable_metadata.json")?.[1] ?? "";
     await call(py, "_md_boot", [catalog, String(DEFAULT_ROWS)]);
-    return { py, variables: catalogVariables(catalog) };
+    const variables = catalogVariables(catalog);
+    // The editors' word list reads these through code/vocabulary — real
+    // variable names are the one thing that stops a viewer inventing one,
+    // and the mock engine fabricates a column for an invented name.
+    publishMicrodataVariables(variables);
+    return { py, variables };
   })();
   bootPromise.catch(() => {
     bootPromise = null;

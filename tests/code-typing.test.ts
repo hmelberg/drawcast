@@ -91,13 +91,17 @@ describe("the word list", () => {
     expect(words(py("x.imp"))).not.toContain("import");
   });
 
-  test("R's names carry dots; microdata brings no vocabulary of its own", () => {
+  test("R's names carry dots, so the token scan keeps them", () => {
     const r = completionsFor({ text: "d <- data.fr", caret: 12, language: "r" });
     expect(r?.items.map((i) => i.word)).toContain("data.frame");
-    // microdata's verbs live in the prompt, the docs and the emulator — not in
-    // a sixth copy here. Its scripts complete from their own words only.
-    expect(completionsFor({ text: "imp", caret: 3, language: "microdata" })).toBeNull();
-    expect(completionsFor({ text: "import_data = 1\nimp", caret: 19, language: "microdata" })?.items.map((i) => i.word)).toEqual(["import_data"]);
+  });
+
+  test("microdata brings its own vocabulary — pinned to the emulator in microdata-vocabulary.test.ts", () => {
+    const cmd = completionsFor({ text: "imp", caret: 3, language: "microdata" });
+    expect(cmd?.items.map((i) => i.word)).toEqual(expect.arrayContaining(["import", "import-panel"]));
+    // The script's own words still come first, wherever the caret is.
+    expect(completionsFor({ text: "generate x = 1\nsummarize x\nimportant = 2\ngenerate y = impo", caret: 57, language: "microdata" })?.items[0])
+      .toEqual({ word: "important", kind: "local" });
   });
 
   test("every identifier in the script is a candidate, once", () => {

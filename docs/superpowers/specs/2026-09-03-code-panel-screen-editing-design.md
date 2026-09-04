@@ -323,10 +323,7 @@ tray's section alike.
   closing the editor (the card's own Escape is spent on the list first —
   `stopImmediatePropagation`, and the typing handler is attached before the
   card's). It says nothing inside a comment or a string, offers only the
-  script's own words after a dot (an attribute is never a keyword), and gives
-  **microdata no curated vocabulary at all**: those verbs already live in the
-  prompt, the docs and the emulator, and a sixth copy here is the one that
-  would drift.
+  script's own words after a dot (an attribute is never a keyword).
 - Edits go through `execCommand("insertText")` where the browser still offers
   it, because splicing `.value` by hand wipes the text area's undo stack;
   ctrl-Z was checked in the live smoke.
@@ -342,3 +339,38 @@ column 9 moved to column 12 and Shift-Tab took the level off; ctrl-Z undid it;
 the first Escape closed the list and the second closed the card; the same three
 behaviours in the tray's area, with the list unclipped; and a completion
 accepted on the card arrived in the tray's text area, since it is one draft.
+
+### 13.1 — microdata's own vocabulary (same day, Hans: "så det er ikke autosuggest i microdata editoren?")
+
+It had the script's own words and nothing else. It is the language that needs
+the list MOST — the commands are its whole surface and its variable names are
+28 characters long — so it now has all three, none of them hand-kept:
+
+| what | where it comes from |
+|---|---|
+| 79 **commands** (`create-dataset`, `regress-panel-diff`) | derived from the vendored `m2py.py` — its `cmd == '…'` dispatch plus `_COND_FILTER_COMMANDS`/`_CONTROL_COMMANDS` |
+| 85 **expression functions** (`rowmean`, `invchi2tail`) | the emulator's own `get_microdata_functions()` registry in `functions.py` |
+| 736 **FDB variables** (`INNTEKT_WLONN`) | the boot that already parsed `variable_metadata.json`, published through the new dependency-free `src/code/vocabulary.ts` |
+
+The two lists are literals in `code-complete.ts` — and
+`tests/microdata-vocabulary.test.ts` re-derives both from the snapshot on disk
+and asserts equality, so a re-synced `mdlib` that adds a command fails a test
+instead of quietly suggesting yesterday's language. The variables are not a
+list at all: `code/microdata.ts` calls `publishMicrodataVariables` after its
+boot, and `ui/code-typing.ts` reads them. Reading never starts a runtime, so a
+panel whose script has not run simply has no variables to offer — and in a
+lesson the panel has always drawn its output before the viewer can click it.
+
+Three rules the language needed that the others did not:
+- **A line starts with a command**, so half of them are hyphenated. The hyphen
+  counts as part of the word in that one position and nowhere else — mid-line
+  it is a minus sign (`generate y = x - crea` offers nothing).
+- **Anywhere else** the caret is in an expression or an argument, where the
+  variables and the functions live — including after the `fd/` of an `import`,
+  since a slash is not a word character.
+- **A comment is `//`**, not `#` (m2py.py:638).
+
+**Measured live** in a real microdata panel (the emulator booted, 736 variables
+published): `create-data` → `create-dataset [command]`; `import fd/INNT` → six
+real FDB variables; `generate x = rowme` → `rowmean`, `rowmedian [function]`;
+`generate y = crea` → nothing.

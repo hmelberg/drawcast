@@ -13,6 +13,7 @@
 // because that is what keeps ctrl-Z working: splicing .value by hand wipes the
 // text area's own undo stack. The manual splice is the fallback.
 
+import { knownMicrodataVariables } from "../code/vocabulary";
 import { completionsFor, enterEdit, indentWidth, tabEdit, type Completion, type TextEdit } from "./code-complete";
 import { h } from "./dom";
 
@@ -108,6 +109,7 @@ export function attachCodeTyping(area: HTMLTextAreaElement, opts: { language: st
         const row = h("button", { class: `cs-suggest-row${i === index ? " active" : ""}`, type: "button" },
           h("span", { class: "cs-suggest-word" }, c.word),
           h("span", { class: "cs-suggest-kind" }, c.kind === "local" ? "in this script" : c.kind),
+
         );
         // mousedown, not click: it must beat the text area's blur.
         row.addEventListener("mousedown", (e) => {
@@ -126,7 +128,10 @@ export function attachCodeTyping(area: HTMLTextAreaElement, opts: { language: st
   };
 
   const refresh = (force = false): void => {
-    const found = completionsFor({ text: area.value, caret: area.selectionStart ?? 0, language: opts.language, force });
+    // The catalogue's variable names, if a microdata script has run in this
+    // session (reading them never starts a runtime — an empty list until then).
+    const variables = opts.language === "microdata" ? knownMicrodataVariables() : undefined;
+    const found = completionsFor({ text: area.value, caret: area.selectionStart ?? 0, language: opts.language, variables, force });
     if (!found) return hide();
     items = found.items;
     range = { start: found.start, end: found.end };
