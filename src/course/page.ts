@@ -23,6 +23,8 @@ export interface PageLink {
   questions: string[];
   /** null for a lecture that has not been generated yet — listed, never linked. */
   href: string | null;
+  /** The cast key of a published lecture (spec §1), for the join box's player. */
+  cast?: string;
 }
 
 const STYLE = `
@@ -59,20 +61,23 @@ ${body}
 `;
 }
 
-export function coursePage(course: Course, links: PageLink[]): string {
+export function coursePage(course: Course, links: PageLink[], learn?: { courseKey: string; enroll: string }): string {
   const items = links
     .map((link, i) => {
       const head = link.href
-        ? `<a class="t" href="${escapeHtml(link.href)}">${escapeHtml(link.title)}</a>`
+        ? `<a class="t" href="${escapeHtml(link.href)}"${link.cast ? ` data-cast="${escapeHtml(link.cast)}"` : ""}>${escapeHtml(link.title)}</a>`
         : `<span class="t">${escapeHtml(link.title)}</span> <span class="soon">not published yet</span>`;
       const questions = link.questions.length
         ? `<ul class="q">${link.questions.map((q) => `<li>${escapeHtml(q)}</li>`).join("")}</ul>`
         : "";
-      return `<li><span class="n">${i + 1}</span>${head}${questions}</li>`;
+      return `<li${link.cast ? ` data-cast="${escapeHtml(link.cast)}"` : ""}><span class="n">${i + 1}</span>${head}${questions}</li>`;
     })
     .join("\n");
   const intro = course.intro ? `<p class="intro">${escapeHtml(course.intro)}</p>` : "";
-  return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n<ol>\n${items}\n</ol>`);
+  const join = learn
+    ? `<section class="join" data-course="${escapeHtml(learn.courseKey)}" data-enroll="${escapeHtml(learn.enroll)}" data-title="${escapeHtml(course.title)}"></section>`
+    : "";
+  return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n${join}\n<ol>\n${items}\n</ol>`);
 }
 
 export function repoIndexPage(courses: CourseEntry[], base: string): string {

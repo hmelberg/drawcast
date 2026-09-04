@@ -19,6 +19,7 @@ import {
 import { formatPublished, parsePlaylistText } from "../playlist/playlist";
 import { parseCourse, setCourseOption, setLectureStatus, type Course } from "./document";
 import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
+import { apiBase } from "../learn";
 
 /**
  * Join a repo path, tolerating an empty directory. The default IS empty: a
@@ -28,6 +29,17 @@ import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type 
  */
 export function joinPath(dir: string, ...parts: string[]): string {
   return [dir, ...parts].filter((p) => p !== "").join("/");
+}
+
+/** The learner backend's course identity: the published folder (spec §1). */
+export function courseKeyFor(repo: { owner: string; repo: string }, dir: string): string {
+  return `${repo.owner}/${repo.repo}/${dir}`;
+}
+
+/** Cast keys of the lectures that have a published file, in course order. */
+export function lectureCastKeys(course: Course, repo: { owner: string; repo: string }, coursesDir: string): string[] {
+  const dir = joinPath(coursesDir, course.context.slug ?? "");
+  return course.lectures.flatMap((l) => (l.status?.file ? [`${courseKeyFor(repo, dir)}/${l.status.file}`] : []));
 }
 
 export interface PublishPlan {
@@ -60,6 +72,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
   // would otherwise move its whole folder and orphan every link already shared.
   const slug = course.context.slug || slugFor(course.title || "course", new Set());
   const dir = joinPath(coursesDir, slug);
+  const enroll = course.enroll ? apiBase(course.enroll) : undefined;
 
   const taken = new Set<string>();
   const fileOf = new Map<number, string>();
@@ -111,16 +124,22 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
     } else {
       delete parsed.meta.next;
     }
+    if (enroll) parsed.meta.enroll = enroll;
+    else delete parsed.meta.enroll;
     files.push({ path: joinPath(dir, name), content: formatPublished(parsed, parsed.audio ?? null) });
     links.push({
       title: lecture.title,
       questions: lecture.questions,
       href: lectureHref(viewerBase, repo.owner, repo.repo, joinPath(dir, name)),
+      cast: `${courseKeyFor(repo, dir)}/${name}`,
     });
   });
 
   files.push({ path: joinPath(dir, "course.md"), content: text });
-  files.push({ path: joinPath(dir, "index.html"), content: coursePage(course, links) });
+  files.push({
+    path: joinPath(dir, "index.html"),
+    content: coursePage(course, links, enroll ? { courseKey: courseKeyFor(repo, dir), enroll } : undefined),
+  });
   // github.com renders this one itself, so the course is shareable before
   // Pages is switched on — and if it never is.
   files.push({ path: joinPath(dir, "README.md"), content: courseReadme(course, links) });
