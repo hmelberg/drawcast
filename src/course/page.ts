@@ -5,6 +5,7 @@
 
 import type { CourseEntry } from "../publish/github";
 import type { Course } from "./document";
+import { ENROL_SCRIPT } from "./enrol-script";
 
 export function escapeHtml(text: string): string {
   return text
@@ -41,6 +42,13 @@ const STYLE = `
   .q li { border: 0; padding: 0.1rem 0; list-style: disc; }
   .soon { opacity: 0.55; font-size: 0.85rem; font-weight: 400; }
   footer { margin-top: 3rem; font-size: 0.85rem; opacity: 0.6; }
+  .join { border: 1px solid rgba(128,128,128,0.35); border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+  .join input { font: inherit; padding: 0.35rem 0.5rem; margin: 0.25rem 0.25rem 0.25rem 0; max-width: 100%; }
+  .join button { font: inherit; padding: 0.35rem 0.8rem; }
+  .join .privacy, .join .small { font-size: 0.85rem; opacity: 0.7; margin: 0.5rem 0 0; }
+  .mark { display: inline-block; min-width: 3.2rem; margin-right: 0.5rem; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .review { margin: 0.5rem 0 0 3.7rem; font-size: 0.9rem; }
+  .review li { border: 0; padding: 0.25rem 0; list-style: none; }
 `;
 
 /** The shared page look, so a sibling page (published drawcasts) matches. */
@@ -75,7 +83,23 @@ export function coursePage(course: Course, links: PageLink[], learn?: { courseKe
     .join("\n");
   const intro = course.intro ? `<p class="intro">${escapeHtml(course.intro)}</p>` : "";
   const join = learn
-    ? `<section class="join" data-course="${escapeHtml(learn.courseKey)}" data-enroll="${escapeHtml(learn.enroll)}" data-title="${escapeHtml(course.title)}"></section>`
+    ? `<section class="join" data-course="${escapeHtml(learn.courseKey)}" data-enroll="${escapeHtml(learn.enroll)}" data-title="${escapeHtml(course.title)}">
+<form id="join-form">
+  <b>Join this course</b>
+  <input id="join-name" placeholder="Name (optional)" autocomplete="name">
+  <input id="join-email" type="email" placeholder="Email (optional — lets you find your code again)" autocomplete="email">
+  <button id="join-button" type="submit">Join</button>
+  <p class="privacy">We store your name, email and answers so you and the course's teachers can see your progress. "Forget me" deletes all of it.</p>
+</form>
+<div id="join-you" hidden>
+  <b>Your course code:</b> <code id="join-code"></code>
+  <span class="small">— <a href="#" id="join-switch">use another code</a> · <a href="#" id="join-forget">Forget me</a></span>
+  <p id="join-progress-note" class="small"></p>
+</div>
+<div id="join-switch-box" hidden><input id="join-switch-input" placeholder="fjell-rev-havn"> <button id="join-switch-button" type="button">Use this code</button></div>
+<p id="join-status" class="small"></p>
+</section>
+<script>${ENROL_SCRIPT}</script>`
     : "";
   return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n${join}\n<ol>\n${items}\n</ol>`);
 }
