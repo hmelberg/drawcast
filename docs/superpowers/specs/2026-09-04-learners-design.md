@@ -15,6 +15,11 @@ Date: 2026-09-04. Status: draft for Hans's review. Companion to
   A **learner** sees their own progress as ticks on the course page itself.
 - The same mechanism serves a self-study course (no teacher) and a taught
   course (one or more teachers, several runs of the same course).
+- A learner without any teacher can review **their own answers**, question
+  by question, on the course page — with or without an email address.
+- A **memorable name** for a course or a single drawcast —
+  `drawcast.app/#learn-russian` — registered by authors with an account
+  (§7, delivered after the learner core).
 - Simple to code and simple to use: no passwords for learners, one option
   line in the course document, one new client module, one Anvil app.
 
@@ -22,7 +27,7 @@ Date: 2026-09-04. Status: draft for Hans's review. Companion to
 
 - **Private courses.** Lectures stay on public GitHub. GitHub Pages cannot be
   made private below GitHub Enterprise Cloud, so privacy means Anvil-hosted
-  YAML — phase 3, with its seams named in §10.
+  YAML — phase 3, with its seams named in §11.
 - **Save to Anvil.** After phase 3.
 - **Learner accounts or passwords.** The code is the identity.
 - **Time-based drip and reminders.** Phase 2 (Business plan has scheduled
@@ -53,7 +58,11 @@ Date: 2026-09-04. Status: draft for Hans's review. Companion to
   request, `keepalive`), called from `src/viewer.ts:253–261` with
   `castKeyFor(req.gh)` = `owner/repo/path`.
 - **The viewer parses hash params** at `src/viewer.ts:95–109`
-  (`mode`, `style`, `advance`, `speed`).
+  (`mode`, `style`, `advance`, `speed`). **`src/entry.ts:7` decides viewer
+  vs editor** with `/[#&](gdoc|gh|gdrive)[=-]/` — any other hash boots the
+  editor, which reads no hash at all; `:17` reloads on `hashchange`. The
+  dash forms `gh-…`, `gdoc-…`, `gdrive-…` are accepted aliases of `=`
+  (`viewer.ts:96–99`), which is why reserved *prefixes* matter for names.
 - **The course page is static HTML with no script**
   (`src/course/page.ts:49–60`); `lectureHref(base, owner, repo, path)` builds
   `<base>/#gh=owner/repo/path`; `viewerBase` defaults to
@@ -116,8 +125,9 @@ enroll: https://drawcast-anvil.anvil.app
 ```
 
 - `enroll` is **pulled out of `course.context`** into `course.enroll` by
-  `parseCourse` and written back by `formatCourse`; it is the only reserved
-  course-level key. Without it nothing on the page or in the YAML changes.
+  `parseCourse` and written back by `formatCourse`. Reserved course-level
+  keys are `enroll` and, from §7, `name`; everything else stays context.
+  Without `enroll` nothing on the page or in the YAML changes.
 - The value is the Anvil app's base URL. Every endpoint derives from it
   (`<base>/_/api/enroll`, `/event`, `/progress`, `/forget`), so one line
   configures everything and another author can point at their own app.
@@ -142,10 +152,16 @@ With `enroll` set, `coursePage` renders a **join box** under the intro and an
   an email: "We sent it to you as well." Without: "Write it down — it is your
   only key." It stores the entry, rewrites lecture links, and switches to
   the progress view.
-- **Progress view** (any visit with a stored code): `GET /_/api/progress?code=`
-  and, per lecture, `○` opened / `✓` completed / `3/4` when the lecture had
-  graded questions. This *is* the learner's progress page; no Anvil page
-  for learners.
+- **Progress view** (any visit with a stored code, email or not):
+  `GET /_/api/progress?code=` and, per lecture, `○` opened / `✓` completed /
+  `3/4` when the lecture had graded questions. This *is* the learner's
+  progress page; no Anvil page for learners.
+- **Answer review, in v1.** Clicking a lecture's score unfolds its questions
+  right there: the question text, what you answered (every attempt), the
+  expected answer, and ✓/✗. The progress response already carries all of
+  it (§3), so this is presentation only — no new page, no new request. The
+  expected answer is shown by default; a per-run "hide answers" flag is a
+  later one-liner if a course ever needs a closed test.
 - **Forget me** (link shown when a code is stored): `POST /_/api/forget`
   removes the enrolment and its events, then clears the local entry.
 - **One sentence of privacy** under the form: what is stored (name, email,
@@ -168,8 +184,14 @@ repo. Everything after that is code in the repo and a manual pull.
 | `courses` | key (course key, unique), title, page_url, created |
 | `runs` | course (link), slug, title, start, `default` (bool), `open` (bool), `require_email` (bool), `drip` (`none` \| `on_complete` \| `all`), teachers (link → Users, multiple) |
 | `enrollments` | run (link), code (unique), name, email, created, last_seen |
-| `events` | enrollment (link), kind, cast, step, question, given (simple object), correct (bool), at |
+| `events` | enrollment (link), kind, cast, step, question, given (simple object), expected, correct (bool), at |
+| `names` | name (unique), kind (`cast` \| `course`), target (cast key or course key), owner (link → Users), created — §7 |
 | `hits` | ip, bucket, window_start, n — the per-IP counter |
+
+Authors and teachers are the same Users rows. The dashboard shows each
+user an **author key** (a random secret, regenerable) that drawcast's
+publish dialog sends when registering a name — the same shape as the GitHub
+token already kept in settings.
 
 A course row is **created on first enrolment**, together with an open default
 run — the author never sets anything up in Anvil for a self-study course. A
@@ -186,12 +208,15 @@ answers, `Cache-Control: no-store`.
 |---|---|---|
 | `POST /_/api/enroll` | `{course, title, page, run?, name?, email?}` | `{code, name, email_sent}`; `400 {error:"email"}` when the run requires one |
 | `POST /_/api/event` | `{code, kind, cast, step?, question?, given?, correct?}` | `{ok:true}`; updates `last_seen`; `404` unknown code |
-| `GET /_/api/progress?code=` | — | `{name, course, lectures:[{cast, opened, completed, answers:[{step, question, given, correct}]}]}` |
+| `GET /_/api/progress?code=` | — | `{name, course, lectures:[{cast, opened, completed, answers:[{step, question, given, expected, correct}]}]}` |
 | `POST /_/api/forget` | `{code}` | `{ok:true}`; deletes enrolment + events |
+| `GET /_/api/name?n=` | — | `{kind, target}` or `404` — §7 |
+| `POST /_/api/name` | `{key, name, kind, target, page?, lectures?}` | `{ok:true}`; `401` bad author key, `409` taken by someone else; own names update. For a course, `page` and the ordered `lectures` (cast keys) travel along and create the course row if it does not exist yet — §7 |
 
 Per-IP budgets from `anvil.server.request.remote_address`, sliding hour:
 enroll 20, event 2000 (a lecture hall behind one NAT — the same reasoning as
-the view counter), progress 200, forget 20. Over budget → `429`.
+the view counter), progress 200, forget 20, name lookup 600, name
+registration 60. Over budget → `429`.
 
 ### Email
 
@@ -213,7 +238,8 @@ events via a server function returning media.
 pytest with `anvil.*` stubbed as in `microdata-api/conftest.py`: code format
 and collision retry; enrol rules (email required, run selection, course
 auto-create); progress aggregation (opened/completed any-of, latest answer
-per step wins); hit-counter windows. Forms are not unit-tested (Anvil DOM).
+per step wins); hit-counter windows; name rules (regex, reserved prefixes,
+ownership on re-registration). Forms are not unit-tested (Anvil DOM).
 
 ## 4. Events — what drawcast sends
 
@@ -224,7 +250,7 @@ rule: nothing here may throw into playback; every failure returns `null`.
 |---|---|---|
 | `opened` | first time this browser session opens the cast (own session marker, `drawcast.learned:`) | — |
 | `completed` | the last item of the playlist reaches `done` — the point `showNextLink` runs | — |
-| `answer` | a **live viewer's** answer lands (never movies, never gate-less players) | `step` (index), `question`, `given` (string[] — every attempt, verbatim), `correct` |
+| `answer` | a **live viewer's** answer lands (never movies, never gate-less players) | `step` (index), `question`, `given` (string[] — every attempt, verbatim), `expected` (the correct choice's text, or the ask's `answer`), `correct` |
 
 - **Which questions report:** every `quiz`, and every `ask` that has an
   `answer` (check mode). An `ask` without `answer` (collect mode: a name, a
@@ -242,9 +268,9 @@ rule: nothing here may throw into playback; every failure returns `null`.
 ### Hooks
 
 - `Player` gains `onAnswer?(a: { index; kind: "quiz" | "ask"; question;
-  given: string[]; correct: boolean })`, called right after each
-  `outcomes.set` — only on the live path (`quizGate`/`askGate` present and
-  `autoAnswers` false).
+  given: string[]; expected: string; correct: boolean })`, called right
+  after each `outcomes.set` — only on the live path (`quizGate`/`askGate`
+  present and `autoAnswers` false).
 - `SessionOptions` gains `onDone?()`, called once per mount at
   `showNextLink`'s call site when the finished item is the last one —
   whether or not `meta.next` is set.
@@ -274,36 +300,98 @@ drawcast:
   `sendEvent`, `readProgress`.
 - `src/render/player.ts` — `onAnswer`; `src/playlist/session.ts` — `onDone`.
 - `src/viewer.ts` — wiring; `src/ui/controls.ts` — menu entry + dialog.
+- §7 (names): `src/entry.ts` third branch, new `src/names.ts` (rule,
+  reserved prefixes, resolve), `src/viewer.ts` resolve step, `document.ts`
+  `name`, `publish.ts` registration, the publish dialog's name field.
 - Tests: `tests/learn.test.ts`, `tests/course-enrol.test.ts`,
   `tests/ask-player.test.ts` (onAnswer cases), a session `onDone` test,
   document/publish round-trip tests.
 
 Anvil (`hmelberg/drawcast-anvil`): `server_code/api.py` (endpoints),
 `server_code/codes.py` (word list + generator), `server_code/progress.py`
-(aggregation), `server_code/limits.py`, `server_code/mail.py`, forms under
-`client_code/`, `tests/` with `conftest.py`.
+(aggregation), `server_code/limits.py`, `server_code/mail.py`,
+`server_code/names.py` (§7), forms under `client_code/`, `tests/` with
+`conftest.py`.
 
-## 7. Delivery order
+## 7. Names — `drawcast.app/#learn-russian`
+
+Delivered after the learner core (§8 step 5), in the same Anvil app. A name
+is a **pointer**, not a storage location: it can point at a `#gh=` lecture
+today and at an Anvil-hosted one in phase 3, so names are useful long
+before private courses exist.
+
+- **The rule.** `^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:/[a-z0-9-]{1,20})?$`,
+  lower-cased on input. Anything containing `=` is a parameter, as today.
+  **Reserved prefixes** — `gh`, `gdoc`, `gdrive`, `url`, `anvil`, `api`,
+  `name`, `course`, `learner` — may not start a name, with or without a
+  trailing `-`, because `gh-…` is an alias of `gh=…`. The rule and the list
+  live in one module (`src/names.ts`) and are mirrored in
+  `server_code/names.py`; a test keeps them equal.
+- **One flat namespace, two kinds.** A name points at a single drawcast
+  (`kind: cast`, target = cast key) or a course (`kind: course`, target =
+  course key). A course's lectures get **derived** names —
+  `learn-russian/1`, `learn-russian/2` — resolved by the server from the
+  course's published order, so the author chooses one name and every
+  lecture becomes sayable. Custom per-lecture names are a later option
+  line, touching nothing else.
+- **The course key stays the GitHub path.** A name is an alias, never the
+  key; nothing in §1–§4 changes.
+- **Registration needs an account.** The namespace is global on
+  drawcast.app and first-come, so only holders of an author key (§3) can
+  register. The server refuses a name owned by someone else (`409`) and
+  updates one the caller owns — republishing moves the pointer. Names are
+  for Hans and colleagues, not the public.
+- **Where the name is chosen.** The course document gets `name:
+  learn-russian` beside `enroll:` (reserved key, kept out of context); the
+  single-drawcast publish dialog gets a name field. `publishCourse` and the
+  single-cast publish path (`buildCastPlan` in `src/publish/cast.ts` and its
+  caller in `main.ts`) register after the GitHub write succeeds, so a name
+  never points at nothing. A course registration carries the page URL and
+  the ordered lecture keys (§3), which is what derived names and the
+  course-page redirect below resolve from. A publish without an author key
+  simply skips names.
+- **Resolving.** `src/entry.ts` gains a third branch: a hash that matches
+  the rule boots the viewer, which asks `GET /_/api/name` and then
+  continues exactly as if the target had been in the hash — `#learn-russian/3`
+  becomes `#gh=…/03-cases.yaml`, `&mode=silent` and `&learner=` compose as
+  today. A `404` shows "No drawcast called *learn-russian*" instead of the
+  editor.
+- **A course name lands on the course page.** `#learn-russian` redirects to
+  the course's `page_url`; the page's progress view already shows "Continue:
+  lecture 4". When phase 3 arrives the viewer renders that page itself so a
+  private course never needs Pages — same markup, same script (§2).
+- **Hash, not path.** `drawcast.app/learn-russian` would need a Netlify
+  rewrite and cannot work on GitHub Pages; hash names are consistent with
+  everything else and can gain the path form later with one redirect rule.
+  Known cost: hash links get no link previews and no indexing.
+
+## 8. Delivery order
 
 1. Anvil app: tables, `codes.py`, `enroll`/`event`/`progress`/`forget`, tests.
    Hans creates the app + repo and pulls. Smoke with curl.
-2. drawcast: `learn.ts`, `onAnswer`, `onDone`, viewer wiring, menu — the
-   player reports against the live app.
-3. Course document `enroll`, `meta.enroll`, the page's join box and progress
-   view. Publish one real course; Hans joins with and without email.
-4. Teacher dashboard forms.
-5. Phase 2: `drip` (on_complete / all), a reminder scheduled task, adding an
+2. drawcast: `learn.ts`, `onAnswer` (with `expected`), `onDone`, viewer
+   wiring, menu — the player reports against the live app.
+3. Course document `enroll`, `meta.enroll`, the page's join box, progress
+   view and answer review. Publish one real course; Hans joins with and
+   without email.
+4. Teacher dashboard forms, author keys.
+5. Names (§7): `names.py` + endpoints, `src/names.ts`, entry branch,
+   `name:` in the document, the publish dialog field.
+6. Phase 2: `drip` (on_complete / all), a reminder scheduled task, adding an
    email later from the page.
 
-## 8. Testing
+## 9. Testing
 
 Unit as listed in §6 and §3. End-to-end, by hand, on one published course:
 join without email → play a lecture → answer a quiz wrongly, then an ask
-with two tries → finish → the course page shows `✓ 1/2` and the Anvil grid
-shows the verbatim attempts; join with email on a second browser → welcome
-mail arrives → its link attributes the next lecture; Forget me empties both.
+with two tries → finish → the course page shows `✓ 1/2`, unfolds to the
+two questions with attempts and expected answers, and the Anvil grid shows
+the same verbatim; join with email on a second browser → welcome mail
+arrives → its link attributes the next lecture; Forget me empties both.
+After step 5: publish with `name: learn-russian` → `drawcast.app/#learn-russian`
+opens the course page and `#learn-russian/1` plays lecture one.
 
-## 9. Decisions and risks
+## 10. Decisions and risks
 
 - **Email optional at the mechanism, required per run.** A self-study run
   accepts anonymous learners; a taught run flips `require_email`. One form,
@@ -320,8 +408,13 @@ mail arrives → its link attributes the next lecture; Forget me empties both.
   record. Accepted for a progress tracker.
 - **Personal data.** Name, email and verbatim answers are stored in the UK
   on Anvil; the page says so in one sentence and "Forget me" deletes.
+- **Expected answers are shown to learners.** Drawcasts usually reveal them
+  in play anyway (`reveal`, `right`); a run-level "hide answers" flag is the
+  escape hatch if a closed test is ever wanted.
+- **Names are a global first-come namespace.** Mitigated by requiring an
+  author key; squatting is limited to people Hans gave accounts.
 
-## 10. Phase 3 — private courses (seams only)
+## 11. Phase 3 — private courses (seams only)
 
 - **Publish private:** a fourth publish target posting each lecture's YAML to
   `POST /_/api/cast` (Anvil Files/Media), replacing `publishCourse`'s GitHub
