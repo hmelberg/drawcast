@@ -439,6 +439,8 @@ export interface SavedCourse {
   text: string;
   /** owner/repo/dir this course was last published to (stage B). */
   target?: string;
+  /** Whether the last GitHub publish counted views — seeds the checkbox so a republish cannot silently re-enable counting. */
+  publishedViews?: boolean;
   ts: string;
 }
 

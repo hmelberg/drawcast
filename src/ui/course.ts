@@ -168,6 +168,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   undoBtn.hidden = true;
 
   let courseId: string | null = null;
+  /**
+   * Whether the last GitHub publish counted views for THIS course — mirrors
+   * Doc.publishedViews (main.ts), but a course has no single Doc to hang it
+   * on, so it lives here beside courseId and is carried into every persist()
+   * the same way, and reset alongside courseId whenever a fresh course
+   * starts (plan() and "New course" below).
+   */
+  let publishedViews: boolean | undefined;
   /** The document as it stood before the last AI change — the one-step undo. */
   let previous: string | null = null;
   /**
@@ -429,6 +437,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       id: courseId,
       title: course.title || "Untitled course",
       text: doc.value,
+      publishedViews,
       ts: new Date().toISOString(),
     };
     saveCourse(entry);
@@ -467,6 +476,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     if (!saved) return;
     courseId = saved.id;
     doc.value = saved.text;
+    publishedViews = saved.publishedViews;
     previous = null;
     undoBtn.hidden = true;
     render();
@@ -508,6 +518,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       checkpoint();
       doc.value = formatCourse(course);
       courseId = null; // a new plan is a new course
+      publishedViews = undefined; // never published — nothing to seed the checkbox from
       persist();
       render();
       status.textContent = `Planned ${course.lectures.length} lectures. Edit the questions, then Generate.`;
@@ -689,6 +700,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     // Autosave means whatever is on screen is already stored; starting a new
     // course can never cost the old one.
     courseId = null;
+    publishedViews = undefined; // never published — nothing to seed the checkbox from
     doc.value = "";
     ask.value = "";
     previous = null;
@@ -895,6 +907,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       // Past this line the commit has LANDED. Anything that fails below is
       // local bookkeeping, and reporting it as "Publish failed" would send the
       // user hunting for files that are already in their repository.
+      publishedViews = countViews !== false;
       const firstTime = !published.has(settings.githubRepo);
       published.add(settings.githubRepo);
       try {
@@ -1016,6 +1029,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           // as publishing a single drawcast (spec §2).
           lectureCount: course.lectures.length,
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
+          publishedViews,
         };
       },
       settings: deps.settings,

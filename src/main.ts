@@ -4156,8 +4156,13 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     // Narration reuse reads back THIS destination's previous copy — the
     // GitHub default would charge for every line again on a Drive republish,
     // and could hand over lines from a different (older) publish entirely.
-    const text = await publishTextFor(ac.signal, bake, embedImages, undefined, true, () =>
-      doc.drivePublishedId ? readFileText(doc.drivePublishedId) : Promise.resolve(null),
+    const text = await publishTextFor(
+      ac.signal,
+      bake,
+      embedImages,
+      undefined,
+      true, // countViews — Drive files are never counted; the viewer counts only #gh= casts
+      () => (doc.drivePublishedId ? readFileText(doc.drivePublishedId) : Promise.resolve(null)),
     );
     // Parents are a create-time placement; saveSpec's PATCH must never carry
     // them, so the folder is only looked up when there is no file yet.

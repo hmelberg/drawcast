@@ -58,4 +58,18 @@ describe("both publishers use the one rule", () => {
     const store = readFileSync(new URL("../src/store.ts", import.meta.url), "utf8");
     expect(store).toMatch(/publishedViews\?:\s*boolean/);
   });
+
+  test("a course seeds it too, from its own persisted row — a course has no single Doc to hang this on", () => {
+    const store = readFileSync(new URL("../src/store.ts", import.meta.url), "utf8");
+    const savedCourse = store.slice(store.indexOf("interface SavedCourse"), store.indexOf("export function loadCourses"));
+    expect(savedCourse).toMatch(/publishedViews\?:\s*boolean/);
+    // Recorded only once the commit has LANDED, beside the course's other
+    // publish bookkeeping (firstTime/published.add) — never before the call.
+    expect(course).toMatch(/publishedViews = countViews !== false;/);
+    // Read back into the ShareDoc course.ts hands to Share, scoped to that
+    // build so the checkbox is seeded from the SAME field the publish just
+    // wrote, not some unrelated `publishedViews` reference elsewhere.
+    const shareDocBuild = course.slice(course.indexOf('subject: "course",'), course.indexOf("settings: deps.settings"));
+    expect(shareDocBuild).toMatch(/publishedViews,/);
+  });
 });
