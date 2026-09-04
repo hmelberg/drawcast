@@ -280,6 +280,37 @@ A fully private course publishes no such page. Its address is `#russian`.
 - Per-lecture `#free` marks a preview lecture in a private course: it
   publishes to GitHub and plays without a code, while the rest go to Anvil.
 
+**Checking a name.** The publish dialog's name field gains a **Check** button
+beside it. Availability needs no new endpoint — `GET /_/api/name?n=` already
+answers `404 {"error":"unknown"}` for a free name — but telling *yours* from
+*someone else's* needs the author key, and a key must never travel in a query
+string (§4). So the check is `POST /_/api/name/check {name, key?}` with a
+`text/plain` body like every other write here, answering **free**, **yours**
+(republishing moves the pointer) or **taken**.
+
+On the button, never on keystrokes: the name-lookup budget is 600/h/IP
+(`limits.py`), and check-as-you-type would spend it on one impatient author.
+
+**A check is advice, not a reservation.** Nothing is held between the check
+and the publish, and registration still answers `409` when someone got there
+first. Holding a name on check would need an expiry and would invite exactly
+the squatting the author key exists to limit.
+
+**Names shorter than 8 characters are refused for now** — `MIN_NAME_LENGTH`
+in `names.ts`, mirrored in `names.py`, pinned by `tests/names.test.ts`. Short
+names are the valuable ones in a global first-come namespace, and giving them
+away before the namespace has a policy is the one mistake that cannot be
+undone. Three details:
+
+- The floor applies to the **base segment only**, so a course's derived
+  lecture names (`learn-russian/1`) keep their one-character suffix.
+- It applies at **registration, not resolution**: a name already registered
+  keeps resolving, so no published link dies when the floor lands.
+- When a course's default name — the publish slug — falls under the floor,
+  registration is **skipped with a note on the status line** and the publish
+  goes through, exactly as it does today when there is no author key at all.
+  A publish must not fail over a name.
+
 ## 9. Alternatives weighed and rejected
 
 - **Google Drive for casts.** The viewer's Drive fetch uses an API key, which
@@ -358,6 +389,11 @@ the same record; "forget me on this device" then paste the code back.
   reversal, and it belongs in round 1's checklist, not as a silent flag flip.
 - **Anvil's pull stays manual.** Every Anvil delivery ends with "pull in the
   editor, choose source code".
+- **The 8-character floor buys time; it is not a policy.** It stops the short
+  names being spent before anyone has decided how a global first-come
+  namespace should be governed — who may hold how many, whether an unused
+  name lapses, whether short ones are ever sold or reserved. That decision is
+  still open, and lowering the floor later costs one constant.
 
 ## 13. Open
 
