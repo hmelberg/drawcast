@@ -679,7 +679,7 @@ const BOARD_H = 106;
  *  engine is a 2D line renderer and a three-quarter view would have to skew
  *  the content plane with it — with one thin band down the right edge for
  *  depth. Its space is opt-in: nothing defaults to a CRT. */
-const CRT = Object.freeze({ side: 34, above: 28, chin: 46, foot: 20, r: 26, depth: 13 });
+const CRT = Object.freeze({ side: 34, above: 28, chin: 46, r: 26, depth: 13 });
 
 export type CodeFrame = "panel" | "window" | "screen" | "laptop" | "crt" | "c64" | "none";
 
@@ -693,7 +693,9 @@ export function frameSpace(frame: CodeFrame): { above: number; below: number; si
     case "laptop":
       return { above: BEZEL, below: CHIN + KEYS_H, side: BEZEL };
     case "crt":
-      return { above: CRT.above, below: CRT.chin + CRT.foot, side: CRT.side };
+      // No foot: a tube standing on nothing reads better than one on a plinth,
+      // and it hands the picture back the height a base would have taken.
+      return { above: CRT.above, below: CRT.chin, side: CRT.side };
     case "c64":
       // No foot: the monitor stands ON the keyboard, the way it did in 1982.
       return { above: CRT.above, below: CRT.chin + BOARD_H, side: CRT.side };
@@ -890,16 +892,6 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
       out.push(stroke(`${id}__btn_${i + 1}`, circlePts([sx + sw - 76 - i * 17, chinY], 4.5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
     }
     out.push(stroke(`${id}__vent`, roundRectPts(sx + 30, chinY - 5, 96, 10, 5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 1.5 }), instant));
-    // A short neck on a plinth — only when the tube stands on its own; on the
-    // home computer it stands on the keyboard instead.
-    const cxm = x0 + w / 2;
-    if (frame === "c64") return out;
-    const plinthH = 14;
-    const plinthTop = sy - (CRT.foot - plinthH);
-    const neck = ink({ strokeWidth: 2.5 });
-    out.push(stroke(`${id}__neck_l`, [[cxm - 44, sy], [cxm - 34, plinthTop]], false, neck, sketch(220)));
-    out.push(stroke(`${id}__neck_r`, [[cxm + 44, sy], [cxm + 34, plinthTop]], false, neck, sketch(220)));
-    out.push(stroke(`${id}__foot`, roundRectPts(cxm - 92, plinthTop - plinthH, 184, plinthH, 6), true, neck, sketch(400)));
   }
   return out;
 }

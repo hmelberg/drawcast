@@ -53,9 +53,10 @@ export function pressSwitch(state: SwitchState, kind: SwitchKind): SwitchState {
   }
 }
 
-/** The overlay's opacity for a state: near-black when off, a wash when dimmed. */
+/** The overlay's opacity for a state: an off monitor is OFF (the picture must
+ *  not ghost through it), a dimmed one is a wash. */
 export function veilOpacity(state: SwitchState): number {
-  return state.on ? DIM_STEPS[state.dim] : 0.92;
+  return state.on ? DIM_STEPS[state.dim] : 1;
 }
 
 /** The drawable ids a state hides: the code lines, the output pane, or neither. */
@@ -142,14 +143,15 @@ export function attachScreenSwitches(stage: HTMLElement, hd: RenderHandle): void
       stage.appendChild(veil);
       veils.set(elId, veil);
     }
-    // Logical → client → stage-relative: the conversion the quiz card and the
-    // chess overlay use, so the veil survives zoom, resize and theater mode.
+    // clientPointFor already answers in STAGE-relative pixels (it subtracts the
+    // stage's own rect), so subtracting it again is what put the dark square a
+    // stage-width to the left, half of it clipped away. Use the points as they
+    // come; they survive zoom, resize and theater mode.
     const tl = clientPointFor(stage, [box.x, box.y + box.h]);
     const br = clientPointFor(stage, [box.x + box.w, box.y]);
     if (!tl || !br) return;
-    const s = stage.getBoundingClientRect();
-    veil.style.left = `${tl[0] - s.left}px`;
-    veil.style.top = `${tl[1] - s.top}px`;
+    veil.style.left = `${tl[0]}px`;
+    veil.style.top = `${tl[1]}px`;
     veil.style.width = `${br[0] - tl[0]}px`;
     veil.style.height = `${br[1] - tl[1]}px`;
     veil.style.opacity = String(opacity);

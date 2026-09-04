@@ -127,11 +127,12 @@ describe("the screen", () => {
     expect(ids(spec({ frame: "panel", code_result: OK }))).toContain("c1__frame");
     expect(ids(spec({ frame: "panel", code_result: OK }))).not.toContain("c1__bezel");
   });
-  test("the crt is a shell, a glass, a chin of little buttons and a foot", () => {
+  test("the crt is a shell, a glass and a chin of little buttons — standing on nothing", () => {
     const drawn = ids(spec({ show: "left", code: eight, code_result: OK, frame: "crt" }));
-    expect(drawn).toEqual(expect.arrayContaining(["c1__shell", "c1__glass", "c1__power", "c1__btn_1", "c1__vent", "c1__foot"]));
+    expect(drawn).toEqual(expect.arrayContaining(["c1__shell", "c1__glass", "c1__power", "c1__btn_1", "c1__vent"]));
     expect(drawn).not.toContain("c1__frame"); // the shell IS the frame
-    expect(frameSpace("crt").below).toBeGreaterThan(frameSpace("screen").below); // a tube stands on something
+    expect(drawn).not.toContain("c1__foot"); // it reads better without one (Hans, 2026-09-04)
+    expect(frameSpace("crt").below).toBe(46); // the chin, and nothing under it
     expect(layoutSpec(spec({ show: "left", code: eight, code_result: OK, frame: "crt" }), heuristicMeasure).issues.filter((i) => i.severity === "error")).toEqual([]);
   });
   test("the laptop is a deck: a hinge bar, staggered key rows, a space bar and a trackpad", () => {
