@@ -21,7 +21,12 @@ describe("the viewer counts views", () => {
   });
 
   test("the count fires before mountPlaylist, not after it", () => {
-    const counted = withoutComments.indexOf("countingEnabled");
+    // Anchored on the CALL SITE, not the bare identifier: "countingEnabled"
+    // alone also matches the import statement at the top of the file, which
+    // always precedes everything and would keep this test green even if the
+    // call itself were moved after the mount — a false guard on the one
+    // ordering property this task exists to get right.
+    const counted = withoutComments.indexOf("countingEnabled(playlist.meta)");
     const mounted = withoutComments.indexOf("await mountPlaylist");
     expect(counted).toBeGreaterThan(0);
     expect(counted).toBeLessThan(mounted);
