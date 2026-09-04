@@ -166,6 +166,7 @@ export function learnerButton(courseKey: string, entry: LearnerEntry | null, api
     if (panel.hidden) return;
     if (e.target instanceof Node && (panel.contains(e.target) || btn.contains(e.target))) return;
     panel.hidden = true;
+    e.stopPropagation();
   };
   document.addEventListener("click", onDocClick, true);
   return root;

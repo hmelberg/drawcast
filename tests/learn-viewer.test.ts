@@ -19,9 +19,12 @@ describe("the viewer reports to the learner backend", () => {
     expect(src).toMatch(/saveLearner\(/);
   });
   test("an arriving code is stored before the URL is cleaned, and the cleanup uses replaceState", () => {
-    const save = src.indexOf("saveLearner(");
-    const strip = src.indexOf("history.replaceState");
-    expect(save).toBeGreaterThan(0);
+    const start = src.indexOf("countingEnabled(playlist.meta)");
+    const save = src.indexOf("saveLearner(", start);
+    const strip = src.indexOf("history.replaceState", start);
+    expect(start).toBeGreaterThan(0);
+    expect(save).toBeGreaterThan(start);
+    expect(strip).toBeGreaterThan(start);
     expect(strip).toBeGreaterThan(save);
     expect(src).toMatch(/stripLearnerParam\(location\.href\)/);
   });
@@ -35,5 +38,8 @@ describe("the viewer reports to the learner backend", () => {
   test("the button is a trailing control and only appears with a course backend or a stored code", () => {
     expect(src).toMatch(/fullscreenEl: figureHost, trailing/);
     expect(src).toMatch(/learnerButton\(/);
+  });
+  test("dismissing the 🎓 popover never also toggles playback", () => {
+    expect(src).toMatch(/panel\.hidden = true;\s*e\.stopPropagation\(\);/);
   });
 });
