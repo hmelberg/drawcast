@@ -104,6 +104,31 @@ describe("claimNote", () => {
   });
 });
 
+describe("nameNote and claimNote cover every outcome (switches are exhaustive — tsc is the real backstop; this is the runtime one)", () => {
+  // Typed to the exact union each function accepts: a literal that isn't a
+  // member of the union fails to compile, so the array can't contain a
+  // stale or invented outcome. It is NOT exhaustive over the union, though —
+  // a member added to the union elsewhere without growing this array would
+  // compile fine here. That direction is caught by the `never` guard in
+  // src/names.ts, not by this array; this test only checks that the
+  // outcomes it does list produce distinct, non-empty notes.
+  type NameOutcome = Parameters<typeof nameNote>[0];
+  const NAME_OUTCOMES: readonly NameOutcome[] = ["ok", "taken", "owner", "key", "invalid", "rate", "error"];
+  const CLAIM_OUTCOMES: readonly ClaimOutcome[] = ["ok", "owner", "key", "invalid", "rate", "error"];
+
+  test("every nameNote outcome produces a distinct, non-empty note", () => {
+    const notes = NAME_OUTCOMES.map((o) => nameNote(o, "learn-russian"));
+    for (const note of notes) expect(note.length).toBeGreaterThan(0);
+    expect(new Set(notes).size).toBe(NAME_OUTCOMES.length);
+  });
+
+  test("every claimNote outcome produces a distinct, non-empty note", () => {
+    const notes = CLAIM_OUTCOMES.map((o) => claimNote(o));
+    for (const note of notes) expect(note.length).toBeGreaterThan(0);
+    expect(new Set(notes).size).toBe(CLAIM_OUTCOMES.length);
+  });
+});
+
 describe("registerName learns the registry's new 403", () => {
   // The Anvil side now answers 403 when a course name is registered by
   // someone who does not own the course. Without this arm the app calls that
