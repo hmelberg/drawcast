@@ -1959,6 +1959,17 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* One tray holds every control the figure has, so a script that shares it
    with sliders folds behind its own line until the viewer wants it. */
 .cs-tray-script { display: flex; flex-direction: column; gap: 0.35rem; }
+/* What the panel shows: the same switches a drawn machine has on its chin. */
+.cs-tray-view { display: flex; align-items: center; gap: 0.4rem; font-size: var(--text-xs); color: var(--muted); }
+.cs-tray-chip {
+  font-size: var(--text-xs);
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--ink);
+}
+.cs-tray-chip.off { color: var(--muted); text-decoration: line-through; opacity: 0.7; }
 .cs-tray-toggle {
   align-self: flex-start;
   font-size: var(--text-xs);

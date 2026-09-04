@@ -148,4 +148,4 @@ commands:
   - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
     speak: Every flip adds a head or nothing, and the running share is stored after each one.
   - draw: [p_out]
-    speak: Nothing around the code but the paper it is written on.
+    speak: Nothing around the code but the paper it is written on — and the plus button still hides the code or the output, because that is the panel's doing, not the frame's.

@@ -784,6 +784,9 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
       drawOpts: instant,
     });
     out.push(stroke(`${id}__bezel`, shell, true, ink({ strokeWidth: 3.5 }), sketch(SKETCH_MS.node)));
+    // Every machine with a chin gets a power button, and it works: a small
+    // circle low on the right, the way a display's does.
+    out.push(stroke(`${id}__power`, circlePts([bx + bw - 26, by + CHIN / 2], 5.5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
   }
   if (frame === "laptop" || frame === "c64") {
     const wedge = frame === "c64";

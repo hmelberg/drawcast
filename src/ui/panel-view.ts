@@ -1,15 +1,15 @@
-// The CRT's switches (Hans, 2026-09-04: "OM vi hadde noen brytere på
-// monitoren som virket … men ikke gjør det for innlysende … litt subtle").
+// What the VIEWER has switched off on a code panel: the code, the output, the
+// picture itself, its brightness. One state per panel, two doors into it —
+// the buttons drawn on a machine's chin (Hans, 2026-09-04: "OM vi hadde noen
+// brytere på monitoren som virket … litt subtle") and the ⊕ tray's own row,
+// because the capability belongs to the PANEL, not to a CRT's cosmetics: a
+// script on bare paper can be hidden too, and it has no chin to press.
 //
-// The buttons drawn on a tube monitor's chin do what buttons on a monitor do:
-// the round one turns the picture off and on, and the little ones beside it
-// turn the CODE off, the OUTPUT off, and dim what is left — so a viewer can
-// look at just the result, or just the script, and decide that themselves.
-// Nothing is labelled: the drawing IS the label, the cursor and a tooltip are
-// the only hints, and every switch answers only while the player is paused,
-// like every other stage interaction. Mute is deliberately NOT here — the
-// control bar two centimetres below already owns it, and a second control for
-// one thing is how two truths start.
+// Nothing drawn is labelled: the drawing IS the label, the cursor and a
+// tooltip are the only hints, and a switch answers only while the player is
+// paused, like every other stage interaction. Mute is deliberately absent —
+// the control bar two centimetres below already owns it, and a second control
+// for one thing is how two truths start.
 //
 // Turning the picture off is an HTML overlay, never a drawable, so a movie or
 // an embed can never show a screen someone switched off; hiding the code or
@@ -76,6 +76,27 @@ function boxOf(leaves: Drawable[], id: string): BBox | null {
   return null;
 }
 
+/** One figure's panel-view state, shared by the drawn switches and the tray. */
+export interface PanelView {
+  /** Ids of the code panels this figure draws. */
+  panels: string[];
+  /** True when this panel is drawn on a machine (a glass to darken). */
+  hasScreen(id: string): boolean;
+  state(id: string): SwitchState;
+  press(id: string, kind: SwitchKind): void;
+  /** Re-assert the current state after something else repainted the figure. */
+  apply(): void;
+  /** Called whenever a press changes anything, so a tray row can re-render. */
+  onChange(cb: () => void): void;
+}
+
+const views = new WeakMap<HTMLElement, PanelView>();
+
+/** The panel-view controller for a mounted figure, if it has any code panel. */
+export function panelViewFor(stage: HTMLElement | null | undefined): PanelView | null {
+  return (stage && views.get(stage)) || null;
+}
+
 /** The chin, left to right: what each drawn button actually does. */
 const CHIN: readonly (readonly [string, SwitchKind, string])[] = [
   ["__power", "power", "Picture off / on"],
@@ -88,8 +109,10 @@ const CHIN: readonly (readonly [string, SwitchKind, string])[] = [
  * Wires every CRT panel in the mounted figure. A no-op for any other frame:
  * a switch exists because it is DRAWN, so nothing invisible is ever clickable.
  */
-export function attachScreenSwitches(stage: HTMLElement, hd: RenderHandle): void {
-  const crts = (hd.spec.elements ?? []).filter((e) => e.type === "code" && (e.frame === "crt" || e.frame === "c64") && e.show !== "none");
+export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
+  // EVERY drawn code panel gets the state; only the ones on a machine get the
+  // drawn buttons, because a button you cannot see is not an affordance.
+  const crts = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none");
   if (crts.length === 0) return;
   const leaves = leafDrawables(hd.layout.drawables);
 
@@ -109,10 +132,9 @@ export function attachScreenSwitches(stage: HTMLElement, hd: RenderHandle): void
       out: mounted.filter((id) => id === `${el.id}_out` || new RegExp(`^${el.id}_fig_\\d+$`).test(id)),
     });
   }
-  if (switches.size === 0) return;
-
   const state = new Map<string, SwitchState>();
   const veils = new Map<string, HTMLElement>();
+  const listeners: (() => void)[] = [];
 
   /** Hit boxes for the switches on screen at this boundary. */
   const boxes = (): Map<string, BBox> => {
@@ -172,7 +194,29 @@ export function attachScreenSwitches(stage: HTMLElement, hd: RenderHandle): void
     state.clear();
     for (const v of veils.values()) v.remove();
     veils.clear();
+    for (const cb of listeners) cb();
   };
+
+  /** One press, from a drawn button or from the tray's row. */
+  const press = (elId: string, kind: SwitchKind): void => {
+    state.set(elId, pressSwitch(state.get(elId) ?? SWITCHES_ON, kind));
+    paintVeil(elId);
+    applyHidden();
+    for (const cb of listeners) cb();
+  };
+
+  views.set(stage, {
+    panels: crts.map((e) => e.id),
+    hasScreen: (id) => glass.has(id),
+    state: (id) => state.get(id) ?? SWITCHES_ON,
+    press,
+    apply: () => {
+      applyHidden();
+      for (const id of state.keys()) paintVeil(id);
+    },
+    onChange: (cb) => listeners.push(cb),
+  });
+  if (switches.size === 0) return; // no chin to press: the tray is the only door
 
   const switchAt = (e: MouseEvent): { el: string; kind: SwitchKind; label: string } | null => {
     if (gateIsOpen(stage)) return null;
@@ -192,9 +236,7 @@ export function attachScreenSwitches(stage: HTMLElement, hd: RenderHandle): void
       // handler sits on this same node, and the chin is INSIDE the panel's
       // box — a press on a button must never also open the script editor.
       e.stopImmediatePropagation();
-      state.set(sw.el, pressSwitch(state.get(sw.el) ?? SWITCHES_ON, sw.kind));
-      paintVeil(sw.el);
-      applyHidden();
+      press(sw.el, sw.kind);
     },
     true,
   );

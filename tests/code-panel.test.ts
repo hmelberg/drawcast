@@ -157,6 +157,14 @@ describe("the screen", () => {
     expect(ky).toBeGreaterThanOrEqual(box.y);
     expect(ky).toBeLessThanOrEqual(box.y + box.h);
   });
+  test("every machine with a chin has a power button, and the frameless ones have none", () => {
+    for (const f of ["screen", "laptop", "crt", "c64"]) {
+      expect(ids(spec({ show: "left", code: eight, code_result: OK, frame: f })), f).toContain("c1__power");
+    }
+    for (const f of ["panel", "window", "none"]) {
+      expect(ids(spec({ show: "left", code: eight, code_result: OK, frame: f })), f).not.toContain("c1__power");
+    }
+  });
   test("bare paper is the default; a frame is something the lesson asks for", () => {
     const bare = ids(spec({ show: "left", code: eight, code_result: OK }));
     for (const id of ["c1__bezel", "c1__frame", "c1__bar", "c1__bg"]) expect(bare).not.toContain(id);

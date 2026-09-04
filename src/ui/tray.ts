@@ -29,6 +29,7 @@ import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
+import { panelViewFor } from "./panel-view";
 import { activitiesFor } from "./quiz-model";
 import { mountQuiz } from "./quiz";
 import { mountChessVs } from "./chessvs";
@@ -107,6 +108,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const repaint = (): void => {
     if (patches.size === 0) {
       hd.timeline.previewParams(overrides);
+      panelViewFor(stage)?.apply();
       return;
     }
     const elements = (hd.spec.elements ?? []).map((e) => {
@@ -127,6 +129,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       }).params;
     }
     hd.timeline.previewSpec({ elements, params: { ...params, ...overrides } });
+    panelViewFor(stage)?.apply(); // a repaint must not un-hide what a switch hid
   };
 
   /**
@@ -245,6 +248,36 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         repaint(); // an edited script stays edited while the knob turns
       });
       tray.appendChild(h("label", { class: "cs-tray-row" }, h("span", { class: "cs-tray-label" }, spec.label), range, readout));
+    }
+    // What the panel SHOWS: the same state the buttons drawn on a machine's
+    // chin press, offered here too — the capability belongs to the code panel,
+    // and a script on bare paper has no chin to press (Hans, 2026-09-04).
+    const view = stage ? panelViewFor(stage) : null;
+    if (view && !opts.gated) {
+      for (const panelId of view.panels) {
+        const row = h("div", { class: "cs-tray-view" });
+        row.appendChild(h("span", { class: "cs-tray-label" }, view.panels.length > 1 ? `Show (${panelId})` : "Show"));
+        const chips: { kind: "code" | "output" | "power"; label: string }[] = [
+          { kind: "code", label: "Code" },
+          { kind: "output", label: "Output" },
+        ];
+        // "Picture" only where there IS a picture to switch off.
+        if (view.hasScreen(panelId)) chips.push({ kind: "power", label: "Picture" });
+        for (const c of chips) {
+          const chip = h("button", { class: "cs-tray-chip" }, c.label);
+          const sync = (): void => {
+            const st = view.state(panelId);
+            const on = c.kind === "code" ? st.code : c.kind === "output" ? st.output : st.on;
+            chip.classList.toggle("off", !on);
+            chip.setAttribute("aria-pressed", String(on));
+          };
+          chip.addEventListener("click", () => view.press(panelId, c.kind));
+          view.onChange(sync);
+          sync();
+          row.appendChild(chip);
+        }
+        tray.appendChild(row);
+      }
     }
     // The scripts on screen. Expanded when the editor IS the point (the only
     // control, the beat's own `code`, the screen the viewer clicked); behind

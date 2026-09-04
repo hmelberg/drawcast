@@ -2,7 +2,7 @@
 // (hit-testing, the veil, the tooltip) is the live smoke's.
 
 import { describe, expect, test } from "vitest";
-import { hiddenIds, pressSwitch, veilOpacity, SWITCHES_ON, type SwitchState } from "../src/ui/screen-switches";
+import { hiddenIds, pressSwitch, veilOpacity, SWITCHES_ON, type SwitchState } from "../src/ui/panel-view";
 
 const parts = { lines: ["c1_line_1", "c1_line_2"], out: ["c1_out", "c1_fig_1"] };
 
