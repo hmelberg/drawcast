@@ -6,7 +6,6 @@ import {
   courseFolderOf,
   dayOfHitKey,
   dayString,
-  encodeCastKey,
   hitKey,
   hitPrefix,
   isValidCastKey,
@@ -43,38 +42,77 @@ describe("isValidCastKey", () => {
 
 describe("blob key construction", () => {
   const key = "hmelberg/kurs/casts/did.yaml";
-  const enc = "hmelberg%2Fkurs%2Fcasts%2Fdid.yaml";
 
-  test("a cast key becomes exactly one path segment", () => {
-    expect(encodeCastKey(key)).toBe(enc);
-    expect(encodeCastKey(key)).not.toContain("/");
+  test("hit and rollup keys use the cast key's own slashes as real path separators", () => {
+    expect(hitPrefix(key)).toBe(`h/${key}/`);
+    expect(hitKey(key, "2026-09-04", "abc")).toBe(`h/${key}/2026-09-04/abc`);
+    expect(rollupKey(key)).toBe(`r/${key}`);
   });
 
-  test("hit and rollup keys are built from the encoded segment", () => {
-    expect(hitPrefix(enc)).toBe(`h/${enc}/`);
-    expect(hitKey(enc, "2026-09-04", "abc")).toBe(`h/${enc}/2026-09-04/abc`);
-    expect(rollupKey(enc)).toBe(`r/${enc}`);
+  test("REGRESSION: constructed keys/prefixes never introduce a percent-encoded character", () => {
+    // The Netlify Blobs SDK embeds set/get/delete's `key` directly into the
+    // request PATH, but sends list's `prefix` through URLSearchParams, which
+    // independently re-encodes it. A key built by percent-encoding the cast
+    // key's slashes into one segment (the previous design here) therefore
+    // travels the wire with a DIFFERENT number of encoding layers depending
+    // on which operation carries it — verified directly against both
+    // Netlify's own local Blobs emulator (leaves path segments un-decoded:
+    // the encoded form matched) and a plain one-decode-per-segment router,
+    // what most real HTTP frameworks do (it matched NOTHING). That second
+    // case is what production actually did: every POST "succeeded" while
+    // every list() came back empty, with no lag — not eventually-consistency,
+    // a permanent mismatch. A fake in-memory store — see view-store.test.ts —
+    // cannot reproduce that: it does `.startsWith()` on whatever plain JS
+    // string it's handed, blind to how the real HTTP API would have encoded
+    // it, which is exactly how the bug shipped with green tests. This test
+    // instead pins the necessary (not sufficient) condition checkable
+    // without a platform: a valid cast key never contains "%" (see
+    // CAST_KEY_RE), so nothing built from one should either. Only the live
+    // smoke test against the deployed function exercises the real wire
+    // encoding this pins the precondition for.
+    const built = [
+      hitKey(key, "2026-09-04", "abc"),
+      hitPrefix(key),
+      rollupKey(key),
+      repoHitPrefix("hmelberg", "kurs"),
+      repoRollupPrefix("hmelberg", "kurs"),
+    ];
+    for (const s of built) {
+      expect(s).not.toContain("%");
+      expect(decodeURIComponent(s)).toBe(s); // idempotent under decode
+    }
   });
 
   test("a repo prefix matches every cast in that repo and nothing else", () => {
-    expect(hitKey(enc, "2026-09-04", "abc").startsWith(repoHitPrefix("hmelberg", "kurs"))).toBe(true);
-    expect(rollupKey(enc).startsWith(repoRollupPrefix("hmelberg", "kurs"))).toBe(true);
-    expect(hitKey(enc, "2026-09-04", "abc").startsWith(repoHitPrefix("hmelberg", "kur"))).toBe(false);
+    expect(hitKey(key, "2026-09-04", "abc").startsWith(repoHitPrefix("hmelberg", "kurs"))).toBe(true);
+    expect(rollupKey(key).startsWith(repoRollupPrefix("hmelberg", "kurs"))).toBe(true);
+    expect(hitKey(key, "2026-09-04", "abc").startsWith(repoHitPrefix("hmelberg", "kur"))).toBe(false);
   });
 
   test("keys parse back into a cast key and a day", () => {
-    expect(castKeyOfHitKey(`h/${enc}/2026-09-04/abc`)).toBe(key);
-    expect(dayOfHitKey(`h/${enc}/2026-09-04/abc`)).toBe("2026-09-04");
-    expect(castKeyOfRollup(`r/${enc}`)).toBe(key);
+    expect(castKeyOfHitKey(`h/${key}/2026-09-04/abc`)).toBe(key);
+    expect(dayOfHitKey(`h/${key}/2026-09-04/abc`)).toBe("2026-09-04");
+    expect(castKeyOfRollup(`r/${key}`)).toBe(key);
     expect(dayOfHitKey("h/nonsense")).toBeNull();
   });
 
-  test("a malformed percent-sequence returns null instead of throwing", () => {
-    // `list()` can hand back keys this module never wrote — a stray or
-    // legacy blob in the same store — so decodeURIComponent must not be
-    // trusted to succeed on them.
+  test("a cast key with more path segments still round-trips", () => {
+    const deep = "hmelberg/kurs/courses/causal/methods/did.yaml";
+    expect(castKeyOfHitKey(hitKey(deep, "2026-09-04", "abc"))).toBe(deep);
+    expect(dayOfHitKey(hitKey(deep, "2026-09-04", "abc"))).toBe("2026-09-04");
+    expect(castKeyOfRollup(rollupKey(deep))).toBe(deep);
+  });
+
+  test("a stray key that isn't a valid cast key returns null instead of throwing or misparsing", () => {
+    // `list()` can hand back keys this module never wrote — a stray blob in
+    // the same store, or an orphan from the old percent-encoded layout (a
+    // literal "%" is never a valid cast key character, so those are
+    // rejected here rather than silently treated as live).
     expect(castKeyOfHitKey("h/broken%2/2026-09-04/abc")).toBeNull();
     expect(castKeyOfRollup("r/broken%2")).toBeNull();
+    expect(castKeyOfHitKey("h/hmelberg/kurs/noext/2026-09-04/abc")).toBeNull(); // no valid extension
+    expect(castKeyOfHitKey("h/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml/2026-09-04/abc")).toBeNull(); // pre-fix orphan
+    expect(castKeyOfRollup("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toBeNull(); // pre-fix orphan
   });
 });
 

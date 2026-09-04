@@ -1,5 +1,16 @@
 // Recording and counting views. Driven entirely through an injected fake
 // store, the same way tests/rate-limit.test.ts drives the failure budget.
+//
+// HONEST LIMIT: this fake store does `.filter(k => k.startsWith(prefix))` on
+// plain JS strings — it cannot reproduce the real Netlify Blobs HTTP API,
+// where `set`'s key travels in the request PATH and `list`'s prefix travels
+// as a URL QUERY parameter that the SDK independently re-encodes. That gap
+// is exactly what let the production view-counter bug ship (see
+// netlify/lib/view-key.mts's module comment): every test here passed while
+// every real POST silently failed to be counted. tests/view-key.test.ts pins
+// the necessary condition testable without a platform — that constructed
+// keys/prefixes never contain a "%" — but only the live smoke test against
+// the deployed function actually exercises the real wire encoding.
 import { describe, expect, test, vi } from "vitest";
 import { countCast, countRepo, defaultStore, recordAndCount, recordHit, type ViewStore } from "../netlify/lib/view-store.mts";
 import { getStore } from "@netlify/blobs";
@@ -33,8 +44,8 @@ describe("recordHit", () => {
     await recordHit(KEY, opts(store, DAY2, seq));
     await recordHit(KEY, opts(store, DAY2, seq));
     expect([...data.keys()]).toEqual([
-      "h/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml/2026-09-04/id0",
-      "h/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml/2026-09-04/id1",
+      "h/hmelberg/kurs/casts/did.yaml/2026-09-04/id0",
+      "h/hmelberg/kurs/casts/did.yaml/2026-09-04/id1",
     ]);
   });
 
@@ -79,7 +90,7 @@ describe("countCast", () => {
 
     const first = await countCast(KEY, opts(store, DAY3, seq));
     expect(first.total).toBe(4);
-    expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toEqual({ "2026-09-04": 3 });
+    expect(data.get("r/hmelberg/kurs/casts/did.yaml")).toEqual({ "2026-09-04": 3 });
     // Yesterday's raw keys survive this pass; today's are untouched either way.
     expect([...data.keys()].filter((k) => k.includes("2026-09-04")).length).toBe(3);
     expect([...data.keys()].filter((k) => k.includes("2026-09-05")).length).toBe(1);
@@ -110,8 +121,8 @@ describe("countCast", () => {
     // mergeDays add the raw count instead of ignoring it would inflate this
     // to 6, silently double-counting the straggler.
     const { store, data } = fakeStore();
-    data.set("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml", { "2026-09-04": 5 });
-    data.set("h/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml/2026-09-04/stray", "");
+    data.set("r/hmelberg/kurs/casts/did.yaml", { "2026-09-04": 5 });
+    data.set("h/hmelberg/kurs/casts/did.yaml/2026-09-04/stray", "");
     const res = await countCast(KEY, opts(store, DAY3));
     expect(res.total).toBe(5);
     expect(res.days).toEqual({ "2026-09-04": 5 });
@@ -171,7 +182,7 @@ describe("countCast", () => {
       for (let i = 0; i < 3; i++) await recordHit(KEY, opts(store, DAY2, seq));
       const res = await countCast(KEY, opts(store, JUST_AFTER_MIDNIGHT, seq));
       expect(res.total).toBe(3); // still counted, straight from the raw keys
-      expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toBeUndefined();
+      expect(data.get("r/hmelberg/kurs/casts/did.yaml")).toBeUndefined();
       expect([...data.keys()].filter((k) => k.includes("2026-09-04")).length).toBe(3);
     });
 
@@ -180,9 +191,9 @@ describe("countCast", () => {
       const seq = { n: 0 };
       for (let i = 0; i < 3; i++) await recordHit(KEY, opts(store, DAY2, seq));
       await countCast(KEY, opts(store, JUST_AFTER_MIDNIGHT, seq)); // skipped — still in the window
-      expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toBeUndefined();
+      expect(data.get("r/hmelberg/kurs/casts/did.yaml")).toBeUndefined();
       await countCast(KEY, opts(store, DAY3, seq)); // well past it now
-      expect(data.get("r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml")).toEqual({ "2026-09-04": 3 });
+      expect(data.get("r/hmelberg/kurs/casts/did.yaml")).toEqual({ "2026-09-04": 3 });
     });
   });
 
@@ -198,7 +209,7 @@ describe("countCast", () => {
     await recordHit(KEY, opts(store, DAY2, seq)); // this reader's own listing sees only 2
 
     const real = store();
-    const rollupBlobKey = "r/hmelberg%2Fkurs%2Fcasts%2Fdid.yaml";
+    const rollupBlobKey = "r/hmelberg/kurs/casts/did.yaml";
     let getCalls = 0;
     const racing: ViewStore = {
       ...real,
@@ -252,11 +263,28 @@ describe("countRepo", () => {
 
   test("an unparseable key in the store is ignored rather than crashing the whole repo read", async () => {
     // castKeyOfHitKey/castKeyOfRollup can meet keys this module never wrote —
-    // a stray or legacy blob under the same store — and must not throw.
+    // a stray blob under the same store, shaped like a hit/rollup key but
+    // not a valid cast key — and must not throw.
     const { store, data } = fakeStore();
     await recordHit(KEY, opts(store, DAY2));
-    data.set("h/hmelberg%2Fkurs%2Fbroken%2/2026-09-04/id0", "");
-    data.set("r/hmelberg%2Fkurs%2Falso-broken%2", { "2026-09-04": 5 });
+    data.set("h/hmelberg/kurs/broken/2026-09-04/id0", ""); // no valid extension
+    data.set("r/hmelberg/kurs/also-broken", { "2026-09-04": 5 });
+    const res = await countRepo("hmelberg", "kurs", opts(store, DAY2));
+    expect(res.casts.map((c) => c.key)).toEqual([KEY]);
+  });
+
+  test("an orphan from the old percent-encoded key layout does not resurface", async () => {
+    // Before the fix, every recorded view was written under a key like
+    // h/<castKey percent-encoded into one segment>/<day>/<uuid> — see
+    // view-key.mts's module comment for why that broke counting. Those old
+    // writes are permanently invisible to the new h/<owner>/<repo>/ prefix
+    // (they don't start with it), and even if one somehow did share the
+    // prefix, castKeyOfHitKey/castKeyOfRollup reject a "%"-bearing candidate
+    // (isValidCastKey never accepts one) rather than treating it as live.
+    const { store, data } = fakeStore();
+    await recordHit(KEY, opts(store, DAY2));
+    data.set("h/hmelberg%2Fkurs%2Forphan.yaml/2026-09-04/id-old", "");
+    data.set("r/hmelberg%2Fkurs%2Forphan.yaml", { "2026-09-04": 5 });
     const res = await countRepo("hmelberg", "kurs", opts(store, DAY2));
     expect(res.casts.map((c) => c.key)).toEqual([KEY]);
   });

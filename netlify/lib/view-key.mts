@@ -1,12 +1,29 @@
 // Key algebra for view counting. Pure: no Blobs, no network, no dates beyond
 // formatting — so every rule here is testable without a platform.
 //
-// Layout, with <enc> = the cast key percent-encoded into ONE path segment:
-//   h/<enc>/<YYYY-MM-DD>/<uuid>   one recorded view, empty body
-//   r/<enc>                        rollup: {"2026-09-01": 12, …}
+// Layout — the cast key's OWN slashes are real path separators, not escaped:
+//   h/<castKey>/<YYYY-MM-DD>/<uuid>   one recorded view, one-byte body
+//   r/<castKey>                        rollup: {"2026-09-01": 12, …}
 //
-// One segment matters: it makes "every cast in this repo" a plain string
-// prefix, because encodeURIComponent touches only "/" in a legal cast key.
+// This used to percent-encode the cast key into one path segment (so "every
+// cast in this repo" stayed a plain string prefix). That broke counting in
+// production: the Blobs SDK embeds `set`/`get`/`delete`'s key directly into
+// the request PATH, but sends `list`'s `prefix` through `URLSearchParams`,
+// which independently re-encodes it — so a key containing a literal "%"
+// (which percent-encoding the cast key's slashes always produces) travels
+// the wire with a DIFFERENT number of encoding layers depending on which
+// operation carries it. Verified directly: against Netlify's own local Blobs
+// emulator (which leaves path segments un-decoded) the encoded form matched;
+// against a plain one-decode-per-segment router — what most real HTTP
+// frameworks do, and evidently what production does too — it matched
+// NOTHING, reproducing the live symptom exactly (every POST "succeeded", GET
+// always reported 0, not a consistency lag). A valid cast key never contains
+// "%" (see CAST_KEY_RE), so leaving its slashes alone removes the asymmetry
+// instead of routing around it: "every cast in this repo" is still a plain
+// string prefix, because a real "/" is still just a character a prefix check
+// can match on — Netlify Blobs keys are natively hierarchical (its own docs
+// show `list({ prefix: 'cats/' })`), which is what this now relies on
+// instead of fighting it.
 
 /**
  * The path half must match what the VIEWER will open — `DOC_PATH_RE` in
@@ -25,58 +42,53 @@ export function isValidCastKey(key: string): boolean {
   return CAST_KEY_RE.test(key);
 }
 
-export function encodeCastKey(key: string): string {
-  return encodeURIComponent(key);
+export function hitPrefix(castKey: string): string {
+  return `h/${castKey}/`;
 }
 
-export function hitPrefix(enc: string): string {
-  return `h/${enc}/`;
+export function hitKey(castKey: string, day: string, id: string): string {
+  return `h/${castKey}/${day}/${id}`;
 }
 
-export function hitKey(enc: string, day: string, id: string): string {
-  return `h/${enc}/${day}/${id}`;
-}
-
-export function rollupKey(enc: string): string {
-  return `r/${enc}`;
+export function rollupKey(castKey: string): string {
+  return `r/${castKey}`;
 }
 
 export function repoHitPrefix(owner: string, repo: string): string {
-  return `h/${encodeURIComponent(`${owner}/${repo}/`)}`;
+  return `h/${owner}/${repo}/`;
 }
 
 export function repoRollupPrefix(owner: string, repo: string): string {
-  return `r/${encodeURIComponent(`${owner}/${repo}/`)}`;
+  return `r/${owner}/${repo}/`;
 }
 
-/** `r/<enc>` → the cast key, or null if `<enc>` is not valid percent-encoding.
- *  This runs over real `list()` output, which can contain keys this module
- *  never wrote — a stray or legacy blob — so decodeURIComponent's throw on a
- *  malformed sequence must not propagate. */
+/** `r/<castKey>` → the cast key, or null if what follows "r/" isn't a valid
+ *  cast key. This runs over real `list()` output, which can contain keys
+ *  this module never wrote — a stray blob, or an orphan from the old
+ *  percent-encoded layout (a literal "%2F" is never a valid cast key
+ *  character, so those are rejected here, not silently treated as live). */
 export function castKeyOfRollup(blobKey: string): string | null {
-  try {
-    return decodeURIComponent(blobKey.slice("r/".length));
-  } catch {
-    return null;
-  }
+  const castKey = blobKey.slice("r/".length);
+  return isValidCastKey(castKey) ? castKey : null;
 }
 
-/** `h/<enc>/<day>/<id>` → the cast key, or null if the shape is wrong or
- *  `<enc>` is not valid percent-encoding (see castKeyOfRollup). */
+/** `h/<castKey>/<day>/<id>` → the cast key, or null if the shape is wrong.
+ *  `castKey` itself contains "/" (every valid one does — see CAST_KEY_RE),
+ *  so this reads in from both ends: `parts[0]` must be "h", the last part is
+ *  the id (ignored here), the second-to-last is the day, and everything
+ *  between the marker and the day — rejoined — is the candidate cast key. */
 export function castKeyOfHitKey(blobKey: string): string | null {
   const parts = blobKey.split("/");
-  if (parts.length !== 4 || parts[0] !== "h") return null;
-  try {
-    return decodeURIComponent(parts[1]);
-  } catch {
-    return null;
-  }
+  if (parts.length < 4 || parts[0] !== "h") return null;
+  const castKey = parts.slice(1, -2).join("/");
+  return isValidCastKey(castKey) ? castKey : null;
 }
 
 export function dayOfHitKey(blobKey: string): string | null {
   const parts = blobKey.split("/");
-  if (parts.length !== 4 || parts[0] !== "h") return null;
-  return /^\d{4}-\d{2}-\d{2}$/.test(parts[2]) ? parts[2] : null;
+  if (parts.length < 4 || parts[0] !== "h") return null;
+  const day = parts[parts.length - 2];
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
 }
 
 /** UTC, so "today" is one thing worldwide, and ISO so string order is date

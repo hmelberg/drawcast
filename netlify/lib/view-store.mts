@@ -16,7 +16,6 @@ import {
   courseFolderOf,
   dayOfHitKey,
   dayString,
-  encodeCastKey,
   hitKey,
   hitPrefix,
   isValidCastKey,
@@ -26,6 +25,19 @@ import {
 } from "./view-key.mts";
 
 const STORE_NAME = "views";
+
+// The value written for every recorded view. Never read by anything — only
+// keys are counted, "keys are the data" per the module comment above — so
+// this could be any single byte. It is deliberately NOT "": an empty-string
+// body was flagged as unverified against the real Blobs API (every test here
+// runs against an injected fake store, which cannot tell a 0-byte body from
+// a 1-byte one). Investigation of the actual production bug (see
+// view-key.mts's module comment) found a different, confirmed cause and did
+// not implicate this — Netlify's own local Blobs emulator lists a 0-byte
+// blob just fine — but switching costs nothing, so this stays a one-byte
+// marker rather than reverting to "": don't "tidy" this back to an empty
+// string without re-verifying against the live API first.
+const HIT_VALUE = "1";
 
 /** The slice of the Blobs API this needs — swapped for a fake in tests. */
 export interface ViewStore {
@@ -90,14 +102,13 @@ function settings(o: ViewOptions) {
 export async function recordHit(castKey: string, o: ViewOptions = {}): Promise<string> {
   if (!isValidCastKey(castKey)) throw new Error("invalid cast key");
   const { store, now, uuid } = settings(o);
-  const enc = encodeCastKey(castKey);
-  const key = hitKey(enc, dayString(now()), uuid());
-  await store().set(key, "");
+  const key = hitKey(castKey, dayString(now()), uuid());
+  await store().set(key, HIT_VALUE);
   return key;
 }
 
-async function readRollup(store: ViewStore, enc: string): Promise<Record<string, number>> {
-  const raw = (await store.get(rollupKey(enc), { type: "json", consistency: "strong" })) as Record<string, number> | null;
+async function readRollup(store: ViewStore, castKey: string): Promise<Record<string, number>> {
+  const raw = (await store.get(rollupKey(castKey), { type: "json", consistency: "strong" })) as Record<string, number> | null;
   if (!raw || typeof raw !== "object") return {};
   const out: Record<string, number> = {};
   for (const [day, n] of Object.entries(raw)) if (typeof n === "number") out[day] = n;
@@ -166,7 +177,7 @@ const GRACE_MS = 15 * 60 * 1000;
 
 async function compact(
   store: ViewStore,
-  enc: string,
+  castKey: string,
   rollup: Record<string, number>,
   raw: Record<string, string[]>,
   today: string,
@@ -188,10 +199,10 @@ async function compact(
     // listing. Taking the max against whatever is durable right now means
     // whichever of them writes last can only grow the stored total, never
     // shrink an already-committed larger one.
-    const current = await readRollup(store, enc);
+    const current = await readRollup(store, castKey);
     const merged: Record<string, number> = { ...rollup, ...current };
     for (const d of fresh) merged[d] = Math.max(rollup[d] ?? 0, current[d] ?? 0, raw[d].length);
-    await store.setJSON(rollupKey(enc), merged);
+    await store.setJSON(rollupKey(castKey), merged);
     return; // Deleting waits for the next read, once the rollup is durable.
   }
   // Flattened first so `deleteBudget` still means exactly what it always
@@ -209,8 +220,7 @@ export async function countCast(castKey: string, o: ViewOptions & { assumeHit?: 
   if (!isValidCastKey(castKey)) throw new Error("invalid cast key");
   const { store, now, deleteBudget } = settings(o);
   const s = store();
-  const enc = encodeCastKey(castKey);
-  const listed = (await s.list({ prefix: hitPrefix(enc) })).blobs;
+  const listed = (await s.list({ prefix: hitPrefix(castKey) })).blobs;
   const raw = groupByDay(listed);
   // `list` is eventually consistent and has no strong option, so a hit
   // written moments ago may be missing from it. Counting it anyway is what
@@ -223,10 +233,10 @@ export async function countCast(castKey: string, o: ViewOptions & { assumeHit?: 
   // Read after listing, not before: see the comment on compact() for why
   // that ordering — not `consistency: "strong"` — is what keeps a reader
   // racing a concurrent compaction pass from overwriting a correct rollup.
-  const rollup = await readRollup(s, enc);
+  const rollup = await readRollup(s, castKey);
   const days = mergeDays(rollup, raw);
   const nowMs = now();
-  await compact(s, enc, rollup, raw, dayString(nowMs), deleteBudget, nowMs);
+  await compact(s, castKey, rollup, raw, dayString(nowMs), deleteBudget, nowMs);
   return { total: totalOf(days), days };
 }
 
@@ -271,7 +281,7 @@ export async function countRepo(owner: string, repo: string, o: ViewOptions = {}
 
   const casts: RepoCounts["casts"] = [];
   for (const castKey of [...castKeys].sort()) {
-    const rollup = await readRollup(s, encodeCastKey(castKey));
+    const rollup = await readRollup(s, castKey);
     const days = mergeDays(rollup, groupByDay(rawByCast.get(castKey) ?? []));
     casts.push({ key: castKey, total: totalOf(days), days });
   }
