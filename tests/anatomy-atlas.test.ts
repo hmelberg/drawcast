@@ -2,7 +2,8 @@ import { describe, expect, test } from "vitest";
 import body from "../src/scenes/anatomy/atlas-body.json";
 import skeleton from "../src/scenes/anatomy/atlas-skeleton.json";
 import viscera from "../src/scenes/anatomy/atlas-viscera.json";
-import type { Atlas, AtlasPart } from "../src/scenes/anatomy/types";
+import type { Atlas, AtlasPart, AnatomyEngine } from "../src/scenes/anatomy/types";
+import { ensureEngines, getLoadedEngines } from "../src/scenes/engines";
 
 const BODY = body as unknown as Atlas;
 const SKELETON = skeleton as unknown as Atlas;
@@ -111,6 +112,46 @@ test("every region hull encloses the bones it stands for", () => {
 test("the sexed organs are the only sexed parts", () => {
   const sexed = Object.entries(EVERY_PART).filter(([, p]) => p.sex !== "any").map(([id]) => id).sort();
   expect(sexed).toEqual(["prostate", "uterus"]);
+});
+
+describe("the anatomy engine", () => {
+  test("merges the body atlas with the requested systems and filters by sex", async () => {
+    await ensureEngines(["anatomy"]);
+    const eng = getLoadedEngines(["anatomy"]).anatomy as AnatomyEngine;
+
+    expect(eng.space()).toEqual([1000, 2000]);
+
+    const organs = eng.parts({ systems: ["viscera"], sex: "neutral" });
+    expect(organs.heart).toBeDefined();
+    expect(organs.gallbladder, "detail is the template's business — every organ comes back").toBeDefined();
+    expect(organs.body_outline, "the outline always comes back").toBeDefined();
+    expect(organs.abdomen, "grouping parts always come back").toBeDefined();
+    expect(organs.femur_left, "skeleton was not asked for").toBeUndefined();
+    expect(organs.hand_left, "nor its regions").toBeUndefined();
+
+    const bones = eng.parts({ systems: ["skeleton"], sex: "neutral" });
+    expect(bones.femur_left).toBeDefined();
+    expect(bones.hand_left, "regions ride with their system").toBeDefined();
+    expect(bones.knee_left).toBeDefined();
+    expect(bones.heart).toBeUndefined();
+
+    const both = eng.parts({ systems: ["skeleton", "viscera"], sex: "neutral" });
+    expect(both.femur_left).toBeDefined();
+    expect(both.heart).toBeDefined();
+
+    expect(eng.parts({ systems: ["viscera"], sex: "neutral" }).uterus).toBeUndefined();
+    expect(eng.parts({ systems: ["viscera"], sex: "female" }).uterus).toBeDefined();
+    expect(eng.parts({ systems: ["viscera"], sex: "female" }).prostate).toBeUndefined();
+    expect(eng.parts({ systems: ["viscera"], sex: "male" }).prostate).toBeDefined();
+  });
+
+  test("returns the atlas objects themselves, never copies, so calling it per layout is cheap", async () => {
+    await ensureEngines(["anatomy"]);
+    const eng = getLoadedEngines(["anatomy"]).anatomy as AnatomyEngine;
+    const a = eng.parts({ systems: ["skeleton"], sex: "neutral" });
+    const b = eng.parts({ systems: ["skeleton"], sex: "neutral" });
+    expect(a.femur_left).toBe(b.femur_left);
+  });
 });
 
 test("the joints sit where their bones meet", () => {

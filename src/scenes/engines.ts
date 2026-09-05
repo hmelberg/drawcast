@@ -22,8 +22,10 @@ import type { LiteElement, LiteNode } from "mathjax-full/js/adaptors/lite/Elemen
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
 import { sampleSvgPath } from "./svgpath";
+import type { Atlas, AtlasPart, AtlasSystem, AnatomyEngine } from "./anatomy/types";
+export type { AnatomyEngine } from "./anatomy/types";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -594,11 +596,47 @@ async function loadGeo(): Promise<GeoEngine> {
   };
 }
 
+/** The anatomy atlas: three JSON files loaded together the first time the
+ *  template runs. Engines load per template, before any layout, so the loader
+ *  cannot know which systems a request will ask for — and the whole atlas is a
+ *  fraction of the maps dataset. */
+async function loadAnatomy(): Promise<AnatomyEngine> {
+  const [bodyMod, skeletonMod, visceraMod] = await Promise.all([
+    import("./anatomy/atlas-body.json"),
+    import("./anatomy/atlas-skeleton.json"),
+    import("./anatomy/atlas-viscera.json"),
+  ]);
+  const body = bodyMod.default as unknown as Atlas;
+  const bySystem: Record<AtlasSystem, Atlas> = {
+    skeleton: skeletonMod.default as unknown as Atlas,
+    viscera: visceraMod.default as unknown as Atlas,
+  };
+
+  return {
+    space: () => body.space,
+    parts({ systems, sex }) {
+      const wanted = new Set<AtlasSystem>(systems);
+      const out: Record<string, AtlasPart> = {};
+      const take = (id: string, p: AtlasPart) => {
+        // The outline and the grouping parts belong to every figure; regions,
+        // bones, joints and organs come only with their system.
+        if (p.kind !== "outline" && p.kind !== "group" && !wanted.has(p.system)) return;
+        if (p.sex !== "any" && (sex === "neutral" || p.sex !== sex)) return;
+        out[id] = p;
+      };
+      for (const [id, p] of Object.entries(body.parts)) take(id, p);
+      for (const s of systems) for (const [id, p] of Object.entries(bySystem[s].parts)) take(id, p);
+      return out;
+    },
+  };
+}
+
 export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   smilesdrawer: { load: loadSmilesDrawer },
   mathjax: { load: loadMathJax },
   chess: { load: loadChess },
   geo: { load: loadGeo },
+  anatomy: { load: loadAnatomy },
 };
 
 const cache = new Map<string, unknown>();
