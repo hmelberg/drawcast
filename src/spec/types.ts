@@ -147,6 +147,10 @@ export interface SpecElement {
   /** code: how a matplotlib chart LOOKS — seaborn (the default: a calm grid),
    *  xkcd (hand-drawn wobble), plain (matplotlib's own). python only. */
   chart?: ChartStyle;
+  /** code: an https URL to a C64 program (.prg/.d64/.t64/.zip). The screen
+   *  gets a play mark; while the app is paused a click starts it in an
+   *  emulator over the figure — app only, never in a movie. */
+  game?: string;
   /** code: marker passes over the drawn script, each its own beat
    *  `<id>_mark_1` … — a string highlights it, an object picks the kind. */
   marks?: (string | { text: string; kind?: "mark" | "strike" | "underline" })[];
@@ -295,7 +299,7 @@ export interface Command {
   label?: string;
   /** Open the explore tray and wait (app only; movies skip the whole beat,
    *  narration included). params restricts which sliders show. */
-  explore?: { params?: string[]; code?: string };
+  explore?: { params?: string[]; code?: string; game?: string };
   /** Conditional jump on a stored ask answer. Live viewers only; movies stay linear. */
   if?: IfArgs;
 }

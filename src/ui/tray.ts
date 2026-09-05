@@ -38,6 +38,10 @@ import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
+import { c64EmulatorUrl } from "../code/c64";
+import { bboxOfPts } from "../layout/geometry";
+import { leafDrawables } from "../layout/model";
+import { openMediaModal } from "./media-modal";
 import { mountCodeEditor, type CodeAsk, type CodeEditorHandle, type EditorSurface } from "./code-editor";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
@@ -83,7 +87,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const editable = (hd.spec.elements ?? []).filter(
     (e) => e.type === "code" && e.show !== "none" && typeof e.code === "string" && typeof e.language === "string",
   );
-  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0) return;
+  // A machine with a game on it: a paused click on its play mark starts the
+  // emulator over the figure (ui/media-modal's surface, so it is app-only by
+  // construction and a movie shows the drawn boot screen instead).
+  const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && typeof e.game === "string");
+  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -277,6 +285,30 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     const n = hd.timeline.position;
     const visible = n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible;
     return visible.some((v) => v === id || v.startsWith(`${id}_`));
+  };
+
+  /** The game whose play mark is under a logical point, if any is on screen. */
+  const gameAt = (p: [number, number]): SpecElement | null => {
+    const leaves = leafDrawables((hd.timeline.paintedLayout() ?? hd.layout).drawables);
+    for (const g of games) {
+      if (!visibleNow(g.id)) continue;
+      const tri = leaves.find((d) => d.id === `${g.id}__playtri`);
+      if (!tri || tri.kind !== "area" || tri.pts.length === 0) continue;
+      const b = bboxOfPts(tri.pts);
+      const pad = Math.max(12, b.w); // the ring around the triangle is the target too
+      if (p[0] >= b.x - pad && p[0] <= b.x + b.w + pad && p[1] >= b.y - pad && p[1] <= b.y + b.h + pad) return g;
+    }
+    return null;
+  };
+  /** Switch the machine on: the emulator page, in the modal, with the program in its hash. */
+  const startGame = (g: SpecElement, onClose?: () => void): { close: () => void } | null => {
+    if (!stage || typeof g.game !== "string") return null;
+    return openMediaModal(stage, hd, {
+      src: c64EmulatorUrl(g.game),
+      href: g.game,
+      allow: "autoplay; gamepad; fullscreen; clipboard-write",
+      ...(onClose ? { onClose } : {}),
+    });
   };
 
   /**
@@ -528,7 +560,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // does that object's natural action — it opens its editor. The info card
   // stands aside for these ids, so the two never both fire; the first click
   // still only pauses, as it always has.
-  if (stage && editable.length > 0) {
+  if (stage && (editable.length > 0 || games.length > 0)) {
     let boxes: Map<string, BBox> | null = null;
     const screenAt = (e: MouseEvent): string | null => {
       if (gateIsOpen(stage)) return null;
@@ -555,6 +587,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // gesture). Tray already open: its own freeze guard owns the stage.
         if (hd.timeline.state === "playing" || !tray.hidden) return;
         if (e.target instanceof Element && e.target.closest("button, a")) return;
+        // The play mark first: on a machine with a game, that is the object's
+        // most natural action; the rest of the screen still opens the editor.
+        const p = gateIsOpen(stage) || overCaption(e.target as Element | null) ? null : logicalPoint(stage, e);
+        const g = p ? gameAt(p) : null;
+        if (g) {
+          e.stopPropagation();
+          hd.timeline.renderUpTo(hd.timeline.position); // land on the boundary, as the editor does
+          startGame(g);
+          return;
+        }
         const id = screenAt(e);
         if (id === null) return;
         e.stopPropagation();
@@ -569,8 +611,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     );
     // Quiet affordance while paused: the cursor knows the screen takes typing.
     stage.addEventListener("pointermove", (e) => {
-      const on = hd.timeline.state !== "playing" && tray.hidden && screenAt(e) !== null;
-      stage.classList.toggle("cs-editable", on);
+      const paused = hd.timeline.state !== "playing" && tray.hidden;
+      const p = paused ? logicalPoint(stage, e) : null;
+      const overPlay = p !== null && gameAt(p) !== null;
+      stage.classList.toggle("cs-playable", overPlay);
+      stage.classList.toggle("cs-editable", paused && !overPlay && screenAt(e) !== null);
     });
   }
 
@@ -578,6 +623,24 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // Continue. Abort (a scrub) resolves and tidies up — the gate contract.
   hd.timeline.exploreGate = (signal, step) =>
     new Promise<void>((resolve) => {
+      if (step.game !== undefined) {
+        // "Now you play": the emulator opens, the lesson waits, and closing
+        // the emulator — ✕, Escape, the scrim — is Continue. A scrub aborts.
+        const g = games.find((e) => e.id === step.game);
+        if (!g) return resolve(); // the plan warned about this id at authoring time
+        let handle: { close: () => void } | null = null;
+        const onAbort = (): void => handle?.close();
+        signal.addEventListener("abort", onAbort);
+        handle = startGame(g, () => {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        });
+        if (!handle) {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        }
+        return;
+      }
       const onAbort = (): void => {
         gateResolve = null;
         closeEditors();

@@ -80,6 +80,30 @@ export function screenChar(code: number): string {
   return " ";
 }
 
+/** The screen's shape: 40 × 25 characters of 8 × 8 pixels — 320 × 200. */
+export const C64_SCREEN_ASPECT = 320 / 200;
+
+/** What a C64 shows the moment it is switched on, row by row (the blank rows
+ *  between are the machine's own spacing). Row 5 is where the cursor waits. */
+export const C64_BOOT_LINES: readonly (readonly [row: number, text: string])[] = [
+  [1, "    **** COMMODORE 64 BASIC V2 ****"],
+  [3, " 64K RAM SYSTEM  38911 BASIC BYTES FREE"],
+  [5, "READY."],
+];
+
+/**
+ * Where a game runs: vc64web (VirtualC64 compiled to WebAssembly) as its own
+ * page in an iframe — never its player script in ours. `openROMS=true` makes
+ * it load the MEGA65 Open ROMs, so no Commodore ROM is ever distributed by
+ * drawcast; the program URL rides last in the hash and autostarts (verified
+ * 2026-09-05 against the emulator's own log: three OpenROM images loaded,
+ * the .prg flashed, 50 frames/s). Hash-separated, so the program URL itself
+ * may not contain a '#' — the lint says so.
+ */
+export function c64EmulatorUrl(game: string): string {
+  return `https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3#${game}`;
+}
+
 /** A blank screen in the machine's own colours. */
 export function blankScreen(): C64Screen {
   return {

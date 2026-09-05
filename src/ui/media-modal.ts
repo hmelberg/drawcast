@@ -15,9 +15,12 @@ export interface MediaModalOpts {
   href: string;
   /** iframe allow attribute (YouTube wants fullscreen etc.). */
   allow?: string;
+  /** Called once, however the modal went away — a gate that parked the run
+   *  on it resolves here. */
+  onClose?: () => void;
 }
 
-export function openMediaModal(stage: HTMLElement, hd: RenderHandle, opts: MediaModalOpts): void {
+export function openMediaModal(stage: HTMLElement, hd: RenderHandle, opts: MediaModalOpts): { close: () => void } {
   stage.querySelector(".cs-mediamodal")?.remove();
 
   const frame = h("iframe", { class: "cs-mediamodal-frame", src: opts.src, ...(opts.allow ? { allow: opts.allow } : {}) });
@@ -34,6 +37,7 @@ export function openMediaModal(stage: HTMLElement, hd: RenderHandle, opts: Media
     hd.timeline.callbacks.onStep = prevOnStep;
     window.removeEventListener("keydown", onKey);
     scrim.remove();
+    opts.onClose?.();
   };
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape") close();
@@ -59,4 +63,5 @@ export function openMediaModal(stage: HTMLElement, hd: RenderHandle, opts: Media
   });
   window.addEventListener("keydown", onKey);
   stage.appendChild(scrim);
+  return { close };
 }

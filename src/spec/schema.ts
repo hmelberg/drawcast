@@ -227,6 +227,11 @@ const elementSchema = {
       description:
         "code: how a matplotlib chart LOOKS — seaborn (THE DEFAULT: a calm grid, the figure's own ink and series colours on the drawing's paper), xkcd (matplotlib's hand-drawn wobble, which suits a sketched lecture), plain (matplotlib's own defaults). Only `language: \"python\"` has a real matplotlib to style; the light tiers draw their charts through an emulation and ignore it.",
     },
+    game: {
+      type: "string",
+      description:
+        "code: an https URL to a Commodore 64 program (.prg, .d64, .t64 or .zip) — pair it with frame: \"c64\" (or \"crt\"). The screen shows the machine's blue boot screen with a play mark on it; while the app is paused a click on the mark starts the program in a real C64 emulator over the figure, sound and joystick included. App only: a movie shows the drawn screen. Only what the author has the right to point at — drawcast hosts nothing.",
+    },
     marks: {
       type: "array",
       items: {
@@ -350,6 +355,11 @@ const commandSchema = {
           type: "string",
           description:
             "Id of a code element to open in the editor instead of the sliders: the viewer edits or replaces the script, presses Run, and sees the output pane and any template it feeds change; Continue restores the lesson. Place it right after the output beat.",
+        },
+        game: {
+          type: "string",
+          description:
+            "Id of a code element that carries a `game`: the beat that hands the viewer the joystick — the emulator opens over the figure and the lesson waits until they close it. App only; movies skip the beat.",
         },
       },
       additionalProperties: false,

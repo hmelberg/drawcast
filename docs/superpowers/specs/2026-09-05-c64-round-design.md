@@ -1,114 +1,155 @@
-# The C64 round — what was decided, and what is left to build
+# The C64 round — the machine on the drawing, the game in the machine
 
-Date: 2026-09-05. Status: **decided, barely started.** Written as a handover:
-this round was discussed in a session that ended before the work did.
+Date: 2026-09-05 (rewritten the same evening after review). Status: **M1
+shipped; M2 folded into it; M3 open.**
 
-## What Hans asked for
+## What Hans asked for, in his order of importance
 
-1. A Commodore 64 element: a C64 screen ON the drawn screen — colours, font,
-   text — and simple BASIC on it ("starte C64 med den blå skjermen og gjøre
-   noen enkle ting").
-2. **Most of all**: to SHOW and PLAY C64 games and demos, with sound.
-3. Ruling on scope (2026-09-05): "det er ikke så veldig viktig å programmere
-   C64, men det er viktig å kunne se og høre demo og spill … vi kunne ta rute
-   3, men ikke ta med alle mulige kommandoer med en gang hvis det tar lang
-   tid."
+1. **Most of all**: to SHOW and PLAY C64 games and demos, with sound.
+2. The blue screen: "starte C64 med den blå skjermen og gjøre noen enkle
+   ting" — that is fun.
+3. Programming the C64 is "ikke så veldig viktig". Route 3 (our own BASIC)
+   is fine, "men ikke ta med alle mulige kommandoer med en gang hvis det tar
+   lang tid."
 
-## What already exists in drawcast
+The first draft of this document had the order inverted — two thirds of it
+on BASIC, no implementation plan for the emulator. Reordered.
 
-- `frame: "c64"` (src/layout/code.ts) already draws the tube monitor standing
-  on a home-computer keyboard, and `frame: "crt"` the monitor alone. The
-  OBJECT is drawn; only what is on its screen is missing.
-- The code element carries a script through the runtime facade
-  (`src/code/run.ts`: one module per language, `run(req) → CodeRunResult`),
-  and the panel draws code as ink with a beat per line, a marker pen
-  (`marks`), an editor on the panel, and `ask` with a code widget.
-- `src/ui/media-modal.ts` is the established shape for a LIVE thing over the
-  stage: an iframe on the stage, player-only, never in an export.
+## What drawcast already had
 
-## The two halves, and why they are different
+- `frame: "c64"` (src/layout/code.ts) draws the tube monitor standing on a
+  home-computer keyboard; `frame: "crt"` the monitor alone. The OBJECT was
+  drawn; only what is on its screen was missing.
+- The code element runs a script through the runtime facade
+  (`src/code/run.ts`, one module per language) and draws code as ink with a
+  beat per line, a marker pen (`marks`), an editor on the panel, and `ask`
+  with a code widget.
+- `src/ui/media-modal.ts`: the established shape for a LIVE thing over the
+  stage — an iframe on the stage, player-only, never in an export.
 
-**Games and demos — an emulator, and it can only ever be an overlay.** A
-running emulator is a canvas, and the house rule is that everything drawn is
-SVG ink while everything live is an HTML layer a movie skips. So a running
-game can never be in an exported MP4, exactly as the piano, the quiz and the
-YouTube modal are not.
+## The house rule that shapes both halves
 
-**Decision: vc64web** (VirtualC64 compiled to WASM), embedded as its own
-player iframe from vc64web.github.io:
+Everything drawn is SVG ink; everything live is an HTML layer a movie skips.
+A running emulator is a canvas, so a running game can never be in an
+exported MP4 — exactly as the piano, the quiz and the YouTube modal are not.
+The drawn machine with its boot screen IS the movie's picture.
 
-```html
-<script src="https://vc64web.github.io/js/vc64web_player.js"></script>
-vc64web_player.load(el, '#openROMS=true#navbar=hidden#wide=true#border=0.3', '<url to .prg>');
+## M1 — the game (SHIPPED)
+
+**Vocabulary.** One field on the code element and one word on `explore`:
+
+```json
+{"id": "c64", "type": "code", "frame": "c64",
+ "game": "https://…/boulderdash.prg"}
+…
+{"draw": ["c64"], "speak": "A Commodore 64."}
+{"explore": {"game": "c64"}, "speak": "Now you play."}
 ```
 
-Four reasons, in the order they matter:
-1. `openROMS=true` loads the MEGA65 **Open ROMs**, so drawcast never
-   distributes Commodore's KERNAL/BASIC. (A viewer with legal access can
-   install the originals themselves in its ROM panel.)
-2. vc64web is GPL-3. Iframing a third party is not distribution; **vendoring
-   it would pull drawcast into the GPL**.
-3. A program can be injected from the page as base64 —
-   `vc64web_player.samesite_file = { base64: "…", name: "x.prg" }` — so a
-   drawcast can carry its own C64 program the way a portrait carries strokes.
+- `draw: [id]` switches the machine on: the blue boot screen (light-blue
+  border, blue paper, `**** COMMODORE 64 BASIC V2 ****` / `64K RAM SYSTEM
+  38911 BASIC BYTES FREE` / `READY.` in light-blue mono) with a white play
+  mark on its centre — all in the PANEL's group, all ink, 40 × 25 characters
+  at the machine's own 320 × 200 shape. A machine with a game and nothing to
+  run is not an error (`resolveCode` skips it) and draws no ruled
+  placeholders.
+- While the app is paused, a click on the play mark opens the emulator over
+  the figure; the cursor says so (`cs-playable`); the rest of the screen
+  still opens the editor. `explore: { game }` is the authored beat: the run
+  parks on the emulator and closing it — ✕, Escape, the scrim — is Continue;
+  a scrub aborts and closes it.
+
+**The emulator: vc64web, as its own page in an iframe, never its script in
+ours.** `src/code/c64.ts` builds the URL:
+
+```
+https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3#<program url>
+```
+
+Why this and not the alternatives:
+1. `openROMS=true` loads the MEGA65 **Open ROMs** — drawcast never
+   distributes Commodore's KERNAL/BASIC. Verified 2026-09-05 against the
+   emulator's own console: `kernal_generic.rom`, `chargen_pxlfont_2.3.rom`,
+   `basic_generic.rom` loaded as "M.E.G.A. C64 OpenROM", the .prg fetched
+   from the hash, `FILE_FLASHED`, `flash done`, 50 frames/s executed. No
+   dialog, no click.
+2. vc64web is GPL-3. Iframing a third party is not distribution; vendoring
+   it would pull drawcast into the GPL.
+3. The bare direct-start link needs **no third-party script in our page**.
+   The player script (`vc64web_player.js`) would run with our origin's
+   privileges; the only thing it adds is base64 injection of a program from
+   the page (`samesite_file`), which stays on the list for later.
 4. It works on a phone: virtual keyboard, touch joystick, gamepads, reSID
    audio, snapshots.
 
-Fallback if it ever has to be self-hosted (offline, kiosk, or that site dying):
+Fallback if it ever has to be self-hosted (offline, kiosk, that site dying):
 **floooh/tiny8bit** — zlib licence, `c64.wasm` 259 KB + `c64.js` 34 KB,
-`c64.html?file=game.prg`. Then WE ship the baked-in Commodore ROMs and lose
-the touch controls. Third path for "just show me that famous game":
-`https://archive.org/embed/<id>` in the media modal.
+`c64.html?file=game.prg`; then WE ship the baked-in Commodore ROMs and lose
+the touch controls. Third path for "just show that famous game":
+`https://archive.org/embed/<id>` in the same modal.
 
-**BASIC — our own interpreter, because it must be INK.** Route 3 of three
-that were weighed:
-1. BASIC typed into the emulator: no new engine, but live-only.
-2. basic64-js behind an iframe: real C64 BASIC (its POKE reaches screen RAM
-   1024-2023, colour RAM 55296-56295, VIC registers 53248-53294, sprite
-   pointers 2040-2047, cursor colour 646; SYS/WAIT/USR are stubs that throw
-   and there is NO SID sound) — but it is **GPL-3**, so it may not be bundled,
-   only isolated, and then it is live-only too.
-3. **Chosen**: a small CBM BASIC V2 in TypeScript, written from the C64
-   Programmer's Reference Guide (NOT from basic64-js's GPL source), as
-   `language: "basic"` in the facade. Then the C64 screen is drawn as ink: it
-   scrubs, exports, takes the marker pen, and `ask` can ask a viewer to write
-   BASIC. No licence, no ROM, no third party.
+**Guards.** The emulator page is https and takes the program in its hash, so
+the lint refuses a plain-http `game` (mixed content) and a URL containing
+`#` (ends the hash early) — both would fail silently in a viewer's browser.
+An `explore.game` naming an unknown id is a plan warning. Programs: only what
+the author has the right to point at; drawcast hosts nothing.
 
-## The plan for route 3
+**Measured in the live smoke:** the boot screen's three lines and the play
+mark drawn; the cursor a pointer over the mark; a click opened the modal with
+the URL above and `allow="autoplay; gamepad; fullscreen; clipboard-write"`;
+the explore beat parked the run on "Now you play.", Escape closed the
+emulator, and the run went on to the next line and finished.
 
-Files (the first one is written and committed; the rest are not):
+## M2 — the blue screen as ink
 
-| file | state |
-|---|---|
-| `src/code/c64.ts` | **DONE** — the palette (Pepto values), the 40×25 screen type, PETSCII colour codes, screen-code conversions, `blankScreen()` |
-| `src/code/basic.ts` | to write — tokenizer, parser, interpreter, screen writer, and `run(req)` |
-| `src/code/languages.ts` | add `"basic"` to LANGUAGES / RUNTIME_LABEL / RUNTIME_VERSION / cacheTag |
-| `src/code/run.ts` | add `basic: () => import("./basic")` to RUNTIMES |
-| `src/code/envelope.ts` | add `screen?: C64Screen` and bump CODE_VERSION 6 → 7 |
-| `src/layout/code.ts` | draw the screen when the envelope carries one: border rect, background rect, one text drawable per colour run per row, sized from the pane |
-| `src/spec/schema.ts`, prompt | the language value and one sentence |
-| `tests/basic.test.ts` | the interpreter is pure, so it is node-testable end to end |
+Folded into M1 for the no-script case: the boot screen IS what a switched-on
+machine shows, and it is the still a movie needs. What is left of M2 is the
+case where a script has RUN — which is M3's screen.
 
-Scope for the first cut (Hans: not every command at once):
-- Statements: PRINT (`;` `,` and the C64's own number spacing), LET and bare
-  assignment, GOTO, GOSUB/RETURN, IF/THEN, FOR/NEXT/STEP, REM, END/STOP,
-  DATA/READ/RESTORE, DIM, POKE, ON…GOTO/GOSUB, `?` for PRINT.
-- Functions: ABS INT RND SQR SIN COS TAN ATN EXP LOG SGN LEN LEFT$ RIGHT$
-  MID$ CHR$ ASC STR$ VAL PEEK TAB( SPC(.
+## M3 — BASIC (open)
+
+Our own CBM BASIC V2 in TypeScript as `language: "basic"`, written from the
+C64 Programmer's Reference Guide — NOT from basic64-js, which is GPL-3 (and
+whose POKE reaches screen RAM 1024–2023, colour RAM 55296–56295, VIC
+registers 53248–53294, sprite pointers 2040–2047, cursor colour 646, while
+SYS/WAIT/USR are stubs that throw and there is no SID sound). Ours must be
+ink: a run's screen scrubs, exports, takes the marker pen, and `ask` can ask
+a viewer to write BASIC.
+
+The first cut, per Hans's ruling, is small:
+- Statements: PRINT and `?` (with `;` `,` and the machine's own number
+  spacing), assignment, GOTO, GOSUB/RETURN, IF/THEN, FOR/NEXT/STEP, REM,
+  END/STOP, POKE.
 - POKE/PEEK reach the screen (1024+), colour RAM (55296+), border (53280),
-  background (53281) and the cursor colour (646); other addresses are a
-  sparse store so PEEK gives back what was POKEd.
+  background (53281), cursor colour (646); other addresses are a sparse store.
 - PRINT CHR$(147) clears, CHR$(13) is a newline, the sixteen colour codes
   change the text colour.
-- RND is SEEDED — a figure must render the same every time.
-- A step/time cap, so a runaway loop fails honestly instead of hanging.
-- Not in the first cut, and the error must SAY so: SYS, WAIT, USR, OPEN/CLOSE,
-  INPUT/GET, sprites, sound. Errors read like the machine's
-  (`?SYNTAX ERROR IN 20`) with drawcast's own explanation in parentheses.
+- Functions: INT RND LEN CHR$ ASC STR$ VAL LEFT$ MID$ RIGHT$.
+- RND is SEEDED (a figure renders the same every time); a step cap so a
+  runaway loop fails honestly.
+- Out of the first cut, and the error SAYS so: DATA/READ/RESTORE, DIM/arrays,
+  ON…GOTO, TAB/SPC, trigonometry, SYS/WAIT/USR, OPEN/CLOSE, INPUT/GET,
+  sprites, sound. Errors read like the machine's (`?SYNTAX ERROR IN 20`)
+  with drawcast's explanation in parentheses.
 
-Open, for later: the PETSCII font. **C64 Pro Mono** (style64.org) ships
-WOFF/WOFF2 and its licence allows embedding in a web page but NOT offering the
-font for download — vendoring it in `public/` and inlining it in the video
-export (the Patrick Hand pattern in src/export/video.ts) is the shape, but it
-is Hans's call to make. Until then the screen draws in the system mono, and
-the colours carry the look.
+Files: `src/code/basic.ts` (tokenizer, parser, interpreter, screen writer,
+`run(req)`), `languages.ts` + `run.ts` (the language), `envelope.ts`
+(`screen?: C64Screen`, CODE_VERSION 6 → 7), `layout/code.ts` (draw a run's
+screen where the boot screen is drawn now), schema + prompt, `tests/basic.test.ts`.
+The run must also fill `stdout` with what PRINT wrote, or `ask` with
+`expect: "stdout"` and panels without a screen would see nothing; the data
+bridge then gets BASIC variables (`{prog.A}`) for free.
+
+`src/code/c64.ts` already holds what M3 needs and M1 used: the palette (Pepto
+values), the 40 × 25 screen type, the PETSCII colour codes, screen-code
+conversions, the boot lines, the screen's aspect, and the emulator URL.
+
+## Open, and Hans's call
+
+- **The PETSCII font.** C64 Pro Mono (style64.org) ships WOFF/WOFF2 and its
+  licence allows embedding in a web page but NOT offering the font for
+  download. Vendoring it in `public/` and inlining it in the video export (the
+  Patrick Hand pattern in src/export/video.ts) is the shape. Until then the
+  screen draws in the system mono, and the colours carry the look.
+- **A program inside the spec** (base64) needs vc64web's player script or a
+  reimplementation of its postMessage handshake. Later, if wanted.

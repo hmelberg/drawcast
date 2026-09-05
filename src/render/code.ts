@@ -47,6 +47,12 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
       results.push({ id: el.id, ok: true, skipped: true });
       continue;
     }
+    // A game with nothing to run is a machine waiting to be switched on:
+    // the layout draws its boot screen, and there is no error in that.
+    if (el.game !== undefined && (el.code ?? "").trim() === "") {
+      results.push({ id: el.id, ok: true, skipped: true });
+      continue;
+    }
     if (el.code_result) {
       // Only a successful stamp that covers the request is trustworthy cache:
       // a stamped FAILURE (a transient boot/timeout envelope from an earlier

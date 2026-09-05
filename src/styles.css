@@ -1301,6 +1301,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-stage.cs-cardable { cursor: pointer; }
 /* A code screen takes typing: while paused, the cursor says so. */
 .cs-stage.cs-editable { cursor: text; }
+/* Over a game's play mark: a press, not typing. */
+.cs-stage.cs-playable, .cs-stage.cs-playable.cs-editable { cursor: pointer; }
 /* A drawn switch takes a press — and the switchable cursor wins over the
    editable one, because the chin sits inside the panel's own box. */
 .cs-stage.cs-switchable, .cs-stage.cs-switchable.cs-editable { cursor: pointer; }

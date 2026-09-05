@@ -22,6 +22,7 @@
 // Envelope types come from the dependency-free code/envelope module, not
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
+import { C64_BOOT_LINES, C64_BACKGROUND, C64_BORDER, C64_COLS, C64_PALETTE, C64_SCREEN_ASPECT, C64_TEXT } from "../code/c64";
 import { stylable } from "../code/chart-style";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { FIGURE_GROUND } from "./ink";
@@ -449,8 +450,15 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     }
   }
   const slotH = multiFig ? figHeights.reduce((a, b) => Math.max(a, b), 0) : 0;
-  const outContentH = showOut
-    ? Math.max(
+  // A game with nothing run yet IS a screen: the C64's own boot screen, 40 × 25
+  // characters at 8 × 8, so the pane takes that shape rather than the three
+  // ruled placeholder lines an unresolved run would get.
+  const gameScreen = el.game !== undefined && !result && (el.code ?? "").trim() === "" && showOut;
+  const outContentH = !showOut
+    ? 0
+    : gameScreen
+      ? Math.min(outBudget, (outPaneW - 2 * PAD) / C64_SCREEN_ASPECT)
+      : Math.max(
         3 * fontSize * (1 + LINE_GAP), // placeholder floor
         outStack.height +
           (tablesH > 0 ? tablesH + (outStack.height > 0 ? fontSize * LINE_GAP : 0) : 0) +
@@ -459,8 +467,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
               ? slotH + fontSize * LINE_GAP
               : 0
             : figHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0)),
-      )
-    : 0;
+        );
 
   // ---- panel geometry (y-up: yTop is the LARGER y) -------------------------
   const contentH = stacked ? codeContentH + paneGap + outContentH : Math.max(codeContentH, outContentH);
@@ -560,6 +567,72 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       z: Z_STROKE,
       style: resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2, dash: true }),
       drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+    });
+  }
+
+  // ---- a game's screen: the boot screen, and the mark that starts it ------
+  // In the PANEL's group, not the output beat's: `draw: [id]` is "switch the
+  // machine on", and a C64 switched on shows its blue screen at once. Every
+  // part is ink (the export shows exactly this); only the click that starts
+  // the emulator is the player's (ui/tray.ts). The colours are the machine's
+  // own — a light-blue border, blue paper, light-blue type — because this
+  // screen is the one drawing in the app that is NOT on paper.
+  if (gameScreen) {
+    const fieldTop = yTop;
+    const fieldH = h;
+    const rim = Math.min(PAD * 0.75, outPaneW * 0.05);
+    const field = (sid: string, x: number, y: number, ww: number, hh: number, color: string): Drawable => ({
+      id: sid,
+      kind: "area",
+      pts: rectPts(x, y - hh, ww, hh),
+      precise: true,
+      z: Z_AREA,
+      style: resolveStyle(undefined, { fill: color, opacity: 1, strokeWidth: 0 }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+    });
+    panelChildren.push(field(`${el.id}__border`, outX, fieldTop, outPaneW, fieldH, C64_PALETTE[C64_BORDER]));
+    panelChildren.push(field(`${el.id}__screen`, outX + rim, fieldTop - rim, outPaneW - 2 * rim, fieldH - 2 * rim, C64_PALETTE[C64_BACKGROUND]));
+    const screenFont = (outPaneW - 2 * rim) / (C64_COLS * CHAR_W);
+    const rowH = screenFont * ROW_H;
+    C64_BOOT_LINES.forEach(([row, text], i) => {
+      panelChildren.push({
+        id: `${el.id}__boot${i}`,
+        kind: "text",
+        pos: [outX + rim, fieldTop - rim - rowH * (row + 0.75)],
+        text,
+        fontSize: screenFont,
+        anchor: "start",
+        font: "mono",
+        z: Z_TEXT,
+        style: resolveStyle(undefined, { color: C64_PALETTE[C64_TEXT] }),
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
+      });
+    });
+    // The play mark: the source element's, in white, on the screen's centre.
+    const pcx = outX + outPaneW / 2;
+    const pcy = fieldTop - fieldH / 2;
+    const r = Math.max(16, outPaneW * 0.1);
+    panelChildren.push({
+      id: `${el.id}__play`,
+      kind: "stroke",
+      pts: [[pcx, pcy]],
+      shapeHint: { type: "circle", c: [pcx, pcy], r },
+      z: Z_STROKE,
+      style: resolveStyle(undefined, { color: C64_PALETTE[1], strokeWidth: 3 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 420 }),
+    });
+    panelChildren.push({
+      id: `${el.id}__playtri`,
+      kind: "area",
+      pts: [
+        [pcx - r * 0.3, pcy + r * 0.45],
+        [pcx + r * 0.55, pcy],
+        [pcx - r * 0.3, pcy - r * 0.45],
+      ],
+      precise: true,
+      z: Z_STROKE,
+      style: resolveStyle(undefined, { fill: C64_PALETTE[1], opacity: 1, strokeWidth: 0 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 260 }),
     });
   }
 
@@ -673,7 +746,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 
   // ---- output pane: one group, always minted -------------------------------
   const outChildren: Drawable[] = [];
-  if (showOut) {
+  if (showOut && !gameScreen) {
     if (!result) {
       // Unresolved (node tests, offline, runtime missing): the source
       // element's ruled-placeholder idiom, so the beat draws SOMETHING.

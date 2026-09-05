@@ -313,6 +313,18 @@ function lintCode(spec: Spec): LintIssue[] {
     }
   }
   if (els.length === 0) return issues;
+  // A game rides in the emulator page's URL hash, and that page is https: a
+  // plain-http program would be blocked as mixed content, and a '#' in the
+  // URL would end the hash early. Both fail silently in a viewer's browser,
+  // so they are caught here instead.
+  for (const el of els) {
+    if (el.game === undefined) continue;
+    if (!/^https:\/\//.test(el.game)) {
+      issues.push({ rule: "code-use", ids: [el.id], message: `code "${el.id}": game must be an https URL — the emulator cannot fetch "${el.game}"`, severity: "warn" });
+    } else if (el.game.includes("#")) {
+      issues.push({ rule: "code-use", ids: [el.id], message: `code "${el.id}": game URL may not contain '#' — it is passed in the emulator's own hash`, severity: "warn" });
+    }
+  }
   const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {
     const lines = (el.code ?? "").split("\n").filter((l) => l.trim() !== "").length;
