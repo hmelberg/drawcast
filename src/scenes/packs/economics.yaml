@@ -141,7 +141,7 @@ layout: |
 ---
 template: ppf
 title: Production possibilities frontier
-version: 1
+version: 2
 kit: 4
 status: ready
 description: >-
@@ -154,6 +154,12 @@ description: >-
   this scene for ANY request about the production possibilities frontier,
   PPF, production possibilities curve, opportunity cost, scarcity,
   productive efficiency, or a classic "guns and butter" tradeoff.
+  `indifference_curves` adds community indifference curves and the point
+  where the highest attainable one is TANGENT to the frontier — the
+  society-chooses-a-point-on-the-frontier figure, where the frontier alone
+  only says which points are feasible. The tangency is computed, not
+  eyeballed: the curve touches the frontier at `optimum_at` and lies inside
+  the attainable set everywhere else.
 params:
   type: object
   properties:
@@ -185,17 +191,33 @@ params:
     shade_attainable:
       type: boolean
       description: "Shade the attainable region under the frontier (default true)."
+    indifference_curves:
+      type: integer
+      enum: [0, 1, 2, 3]
+      description: "Community indifference curves against the frontier (default 0, none): 1 draws only the utility-maximizing curve, tangent to the frontier; 2 adds a lower, attainable curve; 3 adds a higher, unattainable one too. Numeric, so it can be animated from 0."
+    optimum_at:
+      type: number
+      description: "0-1: where along the frontier, from the y-intercept (0) to the x-intercept (1), the tangency sits (default 0.5, the middle). Clamped to 0.08-0.92 so the implied preferences stay sane. Animate it to slide society's chosen point along the frontier."
+    optimum_label:
+      type: string
+      description: "Label on the tangency dot (default \"Optimum\")."
 element_ids:
   axes: the coordinate axes (one group with both axis lines and their captions)
   frontier: the production possibilities frontier curve
   attainable: the shaded attainable region under the frontier, present when shade_attainable
   pt_<i>: marker for points[i]
   pt_label_<i>: its label
+  ic_1 / ic_2 / ic_3: the indifference curve(s) actually drawn, in order below/at/above the optimum (only as many as `indifference_curves` requests, so with 1 the single curve is ic_1 and it IS the tangent one)
+  label_ic_1 / label_ic_2 / label_ic_3: each drawn curve's label
+  optimum: dot where the highest attainable indifference curve touches the frontier, present when indifference_curves > 0
+  optimum_label: the optimum's label
 examples:
   - request: "Draw a production possibilities frontier for guns and butter."
     params: { good_x: "Guns", good_y: "Butter" }
   - request: "Show a production possibilities frontier with an unattainable combination of healthcare and education."
     params: { good_x: "Healthcare", good_y: "Education", points: [{ x_share: 0.5, label: "Unattainable mix", kind: "unattainable" }] }
+  - request: "Add indifference curves to the PPF and show which point society actually chooses."
+    params: { good_x: "Healthcare", good_y: "Everything else", indifference_curves: 3, optimum_at: 0.45 }
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const goodX = typeof params.good_x === "string" && params.good_x.trim() !== "" ? params.good_x : "Good X";
@@ -203,6 +225,9 @@ layout: |
   const bowed = params.bowed !== false;
   const shadeAttainable = params.shade_attainable !== false;
   const pointsIn = Array.isArray(params.points) ? params.points.slice(0, 6) : [];
+  const icCount = Math.min(3, Math.max(0, Math.round(params.indifference_curves ?? 0)));
+  const optimumAt = Math.min(0.92, Math.max(0.08, typeof params.optimum_at === "number" ? params.optimum_at : 0.5));
+  const optimumLabel = typeof params.optimum_label === "string" && params.optimum_label.trim() !== "" ? params.optimum_label : "Optimum";
 
   const plot = { x0: 120, y0: 95, x1: 930, y1: 675 };
   const R = 90;
@@ -262,6 +287,42 @@ layout: |
     const text = p && typeof p.label === "string" && p.label.trim() !== "" ? p.label : "Point " + (i + 1);
     label("pt_label_" + i, logical, "above-right", text, color, 20);
   });
+
+  if (icCount > 0) {
+    // Tangency, not eyeballing: pick the Cobb-Douglas exponent whose MRS equals
+    // the frontier's MRT at optimum_at. Bowed frontier (quarter circle): the
+    // slope there is -cot(theta), and MRS = (a/(1-a))*(y/x) = (a/(1-a))*tan(theta),
+    // so a = cos^2(theta). Straight frontier: the slope is -1 everywhere, and the
+    // same identity collapses to a = optimum_at. Convex curve under a concave
+    // frontier then touches at exactly one point and lies inside it elsewhere.
+    const theta = (1 - optimumAt) * (Math.PI / 2);
+    const alpha = bowed ? Math.cos(theta) * Math.cos(theta) : optimumAt;
+    const [ox, oy] = curveWorldPt(optimumAt);
+    const uAt = Math.pow(ox, alpha) * Math.pow(oy, 1 - alpha);
+    const U = { below: uAt * 0.72, at: uAt, above: uAt * 1.28 };
+    const IC_STYLE = {
+      below: { color: C.supply, dash: false, text: "Lower utility" },
+      at: { color: C.accent, dash: false, text: "Highest attainable" },
+      above: { color: C.guide, dash: true, text: "Unattainable" },
+    };
+    const levels = icCount === 1 ? ["at"] : icCount === 2 ? ["below", "at"] : ["below", "at", "above"];
+    levels.forEach((lvl, i) => {
+      const u = U[lvl];
+      const world = kit
+        .sample((x) => Math.pow(u / Math.pow(x, alpha), 1 / (1 - alpha)), worldMax * 0.02, worldMax * 0.99, 90)
+        .filter(([, y]) => Number.isFinite(y) && y >= 0 && y <= worldMax * 0.99);
+      const id = "ic_" + (i + 1);
+      const pts = world.length > 1 ? world.map(([x, y]) => [sx(x), sy(y)]) : [[sx(ox), sy(oy)], [sx(ox) + 1, sy(oy)]];
+      const st = IC_STYLE[lvl];
+      push(kit.stroke(id, pts, { color: st.color, strokeWidth: lvl === "at" ? 4.5 : 3.5, dash: st.dash, ms: MS.curve }));
+      anchors[id] = pts[pts.length - 1];
+      label("label_" + id, anchors[id], "right", st.text, st.color, 19);
+    });
+    const opt = [sx(ox), sy(oy)];
+    push(kit.stroke("optimum", [opt], { shapeHint: { type: "circle", c: opt, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+    anchors.optimum = opt;
+    label("optimum_label", opt, "above-right", optimumLabel, C.ink, 22);
+  }
 
   return { drawables, labels, anchors, order };
 ---

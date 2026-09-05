@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { layoutQalyProfiles, type QalyParams } from "../src/scenes/qaly_profiles/layout";
+import { computeShortfall, layoutQalyProfiles, type QalyParams } from "../src/scenes/qaly_profiles/layout";
 import { flattenDrawables, type AreaDrawable, type StrokeDrawable } from "../src/layout/model";
 import { CANVAS } from "../src/layout/canvas";
+import { layoutSpec } from "../src/layout/layout";
 
 const params: QalyParams = {
   profiles: [
@@ -115,5 +116,90 @@ describe("layoutQalyProfiles", () => {
     const ids = flattenDrawables(r.drawables).map((d) => d.id);
     expect(ids.filter((id) => id.startsWith("curve_")).length).toBe(2);
     expect(ids).toContain("gain_regions");
+  });
+});
+
+describe("computeShortfall", () => {
+  // Flat lives make the arithmetic checkable by hand: full health to 80 against
+  // half health to 80, judged from age 40, is 40 QALYs against 20.
+  const healthy = (t: number) => (t < 80 ? 1 : 0);
+  const ill = (t: number) => (t < 80 ? 0.5 : 0);
+
+  test("absolute shortfall is the health lost between the index age and the end of life", () => {
+    const r = computeShortfall(healthy, ill, 40, 80);
+    expect(r.remainingHealthy).toBeCloseTo(40, 6);
+    expect(r.remainingDisease).toBeCloseTo(20, 6);
+    expect(r.absolute).toBeCloseTo(20, 6);
+  });
+
+  test("proportional shortfall is the absolute loss as a share of remaining healthy life", () => {
+    expect(computeShortfall(healthy, ill, 40, 80).proportional).toBeCloseTo(0.5, 6);
+  });
+
+  test("a life cut short counts the lost years, not just the lost quality", () => {
+    const dies60 = (t: number) => (t < 60 ? 1 : 0);
+    const r = computeShortfall(healthy, dies60, 40, 80);
+    expect(r.absolute).toBeCloseTo(20, 6); // the twenty years never lived
+  });
+
+  test("discounting shrinks the shortfall without erasing it", () => {
+    const undiscounted = computeShortfall(healthy, ill, 40, 80, 0).absolute;
+    const discounted = computeShortfall(healthy, ill, 40, 80, 0.04).absolute;
+    expect(discounted).toBeLessThan(undiscounted);
+    expect(discounted).toBeGreaterThan(0);
+  });
+});
+
+describe("layoutQalyProfiles: shortfall", () => {
+  const ids = (r: ReturnType<typeof layoutQalyProfiles>) => [...flattenDrawables(r.drawables).map((d) => d.id), ...r.labels.map((l) => l.id)];
+
+  test("a reference profile and a shortfall are independent switches", () => {
+    expect(ids(layoutQalyProfiles(params))).not.toContain("reference_curve");
+    const refOnly = ids(layoutQalyProfiles({ ...params, reference: { label: "Age-matched norm" } }));
+    expect(refOnly).toContain("reference_curve");
+    expect(refOnly).not.toContain("shortfall_region");
+  });
+
+  test("a shortfall draws the index line, the shaded loss and the arithmetic note", () => {
+    const got = ids(layoutQalyProfiles({ ...params, index_age: 40, shortfall: { of: "no_tx" } }));
+    for (const id of ["reference_curve", "index_line", "shortfall_region", "shortfall_note"]) {
+      expect(got).toContain(id);
+    }
+  });
+
+  test("the note shows where the number comes from, in QALYs and as a share", () => {
+    const r = layoutQalyProfiles({
+      reference: { label: "Norm", waypoints: [{ t: 0, u: 1 }], death_at: 80 },
+      profiles: [{ id: "ill", label: "With the disease", waypoints: [{ t: 0, u: 1 }, { t: 40, u: 0.5, step: true }], death_at: 80 }],
+      shade_between: null,
+      index_age: 40,
+      shortfall: { of: "ill", show: "both" },
+    });
+    const note = flattenDrawables(r.drawables)
+      .filter((d) => d.kind === "text" && d.id.startsWith("shortfall_note"))
+      .map((d) => (d as { text: string }).text)
+      .join(" ");
+    expect(note).toContain("40.0"); // remaining QALYs in full health
+    expect(note).toContain("20.0"); // with the disease, and so the absolute shortfall
+    expect(note).toContain("50"); // proportional shortfall, as a percentage
+  });
+
+  test("the bundled shortfall example survives the real pipeline with no fallbacks or lint errors", async () => {
+    const manifest = (await import("../src/scenes/qaly_profiles/manifest.json")).default;
+    const ex = manifest.examples.find((e) => "shortfall" in (e.params as Record<string, unknown>));
+    expect(ex).toBeDefined();
+    const res = layoutSpec({ template: "qaly_profiles", params: ex!.params, elements: [] } as never);
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  test("the shortfall region is bounded by the index age on the left", () => {
+    const r = layoutQalyProfiles({ ...params, index_age: 40, shortfall: { of: "no_tx" } });
+    const region = flattenDrawables(r.drawables).find((d) => d.id === "shortfall_region");
+    if (!region || region.kind !== "area") throw new Error("no shortfall region");
+    const line = flattenDrawables(r.drawables).find((d) => d.id === "index_line");
+    if (!line || line.kind !== "stroke") throw new Error("no index line");
+    const leftEdge = Math.min(...region.pts.map((p) => p[0]));
+    expect(leftEdge).toBeCloseTo(line.pts[0][0], 0);
   });
 });

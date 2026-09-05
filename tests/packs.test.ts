@@ -714,6 +714,76 @@ describe("economics pack", () => {
     expect(ids).toContain("q_star");
     expect(ids).toContain("shade");
   });
+
+  // --- indifference curves on the frontier ---------------------------------
+
+  function strokePts(r: SceneLayout, id: string): [number, number][] {
+    const d = flattenDrawables(r.drawables).find((d) => d.id === id);
+    if (!d || d.kind !== "stroke") throw new Error(`no stroke ${id}`);
+    return d.pts as [number, number][];
+  }
+
+  /** Linear interpolation along a polyline that advances in x; null off its span. */
+  function yAt(pts: [number, number][], x: number): number | null {
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      if (x1 === x0) continue;
+      if (x < Math.min(x0, x1) || x > Math.max(x0, x1)) continue;
+      return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+    }
+    return null;
+  }
+
+  /** Signed vertical gaps (indifference curve minus frontier) wherever both are defined.
+   *  Tangency = the closest approach is ~0 and no point ever dips below the frontier,
+   *  since a convex curve touching a concave frontier lies outside it everywhere else. */
+  function icGaps(r: SceneLayout, icId: string): number[] {
+    const frontier = strokePts(r, "frontier");
+    const gaps: number[] = [];
+    for (const [x, y] of strokePts(r, icId)) {
+      const fy = yAt(frontier, x);
+      if (fy !== null) gaps.push(y - fy);
+    }
+    return gaps;
+  }
+
+  test("ppf: the utility-maximising indifference curve is tangent to a bowed frontier", () => {
+    registerPack("economics", economicsYaml);
+    const gaps = icGaps(scenes.ppf.layout!({ indifference_curves: 3, optimum_at: 0.5 }), "ic_2");
+    expect(gaps.length).toBeGreaterThan(20);
+    expect(Math.min(...gaps)).toBeGreaterThan(-2); // never dips inside the attainable set
+    expect(Math.min(...gaps)).toBeLessThan(2); // but does touch the frontier
+  });
+
+  test("ppf: the utility-maximising indifference curve is tangent to a straight frontier", () => {
+    registerPack("economics", economicsYaml);
+    const gaps = icGaps(scenes.ppf.layout!({ bowed: false, indifference_curves: 1, optimum_at: 0.4 }), "ic_1");
+    expect(gaps.length).toBeGreaterThan(20);
+    expect(Math.min(...gaps)).toBeGreaterThan(-2);
+    expect(Math.min(...gaps)).toBeLessThan(2);
+  });
+
+  test("ppf: indifference_curves decides how many curves are drawn, none by default", () => {
+    registerPack("economics", economicsYaml);
+    const icIds = (p: Record<string, unknown>) =>
+      flattenDrawables(scenes.ppf.layout!(p).drawables)
+        .map((d) => d.id)
+        .filter((id) => /^ic_\d$/.test(id));
+    expect(icIds({})).toEqual([]);
+    expect(icIds({ indifference_curves: 1 })).toEqual(["ic_1"]);
+    expect(icIds({ indifference_curves: 3 })).toEqual(["ic_1", "ic_2", "ic_3"]);
+  });
+
+  test("ppf: optimum_at slides the tangency along the frontier", () => {
+    registerPack("economics", economicsYaml);
+    const optimumX = (s: number) => {
+      const d = flattenDrawables(scenes.ppf.layout!({ indifference_curves: 1, optimum_at: s }).drawables).find((d) => d.id === "optimum");
+      if (!d || d.kind !== "stroke") throw new Error("no optimum dot");
+      return d.pts[0][0];
+    };
+    expect(optimumX(0.75)).toBeGreaterThan(optimumX(0.25));
+  });
 });
 
 describe("evidence pack", () => {

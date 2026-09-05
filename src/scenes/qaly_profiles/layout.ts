@@ -46,6 +46,15 @@ export interface QalyProfile {
   death_at?: number;
 }
 
+export interface QalyShortfall {
+  /** profile id whose prognosis is measured against the reference (default: the first profile) */
+  of?: string;
+  show?: "absolute" | "proportional" | "both";
+  /** annual discount rate; 0 (the default) is the undiscounted convention severity criteria use */
+  discount?: number;
+  label?: string;
+}
+
 export interface QalyParams {
   x_label?: string;
   y_label?: string;
@@ -53,6 +62,53 @@ export interface QalyParams {
   profiles?: QalyProfile[];
   /** shade gain (a above b) and loss (a below b) areas; null disables. Defaults to the two profiles. */
   shade_between?: { a?: string; b?: string; gain_label?: string; loss_label?: string } | null;
+  /** the health a comparable person without the disease could expect */
+  reference?: QalyProfile;
+  /** age the prognosis is judged from (diagnosis / decision point) */
+  index_age?: number;
+  /** measure the gap between the reference and one profile from index_age on */
+  shortfall?: QalyShortfall | null;
+}
+
+export interface ShortfallResult {
+  /** QALYs left from the index age under the reference path */
+  remainingHealthy: number;
+  /** QALYs left from the index age under the disease path */
+  remainingDisease: number;
+  /** healthy minus disease: the absolute shortfall (Norwegian: absolutt prognosetap) */
+  absolute: number;
+  /** the absolute shortfall as a share of remaining healthy life, 0-1 */
+  proportional: number;
+}
+
+/**
+ * QALYs under two utility paths from the index age on, and the gap between
+ * them. Integrated by the MIDPOINT rule on purpose: a `step` waypoint leaves a
+ * genuine discontinuity behind, and midpoints step over it instead of sampling
+ * the ambiguous instant itself. `discount` is an annual rate, so a year t is
+ * worth (1 + r)^-(t - indexAge) — 0 by default, which is the undiscounted
+ * convention severity criteria are written in.
+ */
+export function computeShortfall(
+  reference: (t: number) => number,
+  disease: (t: number) => number,
+  indexAge: number,
+  tEnd: number,
+  discount = 0,
+): ShortfallResult {
+  const span = Math.max(0, tEnd - indexAge);
+  const n = Math.max(400, Math.ceil(span * 20));
+  const h = span / n;
+  let healthy = 0;
+  let ill = 0;
+  for (let i = 0; i < n; i++) {
+    const t = indexAge + (i + 0.5) * h;
+    const w = discount > 0 ? Math.pow(1 + discount, -(t - indexAge)) : 1;
+    healthy += reference(t) * w * h;
+    ill += disease(t) * w * h;
+  }
+  const absolute = Math.max(0, healthy - ill);
+  return { remainingHealthy: healthy, remainingDisease: ill, absolute, proportional: healthy > 0 ? absolute / healthy : 0 };
 }
 
 const PALETTE = [COLORS.supply, COLORS.demand, COLORS.accent];
@@ -83,6 +139,20 @@ const DEFAULT_PROFILES: QalyProfile[] = [
     death_at: 80,
   },
 ];
+
+// A stand-in for the age-and-sex-matched norm when the caller names none: a
+// long life in good but slowly declining health. Real population norms belong
+// in `reference`; this only keeps the figure drawable without them.
+const DEFAULT_REFERENCE: QalyProfile = {
+  id: "reference",
+  label: "Without the disease",
+  waypoints: [
+    { t: 0, u: 0.95 },
+    { t: 40, u: 0.88 },
+    { t: 70, u: 0.78 },
+  ],
+  death_at: 82,
+};
 
 interface Segment {
   t0: number;
@@ -253,6 +323,119 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     const anchorPt = pts[Math.max(0, pts.length - 3)];
     anchors[`curve_${p.id}`] = anchorPt;
     label(`label_${p.id}`, anchorPt, "above-right", p.label ?? p.id, p.color);
+  }
+
+  // The reference path — the health a comparable person without the disease
+  // could expect — and the shortfall it defines. Pushed BEFORE the gain/loss
+  // shading so the treatment areas paint on top of the loss backdrop.
+  const wantsShortfall = params.shortfall !== null && params.shortfall !== undefined;
+  if (params.reference || wantsShortfall) {
+    const ref = { ...DEFAULT_REFERENCE, ...(params.reference ?? {}) };
+    const refSegments = buildSegments(ref);
+    const refFn = profileFn(refSegments, ref.death_at);
+    const refPts = samplePts(refSegments, sx, sy);
+    if (refPts.length >= 2) {
+      push({
+        id: "reference_curve",
+        kind: "stroke",
+        pts: refPts,
+        z: Z_STROKE,
+        style: defaultStyle({ color: COLORS.guide, strokeWidth: 3.5, dash: true }),
+        drawOpts: defaultDrawOpts("sketch", SKETCH_MS.curve),
+      });
+      curveSamples["reference_curve"] = refPts;
+      const refAnchor = refPts[Math.max(0, refPts.length - 3)];
+      anchors["reference_curve"] = refAnchor;
+      label("label_reference", refAnchor, "above-left", ref.label ?? "Without the disease", COLORS.guide);
+    }
+
+    const sf = params.shortfall;
+    if (sf && profiles.length > 0) {
+      const target = profiles.find((p) => p.id === sf.of) ?? profiles[0];
+      const diseaseFn = fns.get(target.id)!;
+      // The prognosis is judged from the moment the disease arrives: the first
+      // step waypoint, unless the caller names an index age outright.
+      const onset = (target.waypoints ?? []).find((w) => w.step)?.t;
+      const indexAge = params.index_age ?? onset ?? 0;
+      const tEnd = Math.max(ref.death_at ?? 0, ends.get(target.id) ?? 0, indexAge);
+      const res = computeShortfall(refFn, diseaseFn, indexAge, tEnd, sf.discount ?? 0);
+
+      const N = 160;
+      const upper: Pt[] = [];
+      const lower: Pt[] = [];
+      for (let i = 0; i <= N; i++) {
+        const t = indexAge + ((tEnd - indexAge) * i) / N;
+        upper.push([sx(t), sy(Math.max(refFn(t), diseaseFn(t)))]);
+        lower.push([sx(t), sy(Math.min(refFn(t), diseaseFn(t)))]);
+      }
+      const regionPts: Pt[] = [...upper, ...[...lower].reverse()];
+      push({
+        id: "shortfall_region",
+        kind: "area",
+        pts: regionPts,
+        z: Z_AREA,
+        style: defaultStyle({ color: COLORS.guide, fill: COLORS.guide, opacity: 0.2, strokeWidth: 1 }),
+        drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+      });
+      anchors["shortfall_region"] = centroid(regionPts);
+
+      // A single pale wash, NOT a hatch: hatching this region reads well on its
+      // own, but every hatch line becomes an obstacle the label solver has to
+      // dodge, and the figure's own curves run straight through the region.
+      // Measured against the bundled examples, the hatched version carried nine
+      // label collisions where the whole library carries three.
+      push({
+        id: "index_line",
+        kind: "stroke",
+        pts: [
+          [sx(indexAge), sy(0)],
+          [sx(indexAge), sy(1.03)],
+        ],
+        z: Z_STROKE,
+        style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true }),
+        drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
+      });
+      anchors["index_line"] = [sx(indexAge), sy(1.03)];
+      label("label_index", [sx(indexAge), sy(1.03)], "above-right", `From age ${Math.round(indexAge)}`, COLORS.guide);
+
+      // The arithmetic in the open: a shortfall is only credible if you can see
+      // the two remaining-QALY figures it was subtracted from. Kept to three
+      // SHORT lines — a wide one crosses whatever curve happens to be low.
+      const q = (v: number) => v.toFixed(1);
+      const show = sf.show ?? "both";
+      const noteLines = [
+        sf.label ?? "Health lost to the disease",
+        `Without the disease ${q(res.remainingHealthy)} QALYs`,
+        `With it ${q(res.remainingDisease)} QALYs`,
+      ];
+      if (show !== "proportional") noteLines.push(`Shortfall ${q(res.absolute)} QALYs${show === "both" ? ` (${Math.round(res.proportional * 100)}%)` : ""}`);
+      else noteLines.push(`Shortfall ${Math.round(res.proportional * 100)}% of what was left`);
+
+      // Left of the index line if there is room for the block, otherwise right
+      // of it — the one strip of a QALY figure that is reliably empty is the
+      // floor, but the index line cuts it in two.
+      const NOTE_W = 250;
+      const noteX = sx(indexAge) - plot.x0 > NOTE_W + 40 ? plot.x0 + 24 : Math.min(sx(indexAge) + 20, plot.x1 - NOTE_W);
+      push({
+        id: "shortfall_note",
+        kind: "group",
+        children: noteLines.map((text, i) => ({
+          id: `shortfall_note__${i + 1}`,
+          kind: "text" as const,
+          pos: [noteX, sy(0.15 - i * 0.06)] as Pt,
+          text,
+          fontSize: 20,
+          anchor: "start" as const,
+          z: Z_TEXT,
+          style: defaultStyle({ color: COLORS.guide }),
+          drawOpts: defaultDrawOpts("instant"),
+        })),
+        z: Z_TEXT,
+        style: defaultStyle({ color: COLORS.guide }),
+        drawOpts: defaultDrawOpts("instant"),
+      });
+      anchors["shortfall_note"] = [noteX, sy(0.15)];
+    }
   }
 
   // Gain/loss shading between two profiles (default: the first two).

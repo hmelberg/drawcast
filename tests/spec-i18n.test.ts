@@ -155,7 +155,15 @@ describe("every bundled template's string params are classified", () => {
       generic_axes_diagram: [".x_label", ".y_label", ".title", ".curves[].label", ".points[].label", ".vlines[].label", ".hlines[].label"],
       markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title"],
       protein_secondary: [".segments[].label", ".title"],
-      qaly_profiles: [".x_label", ".y_label", ".profiles[].label", ".shade_between.gain_label", ".shade_between.loss_label"],
+      qaly_profiles: [
+        ".x_label",
+        ".y_label",
+        ".profiles[].label",
+        ".shade_between.gain_label",
+        ".shade_between.loss_label",
+        ".reference.label",
+        ".shortfall.label",
+      ],
       ring_molecule: [".substituents[].text", ".name"],
       supply_demand: [
         ".x_label",
