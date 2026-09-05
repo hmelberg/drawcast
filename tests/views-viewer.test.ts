@@ -15,9 +15,13 @@ describe("the viewer counts views", () => {
     expect(withoutComments).toMatch(/countingEnabled\(playlist\.meta\)/);
   });
 
-  test("counting is gated on the published flag AND on being a GitHub cast", () => {
-    // A local file or a Drive link has no published identity to count.
-    expect(withoutComments).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*req\.gh/);
+  test("counting is gated on the published flag AND on the cast having a published identity", () => {
+    // A GitHub key or the drawcast server's own — one `castKey`, derived
+    // once, so the anvil case is not a second copy of the gh wiring. A local
+    // file or a Drive link has no published identity to count.
+    expect(withoutComments).toMatch(/const castKey = req\.anvil \? req\.anvil\.cast : req\.gh \? castKeyFor\(req\.gh\) : null;/);
+    expect(withoutComments).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*castKey/);
+    expect(withoutComments).not.toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*req\.gh/);
   });
 
   test("the count fires before mountPlaylist, not after it", () => {
