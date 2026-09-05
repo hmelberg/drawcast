@@ -22,8 +22,9 @@
 
 import { apiBase } from "../learn";
 
-/** Who can watch (spec §5, question 2). The server enforces `open` and
- *  owner-only in this round; the middle value is accepted and stored. */
+/** Who can watch (spec §5, question 2). The server enforces all three from
+ *  round 1b: open is public, signed-in any account, enrolled an active
+ *  enrolment — and the owner, the run's teachers and an admin always. */
 export type ServerAccess = "open" | "signed-in" | "enrolled";
 
 /**
@@ -58,7 +59,10 @@ export interface ServerPublishArgs {
   title: string;
   /** The prepared document exactly as `formatPublished` writes it, audio and all. */
   yaml: string;
-  access: ServerAccess;
+  /** Who can watch (spec §5, question 2). Undefined sends nothing, and the
+   *  server keeps the course's door as it is — "as before"; a value is the
+   *  author's explicit choice and writes through to the COURSE. */
+  access?: ServerAccess;
   /** The session token (account.ts's `getToken`) — never the GitHub token. */
   token: string;
   api: string;
@@ -117,7 +121,7 @@ export async function publishToServer(args: ServerPublishArgs, fetchImpl: typeof
   const res = await fetchImpl(`${base}/_/api/cast`, {
     method: "POST",
     headers: { "content-type": "text/plain" },
-    body: JSON.stringify({ key: args.token, cast, title: args.title, spec, access: args.access }),
+    body: JSON.stringify({ key: args.token, cast, title: args.title, spec, ...(args.access === undefined ? {} : { access: args.access }) }),
   });
   if (!res.ok) throw new Error(refusal(res.status));
   const url = `${(args.viewerBase ?? "https://drawcast.app").replace(/\/+$/, "")}/#anvil=${args.slug}/${args.file}`;
