@@ -160,10 +160,23 @@ token is revocable from the dashboard, so the exposure is bounded and
 recoverable — but it is real, and it is the reason `/name/check` stays a
 POST rather than being "simplified" to match its neighbours.
 
-**Three ways to sign in, one credential.** Password, Google/Microsoft, or an
-**emailed link** — `POST /_/api/login {email}` mails a one-time token that
-redeems exactly like the others. The magic link survives as a way to *sign
-in*, not as a second identity.
+**Three ways to sign in, one credential.** Google, Microsoft or Facebook, or
+an **emailed link** — a one-time token, mailed, that redeems exactly like the
+redirect's. The magic link survives as a way to *sign in*, not as a second
+identity.
+
+**The link is the whole email path — signup included, and there is no
+password (round 1b).** Round 1a shipped email + password beside the link and
+found the class of attack that a password invites: anyone can sign up *as*
+someone else's address with a password of their own, and the row waits for
+its real owner. A mailed link proves the address at every sign-in and leaves
+nothing to plant, so when an unknown address asks for a link, the account is
+created then and there, passwordless, and the mail is the proof. `use_email`
+is therefore **off**: the sign-in page offers the three providers and the
+link, nothing else. Nobody is excluded — the README's own argument for
+keeping the password was people without a platform account, and the link
+serves exactly them. The link may also land on the server's own page, for a
+teacher who wants the dashboard: the app redeems it into a session there.
 
 **"Author key" disappears from the vocabulary.** The app says *Sign in* and
 *Signed in as …*; the token is an implementation detail. `users.author_key`
@@ -212,9 +225,11 @@ course's teachers*. A teacher approves or declines in the run's dashboard;
 either way the applicant is told. A `rejected` row is kept rather than
 deleted, so the same person does not silently re-apply every week.
 
-`POST /_/api/forget {course?}` leaves one course, or deletes the account's
-enrolments and events entirely. Signing out is a different thing again and
-says so: it clears this browser, not the record.
+**Leaving is the account home's, not the HTTP API's** (round 1a deleted
+`/forget` with the code; the home is §8's). *Leave this course* deletes one
+enrolment and its events; *Forget me* deletes every enrolment and every event
+the account has. Signing out is a different thing again and says so: it
+clears this browser, not the record.
 
 ## 4. Storage: two objects per cast
 
@@ -315,17 +330,29 @@ document. A teacher changes them in the dashboard at any time — closing
 enrolment mid-course, unlisting a work, turning on approval — and the change
 takes effect at once, for everyone, without republishing anything.
 
-The document's `listed:`, `access:`, `join:` and `drip:` keys are the
-**seed**: applied when the course row is first created, ignored on every
-publish after that. `formatCourse` still round-trips them, so a course can be
-recreated from its document.
+**Where each one lives (settled in round 1b).** `listed` and `access` are
+columns on `courses`: they are about the work. `join` and `drip` are columns
+on `runs`, beside `open`: they are about a cohort. Round 0 had put `access`
+on each `casts` row, which is the wrong grain — a course's twenty lectures
+are one door, not twenty — so round 1b moves it to the course and the cast
+read consults the course. `access` is edited by the course's **owner** (or an
+admin), like the teacher list; `join`, `open` and `drip` by any teacher of the
+run, like today.
 
-The publish dialog therefore **reads the current settings from the server**
-when it opens — it is already talking to the server for the name check — and
-shows the live state rather than the document's memory of it. Changing a
-control there is an explicit edit that writes through, exactly as the
-dashboard's does. When the server cannot be reached, the dialog falls back to
-the document's values, says so, and publishing changes no setting.
+**The publish is a seed and an explicit edit, never a silent reset.** The
+publish body's `access` follows the rule this API already applies to `title`,
+`page` and `lectures`: **absence means keep**. A course row created by a
+publish takes the body's value or the default (`enrolled`); a later publish
+that sends no `access` leaves the server's value alone, and one that sends
+it is the author's explicit choice and writes through. The publish dialog's
+control therefore defaults to *as before* and sends nothing unless the author
+picks a value — so no live read is needed, no dialog can show a stale value,
+and a republished lecture can never re-open what a teacher closed. (An
+earlier version of this section had the dialog read the live settings from
+the server; the absence-means-keep rule buys the same guarantee with no new
+endpoint.) The document's `listed:`, `join:` and `drip:` keys, when they
+arrive, seed the same way. `formatCourse` still round-trips them, so a course
+can be recreated from its document.
 
 The alternative — the document winning on every publish — means a
 republished lecture silently re-opens an enrolment a teacher closed two weeks
@@ -467,9 +494,12 @@ undone. Three details:
 **`me` joins `RESERVED_PREFIXES`**, so a course cannot take the account
 home's own address if it ever moves into the app.
 
-**Removing a work.** The dashboard deletes a course or a single cast —
-**owner or admin only**, never a teacher who was added to a run: editing a
-run's settings and destroying the course are different powers.
+**Removing a work (round 2, with unlisting).** The dashboard deletes a
+course or a single cast — **owner or admin only**, never a teacher who was
+added to a run: editing a run's settings and destroying the course are
+different powers. It ships in the same round as unlisting, not before it:
+the last paragraph of this section says the reversible half must be offered
+first, and it cannot be offered before it exists.
 
 Deleting takes the stored spec and audio, the runs, the enrolments and the
 events. Three things the confirmation has to say, because each is a way to
@@ -560,19 +590,37 @@ open — and the three measurements everything after depends on: upload of a
 5–7 MB body, whether a Media URL is directly servable, and what a baked
 lecture costs to serve.
 
-**Round 1 — accounts, enrolment and the four questions.** One-click join and
-approval (§3, §5), the account home on the server, the GitHub page reduced to
-static, `ENROL_SCRIPT` deleted, social login enabled. The dashboard gains the
-settings card that edits `access`, `join` and `drip` on a live course, and
-the delete that only an owner sees (§9).
+**Round 1a — the code becomes an account** (delivered 2026-09-05, ledger
+`plans/2026-09-05-round-1a-ledger.md`). One-click join, the learner half of
+the API on the session token, the GitHub page reduced to static,
+`ENROL_SCRIPT` deleted, social login enabled, the mailed link as an endpoint.
 
-**Round 2 — the catalogue.** `kind`, `listed`, summary and topics; the public
-listing endpoint; the catalogue page; stars; unlisting from the same settings
-card. Small, and worth its own round because it is the first thing a stranger
-sees.
+**Round 1b — approval, the gate, the account home, and the link as the
+whole email path.** Approval (§3): `join` on the run, `pending`/`rejected`
+states, the teachers mailed, the decision taken in the run's dashboard.
+`access` moved to the course and made a **real gate** for the single-cast
+course: `signed-in` admits any account, `enrolled` an active enrolment, and
+the owner, the run's teachers and an admin always — the pure rule in
+`access.cast_read` grows, the handler does not. `/enroll` opens to a server
+course that exists and is owned. The account home on the server (§8): what
+you follow, your progress, *Leave this course*, *Forget me*, over the
+teacher's courses. The dashboard's settings: `join` beside `open`, `access`
+per course. The sign-in page rebuilt as a chooser (providers + link), the
+link creating a passwordless account for an unknown address, landing on the
+server's own page too, `use_email` off (§1). The viewer: a 401 on a private
+cast says *sign in*, a 403 says *this lecture is part of a course — join to
+watch* with a door, and reporting stops after a refusal. The publish dialog's
+*Who can watch* gains its third value and an *as before* default (§5).
 
-**Round 3 — private courses.** Many lectures, `#free` previews, `enrolled` as
-a real gate, the dashboard unchanged because the cast key never changed.
+**Round 2 — the catalogue, and the delete.** `kind`, `listed`, summary and
+topics; the public listing endpoint; the catalogue page; stars; unlisting
+from the same settings card — and, beside it, the owner-only delete (§9),
+which must not exist before the reversible alternative does. Small, and
+worth its own round because it is the first thing a stranger sees.
+
+**Round 3 — private courses.** Many lectures, `#free` previews, the gate
+round 1b built applied across a whole course, the dashboard unchanged
+because the cast key never changed.
 
 **Round 4 — drip mail** (§10), which needs the scheduled task and the sender
 domain.
@@ -602,6 +650,14 @@ you started without seeing a form; join a course in one click; request access
 to an approval course and be approved from the dashboard; answer a quiz
 wrongly; see it on the account home and in the teacher's grid.
 
+By hand, round 1b: ask for a link with an address that has no account and
+arrive signed in, with the row created passwordless; open a private cast
+signed out and be told to sign in, signed in and not enrolled and be offered
+the door; join, be approved, and watch it; leave the course from the account
+home and see the teacher's grid lose the row; republish the cast with *Who
+can watch* left at *as before* and confirm the dashboard's value did not
+move.
+
 ## 14. Decisions and risks
 
 - **Listing defaults to on, including for closed courses.** That is what
@@ -614,9 +670,16 @@ wrongly; see it on the account home and in the teacher's grid.
   deliberately kept narrow (`allow_signup` and `enable_automatically` are
   already true; social login is three more flags). A reversal, not a silent
   flag flip — it belongs on round 1's checklist.
-- **`confirm_email: true` adds a round trip** for people signing up by email.
-  Google and Microsoft skip it, and a magic link proves the address anyway;
-  worth turning off, deliberately.
+- **There is no password (round 1b).** Round 1a found that email + password
+  with open signup lets anyone plant a row under someone else's address; the
+  mailed link closes the class only when it is the *whole* email path, so
+  `use_email` goes off and an unknown address that asks for a link gets a
+  passwordless account. The costs: every email sign-in is a trip to the
+  inbox; an address typed by a stranger leaves an inert, passwordless row
+  that never confirms (bounded by the per-address and per-IP budgets, and
+  sweepable); and Hans's own row signs in by Google or by the link.
+  `confirm_email` stays as it is — it governs a signup path that no longer
+  exists.
 - **The `users` table stops being teachers only.** `_user_by_email`'s
   full-table scan must be re-read against a table with student rows in it.
 - **A catalogue is a moderation surface.** The moment strangers can list
