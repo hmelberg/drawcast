@@ -453,7 +453,10 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // A game with nothing run yet IS a screen: the C64's own boot screen, 40 × 25
   // characters at 8 × 8, so the pane takes that shape rather than the three
   // ruled placeholder lines an unresolved run would get.
-  const gameScreen = el.game !== undefined && !result && (el.code ?? "").trim() === "" && showOut;
+  // …and a BASIC run's screen is the same shape: the envelope carries the 40 × 25
+  // grid a run left behind, and it is drawn in place of stdout.
+  const runScreen = showOut && !failed && result?.screen !== undefined ? result.screen : null;
+  const gameScreen = showOut && ((el.game !== undefined && !result && (el.code ?? "").trim() === "") || runScreen !== null);
   const outContentH = !showOut
     ? 0
     : gameScreen
@@ -594,21 +597,44 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     panelChildren.push(field(`${el.id}__screen`, outX + rim, fieldTop - rim, outPaneW - 2 * rim, fieldH - 2 * rim, C64_PALETTE[C64_BACKGROUND]));
     const screenFont = (outPaneW - 2 * rim) / (C64_COLS * CHAR_W);
     const rowH = screenFont * ROW_H;
-    C64_BOOT_LINES.forEach(([row, text], i) => {
-      panelChildren.push({
-        id: `${el.id}__boot${i}`,
-        kind: "text",
-        pos: [outX + rim, fieldTop - rim - rowH * (row + 0.75)],
-        text,
-        fontSize: screenFont,
-        anchor: "start",
-        font: "mono",
-        z: Z_TEXT,
-        style: resolveStyle(undefined, { color: C64_PALETTE[C64_TEXT] }),
-        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
-      });
+    const rowText = (sid: string, row: number, col: number, text: string, color: string): Drawable => ({
+      id: sid,
+      kind: "text",
+      pos: [outX + rim + col * screenFont * CHAR_W, fieldTop - rim - rowH * (row + 0.75)],
+      text,
+      fontSize: screenFont,
+      anchor: "start",
+      font: "mono",
+      z: Z_TEXT,
+      style: resolveStyle(undefined, { color }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
     });
-    // The play mark: the source element's, in white, on the screen's centre.
+    if (runScreen) {
+      // What the program left on the screen: one text per run of one colour
+      // on a row, so a POKEd cell in another colour is its own ink. The
+      // machine's paper follows the program too (POKE 53281).
+      panelChildren[panelChildren.length - 2].style.fill = C64_PALETTE[runScreen.border & 15];
+      panelChildren[panelChildren.length - 1].style.fill = C64_PALETTE[runScreen.background & 15];
+      runScreen.chars.forEach((line, row) => {
+        let col = 0;
+        while (col < line.length) {
+          if (line[col] === " ") {
+            col++;
+            continue;
+          }
+          const c = runScreen.colors[row]?.[col] ?? "e";
+          let end = col;
+          while (end < line.length && (runScreen.colors[row]?.[end] ?? "e") === c && !(line[end] === " " && (end + 1 >= line.length || line[end + 1] === " "))) end++;
+          panelChildren.push(rowText(`${el.id}__scr${row}_${col}`, row, col, line.slice(col, end), C64_PALETTE[parseInt(c, 16) & 15]));
+          col = end;
+        }
+      });
+    } else {
+      C64_BOOT_LINES.forEach(([row, text], i) => panelChildren.push(rowText(`${el.id}__boot${i}`, row, 0, text, C64_PALETTE[C64_TEXT])));
+    }
+    // The play mark: the source element's, in white, on the screen's centre —
+    // only on a machine with a game to start.
+    if (el.game !== undefined) {
     const pcx = outX + outPaneW / 2;
     const pcy = fieldTop - fieldH / 2;
     const r = Math.max(16, outPaneW * 0.1);
@@ -634,6 +660,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       style: resolveStyle(undefined, { fill: C64_PALETTE[1], opacity: 1, strokeWidth: 0 }),
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 260 }),
     });
+    }
   }
 
   const out: Drawable[] = [

@@ -172,7 +172,50 @@ Folded into M1 for the no-script case: the boot screen IS what a switched-on
 machine shows, and it is the still a movie needs. What is left of M2 is the
 case where a script has RUN — which is M3's screen.
 
-## M3 — BASIC (open)
+## M3 — BASIC (SHIPPED, first cut) and two bundled examples
+
+`src/code/basic.ts`: Commodore BASIC V2 as `language: "basic"`, written from
+the Programmer's Reference Guide, ~700 lines, pure and node-tested end to
+end. The run leaves a `screen` in the envelope (CODE_VERSION 6 → 7) and the
+layout draws it where the boot screen was: the field takes the program's own
+border and background (POKE 53280/53281), and every run of one colour on a row
+is its own text — so a POKEd cell in another colour is its own ink.
+
+What the first cut has: PRINT and `?` (with `;` `,` and the machine's own
+number spacing, ` 5 `), assignment, GOTO, GOSUB/RETURN, IF/THEN (a line or a
+statement, and -1 for true), FOR/NEXT/STEP (nested; a loop that starts past
+its end runs once, as on the machine), REM, END/STOP, POKE/PEEK to screen RAM
+(1024+), colour RAM (55296+), border, background, cursor colour (646) and a
+sparse store for everything else; CHR$(147) clears, CHR$(13) is a newline,
+the sixteen colour codes set the ink; INT ABS SGN RND LEN CHR$ ASC STR$ VAL
+LEFT$ MID$ RIGHT$ PEEK. RND is seeded (a figure renders the same every time).
+Unnumbered lines run in order; a repeated number replaces the earlier line.
+A runaway program stops after 400 000 statements with `?BREAK IN <line>` and
+the reason. Everything else is refused BY NAME in the machine's voice with
+drawcast's reason in parentheses — `?SYNTAX ERROR IN 10 (there is no machine
+code here — this BASIC runs on paper, not on a 6510)` — and the error lands
+on the screen too. `stdout` is what PRINT wrote, so `ask` with
+`expect: "stdout"` works, and the data bridge harvests variables
+(`{prog.T}`, `{prog.N$}`).
+
+Not in it, and said so: DATA/READ/RESTORE, arrays, ON…GOTO, INPUT/GET,
+files, SYS/WAIT/USR, DEF FN, TAB/SPC, trigonometry, sprites, sound.
+
+The overlap lint stands aside for `<id>_mark_k` under `<id>_line_n` — a
+highlighter under its own line is what a highlighter is.
+
+**Two bundled examples** (src/examples.json), both clean under every example
+check: "The Commodore 64" (the machine switched on, three facts drawn beside
+it, `c64maze` to play) and "Type your first Commodore 64 BASIC program" (a
+six-line program typed onto the machine, two marks, the run's black screen
+drawn as ink, then `tenlander` — a lander in ten lines of BASIC — to fly).
+
+Measured in the live smoke, through the real app path: the ensure phase ran
+the program, the envelope carried the screen, the layout drew five
+HELLO, WORLD lines on a black field with both marks as real strokes and the
+play mark on top, and the joystick beat opened the lander's URL.
+
+## M3 — the original plan (kept for the record)
 
 Our own CBM BASIC V2 in TypeScript as `language: "basic"`, written from the
 C64 Programmer's Reference Guide — NOT from basic64-js, which is GPL-3 (and

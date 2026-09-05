@@ -14,11 +14,13 @@ const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
 
 describe("languages — one declaration", () => {
-  test("the five languages, each with a label and a pinned version", () => {
-    expect([...LANGUAGES]).toEqual(["python", "r", "brython", "micropython", "microdata"]);
+  test("the six languages, each with a label and a pinned version", () => {
+    expect([...LANGUAGES]).toEqual(["python", "r", "brython", "micropython", "microdata", "basic"]);
     for (const l of LANGUAGES) {
       expect(RUNTIME_LABEL[l]).toBeTruthy();
-      expect(RUNTIME_VERSION[l]).toMatch(/^\d+\.\d+\.\d+$/);
+      // Five are pinned to a runtime someone else versions; basic is ours,
+      // versioned by a counter we bump when its rules change.
+      expect(RUNTIME_VERSION[l]).toMatch(l === "basic" ? /^\d+$/ : /^\d+\.\d+\.\d+$/);
     }
     expect(isLanguage("r")).toBe(true);
     expect(isLanguage("cobol")).toBe(false);
@@ -76,11 +78,17 @@ describe("authoring-time check runs every language", () => {
   });
 });
 
-describe("dispatch — node has no browser, so every runtime degrades to an unavailable envelope", () => {
-  test.each([...LANGUAGES])("%s", async (language) => {
+describe("dispatch — node has no browser, so every browser runtime degrades to an unavailable envelope", () => {
+  test.each(LANGUAGES.filter((l) => l !== "basic"))("%s", async (language) => {
     const res = await runCode({ language, code: "1" }, { cacheGet: async () => null, cachePut: async () => {} });
     expect(res.ok).toBe(false);
     expect(res.runtimeUnavailable).toBe(true);
+  });
+  test("basic needs no browser at all — it runs right here", async () => {
+    const res = await runCode({ language: "basic", code: "10 PRINT 1+1" }, { cacheGet: async () => null, cachePut: async () => {} });
+    expect(res.ok).toBe(true);
+    expect(res.stdout).toBe(" 2 ");
+    expect(res.screen?.chars[0].trimEnd()).toBe(" 2");
   });
 });
 

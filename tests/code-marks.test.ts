@@ -126,3 +126,10 @@ describe("the chart style", () => {
     expect(l.warnings.some((w) => w.includes('chart: "xkcd" needs language: "python"'))).toBe(true);
   });
 });
+
+describe("a mark under its own line is not an overlap", () => {
+  test("the label-on-stroke lint stands aside for `<id>_mark_k` under `<id>_line_n`", () => {
+    const l = lay({ marks: ["rng = np.random.default_rng(7)"] });
+    expect(l.issues.filter((i) => i.message.includes("sits on stroke") && i.message.includes("_mark_"))).toEqual([]);
+  });
+});

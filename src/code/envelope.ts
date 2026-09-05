@@ -7,8 +7,10 @@
 // into the layout module. src/code/run.ts imports and re-exports everything
 // here, so existing `from "../code/run"` imports keep working unchanged.
 
+import type { C64Screen } from "./c64";
+
 /** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 6; // v6: figures come out transparent (they sit on the panel's paper)
+export const CODE_VERSION = 7; // v7: a run may leave a C64 screen behind (language: basic)
 
 export interface CodeFigure {
   /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */
@@ -34,6 +36,9 @@ export interface CodeRunResult {
   figures: CodeFigure[];
   /** DataFrames drawn as tables (absent on old cached envelopes — treat as []). */
   tables?: CodeTable[];
+  /** The 40 × 25 screen a BASIC run left behind (code/c64.ts) — drawn as ink
+   *  in place of stdout when present. */
+  screen?: C64Screen;
   /** Harvested script variables keyed by the requested dotted path ("y",
    *  "df.gdp") — plain JSON: numbers, strings, lists, objects, and
    *  {columns, rows} for a DataFrame (see code/harvest.ts). */

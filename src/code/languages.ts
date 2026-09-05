@@ -7,7 +7,7 @@
 // Dependency-free on purpose: imported by spec/types.ts and spec/schema.ts,
 // which must not transitively pull IndexedDB or any runtime loader.
 
-export const LANGUAGES = ["python", "r", "brython", "micropython", "microdata"] as const;
+export const LANGUAGES = ["python", "r", "brython", "micropython", "microdata", "basic"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 export function isLanguage(x: unknown): x is Language {
@@ -21,6 +21,7 @@ export const RUNTIME_LABEL: Record<Language, string> = {
   brython: "Brython",
   micropython: "MicroPython",
   microdata: "microdata",
+  basic: "C64 BASIC",
 };
 
 /** Pinned runtime versions — part of the cache key, so an upgrade misses
@@ -37,6 +38,10 @@ export const RUNTIME_VERSION: Record<Language, string> = {
   brython: "3.12.0",
   micropython: "1.27.0",
   microdata: PYODIDE_PIN,
+  // drawcast's own interpreter (code/basic.ts): its version is ours to bump
+  // when its behaviour changes, so a cached screen never outlives the rules
+  // that drew it.
+  basic: "1",
 };
 
 /** The vendored pure-Python library snapshot (public/pylib/<version>/) the
@@ -62,5 +67,7 @@ export function cacheTag(language: Language): string {
       return `mpy${RUNTIME_VERSION.micropython}+${PYLIB_VERSION}`;
     case "microdata":
       return `md${RUNTIME_VERSION.microdata}+${MDLIB_VERSION}`;
+    case "basic":
+      return `bas${RUNTIME_VERSION.basic}`;
   }
 }

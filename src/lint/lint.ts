@@ -203,6 +203,9 @@ export function lintLayoutDetailed(
     for (const s of strokes) {
       if (s.id === `${t.id}_leader`) continue;
       if (!coexist(t.id, s.id)) continue;
+      // A code panel's marker pen (`<id>_mark_k`) lies UNDER that panel's own
+      // lines on purpose — that is what a highlighter is. Not an overlap.
+      if (/_mark_\d+$/.test(s.id) && t.id.startsWith(`${s.id.replace(/_mark_\d+$/, "")}_line_`)) continue;
       if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
         (crossingPair(t, s) ? exempt : issues).push({
           rule: "overlap-label-stroke",

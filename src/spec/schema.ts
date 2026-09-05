@@ -193,7 +193,7 @@ const elementSchema = {
       type: "string",
       enum: [...LANGUAGES],
       description:
-        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython = the minimal tier (half a megabyte, boots in milliseconds; pandas and plotly.express emulations, a partial standard library) — only when the request asks for it.",
+        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython = the minimal tier (half a megabyte, boots in milliseconds; pandas and plotly.express emulations, a partial standard library) — only when the request asks for it. basic = Commodore 64 BASIC V2, drawcast's own small interpreter: PRINT, variables, GOTO/GOSUB, IF/THEN, FOR/NEXT, POKE/PEEK to the screen, colour RAM, border (53280) and background (53281); the run leaves a 40 × 25 C64 screen that is DRAWN on the panel — pair it with frame: \"c64\". No arrays, DATA, INPUT, SYS or sound in this first cut.",
     },
     code: {
       type: "string",
@@ -953,8 +953,14 @@ function elementErrors(el: SpecElement): string[] {
       need(!!el.shape, "needs shape");
       break;
     case "code":
-      need(isLanguage(el.language), `needs language: ${LANGUAGES.map((l) => `"${l}"`).join(" | ")}`);
-      need(typeof el.code === "string" && el.code.trim() !== "", "needs code (the script)");
+      // A machine with a program on it and nothing to run (`game`, no code) is
+      // whole as it is: the layout draws its boot screen. Anything with a
+      // script needs a runtime to run it in.
+      const machineOnly = el.game !== undefined && (typeof el.code !== "string" || el.code.trim() === "");
+      if (!machineOnly) {
+        need(isLanguage(el.language), `needs language: ${LANGUAGES.map((l) => `"${l}"`).join(" | ")}`);
+        need(typeof el.code === "string" && el.code.trim() !== "", "needs code (the script)");
+      }
       if (el.figures !== undefined) {
         need(Number.isInteger(el.figures) && el.figures >= 2, "figures must be an integer >= 2 (omit it for none or one figure)");
       }
