@@ -22,6 +22,7 @@
 // Envelope types come from the dependency-free code/envelope module, not
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
+import { stylable } from "../code/chart-style";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { FIGURE_GROUND } from "./ink";
 import { CANVAS } from "./canvas";
@@ -58,6 +59,36 @@ export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
 const TYPE_CPS = 28;
 
+/** One highlighter pass over the code: the drawn text to cover, and how. */
+export interface CodeMark {
+  text: string;
+  kind: "mark" | "strike" | "underline";
+}
+
+/** An author writes a string (the marker) or names a kind. Normalised here so
+ *  the rule is one place and node-testable. */
+export function normalizeMarks(marks: SpecElement["marks"]): CodeMark[] {
+  return (marks ?? []).map((m) => (typeof m === "string" ? { text: m, kind: "mark" as const } : { text: m.text, kind: m.kind ?? "mark" }));
+}
+
+/**
+ * Where a mark's text sits in the DRAWN rows — block, row within it, and
+ * column. The rows, not the source lines: a wrapped line is two rows on
+ * screen, and a marker draws over what the reader can see. First hit wins;
+ * null when the text is not on screen as one piece (wrapping split it, or it
+ * is simply not there), which the caller reports rather than guessing.
+ */
+export function findMarkRow(blocks: { rows: string[] }[], text: string): { block: number; row: number; col: number } | null {
+  if (text === "") return null;
+  for (let b = 0; b < blocks.length; b++) {
+    for (let r = 0; r < blocks[b].rows.length; r++) {
+      const col = blocks[b].rows[r].indexOf(text);
+      if (col >= 0) return { block: b, row: r, col };
+    }
+  }
+  return null;
+}
+
 /** A windowed code pane, published for the plan: its line ids in order, each
  *  line's bottom edge as a distance from the pane's content top (logical
  *  units, positive down), and the window's content height. The plan scrolls
@@ -66,6 +97,10 @@ export interface CodeWindow {
   ids: string[];
   bottoms: number[];
   height: number;
+  /** Ids that ride the same scroll without deciding it — the marks, which
+   *  belong to a line and must travel with it, but whose own extent must not
+   *  count as "the lowest thing on screen". */
+  follow?: string[];
 }
 
 export interface CodeCtx {
@@ -329,6 +364,11 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const declaredFigs = typeof el.figures === "number" && el.figures >= 2 ? Math.floor(el.figures) : 0;
   const multiFig = declaredFigs >= 2 || rawFigures.length >= 2;
   const figCount = multiFig ? Math.max(declaredFigs, rawFigures.length) : rawFigures.length;
+  if (el.chart !== undefined && el.language !== undefined && !stylable(el.language)) {
+    ctx.warnings.push(
+      `code "${el.id}": chart: "${el.chart}" needs language: "python" — ${el.language} draws its charts through an emulation with no matplotlib styles`,
+    );
+  }
   if (result && declaredFigs >= 2 && rawFigures.length !== declaredFigs && !failed) {
     ctx.warnings.push(
       `code "${el.id}": figures declares ${declaredFigs} but the script produced ${rawFigures.length} — beats for the missing ones stay empty`,
@@ -568,7 +608,67 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         ...(clip ? { clip } : {}),
       });
     });
-    if (windowRows > 0) ctx.windows[el.id] = { ids: lineIds, bottoms, height: windowH };
+    // ---- marks: the marker pen over the drawn text ------------------------
+    // A beat of its own per mark (`<id>_mark_1` …), so a storyboard can say
+    // "and THIS is the seed" while the pen travels — ordinary ink, so it
+    // scrubs, erases and exports like every other stroke. Geometry is exact
+    // because the pane is monospace: column × CHAR_W is the x, and the row's
+    // own centre is the y (tspans sit ROW_H apart around the block's centre,
+    // svg-backend.ts). A hair of padding each side absorbs the difference
+    // between CHAR_W and the real font's advance — and a marker overshoots
+    // anyway, which is what makes it read as a hand.
+    const markIds: string[] = [];
+    normalizeMarks(el.marks).forEach((m, k) => {
+      const id = `${el.id}_mark_${k + 1}`;
+      ctx.extraOrder.push(id);
+      markIds.push(id);
+      const hit = findMarkRow(codeStack.blocks, m.text);
+      if (!hit) {
+        // The quote idiom: keep the beat and its narration, draw nothing, say
+        // why. A wrapped line that split the phrase lands here too.
+        ctx.warnings.push(`code "${el.id}": mark ${k + 1} — "${m.text}" is not on any drawn line as one piece`);
+        ctx.anchors[id] = [codeX + PAD, codeTop];
+        out.push({
+          id,
+          kind: "stroke",
+          pts: [],
+          z: Z_STROKE,
+          style: resolveStyle(el.style, { color: COLORS.region1, opacity: 0.42 }),
+          drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 400 }),
+        });
+        return;
+      }
+      const block = codeStack.blocks[hit.block];
+      const rows = block.rows.length;
+      const rowY = codeTop - block.center + ((rows - 1) / 2 - hit.row) * ROW_H * fontSize;
+      const pad = fontSize * 0.15;
+      const x0m = codeX + PAD + hit.col * CHAR_W * fontSize - pad;
+      const x1m = x0m + m.text.length * CHAR_W * fontSize + 2 * pad;
+      // The band sits on the glyph body: a baseline is the FOOT of the text.
+      const midY = rowY + fontSize * 0.28;
+      const geom =
+        m.kind === "underline"
+          ? { y: rowY - fontSize * 0.12, width: 2.5, color: COLORS.demand, opacity: 1 }
+          : m.kind === "strike"
+            ? { y: midY, width: 2.5, color: COLORS.regionLoss, opacity: 1 }
+            : { y: midY, width: fontSize * 0.95, color: COLORS.region1, opacity: 0.42 };
+      ctx.anchors[id] = [(x0m + x1m) / 2, geom.y];
+      out.push({
+        id,
+        kind: "stroke",
+        pts: [
+          [x0m, geom.y],
+          [x1m, geom.y],
+        ],
+        z: m.kind === "mark" ? Z_AREA : Z_STROKE, // a marker goes UNDER the letters
+        style: resolveStyle(el.style, { color: geom.color, strokeWidth: geom.width, opacity: geom.opacity, roughness: 0.6 }),
+        // The reveal IS the pen travelling left to right (the source element's
+        // highlighter, same dash-offset trick).
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: Math.max(320, Math.min(1500, (x1m - x0m) * 7)) }),
+        ...(clip ? { clip } : {}),
+      });
+    });
+    if (windowRows > 0) ctx.windows[el.id] = { ids: lineIds, bottoms, height: windowH, follow: markIds };
   }
 
   // ---- output pane: one group, always minted -------------------------------

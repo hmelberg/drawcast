@@ -221,6 +221,31 @@ const elementSchema = {
       description:
         "code: how many separate figures the script produces (2 or more; omit for none or one). Each plt.figure() stage becomes its own drawable `<id>_fig_1` … `<id>_fig_K`, ALL SHARING ONE FRAME — drawing the next replaces the previous, so a parameter change or a chart built stage by stage plays as narrated beats. Keep xlim/ylim FIXED across stages so the swap reads as the chart itself changing.",
     },
+    chart: {
+      type: "string",
+      enum: ["seaborn", "xkcd", "plain"],
+      description:
+        "code: how a matplotlib chart LOOKS — seaborn (THE DEFAULT: a calm grid, the figure's own ink and series colours on the drawing's paper), xkcd (matplotlib's hand-drawn wobble, which suits a sketched lecture), plain (matplotlib's own defaults). Only `language: \"python\"` has a real matplotlib to style; the light tiers draw their charts through an emulation and ignore it.",
+    },
+    marks: {
+      type: "array",
+      items: {
+        oneOf: [
+          { type: "string" },
+          {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              kind: { type: "string", enum: ["mark", "strike", "underline"] },
+            },
+            required: ["text"],
+            additionalProperties: false,
+          },
+        ],
+      },
+      description:
+        "code: pen passes over the script, each its OWN beat `<id>_mark_1`, `<id>_mark_2`, … drawn in the order written — so a line of narration can say \"and this is where the seed goes in\" while the marker travels across exactly that phrase. Each item is a VERBATIM piece of a drawn line: a whole line, or just the part you are talking about (`\"rng.default_rng(7)\"`). A plain string is the yellow highlighter; `{\"text\": \"...\", \"kind\": \"strike\"}` crosses it out and `\"underline\"` underlines it. The text must sit on ONE line as one piece (a wrapped line is two rows on screen); the first occurrence wins, so write more of the line when a short phrase repeats. Draw them like any other id: {\"draw\": [\"sim_mark_1\"], \"speak\": \"…\"} — and erase to take the pen off again.",
+    },
     code_result: {
       type: "string",
       description: "code: machine-written execution result (copy VERBATIM if present; never write, edit, or invent it).",

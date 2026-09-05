@@ -61,7 +61,7 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
       results.push({ id: el.id, ok: false, error: "code element needs language and code" });
       continue;
     }
-    const result = await runCode({ language: el.language, code: el.code, paths }, deps);
+    const result = await runCode({ language: el.language, code: el.code, chart: el.chart, paths }, deps);
     el.code_result = JSON.stringify(result);
     results.push({ id: el.id, ok: result.ok, error: result.error });
   }

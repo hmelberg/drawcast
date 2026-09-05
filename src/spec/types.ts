@@ -4,6 +4,7 @@
 
 import type { SpecText } from "../layout/text-style";
 import type { Language } from "../code/languages";
+import type { ChartStyle } from "../code/chart-style";
 import type { Instrument, PlayVoice } from "./notation";
 export type { Instrument, PlayVoice } from "./notation";
 
@@ -143,6 +144,12 @@ export interface SpecElement {
   frame?: "panel" | "window" | "screen" | "laptop" | "crt" | "c64" | "none";
   /** code: number of separate figures the script produces (>= 2) — each becomes its own beat `<id>_fig_N`, all sharing one frame. */
   figures?: number;
+  /** code: how a matplotlib chart LOOKS — seaborn (the default: a calm grid),
+   *  xkcd (hand-drawn wobble), plain (matplotlib's own). python only. */
+  chart?: ChartStyle;
+  /** code: marker passes over the drawn script, each its own beat
+   *  `<id>_mark_1` … — a string highlights it, an object picks the kind. */
+  marks?: (string | { text: string; kind?: "mark" | "strike" | "underline" })[];
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */
   code_result?: string;
   // source (a book cover, a paper's title page, or one page of either)

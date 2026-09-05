@@ -164,7 +164,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (visibleSet.has(id)) maxBottom = Math.max(maxBottom, w.bottoms[i]);
       });
       const scroll = Math.max(0, maxBottom - w.height);
-      for (const id of w.ids) {
+      // The marks ride along without voting: a pen stroke belongs to its line
+      // and must scroll with it, but its own extent is not "the lowest thing
+      // on screen" — counting it would scroll the pane to chase a highlight.
+      for (const id of [...w.ids, ...(w.follow ?? [])]) {
         if (scroll === 0) delete offsets[id];
         else offsets[id] = [0, scroll];
       }

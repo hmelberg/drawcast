@@ -13,6 +13,7 @@
 // the next render.
 
 import { cacheGet, cachePut } from "../render/portrait";
+import { chartPrelude, DEFAULT_CHART_STYLE, type ChartStyle } from "./chart-style";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
 import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./languages";
 
@@ -20,6 +21,7 @@ import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./language
 // directly from there); re-exported here so every existing
 // `from "../code/run"` import keeps working unchanged.
 export { CODE_VERSION, decodeCodeResult, type CodeFigure, type CodeRunResult, type CodeTable } from "./envelope";
+export { CHART_STYLES, DEFAULT_CHART_STYLE, isChartStyle, type ChartStyle } from "./chart-style";
 
 // Languages, their pinned versions and cache tags live in ./languages (one
 // declaration for types, schema, dispatch and the check); re-exported here.
@@ -31,6 +33,8 @@ export const PYODIDE_VERSION = RUNTIME_VERSION.python;
 export interface CodeRunRequest {
   language: Language;
   code: string;
+  /** How a matplotlib figure should look (python only; see chart-style.ts). */
+  chart?: ChartStyle;
   /** Dotted paths to harvest after the run ("y", "df.gdp"). Empty/absent = no harvest. */
   paths?: string[];
   onStatus?: (phase: "loading" | "running", detail: string) => void;
@@ -52,14 +56,18 @@ function hash(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "paths">): string {
+export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "chart" | "paths">): string {
   const tag = cacheTag(req.language);
   // The code length rides along with the hash to kill hash-collision risk
   // (two different scripts landing on the same 32-bit FNV-1a digest).
   // Requested paths are part of the key: a spec that adds a reference re-runs
   // once; a scrub or animate tick never does. Sorted, so order can't miss.
   const paths = [...(req.paths ?? [])].sort().join(",");
-  return `c${CODE_VERSION}|${tag}|${hash(req.code)}|${req.code.length}|${hash(paths)}`;
+  // The chart style changes the PIXELS a run returns, so it belongs in the
+  // key exactly as the runtime version does — but only where it can apply,
+  // or every non-python script would miss its cache for nothing.
+  const style = chartPrelude(req.chart ?? DEFAULT_CHART_STYLE, req.code, req.language) === "" ? "" : (req.chart ?? DEFAULT_CHART_STYLE);
+  return `c${CODE_VERSION}|${tag}|${style}|${hash(req.code)}|${req.code.length}|${hash(paths)}`;
 }
 
 type RuntimeModule = { run: (req: CodeRunRequest) => Promise<CodeRunResult> };

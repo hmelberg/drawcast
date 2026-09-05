@@ -184,6 +184,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const result = await runCode({
         language: el.language,
         code,
+        chart: el.chart,
         paths,
         onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
       });

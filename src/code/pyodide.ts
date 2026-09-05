@@ -13,6 +13,7 @@
 // in the background, and the next queued run still waits for it to complete.
 
 import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult, type CodeTable } from "./run";
+import { chartPrelude, DEFAULT_CHART_STYLE } from "./chart-style";
 import { dataHarvestScript, parseHarvest } from "./harvest";
 import { RunQueue } from "./serial";
 import { renderPlotlyFigures } from "./plotly-render";
@@ -225,6 +226,10 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   const py = await boot();
   status("loading", "Loading packages…");
   await py.loadPackagesFromImports(req.code).catch(() => undefined);
+  // The look, before the script and NEVER prepended to it: a traceback must
+  // keep naming the line the author wrote.
+  const prelude = chartPrelude(req.chart ?? DEFAULT_CHART_STYLE, req.code, req.language);
+  if (prelude !== "") await py.runPythonAsync(prelude).catch(() => undefined);
   let stdout = "";
   let stderr = "";
   let error: string | undefined;
