@@ -1121,6 +1121,44 @@ opens, rather than being pinned to a video-shaped rectangle.
   `destroy()` removes the figure before the next one renders. The viewer's copy
   goes away with the sizing fix; the app player's does not.
 
+## Storage beyond Anvil — when 100 GB stops being enough
+
+Round 0 stores a private cast as two objects: a ~10 KB spec in a text column
+and the baked narration as a Media blob. Measured 2026-09-05: a baked lecture
+is 1.4–6.8 MB, and the HTA course is 81 MB.
+
+**Business gives 100 GB and no metered bandwidth**, so for one author that is
+roughly 1 200 courses and a non-issue. It stops being a non-issue the moment
+drawcast has many authors baking audio: fifty teachers with two courses each
+would use it up, and audio is 99 % of every byte.
+
+**The swap is already behind a seam, and it is there by accident of a
+privacy decision.** §4 rejected redirecting to the Media object's own URL —
+unguessable but ungated — and streams through the gated endpoint instead. So
+the client fetches `/_/api/cast/audio`, the gate runs in Anvil, and where the
+bytes actually come from is one function's business. Moving them to a
+DigitalOcean Space, S3, or any object store means changing what
+`_cast_audio_get` reads, with the client, the format, the cast key, the ETag
+and the gate all untouched.
+
+Three things to decide when it matters, none of them now:
+
+- **Gated stream or signed URL.** Streaming through Anvil keeps the gate
+  exact and pays Anvil's egress; a short-lived signed URL is cheaper and
+  faster but hands out an address that outlives the request. The privacy
+  argument that rejected the Media URL applies again, with the difference
+  that a signed URL expires.
+- **Storage compression.** The blob is held uncompressed; gzipping it and
+  inflating client-side cuts 25 % of what counts against any quota, in two
+  functions, without touching the format (Anvil already gzips the wire, so
+  this is purely a storage win).
+- **Where the spec lives.** It should stay in the data table whatever happens
+  to the audio: it is 1 % of the bytes, it is the part the gate exists for,
+  and it is what makes a cast a row.
+
+Trigger to watch: total `casts.audio` size against 100 GB. Nothing else about
+the design changes when this lands.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
