@@ -74,14 +74,19 @@ import { listCloudVoices, stampedVoice, synthesizeBase64, voiceLang } from "./ex
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { castRegistration, publishCast } from "./publish/cast";
-import { nameNote, registerName } from "./names";
+import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
+import { isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
+// The viewer's reader of a server copy — the one place that knows how the
+// two stored objects are joined back into a document. Used here only to read
+// the previous publish back for narration reuse.
+import { fetchAnvilText } from "./viewer";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
-import { parseRepo, readFile, type RepoRef } from "./publish/github";
+import { parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
 import { parseSourceManifest, saveSource, sourceIndexPath } from "./publish/source";
 import { joinPath } from "./course/publish";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
@@ -4178,6 +4183,96 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
 }
 
 /**
+ * Publish → the drawcast server (round 0 spec §4, §9): the SAME prepared copy
+ * the other two publishes send, stored under the author's account as two
+ * objects — the spec, and the narration beside it — at `anvil/<name>/<file>`.
+ * The key has the GitHub shape, so counting, events and the dashboard need
+ * no new case.
+ *
+ * `name` is the panel's name field: the key's first segment AND the name
+ * registered afterwards, so drawcast.app/#<name> resolves to this copy
+ * (anvilHashFor). `file` is the cast's own slug — permanent once it has
+ * published to GitHub (`publishedAs`), the title's slug otherwise.
+ *
+ * Nothing is recorded on the document: the key is a pure function of the
+ * name and the slug, so publishing again under the same name replaces the
+ * same copy. Narration reuse reads the SERVER's previous copy back, for the
+ * reason the Drive publish gives below: the GitHub default would charge for
+ * every line again, or hand over lines from a different publish entirely.
+ */
+async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access: ServerAccess }): Promise<void> {
+  const accountToken = getToken();
+  if (!accountToken) {
+    setStatus("Not signed in — sign in from Settings → Publishing (drawcast account) to publish to the drawcast server.", "error");
+    return;
+  }
+  if (itemsOf(doc.playlist).length === 0) {
+    setStatus("There is nothing to publish yet.", "error");
+    return;
+  }
+  // The name is checked BEFORE anything is written: a key whose first
+  // segment could never be registered would be a cast nobody can reach by
+  // name. A reserved or malformed name stops here; a merely SHORT one
+  // publishes and skips the registration with a note (spec §9).
+  const requested = name ?? slugify(doc.title);
+  if (!requested) {
+    setStatus("Type a name to publish under — the Name field in the panel.", "error");
+    return;
+  }
+  const slug = normalizeName(requested);
+  if (slug === null) {
+    setStatus(`"${requested}" is not a valid name — lower-case letters, digits and dashes, not starting with a reserved word like gh or me.`, "error");
+    return;
+  }
+  const file = `${doc.publishedAs ?? (slugify(doc.title) || "lecture")}.yaml`;
+  const cast = serverCastKey(slug, file);
+  shareBtn.disabled = true;
+  lastBakeNote = "";
+  lastEmbedNote = "";
+  const ac = new AbortController();
+  const fetchImpl: typeof fetch = (input, init) => fetch(input, { ...init, signal: ac.signal });
+  try {
+    setStatus("Publishing to the drawcast server…");
+    const text = await publishTextFor(
+      ac.signal,
+      bake,
+      embedImages,
+      undefined, // comments are giscus, keyed on a GitHub repo — a server copy has none
+      true, // countViews — the viewer counts any three-segment key, this one included
+      () => fetchAnvilText({ cast, api: DEFAULT_ENROLL_API }, fetchImpl).catch(() => null),
+    );
+    const out = await publishToServer({ slug, file, title: doc.title, yaml: text, access, token: accountToken, api: DEFAULT_ENROLL_API, viewerBase: settings.viewerBase }, fetchImpl);
+    // Past this line the spec has LANDED (the narration may not have —
+    // `out.audioError` says). The name is registered only now, against a
+    // copy that exists, exactly as the GitHub publish does; a name under the
+    // floor skips it with a note rather than failing the publish (spec §9).
+    let note = "";
+    if (isRegistrable(slug)) {
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, name: slug, kind: "cast", target: out.cast }, (input, init) =>
+        fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+      );
+      note = nameNote(outcome, slug);
+    } else {
+      note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
+    }
+    if (out.audioError) {
+      setStatus(
+        `Published to ${out.url}, but WITHOUT its narration — ${out.audioError}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
+        "error",
+      );
+      return;
+    }
+    setStatus(`Published to ${out.url}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+  } catch (err) {
+    console.error("drawcast: server publish failed", err);
+    const e = err as Error;
+    setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+  } finally {
+    shareBtn.disabled = false;
+  }
+}
+
+/**
  * Publish → Google Drive (spec §7-8): the SAME copy publishDrawcast sends to
  * GitHub — embedded images, baked narration, the author's own choices —
  * written as a plain `.yaml` file into the app-created `drawcast` folder.
@@ -4607,6 +4702,7 @@ shareBtn.addEventListener("click", () => {
     openSettings,
     publish: (choices) => publishDrawcast(choices),
     publishDrive: (choices) => publishDriveCast(choices),
+    publishServer: (choices) => publishServerCast(choices),
     renderVideo,
     beginExport,
     setProgress: (text) => (exportChipText.textContent = text),

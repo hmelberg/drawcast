@@ -271,8 +271,9 @@ describe("the Drive panel", () => {
 
   it("gets its two embed rows from the SAME builder as the link panel — never a second copy", () => {
     expect(share).toContain("function buildEmbedChoices(");
-    // Declaration + the two instantiations.
-    expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(3);
+    // Declaration + the three instantiations (GitHub, Drive, and the
+    // drawcast server since round 0).
+    expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);
     // The tell for a copy-paste: the labels exist exactly once in the file.
     expect(share.match(/"Embed narration"/g)).toHaveLength(1);
     expect(share.match(/the published file speaks; viewers need no key/g)).toHaveLength(1);

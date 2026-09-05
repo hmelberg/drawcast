@@ -45,8 +45,9 @@ const KEYS = {
  *  "spec" is gone — downloading your own source is a save, not a share
  *  (spec §1), and now lives in Save → To disk. "drive" is the second PUBLISH
  *  destination (spec §7) — a finished file in the author's own Drive, not a
- *  link the app hands out. */
-export type ShareTo = "link" | "youtube" | "video" | "drive";
+ *  link the app hands out. "server" is the third (round 0 spec §4): the
+ *  drawcast server, per account, the one that can keep a cast behind sign-in. */
+export type ShareTo = "link" | "youtube" | "video" | "drive" | "server";
 
 /**
  * A settings blob written before the source download moved out of Share can
@@ -59,7 +60,7 @@ export type ShareTo = "link" | "youtube" | "video" | "drive";
  * written happily and then silently downgraded to "link" on the next load.
  */
 export function migrateShareTo(v: string): ShareTo {
-  return v === "youtube" || v === "video" || v === "drive" ? v : "link";
+  return v === "youtube" || v === "video" || v === "drive" || v === "server" ? v : "link";
 }
 
 export interface Settings {

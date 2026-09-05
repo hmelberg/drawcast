@@ -38,6 +38,9 @@ describe("migrateShareTo", () => {
     // to GitHub: an unrecognised value falls through to "link".
     expect(migrateShareTo("drive")).toBe("drive");
   });
+  it("accepts the drawcast server — the third publish destination (round 0 spec §4)", () => {
+    expect(migrateShareTo("server")).toBe("server");
+  });
   it("falls back to link for anything unrecognised", () => {
     expect(migrateShareTo("nonsense")).toBe("link");
   });
@@ -61,5 +64,10 @@ describe("loadSettings", () => {
   it("remembers Drive across a reload", () => {
     mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, shareTo: "drive" }));
     expect(loadSettings().shareTo).toBe("drive");
+  });
+
+  it("remembers the drawcast server across a reload", () => {
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, shareTo: "server" }));
+    expect(loadSettings().shareTo).toBe("server");
   });
 });

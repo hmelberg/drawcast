@@ -1098,6 +1098,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       // itself into one Drive file would be wrong, not merely surprising:
       // publishCourse writes a file per lecture.
       publishDrive: async () => shareStatus("A course publishes to GitHub, not to Drive — its lectures are separate files.", "error"),
+      // Same construction, same reason: the server's row is `courses: false`
+      // in this round (one cast per key; courses come in a later round), so
+      // the rail never offers it here — and if that ever changes, this says
+      // so out loud rather than publishing a course as a single cast.
+      publishServer: async () => shareStatus("A course publishes to GitHub in this round — the drawcast server takes single drawcasts.", "error"),
       renderVideo: deps.renderVideo,
       beginExport: deps.beginExport,
       setProgress: deps.setProgress,

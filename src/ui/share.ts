@@ -3,9 +3,9 @@
 // destination they actually belong to — the "Translate to" chips are
 // YouTube's, and burning captions into the picture is asked about only where
 // it can be true (the DOWNLOADED file; a YouTube upload carries its subtitle
-// track, spec §2 ruling 4). The two embed choices belong to BOTH publish
-// destinations (GitHub and Drive), so buildEmbedChoices below builds them
-// once and each panel instantiates its own copy (spec §7).
+// track, spec §2 ruling 4). The two embed choices belong to EVERY publish
+// destination (GitHub, Drive and the drawcast server), so buildEmbedChoices
+// below builds them once and each panel instantiates its own copy (spec §7).
 //
 // Everything that touches the DOM lives inside build(), called lazily from
 // openShare() — never at module scope. vitest runs this suite with no DOM
@@ -26,7 +26,9 @@ import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { DEFAULT_ENROLL_API } from "../learn";
+import { getToken } from "../account";
 import { parseRepo, slugify } from "../publish/github";
+import type { ServerAccess } from "../publish/server";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
 import { createModal, type Modal } from "./modal";
@@ -152,6 +154,20 @@ export interface ShareDeps {
    */
   publishDrive: (choices: { bake: boolean; embedImages: boolean; name?: string }) => Promise<void>;
   /**
+   * Publish this document to the drawcast server (round 0 spec §4): the SAME
+   * prepared copy again, stored under the author's account as two objects
+   * (spec and narration) at `anvil/<name>/<file>`. `bake` and `embedImages`
+   * mean what they mean above; `name` is the server panel's name field — a
+   * slug like Link's, the key's first segment and the name registered after
+   * the publish — undefined when left empty; `access` is the "Who can watch"
+   * choice, two of spec §5's three values in this round.
+   *
+   * Required for the same reason `publishDrive` is: the server is never
+   * offered to a course here (`courses: false`), so course.ts passes a stub
+   * it had to write rather than a field a future caller can forget.
+   */
+  publishServer: (choices: { bake: boolean; embedImages: boolean; name?: string; access: ServerAccess }) => Promise<void>;
+  /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
    * Null means the TTS key is missing, the render failed, or it was
@@ -189,6 +205,15 @@ const DESTS: DestRow[] = [
   // this row never shows the third (disabled) state. Courses stay GitHub-only
   // (spec §9) — a course is many files, and Drive publishing writes one.
   { id: "drive", label: "Google Drive", action: "Publish", offered: (c) => c.google, ready: () => true, reason: "", courses: false },
+  // The drawcast server (round 0 spec §4, §9): the app's own storage, per
+  // account — the one destination that can keep a cast behind sign-in. Its
+  // only credential is the session token, and Settings → Publishing is where
+  // that comes from; but the row is always offered and always ready, so a
+  // signed-out author still opens the PANEL and reads what this destination
+  // is for. The panel's Publish button is what says "Sign in to publish
+  // here" (refreshServerSignIn), not the rail. Courses stay GitHub-only in
+  // this round: one cast per key, and a course is many files.
+  { id: "server", label: "drawcast server", action: "Publish", offered: () => true, ready: () => true, reason: "", courses: false },
   { id: "youtube", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
   { id: "video", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
 ];
@@ -236,7 +261,7 @@ export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course
 const ALL_DESTS: ShareTo[] = DESTS.map((d) => d.id);
 
 /**
- * Which of the four panels should be visible: exactly the selected one, and
+ * Which of the five panels should be visible: exactly the selected one, and
  * ONLY if it is actually offered right now. A destination that is filtered
  * out of `available` (an unconfigured capability) must never show its panel
  * even if `selected` still names it — a stale/unavailable selection hides
@@ -340,18 +365,21 @@ function build(): ShareSession {
 
   /**
    * The two things a Publish can put INTO the copy it sends. Built as one
-   * unit because BOTH publish destinations — GitHub and Drive — offer exactly
-   * this pair, and the day they stop matching is the day one of them starts
-   * lying about what it sent. Instantiated once per panel; `key` is what
-   * keeps the two checkbox ids apart, since a `<label for>` resolves through
-   * document.getElementById and a duplicate id would let one panel's label
-   * toggle the other panel's box.
+   * unit because EVERY publish destination — GitHub, Drive and the drawcast
+   * server — offers exactly this pair, and the day they stop matching is the
+   * day one of them starts lying about what it sent. Instantiated once per
+   * panel; `key` is what keeps the checkbox ids apart, since a `<label for>`
+   * resolves through document.getElementById and a duplicate id would let
+   * one panel's label toggle another panel's box.
    *
-   * Both default ON (P §3.6: what you publish should stand on its own), and
-   * neither is remembered between opens — they are decisions about one
-   * publish, not a setting (see the ledger). Neither touches the document the
-   * author has open: publish/embed.ts resolves on clones, and baking builds
-   * its audio track beside the playlist rather than in it.
+   * Both default ON (P §3.6: what you publish should stand on its own) —
+   * except narration on the server, where `bakeDefault` is false (round 0
+   * spec §4): baked audio is megabytes the server streams on every first
+   * play, where GitHub's CDN serves it for nothing. Neither is remembered
+   * between opens — they are decisions about one publish, not a setting (see
+   * the ledger). Neither touches the document the author has open:
+   * publish/embed.ts resolves on clones, and baking builds its audio track
+   * beside the playlist rather than in it.
    *
    * Each label is a two-column grid (box | words, hint under the words), so
    * every child has to BE an element — a stray " " text node between them
@@ -360,7 +388,7 @@ function build(): ShareSession {
    * on every open before the modal is shown: one statement of each sentence,
    * in the place that knows which of the two it is.
    */
-  function buildEmbedChoices(key: string): {
+  function buildEmbedChoices(key: string, bakeDefault = true): {
     rows: HTMLElement[];
     refresh: (doc: ShareDoc, subject: "drawcast" | "course") => void;
     choices: () => { bake: boolean; embedImages: boolean };
@@ -405,7 +433,7 @@ function build(): ShareSession {
         // disabled, with the route that fixes it.
         const tts = Boolean(getTtsKey());
         bakeCb.disabled = !tts;
-        bakeCb.checked = tts;
+        bakeCb.checked = tts && bakeDefault;
         const speaks = "the published file speaks; viewers need no key";
         bakeHint.textContent = tts
           ? doc.narrationCost
@@ -528,6 +556,68 @@ function build(): ShareSession {
     modal.dialog.close();
     void deps.publish(choices);
   });
+
+  // ---- drawcast server panel — the same prepared copy, under the author's account ----
+
+  // What this destination IS, in one line: the only one that can keep a cast
+  // behind sign-in (round 0 spec §4) — the other two publish to places that
+  // are public by construction.
+  const serverHint = h(
+    "div",
+    { class: "hint" },
+    "Stored by drawcast itself, under your account — the one destination that can keep a cast behind sign-in.",
+  );
+  // The publish NAME: the first segment of the server's key
+  // (`anvil/<name>/<file>`) and, once registered, the address
+  // drawcast.app/#<name>. A slug like Link's, normalized on blur for the same
+  // reason (a mid-word slugify would fight the author's cursor). Prefilled
+  // like Link's too, so a drawcast already on GitHub keeps one name across
+  // both targets and registration simply moves the pointer.
+  const serverNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Publish as" }) as HTMLInputElement;
+  serverNameInput.addEventListener("blur", () => {
+    serverNameInput.value = slugify(serverNameInput.value);
+  });
+  const serverNameHint = h("div", { class: "hint" }, "Publishing again under the same name replaces the copy on the server.");
+  const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput), serverNameHint);
+  // "Who can watch" (spec §5, question 2) — two of its three values in this
+  // round, because two are all the server enforces: `open` is public,
+  // anything else is the owner's alone until enrolment lands. Defaults
+  // CLOSED, unlike GitHub, where the files are public whatever is chosen.
+  const serverAccess = h("select", { "aria-label": "Who can watch" }) as HTMLSelectElement;
+  for (const [v, label] of [
+    ["enrolled", "Only you, for now"],
+    ["open", "Anyone with the link"],
+  ]) {
+    serverAccess.appendChild(h("option", { value: v }, label));
+  }
+  const serverAccessRow = h(
+    "div",
+    {},
+    h("label", { class: "quiet-label" }, "Who can watch ", serverAccess),
+    h("div", { class: "hint" }, "A closed cast plays only for you, signed in; enrolment comes next."),
+  );
+  // Narration defaults OFF here (spec §4) — see buildEmbedChoices.
+  const serverChoices = buildEmbedChoices("server", false);
+  const serverSignInHint = h("div", { class: "hint" }, "Publishing here needs your drawcast account — sign in from Settings → Publishing.");
+  const serverPanel = h("div", { class: "share-panel" }, serverHint, serverNameRow, serverAccessRow, ...serverChoices.rows, serverSignInHint);
+  const serverGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
+  serverGo.addEventListener("click", () => {
+    const deps = current;
+    const access: ServerAccess = serverAccess.value === "open" ? "open" : "enrolled";
+    const choices = { ...serverChoices.choices(), name: serverNameInput.value.trim() || undefined, access };
+    modal.dialog.close();
+    void deps.publishServer(choices);
+  });
+  /** The server's button is the one place the sign-in state shows: the row
+   *  is always offered (DESTS), so a signed-out author still sees the panel,
+   *  and the button — not the rail — says what is missing. Re-read on every
+   *  open: Settings can sign in or out while Share is closed. */
+  function refreshServerSignIn(): void {
+    const signedIn = getToken() !== "";
+    serverGo.disabled = !signedIn;
+    serverGo.textContent = signedIn ? "Publish" : "Sign in to publish here";
+    serverSignInHint.hidden = signedIn;
+  }
 
   // ---- Drive panel — the same prepared copy, as a file instead of a page ----
 
@@ -1046,11 +1136,11 @@ function build(): ShareSession {
 
   // ---- the modal shell: rail on the left, that destination's panel on the right ----
 
-  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, youtube: youtubePanel, video: videoPanel };
-  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, youtube: ytGo, video: videoGo };
+  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, server: serverPanel, youtube: youtubePanel, video: videoPanel };
+  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, server: serverGo, youtube: ytGo, video: videoGo };
 
   const rail = h("div", { class: "share-rail" });
-  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, youtubePanel, videoPanel);
+  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, serverPanel, youtubePanel, videoPanel);
   const layout = h("div", { class: "share-layout" }, rail, panelHost);
   const settingsBtn = h("button", { class: "small" }, "Open Settings");
   settingsBtn.addEventListener("click", () => {
@@ -1125,6 +1215,13 @@ function build(): ShareSession {
     refreshCommentsChoice(doc);
     refreshCountViewsChoice(doc);
     refreshSignupChoice(doc, current.subject);
+    // The server panel: same prefill as Link (one name across both targets),
+    // access back to closed — a decision about one publish, like the embed
+    // boxes, not a setting — and the sign-in state as of this open.
+    serverNameInput.value = doc.publishedAs ?? slugify(doc.title);
+    serverAccess.value = "enrolled";
+    serverChoices.refresh(doc, current.subject);
+    refreshServerSignIn();
     // A filename, not a slug — and the name the file ALREADY has wins over
     // the title, exactly as Link prefers `publishedAs`. Without that, an
     // author who renamed the file once would have it renamed back to the
