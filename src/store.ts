@@ -21,7 +21,6 @@ const KEYS = {
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
   githubToken: "drawcast.githubtoken",
-  authorKey: "drawcast.authorkey",
   myTemplates: "drawcast.myTemplates.v1",
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
@@ -279,7 +278,7 @@ export function saveSettings(s: Settings): void {
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
-  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "authorKey", "coursesDir", "giscus"] },
+  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];
 
@@ -305,19 +304,10 @@ export function setGithubToken(token: string): void {
   else localStorage.removeItem(KEYS.githubToken);
 }
 
-/**
- * The author key from the drawcast Anvil dashboard (spec §7): lets a publish
- * register its name in the drawcast.app registry. Same shape as the GitHub
- * token — a personal credential, never a shared one.
- */
-export function getAuthorKey(): string {
-  return localStorage.getItem(KEYS.authorKey) ?? "";
-}
-
-export function setAuthorKey(key: string): void {
-  if (key) localStorage.setItem(KEYS.authorKey, key);
-  else localStorage.removeItem(KEYS.authorKey);
-}
+// The drawcast server's credential is not here: the author key became a
+// session token (spec §1), and it lives in src/account.ts with the handshake
+// that mints it. store.ts stays UI-free and account-free — account.ts may
+// never import this file, or the viewer chunk would carry the whole library.
 
 export function getTtsKey(): string {
   return localStorage.getItem(KEYS.ttsKey) || (import.meta.env.VITE_GOOGLE_TTS_KEY ?? "");

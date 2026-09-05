@@ -76,6 +76,7 @@ import { bakeCost, costLabel } from "./export/tts-cost";
 import { castRegistration, publishCast } from "./publish/cast";
 import { nameNote, registerName } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
+import { getToken } from "./account";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
@@ -102,8 +103,6 @@ import {
   getApiKey,
   getGithubToken,
   setGithubToken,
-  getAuthorKey,
-  setAuthorKey,
   getTtsKey,
   setTtsKey,
   isMultiPart,
@@ -1615,11 +1614,6 @@ githubTokenInput.addEventListener("change", () => {
   // convention), so it never goes through persist() — refresh explicitly.
   refreshCredentialMenus();
 });
-const authorKeyInput = h("input", { type: "password", placeholder: "from the drawcast Anvil dashboard", autocomplete: "off" }) as HTMLInputElement;
-authorKeyInput.value = getAuthorKey();
-authorKeyInput.addEventListener("change", () => {
-  setAuthorKey(authorKeyInput.value.trim());
-});
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 
@@ -1767,20 +1761,6 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "div",
         { class: "settings-note" },
         "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
-      ),
-    ),
-  ],
-  [
-    "authorKey",
-    h(
-      "div",
-      { class: "settings-field" },
-      h("label", {}, "Author key"),
-      authorKeyInput,
-      h(
-        "div",
-        { class: "settings-note" },
-        "Publishing with an author key makes you the owner of the course in the teacher dashboard (drawcast.anvil.app — sign up there, press Author key there) and registers drawcast.app/#<name> links. Optional.",
       ),
     ),
   ],
@@ -4134,14 +4114,14 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     }
     // The name is registered only now, against a commit that exists: a
     // drawcast.app/#name pointing at a file that was never written would be
-    // worse than no name at all. Without an author key there is nothing to
-    // register with, and the publish simply carries no name. The timeout
-    // bounds an unreachable registry at ten seconds.
+    // worse than no name at all. Signed out there is nothing to register
+    // with, and the publish simply carries no name. The timeout bounds an
+    // unreachable registry at ten seconds.
     let note = "";
-    const authorKey = getAuthorKey();
-    if (authorKey) {
+    const token = getToken();
+    if (token) {
       const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
-      const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: token, ...reg }, (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
       );
       note = nameNote(outcome, reg.name);

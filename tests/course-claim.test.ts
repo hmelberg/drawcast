@@ -193,7 +193,7 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
 
   test("the claim runs after the commit landed and BEFORE the name, which is registered on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
     const after = course.slice(course.indexOf("await publishCourse("));
-    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(authorKey, reg\)/);
+    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(token, reg\)/);
     expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
     // F3: the condition and the ordering are pinned as two separate
     // assertions, neither coupled to how the statement wraps across lines —
@@ -205,7 +205,7 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
     expect(after).toMatch(/claimed === "ok" \|\| claimed === "error"/);
   });
 
-  test("Settings → Publishing says what the key does now", () => {
-    expect(main).toMatch(/makes you the owner of the course in the teacher dashboard/);
+  test("Settings → Publishing no longer speaks of an author key — the concept retired with the sign-in handshake", () => {
+    expect(main).not.toMatch(/author key/i);
   });
 });

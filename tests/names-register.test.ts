@@ -27,15 +27,18 @@ describe("registrations", () => {
   });
 });
 
-describe("the author key lives beside the GitHub token", () => {
-  test("settings tab", () => {
-    expect(SETTINGS_TABS.find((t) => t.id === "publishing")!.fields).toContain("authorKey");
+describe("the session token replaces the author key", () => {
+  test("settings tab no longer lists a key to paste", () => {
+    // The author key retired with the sign-in handshake (spec §1); the
+    // account row arrives with Settings → Sign in.
+    expect(SETTINGS_TABS.find((t) => t.id === "publishing")!.fields).not.toContain("authorKey");
   });
-  test("both publishers register after the commit landed AND after their own bookkeeping, with the key, a timeout, and the outcome reported", () => {
+  test("both publishers register after the commit landed AND after their own bookkeeping, with the token, a timeout, and the outcome reported", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
     const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
     for (const src of [main, course]) {
-      expect(src).toMatch(/getAuthorKey\(\)/);
+      expect(src).toMatch(/getToken\(\)/);
+      expect(src).not.toMatch(/getAuthorKey/);
       expect(src).toMatch(/registerName\(DEFAULT_ENROLL_API,/);
       expect(src).toMatch(/nameNote\(/);
       // An unreachable registry costs ten seconds, not the rest of the session.
