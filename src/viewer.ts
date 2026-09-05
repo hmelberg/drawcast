@@ -1,11 +1,13 @@
 // Standalone viewer mode: loads a spec or a playlist (a multi-document YAML
-// stream) from a link-shared Google Doc, a published Google Drive file, or a
-// public GitHub repo, and shows just a player — no editor, no AI, no key.
+// stream) from a link-shared Google Doc, a published Google Drive file, a
+// public GitHub repo, or the drawcast server (a private cast, gated by the
+// signed-in account), and shows just a player — no editor, no AI, no key.
 // Extra hash params: &style=sketchy &mode=silent &speed=1.5 &advance=auto
 // (kiosk: never wait for clicks).
 //   https://…/drawcast/#gdoc=1AbC…xyz
 //   https://…/drawcast/#gdrive=1AbC…xyz
 //   https://…/drawcast/#gh=hmelberg/kurs/courses/causal/did.yaml
+//   https://…/drawcast/#anvil=spanish1/01-intro.yaml
 
 import "./styles.css";
 import { type RenderStyle } from "./render";
@@ -14,11 +16,12 @@ import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
+import { getToken } from "./account";
 import {
   apiBase, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, forgetLearner, learnerFor, normalizeCode, reportingAllowed, saveLearner, sendEvent, stripLearnerParam,
   type LearnerEntry,
 } from "./learn";
-import { ghHashFor, nameInHash, resolveName } from "./names";
+import { anvilHashFor, nameInHash, resolveName } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -35,12 +38,18 @@ export interface GhRef {
 }
 
 export interface ViewerRequest {
-  /** A link-shared Google Doc. Exactly one of docId/driveId/gh is set. */
+  /** A link-shared Google Doc. Exactly one of docId/driveId/gh/anvil is set. */
   docId?: string;
   /** A published Google Drive file (yaml, "Anyone with the link can view"). */
   driveId?: string;
   /** A file in a public GitHub repo. */
   gh?: GhRef;
+  /**
+   * A cast on the drawcast server. `cast` is the server's own key,
+   * `anvil/<slug>/<file>` — the same three-segment shape as a GitHub key, so
+   * view counting, learner events and the dashboard take it unchanged.
+   */
+  anvil?: { cast: string; api: string };
   style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
@@ -100,26 +109,46 @@ export function rawUrlFor(gh: GhRef): string {
 
 const GH_RE = /[#&]gh[=-]([\w.-]+)\/([\w.-]+)\/([^&\s]+)/;
 const GDRIVE_RE = /[#&]gdrive[=-]([A-Za-z0-9_-]{10,})/;
+const ANVIL_RE = /[#&]anvil[=-]([\w.-]+)\/([^&\s]+)/;
 /** Documents only, and never a path that climbs out of the repo. */
 const DOC_PATH_RE = /^(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+/** One plain segment for the server slug — dots inside are fine, `.` and `..`
+ *  are not. ANVIL_RE alone would let `#anvil=../x.yaml` through as
+ *  `anvil/../x.yaml`, a key DOC_PATH_RE never sees and CAST_KEY_RE accepts. */
+const ANVIL_SLUG_RE = /^[\w-]+(?:\.[\w-]+)*$/;
+
+/** A malformed percent-escape is not a path, not a crash — nameInHash's rule.
+ *  entry.ts runs boot() uncaught, so a throw here is a blank page, no message. */
+function decodePath(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Accepts #gdoc=<id> / #gdoc-<id>, #gdrive=<id> / #gdrive-<id>, and
- * #gh=<owner>/<repo>/<path> / #gh-…, with optional &style= &mode= &speed=
- * &advance=.
+ * Accepts #gdoc=<id> / #gdoc-<id>, #gdrive=<id> / #gdrive-<id>,
+ * #gh=<owner>/<repo>/<path> / #gh-…, and #anvil=<slug>/<file> / #anvil-…,
+ * with optional &style= &mode= &speed= &advance=.
  */
 export function parseViewerHash(hash: string): ViewerRequest | null {
   const gh = GH_RE.exec(hash);
   const doc = /[#&]gdoc[=-]([A-Za-z0-9_-]{10,})/.exec(hash);
   const drive = GDRIVE_RE.exec(hash);
-  if (!gh && !doc && !drive) return null;
+  const anv = ANVIL_RE.exec(hash);
+  if (!gh && !doc && !drive && !anv) return null;
 
   const params = new URLSearchParams(
     hash
       .replace(/^#/, "")
       .replace(/gdrive-([A-Za-z0-9_-]+)/, "gdrive=$1")
       .replace(/gdoc-([A-Za-z0-9_-]+)/, "gdoc=$1")
-      .replace(/gh-/, "gh="),
+      .replace(/gh-/, "gh=")
+      // Anchored to the segment start: a FILE called anvil-intro.yaml must
+      // not be rewritten (the path itself comes from ANVIL_RE, not from here,
+      // but the parameters after it should still parse cleanly).
+      .replace(/(^|&)anvil-/, "$1anvil="),
   );
   const mode = params.get("mode");
   // Legacy draw links used &backend=custom-svg / clean-svg; map them.
@@ -133,9 +162,14 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     learner: normalizeCode(params.get("learner")) ?? undefined,
   };
 
+  if (anv) {
+    const path = decodePath(anv[2]);
+    if (path === null || !ANVIL_SLUG_RE.test(anv[1]) || !DOC_PATH_RE.test(path)) return null;
+    return { anvil: { cast: `anvil/${anv[1]}/${path}`, api: DEFAULT_ENROLL_API }, ...common };
+  }
   if (gh) {
-    const path = decodeURIComponent(gh[3]);
-    if (!DOC_PATH_RE.test(path)) return null;
+    const path = decodePath(gh[3]);
+    if (path === null || !DOC_PATH_RE.test(path)) return null;
     return { gh: { owner: gh[1], repo: gh[2], path }, ...common };
   }
   if (drive) {
@@ -248,6 +282,84 @@ async function fetchGhText(gh: GhRef): Promise<string> {
   );
 }
 
+/** What the audio endpoint must answer with to be appended: the document
+ *  formatPublished writes, a mapping whose first key is `audio`. A 200 that
+ *  is anything else — an HTML shell, a captive portal — is not narration. */
+const AUDIO_DOC_RE = /^\s*audio\s*:/;
+/** …and ONE document: a `---` line inside the body would carry a further
+ *  document past the check above and into the parser. */
+const ANOTHER_DOC_RE = /\n---[ \t]*(?:\r?\n|$)/;
+
+/**
+ * A cast stored on the drawcast server arrives as two objects (spec §4) and
+ * is handed to the parser as one document — so `parsePlaylistText`,
+ * `speech.prefetch` and mount order never learn about the split. The join is
+ * the one `formatPublished` writes for a GitHub cast: the spec, a single
+ * newline, a `---` line, the `audio:` document.
+ *
+ * The narration is optional and must never cost the lecture. A 404 on the
+ * second request means the cast has none, and is silent. Every OTHER way of
+ * not getting it — a server error, the network, a 200 that is not an audio
+ * document — still plays the spec but is reported once through
+ * `onAudioProblem`, because a baked voice that has quietly become a
+ * synthesiser looks exactly like one that was never baked, and nobody would
+ * ever report it. Appending an unchecked 200 would be worse than dropping
+ * it: classifyDocs makes an unrecognised mapping a spec, validateSpec fails
+ * it, and the whole drawcast dies over an optional resource.
+ *
+ * The session token travels as the `key=` query parameter — unlike every
+ * other server call, which POSTs it in a body — so it can land in access
+ * logs. Signed out it is empty, and the server's 401 becomes the message
+ * that says what to do about it.
+ */
+export async function fetchAnvilText(
+  ref: { cast: string; api: string },
+  fetchImpl: typeof fetch = fetch,
+  onAudioProblem?: (why: string) => void,
+): Promise<string> {
+  const q = `cast=${encodeURIComponent(ref.cast)}&key=${encodeURIComponent(getToken())}`;
+  const res = await fetchImpl(`${apiBase(ref.api)}/_/api/cast?${q}`);
+  if (!res.ok) {
+    throw new Error(
+      res.status === 401 || res.status === 403
+        ? "This drawcast is private. Sign in with the account it belongs to — Settings → Publishing → Sign in."
+        : res.status === 404
+          ? "That drawcast is not on the drawcast server (it may have been removed)."
+          : `Could not fetch the drawcast (HTTP ${res.status}).`,
+    );
+  }
+  const spec = await res.text();
+  const audio = await fetchImpl(`${apiBase(ref.api)}/_/api/cast/audio?${q}`).catch(() => null);
+  if (!audio) {
+    onAudioProblem?.("network");
+    return spec;
+  }
+  if (audio.status === 404) return spec;
+  if (!audio.ok) {
+    onAudioProblem?.(`HTTP ${audio.status}`);
+    return spec;
+  }
+  const track = await audio.text().catch(() => null);
+  if (track === null || !AUDIO_DOC_RE.test(track) || ANOTHER_DOC_RE.test(track)) {
+    onAudioProblem?.("not an audio document");
+    return spec;
+  }
+  return `${spec.replace(/\n*$/, "\n")}---\n${track}`;
+}
+
+/**
+ * A hash the router recognised but parseViewerHash refused — a climbing
+ * path, a bad slug, a broken percent-escape, a file that is not a document.
+ * entry.ts used to drop that null on the floor, and the page was blank with
+ * no message: the very failure a guarded decode was meant to end. Same
+ * centering and status element runNamed uses before the viewer exists.
+ */
+export function showUnplayable(): void {
+  document.body.classList.add("viewer-body");
+  const status = h("p", { class: "viewer-status error" }, "This link points at something this viewer cannot play — the address may be incomplete or altered.");
+  document.body.append(status);
+}
+
 /**
  * A named link (spec §7): ask the registry what the name points at, then
  * carry on exactly as if the target had been in the hash. The address bar
@@ -275,8 +387,9 @@ export async function runNamed(hash: string): Promise<void> {
     return;
   }
   // Parse BEFORE clearing the lookup status: a malformed registry entry
-  // must still leave a message on screen, not a blank page.
-  const req = parseViewerHash(ghHashFor(hash, resolved.target));
+  // must still leave a message on screen, not a blank page. names.ts picks
+  // the door — the server for an anvil/ key, GitHub for the rest.
+  const req = parseViewerHash(anvilHashFor(hash, resolved.target));
   if (!req) {
     status.textContent = `The name "${name}" points at something this viewer cannot play.`;
     status.classList.add("error");
@@ -293,7 +406,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const status = h(
     "div",
     { class: "viewer-status" },
-    req.gh ? "Loading drawing from GitHub…" : req.driveId ? "Loading drawing from Google Drive…" : "Loading drawing from Google Doc…",
+    req.anvil
+      ? "Loading drawing from the drawcast server…"
+      : req.gh
+        ? "Loading drawing from GitHub…"
+        : req.driveId
+          ? "Loading drawing from Google Drive…"
+          : "Loading drawing from Google Doc…",
   );
   // The same frame the app's player mounts into, by the same class: the
   // fullscreen rules are written against it, and a viewer-only copy of them
@@ -318,7 +437,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // The count lives under the figure, where a viewer expects it — and where
   // the title is heading in the player round, so the row is built once.
   const viewsEl = h("span", { class: "viewer-views" });
-  const metaEl = h("div", { class: "viewer-meta" }, viewsEl);
+  // The one line a lost narration gets (server casts): the same row as the
+  // count, so it is said once and never blocks the drawing.
+  const noteEl = h("span", { class: "viewer-note" });
+  const metaEl = h("div", { class: "viewer-meta" }, viewsEl, noteEl);
   const footer = h(
     "div",
     { class: "viewer-footer" },
@@ -337,7 +459,16 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // people's content, and the AUTHOR's template choice must not depend on
     // what this browser happens to have enabled. Bundled yaml — no network.
     await ensureEnabledPacks(Object.keys(PACK_DEFS));
-    const text = req.gh ? await fetchGhText(req.gh) : req.driveId ? await fetchGdriveText(req.driveId) : await fetchGdocText(req.docId!);
+    let audioNote = "";
+    const text = req.anvil
+      ? await fetchAnvilText(req.anvil, fetch, (why) => {
+          audioNote = `Recorded narration unavailable (${why}); narration falls back to a synthesised voice.`;
+        })
+      : req.gh
+        ? await fetchGhText(req.gh)
+        : req.driveId
+          ? await fetchGdriveText(req.driveId)
+          : await fetchGdocText(req.docId!);
     const playlist = parsePlaylistText(text);
     const items = itemsOf(playlist);
     if (items.length === 0) throw new Error("The document contains no drawable items.");
@@ -360,11 +491,19 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       titleEl.textContent = title;
       document.title = `${title} — drawcast`;
     }
+    if (audioNote) noteEl.textContent = audioNote;
     // Counting: after the playlist is parsed, because the flag travels in the
     // file, and BEFORE mountPlaylist, which takes seconds a visitor may not
     // stay for. Never awaited — a counting outage must not delay a drawing.
+    //
+    // GitHub casts ONLY, and not by oversight: the counter is public and
+    // lists every key under an owner to anyone who asks, so an anvil/ key
+    // there would publish a private course's lecture list. A private cast's
+    // view count is the teacher's business and belongs in the dashboard,
+    // not in a public counter. (src/views.ts and the function refuse such a
+    // key too; this is the intent, those are the guards.)
     if (countingEnabled(playlist.meta) && req.gh) {
-      const castKey = castKeyFor(req.gh);
+      const viewKey = castKeyFor(req.gh);
       const session = (() => {
         try {
           return sessionStorage;
@@ -372,7 +511,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           return null; // Private mode can throw on access, not just on use.
         }
       })();
-      const pending = firstViewInSession(castKey, session) ? recordView(castKey) : readViewCount(castKey);
+      const pending = firstViewInSession(viewKey, session) ? recordView(viewKey) : readViewCount(viewKey);
       void pending.then((count) => {
         if (typeof count === "number") viewsEl.textContent = `${count.toLocaleString()} ${count === 1 ? "view" : "views"}`;
       });
@@ -382,8 +521,12 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     let learner: LearnerEntry | null = null;
     let learnerCast = "";
     const trailing: HTMLElement[] = [];
-    if (req.gh) {
-      learnerCast = castKeyFor(req.gh);
+    // The identity reported under: a GitHub key or the server's own — both
+    // `a/b/<path>`, so the learner client takes either. Unlike counting above
+    // this goes to the authenticated backend, where the server's key belongs.
+    const castKey = req.anvil ? req.anvil.cast : req.gh ? castKeyFor(req.gh) : null;
+    if (castKey) {
+      learnerCast = castKey;
       const courseKey = courseKeyOf(learnerCast);
       const local = safeLocalStorage();
       const enroll = playlist.meta.enroll ? apiBase(playlist.meta.enroll) : undefined;

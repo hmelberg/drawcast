@@ -74,12 +74,15 @@ import { listCloudVoices, stampedVoice, synthesizeBase64, voiceLang } from "./ex
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { castRegistration, publishCast } from "./publish/cast";
-import { nameNote, registerName } from "./names";
+import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
+import { isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
+// google/auth already exports a signOut (Drive); this one is the drawcast server's.
+import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
-import { parseRepo, readFile, type RepoRef } from "./publish/github";
+import { parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
 import { parseSourceManifest, saveSource, sourceIndexPath } from "./publish/source";
 import { joinPath } from "./course/publish";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
@@ -102,8 +105,6 @@ import {
   getApiKey,
   getGithubToken,
   setGithubToken,
-  getAuthorKey,
-  setAuthorKey,
   getTtsKey,
   setTtsKey,
   isMultiPart,
@@ -1615,11 +1616,31 @@ githubTokenInput.addEventListener("change", () => {
   // convention), so it never goes through persist() — refresh explicitly.
   refreshCredentialMenus();
 });
-const authorKeyInput = h("input", { type: "password", placeholder: "from the drawcast Anvil dashboard", autocomplete: "off" }) as HTMLInputElement;
-authorKeyInput.value = getAuthorKey();
-authorKeyInput.addEventListener("change", () => {
-  setAuthorKey(authorKeyInput.value.trim());
+// The drawcast server account (spec §1): a button pair, not a field to paste
+// into. Sign in leaves for drawcast.anvil.app and comes straight back to this
+// address with a one-time token that entry.ts has already exchanged and
+// stripped by the time this module runs — so getToken() here is fresh.
+const signInBtn = h("button", { class: "small" }, "Sign in") as HTMLButtonElement;
+const signOutBtn = h("button", { class: "small" }, "Sign out") as HTMLButtonElement;
+const signInState = h("span", { class: "settings-inline" });
+function refreshSignIn(): void {
+  const on = getToken() !== "";
+  signInState.textContent = on ? "Signed in to the drawcast server." : "Not signed in.";
+  signInBtn.hidden = on;
+  signOutBtn.hidden = !on;
+}
+signInBtn.addEventListener("click", () => {
+  // Back to exactly where we are, so a sign-in never costs the page.
+  location.href = signInUrl(location.href);
 });
+signOutBtn.addEventListener("click", () => {
+  // The server row first, while the token is still here to name it; the
+  // local sign-out is what the person sees and must not wait on the network.
+  void signOutServer(DEFAULT_ENROLL_API, getToken());
+  setToken("");
+  refreshSignIn();
+});
+refreshSignIn();
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 
@@ -1771,16 +1792,16 @@ const settingsBlocks = new Map<string, HTMLElement>([
     ),
   ],
   [
-    "authorKey",
+    "account",
     h(
       "div",
       { class: "settings-field" },
-      h("label", {}, "Author key"),
-      authorKeyInput,
+      h("label", {}, "drawcast account"),
+      h("div", { class: "settings-row" }, signInBtn, signOutBtn, signInState),
       h(
         "div",
         { class: "settings-note" },
-        "Publishing with an author key makes you the owner of the course in the teacher dashboard (drawcast.anvil.app — sign up there, press Author key there) and registers drawcast.app/#<name> links. Optional.",
+        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out here, or from the dashboard for every browser at once.",
       ),
     ),
   ],
@@ -4134,14 +4155,15 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     }
     // The name is registered only now, against a commit that exists: a
     // drawcast.app/#name pointing at a file that was never written would be
-    // worse than no name at all. Without an author key there is nothing to
-    // register with, and the publish simply carries no name. The timeout
-    // bounds an unreachable registry at ten seconds.
+    // worse than no name at all. Signed out there is nothing to register
+    // with, and the publish simply carries no name. The timeout bounds an
+    // unreachable registry at ten seconds.
     let note = "";
-    const authorKey = getAuthorKey();
-    if (authorKey) {
+    // `token` above is the GitHub one; this is the drawcast server's.
+    const accountToken = getToken();
+    if (accountToken) {
       const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
-      const outcome = await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, (input, init) =>
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
       );
       note = nameNote(outcome, reg.name);
@@ -4149,6 +4171,128 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     setStatus(`Published to ${out.castUrl}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
+    const e = err as Error;
+    setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+  } finally {
+    shareBtn.disabled = false;
+  }
+}
+
+/**
+ * Publish → the drawcast server (round 0 spec §4, §9): the SAME prepared copy
+ * the other two publishes send, stored under the author's account as two
+ * objects — the spec, and the narration beside it — at `anvil/<name>/<file>`.
+ * The key has the GitHub shape, so counting, events and the dashboard need
+ * no new case.
+ *
+ * `name` is the panel's name field: the key's first segment AND the name
+ * registered afterwards, so drawcast.app/#<name> resolves to this copy
+ * (anvilHashFor). `file` is the cast's own slug — permanent once it has
+ * published to GitHub (`publishedAs`), the title's slug otherwise.
+ *
+ * Nothing is recorded on the document: the key is a pure function of the
+ * name and the slug, so publishing again under the same name replaces the
+ * same copy. Narration reuse reads the SERVER's previous copy back, for the
+ * reason the Drive publish gives below: the GitHub default would charge for
+ * every line again, or hand over lines from a different publish entirely.
+ */
+async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access: ServerAccess }): Promise<void> {
+  const accountToken = getToken();
+  if (!accountToken) {
+    setStatus("Not signed in — sign in from Settings → Publishing (drawcast account) to publish to the drawcast server.", "error");
+    return;
+  }
+  if (itemsOf(doc.playlist).length === 0) {
+    setStatus("There is nothing to publish yet.", "error");
+    return;
+  }
+  // The name is checked BEFORE anything is written: a key whose first
+  // segment could never be registered would be a cast nobody can reach by
+  // name. A reserved or malformed name stops here; a merely SHORT one
+  // publishes and skips the registration with a note (spec §9). Slugified
+  // here as well as in the panel: normalizeName alone would pass a sub-name
+  // like `learn-russian/3`, and a slash in the first segment would make a
+  // FOUR-segment key — the one shape this round exists to keep uniform.
+  const requested = slugify(name ?? doc.title);
+  if (!requested) {
+    setStatus("Type a name to publish under — the Name field in the panel.", "error");
+    return;
+  }
+  const slug = normalizeName(requested);
+  if (slug === null) {
+    setStatus(`"${requested}" is not a valid name — lower-case letters, digits and dashes, not starting with a reserved word like gh or me.`, "error");
+    return;
+  }
+  const file = `${doc.publishedAs ?? (slugify(doc.title) || "lecture")}.yaml`;
+  const cast = serverCastKey(slug, file);
+  shareBtn.disabled = true;
+  lastBakeNote = "";
+  lastEmbedNote = "";
+  const ac = new AbortController();
+  const fetchImpl: typeof fetch = (input, init) => fetch(input, { ...init, signal: ac.signal });
+  try {
+    setStatus("Publishing to the drawcast server…");
+    const text = await publishTextFor(
+      ac.signal,
+      bake,
+      embedImages,
+      undefined, // comments are giscus, keyed on a GitHub repo — a server copy has none
+      true, // countViews — no `views: false` in the file; the viewer counts GitHub casts only, so a server copy is never counted publicly (its views are the dashboard's)
+      // The viewer's reader of a server copy — the one place that knows how
+      // the two stored objects join back into a document. Imported HERE, on
+      // demand: publishTextFor calls this only when baking, and a static
+      // import would hoist the whole viewer module into the editor's chunk
+      // for a function that runs once per baked publish.
+      async () => {
+        try {
+          const { fetchAnvilText } = await import("./viewer");
+          return await fetchAnvilText({ cast, api: DEFAULT_ENROLL_API }, fetchImpl);
+        } catch {
+          return null;
+        }
+      },
+    );
+    const out = await publishToServer({ slug, file, title: doc.title, yaml: text, access, token: accountToken, api: DEFAULT_ENROLL_API, viewerBase: settings.viewerBase }, fetchImpl);
+    // Past this line the spec has LANDED (the narration may not have —
+    // `out.audio` says). The name is registered only now, against a copy
+    // that exists, exactly as the GitHub publish does; a name under the
+    // floor skips it with a note rather than failing the publish (spec §9).
+    let note = "";
+    if (isRegistrable(slug)) {
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, name: slug, kind: "cast", target: out.cast }, (input, init) =>
+        fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+      );
+      note = nameNote(outcome, slug);
+    } else {
+      note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
+    }
+    // Which door this publish just set. The server writes `access` on EVERY
+    // spec write and the panel starts closed on every open, so a cast
+    // published as "Anyone with the link", edited and republished is now
+    // closed — and every link already shared answers a sign-in prompt. The
+    // publish is the only party that knows what it sent, so it says so, in
+    // the same line and the same voice as the narration. (Reading the live
+    // setting back before publishing is spec §5's cure, and round 1's.)
+    const door =
+      access === "open"
+        ? " — open: anyone with the link can watch"
+        : ' — closed: only you can watch, signed in; a link shared while it was open now asks to sign in (publish again as "Anyone with the link" to reopen it)';
+    if (typeof out.audio === "object") {
+      setStatus(
+        `Published to ${out.url}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
+        "error",
+      );
+      return;
+    }
+    // The ORDINARY case tells the same truth as the failure: a spec write
+    // clears the narration stored on the server, and narration is unticked by
+    // default on this panel — so a republish without it is a deletion, not a
+    // no-op. The client cannot know whether anything was stored, so the
+    // sentence is worded to be true either way.
+    const silent = out.audio === "none" ? " without narration — any narration stored there earlier is gone (tick Embed narration and publish again to add it)" : "";
+    setStatus(`Published to ${out.url}${silent}${door}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+  } catch (err) {
+    console.error("drawcast: server publish failed", err);
     const e = err as Error;
     setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
@@ -4586,6 +4730,7 @@ shareBtn.addEventListener("click", () => {
     openSettings,
     publish: (choices) => publishDrawcast(choices),
     publishDrive: (choices) => publishDriveCast(choices),
+    publishServer: (choices) => publishServerCast(choices),
     renderVideo,
     beginExport,
     setProgress: (text) => (exportChipText.textContent = text),

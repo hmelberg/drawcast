@@ -9,11 +9,20 @@
 // people's publishing; scoping to a named repo leaks nothing that is not
 // already public on GitHub.
 //
+// That invariant has ONE exception, and it is enforced here rather than
+// assumed: the owner `anvil`. An `anvil/<slug>/<file>` key names a cast on
+// the drawcast server, which may be private to a course — and ?repo= lists
+// every key under an owner, to anyone, from one link or a guessed slug. So
+// `anvil` is refused with a 400 on all three paths (POST, ?cast=, ?repo=),
+// via isPrivateOwner in view-key.mts. A private cast's views are the
+// teacher's business and belong in the dashboard, not in a public counter.
+// Whoever widens REPO_RE or the accepted owners: this exception stays.
+//
 // text/plain for the POST body is not laziness: it is CORS-safelisted, so the
 // GitHub Pages deploy's cross-origin POST is a simple request with no
 // preflight — one round trip on the path that runs for every view.
 import { countCast, countRepo, recordAndCount, type CastCount, type RepoCounts } from "../lib/view-store.mts";
-import { isValidCastKey } from "../lib/view-key.mts";
+import { isPrivateCastKey, isPrivateOwner, isValidCastKey } from "../lib/view-key.mts";
 import { checkFailureBudget, recordFailure } from "../lib/rate-limit.mts";
 
 export interface ViewsDeps {
@@ -130,6 +139,7 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
 
     const key = (await req.text()).trim();
     if (!isValidCastKey(key)) return json({ error: "key" }, 400, headers);
+    if (isPrivateCastKey(key)) return json({ error: "private" }, 400, headers);
     try {
       const count = await deps.record(key);
       await deps.recordWrite(ip); // charged only once the write actually landed
@@ -157,6 +167,7 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
 
   if (cast) {
     if (!isValidCastKey(cast)) return json({ error: "key" }, 400, headers);
+    if (isPrivateCastKey(cast)) return json({ error: "private" }, 400, headers);
     try {
       return json({ count: (await deps.readCast(cast)).total }, 200, headers);
     } catch (e) {
@@ -168,6 +179,8 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
   if (repo) {
     const m = REPO_RE.exec(repo);
     if (!m) return json({ error: "repo" }, 400, headers);
+    // The header's one exception: never list the drawcast server's store.
+    if (isPrivateOwner(m[1])) return json({ error: "private" }, 400, headers);
     try {
       const counts = await deps.readRepo(m[1], m[2]);
       return json(counts, 200, { ...headers, "Cache-Control": "public, max-age=60" });

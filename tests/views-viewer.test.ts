@@ -15,9 +15,15 @@ describe("the viewer counts views", () => {
     expect(withoutComments).toMatch(/countingEnabled\(playlist\.meta\)/);
   });
 
-  test("counting is gated on the published flag AND on being a GitHub cast", () => {
-    // A local file or a Drive link has no published identity to count.
-    expect(withoutComments).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*req\.gh/);
+  test("counting is gated on the published flag AND on being a GitHub cast — never the drawcast server's", () => {
+    // A local file or a Drive link has no published identity to count. A
+    // server cast HAS one and must still not be counted here: the counter is
+    // public and ?repo= lists an owner's every key, so an anvil/ key would
+    // hand a private course's lecture list to anyone. Its views belong in
+    // the dashboard. (The learner-reporting block below it may use the
+    // shared castKey — that goes to the authenticated backend.)
+    expect(withoutComments).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*req\.gh\b/);
+    expect(withoutComments).not.toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*castKey/);
   });
 
   test("the count fires before mountPlaylist, not after it", () => {

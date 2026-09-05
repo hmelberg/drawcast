@@ -25,12 +25,13 @@ import { stampedVoice, synthesizeBase64, voiceLang } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, nameNote, registerName } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
+import { getToken } from "../account";
 import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
 import { resolvePortraits } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { unembeddedImages } from "./insert";
-import { getAuthorKey, getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 import { openShare, type ShareDeps } from "./share";
@@ -933,22 +934,23 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         bookkeeping = err as Error;
       }
       // Only now, with the commit landed, is there something for a
-      // drawcast.app/#name to point at. No author key, no registration —
+      // drawcast.app/#name to point at. Signed out, no registration —
       // publishing is complete either way, so a registry that is down or a
       // name someone else already owns never turns a successful publish into
       // a failed one; it only changes the note at the end of the line. The
       // timeout is what keeps that promise: an unreachable registry costs ten
       // seconds, not the rest of the session.
       let nameSuffix = "";
-      const authorKey = getAuthorKey();
-      const reg = authorKey ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
-      if (authorKey && reg) {
+      // `token` above is the GitHub one; this is the drawcast server's.
+      const accountToken = getToken();
+      const reg = accountToken ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
+      if (accountToken && reg) {
         const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
-        // The claim FIRST (teachers round, spec §5): publishing with a key is
+        // The claim FIRST (teachers round, spec §5): publishing signed in is
         // what makes the author the course's owner in the teacher dashboard,
         // and a name may only be registered by the owner — so the name step
-        // never runs for a course this key does not own.
-        const claimed = await claimCourse(DEFAULT_ENROLL_API, courseClaim(authorKey, reg), bounded);
+        // never runs for a course this account does not own.
+        const claimed = await claimCourse(DEFAULT_ENROLL_API, courseClaim(accountToken, reg), bounded);
         nameSuffix = claimNote(claimed);
         // "error" means we do not know whether this key owns the course — a
         // 404 from an Anvil app not yet redeployed, a timeout, anything that
@@ -958,7 +960,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         // row (spec's own belt-and-braces). "owner", "key" and "invalid" ARE
         // explicit answers, so the name step never runs for them — and
         // neither does "rate": the registry is refusing calls, not unsure.
-        if (claimed === "ok" || claimed === "error") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: authorKey, ...reg }, bounded), reg.name);
+        if (claimed === "ok" || claimed === "error") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded), reg.name);
       }
       if (bookkeeping) {
         say(
@@ -1096,6 +1098,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       // itself into one Drive file would be wrong, not merely surprising:
       // publishCourse writes a file per lecture.
       publishDrive: async () => shareStatus("A course publishes to GitHub, not to Drive — its lectures are separate files.", "error"),
+      // Same construction, same reason: the server's row is `courses: false`
+      // in this round (one cast per key; courses come in a later round), so
+      // the rail never offers it here — and if that ever changes, this says
+      // so out loud rather than publishing a course as a single cast.
+      publishServer: async () => shareStatus("A course publishes to GitHub in this round — the drawcast server takes single drawcasts.", "error"),
       renderVideo: deps.renderVideo,
       beginExport: deps.beginExport,
       setProgress: deps.setProgress,

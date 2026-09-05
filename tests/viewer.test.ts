@@ -39,14 +39,14 @@ describe("parseViewerHash", () => {
 // prefix parseViewerHash accepts but this regex doesn't would silently fall
 // through to the full editor bundle instead of the viewer.
 describe("entry.ts dispatch regex", () => {
-  test("names gdrive alongside gdoc and gh", () => {
+  test("names gdrive and anvil alongside gdoc and gh", () => {
     // Strip line comments first: a comment mentioning "gdrive" (or even the
     // regex literal as prose) must not be enough to satisfy this — only the
     // actual dispatch regex's alternation counts.
     const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
     const withoutComments = entry.replace(/^\s*\/\/.*$/gm, "");
     expect(withoutComments).toContain("gdrive"); // truthy guard: fails loudly if stripping ate everything
-    expect(withoutComments).toMatch(/\(gdoc\|gh\|gdrive\)\[=-\]/);
+    expect(withoutComments).toMatch(/\(gdoc\|gh\|gdrive\|anvil\)\[=-\]/);
   });
 });
 

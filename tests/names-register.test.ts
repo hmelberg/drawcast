@@ -27,15 +27,25 @@ describe("registrations", () => {
   });
 });
 
-describe("the author key lives beside the GitHub token", () => {
-  test("settings tab", () => {
-    expect(SETTINGS_TABS.find((t) => t.id === "publishing")!.fields).toContain("authorKey");
+describe("the account lives beside the GitHub token", () => {
+  test("settings tab lists the account, not a key to paste", () => {
+    const fields = SETTINGS_TABS.find((t) => t.id === "publishing")!.fields;
+    expect(fields).toContain("account");
+    expect(fields).not.toContain("authorKey");
   });
-  test("both publishers register after the commit landed AND after their own bookkeeping, with the key, a timeout, and the outcome reported", () => {
+  test("Sign in returns to the very address it left from; Sign out tells the server before forgetting the token", () => {
+    const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(main).toMatch(/location\.href = signInUrl\(location\.href\)/);
+    const signOut = main.slice(main.indexOf("signOutBtn.addEventListener("));
+    expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeGreaterThan(0);
+    expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeLessThan(signOut.indexOf('setToken("")'));
+  });
+  test("both publishers register after the commit landed AND after their own bookkeeping, with the token, a timeout, and the outcome reported", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
     const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
     for (const src of [main, course]) {
-      expect(src).toMatch(/getAuthorKey\(\)/);
+      expect(src).toMatch(/getToken\(\)/);
+      expect(src).not.toMatch(/getAuthorKey/);
       expect(src).toMatch(/registerName\(DEFAULT_ENROLL_API,/);
       expect(src).toMatch(/nameNote\(/);
       // An unreachable registry costs ten seconds, not the rest of the session.

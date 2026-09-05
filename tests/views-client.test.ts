@@ -1,7 +1,8 @@
 // The counting client. Every network call is injected, exactly as
 // tests/keys.test.ts drives redeemPassword.
 import { describe, expect, test, vi } from "vitest";
-import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "../src/views";
+import { PRIVATE_OWNERS as SERVER_PRIVATE_OWNERS } from "../netlify/lib/view-key.mts";
+import { castKeyFor, countingEnabled, firstViewInSession, PRIVATE_OWNERS, readViewCount, recordView } from "../src/views";
 
 const KEY = "hmelberg/kurs/casts/did.yaml";
 
@@ -108,6 +109,37 @@ describe("recordView", () => {
     const f = fetchReturning(200, { count: 1 });
     expect(await recordView("nope", ["/x"], f)).toBeNull();
     expect(f).not.toHaveBeenCalled();
+  });
+});
+
+describe("the drawcast server's own keys never reach the public counter", () => {
+  // anvil/<slug>/<file> has the same three-segment shape as a GitHub key,
+  // but the counter is public and ?repo= lists an owner's every key: a
+  // private course's lecture list, to anyone. The same list as
+  // PRIVATE_OWNERS in netlify/lib/view-key.mts; refused HERE so the request
+  // is never made, whatever the viewer's wiring does with the key.
+  const PRIVATE = "anvil/spanish1/01-intro.yaml";
+
+  test("the client's list IS the server's, verbatim — one policy in two layers, pinned like names.ts against names.py", () => {
+    expect([...PRIVATE_OWNERS]).toEqual([...SERVER_PRIVATE_OWNERS]);
+    expect([...PRIVATE_OWNERS]).toEqual(["anvil"]);
+  });
+
+  test("recordView neither posts nor counts", async () => {
+    const f = fetchReturning(200, { count: 1 });
+    expect(await recordView(PRIVATE, ["/x"], f)).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  test("readViewCount does not ask either", async () => {
+    const f = fetchReturning(200, { count: 1 });
+    expect(await readViewCount(PRIVATE, ["/x"], f)).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  test("the owner match is exact: a GitHub user merely starting with anvil is counted", async () => {
+    expect(await recordView("anvil-courses/kurs/casts/did.yaml", ["/x"], fetchReturning(200, { count: 2 }))).toBe(2);
+    expect(await readViewCount("hmelberg/anvil/casts/did.yaml", ["/x"], fetchReturning(200, { count: 3 }))).toBe(3);
   });
 });
 

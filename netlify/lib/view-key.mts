@@ -42,6 +42,37 @@ export function isValidCastKey(key: string): boolean {
   return CAST_KEY_RE.test(key);
 }
 
+/**
+ * Owners whose keys are NOT public on GitHub. `anvil/<slug>/<file>` is the
+ * drawcast server's own store (round 0, spec §4), and a cast there may be
+ * private to a course — while the views endpoint is public and enumerable
+ * by owner. So these keys are refused at every door of
+ * netlify/functions/views.mts (see its header), and the client never sends
+ * them (src/views.ts holds the same list; tests/views-client.test.ts pins
+ * the two together, the way names.ts is pinned to names.py). Exact match on
+ * the owner segment: a GitHub user called `anvil-courses` is public.
+ *
+ * This is a POLICY, kept out of the shape rule above on purpose. The store
+ * must keep recognising every key it already holds: castKeyOfRollup and
+ * castKeyOfHitKey run over real list() output, and compaction can only roll
+ * up and delete a hit it can parse — a key written before an owner became
+ * private would otherwise sit in Blobs forever as an unparseable orphan,
+ * never compacted, never deleted. (learn.ts is not the reason: it carries
+ * its own copy of the shape rule and never imports this file.) And a policy
+ * hidden inside a regex is invisible to the next reader; a named list with
+ * a header comment is not.
+ */
+export const PRIVATE_OWNERS: readonly string[] = ["anvil"];
+
+export function isPrivateOwner(owner: string): boolean {
+  return PRIVATE_OWNERS.includes(owner);
+}
+
+/** True for a key whose owner segment is private, whatever its shape. */
+export function isPrivateCastKey(key: string): boolean {
+  return isPrivateOwner(key.split("/", 1)[0]);
+}
+
 export function hitPrefix(castKey: string): string {
   return `h/${castKey}/`;
 }

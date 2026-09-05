@@ -8,6 +8,8 @@ import {
   dayString,
   hitKey,
   hitPrefix,
+  isPrivateCastKey,
+  isPrivateOwner,
   isValidCastKey,
   repoHitPrefix,
   repoRollupPrefix,
@@ -37,6 +39,33 @@ describe("isValidCastKey", () => {
   test("rejects characters that would change meaning once encoded", () => {
     expect(isValidCastKey("hmelberg/kurs/a b.yaml")).toBe(false);
     expect(isValidCastKey("hmelberg/kurs/a%2Fb.yaml")).toBe(false);
+  });
+});
+
+describe("private owners", () => {
+  test("anvil is the drawcast server's own store, not a GitHub owner", () => {
+    expect(isPrivateOwner("anvil")).toBe(true);
+    expect(isPrivateCastKey("anvil/spanish1/01-intro.yaml")).toBe(true);
+  });
+
+  test("exact on the owner segment — a GitHub user merely starting with anvil is public", () => {
+    expect(isPrivateOwner("anvil-courses")).toBe(false);
+    expect(isPrivateOwner("hmelberg")).toBe(false);
+    expect(isPrivateCastKey("anvil-courses/kurs/casts/did.yaml")).toBe(false);
+    expect(isPrivateCastKey("hmelberg/anvil/casts/did.yaml")).toBe(false);
+  });
+
+  test("shape and policy are separate: a private key is still shape-valid, so the store keeps recognising keys it already holds", () => {
+    // castKeyOfRollup / castKeyOfHitKey run over real list() output, and
+    // compaction can only roll up and delete what it can parse. Tighten the
+    // shape rule instead, and any hit written before an owner became private
+    // sits in Blobs forever — unparseable, never compacted, never deleted.
+    // (Not learner events: learn.ts has its own copy of the rule and never
+    // imports this file.)
+    const key = "anvil/spanish1/01-intro.yaml";
+    expect(isValidCastKey(key)).toBe(true);
+    expect(castKeyOfRollup(`r/${key}`)).toBe(key);
+    expect(castKeyOfHitKey(`h/${key}/2026-09-04/abc`)).toBe(key);
   });
 });
 

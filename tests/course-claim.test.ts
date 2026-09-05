@@ -97,7 +97,7 @@ describe("claimNote", () => {
   test("the spec's three notes, the registry's own two, and the rate limit", () => {
     expect(claimNote("ok")).toBe(" · you own this course");
     expect(claimNote("owner")).toBe(" · this course is owned by another author — not claimed");
-    expect(claimNote("key")).toBe(" · author key rejected");
+    expect(claimNote("key")).toBe(" · course not claimed: not signed in — sign in again from Settings → Publishing (drawcast account)");
     expect(claimNote("invalid")).toBe(" · course not claimed (the registry rejected the request)");
     expect(claimNote("rate")).toBe(" · course not claimed: too many were made in the last hour — try again later");
     expect(claimNote("error")).toBe(" · course not claimed (registry unreachable)");
@@ -193,7 +193,8 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
 
   test("the claim runs after the commit landed and BEFORE the name, which is registered on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
     const after = course.slice(course.indexOf("await publishCourse("));
-    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(authorKey, reg\)/);
+    // `accountToken`, not `token`: in this scope `token` is the GitHub one.
+    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(accountToken, reg\)/);
     expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
     // F3: the condition and the ordering are pinned as two separate
     // assertions, neither coupled to how the statement wraps across lines —
@@ -205,7 +206,19 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
     expect(after).toMatch(/claimed === "ok" \|\| claimed === "error"/);
   });
 
-  test("Settings → Publishing says what the key does now", () => {
-    expect(main).toMatch(/makes you the owner of the course in the teacher dashboard/);
+  test("Settings → Publishing says what signing in does now, and no longer speaks of an author key", () => {
+    expect(main).toMatch(/own your courses in the teacher dashboard/);
+    expect(main).not.toMatch(/author key/i);
+  });
+
+  test("the two 401 notes tell the reader what to do — sign in again — and neither speaks of an author key", () => {
+    // The credential that was rejected is a session token the app holds
+    // after signing in; the Settings row is called "drawcast account". Copy
+    // that named the old key told the reader to look for a field that is no
+    // longer there.
+    const names = readFileSync(new URL("../src/names.ts", import.meta.url), "utf8");
+    expect(names).not.toMatch(/author key/i);
+    expect(nameNote("key", "learn-russian")).toMatch(/sign in again from Settings → Publishing/);
+    expect(claimNote("key")).toMatch(/sign in again from Settings → Publishing/);
   });
 });
