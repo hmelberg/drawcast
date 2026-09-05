@@ -406,7 +406,12 @@ export async function commitFiles(
   // exactly what this publish would write. An empty tree would make a commit
   // identical to its parent — noise in the history for no change — so the
   // current head is the honest answer.
-  if (sending.length === 0 && deletions.length === 0) return { commitSha: state.head };
+  // `removing`, not `deletions`: the tree below drops deletions entirely when
+  // the repository was empty a moment ago, so testing the raw list here could
+  // let an empty-repo publish through to POST an empty tree. One name, used
+  // by both, so the two cannot disagree about what is being removed.
+  const removing = wasEmpty ? [] : deletions;
+  if (sending.length === 0 && removing.length === 0) return { commitSha: state.head };
 
   const tree = [
     // `sending`, not `files`: an unchanged path is absent from the tree, and
@@ -414,7 +419,7 @@ export async function commitFiles(
     ...sending.map((f, i) => ({ path: f.path, mode: MODE_FILE, type: "blob", sha: blobShas[i] })),
     // A null sha is how the tree API says "remove this path". There is nothing
     // to remove in a repository that had no commits a moment ago.
-    ...(wasEmpty ? [] : deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null }))),
+    ...removing.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null })),
   ];
 
   /** Build a commit on the given parent and move the branch to it. */
