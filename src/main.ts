@@ -4258,11 +4258,19 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     // that exists, exactly as the GitHub publish does; a name under the
     // floor skips it with a note rather than failing the publish (spec §9).
     let note = "";
+    // The address to REPORT. Naming a cast is what buys the short form, so
+    // when the name registers, that IS the address — reporting the raw
+    // `#anvil=` key and hanging the name off the end as "also at" buries the
+    // thing the author just asked for, and they read the long one (Hans,
+    // first real publish). The raw key stays the answer only when there is
+    // no name to use.
+    let address = out.url;
     if (isRegistrable(slug)) {
       const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, name: slug, kind: "cast", target: out.cast }, (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
       );
-      note = nameNote(outcome, slug);
+      if (outcome === "ok") address = `${settings.viewerBase.replace(/\/+$/, "")}/#${slug}`;
+      else note = nameNote(outcome, slug);
     } else {
       note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
     }
@@ -4279,7 +4287,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
         : ' — closed: only you can watch, signed in; a link shared while it was open now asks to sign in (publish again as "Anyone with the link" to reopen it)';
     if (typeof out.audio === "object") {
       setStatus(
-        `Published to ${out.url}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
+        `Published to ${address}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
         "error",
       );
       return;
@@ -4290,7 +4298,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     // no-op. The client cannot know whether anything was stored, so the
     // sentence is worded to be true either way.
     const silent = out.audio === "none" ? " without narration — any narration stored there earlier is gone (tick Embed narration and publish again to add it)" : "";
-    setStatus(`Published to ${out.url}${silent}${door}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+    setStatus(`Published to ${address}${silent}${door}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: server publish failed", err);
     const e = err as Error;

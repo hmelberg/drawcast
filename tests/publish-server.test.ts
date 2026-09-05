@@ -278,7 +278,16 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toContain('out.audio === "none"');
     expect(serverCast).toContain("without narration — any narration stored there earlier is gone");
     // In the SAME status line as the address, on the ok path.
-    expect(serverCast).toMatch(/setStatus\(`Published to \$\{out\.url\}\$\{silent\}/);
+    expect(serverCast).toMatch(/setStatus\(`Published to \$\{address\}\$\{silent\}/);
+  });
+  test("a registered name IS the address — the raw key is the fallback", () => {
+    // Naming a cast is what buys the short form, so reporting the raw
+    // #anvil= key and hanging the name off the end as "also at" buries the
+    // one thing the author asked for. They read the long one.
+    expect(main).toMatch(/let address = out\.url;/);
+    expect(main).toMatch(/if \(outcome === "ok"\) address = `\$\{settings\.viewerBase\.replace\(\/\\\/\+\$\/, ""\)\}\/#\$\{slug\}`;/);
+    // and the "also at" note is NOT appended when the short form won
+    expect(main).toMatch(/else note = nameNote\(outcome, slug\);/);
   });
   test("every successful publish says which door it set — the server writes access on every spec write, and the panel starts closed", () => {
     // A cast published open, edited and republished with the select left at
@@ -288,8 +297,8 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toMatch(/const door =\s*access === "open"\s*\?/);
     expect(serverCast).toContain("open: anyone with the link can watch");
     expect(serverCast).toContain("closed: only you can watch, signed in; a link shared while it was open now asks to sign in");
-    expect(serverCast).toMatch(/setStatus\(`Published to \$\{out\.url\}\$\{silent\}\$\{door\}/);
-    expect(serverCast).toMatch(/`Published to \$\{out\.url\}\$\{door\}, but WITHOUT its narration/);
+    expect(serverCast).toMatch(/setStatus\(`Published to \$\{address\}\$\{silent\}\$\{door\}/);
+    expect(serverCast).toMatch(/`Published to \$\{address\}\$\{door\}, but WITHOUT its narration/);
     // Round 0 stops the silence only; reading the live setting back first is
     // spec §5's cure and round 1's job.
     expect(serverCast).not.toMatch(/api\/cast\?cast=.*access/);
