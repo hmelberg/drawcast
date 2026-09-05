@@ -215,11 +215,30 @@ and concatenates them into exactly the text `parsePlaylistText` already
 expects (`spec` + `\n---\naudio:`). With no baked audio the second fetch is
 skipped. No change to the parser, to `speech.prefetch`, or to mount order.
 
-**Serving the blob.** The gated endpoint answers with a **302 to the Media
-object's own URL**, so the bytes never pass through server code and the
-browser caches them across lectures and sessions. If Anvil's media URLs turn
-out not to be directly servable, the fallback is to stream the blob through
-the endpoint with a long `max-age` keyed by cast. Round 0 decides which.
+**Serving the blob — decided in round 0, against this section's first
+instinct.** The plan was a **302 to the Media object's own URL**, so the
+bytes would never pass through server code. Round 0 rejected it and
+**streams the blob through the gated endpoint** instead, with an `ETag` on
+the cast's `updated` stamp and `Cache-Control: private, no-cache`, so a
+second play costs a conditional request and a 304 rather than a transfer.
+
+Three reasons, in the order they matter:
+
+- **A media URL is an ungated address.** Unguessable, but it answers to
+  anyone who has it, forever — which is precisely what the gate exists to
+  prevent for a cast whose whole point is that it is private. The capability
+  URL was an acceptable trade for a public course and is not one here.
+- **`immutable` would have been a lie.** A cast key is stable across
+  republishes, so a long `max-age` on that URL serves last month's narration
+  for as long as it lasts.
+- **CORS on a cross-origin redirect to a storage host is not knowable in
+  advance**, and a design that has to be discovered by deploying it is worse
+  than one that cannot fail that way.
+
+The cost is honest: every first play of a lecture's audio spends Anvil CPU
+and bandwidth on the bytes. §15's quota question therefore matters more, not
+less, and round 0's measurement records the streamed cost rather than
+choosing between two paths.
 
 **Baked audio is a choice per course, default off on the server.** The
 publish dialog's existing narration choice applies to the new target
