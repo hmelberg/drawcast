@@ -95,3 +95,29 @@ passwordless email, which excludes nobody. That is round 1b's.
 - A short name, or a publish while signed out, ships a doorless page that says
   why. Reporting continues after a `403 enrol` because a boolean cannot tell
   refusal from outage. A `once` row from an abandoned sign-in is never swept.
+
+## Verified live after Hans's pull (2026-09-05)
+
+The whole anonymous surface, against the deployed backend. Every new refusal
+runs in the parser, before the token check, so it is reachable without one.
+
+| request | answer |
+|---|---|
+| `GET /progress`, `POST /forget` | `404 No matching API endpoint` — gone |
+| `POST /cast`, key not `anvil/`-prefixed | `400 {"error": "prefix"}` |
+| `POST /cast`, four segments | `400 {"error": "depth"}` |
+| `POST /course`, `anvil/` key | `400 {"error": "reserved"}` |
+| `POST /enroll`, `anvil/` key | `400 {"error": "reserved"}` |
+| `POST /login`, address with no account | `200 {"ok": true}` — no existence oracle |
+| `POST /login`, return outside the allowlist | `400 {"error": "return"}` |
+| `GET /name?n=diminishing` | `200` — the registry is untouched |
+
+All three doors into a `courses` row refuse the reserved namespace, which is
+the finding the final wave closed and the one a per-task review could not see.
+
+Still unverified, because it needs a signed-in browser: the one-click join,
+an event landing on the right enrolment, and the dashboard naming an account's
+address. And one question only Data Tables answers — whether a
+Google-created `users` row carries a `password_hash`. The mailed link's guard
+admits a row without one; if a social row turns out to have one, social
+learners cannot use the link. Not a hole either way, and it now fails loudly.
