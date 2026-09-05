@@ -1,7 +1,7 @@
 // The learner client. Every network call is injected, as in tests/views-client.test.ts.
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
-import { apiBase, CAST_KEY_RE, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, sendEvent } from "../src/learn";
+import { apiBase, CAST_KEY_RE, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent, type JoinOutcome } from "../src/learn";
 
 const CAST = "hmelberg/dcast/learn-russian/03-cases.yaml";
 const COURSE = "hmelberg/dcast/learn-russian";
@@ -134,5 +134,48 @@ describe("sendEvent", () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
     expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, dead)).toBe(false);
+  });
+});
+
+// Joining (spec §3): one click for a signed-in account, from the door the
+// course's name opens in the app.
+describe("joinCourse", () => {
+  const REQ = { course: COURSE, title: "Learn Russian", page: "https://hmelberg.github.io/dcast/learn-russian/" };
+  test("posts the token and the course as text/plain JSON to <api>/_/api/enroll — no name, no address, no code", async () => {
+    const f = fetchReturning(200, { ok: true, state: "active" });
+    expect(await joinCourse("https://drawcast.anvil.app/", KEY, REQ, f)).toBe("ok");
+    const [url, init] = callOf(f);
+    expect(url).toBe("https://drawcast.anvil.app/_/api/enroll");
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
+    expect(JSON.parse(init.body as string)).toEqual({ key: KEY, course: COURSE, title: "Learn Russian", page: "https://hmelberg.github.io/dcast/learn-russian/" });
+  });
+  test("a run travels only when one was asked for", async () => {
+    const f = fetchReturning(200, { ok: true, state: "active" });
+    await joinCourse(API, KEY, { ...REQ, run: "spring" }, f);
+    expect(JSON.parse(callOf(f)[1].body as string).run).toBe("spring");
+  });
+  test("no token, no request", async () => {
+    const f = fetchReturning(200, { ok: true });
+    expect(await joinCourse(API, "", REQ, f)).toBe("key");
+    expect(calls(f)).toBe(0);
+  });
+  test("the server's refusals map one to one, and everything else — a 500, the network — is error", async () => {
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(401, { error: "key" }))).toBe("key");
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(403, { error: "closed" }))).toBe("closed");
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(404, { error: "run" }))).toBe("run");
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(429, { error: "rate" }))).toBe("rate");
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(500, { error: "boom" }))).toBe("error");
+    const dead = vi.fn(async () => {
+      throw new Error("offline");
+    }) as unknown as typeof fetch;
+    expect(await joinCourse(API, KEY, REQ, dead)).toBe("error");
+  });
+  test("every outcome has a sentence saying what to do next", () => {
+    const outcomes: JoinOutcome[] = ["ok", "key", "closed", "run", "rate", "error"];
+    for (const o of outcomes) expect(joinNote(o).length).toBeGreaterThan(10);
+    expect(joinNote("ok")).toMatch(/teachers/);
+    expect(joinNote("key")).toMatch(/sign in again/i);
+    expect(joinNote("closed")).toMatch(/ask its teacher/);
   });
 });

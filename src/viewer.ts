@@ -16,9 +16,9 @@ import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
-import { getToken } from "./account";
-import { apiBase, DEFAULT_ENROLL_API, firstOpenInSession, sendEvent } from "./learn";
-import { anvilHashFor, nameInHash, resolveName } from "./names";
+import { getToken, setToken, signInUrl } from "./account";
+import { apiBase, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent } from "./learn";
+import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -326,17 +326,16 @@ export async function runNamed(hash: string): Promise<void> {
   const status = h("p", { class: "viewer-status" }, "Looking up the name…");
   document.body.append(status);
   const resolved = name ? await resolveName(DEFAULT_ENROLL_API, name) : null;
-  if (!resolved) {
+  if (!name || !resolved) {
     status.textContent = `No drawcast called "${name ?? hash}".`;
     status.classList.add("error");
     return;
   }
   if (resolved.kind === "course") {
-    if (resolved.page) location.replace(resolved.page);
-    else {
-      status.textContent = "This course has no page to open.";
-      status.classList.add("error");
-    }
+    // The door, not a bounce to the course's page: the page links HERE, so
+    // a redirect would send a learner who just clicked Join straight back to
+    // where they came from.
+    status.replaceWith(courseDoor(name, resolved));
     return;
   }
   // Parse BEFORE clearing the lookup status: a malformed registry entry
@@ -350,6 +349,55 @@ export async function runNamed(hash: string): Promise<void> {
   }
   status.remove();
   await runViewer(req);
+}
+
+/**
+ * The course view at drawcast.app/#<name> (spec §3, §8): the one place a
+ * learner joins. Signed in, joining is one click — the account is the name
+ * and the address, so there is no form. Signed out, the button says so, and
+ * the handshake brings the person back to this very address; a bare
+ * `#<name>` is the one return even the server's strictest rule admits. The
+ * course's own page — the static one with the lectures — is linked either
+ * way, so the name still reaches the course for someone who only wants to
+ * look.
+ *
+ * The registry answers with a pointer, not a title (spec §8), so the name
+ * stands in for one on screen and in the /enroll body. The server ignores
+ * title and page for a course row that exists — and a course a name points
+ * at always exists, because registering the name claimed it.
+ */
+function courseDoor(name: string, resolved: Resolved): HTMLElement {
+  const title = name.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
+  const heading = h("h1", { class: "viewer-title" }, title);
+  const note = h("p", { class: "viewer-status" }, "Joining lets you and the course's teachers follow your progress and answers.");
+  const button = h("button", { class: "primary" }, getToken() === "" ? "Sign in to join" : "Join this course");
+  const wrap = h("div", { class: "viewer-wrap" }, heading, note, h("p", {}, button));
+  if (resolved.page) wrap.append(h("p", {}, h("a", { href: resolved.page }, "Open the course page")));
+  button.addEventListener("click", () => {
+    const key = getToken();
+    if (key === "") {
+      location.href = signInUrl(location.href);
+      return;
+    }
+    button.disabled = true;
+    // Bounded like every registry call: a sleeping backend costs ten seconds,
+    // not the visit.
+    void joinCourse(DEFAULT_ENROLL_API, key, { course: resolved.target, title, page: resolved.page ?? `https://drawcast.app/#${name}` }, (input, init) =>
+      fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+    ).then((outcome) => {
+      note.textContent = joinNote(outcome);
+      note.classList.toggle("error", outcome !== "ok");
+      button.hidden = outcome === "ok";
+      button.disabled = false;
+      // A token the server no longer knows is dead in this browser too: drop
+      // it, so the next click is the sign-in the note just asked for.
+      if (outcome === "key") {
+        setToken("");
+        button.textContent = "Sign in to join";
+      }
+    });
+  });
+  return wrap;
 }
 
 export async function runViewer(req: ViewerRequest): Promise<void> {

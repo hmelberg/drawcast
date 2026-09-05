@@ -35,11 +35,15 @@ describe("entry routes names", () => {
 });
 
 describe("runNamed", () => {
-  test("resolves against the registry, redirects courses, plays casts through parseViewerHash", () => {
+  test("resolves against the registry, opens the door for a course, plays casts through parseViewerHash", () => {
     expect(viewer).toMatch(/export async function runNamed\(hash: string\)/);
     expect(viewer).toMatch(/resolveName\(DEFAULT_ENROLL_API, name\)/);
     expect(viewer).toMatch(/kind === "course"/);
-    expect(viewer).toMatch(/location\.replace\(/);
+    // A course name is the door the published page links to (identity
+    // round): bouncing to that page would send a learner who just clicked
+    // Join straight back to where they came from.
+    expect(viewer).not.toMatch(/location\.replace\(resolved\.page\)/);
+    expect(viewer).toMatch(/status\.replaceWith\(courseDoor\(name, resolved\)\)/);
     // anvilHashFor, not ghHashFor: a registered name may point at the
     // drawcast server as readily as at GitHub, and names.ts decides which.
     expect(viewer).toMatch(/parseViewerHash\(anvilHashFor\(hash, resolved\.target\)\)/);
@@ -53,5 +57,34 @@ describe("runNamed", () => {
     expect(parseCall).toBeGreaterThan(0);
     expect(statusRemove).toBeGreaterThan(parseCall);
     expect(viewer).toMatch(/points at something this viewer cannot play/);
+  });
+});
+
+// The course view at drawcast.app/#<name> (spec §3, §8): where a learner
+// joins, in one click when signed in. Source pins — h() needs a document.
+describe("the course door", () => {
+  const door = viewer.slice(viewer.indexOf("function courseDoor("), viewer.indexOf("export async function runViewer("));
+  test("exists, takes the resolved pointer, and is what a course name opens", () => {
+    expect(door).toMatch(/^function courseDoor\(name: string, resolved: Resolved\): HTMLElement/);
+    expect(viewer).toMatch(/import \{ anvilHashFor, nameInHash, resolveName, type Resolved \} from "\.\/names"/);
+  });
+  test("signed out, the button IS the sign-in, and the handshake returns to this very address — a bare #<name>", () => {
+    expect(door).toContain('getToken() === "" ? "Sign in to join" : "Join this course"');
+    expect(door).toMatch(/if \(key === ""\) \{\s*location\.href = signInUrl\(location\.href\);\s*return;/);
+  });
+  test("signed in, one click joins: the token and the resolved course key, through the learner client, bounded", () => {
+    expect(door).toMatch(/joinCourse\(DEFAULT_ENROLL_API, key, \{ course: resolved\.target, title, page: resolved\.page \?\? `https:\/\/drawcast\.app\/#\$\{name\}` \}/);
+    expect(door).toContain("AbortSignal.timeout(10_000)");
+    expect(door).not.toMatch(/\/_\/api\//); // the client owns the address
+  });
+  test("the answer is said in the door's own words, a dead token is dropped, and the button is disabled only while the answer is on its way", () => {
+    expect(door).toContain("note.textContent = joinNote(outcome);");
+    expect(door.indexOf("button.disabled = true;")).toBeLessThan(door.indexOf("joinCourse("));
+    expect(door).toContain("button.disabled = false;");
+    expect(door).toMatch(/if \(outcome === "key"\) \{\s*setToken\(""\);/);
+    expect(door).toContain('button.hidden = outcome === "ok";');
+  });
+  test("the course's own page is linked either way, so the name still reaches the course", () => {
+    expect(door).toMatch(/if \(resolved\.page\) wrap\.append\(h\("p", \{\}, h\("a", \{ href: resolved\.page \}, "Open the course page"\)\)\);/);
   });
 });

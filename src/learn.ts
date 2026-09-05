@@ -79,3 +79,70 @@ export async function sendEvent(api: string, ev: LearnEvent, key: string, fetchI
     return false;
   }
 }
+
+export type JoinOutcome = "ok" | "key" | "closed" | "run" | "rate" | "error";
+
+export interface JoinRequest {
+  /** The course key — what a course name resolves to (owner/repo/<dir>). */
+  course: string;
+  title: string;
+  /** Where the course lives; must be https, the server refuses anything else. */
+  page: string;
+  /** A run slug; absent means the course's default run. */
+  run?: string;
+}
+
+/**
+ * One click for a signed-in account (spec §3). Idempotent on the server, so
+ * joining twice is the same enrolment. Never throws; an empty token is "key"
+ * without a request, since the server could only answer 401 to it. The
+ * server's words map one to one: `401 key`, `403 closed` (the run is not
+ * taking learners), `404 run` (no such run), `429 rate`.
+ */
+export async function joinCourse(api: string, key: string, req: JoinRequest, fetchImpl: typeof fetch = fetch): Promise<JoinOutcome> {
+  if (!key) return "key";
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/enroll`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ key, ...req }),
+    });
+    if (res.ok) return "ok";
+    switch (res.status) {
+      case 401:
+        return "key";
+      case 403:
+        return "closed";
+      case 404:
+        return "run";
+      case 429:
+        return "rate";
+      default:
+        return "error";
+    }
+  } catch {
+    return "error";
+  }
+}
+
+/** What the door says after the click: what to do next, not what happened. */
+export function joinNote(outcome: JoinOutcome): string {
+  switch (outcome) {
+    case "ok":
+      return "You're in. Your progress and answers in this course are kept for you and its teachers.";
+    case "key":
+      return "Your sign-in has expired — sign in again to join.";
+    case "closed":
+      return "This course is not taking new learners right now — ask its teacher.";
+    case "run":
+      return "This course has no open run to join — ask its teacher.";
+    case "rate":
+      return "Too many joins from here in the last hour — try again later.";
+    case "error":
+      return "Could not reach the drawcast server — try again in a moment.";
+    default: {
+      const unreachable: never = outcome;
+      return unreachable;
+    }
+  }
+}

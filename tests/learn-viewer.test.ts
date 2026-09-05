@@ -22,8 +22,8 @@ describe("the code is gone", () => {
 describe("the viewer reports as the account", () => {
   const block = src.slice(src.indexOf("const castKey = req.anvil"), src.indexOf("const settings = loadSettings();"));
   test("it uses the client, never its own rules", () => {
-    expect(src).toMatch(/import \{ apiBase, DEFAULT_ENROLL_API, firstOpenInSession, sendEvent \} from "\.\/learn"/);
-    expect(src).toMatch(/import \{ getToken \} from "\.\/account"/);
+    expect(src).toMatch(/import \{ apiBase, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent \} from "\.\/learn"/);
+    expect(src).toMatch(/import \{ getToken, setToken, signInUrl \} from "\.\/account"/);
   });
   test("no report without a token: the session token is read once, and an empty one means no reporter", () => {
     expect(block).toMatch(/const key = getToken\(\);/);
