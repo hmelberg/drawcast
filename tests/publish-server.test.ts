@@ -231,3 +231,31 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(course).toMatch(/publishServer: async \(\) => shareStatus\(/);
   });
 });
+
+// The Check button (round 0 spec §9). checkName itself is exercised in
+// tests/names.test.ts; this pins where the button lives and, above all, what
+// it does NOT listen to.
+describe("the Check button in Share", () => {
+  test("is built once and sits beside BOTH name fields — GitHub's and the server's", () => {
+    expect(share).toContain("function buildNameCheck(");
+    // Declaration + two instantiations.
+    expect(share.match(/buildNameCheck\(/g)).toHaveLength(3);
+    expect(share).toMatch(/"Name ", publishNameInput, publishNameCheck\.button\)/);
+    expect(share).toMatch(/"Name ", serverNameInput, serverNameCheck\.button\)/);
+  });
+  test("fires on the click only — no input listener anywhere in Share (the budget is 600/h per IP)", () => {
+    expect(share).not.toContain('addEventListener("input"');
+    expect(share).not.toContain('addEventListener("keyup"');
+    expect(share).not.toContain('addEventListener("keydown"');
+    const builder = share.slice(share.indexOf("function buildNameCheck("), share.indexOf("// ---- Link panel"));
+    expect(builder).toContain('button.addEventListener("click"');
+    expect(builder).toContain("checkNote(await checkName(DEFAULT_ENROLL_API, name, getToken()), name)");
+    // Disabled while the answer is on its way — one click, one request.
+    expect(builder.indexOf("button.disabled = true;")).toBeLessThan(builder.indexOf("await checkName("));
+  });
+  test("the verdict is cleared on every open, so a stale answer never describes another document", () => {
+    const prep = share.slice(share.indexOf("function prepPanels(): void {"), share.indexOf("function refresh(deps: ShareDeps): void {"));
+    expect(prep).toContain("publishNameCheck.reset();");
+    expect(prep).toContain("serverNameCheck.reset();");
+  });
+});

@@ -141,6 +141,61 @@ export function nameNote(outcome: "ok" | "taken" | "owner" | "key" | "invalid" |
   }
 }
 
+// ---- The Check button (round 0 spec §9) ------------------------------------
+
+export type CheckState = "free" | "yours" | "taken" | "short" | "invalid" | "error";
+
+/**
+ * Advice, not a reservation (spec §9): nothing is held, and POST /name still
+ * decides — the server walks _name_set's own verdicts in _name_set's own
+ * order, so a name called "free" here is one the publish would take. The
+ * rule and the floor are checked here FIRST, so a malformed or obviously
+ * short name costs no request out of the 600/h name budget. The token is
+ * what tells "yours" from "taken"; without one the server never says
+ * "yours", so a signed-out check sends no key at all. Never throws: an
+ * unreachable registry is "error", and the publish will tell for certain.
+ */
+export async function checkName(api: string, name: string, token: string, fetchImpl: typeof fetch = fetch): Promise<CheckState> {
+  const normalized = normalizeName(name);
+  if (normalized === null) return "invalid";
+  if (!isRegistrable(normalized)) return "short";
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/name/check`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(token ? { name: normalized, key: token } : { name: normalized }),
+    });
+    if (!res.ok) return "error";
+    const body = (await res.json()) as { state?: unknown };
+    const state = body.state;
+    return state === "free" || state === "yours" || state === "taken" || state === "short" || state === "invalid" ? state : "error";
+  } catch {
+    return "error";
+  }
+}
+
+/** The note under the field: what to do next, not what happened. */
+export function checkNote(state: CheckState, name: string): string {
+  switch (state) {
+    case "free":
+      return `"${name}" is free.`;
+    case "yours":
+      return `"${name}" is already yours — publishing moves it to this drawcast.`;
+    case "taken":
+      return `"${name}" belongs to someone else. Pick another.`;
+    case "short":
+      return `Names need at least ${MIN_NAME_LENGTH} characters for now.`;
+    case "invalid":
+      return "That is not a valid name: lower-case letters, digits and dashes, not starting with a reserved word like gh or me.";
+    case "error":
+      return "Could not check the name just now — publishing will tell you for certain.";
+    default: {
+      const unreachable: never = state;
+      return unreachable;
+    }
+  }
+}
+
 // ---- The claim (teachers round, spec §3) ----------------------------------
 // Publishing while signed in (the session token, round 0 spec §1) makes the
 // publisher the course's owner in the teacher dashboard. The claim runs

@@ -27,6 +27,7 @@ import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken } from "../account";
+import { checkName, checkNote } from "../names";
 import { parseRepo, slugify } from "../publish/github";
 import type { ServerAccess } from "../publish/server";
 import { h } from "./dom";
@@ -450,6 +451,46 @@ function build(): ShareSession {
     };
   }
 
+  /**
+   * The Check button beside a name field (round 0 spec §9): advice, not a
+   * reservation — nothing is held, and the publish still decides. It fires
+   * on the CLICK only, never on `input`: the name budget is 600/h per IP,
+   * and check-as-you-type would spend it on one impatient author. Built
+   * once per name field, like buildEmbedChoices: the GitHub panel's name and
+   * the server panel's name are both registered after a publish, so both
+   * can be asked about first. The button sits INSIDE the field's label so
+   * the three stay on one line; a click on it is the button's own — a label
+   * does not re-target a click on an interactive descendant.
+   */
+  function buildNameCheck(input: HTMLInputElement): { button: HTMLButtonElement; note: HTMLElement; reset: () => void } {
+    const button = h("button", { class: "small", type: "button" }, "Check") as HTMLButtonElement;
+    const note = h("div", { class: "hint" });
+    button.addEventListener("click", () => {
+      void (async () => {
+        // What the field shows is what the publish will send: the blur
+        // handler's normalization, applied here too, so a click that never
+        // blurred the field (Safari does not focus buttons) still checks
+        // the slug rather than the raw keystrokes.
+        input.value = slugify(input.value);
+        const name = input.value;
+        button.disabled = true;
+        note.textContent = "Checking…";
+        try {
+          note.textContent = checkNote(await checkName(DEFAULT_ENROLL_API, name, getToken()), name);
+        } finally {
+          button.disabled = false;
+        }
+      })();
+    });
+    return {
+      button,
+      note,
+      reset: () => {
+        note.textContent = "";
+      },
+    };
+  }
+
   // ---- Link panel ----
 
   // The only line telling the author whether Publish is about to send one
@@ -469,7 +510,10 @@ function build(): ShareSession {
     publishNameInput.value = slugify(publishNameInput.value);
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
-  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput), publishNameHint);
+  // The name is also what the publish registers (castRegistration), so it
+  // can be asked about first (spec §9).
+  const publishNameCheck = buildNameCheck(publishNameInput);
+  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput, publishNameCheck.button), publishNameCheck.note, publishNameHint);
   // Key "share" so this panel's two boxes keep the exact ids they have always
   // had ("share-embed-images"/"share-embed-narration") — extracting the rows
   // into a builder must not be observable from outside this file.
@@ -578,7 +622,8 @@ function build(): ShareSession {
     serverNameInput.value = slugify(serverNameInput.value);
   });
   const serverNameHint = h("div", { class: "hint" }, "Publishing again under the same name replaces the copy on the server.");
-  const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput), serverNameHint);
+  const serverNameCheck = buildNameCheck(serverNameInput);
+  const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput, serverNameCheck.button), serverNameCheck.note, serverNameHint);
   // "Who can watch" (spec §5, question 2) — two of its three values in this
   // round, because two are all the server enforces: `open` is public,
   // anything else is the owner's alone until enrolment lands. Defaults
@@ -1211,6 +1256,9 @@ function build(): ShareSession {
     // disabled, since there is nothing here for a course author to decide.
     publishNameRow.hidden = current.subject === "course";
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
+    // A verdict is about one name for one document — never carried into the
+    // next open, where it would describe a name the field no longer shows.
+    publishNameCheck.reset();
     linkChoices.refresh(doc, current.subject);
     refreshCommentsChoice(doc);
     refreshCountViewsChoice(doc);
@@ -1219,6 +1267,7 @@ function build(): ShareSession {
     // access back to closed — a decision about one publish, like the embed
     // boxes, not a setting — and the sign-in state as of this open.
     serverNameInput.value = doc.publishedAs ?? slugify(doc.title);
+    serverNameCheck.reset();
     serverAccess.value = "enrolled";
     serverChoices.refresh(doc, current.subject);
     refreshServerSignIn();
