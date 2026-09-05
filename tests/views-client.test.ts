@@ -1,7 +1,8 @@
 // The counting client. Every network call is injected, exactly as
 // tests/keys.test.ts drives redeemPassword.
 import { describe, expect, test, vi } from "vitest";
-import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "../src/views";
+import { PRIVATE_OWNERS as SERVER_PRIVATE_OWNERS } from "../netlify/lib/view-key.mts";
+import { castKeyFor, countingEnabled, firstViewInSession, PRIVATE_OWNERS, readViewCount, recordView } from "../src/views";
 
 const KEY = "hmelberg/kurs/casts/did.yaml";
 
@@ -112,12 +113,17 @@ describe("recordView", () => {
 });
 
 describe("the drawcast server's own keys never reach the public counter", () => {
-  // anvil/<slug>/<file> is shape-valid — it has to be, learner events use
-  // the same rule — but the counter is public and ?repo= lists an owner's
-  // every key: a private course's lecture list, to anyone. Mirrors
-  // isPrivateOwner in netlify/lib/view-key.mts; refused HERE so the request
+  // anvil/<slug>/<file> has the same three-segment shape as a GitHub key,
+  // but the counter is public and ?repo= lists an owner's every key: a
+  // private course's lecture list, to anyone. The same list as
+  // PRIVATE_OWNERS in netlify/lib/view-key.mts; refused HERE so the request
   // is never made, whatever the viewer's wiring does with the key.
   const PRIVATE = "anvil/spanish1/01-intro.yaml";
+
+  test("the client's list IS the server's, verbatim — one policy in two layers, pinned like names.ts against names.py", () => {
+    expect([...PRIVATE_OWNERS]).toEqual([...SERVER_PRIVATE_OWNERS]);
+    expect([...PRIVATE_OWNERS]).toEqual(["anvil"]);
+  });
 
   test("recordView neither posts nor counts", async () => {
     const f = fetchReturning(200, { count: 1 });

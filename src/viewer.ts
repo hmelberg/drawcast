@@ -286,6 +286,9 @@ async function fetchGhText(gh: GhRef): Promise<string> {
  *  formatPublished writes, a mapping whose first key is `audio`. A 200 that
  *  is anything else — an HTML shell, a captive portal — is not narration. */
 const AUDIO_DOC_RE = /^\s*audio\s*:/;
+/** …and ONE document: a `---` line inside the body would carry a further
+ *  document past the check above and into the parser. */
+const ANOTHER_DOC_RE = /\n---[ \t]*(?:\r?\n|$)/;
 
 /**
  * A cast stored on the drawcast server arrives as two objects (spec §4) and
@@ -337,11 +340,24 @@ export async function fetchAnvilText(
     return spec;
   }
   const track = await audio.text().catch(() => null);
-  if (track === null || !AUDIO_DOC_RE.test(track)) {
+  if (track === null || !AUDIO_DOC_RE.test(track) || ANOTHER_DOC_RE.test(track)) {
     onAudioProblem?.("not an audio document");
     return spec;
   }
   return `${spec.replace(/\n*$/, "\n")}---\n${track}`;
+}
+
+/**
+ * A hash the router recognised but parseViewerHash refused — a climbing
+ * path, a bad slug, a broken percent-escape, a file that is not a document.
+ * entry.ts used to drop that null on the floor, and the page was blank with
+ * no message: the very failure a guarded decode was meant to end. Same
+ * centering and status element runNamed uses before the viewer exists.
+ */
+export function showUnplayable(): void {
+  document.body.classList.add("viewer-body");
+  const status = h("p", { class: "viewer-status error" }, "This link points at something this viewer cannot play — the address may be incomplete or altered.");
+  document.body.append(status);
 }
 
 /**

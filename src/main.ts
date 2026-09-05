@@ -4238,7 +4238,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
       bake,
       embedImages,
       undefined, // comments are giscus, keyed on a GitHub repo — a server copy has none
-      true, // countViews — the viewer counts any three-segment key, this one included
+      true, // countViews — no `views: false` in the file; the viewer counts GitHub casts only, so a server copy is never counted publicly (its views are the dashboard's)
       () => fetchAnvilText({ cast, api: DEFAULT_ENROLL_API }, fetchImpl).catch(() => null),
     );
     const out = await publishToServer({ slug, file, title: doc.title, yaml: text, access, token: accountToken, api: DEFAULT_ENROLL_API, viewerBase: settings.viewerBase }, fetchImpl);

@@ -28,9 +28,11 @@ async function boot(): Promise<void> {
   );
   const hash = location.hash;
   if (/[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
-    const { parseViewerHash, runViewer } = await import("./viewer");
+    const { parseViewerHash, runViewer, showUnplayable } = await import("./viewer");
     const req = parseViewerHash(hash);
+    // A refused hash is a message, never a silent blank page.
     if (req) await runViewer(req);
+    else showUnplayable();
   } else if (isNameHash(hash)) {
     const { runNamed } = await import("./viewer");
     await runNamed(hash);

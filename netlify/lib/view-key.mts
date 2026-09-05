@@ -48,15 +48,24 @@ export function isValidCastKey(key: string): boolean {
  * private to a course — while the views endpoint is public and enumerable
  * by owner. So these keys are refused at every door of
  * netlify/functions/views.mts (see its header), and the client never sends
- * them (src/views.ts). Shape is a separate question: such a key is still
- * shape-valid, because learner events use the same rule and DO carry it, to
- * an authenticated backend. Exact match on the owner segment: a GitHub user
- * called `anvil-courses` is public like any other.
+ * them (src/views.ts holds the same list; tests/views-client.test.ts pins
+ * the two together, the way names.ts is pinned to names.py). Exact match on
+ * the owner segment: a GitHub user called `anvil-courses` is public.
+ *
+ * This is a POLICY, kept out of the shape rule above on purpose. The store
+ * must keep recognising every key it already holds: castKeyOfRollup and
+ * castKeyOfHitKey run over real list() output, and compaction can only roll
+ * up and delete a hit it can parse — a key written before an owner became
+ * private would otherwise sit in Blobs forever as an unparseable orphan,
+ * never compacted, never deleted. (learn.ts is not the reason: it carries
+ * its own copy of the shape rule and never imports this file.) And a policy
+ * hidden inside a regex is invisible to the next reader; a named list with
+ * a header comment is not.
  */
-const PRIVATE_OWNERS: ReadonlySet<string> = new Set(["anvil"]);
+export const PRIVATE_OWNERS: readonly string[] = ["anvil"];
 
 export function isPrivateOwner(owner: string): boolean {
-  return PRIVATE_OWNERS.has(owner);
+  return PRIVATE_OWNERS.includes(owner);
 }
 
 /** True for a key whose owner segment is private, whatever its shape. */

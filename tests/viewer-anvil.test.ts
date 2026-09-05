@@ -10,6 +10,7 @@ import { anvilHashFor } from "../src/names";
 import { fetchAnvilText, parseViewerHash } from "../src/viewer";
 
 const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
 
 const REF = { cast: "anvil/spanish1/01.yaml", api: "https://a" };
 
@@ -128,6 +129,18 @@ describe("fetchAnvilText", () => {
     expect(await fetchAnvilText(REF, impl, problem)).toBe("meta: {}\n");
     expect(problem).toHaveBeenCalledWith("not an audio document");
   });
+  test("an audio body carrying a second document is dropped whole — the first line is not the only line", async () => {
+    const problem = vi.fn();
+    for (const body of ["audio: {}\n---\nfoo: bar\n", "audio: {}\r\n---\r\nfoo: bar\r\n", "audio: {}\n--- \nfoo: bar\n", "audio: {}\n---"]) {
+      problem.mockClear();
+      const { impl } = withAudio(() => new Response(body, { status: 200 }));
+      expect(await fetchAnvilText(REF, impl, problem)).toBe("meta: {}\n");
+      expect(problem).toHaveBeenCalledWith("not an audio document");
+    }
+    // A `---` that is not a line on its own is ordinary content.
+    const { impl } = withAudio(() => new Response("audio:\n  note: a --- b\n  more: ---x\n", { status: 200 }));
+    expect(await fetchAnvilText(REF, impl)).toBe("meta: {}\n---\naudio:\n  note: a --- b\n  more: ---x\n");
+  });
   test("works without a reporter — the callback is optional", async () => {
     const { impl } = withAudio(() => new Response("{}", { status: 503 }));
     expect(await fetchAnvilText(REF, impl)).toBe("meta: {}\n");
@@ -189,6 +202,24 @@ describe("runViewer takes the fourth source through the same door as the others"
     expect(viewer).toMatch(/h\("div", \{ class: "viewer-meta" \}, viewsEl, noteEl\)/);
     expect(viewer).toMatch(/if \(audioNote\) noteEl\.textContent = audioNote;/);
     expect(viewer).toMatch(/Recorded narration unavailable \(\$\{why\}\)/);
+  });
+});
+
+describe("a link the router accepts but the parser refuses is a message, not a blank page", () => {
+  // parseViewerHash returning null used to be dropped by entry.ts's
+  // `if (req) await runViewer(req)` — so a bad slug, a climbing path or a
+  // broken escape was a blank page with no message, the very failure the
+  // guarded decode was meant to end.
+  test("entry.ts shows the message on null", () => {
+    expect(entry).toMatch(/const \{ parseViewerHash, runViewer, showUnplayable \} = await import\("\.\/viewer"\)/);
+    expect(entry).toMatch(/if \(req\) await runViewer\(req\);\s*else showUnplayable\(\);/);
+  });
+  test("the message names the problem and is styled as the viewer's error status", () => {
+    expect(viewer).toMatch(/export function showUnplayable\(\): void/);
+    const fn = viewer.slice(viewer.indexOf("export function showUnplayable"), viewer.indexOf("export async function runNamed"));
+    expect(fn).toMatch(/class: "viewer-status error"/);
+    expect(fn).toMatch(/cannot play/);
+    expect(fn).toMatch(/document\.body\.append\(status\)/);
   });
 });
 

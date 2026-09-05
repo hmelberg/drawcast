@@ -5,17 +5,19 @@
 /** Mirrors the cast-key rule in netlify/lib/view-key.mts. Checked here too so
  *  a malformed key never becomes a pointless request. */
 const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
-/** Mirrors isPrivateOwner there: `anvil/<slug>/<file>` is the drawcast
- *  server's own store, and a cast on it may be private to a course. The
- *  counter is public and lists an owner's every key, so such a key must never
- *  reach it — a private cast's views are the teacher's business, in the
- *  dashboard. Refused HERE, not only in the viewer's wiring, so the request
- *  is never made whatever a caller passes. Exact owner: `anvil-courses/…` is
- *  a GitHub key like any other. */
-const PRIVATE_OWNER_RE = /^anvil\//;
+/** The same list as PRIVATE_OWNERS in netlify/lib/view-key.mts — one policy,
+ *  two layers, pinned to each other by tests/views-client.test.ts so a second
+ *  private owner can never land on one side only. `anvil/<slug>/<file>` is
+ *  the drawcast server's own store, and a cast on it may be private to a
+ *  course; the counter is public and lists an owner's every key, so such a
+ *  key must never reach it — a private cast's views are the teacher's
+ *  business, in the dashboard. Refused HERE, not only in the viewer's wiring,
+ *  so the request is never made whatever a caller passes. Exact owner:
+ *  `anvil-courses/…` is a GitHub key like any other. */
+export const PRIVATE_OWNERS: readonly string[] = ["anvil"];
 
 function countable(key: string): boolean {
-  return CAST_KEY_RE.test(key) && !PRIVATE_OWNER_RE.test(key);
+  return CAST_KEY_RE.test(key) && !PRIVATE_OWNERS.includes(key.split("/", 1)[0]);
 }
 
 /**

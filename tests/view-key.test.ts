@@ -55,8 +55,17 @@ describe("private owners", () => {
     expect(isPrivateCastKey("hmelberg/anvil/casts/did.yaml")).toBe(false);
   });
 
-  test("shape and policy are separate: a private key is still shape-valid, because learner events carry it to an authenticated backend under the same rule", () => {
-    expect(isValidCastKey("anvil/spanish1/01-intro.yaml")).toBe(true);
+  test("shape and policy are separate: a private key is still shape-valid, so the store keeps recognising keys it already holds", () => {
+    // castKeyOfRollup / castKeyOfHitKey run over real list() output, and
+    // compaction can only roll up and delete what it can parse. Tighten the
+    // shape rule instead, and any hit written before an owner became private
+    // sits in Blobs forever — unparseable, never compacted, never deleted.
+    // (Not learner events: learn.ts has its own copy of the rule and never
+    // imports this file.)
+    const key = "anvil/spanish1/01-intro.yaml";
+    expect(isValidCastKey(key)).toBe(true);
+    expect(castKeyOfRollup(`r/${key}`)).toBe(key);
+    expect(castKeyOfHitKey(`h/${key}/2026-09-04/abc`)).toBe(key);
   });
 });
 
