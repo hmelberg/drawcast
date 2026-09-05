@@ -88,6 +88,7 @@ describe("the registration floor", () => {
     expect(normalizeName("me-too")).toBeNull();
   });
   test("eight characters in the base segment, and reading is unaffected", () => {
+    expect(MIN_NAME_LENGTH).toBe(8);
     expect(isRegistrable("spanish1")).toBe(true);
     expect(isRegistrable("learn-russian/3")).toBe(true);
     expect(isRegistrable("spanish")).toBe(false);
