@@ -941,15 +941,16 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       // timeout is what keeps that promise: an unreachable registry costs ten
       // seconds, not the rest of the session.
       let nameSuffix = "";
-      const token = getToken();
-      const reg = token ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
-      if (token && reg) {
+      // `token` above is the GitHub one; this is the drawcast server's.
+      const accountToken = getToken();
+      const reg = accountToken ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
+      if (accountToken && reg) {
         const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
         // The claim FIRST (teachers round, spec §5): publishing signed in is
         // what makes the author the course's owner in the teacher dashboard,
         // and a name may only be registered by the owner — so the name step
         // never runs for a course this account does not own.
-        const claimed = await claimCourse(DEFAULT_ENROLL_API, courseClaim(token, reg), bounded);
+        const claimed = await claimCourse(DEFAULT_ENROLL_API, courseClaim(accountToken, reg), bounded);
         nameSuffix = claimNote(claimed);
         // "error" means we do not know whether this key owns the course — a
         // 404 from an Anvil app not yet redeployed, a timeout, anything that
@@ -959,7 +960,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         // row (spec's own belt-and-braces). "owner", "key" and "invalid" ARE
         // explicit answers, so the name step never runs for them — and
         // neither does "rate": the registry is refusing calls, not unsure.
-        if (claimed === "ok" || claimed === "error") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: token, ...reg }, bounded), reg.name);
+        if (claimed === "ok" || claimed === "error") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded), reg.name);
       }
       if (bookkeeping) {
         say(

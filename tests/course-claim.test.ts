@@ -193,7 +193,8 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
 
   test("the claim runs after the commit landed and BEFORE the name, which is registered on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
     const after = course.slice(course.indexOf("await publishCourse("));
-    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(token, reg\)/);
+    // `accountToken`, not `token`: in this scope `token` is the GitHub one.
+    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(accountToken, reg\)/);
     expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
     // F3: the condition and the ordering are pinned as two separate
     // assertions, neither coupled to how the statement wraps across lines —

@@ -4158,10 +4158,11 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     // with, and the publish simply carries no name. The timeout bounds an
     // unreachable registry at ten seconds.
     let note = "";
-    const token = getToken();
-    if (token) {
+    // `token` above is the GitHub one; this is the drawcast server's.
+    const accountToken = getToken();
+    if (accountToken) {
       const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
-      const outcome = await registerName(DEFAULT_ENROLL_API, { key: token, ...reg }, (input, init) =>
+      const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
       );
       note = nameNote(outcome, reg.name);
