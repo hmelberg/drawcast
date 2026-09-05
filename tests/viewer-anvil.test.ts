@@ -148,9 +148,12 @@ describe("fetchAnvilText", () => {
   test("asks the given server for the cast, and sends the session token as key=", async () => {
     const { f, impl } = fetchWith(() => new Response("meta: {}\n", { status: 200 }));
     await fetchAnvilText(REF, impl);
-    const [spec, audio] = f.mock.calls.map((c) => c[0]);
-    expect(spec).toMatch(/^https:\/\/a\/_\/api\/cast\?cast=anvil%2Fspanish1%2F01\.yaml&key=/);
-    expect(audio).toMatch(/^https:\/\/a\/_\/api\/cast\/audio\?cast=anvil%2Fspanish1%2F01\.yaml&key=/);
+    // Order-independent: the two leave together, so which lands first is not
+    // this function's promise. Both addresses and the token are.
+    const urls = f.mock.calls.map((c) => String(c[0]));
+    expect(urls).toHaveLength(2);
+    expect(urls.some((u) => /^https:\/\/a\/_\/api\/cast\?cast=anvil%2Fspanish1%2F01\.yaml&key=/.test(u))).toBe(true);
+    expect(urls.some((u) => /^https:\/\/a\/_\/api\/cast\/audio\?cast=anvil%2Fspanish1%2F01\.yaml&key=/.test(u))).toBe(true);
   });
   test("a refusal names the door, not the network", async () => {
     const { impl } = fetchWith(() => new Response("{}", { status: 403 }));
@@ -159,8 +162,13 @@ describe("fetchAnvilText", () => {
   test("401 — the server's answer to no token at all — is the same door", async () => {
     const { f, impl } = fetchWith(() => new Response("{}", { status: 401 }));
     await expect(fetchAnvilText(REF, impl)).rejects.toThrow(/sign in/i);
-    // Refused at the spec: the audio is never asked for.
-    expect(f).toHaveBeenCalledTimes(1);
+    // BOTH requests went out, and that is the accepted cost of fetching them
+    // in parallel: the audio leaves before the spec's status is known, so a
+    // reader who will be refused asks for audio it will also be refused.
+    // Pinned rather than tolerated — if this ever reads 1 again, the fetches
+    // have gone back to sequential and every first play pays an extra
+    // round trip (measured 2026-09-05: ~0.25 s of a ~0.7 s start).
+    expect(f).toHaveBeenCalledTimes(2);
   });
   test("a missing cast says so, without blaming the sign-in", async () => {
     const { impl } = fetchWith(() => new Response("{}", { status: 404 }));

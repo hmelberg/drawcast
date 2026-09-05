@@ -318,6 +318,18 @@ export async function fetchAnvilText(
   onAudioProblem?: (why: string) => void,
 ): Promise<string> {
   const q = `cast=${encodeURIComponent(ref.cast)}&key=${encodeURIComponent(getToken())}`;
+  // Both requests leave together. They are independent — the audio's address
+  // is the cast key, not anything the spec carries — and each costs a ~0.25 s
+  // round trip to a single region with no CDN in front of it, so running them
+  // in sequence spent one of those waiting for nothing (measured 2026-09-05:
+  // spec 0.25 s, audio 0.39 s, ~0.7 s before a line was drawn).
+  //
+  // The catch is attached HERE, not at the await below: a spec that answers
+  // 401 throws out of this function while the audio request is still in
+  // flight, and a rejected promise nobody is waiting on is an unhandled
+  // rejection. The cost of the parallel form is that one request: a denied
+  // reader now asks for audio it will also be denied, instead of not asking.
+  const audioPending = fetchImpl(`${apiBase(ref.api)}/_/api/cast/audio?${q}`).catch(() => null);
   const res = await fetchImpl(`${apiBase(ref.api)}/_/api/cast?${q}`);
   if (!res.ok) {
     throw new Error(
@@ -329,7 +341,7 @@ export async function fetchAnvilText(
     );
   }
   const spec = await res.text();
-  const audio = await fetchImpl(`${apiBase(ref.api)}/_/api/cast/audio?${q}`).catch(() => null);
+  const audio = await audioPending;
   if (!audio) {
     onAudioProblem?.("network");
     return spec;
