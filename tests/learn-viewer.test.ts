@@ -28,7 +28,7 @@ describe("the viewer reports as the account", () => {
   test("no report without a token: the session token is read once, and an empty one means no reporter", () => {
     expect(block).toMatch(/const key = getToken\(\);/);
     expect(block).toMatch(/key !== ""/);
-    expect(block).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey \} : null;/);
+    expect(block).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey, stopped: false \} : null;/);
   });
   test("meta.enroll decides whether and where — and the token goes only to the app that issued it", () => {
     expect(block).toMatch(/const enroll = playlist\.meta\.enroll \? apiBase\(playlist\.meta\.enroll\) : null;/);
@@ -37,25 +37,25 @@ describe("the viewer reports as the account", () => {
     // api is the gated one; DEFAULT_ENROLL_API itself would be equally safe.
     expect(src).not.toMatch(/sendEvent\((enroll|playlist\.meta\.enroll|apiBase\(playlist)/);
   });
-  test("a report carries the token, under the cast key, to the reporter's api", () => {
-    expect(block).toMatch(/void sendEvent\(reporter\.api, \{ kind: "opened", cast: reporter\.cast \}, reporter\.key\)/);
-    expect(src).toMatch(/void sendEvent\(reporter\.api, \{ kind: "completed", cast: reporter\.cast \}, reporter\.key\)/);
+  test("one report function, fed the reporter, carries the token under the cast key to the reporter's api", () => {
+    expect(block).toMatch(/const report = \(ev: LearnEvent\): void => \{/);
+    expect(block).toMatch(/void sendEvent\(reporter\.api, ev, reporter\.key\)\.then\(\(outcome\) => \{\s*if \(outcome === "refused"\) reporter\.stopped = true;\s*\}\);/);
+    expect(src.match(/sendEvent\(/g)).toHaveLength(1); // the import aside — one call site
+  });
+  test("a refusal stops this cast's reporting for the session; a network failure does not", () => {
+    expect(block).toMatch(/if \(!reporter \|\| reporter\.stopped\) return;/);
+    expect(block).not.toMatch(/outcome === "failed"\) reporter\.stopped/);
   });
   test("opened is reported once per session, like a view", () => {
-    expect(block).toMatch(/if \(firstOpenInSession\(reporter\.cast, session\)\) void sendEvent\(/);
+    expect(block).toMatch(/if \(firstOpenInSession\(reporter\.cast, session\)\) report\(\{ kind: "opened", cast: reporter\.cast \}\)/);
   });
   test("an answer is keyed by (item, step): the playlist item index plus the step inside it", () => {
     expect(src).toMatch(/onAnswer: reporter\s*\?\s*\(a, _item, index\) =>/);
-    expect(src).toMatch(/kind: "answer", cast: reporter\.cast, item: index, step: a\.index/);
+    expect(src).toMatch(/report\(\{ kind: "answer", cast: reporter\.cast, item: index, step: a\.index/);
   });
-  test("opened, answer and completed are wired and never awaited — a refusal or an outage can never reach playback", () => {
-    expect(src).toMatch(/kind: "opened"/);
-    expect(src).toMatch(/onAnswer: /);
-    expect(src).toMatch(/onDone: /);
-    expect(src).toMatch(/kind: "completed"/);
-    expect(src).not.toMatch(/await\s+sendEvent/);
-    expect(src.match(/void sendEvent\(/g)).toHaveLength(3);
-    expect(src).not.toMatch(/sendEvent\([^)]*\)\.then/);
+  test("opened, answer and completed go through report and are never awaited — a refusal or an outage can never reach playback", () => {
+    expect(src.match(/report\(\{ kind: "(opened|answer|completed)"/g)).toHaveLength(3);
+    expect(src).not.toMatch(/await\s+(sendEvent|report)\(/);
   });
   test("the reporter is decided before the player mounts, and the player takes no learner control", () => {
     expect(src.indexOf("const reporter = ")).toBeLessThan(src.indexOf("await mountPlaylist("));

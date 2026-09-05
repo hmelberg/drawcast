@@ -18,7 +18,7 @@ import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import { getToken, setToken, signInUrl } from "./account";
 import { apiBase, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent } from "./learn";
-import type { JoinOutcome, JoinRequest } from "./learn";
+import type { JoinOutcome, JoinRequest, LearnEvent } from "./learn";
 import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
@@ -233,6 +233,22 @@ const AUDIO_DOC_RE = /^\s*audio\s*:/;
 const ANOTHER_DOC_RE = /\n---[ \t]*(?:\r?\n|$)/;
 
 /**
+ * The server said no to a stored cast, and which no it was: 401 is nobody
+ * signed in (the client's cue to sign in), 403 is signed in without standing
+ * — not enrolled, not teaching, not the owner (the cue to offer the door).
+ * A class, not a message, so runViewer can render a door instead of an
+ * error line; the message is what a non-anvil caller (main.ts's narration
+ * reuse) shows if it ever surfaces one.
+ */
+export class CastDenied extends Error {
+  status: 401 | 403;
+  constructor(status: 401 | 403) {
+    super(status === 401 ? "This drawcast is private — sign in to watch it." : "This drawcast is part of a course you have not joined — join to watch it.");
+    this.status = status;
+  }
+}
+
+/**
  * A cast stored on the drawcast server arrives as two objects (spec §4) and
  * is handed to the parser as one document — so `parsePlaylistText`,
  * `speech.prefetch` and mount order never learn about the split. The join is
@@ -251,8 +267,8 @@ const ANOTHER_DOC_RE = /\n---[ \t]*(?:\r?\n|$)/;
  *
  * The session token travels as the `key=` query parameter — unlike every
  * other server call, which POSTs it in a body — so it can land in access
- * logs. Signed out it is empty, and the server's 401 becomes the message
- * that says what to do about it.
+ * logs. Signed out it is empty, and the server's 401 and 403 become a
+ * CastDenied, which runViewer turns into a door.
  */
 export async function fetchAnvilText(
   ref: { cast: string; api: string },
@@ -273,13 +289,12 @@ export async function fetchAnvilText(
   // reader now asks for audio it will also be denied, instead of not asking.
   const audioPending = fetchImpl(`${apiBase(ref.api)}/_/api/cast/audio?${q}`).catch(() => null);
   const res = await fetchImpl(`${apiBase(ref.api)}/_/api/cast?${q}`);
+  if (res.status === 401 || res.status === 403) throw new CastDenied(res.status);
   if (!res.ok) {
     throw new Error(
-      res.status === 401 || res.status === 403
-        ? "This drawcast is private. Sign in with the account it belongs to — Settings → Publishing → Sign in."
-        : res.status === 404
-          ? "That drawcast is not on the drawcast server (it may have been removed)."
-          : `Could not fetch the drawcast (HTTP ${res.status}).`,
+      res.status === 404
+        ? "That drawcast is not on the drawcast server (it may have been removed)."
+        : `Could not fetch the drawcast (HTTP ${res.status}).`,
     );
   }
   const spec = await res.text();
@@ -443,6 +458,35 @@ export function courseDoor(
   return wrap;
 }
 
+/**
+ * A refused server cast is a door, not an error (spec §7). 401: nobody is
+ * signed in — the handshake, which returns to this very address and plays
+ * on the way back. 403: signed in without standing — the course's own door,
+ * built from the cast key alone (`anvil/<slug>/<file>` belongs to the
+ * course `anvil/<slug>`, which /enroll accepts for a published server
+ * course); joined, the page reloads and the fetch finds the enrolment. A
+ * pending request says so and stays. `onJoined` is injectable for the node
+ * suite; live, it reloads.
+ */
+export function deniedDoor(cast: string, status: 401 | 403, deps: DoorDeps = liveDoorDeps, onJoined: () => void = () => location.reload()): HTMLElement {
+  if (status === 401) {
+    const button = h("button", { class: "primary" }, "Sign in to watch");
+    button.addEventListener("click", () => deps.signIn());
+    return h(
+      "div",
+      { class: "viewer-wrap" },
+      h("h1", { class: "viewer-title" }, "This drawcast is private"),
+      h("p", { class: "viewer-status" }, "Sign in to watch it. If you are enrolled in its course — or it is open to anyone signed in — it plays straight after."),
+      h("p", {}, button),
+    );
+  }
+  const slug = cast.split("/")[1] ?? cast;
+  return courseDoor(slug, { kind: "course", target: `anvil/${slug}`, page: null }, deps, {
+    onJoined,
+    lead: "This drawcast is part of a course you have not joined — join to watch it. Joining lets you and the course's teachers follow your progress and answers.",
+  });
+}
+
 export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
@@ -573,7 +617,18 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const castKey = req.anvil ? req.anvil.cast : req.gh ? castKeyFor(req.gh) : null;
     const enroll = playlist.meta.enroll ? apiBase(playlist.meta.enroll) : null;
     const key = getToken();
-    const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" ? { api: enroll, key, cast: castKey } : null;
+    const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" ? { api: enroll, key, cast: castKey, stopped: false } : null;
+    // One refusal — 401 (the token is dead) or 403 (not enrolled) — stops
+    // this cast's reporting for the session: the server would answer the
+    // same to every later event, and the README counted the waste. A
+    // network failure does not stop it; the next event may get through.
+    // Never awaited: a report can never reach playback.
+    const report = (ev: LearnEvent): void => {
+      if (!reporter || reporter.stopped) return;
+      void sendEvent(reporter.api, ev, reporter.key).then((outcome) => {
+        if (outcome === "refused") reporter.stopped = true;
+      });
+    };
     if (reporter) {
       const session = (() => {
         try {
@@ -582,7 +637,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           return null;
         }
       })();
-      if (firstOpenInSession(reporter.cast, session)) void sendEvent(reporter.api, { kind: "opened", cast: reporter.cast }, reporter.key);
+      if (firstOpenInSession(reporter.cast, session)) report({ kind: "opened", cast: reporter.cast });
     }
     const settings = loadSettings();
     const speech = new CloudSpeech(
@@ -621,12 +676,12 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         ? (a, _item, index) => {
             // (item, step) together: a.index counts steps inside ONE playlist
             // item, and a generated lecture is one item per part (spec §4).
-            void sendEvent(reporter.api, { kind: "answer", cast: reporter.cast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct }, reporter.key);
+            report({ kind: "answer", cast: reporter.cast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct });
           }
         : undefined,
       onDone: reporter
         ? () => {
-            void sendEvent(reporter.api, { kind: "completed", cast: reporter.cast }, reporter.key);
+            report({ kind: "completed", cast: reporter.cast });
           }
         : undefined,
       advanceOverride: req.advance,
@@ -652,6 +707,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       footer.insertAdjacentElement("beforebegin", box);
     }
   } catch (err) {
+    if (err instanceof CastDenied && req.anvil) {
+      status.replaceWith(deniedDoor(req.anvil.cast, err.status));
+      return;
+    }
     status.textContent = (err as Error).message;
     status.classList.add("error");
   }

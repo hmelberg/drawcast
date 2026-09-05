@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import type { JoinOutcome } from "../src/learn";
 import { joinNote } from "../src/learn";
-import { courseDoor, type DoorDeps } from "../src/viewer";
+import { courseDoor, deniedDoor, type DoorDeps } from "../src/viewer";
 
 class El {
   tagName: string;
@@ -192,5 +192,39 @@ describe("the door, signed in", () => {
   test("a lead replaces the default sentence above the button", () => {
     const d = door({ token: "tok" }, { lead: "This drawcast is part of a course you have not joined." });
     expect(d.note.textContent).toBe("This drawcast is part of a course you have not joined.");
+  });
+});
+
+describe("the door on a refused server cast", () => {
+  function denied(status: 401 | 403, token: string, outcome: JoinOutcome = "ok") {
+    const onJoined = vi.fn();
+    const deps: DoorDeps = { token: () => token, forget: vi.fn(), signIn: vi.fn(), join: vi.fn(async () => outcome) };
+    const root = deniedDoor("anvil/spanish1/01-intro.yaml", status, deps, onJoined) as unknown as El;
+    return { root, deps, onJoined, button: root.all().find((e) => e.tagName === "button")!, note: root.all().find((e) => e.className === "viewer-status")! };
+  }
+  test("401: one button, the sign-in, and no join", () => {
+    const d = denied(401, "");
+    expect(d.button.textContent).toBe("Sign in to watch");
+    d.button.click();
+    expect(d.deps.signIn).toHaveBeenCalledTimes(1);
+    expect(d.deps.join).not.toHaveBeenCalled();
+  });
+  test("403: the course's door, built from the cast key alone — the course is anvil/<slug>, the heading the slug — and a join reloads", async () => {
+    const d = denied(403, "tok");
+    expect(d.root.all().find((e) => e.tagName === "h1")!.textContent).toBe("Spanish1");
+    expect(d.note.textContent).toMatch(/part of a course/i);
+    expect(d.button.textContent).toBe("Join this course");
+    d.button.click();
+    await tick();
+    expect(d.deps.join).toHaveBeenCalledWith("tok", { course: "anvil/spanish1", title: "Spanish1", page: "https://drawcast.app/#spanish1" });
+    expect(d.onJoined).toHaveBeenCalledTimes(1);
+  });
+  test("403, pending: the note says the teachers decide and nothing reloads", async () => {
+    const d = denied(403, "tok", "pending");
+    d.button.click();
+    await tick();
+    expect(d.note.textContent).toBe(joinNote("pending"));
+    expect(d.onJoined).not.toHaveBeenCalled();
+    expect(d.button.hidden).toBe(true);
   });
 });
