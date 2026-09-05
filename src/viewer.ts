@@ -369,7 +369,9 @@ export async function runNamed(hash: string): Promise<void> {
  *
  * Everything the door touches outside itself is injected (DoorDeps), so the
  * node suite can drive it end to end (tests/course-door.test.ts); the live
- * set below is what runNamed uses.
+ * set below is what runNamed uses. `opts.onJoined` replaces the first-lecture
+ * link after a successful join; `opts.lead` replaces the sentence above the
+ * button — both for the refused-cast door (deniedDoor).
  */
 export interface DoorDeps {
   /** The session token, or "" signed out. */
@@ -393,10 +395,15 @@ const liveDoorDeps: DoorDeps = {
     joinCourse(DEFAULT_ENROLL_API, key, req, (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })),
 };
 
-export function courseDoor(name: string, resolved: Resolved, deps: DoorDeps = liveDoorDeps): HTMLElement {
+export function courseDoor(
+  name: string,
+  resolved: Resolved,
+  deps: DoorDeps = liveDoorDeps,
+  opts: { onJoined?: () => void; lead?: string } = {},
+): HTMLElement {
   const title = name.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
   const heading = h("h1", { class: "viewer-title" }, title);
-  const note = h("p", { class: "viewer-status" }, "Joining lets you and the course's teachers follow your progress and answers.");
+  const note = h("p", { class: "viewer-status" }, opts.lead ?? "Joining lets you and the course's teachers follow your progress and answers.");
   const button = h("button", { class: "primary" }, deps.token() === "" ? "Sign in to join" : "Join this course");
   const wrap = h("div", { class: "viewer-wrap" }, heading, note, h("p", {}, button));
   if (resolved.page) wrap.append(h("p", {}, h("a", { href: resolved.page }, "Open the course page")));
@@ -409,13 +416,22 @@ export function courseDoor(name: string, resolved: Resolved, deps: DoorDeps = li
     button.disabled = true;
     void deps.join(key, { course: resolved.target, title, page: resolved.page ?? `https://drawcast.app/#${name}` }).then((outcome) => {
       note.textContent = joinNote(outcome);
-      note.classList.toggle("error", outcome !== "ok");
-      button.hidden = outcome === "ok";
+      // Pending is not an error: the teachers decide, and the door has said
+      // what happens next. Rejected is, and so is every refusal.
+      note.classList.toggle("error", outcome !== "ok" && outcome !== "pending");
+      // Three answers end the door — in, waiting, declined — and the rest
+      // leave the button for another try.
+      const settled = outcome === "ok" || outcome === "pending" || outcome === "rejected";
+      button.hidden = settled;
       button.disabled = false;
-      // Joined, with no page in the registry to send them to: the first
-      // lecture is the other thing a name reaches (`#<name>/1`, names.ts),
-      // so there is always something to click next.
-      if (outcome === "ok" && !resolved.page) wrap.append(h("p", {}, h("a", { href: `#${name}/1` }, "Start with the first lecture")));
+      if (outcome === "ok") {
+        // The caller may know what comes next (the refused-cast door reloads
+        // the lecture); otherwise, with no page in the registry to send them
+        // to, the first lecture is the other thing a name reaches
+        // (`#<name>/1`, names.ts), so there is always something to click.
+        if (opts.onJoined) opts.onJoined();
+        else if (!resolved.page) wrap.append(h("p", {}, h("a", { href: `#${name}/1` }, "Start with the first lecture")));
+      }
       // A token the server no longer knows is dead in this browser too: drop
       // it, so the next click is the sign-in the note just asked for.
       if (outcome === "key") {

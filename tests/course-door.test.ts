@@ -71,17 +71,20 @@ const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 const RESOLVED = { kind: "course" as const, target: "hmelberg/dcast/learn-russian", page: "https://hmelberg.github.io/dcast/learn-russian/" };
 
 /** A door with every outside dependency recorded, answering `outcome` to a join. */
-function door(opts: { token: string; outcome?: JoinOutcome | Promise<JoinOutcome>; page?: string | null }) {
-  let token = opts.token;
+function door(
+  o: { token: string; outcome?: JoinOutcome | Promise<JoinOutcome>; page?: string | null },
+  opts?: { onJoined?: () => void; lead?: string },
+) {
+  let token = o.token;
   const deps: DoorDeps = {
     token: () => token,
     forget: vi.fn(() => {
       token = "";
     }),
     signIn: vi.fn(),
-    join: vi.fn(async () => opts.outcome ?? "ok"),
+    join: vi.fn(async () => o.outcome ?? "ok"),
   };
-  const root = courseDoor("learn-russian", { ...RESOLVED, page: opts.page === undefined ? RESOLVED.page : opts.page }, deps) as unknown as El;
+  const root = courseDoor("learn-russian", { ...RESOLVED, page: o.page === undefined ? RESOLVED.page : o.page }, deps, opts) as unknown as El;
   const button = root.all().find((e) => e.tagName === "button")!;
   const note = root.all().find((e) => e.className === "viewer-status")!;
   const links = () => root.all().filter((e) => e.tagName === "a");
@@ -157,5 +160,37 @@ describe("the door, signed in", () => {
     expect(d.button.textContent).toBe("Join this course");
     expect(d.deps.forget).not.toHaveBeenCalled();
     expect(d.links()).toHaveLength(0);
+  });
+  test("pending: the button goes, the note is not an error, no lecture link appears — the teachers decide", async () => {
+    const d = door({ token: "tok", outcome: "pending", page: null });
+    d.button.click();
+    await tick();
+    expect(d.note.textContent).toBe(joinNote("pending"));
+    expect(d.note.classList.contains("error")).toBe(false);
+    expect(d.button.hidden).toBe(true);
+    expect(d.links()).toHaveLength(0);
+    expect(d.deps.forget).not.toHaveBeenCalled();
+  });
+  test("rejected: the button goes and the note is an error", async () => {
+    const d = door({ token: "tok", outcome: "rejected", page: null });
+    d.button.click();
+    await tick();
+    expect(d.note.textContent).toBe(joinNote("rejected"));
+    expect(d.note.classList.contains("error")).toBe(true);
+    expect(d.button.hidden).toBe(true);
+    expect(d.links()).toHaveLength(0);
+  });
+  test("with onJoined, a successful join calls it instead of adding the first-lecture link — the caller knows what comes next", async () => {
+    const onJoined = vi.fn();
+    const d = door({ token: "tok", outcome: "ok", page: null }, { onJoined });
+    d.button.click();
+    await tick();
+    expect(onJoined).toHaveBeenCalledTimes(1);
+    expect(d.links()).toHaveLength(0);
+    expect(d.button.hidden).toBe(true);
+  });
+  test("a lead replaces the default sentence above the button", () => {
+    const d = door({ token: "tok" }, { lead: "This drawcast is part of a course you have not joined." });
+    expect(d.note.textContent).toBe("This drawcast is part of a course you have not joined.");
   });
 });
