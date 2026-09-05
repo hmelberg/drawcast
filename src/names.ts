@@ -8,7 +8,7 @@ import { apiBase } from "./learn";
 
 export const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\/[a-z0-9-]{1,20})?$/;
 /** May not start a name, with or without a trailing dash: `gh-…` is an alias of `gh=…` in the viewer. */
-export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner"] as const;
+export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me"] as const;
 
 export function normalizeName(raw: string | null | undefined): string | null {
   if (typeof raw !== "string") return null;
@@ -17,6 +17,17 @@ export function normalizeName(raw: string | null | undefined): string | null {
   const base = name.split("/", 1)[0];
   for (const p of RESERVED_PREFIXES) if (base === p || base.startsWith(p + "-")) return null;
   return name;
+}
+
+export const MIN_NAME_LENGTH = 8;
+
+/** May this name be REGISTERED? Mirrors names.py's registrable(). Reading
+ *  stays normalizeName's job, so a name already registered below the floor
+ *  keeps resolving (spec §9). */
+export function isRegistrable(raw: string | null | undefined): boolean {
+  const name = normalizeName(raw);
+  if (name === null) return false;
+  return name.split("/", 1)[0].length >= MIN_NAME_LENGTH;
 }
 
 /** The name segment of a hash: everything after "#" up to the first "&". */

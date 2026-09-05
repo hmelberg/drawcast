@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { ghHashFor, isNameHash, nameInHash, normalizeName, registerName, resolveName, NAME_RE, RESERVED_PREFIXES } from "../src/names";
+import { ghHashFor, isNameHash, isRegistrable, MIN_NAME_LENGTH, nameInHash, normalizeName, registerName, resolveName, NAME_RE, RESERVED_PREFIXES } from "../src/names";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -9,7 +9,7 @@ const calls = (f: typeof fetch) => (f as unknown as ReturnType<typeof vi.fn>).mo
 describe("the rule is the server's rule", () => {
   test("regex source and reserved prefixes are pinned to server_code/names.py", () => {
     expect(NAME_RE.source).toBe("^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\\/[a-z0-9-]{1,20})?$");
-    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner"]);
+    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me"]);
   });
   test("accepts and normalises", () => {
     expect(normalizeName(" Learn-Russian ")).toBe("learn-russian");
@@ -78,5 +78,19 @@ describe("registerName", () => {
     const f = fetchReturning(200, { ok: true });
     expect(await registerName("https://x", { ...reg, name: "gh-x" }, f)).toBe("invalid");
     expect(calls(f).length).toBe(0);
+  });
+});
+
+describe("the registration floor", () => {
+  test("reserved prefixes still match the server, now including me", () => {
+    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me"]);
+    expect(normalizeName("me")).toBeNull();
+    expect(normalizeName("me-too")).toBeNull();
+  });
+  test("eight characters in the base segment, and reading is unaffected", () => {
+    expect(isRegistrable("spanish1")).toBe(true);
+    expect(isRegistrable("learn-russian/3")).toBe(true);
+    expect(isRegistrable("spanish")).toBe(false);
+    expect(normalizeName("spanish")).toBe("spanish");
   });
 });
