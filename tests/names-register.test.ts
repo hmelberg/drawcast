@@ -27,11 +27,18 @@ describe("registrations", () => {
   });
 });
 
-describe("the session token replaces the author key", () => {
-  test("settings tab no longer lists a key to paste", () => {
-    // The author key retired with the sign-in handshake (spec §1); the
-    // account row arrives with Settings → Sign in.
-    expect(SETTINGS_TABS.find((t) => t.id === "publishing")!.fields).not.toContain("authorKey");
+describe("the account lives beside the GitHub token", () => {
+  test("settings tab lists the account, not a key to paste", () => {
+    const fields = SETTINGS_TABS.find((t) => t.id === "publishing")!.fields;
+    expect(fields).toContain("account");
+    expect(fields).not.toContain("authorKey");
+  });
+  test("Sign in returns to the very address it left from; Sign out tells the server before forgetting the token", () => {
+    const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+    expect(main).toMatch(/location\.href = signInUrl\(location\.href\)/);
+    const signOut = main.slice(main.indexOf("signOutBtn.addEventListener("));
+    expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeGreaterThan(0);
+    expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeLessThan(signOut.indexOf('setToken("")'));
   });
   test("both publishers register after the commit landed AND after their own bookkeeping, with the token, a timeout, and the outcome reported", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");

@@ -278,7 +278,7 @@ export function saveSettings(s: Settings): void {
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
-  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "coursesDir", "giscus"] },
+  { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];
 

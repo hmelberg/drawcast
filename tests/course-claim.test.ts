@@ -205,7 +205,8 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
     expect(after).toMatch(/claimed === "ok" \|\| claimed === "error"/);
   });
 
-  test("Settings → Publishing no longer speaks of an author key — the concept retired with the sign-in handshake", () => {
+  test("Settings → Publishing says what signing in does now, and no longer speaks of an author key", () => {
+    expect(main).toMatch(/own your courses in the teacher dashboard/);
     expect(main).not.toMatch(/author key/i);
   });
 });

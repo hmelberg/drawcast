@@ -76,7 +76,8 @@ import { bakeCost, costLabel } from "./export/tts-cost";
 import { castRegistration, publishCast } from "./publish/cast";
 import { nameNote, registerName } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { getToken } from "./account";
+// google/auth already exports a signOut (Drive); this one is the drawcast server's.
+import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
@@ -1614,6 +1615,31 @@ githubTokenInput.addEventListener("change", () => {
   // convention), so it never goes through persist() — refresh explicitly.
   refreshCredentialMenus();
 });
+// The drawcast server account (spec §1): a button pair, not a field to paste
+// into. Sign in leaves for drawcast.anvil.app and comes straight back to this
+// address with a one-time token that entry.ts has already exchanged and
+// stripped by the time this module runs — so getToken() here is fresh.
+const signInBtn = h("button", { class: "small" }, "Sign in") as HTMLButtonElement;
+const signOutBtn = h("button", { class: "small" }, "Sign out") as HTMLButtonElement;
+const signInState = h("span", { class: "settings-inline" });
+function refreshSignIn(): void {
+  const on = getToken() !== "";
+  signInState.textContent = on ? "Signed in to the drawcast server." : "Not signed in.";
+  signInBtn.hidden = on;
+  signOutBtn.hidden = !on;
+}
+signInBtn.addEventListener("click", () => {
+  // Back to exactly where we are, so a sign-in never costs the page.
+  location.href = signInUrl(location.href);
+});
+signOutBtn.addEventListener("click", () => {
+  // The server row first, while the token is still here to name it; the
+  // local sign-out is what the person sees and must not wait on the network.
+  void signOutServer(DEFAULT_ENROLL_API, getToken());
+  setToken("");
+  refreshSignIn();
+});
+refreshSignIn();
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 
@@ -1761,6 +1787,20 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "div",
         { class: "settings-note" },
         "A fine-grained personal access token scoped to that ONE repository, with Contents: read and write and nothing else, and an expiry date. Stored in this browser's localStorage only and sent only to api.github.com — and localStorage is per site, so a token entered here does not exist on the other drawcast deploy.",
+      ),
+    ),
+  ],
+  [
+    "account",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "drawcast account"),
+      h("div", { class: "settings-row" }, signInBtn, signOutBtn, signInState),
+      h(
+        "div",
+        { class: "settings-note" },
+        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out here, or from the dashboard for every browser at once.",
       ),
     ),
   ],

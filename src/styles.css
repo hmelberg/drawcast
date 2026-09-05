@@ -962,6 +962,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .settings-field label { display: block; font-size: var(--text-sm); color: var(--muted); margin-bottom: 0.25rem; }
 .settings-field input[type="password"], .settings-field select { width: 100%; }
 .settings-note { font-size: var(--text-xs); color: var(--muted); }
+/* The account row: a Sign in / Sign out button beside its one-line state.
+   Not .row — that carries a margin-top meant for the editor's button rows. */
+.settings-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.3rem; }
+.settings-inline { font-size: var(--text-sm); color: var(--muted); }
 /* The cloud-voice row (B12): three controls sharing one line — the generic
    .settings-field select { width:100% } would stack them full-width. */
 .cloud-voice-row { display: flex; gap: 0.4rem; margin-bottom: 0.3rem; }
