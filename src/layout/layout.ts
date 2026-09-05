@@ -252,6 +252,24 @@ export function elementBBoxes(layout: LayoutResult, measure: MeasureFn = heurist
 }
 
 /**
+ * Closed outlines per element id, the companion to elementBBoxes. Only closed
+ * geometry contributes — an area, or a stroke drawn with `closed: true`. An id
+ * with none is absent from the map, and hit-testing falls back to its box.
+ */
+export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">): Map<string, Pt[][]> {
+  const map = new Map<string, Pt[][]>();
+  for (const id of layout.order) {
+    const rings: Pt[][] = [];
+    for (const d of leafDrawables(drawablesForId(layout.drawables, id))) {
+      if (d.kind === "area" && d.pts.length >= 3) rings.push(d.pts);
+      else if (d.kind === "stroke" && d.closed && d.pts.length >= 3) rings.push(d.pts);
+    }
+    if (rings.length > 0) map.set(id, rings);
+  }
+  return map;
+}
+
+/**
  * Domain → logical mappings for the gesture verbs, matching tier-2's
  * convention: coordinates are mapped only when a domain is declared.
  */

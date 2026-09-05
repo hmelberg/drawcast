@@ -6,7 +6,7 @@
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
-import { elementBBoxes } from "../layout/layout";
+import { elementBBoxes, elementRings } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
 import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
@@ -399,6 +399,7 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click on the figure \u25b8");
       const gate = h("div", { class: "cs-figgate" }, hint);
       const boxes = elementBBoxes(hd.layout, makeBrowserMeasure());
+      const rings = elementRings(hd.layout);
       let settled = false;
       const remove = (): void => {
         signal.removeEventListener("abort", onAbort);
@@ -416,7 +417,7 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
         if (settled) return;
         const p = logicalPoint(stage, e);
         if (!p) return;
-        const id = hitElement(boxes, p, 18); // fat-finger slop, in logical units
+        const id = hitElement(boxes, p, 18, rings); // fat-finger slop, in logical units
         if (id === null) return; // background: keep waiting
         settled = true;
         const ok = step.answer !== undefined && answersMatch(id, step.answer);
