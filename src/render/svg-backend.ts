@@ -17,6 +17,7 @@ import {
   type Pt,
   type StrokeDrawable,
 } from "../layout/model";
+import { FIGURE_GROUND } from "../layout/ink";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
@@ -306,7 +307,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     // Paper-colored halo: text stays legible when it grazes a stroke
     // (the label solver treats strokes as soft obstacles).
     t.setAttribute("paint-order", "stroke");
-    t.setAttribute("stroke", "#fffefb");
+    t.setAttribute("stroke", FIGURE_GROUND);
     t.setAttribute("stroke-width", "5");
     t.setAttribute("stroke-linejoin", "round");
     t.setAttribute("font-size", String(d.fontSize));

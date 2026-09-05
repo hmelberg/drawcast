@@ -14,11 +14,19 @@
 import { COLORS } from "./model";
 
 /**
- * The figure's own paper (src/render/figure-style.ts) — the ground every
- * drawable is composited over. NOT the app chrome's --paper: a figure sits on
- * its own sheet.
+ * The figure's own paper — the ground every drawable is composited over, and
+ * the ONE place its colour is written: the stage's CSS background, the text
+ * halo, a code panel's own field, the wordmark and the packs' contrast
+ * arithmetic all read it from here. NOT the app chrome's --paper: a figure
+ * sits on its own sheet, and that sheet stays light in either theme.
+ *
+ * Warm, not white (2026-09-05, Hans: a near-white sheet reads as a white BOX
+ * on the page, and glares in dark mode). #fffefb was 0.4 % off pure white;
+ * this is a cream that reads as paper. Everything downstream is derived, so
+ * the cost of the move is arithmetic, not repainting: ink lands at 10.74:1
+ * (was 11.49), and READABLE_FLOOR — guide at full ink — at 3.25 (was 3.48).
  */
-export const FIGURE_GROUND = "#fffefb";
+export const FIGURE_GROUND = "#faf6ec";
 
 const LUM_W = [0.2126, 0.7152, 0.0722];
 

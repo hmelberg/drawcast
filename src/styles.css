@@ -1317,7 +1317,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   gap: 0.25rem;
   box-sizing: border-box;
   padding: 4px;
-  background: #fdfbf5;
+  /* FIGURE_GROUND (src/layout/ink.ts) — the card lies ON the drawing. */
+  background: #faf6ec;
   border: 2px solid #3d3833;
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(30, 24, 16, 0.18);

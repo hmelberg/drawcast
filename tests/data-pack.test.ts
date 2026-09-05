@@ -900,7 +900,7 @@ describe("line race", () => {
       expect(detail.exempt.map((i) => `${i.rule} ${i.ids.join("+")}`)).toEqual(["overlap-label-stroke line_1__t+line_4__l"]);
       const name = flattenDrawables(l.drawables).find((d) => d.id === "line_1__t") as TextDrawable;
       // Dimmed as far as ITS OWN ink can afford and no further: #b5482e
-      // starts at 5.30:1 and stops at 0.770, where it still reads 3.49:1 —
+      // starts at 4.95:1 and stops at 0.760, where it still reads 3.28:1 —
       // just clear of the pack's readable floor.
       expect(name.style.opacity).toBeCloseTo(softAlpha(COLORS.series[0]), 10);
       expect(contrastAtAlpha(COLORS.series[0], name.style.opacity)).toBeGreaterThanOrEqual(READABLE_FLOOR);
@@ -927,7 +927,7 @@ describe("line race", () => {
       // Recomputed here from scratch (tests/contrast.ts), NOT imported from
       // src/layout/ink.ts: this repo has shipped a wrong contrast number
       // twice, so the check has to be able to disagree with the code.
-      const GROUND = "#fffefb";
+      const GROUND = "#faf6ec";
       const chan = (hex: string, i: number) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
       const hex2 = (v: number) => Math.round(v).toString(16).padStart(2, "0");
       /** ink at opacity a over `base`, composited in gamma-encoded sRGB — what an SVG `opacity` does. */
@@ -940,7 +940,7 @@ describe("line race", () => {
       // ticks and a racer's value label are drawn in — the dimmest text this
       // app ships and calls readable.
       const FLOOR = at(COLORS.guide, 1);
-      expect(FLOOR).toBeCloseTo(3.48, 2);
+      expect(FLOOR).toBeCloseTo(3.25, 2);
       expect(READABLE_FLOOR).toBeCloseTo(FLOOR, 6);
 
       // Every ink's answer, independently recomputed. A dimmed label lands AT
@@ -961,19 +961,19 @@ describe("line race", () => {
       // inks that can afford to move — the two halves of the rule, both live.
       expect(softAlpha(COLORS.ink)).toBeCloseTo(0.7, 10);
       expect(at(COLORS.ink, 0.7)).toBeGreaterThan(FLOOR);
-      expect(softAlpha(COLORS.series[0])).toBeCloseTo(0.77, 10);
-      expect(softAlpha(COLORS.series[1])).toBeCloseTo(0.76, 10);
-      expect(softAlpha(COLORS.series[2])).toBeCloseTo(0.825, 10);
+      expect(softAlpha(COLORS.series[0])).toBeCloseTo(0.76, 10);
+      expect(softAlpha(COLORS.series[1])).toBeCloseTo(0.745, 10);
+      expect(softAlpha(COLORS.series[2])).toBeCloseTo(0.815, 10);
       // Three of six series inks are below the floor at FULL opacity — a
       // palette fact this ruling does not create, and must not paper over.
       expect(COLORS.series.filter((c) => at(c, 1) < FLOOR)).toEqual(["#d0865f", "#87a878", "#f2c14e"]);
 
       // And the real reason the dimming saves a crossing — which is the HALO,
       // not the glyphs. Every text is drawn with a 5-unit paper stroke under
-      // it (stroke #fffefb, paint-order stroke, src/render/svg-backend.ts),
+      // it (stroke FIGURE_GROUND, paint-order stroke, svg-backend.ts),
       // so a label is a glyph inside a paper cut-out and it is the cut-out
       // that lands on its neighbour. `opacity` dims halo and glyph together.
-      const HALO = "#fffefb";
+      const HALO = "#faf6ec";
       const band = (ink: string, a: number) => ratio(over(HALO, a, over(ink, a)));
       for (const ink of [COLORS.ink, "#b5482e"]) {
         // Undimmed, the upper label's halo is opaque paper: the lower name is
@@ -982,7 +982,7 @@ describe("line race", () => {
         // Softened, it shows through.
         expect(band(ink, softAlpha(ink)), ink).toBeGreaterThan(1.1);
       }
-      expect(band(COLORS.ink, softAlpha(COLORS.ink))).toBeCloseTo(1.47, 2);
+      expect(band(COLORS.ink, softAlpha(COLORS.ink))).toBeCloseTo(1.45, 2);
       // The value label has no headroom, so its halo never thins: the number
       // painted second erases the first. Recorded, not fixed — see the report.
       expect(band(COLORS.guide, softAlpha(COLORS.guide))).toBeCloseTo(1, 6);
@@ -1551,8 +1551,8 @@ describe("scatter_plot", () => {
 // better computed contrast. A hardcoded cutoff cannot pass them.
 // ---------------------------------------------------------------------------
 
-/** The figure's own paper, the ground a cell's wash composites over (src/render/figure-style.ts). */
-const FIGURE_GROUND = "#fffefb";
+/** The figure's own paper, the ground a cell's wash composites over (src/layout/ink.ts). */
+const FIGURE_GROUND = "#faf6ec";
 const map = (params: object) => layoutSpec({ template: "heatmap", params } as Spec);
 const CORR = {
   rows: ["Age", "Income", "BMI"],

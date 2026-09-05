@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { kit, KIT_VERSION, shadeColor } from "../src/scenes/kit";
+import { FIGURE_GROUND } from "../src/layout/ink";
 import type { Pt } from "../src/layout/model";
 
 describe("kit factories", () => {
@@ -161,8 +162,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 6 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(6);
+test("KIT_VERSION is 7 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(7);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -175,6 +176,8 @@ test("KIT_VERSION is 6 and constants ride on the kit", () => {
   // module rather than by a constant a body invents (src/layout/ink.ts).
   expect(kit.softAlpha(kit.COLORS.ink)).toBeLessThan(1);
   expect(kit.softAlpha(kit.COLORS.guide)).toBe(1); // no headroom: it IS the floor
+  // v7: the paper itself, so a body computing contrast never copies the hex.
+  expect(kit.GROUND).toBe(FIGURE_GROUND);
 });
 
 // M1 review finding #1: `kit` is one live, shared object handed to every

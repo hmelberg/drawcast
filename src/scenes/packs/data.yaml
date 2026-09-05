@@ -1310,25 +1310,25 @@ layout: |
     // readable floor allows and no further; an ink with no headroom does not
     // dim at all, and the crossing stays legible, merely less softened.
     //
-    // The floor is C.guide at full ink, 3.48:1 — the dimmest text this pack
+    // The floor is C.guide at full ink, 3.25:1 — the dimmest text this pack
     // ships and calls readable (axis ticks, a racer's value). Ink at opacity a
-    // over the figure's paper (#fffefb, src/render/figure-style.ts) composites
+    // over the figure's paper (kit.GROUND, src/layout/ink.ts) composites
     // in gamma-encoded sRGB, which is what an SVG `opacity` actually does, and
     // WCAG 2.1 relative luminance gives the ratio. What falls out, for this
     // template's own palette:
     //
-    //   #b5482e  5.30:1 → dims to 0.770, 3.49:1
-    //   #2f6b8f  5.75:1 → dims to 0.760, 3.49:1
-    //   #8a5fa8  4.86:1 → dims to 0.825, 3.49:1
-    //   #d0865f  2.87:1 → 1.000, no headroom, does not dim
-    //   #87a878  2.63:1 → 1.000, no headroom, does not dim
-    //   #f2c14e  1.66:1 → 1.000, no headroom, does not dim
+    //   #b5482e  4.95:1 → dims to 0.760, 3.28:1
+    //   #2f6b8f  5.37:1 → dims to 0.745, 3.25:1
+    //   #8a5fa8  4.54:1 → dims to 0.815, 3.26:1
+    //   #d0865f  2.68:1 → 1.000, no headroom, does not dim
+    //   #87a878  2.46:1 → 1.000, no headroom, does not dim
+    //   #f2c14e  1.55:1 → 1.000, no headroom, does not dim
     //
     // The last three sit below the floor at FULL opacity — a palette fact this
     // ruling does not create and must not paper over by dimming them anyway.
     //
     // WHY the dimming is what saves the crossing, and it is not the glyphs.
-    // Every text carries a 5-unit paper halo — stroke #fffefb, paint-order
+    // Every text carries a 5-unit paper halo — stroke kit.GROUND, paint-order
     // stroke (src/render/svg-backend.ts) — so a label is a glyph inside a
     // paper cut-out, and it is that CUT-OUT, not the ink, that lands on the
     // neighbour: two glyph outlines rarely coincide, but the halo band around
@@ -1340,7 +1340,7 @@ layout: |
     //     which is exactly why an unsoftened crossing looks broken rather than
     //     busy;
     //   softened, the halo is translucent and the lower name shows through it
-    //     — 1.47:1 for a racer's name at 0.700, 1.28:1 for #b5482e at 0.770.
+    //     — 1.45:1 for a racer's name at 0.700, 1.29:1 for #b5482e at 0.760.
     //
     // That is a faint band, not a clean read, and it is the honest claim: what
     // the dimming buys is that BOTH names survive the crossing as continuous
@@ -2501,7 +2501,7 @@ layout: |
   //     the cap, not the floor; it could clear the floor down to about 0.59,
   //     and a cap keeps a dark name from becoming a watermark. At 0.700 it
   //     reads 4.64:1, and the doubled region of a crossing reads 8.72:1.
-  //   the VALUE is C.guide, which IS the floor (3.48:1) — it has no headroom
+  //   the VALUE is C.guide, which IS the floor (3.25:1) — it has no headroom
   //     at all and therefore does NOT dim. Two racers' numbers still land on
   //     each other for the frames of an overtake, at full ink, and because
   //     every text carries an opaque 5-unit paper halo the number painted
@@ -2611,7 +2611,7 @@ layout: |
 template: heatmap
 title: Heatmap / matrix
 version: 1
-kit: 5
+kit: 7
 status: ready
 description: >-
   A heatmap: a grid of cells whose FILL DENSITY is the number — one row
@@ -2844,7 +2844,7 @@ layout: |
   // luminance computed just below would be a lie about what is on screen.
   //
   // The label ink is CHOSEN, and chosen by arithmetic. A cell is `ink` painted
-  // at `a` over the figure's own paper (#fffefb, src/render/figure-style.ts),
+  // at `a` over the figure's own paper (kit.GROUND, src/layout/ink.ts),
   // so composite in gamma-encoded sRGB — what an SVG `opacity` actually does —
   // and take the WCAG 2.1 relative luminance of the result:
   //   c  = ground·(1 − a) + ink·a                          (per channel, 0…255)
@@ -2859,10 +2859,10 @@ layout: |
   // value can always land on the crossing.
   //
   // What the cap does change is the top end, which is why WASH is 0.9: the
-  // densest cell then reads 4.53:1 (cool) and 4.32:1 (warm) against the light
+  // densest cell then reads 4.58:1 (cool) and 4.36:1 (warm) against the light
   // ink. At 0.7 the flip would never happen at all — every cell still reads
   // better in dark ink there, at 3.0:1.
-  const GROUND = "#fffefb";
+  const GROUND = kit.GROUND; // the figure's paper, read from the kit — never a copy
   const LUM_W = [0.2126, 0.7152, 0.0722];
   const chan = (hex, i) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
   const lumOfChannels = (f) => {

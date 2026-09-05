@@ -34,11 +34,11 @@ import {
   type StrokeDrawable,
   type TextDrawable,
 } from "../layout/model";
-import { softAlpha } from "../layout/ink";
+import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 6; // v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 7; // v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -395,6 +395,13 @@ export interface SceneKit {
    * src/layout/ink.ts for the arithmetic; a body must never invent its own.
    */
   softAlpha(color: string): number;
+  /**
+   * The figure's paper — the ground every drawable composites over
+   * (src/layout/ink.ts). A body that computes contrast needs it, and two of
+   * them used to carry their own copy of the hex; a copy is what goes stale
+   * the day the paper moves.
+   */
+  GROUND: string;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -1421,6 +1428,7 @@ export const kit: SceneKit = {
     return heuristicMeasure(text, fontSize).w;
   },
   softAlpha,
+  GROUND: FIGURE_GROUND,
 };
 
 Object.freeze(kit);

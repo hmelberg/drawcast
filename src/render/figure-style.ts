@@ -4,6 +4,9 @@
 // rules (it keeps only app chrome and overrides like :fullscreen sizes).
 // The var() fallbacks are the app's own :root values, so the rules are
 // self-contained outside drawcast while the app's variables still win inside.
+
+import { FIGURE_GROUND } from "../layout/ink";
+
 /**
  * The subtitle band's ground (A6/D1). At 0.82 the band was nearly opaque ink
  * over the drawing; 0.6 is the lightest alpha whose blend over bare paper
@@ -21,7 +24,7 @@ const FIGURE_CSS = `
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
-  background: #fffefb;
+  background: ${FIGURE_GROUND};
   /* No border: the host (the app's figure card, or a page embedding the
      engine) already draws whatever edge it wants, and a second hairline in
      nearly the same tone reads as a white frame around the drawing rather

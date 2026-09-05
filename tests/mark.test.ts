@@ -14,7 +14,7 @@ describe("markSvg — the clean play mark", () => {
     const svg = markSvg();
     expect(svg).toMatch(/<svg[^>]*viewBox="0 0 24 24"/);
     expect(svg).toMatch(/<rect[^>]*rx="[^"]+"[^>]*fill="#b5482e"/);
-    expect(svg).toMatch(/<path[^>]*d="M[^"]*Z"[^>]*fill="#fffefb"/);
+    expect(svg).toMatch(/<path[^>]*d="M[^"]*Z"[^>]*fill="#faf6ec"/);
     expect((svg.match(/<(rect|path|circle|polygon|line)\b/g) ?? []).length).toBe(2);
   });
 

@@ -16,7 +16,9 @@
 // in both themes alike — there is no currentColor variant to keep in step.
 
 const RUST = "#b5482e";
-const PAPER = "#fffefb";
+import { FIGURE_GROUND } from "../layout/ink";
+
+const PAPER = FIGURE_GROUND;
 
 export function markSvg(size = 64): string {
   return (

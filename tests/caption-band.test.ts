@@ -10,7 +10,7 @@ import { contrastRatio } from "./contrast";
 // passes. Drift-tested in both directions so the band neither fades into
 // illegibility nor creeps back toward the wall of ink D1 complained about.
 
-const PAPER = [255, 254, 251]; // .cs-stage background #fffefb
+const PAPER = [250, 246, 236]; // .cs-stage background = FIGURE_GROUND #faf6ec
 const TEXT = "#fbf8f1"; // .cs-caption color
 
 const hex = (c: number[]): string => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;

@@ -23,6 +23,7 @@
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
+import { FIGURE_GROUND } from "./ink";
 import { CANVAS } from "./canvas";
 import {
   COLORS,
@@ -457,7 +458,12 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         pts: rect,
         precise: true,
         z: Z_AREA,
-        style: resolveStyle(undefined, { fill: COLORS.paper, opacity: 1, strokeWidth: 0 }),
+        // The figure's own sheet, not a second near-white: a panel is a
+        // region of the paper, and two whites a value apart were one of the
+        // near-identical fields that made the screen read as clutter
+        // (2026-09-05). COLORS.paper stays what its docstring says it is — a
+        // knock-out white for shapes over a TINTED ground.
+        style: resolveStyle(undefined, { fill: FIGURE_GROUND, opacity: 1, strokeWidth: 0 }),
         drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
       },
     );
@@ -820,15 +826,11 @@ function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number,
     const bw = w + 2 * BEZEL;
     const bh = h + CHIN + BEZEL;
     const shell = roundRectPts(bx, by, bw, bh, SCREEN_R);
-    out.push({
-      id: `${id}__bezel_wash`,
-      kind: "area",
-      pts: shell,
-      precise: true,
-      z: Z_AREA,
-      style: resolveStyle(undefined, { fill: COLORS.guide, opacity: 0.13, strokeWidth: 0 }),
-      drawOpts: instant,
-    });
+    // No wash under a flat display: at figure size the bezel is a ~8-pixel
+    // ring, so a third near-white tone there read as a second border rather
+    // than as plastic (2026-09-05). One ink outline, the chin and its buttons
+    // say "monitor" on their own. The CRT keeps its wash — that case is a
+    // large box, where a tone reads as an object instead of an edge.
     out.push(stroke(`${id}__bezel`, shell, true, ink({ strokeWidth: 3.5 }), sketch(SKETCH_MS.node)));
     // A monitor's chin carries its three buttons — power, and the two that
     // say what the screen shows. The laptop is deliberately bare: a MacBook
