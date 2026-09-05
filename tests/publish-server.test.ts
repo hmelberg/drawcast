@@ -177,7 +177,11 @@ describe("the drawcast server in Share", () => {
   });
   test("sign-in gates the BUTTON, not the row, and is re-read on every open", () => {
     expect(share).toContain('"Sign in to publish here"');
-    expect(share).toMatch(/serverGo\.disabled = !signedIn;/);
+    // The label is an instruction, so the button must be pressable: it was
+    // once disabled while wearing it, which made the one control naming the
+    // fix the one control that did nothing.
+    expect(share).not.toContain("serverGo.disabled");
+    expect(share).toMatch(/if \(getToken\(\) === ""\) \{\s*location\.href = signInUrl\(location\.href\);/);
     expect(share).toMatch(/const signedIn = getToken\(\) !== "";/);
     const prep = share.slice(share.indexOf("function prepPanels(): void {"), share.indexOf("function refresh(deps: ShareDeps): void {"));
     expect(prep).toContain("refreshServerSignIn();");

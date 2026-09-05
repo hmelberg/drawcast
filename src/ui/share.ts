@@ -26,7 +26,7 @@ import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { DEFAULT_ENROLL_API } from "../learn";
-import { getToken } from "../account";
+import { getToken, signInUrl } from "../account";
 import { checkName, checkNote } from "../names";
 import { parseRepo, slugify } from "../publish/github";
 import type { ServerAccess } from "../publish/server";
@@ -670,7 +670,7 @@ function build(): ShareSession {
   // not the public's), so a checkbox would promise something that cannot
   // happen. Enrolled learners' progress is the dashboard's, not a counter's.
   const serverViewsHint = h("div", { class: "hint" }, "Plays of a cast stored here are not counted publicly; enrolled learners' progress shows in the teacher dashboard.");
-  const serverSignInHint = h("div", { class: "hint" }, "Publishing here needs your drawcast account — sign in from Settings → Publishing.");
+  const serverSignInHint = h("div", { class: "hint" }, "Publishing here needs your drawcast account. The button below signs you in and brings you straight back.");
   const serverPanel = h(
     "div",
     { class: "share-panel" },
@@ -685,6 +685,16 @@ function build(): ShareSession {
   const serverGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   serverGo.addEventListener("click", () => {
     const deps = current;
+    // Signed out, this button IS the sign-in. It used to be disabled while
+    // wearing the label "Sign in to publish here" — an instruction on the one
+    // control that could not be pressed, with the real route buried in a hint
+    // pointing at another part of the app (Hans hit this the first time he
+    // tried to publish). The handshake returns to this same page, so the cost
+    // of pressing it is a blink, not a lost place.
+    if (getToken() === "") {
+      location.href = signInUrl(location.href);
+      return;
+    }
     const access: ServerAccess = serverAccess.value === "open" ? "open" : "enrolled";
     // The blur handler's normalization, applied here too — Safari does not
     // move focus to a clicked button, so the field can reach Publish raw, and
@@ -701,7 +711,7 @@ function build(): ShareSession {
    *  open: Settings can sign in or out while Share is closed. */
   function refreshServerSignIn(): void {
     const signedIn = getToken() !== "";
-    serverGo.disabled = !signedIn;
+    // NOT disabled when signed out: the button carries the sign-in itself.
     serverGo.textContent = signedIn ? "Publish" : "Sign in to publish here";
     serverSignInHint.hidden = signedIn;
   }
