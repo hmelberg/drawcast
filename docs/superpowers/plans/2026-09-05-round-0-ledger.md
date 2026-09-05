@@ -230,3 +230,25 @@ FINAL WHOLE-BRANCH REVIEW (opus) — 3 Important, 3 Minor, scope clean, no round
 Final fix wave: implemented (drawcast eeb7f50, anvil 72426dc). Gates: tsc CLEAN, vitest 4481, pytest 252 exit 0. MUTATION-TESTED the new vocabulary pin — reintroducing "author key" into access.py fails test_the_retired_credential_is_named_nowhere_the_app_runs. Restored, both trees clean. Scoped re-review dispatched; there is no second wave.
 Final fix wave: re-review PASS — all four addressed and verified (the door sentence fires on every path including narration-failed, names the undo, and reads nothing back from the server; "may" judged honest; the vocabulary pin's scope complete since server_code has no subdirectories; the README sentence matches _cast_write's unconditional title write).
   New breakage from the wave itself, being closed now: the new credential test was inserted MID-FUNCTION in tests/test_signin_source.py, moving an existing test's second assertion into an unrelated one. Nothing uncovered, but an assertion filed under a name that does not describe it is the exact fault this round has been catching all day. One-line fix dispatched — the last code change of the round.
+
+## Verified in production after the merge (2026-09-05)
+
+Round 0 deployed to drawcast.app automatically on the merge to main — the entry
+chunk carries `signin?return=`, `drawcast.token` and `/_/api/redeem`.
+
+**The Critical is closed in production**, checked anonymously against the live
+Netlify function:
+
+| request | answer |
+|---|---|
+| `?repo=anvil/spanish1` | `400 {"error":"private"}` |
+| `?cast=anvil/spanish1/01.yaml` | `400 {"error":"private"}` |
+| `POST` with an `anvil/` key | `403 {"error":"origin"}` |
+| control: `?repo=hmelberg/dcast` | `200` with the cast list — no legitimate counting lost |
+
+CORS on the live Anvil endpoints: `access-control-allow-origin: *` is present on
+error responses, and the `OPTIONS` preflight answers 200. **The one question this
+could NOT answer is whether a 304 carries those headers** — that needs a cast with
+stored audio and a session token, and it is the last unverified assumption of the
+round. `/cast/audio` answers 401 rather than 404 to an anonymous caller, because
+the gate runs before the audio-existence check; that is the intended order.
