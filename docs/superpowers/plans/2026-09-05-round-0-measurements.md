@@ -109,12 +109,31 @@ uncompressed. Storing it gzipped and inflating client-side (`DecompressionStream
 would cut 25 % of what counts against the quota, in two functions, without
 touching the format. Worth a round only if the quota says so.
 
-## Still open
+## The quota — answered, and it inverts the advice
 
-- **The Anvil plan's storage and bandwidth quota.** Hans confirmed a Business
-  account, which is what §0 already assumed for scheduled tasks, but the
-  numbers have not been read off the plan page. §15 says this should come
-  before round 0 is worth starting; it is now the one input still missing.
+Business plan, from anvil.works/pricing: **1 000 000 data table rows**,
+**100 GB data table storage**, and **no metered outbound bandwidth on any
+tier** — egress is not a billed dimension.
+
+That removes the fear §4 was written under:
+
+- The HTA course is 81 MB baked. 100 GB holds roughly **1 200 such courses**.
+- A cast is one row. A million rows is effectively unbounded for casts;
+  `events` is what consumes rows, not audio.
+- The 2.4 GB per 30-student cohort — the figure that argued for keeping baked
+  audio off by default — **costs nothing**.
+
+**So the advice flips: bake by default.** Without baked audio every student's
+browser synthesises every lecture through cloud TTS (cached per browser, so
+once per student per lecture). With it, the author pays once at publish. For
+a cohort of 30 through 17 lectures that is roughly **thirty times the TTS
+spend for not baking** — trading a resource that is free here (storage) for
+one that is metered (synthesis).
+
+§4's "default off on the server" was the right caution against an unknown
+quota and is the wrong default against this one. Changing it is a one-line
+change to `buildEmbedChoices("server", false)` and belongs in the next round
+that touches the Share panel, together with the spec sentence it contradicts.
 - **A multi-megabyte audio upload**, and with it the cap question above.
 - A duplicate `Cache-Control` on every response — Anvil adds its own
   `no-cache, no-store` beside ours. Harmless, and not worth a round.
