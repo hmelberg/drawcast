@@ -139,6 +139,27 @@ its return URL (fixed 2026-09-04, `b0fefbf`). `return` is checked against an
 allowlist of origins; an open redirect here would hand tokens to whoever
 asked.
 
+**What that rule actually covers — narrowed in round 0, after it was broken
+by accident.** The rule was written about **an address a person sees**: one
+that lands in browser history, gets copied out of a location bar, or is
+pasted into a message. It is not a rule about every query string in
+existence, and reading it that way is what made round 0 build
+`POST /name/check` — a read, expressed as a write — to avoid a `?key=`.
+
+Three calls do carry the session token in a query string:
+`GET /cast`, `GET /cast/audio` and `POST /cast/audio`. That is deliberate.
+A custom header would make each one a non-simple CORS request and buy a
+preflight round trip on the path that fetches a lecture; a POST for the
+audio would forfeit the `ETag` that makes the second play free. Neither URL
+is ever shown, copied, or navigated to — they are `fetch` calls whose
+addresses no person handles.
+
+**The cost, stated rather than hidden:** those tokens land in the server's
+access logs. A log reader is already inside the trust boundary, and a
+token is revocable from the dashboard, so the exposure is bounded and
+recoverable — but it is real, and it is the reason `/name/check` stays a
+POST rather than being "simplified" to match its neighbours.
+
 **Three ways to sign in, one credential.** Password, Google/Microsoft, or an
 **emailed link** — `POST /_/api/login {email}` mails a one-time token that
 redeems exactly like the others. The magic link survives as a way to *sign
