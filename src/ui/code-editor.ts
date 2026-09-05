@@ -64,6 +64,14 @@ export interface EditorSurface {
   busy(on: boolean): void;
 }
 
+/** Question mode: the chin submits an answer instead of continuing. */
+export interface CodeAsk {
+  /** The viewer pressed Check — run their script and judge it. */
+  onCheck(text: string): void;
+  /** Null when the question is required: then there is no way past it. */
+  onSkip: (() => void) | null;
+}
+
 export interface CodeEditorOpts {
   /** The element being edited — its pane box is looked up by this id. */
   id: string;
@@ -86,6 +94,10 @@ export interface CodeEditorOpts {
   /** Registered for as long as the card lives, so a Run started in the tray
    *  reports its status here too. */
   register(surface: EditorSurface): () => void;
+  /** Set while an ask holds the run: Check replaces Continue, Escape stops
+   *  closing the card (the question owns it), and Skip appears unless the
+   *  question is required. */
+  ask?: CodeAsk;
 }
 
 export interface CodeEditorHandle {
@@ -116,8 +128,16 @@ export function mountCodeEditor(stage: HTMLElement, opts: CodeEditorOpts): CodeE
   area.style.fontFamily = MONO_FONT;
   const status = h("span", { class: "cs-codeedit-status" }, "");
   const runBtn = h("button", { class: "cs-codeedit-run", title: "Run this script in the same runtime" }, "Run ▶");
-  const contBtn = h("button", { class: "cs-codeedit-continue", title: "Restore the lesson and play on" }, "Continue ▶");
-  const closeBtn = h("button", { class: "cs-codeedit-close", title: "Close the editor (Esc)" }, "✕");
+  // Two chins, one card: a question submits an answer where free exploring
+  // continues the lesson. Nothing else about the editor changes — the same
+  // draft, the same Run, the same runtime.
+  const contBtn = opts.ask
+    ? h("button", { class: "cs-codeedit-continue", title: "Check your answer" }, "Check ✓")
+    : h("button", { class: "cs-codeedit-continue", title: "Restore the lesson and play on" }, "Continue ▶");
+  const closeBtn = opts.ask
+    ? h("button", { class: "cs-codeedit-close", title: "Skip this question" }, "Skip ▸")
+    : h("button", { class: "cs-codeedit-close", title: "Close the editor (Esc)" }, "✕");
+  if (opts.ask && !opts.ask.onSkip) closeBtn.hidden = true; // required: no way past
   const chin = h("div", { class: "cs-codeedit-chin" }, runBtn, status, contBtn, closeBtn);
   const card = h("div", { class: "cs-codeedit", role: "dialog", "aria-label": "Edit the script on screen" }, area, chin);
 
@@ -136,12 +156,13 @@ export function mountCodeEditor(stage: HTMLElement, opts: CodeEditorOpts): CodeE
   // the way out that every overlay in the app already answers to.
   area.addEventListener("keydown", (e) => {
     e.stopPropagation();
-    if (e.key === "Escape") close();
+    // A question owns the card while it is open; Escape may not walk out of it.
+    if (e.key === "Escape" && !opts.ask) close();
   });
   area.addEventListener("input", () => opts.onInput(area.value));
   runBtn.addEventListener("click", () => opts.onRun(area.value));
-  contBtn.addEventListener("click", () => opts.onContinue());
-  closeBtn.addEventListener("click", () => close());
+  contBtn.addEventListener("click", () => (opts.ask ? opts.ask.onCheck(area.value) : opts.onContinue()));
+  closeBtn.addEventListener("click", () => (opts.ask ? opts.ask.onSkip?.() : close()));
 
   stage.appendChild(card);
 

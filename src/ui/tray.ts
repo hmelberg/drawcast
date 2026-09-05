@@ -37,7 +37,8 @@ import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
 import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
-import { mountCodeEditor, type CodeEditorHandle, type EditorSurface } from "./code-editor";
+import { askPaths, checkedAnswer } from "../code/ask-check";
+import { mountCodeEditor, type CodeAsk, type CodeEditorHandle, type EditorSurface } from "./code-editor";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
 import { mountQuiz } from "./quiz";
@@ -284,7 +285,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    * drawn yet — and then the caller falls back to the tray's text area, which
    * needs no geometry at all.
    */
-  const openInPlace = (el: SpecElement): boolean => {
+  const openInPlace = (el: SpecElement, ask?: CodeAsk): boolean => {
     if (!stage || !visibleNow(el.id)) return false;
     const open2 = editors.get(el.id);
     if (open2) {
@@ -294,7 +295,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // Snap to the boundary exactly as the tray does — but only when nothing is
     // previewing yet, or this would throw away the slider drag or the edited
     // script the viewer already has on screen.
-    if (tray.hidden && editors.size === 0 && !gateResolve) hd.timeline.renderUpTo(hd.timeline.position);
+    // …never while a question holds the run: the gate is parked on a promise
+    // and renderUpTo would abort it, exactly as it would an explore.
+    if (!ask && tray.hidden && editors.size === 0 && !gateResolve) hd.timeline.renderUpTo(hd.timeline.position);
     const handle = mountCodeEditor(stage, {
       id: el.id,
       language: el.language ?? "",
@@ -313,6 +316,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         surfaces.add(entry);
         return () => surfaces.delete(entry);
       },
+      ...(ask ? { ask } : {}),
     });
     if (!handle) return false;
     editors.set(el.id, handle);
@@ -587,6 +591,82 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         resolve();
       };
       open({ filter: step.params, gated: true, code: step.code });
+    });
+
+  /**
+   * The ask verb's code widget: the panel's own editor IS the answer box. The
+   * viewer writes, runs (and SEES their output on the panel, because a Run
+   * previews exactly as it does when exploring), then presses Check — and what
+   * `expect` reads out of that run is handed to the ask machinery as the
+   * answer string. Everything after that is the machinery's: right/wrong
+   * lines, retry, reveal, store, gotos.
+   *
+   * A run that cannot answer yet — a script that failed, a variable it never
+   * created, nothing printed — is NOT a wrong answer. The card says so and
+   * stays open rather than spending an attempt on a typo.
+   */
+  hd.timeline.codeGate = (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      const el = step.codeId !== undefined ? editable.find((e) => e.id === step.codeId) : undefined;
+      if (!el || !stage) return resolve(null); // the lint warns about this at authoring time
+      let done = false;
+      const finish = (value: string | null): void => {
+        if (done) return;
+        done = true;
+        signal.removeEventListener("abort", onAbort);
+        closeEditors();
+        // The viewer's script was a preview, like every other thing they can
+        // change: settle the lesson's own geometry before the run goes on.
+        // Their TEXT survives, though — a retry that handed back the author's
+        // stub would make them type the whole answer again for one wrong
+        // character (found in the live smoke).
+        const written = drafts.get(el.id);
+        clearPreview();
+        if (written !== undefined) drafts.set(el.id, written);
+        panelViewFor(stage)?.reset();
+        hd.timeline.settleParams();
+        resolve(value);
+      };
+      function onAbort(): void {
+        finish(null);
+      }
+      signal.addEventListener("abort", onAbort);
+      const check = async (code: string): Promise<void> => {
+        if (!el.language) return;
+        setDraft(el.id, code);
+        announce(el.id, (s) => {
+          s.busy(true);
+          s.status("Running…");
+        });
+        try {
+          const result = await runCode({
+            language: el.language,
+            code,
+            chart: el.chart,
+            paths: askPaths(step.expect),
+            onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
+          });
+          patches.set(el.id, { code, result: JSON.stringify(result) });
+          repaint(); // they see their own output before it is judged
+          const verdict = checkedAnswer(result, step.expect);
+          if (verdict.text === null) {
+            const note = verdict.note ?? "";
+            announce(el.id, (s) => s.status(note));
+            return;
+          }
+          finish(verdict.text);
+        } catch (err) {
+          const msg = `Could not run: ${(err as Error).message}`;
+          announce(el.id, (s) => s.status(msg));
+        } finally {
+          announce(el.id, (s) => s.busy(false));
+        }
+      };
+      const opened = openInPlace(el, {
+        onCheck: (code) => void check(code),
+        onSkip: step.required ? null : () => finish(null),
+      });
+      if (!opened) finish(null);
     });
 
   // Ambient nudge: a personalized animate just played — the ⊕ can take it

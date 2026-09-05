@@ -182,7 +182,7 @@ interface AskGateStep {
   answer?: string;
   retry: boolean;
   required: boolean;
-  widget?: "click" | "piano" | "chess";
+  widget?: "click" | "piano" | "chess" | "code";
 }
 
 /**
@@ -964,7 +964,12 @@ export function attachPlayerControls(
         ? pianoGate(signal, step)
         : step.widget === "chess"
           ? chessGate(signal, step)
-          : textGate(signal, step);
+          : // The code widget's gate is the PANEL's own editor, so it lives
+            // with the tray that owns it (ui/tray.ts) and is read here at call
+            // time — a figure without a tray falls back to typing an answer.
+            step.widget === "code" && hd.timeline.codeGate
+            ? hd.timeline.codeGate(signal, step)
+            : textGate(signal, step);
 
   // Intrinsic free play (pause is the door): the manifest's interactions
   // section (interactivity spec §6) is the one declared source — never

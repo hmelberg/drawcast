@@ -382,9 +382,19 @@ const commandSchema = {
         required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
         widget: {
           type: "string",
-          enum: ["click", "piano", "chess"],
+          enum: ["click", "piano", "chess", "code"],
           description:
-            "Answer device instead of typing: click = click the named element on the figure (answer = its id); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4). Requires answer. In movies the laser pointer demonstrates.",
+            "Answer device instead of typing: click = click the named element on the figure (answer = its id); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one). Requires answer. In movies the laser pointer demonstrates.",
+        },
+        code: {
+          type: "string",
+          description:
+            "Ask the viewer to WRITE CODE: the id of a code element they type into — normally an empty or stubbed panel (`code: \"\"` or one comment line, `show: \"left\"`, `frame: \"screen\"`) drawn on an earlier beat. The panel's own editor opens on it, the viewer runs their script and presses Check, and what `expect` reads is compared with `answer`. Everything else about an ask still applies: right/wrong lines, retry, required, store, right_goto/wrong_goto. Movies and embeds skip the question, so the `right` line must state the answer for a viewer who never types.",
+        },
+        expect: {
+          type: "string",
+          description:
+            "With `code`: what the viewer's run has to say — \"stdout\" (what it printed; THE DEFAULT — pair it with a question that says what to print), \"figure\" (answer \"1\" when the script must draw a plot), or a VARIABLE the script leaves behind (\"total\", \"df.mean\" for a DataFrame column's mean — the same paths the {id.var} data bridge harvests). Numbers compare as numbers, so 45, 45.0 and 4.5e1 are one answer — but ask for a value the script can hit exactly (an integer, or a rounded number the question names).",
         },
         right_goto: { type: "string", description: "Jump to this label on a correct VIEWER answer. Movies always play straight through." },
         wrong_goto: { type: "string", description: "Jump to this label on a wrong VIEWER answer — typically back to the explanation, so the viewer re-watches and the question comes again. Movies always play straight through." },

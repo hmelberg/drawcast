@@ -23,7 +23,25 @@ export type PlanStep = (
   | { kind: "explore"; params?: string[]; code?: string }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
   | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
-  | { kind: "ask"; question: string; answer?: string; right?: string; wrong?: string; reveal: boolean; retry: boolean; store?: string; fallback?: string; required: boolean; rightGoto?: string; wrongGoto?: string; widget?: "click" | "piano" | "chess"; answerBox?: BBox }
+  | {
+      kind: "ask";
+      question: string;
+      answer?: string;
+      right?: string;
+      wrong?: string;
+      reveal: boolean;
+      retry: boolean;
+      store?: string;
+      fallback?: string;
+      required: boolean;
+      rightGoto?: string;
+      wrongGoto?: string;
+      widget?: "click" | "piano" | "chess" | "code";
+      answerBox?: BBox;
+      /** code widget: the panel the viewer writes in, and what to read back. */
+      codeId?: string;
+      expect?: string;
+    }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
   | { kind: "erase"; ids: string[]; parallel: boolean }
@@ -272,7 +290,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         required: cmd.ask.required === true,
         ...(cmd.ask.right_goto !== undefined ? { rightGoto: cmd.ask.right_goto } : {}),
         ...(cmd.ask.wrong_goto !== undefined ? { wrongGoto: cmd.ask.wrong_goto } : {}),
-        ...(cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
+        // Naming a code element IS the code widget — one thing to get right
+        // instead of two that can disagree.
+        ...(cmd.ask.code !== undefined ? { widget: "code" as const, codeId: cmd.ask.code } : cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
+        ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
+        ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click) or
         // the key's box (piano — geometry mirrored from the template).
         ...(cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null

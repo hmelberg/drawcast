@@ -10,7 +10,17 @@ export const VAR_RE = /\{([a-z][a-z0-9_]*)\}/gi;
 export const RESERVED_VARS = ["score", "score_total"] as const;
 
 export function answersMatch(a: string, b: string): boolean {
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
+  const x = a.trim();
+  const y = b.trim();
+  // Numbers compare AS numbers: "45.0", "45" and "4.5e1" are one answer, and
+  // a code widget's harvested value must not fail on the shape of its own
+  // formatting. Everything else is the old forgiving text match.
+  const nx = Number(x);
+  const ny = Number(y);
+  if (x !== "" && y !== "" && Number.isFinite(nx) && Number.isFinite(ny)) {
+    return nx === ny || Math.abs(nx - ny) <= 1e-9 * Math.max(Math.abs(nx), Math.abs(ny));
+  }
+  return x.toLowerCase() === y.toLowerCase();
 }
 
 export function subVars(text: string, vars: ReadonlyMap<string, string>): string {

@@ -291,6 +291,27 @@ function lintCode(spec: Spec): LintIssue[] {
     }
   }
   const els = (spec.elements ?? []).filter((e) => e.type === "code");
+  // An ask that hands over the keyboard needs a panel with a code pane on it:
+  // a missing id has nothing to write in, and an output-only panel has nothing
+  // to write ON — both reach the viewer as a question they cannot answer.
+  for (const cmd of spec.commands ?? []) {
+    const id = cmd.ask?.code;
+    if (id === undefined) continue;
+    const target = els.find((e) => e.id === id);
+    if (!target) {
+      issues.push({ rule: "code-use", ids: [id], message: `ask code: "${id}" is not a code element in this drawcast`, severity: "warn" });
+      continue;
+    }
+    const shown = target.show ?? "output";
+    if (shown === "output" || shown === "none") {
+      issues.push({
+        rule: "code-use",
+        ids: [id],
+        message: `ask code: "${id}" shows no code pane to write in (show: "${shown}") — use show: "left", "code", "above" or "below"`,
+        severity: "warn",
+      });
+    }
+  }
   if (els.length === 0) return issues;
   const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {

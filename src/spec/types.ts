@@ -342,8 +342,16 @@ export interface AskArgs {
   wrong_goto?: string;
   /** Answer device: click = click the element on the figure (answer = its id);
    *  piano = press a key on the drawn keyboard (answer = the note, e.g. "C4");
-   *  chess = click two squares (answer = the move, e.g. "e2e4"). Requires answer. */
-  widget?: "click" | "piano" | "chess";
+   *  chess = click two squares (answer = the move, e.g. "e2e4");
+   *  code = write a script on a code panel (implied by `code`). Requires answer. */
+  widget?: "click" | "piano" | "chess" | "code";
+  /** code widget: the code element the viewer writes in — normally an empty
+   *  or stubbed panel with a frame, which opens with its editor on it. */
+  code?: string;
+  /** code widget: what the run has to say — "stdout" (what it printed; the
+   *  default), "figure" (a plot appeared), or a variable path the data bridge
+   *  can harvest ("total", "df.mean"). Compared against `answer`. */
+  expect?: string;
 }
 
 export interface QuizArgs {

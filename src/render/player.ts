@@ -88,6 +88,8 @@ export class Player {
    * short hold + the auto text so a bare Player never deadlocks.
    */
   askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
+  /** The code widget's gate — ui/tray.ts sets it, ui/controls.ts routes to it. */
+  codeGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
 
   /**
    * Provider for the explore verb, wired by the tray: opens the sliders and
