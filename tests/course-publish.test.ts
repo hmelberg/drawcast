@@ -115,7 +115,11 @@ function fakeGithub(opts: { manifest?: string; branch?: string } = {}): {
         ? { object: { sha: "refsha" } }
         : url.includes("/git/commits/")
           ? { tree: { sha: "treesha" } }
-          : { sha: "new" };
+          : url.includes("/git/trees/")
+            ? // The unchanged-file read (GET …/git/trees/<sha>?recursive=1 —
+              // only the read has a slash after `trees`). Empty = send all.
+              { tree: [] }
+            : { sha: "new" };
     return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
   }) as unknown as typeof fetch;
   return { seen, fetchImpl };

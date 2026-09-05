@@ -283,10 +283,49 @@ async function readHead(
 }
 
 /**
- * One atomic commit: read the ref and its tree, post a new tree carrying every
- * file's content inline (which creates the blobs implicitly), post the commit,
- * move the ref. Five calls whether the course has three files or thirty, and
- * the whole course lands as a single revision rather than a dozen.
+ * A file's git blob SHA, computed locally. Git hashes `blob <bytes>\0<content>`,
+ * so this is comparable with what `GET /git/trees` reports for the same path —
+ * which is how a republish can tell an unchanged lecture from a changed one
+ * without downloading it. A baked lecture is megabytes; its SHA is 40 bytes.
+ */
+export async function gitBlobSha(content: string): Promise<string> {
+  const body = new TextEncoder().encode(content);
+  const header = new TextEncoder().encode(`blob ${body.length}\0`);
+  const buf = new Uint8Array(header.length + body.length);
+  buf.set(header);
+  buf.set(body, header.length);
+  const digest = await crypto.subtle.digest("SHA-1", buf);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Every path in the branch with the blob SHA it currently has — ONE request
+ * for the whole repository, however many megabytes it holds. Any failure is
+ * an empty map, which simply means every file is treated as changed: the
+ * optimisation may be skipped, never the publish.
+ */
+export async function remoteBlobShas(
+  fetchImpl: typeof fetch,
+  token: string,
+  base: string,
+  treeSha: string,
+): Promise<Map<string, string>> {
+  try {
+    const tree = await call<{ tree: { path: string; sha: string; type: string }[] }>(
+      fetchImpl, token, "GET", `${base}/git/trees/${treeSha}?recursive=1`, undefined,
+    );
+    return new Map(tree.tree.filter((e) => e.type === "blob").map((e) => [e.path, e.sha]));
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * One atomic commit: read the ref, its commit and that commit's tree; upload a
+ * blob for each file whose bytes are not already at its path; post ONE tree of
+ * SHAs on top of the current one; post the commit; move the ref. However many
+ * files the course has, it lands as a single revision rather than a dozen —
+ * and a republish that changes four small files sends four small blobs.
  */
 export async function commitFiles(
   repo: RepoRef,
@@ -332,9 +371,24 @@ export async function commitFiles(
   // are content-addressed and repo-scoped, so the non-fast-forward retry in
   // commitOnto reuses them for free — which is why they are created HERE,
   // outside the retry.
+  // A file whose published copy is byte-identical is skipped entirely: no
+  // blob upload, and no tree entry — `base_tree` below keeps what is already
+  // there. Changing one setting on a narration-baked course used to re-upload
+  // every lecture, ~160 MB for the HTA course, to rewrite four small files
+  // (Hans, 2026-09-05). One tree read replaces those megabytes; on any
+  // failure the map is empty and every file is uploaded as before.
+  //
+  // The skip is HERE and not in the plan: `removedPaths` computes deletions
+  // from the plan's file list, so dropping an unchanged lecture there would
+  // delete it from the repository instead of leaving it alone.
+  const remote = await remoteBlobShas(fetchImpl, token, base, state.baseTree);
+  const local = await Promise.all(files.map((f) => gitBlobSha(f.content)));
+  const unchanged = files.map((f, i) => remote.get(f.path) === local[i]);
+  const sending = files.filter((_, i) => !unchanged[i]);
+
   const blobShas: string[] = [];
-  for (const [i, f] of files.entries()) {
-    onUpload?.(i, files.length);
+  for (const [i, f] of sending.entries()) {
+    onUpload?.(i, sending.length);
     try {
       const blob = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/blobs`, {
         content: toBase64(f.content),
@@ -347,9 +401,17 @@ export async function commitFiles(
       throw new PublishError(`Uploading "${f.path}" (${mb} MB): ${(err as Error).message}`, (err as PublishError).status);
     }
   }
-  onUpload?.(files.length, files.length);
+  onUpload?.(sending.length, sending.length);
+  // Nothing to send and nothing to remove means the repository already holds
+  // exactly what this publish would write. An empty tree would make a commit
+  // identical to its parent — noise in the history for no change — so the
+  // current head is the honest answer.
+  if (sending.length === 0 && deletions.length === 0) return { commitSha: state.head };
+
   const tree = [
-    ...files.map((f, i) => ({ path: f.path, mode: MODE_FILE, type: "blob", sha: blobShas[i] })),
+    // `sending`, not `files`: an unchanged path is absent from the tree, and
+    // base_tree is what keeps it. Listing it would need a blob we never made.
+    ...sending.map((f, i) => ({ path: f.path, mode: MODE_FILE, type: "blob", sha: blobShas[i] })),
     // A null sha is how the tree API says "remove this path". There is nothing
     // to remove in a repository that had no commits a moment ago.
     ...(wasEmpty ? [] : deletions.map((path) => ({ path, mode: MODE_FILE, type: "blob", sha: null }))),

@@ -119,11 +119,15 @@ describe("saveSource", () => {
         ? { object: { sha: "refsha" } }
         : url.includes("/git/commits/")
           ? { tree: { sha: "treesha" } }
-          : url.includes("/git/trees")
-            ? { sha: "newtree" }
-            : url.includes("/git/commits")
-              ? { sha: "newcommit" }
-              : {};
+          : method === "GET" && url.includes("/git/trees/")
+            ? // commitFiles reads the branch's tree to skip unchanged files;
+              // an empty listing means every file is sent.
+              { tree: [] }
+            : url.includes("/git/trees")
+              ? { sha: "newtree" }
+              : url.includes("/git/commits")
+                ? { sha: "newcommit" }
+                : {};
       return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
     }) as unknown as typeof fetch;
     return { calls, fetchImpl };
@@ -239,7 +243,9 @@ describe("saveSource in an empty repository", () => {
         ? { object: { sha: "seedsha" } }
         : url.includes("/git/commits/")
           ? { tree: { sha: "seedtree" } }
-          : { sha: "new" };
+          : method === "GET" && url.includes("/git/trees/")
+            ? { tree: [] } // the unchanged-file read; empty = send everything
+            : { sha: "new" };
       return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
     }) as unknown as typeof fetch;
     return { calls, fetchImpl };
