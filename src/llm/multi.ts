@@ -25,6 +25,9 @@ export interface PartsResult {
   chapterOf: (string | undefined)[];
   /** 1-based numbers of the parts that produced no spec. */
   failed: number[];
+  /** Why each of `failed` failed, in the same order. */
+  errors?: string[];
+  /** Set only when NO part produced a spec (the first part's error). */
   error?: string;
 }
 
@@ -89,9 +92,11 @@ export async function generateFromOutline(
   const specs: Spec[] = [];
   const chapterOf: (string | undefined)[] = [];
   const failed: number[] = [];
+  const errors: string[] = [];
   outcomes.forEach((outcome, i) => {
     if (!outcome.spec) {
       failed.push(i + 1);
+      errors.push(outcome.error ?? "no spec");
       return;
     }
     outcome.spec.title ??= plan.parts[i].title;
@@ -104,6 +109,7 @@ export async function generateFromOutline(
     specs,
     chapterOf,
     failed,
+    errors,
     error: specs.length === 0 ? (outcomes[0]?.error ?? "no spec") : undefined,
   };
 }

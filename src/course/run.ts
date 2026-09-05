@@ -125,6 +125,24 @@ export function lecturePlaylist(course: Course, index: number, result: PartsResu
   return { meta: { ...DEFAULT_META, title: lecture.title, prompt }, entries, warnings: [] };
 }
 
+/** An error must fit on one status line: no newlines, no "·" (the line's own separator), not endless. */
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").replace(/·/g, "-").trim().slice(0, 300);
+}
+
+/**
+ * Why a lecture failed, from its parts result — undefined when every part
+ * landed. A lecture with a part missing is a failed lecture: its arc has a
+ * hole, and storing it as done would hide that the run lost work.
+ */
+export function partsFailure(result: PartsResult, parts: number): string | undefined {
+  if (result.failed.length === 0 && result.specs.length > 0) return undefined;
+  const first = result.errors?.[0] ?? result.error ?? "no spec";
+  if (result.specs.length === 0) return oneLine(first);
+  const which = result.failed.length === 1 ? `part ${result.failed[0]}` : `parts ${result.failed.join(", ")}`;
+  return oneLine(`${which} of ${parts} failed — ${first}`);
+}
+
 export interface RunProgress {
   phase: "outlining" | "generating";
   lecturesTotal: number;
@@ -227,7 +245,7 @@ export async function runCourse(
     if (plan.outline) partsTotal += plan.outline.parts.length;
     else {
       failed.push(plan.index);
-      current = setLectureStatus(current, plan.index, { state: "failed", error: plan.error ?? "no outline", ts });
+      current = setLectureStatus(current, plan.index, { state: "failed", error: oneLine(plan.error ?? "no outline"), ts });
       hooks.onLecture(plan.index, "failed");
     }
   }
@@ -248,9 +266,10 @@ export async function runCourse(
         },
       });
 
-      if (result.specs.length === 0) {
+      const failure = partsFailure(result, plan.outline.parts.length);
+      if (failure !== undefined) {
         failed.push(i);
-        current = setLectureStatus(current, i, { state: "failed", error: result.error ?? "no spec", ts });
+        current = setLectureStatus(current, i, { state: "failed", error: failure, ts });
         hooks.onLecture(i, "failed");
       } else {
         for (const spec of result.specs) {
@@ -268,7 +287,7 @@ export async function runCourse(
           hooks.onLecture(i, "done");
         } catch (err) {
           failed.push(i);
-          current = setLectureStatus(current, i, { state: "failed", error: (err as Error).message, ts });
+          current = setLectureStatus(current, i, { state: "failed", error: oneLine((err as Error).message), ts });
           hooks.onLecture(i, "failed");
         }
       }
