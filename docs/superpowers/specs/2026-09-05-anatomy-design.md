@@ -3,6 +3,11 @@
 Written 2026-09-05, after the PPF/QALY round (e87b772). Approach approved by
 Hans: **2D atlas first, 3D as an optional panel later.**
 
+Licensing context, set by Hans 2026-09-05: **the app itself becomes open source
+under MIT.** Money comes from saving and server use, not from the code, and the
+prompt / instruction text files may be held back as private. That decision is
+what makes M4 possible at all — see the licence note there.
+
 ## What Hans asked for, in his order of importance
 
 1. An anatomy template, allowed to be fairly detailed.
@@ -69,9 +74,8 @@ renders arbitrary triangle meshes, and shapes are `clickable`/`hoverable` with
 per-shape colour and opacity. BodyParts3D supplies ~3000 meshes named
 `FMA<id>.stl`. Two problems: the 3D view is a modal dialog behind a button
 (`main.ts:2562`), OUTSIDE the storyboard — no `speak`, `ask`, `quiz` or video
-export inside it — and BodyParts3D is CC BY-**SA** 2.1 Japan while drawcast has
-no LICENSE file and no `license` in package.json. Bundling share-alike meshes
-into a closed app is what share-alike exists to prevent.
+export inside it — and BodyParts3D is CC BY-**SA** 2.1 Japan, which constrains
+how the meshes may be shipped (resolved below, now that drawcast is going MIT).
 
 ## The shape of the thing
 
@@ -141,7 +145,9 @@ in:
 
 1. Read the vendored PD source SVG (`assets/anatomy-sources/`, with a
    `PROVENANCE.md` naming author, licence and retrieval date — public domain
-   owes no attribution, but the provenance is worth keeping).
+   owes no attribution, but the provenance is worth keeping). Because the source
+   is public domain, the v1 atlas carries no licence complication at all: it
+   ships MIT with the rest of the code.
 2. Slice out each named `<g>`, flatten its `d=` attributes through the same
    `sampleSvgPath` the runtime uses.
 3. Douglas–Peucker per ring at a tolerance tied to the target detail level;
@@ -284,14 +290,37 @@ that is an audio-asset project with its own licence question — not this one.
 gain the same button molecules have. Inside: one `addCustom` shape per organ,
 clickable, semi-transparent so layers peel.
 
-Two unresolved questions, both for Hans, both cheap to defer:
+### Licence — no longer a blocker
 
-1. **Licence.** BodyParts3D is CC BY-SA 2.1 Japan against an unlicensed app.
-   Fetching at runtime from DBCLS's own host avoids redistribution but makes the
-   figure depend on an external service; CORS there is unverified.
-2. **Scope.** The panel has no `speak`, `ask`, `quiz` or video export. It is
-   free exploration beside the figure, not a second teaching surface — unless we
-   decide to build one, which is its own round.
+With the app going MIT, share-alike meshes stop being a contradiction. CC
+BY-SA's obligation attaches to the ADAPTED MATERIAL, not to a collection that
+merely contains it — the 2.1 JP deed words it as "you must distribute your
+contributions under the same license as the original". So:
+
+- The code stays **MIT**.
+- Anything derived from BodyParts3D — the meshes themselves, and any 2D outline
+  projected from them — lives in its own directory under **CC BY-SA**, with a
+  `LICENSE` in that directory and the attribution line DBCLS asks for
+  ("BodyParts3D, © The Database Center for Life Science licensed under CC
+  Attribution-Share Alike 2.1 Japan") shown in the 3D panel, not buried in a
+  file.
+- The repo therefore has mixed licensing, stated per directory. That is normal
+  and honest; it is not a reason to avoid the data.
+
+Two things to check before writing the code, neither of them hard:
+
+1. Read the 2.1 JP **legal code**, not just the deed, on whether adaptations may
+   be released under a later CC BY-SA version (4.0). The deed points at
+   `creativecommons.org/compatiblelicenses`; the legal code is the authority.
+2. If we fetch at runtime from DBCLS's own host instead of vendoring, CORS there
+   is unverified. Vendoring is now the simpler path, so this only matters if the
+   payload turns out to be too big to ship.
+
+### Scope — still the real limit
+
+The panel has no `speak`, `ask`, `quiz` or video export. It is free exploration
+beside the figure, not a second teaching surface — unless we decide to build
+one, which is its own round.
 
 ## Out of scope for v1, on purpose
 
