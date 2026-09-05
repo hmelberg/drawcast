@@ -621,7 +621,15 @@ function build(): ShareSession {
   serverNameInput.addEventListener("blur", () => {
     serverNameInput.value = slugify(serverNameInput.value);
   });
-  const serverNameHint = h("div", { class: "hint" }, "Publishing again under the same name replaces the copy on the server.");
+  // "Replaces" only when the whole key is unchanged: the file half follows
+  // the title until the drawcast has published to GitHub (publishedAs), so a
+  // retitled, never-on-GitHub drawcast writes a NEW copy beside the old one,
+  // which nothing can delete until round 1. Promise no more than that.
+  const serverNameHint = h(
+    "div",
+    { class: "hint" },
+    "Publishing again with the same name and title replaces the copy on the server; a changed title may write a new copy beside the old one.",
+  );
   const serverNameCheck = buildNameCheck(serverNameInput);
   const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput, serverNameCheck.button), serverNameCheck.note, serverNameHint);
   // "Who can watch" (spec §5, question 2) — two of its three values in this
@@ -639,7 +647,14 @@ function build(): ShareSession {
     "div",
     {},
     h("label", { class: "quiet-label" }, "Who can watch ", serverAccess),
-    h("div", { class: "hint" }, "A closed cast plays only for you, signed in; enrolment comes next."),
+    // Said before the click, like the narration: the choice is not remembered
+    // and the server keeps only the last answer, so a republish left on
+    // "Only you" closes a cast that was open — and every shared link with it.
+    h(
+      "div",
+      { class: "hint" },
+      "A closed cast plays only for you, signed in; enrolment comes next. Every publish sets this anew — publishing again on “Only you” closes a cast that was open.",
+    ),
   );
   // Narration defaults OFF here (spec §4) — see buildEmbedChoices. Unticked
   // is not "leave it": every spec write clears the narration stored on the

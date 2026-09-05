@@ -206,6 +206,16 @@ describe("the drawcast server in Share", () => {
     expect(click).not.toContain(".trim()");
     expect(share).toContain("serverNameInput.value = doc.publishedAs ?? slugify(doc.title);");
   });
+  test("promises replacement only for an unchanged name AND title — the file half follows the title until GitHub fixes it", () => {
+    const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
+    expect(panel).toContain("with the same name and title replaces the copy on the server; a changed title may write a new copy beside the old one");
+    expect(panel).not.toContain("under the same name replaces the copy");
+  });
+  test("says before the click that access is set anew on every publish", () => {
+    const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
+    expect(panel).toContain("Every publish sets this anew");
+    expect(panel).toContain("closes a cast that was open");
+  });
   test("says before the click what unticked narration does, and that plays are not counted here", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
     expect(panel).toContain("any narration stored there earlier is removed");
@@ -265,6 +275,20 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toContain("without narration — any narration stored there earlier is gone");
     // In the SAME status line as the address, on the ok path.
     expect(serverCast).toMatch(/setStatus\(`Published to \$\{out\.url\}\$\{silent\}/);
+  });
+  test("every successful publish says which door it set — the server writes access on every spec write, and the panel starts closed", () => {
+    // A cast published open, edited and republished with the select left at
+    // its default is now closed, and every shared link asks to sign in. The
+    // publish is the only party that knows what it sent, so both success
+    // lines carry it (the failure line too: the spec, and its access, landed).
+    expect(serverCast).toMatch(/const door =\s*access === "open"\s*\?/);
+    expect(serverCast).toContain("open: anyone with the link can watch");
+    expect(serverCast).toContain("closed: only you can watch, signed in; a link shared while it was open now asks to sign in");
+    expect(serverCast).toMatch(/setStatus\(`Published to \$\{out\.url\}\$\{silent\}\$\{door\}/);
+    expect(serverCast).toMatch(/`Published to \$\{out\.url\}\$\{door\}, but WITHOUT its narration/);
+    // Round 0 stops the silence only; reading the live setting back first is
+    // spec §5's cure and round 1's job.
+    expect(serverCast).not.toMatch(/api\/cast\?cast=.*access/);
   });
   test("the course panel passes a loud stub, like Drive's", () => {
     expect(course).toMatch(/publishServer: async \(\) => shareStatus\(/);

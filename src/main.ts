@@ -4266,9 +4266,20 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     } else {
       note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
     }
+    // Which door this publish just set. The server writes `access` on EVERY
+    // spec write and the panel starts closed on every open, so a cast
+    // published as "Anyone with the link", edited and republished is now
+    // closed — and every link already shared answers a sign-in prompt. The
+    // publish is the only party that knows what it sent, so it says so, in
+    // the same line and the same voice as the narration. (Reading the live
+    // setting back before publishing is spec §5's cure, and round 1's.)
+    const door =
+      access === "open"
+        ? " — open: anyone with the link can watch"
+        : ' — closed: only you can watch, signed in; a link shared while it was open now asks to sign in (publish again as "Anyone with the link" to reopen it)';
     if (typeof out.audio === "object") {
       setStatus(
-        `Published to ${out.url}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
+        `Published to ${out.url}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
         "error",
       );
       return;
@@ -4279,7 +4290,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     // no-op. The client cannot know whether anything was stored, so the
     // sentence is worded to be true either way.
     const silent = out.audio === "none" ? " without narration — any narration stored there earlier is gone (tick Embed narration and publish again to add it)" : "";
-    setStatus(`Published to ${out.url}${silent}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+    setStatus(`Published to ${out.url}${silent}${door}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: server publish failed", err);
     const e = err as Error;
