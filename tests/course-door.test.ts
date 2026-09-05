@@ -206,6 +206,7 @@ describe("the door on a refused server cast", () => {
     const d = denied(401, "");
     expect(d.button.textContent).toBe("Sign in to watch");
     d.button.click();
+    expect(d.deps.forget).toHaveBeenCalledTimes(1);
     expect(d.deps.signIn).toHaveBeenCalledTimes(1);
     expect(d.deps.join).not.toHaveBeenCalled();
   });

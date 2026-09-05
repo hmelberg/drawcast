@@ -175,7 +175,7 @@ describe("joinCourse", () => {
     expect(await joinCourse(API, KEY, REQ, dead)).toBe("error");
   });
   test("every outcome has its own sentence saying what to do next", () => {
-    const outcomes: JoinOutcome[] = ["ok", "key", "closed", "run", "invalid", "rate", "error"];
+    const outcomes: JoinOutcome[] = ["ok", "pending", "rejected", "key", "closed", "run", "invalid", "rate", "error"];
     const notes = outcomes.map((o) => joinNote(o));
     for (const note of notes) expect(note.length).toBeGreaterThan(10);
     expect(new Set(notes).size).toBe(outcomes.length);

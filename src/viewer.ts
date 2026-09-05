@@ -471,7 +471,13 @@ export function courseDoor(
 export function deniedDoor(cast: string, status: 401 | 403, deps: DoorDeps = liveDoorDeps, onJoined: () => void = () => location.reload()): HTMLElement {
   if (status === 401) {
     const button = h("button", { class: "primary" }, "Sign in to watch");
-    button.addEventListener("click", () => deps.signIn());
+    // The server just refused THIS token — drop it before the handshake, the
+    // same as courseDoor does on a "key" outcome, so the round trip signs in
+    // fresh rather than coming back to try the same dead token again.
+    button.addEventListener("click", () => {
+      deps.forget();
+      deps.signIn();
+    });
     return h(
       "div",
       { class: "viewer-wrap" },
@@ -708,7 +714,12 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     }
   } catch (err) {
     if (err instanceof CastDenied && req.anvil) {
-      status.replaceWith(deniedDoor(req.anvil.cast, err.status));
+      // The door IS the page, the way runNamed's is: replacing only `status`
+      // left it nested inside the viewer chrome — a second `.viewer-wrap`
+      // padded twice, the generic "drawcast" h1 sitting above the door's own,
+      // an empty figure host and a Share button under a cast the visitor
+      // cannot watch.
+      app.replaceChildren(deniedDoor(req.anvil.cast, err.status));
       return;
     }
     status.textContent = (err as Error).message;
