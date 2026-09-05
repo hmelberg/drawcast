@@ -13,6 +13,12 @@ function plan(text: string, door?: Door) {
   return buildPublishPlan({ course, text, repo: REPO, coursesDir: "", viewerBase: "https://drawcast.app/", manifest: emptyManifest(), lectureYaml: () => YAML, door });
 }
 const pageOf = (p: ReturnType<typeof plan>, slug: string) => p.files.find((f) => f.path === `${slug}/index.html`)!.content;
+// A course page is full of links into the app — every lecture points at
+// `…/#gh=…`, and that is the page doing its job. The door is the ONE link that
+// carries the course's registered name: `class="door"`, and an href ending in
+// a bare `#<name>` with no `=` in it. Forbidding every `/#` would forbid the
+// page's own contents, not the door (it did, once).
+const hasDoor = (html: string) => /class="door"/.test(html) || /href="[^"]*\/#[a-z0-9-]+(?:\/\d+)?"/.test(html);
 
 describe("publishing a course with enroll", () => {
   const text = "# Learn Russian\nslug: learn-russian\nenroll: https://drawcast.anvil.app/\n\n## Cases\nq\n\n## Verbs\nq\n";
@@ -45,11 +51,13 @@ describe("publishing a course with enroll", () => {
   test("without a door decision the page ships doorless and says so — a taken name must never become a Join button into a stranger's run", () => {
     const html = pageOf(plan(text), "learn-russian");
     expect(html).toMatch(/Joining is not open yet/);
-    expect(html).not.toMatch(/href="https:\/\/drawcast\.app\/#/);
+    expect(hasDoor(html)).toBe(false);
     expect(html).not.toMatch(/Join this course/i);
+    expect(html).toMatch(/href="https:\/\/drawcast\.app\/#gh=hmelberg\/dcast\/learn-russian\/[^"]+\.yaml"/); // the lectures are still linked
     const taken = pageOf(plan(text, { name: null, why: "taken" }), "learn-russian");
     expect(taken).toMatch(/belongs to someone else/);
-    expect(taken).not.toMatch(/href="https:\/\/drawcast\.app\/#/);
+    expect(hasDoor(taken)).toBe(false);
+    expect(hasDoor(pageOf(plan(text, DOOR), "learn-russian"))).toBe(true); // …and the same detector sees the door when there is one
   });
   test("a server of the author's own gets no door even when one was offered — the viewer reports to the drawcast server only", () => {
     const own = "# Learn Russian\nslug: learn-russian\nenroll: https://my-own.anvil.app\n\n## Cases\nq\n";

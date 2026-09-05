@@ -174,6 +174,12 @@ describe("publishCourse", () => {
 // the reads and the one write, and builds the page's door from the answer.
 describe("preparePublish, then commitPublish", () => {
   const isWrite = (url: string) => /\/git\/(blobs|trees|commits|refs)/.test(url);
+  // A course page is full of links into the app — every lecture points at
+  // `…/#gh=…`, and that is the page doing its job. The door is the ONE link
+  // that carries the course's registered name: `class="door"`, and an href
+  // ending in a bare `#<name>` with no `=` in it. Forbidding every `/#` would
+  // forbid the page's own contents, not the door (it did, once).
+  const hasDoor = (html: string) => /class="door"/.test(html) || /href="[^"]*\/#[a-z0-9-]+(?:\/\d+)?"/.test(html);
   const enrolling = { ...publishArgs, text: TEXT.replace("# Causal Inference\n", "# Causal Inference\nenroll: https://drawcast.anvil.app\n") };
 
   it("preparing writes nothing — it reads the branch and the manifest, and knows the slug, the page URL and the registration", async () => {
@@ -212,7 +218,9 @@ describe("preparePublish, then commitPublish", () => {
     const page2 = blobs2.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
     expect(page2).toMatch(/Joining is not open yet/);
     expect(page2).toMatch(/belongs to someone else/);
-    expect(page2).not.toMatch(/href="https:\/\/drawcast\.app\/#/);
+    expect(hasDoor(page2)).toBe(false);
+    expect(hasDoor(page)).toBe(true); // …and the same detector sees the door when there is one
+    expect(page2).toContain('href="https://drawcast.app/#gh=o/r/courses/causal-inference/did.yaml"'); // the lectures are still linked
   });
 
   it("publishCourse is the two in one, and without a door decision an enrolling course ships doorless", async () => {
@@ -221,7 +229,7 @@ describe("preparePublish, then commitPublish", () => {
     const blobs = seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
     const page = blobs.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
     expect(page).toMatch(/Joining is not open yet/);
-    expect(page).not.toMatch(/href="https:\/\/drawcast\.app\/#/);
+    expect(hasDoor(page)).toBe(false);
   });
 });
 
