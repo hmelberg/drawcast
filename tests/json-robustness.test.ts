@@ -92,3 +92,10 @@ describe("structured output is decided per schema", () => {
     expect((recorded[2].body.output_config as { format?: unknown }).format).toBeDefined(); // B still structured
   });
 });
+
+describe("max_tokens", () => {
+  test("a cut-off reply is reported as such, not as bad JSON", async () => {
+    const { client } = queuedClient([{ text: '{"a":"1', stop_reason: "max_tokens" }]);
+    await expect(callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED)).rejects.toThrow(/cut off/);
+  });
+});

@@ -181,6 +181,14 @@ export async function callForJson(
 
   addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
 
+  // A cut-off reply is broken JSON by construction; name the real cause. The
+  // model's thinking (on by default on Opus 5) counts against the same limit.
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `The reply was cut off at the output limit (${response.usage?.output_tokens ?? "?"} tokens, thinking included) — try again, or ask for something smaller.`,
+    );
+  }
+
   const raw = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
