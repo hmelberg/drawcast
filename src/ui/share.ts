@@ -573,7 +573,7 @@ function build(): ShareSession {
     h("span", {}, "Allow sign-up on the course page"),
     signupHint,
   );
-  const SIGNUP_HINT_DEFAULT = "the course page gets a join box: learners get a course code, and you see their progress and answers in the teacher dashboard";
+  const SIGNUP_HINT_DEFAULT = "the course page gets a Join link: learners sign in to join, and you see their progress and answers in the teacher dashboard";
   function refreshSignupChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
     signupLabel.hidden = subject !== "course";
     signupCb.checked = doc.joinBox === true;

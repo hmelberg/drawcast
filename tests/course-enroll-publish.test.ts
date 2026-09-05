@@ -21,16 +21,26 @@ describe("publishing a course with enroll", () => {
     expect(lectures.length).toBe(2);
     for (const f of lectures) expect(parsePlaylistText(f.content).meta.enroll).toBe("https://drawcast.anvil.app");
   });
-  test("the page carries the course key and the api, and each lecture its cast key", () => {
+  test("the page is a door: one link to the course's name in the app, no script, and nothing for one to read", () => {
     const html = plan(text).files.find((f) => f.path === "learn-russian/index.html")!.content;
-    expect(html).toContain('data-course="hmelberg/dcast/learn-russian"');
-    expect(html).toContain('data-enroll="https://drawcast.anvil.app"');
-    expect(html).toMatch(/data-cast="hmelberg\/dcast\/learn-russian\/[^"]+\.yaml"/);
+    expect(html).toContain('href="https://drawcast.app/#learn-russian"');
+    expect(html).toMatch(/Join this course/i);
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("data-enroll");
+    expect(html).not.toContain("data-course");
+    expect(html).not.toContain("data-cast");
   });
-  test("without enroll nothing changes", () => {
+  test("a `name:` in the document is where the door leads — the same name the publish registers", () => {
+    const named = "# Learn Russian\nslug: learn-russian\nname: russian-for-all\nenroll: https://drawcast.anvil.app/\n\n## Cases\nq\n";
+    const html = plan(named).files.find((f) => f.path === "learn-russian/index.html")!.content;
+    expect(html).toContain('href="https://drawcast.app/#russian-for-all"');
+  });
+  test("without enroll there is no door, and the lectures carry no server", () => {
     const p = plan("# Plain\nslug: plain\n\n## L\nq\n");
     expect(parsePlaylistText(p.files.find((f) => f.path.endsWith(".yaml"))!.content).meta.enroll).toBeUndefined();
-    expect(p.files.find((f) => f.path === "plain/index.html")!.content).not.toContain("data-enroll");
+    const html = p.files.find((f) => f.path === "plain/index.html")!.content;
+    expect(html).not.toMatch(/Join this course/i);
+    expect(html).not.toContain("https://drawcast.app/#plain");
   });
 });
 

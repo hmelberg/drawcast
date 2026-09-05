@@ -4,8 +4,8 @@
 // at home hosted on Pages and pasted into an LMS.
 
 import type { CourseEntry } from "../publish/github";
+import { normalizeName } from "../names";
 import type { Course } from "./document";
-import { ENROL_SCRIPT } from "./enrol-script";
 
 export function escapeHtml(text: string): string {
   return text
@@ -19,13 +19,28 @@ export function lectureHref(base: string, owner: string, repo: string, path: str
   return `${base.replace(/\/+$/, "")}/#gh=${owner}/${repo}/${path}`;
 }
 
+/** The course's door in the app: drawcast.app/#<name> (spec §7, §8). */
+export function courseHref(base: string, name: string): string {
+  return `${base.replace(/\/+$/, "")}/#${name}`;
+}
+
+/**
+ * The name a course answers to at drawcast.app/#<name> (spec §7): `name:` if
+ * set, else the slug. The registry is lower-case (names.ts); a name the rule
+ * rejects outright travels as written, so registerName can report it as
+ * invalid. One rule for the registration and for the door on the page, so
+ * the page can never point at a name the publish did not register.
+ */
+export function courseNameFor(course: Pick<Course, "name">, slug: string): string {
+  const wanted = course.name ?? slug;
+  return normalizeName(wanted) ?? wanted;
+}
+
 export interface PageLink {
   title: string;
   questions: string[];
   /** null for a lecture that has not been generated yet — listed, never linked. */
   href: string | null;
-  /** The cast key of a published lecture (spec §1), for the join box's player. */
-  cast?: string;
 }
 
 const STYLE = `
@@ -43,12 +58,9 @@ const STYLE = `
   .soon { opacity: 0.55; font-size: 0.85rem; font-weight: 400; }
   footer { margin-top: 3rem; font-size: 0.85rem; opacity: 0.6; }
   .join { border: 1px solid rgba(128,128,128,0.35); border-radius: 8px; padding: 1rem; margin: 1rem 0; }
-  .join input { font: inherit; padding: 0.35rem 0.5rem; margin: 0.25rem 0.25rem 0.25rem 0; max-width: 100%; }
-  .join button { font: inherit; padding: 0.35rem 0.8rem; }
-  .join .privacy, .join .small { font-size: 0.85rem; opacity: 0.7; margin: 0.5rem 0 0; }
-  .mark { display: inline-block; min-width: 3.2rem; margin-right: 0.5rem; cursor: pointer; font-variant-numeric: tabular-nums; }
-  .review { margin: 0.5rem 0 0 3.7rem; font-size: 0.9rem; }
-  .review li { border: 0; padding: 0.25rem 0; list-style: none; }
+  .join p { margin: 0; }
+  .join .door { display: inline-block; margin-top: 0.6rem; font-weight: 600; }
+  .join .privacy { font-size: 0.85rem; opacity: 0.7; margin: 0.5rem 0 0; }
 `;
 
 /** The shared page look, so a sibling page (published drawcasts) matches. */
@@ -69,39 +81,36 @@ ${body}
 `;
 }
 
-export function coursePage(course: Course, links: PageLink[], learn?: { courseKey: string; enroll: string }): string {
+/**
+ * The page is a door, not a dashboard (spec §8): with `join`, one sentence
+ * and one link into the app, where joining is one click for a signed-in
+ * account. No script at all — the progress marks, the join form and the
+ * code it minted lived in an inline script this page no longer carries.
+ * `join.app` is the app's own address (the viewer base), the same base the
+ * lecture links use; `join.courseKey`'s last segment is the course's slug,
+ * which the door's name falls back to when the document sets no `name:`.
+ */
+export function coursePage(course: Course, links: PageLink[], join?: { courseKey: string; app: string }): string {
   const items = links
     .map((link, i) => {
       const head = link.href
-        ? `<a class="t" href="${escapeHtml(link.href)}"${link.cast ? ` data-cast="${escapeHtml(link.cast)}"` : ""}>${escapeHtml(link.title)}</a>`
+        ? `<a class="t" href="${escapeHtml(link.href)}">${escapeHtml(link.title)}</a>`
         : `<span class="t">${escapeHtml(link.title)}</span> <span class="soon">not published yet</span>`;
       const questions = link.questions.length
         ? `<ul class="q">${link.questions.map((q) => `<li>${escapeHtml(q)}</li>`).join("")}</ul>`
         : "";
-      return `<li${link.cast ? ` data-cast="${escapeHtml(link.cast)}"` : ""}><span class="n">${i + 1}</span>${head}${questions}</li>`;
+      return `<li><span class="n">${i + 1}</span>${head}${questions}</li>`;
     })
     .join("\n");
   const intro = course.intro ? `<p class="intro">${escapeHtml(course.intro)}</p>` : "";
-  const join = learn
-    ? `<section class="join" data-course="${escapeHtml(learn.courseKey)}" data-enroll="${escapeHtml(learn.enroll)}" data-title="${escapeHtml(course.title)}">
-<form id="join-form">
-  <b>Join this course</b>
-  <input id="join-name" placeholder="Name (optional)" autocomplete="name">
-  <input id="join-email" type="email" placeholder="Email (optional — lets you find your code again)" autocomplete="email">
-  <button id="join-button" type="submit">Join</button>
-  <p class="privacy">We store your name, email and answers so you and the course's teachers can see your progress. "Forget me" deletes all of it. The learner backend is hosted in the UK.</p>
-</form>
-<div id="join-you" hidden>
-  <b>Your course code:</b> <code id="join-code"></code>
-  <span class="small">— <a href="#" id="join-switch">use another code</a> · <a href="#" id="join-forget">Forget me</a></span>
-  <p id="join-progress-note" class="small"></p>
-</div>
-<div id="join-switch-box" hidden><input id="join-switch-input" placeholder="fjell-rev-havn"> <button id="join-switch-button" type="button">Use this code</button></div>
-<p id="join-status" class="small"></p>
-</section>
-<script>${ENROL_SCRIPT}</script>`
+  const door = join
+    ? `<section class="join">
+<p><b>Join this course</b> — it keeps track of progress for signed-in learners: what you have opened, finished and answered, for you and the course's teachers.</p>
+<p><a class="door" href="${escapeHtml(courseHref(join.app, courseNameFor(course, join.courseKey.slice(join.courseKey.lastIndexOf("/") + 1))))}">Join this course in drawcast →</a></p>
+<p class="privacy">Joining stores your account's name and address, and your answers, so you and the course's teachers can see your progress. The learner backend is hosted in the UK.</p>
+</section>`
     : "";
-  return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n${join}\n<ol>\n${items}\n</ol>`);
+  return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n${door}\n<ol>\n${items}\n</ol>`);
 }
 
 export function repoIndexPage(courses: CourseEntry[], base: string): string {

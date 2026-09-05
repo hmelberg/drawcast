@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { coursePage, escapeHtml, lectureHref, repoIndexPage } from "../src/course/page";
+import { courseHref, courseNameFor, coursePage, escapeHtml, lectureHref, repoIndexPage } from "../src/course/page";
 
 const COURSE = parseCourse(`# Causal Inference
 level: advanced
@@ -66,6 +66,47 @@ describe("coursePage", () => {
     const html = coursePage(COURSE, LINKS);
     expect(html).not.toMatch(/<link[^>]+stylesheet/);
     expect(html).not.toMatch(/<script[^>]+src=/);
+  });
+});
+
+// The door (spec §8): a public course's page is static — title, intro,
+// lecture list and one link into the app, where joining is one click for a
+// signed-in account. The join form, the progress marks and the code they
+// minted lived in an inline script the page no longer carries.
+describe("the door", () => {
+  const SPANISH = { title: "Spanish", context: {}, lectures: [], warnings: [] };
+  const JOIN = { courseKey: "h/d/spanish", app: "https://drawcast.app/" };
+
+  test("the published page carries no script at all", () => {
+    const html = coursePage(SPANISH, [], JOIN);
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("localStorage");
+    expect(html).not.toContain("data-enroll");
+    expect(html).not.toContain("data-cast");
+  });
+  test("it points at the app rather than trying to be one", () => {
+    const html = coursePage(SPANISH, [], JOIN);
+    expect(html).toMatch(/Join this course/i);
+    expect(html).toContain("https://drawcast.app/#");
+    expect(html).toContain('href="https://drawcast.app/#spanish"');
+  });
+  test("the door leads to the course's registered name: `name:` when set, else the slug at the end of the key", () => {
+    expect(coursePage({ ...SPANISH, name: "Spanish-For-All" }, [], JOIN)).toContain('href="https://drawcast.app/#spanish-for-all"');
+    expect(coursePage(SPANISH, [], { ...JOIN, courseKey: "h/d/courses/spanish-b1" })).toContain('href="https://drawcast.app/#spanish-b1"');
+    expect(courseNameFor({ name: undefined }, "learn-russian")).toBe("learn-russian");
+    expect(courseNameFor({ name: "Learn-Russian" }, "x")).toBe("learn-russian");
+    // A name the rule rejects travels as written, so the publish can report it.
+    expect(courseNameFor({ name: "gh-nope" }, "x")).toBe("gh-nope");
+  });
+  test("the door follows the app base the lecture links use, without a doubled slash", () => {
+    expect(courseHref("https://drawcast.app/", "spanish")).toBe("https://drawcast.app/#spanish");
+    expect(courseHref("https://my.site", "spanish")).toBe("https://my.site/#spanish");
+    expect(coursePage(SPANISH, [], { ...JOIN, app: "https://my.site/" })).toContain('href="https://my.site/#spanish"');
+  });
+  test("without join data there is no door", () => {
+    const html = coursePage(SPANISH, []);
+    expect(html).not.toMatch(/Join this course/i);
+    expect(html).not.toContain('class="join"');
   });
 });
 

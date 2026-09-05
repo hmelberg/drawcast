@@ -18,9 +18,9 @@ import {
 } from "../publish/github";
 import { formatPublished, parsePlaylistText } from "../playlist/playlist";
 import { parseCourse, removeCourseOption, setCourseOption, setLectureStatus, type Course } from "./document";
-import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
+import { courseNameFor, coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
-import { normalizeName, type Registration } from "../names";
+import type { Registration } from "../names";
 
 /**
  * Join a repo path, tolerating an empty directory. The default IS empty: a
@@ -54,12 +54,10 @@ export function courseRegistration(
   // A course that has never been published has no slug yet, and so no name to
   // register — the caller only ever asks AFTER a publish, which mints one.
   if (!slug) return null;
-  // `name: Learn-Russian` in the document is the same name as `learn-russian`
-  // — the registry is lower-case (names.ts). A name the rule rejects outright
-  // travels as written, so registerName can report it as invalid.
-  const wanted = course.name ?? slug;
+  // The same rule the page's door uses (courseNameFor), so the registered
+  // name and the name the page links to can never disagree.
   return {
-    name: normalizeName(wanted) ?? wanted,
+    name: courseNameFor(course, slug),
     kind: "course",
     target: courseKeyFor(repo, joinPath(coursesDir, slug)),
     page: pageUrl,
@@ -170,14 +168,15 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
       title: lecture.title,
       questions: lecture.questions,
       href: lectureHref(viewerBase, repo.owner, repo.repo, joinPath(dir, name)),
-      cast: `${courseKeyFor(repo, dir)}/${name}`,
     });
   });
 
   files.push({ path: joinPath(dir, "course.md"), content: text });
+  // The `enroll:` line decides whether the page has a door at all; the door
+  // itself leads into the app, at the same base the lecture links use.
   files.push({
     path: joinPath(dir, "index.html"),
-    content: coursePage(course, links, enroll ? { courseKey: courseKeyFor(repo, dir), enroll } : undefined),
+    content: coursePage(course, links, enroll ? { courseKey: courseKeyFor(repo, dir), app: viewerBase } : undefined),
   });
   // github.com renders this one itself, so the course is shareable before
   // Pages is switched on — and if it never is.
