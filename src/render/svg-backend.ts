@@ -28,6 +28,10 @@ export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', curs
 /** System monospace stack: no webfont fetch, and available to the export
  *  canvas without embedding — code must render identically in the movie. */
 export const MONO_FONT = "'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace";
+/** The Commodore 64's own face (Style's C64 Pro Mono, public/fonts/c64/ —
+ *  its licence allows @font-face embedding and shipping in free software,
+ *  unmodified and unrenamed). One em square per cell: 8 × 8 at any size. */
+export const C64_FONT = "'C64 Pro Mono', 'Menlo', 'Consolas', monospace";
 /** The "plain" face: the system sans, so nothing to load and nothing to fall back silently. */
 export const SANS_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
@@ -311,11 +315,11 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     t.setAttribute("stroke-width", "5");
     t.setAttribute("stroke-linejoin", "round");
     t.setAttribute("font-size", String(d.fontSize));
-    t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : fontStack(d.family));
+    t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : d.font === "c64" ? C64_FONT : fontStack(d.family));
     // In mono text the whitespace IS content — a Python body loses its
     // meaning if SVG collapses the leading spaces of an indented line.
     // SVG2 renderers take this from CSS, not the legacy xml:space.
-    if (d.font === "mono") t.style.whiteSpace = "pre";
+    if (d.font === "mono" || d.font === "c64") t.style.whiteSpace = "pre";
     if (d.weight === "bold") t.setAttribute("font-weight", "bold");
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");

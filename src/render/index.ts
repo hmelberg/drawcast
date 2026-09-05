@@ -88,6 +88,7 @@ function ensureFonts(): Promise<void> {
     try {
       await Promise.race([
         document.fonts.load("26px 'Patrick Hand'"),
+        document.fonts.load("16px 'C64 Pro Mono'"),
         new Promise((r) => setTimeout(r, 900)),
       ]);
     } catch {

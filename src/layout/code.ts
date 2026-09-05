@@ -22,8 +22,8 @@
 // Envelope types come from the dependency-free code/envelope module, not
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
-import { C64_BOOT_LINES, C64_BACKGROUND, C64_BORDER, C64_COLS, C64_PALETTE, C64_SCREEN_ASPECT, C64_TEXT } from "../code/c64";
 import { stylable } from "../code/chart-style";
+import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { FIGURE_GROUND } from "./ink";
 import { CANVAS } from "./canvas";
@@ -58,7 +58,7 @@ const LINE_GAP = 0.35;
 export const LINE_PITCH = ROW_H + LINE_GAP;
 export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
-const TYPE_CPS = 28;
+export const TYPE_CPS = 28;
 
 /** One highlighter pass over the code: the drawn text to cover, and how. */
 export interface CodeMark {
@@ -300,6 +300,8 @@ function tableDrawables(
 }
 
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
+  // A Commodore 64 is a screen, not a panel (layout/c64-screen.ts).
+  if (isC64Screen(el)) return c64ScreenDrawables(el, ctx);
   const show = el.show ?? "output";
   // A pure data source draws nothing, mints no ids and has no anchors, so the
   // only thing it can still contribute is a harvest warning. This function
@@ -453,15 +455,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // A game with nothing run yet IS a screen: the C64's own boot screen, 40 × 25
   // characters at 8 × 8, so the pane takes that shape rather than the three
   // ruled placeholder lines an unresolved run would get.
-  // …and a BASIC run's screen is the same shape: the envelope carries the 40 × 25
-  // grid a run left behind, and it is drawn in place of stdout.
-  const runScreen = showOut && !failed && result?.screen !== undefined ? result.screen : null;
-  const gameScreen = showOut && ((el.game !== undefined && !result && (el.code ?? "").trim() === "") || runScreen !== null);
   const outContentH = !showOut
     ? 0
-    : gameScreen
-      ? Math.min(outBudget, (outPaneW - 2 * PAD) / C64_SCREEN_ASPECT)
-      : Math.max(
+    : Math.max(
         3 * fontSize * (1 + LINE_GAP), // placeholder floor
         outStack.height +
           (tablesH > 0 ? tablesH + (outStack.height > 0 ? fontSize * LINE_GAP : 0) : 0) +
@@ -571,96 +567,6 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       style: resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2, dash: true }),
       drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
     });
-  }
-
-  // ---- a game's screen: the boot screen, and the mark that starts it ------
-  // In the PANEL's group, not the output beat's: `draw: [id]` is "switch the
-  // machine on", and a C64 switched on shows its blue screen at once. Every
-  // part is ink (the export shows exactly this); only the click that starts
-  // the emulator is the player's (ui/tray.ts). The colours are the machine's
-  // own — a light-blue border, blue paper, light-blue type — because this
-  // screen is the one drawing in the app that is NOT on paper.
-  if (gameScreen) {
-    const fieldTop = yTop;
-    const fieldH = h;
-    const rim = Math.min(PAD * 0.75, outPaneW * 0.05);
-    const field = (sid: string, x: number, y: number, ww: number, hh: number, color: string): Drawable => ({
-      id: sid,
-      kind: "area",
-      pts: rectPts(x, y - hh, ww, hh),
-      precise: true,
-      z: Z_AREA,
-      style: resolveStyle(undefined, { fill: color, opacity: 1, strokeWidth: 0 }),
-      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
-    });
-    panelChildren.push(field(`${el.id}__border`, outX, fieldTop, outPaneW, fieldH, C64_PALETTE[C64_BORDER]));
-    panelChildren.push(field(`${el.id}__screen`, outX + rim, fieldTop - rim, outPaneW - 2 * rim, fieldH - 2 * rim, C64_PALETTE[C64_BACKGROUND]));
-    const screenFont = (outPaneW - 2 * rim) / (C64_COLS * CHAR_W);
-    const rowH = screenFont * ROW_H;
-    const rowText = (sid: string, row: number, col: number, text: string, color: string): Drawable => ({
-      id: sid,
-      kind: "text",
-      pos: [outX + rim + col * screenFont * CHAR_W, fieldTop - rim - rowH * (row + 0.75)],
-      text,
-      fontSize: screenFont,
-      anchor: "start",
-      font: "mono",
-      z: Z_TEXT,
-      style: resolveStyle(undefined, { color }),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
-    });
-    if (runScreen) {
-      // What the program left on the screen: one text per run of one colour
-      // on a row, so a POKEd cell in another colour is its own ink. The
-      // machine's paper follows the program too (POKE 53281).
-      panelChildren[panelChildren.length - 2].style.fill = C64_PALETTE[runScreen.border & 15];
-      panelChildren[panelChildren.length - 1].style.fill = C64_PALETTE[runScreen.background & 15];
-      runScreen.chars.forEach((line, row) => {
-        let col = 0;
-        while (col < line.length) {
-          if (line[col] === " ") {
-            col++;
-            continue;
-          }
-          const c = runScreen.colors[row]?.[col] ?? "e";
-          let end = col;
-          while (end < line.length && (runScreen.colors[row]?.[end] ?? "e") === c && !(line[end] === " " && (end + 1 >= line.length || line[end + 1] === " "))) end++;
-          panelChildren.push(rowText(`${el.id}__scr${row}_${col}`, row, col, line.slice(col, end), C64_PALETTE[parseInt(c, 16) & 15]));
-          col = end;
-        }
-      });
-    } else {
-      C64_BOOT_LINES.forEach(([row, text], i) => panelChildren.push(rowText(`${el.id}__boot${i}`, row, 0, text, C64_PALETTE[C64_TEXT])));
-    }
-    // The play mark: the source element's, in white, on the screen's centre —
-    // only on a machine with a game to start.
-    if (el.game !== undefined) {
-    const pcx = outX + outPaneW / 2;
-    const pcy = fieldTop - fieldH / 2;
-    const r = Math.max(16, outPaneW * 0.1);
-    panelChildren.push({
-      id: `${el.id}__play`,
-      kind: "stroke",
-      pts: [[pcx, pcy]],
-      shapeHint: { type: "circle", c: [pcx, pcy], r },
-      z: Z_STROKE,
-      style: resolveStyle(undefined, { color: C64_PALETTE[1], strokeWidth: 3 }),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 420 }),
-    });
-    panelChildren.push({
-      id: `${el.id}__playtri`,
-      kind: "area",
-      pts: [
-        [pcx - r * 0.3, pcy + r * 0.45],
-        [pcx + r * 0.55, pcy],
-        [pcx - r * 0.3, pcy - r * 0.45],
-      ],
-      precise: true,
-      z: Z_STROKE,
-      style: resolveStyle(undefined, { fill: C64_PALETTE[1], opacity: 1, strokeWidth: 0 }),
-      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 260 }),
-    });
-    }
   }
 
   const out: Drawable[] = [
@@ -773,7 +679,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 
   // ---- output pane: one group, always minted -------------------------------
   const outChildren: Drawable[] = [];
-  if (showOut && !gameScreen) {
+  if (showOut) {
     if (!result) {
       // Unresolved (node tests, offline, runtime missing): the source
       // element's ruled-placeholder idiom, so the beat draws SOMETHING.
@@ -925,7 +831,7 @@ export function frameSpace(frame: CodeFrame): { above: number; below: number; si
   }
 }
 
-function rectPts(x: number, y: number, w: number, h: number): Pt[] {
+export function rectPts(x: number, y: number, w: number, h: number): Pt[] {
   return [
     [x, y],
     [x + w, y],
@@ -996,7 +902,7 @@ function chinButtons(
 }
 
 /** Chrome drawables for one panel, given its inner rectangle (x0, yTop − h .. yTop). */
-function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number, w: number, h: number, style: SpecElement["style"], draw: SpecElement["draw"]): Drawable[] {
+export function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: number, w: number, h: number, style: SpecElement["style"], draw: SpecElement["draw"]): Drawable[] {
   const out: Drawable[] = [];
   const ink = (extra: Parameters<typeof resolveStyle>[1]) => resolveStyle(style, extra);
   const sketch = (ms: number) => resolveDrawOpts(draw, { mode: "sketch", duration: ms });

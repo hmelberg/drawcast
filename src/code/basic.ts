@@ -231,6 +231,12 @@ class Screen {
     this.col++;
     this.printed[this.printed.length - 1] += ch;
   }
+  /** What the OPERATOR typed — the listing and RUN — shown on the screen but
+   *  never part of what the program printed. */
+  type(text: string): void {
+    this.write(text);
+    this.printed = [""];
+  }
   write(text: string): void {
     for (const ch of text) {
       const code = ch.charCodeAt(0);
@@ -700,12 +706,27 @@ export interface BasicRun {
   vars: Map<string, Value>;
 }
 
-/** Run a program to completion (or to its first error). Pure. */
-export function runBasic(source: string): BasicRun {
+/** The program as the operator typed it: uppercase outside quotes, wrapped at
+ *  the screen's edge, RUN under it — so the run's screen shows what a real
+ *  machine would after LIST … RUN. */
+function typeListing(screen: Screen, source: string): void {
+  for (const line of source.replace(/\s+$/, "").split("\n")) {
+    if (line.trim() === "") continue;
+    screen.type(line.replace(/"[^"]*"|[^"]+/g, (m) => (m.startsWith('"') ? m : m.toUpperCase())) + "\n");
+  }
+  screen.type("RUN\n");
+}
+
+/** Run a program to completion (or to its first error). Pure. With
+ *  `listing`, the screen first shows the program and RUN, as the machine's
+ *  would; without it the program owns the whole screen (the tests' view). */
+export function runBasic(source: string, opts: { listing?: boolean } = {}): BasicRun {
   const it = new Interpreter([]);
+  if (opts.listing) typeListing(it.screen, source);
   try {
     const lines = parseProgram(source);
     const interp = new Interpreter(lines);
+    if (opts.listing) typeListing(interp.screen, source);
     interp.run();
     return { ok: true, screen: interp.screen.snapshot(), stdout: interp.screen.printed.join("\n").replace(/\n$/, ""), vars: interp.vars };
   } catch (err) {
@@ -719,7 +740,7 @@ export function runBasic(source: string): BasicRun {
 /** The runtime module run.ts reaches lazily, like every other language. */
 export async function run(req: CodeRunRequest): Promise<CodeRunResult> {
   req.onStatus?.("running", "Running…");
-  const r = runBasic(req.code);
+  const r = runBasic(req.code, { listing: true });
   const result: CodeRunResult = { ok: r.ok, stdout: r.stdout, stderr: "", figures: [], screen: r.screen, ...(r.error ? { error: r.error } : {}) };
   // The data bridge: a requested path is a variable name (A, A$, N%).
   if (req.paths && req.paths.length > 0) {

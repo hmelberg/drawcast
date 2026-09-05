@@ -12377,10 +12377,9 @@
         {
           "id": "c64",
           "type": "code",
-          "frame": "c64",
           "game": "c64maze",
-          "width": 560,
-          "y": 350
+          "width": 620,
+          "y": 340
         },
         {
           "id": "year",
@@ -12455,12 +12454,8 @@
           "id": "c64",
           "type": "code",
           "language": "basic",
-          "frame": "c64",
-          "show": "below",
-          "lines": 6,
           "width": 640,
           "y": 380,
-          "font_size": 15,
           "draw": {
             "mode": "type"
           },

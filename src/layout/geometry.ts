@@ -32,7 +32,13 @@ export function bboxOfPts(pts: Pt[]): BBox {
 export function bboxOfText(t: TextDrawable, measure: MeasureFn): BBox {
   let w: number;
   let h: number;
-  if (t.lines && t.lines.length > 1) {
+  if (t.font === "c64") {
+    // The Commodore face is a grid: every glyph fills a cell one em square,
+    // and rows sit exactly one em apart — no ascender room, no line gap. The
+    // handwriting's measure would call two adjacent screen rows an overlap.
+    w = t.text.length * t.fontSize;
+    h = t.fontSize;
+  } else if (t.lines && t.lines.length > 1) {
     w = Math.max(...t.lines.map((line) => measure(line, t.fontSize).w));
     h = t.lines.length * t.fontSize * 1.25;
   } else {

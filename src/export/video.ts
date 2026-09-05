@@ -122,6 +122,8 @@ const FIG_Y = 42;
 const TITLE_BASELINE = 30;
 const FPS = 30;
 const PAPER = "#f5f1e6";
+import { C64_FONT_URLS } from "../render/figure-style";
+
 const INK = "#3d3833";
 
 /** The sketch font as an inline data URI so SVG-as-image frames keep it
@@ -134,9 +136,25 @@ function sketchFontStyle(): Promise<string> {
       const m = /url\((https:[^)]+\.woff2)\)/.exec(css);
       if (!m) return "";
       const buf = new Uint8Array(await (await fetch(m[1])).arrayBuffer());
-      let bin = "";
-      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-      return `<style>@font-face{font-family:'Patrick Hand';src:url(data:font/woff2;base64,${btoa(bin)}) format('woff2');}</style>`;
+      const b64 = (bytes: Uint8Array): string => {
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        return btoa(bin);
+      };
+      let c64 = "";
+      // The C64 face too, so a screen in a movie is set in it: the first of
+      // its URLs that answers (the app's own copy, else the published one).
+      for (const u of C64_FONT_URLS) {
+        try {
+          const r = await fetch(u);
+          if (!r.ok) continue;
+          c64 = `@font-face{font-family:'C64 Pro Mono';src:url(data:font/woff2;base64,${b64(new Uint8Array(await r.arrayBuffer()))}) format('woff2');}`;
+          break;
+        } catch {
+          /* try the next */
+        }
+      }
+      return `<style>@font-face{font-family:'Patrick Hand';src:url(data:font/woff2;base64,${b64(buf)}) format('woff2');}${c64}</style>`;
     } catch {
       return ""; // degrade to the fallback font rather than failing the export
     }

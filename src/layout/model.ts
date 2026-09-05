@@ -106,7 +106,7 @@ export interface TextDrawable extends BaseDrawable {
   fontSize: number;
   anchor: "start" | "middle" | "end";
   /** Typeface: absent = the sketch handwriting font; "mono" = the code font (wins over `family`). */
-  font?: "mono";
+  font?: "mono" | "c64";
   /** The global family and weight, stamped by applyTextStyle (layout/text-style.ts). */
   family?: TextFamily;
   weight?: TextWeight;

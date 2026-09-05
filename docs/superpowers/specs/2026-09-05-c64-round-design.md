@@ -215,6 +215,47 @@ the program, the envelope carried the screen, the layout drew five
 HELLO, WORLD lines on a black field with both marks as real strokes and the
 play mark on top, and the joystick beat opened the lander's URL.
 
+## M4 — the screen alone, in the machine's own face (SHIPPED)
+
+Hans, 2026-09-06, on seeing M1–M3: "commodore bare bør bestå av den blå
+skjermen, ikke tegningen av monitor og keyboard. Og den blå skjermen bør ligne
+mye mer på den ekte" — fonts, colours, border. Three things changed.
+
+**The C64 is a screen, not a panel.** `src/layout/c64-screen.ts` lays out a
+code element that is a C64 (`language: "basic"`, or a `game` with nothing to
+run) as one field of 40 × 25 cells inside a border four cells wide — the PAL
+machine's proportions, 48 : 33 — with nothing on paper. `frame` still draws
+chrome around it if an author asks; the examples ask for none. The listing
+is TYPED ONTO THE SCREEN (`_line_k`, wrapped at the screen's edge, uppercase
+outside quotes — the machine has one case), RUN is typed under it, and
+`_out` repaints the field with the screen the run left: the interpreter now
+types the listing and RUN before it runs, so a program that does not clear
+the screen leaves them visible above its output, as the real machine would,
+and one that does (CHR$(147)) leaves only its own. A game's play mark sits
+on the screen and comes back inside `_out`, so a run never paints it over.
+The marker pen works on the cell grid (yellow, 7). An error prints under the
+listing in the machine's voice, then READY.
+
+**The face.** Style's **C64 Pro Mono** (public/fonts/c64/, licence beside
+it): its licence allows @font-face embedding and shipping in free software,
+unmodified and unrenamed, which drawcast is. Its cell is exactly one em
+square (advance 1.0, ascent 0.875), so a 40-column screen at width W gives
+cells of W/48 and rows exactly one em apart — measured in the live smoke:
+advance per character 13.33 at font size 13.33. `font: "c64"` on a text
+drawable selects it (svg-backend), `figure-style.ts` declares it from three
+URLs (the app's root, a subpath build, drawcast.app for embeds — CORS on
+`/fonts/*` in netlify.toml), the video export inlines it beside Patrick
+Hand, and the first paint waits for it.
+
+**Two lints learned the grid.** A text in the C64 face measures one em per
+cell and one em tall (geometry.ts); two rows of the face touching by
+construction are not an overlap; and its readable floor is 11 units, not
+the handwriting's 14 — an 8 × 8 pixel glyph fills its cell.
+
+Found on the way and fixed: the font first landed in the wrong folder
+(the shell's cwd had been reset), which the browser reported as an OTS
+parsing error — the served file was index.html.
+
 ## M3 — the original plan (kept for the record)
 
 Our own CBM BASIC V2 in TypeScript as `language: "basic"`, written from the

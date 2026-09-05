@@ -117,7 +117,13 @@ describe("the facade", () => {
     const res = await run({ language: "basic", code: '10 T=0\n20 FOR I=0 TO 9:T=T+I:NEXT\n30 N$="OK"\n40 PRINT T', paths: ["T", "n$", "Z"] });
     expect(res.ok).toBe(true);
     expect(res.stdout).toBe(" 45 ");
-    expect(res.screen?.chars[0].trimEnd()).toBe(" 45");
+    // The screen shows what the machine's would after LIST … RUN: the listing,
+    // RUN, then the output — stdout stays the program's own.
+    const rows = res.screen!.chars.map((r) => r.trimEnd());
+    expect(rows[0]).toBe("10 T=0");
+    expect(rows[3]).toBe("40 PRINT T");
+    expect(rows[4]).toBe("RUN");
+    expect(rows[5]).toBe(" 45");
     expect(res.data).toEqual({ T: 45, n$: "OK" });
     expect(res.dataErrors).toEqual({ Z: "no variable Z" });
   });
@@ -137,14 +143,21 @@ describe("the layout draws the screen a run left", () => {
   test("the field takes the program's colours and every run of text is ink in its own colour", () => {
     const l = layoutSpec(spec('10 POKE 53280,0:POKE 53281,5\n20 PRINT "HELLO";CHR$(5);" THERE"'), heuristicMeasure);
     const all = flattenDrawables(l.drawables);
-    expect((all.find((d) => d.id === "b__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[0]);
-    expect((all.find((d) => d.id === "b__screen") as AreaDrawable).style.fill).toBe(C64_PALETTE[5]);
+    // The machine's own field (the boot colours) is under the run's, which
+    // repaints in the program's colours — the run is its own beat.
+    expect((all.find((d) => d.id === "b__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[14]);
+    expect((all.find((d) => d.id === "b__run__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[0]);
+    expect((all.find((d) => d.id === "b__run__screen") as AreaDrawable).style.fill).toBe(C64_PALETTE[5]);
     const texts = all.filter((d) => d.kind === "text" && d.id.startsWith("b__scr")) as TextDrawable[];
     expect(texts.map((t) => [t.text, t.style.color])).toEqual([
       ["HELLO", C64_PALETTE[14]],
       ["THERE", C64_PALETTE[1]],
     ]);
-    expect(all.some((d) => d.id.startsWith("b__boot"))).toBe(false); // a run replaces the boot screen
+    expect(all.some((d) => d.id.startsWith("b__boot"))).toBe(false); // a program on the machine: no boot screen
+    // The listing is typed onto the screen as its own beats, in the machine's face.
+    const line1 = all.find((d) => d.id === "b_line_1") as TextDrawable;
+    expect(line1.font).toBe("c64");
+    expect(line1.text).toBe("10 POKE 53280,0:POKE 53281,5");
     expect(all.some((d) => d.id === "b__play")).toBe(false); // no game, no play mark
   });
 });

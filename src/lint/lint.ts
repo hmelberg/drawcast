@@ -12,6 +12,8 @@ import { resolveGame } from "../code/c64-catalogue";
 import { scanDataTokens } from "../code/tokens";
 
 export const FONT_FLOOR = 14;
+/** The floor for the Commodore 64 face: a pixel glyph the size of its cell. */
+export const C64_FONT_FLOOR = 11;
 const CANVAS_TOLERANCE = 2;
 
 export interface LintIssue {
@@ -130,7 +132,10 @@ export function lintLayoutDetailed(
   const coexist = (a: string, b: string) => together(owner.get(a) ?? a, owner.get(b) ?? b);
 
   for (const t of texts) {
-    if (t.fontSize < FONT_FLOOR) {
+    // The C64 face fills its whole em square with an 8 × 8 pixel glyph, so a
+    // cell of 11 units reads where the handwriting needs 14 — and a 40-column
+    // screen at a sane width lands between the two.
+    if (t.fontSize < (t.font === "c64" ? C64_FONT_FLOOR : FONT_FLOOR)) {
       issues.push({
         rule: "font-too-small",
         ids: [t.id],
@@ -181,6 +186,9 @@ export function lintLayoutDetailed(
     for (let j = i + 1; j < texts.length; j++) {
       if (clippedAway(texts[j], bboxOfText(texts[j], measure))) continue;
       if (!coexist(texts[i].id, texts[j].id)) continue;
+      // Two rows of a Commodore screen are cells on a grid, one em apart: they
+      // touch by construction and never overlap. The 2-unit pad is for labels.
+      if (texts[i].font === "c64" && texts[j].font === "c64") continue;
       const a = bboxOfText(texts[i], measure);
       const b = bboxOfText(texts[j], measure);
       if (boxesOverlap(a, b, 2)) {

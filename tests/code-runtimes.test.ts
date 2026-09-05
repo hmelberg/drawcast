@@ -88,7 +88,8 @@ describe("dispatch — node has no browser, so every browser runtime degrades to
     const res = await runCode({ language: "basic", code: "10 PRINT 1+1" }, { cacheGet: async () => null, cachePut: async () => {} });
     expect(res.ok).toBe(true);
     expect(res.stdout).toBe(" 2 ");
-    expect(res.screen?.chars[0].trimEnd()).toBe(" 2");
+    // The screen shows the listing, RUN, then the answer — as the machine's would.
+    expect(res.screen?.chars.map((r) => r.trimEnd()).slice(0, 3)).toEqual(["10 PRINT 1+1", "RUN", " 2"]);
   });
 });
 

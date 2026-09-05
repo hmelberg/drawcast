@@ -41,7 +41,7 @@ describe("what the layout draws for a switched-on machine", () => {
     expect(Math.max(...sx)).toBeLessThan(Math.max(...bx));
     const ready = leaf({}, "c64__boot2") as TextDrawable;
     expect(ready.text).toBe("READY.");
-    expect(ready.font).toBe("mono");
+    expect(ready.font).toBe("c64"); // the machine's own face, one em square per cell
     expect(ready.style.color).toBe(C64_PALETTE[C64_TEXT]);
     expect((leaf({}, "c64__boot0") as TextDrawable).text).toContain("COMMODORE 64 BASIC V2");
   });

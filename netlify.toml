@@ -7,3 +7,12 @@
 [build]
   command = "npm test && npm run build"
   publish = "dist"
+
+# The Commodore 64 face is fetched cross-origin by pages that embed the
+# engine (the engine build ships no public folder), and a font is a
+# CORS-checked resource — without this header the browser refuses it.
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=31536000, immutable"

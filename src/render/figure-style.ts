@@ -19,7 +19,21 @@ export const CAPTION_BAND = { ink: [24, 20, 16], alpha: 0.6 } as const;
 const BAND = `rgba(${CAPTION_BAND.ink.join(", ")}, ${CAPTION_BAND.alpha})`;
 const BAND_CLEAR = `rgba(${CAPTION_BAND.ink.join(", ")}, 0)`;
 
+/** Where the C64 face lives: the app's own copy first, drawcast's published
+ *  one for a page that embeds the engine (the engine build ships no public
+ *  folder — the mdlib pattern). */
+export const C64_FONT_URLS = [
+  "/fonts/c64/C64_Pro_Mono-STYLE.woff2", // the app at its root (drawcast.app, netlify dev)
+  "fonts/c64/C64_Pro_Mono-STYLE.woff2", // a build under a subpath (hmelberg.github.io/drawcast/)
+  "https://drawcast.app/fonts/c64/C64_Pro_Mono-STYLE.woff2", // a page embedding the engine (CORS is on for /fonts/* in netlify.toml)
+] as const;
+
 const FIGURE_CSS = `
+@font-face {
+  font-family: 'C64 Pro Mono';
+  src: ${C64_FONT_URLS.map((u) => `url(${u}) format('woff2')`).join(", ")};
+  font-display: swap;
+}
 .cs-stage {
   position: relative;
   width: 100%;
