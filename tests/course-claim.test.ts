@@ -1,19 +1,19 @@
-// The claim (teachers round, spec §3/§5) and the join-box checkbox's rule.
+// The claim (teachers round, spec §3/§5) and the Join-door checkbox's rule.
 // Pure halves here; Task 3 appends the source guards for the DOM wiring.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { applyJoinBox, courseRegistration } from "../src/course/publish";
+import { applyJoinDoor, courseRegistration } from "../src/course/publish";
 import { DEFAULT_ENROLL_API } from "../src/learn";
 import { claimCourse, claimNote, courseClaim, nameNote, registerName, type ClaimOutcome, type CourseClaim } from "../src/names";
 
 const REPO = { owner: "hmelberg", repo: "dcast" };
 
-describe("applyJoinBox", () => {
+describe("applyJoinDoor", () => {
   const DOC = "# Learn Russian\nslug: russian\n\n## A\nq\n";
 
   test("on writes the default app into a document without enroll:", () => {
-    const out = applyJoinBox(DOC, true);
+    const out = applyJoinDoor(DOC, true);
     expect(parseCourse(out).enroll).toBe(DEFAULT_ENROLL_API);
     expect(out).toContain(`enroll: ${DEFAULT_ENROLL_API}`);
     expect(out.indexOf("enroll:")).toBeLessThan(out.indexOf("## A"));
@@ -21,21 +21,21 @@ describe("applyJoinBox", () => {
 
   test("on leaves a custom enroll: URL alone — the checkbox only manages the default app", () => {
     const custom = "# T\nenroll: https://my-own.anvil.app\n\n## A\nq\n";
-    expect(applyJoinBox(custom, true)).toBe(custom);
+    expect(applyJoinDoor(custom, true)).toBe(custom);
   });
 
   test("off removes the line, whatever URL it carried", () => {
-    expect(parseCourse(applyJoinBox(applyJoinBox(DOC, true), false)).enroll).toBeUndefined();
-    expect(applyJoinBox(applyJoinBox(DOC, true), false)).toBe(DOC);
-    expect(applyJoinBox("# T\nenroll: https://my-own.anvil.app\n\n## A\nq\n", false)).toBe("# T\n\n## A\nq\n");
+    expect(parseCourse(applyJoinDoor(applyJoinDoor(DOC, true), false)).enroll).toBeUndefined();
+    expect(applyJoinDoor(applyJoinDoor(DOC, true), false)).toBe(DOC);
+    expect(applyJoinDoor("# T\nenroll: https://my-own.anvil.app\n\n## A\nq\n", false)).toBe("# T\n\n## A\nq\n");
   });
 
   test("off on a document without enroll: is byte-identical", () => {
-    expect(applyJoinBox(DOC, false)).toBe(DOC);
+    expect(applyJoinDoor(DOC, false)).toBe(DOC);
   });
 
   test("the api argument is what gets written", () => {
-    expect(parseCourse(applyJoinBox(DOC, true, "https://other.anvil.app")).enroll).toBe("https://other.anvil.app");
+    expect(parseCourse(applyJoinDoor(DOC, true, "https://other.anvil.app")).enroll).toBe("https://other.anvil.app");
   });
 });
 
@@ -153,28 +153,40 @@ describe("registerName learns the registry's new 403", () => {
   });
 });
 
-describe("the join-box checkbox and the claim are wired (source guards — no jsdom here)", () => {
+describe("the Join-door checkbox and the claim are wired (source guards — no jsdom here)", () => {
   const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
   const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
   const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
 
   test("Share offers the box for a course only, seeded from the document, and sends the choice", () => {
     expect(share).toMatch(/id: "share-allow-signup"/);
-    expect(share).toMatch(/Allow sign-up on the course page/);
+    // The label names what the page carries now — a door, not the join box
+    // the identity round removed — and the old wording is gone with it.
+    expect(share).toMatch(/Join door on the course page/);
+    expect(share).not.toMatch(/Allow sign-up/);
     expect(share).toMatch(/signupLabel\.hidden = subject !== "course"/);
-    expect(share).toMatch(/signupCb\.checked = doc\.joinBox === true/);
+    expect(share).toMatch(/signupCb\.checked = doc\.joinDoor === true/);
     expect(share).toMatch(/allowSignup: deps\.subject === "course" \? signupCb\.checked : undefined/);
-    expect(share).toMatch(/joinBox\?:\s*boolean/);
+    expect(share).toMatch(/joinDoor\?:\s*boolean/);
   });
 
-  // F2: unchecking the join box deletes the course document's `enroll:` line
+  // F2: unchecking the Join door deletes the course document's `enroll:` line
   // — the only record of an author's own Anvil backend. The hint has to name
-  // that URL before the delete, not after.
-  test("Share names the author's own enroll URL in the hint, so unchecking is never silent (F2)", () => {
+  // that URL before the delete, not after — and, since the identity round,
+  // say what that server gets: nothing. The viewer sends a learner's session
+  // token to the drawcast server and nowhere else, so a server of the
+  // author's own is not reported to, and the page gets no Join link.
+  test("Share names the author's own enroll URL in the hint and says it is not reported to, so unchecking is never silent and the line never oversells (F2)", () => {
     expect(share).toMatch(/enrollUrl\?:\s*string/);
     expect(share).toMatch(/import \{ DEFAULT_ENROLL_API \} from "\.\.\/learn"/);
     expect(share).toMatch(/doc\.enrollUrl && doc\.enrollUrl !== DEFAULT_ENROLL_API/);
-    expect(share).toMatch(/your own app: \$\{doc\.enrollUrl\}/);
+    expect(share).toMatch(/enroll: \$\{doc\.enrollUrl\} names a server of your own/);
+    expect(share).toMatch(/reports progress to the drawcast server only/);
+    expect(share).toMatch(/unchecking removes the line from the course document/);
+    expect(share).not.toMatch(/your own app: /);
+    // The default hint says where progress goes too, and no longer speaks of a code.
+    expect(share).toMatch(/SIGNUP_HINT_DEFAULT =\s*"[^"]*go to the drawcast server/);
+    expect(share).not.toMatch(/course code/);
     // The hint is re-derived per document, like the checkbox itself — not set
     // once at build time.
     const refresh = share.slice(share.indexOf("function refreshSignupChoice("), share.indexOf("const linkPanel ="));
@@ -182,28 +194,45 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
   });
 
   test("the course panel seeds the box from enroll: and applies the choice to the text BEFORE publishing", () => {
-    expect(course).toMatch(/joinBox: course\.enroll !== undefined/);
+    expect(course).toMatch(/joinDoor: course\.enroll !== undefined/);
     expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
-    expect(publishFn).toMatch(/applyJoinBox\(doc\.value, allowSignup\)/);
-    expect(publishFn.indexOf("applyJoinBox(")).toBeLessThan(publishFn.indexOf("await publishCourse("));
-    // The text handed to publishCourse is the one the choice was applied to.
-    expect(publishFn).toMatch(/publishCourse\(\{\s*text,/);
+    expect(publishFn).toMatch(/applyJoinDoor\(doc\.value, allowSignup\)/);
+    expect(publishFn.indexOf("applyJoinDoor(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
+    // The text handed to the publish is the one the choice was applied to.
+    expect(publishFn).toMatch(/const publishArgs: PublishArgs = \{\s*text,/);
+    expect(publishFn).toMatch(/preparePublish\(publishArgs\)/);
+    expect(publishFn).toMatch(/commitPublish\(publishArgs, prepared, door\)/);
   });
 
-  test("the claim runs after the commit landed and BEFORE the name, which is registered on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
-    const after = course.slice(course.indexOf("await publishCourse("));
+  test("the claim and the name run BETWEEN the reads and the commit, claim first, the name on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
+    const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    const prepare = publishFn.indexOf("await preparePublish(");
+    const claim = publishFn.indexOf("claimCourse(");
+    const name = publishFn.indexOf("registerName(");
+    const commit = publishFn.indexOf("await commitPublish(");
+    expect(prepare).toBeGreaterThan(0);
     // `accountToken`, not `token`: in this scope `token` is the GitHub one.
-    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(accountToken, reg\)/);
-    expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
-    // F3: the condition and the ordering are pinned as two separate
-    // assertions, neither coupled to how the statement wraps across lines —
-    // the ordering assertion alone already carries the real guarantee (claim
-    // before name), and the condition assertion just needs the text to exist
-    // somewhere in the function, not glued to `registerName(` on one line.
-    expect(after.indexOf("claimCourse(")).toBeLessThan(after.indexOf("registerName("));
-    expect(after).toMatch(/claimNote\(/);
-    expect(after).toMatch(/claimed === "ok" \|\| claimed === "error"/);
+    expect(publishFn).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(accountToken, reg\)/);
+    expect(claim).toBeGreaterThan(prepare);
+    expect(name).toBeGreaterThan(claim);
+    expect(commit).toBeGreaterThan(name);
+    expect(publishFn).toMatch(/claimNote\(/);
+    expect(publishFn).toMatch(/claimed === "ok" \|\| claimed === "error"/);
+  });
+
+  test("the page's door is built ONLY from a name that came back ok — a taken name would send a learner into a stranger's run", () => {
+    const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    expect(publishFn).toMatch(/let door: Door = \{ name: null, why: "signed-out" \};/);
+    expect(publishFn).toMatch(/door = named === "ok" \? \{ name: reg\.name, app: settings\.viewerBase \} : \{ name: null, why: DOORLESS\[named\] \};/);
+    // A name under the floor is never sent, and is reported as short, not invalid.
+    expect(publishFn).toMatch(/if \(isRegistrable\(reg\.name\)\)/);
+    expect(publishFn).toMatch(/names need at least \$\{MIN_NAME_LENGTH\} characters/);
+    expect(publishFn).toMatch(/why: short \? "short" : "invalid"/);
+    // A refused claim is a doorless page too, with the claim's own reason.
+    expect(publishFn).toMatch(/why: claimed === "owner" \? "owner" : claimed === "key" \? "signed-out" : "unreachable"/);
+    // The registry's every non-ok answer has a reason — the map is total over the union (tsc), and it never maps anything to a door.
+    expect(course).toMatch(/const DOORLESS: Record<Exclude<Awaited<ReturnType<typeof registerName>>, "ok">, DoorlessReason> = \{/);
   });
 
   test("Settings → Publishing says what signing in does now, and no longer speaks of an author key", () => {

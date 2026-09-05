@@ -5,7 +5,8 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { applyJoinBox, courseRegistration, publishCourse } from "../course/publish";
+import { applyJoinDoor, commitPublish, preparePublish, type PublishArgs } from "../course/publish";
+import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
 import { estimateCalls, runCourse } from "../course/run";
@@ -23,9 +24,23 @@ import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { stampedVoice, synthesizeBase64, voiceLang } from "../export/tts";
 import { joinPath } from "../course/publish";
-import { claimCourse, claimNote, courseClaim, nameNote, registerName } from "../names";
+import { claimCourse, claimNote, courseClaim, isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken } from "../account";
+
+/**
+ * Why the published page gets no door, per the registry's answer to the name
+ * (identity round): a registered name is the ONLY door, so every other
+ * answer is a sentence on the page instead of a link.
+ */
+const DOORLESS: Record<Exclude<Awaited<ReturnType<typeof registerName>>, "ok">, DoorlessReason> = {
+  taken: "taken",
+  owner: "owner",
+  key: "signed-out",
+  invalid: "invalid",
+  rate: "unreachable",
+  error: "unreachable",
+};
 import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
 import { resolvePortraits } from "../render/portrait";
@@ -856,11 +871,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       say("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
       return;
     }
-    // The join-box choice is applied to the TEXT first, so the copy that goes
+    // The Join-door choice is applied to the TEXT first, so the copy that goes
     // out and the copy written back (out.text) agree on the enroll: line. The
     // editor's own document changes only when the commit lands, with the rest
     // of the bookkeeping below.
-    const text = allowSignup === undefined ? doc.value : applyJoinBox(doc.value, allowSignup);
+    const text = allowSignup === undefined ? doc.value : applyJoinDoor(doc.value, allowSignup);
     const course = parseCourse(text);
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
@@ -903,7 +918,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       };
       const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);
-      const out = await publishCourse({
+      const publishArgs: PublishArgs = {
         text,
         repo,
         token,
@@ -912,39 +927,29 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         lectureYaml: publishText,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
         onUpload: (done, total) => working(done < total ? `Uploading to GitHub — file ${done + 1}/${total}…` : "Committing…"),
-      });
-      // Past this line the commit has LANDED. Anything that fails below is
-      // local bookkeeping, and reporting it as "Publish failed" would send the
-      // user hunting for files that are already in their repository.
-      publishedViews = countViews !== false;
-      const firstTime = !published.has(settings.githubRepo);
-      published.add(settings.githubRepo);
-      // Bookkeeping BEFORE the registry: writing the permanent file names back
-      // into the document is what keeps the links in it pointing at the files
-      // that were just committed, and a slow (or hanging) registry call in
-      // front of it would leave them orphaned for as long as it lasted.
-      let bookkeeping: Error | null = null;
-      try {
-        checkpoint();
-        doc.value = out.text; // now carries each lecture's permanent file name
-        persist();
-        render();
-      } catch (err) {
-        console.error("drawcast: publish succeeded, bookkeeping failed", err);
-        bookkeeping = err as Error;
-      }
-      // Only now, with the commit landed, is there something for a
-      // drawcast.app/#name to point at. Signed out, no registration —
-      // publishing is complete either way, so a registry that is down or a
-      // name someone else already owns never turns a successful publish into
-      // a failed one; it only changes the note at the end of the line. The
-      // timeout is what keeps that promise: an unreachable registry costs ten
-      // seconds, not the rest of the session.
+      };
+      const prepared = await preparePublish(publishArgs);
+      // The registry BEFORE the commit (identity round): the page's door is
+      // built only from a name THIS publish registered. A name that comes
+      // back taken would otherwise ship a Join button into a stranger's run
+      // — the learner's address and answers to someone else — and a name
+      // under the floor, or a signed-out publish, a door to "No drawcast
+      // called …". The slug and the page URL are known from the plan before
+      // anything is written; a name registered for a publish that then fails
+      // is ours and recoverable, a door into a stranger's course is neither.
+      // Signed out there is no registration and no door. Publishing is
+      // complete either way: a registry that is down or a name someone else
+      // owns never turns a publish into a failure — it changes the page's
+      // join section and the note at the end of the line. The timeout keeps
+      // that promise: an unreachable registry costs ten seconds, not the
+      // rest of the session.
       let nameSuffix = "";
+      let door: Door = { name: null, why: "signed-out" };
       // `token` above is the GitHub one; this is the drawcast server's.
       const accountToken = getToken();
-      const reg = accountToken ? courseRegistration(parseCourse(out.text), repo, settings.coursesDir, out.courseUrl) : null;
+      const reg = accountToken ? prepared.registration : null;
       if (accountToken && reg) {
+        working("Registering the course…");
         const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
         // The claim FIRST (teachers round, spec §5): publishing signed in is
         // what makes the author the course's owner in the teacher dashboard,
@@ -960,7 +965,43 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         // row (spec's own belt-and-braces). "owner", "key" and "invalid" ARE
         // explicit answers, so the name step never runs for them — and
         // neither does "rate": the registry is refusing calls, not unsure.
-        if (claimed === "ok" || claimed === "error") nameSuffix += nameNote(await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded), reg.name);
+        if (claimed === "ok" || claimed === "error") {
+          if (isRegistrable(reg.name)) {
+            const named = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded);
+            nameSuffix += nameNote(named, reg.name);
+            door = named === "ok" ? { name: reg.name, app: settings.viewerBase } : { name: null, why: DOORLESS[named] };
+          } else {
+            // A name under the floor is not sent (main.ts does the same for
+            // a cast): the registry would answer 400 and nameNote would call
+            // the name invalid, which it is not — it is short.
+            const short = normalizeName(reg.name) !== null;
+            nameSuffix += short
+              ? ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters — set a longer name: in the course document`
+              : nameNote("invalid", reg.name);
+            door = { name: null, why: short ? "short" : "invalid" };
+          }
+        } else {
+          door = { name: null, why: claimed === "owner" ? "owner" : claimed === "key" ? "signed-out" : "unreachable" };
+        }
+      }
+      const out = await commitPublish(publishArgs, prepared, door);
+      // Past this line the commit has LANDED. Anything that fails below is
+      // local bookkeeping, and reporting it as "Publish failed" would send the
+      // user hunting for files that are already in their repository.
+      publishedViews = countViews !== false;
+      const firstTime = !published.has(settings.githubRepo);
+      published.add(settings.githubRepo);
+      // Writing the permanent file names back into the document is what keeps
+      // the links in it pointing at the files that were just committed.
+      let bookkeeping: Error | null = null;
+      try {
+        checkpoint();
+        doc.value = out.text; // now carries each lecture's permanent file name
+        persist();
+        render();
+      } catch (err) {
+        console.error("drawcast: publish succeeded, bookkeeping failed", err);
+        bookkeeping = err as Error;
       }
       if (bookkeeping) {
         say(
@@ -1076,8 +1117,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           lectureCount: course.lectures.length,
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
           publishedViews,
-          // The join box's current state, straight from the document (spec §5).
-          joinBox: course.enroll !== undefined,
+          // Whether the page carries its Join door, straight from the document (spec §5).
+          joinDoor: course.enroll !== undefined,
           // What unchecking would delete — an author running their own Anvil
           // app is the one who needs to see this before the line is gone (F2).
           enrollUrl: course.enroll,

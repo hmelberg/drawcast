@@ -16,12 +16,10 @@ import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
-import { getToken } from "./account";
-import {
-  apiBase, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, forgetLearner, learnerFor, normalizeCode, reportingAllowed, saveLearner, sendEvent, stripLearnerParam,
-  type LearnerEntry,
-} from "./learn";
-import { anvilHashFor, nameInHash, resolveName } from "./names";
+import { getToken, setToken, signInUrl } from "./account";
+import { apiBase, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent } from "./learn";
+import type { JoinOutcome, JoinRequest } from "./learn";
+import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -55,8 +53,6 @@ export interface ViewerRequest {
   speed: number;
   /** Override of the playlist's advance mode (kiosk/loop playback). */
   advance?: "click" | "auto";
-  /** A course code arriving on the link (spec §1); stored, then stripped from the URL. */
-  learner?: string;
 }
 
 /**
@@ -159,7 +155,6 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     mode: (mode === "silent" || mode === "instant" ? mode : "narrated") as ViewerRequest["mode"],
     speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
     advance: (advance === "auto" || advance === "click" ? advance : undefined) as ViewerRequest["advance"],
-    learner: normalizeCode(params.get("learner")) ?? undefined,
   };
 
   if (anv) {
@@ -176,59 +171,6 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     return { driveId: drive[1], ...common };
   }
   return { docId: doc![1], ...common };
-}
-
-/**
- * The 🎓 control (spec §5): shows who this browser reports as for the
- * current course, lets a learner paste a code from their email, or stop.
- * A change reloads — the session captured the learner at mount, and a
- * reload is the honest way to re-wire everything.
- */
-export function learnerButton(courseKey: string, entry: LearnerEntry | null, api: string | undefined, storage: Storage | null): HTMLElement {
-  const btn = h("button", { class: "cs-bar-btn", title: entry ? `Reporting as ${entry.name ?? entry.code}` : "Course code…" }, "🎓");
-  const panel = h("div", { class: "menu-panel learner-panel", hidden: "" });
-  const root = h("span", { class: "menu" }, btn, panel);
-  const status = h("div", { class: "learner-status" }, entry ? `You are ${entry.name ?? entry.code}` : "Paste the course code from your email:");
-  const input = h("input", { class: "learner-input", placeholder: "fjell-rev-havn", value: "" }) as HTMLInputElement;
-  const use = h("button", { class: "cs-bar-btn", type: "button" }, "Use this code");
-  const stop = h("button", { class: "cs-bar-btn", type: "button" }, "Stop reporting");
-  use.addEventListener("click", () => {
-    const code = normalizeCode(input.value);
-    if (!code) {
-      status.textContent = "That is not a course code (three words, like fjell-rev-havn).";
-      return;
-    }
-    saveLearner(storage, courseKey, { code, api: api ?? entry?.api ?? "", name: null });
-    location.reload();
-  });
-  stop.addEventListener("click", () => {
-    forgetLearner(storage, courseKey);
-    location.reload();
-  });
-  panel.append(status, input, use);
-  if (entry) panel.append(stop);
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    panel.hidden = !panel.hidden;
-  });
-  panel.addEventListener("click", (e) => e.stopPropagation());
-  const onDocClick = (e: MouseEvent): void => {
-    if (panel.hidden) return;
-    if (e.target instanceof Node && (panel.contains(e.target) || btn.contains(e.target))) return;
-    panel.hidden = true;
-    e.stopPropagation();
-  };
-  document.addEventListener("click", onDocClick, true);
-  return root;
-}
-
-/** localStorage can throw on mere access in private-mode Safari, not just on use. */
-function safeLocalStorage(): Storage | null {
-  try {
-    return localStorage;
-  } catch {
-    return null;
-  }
 }
 
 /** Fetch the doc text via the public export endpoints (doc must be link-shared). */
@@ -385,17 +327,16 @@ export async function runNamed(hash: string): Promise<void> {
   const status = h("p", { class: "viewer-status" }, "Looking up the name…");
   document.body.append(status);
   const resolved = name ? await resolveName(DEFAULT_ENROLL_API, name) : null;
-  if (!resolved) {
+  if (!name || !resolved) {
     status.textContent = `No drawcast called "${name ?? hash}".`;
     status.classList.add("error");
     return;
   }
   if (resolved.kind === "course") {
-    if (resolved.page) location.replace(resolved.page);
-    else {
-      status.textContent = "This course has no page to open.";
-      status.classList.add("error");
-    }
+    // The door, not a bounce to the course's page: the page links HERE, so
+    // a redirect would send a learner who just clicked Join straight back to
+    // where they came from.
+    status.replaceWith(courseDoor(name, resolved));
     return;
   }
   // Parse BEFORE clearing the lookup status: a malformed registry entry
@@ -409,6 +350,81 @@ export async function runNamed(hash: string): Promise<void> {
   }
   status.remove();
   await runViewer(req);
+}
+
+/**
+ * The course view at drawcast.app/#<name> (spec §3, §8): the one place a
+ * learner joins. Signed in, joining is one click — the account is the name
+ * and the address, so there is no form. Signed out, the button says so, and
+ * the handshake brings the person back to this very address; a bare
+ * `#<name>` is the one return even the server's strictest rule admits. The
+ * course's own page — the static one with the lectures — is linked either
+ * way, so the name still reaches the course for someone who only wants to
+ * look.
+ *
+ * The registry answers with a pointer, not a title (spec §8), so the name
+ * stands in for one on screen and in the /enroll body. The server ignores
+ * title and page for a course row that exists — and a course a name points
+ * at always exists, because registering the name claimed it.
+ *
+ * Everything the door touches outside itself is injected (DoorDeps), so the
+ * node suite can drive it end to end (tests/course-door.test.ts); the live
+ * set below is what runNamed uses.
+ */
+export interface DoorDeps {
+  /** The session token, or "" signed out. */
+  token: () => string;
+  /** Drop a token the server no longer knows. */
+  forget: () => void;
+  /** Leave for the sign-in handshake; it returns to this very address. */
+  signIn: () => void;
+  join: (key: string, req: JoinRequest) => Promise<JoinOutcome>;
+}
+
+const liveDoorDeps: DoorDeps = {
+  token: getToken,
+  forget: () => setToken(""),
+  signIn: () => {
+    location.href = signInUrl(location.href);
+  },
+  // Bounded like every registry call: a sleeping backend costs ten seconds,
+  // not the visit.
+  join: (key, req) =>
+    joinCourse(DEFAULT_ENROLL_API, key, req, (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })),
+};
+
+export function courseDoor(name: string, resolved: Resolved, deps: DoorDeps = liveDoorDeps): HTMLElement {
+  const title = name.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
+  const heading = h("h1", { class: "viewer-title" }, title);
+  const note = h("p", { class: "viewer-status" }, "Joining lets you and the course's teachers follow your progress and answers.");
+  const button = h("button", { class: "primary" }, deps.token() === "" ? "Sign in to join" : "Join this course");
+  const wrap = h("div", { class: "viewer-wrap" }, heading, note, h("p", {}, button));
+  if (resolved.page) wrap.append(h("p", {}, h("a", { href: resolved.page }, "Open the course page")));
+  button.addEventListener("click", () => {
+    const key = deps.token();
+    if (key === "") {
+      deps.signIn();
+      return;
+    }
+    button.disabled = true;
+    void deps.join(key, { course: resolved.target, title, page: resolved.page ?? `https://drawcast.app/#${name}` }).then((outcome) => {
+      note.textContent = joinNote(outcome);
+      note.classList.toggle("error", outcome !== "ok");
+      button.hidden = outcome === "ok";
+      button.disabled = false;
+      // Joined, with no page in the registry to send them to: the first
+      // lecture is the other thing a name reaches (`#<name>/1`, names.ts),
+      // so there is always something to click next.
+      if (outcome === "ok" && !resolved.page) wrap.append(h("p", {}, h("a", { href: `#${name}/1` }, "Start with the first lecture")));
+      // A token the server no longer knows is dead in this browser too: drop
+      // it, so the next click is the sign-in the note just asked for.
+      if (outcome === "key") {
+        deps.forget();
+        button.textContent = "Sign in to join";
+      }
+    });
+  });
+  return wrap;
 }
 
 export async function runViewer(req: ViewerRequest): Promise<void> {
@@ -528,46 +544,30 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         if (typeof count === "number") viewsEl.textContent = `${count.toLocaleString()} ${count === 1 ? "view" : "views"}`;
       });
     }
-    // Learners (spec §1, §4): remember an arriving code, then report for the
-    // course this cast belongs to — but only to the app that issued the code.
-    let learner: LearnerEntry | null = null;
-    let learnerCast = "";
-    const trailing: HTMLElement[] = [];
-    // The identity reported under: a GitHub key or the server's own — both
-    // `a/b/<path>`, so the learner client takes either. Unlike counting above
-    // this goes to the authenticated backend, where the server's key belongs.
+    // Learners (spec §1, §3): the signed-in account reports, or nothing does.
+    // The identity reported under is the cast key — a GitHub key or the
+    // server's own, both `a/b/<path>`, so the learner client takes either.
+    // meta.enroll says the course tracks learners and WHICH server it
+    // reports to; a cast without it belongs to no course anyone joined, and
+    // a signed-in author previewing it should not fire `opened` at a server
+    // that can only answer 403. The token belongs to the app that issued
+    // it, so it goes to that app and nowhere else: a YAML naming another
+    // server gets neither a report nor a credential (this browser holds none
+    // for it), rather than becoming a way to collect session tokens.
     const castKey = req.anvil ? req.anvil.cast : req.gh ? castKeyFor(req.gh) : null;
-    if (castKey) {
-      learnerCast = castKey;
-      const courseKey = courseKeyOf(learnerCast);
-      const local = safeLocalStorage();
-      const enroll = playlist.meta.enroll ? apiBase(playlist.meta.enroll) : undefined;
-      if (req.learner) {
-        // Storing needs a backend to report to; CLEANING the address does not
-        // — a code that arrived on a cast without meta.enroll is still a code
-        // the next person to copy this link must not inherit.
-        if (enroll) saveLearner(local, courseKey, { code: req.learner, api: enroll, name: learnerFor(local, courseKey)?.name ?? null });
+    const enroll = playlist.meta.enroll ? apiBase(playlist.meta.enroll) : null;
+    const key = getToken();
+    const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" ? { api: enroll, key, cast: castKey } : null;
+    if (reporter) {
+      const session = (() => {
         try {
-          history.replaceState(null, "", stripLearnerParam(location.href));
+          return sessionStorage;
         } catch {
-          /* a copied address keeps the code; nothing else changes */
+          return null;
         }
-      }
-      const entry = learnerFor(local, courseKey);
-      if (reportingAllowed(entry, enroll)) {
-        learner = entry;
-        const session = (() => {
-          try {
-            return sessionStorage;
-          } catch {
-            return null;
-          }
-        })();
-        if (firstOpenInSession(learnerCast, session)) void sendEvent(learner, { kind: "opened", cast: learnerCast });
-      }
-      if (enroll || entry) trailing.push(learnerButton(courseKey, learner, enroll, local));
+      })();
+      if (firstOpenInSession(reporter.cast, session)) void sendEvent(reporter.api, { kind: "opened", cast: reporter.cast }, reporter.key);
     }
-    const reporter = learner;
     const settings = loadSettings();
     const speech = new CloudSpeech(
       () => (settings.cloudPlayback ? getTtsKey() : ""),
@@ -599,18 +599,18 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         onChange: (next) => saveSettings({ ...loadSettings(), captionsOn: next.on, captionLang: next.lang }),
         hasCloudVoice: settings.cloudPlayback && getTtsKey() !== "",
       },
-      controls: { speech, fullscreenEl: figureHost, trailing },
+      controls: { speech, fullscreenEl: figureHost },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),
       onAnswer: reporter
         ? (a, _item, index) => {
             // (item, step) together: a.index counts steps inside ONE playlist
             // item, and a generated lecture is one item per part (spec §4).
-            void sendEvent(reporter, { kind: "answer", cast: learnerCast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct });
+            void sendEvent(reporter.api, { kind: "answer", cast: reporter.cast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct }, reporter.key);
           }
         : undefined,
       onDone: reporter
         ? () => {
-            void sendEvent(reporter, { kind: "completed", cast: learnerCast });
+            void sendEvent(reporter.api, { kind: "completed", cast: reporter.cast }, reporter.key);
           }
         : undefined,
       advanceOverride: req.advance,

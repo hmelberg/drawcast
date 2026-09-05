@@ -190,15 +190,34 @@ describe("runViewer takes the fourth source through the same door as the others"
   });
   test("counting stays GitHub-only: a private cast's views are the teacher's business, not a public counter's", () => {
     // netlify/functions/views is public and ?repo= enumerates an owner; an
-    // anvil/ key there would list a private course's lectures to anyone.
-    expect(viewer).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*req\.gh\b/);
-    const counting = viewer.slice(viewer.indexOf("countingEnabled(playlist.meta)"), viewer.indexOf("let learner"));
-    expect(counting.length).toBeGreaterThan(0);
+    // anvil/ key there would list a private course's lectures to anyone
+    // (round 0's Critical). The property: the guard tests req.gh and NOTHING
+    // else — no anvil branch, no shared castKey, no `||` widening it.
+    expect(viewer).toMatch(/if \(countingEnabled\(playlist\.meta\) && req\.gh\) \{/);
+    expect(viewer).not.toMatch(/countingEnabled\(playlist\.meta\)[^\n]*(req\.anvil|castKey|\|\|)/);
+    // …and the whole counting block, up to where the learner block begins,
+    // derives its key from req.gh alone. Both anchors must be found: a
+    // missing end anchor would slice to the end of the file and this test
+    // would fail for the wrong reason (it once did).
+    const start = viewer.indexOf("countingEnabled(playlist.meta)");
+    const end = viewer.indexOf("const castKey = req.anvil");
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    const counting = viewer.slice(start, end);
+    expect(counting).toMatch(/castKeyFor\(req\.gh\)/);
     expect(counting).not.toMatch(/req\.anvil|\bcastKey\b/);
   });
   test("learner reporting is keyed by the one castKey — server or GitHub — because it goes to the authenticated backend", () => {
+    // One key for both sources, decided once; the reporter carries it with
+    // the session token, and every event goes out under it. The public
+    // counter never sees this key (the test above), and this block never
+    // uses the counter's.
     expect(viewer).toMatch(/const castKey = req\.anvil \? req\.anvil\.cast : req\.gh \? castKeyFor\(req\.gh\) : null;/);
-    expect(viewer).toMatch(/if \(castKey\) \{\s*learnerCast = castKey;/);
+    expect(viewer).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey \} : null;/);
+    expect(viewer.match(/void sendEvent\(reporter\.api, \{ kind: "[a-z]+", cast: reporter\.cast/g)).toHaveLength(3);
+    const learners = viewer.slice(viewer.indexOf("const castKey = req.anvil"), viewer.indexOf("const settings = loadSettings();"));
+    expect(learners.length).toBeGreaterThan(0);
+    expect(learners).not.toMatch(/viewKey|recordView|readViewCount/);
   });
   test("comments stay GitHub-only: data-repo comes from the repository URL", () => {
     expect(viewer).toMatch(/playlist\.meta\.comments && req\.gh/);

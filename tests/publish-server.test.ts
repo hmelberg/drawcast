@@ -193,8 +193,13 @@ describe("the drawcast server in Share", () => {
     expect(panel).toMatch(/serverAccess\.value === "open" \? "open" : "enrolled"/);
     expect(share).toContain('serverAccess.value = "enrolled";');
   });
-  test("narration defaults OFF on the server (spec §4), through the SAME builder the other panels use", () => {
-    expect(share).toContain('buildEmbedChoices("server", false)');
+  test("narration is ticked by default on the server panel — storage is free, synthesis is not", () => {
+    // Round 0 measured the quota (plans/2026-09-05-round-0-measurements.md):
+    // 100 GB, no metered egress. Unbaked audio spends cloud TTS per student
+    // per lecture; baked audio is paid once. The default follows the money.
+    expect(share).toContain('buildEmbedChoices("server", true)');
+    expect(share).not.toContain('buildEmbedChoices("server", false)');
+    // Through the SAME builder the other panels use, still gated on a TTS key.
     expect(share).toContain("bakeCb.checked = tts && bakeDefault;");
     // Declaration + three instantiations — still one copy of the rows.
     expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);
@@ -272,9 +277,10 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toContain("publish again");
   });
   test("the ORDINARY unticked publish says the same truth — it is a deletion, not a no-op", () => {
-    // Narration defaults off on this panel, and a spec write clears what the
-    // server held, so the silent path is the common one. The sentence is
-    // true whether or not anything was stored: the client cannot know.
+    // Narration defaults on now, so an unticked box is a deliberate act — and
+    // a spec write clears what the server held, so the consequence must be
+    // said. The sentence is true whether or not anything was stored: the
+    // client cannot know.
     expect(serverCast).toContain('out.audio === "none"');
     expect(serverCast).toContain("without narration — any narration stored there earlier is gone");
     // In the SAME status line as the address, on the ok path.

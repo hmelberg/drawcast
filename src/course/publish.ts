@@ -1,7 +1,11 @@
-// What a publish contains, and the one function that touches the network.
+// What a publish contains, and the two functions that touch the network.
 //
-// The plan is pure and tested; publishCourse is the thin orchestration around
-// it, so a second target (Drive) would replace that function alone.
+// The plan is pure and tested; preparePublish (reads) and commitPublish (the
+// one write) are the thin orchestration around it, split so the caller can
+// register the course's name BETWEEN them — the page's door is built from
+// that registration, never from a guess. publishCourse composes the two for
+// a caller with nothing to decide; a second target (Drive) would replace
+// these functions alone.
 
 import {
   commitFiles,
@@ -18,7 +22,7 @@ import {
 } from "../publish/github";
 import { formatPublished, parsePlaylistText } from "../playlist/playlist";
 import { parseCourse, removeCourseOption, setCourseOption, setLectureStatus, type Course } from "./document";
-import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type PageLink } from "./page";
+import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type Door, type PageLink } from "./page";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { normalizeName, type Registration } from "../names";
 
@@ -43,6 +47,17 @@ export function lectureCastKeys(course: Course, repo: { owner: string; repo: str
   return course.lectures.flatMap((l) => (l.status?.file ? [`${courseKeyFor(repo, dir)}/${l.status.file}`] : []));
 }
 
+/**
+ * The name a course answers to at drawcast.app/#<name> (spec §7): `name:` if
+ * set, else the slug. The registry is lower-case (names.ts); a name the rule
+ * rejects outright travels as written, so registerName can report it as
+ * invalid.
+ */
+export function courseNameFor(course: Pick<Course, "name">, slug: string): string {
+  const wanted = course.name ?? slug;
+  return normalizeName(wanted) ?? wanted;
+}
+
 /** What a course publish registers (spec §7): `name:` if set, else the slug. */
 export function courseRegistration(
   course: Course,
@@ -52,14 +67,10 @@ export function courseRegistration(
 ): Omit<Registration, "key"> | null {
   const slug = course.context.slug;
   // A course that has never been published has no slug yet, and so no name to
-  // register — the caller only ever asks AFTER a publish, which mints one.
+  // register — preparePublish records one before anyone asks.
   if (!slug) return null;
-  // `name: Learn-Russian` in the document is the same name as `learn-russian`
-  // — the registry is lower-case (names.ts). A name the rule rejects outright
-  // travels as written, so registerName can report it as invalid.
-  const wanted = course.name ?? slug;
   return {
-    name: normalizeName(wanted) ?? wanted,
+    name: courseNameFor(course, slug),
     kind: "course",
     target: courseKeyFor(repo, joinPath(coursesDir, slug)),
     page: pageUrl,
@@ -69,13 +80,14 @@ export function courseRegistration(
 }
 
 /**
- * The Share panel's "Allow sign-up on the course page" box, applied to the
+ * The Share panel's "Join door on the course page" checkbox, applied to the
  * document text before a publish (teachers round, spec §5). On: write the
  * default app's URL unless the author already typed an `enroll:` of their
- * own — the box manages the default app only, never someone's own backend.
- * Off: remove the line, whatever it carried, so the page loses its join box.
+ * own — the checkbox manages the default app only, never someone's own
+ * backend. Off: remove the line, whatever it carried, so the page loses its
+ * Join door — the one link into the app where a signed-in learner joins.
  */
-export function applyJoinBox(text: string, on: boolean, api: string = DEFAULT_ENROLL_API): string {
+export function applyJoinDoor(text: string, on: boolean, api: string = DEFAULT_ENROLL_API): string {
   const has = parseCourse(text).enroll !== undefined;
   if (on) return has ? text : setCourseOption(text, "enroll", api);
   return has ? removeCourseOption(text, "enroll") : text;
@@ -103,6 +115,13 @@ export interface PlanArgs {
   manifest: Manifest;
   /** The lecture's playlist YAML, or null when it has not been generated. */
   lectureYaml: (index: number) => string | null;
+  /**
+   * The page's door, decided by the caller from the name THIS publish
+   * registered (ui/course.ts, between preparePublish and commitPublish).
+   * Absent means no decision was made, and a page with `enroll:` then ships
+   * doorless and says so — it never links to a name nobody registered.
+   */
+  door?: Door;
 }
 
 export function buildPublishPlan(args: PlanArgs): PublishPlan {
@@ -112,6 +131,12 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
   const slug = course.context.slug || slugFor(course.title || "course", new Set());
   const dir = joinPath(coursesDir, slug);
   const enroll = course.enroll ? apiBase(course.enroll) : undefined;
+  // `enroll:` decides whether the page has a join section at all. A server of
+  // the author's own gets no door whatever the caller decided: the viewer
+  // reports to the drawcast server only (viewer.ts), so a door there would
+  // enrol learners nobody ever follows.
+  const door: Door | undefined =
+    enroll === undefined ? undefined : enroll !== DEFAULT_ENROLL_API ? { name: null, why: "elsewhere" } : (args.door ?? { name: null, why: "unregistered" });
 
   const taken = new Set<string>();
   const fileOf = new Map<number, string>();
@@ -170,15 +195,11 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
       title: lecture.title,
       questions: lecture.questions,
       href: lectureHref(viewerBase, repo.owner, repo.repo, joinPath(dir, name)),
-      cast: `${courseKeyFor(repo, dir)}/${name}`,
     });
   });
 
   files.push({ path: joinPath(dir, "course.md"), content: text });
-  files.push({
-    path: joinPath(dir, "index.html"),
-    content: coursePage(course, links, enroll ? { courseKey: courseKeyFor(repo, dir), enroll } : undefined),
-  });
+  files.push({ path: joinPath(dir, "index.html"), content: coursePage(course, links, door) });
   // github.com renders this one itself, so the course is shareable before
   // Pages is switched on — and if it never is.
   files.push({ path: joinPath(dir, "README.md"), content: courseReadme(course, links) });
@@ -237,7 +258,25 @@ export interface PublishResult {
   count: number;
 }
 
-export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
+/** Everything a publish knows before it writes: reads only, nothing committed. */
+export interface PreparedPublish {
+  /** The document with the slug and every file name recorded — what the commit carries. */
+  updated: string;
+  defaultBranch: string;
+  manifest: Manifest;
+  slug: string;
+  courseUrl: string;
+  /** What this publish registers (spec §7); null only for a document that could not be given a slug, which does not happen here. */
+  registration: Omit<Registration, "key"> | null;
+}
+
+/**
+ * The reads: the repo's branch and manifest, the slug and file names the
+ * commit will carry. The slug and the page URL are known here, before
+ * anything is written — which is what lets the caller claim and register
+ * the course's name first and build the page's door from the answer.
+ */
+export async function preparePublish(args: PublishArgs): Promise<PreparedPublish> {
   const { text, repo, token, coursesDir, viewerBase, lectureYaml } = args;
   const fetchImpl = args.fetchImpl ?? fetch;
 
@@ -257,15 +296,23 @@ export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
     const status = course.lectures[index].status;
     if (status) updated = setLectureStatus(updated, index, { ...status, file: name });
   }
-  const withNames = buildPublishPlan({
-    course: parseCourse(updated),
-    text: updated,
-    repo,
-    coursesDir,
-    viewerBase,
+  return {
+    updated,
+    defaultBranch,
     manifest,
-    lectureYaml,
-  });
+    slug: plan.slug,
+    courseUrl: plan.courseUrl,
+    registration: courseRegistration(parseCourse(updated), repo, coursesDir, plan.courseUrl),
+  };
+}
+
+/** The one write. `door` is what the caller decided from the registration — see PlanArgs.door. */
+export async function commitPublish(args: PublishArgs, prepared: PreparedPublish, door?: Door): Promise<PublishResult> {
+  const { repo, token, coursesDir, viewerBase, lectureYaml } = args;
+  const fetchImpl = args.fetchImpl ?? fetch;
+  const { updated, defaultBranch, manifest } = prepared;
+  const course = parseCourse(updated);
+  const withNames = buildPublishPlan({ course, text: updated, repo, coursesDir, viewerBase, manifest, lectureYaml, door });
 
   await commitFiles(
     repo,
@@ -286,4 +333,9 @@ export async function publishCourse(args: PublishArgs): Promise<PublishResult> {
     defaultBranch,
     count: withNames.files.length,
   };
+}
+
+/** Prepare and commit in one go, for a caller with no name to register between them. */
+export async function publishCourse(args: PublishArgs, door?: Door): Promise<PublishResult> {
+  return commitPublish(args, await preparePublish(args), door);
 }

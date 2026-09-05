@@ -44,9 +44,16 @@ describe("the viewer counts views", () => {
 
   test("the badge lives in a meta row under the figure, not in the title", () => {
     expect(withoutComments).toMatch(/class: "viewer-meta"/);
-    const wrap = /h\("div", \{ class: "viewer-wrap" \}([^)]*)\)/.exec(withoutComments);
+    // The PLAYER's wrap — runViewer's. The course door (courseDoor, identity
+    // round) has a viewer-wrap of its own earlier in the file with no figure
+    // in it, so the first match in the file is not the one with the badge.
+    const run = withoutComments.slice(withoutComments.indexOf("export async function runViewer("));
+    expect(run.length).toBeGreaterThan(0);
+    const wrap = /h\("div", \{ class: "viewer-wrap" \}([^)]*)\)/.exec(run);
     expect(wrap).not.toBeNull();
     const order = wrap![1];
+    expect(order.indexOf("figureHost")).toBeGreaterThan(-1);
+    expect(order.indexOf("metaEl")).toBeGreaterThan(-1);
     expect(order.indexOf("figureHost")).toBeLessThan(order.indexOf("metaEl"));
   });
 });

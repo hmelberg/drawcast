@@ -261,9 +261,15 @@ and bandwidth on the bytes. §15's quota question therefore matters more, not
 less, and round 0's measurement records the streamed cost rather than
 choosing between two paths.
 
-**Baked audio is a choice per course, default off on the server.** The
-publish dialog's existing narration choice applies to the new target
-unchanged. The arithmetic the author is choosing between:
+**Baked audio is a choice per course, default on — on the server too.** It
+was default off there until round 0 measured the quota
+(`docs/superpowers/plans/2026-09-05-round-0-measurements.md`): 100 GB of
+storage, a million rows, and no metered egress on any tier, so the 2.4 GB
+below costs nothing — while unbaked audio makes every student's browser
+synthesise every lecture through cloud TTS, once per student per lecture.
+Baking pays once, at publish. The publish dialog's existing narration choice
+applies to the new target unchanged. The arithmetic the author is choosing
+between:
 
 > A 30-student cohort through the HTA course, baked, is **≈ 2.4 GB egress**
 > (30 × 17 × 4.8 MB), once per student per lecture with the audio cached.

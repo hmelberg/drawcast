@@ -96,10 +96,11 @@ export interface ShareDoc {
   drivePublishedName?: string;
   /**
    * Whether the course document carries an `enroll:` line, i.e. whether the
-   * published course page shows the join box (learners round). Seeds the
-   * "Allow sign-up" checkbox; course only — undefined for a drawcast.
+   * published course page carries its Join door — the one link into the
+   * app where a signed-in learner joins (identity round, spec §8). Seeds
+   * the "Join door" checkbox; course only — undefined for a drawcast.
    */
-  joinBox?: boolean;
+  joinDoor?: boolean;
   /**
    * The `enroll:` URL the course document currently carries, when it is not
    * the default app — shown so an author with their own Anvil backend can
@@ -133,7 +134,7 @@ export interface ShareDeps {
    * single slug of its own). For a drawcast, editing the name mints a NEW
    * file at the new slug; the old one is never deleted (B3).
    *
-   * `allowSignup` is the course-only join-box choice (teachers round): true
+   * `allowSignup` is the course-only Join-door choice (teachers round): true
    * writes `enroll: <default app>` into the course document before
    * publishing, false removes the line; undefined for `subject: "drawcast"`.
    */
@@ -373,12 +374,15 @@ function build(): ShareSession {
    * resolves through document.getElementById and a duplicate id would let
    * one panel's label toggle another panel's box.
    *
-   * Both default ON (P §3.6: what you publish should stand on its own) —
-   * except narration on the server, where `bakeDefault` is false (round 0
-   * spec §4): baked audio is megabytes the server streams on every first
-   * play, where GitHub's CDN serves it for nothing. Neither is remembered
-   * between opens — they are decisions about one publish, not a setting (see
-   * the ledger). Neither touches the document the author has open:
+   * Both default ON (P §3.6: what you publish should stand on its own) — the
+   * server included, since round 0 measured the quota
+   * (docs/superpowers/plans/2026-09-05-round-0-measurements.md): storage
+   * there is 100 GB with no metered egress, while unbaked audio spends cloud
+   * TTS in every student's browser, once per student per lecture. Baking
+   * pays once. `bakeDefault` stays a parameter so the choice is written at
+   * the call, where the next measurement can flip it again. Neither is
+   * remembered between opens — they are decisions about one publish, not a
+   * setting (see the ledger). Neither touches the document the author has open:
    * publish/embed.ts resolves on clones, and baking builds its audio track
    * beside the playlist rather than in it.
    *
@@ -558,32 +562,38 @@ function build(): ShareSession {
   function refreshCountViewsChoice(doc: ShareDoc): void {
     countViewsCb.checked = doc.publishedViews !== false;
   }
-  // "Allow sign-up on the course page" (teachers round, spec §5): a course
-  // only. On, the publish writes `enroll: <default app>` into the course
-  // document; off, it removes the line. An author running their own Anvil
-  // app keeps whatever URL they typed — applyJoinBox only ever writes the
-  // default. Seeded from the document itself, so a republish shows what the
-  // page currently does, and a new course starts with it off.
+  // "Join door on the course page" (teachers round, spec §5; the door since
+  // the identity round): a course only. On, the publish writes `enroll:
+  // <default app>` into the course document and the page gets its Join
+  // link; off, it removes the line and the page carries no door. An author
+  // running their own Anvil app keeps whatever URL they typed —
+  // applyJoinDoor only ever writes the default. Seeded from the document
+  // itself, so a republish shows what the page currently does, and a new
+  // course starts with it off.
   const signupCb = h("input", { type: "checkbox", id: "share-allow-signup" }) as HTMLInputElement;
   const signupHint = h("div", { class: "hint" });
   const signupLabel = h(
     "label",
     { class: "publish-choice", for: "share-allow-signup" },
     signupCb,
-    h("span", {}, "Allow sign-up on the course page"),
+    h("span", {}, "Join door on the course page"),
     signupHint,
   );
-  const SIGNUP_HINT_DEFAULT = "the course page gets a join box: learners get a course code, and you see their progress and answers in the teacher dashboard";
+  const SIGNUP_HINT_DEFAULT =
+    "the course page gets a Join link: learners sign in to join, and their progress and answers go to the drawcast server, where you see them in the teacher dashboard";
   function refreshSignupChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
     signupLabel.hidden = subject !== "course";
-    signupCb.checked = doc.joinBox === true;
+    signupCb.checked = doc.joinDoor === true;
     // An author running their OWN Anvil backend needs to see that URL before
     // unchecking deletes it — the course document was the only record of it
-    // (F2). The default app's own URL is not worth naming; it is what
-    // checking the box writes back in either case.
+    // (F2). And they need to hear what it does now: nothing. The viewer sends
+    // a learner's session token to the drawcast server and nowhere else
+    // (identity round), so a server of your own gets no reports, and the
+    // page gets no Join link. The default app's own URL is not worth naming;
+    // it is what checking the box writes back in either case.
     signupHint.textContent =
       doc.enrollUrl && doc.enrollUrl !== DEFAULT_ENROLL_API
-        ? `your own app: ${doc.enrollUrl} — unchecking removes this line from the course document`
+        ? `enroll: ${doc.enrollUrl} names a server of your own — this app reports progress to the drawcast server only, so learners are not followed there and the page gets no Join link; unchecking removes the line from the course document`
         : SIGNUP_HINT_DEFAULT;
   }
   const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel, signupLabel);
@@ -656,10 +666,11 @@ function build(): ShareSession {
       "A closed cast plays only for you, signed in; enrolment comes next. Every publish sets this anew — publishing again on “Only you” closes a cast that was open.",
     ),
   );
-  // Narration defaults OFF here (spec §4) — see buildEmbedChoices. Unticked
-  // is not "leave it": every spec write clears the narration stored on the
+  // Narration defaults ON here too (spec §4, after round 0's quota
+  // measurement — see buildEmbedChoices). Unticking is a deliberate act and
+  // not "leave it": every spec write clears the narration stored on the
   // server, so the consequence is said BEFORE the click as well as after.
-  const serverChoices = buildEmbedChoices("server", false);
+  const serverChoices = buildEmbedChoices("server", true);
   const serverNarrationHint = h(
     "div",
     { class: "hint" },

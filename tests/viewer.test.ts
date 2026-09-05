@@ -32,6 +32,10 @@ describe("parseViewerHash", () => {
   test("a gdrive id never leaks into gdoc parsing", () => {
     expect(parseViewerHash("#gdrive=1AbC_dEf-123456789")!.docId).toBeUndefined();
   });
+
+  test("a request carries no learner: the account is the identity, not a code on the link", () => {
+    expect(parseViewerHash("#gdoc=1AbC_dEf-123456789&learner=fjell-rev-havn")).not.toHaveProperty("learner");
+  });
 });
 
 // Drift guard: entry.ts's dispatch regex is a separate, hand-maintained copy

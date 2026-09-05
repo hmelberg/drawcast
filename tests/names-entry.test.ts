@@ -35,11 +35,15 @@ describe("entry routes names", () => {
 });
 
 describe("runNamed", () => {
-  test("resolves against the registry, redirects courses, plays casts through parseViewerHash", () => {
+  test("resolves against the registry, opens the door for a course, plays casts through parseViewerHash", () => {
     expect(viewer).toMatch(/export async function runNamed\(hash: string\)/);
     expect(viewer).toMatch(/resolveName\(DEFAULT_ENROLL_API, name\)/);
     expect(viewer).toMatch(/kind === "course"/);
-    expect(viewer).toMatch(/location\.replace\(/);
+    // A course name is the door the published page links to (identity
+    // round): bouncing to that page would send a learner who just clicked
+    // Join straight back to where they came from.
+    expect(viewer).not.toMatch(/location\.replace\(resolved\.page\)/);
+    expect(viewer).toMatch(/status\.replaceWith\(courseDoor\(name, resolved\)\)/);
     // anvilHashFor, not ghHashFor: a registered name may point at the
     // drawcast server as readily as at GitHub, and names.ts decides which.
     expect(viewer).toMatch(/parseViewerHash\(anvilHashFor\(hash, resolved\.target\)\)/);
@@ -53,5 +57,28 @@ describe("runNamed", () => {
     expect(parseCall).toBeGreaterThan(0);
     expect(statusRemove).toBeGreaterThan(parseCall);
     expect(viewer).toMatch(/points at something this viewer cannot play/);
+  });
+});
+
+// The course view at drawcast.app/#<name> (spec §3, §8): where a learner
+// joins. Its behaviour is exercised in tests/course-door.test.ts through the
+// injected DoorDeps; what only the source can say is pinned here — that the
+// LIVE dependencies are the real sign-in, token, forget and join.
+describe("the course door's live wiring", () => {
+  const live = viewer.slice(viewer.indexOf("const liveDoorDeps: DoorDeps = {"), viewer.indexOf("export function courseDoor("));
+  test("courseDoor is exported, takes the resolved pointer and the deps, and is what a course name opens", () => {
+    expect(viewer).toMatch(/export function courseDoor\(name: string, resolved: Resolved, deps: DoorDeps = liveDoorDeps\): HTMLElement/);
+    expect(viewer).toMatch(/import \{ anvilHashFor, nameInHash, resolveName, type Resolved \} from "\.\/names"/);
+    expect(live.length).toBeGreaterThan(0);
+  });
+  test("the token is the account's, a dead one is dropped through setToken, and sign-in is the handshake returning to this very address — a bare #<name>", () => {
+    expect(live).toMatch(/token: getToken,/);
+    expect(live).toMatch(/forget: \(\) => setToken\(""\),/);
+    expect(live).toMatch(/location\.href = signInUrl\(location\.href\);/);
+  });
+  test("joining goes through the learner client, to the default app, bounded", () => {
+    expect(live).toMatch(/joinCourse\(DEFAULT_ENROLL_API, key, req, /);
+    expect(live).toContain("AbortSignal.timeout(10_000)");
+    expect(live).not.toMatch(/\/_\/api\//); // the client owns the address
   });
 });

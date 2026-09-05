@@ -40,7 +40,7 @@ describe("the account lives beside the GitHub token", () => {
     expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeGreaterThan(0);
     expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeLessThan(signOut.indexOf('setToken("")'));
   });
-  test("both publishers register after the commit landed AND after their own bookkeeping, with the token, a timeout, and the outcome reported", () => {
+  test("both publishers register with the token, a timeout, and the outcome reported — the cast after its commit, the course BEFORE its commit", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
     const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
     for (const src of [main, course]) {
@@ -56,8 +56,12 @@ describe("the account lives beside the GitHub token", () => {
     const castPublish = main.slice(main.indexOf("await publishCast("));
     expect(castPublish.indexOf("registerName(")).toBeGreaterThan(0);
     expect(castPublish.indexOf("registerName(")).toBeGreaterThan(castPublish.indexOf("autosave();"));
-    const coursePublish = course.slice(course.indexOf("await publishCourse("));
+    // A course's page carries a door to its name (identity round), so the
+    // name must be registered before the page is written: between
+    // preparePublish (reads) and commitPublish (the write), never after.
+    const coursePublish = course.slice(course.indexOf("await preparePublish("), course.indexOf("function showLinks("));
     expect(coursePublish.indexOf("registerName(")).toBeGreaterThan(0);
-    expect(coursePublish.indexOf("registerName(")).toBeGreaterThan(coursePublish.indexOf("render();"));
+    expect(coursePublish.indexOf("registerName(")).toBeLessThan(coursePublish.indexOf("await commitPublish("));
+    expect(coursePublish.indexOf("await commitPublish(")).toBeLessThan(coursePublish.indexOf("render();"));
   });
 });
