@@ -83,7 +83,7 @@ describe("publishToServer", () => {
     expect(calls()[1][0]).toContain("/_/api/cast/audio?");
     expect(out.cast).toBe("anvil/spanish1/01-intro.yaml");
     expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
-    expect(out.audioError).toBeNull();
+    expect(out.audio).toBe("sent");
   });
   test("the spec write is a text/plain JSON body: key, cast, title, the spec ALONE, and the access", async () => {
     const { impl, calls } = fetchWith(okJson);
@@ -102,11 +102,11 @@ describe("publishToServer", () => {
     expect(init.body).toBe("audio:\n  lang: en\n");
     expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
   });
-  test("an unbaked document is one request", async () => {
+  test("an unbaked document is one request — and says so, because the spec write cleared whatever narration was stored", async () => {
     const { impl, calls } = fetchWith(okJson);
     const out = await publishToServer({ ...ARGS, yaml: "meta: {}\n" }, impl);
     expect(calls()).toHaveLength(1);
-    expect(out.audioError).toBeNull();
+    expect(out.audio).toBe("none");
   });
   test("access is passed through as chosen, and a trailing slash on the api is not doubled", async () => {
     const { impl, calls } = fetchWith(okJson);
@@ -129,12 +129,20 @@ describe("publishToServer", () => {
     await expect(publishToServer(ARGS, fetchWith(() => refusal(429, "rate")).impl)).rejects.toThrow(/try again later/);
     await expect(publishToServer(ARGS, fetchWith(() => refusal(500, "boom")).impl)).rejects.toThrow(/HTTP 500/);
   });
+  test("a 400 names its likely causes — the spec cap that embedded images count towards, and the title length", async () => {
+    const err = await publishToServer(ARGS, fetchWith(() => refusal(400, "spec")).impl).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toMatch(/HTTP 400/);
+    expect((err as Error).message).toMatch(/400 000/);
+    expect((err as Error).message).toMatch(/Embed images/);
+    expect((err as Error).message).toMatch(/200 characters/);
+  });
   test("a narration upload the server refuses is reported, never thrown — the spec has already landed", async () => {
     const { impl } = fetchWith((url) => (isAudio(url) ? refusal(413, "audio") : okJson()));
     const out = await publishToServer(ARGS, impl);
     expect(out.cast).toBe("anvil/spanish1/01-intro.yaml");
     expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
-    expect(out.audioError).toMatch(/HTTP 413/);
+    expect(out.audio).toEqual({ failed: expect.stringMatching(/HTTP 413/) });
   });
   test("a narration upload that never connects is reported the same way", async () => {
     const { impl } = fetchWith((url) => {
@@ -143,7 +151,7 @@ describe("publishToServer", () => {
     });
     const out = await publishToServer(ARGS, impl);
     expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
-    expect(out.audioError).toMatch(/offline/);
+    expect(out.audio).toEqual({ failed: expect.stringMatching(/offline/) });
   });
 });
 
@@ -187,10 +195,25 @@ describe("the drawcast server in Share", () => {
     // Declaration + three instantiations — still one copy of the rows.
     expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);
   });
-  test("the name is a slug like Link's, prefilled the same way", () => {
+  test("the name is a slug like Link's, prefilled the same way — and slugified on Publish too, not only on blur", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
-    expect(panel).toContain("serverNameInput.value = slugify(serverNameInput.value);");
+    // Once in the blur handler, once in the click handler: Safari does not
+    // blur an input when a button is pressed, and a raw `learn-russian/3`
+    // would otherwise reach the key as a fourth segment.
+    expect(panel.match(/serverNameInput\.value = slugify\(serverNameInput\.value\);/g)).toHaveLength(2);
+    const click = panel.slice(panel.indexOf('serverGo.addEventListener("click"'));
+    expect(click.indexOf("serverNameInput.value = slugify(serverNameInput.value);")).toBeLessThan(click.indexOf("name: serverNameInput.value"));
+    expect(click).not.toContain(".trim()");
     expect(share).toContain("serverNameInput.value = doc.publishedAs ?? slugify(doc.title);");
+  });
+  test("says before the click what unticked narration does, and that plays are not counted here", () => {
+    const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
+    expect(panel).toContain("any narration stored there earlier is removed");
+    // views.ts refuses every anvil/ key, so the panel offers no Count views
+    // box (that is Link's alone) and says why instead.
+    expect(panel).not.toContain("countViews");
+    expect(panel).toContain("not counted publicly");
+    expect(panel).toMatch(/serverNarrationHint,\s*serverViewsHint,\s*serverSignInHint/);
   });
 });
 
@@ -206,10 +229,17 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toContain("itemsOf(doc.playlist).length === 0");
     expect(serverCast.indexOf("normalizeName(")).toBeGreaterThan(-1);
     expect(serverCast.indexOf("normalizeName(")).toBeLessThan(serverCast.indexOf("publishTextFor("));
+    // Slugified before normalizeName: a sub-name's slash must never become a
+    // fourth key segment, whatever the caller hands over.
+    expect(serverCast).toContain("const requested = slugify(name ?? doc.title);");
   });
-  test("prepares the copy through the SAME publishTextFor, reusing the SERVER copy's narration", () => {
+  test("prepares the copy through the SAME publishTextFor, reusing the SERVER copy's narration through a DYNAMIC import of the viewer", () => {
     expect(serverCast).toContain("publishTextFor(");
     expect(serverCast).toContain("fetchAnvilText({ cast, api: DEFAULT_ENROLL_API }");
+    // One definition of the join (the viewer's), loaded only when a bake
+    // needs it — never hoisted into the editor's chunk by a static import.
+    expect(serverCast).toContain('await import("./viewer")');
+    expect(main).not.toMatch(/from "\.\/viewer"/);
   });
   test("keys the copy anvil/<name>/<file>, passes the access through, and registers the name only after the spec landed", () => {
     expect(serverCast).toContain("serverCastKey(slug, file)");
@@ -223,9 +253,18 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toMatch(/name not registered: names need at least \$\{MIN_NAME_LENGTH\} characters/);
   });
   test("a lost narration is reported as what it is: the spec landed, the old narration is gone", () => {
-    expect(serverCast).toContain("out.audioError");
+    expect(serverCast).toContain('typeof out.audio === "object"');
     expect(serverCast).toContain("cleared the narration stored before");
     expect(serverCast).toContain("publish again");
+  });
+  test("the ORDINARY unticked publish says the same truth — it is a deletion, not a no-op", () => {
+    // Narration defaults off on this panel, and a spec write clears what the
+    // server held, so the silent path is the common one. The sentence is
+    // true whether or not anything was stored: the client cannot know.
+    expect(serverCast).toContain('out.audio === "none"');
+    expect(serverCast).toContain("without narration — any narration stored there earlier is gone");
+    // In the SAME status line as the address, on the ok path.
+    expect(serverCast).toMatch(/setStatus\(`Published to \$\{out\.url\}\$\{silent\}/);
   });
   test("the course panel passes a loud stub, like Drive's", () => {
     expect(course).toMatch(/publishServer: async \(\) => shareStatus\(/);

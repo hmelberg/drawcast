@@ -14,10 +14,11 @@
 // keys casts by exact name and answers 403 when a key belongs to another
 // account, which is a message for the author rather than a name to invent.
 //
-// Nothing here throws once something has been written. A narration upload
-// that fails after the spec has landed is reported IN the result
-// (`audioError`), so the caller can still register the name and say
-// precisely what landed and what did not.
+// Nothing here throws once something has been written. What became of the
+// narration — sent, none to send, or failed after the spec had landed — is
+// reported IN the result (`audio`), so the caller can still register the
+// name and say precisely what landed and what did not. "None" is an outcome
+// too: the spec write cleared whatever narration was stored before.
 
 import { apiBase } from "../learn";
 
@@ -65,24 +66,37 @@ export interface ServerPublishArgs {
   viewerBase?: string;
 }
 
+/**
+ * What became of the narration. Three answers, because the spec write clears
+ * whatever narration the server held before, so EVERY publish is a statement
+ * about the narration — including the ordinary one:
+ * - `"sent"`: the document carried an audio document and it was uploaded.
+ * - `"none"`: the document carried none (narration unticked, or nothing to
+ *   bake), so the copy on the server now has none — whatever was stored
+ *   earlier is gone. The client cannot know whether anything was, so the
+ *   caller's wording has to be true either way.
+ * - `{ failed }`: the spec landed, the upload did not (an error answer, or
+ *   never connected); same consequence as "none", plus the reason.
+ */
+export type ServerAudioOutcome = "sent" | "none" | { failed: string };
+
 export interface ServerPublishResult {
-  /** The server's key for this copy — what events, counting and the name registry refer to. */
+  /** The server's key for this copy — what events and the name registry refer to. */
   cast: string;
   /** The link to share: the viewer, pointed at the server copy. */
   url: string;
-  /**
-   * Why the narration is NOT on the server, when it is not: the audio upload
-   * answered an error, or never connected, AFTER the spec had landed. The
-   * spec write has already cleared whatever narration the server held
-   * before, so until the author publishes again the cast plays with a
-   * browser voice. Null when there was no audio to send, or it was sent.
-   */
-  audioError: string | null;
+  audio: ServerAudioOutcome;
 }
 
-/** The server's refusal of the spec write, in the words the author should read. */
+/** The server's refusal of the spec write, in the words the author should read.
+ *  Nothing has been written at this point, whichever status it is. */
 function refusal(status: number): string {
   switch (status) {
+    case 400:
+      // parse_cast_put: the spec is capped at 400 000 characters — and
+      // embedded images live in the spec half, not the audio half — and a
+      // title at 200. Named here because the bare status was an excavation.
+      return "The drawcast server rejected the document (HTTP 400) — most likely the spec is over its 400 000-character cap (embedded images count towards it: untick Embed images, or embed fewer), or the title is over 200 characters.";
     case 401:
       return "Not signed in — the drawcast server did not accept this browser's session. Sign in again from Settings → Publishing (drawcast account).";
     case 403:
@@ -107,10 +121,11 @@ export async function publishToServer(args: ServerPublishArgs, fetchImpl: typeof
   });
   if (!res.ok) throw new Error(refusal(res.status));
   const url = `${(args.viewerBase ?? "https://drawcast.app").replace(/\/+$/, "")}/#anvil=${args.slug}/${args.file}`;
-  if (!audio) return { cast, url, audioError: null };
   // Past this line the spec has LANDED — and its write cleared the stored
-  // narration. Nothing below may throw: a failure here is a fact about the
-  // audio, reported beside the publish rather than instead of it.
+  // narration, so "no audio to send" is itself an outcome worth reporting.
+  // Nothing below may throw: a failure here is a fact about the audio,
+  // reported beside the publish rather than instead of it.
+  if (!audio) return { cast, url, audio: "none" };
   const q = `cast=${encodeURIComponent(cast)}&key=${encodeURIComponent(args.token)}`;
   try {
     const up = await fetchImpl(`${base}/_/api/cast/audio?${q}`, {
@@ -120,8 +135,8 @@ export async function publishToServer(args: ServerPublishArgs, fetchImpl: typeof
       // why the cast and the token ride the query string here and nowhere else.
       body: audio,
     });
-    return { cast, url, audioError: up.ok ? null : `the server refused the narration (HTTP ${up.status})` };
+    return { cast, url, audio: up.ok ? "sent" : { failed: `the server refused the narration (HTTP ${up.status})` } };
   } catch (err) {
-    return { cast, url, audioError: `the narration upload did not complete (${(err as Error).message})` };
+    return { cast, url, audio: { failed: `the narration upload did not complete (${(err as Error).message})` } };
   }
 }

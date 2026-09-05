@@ -79,10 +79,6 @@ import { isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName }
 import { DEFAULT_ENROLL_API } from "./learn";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
-// The viewer's reader of a server copy — the one place that knows how the
-// two stored objects are joined back into a document. Used here only to read
-// the previous publish back for narration reuse.
-import { fetchAnvilText } from "./viewer";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveSources } from "./render/source";
@@ -4213,8 +4209,11 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
   // The name is checked BEFORE anything is written: a key whose first
   // segment could never be registered would be a cast nobody can reach by
   // name. A reserved or malformed name stops here; a merely SHORT one
-  // publishes and skips the registration with a note (spec §9).
-  const requested = name ?? slugify(doc.title);
+  // publishes and skips the registration with a note (spec §9). Slugified
+  // here as well as in the panel: normalizeName alone would pass a sub-name
+  // like `learn-russian/3`, and a slash in the first segment would make a
+  // FOUR-segment key — the one shape this round exists to keep uniform.
+  const requested = slugify(name ?? doc.title);
   if (!requested) {
     setStatus("Type a name to publish under — the Name field in the panel.", "error");
     return;
@@ -4239,12 +4238,24 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
       embedImages,
       undefined, // comments are giscus, keyed on a GitHub repo — a server copy has none
       true, // countViews — no `views: false` in the file; the viewer counts GitHub casts only, so a server copy is never counted publicly (its views are the dashboard's)
-      () => fetchAnvilText({ cast, api: DEFAULT_ENROLL_API }, fetchImpl).catch(() => null),
+      // The viewer's reader of a server copy — the one place that knows how
+      // the two stored objects join back into a document. Imported HERE, on
+      // demand: publishTextFor calls this only when baking, and a static
+      // import would hoist the whole viewer module into the editor's chunk
+      // for a function that runs once per baked publish.
+      async () => {
+        try {
+          const { fetchAnvilText } = await import("./viewer");
+          return await fetchAnvilText({ cast, api: DEFAULT_ENROLL_API }, fetchImpl);
+        } catch {
+          return null;
+        }
+      },
     );
     const out = await publishToServer({ slug, file, title: doc.title, yaml: text, access, token: accountToken, api: DEFAULT_ENROLL_API, viewerBase: settings.viewerBase }, fetchImpl);
     // Past this line the spec has LANDED (the narration may not have —
-    // `out.audioError` says). The name is registered only now, against a
-    // copy that exists, exactly as the GitHub publish does; a name under the
+    // `out.audio` says). The name is registered only now, against a copy
+    // that exists, exactly as the GitHub publish does; a name under the
     // floor skips it with a note rather than failing the publish (spec §9).
     let note = "";
     if (isRegistrable(slug)) {
@@ -4255,14 +4266,20 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     } else {
       note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
     }
-    if (out.audioError) {
+    if (typeof out.audio === "object") {
       setStatus(
-        `Published to ${out.url}, but WITHOUT its narration — ${out.audioError}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
+        `Published to ${out.url}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
         "error",
       );
       return;
     }
-    setStatus(`Published to ${out.url}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+    // The ORDINARY case tells the same truth as the failure: a spec write
+    // clears the narration stored on the server, and narration is unticked by
+    // default on this panel — so a republish without it is a deletion, not a
+    // no-op. The client cannot know whether anything was stored, so the
+    // sentence is worded to be true either way.
+    const silent = out.audio === "none" ? " without narration — any narration stored there earlier is gone (tick Embed narration and publish again to add it)" : "";
+    setStatus(`Published to ${out.url}${silent}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: server publish failed", err);
     const e = err as Error;

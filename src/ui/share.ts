@@ -641,15 +641,42 @@ function build(): ShareSession {
     h("label", { class: "quiet-label" }, "Who can watch ", serverAccess),
     h("div", { class: "hint" }, "A closed cast plays only for you, signed in; enrolment comes next."),
   );
-  // Narration defaults OFF here (spec §4) — see buildEmbedChoices.
+  // Narration defaults OFF here (spec §4) — see buildEmbedChoices. Unticked
+  // is not "leave it": every spec write clears the narration stored on the
+  // server, so the consequence is said BEFORE the click as well as after.
   const serverChoices = buildEmbedChoices("server", false);
+  const serverNarrationHint = h(
+    "div",
+    { class: "hint" },
+    "Narration unticked: the copy on the server plays with a browser voice, and any narration stored there earlier is removed.",
+  );
+  // No "Count views" here, and a word on why: the public counter refuses
+  // every anvil/ key (views.ts PRIVATE_OWNERS — a private cast's views are
+  // not the public's), so a checkbox would promise something that cannot
+  // happen. Enrolled learners' progress is the dashboard's, not a counter's.
+  const serverViewsHint = h("div", { class: "hint" }, "Plays of a cast stored here are not counted publicly; enrolled learners' progress shows in the teacher dashboard.");
   const serverSignInHint = h("div", { class: "hint" }, "Publishing here needs your drawcast account — sign in from Settings → Publishing.");
-  const serverPanel = h("div", { class: "share-panel" }, serverHint, serverNameRow, serverAccessRow, ...serverChoices.rows, serverSignInHint);
+  const serverPanel = h(
+    "div",
+    { class: "share-panel" },
+    serverHint,
+    serverNameRow,
+    serverAccessRow,
+    ...serverChoices.rows,
+    serverNarrationHint,
+    serverViewsHint,
+    serverSignInHint,
+  );
   const serverGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   serverGo.addEventListener("click", () => {
     const deps = current;
     const access: ServerAccess = serverAccess.value === "open" ? "open" : "enrolled";
-    const choices = { ...serverChoices.choices(), name: serverNameInput.value.trim() || undefined, access };
+    // The blur handler's normalization, applied here too — Safari does not
+    // move focus to a clicked button, so the field can reach Publish raw, and
+    // a raw `learn-russian/3` would pass normalizeName as a sub-name and put
+    // a slash into the key's first segment. Same as the Check button does.
+    serverNameInput.value = slugify(serverNameInput.value);
+    const choices = { ...serverChoices.choices(), name: serverNameInput.value || undefined, access };
     modal.dialog.close();
     void deps.publishServer(choices);
   });
