@@ -134,6 +134,9 @@ one that is metered (synthesis).
 quota and is the wrong default against this one. Changing it is a one-line
 change to `buildEmbedChoices("server", false)` and belongs in the next round
 that touches the Share panel, together with the spec sentence it contradicts.
+
+## Still open
+
 - **A multi-megabyte audio upload**, and with it the cap question above.
 - A duplicate `Cache-Control` on every response — Anvil adds its own
   `no-cache, no-store` beside ours. Harmless, and not worth a round.
