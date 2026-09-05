@@ -132,6 +132,40 @@ Measured in the live smoke: the row lists the lesson's program and "Own
 URL…"; a csdb URL is refused with the CORS reason and opens nothing; a good
 URL opens the modal with the emulator URL, closes the tray, and is remembered.
 
+## M1c — five programs with licences, and the Internet Archive (SHIPPED)
+
+Hans has no files of his own; "se om det er noe på nett … uten
+lisensproblemer", and let the viewer pick from an archive.
+
+**The catalogue is five programs, each with the licence that lets us point
+at it**, found by searching GitHub for permissively licensed C64 repositories
+and checking every URL the same three ways (an https host that answers
+cross-origin, a real PRG — load-address bytes `01 08` — and a LICENSE beside
+the file): `c64maze` (GPL-3.0), `crowboy` (MIT), `space-shooter` (MIT),
+`tenlander` (GPL-3.0, a lander in ten lines of BASIC that LISTs), `wolfling`
+(vc64web's own demo). GitHub's raw files are the ideal host: the licence sits
+next to the file and CORS is on for the whole domain. Rejected on the way:
+retrobrews/c64-games ("approved for free distribution on this site/project
+only") — a collection we may not point at.
+
+**The Internet Archive is the viewer's own source, and it runs in the
+Archive's own player.** The reason is a measurement: the Archive's 17 945 C64
+items are almost all `.d64` disk images (one of the sixty most-downloaded had
+anything else), and the MEGA65 Open ROMs have no disk-drive ROM — a `.d64`
+fetched into vc64web (it fetches fine through `archive.org/cors/<id>/<file>`,
+which reflects the Origin where `/download/` sends nothing) ends in a dialog
+asking for a floppy ROM. `archive.org/embed/<id>` is the Archive's Emularity
+player with the Archive's own ROM arrangement, embeddable (no frame-ancestors),
+click-to-start. So the tray's second row searches the library
+(`advancedsearch.php`, CORS `*`, scoped to `collection:softwarelibrary_c64`)
+and a pick opens the embed in the media modal, with the item's page as the
+escape link. Nothing hosted, nothing chosen by us. `src/code/c64-archive.ts`
+holds the pure half.
+
+Measured in the live smoke: the catalogue row lists the lesson's program and
+the other four; a search for "baffle" from the page found "Baffle
+(1994)(Feniks)"; Play opened the Archive's player in the modal.
+
 ## M2 — the blue screen as ink
 
 Folded into M1 for the no-script case: the boot screen IS what a switched-on

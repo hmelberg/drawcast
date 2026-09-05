@@ -123,9 +123,10 @@ describe("the catalogue", () => {
   });
 
   test("a key resolves to its program, a URL to itself, and the rest is refused with the reason", () => {
-    expect(resolveGame("wolfling")).toEqual({ url: C64_PROGRAMS[0].url, title: "Wolfling" });
+    expect(resolveGame("wolfling")).toEqual({ url: GAME, title: "Wolfling" });
+    expect(resolveGame("c64maze")).toEqual({ url: "https://raw.githubusercontent.com/DarwinNE/C64maze/master/c64maze.prg", title: "C64maze" });
     expect(resolveGame(GAME)).toEqual({ url: GAME, title: "wolfling14.prg" });
-    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(wolfling\) nor an https URL/);
+    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(c64maze, crowboy, space-shooter, tenlander, wolfling\) nor an https URL/);
     expect(resolveGame("http://example.org/x.prg").reason).toMatch(/https/);
     expect(resolveGame("https://example.org/x.prg#v2").reason).toMatch(/'#'/);
     expect(resolveGame("https://csdb.dk/getinternalfile.php/1/x.prg").reason).toMatch(/csdb\.dk sends no CORS header/);
@@ -134,5 +135,41 @@ describe("the catalogue", () => {
   test("the lint and the schema both speak the catalogue", () => {
     expect(lintCommands(spec({ game: "wolfling" })).some((i) => i.message.includes("game"))).toBe(false);
     expect(lintCommands(spec({ game: "https://csdb.dk/x.prg" })).some((i) => i.message.includes("no CORS header"))).toBe(true);
+  });
+});
+
+// ---- the Internet Archive as a source the viewer picks from ----------------
+import { archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch } from "../src/code/c64-archive";
+
+describe("the Archive", () => {
+  test("the search is scoped to the C64 library and asks for what the tray shows", () => {
+    const u = new URL(archiveSearchUrl("boulder dash"));
+    expect(u.hostname).toBe("archive.org");
+    expect(u.searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (boulder dash)");
+    expect(u.searchParams.get("output")).toBe("json");
+    expect(u.searchParams.getAll("fl[]")).toEqual(["identifier", "title", "year"]);
+    // quotes and parentheses would break the query language; an empty query is everything
+    expect(new URL(archiveSearchUrl('x ("y")')).searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (x   y)");
+    expect(new URL(archiveSearchUrl("  ")).searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (*)");
+  });
+
+  test("hits come out in the Archive's order, and an identifier that could not be a path is dropped", () => {
+    const hits = parseArchiveSearch({
+      response: { docs: [{ identifier: "Baffle_1994_Feniks", title: "Baffle (1994)(Feniks)", year: "1994" }, { identifier: "../x", title: "no" }, { identifier: "Bare_Id" }] },
+    });
+    expect(hits).toEqual([{ id: "Baffle_1994_Feniks", title: "Baffle (1994)(Feniks)", year: "1994" }, { id: "Bare_Id", title: "Bare_Id" }]);
+    expect(parseArchiveSearch(null)).toEqual([]);
+    expect(parseArchiveSearch({ response: {} })).toEqual([]);
+  });
+
+  test("a pick runs in the Archive's own player, and its page is one click away", () => {
+    expect(archiveEmbedUrl("Baffle_1994_Feniks")).toBe("https://archive.org/embed/Baffle_1994_Feniks");
+    expect(archiveEmbedUrl("a/b")).toBeNull();
+    expect(archivePageUrl("Baffle_1994_Feniks")).toBe("https://archive.org/details/Baffle_1994_Feniks");
+  });
+
+  test("every catalogue program names the licence that lets us point at it", () => {
+    for (const p of C64_PROGRAMS) expect(p.licence.length).toBeGreaterThan(3);
+    expect(C64_PROGRAMS.map((p) => p.key)).toEqual(["c64maze", "crowboy", "space-shooter", "tenlander", "wolfling"]);
   });
 });

@@ -39,6 +39,7 @@ import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl } from "../code/c64";
+import { archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch, type ArchiveHit } from "../code/c64-archive";
 import { C64_PROGRAMS, resolveGame } from "../code/c64-catalogue";
 import { bboxOfPts } from "../layout/geometry";
 import { leafDrawables } from "../layout/model";
@@ -529,6 +530,56 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         row.appendChild(play);
         row.appendChild(note);
         tray.appendChild(row);
+
+        // The Internet Archive: the viewer searches its C64 library and the
+        // pick runs in the ARCHIVE's own player (see code/c64-archive.ts for
+        // why not vc64web: disks need a drive ROM the free ROMs lack). Nothing
+        // hosted or chosen by us; the Archive's arrangement, in our modal.
+        const arow = h("div", { class: "cs-tray-row cs-tray-c64" });
+        arow.appendChild(h("span", { class: "cs-tray-label" }, "Internet Archive"));
+        const q = h("input", { type: "search", class: "cs-tray-url", placeholder: "Search 17 000 C64 titles…", "aria-label": "Search the Internet Archive" }) as HTMLInputElement;
+        const go = h("button", { class: "cs-tray-run" }, "Search");
+        const hits = h("select", { class: "cs-menu-select cs-tray-c64-pick", "aria-label": "Results" }) as HTMLSelectElement;
+        hits.hidden = true;
+        const aplay = h("button", { class: "cs-tray-run" }, "Play ▶");
+        aplay.hidden = true;
+        const anote = h("span", { class: "cs-tray-status" }, "");
+        let found: ArchiveHit[] = [];
+        const search = async (): Promise<void> => {
+          if (q.value.trim() === "") return;
+          go.disabled = true;
+          anote.textContent = "Searching…";
+          try {
+            const res = await fetch(archiveSearchUrl(q.value));
+            found = parseArchiveSearch(await res.json());
+            hits.replaceChildren(...found.map((f, i) => h("option", { value: String(i) }, f.year ? `${f.title} (${f.year})` : f.title)));
+            hits.hidden = aplay.hidden = found.length === 0;
+            anote.textContent = found.length === 0 ? "Nothing with that name in the Archive's C64 library." : `${found.length} found — runs in the Archive's own emulator (click its screen to start).`;
+          } catch {
+            anote.textContent = "The Archive did not answer — try again in a moment.";
+          } finally {
+            go.disabled = false;
+          }
+        };
+        go.addEventListener("click", () => void search());
+        q.addEventListener("keydown", (e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") void search();
+        });
+        aplay.addEventListener("click", () => {
+          const hit = found[Number(hits.value)];
+          const src = hit ? archiveEmbedUrl(hit.id) : null;
+          if (!hit || !src || !stage) return;
+          restore();
+          close();
+          openMediaModal(stage, hd, { src, href: archivePageUrl(hit.id), allow: "autoplay; gamepad; fullscreen" });
+        });
+        arow.appendChild(q);
+        arow.appendChild(go);
+        arow.appendChild(hits);
+        arow.appendChild(aplay);
+        arow.appendChild(anote);
+        tray.appendChild(arow);
       }
     }
     // The scripts on screen. Expanded when the editor IS the point (the only

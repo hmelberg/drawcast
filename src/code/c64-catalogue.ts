@@ -24,9 +24,44 @@ export interface C64Program {
   url: string;
   /** One line for the tray and the prompt: what it is, whose, when. */
   note: string;
+  /** Why we may point at it: the SPDX licence of its repository, or whose demo it is. */
+  licence: string;
 }
 
+// Every URL below was checked 2026-09-05: an https host that answers
+// cross-origin (`access-control-allow-origin: *`), a real PRG (the two
+// load-address bytes 01 08), and a repository whose LICENSE says it may be
+// shared. GitHub's raw files are the ideal host for that: the licence sits
+// beside the file, and CORS is on for the whole domain.
 export const C64_PROGRAMS: readonly C64Program[] = [
+  {
+    key: "c64maze",
+    title: "C64maze",
+    url: "https://raw.githubusercontent.com/DarwinNE/C64maze/master/c64maze.prg",
+    note: "A 3D maze to find your way out of, written in C — the most-starred open C64 game on GitHub.",
+    licence: "GPL-3.0 (github.com/DarwinNE/C64maze)",
+  },
+  {
+    key: "crowboy",
+    title: "Crowboy",
+    url: "https://raw.githubusercontent.com/de-mux/c64-crowboy-demo/master/crowboy.prg",
+    note: "A side-scrolling beat-em-up demo: sprites, scrolling, a joystick.",
+    licence: "MIT (github.com/de-mux/c64-crowboy-demo)",
+  },
+  {
+    key: "space-shooter",
+    title: "Space Shooter",
+    url: "https://raw.githubusercontent.com/lvcabral/spaceshooter/master/space-shooter.prg",
+    note: "A vertical shooter from the RetroGameDev book's example, extended.",
+    licence: "MIT (github.com/lvcabral/spaceshooter)",
+  },
+  {
+    key: "tenlander",
+    title: "Ten-line Lander",
+    url: "https://raw.githubusercontent.com/rosdec/lander64/master/tenliner/tenlander.prg",
+    note: "A lunar lander in ten lines of BASIC — 749 bytes, and it LISTs.",
+    licence: "GPL-3.0 (github.com/rosdec/lander64)",
+  },
   {
     key: "wolfling",
     title: "Wolfling",
@@ -34,6 +69,7 @@ export const C64_PROGRAMS: readonly C64Program[] = [
     // the one URL the emulator's authors publish for exactly this use.
     url: "https://vc64web.github.io/doc/media/wolfling14.prg",
     note: "A small platform game — the demo vc64web's own documentation ships.",
+    licence: "vc64web's own demonstration file, on their URL",
   },
 ];
 
