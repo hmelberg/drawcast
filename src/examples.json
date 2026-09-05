@@ -12525,5 +12525,20 @@
         }
       ]
     }
+  },
+  {
+    "request": "Where is the liver? Show me the body so I can point at it.",
+    "spec": {
+      "title": "Where is the liver?",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "commands": [
+        { "draw": ["body_outline"], "speak": "A body, seen from the front." },
+        { "draw": ["brain", "trachea", "lung_right", "lung_left", "heart", "diaphragm"], "speak": "The chest: two lungs around the heart, the windpipe above, the diaphragm below." },
+        { "draw": ["liver", "stomach", "spleen", "pancreas", "kidney_right", "kidney_left", "small_intestine", "large_intestine", "bladder"], "speak": "And the belly — nothing named yet." },
+        { "ask": { "question": "Click on the liver.", "widget": "click", "answer": "liver", "intro": "Start with the largest gland you have.", "right": "The liver fills the space under the right ribs — about a kilo and a half of it.", "wrong": "Look under the ribs on the body's own right, which is your left as you face it." } },
+        { "highlight": { "target": ["liver"], "effect": "glow" }, "speak": "That is the liver." }
+      ]
+    }
   }
 ]
