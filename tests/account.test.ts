@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { redeemToken, signInUrl, signOut, stripToken, tokenInHash } from "../src/account";
+import { redeemFromAddress, redeemToken, signInUrl, signOut, stripToken, tokenInHash } from "../src/account";
 
 const calls = (f: typeof fetch) => (f as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit][];
 
@@ -71,5 +71,23 @@ describe("signOut", () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
     await expect(signOut("https://a", "sess", dead)).resolves.toBeUndefined();
+  });
+});
+
+describe("redeemFromAddress", () => {
+  test("exchanges a token, stores it and reports true", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ key: "sess" }), { status: 200 })) as unknown as typeof fetch;
+    expect(await redeemFromAddress("#spanish1&t=once", "https://drawcast.app/#spanish1&t=once", "https://a", f)).toBe(true);
+    expect(calls(f).length).toBe(1);
+    expect((JSON.parse(calls(f)[0][1].body as string) as { token: string }).token).toBe("once");
+  });
+  test("does nothing at all when the address carries no token", async () => {
+    const f = vi.fn() as unknown as typeof fetch;
+    expect(await redeemFromAddress("#spanish1", "https://drawcast.app/#spanish1", "https://a", f)).toBe(false);
+    expect((f as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0);
+  });
+  test("reports that a token was found even when the exchange is refused — the address is cleaned either way", async () => {
+    const bad = vi.fn(async () => new Response("{}", { status: 400 })) as unknown as typeof fetch;
+    expect(await redeemFromAddress("#spanish1&t=once", "https://drawcast.app/#spanish1&t=once", "https://a", bad)).toBe(true);
   });
 });

@@ -5,14 +5,25 @@ const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
 const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
 describe("entry routes names", () => {
-  test("gh/gdoc/gdrive first, then names, then the app", () => {
-    const gh = entry.indexOf("(gdoc|gh|gdrive)[=-]");
+  test("gh/gdoc/gdrive/anvil first, then names, then the app", () => {
+    const gh = entry.indexOf("(gdoc|gh|gdrive|anvil)[=-]");
     const named = entry.indexOf("isNameHash(hash)");
     const app = entry.indexOf('import("./main")');
     expect(gh).toBeGreaterThan(0);
     expect(named).toBeGreaterThan(gh);
     expect(app).toBeGreaterThan(named);
     expect(entry).toMatch(/runNamed\(hash\)/);
+  });
+  test("spends an arriving sign-in token BEFORE reading the hash it routes on", () => {
+    // The redeem strips `t=` from the address; a hash read before it would
+    // still carry the token, and a `#name&t=…` would then route on a string
+    // the name resolver has never seen.
+    const redeem = entry.indexOf("await redeemFromAddress(location.hash, location.href)");
+    const read = entry.indexOf("const hash = location.hash");
+    const route = entry.indexOf("(gdoc|gh|gdrive|anvil)[=-]");
+    expect(redeem).toBeGreaterThan(0);
+    expect(read).toBeGreaterThan(redeem);
+    expect(route).toBeGreaterThan(read);
   });
 });
 

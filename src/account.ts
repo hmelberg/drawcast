@@ -86,3 +86,28 @@ export async function signOut(api: string, token: string, fetchImpl: typeof fetc
     /* signing out locally is what matters; the row can be revoked from the dashboard */
   }
 }
+
+/**
+ * A token in the address is spent and erased before anything routes on the
+ * hash: `t=` must never survive into a copied link, and the router must not
+ * see it. Returns whether a token was found, not whether it worked — a
+ * failed exchange leaves the person signed out, which the next action will
+ * offer to fix.
+ */
+export async function redeemFromAddress(
+  hash: string,
+  href: string,
+  api: string = DEFAULT_ENROLL_API,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  const once = tokenInHash(hash);
+  if (!once) return false;
+  const session = await redeemToken(api, once, fetchImpl);
+  if (session) setToken(session);
+  try {
+    history.replaceState(null, "", stripToken(href));
+  } catch {
+    /* the address keeps the spent token; it is single-use and already dead */
+  }
+  return true;
+}
