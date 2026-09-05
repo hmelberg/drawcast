@@ -21,7 +21,7 @@ import {
   apiBase, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, forgetLearner, learnerFor, normalizeCode, reportingAllowed, saveLearner, sendEvent, stripLearnerParam,
   type LearnerEntry,
 } from "./learn";
-import { ghHashFor, nameInHash, resolveName } from "./names";
+import { anvilHashFor, nameInHash, resolveName } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { bakedAudioFor } from "./playlist/audio";
@@ -327,8 +327,9 @@ export async function runNamed(hash: string): Promise<void> {
     return;
   }
   // Parse BEFORE clearing the lookup status: a malformed registry entry
-  // must still leave a message on screen, not a blank page.
-  const req = parseViewerHash(ghHashFor(hash, resolved.target));
+  // must still leave a message on screen, not a blank page. names.ts picks
+  // the door — the server for an anvil/ key, GitHub for the rest.
+  const req = parseViewerHash(anvilHashFor(hash, resolved.target));
   if (!req) {
     status.textContent = `The name "${name}" points at something this viewer cannot play.`;
     status.classList.add("error");

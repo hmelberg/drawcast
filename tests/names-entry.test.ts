@@ -33,12 +33,15 @@ describe("runNamed", () => {
     expect(viewer).toMatch(/resolveName\(DEFAULT_ENROLL_API, name\)/);
     expect(viewer).toMatch(/kind === "course"/);
     expect(viewer).toMatch(/location\.replace\(/);
-    expect(viewer).toMatch(/parseViewerHash\(ghHashFor\(hash, resolved\.target\)\)/);
+    // anvilHashFor, not ghHashFor: a registered name may point at the
+    // drawcast server as readily as at GitHub, and names.ts decides which.
+    expect(viewer).toMatch(/parseViewerHash\(anvilHashFor\(hash, resolved\.target\)\)/);
+    expect(viewer).not.toMatch(/ghHashFor/);
     expect(viewer).toMatch(/No drawcast called/);
   });
 
   test("parses the resolved target before clearing the lookup status, so a bad target still shows a message", () => {
-    const parseCall = viewer.indexOf("parseViewerHash(ghHashFor(");
+    const parseCall = viewer.indexOf("parseViewerHash(anvilHashFor(");
     const statusRemove = viewer.indexOf("status.remove()");
     expect(parseCall).toBeGreaterThan(0);
     expect(statusRemove).toBeGreaterThan(parseCall);

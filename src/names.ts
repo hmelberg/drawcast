@@ -46,10 +46,22 @@ export function isNameHash(hash: string): boolean {
   return nameInHash(hash) !== null;
 }
 
+/** Everything after the name segment, ready to append: "&mode=silent" or "". */
+function hashTail(hash: string): string {
+  const rest = hash.slice(1).split("&").slice(1);
+  return rest.length ? "&" + rest.join("&") : "";
+}
+
 /** The same hash with the name replaced by its resolved gh target. */
 export function ghHashFor(hash: string, target: string): string {
-  const rest = hash.slice(1).split("&").slice(1);
-  return `#gh=${target}${rest.length ? "&" + rest.join("&") : ""}`;
+  return `#gh=${target}${hashTail(hash)}`;
+}
+
+/** The hash a resolved target should be played through: the server for an
+ *  `anvil/` key, GitHub for anything else. One place, so runNamed does not
+ *  have to know how a cast key is shaped. */
+export function anvilHashFor(hash: string, target: string): string {
+  return target.startsWith("anvil/") ? `#anvil=${target.slice("anvil/".length)}${hashTail(hash)}` : ghHashFor(hash, target);
 }
 
 export interface Resolved {
@@ -112,7 +124,10 @@ export function nameNote(outcome: "ok" | "taken" | "owner" | "key" | "invalid" |
       // would be wrong there, so the wording names neither subject.
       return " · the name was not registered: you do not own what it points at";
     case "key":
-      return " · name not registered: the author key was rejected (Settings → Publishing)";
+      // 401: no session token, or one the server no longer knows (signed out
+      // from the dashboard, or the row revoked). The cure is the same either
+      // way, and it lives in one place.
+      return " · name not registered: not signed in — sign in again from Settings → Publishing (drawcast account)";
     case "invalid":
       return ` · "${name}" is not a valid name`;
     case "rate":
@@ -127,9 +142,10 @@ export function nameNote(outcome: "ok" | "taken" | "owner" | "key" | "invalid" |
 }
 
 // ---- The claim (teachers round, spec §3) ----------------------------------
-// Publishing with an author key makes the publisher the course's owner in
-// the teacher dashboard. The claim runs BEFORE the name registration, so a
-// name is only ever registered by the course's owner.
+// Publishing while signed in (the session token, round 0 spec §1) makes the
+// publisher the course's owner in the teacher dashboard. The claim runs
+// BEFORE the name registration, so a name is only ever registered by the
+// course's owner.
 
 export interface CourseClaim {
   key: string;
@@ -172,7 +188,7 @@ export function claimNote(outcome: ClaimOutcome): string {
     case "owner":
       return " · this course is owned by another author — not claimed";
     case "key":
-      return " · author key rejected";
+      return " · course not claimed: not signed in — sign in again from Settings → Publishing (drawcast account)";
     case "invalid":
       return " · course not claimed (the registry rejected the request)";
     case "rate":

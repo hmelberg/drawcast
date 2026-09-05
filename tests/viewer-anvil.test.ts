@@ -3,6 +3,7 @@
 // is guarded by source text, like tests/views-viewer.test.ts.
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
+import { anvilHashFor } from "../src/names";
 import { fetchAnvilText, parseViewerHash } from "../src/viewer";
 
 const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -118,5 +119,30 @@ describe("runViewer takes the fourth source through the same door as the others"
   });
   test("the loading line names the server", () => {
     expect(viewer).toMatch(/Loading drawing from the drawcast server/);
+  });
+});
+
+describe("a name pointing at the server", () => {
+  test("becomes an #anvil= hash, keeping the parameters", () => {
+    expect(anvilHashFor("#spanish1&mode=silent", "anvil/spanish1/01-intro.yaml")).toBe("#anvil=spanish1/01-intro.yaml&mode=silent");
+  });
+  test("a github target still becomes a gh hash", () => {
+    expect(anvilHashFor("#spanish1", "hmelberg/dcast/casts/one.yaml")).toBe("#gh=hmelberg/dcast/casts/one.yaml");
+  });
+  test("a name with a lecture segment keeps its parameters too", () => {
+    expect(anvilHashFor("#learn-russian/3&mode=silent&learner=fjell-rev-havn", "anvil/learn-russian/03.yaml")).toBe(
+      "#anvil=learn-russian/03.yaml&mode=silent&learner=fjell-rev-havn",
+    );
+  });
+  test("round-trips through parseViewerHash to the very key the registry held", () => {
+    const req = parseViewerHash(anvilHashFor("#spanish1&mode=silent", "anvil/spanish1/01-intro.yaml"));
+    expect(req?.anvil?.cast).toBe("anvil/spanish1/01-intro.yaml");
+    expect(req?.mode).toBe("silent");
+  });
+  test("an anvil target that climbs out is refused at the parse, like a bad gh one", () => {
+    expect(parseViewerHash(anvilHashFor("#spanish1", "anvil/spanish1/../secret.yaml"))).toBeNull();
+  });
+  test("runNamed hands the resolved target through anvilHashFor", () => {
+    expect(viewer).toMatch(/parseViewerHash\(anvilHashFor\(hash, resolved\.target\)\)/);
   });
 });
