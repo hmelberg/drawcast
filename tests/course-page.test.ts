@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { courseHref, courseNameFor, coursePage, escapeHtml, lectureHref, repoIndexPage } from "../src/course/page";
+import { courseHref, coursePage, doorlessNote, escapeHtml, lectureHref, repoIndexPage, type DoorlessReason } from "../src/course/page";
 
 const COURSE = parseCourse(`# Causal Inference
 level: advanced
@@ -75,38 +75,56 @@ describe("coursePage", () => {
 // minted lived in an inline script the page no longer carries.
 describe("the door", () => {
   const SPANISH = { title: "Spanish", context: {}, lectures: [], warnings: [] };
-  const JOIN = { courseKey: "h/d/spanish", app: "https://drawcast.app/" };
+  const DOOR = { name: "spanish-for-all", app: "https://drawcast.app/" };
 
   test("the published page carries no script at all", () => {
-    const html = coursePage(SPANISH, [], JOIN);
+    const html = coursePage(SPANISH, [], DOOR);
     expect(html).not.toContain("<script");
     expect(html).not.toContain("localStorage");
     expect(html).not.toContain("data-enroll");
     expect(html).not.toContain("data-cast");
   });
   test("it points at the app rather than trying to be one", () => {
-    const html = coursePage(SPANISH, [], JOIN);
+    const html = coursePage(SPANISH, [], DOOR);
     expect(html).toMatch(/Join this course/i);
     expect(html).toContain("https://drawcast.app/#");
-    expect(html).toContain('href="https://drawcast.app/#spanish"');
+    expect(html).toContain('href="https://drawcast.app/#spanish-for-all"');
   });
-  test("the door leads to the course's registered name: `name:` when set, else the slug at the end of the key", () => {
-    expect(coursePage({ ...SPANISH, name: "Spanish-For-All" }, [], JOIN)).toContain('href="https://drawcast.app/#spanish-for-all"');
-    expect(coursePage(SPANISH, [], { ...JOIN, courseKey: "h/d/courses/spanish-b1" })).toContain('href="https://drawcast.app/#spanish-b1"');
-    expect(courseNameFor({ name: undefined }, "learn-russian")).toBe("learn-russian");
-    expect(courseNameFor({ name: "Learn-Russian" }, "x")).toBe("learn-russian");
-    // A name the rule rejects travels as written, so the publish can report it.
-    expect(courseNameFor({ name: "gh-nope" }, "x")).toBe("gh-nope");
+  test("the door is the name it was GIVEN — the one this publish registered — never one derived from the document", () => {
+    // A `name:` in the document, or the slug, is not a door on its own: only
+    // a registration that came back ok is (see course-enroll-publish tests).
+    const html = coursePage({ ...SPANISH, name: "Something-Else", context: { slug: "spanish" } }, [], DOOR);
+    expect(html).toContain('href="https://drawcast.app/#spanish-for-all"');
+    expect(html).not.toContain("#something-else");
+    expect(html).not.toContain('href="https://drawcast.app/#spanish"');
   });
   test("the door follows the app base the lecture links use, without a doubled slash", () => {
     expect(courseHref("https://drawcast.app/", "spanish")).toBe("https://drawcast.app/#spanish");
     expect(courseHref("https://my.site", "spanish")).toBe("https://my.site/#spanish");
-    expect(coursePage(SPANISH, [], { ...JOIN, app: "https://my.site/" })).toContain('href="https://my.site/#spanish"');
+    expect(coursePage(SPANISH, [], { ...DOOR, app: "https://my.site/" })).toContain('href="https://my.site/#spanish-for-all"');
   });
-  test("without join data there is no door", () => {
+  test("without a door decision there is no join section at all", () => {
     const html = coursePage(SPANISH, []);
     expect(html).not.toMatch(/Join this course/i);
     expect(html).not.toContain('class="join"');
+  });
+  test("a doorless page says why instead of shipping a broken or hostile link — every reason has its sentence", () => {
+    const reasons: DoorlessReason[] = ["signed-out", "taken", "short", "invalid", "owner", "elsewhere", "unreachable", "unregistered"];
+    const notes = reasons.map((why) => doorlessNote(why));
+    for (const note of notes) expect(note.length).toBeGreaterThan(20);
+    expect(new Set(notes).size).toBe(reasons.length);
+    for (const why of reasons) {
+      const html = coursePage(SPANISH, [], { name: null, why });
+      expect(html).toContain('class="join"');
+      expect(html).toMatch(/Joining is not open yet/);
+      expect(html).toContain(escapeHtml(doorlessNote(why)));
+      expect(html).not.toMatch(/href="[^"]*\/#/); // no door of any kind
+      expect(html).not.toContain("<script");
+    }
+    expect(doorlessNote("taken")).toMatch(/belongs to someone else/);
+    expect(doorlessNote("short")).toMatch(/8 characters/);
+    expect(doorlessNote("signed-out")).toMatch(/without a drawcast account/);
+    expect(doorlessNote("elsewhere")).toMatch(/drawcast server only/);
   });
 });
 

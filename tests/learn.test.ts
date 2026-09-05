@@ -160,10 +160,11 @@ describe("joinCourse", () => {
     expect(await joinCourse(API, "", REQ, f)).toBe("key");
     expect(calls(f)).toBe(0);
   });
-  test("the server's refusals map one to one, and everything else — a 500, the network — is error", async () => {
+  test("the server's refusals map one to one — a 400 is an answer, not an outage — and everything else (a 500, the network) is error", async () => {
     expect(await joinCourse(API, KEY, REQ, fetchReturning(401, { error: "key" }))).toBe("key");
     expect(await joinCourse(API, KEY, REQ, fetchReturning(403, { error: "closed" }))).toBe("closed");
     expect(await joinCourse(API, KEY, REQ, fetchReturning(404, { error: "run" }))).toBe("run");
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(400, { error: "page" }))).toBe("invalid");
     expect(await joinCourse(API, KEY, REQ, fetchReturning(429, { error: "rate" }))).toBe("rate");
     expect(await joinCourse(API, KEY, REQ, fetchReturning(500, { error: "boom" }))).toBe("error");
     const dead = vi.fn(async () => {
@@ -171,11 +172,15 @@ describe("joinCourse", () => {
     }) as unknown as typeof fetch;
     expect(await joinCourse(API, KEY, REQ, dead)).toBe("error");
   });
-  test("every outcome has a sentence saying what to do next", () => {
-    const outcomes: JoinOutcome[] = ["ok", "key", "closed", "run", "rate", "error"];
-    for (const o of outcomes) expect(joinNote(o).length).toBeGreaterThan(10);
+  test("every outcome has its own sentence saying what to do next", () => {
+    const outcomes: JoinOutcome[] = ["ok", "key", "closed", "run", "invalid", "rate", "error"];
+    const notes = outcomes.map((o) => joinNote(o));
+    for (const note of notes) expect(note.length).toBeGreaterThan(10);
+    expect(new Set(notes).size).toBe(outcomes.length);
     expect(joinNote("ok")).toMatch(/teachers/);
     expect(joinNote("key")).toMatch(/sign in again/i);
     expect(joinNote("closed")).toMatch(/ask its teacher/);
+    expect(joinNote("invalid")).not.toMatch(/could not reach/i);
+    expect(joinNote("error")).toMatch(/could not reach/i);
   });
 });

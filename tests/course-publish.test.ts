@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { buildPublishPlan, publishCourse, type PlanArgs } from "../src/course/publish";
+import { buildPublishPlan, commitPublish, preparePublish, publishCourse, type PlanArgs } from "../src/course/publish";
 import { emptyManifest, upsertCourse } from "../src/publish/github";
 
 const TEXT = `# Causal Inference
@@ -167,6 +167,61 @@ describe("publishCourse", () => {
         ? ({ ok: true, status: 200, json: async () => ({ private: true, default_branch: "main" }), text: async () => "" } as Response)
         : ({ ok: true, status: 200, json: async () => ({}), text: async () => "" } as Response)) as unknown as typeof fetch;
     await expect(publishCourse({ ...publishArgs, fetchImpl })).rejects.toThrow(/public/);
+  });
+});
+
+// The split (identity round): the caller registers the course's name BETWEEN
+// the reads and the one write, and builds the page's door from the answer.
+describe("preparePublish, then commitPublish", () => {
+  const isWrite = (url: string) => /\/git\/(blobs|trees|commits|refs)/.test(url);
+  const enrolling = { ...publishArgs, text: TEXT.replace("# Causal Inference\n", "# Causal Inference\nenroll: https://drawcast.anvil.app\n") };
+
+  it("preparing writes nothing — it reads the branch and the manifest, and knows the slug, the page URL and the registration", async () => {
+    const { seen, fetchImpl } = fakeGithub();
+    const prepared = await preparePublish({ ...enrolling, fetchImpl });
+    expect(seen.some((s) => isWrite(s.url))).toBe(false);
+    expect(prepared.slug).toBe("causal-inference");
+    expect(prepared.courseUrl).toBe("https://o.github.io/r/courses/causal-inference/");
+    expect(prepared.updated).toContain("slug: causal-inference");
+    expect(prepared.updated).toContain("file: potential-outcomes.yaml");
+    // The registration is what the caller sends to the registry — with the
+    // lectures' permanent keys, which only exist once the names are recorded.
+    expect(prepared.registration).toEqual({
+      name: "causal-inference",
+      kind: "course",
+      target: "o/r/courses/causal-inference",
+      page: "https://o.github.io/r/courses/causal-inference/",
+      title: "Causal Inference",
+      lectures: ["o/r/courses/causal-inference/potential-outcomes.yaml", "o/r/courses/causal-inference/did.yaml"],
+    });
+  });
+
+  it("committing with the registered name puts the door on the page; without one the page says why", async () => {
+    const withDoor = fakeGithub();
+    const prepared = await preparePublish({ ...enrolling, fetchImpl: withDoor.fetchImpl });
+    const out = await commitPublish({ ...enrolling, fetchImpl: withDoor.fetchImpl }, prepared, { name: "causal-inference", app: "https://drawcast.app/" });
+    expect(withDoor.seen.some((s) => isWrite(s.url))).toBe(true);
+    expect(out.text).toContain("file: did.yaml");
+    const blobs = withDoor.seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
+    const page = blobs.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
+    expect(page).toContain('href="https://drawcast.app/#causal-inference"');
+
+    const doorless = fakeGithub();
+    await commitPublish({ ...enrolling, fetchImpl: doorless.fetchImpl }, await preparePublish({ ...enrolling, fetchImpl: doorless.fetchImpl }), { name: null, why: "taken" });
+    const blobs2 = doorless.seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
+    const page2 = blobs2.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
+    expect(page2).toMatch(/Joining is not open yet/);
+    expect(page2).toMatch(/belongs to someone else/);
+    expect(page2).not.toMatch(/href="https:\/\/drawcast\.app\/#/);
+  });
+
+  it("publishCourse is the two in one, and without a door decision an enrolling course ships doorless", async () => {
+    const { seen, fetchImpl } = fakeGithub();
+    await publishCourse({ ...enrolling, fetchImpl });
+    const blobs = seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
+    const page = blobs.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
+    expect(page).toMatch(/Joining is not open yet/);
+    expect(page).not.toMatch(/href="https:\/\/drawcast\.app\/#/);
   });
 });
 

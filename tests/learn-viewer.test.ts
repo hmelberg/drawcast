@@ -32,10 +32,10 @@ describe("the viewer reports as the account", () => {
   });
   test("meta.enroll decides whether and where — and the token goes only to the app that issued it", () => {
     expect(block).toMatch(/const enroll = playlist\.meta\.enroll \? apiBase\(playlist\.meta\.enroll\) : null;/);
-    // Never `sendEvent(enroll` with an unchecked enroll: a published YAML
-    // naming another server must not receive this browser's session token.
-    expect(src).not.toMatch(/sendEvent\(enroll\b/);
-    expect(src).not.toMatch(/sendEvent\(DEFAULT_ENROLL_API/);
+    // Never an api taken from the file: a published YAML naming another
+    // server must not receive this browser's session token. The reporter's
+    // api is the gated one; DEFAULT_ENROLL_API itself would be equally safe.
+    expect(src).not.toMatch(/sendEvent\((enroll|playlist\.meta\.enroll|apiBase\(playlist)/);
   });
   test("a report carries the token, under the cast key, to the reporter's api", () => {
     expect(block).toMatch(/void sendEvent\(reporter\.api, \{ kind: "opened", cast: reporter\.cast \}, reporter\.key\)/);

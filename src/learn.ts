@@ -80,7 +80,7 @@ export async function sendEvent(api: string, ev: LearnEvent, key: string, fetchI
   }
 }
 
-export type JoinOutcome = "ok" | "key" | "closed" | "run" | "rate" | "error";
+export type JoinOutcome = "ok" | "key" | "closed" | "run" | "invalid" | "rate" | "error";
 
 export interface JoinRequest {
   /** The course key — what a course name resolves to (owner/repo/<dir>). */
@@ -97,7 +97,8 @@ export interface JoinRequest {
  * joining twice is the same enrolment. Never throws; an empty token is "key"
  * without a request, since the server could only answer 401 to it. The
  * server's words map one to one: `401 key`, `403 closed` (the run is not
- * taking learners), `404 run` (no such run), `429 rate`.
+ * taking learners), `404 run` (no such run), `400 invalid` (the body itself
+ * was refused — an answer, not an outage), `429 rate`.
  */
 export async function joinCourse(api: string, key: string, req: JoinRequest, fetchImpl: typeof fetch = fetch): Promise<JoinOutcome> {
   if (!key) return "key";
@@ -115,6 +116,8 @@ export async function joinCourse(api: string, key: string, req: JoinRequest, fet
         return "closed";
       case 404:
         return "run";
+      case 400:
+        return "invalid";
       case 429:
         return "rate";
       default:
@@ -136,6 +139,8 @@ export function joinNote(outcome: JoinOutcome): string {
       return "This course is not taking new learners right now — ask its teacher.";
     case "run":
       return "This course has no open run to join — ask its teacher.";
+    case "invalid":
+      return "The drawcast server refused this join as malformed — the course may need publishing again. Ask its teacher.";
     case "rate":
       return "Too many joins from here in the last hour — try again later.";
     case "error":

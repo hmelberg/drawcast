@@ -576,17 +576,21 @@ function build(): ShareSession {
     h("span", {}, "Allow sign-up on the course page"),
     signupHint,
   );
-  const SIGNUP_HINT_DEFAULT = "the course page gets a Join link: learners sign in to join, and you see their progress and answers in the teacher dashboard";
+  const SIGNUP_HINT_DEFAULT =
+    "the course page gets a Join link: learners sign in to join, and their progress and answers go to the drawcast server, where you see them in the teacher dashboard";
   function refreshSignupChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
     signupLabel.hidden = subject !== "course";
     signupCb.checked = doc.joinBox === true;
     // An author running their OWN Anvil backend needs to see that URL before
     // unchecking deletes it — the course document was the only record of it
-    // (F2). The default app's own URL is not worth naming; it is what
-    // checking the box writes back in either case.
+    // (F2). And they need to hear what it does now: nothing. The viewer sends
+    // a learner's session token to the drawcast server and nowhere else
+    // (identity round), so a server of your own gets no reports, and the
+    // page gets no Join link. The default app's own URL is not worth naming;
+    // it is what checking the box writes back in either case.
     signupHint.textContent =
       doc.enrollUrl && doc.enrollUrl !== DEFAULT_ENROLL_API
-        ? `your own app: ${doc.enrollUrl} — unchecking removes this line from the course document`
+        ? `enroll: ${doc.enrollUrl} names a server of your own — this app reports progress to the drawcast server only, so learners are not followed there and the page gets no Join link; unchecking removes the line from the course document`
         : SIGNUP_HINT_DEFAULT;
   }
   const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel, signupLabel);

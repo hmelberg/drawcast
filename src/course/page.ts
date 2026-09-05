@@ -4,7 +4,6 @@
 // at home hosted on Pages and pasted into an LMS.
 
 import type { CourseEntry } from "../publish/github";
-import { normalizeName } from "../names";
 import type { Course } from "./document";
 
 export function escapeHtml(text: string): string {
@@ -25,15 +24,40 @@ export function courseHref(base: string, name: string): string {
 }
 
 /**
- * The name a course answers to at drawcast.app/#<name> (spec §7): `name:` if
- * set, else the slug. The registry is lower-case (names.ts); a name the rule
- * rejects outright travels as written, so registerName can report it as
- * invalid. One rule for the registration and for the door on the page, so
- * the page can never point at a name the publish did not register.
+ * Why a page with `enroll:` carries no door. A door is built ONLY from a name
+ * this publish registered (spec §8): a name that came back taken would send
+ * the learner into a stranger's run — their address and their answers to
+ * someone else — and a name under the floor, or a signed-out publish, to
+ * "No drawcast called …". Each reason is a sentence the page says instead.
  */
-export function courseNameFor(course: Pick<Course, "name">, slug: string): string {
-  const wanted = course.name ?? slug;
-  return normalizeName(wanted) ?? wanted;
+export type DoorlessReason = "signed-out" | "taken" | "short" | "invalid" | "owner" | "elsewhere" | "unreachable" | "unregistered";
+
+/** The page's join section: a door to a registered name, or why there is none. */
+export type Door = { name: string; app: string } | { name: null; why: DoorlessReason };
+
+export function doorlessNote(why: DoorlessReason): string {
+  switch (why) {
+    case "signed-out":
+      return "this course was published without a drawcast account, so it has no name to join under. Its author can publish it again, signed in.";
+    case "taken":
+      return "the name it asked for belongs to someone else. Its author can set another name: in the course document and publish again.";
+    case "short":
+      return "its name is too short to register (names need at least 8 characters). Its author can set a longer name: in the course document and publish again.";
+    case "invalid":
+      return "its name is not one the registry accepts. Its author can set another name: in the course document and publish again.";
+    case "owner":
+      return "the course is owned by another drawcast account, which this publish could not claim.";
+    case "elsewhere":
+      return "the course names a learner server of its own, and this app reports progress to the drawcast server only.";
+    case "unreachable":
+      return "the drawcast server could not register it when this was published. Its author can publish again.";
+    case "unregistered":
+      return "no name was registered for it when it was published.";
+    default: {
+      const unreachable: never = why;
+      return unreachable;
+    }
+  }
 }
 
 export interface PageLink {
@@ -82,15 +106,16 @@ ${body}
 }
 
 /**
- * The page is a door, not a dashboard (spec §8): with `join`, one sentence
+ * The page is a door, not a dashboard (spec §8): with a `door`, one sentence
  * and one link into the app, where joining is one click for a signed-in
  * account. No script at all — the progress marks, the join form and the
  * code it minted lived in an inline script this page no longer carries.
- * `join.app` is the app's own address (the viewer base), the same base the
- * lecture links use; `join.courseKey`'s last segment is the course's slug,
- * which the door's name falls back to when the document sets no `name:`.
+ * `door.app` is the app's own address (the viewer base), the same base the
+ * lecture links use, and `door.name` is the name THIS publish registered —
+ * never derived here, so the page cannot point at a name it does not own.
+ * A doorless page says why, rather than shipping a broken or hostile link.
  */
-export function coursePage(course: Course, links: PageLink[], join?: { courseKey: string; app: string }): string {
+export function coursePage(course: Course, links: PageLink[], door?: Door): string {
   const items = links
     .map((link, i) => {
       const head = link.href
@@ -103,14 +128,19 @@ export function coursePage(course: Course, links: PageLink[], join?: { courseKey
     })
     .join("\n");
   const intro = course.intro ? `<p class="intro">${escapeHtml(course.intro)}</p>` : "";
-  const door = join
-    ? `<section class="join">
+  const join =
+    door === undefined
+      ? ""
+      : door.name !== null
+        ? `<section class="join">
 <p><b>Join this course</b> — it keeps track of progress for signed-in learners: what you have opened, finished and answered, for you and the course's teachers.</p>
-<p><a class="door" href="${escapeHtml(courseHref(join.app, courseNameFor(course, join.courseKey.slice(join.courseKey.lastIndexOf("/") + 1))))}">Join this course in drawcast →</a></p>
+<p><a class="door" href="${escapeHtml(courseHref(door.app, door.name))}">Join this course in drawcast →</a></p>
 <p class="privacy">Joining stores your account's name and address, and your answers, so you and the course's teachers can see your progress. The learner backend is hosted in the UK.</p>
 </section>`
-    : "";
-  return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n${door}\n<ol>\n${items}\n</ol>`);
+        : `<section class="join">
+<p><b>Joining is not open yet</b> — ${escapeHtml(doorlessNote(door.why))}</p>
+</section>`;
+  return page(course.title, `<h1>${escapeHtml(course.title)}</h1>\n${intro}\n${join}\n<ol>\n${items}\n</ol>`);
 }
 
 export function repoIndexPage(courses: CourseEntry[], base: string): string {

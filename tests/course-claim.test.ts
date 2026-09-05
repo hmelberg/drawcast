@@ -169,12 +169,21 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
 
   // F2: unchecking the join box deletes the course document's `enroll:` line
   // — the only record of an author's own Anvil backend. The hint has to name
-  // that URL before the delete, not after.
-  test("Share names the author's own enroll URL in the hint, so unchecking is never silent (F2)", () => {
+  // that URL before the delete, not after — and, since the identity round,
+  // say what that server gets: nothing. The viewer sends a learner's session
+  // token to the drawcast server and nowhere else, so a server of the
+  // author's own is not reported to, and the page gets no Join link.
+  test("Share names the author's own enroll URL in the hint and says it is not reported to, so unchecking is never silent and the line never oversells (F2)", () => {
     expect(share).toMatch(/enrollUrl\?:\s*string/);
     expect(share).toMatch(/import \{ DEFAULT_ENROLL_API \} from "\.\.\/learn"/);
     expect(share).toMatch(/doc\.enrollUrl && doc\.enrollUrl !== DEFAULT_ENROLL_API/);
-    expect(share).toMatch(/your own app: \$\{doc\.enrollUrl\}/);
+    expect(share).toMatch(/enroll: \$\{doc\.enrollUrl\} names a server of your own/);
+    expect(share).toMatch(/reports progress to the drawcast server only/);
+    expect(share).toMatch(/unchecking removes the line from the course document/);
+    expect(share).not.toMatch(/your own app: /);
+    // The default hint says where progress goes too, and no longer speaks of a code.
+    expect(share).toMatch(/SIGNUP_HINT_DEFAULT =\s*"[^"]*go to the drawcast server/);
+    expect(share).not.toMatch(/course code/);
     // The hint is re-derived per document, like the checkbox itself — not set
     // once at build time.
     const refresh = share.slice(share.indexOf("function refreshSignupChoice("), share.indexOf("const linkPanel ="));
@@ -186,24 +195,41 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
     expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
     expect(publishFn).toMatch(/applyJoinBox\(doc\.value, allowSignup\)/);
-    expect(publishFn.indexOf("applyJoinBox(")).toBeLessThan(publishFn.indexOf("await publishCourse("));
-    // The text handed to publishCourse is the one the choice was applied to.
-    expect(publishFn).toMatch(/publishCourse\(\{\s*text,/);
+    expect(publishFn.indexOf("applyJoinBox(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
+    // The text handed to the publish is the one the choice was applied to.
+    expect(publishFn).toMatch(/const publishArgs: PublishArgs = \{\s*text,/);
+    expect(publishFn).toMatch(/preparePublish\(publishArgs\)/);
+    expect(publishFn).toMatch(/commitPublish\(publishArgs, prepared, door\)/);
   });
 
-  test("the claim runs after the commit landed and BEFORE the name, which is registered on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
-    const after = course.slice(course.indexOf("await publishCourse("));
+  test("the claim and the name run BETWEEN the reads and the commit, claim first, the name on \"ok\" or an unresolved \"error\" — never on an explicit non-owning answer (F1)", () => {
+    const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    const prepare = publishFn.indexOf("await preparePublish(");
+    const claim = publishFn.indexOf("claimCourse(");
+    const name = publishFn.indexOf("registerName(");
+    const commit = publishFn.indexOf("await commitPublish(");
+    expect(prepare).toBeGreaterThan(0);
     // `accountToken`, not `token`: in this scope `token` is the GitHub one.
-    expect(after).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(accountToken, reg\)/);
-    expect(after.indexOf("claimCourse(")).toBeGreaterThan(after.indexOf("render();"));
-    // F3: the condition and the ordering are pinned as two separate
-    // assertions, neither coupled to how the statement wraps across lines —
-    // the ordering assertion alone already carries the real guarantee (claim
-    // before name), and the condition assertion just needs the text to exist
-    // somewhere in the function, not glued to `registerName(` on one line.
-    expect(after.indexOf("claimCourse(")).toBeLessThan(after.indexOf("registerName("));
-    expect(after).toMatch(/claimNote\(/);
-    expect(after).toMatch(/claimed === "ok" \|\| claimed === "error"/);
+    expect(publishFn).toMatch(/claimCourse\(DEFAULT_ENROLL_API, courseClaim\(accountToken, reg\)/);
+    expect(claim).toBeGreaterThan(prepare);
+    expect(name).toBeGreaterThan(claim);
+    expect(commit).toBeGreaterThan(name);
+    expect(publishFn).toMatch(/claimNote\(/);
+    expect(publishFn).toMatch(/claimed === "ok" \|\| claimed === "error"/);
+  });
+
+  test("the page's door is built ONLY from a name that came back ok — a taken name would send a learner into a stranger's run", () => {
+    const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    expect(publishFn).toMatch(/let door: Door = \{ name: null, why: "signed-out" \};/);
+    expect(publishFn).toMatch(/door = named === "ok" \? \{ name: reg\.name, app: settings\.viewerBase \} : \{ name: null, why: DOORLESS\[named\] \};/);
+    // A name under the floor is never sent, and is reported as short, not invalid.
+    expect(publishFn).toMatch(/if \(isRegistrable\(reg\.name\)\)/);
+    expect(publishFn).toMatch(/names need at least \$\{MIN_NAME_LENGTH\} characters/);
+    expect(publishFn).toMatch(/why: short \? "short" : "invalid"/);
+    // A refused claim is a doorless page too, with the claim's own reason.
+    expect(publishFn).toMatch(/why: claimed === "owner" \? "owner" : claimed === "key" \? "signed-out" : "unreachable"/);
+    // The registry's every non-ok answer has a reason — the map is total over the union (tsc), and it never maps anything to a door.
+    expect(course).toMatch(/const DOORLESS: Record<Exclude<Awaited<ReturnType<typeof registerName>>, "ok">, DoorlessReason> = \{/);
   });
 
   test("Settings → Publishing says what signing in does now, and no longer speaks of an author key", () => {

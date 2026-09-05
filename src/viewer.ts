@@ -18,6 +18,7 @@ import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import { getToken, setToken, signInUrl } from "./account";
 import { apiBase, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent } from "./learn";
+import type { JoinOutcome, JoinRequest } from "./learn";
 import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
@@ -365,34 +366,60 @@ export async function runNamed(hash: string): Promise<void> {
  * stands in for one on screen and in the /enroll body. The server ignores
  * title and page for a course row that exists — and a course a name points
  * at always exists, because registering the name claimed it.
+ *
+ * Everything the door touches outside itself is injected (DoorDeps), so the
+ * node suite can drive it end to end (tests/course-door.test.ts); the live
+ * set below is what runNamed uses.
  */
-function courseDoor(name: string, resolved: Resolved): HTMLElement {
+export interface DoorDeps {
+  /** The session token, or "" signed out. */
+  token: () => string;
+  /** Drop a token the server no longer knows. */
+  forget: () => void;
+  /** Leave for the sign-in handshake; it returns to this very address. */
+  signIn: () => void;
+  join: (key: string, req: JoinRequest) => Promise<JoinOutcome>;
+}
+
+const liveDoorDeps: DoorDeps = {
+  token: getToken,
+  forget: () => setToken(""),
+  signIn: () => {
+    location.href = signInUrl(location.href);
+  },
+  // Bounded like every registry call: a sleeping backend costs ten seconds,
+  // not the visit.
+  join: (key, req) =>
+    joinCourse(DEFAULT_ENROLL_API, key, req, (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })),
+};
+
+export function courseDoor(name: string, resolved: Resolved, deps: DoorDeps = liveDoorDeps): HTMLElement {
   const title = name.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
   const heading = h("h1", { class: "viewer-title" }, title);
   const note = h("p", { class: "viewer-status" }, "Joining lets you and the course's teachers follow your progress and answers.");
-  const button = h("button", { class: "primary" }, getToken() === "" ? "Sign in to join" : "Join this course");
+  const button = h("button", { class: "primary" }, deps.token() === "" ? "Sign in to join" : "Join this course");
   const wrap = h("div", { class: "viewer-wrap" }, heading, note, h("p", {}, button));
   if (resolved.page) wrap.append(h("p", {}, h("a", { href: resolved.page }, "Open the course page")));
   button.addEventListener("click", () => {
-    const key = getToken();
+    const key = deps.token();
     if (key === "") {
-      location.href = signInUrl(location.href);
+      deps.signIn();
       return;
     }
     button.disabled = true;
-    // Bounded like every registry call: a sleeping backend costs ten seconds,
-    // not the visit.
-    void joinCourse(DEFAULT_ENROLL_API, key, { course: resolved.target, title, page: resolved.page ?? `https://drawcast.app/#${name}` }, (input, init) =>
-      fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
-    ).then((outcome) => {
+    void deps.join(key, { course: resolved.target, title, page: resolved.page ?? `https://drawcast.app/#${name}` }).then((outcome) => {
       note.textContent = joinNote(outcome);
       note.classList.toggle("error", outcome !== "ok");
       button.hidden = outcome === "ok";
       button.disabled = false;
+      // Joined, with no page in the registry to send them to: the first
+      // lecture is the other thing a name reaches (`#<name>/1`, names.ts),
+      // so there is always something to click next.
+      if (outcome === "ok" && !resolved.page) wrap.append(h("p", {}, h("a", { href: `#${name}/1` }, "Start with the first lecture")));
       // A token the server no longer knows is dead in this browser too: drop
       // it, so the next click is the sign-in the note just asked for.
       if (outcome === "key") {
-        setToken("");
+        deps.forget();
         button.textContent = "Sign in to join";
       }
     });

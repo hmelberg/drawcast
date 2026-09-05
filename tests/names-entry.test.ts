@@ -61,30 +61,24 @@ describe("runNamed", () => {
 });
 
 // The course view at drawcast.app/#<name> (spec §3, §8): where a learner
-// joins, in one click when signed in. Source pins — h() needs a document.
-describe("the course door", () => {
-  const door = viewer.slice(viewer.indexOf("function courseDoor("), viewer.indexOf("export async function runViewer("));
-  test("exists, takes the resolved pointer, and is what a course name opens", () => {
-    expect(door).toMatch(/^function courseDoor\(name: string, resolved: Resolved\): HTMLElement/);
+// joins. Its behaviour is exercised in tests/course-door.test.ts through the
+// injected DoorDeps; what only the source can say is pinned here — that the
+// LIVE dependencies are the real sign-in, token, forget and join.
+describe("the course door's live wiring", () => {
+  const live = viewer.slice(viewer.indexOf("const liveDoorDeps: DoorDeps = {"), viewer.indexOf("export function courseDoor("));
+  test("courseDoor is exported, takes the resolved pointer and the deps, and is what a course name opens", () => {
+    expect(viewer).toMatch(/export function courseDoor\(name: string, resolved: Resolved, deps: DoorDeps = liveDoorDeps\): HTMLElement/);
     expect(viewer).toMatch(/import \{ anvilHashFor, nameInHash, resolveName, type Resolved \} from "\.\/names"/);
+    expect(live.length).toBeGreaterThan(0);
   });
-  test("signed out, the button IS the sign-in, and the handshake returns to this very address — a bare #<name>", () => {
-    expect(door).toContain('getToken() === "" ? "Sign in to join" : "Join this course"');
-    expect(door).toMatch(/if \(key === ""\) \{\s*location\.href = signInUrl\(location\.href\);\s*return;/);
+  test("the token is the account's, a dead one is dropped through setToken, and sign-in is the handshake returning to this very address — a bare #<name>", () => {
+    expect(live).toMatch(/token: getToken,/);
+    expect(live).toMatch(/forget: \(\) => setToken\(""\),/);
+    expect(live).toMatch(/location\.href = signInUrl\(location\.href\);/);
   });
-  test("signed in, one click joins: the token and the resolved course key, through the learner client, bounded", () => {
-    expect(door).toMatch(/joinCourse\(DEFAULT_ENROLL_API, key, \{ course: resolved\.target, title, page: resolved\.page \?\? `https:\/\/drawcast\.app\/#\$\{name\}` \}/);
-    expect(door).toContain("AbortSignal.timeout(10_000)");
-    expect(door).not.toMatch(/\/_\/api\//); // the client owns the address
-  });
-  test("the answer is said in the door's own words, a dead token is dropped, and the button is disabled only while the answer is on its way", () => {
-    expect(door).toContain("note.textContent = joinNote(outcome);");
-    expect(door.indexOf("button.disabled = true;")).toBeLessThan(door.indexOf("joinCourse("));
-    expect(door).toContain("button.disabled = false;");
-    expect(door).toMatch(/if \(outcome === "key"\) \{\s*setToken\(""\);/);
-    expect(door).toContain('button.hidden = outcome === "ok";');
-  });
-  test("the course's own page is linked either way, so the name still reaches the course", () => {
-    expect(door).toMatch(/if \(resolved\.page\) wrap\.append\(h\("p", \{\}, h\("a", \{ href: resolved\.page \}, "Open the course page"\)\)\);/);
+  test("joining goes through the learner client, to the default app, bounded", () => {
+    expect(live).toMatch(/joinCourse\(DEFAULT_ENROLL_API, key, req, /);
+    expect(live).toContain("AbortSignal.timeout(10_000)");
+    expect(live).not.toMatch(/\/_\/api\//); // the client owns the address
   });
 });
