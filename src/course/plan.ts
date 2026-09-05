@@ -12,10 +12,20 @@ export const COURSE_SCHEMA = {
   type: "object",
   properties: {
     title: { type: "string", description: "Short title of the whole course." },
+    // Closed on purpose: structured outputs accept only `additionalProperties:
+    // false`, and an open map here 400'd every plan (2026-09-06). The four
+    // keys are the ones the prompt already names; omit what you have nothing
+    // to say for.
     context: {
       type: "object",
-      description: "What every lecture shares: level, language, notation, running example.",
-      additionalProperties: { type: "string" },
+      description: "What every lecture shares. Omit a key you have nothing to say for.",
+      properties: {
+        level: { type: "string", description: "Who the course is for, e.g. \"master students in economics\"." },
+        language: { type: "string", description: "The language the lectures are narrated in." },
+        notation: { type: "string", description: "The symbols the whole course uses for its quantities." },
+        example: { type: "string", description: "One running example every lecture returns to." },
+      },
+      additionalProperties: false,
     },
     intro: { type: "string", description: "One or two sentences describing the course." },
     lectures: {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildCourseMessages, normalizeCoursePlan } from "../src/course/plan";
+import { buildCourseMessages, COURSE_SCHEMA, normalizeCoursePlan } from "../src/course/plan";
+import { structuredOutputSupported } from "../src/llm/client";
 import { formatCourse, parseCourse } from "../src/course/document";
 
 describe("buildCourseMessages", () => {
@@ -84,5 +85,15 @@ describe("taste lives in the planner, not the runner", () => {
 
   it("tells the planner to leave a teacher's topics alone", () => {
     expect(buildCourseMessages("x", null).system).toContain("keep them as topics");
+  });
+});
+
+describe("COURSE_SCHEMA", () => {
+  it("is accepted by structured outputs (every object closed)", () => {
+    expect(structuredOutputSupported(COURSE_SCHEMA)).toBe(true);
+  });
+  it("names the four shared-context keys the prompt asks for", () => {
+    const ctx = (COURSE_SCHEMA.properties.context as unknown as { properties: Record<string, unknown> }).properties;
+    expect(Object.keys(ctx).sort()).toEqual(["example", "language", "level", "notation"]);
   });
 });
