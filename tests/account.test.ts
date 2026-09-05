@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { redeemFromAddress, redeemToken, signInUrl, signOut, stripToken, tokenInHash } from "../src/account";
 
 const calls = (f: typeof fetch) => (f as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit][];
@@ -75,19 +75,47 @@ describe("signOut", () => {
 });
 
 describe("redeemFromAddress", () => {
-  test("exchanges a token, stores it and reports true", async () => {
+  // jsdom is not enabled for this suite (vite.config.ts sets environment:
+  // "node"), so `history` does not exist and the real replaceState call is
+  // swallowed by its own catch. Faking it is what lets the token-stripping —
+  // the guarantee this function exists for — be asserted at all.
+  let replaceState: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    replaceState = vi.fn();
+    vi.stubGlobal("history", { replaceState });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("exchanges a token, stores it, strips it from the address and reports true", async () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ key: "sess" }), { status: 200 })) as unknown as typeof fetch;
     expect(await redeemFromAddress("#spanish1&t=once", "https://drawcast.app/#spanish1&t=once", "https://a", f)).toBe(true);
     expect(calls(f).length).toBe(1);
     expect((JSON.parse(calls(f)[0][1].body as string) as { token: string }).token).toBe("once");
+    // The address loses the token and keeps the page the visitor asked for.
+    expect(replaceState).toHaveBeenCalledTimes(1);
+    expect(replaceState).toHaveBeenCalledWith(null, "", "https://drawcast.app/#spanish1");
+    const written = replaceState.mock.calls[0][2] as string;
+    expect(written).not.toMatch(/[#&]t=/);
+    expect(written).toContain("#spanish1");
   });
   test("does nothing at all when the address carries no token", async () => {
     const f = vi.fn() as unknown as typeof fetch;
     expect(await redeemFromAddress("#spanish1", "https://drawcast.app/#spanish1", "https://a", f)).toBe(false);
     expect((f as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0);
+    expect(replaceState).not.toHaveBeenCalled();
   });
-  test("reports that a token was found even when the exchange is refused — the address is cleaned either way", async () => {
+  test("a refused exchange still strips the token — a dead token must not survive in a copied address — and reports that one was found", async () => {
     const bad = vi.fn(async () => new Response("{}", { status: 400 })) as unknown as typeof fetch;
     expect(await redeemFromAddress("#spanish1&t=once", "https://drawcast.app/#spanish1&t=once", "https://a", bad)).toBe(true);
+    expect(replaceState).toHaveBeenCalledWith(null, "", "https://drawcast.app/#spanish1");
+  });
+  test("an outage strips too, and keeps the parameters after the token", async () => {
+    const dead = vi.fn(async () => {
+      throw new Error("offline");
+    }) as unknown as typeof fetch;
+    expect(await redeemFromAddress("#gh=o/r/p.yaml&t=once&mode=silent", "https://drawcast.app/#gh=o/r/p.yaml&t=once&mode=silent", "https://a", dead)).toBe(true);
+    expect(replaceState).toHaveBeenCalledWith(null, "", "https://drawcast.app/#gh=o/r/p.yaml&mode=silent");
   });
 });

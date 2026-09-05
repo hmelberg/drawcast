@@ -10,13 +10,22 @@
 // sees it and a copied link never carries it.
 
 import { redeemFromAddress } from "./account";
+import { DEFAULT_ENROLL_API } from "./learn";
 import { isNameHash } from "./names";
 
 async function boot(): Promise<void> {
   // Before routing: a `t=` in the address is a sign-in coming back, and the
   // hash it rode in on is the page the person actually asked for. The hash
   // is read AFTER the redeem, once the token has been stripped from it.
-  await redeemFromAddress(location.hash, location.href);
+  //
+  // Bounded, like every other registry call in this repo: this await gates
+  // first paint (index.html is a bare <div id="app">), and anyone can craft
+  // `#name&t=junk` — an unbounded POST to a sleeping backend would hang a
+  // shared link on a blank page. Ten seconds, then the page routes as usual,
+  // signed out.
+  await redeemFromAddress(location.hash, location.href, DEFAULT_ENROLL_API, (input, init) =>
+    fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+  );
   const hash = location.hash;
   if (/[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
     const { parseViewerHash, runViewer } = await import("./viewer");

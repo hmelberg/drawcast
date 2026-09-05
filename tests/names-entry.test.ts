@@ -18,12 +18,19 @@ describe("entry routes names", () => {
     // The redeem strips `t=` from the address; a hash read before it would
     // still carry the token, and a `#name&t=…` would then route on a string
     // the name resolver has never seen.
-    const redeem = entry.indexOf("await redeemFromAddress(location.hash, location.href)");
+    const redeem = entry.indexOf("await redeemFromAddress(location.hash, location.href,");
     const read = entry.indexOf("const hash = location.hash");
     const route = entry.indexOf("(gdoc|gh|gdrive|anvil)[=-]");
     expect(redeem).toBeGreaterThan(0);
     expect(read).toBeGreaterThan(redeem);
     expect(route).toBeGreaterThan(read);
+  });
+  test("bounds the redeem — it gates first paint, and a stranger can craft `#name&t=junk`", () => {
+    // Same ten-second bound every other registry call carries (main.ts,
+    // ui/course.ts): an unreachable or sleeping backend costs ten seconds of
+    // blank page, not the whole visit.
+    const call = entry.slice(entry.indexOf("await redeemFromAddress("), entry.indexOf("const hash = location.hash"));
+    expect(call).toMatch(/AbortSignal\.timeout\(10_000\)/);
   });
 });
 
