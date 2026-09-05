@@ -251,6 +251,7 @@ describe("bundled offline examples (src/examples.json)", () => {
     if (needsPacks.has("mathlogic")) await ensureEngines(["mathjax"]);
     if (needsPacks.has("games")) await ensureEngines(["chess"]);
     if (needsPacks.has("maps")) await ensureEngines(["geo"]);
+    if (needsPacks.has("anatomy")) await ensureEngines(["anatomy"]);
   });
 
   interface Entry {

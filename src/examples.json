@@ -12528,6 +12528,7 @@
   },
   {
     "request": "Where is the liver? Show me the body so I can point at it.",
+    "packs": ["anatomy"],
     "spec": {
       "title": "Where is the liver?",
       "template": "anatomy",

@@ -248,11 +248,63 @@ layout: |
   const wantLabel = (id) => all[id].kind !== "joint"
     ? (labelMode === "all" || (labelMode === "focus" && (focusIds.has(id) || highlightIds.has(id))))
     : (labelMode !== "none" && (focusIds.has(id) || highlightIds.has(id)));
+  // Labels hang off the part's OUTWARD edge, not its centroid: a name that
+  // starts at the centre of a small organ crosses its own outline, and one that
+  // starts at the centre of a big one covers what it names. Parts on the body's
+  // right (the viewer's left) label leftwards, the rest rightwards, and the
+  // solver walks outward from there — past the silhouette with a leader when
+  // the body is too crowded, which is how anatomical plates have always looked.
+  const edgeAnchor = (id, side) => {
+    let best = null;
+    for (const r of ringsFor(id)) for (const p of r.outer) if (!best || (side === "left" ? p[0] < best[0] : p[0] > best[0])) best = p;
+    return P(best);
+  };
+  const LABEL_PX = 19;
+  const requests = [];
   for (const id of drawn) {
     if (!wantLabel(id)) continue;
     const side = anchors[id][0] < cx ? "left" : "right";
-    labels.push(kit.label("label_" + id, anchors[id], side, nameOf(id), { color: C.ink, fontSize: 19 }));
-    order.push("label_" + id);
+    requests.push({ id, side, at: edgeAnchor(id, side) });
+  }
+  if (focusing) {
+    for (const q of requests) {
+      labels.push({ ...kit.label("label_" + q.id, q.at, q.side, nameOf(q.id), { color: C.ink, fontSize: LABEL_PX }), ignore: ["frame"] });
+      order.push("label_" + q.id);
+    }
+  } else if (requests.length > 0) {
+    // The whole body: its torso is ~120 canvas units wide, so a name beside an
+    // organ always crosses the silhouette, and the solver prefers grazing a
+    // stroke nearby to a clean spot far away. So names go in two columns
+    // OUTSIDE the silhouette, stacked with a minimum gap and joined to their
+    // part by a leader — the layout anatomical plates have always used.
+    const outlinePts = all.body_outline ? all.body_outline.rings[0].outer.map(P) : [[FRAME.x0 + 200, 0], [FRAME.x1 - 200, 0]];
+    const minX = Math.min(...outlinePts.map((p) => p[0])), maxX = Math.max(...outlinePts.map((p) => p[0]));
+    for (const side of ["left", "right"]) {
+      const col = requests.filter((q) => q.side === side).sort((a, b) => b.at[1] - a.at[1]); // top first (canvas y is up)
+      if (col.length === 0) continue;
+      const top = FRAME.y1 - LABEL_PX, bottom = FRAME.y0 + LABEL_PX;
+      // A text box is ~1.25 × fontSize tall and the lint allows 2 units, so
+      // consecutive centres need ≥ 1.4 × fontSize; 1.5 leaves air. Squeezed to
+      // 1.3 when a column is long, beyond which names must overlap and lint says so.
+      const gap = Math.max(LABEL_PX * 1.3, Math.min(LABEL_PX * 1.5, col.length > 1 ? (top - bottom) / (col.length - 1) : LABEL_PX * 1.5));
+      const ys = col.map((q) => q.at[1]);
+      for (let i = 1; i < ys.length; i++) ys[i] = Math.min(ys[i], ys[i - 1] - gap);
+      if (ys[0] > top) { const d = ys[0] - top; for (let i = 0; i < ys.length; i++) ys[i] -= d; }
+      if (ys[ys.length - 1] < bottom) { const d = bottom - ys[ys.length - 1]; for (let i = 0; i < ys.length; i++) ys[i] += d; }
+      const colX = side === "left" ? minX - 14 : maxX + 14;
+      col.forEach((q, i) => {
+        const text = nameOf(q.id);
+        const w = kit.textWidth(text, LABEL_PX);
+        const tx = side === "left" ? colX - w / 2 : colX + w / 2;
+        push(kit.text("label_" + q.id, [tx, ys[i]], text, { fontSize: LABEL_PX, color: C.ink }));
+        anchors["label_" + q.id] = [tx, ys[i]];
+        // The leader stops at the column's inner edge, so it never enters a
+        // neighbour's text. `_leader` is a sub-drawable suffix: it is drawn
+        // with its label and is not an element of its own, so it goes into
+        // drawables but NOT into order.
+        drawables.push(kit.stroke("label_" + q.id + "_leader", [q.at, [colX + (side === "left" ? 3 : -3), ys[i]]], { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+      });
+    }
   }
 
   markersIn.forEach((m, i) => {
