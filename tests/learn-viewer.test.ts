@@ -1,53 +1,64 @@
+// The viewer's learner block (spec §1, §3): the signed-in account reports,
+// or nothing does. Source pins — h() needs a document this suite lacks.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseViewerHash } from "../src/viewer";
 
 const src = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
-describe("the learner param", () => {
-  test("rides the hash and is normalised", () => {
-    expect(parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml&learner=Fjell-Rev-Havn")?.learner).toBe("fjell-rev-havn");
-    expect(parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml&learner=nope")?.learner).toBeUndefined();
-    expect(parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml")?.learner).toBeUndefined();
+describe("the code is gone", () => {
+  test("a &learner= in the hash is an unknown parameter now, not an identity", () => {
+    const req = parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml&learner=Fjell-Rev-Havn");
+    expect(req?.gh?.path).toBe("learn-russian/01.yaml");
+    expect(req).not.toHaveProperty("learner");
+  });
+  test("no code map, no ?learner= handling, no 🎓 control — and no localStorage read for any of them", () => {
+    expect(src).not.toMatch(/learnerButton|saveLearner|learnerFor|forgetLearner|normalizeCode|stripLearnerParam|reportingAllowed|LearnerEntry/);
+    expect(src).not.toMatch(/req\.learner|learner=/);
+    expect(src).not.toMatch(/safeLocalStorage|localStorage/);
   });
 });
 
-describe("the viewer reports to the learner backend", () => {
+describe("the viewer reports as the account", () => {
+  const block = src.slice(src.indexOf("const castKey = req.anvil"), src.indexOf("const settings = loadSettings();"));
   test("it uses the client, never its own rules", () => {
-    expect(src).toMatch(/from "\.\/learn"/);
-    expect(src).toMatch(/reportingAllowed\(/);
-    expect(src).toMatch(/saveLearner\(/);
+    expect(src).toMatch(/import \{ apiBase, DEFAULT_ENROLL_API, firstOpenInSession, sendEvent \} from "\.\/learn"/);
+    expect(src).toMatch(/import \{ getToken \} from "\.\/account"/);
   });
-  test("an arriving code is stored before the URL is cleaned, and the cleanup uses replaceState", () => {
-    const start = src.indexOf("countingEnabled(playlist.meta)");
-    const save = src.indexOf("saveLearner(", start);
-    const strip = src.indexOf("history.replaceState", start);
-    expect(start).toBeGreaterThan(0);
-    expect(save).toBeGreaterThan(start);
-    expect(strip).toBeGreaterThan(start);
-    expect(strip).toBeGreaterThan(save);
-    expect(src).toMatch(/stripLearnerParam\(location\.href\)/);
+  test("no report without a token: the session token is read once, and an empty one means no reporter", () => {
+    expect(block).toMatch(/const key = getToken\(\);/);
+    expect(block).toMatch(/key !== ""/);
+    expect(block).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey \} : null;/);
   });
-  test("a code in the address is cleaned away even when the cast has no backend to report to", () => {
-    expect(src).toMatch(/if \(req\.learner\) \{/);
-    expect(src).toMatch(/if \(enroll\) saveLearner\(/);
+  test("meta.enroll decides whether and where — and the token goes only to the app that issued it", () => {
+    expect(block).toMatch(/const enroll = playlist\.meta\.enroll \? apiBase\(playlist\.meta\.enroll\) : null;/);
+    // Never `sendEvent(enroll` with an unchecked enroll: a published YAML
+    // naming another server must not receive this browser's session token.
+    expect(src).not.toMatch(/sendEvent\(enroll\b/);
+    expect(src).not.toMatch(/sendEvent\(DEFAULT_ENROLL_API/);
+  });
+  test("a report carries the token, under the cast key, to the reporter's api", () => {
+    expect(block).toMatch(/void sendEvent\(reporter\.api, \{ kind: "opened", cast: reporter\.cast \}, reporter\.key\)/);
+    expect(src).toMatch(/void sendEvent\(reporter\.api, \{ kind: "completed", cast: reporter\.cast \}, reporter\.key\)/);
+  });
+  test("opened is reported once per session, like a view", () => {
+    expect(block).toMatch(/if \(firstOpenInSession\(reporter\.cast, session\)\) void sendEvent\(/);
   });
   test("an answer is keyed by (item, step): the playlist item index plus the step inside it", () => {
     expect(src).toMatch(/onAnswer: reporter\s*\?\s*\(a, _item, index\) =>/);
-    expect(src).toMatch(/kind: "answer", cast: learnerCast, item: index, step: a\.index/);
+    expect(src).toMatch(/kind: "answer", cast: reporter\.cast, item: index, step: a\.index/);
   });
-  test("opened, answer and completed are wired and never awaited", () => {
+  test("opened, answer and completed are wired and never awaited — a refusal or an outage can never reach playback", () => {
     expect(src).toMatch(/kind: "opened"/);
     expect(src).toMatch(/onAnswer: /);
     expect(src).toMatch(/onDone: /);
     expect(src).toMatch(/kind: "completed"/);
     expect(src).not.toMatch(/await\s+sendEvent/);
+    expect(src.match(/void sendEvent\(/g)).toHaveLength(3);
+    expect(src).not.toMatch(/sendEvent\([^)]*\)\.then/);
   });
-  test("the button is a trailing control and only appears with a course backend or a stored code", () => {
-    expect(src).toMatch(/fullscreenEl: figureHost, trailing/);
-    expect(src).toMatch(/learnerButton\(/);
-  });
-  test("dismissing the 🎓 popover never also toggles playback", () => {
-    expect(src).toMatch(/panel\.hidden = true;\s*e\.stopPropagation\(\);/);
+  test("the reporter is decided before the player mounts, and the player takes no learner control", () => {
+    expect(src.indexOf("const reporter = ")).toBeLessThan(src.indexOf("await mountPlaylist("));
+    expect(src).toMatch(/controls: \{ speech, fullscreenEl: figureHost \}/);
   });
 });
