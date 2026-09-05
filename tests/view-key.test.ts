@@ -8,6 +8,8 @@ import {
   dayString,
   hitKey,
   hitPrefix,
+  isPrivateCastKey,
+  isPrivateOwner,
   isValidCastKey,
   repoHitPrefix,
   repoRollupPrefix,
@@ -37,6 +39,24 @@ describe("isValidCastKey", () => {
   test("rejects characters that would change meaning once encoded", () => {
     expect(isValidCastKey("hmelberg/kurs/a b.yaml")).toBe(false);
     expect(isValidCastKey("hmelberg/kurs/a%2Fb.yaml")).toBe(false);
+  });
+});
+
+describe("private owners", () => {
+  test("anvil is the drawcast server's own store, not a GitHub owner", () => {
+    expect(isPrivateOwner("anvil")).toBe(true);
+    expect(isPrivateCastKey("anvil/spanish1/01-intro.yaml")).toBe(true);
+  });
+
+  test("exact on the owner segment — a GitHub user merely starting with anvil is public", () => {
+    expect(isPrivateOwner("anvil-courses")).toBe(false);
+    expect(isPrivateOwner("hmelberg")).toBe(false);
+    expect(isPrivateCastKey("anvil-courses/kurs/casts/did.yaml")).toBe(false);
+    expect(isPrivateCastKey("hmelberg/anvil/casts/did.yaml")).toBe(false);
+  });
+
+  test("shape and policy are separate: a private key is still shape-valid, because learner events carry it to an authenticated backend under the same rule", () => {
+    expect(isValidCastKey("anvil/spanish1/01-intro.yaml")).toBe(true);
   });
 });
 

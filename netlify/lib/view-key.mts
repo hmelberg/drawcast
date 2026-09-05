@@ -42,6 +42,28 @@ export function isValidCastKey(key: string): boolean {
   return CAST_KEY_RE.test(key);
 }
 
+/**
+ * Owners whose keys are NOT public on GitHub. `anvil/<slug>/<file>` is the
+ * drawcast server's own store (round 0, spec §4), and a cast there may be
+ * private to a course — while the views endpoint is public and enumerable
+ * by owner. So these keys are refused at every door of
+ * netlify/functions/views.mts (see its header), and the client never sends
+ * them (src/views.ts). Shape is a separate question: such a key is still
+ * shape-valid, because learner events use the same rule and DO carry it, to
+ * an authenticated backend. Exact match on the owner segment: a GitHub user
+ * called `anvil-courses` is public like any other.
+ */
+const PRIVATE_OWNERS: ReadonlySet<string> = new Set(["anvil"]);
+
+export function isPrivateOwner(owner: string): boolean {
+  return PRIVATE_OWNERS.has(owner);
+}
+
+/** True for a key whose owner segment is private, whatever its shape. */
+export function isPrivateCastKey(key: string): boolean {
+  return isPrivateOwner(key.split("/", 1)[0]);
+}
+
 export function hitPrefix(castKey: string): string {
   return `h/${castKey}/`;
 }

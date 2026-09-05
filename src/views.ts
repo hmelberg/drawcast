@@ -5,6 +5,18 @@
 /** Mirrors the cast-key rule in netlify/lib/view-key.mts. Checked here too so
  *  a malformed key never becomes a pointless request. */
 const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+/** Mirrors isPrivateOwner there: `anvil/<slug>/<file>` is the drawcast
+ *  server's own store, and a cast on it may be private to a course. The
+ *  counter is public and lists an owner's every key, so such a key must never
+ *  reach it — a private cast's views are the teacher's business, in the
+ *  dashboard. Refused HERE, not only in the viewer's wiring, so the request
+ *  is never made whatever a caller passes. Exact owner: `anvil-courses/…` is
+ *  a GitHub key like any other. */
+const PRIVATE_OWNER_RE = /^anvil\//;
+
+function countable(key: string): boolean {
+  return CAST_KEY_RE.test(key) && !PRIVATE_OWNER_RE.test(key);
+}
 
 /**
  * Endpoints tried in order, the same shape as VENDING_ENDPOINTS in
@@ -60,7 +72,7 @@ export async function recordView(
   endpoints: string[] = VIEW_ENDPOINTS,
   fetchImpl: typeof fetch = fetch,
 ): Promise<number | null> {
-  if (!CAST_KEY_RE.test(key)) return null;
+  if (!countable(key)) return null;
   for (const url of endpoints) {
     try {
       const res = await fetchImpl(url, {
@@ -93,7 +105,7 @@ export async function readViewCount(
   endpoints: string[] = VIEW_ENDPOINTS,
   fetchImpl: typeof fetch = fetch,
 ): Promise<number | null> {
-  if (!CAST_KEY_RE.test(key)) return null;
+  if (!countable(key)) return null;
   for (const url of endpoints) {
     try {
       const res = await fetchImpl(`${url}?cast=${encodeURIComponent(key)}`);

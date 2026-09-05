@@ -1050,6 +1050,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   font-size: var(--text-sm);
   opacity: 0.65;
 }
+/* A lost narration on a server cast (viewer.ts, fetchAnvilText), said once
+   beside the count: never a modal, never a blocked drawing. */
+.viewer-note {
+  font-size: var(--text-sm);
+  opacity: 0.65;
+}
 .viewer-status { color: var(--muted); margin-bottom: 0.8rem; }
 .viewer-status.error { color: var(--loss); font-weight: 600; }
 /* The figure itself is a .player-figure here too — see the player-mode block

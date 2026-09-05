@@ -112,6 +112,20 @@ const GDRIVE_RE = /[#&]gdrive[=-]([A-Za-z0-9_-]{10,})/;
 const ANVIL_RE = /[#&]anvil[=-]([\w.-]+)\/([^&\s]+)/;
 /** Documents only, and never a path that climbs out of the repo. */
 const DOC_PATH_RE = /^(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+/** One plain segment for the server slug — dots inside are fine, `.` and `..`
+ *  are not. ANVIL_RE alone would let `#anvil=../x.yaml` through as
+ *  `anvil/../x.yaml`, a key DOC_PATH_RE never sees and CAST_KEY_RE accepts. */
+const ANVIL_SLUG_RE = /^[\w-]+(?:\.[\w-]+)*$/;
+
+/** A malformed percent-escape is not a path, not a crash — nameInHash's rule.
+ *  entry.ts runs boot() uncaught, so a throw here is a blank page, no message. */
+function decodePath(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Accepts #gdoc=<id> / #gdoc-<id>, #gdrive=<id> / #gdrive-<id>,
@@ -149,13 +163,13 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
   };
 
   if (anv) {
-    const path = decodeURIComponent(anv[2]);
-    if (!DOC_PATH_RE.test(path)) return null;
+    const path = decodePath(anv[2]);
+    if (path === null || !ANVIL_SLUG_RE.test(anv[1]) || !DOC_PATH_RE.test(path)) return null;
     return { anvil: { cast: `anvil/${anv[1]}/${path}`, api: DEFAULT_ENROLL_API }, ...common };
   }
   if (gh) {
-    const path = decodeURIComponent(gh[3]);
-    if (!DOC_PATH_RE.test(path)) return null;
+    const path = decodePath(gh[3]);
+    if (path === null || !DOC_PATH_RE.test(path)) return null;
     return { gh: { owner: gh[1], repo: gh[2], path }, ...common };
   }
   if (drive) {
@@ -268,20 +282,38 @@ async function fetchGhText(gh: GhRef): Promise<string> {
   );
 }
 
+/** What the audio endpoint must answer with to be appended: the document
+ *  formatPublished writes, a mapping whose first key is `audio`. A 200 that
+ *  is anything else — an HTML shell, a captive portal — is not narration. */
+const AUDIO_DOC_RE = /^\s*audio\s*:/;
+
 /**
  * A cast stored on the drawcast server arrives as two objects (spec §4) and
  * is handed to the parser as one document — so `parsePlaylistText`,
  * `speech.prefetch` and mount order never learn about the split. The join is
  * the one `formatPublished` writes for a GitHub cast: the spec, a single
- * newline, a `---` line, the `audio:` document. A cast without audio answers
- * 404 on the second request, and that is normal, not an error; so is a
- * network failure there — the spec still plays, with a synthesised voice.
+ * newline, a `---` line, the `audio:` document.
  *
- * The session token rides as `key=`, the same way every other server call
- * carries it. Signed out it is empty, and the server's 401 becomes the
- * message that says what to do about it.
+ * The narration is optional and must never cost the lecture. A 404 on the
+ * second request means the cast has none, and is silent. Every OTHER way of
+ * not getting it — a server error, the network, a 200 that is not an audio
+ * document — still plays the spec but is reported once through
+ * `onAudioProblem`, because a baked voice that has quietly become a
+ * synthesiser looks exactly like one that was never baked, and nobody would
+ * ever report it. Appending an unchecked 200 would be worse than dropping
+ * it: classifyDocs makes an unrecognised mapping a spec, validateSpec fails
+ * it, and the whole drawcast dies over an optional resource.
+ *
+ * The session token travels as the `key=` query parameter — unlike every
+ * other server call, which POSTs it in a body — so it can land in access
+ * logs. Signed out it is empty, and the server's 401 becomes the message
+ * that says what to do about it.
  */
-export async function fetchAnvilText(ref: { cast: string; api: string }, fetchImpl: typeof fetch = fetch): Promise<string> {
+export async function fetchAnvilText(
+  ref: { cast: string; api: string },
+  fetchImpl: typeof fetch = fetch,
+  onAudioProblem?: (why: string) => void,
+): Promise<string> {
   const q = `cast=${encodeURIComponent(ref.cast)}&key=${encodeURIComponent(getToken())}`;
   const res = await fetchImpl(`${apiBase(ref.api)}/_/api/cast?${q}`);
   if (!res.ok) {
@@ -295,8 +327,20 @@ export async function fetchAnvilText(ref: { cast: string; api: string }, fetchIm
   }
   const spec = await res.text();
   const audio = await fetchImpl(`${apiBase(ref.api)}/_/api/cast/audio?${q}`).catch(() => null);
-  if (!audio || !audio.ok) return spec;
-  const track = await audio.text();
+  if (!audio) {
+    onAudioProblem?.("network");
+    return spec;
+  }
+  if (audio.status === 404) return spec;
+  if (!audio.ok) {
+    onAudioProblem?.(`HTTP ${audio.status}`);
+    return spec;
+  }
+  const track = await audio.text().catch(() => null);
+  if (track === null || !AUDIO_DOC_RE.test(track)) {
+    onAudioProblem?.("not an audio document");
+    return spec;
+  }
   return `${spec.replace(/\n*$/, "\n")}---\n${track}`;
 }
 
@@ -377,7 +421,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // The count lives under the figure, where a viewer expects it — and where
   // the title is heading in the player round, so the row is built once.
   const viewsEl = h("span", { class: "viewer-views" });
-  const metaEl = h("div", { class: "viewer-meta" }, viewsEl);
+  // The one line a lost narration gets (server casts): the same row as the
+  // count, so it is said once and never blocks the drawing.
+  const noteEl = h("span", { class: "viewer-note" });
+  const metaEl = h("div", { class: "viewer-meta" }, viewsEl, noteEl);
   const footer = h(
     "div",
     { class: "viewer-footer" },
@@ -396,8 +443,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // people's content, and the AUTHOR's template choice must not depend on
     // what this browser happens to have enabled. Bundled yaml — no network.
     await ensureEnabledPacks(Object.keys(PACK_DEFS));
+    let audioNote = "";
     const text = req.anvil
-      ? await fetchAnvilText(req.anvil)
+      ? await fetchAnvilText(req.anvil, fetch, (why) => {
+          audioNote = `Recorded narration unavailable (${why}); narration falls back to a synthesised voice.`;
+        })
       : req.gh
         ? await fetchGhText(req.gh)
         : req.driveId
@@ -425,14 +475,19 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       titleEl.textContent = title;
       document.title = `${title} — drawcast`;
     }
-    // The published identity of this cast, for counting and reporting: a
-    // GitHub key or the server's own — both `a/b/<path>`, so everything
-    // downstream takes either. A Doc or Drive link has none.
-    const castKey = req.anvil ? req.anvil.cast : req.gh ? castKeyFor(req.gh) : null;
+    if (audioNote) noteEl.textContent = audioNote;
     // Counting: after the playlist is parsed, because the flag travels in the
     // file, and BEFORE mountPlaylist, which takes seconds a visitor may not
     // stay for. Never awaited — a counting outage must not delay a drawing.
-    if (countingEnabled(playlist.meta) && castKey) {
+    //
+    // GitHub casts ONLY, and not by oversight: the counter is public and
+    // lists every key under an owner to anyone who asks, so an anvil/ key
+    // there would publish a private course's lecture list. A private cast's
+    // view count is the teacher's business and belongs in the dashboard,
+    // not in a public counter. (src/views.ts and the function refuse such a
+    // key too; this is the intent, those are the guards.)
+    if (countingEnabled(playlist.meta) && req.gh) {
+      const viewKey = castKeyFor(req.gh);
       const session = (() => {
         try {
           return sessionStorage;
@@ -440,7 +495,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           return null; // Private mode can throw on access, not just on use.
         }
       })();
-      const pending = firstViewInSession(castKey, session) ? recordView(castKey) : readViewCount(castKey);
+      const pending = firstViewInSession(viewKey, session) ? recordView(viewKey) : readViewCount(viewKey);
       void pending.then((count) => {
         if (typeof count === "number") viewsEl.textContent = `${count.toLocaleString()} ${count === 1 ? "view" : "views"}`;
       });
@@ -450,6 +505,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     let learner: LearnerEntry | null = null;
     let learnerCast = "";
     const trailing: HTMLElement[] = [];
+    // The identity reported under: a GitHub key or the server's own — both
+    // `a/b/<path>`, so the learner client takes either. Unlike counting above
+    // this goes to the authenticated backend, where the server's key belongs.
+    const castKey = req.anvil ? req.anvil.cast : req.gh ? castKeyFor(req.gh) : null;
     if (castKey) {
       learnerCast = castKey;
       const courseKey = courseKeyOf(learnerCast);

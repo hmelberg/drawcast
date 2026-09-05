@@ -111,6 +111,32 @@ describe("recordView", () => {
   });
 });
 
+describe("the drawcast server's own keys never reach the public counter", () => {
+  // anvil/<slug>/<file> is shape-valid — it has to be, learner events use
+  // the same rule — but the counter is public and ?repo= lists an owner's
+  // every key: a private course's lecture list, to anyone. Mirrors
+  // isPrivateOwner in netlify/lib/view-key.mts; refused HERE so the request
+  // is never made, whatever the viewer's wiring does with the key.
+  const PRIVATE = "anvil/spanish1/01-intro.yaml";
+
+  test("recordView neither posts nor counts", async () => {
+    const f = fetchReturning(200, { count: 1 });
+    expect(await recordView(PRIVATE, ["/x"], f)).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  test("readViewCount does not ask either", async () => {
+    const f = fetchReturning(200, { count: 1 });
+    expect(await readViewCount(PRIVATE, ["/x"], f)).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  test("the owner match is exact: a GitHub user merely starting with anvil is counted", async () => {
+    expect(await recordView("anvil-courses/kurs/casts/did.yaml", ["/x"], fetchReturning(200, { count: 2 }))).toBe(2);
+    expect(await readViewCount("hmelberg/anvil/casts/did.yaml", ["/x"], fetchReturning(200, { count: 3 }))).toBe(3);
+  });
+});
+
 describe("readViewCount", () => {
   test("asks for one cast without recording anything", async () => {
     const f = fetchReturning(200, { count: 9 });

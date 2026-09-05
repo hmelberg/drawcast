@@ -1,6 +1,9 @@
 // The fourth source: a cast stored on the drawcast server (spec §4). The
 // parse and the fetch are pure enough for the node suite; runViewer's wiring
-// is guarded by source text, like tests/views-viewer.test.ts.
+// is guarded by source text, like tests/views-viewer.test.ts. The guards
+// that a server cast is never COUNTED publicly are behavioural and live
+// where the refusal does: tests/views-client.test.ts (the client never sends
+// it) and tests/views-endpoint.test.ts (the function refuses it).
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import { anvilHashFor } from "../src/names";
@@ -16,6 +19,11 @@ function fetchWith(answer: (url: string) => Response) {
   return { f, impl: f as unknown as typeof fetch };
 }
 
+/** A spec that loads, then whatever the audio endpoint answers. */
+function withAudio(audio: () => Response, spec = "meta: {}\n") {
+  return fetchWith((url) => (url.includes("/cast/audio") ? audio() : new Response(spec, { status: 200 })));
+}
+
 describe("parseViewerHash", () => {
   test("reads #anvil=<course>/<file> and keeps the common parameters", () => {
     const req = parseViewerHash("#anvil=spanish1/01-intro.yaml&mode=silent");
@@ -23,8 +31,8 @@ describe("parseViewerHash", () => {
     expect(req?.mode).toBe("silent");
   });
   test("the key has the GitHub shape, and points at the default server", () => {
-    // Three segments, `anvil` first: CAST_KEY_RE in views.ts / learn.ts /
-    // view-key.mts accepts it unchanged, and the dashboard needs no new case.
+    // Three segments, `anvil` first: CAST_KEY_RE in learn.ts accepts it
+    // unchanged, so learner events and the dashboard need no new case.
     const req = parseViewerHash("#anvil=spanish1/01-intro.yaml");
     expect(req?.anvil).toEqual({ cast: "anvil/spanish1/01-intro.yaml", api: "https://drawcast.anvil.app" });
     expect(req?.gh).toBeUndefined();
@@ -44,34 +52,85 @@ describe("parseViewerHash", () => {
   test("refuses a path that climbs out", () => {
     expect(parseViewerHash("#anvil=spanish1/../../etc/passwd.yaml")).toBeNull();
   });
+  test("refuses a slug that is not one plain segment — DOC_PATH_RE never sees the slug", () => {
+    expect(parseViewerHash("#anvil=../x.yaml")).toBeNull();
+    expect(parseViewerHash("#anvil=./x.yaml")).toBeNull();
+    expect(parseViewerHash("#anvil=a..b/x.yaml")).toBeNull();
+    expect(parseViewerHash("#anvil=.hidden/x.yaml")).toBeNull();
+    // Dots INSIDE a slug are ordinary.
+    expect(parseViewerHash("#anvil=v1.2/x.yaml")?.anvil?.cast).toBe("anvil/v1.2/x.yaml");
+  });
   test("refuses anything that is not a document", () => {
     expect(parseViewerHash("#anvil=spanish1/01-intro.html")).toBeNull();
     expect(parseViewerHash("#anvil=spanish1")).toBeNull();
+  });
+  test("a malformed percent-escape is null, not a thrown blank page", () => {
+    // entry.ts runs boot() uncaught: a throw from here would be a blank page
+    // with no message. nameInHash guards the same hazard; so does this now,
+    // for the GitHub branch too.
+    expect(parseViewerHash("#anvil=spanish1/b%.yaml")).toBeNull();
+    expect(parseViewerHash("#gh=o/r/b%.yaml")).toBeNull();
   });
 });
 
 describe("fetchAnvilText", () => {
   test("concatenates the spec and its audio into one document", async () => {
-    const { impl } = fetchWith((url) =>
-      url.includes("/cast/audio") ? new Response("audio:\n  lang: en\n", { status: 200 }) : new Response("meta:\n  title: Intro\n", { status: 200 }),
-    );
-    const text = await fetchAnvilText(REF, impl);
-    expect(text).toBe("meta:\n  title: Intro\n---\naudio:\n  lang: en\n");
+    const { impl } = withAudio(() => new Response("audio:\n  lang: en\n", { status: 200 }), "meta:\n  title: Intro\n");
+    expect(await fetchAnvilText(REF, impl)).toBe("meta:\n  title: Intro\n---\naudio:\n  lang: en\n");
   });
   test("a spec without a trailing newline still gets exactly one before the separator", async () => {
-    const { impl } = fetchWith((url) => (url.includes("/cast/audio") ? new Response("audio: {}\n", { status: 200 }) : new Response("meta: {}", { status: 200 })));
+    const { impl } = withAudio(() => new Response("audio: {}\n", { status: 200 }), "meta: {}");
     expect(await fetchAnvilText(REF, impl)).toBe("meta: {}\n---\naudio: {}\n");
   });
-  test("a cast without audio is just its spec", async () => {
-    const { impl } = fetchWith((url) => (url.includes("/cast/audio") ? new Response("{}", { status: 404 }) : new Response("meta: {}\n", { status: 200 })));
-    expect(await fetchAnvilText(REF, impl)).toBe("meta: {}\n");
+  test("a cast without audio is just its spec, and nothing is reported — 404 is normal", async () => {
+    const problem = vi.fn();
+    const { impl } = withAudio(() => new Response("{}", { status: 404 }));
+    expect(await fetchAnvilText(REF, impl, problem)).toBe("meta: {}\n");
+    expect(problem).not.toHaveBeenCalled();
   });
-  test("an audio request that fails on the network still yields the spec", async () => {
+  test("a present track reports nothing either", async () => {
+    const problem = vi.fn();
+    const { impl } = withAudio(() => new Response("audio: {}\n", { status: 200 }));
+    await fetchAnvilText(REF, impl, problem);
+    expect(problem).not.toHaveBeenCalled();
+  });
+  test("an audio request that fails on the network still yields the spec — and says so", async () => {
+    const problem = vi.fn();
     const f = vi.fn(async (url: string) => {
       if (url.includes("/cast/audio")) throw new TypeError("offline");
       return new Response("meta: {}\n", { status: 200 });
     });
-    expect(await fetchAnvilText(REF, f as unknown as typeof fetch)).toBe("meta: {}\n");
+    expect(await fetchAnvilText(REF, f as unknown as typeof fetch, problem)).toBe("meta: {}\n");
+    expect(problem).toHaveBeenCalledTimes(1);
+    expect(problem).toHaveBeenCalledWith("network");
+  });
+  test("a server failure on the audio keeps the lecture playing, and is reported once with its status", async () => {
+    // Silence here would be wrong: a baked voice that quietly became a
+    // synthesiser looks exactly like one that was never baked.
+    const problem = vi.fn();
+    const { impl } = withAudio(() => new Response("{}", { status: 503 }));
+    expect(await fetchAnvilText(REF, impl, problem)).toBe("meta: {}\n");
+    expect(problem).toHaveBeenCalledTimes(1);
+    expect(problem).toHaveBeenCalledWith("HTTP 503");
+  });
+  test("a 200 that is not an audio document is dropped, not appended", async () => {
+    // classifyDocs makes an unrecognised mapping a spec, and validateSpec
+    // then fails the whole drawcast — an HTML shell or a captive portal would
+    // turn an OPTIONAL resource into a dead lecture.
+    const problem = vi.fn();
+    const { impl } = withAudio(() => new Response("<!doctype html><html><body>Sign in</body></html>", { status: 200 }));
+    expect(await fetchAnvilText(REF, impl, problem)).toBe("meta: {}\n");
+    expect(problem).toHaveBeenCalledWith("not an audio document");
+  });
+  test("a 200 whose body is a spec, not audio, is dropped too — a mapping alone is not enough", async () => {
+    const problem = vi.fn();
+    const { impl } = withAudio(() => new Response("meta:\n  title: Not audio\n", { status: 200 }));
+    expect(await fetchAnvilText(REF, impl, problem)).toBe("meta: {}\n");
+    expect(problem).toHaveBeenCalledWith("not an audio document");
+  });
+  test("works without a reporter — the callback is optional", async () => {
+    const { impl } = withAudio(() => new Response("{}", { status: 503 }));
+    expect(await fetchAnvilText(REF, impl)).toBe("meta: {}\n");
   });
   test("asks the given server for the cast, and sends the session token as key=", async () => {
     const { f, impl } = fetchWith(() => new Response("meta: {}\n", { status: 200 }));
@@ -104,21 +163,32 @@ describe("fetchAnvilText", () => {
 });
 
 describe("runViewer takes the fourth source through the same door as the others", () => {
-  test("the load picks fetchAnvilText for req.anvil, ahead of the GitHub branch", () => {
-    const load = /const text = req\.anvil\s*\?\s*await fetchAnvilText\(req\.anvil\)\s*:\s*req\.gh\s*\?\s*await fetchGhText\(req\.gh\)/;
-    expect(viewer).toMatch(load);
+  test("the load picks fetchAnvilText for req.anvil, ahead of the GitHub branch, with a reporter for lost narration", () => {
+    expect(viewer).toMatch(/const text = req\.anvil\s*\?\s*await fetchAnvilText\(req\.anvil, fetch, \(why\) =>/);
+    expect(viewer).toMatch(/:\s*req\.gh\s*\?\s*await fetchGhText\(req\.gh\)/);
   });
-  test("counting and learner reporting are keyed by the one castKey, never by req.gh alone", () => {
-    expect(viewer).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*castKey\b/);
+  test("counting stays GitHub-only: a private cast's views are the teacher's business, not a public counter's", () => {
+    // netlify/functions/views is public and ?repo= enumerates an owner; an
+    // anvil/ key there would list a private course's lectures to anyone.
+    expect(viewer).toMatch(/countingEnabled\(playlist\.meta\)\s*&&\s*req\.gh\b/);
+    const counting = viewer.slice(viewer.indexOf("countingEnabled(playlist.meta)"), viewer.indexOf("let learner"));
+    expect(counting.length).toBeGreaterThan(0);
+    expect(counting).not.toMatch(/req\.anvil|\bcastKey\b/);
+  });
+  test("learner reporting is keyed by the one castKey — server or GitHub — because it goes to the authenticated backend", () => {
+    expect(viewer).toMatch(/const castKey = req\.anvil \? req\.anvil\.cast : req\.gh \? castKeyFor\(req\.gh\) : null;/);
     expect(viewer).toMatch(/if \(castKey\) \{\s*learnerCast = castKey;/);
-    // The old shape — a second castKeyFor(req.gh) inside each block — is gone.
-    expect(viewer.match(/castKeyFor\(req\.gh\)/g)?.length).toBe(1);
   });
   test("comments stay GitHub-only: data-repo comes from the repository URL", () => {
     expect(viewer).toMatch(/playlist\.meta\.comments && req\.gh/);
   });
   test("the loading line names the server", () => {
     expect(viewer).toMatch(/Loading drawing from the drawcast server/);
+  });
+  test("a lost narration is said once, in the meta row where the view count lives", () => {
+    expect(viewer).toMatch(/h\("div", \{ class: "viewer-meta" \}, viewsEl, noteEl\)/);
+    expect(viewer).toMatch(/if \(audioNote\) noteEl\.textContent = audioNote;/);
+    expect(viewer).toMatch(/Recorded narration unavailable \(\$\{why\}\)/);
   });
 });
 
@@ -141,6 +211,7 @@ describe("a name pointing at the server", () => {
   });
   test("an anvil target that climbs out is refused at the parse, like a bad gh one", () => {
     expect(parseViewerHash(anvilHashFor("#spanish1", "anvil/spanish1/../secret.yaml"))).toBeNull();
+    expect(parseViewerHash(anvilHashFor("#spanish1", "anvil/../secret.yaml"))).toBeNull();
   });
   test("runNamed hands the resolved target through anvilHashFor", () => {
     expect(viewer).toMatch(/parseViewerHash\(anvilHashFor\(hash, resolved\.target\)\)/);

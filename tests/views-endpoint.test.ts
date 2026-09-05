@@ -78,6 +78,46 @@ describe("recording a view", () => {
   });
 });
 
+describe("the drawcast server's private store is refused at every door", () => {
+  // anvil/<slug>/<file> names a cast on the drawcast server, which may be
+  // private to a course. This endpoint is public and ?repo= enumerates an
+  // owner, so accepting the key would publish a private course's lecture
+  // list, with per-day counts, to anyone holding one link or guessing a
+  // slug. The header's invariant — "leaks nothing not already public on
+  // GitHub" — only holds because this exception is enforced.
+  const PRIVATE = "anvil/spanish1/01-intro.yaml";
+
+  test("POST is a 400: nothing recorded, nothing charged", async () => {
+    const d = deps();
+    const res = await handleViewsRequest(post(PRIVATE), d);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "private" });
+    expect(d.recorded).toEqual([]);
+    expect(d.charged).toEqual([]);
+  });
+
+  test("?cast= is a 400 and storage is never asked", async () => {
+    const d = deps({ readCast: async () => { throw new Error("must not be called"); } });
+    const res = await handleViewsRequest(get(`?cast=${encodeURIComponent(PRIVATE)}`), d);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "private" });
+  });
+
+  test("?repo=anvil/<slug> is a 400 and nothing is listed — the enumeration door", async () => {
+    const d = deps({ readRepo: async () => { throw new Error("must not be called"); } });
+    const res = await handleViewsRequest(get("?repo=anvil/spanish1"), d);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "private" });
+  });
+
+  test("the owner match is exact: a GitHub user called anvil-courses is public and served", async () => {
+    const d = deps();
+    expect((await handleViewsRequest(post("anvil-courses/kurs/casts/did.yaml"), d)).status).toBe(200);
+    expect((await handleViewsRequest(get("?repo=anvil-courses/kurs"), d)).status).toBe(200);
+    expect((await handleViewsRequest(get(`?cast=${encodeURIComponent("hmelberg/anvil/casts/did.yaml")}`), d)).status).toBe(200);
+  });
+});
+
 describe("the per-IP write budget", () => {
   // Origin is caller-supplied and forgeable (see the comment on
   // ALLOWED_ORIGINS in views.mts), so it stops idle curl at best. This is the
