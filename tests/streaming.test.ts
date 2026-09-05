@@ -72,14 +72,14 @@ describe("callForJson streams", () => {
 
   test("effort rides in output_config beside the schema", async () => {
     const { client, recorded } = fakeClient(["{}"]);
-    await callForJson(client, "claude-sonnet-5", "sys", [{ role: "user", content: "q" }], { type: "object" }, { effort: "low" });
-    expect(recorded[0].body.output_config).toEqual({ format: { type: "json_schema", schema: { type: "object" } }, effort: "low" });
+    await callForJson(client, "claude-sonnet-5", "sys", [{ role: "user", content: "q" }], { type: "object", additionalProperties: false }, { effort: "low" });
+    expect(recorded[0].body.output_config).toEqual({ format: { type: "json_schema", schema: { type: "object", additionalProperties: false } }, effort: "low" });
   });
 
   test("no effort means no effort field — the model's own default stands", async () => {
     const { client, recorded } = fakeClient(["{}"]);
-    await callForJson(client, "claude-sonnet-5", "sys", [{ role: "user", content: "q" }], { type: "object" });
-    expect(recorded[0].body.output_config).toEqual({ format: { type: "json_schema", schema: { type: "object" } } });
+    await callForJson(client, "claude-sonnet-5", "sys", [{ role: "user", content: "q" }], { type: "object", additionalProperties: false });
+    expect(recorded[0].body.output_config).toEqual({ format: { type: "json_schema", schema: { type: "object", additionalProperties: false } } });
   });
 });
 

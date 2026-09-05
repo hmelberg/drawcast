@@ -106,11 +106,28 @@ async function createMessage(
   return await stream.finalMessage();
 }
 
-// Learned per session: the structured-output grammar rejects our spec schema
-// (open `params` object → "additionalProperties: true is not supported"), and
-// the fallbacks beta may be unavailable on some keys. Remember what 400'd so
-// later calls (and repair rounds) skip the doomed attempts.
-const featureBroken = { structuredOutput: false, fallbacks: false };
+/**
+ * The API's structured-output grammar accepts only `additionalProperties:
+ * false` on objects; true, a map schema, or nothing at all is a 400. Checked
+ * locally so no call spends a round trip on a schema that cannot work. The
+ * spec schema fails this (open `params`, open `animate`) and runs as plain
+ * JSON; the outline and course-plan schemas pass and keep the grammar.
+ */
+export function structuredOutputSupported(schema: unknown): boolean {
+  if (typeof schema !== "object" || schema === null) return true;
+  if (Array.isArray(schema)) return schema.every(structuredOutputSupported);
+  const node = schema as Record<string, unknown>;
+  const isObject = node.type === "object" || "properties" in node;
+  if (isObject && node.additionalProperties !== false) return false;
+  return Object.values(node).every(structuredOutputSupported);
+}
+
+// Learned per session, PER SCHEMA: a 400 for one schema must not degrade the
+// calls that use another (2026-09-06: the course plan's 400 used to switch
+// every later outline and part in the session to plain JSON). The fallbacks
+// beta is a property of the key, so that one stays global.
+const brokenSchemas = new Set<string>();
+let fallbacksBroken = false;
 
 /** One JSON-producing call: structured output first, plain-JSON fallback on 400. */
 export async function callForJson(
@@ -129,9 +146,12 @@ export async function callForJson(
   let structured = true;
   let lastError: unknown = null;
 
+  const schemaKey = JSON.stringify(outputSchema);
+  const schemaUsable = structuredOutputSupported(outputSchema);
+
   for (let attempt = 0; attempt < 3 && !response; attempt++) {
-    const useSchema = featureBroken.structuredOutput ? null : outputSchema;
-    const useFallbacks = !featureBroken.fallbacks;
+    const useSchema = schemaUsable && !brokenSchemas.has(schemaKey) ? outputSchema : null;
+    const useFallbacks = !fallbacksBroken;
     try {
       response = await createMessage(client, model, system, messages, useSchema, useFallbacks, opts);
       structured = useSchema !== null;
@@ -140,13 +160,13 @@ export async function callForJson(
       if (!(err instanceof Anthropic.BadRequestError)) throw err;
       const msg = err.message;
       if (useSchema && /output_config|format\.schema|json_schema/i.test(msg)) {
-        featureBroken.structuredOutput = true;
+        brokenSchemas.add(schemaKey);
       } else if (useFallbacks && /fallback|beta/i.test(msg)) {
-        featureBroken.fallbacks = true;
+        fallbacksBroken = true;
       } else if (useSchema) {
-        featureBroken.structuredOutput = true; // unknown 400: most likely the schema
+        brokenSchemas.add(schemaKey); // unknown 400: most likely the schema
       } else if (useFallbacks) {
-        featureBroken.fallbacks = true;
+        fallbacksBroken = true;
       } else {
         throw err; // plain request still 400s — a real request error
       }
