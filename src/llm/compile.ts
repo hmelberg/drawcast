@@ -3,7 +3,7 @@
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { makeClient, callForJson, callForText, describeApiError, opusTier, type JsonCallMeta } from "./client";
+import { makeClient, callForJson, callForText, describeApiError, repairModelFor, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
@@ -132,13 +132,10 @@ export function needsRepair(validationErrors: string[], lintIssues: LintIssue[])
   return validationErrors.length > 0 || lintIssues.some((i) => i.severity === "error");
 }
 
-/**
- * Repairs are mechanical ("here are the errors, return the corrected spec") —
- * a fast model does them as well as Opus. Never pick a slower model than chosen.
- */
-export function repairModelFor(model: string): string {
-  return opusTier(model) ? "claude-sonnet-5" : model;
-}
+// Repairs are mechanical ("here are the errors, return the corrected spec") —
+// a fast model does them as well as Opus. The chooser lives beside the call
+// layer now, so callForJson's JSON repair round picks the same model.
+export { repairModelFor };
 
 // ---- Local prompt improvement (Loop 2's meta-improvement, run in-app) ----
 

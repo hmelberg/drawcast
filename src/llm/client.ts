@@ -41,10 +41,24 @@ export interface JsonCallMeta {
   structuredOutput: boolean;
   inputTokens?: number;
   outputTokens?: number;
+  /** The first reply did not parse; a repair round produced this JSON. */
+  jsonRepaired?: boolean;
 }
 
 export function opusTier(model: string): boolean {
   return model.startsWith("claude-opus-5") || model.startsWith("claude-fable");
+}
+
+/** Mechanical rounds (schema, lint and JSON repairs) run on the faster sibling of the creative model. */
+export function repairModelFor(model: string): string {
+  return opusTier(model) ? "claude-sonnet-5" : model;
+}
+
+function textOf(response: Anthropic.Message): string {
+  return response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
 }
 
 /** Per-call knobs: cancellation, live text, and the effort dial repairs turn down. */
@@ -189,11 +203,39 @@ export async function callForJson(
     );
   }
 
-  const raw = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-  const json = structured ? JSON.parse(raw) : extractJson(raw);
+  const raw = textOf(response);
+  if (raw.trim() === "") throw new Error("The model's reply was empty.");
+
+  let json: unknown;
+  let jsonRepaired = false;
+  try {
+    json = structured ? JSON.parse(raw) : extractJson(raw);
+  } catch (firstErr) {
+    // One mechanical repair round, the same idea as a schema repair: hand the
+    // bad reply back and ask for the JSON alone. Same system prompt (a cache
+    // hit), the repair model, low effort, plain JSON — a part used to die
+    // here on a stray sentence or an unescaped newline in a code string.
+    const fix = `That reply was not valid JSON (${(firstErr as Error).message}). Return ONLY the corrected JSON object — no prose, no code fences, newlines inside strings escaped as \\n.`;
+    const retry = await createMessage(
+      client,
+      repairModelFor(model),
+      system,
+      [...messages, { role: "assistant", content: raw }, { role: "user", content: fix }],
+      null,
+      !fallbacksBroken,
+      { ...opts, effort: "low" },
+    );
+    addAnthropicTokens((retry.usage?.input_tokens ?? 0) + (retry.usage?.output_tokens ?? 0));
+    const raw2 = textOf(retry);
+    try {
+      json = extractJson(raw2);
+    } catch (secondErr) {
+      throw new Error(
+        `The model's reply was not valid JSON even after a repair round (${(secondErr as Error).message}). The reply began: "${raw2.slice(0, 80)}"`,
+      );
+    }
+    jsonRepaired = true;
+  }
 
   return {
     json,
@@ -204,6 +246,7 @@ export async function callForJson(
       structuredOutput: structured,
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
+      ...(jsonRepaired ? { jsonRepaired } : {}),
     },
   };
 }
@@ -228,11 +271,7 @@ export async function callForText(
     throw new RefusalError(details?.explanation);
   }
   addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
-  const text = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-  return { text, ms: performance.now() - t0 };
+  return { text: textOf(response), ms: performance.now() - t0 };
 }
 
 export { extractJson };

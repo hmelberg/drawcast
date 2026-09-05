@@ -99,3 +99,30 @@ describe("max_tokens", () => {
     await expect(callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED)).rejects.toThrow(/cut off/);
   });
 });
+
+describe("invalid JSON gets one mechanical repair round", () => {
+  test("the repaired reply is used", async () => {
+    const { client, recorded } = queuedClient([{ text: 'Sure! {"a": "1",}' }, { text: '{"a":"1"}' }]);
+    const { json, meta } = await callForJson(client, "claude-opus-5", "s", [{ role: "user", content: "u" }], OPEN);
+    expect(json).toEqual({ a: "1" });
+    expect(meta.jsonRepaired).toBe(true);
+    expect(recorded).toHaveLength(2);
+    const repair = recorded[1].body;
+    expect(repair.model).toBe("claude-sonnet-5"); // mechanical → the repair model
+    expect((repair.output_config as { effort?: string }).effort).toBe("low");
+    const msgs = repair.messages as { role: string; content: string }[];
+    expect(msgs[msgs.length - 2]).toEqual({ role: "assistant", content: 'Sure! {"a": "1",}' });
+    expect(msgs[msgs.length - 1].content).toMatch(/not valid JSON/);
+  });
+
+  test("a second bad reply fails with the parse error and the reply's head", async () => {
+    const { client } = queuedClient([{ text: "no json here" }, { text: "still none" }]);
+    await expect(callForJson(client, "claude-opus-5", "s", [{ role: "user", content: "u" }], OPEN)).rejects.toThrow(/not valid JSON[\s\S]*still none/);
+  });
+
+  test("an empty reply is not sent back for repair", async () => {
+    const { client, recorded } = queuedClient([{ text: "" }]);
+    await expect(callForJson(client, "claude-opus-5", "s", [{ role: "user", content: "u" }], OPEN)).rejects.toThrow(/empty/);
+    expect(recorded).toHaveLength(1);
+  });
+});
