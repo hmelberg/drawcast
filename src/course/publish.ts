@@ -80,13 +80,14 @@ export function courseRegistration(
 }
 
 /**
- * The Share panel's "Allow sign-up on the course page" box, applied to the
+ * The Share panel's "Join door on the course page" checkbox, applied to the
  * document text before a publish (teachers round, spec §5). On: write the
  * default app's URL unless the author already typed an `enroll:` of their
- * own — the box manages the default app only, never someone's own backend.
- * Off: remove the line, whatever it carried, so the page loses its join box.
+ * own — the checkbox manages the default app only, never someone's own
+ * backend. Off: remove the line, whatever it carried, so the page loses its
+ * Join door — the one link into the app where a signed-in learner joins.
  */
-export function applyJoinBox(text: string, on: boolean, api: string = DEFAULT_ENROLL_API): string {
+export function applyJoinDoor(text: string, on: boolean, api: string = DEFAULT_ENROLL_API): string {
   const has = parseCourse(text).enroll !== undefined;
   if (on) return has ? text : setCourseOption(text, "enroll", api);
   return has ? removeCourseOption(text, "enroll") : text;

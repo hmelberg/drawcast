@@ -1,6 +1,7 @@
 import { describe, expect, it, test } from "vitest";
 import { parseCourse } from "../src/course/document";
 import { courseHref, coursePage, doorlessNote, escapeHtml, lectureHref, repoIndexPage, type DoorlessReason } from "../src/course/page";
+import { MIN_NAME_LENGTH } from "../src/names";
 import { hasDoor } from "./helpers/course-door";
 
 const COURSE = parseCourse(`# Causal Inference
@@ -90,6 +91,20 @@ describe("the door", () => {
     expect(html).toMatch(/Join this course/i);
     expect(html).toContain("https://drawcast.app/#");
     expect(html).toContain('href="https://drawcast.app/#spanish-for-all"');
+  });
+  test("the privacy line says what is stored and no more: the users table has no name column", () => {
+    // A data-collection statement that overstates is still a false one. The
+    // account is an address (drawcast-anvil server_code/dash.py: "no code,
+    // and no name — the users service stores none"), so the page must not
+    // tell a learner their name is kept.
+    const html = coursePage(SPANISH, [], DOOR);
+    expect(html).toMatch(/Joining stores your account's email address/);
+    expect(html).not.toMatch(/account's name/);
+    expect(html).not.toMatch(/name and address/);
+  });
+  test("the short-name sentence quotes the registry's floor, not a number of its own", () => {
+    // names.ts owns MIN_NAME_LENGTH; a literal here drifted once already.
+    expect(doorlessNote("short")).toContain(`at least ${MIN_NAME_LENGTH} characters`);
   });
   test("the door is the name it was GIVEN — the one this publish registered — never one derived from the document", () => {
     // A `name:` in the document, or the slug, is not a door on its own: only

@@ -3,6 +3,7 @@
 // document on every publish, so it cannot drift from the plan. It is equally
 // at home hosted on Pages and pasted into an LMS.
 
+import { MIN_NAME_LENGTH } from "../names";
 import type { CourseEntry } from "../publish/github";
 import type { Course } from "./document";
 
@@ -42,7 +43,7 @@ export function doorlessNote(why: DoorlessReason): string {
     case "taken":
       return "the name it asked for belongs to someone else. Its author can set another name: in the course document and publish again.";
     case "short":
-      return "its name is too short to register (names need at least 8 characters). Its author can set a longer name: in the course document and publish again.";
+      return `its name is too short to register (names need at least ${MIN_NAME_LENGTH} characters). Its author can set a longer name: in the course document and publish again.`;
     case "invalid":
       return "its name is not one the registry accepts. Its author can set another name: in the course document and publish again.";
     case "owner":
@@ -135,7 +136,7 @@ export function coursePage(course: Course, links: PageLink[], door?: Door): stri
         ? `<section class="join">
 <p><b>Join this course</b> — it keeps track of progress for signed-in learners: what you have opened, finished and answered, for you and the course's teachers.</p>
 <p><a class="door" href="${escapeHtml(courseHref(door.app, door.name))}">Join this course in drawcast →</a></p>
-<p class="privacy">Joining stores your account's name and address, and your answers, so you and the course's teachers can see your progress. The learner backend is hosted in the UK.</p>
+<p class="privacy">Joining stores your account's email address — the account holds no name — and what you open, finish and answer, so you and the course's teachers can see your progress. The learner backend is hosted in the UK.</p>
 </section>`
         : `<section class="join">
 <p><b>Joining is not open yet</b> — ${escapeHtml(doorlessNote(door.why))}</p>

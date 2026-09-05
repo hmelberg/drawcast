@@ -1,19 +1,19 @@
-// The claim (teachers round, spec §3/§5) and the join-box checkbox's rule.
+// The claim (teachers round, spec §3/§5) and the Join-door checkbox's rule.
 // Pure halves here; Task 3 appends the source guards for the DOM wiring.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { applyJoinBox, courseRegistration } from "../src/course/publish";
+import { applyJoinDoor, courseRegistration } from "../src/course/publish";
 import { DEFAULT_ENROLL_API } from "../src/learn";
 import { claimCourse, claimNote, courseClaim, nameNote, registerName, type ClaimOutcome, type CourseClaim } from "../src/names";
 
 const REPO = { owner: "hmelberg", repo: "dcast" };
 
-describe("applyJoinBox", () => {
+describe("applyJoinDoor", () => {
   const DOC = "# Learn Russian\nslug: russian\n\n## A\nq\n";
 
   test("on writes the default app into a document without enroll:", () => {
-    const out = applyJoinBox(DOC, true);
+    const out = applyJoinDoor(DOC, true);
     expect(parseCourse(out).enroll).toBe(DEFAULT_ENROLL_API);
     expect(out).toContain(`enroll: ${DEFAULT_ENROLL_API}`);
     expect(out.indexOf("enroll:")).toBeLessThan(out.indexOf("## A"));
@@ -21,21 +21,21 @@ describe("applyJoinBox", () => {
 
   test("on leaves a custom enroll: URL alone — the checkbox only manages the default app", () => {
     const custom = "# T\nenroll: https://my-own.anvil.app\n\n## A\nq\n";
-    expect(applyJoinBox(custom, true)).toBe(custom);
+    expect(applyJoinDoor(custom, true)).toBe(custom);
   });
 
   test("off removes the line, whatever URL it carried", () => {
-    expect(parseCourse(applyJoinBox(applyJoinBox(DOC, true), false)).enroll).toBeUndefined();
-    expect(applyJoinBox(applyJoinBox(DOC, true), false)).toBe(DOC);
-    expect(applyJoinBox("# T\nenroll: https://my-own.anvil.app\n\n## A\nq\n", false)).toBe("# T\n\n## A\nq\n");
+    expect(parseCourse(applyJoinDoor(applyJoinDoor(DOC, true), false)).enroll).toBeUndefined();
+    expect(applyJoinDoor(applyJoinDoor(DOC, true), false)).toBe(DOC);
+    expect(applyJoinDoor("# T\nenroll: https://my-own.anvil.app\n\n## A\nq\n", false)).toBe("# T\n\n## A\nq\n");
   });
 
   test("off on a document without enroll: is byte-identical", () => {
-    expect(applyJoinBox(DOC, false)).toBe(DOC);
+    expect(applyJoinDoor(DOC, false)).toBe(DOC);
   });
 
   test("the api argument is what gets written", () => {
-    expect(parseCourse(applyJoinBox(DOC, true, "https://other.anvil.app")).enroll).toBe("https://other.anvil.app");
+    expect(parseCourse(applyJoinDoor(DOC, true, "https://other.anvil.app")).enroll).toBe("https://other.anvil.app");
   });
 });
 
@@ -153,21 +153,24 @@ describe("registerName learns the registry's new 403", () => {
   });
 });
 
-describe("the join-box checkbox and the claim are wired (source guards — no jsdom here)", () => {
+describe("the Join-door checkbox and the claim are wired (source guards — no jsdom here)", () => {
   const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
   const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
   const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
 
   test("Share offers the box for a course only, seeded from the document, and sends the choice", () => {
     expect(share).toMatch(/id: "share-allow-signup"/);
-    expect(share).toMatch(/Allow sign-up on the course page/);
+    // The label names what the page carries now — a door, not the join box
+    // the identity round removed — and the old wording is gone with it.
+    expect(share).toMatch(/Join door on the course page/);
+    expect(share).not.toMatch(/Allow sign-up/);
     expect(share).toMatch(/signupLabel\.hidden = subject !== "course"/);
-    expect(share).toMatch(/signupCb\.checked = doc\.joinBox === true/);
+    expect(share).toMatch(/signupCb\.checked = doc\.joinDoor === true/);
     expect(share).toMatch(/allowSignup: deps\.subject === "course" \? signupCb\.checked : undefined/);
-    expect(share).toMatch(/joinBox\?:\s*boolean/);
+    expect(share).toMatch(/joinDoor\?:\s*boolean/);
   });
 
-  // F2: unchecking the join box deletes the course document's `enroll:` line
+  // F2: unchecking the Join door deletes the course document's `enroll:` line
   // — the only record of an author's own Anvil backend. The hint has to name
   // that URL before the delete, not after — and, since the identity round,
   // say what that server gets: nothing. The viewer sends a learner's session
@@ -191,11 +194,11 @@ describe("the join-box checkbox and the claim are wired (source guards — no js
   });
 
   test("the course panel seeds the box from enroll: and applies the choice to the text BEFORE publishing", () => {
-    expect(course).toMatch(/joinBox: course\.enroll !== undefined/);
+    expect(course).toMatch(/joinDoor: course\.enroll !== undefined/);
     expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
-    expect(publishFn).toMatch(/applyJoinBox\(doc\.value, allowSignup\)/);
-    expect(publishFn.indexOf("applyJoinBox(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
+    expect(publishFn).toMatch(/applyJoinDoor\(doc\.value, allowSignup\)/);
+    expect(publishFn.indexOf("applyJoinDoor(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
     // The text handed to the publish is the one the choice was applied to.
     expect(publishFn).toMatch(/const publishArgs: PublishArgs = \{\s*text,/);
     expect(publishFn).toMatch(/preparePublish\(publishArgs\)/);

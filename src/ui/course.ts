@@ -5,7 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { applyJoinBox, commitPublish, preparePublish, type PublishArgs } from "../course/publish";
+import { applyJoinDoor, commitPublish, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
@@ -871,11 +871,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       say("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
       return;
     }
-    // The join-box choice is applied to the TEXT first, so the copy that goes
+    // The Join-door choice is applied to the TEXT first, so the copy that goes
     // out and the copy written back (out.text) agree on the enroll: line. The
     // editor's own document changes only when the commit lands, with the rest
     // of the bookkeeping below.
-    const text = allowSignup === undefined ? doc.value : applyJoinBox(doc.value, allowSignup);
+    const text = allowSignup === undefined ? doc.value : applyJoinDoor(doc.value, allowSignup);
     const course = parseCourse(text);
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
@@ -1117,8 +1117,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
           lectureCount: course.lectures.length,
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
           publishedViews,
-          // The join box's current state, straight from the document (spec §5).
-          joinBox: course.enroll !== undefined,
+          // Whether the page carries its Join door, straight from the document (spec §5).
+          joinDoor: course.enroll !== undefined,
           // What unchecking would delete — an author running their own Anvil
           // app is the one who needs to see this before the line is gone (F2).
           enrollUrl: course.enroll,
