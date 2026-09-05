@@ -1,6 +1,7 @@
 import { describe, expect, it, test } from "vitest";
 import { parseCourse } from "../src/course/document";
 import { courseHref, coursePage, doorlessNote, escapeHtml, lectureHref, repoIndexPage, type DoorlessReason } from "../src/course/page";
+import { hasDoor } from "./helpers/course-door";
 
 const COURSE = parseCourse(`# Causal Inference
 level: advanced
@@ -113,14 +114,19 @@ describe("the door", () => {
     const notes = reasons.map((why) => doorlessNote(why));
     for (const note of notes) expect(note.length).toBeGreaterThan(20);
     expect(new Set(notes).size).toBe(reasons.length);
+    // Rendered WITH the lecture list: the lectures are links into the app
+    // too, and a doorless page must be told apart from them by the door's
+    // own shape (tests/helpers/course-door.ts), not by "no href into the app".
     for (const why of reasons) {
-      const html = coursePage(SPANISH, [], { name: null, why });
+      const html = coursePage(SPANISH, LINKS, { name: null, why });
       expect(html).toContain('class="join"');
       expect(html).toMatch(/Joining is not open yet/);
       expect(html).toContain(escapeHtml(doorlessNote(why)));
-      expect(html).not.toMatch(/href="[^"]*\/#/); // no door of any kind
+      expect(hasDoor(html)).toBe(false);
+      expect(html).toContain('href="https://drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml"'); // the lectures are still linked
       expect(html).not.toContain("<script");
     }
+    expect(hasDoor(coursePage(SPANISH, LINKS, DOOR))).toBe(true); // …and the same detector sees the door when there is one
     expect(doorlessNote("taken")).toMatch(/belongs to someone else/);
     expect(doorlessNote("short")).toMatch(/8 characters/);
     expect(doorlessNote("signed-out")).toMatch(/without a drawcast account/);

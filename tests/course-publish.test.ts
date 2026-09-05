@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseCourse } from "../src/course/document";
 import { buildPublishPlan, commitPublish, preparePublish, publishCourse, type PlanArgs } from "../src/course/publish";
 import { emptyManifest, upsertCourse } from "../src/publish/github";
+import { hasDoor } from "./helpers/course-door";
 
 const TEXT = `# Causal Inference
 ---
@@ -174,12 +175,8 @@ describe("publishCourse", () => {
 // the reads and the one write, and builds the page's door from the answer.
 describe("preparePublish, then commitPublish", () => {
   const isWrite = (url: string) => /\/git\/(blobs|trees|commits|refs)/.test(url);
-  // A course page is full of links into the app — every lecture points at
-  // `…/#gh=…`, and that is the page doing its job. The door is the ONE link
-  // that carries the course's registered name: `class="door"`, and an href
-  // ending in a bare `#<name>` with no `=` in it. Forbidding every `/#` would
-  // forbid the page's own contents, not the door (it did, once).
-  const hasDoor = (html: string) => /class="door"/.test(html) || /href="[^"]*\/#[a-z0-9-]+(?:\/\d+)?"/.test(html);
+  // hasDoor (tests/helpers/course-door.ts) looks for the door itself, never
+  // for "any href into the app" — the lecture list is full of those.
   const enrolling = { ...publishArgs, text: TEXT.replace("# Causal Inference\n", "# Causal Inference\nenroll: https://drawcast.anvil.app\n") };
 
   it("preparing writes nothing — it reads the branch and the manifest, and knows the slug, the page URL and the registration", async () => {

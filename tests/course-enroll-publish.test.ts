@@ -4,6 +4,7 @@ import type { Door } from "../src/course/page";
 import { buildPublishPlan, courseKeyFor, courseNameFor, lectureCastKeys } from "../src/course/publish";
 import { emptyManifest } from "../src/publish/github";
 import { parsePlaylistText } from "../src/playlist/playlist";
+import { hasDoor } from "./helpers/course-door";
 
 const REPO = { owner: "hmelberg", repo: "dcast" };
 const YAML = "title: One\nelements: []\ncommands: []\n";
@@ -13,12 +14,8 @@ function plan(text: string, door?: Door) {
   return buildPublishPlan({ course, text, repo: REPO, coursesDir: "", viewerBase: "https://drawcast.app/", manifest: emptyManifest(), lectureYaml: () => YAML, door });
 }
 const pageOf = (p: ReturnType<typeof plan>, slug: string) => p.files.find((f) => f.path === `${slug}/index.html`)!.content;
-// A course page is full of links into the app — every lecture points at
-// `…/#gh=…`, and that is the page doing its job. The door is the ONE link that
-// carries the course's registered name: `class="door"`, and an href ending in
-// a bare `#<name>` with no `=` in it. Forbidding every `/#` would forbid the
-// page's own contents, not the door (it did, once).
-const hasDoor = (html: string) => /class="door"/.test(html) || /href="[^"]*\/#[a-z0-9-]+(?:\/\d+)?"/.test(html);
+// hasDoor (tests/helpers/course-door.ts) looks for the door itself, never for
+// "any href into the app" — the lecture list is full of those.
 
 describe("publishing a course with enroll", () => {
   const text = "# Learn Russian\nslug: learn-russian\nenroll: https://drawcast.anvil.app/\n\n## Cases\nq\n\n## Verbs\nq\n";
