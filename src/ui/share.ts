@@ -373,12 +373,15 @@ function build(): ShareSession {
    * resolves through document.getElementById and a duplicate id would let
    * one panel's label toggle another panel's box.
    *
-   * Both default ON (P §3.6: what you publish should stand on its own) —
-   * except narration on the server, where `bakeDefault` is false (round 0
-   * spec §4): baked audio is megabytes the server streams on every first
-   * play, where GitHub's CDN serves it for nothing. Neither is remembered
-   * between opens — they are decisions about one publish, not a setting (see
-   * the ledger). Neither touches the document the author has open:
+   * Both default ON (P §3.6: what you publish should stand on its own) — the
+   * server included, since round 0 measured the quota
+   * (docs/superpowers/plans/2026-09-05-round-0-measurements.md): storage
+   * there is 100 GB with no metered egress, while unbaked audio spends cloud
+   * TTS in every student's browser, once per student per lecture. Baking
+   * pays once. `bakeDefault` stays a parameter so the choice is written at
+   * the call, where the next measurement can flip it again. Neither is
+   * remembered between opens — they are decisions about one publish, not a
+   * setting (see the ledger). Neither touches the document the author has open:
    * publish/embed.ts resolves on clones, and baking builds its audio track
    * beside the playlist rather than in it.
    *
@@ -656,10 +659,11 @@ function build(): ShareSession {
       "A closed cast plays only for you, signed in; enrolment comes next. Every publish sets this anew — publishing again on “Only you” closes a cast that was open.",
     ),
   );
-  // Narration defaults OFF here (spec §4) — see buildEmbedChoices. Unticked
-  // is not "leave it": every spec write clears the narration stored on the
+  // Narration defaults ON here too (spec §4, after round 0's quota
+  // measurement — see buildEmbedChoices). Unticking is a deliberate act and
+  // not "leave it": every spec write clears the narration stored on the
   // server, so the consequence is said BEFORE the click as well as after.
-  const serverChoices = buildEmbedChoices("server", false);
+  const serverChoices = buildEmbedChoices("server", true);
   const serverNarrationHint = h(
     "div",
     { class: "hint" },
