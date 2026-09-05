@@ -100,6 +100,38 @@ the URL above and `allow="autoplay; gamepad; fullscreen; clipboard-write"`;
 the explore beat parked the run on "Now you play.", Escape closed the
 emulator, and the run went on to the next line and finished.
 
+## M1b — the catalogue, and the viewer's own choice (SHIPPED)
+
+Hans: can the program put in a URL dynamically, and can the viewer choose —
+maybe from a standard list we ship? Yes to both, and the list matters more
+than it looks: **without a catalogue the compiler invents .prg URLs**, and
+"never invent a URL" has no honest way to hold for programs. So:
+
+- `game` is a **key** from `src/code/c64-catalogue.ts` (today: `wolfling`,
+  vc64web's own demonstration program) or an https URL when the user's
+  request supplied one. `resolveGame(value)` is the ONE rule, shared by the
+  lint, the tray and the gate; the schema lists the keys and their notes to
+  the model.
+- **CORS is the gate.** The emulator PAGE fetches the program from its own
+  origin, so the host must answer cross-origin. Measured 2026-09-05: GitHub
+  Pages (`hmelberg.github.io`, `vc64web.github.io`) send
+  `access-control-allow-origin: *`; **csdb.dk sends none, even with an
+  Origin** — refused by name (`NO_CORS_HOSTS`), with the fix in the message:
+  host the file on GitHub Pages. Hans's own programs go in `public/c64/`
+  (published to hmelberg.github.io/drawcast/c64/ with CORS for free), only
+  what he has the right to distribute; the catalogue's demo stays on
+  vc64web's URL rather than being vendored, since its licence is theirs.
+- **The ⊕ tray** grows a "Commodore 64" row for every machine with a game: a
+  select with `This lesson's: <title>`, the catalogue, and `Own URL…` (a
+  field, remembered in localStorage under `drawcast.c64.ownUrl`, guarded),
+  and a Play ▶ that refuses with `resolveGame`'s reason inline. Not during
+  an explore gate. The play mark on the screen keeps starting the lesson's
+  own program; a machine whose value the lint refused opens the tray instead.
+
+Measured in the live smoke: the row lists the lesson's program and "Own
+URL…"; a csdb URL is refused with the CORS reason and opens nothing; a good
+URL opens the modal with the emulator URL, closes the tray, and is remembered.
+
 ## M2 — the blue screen as ink
 
 Folded into M1 for the no-script case: the boot screen IS what a switched-on

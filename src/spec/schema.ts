@@ -9,6 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
+import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
 import { parseABC } from "./abc";
@@ -230,7 +231,7 @@ const elementSchema = {
     game: {
       type: "string",
       description:
-        "code: an https URL to a Commodore 64 program (.prg, .d64, .t64 or .zip) — pair it with frame: \"c64\" (or \"crt\"). The screen shows the machine's blue boot screen with a play mark on it; while the app is paused a click on the mark starts the program in a real C64 emulator over the figure, sound and joystick included. App only: a movie shows the drawn screen. Only what the author has the right to point at — drawcast hosts nothing.",
+        `code: a Commodore 64 program on the machine — pair it with frame: "c64" (or "crt"). Write a KEY from drawcast's own catalogue — ${C64_PROGRAMS.map((p) => `${p.key} (${p.note})`).join("; ")} — or an https URL to a .prg/.d64/.t64 ONLY when the user's request supplied one; never invent a URL. The screen shows the machine's blue boot screen with a play mark on it; while the app is paused a click on the mark starts the program in a real C64 emulator over the figure, sound and joystick included, and the ⊕ tray lets the viewer pick another program from the same catalogue. App only: a movie shows the drawn screen.`,
     },
     marks: {
       type: "array",

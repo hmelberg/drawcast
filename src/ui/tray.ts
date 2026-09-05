@@ -39,6 +39,7 @@ import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl } from "../code/c64";
+import { C64_PROGRAMS, resolveGame } from "../code/c64-catalogue";
 import { bboxOfPts } from "../layout/geometry";
 import { leafDrawables } from "../layout/model";
 import { openMediaModal } from "./media-modal";
@@ -301,14 +302,28 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     return null;
   };
   /** Switch the machine on: the emulator page, in the modal, with the program in its hash. */
-  const startGame = (g: SpecElement, onClose?: () => void): { close: () => void } | null => {
-    if (!stage || typeof g.game !== "string") return null;
+  const startGame = (url: string, onClose?: () => void): { close: () => void } | null => {
+    if (!stage) return null;
     return openMediaModal(stage, hd, {
-      src: c64EmulatorUrl(g.game),
-      href: g.game,
+      src: c64EmulatorUrl(url),
+      href: url,
       allow: "autoplay; gamepad; fullscreen; clipboard-write",
       ...(onClose ? { onClose } : {}),
     });
+  };
+  /** The lesson's own program for a machine, resolved — null when the spec's
+   *  value is one the lint already refused. */
+  const lessonGame = (g: SpecElement): { url: string; title: string } | null => {
+    const r = typeof g.game === "string" ? resolveGame(g.game) : null;
+    return r && r.url !== undefined ? { url: r.url, title: r.title } : null;
+  };
+  const OWN_URL_KEY = "drawcast.c64.ownUrl";
+  const rememberedUrl = (): string => {
+    try {
+      return localStorage.getItem(OWN_URL_KEY) ?? "";
+    } catch {
+      return "";
+    }
   };
 
   /**
@@ -461,6 +476,61 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         tray.appendChild(row);
       }
     }
+    // The machines with a game on them: the lesson's own program, the
+    // catalogue to pick another, and a field for the viewer's own URL (kept
+    // in localStorage so it is typed once). Not during an explore gate — a
+    // game there is the gate's own business.
+    if (!opts.gated) {
+      for (const g of games) {
+        const own = lessonGame(g);
+        const row = h("div", { class: "cs-tray-row cs-tray-c64" });
+        row.appendChild(h("span", { class: "cs-tray-label" }, games.length > 1 ? `Commodore 64 (${g.id})` : "Commodore 64"));
+        const pick = h("select", { class: "cs-menu-select cs-tray-c64-pick", "aria-label": "Program" }) as HTMLSelectElement;
+        if (own) pick.appendChild(h("option", { value: "lesson" }, `This lesson's: ${own.title}`));
+        for (const p of C64_PROGRAMS) {
+          if (own && own.url === p.url) continue; // already the lesson's
+          pick.appendChild(h("option", { value: `key:${p.key}`, title: p.note }, p.title));
+        }
+        pick.appendChild(h("option", { value: "own" }, "Own URL…"));
+        const url = h("input", { type: "url", class: "cs-tray-url", placeholder: "https://…/program.prg", "aria-label": "Program URL" }) as HTMLInputElement;
+        url.value = rememberedUrl();
+        url.hidden = true;
+        const note = h("span", { class: "cs-tray-status" }, own ? "" : typeof g.game === "string" ? (resolveGame(g.game).reason ?? "") : "");
+        const play = h("button", { class: "cs-tray-run" }, "Play ▶");
+        pick.addEventListener("change", () => {
+          url.hidden = pick.value !== "own";
+          note.textContent = "";
+          if (!url.hidden) url.focus();
+        });
+        play.addEventListener("click", () => {
+          let target: string | null = null;
+          if (pick.value === "lesson") target = own?.url ?? null;
+          else if (pick.value.startsWith("key:")) target = resolveGame(pick.value.slice(4)).url ?? null;
+          else {
+            const r = resolveGame(url.value.trim());
+            if (r.url === undefined) {
+              note.textContent = r.reason;
+              return;
+            }
+            target = r.url;
+            try {
+              localStorage.setItem(OWN_URL_KEY, url.value.trim());
+            } catch {
+              /* a private window forgets, and that is fine */
+            }
+          }
+          if (!target) return;
+          restore(); // the emulator plays on the honest boundary
+          close();
+          startGame(target);
+        });
+        row.appendChild(pick);
+        row.appendChild(url);
+        row.appendChild(play);
+        row.appendChild(note);
+        tray.appendChild(row);
+      }
+    }
     // The scripts on screen. Expanded when the editor IS the point (the only
     // control, the beat's own `code`, the screen the viewer clicked); behind
     // a one-line toggle otherwise, so a figure with knobs AND a script still
@@ -594,7 +664,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         if (g) {
           e.stopPropagation();
           hd.timeline.renderUpTo(hd.timeline.position); // land on the boundary, as the editor does
-          startGame(g);
+          const own = lessonGame(g);
+          if (own) startGame(own.url);
+          else open(); // nothing loadable on it: the tray says what is, and offers the catalogue
           return;
         }
         const id = screenAt(e);
@@ -627,11 +699,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // "Now you play": the emulator opens, the lesson waits, and closing
         // the emulator — ✕, Escape, the scrim — is Continue. A scrub aborts.
         const g = games.find((e) => e.id === step.game);
-        if (!g) return resolve(); // the plan warned about this id at authoring time
+        const own = g ? lessonGame(g) : null;
+        if (!own) return resolve(); // the plan (id) or the lint (value) warned at authoring time
         let handle: { close: () => void } | null = null;
         const onAbort = (): void => handle?.close();
         signal.addEventListener("abort", onAbort);
-        handle = startGame(g, () => {
+        handle = startGame(own.url, () => {
           signal.removeEventListener("abort", onAbort);
           resolve();
         });

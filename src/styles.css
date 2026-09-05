@@ -2063,6 +2063,19 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--ink);
 }
 .cs-tray-run { font-size: var(--text-xs); }
+/* The machine's program picker: the lesson's own, the catalogue, or a URL. */
+.cs-tray-c64 { flex-wrap: wrap; }
+.cs-tray-c64-pick { max-width: 14rem; }
+.cs-tray-url {
+  flex: 1;
+  min-width: 12rem;
+  font-size: var(--text-xs);
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--field);
+  color: var(--ink);
+}
 /* The other door: the same script, edited on the panel itself. */
 .cs-tray-onscreen { font-size: var(--text-xs); }
 .cs-tray-onscreen:disabled { opacity: 0.45; }

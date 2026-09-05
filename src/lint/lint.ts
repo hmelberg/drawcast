@@ -8,6 +8,7 @@ import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox }
 import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
+import { resolveGame } from "../code/c64-catalogue";
 import { scanDataTokens } from "../code/tokens";
 
 export const FONT_FLOOR = 14;
@@ -319,11 +320,8 @@ function lintCode(spec: Spec): LintIssue[] {
   // so they are caught here instead.
   for (const el of els) {
     if (el.game === undefined) continue;
-    if (!/^https:\/\//.test(el.game)) {
-      issues.push({ rule: "code-use", ids: [el.id], message: `code "${el.id}": game must be an https URL — the emulator cannot fetch "${el.game}"`, severity: "warn" });
-    } else if (el.game.includes("#")) {
-      issues.push({ rule: "code-use", ids: [el.id], message: `code "${el.id}": game URL may not contain '#' — it is passed in the emulator's own hash`, severity: "warn" });
-    }
+    const r = resolveGame(el.game);
+    if (r.reason !== undefined) issues.push({ rule: "code-use", ids: [el.id], message: `code "${el.id}": game — ${r.reason}`, severity: "warn" });
   }
   const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {

@@ -100,8 +100,39 @@ describe("the beat that hands over the joystick", () => {
 
 describe("what the emulator could never fetch is caught at authoring time", () => {
   test("http, and a '#' in the URL", () => {
-    expect(lintCommands(spec({ game: "http://example.org/x.prg" })).some((i) => i.message.includes("must be an https URL"))).toBe(true);
+    expect(lintCommands(spec({ game: "http://example.org/x.prg" })).some((i) => i.message.includes("nor an https URL"))).toBe(true);
     expect(lintCommands(spec({ game: "https://example.org/x.prg#v2" })).some((i) => i.message.includes("may not contain '#'"))).toBe(true);
     expect(lintCommands(spec()).some((i) => i.message.includes("game"))).toBe(false);
+  });
+});
+
+// ---- the catalogue, and what a `game` value may be ----------------------
+import { C64_PROGRAMS, NO_CORS_HOSTS, resolveGame } from "../src/code/c64-catalogue";
+
+describe("the catalogue", () => {
+  test("every entry is a key, an https URL without '#', and a note for the tray", () => {
+    expect(C64_PROGRAMS.length).toBeGreaterThan(0);
+    for (const p of C64_PROGRAMS) {
+      expect(p.key).toMatch(/^[a-z0-9-]+$/);
+      expect(p.url.startsWith("https://")).toBe(true);
+      expect(p.url).not.toContain("#");
+      expect(p.note.length).toBeGreaterThan(10);
+      expect(NO_CORS_HOSTS).not.toContain(new URL(p.url).hostname);
+    }
+    expect(new Set(C64_PROGRAMS.map((p) => p.key)).size).toBe(C64_PROGRAMS.length);
+  });
+
+  test("a key resolves to its program, a URL to itself, and the rest is refused with the reason", () => {
+    expect(resolveGame("wolfling")).toEqual({ url: C64_PROGRAMS[0].url, title: "Wolfling" });
+    expect(resolveGame(GAME)).toEqual({ url: GAME, title: "wolfling14.prg" });
+    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(wolfling\) nor an https URL/);
+    expect(resolveGame("http://example.org/x.prg").reason).toMatch(/https/);
+    expect(resolveGame("https://example.org/x.prg#v2").reason).toMatch(/'#'/);
+    expect(resolveGame("https://csdb.dk/getinternalfile.php/1/x.prg").reason).toMatch(/csdb\.dk sends no CORS header/);
+  });
+
+  test("the lint and the schema both speak the catalogue", () => {
+    expect(lintCommands(spec({ game: "wolfling" })).some((i) => i.message.includes("game"))).toBe(false);
+    expect(lintCommands(spec({ game: "https://csdb.dk/x.prg" })).some((i) => i.message.includes("no CORS header"))).toBe(true);
   });
 });
