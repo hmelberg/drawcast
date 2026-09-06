@@ -194,11 +194,20 @@ const NOTES: Record<ScaleMode, { en: string; nb: string }> = {
   distances: { en: "Distances to scale, sizes not", nb: "Avstander i målestokk, størrelser ikke" },
   log: { en: "Log distances", nb: "Logaritmiske avstander" },
 };
-const SUN_REDUCED = { en: "Planet sizes to scale, Sun reduced, distances not", nb: "Planetstørrelser i målestokk, Solen forminsket, avstander ikke" };
+const REDUCED: Record<"en" | "nb", (name: string) => string> = {
+  en: (name) => `Sizes to scale, ${name} reduced, distances not`,
+  nb: (name) => `Størrelser i målestokk, ${name} forminsket, avstander ikke`,
+};
 
-/** Which truth the figure keeps — every figure says so. */
-export function scaleNote(mode: ScaleMode, lang: "en" | "nb", sunReduced = false): string {
-  if (mode === "sizes" && sunReduced) return SUN_REDUCED[lang];
+/**
+ * Which truth the figure keeps — every figure says so. `reduced` is the
+ * DISPLAY NAME of the centre body the layout had to clamp, empty when nothing
+ * was: the clamped body is the Sun in a solar-system view but the focus body
+ * in a portrait of its moons, and this note's whole contract is being honest
+ * about what THIS figure distorts.
+ */
+export function scaleNote(mode: ScaleMode, lang: "en" | "nb", reduced = ""): string {
+  if (mode === "sizes" && reduced !== "") return REDUCED[lang](reduced);
   return NOTES[mode][lang];
 }
 

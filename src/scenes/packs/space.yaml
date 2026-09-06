@@ -211,7 +211,7 @@ layout: |
 
   const orbitIds = sats.map((b) => "orbit_" + b.id);
   let pxPerKm = null;      // for the scale bar: px per km of DISTANCE (distances) or of RADIUS (sizes)
-  let sunReduced = false;
+  let reducedName = "";    // the centre body the note has to admit it shrank — the Sun, or the focus body
   const labelReq = [];     // solver requests, placed at the end
 
   if (view === "row" && !focusId) {
@@ -302,7 +302,7 @@ layout: |
     const rad = eng.drawnRadii(centre, sats, mode, largestPx, mode === "distances" && pxPerKm ? pxPerKm : undefined);
     if (mode === "sizes" && n > 0) pxPerKm = largestPx / Math.max(...sats.map((b) => b.r_km));
     const centreCap = n === 0 ? 120 : Math.max(3, Math.min(SUN_CAP, orbitR[0] - 12));
-    sunReduced = mode === "sizes" && rad.centre > centreCap;
+    if (mode === "sizes" && rad.centre > centreCap) reducedName = nameOf(centre);
     const centreR = Math.min(rad.centre, centreCap);
     // Straight down on the plane the ring is an annulus; a focus portrait
     // leans its axis, so there the ring is the tilted ellipse everyone pictures.
@@ -377,7 +377,7 @@ layout: |
   }
 
   // Every figure says which truth it keeps; sizes and distances add a bar at the bottom right.
-  push(kit.text("scale_note", [F.x0, 36], eng.scaleNote(mode, L, sunReduced), { fontSize: NOTE_PX, color: C.guide, anchor: "start" }));
+  push(kit.text("scale_note", [F.x0, 36], eng.scaleNote(mode, L, reducedName), { fontSize: NOTE_PX, color: C.guide, anchor: "start" }));
   anchors.scale_note = [F.x0, 36];
   const bar = pxPerKm && (mode === "sizes" || mode === "distances") ? eng.scaleBar(mode, pxPerKm, L) : null;
   if (bar) {

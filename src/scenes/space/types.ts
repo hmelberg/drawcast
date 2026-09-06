@@ -98,7 +98,7 @@ export interface SpaceEngine {
   logRadius(a_km: number, aMin: number, aMax: number, rMin: number, rMax: number): number;
   drawnRadii(centre: Body, bodies: readonly Body[], mode: ScaleMode, largestPx: number, pxPerKm?: number): { centre: number; bodies: number[] };
   sunSegment(c: Pt, r: number, frame: Frame): { fill: Pt[]; arc: Pt[]; clipped: boolean };
-  scaleNote(mode: ScaleMode, lang: "en" | "nb", sunReduced?: boolean): string;
+  scaleNote(mode: ScaleMode, lang: "en" | "nb", reduced?: string): string;
   scaleBar(mode: ScaleMode, pxPerKm: number, lang: "en" | "nb"): { lengthPx: number; label: string } | null;
   labelTiers(xs: readonly number[], widths: readonly number[], gap: number): number[];
 }

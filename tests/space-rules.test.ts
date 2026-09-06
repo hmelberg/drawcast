@@ -181,11 +181,21 @@ describe("the note, the bar and the tiers", () => {
   test("every scale mode states which truth it keeps, in both languages", () => {
     expect(scaleNote("schematic", "en")).toBe("Not to scale");
     expect(scaleNote("sizes", "en")).toBe("Sizes to scale, distances not");
-    expect(scaleNote("sizes", "en", true)).toBe("Planet sizes to scale, Sun reduced, distances not");
     expect(scaleNote("distances", "en")).toBe("Distances to scale, sizes not");
     expect(scaleNote("log", "en")).toBe("Log distances");
     expect(scaleNote("schematic", "nb")).toBe("Ikke i målestokk");
     expect(scaleNote("distances", "nb")).toBe("Avstander i målestokk, størrelser ikke");
+  });
+
+  // The clamped body is NAMED, because it is not always the Sun: a portrait of
+  // Jupiter and its moons clamps Jupiter, and a note that says "Sun reduced"
+  // there describes a body the figure does not contain.
+  test("the reduced body is named, in both languages, and only under sizes", () => {
+    expect(scaleNote("sizes", "en", "Sun")).toBe("Sizes to scale, Sun reduced, distances not");
+    expect(scaleNote("sizes", "nb", "Solen")).toBe("Størrelser i målestokk, Solen forminsket, avstander ikke");
+    expect(scaleNote("sizes", "en", "Jupiter")).toBe("Sizes to scale, Jupiter reduced, distances not");
+    expect(scaleNote("sizes", "en", "")).toBe("Sizes to scale, distances not");
+    expect(scaleNote("schematic", "en", "Sun")).toBe("Not to scale");
   });
   test("the bar picks a round unit that draws between 50 and 300 px", () => {
     expect(scaleBar("sizes", 0.001, "en")).toEqual({ lengthPx: 100, label: "100\u202f000\u202fkm" });

@@ -85,10 +85,14 @@ describe("solar_system: registration and the default figure", () => {
 
   // The manifest's own examples are what the compiler prompt shows the model:
   // every other pack sweeps them in tests/packs.test.ts, and a broken one
-  // teaches a shape the repair round then argues with.
+  // teaches a shape the repair round then argues with. The pinned date goes in
+  // FIRST so an example that names its own still wins — one of them
+  // deliberately omits `date` ("right now" is its whole point), and letting
+  // that resolve to today would make this test's geometry, and so its verdict,
+  // change with the sky.
   test("every example in the manifest lays out with no warning and no error lint", () => {
     for (const ex of scenes.solar_system.manifest.examples) {
-      const res = layoutSpec({ template: "solar_system", params: ex.params, elements: [] } as never);
+      const res = layoutSpec({ template: "solar_system", params: { date: DATE, ...ex.params }, elements: [] } as never);
       expect(res.warnings, ex.request).toEqual([]);
       expect(res.issues.filter((i) => i.severity === "error").map((i) => i.message), ex.request).toEqual([]);
     }
@@ -128,7 +132,17 @@ describe("solar_system: scale", () => {
   test("sizes from above clamps the Sun and says so", () => {
     const r = lay({ view: "top", scale: "sizes" });
     expect(radiusOf(r, "sun")).toBeLessThanOrEqual(104);
-    expect(labelText(r, "scale_note")).toBe("Planet sizes to scale, Sun reduced, distances not");
+    expect(labelText(r, "scale_note")).toBe("Sizes to scale, Sun reduced, distances not");
+  });
+
+  // The clamp is not the Sun's alone: a portrait of Jupiter and its moons cuts
+  // Jupiter from ~584 px to 103, and the note has to name the body it means.
+  test("sizes under focus clamps the focus body and names IT, not the Sun", () => {
+    const r = lay({ focus: "jupiter", scale: "sizes" });
+    expect(radiusOf(r, "jupiter")).toBeLessThanOrEqual(104);
+    expect(radiusOf(r, "jupiter") / radiusOf(r, "ganymede")).toBeLessThan(69911 / 2634.1);
+    expect(labelText(r, "scale_note")).toBe("Sizes to scale, Jupiter reduced, distances not");
+    expect(labelText(lay({ focus: "jupiter", scale: "sizes", names: "nb" }), "scale_note")).toBe("Størrelser i målestokk, Jupiter forminsket, avstander ikke");
   });
 
   test("distances: orbits proportional to a, every body the same dot, a bar in AU", () => {
