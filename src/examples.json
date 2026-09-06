@@ -12979,5 +12979,46 @@
         { "speak": "A drawing shows the front. The 3D button under the figure shows the same body from any side — turn it, and peel the front away, layer by layer, until the heart sits alone in its place." }
       ]
     }
+  },
+  {
+    "request": "Let me place the organs myself.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "Place the organs",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "commands": [
+        { "draw": ["body_outline", "lung_right", "lung_left"], "speak": "A body, and its two lungs. Three organs are missing." },
+        { "ask": { "question": "Drag each organ to where it belongs.", "widget": "drag", "items": [{ "id": "heart", "label": "Heart" }, { "id": "liver", "label": "Liver" }, { "id": "stomach", "label": "Stomach" }], "right": "The heart between the lungs, a little to the left; the liver under the right ribs; the stomach to the left, just below the heart.", "wrong": "Feel for the ribs: the heart sits between the lungs, the liver just under them on the body's right." } },
+        { "draw": ["small_intestine", "large_intestine", "bladder"], "speak": "Below them the gut fills the belly, and the bladder sits at the bottom." }
+      ]
+    }
+  },
+  {
+    "request": "Let me put the Nordic names on the map.",
+    "packs": ["maps"],
+    "spec": {
+      "title": "Name the Nordics",
+      "template": "world_map",
+      "params": { "focus": ["Norway", "Sweden", "Finland", "Denmark"] },
+      "commands": [
+        { "draw": ["country_norway", "country_sweden", "country_finland", "country_denmark"], "speak": "Four Nordic countries, unnamed." },
+        { "ask": { "question": "Drag each name onto its country.", "widget": "drag", "items": [{ "id": "country_norway", "label": "Norway" }, { "id": "country_sweden", "label": "Sweden" }, { "id": "country_finland", "label": "Finland" }, { "id": "country_denmark", "label": "Denmark" }], "right": "Norway along the Atlantic coast, Sweden beside it, Finland to the east, and Denmark on the peninsula to the south.", "wrong": "Norway has the long coast; Finland touches Russia; Denmark is the small one in the south." } }
+      ]
+    }
+  },
+  {
+    "request": "Let me find C, E and G on the keyboard.",
+    "packs": ["music"],
+    "spec": {
+      "title": "Find the C major chord",
+      "template": "piano_keys",
+      "params": { "octaves": 1, "labels": false, "highlight": ["C4", "E4", "G4"] },
+      "commands": [
+        { "draw": ["keys"], "speak": "One octave, no names on the keys." },
+        { "ask": { "question": "Drag C, E and G onto their keys.", "widget": "drag", "items": [{ "id": "C4", "label": "C" }, { "id": "E4", "label": "E" }, { "id": "G4", "label": "G" }], "tolerance": 0.1, "right": "C is the white key just left of the pair of black keys; E and G are two and four white keys to its right — together, the C major chord.", "wrong": "Find the pair of black keys: C is the white key just left of it." } },
+        { "draw": ["highlight_0", "highlight_1", "highlight_2"], "speak": "C, E, G." }
+      ]
+    }
   }
 ]

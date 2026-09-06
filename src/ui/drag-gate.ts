@@ -84,7 +84,11 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
           if (settled || judged.has(t.id)) return;
           e.preventDefault();
           e.stopPropagation();
-          chip.setPointerCapture(e.pointerId);
+          try {
+            chip.setPointerCapture(e.pointerId);
+          } catch {
+            /* a synthetic pointer has no capture to take; the drag still follows the moves the chip receives */
+          }
           start = [e.clientX - dx, e.clientY - dy];
           chip.classList.add("dragging");
         });
