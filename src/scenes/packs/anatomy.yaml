@@ -214,8 +214,28 @@ layout: |
     push(kit.stroke("frame", [[FRAME.x0, FRAME.y0], [FRAME.x1, FRAME.y0], [FRAME.x1, FRAME.y1], [FRAME.x0, FRAME.y1]], { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
   }
 
-  // (findings: Task 9) — ringsFor / findingFor are defined here.
-  const ringsFor = (id) => all[id].rings;
+  // Findings change the body, they do not annotate it: an enlarged heart is
+  // drawn enlarged, an absent spleen is a dashed ghost. Anything unrecognised
+  // still lands as a marked patch, so a condition we have never heard of
+  // degrades instead of failing the figure.
+  const SCALE = { mild: 1.12, moderate: 1.25, severe: 1.45 };
+  const findingFor = {};
+  for (const f of findingsIn) {
+    const id = resolve(f && f.part);
+    if (!id || !all[id] || all[id].rings.length === 0) continue;
+    findingFor[id] = { condition: String((f && f.condition) || "").toLowerCase(), severity: SCALE[f && f.severity] ? f.severity : "moderate", label: f && f.label };
+  }
+  const scaleRings = (rings, factor) => {
+    const c = centroidOf(rings);
+    const sc = ([x, y]) => [c[0] + (x - c[0]) * factor, c[1] + (y - c[1]) * factor];
+    return rings.map((r) => ({ outer: r.outer.map(sc), holes: (r.holes || []).map((h) => h.map(sc)) }));
+  };
+  const ringsFor = (id) => {
+    const f = findingFor[id];
+    if (f && f.condition === "enlarged") return scaleRings(all[id].rings, SCALE[f.severity]);
+    return all[id].rings;
+  };
+  const isAbsent = (id) => !!findingFor[id] && findingFor[id].condition === "absent";
 
   // Back to front: skeleton behind viscera, then by each part's own depth.
   const SYSTEM_ORDER = { skeleton: 0, viscera: 1 };
@@ -234,15 +254,58 @@ layout: |
         kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: lit ? C.accent : "#b5533c", strokeWidth: lit ? 3.5 : 2.5, ms: MS.dot }));
         return;
       }
-      kids.push(kit.area(id + "__fill" + i, outer, fillOf(id), { opacity: lit ? 0.8 : (mono ? 0.18 : 0.45), holes: holes.length ? holes : undefined, ms: MS.region }));
-      kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: ink, strokeWidth: lit ? 3 : 2, ms: MS.stroke }));
+      if (!isAbsent(id)) kids.push(kit.area(id + "__fill" + i, outer, fillOf(id), { opacity: lit ? 0.8 : (mono ? 0.18 : 0.45), holes: holes.length ? holes : undefined, ms: MS.region }));
+      kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: isAbsent(id) ? C.guide : ink, strokeWidth: lit ? 3 : 2, dash: isAbsent(id) || undefined, ms: MS.stroke }));
       holes.forEach((h, j) => kids.push(kit.stroke(id + "__hole" + i + "_" + j, h, { closed: true, color: ink, strokeWidth: 1.6, ms: MS.stroke })));
     });
     push(kit.group(id, kids));
     anchors[id] = P(centroidOf(rings));
   }
 
-  // (findings: Task 9) — the marks each finding leaves are drawn here.
+  // The mark each finding leaves, in the finding colour, on top of the part.
+  const MARK = C.regionLoss;
+  const findingLabels = [];
+  for (const id of Object.keys(findingFor)) {
+    if (!anchors[id]) continue;
+    const f = findingFor[id];
+    const rings = ringsFor(id);
+    const c = centroidOf(rings);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const r of rings) for (const [x, y] of r.outer) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const w = x1 - x0, h = y1 - y0;
+    const sev = f.severity === "severe" ? 1.4 : f.severity === "mild" ? 0.7 : 1;
+    const fid = "finding_" + id;
+    if (f.condition === "fracture") {
+      // A jagged break across the short axis of the bone.
+      const across = w < h;
+      const n = 7, seg = [];
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const jag = (i % 2 === 0 ? -1 : 1) * (across ? w : h) * 0.16 * sev;
+        seg.push(across ? [x0 + t * w, c[1] + jag] : [c[0] + jag, y0 + t * h]);
+      }
+      push(kit.stroke(fid, seg.map(P), { color: MARK, strokeWidth: 3.5, ms: MS.stroke }));
+      anchors[fid] = P(c);
+    } else if (f.condition === "effusion") {
+      const r = Math.min(w, h) * 0.5 * sev;
+      const at = [c[0], y1 - r * 0.6];
+      push(kit.area(fid, kit.ellipse(at, w * 0.42 * sev, r * 0.5).map(P), MARK, { opacity: 0.5, ms: MS.region }));
+      anchors[fid] = P(at);
+    } else if (f.condition === "enlarged" || f.condition === "absent") {
+      // The part itself already carries the finding; ring it so the eye is
+      // drawn there, and so the finding has an element to point at.
+      const r = Math.max(w, h) * 0.58;
+      push(kit.stroke(fid, kit.ellipse(c, r, r * 0.92).map(P), { closed: true, color: MARK, strokeWidth: 2.5, dash: true, ms: MS.stroke }));
+      anchors[fid] = P(c);
+    } else {
+      // lesion, mass, and every condition we do not know: a small marked patch.
+      const r = Math.min(w, h) * 0.26 * sev;
+      const at = [c[0] + w * 0.12, c[1] - h * 0.1];
+      push(kit.area(fid, kit.blob(at, r, r * 0.85, 0.18, 5).map(P), MARK, { opacity: 0.75, ms: MS.region }));
+      anchors[fid] = P(at);
+    }
+    if (typeof f.label === "string" && f.label.trim() !== "") findingLabels.push({ id: fid, at: anchors[fid], text: f.label });
+  }
 
   const nameOf = (id) => { const n = all[id].name || {}; return n[namesIn] || n.en || id; };
   const wantLabel = (id) => all[id].kind !== "joint"
@@ -264,12 +327,14 @@ layout: |
   for (const id of drawn) {
     if (!wantLabel(id)) continue;
     const side = anchors[id][0] < cx ? "left" : "right";
-    requests.push({ id, side, at: edgeAnchor(id, side) });
+    requests.push({ id: "label_" + id, side, at: edgeAnchor(id, side), text: nameOf(id), color: C.ink });
   }
+  // A finding's caption, when given, is a label like any other — in the finding colour.
+  for (const fl of findingLabels) requests.push({ id: "label_" + fl.id, side: fl.at[0] < cx ? "left" : "right", at: fl.at, text: fl.text, color: MARK });
   if (focusing) {
     for (const q of requests) {
-      labels.push({ ...kit.label("label_" + q.id, q.at, q.side, nameOf(q.id), { color: C.ink, fontSize: LABEL_PX }), ignore: ["frame"] });
-      order.push("label_" + q.id);
+      labels.push({ ...kit.label(q.id, q.at, q.side, q.text, { color: q.color, fontSize: LABEL_PX }), ignore: ["frame"] });
+      order.push(q.id);
     }
   } else if (requests.length > 0) {
     // The whole body: its torso is ~120 canvas units wide, so a name beside an
@@ -293,16 +358,15 @@ layout: |
       if (ys[ys.length - 1] < bottom) { const d = bottom - ys[ys.length - 1]; for (let i = 0; i < ys.length; i++) ys[i] += d; }
       const colX = side === "left" ? minX - 14 : maxX + 14;
       col.forEach((q, i) => {
-        const text = nameOf(q.id);
-        const w = kit.textWidth(text, LABEL_PX);
+        const w = kit.textWidth(q.text, LABEL_PX);
         const tx = side === "left" ? colX - w / 2 : colX + w / 2;
-        push(kit.text("label_" + q.id, [tx, ys[i]], text, { fontSize: LABEL_PX, color: C.ink }));
-        anchors["label_" + q.id] = [tx, ys[i]];
+        push(kit.text(q.id, [tx, ys[i]], q.text, { fontSize: LABEL_PX, color: q.color }));
+        anchors[q.id] = [tx, ys[i]];
         // The leader stops at the column's inner edge, so it never enters a
         // neighbour's text. `_leader` is a sub-drawable suffix: it is drawn
         // with its label and is not an element of its own, so it goes into
         // drawables but NOT into order.
-        drawables.push(kit.stroke("label_" + q.id + "_leader", [q.at, [colX + (side === "left" ? 3 : -3), ys[i]]], { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+        drawables.push(kit.stroke(q.id + "_leader", [q.at, [colX + (side === "left" ? 3 : -3), ys[i]]], { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
       });
     }
   }

@@ -199,3 +199,57 @@ describe("anatomy: narrowing and naming", () => {
     expect(pts).toBeLessThanOrEqual(2 * 4000 + 200);
   });
 });
+
+describe("anatomy: findings", () => {
+  beforeEach(async () => {
+    unregisterPack("anatomy");
+    await ensureEngines(["anatomy"]);
+    registerPack("anatomy", anatomyYaml);
+  });
+
+  const inkOf = (params: Record<string, unknown>, id: string) => {
+    const d = leafDrawables(lay(params).drawables).find((x) => x.id === id + "__ink0");
+    return d && "pts" in d ? d.pts : [];
+  };
+  const width = (p: number[][]) => Math.max(...p.map((q) => q[0])) - Math.min(...p.map((q) => q[0]));
+
+  test("an enlarged organ is drawn bigger than the normal one", () => {
+    const normal = inkOf({}, "heart");
+    const big = inkOf({ findings: [{ part: "heart", condition: "enlarged", severity: "severe" }] }, "heart");
+    expect(width(big)).toBeGreaterThan(width(normal) * 1.15);
+  });
+
+  test("a fracture draws a mark on the bone", () => {
+    const ids = idsOf({ systems: ["skeleton"], findings: [{ part: "femur_left", condition: "fracture" }] });
+    expect(ids).toContain("finding_femur_left");
+  });
+
+  test("an unknown condition still draws a marked patch instead of failing", () => {
+    expect(idsOf({ findings: [{ part: "liver", condition: "wibble" }] })).toContain("finding_liver");
+  });
+
+  test("a finding on a name that does not resolve is noted, and the figure survives", () => {
+    const r = lay({ findings: [{ part: "the thing", condition: "mass" }] });
+    expect(r.order).toContain("missing_note");
+    expect(r.order).toContain("liver");
+  });
+
+  test("a finding is silent unless it is given a label — the viewer is meant to work it out", () => {
+    const quiet = lay({ findings: [{ part: "liver", condition: "mass" }], labels: "none" });
+    expect(labelIds(quiet)).not.toContain("label_finding_liver");
+    const told = lay({ findings: [{ part: "liver", condition: "mass", label: "Metastasis" }], labels: "none" });
+    expect(labelIds(told)).toContain("label_finding_liver");
+  });
+
+  test("an absent organ is drawn as an empty dashed outline", () => {
+    const leaves = leafDrawables(lay({ findings: [{ part: "spleen", condition: "absent" }] }).drawables);
+    expect(leaves.find((d) => d.id === "spleen__fill0")).toBeUndefined();
+    const ink = leaves.find((d) => d.id === "spleen__ink0");
+    expect(ink?.style.dash).toBe(true);
+  });
+
+  test("a figure with findings is still lint-clean", () => {
+    const res = layoutSpec({ template: "anatomy", params: { systems: ["skeleton"], detail: 2, labels: "none", findings: [{ part: "femur_left", condition: "fracture", severity: "severe" }] }, elements: [] } as never);
+    expect(res.issues.map((i) => i.message)).toEqual([]);
+  });
+});
