@@ -43,6 +43,16 @@ describe("explore validation and planning", () => {
     expect(s.params).toEqual(["n"]);
     expect(s.narration).toBe("Try it.");
   });
+
+  test("explore.anatomy is a boolean invitation to the body section", () => {
+    expect(validateSpec(spec([{ draw: ["a"] }, { explore: { anatomy: true } }])).ok).toBe(true);
+    expect(validateSpec(spec([{ explore: { anatomy: "yes" } }])).ok).toBe(false);
+    const plan = planCommands([{ explore: { anatomy: true }, speak: "Look around." }], []);
+    const s = plan.steps[0];
+    expect(s.kind).toBe("explore");
+    if (s.kind !== "explore") return;
+    expect(s.anatomy).toBe(true);
+  });
 });
 
 describe("explore at runtime", () => {

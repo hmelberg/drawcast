@@ -109,3 +109,21 @@ describe("trayPlan — what one tray shows when a figure offers several things",
     expect(trayPlan({ ...base, gated: true, params: ["nope"] }).sliders).toEqual([]);
   });
 });
+
+describe("trayPlan — the body section", () => {
+  test("an anatomy figure shows the body section whenever the viewer opens the tray", () => {
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: true }).body).toBe(true);
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [] }).body).toBe(false);
+  });
+  test("a gated beat shows the body when it asks for it, or when it names nothing else", () => {
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: true, gated: true, anatomy: true }).body).toBe(true);
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: true, gated: true }).body).toBe(true);
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: true, gated: true, params: ["detail"] }).body).toBe(false);
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: false, gated: true, anatomy: true }).body).toBe(false);
+  });
+  test("a body gate keeps the detail slider beside the section, and no activity pills", () => {
+    const p = trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: true, gated: true, anatomy: true });
+    expect(p.sliders).toEqual(["detail"]);
+    expect(p.activities).toBe(false);
+  });
+});
