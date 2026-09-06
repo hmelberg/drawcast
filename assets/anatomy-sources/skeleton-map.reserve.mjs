@@ -1,3 +1,6 @@
+// RESERVE — the round-1 map of the LadyofHats SVG. Not imported by the build;
+// kept so the drawn skeleton can be rebuilt if BodyParts3D becomes unavailable.
+//
 // Source group → atlas part. Left/right are the BODY's own sides (anterior
 // view: the body's left is the viewer's right), exactly as the source names them.
 //

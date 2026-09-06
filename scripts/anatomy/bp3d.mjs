@@ -30,6 +30,9 @@ export function elementsFor(cat, spec) {
   let ids;
   if (spec.composite) {
     const els = cat.composites.get(spec.composite);
+    // Some "sets" (the vertebra sets) are leaf files in their own right, not
+    // composites: a known id with no composite rows is its own element.
+    if (!els && cat.names.has(spec.composite)) return spec.exclude?.includes(spec.composite) ? [] : [spec.composite];
     if (!els) throw new Error(`composite ${spec.composite} is not in composite_parts.txt`);
     let keep = els;
     if (spec.side) {

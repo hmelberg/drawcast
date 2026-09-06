@@ -17,9 +17,10 @@ export const SKIN = { fma: ["FMA7163"] };
 export const BONES = [
   { id: "cranium", composite: "FMA46565", exclude: ["FMA52748"], parent: "skull", detail: 2, name: { en: "Cranium", nb: "Hjerneskalle", la: "Cranium" }, uberon: "UBERON:0003128" },
   { id: "mandible", fma: ["FMA52748"], parent: "skull", detail: 2, name: { en: "Mandible", nb: "Underkjeve", la: "Mandibula" }, uberon: "UBERON:0001684" },
-  { id: "cervical_vertebrae", composite: "FMA72063", parent: "spine", detail: 2, name: { en: "Cervical vertebrae", nb: "Halsvirvler", la: "Vertebrae cervicales" } },
-  { id: "thoracic_vertebrae", composite: "FMA72064", parent: "spine", detail: 2, name: { en: "Thoracic vertebrae", nb: "Brystvirvler", la: "Vertebrae thoracicae" } },
-  { id: "lumbar_vertebrae", composite: "FMA72065", parent: "spine", detail: 2, name: { en: "Lumbar vertebrae", nb: "Lendevirvler", la: "Vertebrae lumbales" } },
+  // The vertebra "sets" have no files of their own; the vertebrae do (atlas, axis, C3–C7; T1–T12; L1–L5).
+  { id: "cervical_vertebrae", fma: ["FMA12519", "FMA12520", "FMA12521", "FMA12522", "FMA12523", "FMA12524", "FMA12525"], parent: "spine", detail: 2, name: { en: "Cervical vertebrae", nb: "Halsvirvler", la: "Vertebrae cervicales" } },
+  { id: "thoracic_vertebrae", fma: ["FMA9165", "FMA9187", "FMA9209", "FMA9248", "FMA9922", "FMA9945", "FMA9968", "FMA9991", "FMA10014", "FMA10037", "FMA10059", "FMA10081"], parent: "spine", detail: 2, name: { en: "Thoracic vertebrae", nb: "Brystvirvler", la: "Vertebrae thoracicae" } },
+  { id: "lumbar_vertebrae", fma: ["FMA13072", "FMA13073", "FMA13074", "FMA13075", "FMA13076"], parent: "spine", detail: 2, name: { en: "Lumbar vertebrae", nb: "Lendevirvler", la: "Vertebrae lumbales" } },
   { id: "sacrum", fma: ["FMA16202"], parent: "spine", detail: 2, name: { en: "Sacrum", nb: "Korsbein", la: "Os sacrum" } },
   { id: "ribs", composite: "FMA71331", parent: "rib_cage", detail: 2, name: { en: "Ribs", nb: "Ribbein", la: "Costae" }, uberon: "UBERON:0002228" },
   { id: "sternum", composite: "FMA7485", parent: "rib_cage", detail: 2, name: { en: "Sternum", nb: "Brystbein", la: "Sternum" }, uberon: "UBERON:0000975" },
@@ -93,8 +94,11 @@ export const VISCERA = [
   { id: "lung_right", composite: "FMA7309", parent: "thorax", detail: 1, color: "#c98f9b", uberon: "UBERON:0002168", name: { en: "Right lung", nb: "Høyre lunge", la: "Pulmo dexter" } },
   { id: "lung_left", composite: "FMA7310", parent: "thorax", detail: 1, color: "#c98f9b", uberon: "UBERON:0002167", name: { en: "Left lung", nb: "Venstre lunge", la: "Pulmo sinister" } },
   { id: "heart", composite: "FMA7088", parent: "thorax", detail: 1, color: "#b8524f", uberon: "UBERON:0000948", name: { en: "Heart", nb: "Hjerte", la: "Cor" } },
-  { id: "aorta", fma: ["FMA3734"], parent: "thorax", detail: 3, behind: true, color: "#c0655f", uberon: "UBERON:0000947", name: { en: "Aorta", nb: "Hovedpulsåre", la: "Aorta" } },
-  { id: "diaphragm", fma: ["FMA13295"], parent: "thorax", detail: 2, color: "#b8877f", name: { en: "Diaphragm", nb: "Mellomgulv", la: "Diaphragma" } },
+  { id: "aorta", composite: "FMA3734", parent: "thorax", detail: 3, behind: true, color: "#c0655f", uberon: "UBERON:0000947", name: { en: "Aorta", nb: "Hovedpulsåre", la: "Aorta" } },
+  // No diaphragm: in frontal projection its dome and crura are a sheet that
+  // covers the whole upper abdomen (measured: every point of the liver, most
+  // of the stomach and the kidneys), so as a filled silhouette it hides what
+  // it should sit between. A dome LINE is the right drawing — roadmap.
   { id: "liver", fma: ["FMA7197"], parent: "abdomen", detail: 1, layer: "superficial", color: "#8a5a3c", uberon: "UBERON:0002107", name: { en: "Liver", nb: "Lever", la: "Hepar" } },
   { id: "gallbladder", fma: ["FMA7202"], parent: "abdomen", detail: 3, color: "#7f9a5c", name: { en: "Gallbladder", nb: "Galleblære", la: "Vesica biliaris" } },
   { id: "stomach", fma: ["FMA7148"], parent: "abdomen", detail: 1, layer: "superficial", color: "#c9a15f", uberon: "UBERON:0000945", name: { en: "Stomach", nb: "Magesekk", la: "Gaster" } },

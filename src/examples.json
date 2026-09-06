@@ -12618,10 +12618,9 @@
             "trachea",
             "lung_right",
             "lung_left",
-            "heart",
-            "diaphragm"
+            "heart"
           ],
-          "speak": "The chest: two lungs around the heart, the windpipe above, the diaphragm below."
+          "speak": "The chest: two lungs around the heart, the windpipe above."
         },
         {
           "draw": [

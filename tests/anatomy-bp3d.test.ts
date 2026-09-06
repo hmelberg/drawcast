@@ -56,6 +56,11 @@ describe("the BodyParts3D catalogue", () => {
   test("an unknown composite is an error, not an empty list", () => {
     expect(() => elementsFor(cat, { composite: "FMA0" })).toThrow(/FMA0/);
   });
+
+  test("a known id with no composite rows is a leaf file in its own right", () => {
+    // The vertebra sets are like this: "set of cervical vertebrae" is one STL.
+    expect(elementsFor(cat, { composite: "FMA7197" })).toEqual(["FMA7197"]);
+  });
 });
 
 describe("fetchStl", () => {

@@ -602,9 +602,9 @@ async function loadGeo(): Promise<GeoEngine> {
  *  fraction of the maps dataset. */
 async function loadAnatomy(): Promise<AnatomyEngine> {
   const [bodyMod, skeletonMod, visceraMod] = await Promise.all([
-    import("./anatomy/atlas-body.json"),
-    import("./anatomy/atlas-skeleton.json"),
-    import("./anatomy/atlas-viscera.json"),
+    import("./anatomy/atlas/atlas-body.json"),
+    import("./anatomy/atlas/atlas-skeleton.json"),
+    import("./anatomy/atlas/atlas-viscera.json"),
   ]);
   const body = bodyMod.default as unknown as Atlas;
   const bySystem: Record<AtlasSystem, Atlas> = {

@@ -33,6 +33,12 @@ export interface AtlasPart {
   sex: "any" | "female" | "male";
   /** Optional fill colour; the template falls back to a per-system default. */
   color?: string;
+  /** Where the geometry came from. Everything but the uterus is measured. */
+  source: "bodyparts3d" | "authored";
+  /** Abdominal organs the `layer: deep` view lifts away. */
+  layer?: "superficial" | "deep";
+  /** Lies behind superficial organs: drawn dashed while they cover it. */
+  behind?: boolean;
   /** Closed outlines, ALREADY decimated. Empty for a pure grouping part. */
   rings: AtlasRing[];
   /** Optional cross-reference to an open anatomy ontology. */
