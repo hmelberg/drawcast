@@ -304,7 +304,7 @@ decided. Each gets its own control, each with an obvious default:
 | # | question | field | default |
 |---|---|---|---|
 | 1 | May others know this exists? | `listed: on \| off` | **on** |
-| 2 | Who can watch it? | `access: open \| signed-in \| enrolled` | `open` |
+| 2 | Who can watch it? | `access: open \| signed-in \| enrolled` | **enrolled** |
 | 3 | How does someone get in? | `join: anyone \| approval` | `anyone` |
 | 4 | Do enrolled people get mail over time? | `drip: none \| interval \| on_complete` | `none` |
 

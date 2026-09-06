@@ -181,6 +181,10 @@ describe("fetchAnvilText", () => {
     expect(handler).toContain("err instanceof CastDenied && req.anvil");
     expect(handler).toContain("deniedDoor(req.anvil.cast, err.status)");
     expect(handler.indexOf("deniedDoor(")).toBeLessThan(handler.indexOf("(err as Error).message"));
+    // The door replaces the viewer chrome, not the status line inside it —
+    // a nested door doubled the padding and left a Share button under it.
+    expect(handler).toContain("app.replaceChildren(deniedDoor(");
+    expect(handler).not.toContain("status.replaceWith(deniedDoor(");
   });
   test("a missing cast says so, without blaming the sign-in", async () => {
     const { impl } = fetchWith(() => new Response("{}", { status: 404 }));

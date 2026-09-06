@@ -162,7 +162,8 @@ export interface ShareDeps {
    * mean what they mean above; `name` is the server panel's name field — a
    * slug like Link's, the key's first segment and the name registered after
    * the publish — undefined when left empty; `access` is the "Who can watch"
-   * choice, two of spec §5's three values in this round.
+   * choice — one of spec §5's three values, or undefined for "as before",
+   * which sends nothing and leaves the course's door as the server has it.
    *
    * Required for the same reason `publishDrive` is: the server is never
    * offered to a course here (`courses: false`), so course.ts passes a stub

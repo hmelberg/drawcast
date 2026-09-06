@@ -200,6 +200,12 @@ describe("the drawcast server in Share", () => {
     expect(panel).toContain('["signed-in", "Anyone signed in"]');
     expect(panel).toContain('["enrolled", "Enrolled learners (and you)"]');
     expect(panel).toMatch(/const access: ServerAccess \| undefined =/);
+    // Pin the fallback itself, not just the declaration's type: a republish
+    // left at "As before" must send nothing, and "ServerAccess | undefined"
+    // alone does not prove the ternary's else-branch is undefined rather
+    // than round 0's closed-by-default "enrolled".
+    expect(panel).toContain('? serverAccess.value : undefined');
+    expect(panel).not.toContain(': "enrolled";');
     expect(panel).not.toContain('"Only you, for now"');
     expect(share).toContain('serverAccess.value = "";');
     expect(share).not.toContain('serverAccess.value = "enrolled";');

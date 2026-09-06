@@ -625,9 +625,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const key = getToken();
     const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" ? { api: enroll, key, cast: castKey, stopped: false } : null;
     // One refusal — 401 (the token is dead) or 403 (not enrolled) — stops
-    // this cast's reporting for the session: the server would answer the
+    // this cast's reporting for this page load: the server would answer the
     // same to every later event, and the README counted the waste. A
     // network failure does not stop it; the next event may get through.
+    // A reload asks once more, which is right — a learner who joined from
+    // another tab should not be silenced until the tab closes.
     // Never awaited: a report can never reach playback.
     const report = (ev: LearnEvent): void => {
       if (!reporter || reporter.stopped) return;
