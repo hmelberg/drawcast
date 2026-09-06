@@ -683,3 +683,377 @@ layout: |
   });
 
   return { drawables, labels, anchors, order };
+---
+template: periodic_table
+title: The periodic table
+version: 1
+kit: 3
+status: ready
+engines: [elements]
+interactions: [periodic]
+description: >-
+  The periodic table, from real data for all 118 elements: the whole
+  18-column table; a SUBSET (`group`, `period`, `category`, `first` or a named
+  list) drawn large with names; or one element as a detail card with its mass
+  and electron configuration. `colour_by` washes the cells by a property, which
+  is how periodicity becomes visible. Every cell is its own id (`cell_Fe`), so
+  any element can be drawn, highlighted or pointed at by name. Choose this for
+  ANY request about the periodic table, a group or period of elements, periodic
+  trends, metals vs non-metals, noble gases, halogens, alkali metals, electron
+  configuration, atomic number, or where an element sits among the others.
+params:
+  type: object
+  properties:
+    element:
+      type: string
+      description: "ONE element as a big detail card. Accepts a symbol, an atomic number, or a name in English, Norwegian or Latin — \"Fe\", \"26\", \"iron\", \"jern\", \"ferrum\" all mean iron."
+    elements:
+      type: array
+      maxItems: 30
+      items: { type: string }
+      description: "Elements to draw, in their real table positions, e.g. [\"Na\", \"Cl\"]. Same spellings as `element`."
+    group:
+      type: integer
+      minimum: 1
+      maximum: 18
+      description: "One group (column): 1 alkali metals, 17 halogens, 18 noble gases."
+    period:
+      type: integer
+      minimum: 1
+      maximum: 7
+      description: "One period (row)."
+    first:
+      type: integer
+      minimum: 2
+      maximum: 118
+      description: "Only the first N by atomic number — \"the first 20\" is a standard school table."
+    category:
+      type: string
+      enum: [alkali-metal, alkaline-earth-metal, transition-metal, post-transition-metal, metalloid, nonmetal, halogen, noble-gas, lanthanide, actinide]
+      description: "Only one category."
+    colour_by:
+      type: string
+      enum: [none, category, electronegativity, radius, state, discovered, block]
+      description: "Wash the cells by a property (default none). No measured value = blank cell."
+    names:
+      type: string
+      enum: [en, nb, la]
+      description: "Name language: en (default), nb, or la (the Latin that explains the symbol: Fe ferrum, Na natrium). Match the request's language."
+    highlight:
+      type: array
+      maxItems: 12
+      items: { type: string }
+      description: "Elements to mark, e.g. [\"F\", \"Cl\"] — each gets id highlight_<i>, revealable one at a time."
+    legend:
+      type: boolean
+      description: "Colour key under the table (default true when colour_by is set)."
+    title:
+      type: string
+element_ids:
+  grid: the frame plus the group numbers on top and the period numbers down the left (a group)
+  cell_<Sym>: one element's cell — box, atomic number, symbol, and name/mass when drawn large. `cell_Fe`, `cell_H`. Draw, highlight, point at or zoom into these.
+  fill_<Sym>: that cell's colour wash (colour_by only) — its own id, so the table can be drawn plain and coloured in afterwards
+  highlight_<i>: the mark on highlight[i]
+  legend: the colour key, when drawn
+  title: figure title, when set
+examples:
+  - request: "Show the periodic table, coloured by category."
+    params:
+      colour_by: "category"
+      title: "The periodic table"
+  - request: "Show me the halogens."
+    params:
+      group: 17
+      colour_by: "category"
+      title: "Group 17: the halogens"
+  - request: "Hvorfor heter jern Fe?"
+    params:
+      element: "Fe"
+      names: "la"
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const eng = engines.elements;
+  const all = eng.all();
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  const lang = params.names === "nb" || params.names === "la" ? params.names : "en";
+  const nameOf = (e) => eng.nameIn(e, lang);
+
+  // ---- which elements ------------------------------------------------------
+  const asInt = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : null);
+  const elementIn = typeof params.element === "string" && params.element.trim() !== "" ? params.element.trim() : null;
+  const listed = Array.isArray(params.elements) ? params.elements.filter((s) => typeof s === "string" && s.trim() !== "") : [];
+  const groupIn = asInt(params.group, 1, 18);
+  const periodIn = asInt(params.period, 1, 7);
+  const firstIn = asInt(params.first, 2, 118);
+  const catIn = typeof params.category === "string" ? params.category.trim().toLowerCase().replace(/\s+/g, "-") : null;
+
+  let sel;
+  if (elementIn) {
+    const one = eng.find(elementIn);
+    sel = one ? [one] : [];
+  } else if (listed.length > 0) {
+    const seen = new Set();
+    sel = listed.map((s) => eng.find(s)).filter((e) => e && !seen.has(e.z) && seen.add(e.z));
+  } else {
+    sel = all;
+    if (groupIn !== null) sel = sel.filter((e) => e.group === groupIn);
+    if (periodIn !== null) sel = sel.filter((e) => e.period === periodIn);
+    if (catIn !== null) sel = sel.filter((e) => e.category === catIn);
+    if (firstIn !== null) sel = sel.filter((e) => e.z <= firstIn);
+  }
+  // A filter that matches nothing (a misspelled category, an unknown symbol)
+  // draws the whole table rather than an empty frame: a figure that shows the
+  // subject is a better failure than a figure that shows nothing.
+  if (sel.length === 0) sel = all;
+  const whole = sel.length === all.length;
+  const detail = elementIn !== null && sel.length === 1;
+
+  // ---- colouring -----------------------------------------------------------
+  const COLOUR_BY = ["none", "category", "electronegativity", "radius", "state", "discovered", "block"];
+  const colourBy = COLOUR_BY.includes(params.colour_by) ? params.colour_by : "none";
+
+  const CAT_COLOR = {
+    "alkali-metal": "#b5482e", "alkaline-earth-metal": "#d0865f", "transition-metal": "#f2c14e",
+    "post-transition-metal": "#87a878", "metalloid": "#2f6b8f", "nonmetal": "#8a5fa8",
+    "halogen": "#c96567", "noble-gas": "#7fa9c4", "lanthanide": "#a9789b", "actinide": "#6f8f6a",
+  };
+  const CAT_LABEL = {
+    "alkali-metal": "Alkali metal", "alkaline-earth-metal": "Alkaline earth", "transition-metal": "Transition metal",
+    "post-transition-metal": "Post-transition", "metalloid": "Metalloid", "nonmetal": "Non-metal",
+    "halogen": "Halogen", "noble-gas": "Noble gas", "lanthanide": "Lanthanide", "actinide": "Actinide",
+  };
+  const BLOCK_COLOR = { s: "#b5482e", p: "#2f6b8f", d: "#f2c14e", f: "#8a5fa8" };
+  const STATE_COLOR = { solid: "#8f887c", liquid: "#2f6b8f", gas: "#f2c14e" };
+  const RAMP = {
+    electronegativity: ["#f0e7d2", "#7a2f1c"],
+    radius: ["#f0e7d2", "#1f4f68"],
+    discovered: ["#f0e7d2", "#4f3364"],
+  };
+
+  const hexTriple = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, t) => {
+    const A = hexTriple(a), B = hexTriple(b), u = Math.max(0, Math.min(1, t));
+    return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * u).toString(16).padStart(2, "0")).join("");
+  };
+
+  // The scalar a continuous colouring reads. `discovered` is a year EXCEPT for
+  // the seven metals known to antiquity, which carry the string "ancient" —
+  // they take the ramp's oldest end directly and stay out of the domain, since
+  // giving copper a year would be inventing one.
+  const scalarOf = (e) => {
+    if (colourBy === "electronegativity") return e.electronegativity;
+    if (colourBy === "radius") return e.radius;
+    if (colourBy === "discovered") return typeof e.discovered === "number" ? e.discovered : null;
+    return null;
+  };
+  const scalars = RAMP[colourBy] ? sel.map(scalarOf).filter((v) => v !== null) : [];
+  const sMin = scalars.length > 0 ? Math.min(...scalars) : 0;
+  const sMax = scalars.length > 0 ? Math.max(...scalars) : 1;
+
+  /**
+   * The wash on one cell, or null for none. A measurement that does not exist
+   * returns null and the cell keeps its paper: 23 elements have no measured
+   * electronegativity, and painting them at the cold end of the ramp would
+   * state that astatine is barely electronegative when the truth is that
+   * nobody has measured it. This is the one rule the colouring must not break.
+   */
+  const fillOf = (e) => {
+    if (colourBy === "none") return null;
+    if (colourBy === "category") return CAT_COLOR[e.category] ?? null;
+    if (colourBy === "block") return BLOCK_COLOR[e.block] ?? null;
+    if (colourBy === "state") return e.state20 ? STATE_COLOR[e.state20] : null;
+    if (colourBy === "discovered" && e.discovered === "ancient") return RAMP.discovered[1];
+    const v = scalarOf(e);
+    if (v === null || !RAMP[colourBy]) return null;
+    const t = sMax > sMin ? (v - sMin) / (sMax - sMin) : 0.5;
+    // Radius runs the other way to read as "bigger atom, stronger colour".
+    return mix(RAMP[colourBy][0], RAMP[colourBy][1], colourBy === "discovered" ? 1 - t : t);
+  };
+
+  // ---- geometry ------------------------------------------------------------
+  // Column and row in the canonical table. Row 8 is the empty lane under the
+  // main block; rows 9 and 10 carry the lanthanides and the actinides.
+  const colOf = (e) => (e.block === "f" ? 2 + e.f_index : e.group);
+  const rowOf = (e) => (e.block === "f" ? (e.period === 6 ? 9 : 10) : e.period);
+
+  // The WHOLE table keeps every column and row, holes included — the ten-column
+  // gap between group 2 and group 13 IS the shape of the table, and a lesson
+  // about periods reads it. A SUBSET drops the columns and rows nobody in it
+  // occupies, so five halogens are five big cells with their names rather than
+  // five specks at the edge of an empty frame. Different jobs, different frames.
+  const span = (lo, hi) => Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  const usedCols = whole ? span(1, 18) : [...new Set(sel.map(colOf))].sort((a, b) => a - b);
+  const usedRows = whole ? span(1, 10) : [...new Set(sel.map(rowOf))].sort((a, b) => a - b);
+  const colAt = new Map(usedCols.map((c, i) => [c, i]));
+  const rowAt = new Map(usedRows.map((r, i) => [r, i]));
+
+  const wantTitle = typeof params.title === "string" && params.title.trim() !== "";
+  const wantLegend = colourBy !== "none" && params.legend !== false && !detail;
+  const TOP = wantTitle ? 672 : 712;
+  const BOT = wantLegend ? 152 : 84;
+  const AVAIL_W = 900, AVAIL_H = TOP - BOT;
+  const PAD = 3;
+
+  // Grid cells are square; the DETAIL card is not. Five stacked lines — number,
+  // symbol, name, mass, configuration — need vertical room a square does not
+  // have at any width that still fits the canvas, and squeezing them was the
+  // lint's overlap warning rather than a matter of taste.
+  const nC = usedCols.length, nR = usedRows.length;
+  const CELL = detail ? 380 : Math.max(24, Math.min(168, AVAIL_W / nC, AVAIL_H / nR) - PAD);
+  const CW = CELL, CH = detail ? 430 : CELL;
+  const STEPX = CW + PAD, STEPY = CH + PAD;
+  const gridW = nC * STEPX - PAD, gridH = nR * STEPY - PAD;
+  const X0 = (1000 - gridW) / 2;
+  const YTOP = BOT + (AVAIL_H + gridH) / 2;
+
+  const boxOf = (e) => {
+    const x = X0 + colAt.get(colOf(e)) * STEPX;
+    const yTop = YTOP - rowAt.get(rowOf(e)) * STEPY;
+    return [x, yTop - CH, CW, CH];
+  };
+  const rect = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+
+  // Nothing is drawn below the app's readable floor (14 logical units — the
+  // lint enforces it, and 118 atomic numbers at ten units is exactly the kind
+  // of "it's a real periodic table, they ARE tiny" reasoning that produces an
+  // unreadable figure). So the floor is a floor, and the OPTIONAL lines appear
+  // only once the cell is big enough to hold one at that size: how much a cell
+  // says follows from how big it is, with no mode to choose.
+  const FLOOR = 14;
+  const showName = CELL >= 92;
+  const showMass = CELL >= 122;
+
+  // ---- the frame and the table's own numbers --------------------------------
+  const gridChildren = [];
+  gridChildren.push(kit.stroke("grid__frame", rect(X0 - 9, YTOP - gridH - 9, gridW + 18, gridH + 18), {
+    closed: true, strokeWidth: 3, color: C.guide, ms: MS.guides,
+  }));
+  if (!detail) {
+    for (const c of usedCols) {
+      if (c < 1 || c > 18) continue;
+      gridChildren.push(kit.text("grid__c" + c, [X0 + colAt.get(c) * STEPX + CW / 2, YTOP + 16], String(c), {
+        fontSize: Math.max(FLOOR, Math.min(20, CELL * 0.26)), color: C.guide,
+      }));
+    }
+    for (const r of usedRows) {
+      if (r > 7) continue; // the f-block lanes are not periods of their own
+      gridChildren.push(kit.text("grid__r" + r, [X0 - 22, YTOP - rowAt.get(r) * STEPY - CH / 2], String(r), {
+        fontSize: Math.max(FLOOR, Math.min(20, CELL * 0.26)), color: C.guide, anchor: "end",
+      }));
+    }
+  }
+  push(kit.group("grid", gridChildren));
+  anchors.grid = [500, YTOP - gridH / 2];
+
+  // ---- the washes, under everything ----------------------------------------
+  for (const e of sel) {
+    const fill = fillOf(e);
+    if (!fill) continue;
+    const [x, y, w, h] = boxOf(e);
+    push(kit.area("fill_" + e.symbol, rect(x + 1, y + 1, w - 2, h - 2), fill, { opacity: 0.55, precise: true, ms: 22 }));
+    anchors["fill_" + e.symbol] = [x + w / 2, y + h / 2];
+  }
+
+  // ---- the cells ------------------------------------------------------------
+  for (const e of sel) {
+    const [x, y, w, h] = boxOf(e);
+    const id = "cell_" + e.symbol;
+    const cx = x + w / 2;
+    const kids = [];
+    kids.push(kit.stroke(id + "__box", rect(x, y, w, h), {
+      closed: true, strokeWidth: detail ? 3 : 1.8, shapeHint: { type: "rect", x, y, w, h }, ms: detail ? 260 : 26,
+    }));
+    kids.push(kit.text(id + "__z", [x + w * 0.09, y + h * (detail ? 0.92 : 0.82)], String(e.z), {
+      fontSize: Math.max(FLOOR, Math.min(34, CELL * (detail ? 0.09 : 0.21))), color: C.guide, anchor: "start",
+    }));
+    kids.push(kit.text(id + "__sym", [cx, y + h * (detail ? 0.675 : 0.34)], e.symbol, {
+      fontSize: Math.max(16, CELL * (detail ? 0.25 : 0.40)),
+    }));
+    if (showName || detail) {
+      kids.push(kit.text(id + "__name", [cx, y + h * (detail ? 0.43 : 0.16)], nameOf(e), {
+        fontSize: Math.max(FLOOR, CELL * (detail ? 0.085 : 0.145)), color: C.guide,
+      }));
+    }
+    if ((showMass || detail) && e.mass !== null) {
+      kids.push(kit.text(id + "__mass", [cx, y + h * (detail ? 0.28 : 0.05)], e.mass.toFixed(detail ? 3 : 1), {
+        fontSize: Math.max(FLOOR, CELL * (detail ? 0.068 : 0.115)), color: C.guide,
+      }));
+    }
+    if (detail) {
+      kids.push(kit.text(id + "__config", [cx, y + h * 0.128], e.config, { fontSize: 26, color: C.supply }));
+    }
+    push(kit.group(id, kids));
+    anchors[id] = [cx, y + h / 2];
+  }
+
+  // ---- highlights ------------------------------------------------------------
+  const HL = [C.demand, C.supply, C.accent, C.region2, C.shifted, C.regionLoss];
+  const hlIn = Array.isArray(params.highlight) ? params.highlight.slice(0, 12) : [];
+  const drawn = new Set(sel.map((e) => e.z));
+  hlIn.forEach((q, i) => {
+    if (typeof q !== "string") return;
+    const e = eng.find(q.trim());
+    if (!e || !drawn.has(e.z)) return;
+    const [x, y, w, h] = boxOf(e);
+    const color = HL[i % HL.length];
+    const id = "highlight_" + i;
+    push(kit.group(id, [
+      kit.area(id + "__f", rect(x + 2, y + 2, w - 4, h - 4), color, { opacity: 0.3, precise: true, ms: 60 }),
+      kit.stroke(id + "__ring", rect(x - 2, y - 2, w + 4, h + 4), { closed: true, color, strokeWidth: 3.5, ms: 220 }),
+    ]));
+    anchors[id] = [x + w / 2, y + h / 2];
+  });
+
+  // ---- the key ---------------------------------------------------------------
+  if (wantLegend) {
+    const kids = [];
+    const SW = 22, GAP = 9, ROW = 30, FS = 15; // FS clears the readable floor
+    if (colourBy === "category" || colourBy === "state" || colourBy === "block") {
+      const entries = colourBy === "category"
+        ? [...new Set(sel.map((e) => e.category))].sort().map((k) => [CAT_COLOR[k], CAT_LABEL[k]])
+        : colourBy === "block"
+          ? [...new Set(sel.map((e) => e.block))].sort().map((k) => [BLOCK_COLOR[k], k + "-block"])
+          : [...new Set(sel.map((e) => e.state20).filter(Boolean))].sort().map((k) => [STATE_COLOR[k], "at 20 °C: " + k]);
+      // Two rows when ten categories will not fit across the canvas.
+      const per = Math.ceil(entries.length / (entries.length > 5 ? 2 : 1));
+      entries.forEach(([color, label], i) => {
+        const row = Math.floor(i / per), col = i % per;
+        const wEach = 940 / per;
+        const x = 30 + col * wEach;
+        const y = 108 - row * ROW;
+        kids.push(kit.area("legend__s" + i, rect(x, y, SW, SW * 0.7), color, { opacity: 0.55, precise: true, ms: 40 }));
+        kids.push(kit.text("legend__t" + i, [x + SW + GAP, y + 2], label, { fontSize: FS, color: C.guide, anchor: "start" }));
+      });
+    } else {
+      // A continuous ramp: eleven steps, the two ends named.
+      const [a, b] = RAMP[colourBy];
+      const BX = 330, BW = 340, BY = 96, BH = 18;
+      for (let i = 0; i < 11; i++) {
+        const t = i / 10;
+        kids.push(kit.area("legend__r" + i, rect(BX + (BW / 11) * i, BY, BW / 11 + 0.5, BH), mix(a, b, t), { opacity: 0.6, precise: true, ms: 20 }));
+      }
+      const fmt = (v) => (colourBy === "discovered" ? String(Math.round(v)) : String(Math.round(v * 100) / 100));
+      const lo = colourBy === "discovered" ? fmt(sMax) : fmt(sMin);
+      const hi = colourBy === "discovered" ? fmt(sMin) : fmt(sMax);
+      kids.push(kit.text("legend__lo", [BX - 12, BY + 1], lo, { fontSize: FS, color: C.guide, anchor: "end" }));
+      kids.push(kit.text("legend__hi", [BX + BW + 12, BY + 1], hi, { fontSize: FS, color: C.guide, anchor: "start" }));
+      const CAPTION = { electronegativity: "electronegativity (Pauling)", radius: "atomic radius (pm)", discovered: "year discovered" };
+      kids.push(kit.text("legend__cap", [500, BY + BH + 12], CAPTION[colourBy], { fontSize: FS, color: C.guide }));
+      if (colourBy === "discovered" && sel.some((e) => e.discovered === "ancient")) {
+        kids.push(kit.area("legend__anc", rect(BX + BW + 74, BY, 22, BH), RAMP.discovered[1], { opacity: 0.6, precise: true, ms: 20 }));
+        kids.push(kit.text("legend__anct", [BX + BW + 102, BY + 1], "known since antiquity", { fontSize: FS, color: C.guide, anchor: "start" }));
+      }
+    }
+    push(kit.group("legend", kids));
+    anchors.legend = [500, 104];
+  }
+
+  if (wantTitle) {
+    push(kit.text("title", [500, 706], params.title.trim(), { fontSize: 30 }));
+    anchors.title = [500, 706];
+  }
+
+  return { drawables, labels, anchors, order };
