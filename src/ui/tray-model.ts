@@ -1,9 +1,17 @@
-// Pure derivation of explore-sliders from a template's params_schema: any
-// number that declares BOTH standard JSON-Schema bounds (minimum/maximum)
-// becomes a slider, or a `minimum` plus a `x-max-from` hint naming the
-// staged param whose stage count bounds it. No bounds, no slider — ranges
-// are never guessed from prose. Kept DOM-free so node tests can cover it
-// (tray.ts is the DOM half).
+// Pure derivation of the explore tray's controls from a template's
+// params_schema. Two kinds, one walk each:
+//
+//   sliderSpecs — any number that declares BOTH standard JSON-Schema bounds
+//   (minimum/maximum) becomes a slider, or a `minimum` plus a `x-max-from`
+//   hint naming the staged param whose stage count bounds it. No bounds, no
+//   slider — ranges are never guessed from prose.
+//
+//   choiceSpecs — any string that declares a short `enum` becomes a
+//   segmented control. No declared enum, no control — the options are never
+//   guessed from prose either.
+//
+// Both are kept DOM-free so node tests can cover them (tray.ts is the DOM
+// half).
 
 export interface SliderSpec {
   path: string;
@@ -17,6 +25,7 @@ interface SchemaNode {
   type?: unknown;
   properties?: Record<string, unknown>;
   oneOf?: unknown[];
+  enum?: unknown;
   minimum?: unknown;
   maximum?: unknown;
   multipleOf?: unknown;
@@ -75,6 +84,62 @@ export function sliderSpecs(schema: unknown, params?: Record<string, unknown>): 
   return out;
 }
 
+// ---- the enum sibling: a fixed set of words is a segmented control ----------
+// A `type: "string"` param with a declared `enum` names modes, not a
+// magnitude — oral vs iv, linear vs convex vs concave — so the tray offers
+// the words themselves instead of a knob. Only a DECLARED enum counts: a
+// description listing the options in prose is not one, the same discipline
+// that keeps sliderSpecs from inventing bounds out of a sentence.
+
+export interface ChoiceSpec {
+  path: string;
+  label: string;
+  values: string[];
+}
+
+/** Past this a row of buttons stops being readable, and a long enum is an
+ *  authoring choice (picked once, in the spec) rather than a knob the viewer
+ *  turns while looking at the figure. Six fit; seven is a list. */
+const MAX_CHOICES = 6;
+
+function stringEnum(node: SchemaNode): string[] | null {
+  if (node.type !== "string" || !Array.isArray(node.enum)) return null;
+  // Fewer than two is nothing to choose between; a numeric or mixed enum is
+  // not this control (integer enums like `curves: [1, 2, 3]` are counts).
+  if (node.enum.length < 2 || node.enum.length > MAX_CHOICES) return null;
+  return node.enum.every((v) => typeof v === "string") ? (node.enum as string[]).slice() : null;
+}
+
+/** Takes no `params`: unlike a slider's `x-max-from`, an enum is declared in
+ *  full by the schema, so there is nothing to resolve against the spec. */
+export function choiceSpecs(schema: unknown): ChoiceSpec[] {
+  const out: ChoiceSpec[] = [];
+  const walk = (node: unknown, path: string): void => {
+    if (typeof node !== "object" || node === null) return;
+    const n = node as SchemaNode;
+    const own =
+      stringEnum(n) ?? (Array.isArray(n.oneOf) ? (n.oneOf.map((b) => stringEnum((b ?? {}) as SchemaNode)).find(Boolean) ?? null) : null);
+    if (own && path) {
+      out.push({ path, label: path.split(".").at(-1)!, values: own });
+      return;
+    }
+    if (typeof n.properties === "object" && n.properties !== null) {
+      for (const [key, child] of Object.entries(n.properties)) walk(child, path ? `${path}.${key}` : key);
+    }
+  };
+  walk(schema, "");
+  return out;
+}
+
+/** The word at a dot path — readParam's sibling (it reads numbers, and a
+ *  choice's value is a word). A path whose value is a number belongs to a
+ *  slider, so it reads as nothing here: that is what keeps a param offering
+ *  both (supply_demand's `steepness`) from growing two controls at once. */
+export function readChoice(params: unknown, path: string): string | null {
+  const v = resolvePath(params, path);
+  return typeof v === "string" ? v : null;
+}
+
 // ---- what one tray shows (the composition rule) -----------------------------
 // The ⊕ is the figure's whole control surface (interactivity spec §7.2: "the
 // full menu of the scene's interactions"), so it shows everything the figure
@@ -88,6 +153,8 @@ export interface TrayPlan {
   activities: boolean;
   /** Slider param paths, in the order the schema yielded them. */
   sliders: string[];
+  /** Segmented-control param paths, same order, same `params` filter. */
+  choices: string[];
   /** Script editors to offer; collapsed unless this one is the point. */
   scripts: { id: string; expanded: boolean }[];
   /** The anatomy Body section: click-to-zoom, breadcrumbs, layer/systems/names. */
@@ -96,6 +163,8 @@ export interface TrayPlan {
 
 export function trayPlan(input: {
   sliderPaths: string[];
+  /** Enum param paths — the beat's `params` filter names these the same way. */
+  choicePaths?: string[];
   codeIds: string[];
   /** An authored explore beat holds the run open. */
   gated?: boolean;
@@ -110,7 +179,7 @@ export function trayPlan(input: {
   /** The beat's `anatomy` flag. */
   anatomy?: boolean;
 }): TrayPlan {
-  const { sliderPaths, codeIds, gated = false, params, code, open, bodyTemplate = false, anatomy } = input;
+  const { sliderPaths, choicePaths = [], codeIds, gated = false, params, code, open, bodyTemplate = false, anatomy } = input;
   if (gated) {
     // Named code alone means the author asked for the keyboard, not the
     // knobs; naming both asks for both; naming neither is the old slider gate.
@@ -119,16 +188,19 @@ export function trayPlan(input: {
     // (the body IS what there is to explore). Naming params or code instead
     // asks for those. The body keeps its detail slider beside it.
     const body = bodyTemplate && (anatomy === true || (params === undefined && code === undefined));
-    const wantsSliders = params !== undefined || scripts.length === 0 || body;
-    const sliders = !wantsSliders ? [] : params ? sliderPaths.filter((p) => params.includes(p)) : sliderPaths;
-    return { activities: false, sliders, scripts, body };
+    // Sliders and choices are both "the knobs" here: one `params` filter
+    // names them in one list, and a beat that asks for neither gets neither.
+    const wantsParams = params !== undefined || scripts.length === 0 || body;
+    const pick = (paths: string[]): string[] => (!wantsParams ? [] : params ? paths.filter((p) => params.includes(p)) : paths);
+    return { activities: false, sliders: pick(sliderPaths), choices: pick(choicePaths), scripts, body };
   }
-  // A script opens expanded when it IS the tray (no sliders to compete with)
-  // or when the viewer reached it by clicking that very screen.
-  const expandAll = sliderPaths.length === 0 && open === undefined;
+  // A script opens expanded when it IS the tray (no knob — slider or choice —
+  // to compete with) or when the viewer reached it by clicking that screen.
+  const expandAll = sliderPaths.length === 0 && choicePaths.length === 0 && open === undefined;
   return {
     activities: true,
     sliders: sliderPaths,
+    choices: choicePaths,
     scripts: codeIds.map((id) => ({ id, expanded: expandAll || open === id })),
     body: bodyTemplate,
   };

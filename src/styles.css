@@ -1662,6 +1662,23 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tray-row input[type="range"] { flex: 1; accent-color: var(--ink); }
 .cs-tray-label { min-width: 6.5rem; }
 .cs-tray-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+/* A mode param (a short string enum) is a segmented control, not a knob: the
+   words themselves in a row, the live one filled. Same chip shape as the
+   panel's Show switches and the same ink-on-paper "pressed" as the Body
+   pills — and every colour is a theme token, so dark mode needs no rule of
+   its own. Real buttons, so the keyboard reaches them and the global
+   :focus-visible ring shows (nothing clips it: the segments are separate). */
+.cs-tray-choice { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.cs-tray-choicebtn {
+  font-size: var(--text-xs);
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--muted);
+}
+.cs-tray-choicebtn:hover { color: var(--ink); }
+.cs-tray-choicebtn.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .cs-tray-actions { display: flex; justify-content: flex-end; }
 .cs-tray-continue { font-size: var(--text-xs); }
 

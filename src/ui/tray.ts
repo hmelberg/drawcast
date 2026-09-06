@@ -36,7 +36,7 @@ import { mountBodySection, type BodySection } from "./body-explore";
 import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
-import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
+import { choiceSpecs, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl } from "../code/c64";
@@ -70,6 +70,29 @@ function liveSliders(hd: RenderHandle): { spec: SliderSpec; value: number }[] {
     .filter((s): s is { spec: SliderSpec; value: number } => s.value !== null);
 }
 
+/** Segmented controls whose param currently holds one of its own words — a
+ *  row of buttons with none of them pressed would be asking the viewer to
+ *  guess what the figure is already doing. This is also what keeps a param
+ *  that a oneOf lets be EITHER (supply_demand's `steepness`: "gentle" or
+ *  1.4) from growing both controls: a numeric value reads as no choice, a
+ *  word reads as no slider, and whichever the spec set is the one offered. */
+function liveChoices(hd: RenderHandle): { spec: ChoiceSpec; value: string }[] {
+  const tpl = hd.spec.template;
+  if (!tpl) return [];
+  const schema = scenes[tpl]?.manifest.params_schema;
+  if (!schema) return [];
+  const n = hd.timeline.position;
+  const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
+  // The sliders' precedence, in one overlay: the viewer's own committed
+  // values win over the plan's boundary params, which win over the spec's.
+  // (The runtime map holds numbers — a {var} animate — so a path it has
+  // taken over reads as no choice at all; that param is the slider's now.)
+  const effective = withOverrides(withOverrides(hd.spec.params, boundary.params), hd.timeline.getParamOverrides());
+  return choiceSpecs(schema)
+    .map((spec) => ({ spec, value: readChoice(effective, spec.path) }))
+    .filter((c): c is { spec: ChoiceSpec; value: string } => c.value !== null && c.spec.values.includes(c.value));
+}
+
 function fmt(x: number): string {
   return Math.abs(x) >= 10 ? String(Math.round(x)) : String(Math.round(x * 100) / 100);
 }
@@ -99,7 +122,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && (typeof e.game === "string" || isC64Screen(e)));
   // An anatomy figure always has a body to explore, slider or no slider.
   const bodyTemplate = hd.spec.template === "anatomy";
-  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0 && !bodyTemplate) return;
+  if (liveSliders(hd).length === 0 && liveChoices(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0 && !bodyTemplate)
+    return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -410,8 +434,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // opened it, exactly what the beat named when an explore did (the rule
     // lives in tray-model, testable without a DOM).
     const sliders = liveSliders(hd);
+    const choices = liveChoices(hd);
     const plan = trayPlan({
       sliderPaths: sliders.map((s) => s.spec.path),
+      choicePaths: choices.map((c) => c.spec.path),
       codeIds: editable.map((e) => e.id),
       gated: opts.gated,
       params: opts.filter,
@@ -433,7 +459,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           restore(); // the session runs on the honest boundary
           close();
           if (a.id === "vs_computer") mountChessVs(stage, hd);
-          else mountQuiz(stage, hd, a.kind);
+          else mountQuiz(stage, hd, a);
         });
         row.appendChild(pill);
       }
@@ -594,6 +620,35 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           "♟️ Playable while paused — click a piece, then its target square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
         ),
       );
+    }
+    // The modes come before the magnitudes: a choice says what the figure IS
+    // (oral vs iv, linear vs convex), a slider says how much of it — and a
+    // slider read under the wrong mode is a number about the wrong figure.
+    for (const { spec, value } of plan.choices.map((p) => choices.find((c) => c.spec.path === p)!)) {
+      const group = h("div", { class: "cs-tray-choice", role: "group", "aria-label": spec.label });
+      const btns: HTMLButtonElement[] = [];
+      const mark = (chosen: string): void => {
+        for (const b of btns) {
+          const on = b.dataset.value === chosen;
+          b.classList.toggle("on", on);
+          b.setAttribute("aria-pressed", String(on));
+        }
+      };
+      for (const v of spec.values) {
+        const btn = h("button", { class: "cs-tray-choicebtn", "data-value": v }, v);
+        btn.addEventListener("click", () => {
+          overrides[spec.path] = v; // a slider's route exactly: one preview state…
+          mark(v);
+          repaint(); // …and one repaint, so an edited script survives the press
+        });
+        btns.push(btn);
+        group.appendChild(btn);
+      }
+      // A tray that rebuilds mid-explore (a second opening, an explore beat)
+      // must show what the VIEWER last pressed, not the boundary's word.
+      const pressed = overrides[spec.path];
+      mark(typeof pressed === "string" ? pressed : value);
+      tray.appendChild(h("div", { class: "cs-tray-row" }, h("span", { class: "cs-tray-label" }, spec.label), group));
     }
     for (const { spec, value } of plan.sliders.map((p) => sliders.find((s) => s.spec.path === p)!)) {
       const range = h("input", {
