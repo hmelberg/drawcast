@@ -17,6 +17,7 @@ import type { SubtitleLanguage } from "../spec/subtitles";
 import type { VoiceOption } from "../render/voices";
 import { gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
+import { dragGateFor } from "./drag-gate";
 import { attachInfoCards } from "./infocard";
 import { attachPanelView } from "./panel-view";
 import { scenes } from "../scenes/registry";
@@ -176,13 +177,16 @@ export function quizGateFor(stage: HTMLElement): (signal: AbortSignal, step: Qui
     });
 }
 
-/** The slice of the typed-ask plan step the gate needs. */
-interface AskGateStep {
+/** The slice of the typed-ask plan step the gates need. */
+export interface AskGateStep {
   question: string;
   answer?: string;
   retry: boolean;
   required: boolean;
-  widget?: "click" | "piano" | "chess" | "code";
+  widget?: "click" | "piano" | "chess" | "code" | "drag";
+  /** drag widget: the chips, in order. */
+  items?: { id: string; label: string; element: boolean }[];
+  tolerance?: number;
 }
 
 /**
@@ -958,9 +962,12 @@ export function attachPlayerControls(
   const figureGate = figureGateFor(stage, hd);
   const pianoGate = pianoGateFor(stage, hd);
   const chessGate = chessGateFor(stage, hd);
+  const dragGate = dragGateFor(stage, hd);
   hd.timeline.askGate = (signal, step) =>
     step.widget === "click"
       ? figureGate(signal, step)
+      : step.widget === "drag"
+        ? dragGate(signal, step)
       : step.widget === "piano"
         ? pianoGate(signal, step)
         : step.widget === "chess"

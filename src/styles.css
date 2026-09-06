@@ -1234,6 +1234,41 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   animation: figgate-pop 0.2s ease-out;
 }
 .cs-figgate-mark.cs-chesstake { border-color: var(--loss); opacity: 0.75; }
+/* The drag question: a tray of chips at the figure's left edge; a chip is
+   dragged by its transform and stays where it lands, coloured by its verdict
+   (.right/.wrong come from .cs-cardgate-pill). */
+.cs-draggate { cursor: default; }
+.cs-drag-tray {
+  position: absolute;
+  left: 0.8rem;
+  top: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  max-width: 36%;
+  pointer-events: none;
+}
+.cs-drag-chip {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.18);
+}
+.cs-drag-chip.dragging { cursor: grabbing; z-index: 6; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2); }
+.cs-drag-chip.placed { cursor: default; }
+.cs-drag-verdict { font-size: var(--text-xs); opacity: 0.85; }
+.cs-drag-summary {
+  position: absolute;
+  bottom: 3.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: none;
+}
 
 /* Info card: name + summary + actions at the pointer, over the paused figure. */
 .cs-infocard {
