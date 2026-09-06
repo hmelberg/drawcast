@@ -252,7 +252,7 @@ describe("solar_system: focus, moons, time, highlight, clicks", () => {
 });
 
 describe("bundled space examples", () => {
-  test("drawcast ships one space example", () => {
-    expect((bundledExamples as { packs?: string[] }[]).filter((e) => e.packs?.includes("space"))).toHaveLength(1);
+  test("drawcast ships five space examples", () => {
+    expect((bundledExamples as { packs?: string[] }[]).filter((e) => e.packs?.includes("space"))).toHaveLength(5);
   });
 });

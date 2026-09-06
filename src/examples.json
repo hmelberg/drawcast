@@ -13035,5 +13035,65 @@
         { "ask": { "question": "Which one is Mars?", "widget": "click", "answer": "mars", "right": "Mars — the fourth planet out, on the orbit just outside Earth's.", "wrong": "Count outward from the Sun: Mercury, Venus, Earth — and the next orbit is Mars." } }
       ]
     }
+  },
+  {
+    "request": "How big is Jupiter?",
+    "packs": ["space"],
+    "spec": {
+      "title": "How big is Jupiter?",
+      "template": "solar_system",
+      "params": { "view": "row", "scale": "sizes", "date": "2026-09-06" },
+      "commands": [
+        { "draw": ["sun", "label_sun", "scale_note", "scale_bar"], "speak": "Sizes to scale this time. The Sun is so large that only its edge fits on the page." },
+        { "draw": ["mercury", "venus", "earth", "label_earth", "mars"], "speak": "The four rocky planets are specks beside it — Earth is a dot a hundredth of the Sun's width." },
+        { "hide": ["label_mercury", "label_venus", "label_mars"] },
+        { "draw": ["jupiter", "label_jupiter"], "speak": "Jupiter: eleven Earths across, and heavier than all the other planets put together." },
+        { "draw": ["saturn", "label_saturn", "uranus", "label_uranus", "neptune", "label_neptune"], "speak": "Saturn with its rings, then the two ice giants, Uranus and Neptune — near twins." },
+        { "quiz": { "question": "Which of the two ice giants is larger?", "choices": ["Uranus", "Neptune", "They are the same size"], "correct": 1, "right": "Uranus, by a whisker — 25 400 kilometres in radius to Neptune's 24 600. Neptune is the heavier one, though." } }
+      ]
+    }
+  },
+  {
+    "request": "Put the planets in order.",
+    "packs": ["space"],
+    "spec": {
+      "title": "The planets in order",
+      "template": "solar_system",
+      "params": { "view": "row", "scale": "schematic", "date": "2026-09-06", "names": "none" },
+      "commands": [
+        { "draw": ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "scale_note"], "speak": "The Sun and its eight planets in a line, closest first. None of them is named." },
+        { "ask": { "question": "Drag each name onto its planet.", "widget": "drag", "items": [{ "id": "mercury", "label": "Mercury" }, { "id": "venus", "label": "Venus" }, { "id": "earth", "label": "Earth" }, { "id": "mars", "label": "Mars" }, { "id": "jupiter", "label": "Jupiter" }, { "id": "saturn", "label": "Saturn" }, { "id": "uranus", "label": "Uranus" }, { "id": "neptune", "label": "Neptune" }], "tolerance": 1, "right": "Mercury, Venus, Earth, Mars, then Jupiter, Saturn, Uranus and Neptune — the small rocky four, then the giants.", "wrong": "The rocky planets come first, small and close to the Sun; the giants follow, and Saturn is the one with the ring." } }
+      ]
+    }
+  },
+  {
+    "request": "Where are the planets today?",
+    "packs": ["space"],
+    "spec": {
+      "title": "The inner planets, moving",
+      "template": "solar_system",
+      "params": { "view": "top", "scale": "distances", "bodies": ["inner"], "date": "2026-10-09", "days": 0 },
+      "commands": [
+        { "draw": ["sun", "label_sun", "orbit_mercury", "orbit_venus", "orbit_earth", "orbit_mars", "scale_note", "scale_bar"], "speak": "The four inner orbits with the distances to scale: Mars is half again as far from the Sun as Earth." },
+        { "draw": ["mercury", "label_mercury", "venus", "label_venus", "earth", "label_earth", "mars", "label_mars"], "speak": "And the planets where they stood on the ninth of October 2026." },
+        { "animate": { "days": 687 }, "duration": 8, "easing": "linear", "speak": "Now let time run: 687 days, one Martian year. Mars goes round once — and Earth, on the inside track, goes round almost twice and laps it." }
+      ]
+    }
+  },
+  {
+    "request": "Show me Jupiter and its moons.",
+    "packs": ["space"],
+    "spec": {
+      "title": "Jupiter and its moons",
+      "template": "solar_system",
+      "params": { "focus": "jupiter", "moons": ["jupiter"], "orbits": false, "date": "2026-09-09" },
+      "commands": [
+        { "draw": ["frame", "jupiter", "label_jupiter", "axis", "scale_note"], "speak": "Jupiter, close up, with its spin axis leaning a mere three degrees." },
+        { "draw": ["io", "label_io", "europa", "label_europa"], "speak": "Io and Europa, the two inner Galilean moons — volcanic Io, and Europa with an ocean under its ice." },
+        { "draw": ["ganymede", "label_ganymede", "callisto", "label_callisto"], "speak": "Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet." },
+        { "explore": { "space": true }, "speak": "Click any moon to look closer, use the crumbs to come back out, and try the scale and date buttons. Press Continue when you are done." },
+        { "quiz": { "question": "Which of the four is the largest?", "choices": ["Io", "Europa", "Ganymede", "Callisto"], "correct": 3, "right": "Ganymede — larger than the planet Mercury." } }
+      ]
+    }
   }
 ]
