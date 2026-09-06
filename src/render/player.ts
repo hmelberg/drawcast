@@ -724,14 +724,18 @@ export class Player {
               /* an unparseable note stays silent */
             }
           }
-          if (this.effects && step.answerBox) {
+          // A drag question has one box per item: the laser taps each in turn.
+          const boxes = step.answerBoxes ?? (step.answerBox ? [step.answerBox] : []);
+          if (this.effects && boxes.length > 0) {
             const effects = this.effects;
-            const b = step.answerBox;
-            const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
-            try {
-              await this.progress(1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
-            } finally {
-              effects.setPointer(null);
+            for (const b of boxes) {
+              const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
+              try {
+                await this.progress(boxes.length > 1 ? 900 : 1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
+              } finally {
+                effects.setPointer(null);
+              }
+              if (signal.aborted) return;
             }
           } else {
             await this.waitScaled(1200, signal);
@@ -771,13 +775,34 @@ export class Player {
         // while the answer line is spoken — green when the viewer found it,
         // the highlight colour when it is revealed after a miss or a skip.
         // Live viewers only: the movie's laser has already tapped it.
-        const glowIds = step.widget === "click" && step.answerBox && !this.autoAnswers && this.askGate !== null ? [answer] : [];
+        const live = !this.autoAnswers && this.askGate !== null;
+        let groups: { ids: string[]; color?: string }[] = [];
+        if (step.widget === "drag" && step.items) {
+          // The truth appears: every element item is shown (the plan's state
+          // agrees); live, the hits glow green and the misses the highlight colour.
+          const elementIds = step.items.filter((i) => i.element).map((i) => i.id);
+          for (const el of this.els(elementIds)) el.finish();
+          if (live) {
+            const placed = new Set(
+              (typed ?? "")
+                .split(",")
+                .map((s) => s.trim().toLowerCase())
+                .filter((s) => s !== ""),
+            );
+            groups = [
+              { ids: elementIds.filter((id) => placed.has(id.toLowerCase())), color: ANSWER_OK_COLOR },
+              { ids: elementIds.filter((id) => !placed.has(id.toLowerCase())) },
+            ];
+          }
+        } else if (step.widget === "click" && step.answerBox && live) {
+          groups = [{ ids: [answer], ...(isRight(typed) ? { color: ANSWER_OK_COLOR } : {}) }];
+        }
         if (isRight(typed)) {
-          await this.glowWhile(glowIds, ANSWER_OK_COLOR, signal, async () => {
+          await this.glowWhile(groups, signal, async () => {
             if (step.right) await this.speakLine(step.right, step, signal);
           });
         } else if (step.reveal) {
-          await this.glowWhile(glowIds, undefined, signal, () => this.speakLine(step.right ?? answer, step, signal));
+          await this.glowWhile(groups, signal, () => this.speakLine(step.right ?? answer, step, signal));
         }
         if (!this.autoAnswers && this.askGate !== null && typed !== null) {
           const target = isRight(typed) ? step.rightGoto : step.wrongGoto;
@@ -1028,14 +1053,16 @@ export class Player {
   }
 
   /**
-   * Runs `work` (a spoken line, typically) while `ids` glow, in full swells
-   * of ANSWER_GLOW_MS until the work is done — at least one whole swell, so
-   * a silent player still shows the element. No effects or no ids: just the
-   * work. The glow is always cleared, even on abort.
+   * Runs `work` (a spoken line, typically) while the groups glow — each its
+   * own ids in its own colour, all in one loop of full swells of
+   * ANSWER_GLOW_MS until the work is done; at least one whole swell, so a
+   * silent player still shows the elements. No effects or nothing to glow:
+   * just the work. The glow is always cleared, even on abort.
    */
-  private async glowWhile(ids: string[], color: string | undefined, signal: AbortSignal, work: () => Promise<void>): Promise<void> {
+  private async glowWhile(groups: { ids: string[]; color?: string }[], signal: AbortSignal, work: () => Promise<void>): Promise<void> {
     const effects = this.effects;
-    if (!effects || ids.length === 0) {
+    const live = groups.filter((g) => g.ids.length > 0);
+    if (!effects || live.length === 0) {
       await work();
       return;
     }
@@ -1043,10 +1070,12 @@ export class Player {
     const done = work().finally(() => (working = false));
     try {
       do {
-        await this.progress(ANSWER_GLOW_MS, signal, (t) => effects.setHighlight(ids, "glow", t, null, color));
+        await this.progress(ANSWER_GLOW_MS, signal, (t) => {
+          for (const g of live) effects.setHighlight(g.ids, "glow", t, null, g.color);
+        });
       } while (working && !signal.aborted);
     } finally {
-      effects.endHighlight(ids);
+      for (const g of live) effects.endHighlight(g.ids);
     }
     await done;
   }

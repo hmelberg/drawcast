@@ -354,9 +354,9 @@ describe("anatomy: the examples", () => {
     expect(JSON.stringify(lay(p))).toBe(JSON.stringify(lay(p)));
   });
 
-  test("drawcast ships eleven anatomy examples", async () => {
+  test("drawcast ships twelve anatomy examples", async () => {
     const bundled = (await import("../src/examples.json")).default as { spec?: { template?: string } }[];
-    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(11);
+    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(12);
   });
 });
 

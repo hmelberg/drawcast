@@ -70,7 +70,12 @@ question (`ask` with `widget: "click"`) needs neither: when the answer is
 spoken, the correct part glows by itself — green when the viewer found it,
 red when it is revealed after a miss or a skip. That lives in the player
 (`glowWhile` in `src/render/player.ts`) and works on every template whose
-answer is a drawn element.
+answer is a drawn element. A **drag question** (`ask` with `widget: "drag"`,
+`items` = part ids with labels) hands the viewer the names and asks where
+they go: leave those parts undrawn before the question — they appear when it
+ends, hits green, misses red. The rules are `src/ui/drag-model.ts`, the chips
+`src/ui/drag-gate.ts`; the same widget places country names on the map and
+note names on the keyboard.
 
 ## The 3D panel
 

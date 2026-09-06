@@ -58,3 +58,37 @@ describe("answersMatch and subVars", () => {
     expect(subVars("Hi {name}, {x} stays.", vars)).toBe("Hi Hans, {x} stays.");
   });
 });
+
+// The drag widget: items are the answer, right is the reveal, geometry is the
+// planner's business — the schema checks shape only.
+describe("the drag widget", () => {
+  const drag = (extra: Record<string, unknown> = {}) => {
+    const ask: Record<string, unknown> = { question: "Place them.", widget: "drag", items: ["a"], right: "There.", ...extra };
+    for (const k of Object.keys(ask)) if (ask[k] === undefined) delete ask[k];
+    return ask;
+  };
+  const errorsOf = (ask: object) => validateSpec(base(ask)).errors.join(" | ");
+
+  test("items + right pass; answer is implied", () => {
+    expect(validateSpec(base(drag())).errors).toEqual([]);
+    expect(validateSpec(base(drag({ items: [{ id: "a", label: "The A" }], tolerance: 0.1 }))).errors).toEqual([]);
+    expect(validateSpec(base(drag({ retry: true, wrong: "No.", reveal: false, required: true }))).errors).toEqual([]);
+  });
+
+  test("drag needs items and right, refuses answer and store", () => {
+    expect(errorsOf({ question: "Q", widget: "drag", right: "R" })).toMatch(/items/);
+    expect(errorsOf(drag({ right: undefined }))).toMatch(/right/);
+    expect(errorsOf(drag({ answer: "a" }))).toMatch(/answer is implied/);
+    expect(errorsOf(drag({ store: "s", default: "d" }))).toMatch(/store/);
+  });
+
+  test("items only with drag; 1–8 of them; tolerance in [0, 1]", () => {
+    expect(errorsOf({ question: "Q", answer: "a", items: ["a"] })).toMatch(/items/);
+    expect(errorsOf({ question: "Q", answer: "a", tolerance: 0.5 })).toMatch(/tolerance/);
+    expect(validateSpec(base(drag({ items: [] }))).ok).toBe(false);
+    expect(validateSpec(base(drag({ items: Array(9).fill("a") }))).ok).toBe(false);
+    expect(validateSpec(base(drag({ items: [{ label: "no id" }] }))).ok).toBe(false);
+    expect(validateSpec(base(drag({ tolerance: 1.5 }))).ok).toBe(false);
+    expect(validateSpec(base(drag({ tolerance: -0.1 }))).ok).toBe(false);
+  });
+});

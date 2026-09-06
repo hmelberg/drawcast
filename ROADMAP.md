@@ -435,9 +435,14 @@ Open follow-ups:
   panel from the mesh pack in `public/anatomy3d/`, peel, presets, click to
   name — all shipped 2026-09-06; see
   `docs/superpowers/specs/2026-09-05-anatomy-design.md` and
-  `docs/superpowers/specs/2026-09-06-anatomy-round-2-design.md`): `manifest.model3d: { kind: "anatomy" }`;
-    decimated BodyParts3D meshes in `public/anatomy3d/` under CC BY-SA, one
-    `addCustom` per part, a peel slider, the DBCLS credit in the panel.
+  `docs/superpowers/specs/2026-09-06-anatomy-round-2-design.md`). Open: a
+  concave region silhouette, the diaphragm as a dome LINE, chips with small
+  drawings in drag questions, a distance readout in centimetres.
+- **Drag-to-place questions** (`ask` + `widget: "drag"`, shipped 2026-09-06;
+  spec `docs/superpowers/specs/2026-09-06-ask-drag-design.md`): names dragged
+  onto the body, the map or the keyboard, judged per drop and as a whole, the
+  truth revealed in two-colour glow. Open: distractor chips, staff-position
+  targets on the note sheet, dragging drawn elements themselves.
   - **Sound (M3).** `tones.ts` has no noise source. Heart sounds want a `noise`
     layer (BufferSource + BiquadFilter) on `Recipe`, plus a `listen` widget — a
     click that PLAYS rather than judges. ~100–150 lines. Synthesised sounds will

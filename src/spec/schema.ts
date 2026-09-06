@@ -398,9 +398,28 @@ const commandSchema = {
         required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
         widget: {
           type: "string",
-          enum: ["click", "piano", "chess", "code"],
+          enum: ["click", "piano", "chess", "code", "drag"],
           description:
-            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one). Requires answer. In movies the laser pointer demonstrates.",
+            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one); drag = DRAG NAMES onto the figure (items = what to place, each judged where it lands; the answer is implied and `right` is required — it must say where each belongs; parts that were not drawn appear when the question ends, hits glow green and misses red). All but drag require answer. In movies the laser pointer demonstrates.",
+        },
+        items: {
+          type: "array",
+          minItems: 1,
+          maxItems: 8,
+          items: {
+            anyOf: [
+              { type: "string" },
+              { type: "object", properties: { id: { type: "string" }, label: { type: "string" } }, required: ["id"], additionalProperties: false },
+            ],
+          },
+          description:
+            "With widget drag: what the viewer drags onto the figure — each an element id (an organ, a country_<slug>, any drawn part), a note on a piano figure (C4) or a square on a chess figure (e4), with an optional label for the chip (default: the id, humanised). 1–8 items, every one with a true place; leave the target parts UNDRAWN before the question when the task is to place them (they appear when it ends), or drawn when the task is to name what is there (a map).",
+        },
+        tolerance: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description: "With widget drag: how far outside a target's outline a drop may land and still count, as a fraction of the target's size (default 0.25; 0 = inside only).",
         },
         code: {
           type: "string",
@@ -833,7 +852,7 @@ function semanticErrors(spec: Spec): string[] {
       if (typeof a.question !== "string" || a.question.trim().length === 0) {
         errors.push(`commands[${i}]: ask.question must be a non-empty string`);
       }
-      if (a.answer === undefined && a.store === undefined) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag") {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -848,11 +867,21 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && a.default === undefined) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
-      if (a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      // The drag widget's answer is implied by its items, so it is check mode without `answer`.
+      const isDrag = a.widget === "drag";
+      if (!isDrag && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
-      if (a.widget !== undefined && a.answer === undefined) {
+      if (a.widget !== undefined && !isDrag && a.answer === undefined) {
         errors.push(`commands[${i}]: ask.widget requires answer (the element id / note / move the click must match)`);
+      }
+      if (isDrag) {
+        if (!Array.isArray(a.items) || a.items.length === 0) errors.push(`commands[${i}]: ask.widget "drag" needs items — what to drag onto the figure`);
+        if (a.right === undefined) errors.push(`commands[${i}]: ask.widget "drag" needs right — the reveal is a sentence; the answer itself is the list of items`);
+        if (a.answer !== undefined) errors.push(`commands[${i}]: ask.answer is implied by items for the drag widget — leave it out`);
+        if (a.store !== undefined) errors.push(`commands[${i}]: ask.store does not apply to the drag widget`);
+      } else if (a.items !== undefined || a.tolerance !== undefined) {
+        errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"`);
       }
       if (a.retry === true && a.wrong_goto !== undefined) {
         errors.push(`commands[${i}]: ask.retry and wrong_goto are mutually exclusive — retry re-asks in place, wrong_goto jumps away`);
