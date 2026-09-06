@@ -12637,23 +12637,22 @@
           "speak": "And the belly — nothing named yet."
         },
         {
+          "highlight": {
+            "target": [
+              "stomach"
+            ]
+          },
+          "speak": "One of them is the stomach, high on the body's left, just under the heart."
+        },
+        {
           "ask": {
             "question": "Click on the liver.",
             "widget": "click",
             "answer": "liver",
-            "intro": "Start with the largest gland you have.",
+            "intro": "Now the largest gland you have.",
             "right": "The liver fills the space under the right ribs — about a kilo and a half of it.",
             "wrong": "Look under the ribs on the body's own right, which is your left as you face it."
           }
-        },
-        {
-          "highlight": {
-            "target": [
-              "liver"
-            ],
-            "effect": "glow"
-          },
-          "speak": "That is the liver."
         }
       ]
     }

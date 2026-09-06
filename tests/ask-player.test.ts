@@ -145,3 +145,90 @@ describe("the typed ask action", () => {
     expect(player.state).toBe("done");
   });
 });
+
+// A click question shows WHERE the answer was: the correct element glows
+// while the answer line is spoken — green when the viewer found it, the
+// highlight colour when it is revealed after a miss or a skip. The typed
+// ask has no element to show, so nothing glows there.
+describe("the click ask glows the answer element", () => {
+  const LIVER_BOX = { x: 10, y: 20, w: 30, h: 40 };
+  const fakeEffects = () => {
+    const calls: { ids: string[]; effect: string; color?: string }[] = [];
+    const ended: string[][] = [];
+    const effects = {
+      setHighlight: (ids: string[], effect: string, _t: number, _box: unknown, color?: string) => {
+        calls.push({ ids, effect, color });
+      },
+      endHighlight: (ids: string[]) => {
+        ended.push(ids);
+      },
+      setPointer: () => undefined,
+      setCamera: () => undefined,
+    };
+    return { effects, calls, ended };
+  };
+  const clickPlayer = (speech: RecordingSpeech, effects: unknown, ask: Record<string, unknown>) => {
+    const plan = planCommands(
+      [{ draw: ["liver", "stomach"] }, { ask: { question: "Click on the liver.", widget: "click", answer: "liver", ...ask } } as Command],
+      ["liver", "stomach"],
+      { bboxOf: (id) => (id === "liver" ? LIVER_BOX : null) },
+    );
+    return new Player(plan, new Map(), speech, null, { mode: "narrated", effects: effects as never });
+  };
+
+  test("a right click: the liver glows green while the right line is spoken", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls, ended } = fakeEffects();
+    const player = clickPlayer(speech, effects, { right: "The liver, under the right ribs." });
+    player.askGate = async () => "liver";
+    await player.play();
+    expect(speech.spoken).toEqual(["Click on the liver.", "The liver, under the right ribs."]);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => c.ids.join() === "liver" && c.effect === "glow")).toBe(true);
+    expect(calls[0].color).toBe("#4a7c59");
+    expect(ended).toEqual([["liver"]]);
+  });
+
+  test("a wrong click: the liver glows in the highlight colour while the answer is revealed", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls, ended } = fakeEffects();
+    const player = clickPlayer(speech, effects, { right: "The liver, under the right ribs.", wrong: "Not there." });
+    player.askGate = async () => "stomach";
+    await player.play();
+    expect(speech.spoken).toEqual(["Click on the liver.", "Not there.", "The liver, under the right ribs."]);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => c.ids.join() === "liver" && c.effect === "glow" && c.color === undefined)).toBe(true);
+    expect(ended).toEqual([["liver"]]);
+  });
+
+  test("a skip reveals too: the liver glows while its id is spoken", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls } = fakeEffects();
+    const player = clickPlayer(speech, effects, {});
+    player.askGate = async () => null;
+    await player.play();
+    expect(speech.spoken).toEqual(["Click on the liver.", "liver"]);
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  test("reveal: false keeps a miss dark", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls } = fakeEffects();
+    const player = clickPlayer(speech, effects, { reveal: false });
+    player.askGate = async () => "stomach";
+    await player.play();
+    expect(speech.spoken).toEqual(["Click on the liver."]);
+    expect(calls).toEqual([]);
+  });
+
+  test("the typed ask never glows — there is no element to show", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls } = fakeEffects();
+    const plan = planCommands([{ ask: { question: "Gold?", answer: "Au", right: "Gold is Au." } }], [], { bboxOf: () => LIVER_BOX });
+    const player = new Player(plan, new Map(), speech, null, { mode: "narrated", effects: effects as never });
+    player.askGate = async () => "Ag";
+    await player.play();
+    expect(speech.spoken).toEqual(["Gold?", "Gold is Au."]);
+    expect(calls).toEqual([]);
+  });
+});

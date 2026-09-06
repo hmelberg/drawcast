@@ -22,7 +22,10 @@ description: >-
   carpals_left / metacarpals_left / phalanges_hand_left at 3), so name the ids
   of the level you chose. `focus` narrows to one part and its children at full
   detail — the way to zoom in on the abdomen, the left hand, or the knee;
-  `highlight` tints parts without narrowing; `markers` drops labelled dots;
+  the `highlight` PARAM tints parts for the whole figure — to make a part glow
+  for ONE sentence use the highlight COMMAND ({"highlight": {"target":
+  ["liver"]}, "speak": "…"}), and a click question glows its answer part by
+  itself when the answer is spoken; `markers` drops labelled dots;
   `findings` puts DISEASE into a part for the viewer to identify; `names`
   chooses the label language. Choose this scene for ANY request to draw,
   label, locate or quiz the human body, an organ, a bone, a joint, the
