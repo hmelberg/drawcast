@@ -50,6 +50,8 @@ export function resolveDragTargets(
     rings: ReadonlyMap<string, Pt[][]>;
     noteBox?: (note: string) => BBox | null;
     squareBox?: (square: string) => BBox | null;
+    /** A periodic cell by bare symbol, so an author writes "Fe", not "cell_Fe". */
+    cellBox?: (symbol: string) => BBox | null;
   },
 ): { targets: DragTarget[]; missing: string[] } {
   const targets: DragTarget[] = [];
@@ -61,7 +63,7 @@ export function resolveDragTargets(
       targets.push({ id: it.id, label: it.label, box, ...(rings ? { rings } : {}), element: true });
       continue;
     }
-    const other = geo.noteBox?.(it.id) ?? geo.squareBox?.(it.id) ?? null;
+    const other = geo.noteBox?.(it.id) ?? geo.squareBox?.(it.id) ?? geo.cellBox?.(it.id) ?? null;
     if (other) targets.push({ id: it.id, label: it.label, box: other, element: false });
     else missing.push(it.id);
   }

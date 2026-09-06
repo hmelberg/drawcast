@@ -30,6 +30,16 @@ export interface CardTarget {
 
 /** What the layout knows that the spec does not: what was actually drawn. */
 export interface LayoutFacts {
+  /**
+   * Ids the SCENE can name itself, because the knowledge belongs to the
+   * template rather than to the spec or to any word on the canvas
+   * (interactivity spec §6: capability follows the element). The periodic
+   * table is the first: `cell_Fe` is iron whatever the cell is big enough to
+   * print, and "Fe" is two characters, so `meaningfulName` would never let
+   * the drawn symbol speak for it. A scene name never overwrites a name the
+   * spec gave — an authored label still wins.
+   */
+  sceneNames?: readonly { id: string; name: string }[];
   /** Command-addressable ids in draw order (`LayoutResult.order`). */
   order?: readonly string[];
   /**
@@ -123,6 +133,15 @@ export function cardTargets(spec: Spec, layout: LayoutFacts | readonly string[] 
     const owner = /^(.+)_quote(_\d+)?$/.exec(id)?.[1];
     const t = owner ? out.get(owner) : undefined;
     if (t && !out.has(id)) out.set(id, t);
+  }
+
+  // What the scene knows its own parts are called. Before the drawn-word pass
+  // so that a cell's own name is the card's name, and after the spec passes so
+  // an authored label still outranks it.
+  for (const n of facts.sceneNames ?? []) {
+    if (typeof n.id !== "string" || n.id === "" || typeof n.name !== "string" || !meaningfulName(n.name)) continue;
+    if (out.has(n.id)) continue;
+    out.set(n.id, { id: n.id, name: n.name, kind: "plain", links: [] });
   }
 
   // Finally the words a TEMPLATE drew. They are not spec elements — the

@@ -141,3 +141,64 @@ export function pianoKeyGuide(octaves: 1 | 2): { key: string; note: string; box:
   }
   return out;
 }
+
+// ---- the periodic table ----------------------------------------------------
+// A deliberate break from the two above. The piano and the chessboard have to
+// MIRROR their templates' constants — those layouts draw a keyboard and a board
+// as single elements, so a hit box can only be recomputed, and the comment at
+// the top of this file has to beg for the two copies to be kept in sync.
+//
+// The periodic table gives every cell its own element id (`cell_Fe`), so its
+// geometry is simply the boxes the layout already produced. There is no second
+// copy of the grid arithmetic, so there is nothing to drift. Callers pass the
+// bboxes they already computed (`elementBBoxes(layout)`), which the info card
+// caches per figure anyway.
+
+const CELL_ID = /^cell_([A-Z][a-z]{0,2})$/;
+
+/** Every element symbol this figure actually drew, in the order given. Takes
+ *  bare ids, so the info card can read them straight off `layout.order`
+ *  without paying for a measuring pass it does not need. */
+export function periodicSymbols(ids: Iterable<string>): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    const m = CELL_ID.exec(id);
+    if (m) out.push(m[1]);
+  }
+  return out;
+}
+
+/** The element symbol under a logical y-up point, or null between the cells.
+ *  Smallest containing box wins, so a big detail card cannot swallow a
+ *  neighbour the way an overlapping frame would. */
+export function periodicCellAt(boxes: ReadonlyMap<string, BBox>, p: Pt): string | null {
+  let best: string | null = null;
+  let bestArea = Infinity;
+  for (const [id, b] of boxes) {
+    const m = CELL_ID.exec(id);
+    if (!m) continue;
+    if (p[0] < b.x || p[0] > b.x + b.w || p[1] < b.y || p[1] > b.y + b.h) continue;
+    const area = b.w * b.h;
+    if (area < bestArea) {
+      best = m[1];
+      bestArea = area;
+    }
+  }
+  return best;
+}
+
+/** The hit-box of one drawn element (the drill's target, the movie's pointer,
+ *  and the drop target behind a drag item written as a bare "Fe"). */
+export function periodicCellBox(boxes: ReadonlyMap<string, BBox>, symbol: string): BBox | null {
+  const s = symbol.trim();
+  if (s === "") return null;
+  const exact = boxes.get("cell_" + s);
+  if (exact) return exact;
+  // Case-insensitively, so an author writing "FE" or "fe" still lands on iron.
+  const lower = s.toLowerCase();
+  for (const [id, b] of boxes) {
+    const m = CELL_ID.exec(id);
+    if (m && m[1].toLowerCase() === lower) return b;
+  }
+  return null;
+}
