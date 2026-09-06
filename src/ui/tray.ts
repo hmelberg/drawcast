@@ -41,6 +41,7 @@ import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl } from "../code/c64";
 import { archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch, type ArchiveHit } from "../code/c64-archive";
 import { C64_PROGRAMS, resolveGame } from "../code/c64-catalogue";
+import { isC64Screen } from "../layout/c64-screen";
 import { bboxOfPts } from "../layout/geometry";
 import { leafDrawables } from "../layout/model";
 import { openMediaModal } from "./media-modal";
@@ -92,7 +93,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // A machine with a game on it: a paused click on its play mark starts the
   // emulator over the figure (ui/media-modal's surface, so it is app-only by
   // construction and a movie shows the drawn boot screen instead).
-  const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && typeof e.game === "string");
+  // Every Commodore gets the row — a game to play is one of the things you
+  // can do with it, not the condition for having a menu at all.
+  const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && (typeof e.game === "string" || isC64Screen(e)));
   if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
@@ -289,15 +292,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     return visible.some((v) => v === id || v.startsWith(`${id}_`));
   };
 
-  /** The game whose play mark is under a logical point, if any is on screen. */
+  /** The machine whose ≡ is under a logical point, if any is on screen. */
   const gameAt = (p: [number, number]): SpecElement | null => {
     const leaves = leafDrawables((hd.timeline.paintedLayout() ?? hd.layout).drawables);
     for (const g of games) {
       if (!visibleNow(g.id)) continue;
-      const tri = leaves.find((d) => d.id === `${g.id}__playtri`);
-      if (!tri || tri.kind !== "area" || tri.pts.length === 0) continue;
-      const b = bboxOfPts(tri.pts);
-      const pad = Math.max(12, b.w); // the ring around the triangle is the target too
+      const pill = leaves.find((d) => d.id === `${g.id}__menu`);
+      if (!pill || pill.kind !== "area" || pill.pts.length === 0) continue;
+      const b = bboxOfPts(pill.pts);
+      const pad = 6;
       if (p[0] >= b.x - pad && p[0] <= b.x + b.w + pad && p[1] >= b.y - pad && p[1] <= b.y + b.h + pad) return g;
     }
     return null;
@@ -416,68 +419,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       }
       tray.appendChild(row);
     }
-    if (playable) {
-      tray.appendChild(
-        h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 Playable while paused — click, glide, or use your keyboard: A S D F G H J are the white keys, W E T Y U the black."),
-      );
-    }
-    if (interactions.includes("chess")) {
-      tray.appendChild(
-        h(
-          "div",
-          { class: "cs-tray-hint" },
-          "♟️ Playable while paused — click a piece, then its target square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
-        ),
-      );
-    }
-    for (const { spec, value } of plan.sliders.map((p) => sliders.find((s) => s.spec.path === p)!)) {
-      const range = h("input", {
-        type: "range",
-        min: String(spec.min),
-        max: String(spec.max),
-        step: spec.step === "any" ? "any" : String(spec.step),
-        value: String(value),
-        "aria-label": spec.label,
-      }) as HTMLInputElement;
-      const readout = h("span", { class: "cs-tray-value" }, fmt(value));
-      range.addEventListener("input", () => {
-        overrides[spec.path] = Number(range.value);
-        readout.textContent = fmt(Number(range.value));
-        repaint(); // an edited script stays edited while the knob turns
-      });
-      tray.appendChild(h("label", { class: "cs-tray-row" }, h("span", { class: "cs-tray-label" }, spec.label), range, readout));
-    }
-    // What the panel SHOWS: the same state the buttons drawn on a machine's
-    // chin press, offered here too — the capability belongs to the code panel,
-    // and a script on bare paper has no chin to press (Hans, 2026-09-04).
-    const view = stage ? panelViewFor(stage) : null;
-    if (view && !opts.gated) {
-      for (const panelId of view.panels) {
-        const row = h("div", { class: "cs-tray-view" });
-        row.appendChild(h("span", { class: "cs-tray-label" }, view.panels.length > 1 ? `Show (${panelId})` : "Show"));
-        const chips: { kind: "code" | "output" | "power"; label: string }[] = [
-          { kind: "code", label: "Code" },
-          { kind: "output", label: "Output" },
-        ];
-        // "Picture" only where there IS a picture to switch off.
-        if (view.hasScreen(panelId)) chips.push({ kind: "power", label: "Picture" });
-        for (const c of chips) {
-          const chip = h("button", { class: "cs-tray-chip" }, c.label);
-          const sync = (): void => {
-            const st = view.state(panelId);
-            const on = c.kind === "code" ? st.code : c.kind === "output" ? st.output : st.on;
-            chip.classList.toggle("off", !on);
-            chip.setAttribute("aria-pressed", String(on));
-          };
-          chip.addEventListener("click", () => view.press(panelId, c.kind));
-          view.onChange(sync);
-          sync();
-          row.appendChild(chip);
-        }
-        tray.appendChild(row);
-      }
-    }
-    // The machines with a game on them: the lesson's own program, the
+    // The machines first — the ≡ on a Commodore opens THIS as its menu, so
+    // what you can do with the machine leads: the lesson's own program, the
     // catalogue to pick another, and a field for the viewer's own URL (kept
     // in localStorage so it is typed once). Not during an explore gate — a
     // game there is the gate's own business.
@@ -580,6 +523,67 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         arow.appendChild(aplay);
         arow.appendChild(anote);
         tray.appendChild(arow);
+      }
+    }
+    if (playable) {
+      tray.appendChild(
+        h("div", { class: "cs-tray-hint" }, "\ud83c\udfb9 Playable while paused — click, glide, or use your keyboard: A S D F G H J are the white keys, W E T Y U the black."),
+      );
+    }
+    if (interactions.includes("chess")) {
+      tray.appendChild(
+        h(
+          "div",
+          { class: "cs-tray-hint" },
+          "♟️ Playable while paused — click a piece, then its target square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
+        ),
+      );
+    }
+    for (const { spec, value } of plan.sliders.map((p) => sliders.find((s) => s.spec.path === p)!)) {
+      const range = h("input", {
+        type: "range",
+        min: String(spec.min),
+        max: String(spec.max),
+        step: spec.step === "any" ? "any" : String(spec.step),
+        value: String(value),
+        "aria-label": spec.label,
+      }) as HTMLInputElement;
+      const readout = h("span", { class: "cs-tray-value" }, fmt(value));
+      range.addEventListener("input", () => {
+        overrides[spec.path] = Number(range.value);
+        readout.textContent = fmt(Number(range.value));
+        repaint(); // an edited script stays edited while the knob turns
+      });
+      tray.appendChild(h("label", { class: "cs-tray-row" }, h("span", { class: "cs-tray-label" }, spec.label), range, readout));
+    }
+    // What the panel SHOWS: the same state the buttons drawn on a machine's
+    // chin press, offered here too — the capability belongs to the code panel,
+    // and a script on bare paper has no chin to press (Hans, 2026-09-04).
+    const view = stage ? panelViewFor(stage) : null;
+    if (view && !opts.gated) {
+      for (const panelId of view.panels) {
+        const row = h("div", { class: "cs-tray-view" });
+        row.appendChild(h("span", { class: "cs-tray-label" }, view.panels.length > 1 ? `Show (${panelId})` : "Show"));
+        const chips: { kind: "code" | "output" | "power"; label: string }[] = [
+          { kind: "code", label: "Code" },
+          { kind: "output", label: "Output" },
+        ];
+        // "Picture" only where there IS a picture to switch off.
+        if (view.hasScreen(panelId)) chips.push({ kind: "power", label: "Picture" });
+        for (const c of chips) {
+          const chip = h("button", { class: "cs-tray-chip" }, c.label);
+          const sync = (): void => {
+            const st = view.state(panelId);
+            const on = c.kind === "code" ? st.code : c.kind === "output" ? st.output : st.on;
+            chip.classList.toggle("off", !on);
+            chip.setAttribute("aria-pressed", String(on));
+          };
+          chip.addEventListener("click", () => view.press(panelId, c.kind));
+          view.onChange(sync);
+          sync();
+          row.appendChild(chip);
+        }
+        tray.appendChild(row);
       }
     }
     // The scripts on screen. Expanded when the editor IS the point (the only
@@ -708,16 +712,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // gesture). Tray already open: its own freeze guard owns the stage.
         if (hd.timeline.state === "playing" || !tray.hidden) return;
         if (e.target instanceof Element && e.target.closest("button, a")) return;
-        // The play mark first: on a machine with a game, that is the object's
-        // most natural action; the rest of the screen still opens the editor.
+        // The ≡ first: the machine's menu is the ⊕ tray — play, program, pick
+        // another. The rest of the screen still opens the editor.
         const p = gateIsOpen(stage) || overCaption(e.target as Element | null) ? null : logicalPoint(stage, e);
         const g = p ? gameAt(p) : null;
         if (g) {
           e.stopPropagation();
-          hd.timeline.renderUpTo(hd.timeline.position); // land on the boundary, as the editor does
-          const own = lessonGame(g);
-          if (own) startGame(own.url);
-          else open(); // nothing loadable on it: the tray says what is, and offers the catalogue
+          open();
           return;
         }
         const id = screenAt(e);

@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { c64EmulatorUrl, C64_PALETTE, C64_BACKGROUND, C64_BORDER, C64_TEXT } from "../src/code/c64";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
-import { flattenDrawables, type AreaDrawable, type TextDrawable } from "../src/layout/model";
+import { flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { lintCommands } from "../src/lint/lint";
 import { planCommands } from "../src/render/plan";
 import { resolveCode } from "../src/render/code";
@@ -50,22 +50,26 @@ describe("what the layout draws for a switched-on machine", () => {
     expect(cur.style.fill).toBe(C64_PALETTE[C64_TEXT]);
   });
 
-  test("a play mark on the screen's centre, white so it reads on blue", () => {
-    const ring = leaf({}, "c64__play")!;
-    const tri = leaf({}, "c64__playtri") as AreaDrawable;
-    expect(ring.style.color).toBe(C64_PALETTE[1]);
-    expect(tri.style.fill).toBe(C64_PALETTE[1]);
+  test("the ≡ menu sits in the border's bottom-right corner, small and faint", () => {
+    const pill = leaf({}, "c64__menu") as AreaDrawable;
+    const border = leaf({}, "c64__border") as AreaDrawable;
     const screen = leaf({}, "c64__screen") as AreaDrawable;
-    const cx = (Math.min(...screen.pts.map((p) => p[0])) + Math.max(...screen.pts.map((p) => p[0]))) / 2;
-    const tcx = tri.pts.reduce((a, p) => a + p[0], 0) / tri.pts.length;
-    expect(Math.abs(tcx - cx)).toBeLessThan(15);
+    expect(pill.style.opacity).toBeLessThan(0.3);
+    expect((leaf({}, "c64__menu_2") as StrokeDrawable).style.opacity).toBeLessThan(0.7);
+    const right = Math.max(...border.pts.map((p) => p[0])), bottom = Math.min(...border.pts.map((p) => p[1]));
+    const px = pill.pts.map((p) => p[0]), py = pill.pts.map((p) => p[1]);
+    // inside the border band under the screen, at its right end
+    expect(Math.max(...px)).toBeLessThan(right);
+    expect(Math.min(...py)).toBeGreaterThan(bottom);
+    expect(Math.max(...py)).toBeLessThanOrEqual(Math.min(...screen.pts.map((p) => p[1])) + 0.01);
+    expect(Math.max(...px) - Math.min(...px)).toBeLessThan((right - Math.min(...border.pts.map((p) => p[0]))) * 0.1);
   });
 
   test("it is all one beat: draw: [id] switches the machine on, and no ruled placeholders remain", () => {
     const l = lay();
     const panel = l.drawables.find((d) => d.id === "c64")!;
     const ids = flattenDrawables([panel]).map((d) => d.id);
-    for (const part of ["c64__border", "c64__screen", "c64__boot2", "c64__play"]) expect(ids).toContain(part);
+    for (const part of ["c64__border", "c64__screen", "c64__boot2", "c64__menu"]) expect(ids).toContain(part);
     expect(flattenDrawables(l.drawables).some((d) => d.id.startsWith("c64__rule"))).toBe(false);
   });
 

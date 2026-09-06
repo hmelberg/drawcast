@@ -69,13 +69,17 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   ctx.anchors[el.id] = [cx, cy];
   ctx.panes[el.id] = { x: screenX, y: screenTop - C64_ROWS * cell, w: C64_COLS * cell, h: C64_ROWS * cell };
 
-  const field = (sid: string, border: number, background: number): Drawable[] => [
+  // The renderer paints three layers — areas, strokes, texts — so a field that
+  // REPAINTS the screen after lines were typed has to live in the text layer,
+  // or the old lines would show through it (Hans saw the output land on top
+  // of the commands). The machine's own field stays under everything.
+  const field = (sid: string, border: number, background: number, z = Z_AREA): Drawable[] => [
     {
       id: `${sid}__border`,
       kind: "area",
       pts: rectPts(x0, yTop - h, w, h),
       precise: true,
-      z: Z_AREA,
+      z,
       style: resolveStyle(undefined, { fill: C64_PALETTE[border & 15], opacity: 1, strokeWidth: 0 }),
       drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
     },
@@ -84,17 +88,19 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       kind: "area",
       pts: rectPts(screenX, screenTop - C64_ROWS * cell, C64_COLS * cell, C64_ROWS * cell),
       precise: true,
-      z: Z_AREA,
+      z,
       style: resolveStyle(undefined, { fill: C64_PALETTE[background & 15], opacity: 1, strokeWidth: 0 }),
       drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
     },
   ];
-  /** A run of text on a screen row, in one colour, set on the cell grid: the
-   *  face's cell is one em square, its baseline 0.875 em under the cell's top. */
+  /** A run of text on a screen row, in one colour, set on the cell grid. A
+   *  text's pos is its CENTRE (the backend sets dominant-baseline: central),
+   *  and the face's em box is exactly the cell, so the centre of the cell it
+   *  is — an earlier baseline offset put every row 0.375 cell too low. */
   const rowText = (sid: string, row: number, col: number, text: string, color: number, typed = false): Drawable => ({
     id: sid,
     kind: "text",
-    pos: [screenX + col * cell, screenTop - cell * (row + 0.875)],
+    pos: [screenX + col * cell, screenTop - cell * (row + 0.5)],
     text,
     fontSize: font,
     anchor: "start",
@@ -124,7 +130,7 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   /** Everything a screen snapshot shows: the field in its colours, every run
    *  of text, the cursor — the machine at one moment. */
   const screenDrawables = (sid: string, screen: C64Screen): Drawable[] => {
-    const outList: Drawable[] = [...field(sid, screen.border, screen.background)];
+    const outList: Drawable[] = [...field(sid, screen.border, screen.background, Z_TEXT)];
     screen.chars.forEach((line, r) => {
       let col = 0;
       while (col < line.length) {
@@ -142,34 +148,44 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     outList.push(...cursorCell(`${sid}__cursor`, screen.cursor));
     return outList;
   };
-  const playMark = (): Drawable[] => {
-    if (el.game === undefined) return [];
-    const pcx = screenX + (C64_COLS * cell) / 2;
-    const pcy = screenTop - (C64_ROWS * cell) / 2;
-    const r = Math.max(16, C64_COLS * cell * 0.1);
+  /**
+   * The machine's menu: a small ≡ in the bottom-right corner of the border,
+   * half transparent, the size of a couple of cells — a paused click opens
+   * the ⊕ tray, which is what you can do with this Commodore (play a
+   * program, write one, pick another from the catalogue or the Archive).
+   * On every screen, not only one with a game, and repeated inside every
+   * `_out` beat so a repaint never covers it. Ink, so it is in a movie too —
+   * tiny and faint there, which is the price of one drawing for both.
+   */
+  const menuMark = (z = Z_STROKE): Drawable[] => {
+    const mw = cell * 2.2;
+    const mh = cell * 1.6;
+    const mx = x0 + w - rim / 2 - mw / 2;
+    const my = yTop - h + rim / 2 - mh / 2; // the band's bottom-right: its centre, then the pill around it
+    const line = (k: number): Drawable => ({
+      id: `${el.id}__menu_${k + 1}`,
+      kind: "stroke",
+      pts: [
+        [mx + cell * 0.45, my + mh * (0.72 - 0.22 * k)],
+        [mx + mw - cell * 0.45, my + mh * (0.72 - 0.22 * k)],
+      ],
+      z,
+      style: resolveStyle(undefined, { color: C64_PALETTE[1], strokeWidth: Math.max(1.5, cell * 0.12), opacity: 0.55 }),
+      drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+    });
     return [
       {
-        id: `${el.id}__play`,
-        kind: "stroke",
-        pts: [[pcx, pcy]],
-        shapeHint: { type: "circle", c: [pcx, pcy], r },
-        z: Z_STROKE,
-        style: resolveStyle(undefined, { color: C64_PALETTE[1], strokeWidth: 3 }),
-        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 420 }),
-      },
-      {
-        id: `${el.id}__playtri`,
+        id: `${el.id}__menu`,
         kind: "area",
-        pts: [
-          [pcx - r * 0.3, pcy + r * 0.45],
-          [pcx + r * 0.55, pcy],
-          [pcx - r * 0.3, pcy - r * 0.45],
-        ],
+        pts: rectPts(mx, my, mw, mh),
         precise: true,
-        z: Z_STROKE,
-        style: resolveStyle(undefined, { fill: C64_PALETTE[1], opacity: 1, strokeWidth: 0 }),
-        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 260 }),
+        z,
+        style: resolveStyle(undefined, { fill: C64_PALETTE[1], opacity: 0.12, strokeWidth: 0 }),
+        drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
       },
+      line(0),
+      line(1),
+      line(2),
     ];
   };
 
@@ -183,7 +199,7 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     C64_BOOT_LINES.forEach(([row, text], i) => machine.push(rowText(`${el.id}__boot${i}`, row, 0, text, C64_TEXT)));
     machine.push(...cursorCell(`${el.id}__cursor`, [C64_BOOT_LINES[C64_BOOT_LINES.length - 1][0] + 1, 0]));
   }
-  machine.push(...playMark());
+  machine.push(...menuMark());
   const out: Drawable[] = [
     { id: el.id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children: machine },
   ];
@@ -268,7 +284,7 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       const screen = result?.screens?.[k];
       ctx.extraOrder.push(sid);
       ctx.anchors[sid] = [cx, cy];
-      out.push(beat(sid, screen ? [...screenDrawables(`${el.id}__o${k + 1}`, screen), ...playMark()] : []));
+      out.push(beat(sid, screen ? [...screenDrawables(`${el.id}__o${k + 1}`, screen), ...menuMark(Z_TEXT)] : []));
     });
   }
   ctx.extraOrder.push(outId);
@@ -277,7 +293,7 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   if (lines.length > 0) {
     if (result?.screen) runChildren.push(...screenDrawables(`${el.id}__run`, result.screen));
     else runChildren.push(rowText(`${el.id}__runline`, Math.min(C64_ROWS - 1, row), 0, immediate ? "" : "RUN", C64_TEXT)); // not run yet (node, offline)
-    runChildren.push(...playMark());
+    runChildren.push(...menuMark(Z_TEXT));
   }
   out.push(beat(outId, runChildren));
   return out;

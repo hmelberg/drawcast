@@ -164,7 +164,10 @@ describe("the layout draws the screen a run left", () => {
     const line1 = all.find((d) => d.id === "b_line_1") as TextDrawable;
     expect(line1.font).toBe("c64");
     expect(line1.text).toBe("10 POKE 53280,0:POKE 53281,5");
-    expect(all.some((d) => d.id === "b__play")).toBe(false); // no game, no play mark
+    expect(all.some((d) => d.id === "b__menu")).toBe(true); // every machine has its ≡
+    // a repaint sits in the text layer, above the lines typed before it
+    expect((all.find((d) => d.id === "b__run__screen") as AreaDrawable).z).toBe(2);
+    expect((all.find((d) => d.id === "b__screen") as AreaDrawable).z).toBe(0);
   });
 });
 

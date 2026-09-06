@@ -304,6 +304,35 @@ on a screen's text; the cursor's group carries `cs-blink` and the computed
 animation runs; four screens with lineRows [0, 3, 5, 7] and the cursor at
 [10, 0]; the border black from the second screen on; HELLO in #edf171.
 
+## M6 — rows in their cells, the repaint above the lines, and the ≡ (SHIPPED)
+
+Hans, 2026-09-06, on the live screen: the output landed ON the commands
+rather than under them; the cursor sat partly on the line above; the big
+play mark in the middle of the screen was in the way — put it bottom-right,
+smaller, fainter, maybe as a menu of what to do with the machine.
+
+- **The cursor** was right and the rows were wrong: a text drawable's `pos`
+  is its CENTRE (the backend sets `dominant-baseline: central`), and the
+  rows had been placed by a baseline offset — every row 0.375 cell too low.
+  Rows now sit at the centre of their cell. Measured: row 0's glyph box top
+  0.2 px from the screen's top, one cell tall; the cursor's top at READY.'s
+  bottom.
+- **The output on the commands** was the renderer's three layers: areas
+  under strokes under texts, whatever the document order — so a field that
+  REPAINTS the screen after lines were typed sat under those lines, and the
+  run's rows painted over them. A repaint now lives in the text layer
+  (`z: Z_TEXT`), above what was typed before it; the machine's own field
+  stays under everything. Measured: in the text layer the repaint's field
+  follows the typed line.
+- **The ≡.** The play mark is gone. Every Commodore — with a game or not —
+  wears a small half-transparent ≡ in the bottom-right corner of its border
+  (a couple of cells; 23 × 17 px at figure size), repeated inside every
+  `_out` beat so a repaint never covers it. A paused click opens the ⊕ tray,
+  which is the machine's menu, and the Commodore rows now lead the tray:
+  play the lesson's program, pick another from the catalogue, load an own
+  URL, search the Archive — and the script editor under those. Ink, so it is
+  in a movie too, tiny and faint.
+
 ## M3 — the original plan (kept for the record)
 
 Our own CBM BASIC V2 in TypeScript as `language: "basic"`, written from the
