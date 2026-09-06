@@ -162,8 +162,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 8 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(8);
+test("KIT_VERSION is 9 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(9);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -463,5 +463,36 @@ describe("kit.stamp and kit.STAMPS", () => {
 
   test("STAMPS is frozen", () => {
     expect(Object.isFrozen(kit.STAMPS)).toBe(true);
+  });
+});
+
+describe("kit.ball — a shaded disc for 2D figures", () => {
+  test("is one circle-hinted stroke carrying project3d's sphere gradient over the fill", () => {
+    const b = kit.ball("mars", [100, 200], 12, { fill: "#c1613d" });
+    expect(b.kind).toBe("stroke");
+    expect(b.pts).toEqual([[100, 200]]);
+    expect(b.shapeHint).toEqual({ type: "circle", c: [100, 200], r: 12 });
+    expect(b.style.fill).toBe("#c1613d");
+    expect(b.style.fillGradient).toEqual({
+      fx: 0.32,
+      fy: 0.3,
+      r: 0.75,
+      stops: [
+        { offset: 0, color: shadeColor("#c1613d", 0.78) },
+        { offset: 0.55, color: "#c1613d" },
+        { offset: 1, color: shadeColor("#c1613d", 0.3) },
+      ],
+    });
+    expect(b.style.color).toBe(shadeColor("#c1613d", 0.25)); // the rim: a darker shade of the fill
+    expect(b.style.strokeWidth).toBe(2);
+    expect(b.drawOpts.mode).toBe("sketch");
+  });
+
+  test("options override the rim, width and opacity; the fill defaults to the guide colour", () => {
+    const b = kit.ball("x", [0, 0], 5, { color: "red", strokeWidth: 3, opacity: 0.5 });
+    expect(b.style.color).toBe("red");
+    expect(b.style.strokeWidth).toBe(3);
+    expect(b.style.opacity).toBe(0.5);
+    expect(b.style.fill).toBe(kit.COLORS.guide);
   });
 });

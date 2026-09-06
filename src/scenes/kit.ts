@@ -38,7 +38,7 @@ import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 8; // v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 9; // v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -255,6 +255,14 @@ export interface SceneKit {
    */
   axisLabel(id: string, axis: "x" | "y", plot: PlotArea, s: string, o?: TextOpts): TextDrawable;
   label(id: string, anchor: Pt, side: Side, s: string, o?: { fontSize?: number; color?: string }): LabelRequest;
+  /**
+   * A shaded disc: ONE circle-hinted stroke whose radial-gradient fill is lit
+   * from up-left — exactly the look project3d gives a solid sphere, for flat
+   * figures (planets, moons, balls). `fill` is the body's colour (6-digit hex
+   * shades best); the rim defaults to a darker shade of it. Complete the
+   * instant its circle finishes drawing; no overlay drawables.
+   */
+  ball(id: string, c: Pt, r: number, o?: { fill?: string; color?: string; strokeWidth?: number; opacity?: number; roughness?: number; ms?: number }): StrokeDrawable;
   group(id: string, children: Drawable[]): GroupDrawable;
   // ---- geometry (all return points in logical y-up coordinates) ----
   polygon(c: Pt, r: number, n: number, rot?: number): Pt[];
@@ -614,6 +622,34 @@ export const kit: SceneKit = {
       fontSize: o.fontSize ?? 26,
       style: defaultStyle(o.color !== undefined ? { color: o.color } : {}),
       drawOpts: defaultDrawOpts("instant"),
+    };
+  },
+  ball(id, c, r, o = {}) {
+    const fill = o.fill ?? COLORS.guide;
+    return {
+      id,
+      kind: "stroke",
+      pts: [c],
+      shapeHint: { type: "circle", c, r },
+      z: Z_STROKE,
+      style: defaultStyle({
+        color: o.color ?? shadeColor(fill, 0.25),
+        fill,
+        fillGradient: {
+          fx: 0.32,
+          fy: 0.3,
+          r: 0.75,
+          stops: [
+            { offset: 0, color: shadeColor(fill, 0.78) },
+            { offset: 0.55, color: fill },
+            { offset: 1, color: shadeColor(fill, 0.3) },
+          ],
+        },
+        strokeWidth: o.strokeWidth ?? 2,
+        ...(o.opacity !== undefined && { opacity: o.opacity }),
+        ...(o.roughness !== undefined && { roughness: o.roughness }),
+      }),
+      drawOpts: defaultDrawOpts("sketch", o.ms ?? SKETCH_MS.node),
     };
   },
   group(id, children) {
