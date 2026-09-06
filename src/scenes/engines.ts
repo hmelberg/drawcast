@@ -24,8 +24,10 @@ import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } fro
 import { sampleSvgPath } from "./svgpath";
 import type { Atlas, AtlasPart, AtlasSystem, AnatomyEngine } from "./anatomy/types";
 export type { AnatomyEngine } from "./anatomy/types";
+import type { BodiesTable, SpaceEngine } from "./space/types";
+export type { SpaceEngine } from "./space/types";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "space"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -631,12 +633,22 @@ async function loadAnatomy(): Promise<AnatomyEngine> {
   };
 }
 
+/** The solar system: the bodies table and astronomy-engine in one lazy chunk.
+ *  engine.ts imports astronomy-engine statically, so the dynamic import of
+ *  engine.ts IS the code-split boundary — never import ./space/engine or
+ *  ./space/ephemeris statically from anywhere the main chunk reaches. */
+async function loadSpace(): Promise<SpaceEngine> {
+  const [{ makeSpaceEngine }, tableMod] = await Promise.all([import("./space/engine"), import("./space/bodies.json")]);
+  return makeSpaceEngine(tableMod.default as unknown as BodiesTable);
+}
+
 export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   smilesdrawer: { load: loadSmilesDrawer },
   mathjax: { load: loadMathJax },
   chess: { load: loadChess },
   geo: { load: loadGeo },
   anatomy: { load: loadAnatomy },
+  space: { load: loadSpace },
 };
 
 const cache = new Map<string, unknown>();

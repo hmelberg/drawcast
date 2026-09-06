@@ -144,11 +144,13 @@ describe("smilesdrawer engine (real load — node, no DOM)", () => {
   });
 });
 
-test("KNOWN_ENGINES lists smilesdrawer, mathjax, chess and geo", () => {
+test("KNOWN_ENGINES lists smilesdrawer, mathjax, chess, geo, anatomy and space", () => {
   expect(KNOWN_ENGINES).toContain("smilesdrawer");
   expect(KNOWN_ENGINES).toContain("mathjax");
   expect(KNOWN_ENGINES).toContain("chess");
   expect(KNOWN_ENGINES).toContain("geo");
+  expect(KNOWN_ENGINES).toContain("anatomy");
+  expect(KNOWN_ENGINES).toContain("space");
 });
 
 // Drift tripwire (final review, deferred-upgraded #3): TEMPLATE_DOC_API_SCHEMA's

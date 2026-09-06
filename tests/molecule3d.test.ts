@@ -252,6 +252,7 @@ describe("bundled offline examples (src/examples.json)", () => {
     if (needsPacks.has("games")) await ensureEngines(["chess"]);
     if (needsPacks.has("maps")) await ensureEngines(["geo"]);
     if (needsPacks.has("anatomy")) await ensureEngines(["anatomy"]);
+    if (needsPacks.has("space")) await ensureEngines(["space"]);
   });
 
   interface Entry {
