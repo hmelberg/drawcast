@@ -78,18 +78,21 @@ export function circularAngle(body: Body, d: Date): number {
   return l0 + (2 * Math.PI * daysSinceJ2000(d)) / body.period_d;
 }
 
+/** A point on the circular sketch: radius `r` at angle `t`. Shared by the AU (helio) and km (moon) callers. */
+function circlePoint(r: number, t: number): { x: number; y: number } {
+  return { x: r * Math.cos(t), y: r * Math.sin(t) };
+}
+
 /** Heliocentric ecliptic positions in AU. A moon reports its parent's position (it is invisible at any honest solar-system scale). */
 export function helioPositions(all: Record<string, Body>, ids: readonly string[], d: Date): Record<string, Vec> {
   const out: Record<string, Vec> = {};
   const one = (id: string): Vec | null => {
     const b = all[id];
     if (!b) return null;
-    if (id === "sun") return { x: 0, y: 0, z: 0 };
     if (b.parent && b.parent !== "sun") return one(b.parent);
     const ab = ASTRO_BODY[id];
     if (ab !== undefined) return eqjToEcliptic(A.HelioVector(ab, d));
-    const t = circularAngle(b, d), r = b.a_km / AU_KM;
-    return { x: r * Math.cos(t), y: r * Math.sin(t), z: 0 };
+    return { ...circlePoint(b.a_km / AU_KM, circularAngle(b, d)), z: 0 };
   };
   for (const id of ids) {
     const p = one(id);
@@ -114,20 +117,18 @@ export function moonPositionsKm(all: Record<string, Body>, parentId: string, ids
       out[id] = { x: v.x * AU_KM, y: v.y * AU_KM };
       continue;
     }
-    if (parentId === "jupiter" && (GALILEAN as readonly string[]).includes(id)) {
+    const galileanId = parentId === "jupiter" ? GALILEAN.find((g) => g === id) : undefined;
+    if (galileanId) {
       jm ??= A.JupiterMoons(d);
-      // astronomy.d.ts names the four as io/europa/ganymede/callisto; an older
-      // build exposes moon[0..3] in the same order — accept either.
-      const info = jm as unknown as Record<string, { x: number; y: number; z: number }> & { moon?: { x: number; y: number; z: number }[] };
-      const sv = info[id] ?? info.moon?.[GALILEAN.indexOf(id as (typeof GALILEAN)[number])];
-      if (sv) {
-        const v = eqjToEcliptic(sv);
-        out[id] = { x: v.x * AU_KM, y: v.y * AU_KM };
-        continue;
-      }
+      // astronomy-engine is pinned at exactly 2.1.19: JupiterMoonsInfo (astronomy.d.ts)
+      // has only the four named io/europa/ganymede/callisto properties, so
+      // `.find` above hands back a key `jm` can be indexed by with no cast.
+      const v = eqjToEcliptic(jm[galileanId]);
+      out[id] = { x: v.x * AU_KM, y: v.y * AU_KM };
+      continue;
     }
     const t = circularAngle(b, d);
-    out[id] = { x: b.a_km * Math.cos(t), y: b.a_km * Math.sin(t) };
+    out[id] = circlePoint(b.a_km, t);
   }
   return out;
 }
