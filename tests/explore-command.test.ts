@@ -53,6 +53,16 @@ describe("explore validation and planning", () => {
     if (s.kind !== "explore") return;
     expect(s.anatomy).toBe(true);
   });
+
+  test("explore.space is a boolean invitation to the Space section", () => {
+    expect(validateSpec(spec([{ draw: ["a"] }, { explore: { space: true } }])).ok).toBe(true);
+    expect(validateSpec(spec([{ explore: { space: "yes" } }])).ok).toBe(false);
+    const plan = planCommands([{ explore: { space: true }, speak: "Look around." }], []);
+    const s = plan.steps[0];
+    expect(s.kind).toBe("explore");
+    if (s.kind !== "explore") return;
+    expect(s.space).toBe(true);
+  });
 });
 
 describe("explore at runtime", () => {

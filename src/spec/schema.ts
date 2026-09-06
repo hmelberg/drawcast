@@ -367,6 +367,11 @@ const commandSchema = {
           description:
             "On an anatomy figure: open the Body section of the explore tray — click a part to zoom into its region, breadcrumbs back, pills for layer, systems and names — and wait for Continue. The authored 'look around the body yourself' moment. App only; movies skip the beat.",
         },
+        space: {
+          type: "boolean",
+          description:
+            "On a solar_system figure: open the Space section of the explore tray — click a planet or moon to look closer, breadcrumbs back out, pills for scale, names and date, a fact card with the Wikipedia summary — and wait for Continue. The authored 'look around the solar system yourself' moment. App only; movies skip the beat.",
+        },
       },
       additionalProperties: false,
     },
@@ -896,6 +901,9 @@ function semanticErrors(spec: Spec): string[] {
       }
       if (cmd.explore.anatomy !== undefined && typeof cmd.explore.anatomy !== "boolean") {
         errors.push(`commands[${i}]: explore.anatomy must be true or false`);
+      }
+      if (cmd.explore.space !== undefined && typeof cmd.explore.space !== "boolean") {
+        errors.push(`commands[${i}]: explore.space must be true or false`);
       }
     }
     if (verb === "play") {

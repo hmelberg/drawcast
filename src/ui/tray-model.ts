@@ -92,6 +92,8 @@ export interface TrayPlan {
   scripts: { id: string; expanded: boolean }[];
   /** The anatomy Body section: click-to-zoom, breadcrumbs, layer/systems/names. */
   body: boolean;
+  /** The solar-system Space section: click a body to focus on it, breadcrumbs, scale/names/date pills, the fact card. */
+  space: boolean;
 }
 
 export function trayPlan(input: {
@@ -109,8 +111,23 @@ export function trayPlan(input: {
   bodyTemplate?: boolean;
   /** The beat's `anatomy` flag. */
   anatomy?: boolean;
+  /** The figure is a solar_system template: it has a sky to explore. */
+  spaceTemplate?: boolean;
+  /** The beat's `space` flag. */
+  space?: boolean;
 }): TrayPlan {
-  const { sliderPaths, codeIds, gated = false, params, code, open, bodyTemplate = false, anatomy } = input;
+  const {
+    sliderPaths,
+    codeIds,
+    gated = false,
+    params,
+    code,
+    open,
+    bodyTemplate = false,
+    anatomy,
+    spaceTemplate = false,
+    space: spaceBeat,
+  } = input;
   if (gated) {
     // Named code alone means the author asked for the keyboard, not the
     // knobs; naming both asks for both; naming neither is the old slider gate.
@@ -119,9 +136,11 @@ export function trayPlan(input: {
     // (the body IS what there is to explore). Naming params or code instead
     // asks for those. The body keeps its detail slider beside it.
     const body = bodyTemplate && (anatomy === true || (params === undefined && code === undefined));
-    const wantsSliders = params !== undefined || scripts.length === 0 || body;
+    // The same rule for a solar-system figure: asked for by name, or an unnamed gate.
+    const space = spaceTemplate && (spaceBeat === true || (params === undefined && code === undefined));
+    const wantsSliders = params !== undefined || scripts.length === 0 || body || space;
     const sliders = !wantsSliders ? [] : params ? sliderPaths.filter((p) => params.includes(p)) : sliderPaths;
-    return { activities: false, sliders, scripts, body };
+    return { activities: false, sliders, scripts, body, space };
   }
   // A script opens expanded when it IS the tray (no sliders to compete with)
   // or when the viewer reached it by clicking that very screen.
@@ -131,5 +150,6 @@ export function trayPlan(input: {
     sliders: sliderPaths,
     scripts: codeIds.map((id) => ({ id, expanded: expandAll || open === id })),
     body: bodyTemplate,
+    space: spaceTemplate,
   };
 }

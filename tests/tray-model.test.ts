@@ -127,3 +127,23 @@ describe("trayPlan — the body section", () => {
     expect(p.activities).toBe(false);
   });
 });
+
+describe("trayPlan — the space section", () => {
+  test("a solar-system figure shows the space section whenever the viewer opens the tray", () => {
+    expect(trayPlan({ sliderPaths: ["days"], codeIds: [], spaceTemplate: true }).space).toBe(true);
+    expect(trayPlan({ sliderPaths: ["days"], codeIds: [] }).space).toBe(false);
+    expect(trayPlan({ sliderPaths: ["detail"], codeIds: [], bodyTemplate: true }).space).toBe(false);
+  });
+  test("a gated beat shows the space section when it asks for it, or when it names nothing else", () => {
+    expect(trayPlan({ sliderPaths: ["days"], codeIds: [], spaceTemplate: true, gated: true, space: true }).space).toBe(true);
+    expect(trayPlan({ sliderPaths: ["days"], codeIds: [], spaceTemplate: true, gated: true }).space).toBe(true);
+    expect(trayPlan({ sliderPaths: ["days"], codeIds: [], spaceTemplate: true, gated: true, params: ["days"] }).space).toBe(false);
+    expect(trayPlan({ sliderPaths: ["days"], codeIds: [], spaceTemplate: false, gated: true, space: true }).space).toBe(false);
+  });
+  test("a space gate keeps the days slider beside the section, and no activity pills", () => {
+    const p = trayPlan({ sliderPaths: ["days"], codeIds: [], spaceTemplate: true, gated: true, space: true });
+    expect(p.sliders).toEqual(["days"]);
+    expect(p.activities).toBe(false);
+    expect(p.body).toBe(false);
+  });
+});
