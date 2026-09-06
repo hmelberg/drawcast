@@ -150,6 +150,7 @@ const rows = Array.isArray(raw) ? raw : raw.elements ?? Object.values(raw)[0];
 if (!Array.isArray(rows) || rows.length !== 118) throw new Error(`expected 118 source rows, got ${rows?.length}`);
 
 const names = JSON.parse(readFileSync(NAMES, "utf8"));
+const spellings = [];
 
 const elements = rows
   .map((r) => {
@@ -160,10 +161,16 @@ const elements = rows
     if (typeof nm.nb !== "string" || nm.nb === "") throw new Error(`names.json has no Norwegian name for ${r.symbol}`);
     const cat = CATEGORY[r.groupBlock];
     if (!cat) throw new Error(`unmapped category "${r.groupBlock}" for ${r.symbol}`);
+    // The English name comes from the VERIFIED names file, not from the data
+    // package: PubChem writes "Aluminum", and this app is not American. Any
+    // other disagreement is worth seeing rather than silently resolving, so it
+    // is reported — a symbol whose two sources name different elements would
+    // be a much worse problem than a spelling.
+    if (nm.en !== r.name) spellings.push(`${r.symbol}: "${nm.en}" (names.json) vs "${r.name}" (source)`);
     return {
       z,
       symbol: r.symbol,
-      name: { en: r.name, nb: nm.nb, la: nm.la ?? null },
+      name: { en: nm.en, nb: nm.nb, la: nm.la ?? null },
       mass: num(r.atomicMass),
       group: group(z),
       period: periodOf(z),
@@ -203,3 +210,4 @@ console.log(`wrote ${OUT}`);
 console.log(`  ${elements.length} elements, ${(JSON.stringify({ elements }).length / 1024).toFixed(1)} kB`);
 console.log(`  gaps: electronegativity ${gaps("electronegativity")}, radius ${gaps("radius")}, melt ${gaps("melt")}, boil ${gaps("boil")}, density ${gaps("density")}`);
 console.log(`  latin names: ${elements.filter((e) => e.name.la).length}`);
+if (spellings.length > 0) console.log(`  english spellings taken from names.json over the source:\n    ${spellings.join("\n    ")}`);

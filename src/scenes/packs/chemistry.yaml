@@ -838,6 +838,14 @@ layout: |
     const A = hexTriple(a), B = hexTriple(b), u = Math.max(0, Math.min(1, t));
     return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * u).toString(16).padStart(2, "0")).join("");
   };
+  // A continuous ramp never starts AT the paper. Caesium's 0.79 is the lowest
+  // electronegativity there is, and if the coldest wash is indistinguishable
+  // from the blank cells of the elements nobody has measured, the figure has
+  // quietly merged "smallest" with "unknown" — which is the very distinction
+  // the null rule above exists to keep. So the scale runs over [RAMP_FLOOR, 1]
+  // and the legend is drawn from the same mapping.
+  const RAMP_FLOOR = 0.22;
+  const ramp = (pair, t) => mix(pair[0], pair[1], RAMP_FLOOR + (1 - RAMP_FLOOR) * Math.max(0, Math.min(1, t)));
 
   // The scalar a continuous colouring reads. `discovered` is a year EXCEPT for
   // the seven metals known to antiquity, which carry the string "ancient" —
@@ -869,8 +877,8 @@ layout: |
     const v = scalarOf(e);
     if (v === null || !RAMP[colourBy]) return null;
     const t = sMax > sMin ? (v - sMin) / (sMax - sMin) : 0.5;
-    // Radius runs the other way to read as "bigger atom, stronger colour".
-    return mix(RAMP[colourBy][0], RAMP[colourBy][1], colourBy === "discovered" ? 1 - t : t);
+    // Discovery runs the other way: the longer we have known it, the darker.
+    return ramp(RAMP[colourBy], colourBy === "discovered" ? 1 - t : t);
   };
 
   // ---- geometry ------------------------------------------------------------
@@ -894,20 +902,37 @@ layout: |
   const wantLegend = colourBy !== "none" && params.legend !== false && !detail;
   const TOP = wantTitle ? 672 : 712;
   const BOT = wantLegend ? 152 : 84;
-  const AVAIL_W = 900, AVAIL_H = TOP - BOT;
+  // The group numbers live in a reserved strip above the grid, not in whatever
+  // space happens to be left: with few rows the grid floats up, and a number
+  // placed relative to it lands on the title.
+  const NUMBERS = detail ? 0 : 34;
+  const AVAIL_W = 900, AVAIL_H = TOP - NUMBERS - BOT;
   const PAD = 3;
 
-  // Grid cells are square; the DETAIL card is not. Five stacked lines — number,
-  // symbol, name, mass, configuration — need vertical room a square does not
-  // have at any width that still fits the canvas, and squeezing them was the
-  // lint's overlap warning rather than a matter of taste.
+  // Cells are NOT forced square. The whole table is width-bound (eighteen
+  // columns) and comes out roughly square on its own; a single column of six
+  // halogens is height-bound, and forcing that column to stay square would
+  // waste nine hundred units of canvas and shrink the cells below the size at
+  // which a name fits — which is exactly what the subset form exists to show.
+  // So height follows the rows, width follows the columns, and each is allowed
+  // to run to 2.2x the other before it stops growing — far enough that six
+  // halogens in a column become element cards with room for a name and a mass,
+  // rather than six small squares adrift in nine hundred units of paper.
+  //
+  // The DETAIL card is its own shape: five stacked lines need vertical room a
+  // square has at no width that fits the canvas (the lint said so, as an
+  // overlap warning, before anyone had an opinion about it).
   const nC = usedCols.length, nR = usedRows.length;
-  const CELL = detail ? 380 : Math.max(24, Math.min(168, AVAIL_W / nC, AVAIL_H / nR) - PAD);
-  const CW = CELL, CH = detail ? 430 : CELL;
+  const hCap = Math.max(24, AVAIL_H / nR - PAD);
+  const wCap = Math.max(24, AVAIL_W / nC - PAD);
+  const CH = detail ? 430 : Math.min(168, hCap, wCap * 1.25);
+  const CW = detail ? 380 : Math.min(wCap, CH * 2.2);
+  const CELL = Math.min(CW, CH); // the scale every font size is derived from
   const STEPX = CW + PAD, STEPY = CH + PAD;
   const gridW = nC * STEPX - PAD, gridH = nR * STEPY - PAD;
   const X0 = (1000 - gridW) / 2;
   const YTOP = BOT + (AVAIL_H + gridH) / 2;
+  const wide = !detail && CW >= CH * 1.25; // room for a two-column card
 
   const boxOf = (e) => {
     const x = X0 + colAt.get(colOf(e)) * STEPX;
@@ -923,18 +948,23 @@ layout: |
   // only once the cell is big enough to hold one at that size: how much a cell
   // says follows from how big it is, with no mode to choose.
   const FLOOR = 14;
-  const showName = CELL >= 92;
-  const showMass = CELL >= 122;
+  // A name appears once there is room for one at the readable floor: stacked
+  // under the symbol needs a tall cell, but a WIDE cell has room beside it,
+  // which is how a single column of halogens gets its names.
+  const showName = wide ? CW >= 130 : CH >= 108;
+  const showMass = wide ? CW >= 150 : CH >= 132;
 
   // ---- the frame and the table's own numbers --------------------------------
   const gridChildren = [];
-  gridChildren.push(kit.stroke("grid__frame", rect(X0 - 9, YTOP - gridH - 9, gridW + 18, gridH + 18), {
-    closed: true, strokeWidth: 3, color: C.guide, ms: MS.guides,
-  }));
+  // No frame around the detail card: its own box IS the edge, and a second
+  // line nine units outside it reads as a printing error.
   if (!detail) {
+    gridChildren.push(kit.stroke("grid__frame", rect(X0 - 9, YTOP - gridH - 9, gridW + 18, gridH + 18), {
+      closed: true, strokeWidth: 3, color: C.guide, ms: MS.guides,
+    }));
     for (const c of usedCols) {
       if (c < 1 || c > 18) continue;
-      gridChildren.push(kit.text("grid__c" + c, [X0 + colAt.get(c) * STEPX + CW / 2, YTOP + 16], String(c), {
+      gridChildren.push(kit.text("grid__c" + c, [X0 + colAt.get(c) * STEPX + CW / 2, YTOP + 22], String(c), {
         fontSize: Math.max(FLOOR, Math.min(20, CELL * 0.26)), color: C.guide,
       }));
     }
@@ -945,7 +975,23 @@ layout: |
       }));
     }
   }
-  push(kit.group("grid", gridChildren));
+  // The two placeholder cells at group 3 of periods 6 and 7. Every printed
+  // table has them: without the markers the main block simply has two holes in
+  // it, and nothing says where the lanthanides and actinides were lifted out of.
+  if (whole) {
+    for (const [period, label] of [[6, "57–71"], [7, "89–103"]]) {
+      const x = X0 + colAt.get(3) * STEPX;
+      const yTop = YTOP - rowAt.get(period) * STEPY;
+      gridChildren.push(kit.stroke("grid__f" + period, rect(x, yTop - CH, CW, CH), {
+        closed: true, strokeWidth: 1.5, color: C.guide, dash: true, ms: 26,
+      }));
+      gridChildren.push(kit.text("grid__ft" + period, [x + CW / 2, yTop - CH / 2 - CH * 0.08], label, {
+        fontSize: Math.max(FLOOR, Math.min(18, CW * 0.26)), color: C.guide,
+      }));
+    }
+  }
+
+  if (gridChildren.length > 0) push(kit.group("grid", gridChildren));
   anchors.grid = [500, YTOP - gridH / 2];
 
   // ---- the washes, under everything ----------------------------------------
@@ -966,24 +1012,53 @@ layout: |
     kids.push(kit.stroke(id + "__box", rect(x, y, w, h), {
       closed: true, strokeWidth: detail ? 3 : 1.8, shapeHint: { type: "rect", x, y, w, h }, ms: detail ? 260 : 26,
     }));
-    kids.push(kit.text(id + "__z", [x + w * 0.09, y + h * (detail ? 0.92 : 0.82)], String(e.z), {
-      fontSize: Math.max(FLOOR, Math.min(34, CELL * (detail ? 0.09 : 0.21))), color: C.guide, anchor: "start",
-    }));
-    kids.push(kit.text(id + "__sym", [cx, y + h * (detail ? 0.675 : 0.34)], e.symbol, {
-      fontSize: Math.max(16, CELL * (detail ? 0.25 : 0.40)),
-    }));
-    if (showName || detail) {
-      kids.push(kit.text(id + "__name", [cx, y + h * (detail ? 0.43 : 0.16)], nameOf(e), {
-        fontSize: Math.max(FLOOR, CELL * (detail ? 0.085 : 0.145)), color: C.guide,
-      }));
-    }
-    if ((showMass || detail) && e.mass !== null) {
-      kids.push(kit.text(id + "__mass", [cx, y + h * (detail ? 0.28 : 0.05)], e.mass.toFixed(detail ? 3 : 1), {
-        fontSize: Math.max(FLOOR, CELL * (detail ? 0.068 : 0.115)), color: C.guide,
-      }));
-    }
+    // Print the mass at the precision the SOURCE has, never padded: "55.840"
+    // claims a third decimal PubChem's 55.84 does not carry, and the true
+    // value is 55.845 — a fabricated digit that happens to be wrong.
+    const massText = e.mass === null ? null : String(Math.round(e.mass * 1000) / 1000);
+
     if (detail) {
+      // The card: number, symbol, name, mass, configuration, down the middle.
+      kids.push(kit.text(id + "__z", [x + w * 0.09, y + h * 0.92], String(e.z), { fontSize: 34, color: C.guide, anchor: "start" }));
+      kids.push(kit.text(id + "__sym", [cx, y + h * 0.675], e.symbol, { fontSize: 95 }));
+      kids.push(kit.text(id + "__name", [cx, y + h * 0.43], nameOf(e), { fontSize: 32, color: C.guide }));
+      if (massText) kids.push(kit.text(id + "__mass", [cx, y + h * 0.28], massText, { fontSize: 26, color: C.guide }));
       kids.push(kit.text(id + "__config", [cx, y + h * 0.128], e.config, { fontSize: 26, color: C.supply }));
+    } else if (wide && showName) {
+      // A wide cell reads as an element card: the symbol holds the left half,
+      // the words stack in the right half, and neither crowds the other.
+      kids.push(kit.text(id + "__z", [x + w * 0.06, y + h * 0.76], String(e.z), {
+        fontSize: Math.max(FLOOR, Math.min(24, CH * 0.2)), color: C.guide, anchor: "start",
+      }));
+      kids.push(kit.text(id + "__sym", [x + w * 0.30, y + h * 0.40], e.symbol, { fontSize: Math.max(16, CH * 0.42) }));
+      kids.push(kit.text(id + "__name", [x + w * 0.68, y + h * (showMass ? 0.56 : 0.44)], nameOf(e), {
+        fontSize: Math.max(FLOOR, Math.min(CH * 0.2, CW * 0.115)), color: C.guide,
+      }));
+      if (showMass && massText) {
+        kids.push(kit.text(id + "__mass", [x + w * 0.68, y + h * 0.26], massText, {
+          fontSize: Math.max(FLOOR, Math.min(CH * 0.16, CW * 0.09)), color: C.guide,
+        }));
+      }
+    } else {
+      // The grid cell: atomic number in the corner, symbol in the middle, and
+      // a name underneath only when the cell is tall enough to hold one.
+      // Two bands, not two guesses: the number owns the top of the cell and
+      // the symbol the middle, and the symbol is capped by the cell's HEIGHT
+      // as well as its width so a tall-ish cell cannot grow it into the number.
+      // These sat two units apart before and passed the lint by luck; the day
+      // the geometry moved by one per cent, 109 cells overlapped at once.
+      kids.push(kit.text(id + "__z", [x + w * 0.09, y + h * 0.845], String(e.z), {
+        fontSize: Math.max(FLOOR, Math.min(34, CELL * 0.21)), color: C.guide, anchor: "start",
+      }));
+      kids.push(kit.text(id + "__sym", [cx, y + h * (showName ? 0.46 : 0.30)], e.symbol, {
+        fontSize: Math.max(16, Math.min(CELL * (showName ? 0.32 : 0.42), CH * 0.44)),
+      }));
+      if (showName) {
+        kids.push(kit.text(id + "__name", [cx, y + h * 0.17], nameOf(e), { fontSize: Math.max(FLOOR, CH * 0.13), color: C.guide }));
+      }
+      if (showMass && massText) {
+        kids.push(kit.text(id + "__mass", [cx, y + h * 0.05], massText, { fontSize: Math.max(FLOOR, CH * 0.10), color: C.guide }));
+      }
     }
     push(kit.group(id, kids));
     anchors[id] = [cx, y + h / 2];
@@ -1033,7 +1108,7 @@ layout: |
       const BX = 330, BW = 340, BY = 96, BH = 18;
       for (let i = 0; i < 11; i++) {
         const t = i / 10;
-        kids.push(kit.area("legend__r" + i, rect(BX + (BW / 11) * i, BY, BW / 11 + 0.5, BH), mix(a, b, t), { opacity: 0.6, precise: true, ms: 20 }));
+        kids.push(kit.area("legend__r" + i, rect(BX + (BW / 11) * i, BY, BW / 11 + 0.5, BH), ramp([a, b], t), { opacity: 0.6, precise: true, ms: 20 }));
       }
       const fmt = (v) => (colourBy === "discovered" ? String(Math.round(v)) : String(Math.round(v * 100) / 100));
       const lo = colourBy === "discovered" ? fmt(sMax) : fmt(sMin);
