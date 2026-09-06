@@ -45,6 +45,20 @@ the right drawing — roadmap). The round-1 hand-drawn skeleton is kept as a
 reserve: `assets/anatomy-sources/human-skeleton-front.svg` and
 `skeleton-map.reserve.mjs`, not used by the build.
 
+## Exploring in the app
+
+The ⊕ explore tray of any anatomy figure has a **Body** section: click a
+part on the figure to zoom into its region (the liver zooms to the abdomen,
+a metacarpal to the hand), click a part inside the zoomed view to pick it
+out and see its name, and use the breadcrumbs (`Body › Left arm › Left hand`)
+to come back. Pills switch the layer (in front / behind), the systems shown
+and the label language; the detail slider sits beside them. Every action is
+a preview through the tray's own overrides, so **Continue restores the
+lesson** exactly as after a slider drag. `explore: { anatomy: true }` is the
+authored beat that opens the section and waits. The rules — which region a
+click zooms to, the breadcrumb path — live in `src/ui/body-model.ts` and are
+tested against the real atlas; the DOM is `src/ui/body-explore.ts`.
+
 Adding a system (muscles, vessels, nerves): a fourth atlas file, a new value
 in `AtlasSystem`, a new entry in the template's `systems` enum, and its parts
 in `bodyparts.mjs`. The engine merges by system already.

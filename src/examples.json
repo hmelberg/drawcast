@@ -12949,5 +12949,19 @@
         { "ask": { "question": "Klikk på fingerbeina.", "widget": "click", "answer": "phalanges_hand_left", "right": "Fingerbeina, phalanges — fjorten i alt." } }
       ]
     }
+  },
+  {
+    "request": "Let me explore the body myself.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "Explore the body",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "commands": [
+        { "draw": ["body_outline", "brain", "trachea", "lung_right", "lung_left", "heart", "liver", "stomach", "spleen", "pancreas", "kidney_right", "kidney_left", "small_intestine", "large_intestine", "bladder"], "speak": "Here is the body with its organs in place. Nothing is named yet — that is your job." },
+        { "explore": { "anatomy": true }, "speak": "Click anything you are curious about to zoom in, click again to see its name, and use the crumbs to come back. Press Continue when you are done." },
+        { "quiz": { "question": "Which organ lies behind the stomach, tucked against the back wall?", "choices": ["The liver", "The pancreas", "The bladder"], "correct": 1, "right": "The pancreas — behind the stomach, in front of the spine. Switch to Behind in the tray to see it clear of the stomach." } }
+      ]
+    }
   }
 ]
