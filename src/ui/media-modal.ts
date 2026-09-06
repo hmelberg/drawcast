@@ -63,5 +63,20 @@ export function openMediaModal(stage: HTMLElement, hd: RenderHandle, opts: Media
   });
   window.addEventListener("keydown", onKey);
   stage.appendChild(scrim);
+  // Keyboard focus goes INTO the frame, now and again once it has loaded —
+  // an emulator that has to be clicked before the cursor keys reach it is
+  // one nobody can play from the first second (Hans, 2026-09-06). The modal's
+  // own Escape still works: the key reaches the frame's document, and a
+  // cross-origin page cannot stop the viewer closing what is over the stage.
+  const grab = (): void => {
+    try {
+      frame.focus();
+      frame.contentWindow?.focus();
+    } catch {
+      /* a frame that refuses focus keeps its own rules */
+    }
+  };
+  grab();
+  frame.addEventListener("load", grab);
   return { close };
 }

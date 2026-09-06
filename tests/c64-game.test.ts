@@ -25,6 +25,7 @@ describe("the emulator URL", () => {
     expect(u.startsWith("https://vc64web.github.io/#")).toBe(true);
     expect(u).toContain("#openROMS=true");
     expect(u).toContain("#navbar=hidden");
+    expect(u).toContain("#port2=true"); // the keyboard is a joystick from the first frame
     expect(u.endsWith(`#${GAME}`)).toBe(true);
   });
 });

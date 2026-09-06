@@ -106,7 +106,10 @@ export const C64_BOOT_LINES: readonly (readonly [row: number, text: string])[] =
  * may not contain a '#' — the lint says so.
  */
 export function c64EmulatorUrl(game: string): string {
-  return `https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3#${game}`;
+  // port2=true: the keyboard IS a joystick in port 2 (cursor keys, space to
+  // fire) from the first frame — the port nearly every game reads. Without
+  // it a viewer had to find the switch inside the emulator's own bar.
+  return `https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3#port2=true#${game}`;
 }
 
 /**
