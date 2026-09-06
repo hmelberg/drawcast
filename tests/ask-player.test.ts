@@ -150,23 +150,28 @@ describe("the typed ask action", () => {
 // while the answer line is spoken — green when the viewer found it, the
 // highlight colour when it is revealed after a miss or a skip. The typed
 // ask has no element to show, so nothing glows there.
+/** A recording stand-in for the backend's effects: every glow frame and every end. */
+const fakeEffects = () => {
+  const calls: { ids: string[]; effect: string; color?: string }[] = [];
+  const ended: string[][] = [];
+  const pointer: unknown[] = [];
+  const effects = {
+    setHighlight: (ids: string[], effect: string, _t: number, _box: unknown, color?: string) => {
+      calls.push({ ids, effect, color });
+    },
+    endHighlight: (ids: string[]) => {
+      ended.push(ids);
+    },
+    setPointer: (p: unknown) => {
+      pointer.push(p);
+    },
+    setCamera: () => undefined,
+  };
+  return { effects, calls, ended, pointer };
+};
+
 describe("the click ask glows the answer element", () => {
   const LIVER_BOX = { x: 10, y: 20, w: 30, h: 40 };
-  const fakeEffects = () => {
-    const calls: { ids: string[]; effect: string; color?: string }[] = [];
-    const ended: string[][] = [];
-    const effects = {
-      setHighlight: (ids: string[], effect: string, _t: number, _box: unknown, color?: string) => {
-        calls.push({ ids, effect, color });
-      },
-      endHighlight: (ids: string[]) => {
-        ended.push(ids);
-      },
-      setPointer: () => undefined,
-      setCamera: () => undefined,
-    };
-    return { effects, calls, ended };
-  };
   const clickPlayer = (speech: RecordingSpeech, effects: unknown, ask: Record<string, unknown>) => {
     const plan = planCommands(
       [{ draw: ["liver", "stomach"] }, { ask: { question: "Click on the liver.", widget: "click", answer: "liver", ...ask } } as Command],
@@ -229,6 +234,78 @@ describe("the click ask glows the answer element", () => {
     player.askGate = async () => "Ag";
     await player.play();
     expect(speech.spoken).toEqual(["Gold?", "Gold is Au."]);
+    expect(calls).toEqual([]);
+  });
+});
+
+// A drag question shows the truth in two colours: when it ends, every element
+// item appears, the hits glow green and the misses the highlight colour while
+// the answer line is spoken. The movie's laser taps each target in turn.
+describe("the drag ask shows the truth in two colours", () => {
+  const boxes: Record<string, { x: number; y: number; w: number; h: number }> = {
+    heart: { x: 10, y: 10, w: 20, h: 20 },
+    liver: { x: 40, y: 10, w: 30, h: 20 },
+  };
+  const dragPlayer = (speech: RecordingSpeech, effects: unknown, extra: Record<string, unknown> = {}) => {
+    const plan = planCommands(
+      [{ draw: ["body"] }, { ask: { question: "Place.", widget: "drag", items: ["heart", "liver"], right: "Heart up, liver right.", wrong: "Not quite.", ...extra } } as Command],
+      ["body", "heart", "liver"],
+      { bboxOf: (id) => boxes[id] ?? null },
+    );
+    const finished: string[] = [];
+    const el = (id: string) => ({ id, finish: () => finished.push(id), hide: () => undefined, setProgress: () => undefined, durationMs: 100 }) as never;
+    const elements = new Map(["body", "heart", "liver"].map((id) => [id, el(id)]));
+    return { player: new Player(plan, elements, speech, null, { mode: "narrated", effects: effects as never }), finished };
+  };
+
+  test("all placed: both glow green while right is spoken; the elements are shown", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls, ended } = fakeEffects();
+    const { player, finished } = dragPlayer(speech, effects);
+    player.askGate = async () => "heart,liver";
+    await player.play();
+    expect(speech.spoken).toEqual(["Place.", "Heart up, liver right."]);
+    expect(finished).toEqual(expect.arrayContaining(["heart", "liver"]));
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => c.ids.join() === "heart,liver" && c.color === "#4a7c59")).toBe(true);
+    expect(ended).toEqual([["heart", "liver"]]);
+  });
+
+  test("one missed: wrong then the reveal; the hit glows green, the miss the highlight colour", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls } = fakeEffects();
+    const { player } = dragPlayer(speech, effects);
+    player.askGate = async () => "heart";
+    await player.play();
+    expect(speech.spoken).toEqual(["Place.", "Not quite.", "Heart up, liver right."]);
+    const colours = new Map(calls.map((c) => [c.ids.join(), c.color]));
+    expect(colours.get("heart")).toBe("#4a7c59");
+    expect(colours.has("liver")).toBe(true);
+    expect(colours.get("liver")).toBeUndefined(); // the highlight colour
+    expect(colours.size).toBe(2);
+  });
+
+  test("skipped: the reveal speaks and everything glows in the highlight colour", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls } = fakeEffects();
+    const { player } = dragPlayer(speech, effects);
+    player.askGate = async () => null;
+    await player.play();
+    expect(speech.spoken).toEqual(["Place.", "Heart up, liver right."]);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => c.ids.join() === "heart,liver" && c.color === undefined)).toBe(true);
+  });
+
+  test("no gate (movie): the laser taps each target box, the right line speaks, no glow", async () => {
+    const speech = new RecordingSpeech();
+    const { effects, calls, pointer } = fakeEffects();
+    const { player, finished } = dragPlayer(speech, effects);
+    await player.play();
+    expect(speech.spoken).toEqual(["Place.", "Heart up, liver right."]);
+    const nulls = pointer.filter((p) => p === null).length;
+    expect(nulls).toBeGreaterThanOrEqual(2); // one hide per tap, one tap per target
+    expect(pointer.filter((p) => p !== null).length).toBeGreaterThan(1);
+    expect(finished).toEqual(expect.arrayContaining(["heart", "liver"]));
     expect(calls).toEqual([]);
   });
 });
