@@ -10,7 +10,7 @@ import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 import bundledExamples from "../src/examples.json";
 import { PACK_DEFS, registerPack } from "../src/scenes/packs";
-import { ensureEngines } from "../src/scenes/engines";
+import { ensureEnginesForSpecs } from "../src/scenes/engines";
 import { itemsOf, parsePlaylistText } from "../src/playlist/playlist";
 
 describe("kit.project3d", () => {
@@ -247,11 +247,15 @@ describe("bundled offline examples (src/examples.json)", () => {
       if (!def) throw new Error(`example declares unknown pack "${id}"`);
       registerPack(id, await def.load());
     }
-    if (needsPacks.has("chemistry")) await ensureEngines(["smilesdrawer"]);
-    if (needsPacks.has("mathlogic")) await ensureEngines(["mathjax"]);
-    if (needsPacks.has("games")) await ensureEngines(["chess"]);
-    if (needsPacks.has("maps")) await ensureEngines(["geo"]);
-    if (needsPacks.has("anatomy")) await ensureEngines(["anatomy"]);
+    // The engines come from the templates the examples ACTUALLY use, read off
+    // the registered manifests — not from a pack→engine table, which goes
+    // stale the day a pack gains a second engine and fails as a mysterious
+    // "falling through to tier-2" rather than as a missing line here.
+    await ensureEnginesForSpecs(
+      (bundledExamples as { spec?: Spec; playlist?: string }[]).flatMap((e) =>
+        e.spec ? [e.spec] : e.playlist ? itemsOf(parsePlaylistText(e.playlist)).map((i) => i.spec) : [],
+      ),
+    );
   });
 
   interface Entry {
