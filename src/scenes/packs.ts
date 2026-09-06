@@ -112,6 +112,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Bar charts and tables drawn from data — typed, or computed by a code element and referenced with \"{id.var}\" tokens — as vector geometry the animate verb tweens stage by stage.",
     load: async () => (await import("./packs/data.yaml?raw")).default,
   },
+  space: {
+    id: "space",
+    title: "Space",
+    description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name.",
+    load: async () => (await import("./packs/space.yaml?raw")).default,
+  },
 };
 
 /**

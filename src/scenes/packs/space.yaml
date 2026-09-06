@@ -1,0 +1,398 @@
+pack: space
+title: Space
+description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name. Positions from astronomy-engine (MIT); facts from the NASA planetary fact sheets."
+---
+template: solar_system
+title: The solar system (planets, dwarf planets, moons)
+version: 1
+kit: 9
+status: ready
+engines: [space]
+description: >-
+  The Sun and its planets from a curated table and a real ephemeris: seen from
+  above with every planet at its TRUE position on its orbit for a date
+  (`view: top`, the default), lined up for a size comparison (`row`), or
+  through a camera 30° above the plane (`tilted`). EVERY BODY IS A NAMED
+  ELEMENT whose id is its own name in lower case (sun, mercury, venus, earth,
+  mars, jupiter, saturn, uranus, neptune; dwarfs pluto, ceres, eris, haumea,
+  makemake; moons moon, phobos, deimos, io, europa, ganymede, callisto, mimas,
+  enceladus, tethys, dione, rhea, titan, iapetus, miranda, ariel, umbriel,
+  titania, oberon, triton, charon), so `ask` with widget "click" and answer
+  "mars" asks the viewer to find Mars, widget "drag" with items [{"id":
+  "mars", "label": "Mars"}, …] asks them to place the names, and `quiz` can ask
+  about any of them. Orbits are `orbit_<id>`, written names `label_<id>`.
+  No drawing shows sizes AND distances truthfully, so `scale` chooses which
+  truth to keep and the figure says so in `scale_note`: schematic (default;
+  sizes compressed, orbits evenly spaced), sizes (true relative radii —
+  Jupiter eleven Earths across; in a row the Sun is so large only its edge
+  fits the page), distances (true relative orbit radii, every body a dot —
+  pair it with bodies ["inner"] or ["outer"]; the whole system crowds the
+  inner planets into the Sun), log. `date` (ISO, or today) places the bodies;
+  `days` is a numeric offset from it and THE ANIMATABLE HANDLE — {"animate":
+  {"days": 687}} moves every body along its orbit for one Martian year.
+  `focus: "jupiter"` draws that body large in the centre with its moons on
+  their orbits, its ring and its spin axis, and leaves everything else out —
+  the ONLY way moons are drawn (they are invisible at any honest solar-system
+  scale); `moons` narrows to some of them. `names` chooses the label
+  language; the `highlight` PARAM tints bodies for the whole figure — to make
+  one glow for ONE sentence use the highlight COMMAND ({"highlight":
+  {"target": ["mars"]}, "speak": "…"}), and a click question glows its answer
+  by itself. Choose this scene for ANY request about the solar system, a
+  planet, a moon, the order, sizes or distances of the planets, or where a
+  planet is on a date. An unrecognised name is skipped and listed in a small
+  note rather than failing. In the app the ⊕ tray's Space section lets the
+  viewer click any body to look closer; {"explore": {"space": true}} is the
+  authored invitation to do so.
+params:
+  type: object
+  properties:
+    bodies:
+      type: array
+      items: { type: string }
+      description: "Which sun-orbiting bodies to draw: ids (mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, ceres, eris, haumea, makemake) or group words that expand in place — planets (the eight; the default), inner (mercury–mars), outer (jupiter–neptune), all (planets and the five dwarf planets). Moons are NOT drawn here — see focus."
+      x-translate: false
+    view:
+      type: string
+      enum: [top, row, tilted]
+      description: "top (default): the orbits seen from above, bodies at their true angles for the date. row: the classic line-up, the Sun at the left, for comparing sizes — no orbits. tilted: the same orbits through a camera 30° above the plane."
+    scale:
+      type: string
+      enum: [schematic, sizes, distances, log]
+      description: "Which truth the figure keeps. schematic (default): compressed sizes, even orbit spacing — 'Not to scale'. sizes: true relative radii, even spacing. distances: true relative orbit radii, every body the same dot — pair it with bodies inner or outer. log: orbit radius by the log of the distance."
+    date:
+      type: string
+      description: "ISO date (2026-09-06) or today (the default). Every body sits where it really is on this date."
+      x-translate: false
+    days:
+      type: number
+      minimum: -3650
+      maximum: 3650
+      description: "Offset from date in days (default 0) — the animatable handle: animate days to 687 and Mars goes round once while Earth laps it. Write the starting value (0) in params when you animate."
+    orbits:
+      type: boolean
+      description: "Draw the dashed orbit circles (default true; a row has none)."
+    moons:
+      type: array
+      items: { type: string }
+      description: "With focus: which of the focus body's moons to draw — moon ids (io, europa) or the parent's own id for all of them. Omit to draw every listed moon of the focus body. Without focus nothing here is drawn."
+      x-translate: false
+    focus:
+      type: string
+      description: "One body id. That body large in the centre with its moons on their orbits, its ring and its spin axis; the frame crops to it and everything else is left out. This is how you draw Jupiter and its moons, Saturn's rings, or the Earth–Moon pair."
+      x-translate: false
+    names:
+      type: string
+      enum: [en, nb, none]
+      description: "Language of the written names: en (default), nb (Norwegian), none (no names — for a 'which one is…' question)."
+    highlight:
+      type: array
+      items: { type: string }
+      description: "Body ids to tint for the whole figure. Nothing is removed."
+      x-translate: false
+    title:
+      type: string
+element_ids:
+  sun: the Sun — a shaded disc, or, in a row at true sizes, the visible edge of a disc far larger than the page
+  <body_id>: every drawn body is its own element and its id IS its name in lower case (mars, jupiter, io) — the ids an ask with widget "click" or "drag" compares against; Saturn's ring is part of saturn
+  orbit_<body_id>: that body's dashed orbit circle (top and tilted views; a row has none)
+  label_<body_id>: that body's written name, when names is not none
+  axis: the focus body's spin axis, leaning by its axial tilt (focus only)
+  frame: a light dashed frame around the crop (focus only)
+  scale_note: "which truth the figure keeps — \"Not to scale\", \"Sizes to scale, distances not\", …"
+  scale_bar: a bar with its length written (1 AU, 100 000 km) — sizes, distances and log
+  missing_note: "\"Unknown: …\" for names that matched nothing, and for moons named outside focus"
+  title: figure title, when set
+examples:
+  - request: "Draw the solar system."
+    params: { view: "top", date: "2026-09-06" }
+  - request: "How big are the planets compared with each other?"
+    params: { view: "row", scale: "sizes", date: "2026-09-06" }
+  - request: "Vis Jupiter og månene dens."
+    params: { focus: "jupiter", names: "nb", date: "2026-09-06" }
+  - request: "Where are the inner planets right now, to scale?"
+    params: { view: "top", scale: "distances", bodies: ["inner"] }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const eng = engines.space;
+  const all = eng.all();
+  const F = { x0: 60, y0: 80, x1: 940, y1: 700 };
+  const CX = (F.x0 + F.x1) / 2, CY = (F.y0 + F.y1) / 2;   // 500, 390
+  const R_MAX = 290;                                        // the outermost orbit in the top views
+  const SUN_CAP = Math.floor((F.y1 - F.y0) / 6);            // 103: the Sun never takes more than a sixth of the frame
+  const LABEL_PX = 19, NOTE_PX = 18;
+
+  const view = params.view === "row" || params.view === "tilted" ? params.view : "top";
+  const mode = params.scale === "sizes" || params.scale === "distances" || params.scale === "log" ? params.scale : "schematic";
+  const names = params.names === "nb" || params.names === "none" ? params.names : "en";
+  const L = names === "nb" ? "nb" : "en";
+  const daysIn = typeof params.days === "number" && Number.isFinite(params.days) ? params.days : 0;
+  const date = eng.resolveDate(params.date, daysIn);
+  const missing = [];
+
+  // Which bodies. Group words expand in place; unknown names go to the note;
+  // a moon named here is known but invisible at any honest scale — it belongs to
+  // focus. The Sun is not flagged: it is the centre of every top view anyway,
+  // so naming it among the bodies is a no-op, not a mistake worth a note.
+  const picked = eng.bodies(Array.isArray(params.bodies) && params.bodies.length > 0 ? params.bodies : ["planets"]);
+  missing.push(...picked.missing);
+  for (const b of picked.bodies) if (b.kind === "moon") missing.push(b.id + " (a moon: use focus)");
+  let focusId = null;
+  if (typeof params.focus === "string" && params.focus.trim() !== "") {
+    const f = eng.bodies([params.focus]);
+    if (f.bodies[0]) focusId = f.bodies[0].id; else missing.push(params.focus.trim());
+  }
+  const highlightIds = new Set();
+  for (const hn of Array.isArray(params.highlight) ? params.highlight : []) {
+    const hb = eng.bodies([hn]);
+    if (hb.bodies[0]) highlightIds.add(hb.bodies[0].id); else missing.push(String(hn));
+  }
+  const orbitsOn = params.orbits !== false && view !== "row";
+
+  // The centre and what orbits it: the Sun and the picked planets, or the
+  // focus body and its moons — innermost first.
+  let centre, sats;
+  if (focusId) {
+    centre = all[focusId];
+    const s = eng.satellites(focusId, Array.isArray(params.moons) ? params.moons : undefined);
+    sats = s.bodies; missing.push(...s.missing);
+  } else {
+    centre = all.sun;
+    sats = picked.bodies.filter((b) => b.parent === "sun");
+  }
+  sats = sats.slice().sort((a, b) => a.a_km - b.a_km);
+  const n = sats.length;
+
+  // Where each body is on its orbit: the true angle for the date. Eccentricity
+  // and inclination are not drawn this round — every body sits ON its circle.
+  const angles = {};
+  const pos = focusId ? eng.moonPositions(focusId, sats.map((b) => b.id), date) : eng.positions(sats.map((b) => b.id), date);
+  for (const b of sats) { const p = pos[b.id]; angles[b.id] = p ? Math.atan2(p.y, p.x) : 0; }
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const nameOf = (b) => b.name[L] || b.name.en;
+  const lit = (id) => highlightIds.has(id);
+  const extent = (b, r) => r * (b.ring ? b.ring.outer : 1);   // how far a body reaches, ring included
+  const ball = (id, c, r, b) => kit.ball(id, c, r, { fill: b.color, color: lit(id) ? C.accent : undefined, strokeWidth: lit(id) ? 3 : Math.min(2, Math.max(1, r / 6)) });
+
+  // Saturn's ring: seen from straight above (the solar-system top view) an
+  // annulus behind the disc; otherwise — a row, a tilted camera, or the focus
+  // portrait, whose leaning axis already says we are looking edge-on — an
+  // ellipse whose far half lies behind the disc and near half in front. The
+  // pieces are sub-drawables of the body's own element.
+  const ellipseArc = (c, rx, ry, t0, t1, m) => { const pts = []; for (let i = 0; i <= m; i++) { const t = t0 + ((t1 - t0) * i) / m; pts.push([c[0] + rx * Math.cos(t), c[1] + ry * Math.sin(t)]); } return pts; };
+  const ringPieces = (b, id, c, r, flat) => {
+    if (!b.ring) return null;
+    const col = b.ring.color, ro = r * b.ring.outer, ri = r * b.ring.inner;
+    if (flat) {
+      return { back: [
+        kit.area(id + "__ringb", kit.ellipse(c, ro, ro, 64), col, { opacity: 0.55, holes: [kit.ellipse(c, ri, ri, 48)], ms: MS.region }),
+        kit.stroke(id + "__ringb_o", kit.ellipse(c, ro, ro, 64), { closed: true, color: col, strokeWidth: 1.5, ms: MS.stroke }),
+      ], front: [] };
+    }
+    const q = 0.38;   // the ring plane seen at Saturn's tilt
+    const band = (t0, t1) => [...ellipseArc(c, ro, ro * q, t0, t1, 24), ...ellipseArc(c, ri, ri * q, t1, t0, 24)];
+    return {
+      back: [kit.area(id + "__ringb", band(0, Math.PI), col, { opacity: 0.55, ms: MS.region }), kit.stroke(id + "__ringb_o", ellipseArc(c, ro, ro * q, 0, Math.PI, 24), { color: col, strokeWidth: 1.5, ms: MS.stroke })],
+      front: [kit.area(id + "__ringf", band(Math.PI, 2 * Math.PI), col, { opacity: 0.55, ms: MS.region }), kit.stroke(id + "__ringf_o", ellipseArc(c, ro, ro * q, Math.PI, 2 * Math.PI, 24), { color: col, strokeWidth: 1.5, ms: MS.stroke })],
+    };
+  };
+  // One body as an element: its shaded disc, wrapped with the ring when it has one.
+  const bodyElement = (b, id, c, r, flat) => {
+    const disc = ball(id, c, r, b);
+    const rg = ringPieces(b, id, c, r, flat);
+    return rg ? kit.group(id, [...rg.back, { ...disc, id: id + "__disc" }, ...rg.front]) : disc;
+  };
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 726], params.title, { fontSize: 30 }));
+    anchors.title = [500, 726];
+  }
+
+  const orbitIds = sats.map((b) => "orbit_" + b.id);
+  let pxPerKm = null;      // for the scale bar: px per km of DISTANCE (distances) or of RADIUS (sizes)
+  let sunReduced = false;
+  const labelReq = [];     // solver requests, placed at the end
+
+  if (view === "row" && !focusId) {
+    // ---- the line-up ------------------------------------------------------
+    const y = CY, gap = 24;
+    // The Sun's share of the width: a full disc (schematic, log), a segment of
+    // fixed visible width (sizes), a dot (distances).
+    const sunW = mode === "sizes" ? 110 : mode === "distances" ? 16 : 2 * Math.min(SUN_CAP, 97);
+    const xs0 = F.x0 + sunW + gap, W = F.x1 - gap - xs0;
+    let xs = [], rs = [], sunR, sunC;
+    if (mode === "distances") {
+      pxPerKm = n > 0 ? W / Math.max(...sats.map((b) => b.a_km)) : null;
+      const sunX = F.x0 + sunW / 2;
+      xs = sats.map((b) => sunX + b.a_km * pxPerKm);
+      const rad = eng.drawnRadii(centre, sats, mode, 5);
+      rs = rad.bodies; sunR = rad.centre; sunC = [sunX, y];
+    } else {
+      // Variable slots: each body takes its own reach (ring included) plus a
+      // gap, so the giants get room and the small ones stay visible.
+      const f = mode === "sizes" ? (v) => v : Math.sqrt;
+      const reach = (b) => f(b.r_km) * (b.ring ? b.ring.outer : 1);
+      const sum = sats.reduce((s, b) => s + reach(b), 0) || 1;
+      const k = Math.max(0, W - (n + 1) * gap) / (2 * sum);
+      const rad = eng.drawnRadii(centre, sats, mode, n > 0 ? k * Math.max(...sats.map((b) => f(b.r_km))) : 60);
+      rs = rad.bodies;
+      let x = xs0 + gap;
+      xs = sats.map((b, i) => { const e = extent(b, rs[i]); const cx = x + e; x += 2 * e + gap; return cx; });
+      if (mode === "sizes") {
+        pxPerKm = k;
+        sunR = rad.centre;                      // true: ~900 px — only its edge fits
+        sunC = [F.x0 + sunW - sunR, y];
+      } else {
+        sunR = Math.min(rad.centre, sunW / 2);
+        sunC = [F.x0 + sunW / 2, y];
+      }
+    }
+    // The Sun: whole when it fits, else the circular segment inside the frame —
+    // a stroke past the canvas edge is a lint ERROR, so the clip is not optional.
+    // sunSegment's contiguous arc holds only for a centre off to the LEFT, which
+    // is exactly where a row puts it; the top views clamp instead, never clip.
+    const seg = eng.sunSegment(sunC, sunR, F);
+    if (seg.clipped) {
+      push(kit.group("sun", [
+        kit.area("sun__fill", seg.fill, centre.color, { opacity: 0.9, precise: true, ms: MS.region }),
+        kit.stroke("sun__arc", seg.arc, { color: lit("sun") ? C.accent : "#c98f00", strokeWidth: 3, ms: MS.stroke }),
+      ]));
+      anchors.sun = [F.x0 + Math.min(40, sunW / 2), y];
+    } else {
+      push(bodyElement(centre, "sun", sunC, sunR, true));
+      anchors.sun = sunC;
+    }
+    sats.forEach((b, i) => { push(bodyElement(b, b.id, [xs[i], y], rs[i], false)); anchors[b.id] = [xs[i], y]; });
+    // Names under the bodies, in tiers when neighbours are closer than a name is wide.
+    if (names !== "none") {
+      const texts = sats.map(nameOf);
+      const widths = texts.map((t) => kit.textWidth(t, LABEL_PX));
+      const tiers = eng.labelTiers(xs, widths, 6);
+      sats.forEach((b, i) => {
+        const w = widths[i];
+        const tx = Math.min(1000 - w / 2 - 4, Math.max(w / 2 + 4, xs[i]));
+        const ty = y - rs[i] - 16 - tiers[i] * 26;
+        push(kit.text("label_" + b.id, [tx, ty], texts[i], { fontSize: LABEL_PX, color: lit(b.id) ? C.accent : C.ink }));
+        anchors["label_" + b.id] = [tx, ty];
+      });
+      const sunAt = seg.clipped ? [F.x0 + 12, y] : [sunC[0], y - sunR - 16];
+      push(kit.text("label_sun", sunAt, nameOf(centre), { fontSize: LABEL_PX, color: C.ink, anchor: seg.clipped ? "start" : "middle" }));
+      anchors.label_sun = sunAt;
+    }
+  } else {
+    // ---- from above: orbits around the centre ------------------------------
+    // The tilted view is the same picture through an orbit camera 30° up —
+    // kit.project3d's projection with azimuth 0, written out (x1 = x,
+    // z1 = -y, y2 = -z1·sin el, depth = D - z1·cos el, s = D / depth) because
+    // project3d has no polyline primitive and an orbit would cost 48 segments.
+    // The far side (y > 0) lands at the top of the screen, smaller.
+    const EL = Math.PI / 6, D = 1100;
+    const P = (x, y) => {
+      if (view !== "tilted") return { x: CX + x, y: CY + y, s: 1 };
+      const s = D / (D + y * Math.cos(EL));
+      return { x: CX + x * s, y: CY + y * Math.sin(EL) * s, s };
+    };
+    const rMin = focusId ? 130 : 60;
+    const orbitR = eng.orbitRadii(sats, mode, rMin, R_MAX);
+    const gaps = orbitR.map((r, i) => (i === 0 ? r : r - orbitR[i - 1]));
+    const gapMin = gaps.length > 0 ? Math.min(...gaps) : R_MAX;
+    const largestPx = n === 0 ? 120 : Math.max(3, 0.42 * gapMin);
+    if (mode === "distances" && n > 0) pxPerKm = R_MAX / Math.max(...sats.map((b) => b.a_km));
+    const rad = eng.drawnRadii(centre, sats, mode, largestPx, mode === "distances" && pxPerKm ? pxPerKm : undefined);
+    if (mode === "sizes" && n > 0) pxPerKm = largestPx / Math.max(...sats.map((b) => b.r_km));
+    const centreCap = n === 0 ? 120 : Math.max(3, Math.min(SUN_CAP, orbitR[0] - 12));
+    sunReduced = mode === "sizes" && rad.centre > centreCap;
+    const centreR = Math.min(rad.centre, centreCap);
+    // Straight down on the plane the ring is an annulus; a focus portrait
+    // leans its axis, so there the ring is the tilted ellipse everyone pictures.
+    const flat = view === "top" && !focusId;
+
+    if (focusId) {
+      push(kit.stroke("frame", [[F.x0, F.y0], [F.x1, F.y0], [F.x1, F.y1], [F.x0, F.y1]], { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+    }
+    // Orbits first (guides behind everything), then the centre and its axis,
+    // then the bodies far-to-near so a near one covers a far one when tilted.
+    if (orbitsOn) sats.forEach((b, i) => {
+      const pts = [];
+      for (let k = 0; k < 72; k++) { const t = (2 * Math.PI * k) / 72; const q = P(orbitR[i] * Math.cos(t), orbitR[i] * Math.sin(t)); pts.push([q.x, q.y]); }
+      push(kit.stroke("orbit_" + b.id, pts, { closed: true, color: C.guide, strokeWidth: 1.2, dash: true, ms: MS.guides }));
+      anchors["orbit_" + b.id] = pts[0];
+    });
+    const c0 = P(0, 0);
+    push(bodyElement(centre, centre.id, [c0.x, c0.y], centreR * c0.s, flat));
+    anchors[centre.id] = [c0.x, c0.y];
+    if (focusId && typeof centre.tilt_deg === "number") {
+      // The spin axis, leaning by the axial tilt, long enough to read past the disc (and the ring).
+      const t = (centre.tilt_deg * Math.PI) / 180, len = extent(centre, centreR * c0.s) * 1.35;
+      push(kit.stroke("axis", [[c0.x - len * Math.sin(t), c0.y - len * Math.cos(t)], [c0.x + len * Math.sin(t), c0.y + len * Math.cos(t)]], { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+      anchors.axis = [c0.x, c0.y];
+    }
+    const placed = sats.map((b, i) => {
+      const a = angles[b.id], ex = orbitR[i] * Math.cos(a), ey = orbitR[i] * Math.sin(a);
+      const q = P(ex, ey);
+      return { b, q, r: rad.bodies[i] * q.s, ey, ux: Math.cos(a), uy: Math.sin(a) };
+    });
+    placed.sort((u, v) => v.ey - u.ey);   // far first
+    for (const p of placed) { push(bodyElement(p.b, p.b.id, [p.q.x, p.q.y], p.r, flat)); anchors[p.b.id] = [p.q.x, p.q.y]; }
+
+    // Names beside the bodies, placed by the solver: each hangs off its body's
+    // outward edge on the side away from the centre, may lie across the orbit
+    // guides (dashed, faint — not ink), and must miss every other body and name.
+    if (names !== "none") {
+      for (const p of placed) {
+        const side = p.ux >= 0 ? (p.uy >= 0 ? "above-right" : "below-right") : (p.uy >= 0 ? "above-left" : "below-left");
+        const e = extent(p.b, p.r);
+        labelReq.push({ id: "label_" + p.b.id, at: [p.q.x + p.ux * e, p.q.y + p.uy * e], side, text: nameOf(p.b), color: lit(p.b.id) ? C.accent : C.ink, ignore: [p.b.id, ...orbitIds] });
+      }
+      labelReq.push({ id: "label_" + centre.id, at: [c0.x, c0.y - extent(centre, centreR * c0.s)], side: "below", text: nameOf(centre), color: C.ink, ignore: [centre.id, "axis", ...orbitIds] });
+    }
+
+    // Log distances have no linear bar: a decade ruler from r(d) to r(10d)
+    // straight down from the centre, when a decade pair fits the drawn range.
+    if (mode === "log" && n > 1) {
+      const as = sats.map((b) => b.a_km), aMin = Math.min(...as), aMax = Math.max(...as);
+      const units = focusId ? [1e4, 1e5, 1e6, 1e7] : [0.1, 1, 10, 100].map((au) => eng.km(au));
+      let pair = null;
+      for (const d of units) if (d >= aMin * 0.999 && 10 * d <= aMax * 1.001) pair = d;
+      if (pair !== null) {
+        const r1 = eng.logRadius(pair, aMin, aMax, rMin, R_MAX), r2 = eng.logRadius(10 * pair, aMin, aMax, rMin, R_MAX);
+        const a = P(0, -r1), z = P(0, -r2);
+        const fmt = (d) => focusId ? String(Math.round(d)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f") : String(Math.round(eng.au(d) * 10) / 10).replace(".", L === "nb" ? "," : ".");
+        const text = fmt(pair) + " → " + fmt(10 * pair) + (focusId ? " km" : " AU");
+        push(kit.group("scale_bar", [
+          kit.stroke("scale_bar__line", [[a.x, a.y], [z.x, z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+          kit.stroke("scale_bar__t0", [[a.x - 6, a.y], [a.x + 6, a.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+          kit.stroke("scale_bar__t1", [[z.x - 6, z.y], [z.x + 6, z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+          kit.text("scale_bar__label", [(a.x + z.x) / 2 + 10, (a.y + z.y) / 2], text, { fontSize: 16, color: C.guide, anchor: "start" }),
+        ]));
+        anchors.scale_bar = [(a.x + z.x) / 2, (a.y + z.y) / 2];
+      }
+    }
+  }
+
+  for (const q of labelReq) {
+    labels.push({ ...kit.label(q.id, q.at, q.side, q.text, { color: q.color, fontSize: LABEL_PX }), ignore: q.ignore });
+    order.push(q.id);
+  }
+
+  // Every figure says which truth it keeps; sizes and distances add a bar at the bottom right.
+  push(kit.text("scale_note", [F.x0, 36], eng.scaleNote(mode, L, sunReduced), { fontSize: NOTE_PX, color: C.guide, anchor: "start" }));
+  anchors.scale_note = [F.x0, 36];
+  const bar = pxPerKm && (mode === "sizes" || mode === "distances") ? eng.scaleBar(mode, pxPerKm, L) : null;
+  if (bar) {
+    const bx1 = F.x1, bx0 = F.x1 - bar.lengthPx, by = 40;
+    push(kit.group("scale_bar", [
+      kit.stroke("scale_bar__line", [[bx0, by], [bx1, by]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+      kit.stroke("scale_bar__t0", [[bx0, by - 6], [bx0, by + 6]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+      kit.stroke("scale_bar__t1", [[bx1, by - 6], [bx1, by + 6]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+      kit.text("scale_bar__label", [(bx0 + bx1) / 2, by - 18], bar.label, { fontSize: 16, color: C.guide }),
+    ]));
+    anchors.scale_bar = [(bx0 + bx1) / 2, by];
+  }
+  if (missing.length > 0) {
+    push(kit.text("missing_note", [500, 36], (L === "nb" ? "Ukjent: " : "Unknown: ") + missing.join(", "), { fontSize: NOTE_PX, color: C.guide }));
+    anchors.missing_note = [500, 36];
+  }
+
+  return { drawables, labels, anchors, order };

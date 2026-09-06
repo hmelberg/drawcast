@@ -13020,5 +13020,20 @@
         { "draw": ["highlight_0", "highlight_1", "highlight_2"], "speak": "C, E, G." }
       ]
     }
+  },
+  {
+    "request": "Which one is Mars?",
+    "packs": ["space"],
+    "spec": {
+      "title": "Find Mars",
+      "template": "solar_system",
+      "params": { "view": "top", "scale": "schematic", "date": "2026-09-06", "names": "none" },
+      "commands": [
+        { "draw": ["sun", "orbit_mercury", "orbit_venus", "orbit_earth", "orbit_mars", "orbit_jupiter", "orbit_saturn", "orbit_uranus", "orbit_neptune", "scale_note"], "speak": "The Sun, and eight orbits around it, seen from above. Not to scale — no drawing on one page can be." },
+        { "draw": ["mercury", "venus", "earth", "mars"], "speak": "Four small rocky planets keep close to the Sun." },
+        { "draw": ["jupiter", "saturn", "uranus", "neptune"], "speak": "Four giants keep their distance. Every planet sits where it really was on the day this was drawn." },
+        { "ask": { "question": "Which one is Mars?", "widget": "click", "answer": "mars", "right": "Mars — the fourth planet out, on the orbit just outside Earth's.", "wrong": "Count outward from the Sun: Mercury, Venus, Earth — and the next orbit is Mars." } }
+      ]
+    }
   }
 ]
