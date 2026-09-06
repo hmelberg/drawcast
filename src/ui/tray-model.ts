@@ -90,6 +90,8 @@ export interface TrayPlan {
   sliders: string[];
   /** Script editors to offer; collapsed unless this one is the point. */
   scripts: { id: string; expanded: boolean }[];
+  /** The anatomy Body section: click-to-zoom, breadcrumbs, layer/systems/names. */
+  body: boolean;
 }
 
 export function trayPlan(input: {
@@ -103,15 +105,23 @@ export function trayPlan(input: {
   code?: string;
   /** The code element whose screen the viewer clicked. */
   open?: string;
+  /** The figure is an anatomy template: it has a body to explore. */
+  bodyTemplate?: boolean;
+  /** The beat's `anatomy` flag. */
+  anatomy?: boolean;
 }): TrayPlan {
-  const { sliderPaths, codeIds, gated = false, params, code, open } = input;
+  const { sliderPaths, codeIds, gated = false, params, code, open, bodyTemplate = false, anatomy } = input;
   if (gated) {
     // Named code alone means the author asked for the keyboard, not the
     // knobs; naming both asks for both; naming neither is the old slider gate.
     const scripts = code !== undefined && codeIds.includes(code) ? [{ id: code, expanded: true }] : [];
-    const wantsSliders = params !== undefined || scripts.length === 0;
+    // A body beat: asked for by name, or an unnamed gate on an anatomy figure
+    // (the body IS what there is to explore). Naming params or code instead
+    // asks for those. The body keeps its detail slider beside it.
+    const body = bodyTemplate && (anatomy === true || (params === undefined && code === undefined));
+    const wantsSliders = params !== undefined || scripts.length === 0 || body;
     const sliders = !wantsSliders ? [] : params ? sliderPaths.filter((p) => params.includes(p)) : sliderPaths;
-    return { activities: false, sliders, scripts };
+    return { activities: false, sliders, scripts, body };
   }
   // A script opens expanded when it IS the tray (no sliders to compete with)
   // or when the viewer reached it by clicking that very screen.
@@ -120,5 +130,6 @@ export function trayPlan(input: {
     activities: true,
     sliders: sliderPaths,
     scripts: codeIds.map((id) => ({ id, expanded: expandAll || open === id })),
+    body: bodyTemplate,
   };
 }

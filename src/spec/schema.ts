@@ -362,6 +362,11 @@ const commandSchema = {
           description:
             "Id of a code element that carries a `game`: the beat that hands the viewer the joystick — the emulator opens over the figure and the lesson waits until they close it. App only; movies skip the beat.",
         },
+        anatomy: {
+          type: "boolean",
+          description:
+            "On an anatomy figure: open the Body section of the explore tray — click a part to zoom into its region, breadcrumbs back, pills for layer, systems and names — and wait for Continue. The authored 'look around the body yourself' moment. App only; movies skip the beat.",
+        },
       },
       additionalProperties: false,
     },
@@ -859,6 +864,9 @@ function semanticErrors(spec: Spec): string[] {
     if (verb === "explore" && cmd.explore !== undefined) {
       if (cmd.explore.params !== undefined && (!Array.isArray(cmd.explore.params) || cmd.explore.params.some((x) => typeof x !== "string"))) {
         errors.push(`commands[${i}]: explore.params must be an array of param paths`);
+      }
+      if (cmd.explore.anatomy !== undefined && typeof cmd.explore.anatomy !== "boolean") {
+        errors.push(`commands[${i}]: explore.anatomy must be true or false`);
       }
     }
     if (verb === "play") {

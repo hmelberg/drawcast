@@ -20,7 +20,7 @@ export type PlanStep = (
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
   | { kind: "label"; name: string }
-  | { kind: "explore"; params?: string[]; code?: string; game?: string }
+  | { kind: "explore"; params?: string[]; code?: string; game?: string; anatomy?: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
   | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
   | {
@@ -248,6 +248,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.explore.params !== undefined ? { params: cmd.explore.params } : {}),
         ...(cmd.explore.code !== undefined ? { code: cmd.explore.code } : {}),
         ...(cmd.explore.game !== undefined ? { game: cmd.explore.game } : {}),
+        ...(cmd.explore.anatomy !== undefined ? { anatomy: cmd.explore.anatomy } : {}),
       });
       if (cmd.explore.game !== undefined && !known.has(cmd.explore.game)) warnings.push(`explore game: "${cmd.explore.game}" is not an element in this drawcast`);
     } else if (cmd.if !== undefined) {

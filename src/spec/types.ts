@@ -299,7 +299,7 @@ export interface Command {
   label?: string;
   /** Open the explore tray and wait (app only; movies skip the whole beat,
    *  narration included). params restricts which sliders show. */
-  explore?: { params?: string[]; code?: string; game?: string };
+  explore?: { params?: string[]; code?: string; game?: string; anatomy?: boolean };
   /** Conditional jump on a stored ask answer. Live viewers only; movies stay linear. */
   if?: IfArgs;
 }
