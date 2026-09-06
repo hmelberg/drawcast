@@ -58,6 +58,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Icon arrays for absolute risk, ECG rhythm strips, the heart's double circulation, neurons, and screening/lead-time-bias timelines.",
     load: async () => (await import("./packs/medicine.yaml?raw")).default,
   },
+  anatomy: {
+    id: "anatomy",
+    title: "Anatomy",
+    description: "The human body from a named atlas: organs, bones and joints, colour-coded, at three levels of detail, every part clickable by name.",
+    load: async () => (await import("./packs/anatomy.yaml?raw")).default,
+  },
   macro: {
     id: "macro",
     title: "Macroeconomics",

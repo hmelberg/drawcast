@@ -1,0 +1,393 @@
+pack: anatomy
+title: Anatomy
+description: "The human body from a named atlas: organs, bones and joints, colour-coded, at three levels of detail, with every part clickable by name."
+---
+template: anatomy
+title: Human anatomy (organs, skeleton, joints)
+version: 1
+kit: 7
+status: ready
+engines: [anatomy]
+description: >-
+  The human body drawn from a named anatomical atlas, seen from the front: a
+  body outline with the internal organs (default) and/or the skeleton with its
+  joints, coloured by part, at three levels of detail. EVERY DRAWN PART IS A
+  NAMED ELEMENT whose id is the part's own name (heart, liver, femur_left,
+  knee_left), so `ask` with widget "click" and answer "liver" asks the viewer
+  to find the liver on the body, and `quiz` can ask about any of them.
+  `detail` 1 shows the big organs and a coarse skeleton of 17 regions
+  (skull, spine, rib_cage, pelvis, hand_left…); 2 (the default) the named
+  bones, joints and smaller organs; 3 the small bones of hands and feet and
+  the fine organs — the ids CHANGE with the level (hand_left at 1–2, its
+  carpals_left / metacarpals_left / phalanges_hand_left at 3), so name the ids
+  of the level you chose. `focus` narrows to one part and its children at full
+  detail — the way to zoom in on the abdomen, the left hand, or the knee;
+  `highlight` tints parts without narrowing; `markers` drops labelled dots;
+  `findings` puts DISEASE into a part for the viewer to identify; `names`
+  chooses the label language. Choose this scene for ANY request to draw,
+  label, locate or quiz the human body, an organ, a bone, a joint, the
+  skeleton, the abdomen, or where something is in the body. An unrecognised
+  part name is skipped and listed in a small note rather than failing.
+params:
+  type: object
+  properties:
+    view:
+      type: string
+      enum: [anterior]
+      description: "Which way the body faces. Only \"anterior\" (from the front) exists today."
+    sex:
+      type: string
+      enum: [neutral, female, male]
+      description: "neutral (default) draws only the parts both bodies share; female adds the uterus, male the prostate."
+    systems:
+      type: array
+      items: { type: string, enum: [viscera, skeleton] }
+      description: "Which layers to draw: [\"viscera\"] (the organs; the default), [\"skeleton\"] (bones and joints), or both."
+    detail:
+      type: integer
+      minimum: 1
+      maximum: 3
+      description: "1, 2 (default) or 3. Which parts exist depends on it — see the description. To let detail grow while you talk, choose the level once and `draw` its parts in stages; do not animate this."
+    names:
+      type: string
+      enum: [en, nb, la]
+      description: "Language of the written labels: en (default), nb (Norwegian), la (Latin, as medical students learn them). Match the request's language; use la when the request is about anatomical terminology."
+    focus:
+      type: array
+      items: { type: string }
+      description: "Part names or ids to narrow to. The named parts AND their children are drawn at full detail, the frame crops to them, the body outline is left out, and everything else is omitted. This is how you zoom into the abdomen, one hand, or a joint."
+      x-translate: false
+    highlight:
+      type: array
+      items: { type: string }
+      description: "Part names or ids to tint. Unlike focus, nothing is cropped or removed — use it to call attention to one organ inside the whole body."
+      x-translate: false
+    labels:
+      type: string
+      enum: [none, focus, all]
+      description: "Which parts get their name written beside them: none, focus (the default: only focused, highlighted or marked parts), or all (every drawn part except the joints)."
+    markers:
+      type: array
+      items:
+        type: object
+        properties:
+          part: { type: string, description: "Part name or id to mark.", x-translate: false }
+          label: { type: string, description: "Text at the dot. Defaults to the part's own name." }
+        required: [part]
+      description: "Labelled dots on named parts."
+    findings:
+      type: array
+      items:
+        type: object
+        properties:
+          part: { type: string, description: "Part name or id the finding sits in.", x-translate: false }
+          condition:
+            type: string
+            enum: [enlarged, fracture, lesion, mass, effusion, absent]
+            description: "What is wrong. An unlisted condition still draws as a generic marked patch."
+          severity: { type: string, enum: [mild, moderate, severe], description: "How pronounced the drawing is (default moderate)." }
+          label: { type: string, description: "Caption. Omit it when the viewer is supposed to work out what they are looking at." }
+        required: [part, condition]
+      description: "Put disease INTO the body: an enlarged heart, a fractured femur, a mass in the liver. The finding is DRAWN, never named unless you give it a label — pair it with a quiz asking what the viewer sees."
+    color:
+      type: string
+      enum: [system, mono]
+      description: "system (default) colours each part by what it is — bone ivory, each organ its own colour; mono draws everything in ink."
+    title:
+      type: string
+element_ids:
+  body_outline: the body silhouette, drawn on every whole-body figure and left out under focus
+  frame: a light dashed frame around the crop, present only under focus
+  <part_id>: every drawn part is its own element and its id IS its anatomical id (heart, liver, femur_left, knee_left, hand_left at detail 1–2, carpals_left at detail 3) — these are the ids an ask with widget "click" compares against
+  label_<part_id>: that part's written name, when labels ask for it
+  marker_<i> / marker_label_<i>: markers[i] and its caption
+  finding_<part_id> / label_finding_<part_id>: the abnormality drawn into that part, and its caption when given
+  missing_note: "\"Unknown: …\" for names that matched nothing, and \"Detail reduced\" when the request was too dense to draw"
+  title: figure title, when set
+examples:
+  - request: "Draw the organs of the human body and label them."
+    params: { labels: "all", detail: 1 }
+  - request: "Where is the liver? Show the body so I can point at it."
+    params: { systems: ["viscera"], detail: 2, highlight: ["liver"], labels: "none" }
+  - request: "Zoom inn på buken og navngi det som er der."
+    params: { focus: ["abdomen"], labels: "all", names: "nb" }
+  - request: "Show the skeleton and mark the knees."
+    params: { systems: ["skeleton"], detail: 2, highlight: ["knee_left", "knee_right"], labels: "focus" }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const eng = engines.anatomy;
+  const [aw, ah] = eng.space();
+
+  const sexIn = params.sex === "female" || params.sex === "male" ? params.sex : "neutral";
+  const systems = Array.isArray(params.systems) && params.systems.length > 0
+    ? params.systems.filter((s) => s === "skeleton" || s === "viscera")
+    : ["viscera"];
+  const detail = Math.min(3, Math.max(1, Math.round(typeof params.detail === "number" ? params.detail : 2)));
+  const namesIn = params.names === "nb" || params.names === "la" ? params.names : "en";
+  const labelMode = params.labels === "all" || params.labels === "none" ? params.labels : "focus";
+  const mono = params.color === "mono";
+  const focusIn = Array.isArray(params.focus) ? params.focus : [];
+  const highlightIn = Array.isArray(params.highlight) ? params.highlight : [];
+  const markersIn = Array.isArray(params.markers) ? params.markers.slice(0, 8) : [];
+  const findingsIn = Array.isArray(params.findings) ? params.findings.slice(0, 6) : [];
+
+  const all = eng.parts({ systems: systems, sex: sexIn });
+  const children = {};
+  for (const id of Object.keys(all)) if (all[id].parent) (children[all[id].parent] = children[all[id].parent] || []).push(id);
+
+  // Names resolve case-insensitively against the id AND every language's name,
+  // so "liver", "Lever" and "Hepar" find the same part.
+  const byName = {};
+  for (const id of Object.keys(all)) {
+    byName[id.toLowerCase()] = id;
+    const n = all[id].name || {};
+    for (const key of ["en", "nb", "la"]) if (n[key]) byName[String(n[key]).toLowerCase()] = id;
+  }
+  const missing = [];
+  const resolve = (s) => {
+    const hit = typeof s === "string" ? byName[s.trim().toLowerCase()] : undefined;
+    if (!hit && typeof s === "string" && s.trim() !== "") missing.push(s);
+    return hit;
+  };
+  const descendants = (root) => {
+    const out = new Set([root]);
+    const stack = [root];
+    while (stack.length) for (const c of children[stack.pop()] || []) if (!out.has(c)) { out.add(c); stack.push(c); }
+    return out;
+  };
+  const focusIds = new Set();
+  for (const f of focusIn) { const id = resolve(f); if (id) for (const d of descendants(id)) focusIds.add(d); }
+  const highlightIds = new Set();
+  for (const h of highlightIn) { const id = resolve(h); if (id) highlightIds.add(id); }
+  const focusing = focusIds.size > 0;
+
+  // The leaf rule: a part is drawn at level L when it has geometry, its own
+  // detail ≤ L, and no child with geometry has detail ≤ L. Focused parts sit
+  // at level 3; the rest at the requested level (lowered if over budget).
+  const hasGeo = (id) => all[id].rings.length > 0 && all[id].kind !== "outline";
+  const drawnAt = (id, L) => hasGeo(id) && all[id].detail <= L && !(children[id] || []).some((c) => hasGeo(c) && all[c].detail <= L);
+  const leaves = (L) => Object.keys(all).filter((id) => drawnAt(id, focusIds.has(id) ? 3 : L) && (!focusing || focusIds.has(id)));
+  const countPts = (ids) => ids.reduce((s, id) => s + all[id].rings.reduce((t, r) => t + r.outer.length + (r.holes || []).reduce((u, h) => u + h.length, 0), 0), 0);
+  const POINT_BUDGET = 4000;
+  let level = detail, drawIds = leaves(level), reduced = false;
+  while (countPts(drawIds) > POINT_BUDGET && level > 1) { level--; drawIds = leaves(level); reduced = true; }
+
+  // Atlas space (y down) → canvas (y up), aspect preserved. Whole body: the
+  // atlas box. Focus: the drawn parts' bounds plus a margin, and no outline —
+  // cropped, the outline would leave the canvas, which is a lint ERROR.
+  let bx0 = 0, by0 = 0, bx1 = aw, by1 = ah;
+  if (focusing) {
+    bx0 = Infinity; by0 = Infinity; bx1 = -Infinity; by1 = -Infinity;
+    for (const id of drawIds) for (const r of all[id].rings) for (const [x, y] of r.outer) {
+      bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x); by1 = Math.max(by1, y);
+    }
+    if (!Number.isFinite(bx0)) { bx0 = 0; by0 = 0; bx1 = aw; by1 = ah; }
+    const mx = (bx1 - bx0) * 0.14 + 20, my = (by1 - by0) * 0.14 + 20;
+    bx0 -= mx; bx1 += mx; by0 -= my; by1 += my;
+  }
+  const FRAME = { x0: 60, y0: 70, x1: 940, y1: 700 };
+  const k = Math.min((FRAME.x1 - FRAME.x0) / (bx1 - bx0), (FRAME.y1 - FRAME.y0) / (by1 - by0));
+  const cx = (FRAME.x0 + FRAME.x1) / 2, cy = (FRAME.y0 + FRAME.y1) / 2;
+  const P = ([x, y]) => [cx + (x - (bx0 + bx1) / 2) * k, cy - (y - (by0 + by1) / 2) * k];
+
+  const SYSTEM_COLOR = { skeleton: "#e6dcc4", viscera: "#c9a15f" };
+  const fillOf = (id) => mono ? C.guide : (all[id].color || SYSTEM_COLOR[all[id].system] || C.guide);
+  const centroidOf = (rings) => {
+    let sx = 0, sy = 0, n = 0;
+    for (const r of rings) for (const p of r.outer) { sx += p[0]; sy += p[1]; n++; }
+    return n > 0 ? [sx / n, sy / n] : [0, 0];
+  };
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  if (typeof params.title === "string" && params.title.trim() !== "") {
+    push(kit.text("title", [500, 726], params.title, { fontSize: 30 }));
+    anchors.title = [500, 726];
+  }
+
+  // The ground: the whole body's outline, or a frame around the crop.
+  if (!focusing && all.body_outline) {
+    push(kit.stroke("body_outline", all.body_outline.rings[0].outer.map(P), { closed: true, color: C.guide, strokeWidth: 3, ms: MS.stroke }));
+    anchors.body_outline = P(centroidOf(all.body_outline.rings));
+  } else if (focusing) {
+    push(kit.stroke("frame", [[FRAME.x0, FRAME.y0], [FRAME.x1, FRAME.y0], [FRAME.x1, FRAME.y1], [FRAME.x0, FRAME.y1]], { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+  }
+
+  // Findings change the body, they do not annotate it: an enlarged heart is
+  // drawn enlarged, an absent spleen is a dashed ghost. Anything unrecognised
+  // still lands as a marked patch, so a condition we have never heard of
+  // degrades instead of failing the figure.
+  const SCALE = { mild: 1.12, moderate: 1.25, severe: 1.45 };
+  const findingFor = {};
+  for (const f of findingsIn) {
+    const id = resolve(f && f.part);
+    if (!id || !all[id] || all[id].rings.length === 0) continue;
+    findingFor[id] = { condition: String((f && f.condition) || "").toLowerCase(), severity: SCALE[f && f.severity] ? f.severity : "moderate", label: f && f.label };
+  }
+  const scaleRings = (rings, factor) => {
+    const c = centroidOf(rings);
+    const sc = ([x, y]) => [c[0] + (x - c[0]) * factor, c[1] + (y - c[1]) * factor];
+    return rings.map((r) => ({ outer: r.outer.map(sc), holes: (r.holes || []).map((h) => h.map(sc)) }));
+  };
+  const ringsFor = (id) => {
+    const f = findingFor[id];
+    if (f && f.condition === "enlarged") return scaleRings(all[id].rings, SCALE[f.severity]);
+    return all[id].rings;
+  };
+  const isAbsent = (id) => !!findingFor[id] && findingFor[id].condition === "absent";
+
+  // Back to front: skeleton behind viscera, then by each part's own depth.
+  const SYSTEM_ORDER = { skeleton: 0, viscera: 1 };
+  const drawn = drawIds.slice().sort((a, b) => (SYSTEM_ORDER[all[a].system] - SYSTEM_ORDER[all[b].system]) || (all[a].depth - all[b].depth) || (a < b ? -1 : 1));
+
+  for (const id of drawn) {
+    const part = all[id];
+    const rings = ringsFor(id);
+    const lit = highlightIds.has(id);
+    const ink = lit ? C.accent : C.ink;
+    const kids = [];
+    rings.forEach((ring, i) => {
+      const outer = ring.outer.map(P);
+      const holes = (ring.holes || []).map((h) => h.map(P));
+      if (part.kind === "joint") {
+        kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: lit ? C.accent : "#b5533c", strokeWidth: lit ? 3.5 : 2.5, ms: MS.dot }));
+        return;
+      }
+      if (!isAbsent(id)) kids.push(kit.area(id + "__fill" + i, outer, fillOf(id), { opacity: lit ? 0.8 : (mono ? 0.18 : 0.45), holes: holes.length ? holes : undefined, ms: MS.region }));
+      kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: isAbsent(id) ? C.guide : ink, strokeWidth: lit ? 3 : 2, dash: isAbsent(id) || undefined, ms: MS.stroke }));
+      holes.forEach((h, j) => kids.push(kit.stroke(id + "__hole" + i + "_" + j, h, { closed: true, color: ink, strokeWidth: 1.6, ms: MS.stroke })));
+    });
+    push(kit.group(id, kids));
+    anchors[id] = P(centroidOf(rings));
+  }
+
+  // The mark each finding leaves, in the finding colour, on top of the part.
+  const MARK = C.regionLoss;
+  const findingLabels = [];
+  for (const id of Object.keys(findingFor)) {
+    if (!anchors[id]) continue;
+    const f = findingFor[id];
+    const rings = ringsFor(id);
+    const c = centroidOf(rings);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const r of rings) for (const [x, y] of r.outer) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const w = x1 - x0, h = y1 - y0;
+    const sev = f.severity === "severe" ? 1.4 : f.severity === "mild" ? 0.7 : 1;
+    const fid = "finding_" + id;
+    if (f.condition === "fracture") {
+      // A jagged break across the short axis of the bone.
+      const across = w < h;
+      const n = 7, seg = [];
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const jag = (i % 2 === 0 ? -1 : 1) * (across ? w : h) * 0.16 * sev;
+        seg.push(across ? [x0 + t * w, c[1] + jag] : [c[0] + jag, y0 + t * h]);
+      }
+      push(kit.stroke(fid, seg.map(P), { color: MARK, strokeWidth: 3.5, ms: MS.stroke }));
+      anchors[fid] = P(c);
+    } else if (f.condition === "effusion") {
+      const r = Math.min(w, h) * 0.5 * sev;
+      const at = [c[0], y1 - r * 0.6];
+      push(kit.area(fid, kit.ellipse(at, w * 0.42 * sev, r * 0.5).map(P), MARK, { opacity: 0.5, ms: MS.region }));
+      anchors[fid] = P(at);
+    } else if (f.condition === "enlarged" || f.condition === "absent") {
+      // The part itself already carries the finding; ring it so the eye is
+      // drawn there, and so the finding has an element to point at.
+      const r = Math.max(w, h) * 0.58;
+      push(kit.stroke(fid, kit.ellipse(c, r, r * 0.92).map(P), { closed: true, color: MARK, strokeWidth: 2.5, dash: true, ms: MS.stroke }));
+      anchors[fid] = P(c);
+    } else {
+      // lesion, mass, and every condition we do not know: a small marked patch.
+      const r = Math.min(w, h) * 0.26 * sev;
+      const at = [c[0] + w * 0.12, c[1] - h * 0.1];
+      push(kit.area(fid, kit.blob(at, r, r * 0.85, 0.18, 5).map(P), MARK, { opacity: 0.75, ms: MS.region }));
+      anchors[fid] = P(at);
+    }
+    if (typeof f.label === "string" && f.label.trim() !== "") findingLabels.push({ id: fid, at: anchors[fid], text: f.label });
+  }
+
+  const nameOf = (id) => { const n = all[id].name || {}; return n[namesIn] || n.en || id; };
+  const wantLabel = (id) => all[id].kind !== "joint"
+    ? (labelMode === "all" || (labelMode === "focus" && (focusIds.has(id) || highlightIds.has(id))))
+    : (labelMode !== "none" && (focusIds.has(id) || highlightIds.has(id)));
+  // Labels hang off the part's OUTWARD edge, not its centroid: a name that
+  // starts at the centre of a small organ crosses its own outline, and one that
+  // starts at the centre of a big one covers what it names. Parts on the body's
+  // right (the viewer's left) label leftwards, the rest rightwards, and the
+  // solver walks outward from there — past the silhouette with a leader when
+  // the body is too crowded, which is how anatomical plates have always looked.
+  const edgeAnchor = (id, side) => {
+    let best = null;
+    for (const r of ringsFor(id)) for (const p of r.outer) if (!best || (side === "left" ? p[0] < best[0] : p[0] > best[0])) best = p;
+    return P(best);
+  };
+  const LABEL_PX = 19;
+  const requests = [];
+  for (const id of drawn) {
+    if (!wantLabel(id)) continue;
+    const side = anchors[id][0] < cx ? "left" : "right";
+    requests.push({ id: "label_" + id, side, at: edgeAnchor(id, side), text: nameOf(id), color: C.ink });
+  }
+  // A finding's caption, when given, is a label like any other — in the finding colour.
+  for (const fl of findingLabels) requests.push({ id: "label_" + fl.id, side: fl.at[0] < cx ? "left" : "right", at: fl.at, text: fl.text, color: MARK });
+  if (focusing) {
+    for (const q of requests) {
+      labels.push({ ...kit.label(q.id, q.at, q.side, q.text, { color: q.color, fontSize: LABEL_PX }), ignore: ["frame"] });
+      order.push(q.id);
+    }
+  } else if (requests.length > 0) {
+    // The whole body: its torso is ~120 canvas units wide, so a name beside an
+    // organ always crosses the silhouette, and the solver prefers grazing a
+    // stroke nearby to a clean spot far away. So names go in two columns
+    // OUTSIDE the silhouette, stacked with a minimum gap and joined to their
+    // part by a leader — the layout anatomical plates have always used.
+    const outlinePts = all.body_outline ? all.body_outline.rings[0].outer.map(P) : [[FRAME.x0 + 200, 0], [FRAME.x1 - 200, 0]];
+    const minX = Math.min(...outlinePts.map((p) => p[0])), maxX = Math.max(...outlinePts.map((p) => p[0]));
+    for (const side of ["left", "right"]) {
+      const col = requests.filter((q) => q.side === side).sort((a, b) => b.at[1] - a.at[1]); // top first (canvas y is up)
+      if (col.length === 0) continue;
+      const top = FRAME.y1 - LABEL_PX, bottom = FRAME.y0 + LABEL_PX;
+      // A text box is ~1.25 × fontSize tall and the lint allows 2 units, so
+      // consecutive centres need ≥ 1.4 × fontSize; 1.5 leaves air. Squeezed to
+      // 1.3 when a column is long, beyond which names must overlap and lint says so.
+      const gap = Math.max(LABEL_PX * 1.3, Math.min(LABEL_PX * 1.5, col.length > 1 ? (top - bottom) / (col.length - 1) : LABEL_PX * 1.5));
+      const ys = col.map((q) => q.at[1]);
+      for (let i = 1; i < ys.length; i++) ys[i] = Math.min(ys[i], ys[i - 1] - gap);
+      if (ys[0] > top) { const d = ys[0] - top; for (let i = 0; i < ys.length; i++) ys[i] -= d; }
+      if (ys[ys.length - 1] < bottom) { const d = bottom - ys[ys.length - 1]; for (let i = 0; i < ys.length; i++) ys[i] += d; }
+      const colX = side === "left" ? minX - 14 : maxX + 14;
+      col.forEach((q, i) => {
+        const w = kit.textWidth(q.text, LABEL_PX);
+        const tx = side === "left" ? colX - w / 2 : colX + w / 2;
+        push(kit.text(q.id, [tx, ys[i]], q.text, { fontSize: LABEL_PX, color: q.color }));
+        anchors[q.id] = [tx, ys[i]];
+        // The leader stops at the column's inner edge, so it never enters a
+        // neighbour's text. `_leader` is a sub-drawable suffix: it is drawn
+        // with its label and is not an element of its own, so it goes into
+        // drawables but NOT into order.
+        drawables.push(kit.stroke(q.id + "_leader", [q.at, [colX + (side === "left" ? 3 : -3), ys[i]]], { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+      });
+    }
+  }
+
+  markersIn.forEach((m, i) => {
+    const id = resolve(m && m.part);
+    if (!id || !anchors[id]) return;
+    const at = anchors[id];
+    push(kit.stroke("marker_" + i, [at], { shapeHint: { type: "circle", c: at, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
+    anchors["marker_" + i] = at;
+    const text = m && typeof m.label === "string" && m.label.trim() !== "" ? m.label : nameOf(id);
+    labels.push(kit.label("marker_label_" + i, at, "above-right", text, { color: C.ink, fontSize: 20 }));
+    order.push("marker_label_" + i);
+  });
+
+  const notes = [];
+  if (missing.length > 0) notes.push("Unknown: " + missing.join(", "));
+  if (reduced) notes.push("Detail reduced to fit");
+  if (notes.length > 0) {
+    push(kit.text("missing_note", [500, 36], notes.join("  —  "), { fontSize: 18, color: C.guide }));
+    anchors.missing_note = [500, 36];
+  }
+
+  return { drawables, labels, anchors, order };

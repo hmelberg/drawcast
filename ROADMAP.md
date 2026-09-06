@@ -429,6 +429,26 @@ Open follow-ups:
   users and models paste existing graphs straight in. Keep JSON params as
   the primary Spec surface (schema validation + repair pipeline stay
   intact); DOT enters as an input/interchange format, not a replacement.
+- **Anatomy, next rounds** (M1+M2 shipped 2026-09-06; see
+  `docs/superpowers/specs/2026-09-05-anatomy-design.md`):
+  - **Sound (M3).** `tones.ts` has no noise source. Heart sounds want a `noise`
+    layer (BufferSource + BiquadFilter) on `Recipe`, plus a `listen` widget — a
+    click that PLAYS rather than judges. ~100–150 lines. Synthesised sounds will
+    be recognisable, not clinical; real auscultation training needs recordings.
+  - **3D panel (M4).** `manifest.model3d: {kind, source}` is already the seam.
+    3dmol has no STL parser but `addCustom({vertexArr, faceArr})` renders
+    arbitrary meshes with clickable shapes. BodyParts3D supplies ~3000 meshes
+    named `FMA<id>.stl` under CC BY-SA 2.1 Japan — fine beside MIT code in its
+    own directory, since ShareAlike binds the adapted material and not the
+    collection. Check the legal code (not the deed) on relicensing adaptations
+    under CC BY-SA 4.0 before starting.
+  - **Multi-target click asks.** `ask.widget: "click"` takes ONE element id, so
+    "click all four heart valves" or "click either kidney" is not expressible.
+  - **Posterior view.** LadyofHats' `Human skeleton back en.svg` is PD but its
+    groups are unnamed — a naming job before it is an atlas.
+  - **Concave region silhouettes.** Detail 1 is convex hulls — a mannequin.
+    The union of a region's bones, dilated, would read as a body.
+  - **Muscles, age.** The `systems` param already has the right shape.
 
 ## Phase C — structure
 
