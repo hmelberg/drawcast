@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { bboxOfMesh, clusterMesh, decimateToBudget, encodeMesh, toPack } from "../scripts/anatomy/mesh.mjs";
+import { bboxOfMesh, clusterMesh, decimateToBudget, encodeMesh, simplifyMesh, toPack } from "../scripts/anatomy/mesh.mjs";
 import { decodeMesh } from "../src/ui/anatomy3d";
 
 /** A cube as 12 raw triangles (36 vertices), BodyParts3D style: 9 floats per triangle. */
@@ -54,18 +54,75 @@ describe("clusterMesh", () => {
   });
 });
 
+/** A cube whose every face is an n × n grid of quads (12 n² triangles), raw triangle soup. */
+function gridCube(n: number, size = 10): Float32Array {
+  const out: number[] = [];
+  const faces: ((u: number, v: number) => number[])[] = [
+    (u, v) => [u, v, 0], (u, v) => [u, v, 1], (u, v) => [0, u, v], (u, v) => [1, u, v], (u, v) => [u, 0, v], (u, v) => [u, 1, v],
+  ];
+  for (const at of faces) {
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const p = (a: number, b: number) => at(a / n, b / n).map((c) => c * size);
+      out.push(...p(i, j), ...p(i + 1, j), ...p(i + 1, j + 1), ...p(i, j), ...p(i + 1, j + 1), ...p(i, j + 1));
+    }
+  }
+  return new Float32Array(out);
+}
+
+/** Every undirected edge of a closed triangle surface belongs to exactly two faces. */
+function isClosed(indices: ArrayLike<number>): boolean {
+  const count = new Map<string, number>();
+  for (let f = 0; f < indices.length; f += 3) {
+    for (let i = 0; i < 3; i++) {
+      const a = indices[f + i], b = indices[f + ((i + 1) % 3)];
+      const k = a < b ? `${a}-${b}` : `${b}-${a}`;
+      count.set(k, (count.get(k) ?? 0) + 1);
+    }
+  }
+  return [...count.values()].every((c) => c === 2);
+}
+
+describe("simplifyMesh (quadric edge collapse)", () => {
+  test("a mesh already within budget comes back unchanged", () => {
+    const m = clusterMesh(cube(), 1);
+    const s = simplifyMesh(m, 12);
+    expect(s.triangles).toBe(12);
+    expect(Array.from(s.positions)).toEqual(Array.from(m.positions));
+  });
+  test("a finely gridded cube collapses toward its eight corners and stays closed", () => {
+    const m = clusterMesh(gridCube(6), 0.01); // 432 faces, shared vertices
+    expect(m.triangles).toBe(432);
+    expect(isClosed(m.indices)).toBe(true);
+    const s = simplifyMesh(m, 24);
+    expect(s.triangles).toBeLessThanOrEqual(24);
+    expect(s.triangles).toBeGreaterThanOrEqual(12);
+    expect(isClosed(s.indices)).toBe(true);
+    // Every corner of the cube survives: flat-face collapses are free, corners cost.
+    const pts = new Set<string>();
+    for (let i = 0; i < s.positions.length; i += 3) pts.add(`${Math.round(s.positions[i])},${Math.round(s.positions[i + 1])},${Math.round(s.positions[i + 2])}`);
+    for (const c of ["0,0,0", "10,0,0", "0,10,0", "10,10,0", "0,0,10", "10,0,10", "0,10,10", "10,10,10"]) expect(pts, c).toContain(c);
+    // The bounding box is untouched.
+    expect(bboxOfMesh(s.positions)).toEqual([0, 0, 0, 10, 10, 10]);
+  });
+  test("the result is compact: no unreferenced vertices, indices in range", () => {
+    const s = simplifyMesh(clusterMesh(gridCube(4), 0.01), 30);
+    const used = new Set(Array.from(s.indices));
+    expect(used.size).toBe(s.positions.length / 3);
+    expect(Math.max(...s.indices)).toBe(s.positions.length / 3 - 1);
+  });
+});
+
 describe("decimateToBudget", () => {
-  test("stays at the base cell when already under budget", () => {
+  test("clusters at the base cell and keeps it; the budget is met by collapsing edges", () => {
+    const { mesh, cell } = decimateToBudget(gridCube(6), 0.01, 40);
+    expect(cell).toBe(0.01);
+    expect(mesh.triangles).toBeLessThanOrEqual(40);
+    expect(isClosed(mesh.indices)).toBe(true);
+  });
+  test("stays put when already under budget", () => {
     const { mesh, cell } = decimateToBudget(cube(), 1, 100);
     expect(cell).toBe(1);
     expect(mesh.triangles).toBe(12);
-  });
-  test("grows the cell until the budget holds", () => {
-    // Two cubes 6 apart: at cell 1 → 24 faces; the budget of 12 forces merging.
-    const two = new Float32Array([...cube(4, [0, 0, 0]), ...cube(4, [6, 0, 0])]);
-    const { mesh, cell } = decimateToBudget(two, 1, 12);
-    expect(mesh.triangles).toBeLessThanOrEqual(12);
-    expect(cell).toBeGreaterThan(1);
   });
 });
 
