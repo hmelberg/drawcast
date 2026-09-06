@@ -1,0 +1,1420 @@
+{
+ "version": 1,
+ "units": "cm",
+ "source": "BodyParts3D, © The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan (release 3.0)",
+ "parts": {
+  "body_outline": {
+   "files": [
+    "body_outline.bin"
+   ],
+   "triangles": 19992,
+   "bytes": 200920,
+   "bbox": [
+    -32.9,
+    -82.8,
+    -14.3,
+    32.9,
+    82.8,
+    14.3
+   ],
+   "system": "skeleton",
+   "kind": "outline",
+   "color": "#f1dccb"
+  },
+  "cranium": {
+   "files": [
+    "cranium.bin"
+   ],
+   "triangles": 3202,
+   "bytes": 31636,
+   "bbox": [
+    -7.2,
+    61.7,
+    -9.9,
+    7.2,
+    82.4,
+    9.9
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "mandible": {
+   "files": [
+    "mandible.bin"
+   ],
+   "triangles": 1508,
+   "bytes": 17956,
+   "bbox": [
+    -5,
+    62.2,
+    0.3,
+    5,
+    70.1,
+    8.2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "cervical_vertebrae": {
+   "files": [
+    "cervical_vertebrae.bin"
+   ],
+   "triangles": 1596,
+   "bytes": 17800,
+   "bbox": [
+    -4.2,
+    56.6,
+    -7.4,
+    4.3,
+    67.6,
+    0.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "thoracic_vertebrae": {
+   "files": [
+    "thoracic_vertebrae.bin"
+   ],
+   "triangles": 3534,
+   "bytes": 41428,
+   "bbox": [
+    -3.8,
+    24.9,
+    -9.6,
+    3.5,
+    58,
+    0.5
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "lumbar_vertebrae": {
+   "files": [
+    "lumbar_vertebrae.bin"
+   ],
+   "triangles": 2164,
+   "bytes": 25288,
+   "bbox": [
+    -5.1,
+    10,
+    -6.7,
+    5,
+    27,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "sacrum": {
+   "files": [
+    "sacrum.bin"
+   ],
+   "triangles": 2096,
+   "bytes": 24928,
+   "bbox": [
+    -6,
+    -2.3,
+    -9.1,
+    6.3,
+    12.2,
+    -0.2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "ribs": {
+   "files": [
+    "ribs.bin"
+   ],
+   "triangles": 4000,
+   "bytes": 48160,
+   "bbox": [
+    -13.7,
+    19.6,
+    -9.3,
+    13.6,
+    57.3,
+    10
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "sternum": {
+   "files": [
+    "sternum.bin"
+   ],
+   "triangles": 2014,
+   "bytes": 22900,
+   "bbox": [
+    -2.8,
+    35.5,
+    3.2,
+    2.8,
+    53.2,
+    11
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "clavicle_left": {
+   "files": [
+    "clavicle_left.bin"
+   ],
+   "triangles": 1742,
+   "bytes": 20896,
+   "bbox": [
+    1.1,
+    51.8,
+    -4.9,
+    14.9,
+    55.3,
+    5
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "clavicle_right": {
+   "files": [
+    "clavicle_right.bin"
+   ],
+   "triangles": 1742,
+   "bytes": 20872,
+   "bbox": [
+    -14.9,
+    51.8,
+    -4.9,
+    -1.1,
+    55.3,
+    5
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "scapula_left": {
+   "files": [
+    "scapula_left.bin"
+   ],
+   "triangles": 2218,
+   "bytes": 25876,
+   "bbox": [
+    5.9,
+    38.7,
+    -10.8,
+    16.8,
+    54.6,
+    0.3
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "scapula_right": {
+   "files": [
+    "scapula_right.bin"
+   ],
+   "triangles": 2218,
+   "bytes": 25948,
+   "bbox": [
+    -16.8,
+    38.7,
+    -10.8,
+    -5.9,
+    54.6,
+    0.3
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "humerus_left": {
+   "files": [
+    "humerus_left.bin"
+   ],
+   "triangles": 3274,
+   "bytes": 39112,
+   "bbox": [
+    14,
+    22.5,
+    -4.9,
+    24.1,
+    53.3,
+    0
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "humerus_right": {
+   "files": [
+    "humerus_right.bin"
+   ],
+   "triangles": 3274,
+   "bytes": 39136,
+   "bbox": [
+    -24.1,
+    22.5,
+    -4.9,
+    -14,
+    53.3,
+    0
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "radius_left": {
+   "files": [
+    "radius_left.bin"
+   ],
+   "triangles": 1878,
+   "bytes": 22528,
+   "bbox": [
+    22,
+    0.2,
+    -3.9,
+    28,
+    23.1,
+    2.7
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "ulna_left": {
+   "files": [
+    "ulna_left.bin"
+   ],
+   "triangles": 2230,
+   "bytes": 26608,
+   "bbox": [
+    19.7,
+    0.1,
+    -5.6,
+    24.7,
+    24.9,
+    2.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "radius_right": {
+   "files": [
+    "radius_right.bin"
+   ],
+   "triangles": 1924,
+   "bytes": 23092,
+   "bbox": [
+    -28,
+    0.2,
+    -3.9,
+    -22,
+    23.1,
+    2.7
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "ulna_right": {
+   "files": [
+    "ulna_right.bin"
+   ],
+   "triangles": 2258,
+   "bytes": 27112,
+   "bbox": [
+    -24.8,
+    0.1,
+    -5.6,
+    -19.7,
+    24.9,
+    2.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "carpals_left": {
+   "files": [
+    "carpals_left.bin"
+   ],
+   "triangles": 650,
+   "bytes": 6940,
+   "bbox": [
+    23.1,
+    -2.3,
+    1,
+    28.2,
+    0.8,
+    3.7
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "metacarpals_left": {
+   "files": [
+    "metacarpals_left.bin"
+   ],
+   "triangles": 1228,
+   "bytes": 14212,
+   "bbox": [
+    22.5,
+    -8.5,
+    1.2,
+    31,
+    -0.6,
+    5.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "phalanges_hand_left": {
+   "files": [
+    "phalanges_hand_left.bin"
+   ],
+   "triangles": 1670,
+   "bytes": 19216,
+   "bbox": [
+    21.9,
+    -15.1,
+    3.4,
+    32.4,
+    -3.7,
+    9.5
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "carpals_right": {
+   "files": [
+    "carpals_right.bin"
+   ],
+   "triangles": 650,
+   "bytes": 6916,
+   "bbox": [
+    -28.2,
+    -2.3,
+    1,
+    -23.2,
+    0.8,
+    3.8
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "metacarpals_right": {
+   "files": [
+    "metacarpals_right.bin"
+   ],
+   "triangles": 1228,
+   "bytes": 14344,
+   "bbox": [
+    -31,
+    -8.5,
+    1.2,
+    -22.5,
+    -0.6,
+    5.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "phalanges_hand_right": {
+   "files": [
+    "phalanges_hand_right.bin"
+   ],
+   "triangles": 1670,
+   "bytes": 19192,
+   "bbox": [
+    -32.4,
+    -15.1,
+    3.4,
+    -21.9,
+    -3.7,
+    9.5
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "hip_bones": {
+   "files": [
+    "hip_bones.bin"
+   ],
+   "triangles": 3630,
+   "bytes": 43552,
+   "bbox": [
+    -13.1,
+    -5.5,
+    -8.3,
+    13.3,
+    15.3,
+    5.6
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "femur_left": {
+   "files": [
+    "femur_left.bin"
+   ],
+   "triangles": 4000,
+   "bytes": 48040,
+   "bbox": [
+    3.3,
+    -41.1,
+    -5.6,
+    14.4,
+    2.9,
+    1.9
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "femur_right": {
+   "files": [
+    "femur_right.bin"
+   ],
+   "triangles": 4000,
+   "bytes": 48028,
+   "bbox": [
+    -14.4,
+    -41.1,
+    -5.6,
+    -3.3,
+    2.9,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "patella_left": {
+   "files": [
+    "patella_left.bin"
+   ],
+   "triangles": 618,
+   "bytes": 7456,
+   "bbox": [
+    6.3,
+    -41.7,
+    -0.3,
+    10.5,
+    -37.7,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "patella_right": {
+   "files": [
+    "patella_right.bin"
+   ],
+   "triangles": 620,
+   "bytes": 7468,
+   "bbox": [
+    -10.5,
+    -41.7,
+    -0.3,
+    -6.3,
+    -37.7,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "tibia_left": {
+   "files": [
+    "tibia_left.bin"
+   ],
+   "triangles": 3608,
+   "bytes": 43324,
+   "bbox": [
+    3.8,
+    -75.5,
+    -6,
+    11.4,
+    -40.8,
+    0.6
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "fibula_left": {
+   "files": [
+    "fibula_left.bin"
+   ],
+   "triangles": 3056,
+   "bytes": 36592,
+   "bbox": [
+    9.2,
+    -77.4,
+    -5.7,
+    12.6,
+    -42.3,
+    -2.5
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "tibia_right": {
+   "files": [
+    "tibia_right.bin"
+   ],
+   "triangles": 3610,
+   "bytes": 43348,
+   "bbox": [
+    -11.4,
+    -75.5,
+    -6,
+    -3.8,
+    -40.8,
+    0.6
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "fibula_right": {
+   "files": [
+    "fibula_right.bin"
+   ],
+   "triangles": 3060,
+   "bytes": 36676,
+   "bbox": [
+    -12.6,
+    -77.4,
+    -5.6,
+    -9.2,
+    -42.3,
+    -2.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "tarsals_left": {
+   "files": [
+    "tarsals_left.bin"
+   ],
+   "triangles": 1512,
+   "bytes": 16468,
+   "bbox": [
+    5.5,
+    -81.6,
+    -8.7,
+    11.2,
+    -74.4,
+    3.2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "metatarsals_left": {
+   "files": [
+    "metatarsals_left.bin"
+   ],
+   "triangles": 1324,
+   "bytes": 15292,
+   "bbox": [
+    6.2,
+    -81.8,
+    -1.2,
+    13.7,
+    -76.6,
+    8.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "phalanges_foot_left": {
+   "files": [
+    "phalanges_foot_left.bin"
+   ],
+   "triangles": 1166,
+   "bytes": 13144,
+   "bbox": [
+    6.3,
+    -81.8,
+    5.5,
+    14.6,
+    -79.9,
+    13.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "tarsals_right": {
+   "files": [
+    "tarsals_right.bin"
+   ],
+   "triangles": 1510,
+   "bytes": 16444,
+   "bbox": [
+    -11.2,
+    -81.6,
+    -8.7,
+    -5.5,
+    -74.4,
+    3.2
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "metatarsals_right": {
+   "files": [
+    "metatarsals_right.bin"
+   ],
+   "triangles": 1322,
+   "bytes": 15220,
+   "bbox": [
+    -13.7,
+    -81.8,
+    -1.2,
+    -6.2,
+    -76.6,
+    8.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "phalanges_foot_right": {
+   "files": [
+    "phalanges_foot_right.bin"
+   ],
+   "triangles": 1166,
+   "bytes": 13228,
+   "bbox": [
+    -14.6,
+    -81.8,
+    5.5,
+    -6.3,
+    -79.9,
+    13.4
+   ],
+   "system": "skeleton",
+   "kind": "bone",
+   "color": "#e6dcc4"
+  },
+  "brain": {
+   "files": [
+    "brain.bin"
+   ],
+   "triangles": 2666,
+   "bytes": 21796,
+   "bbox": [
+    -6.7,
+    66.2,
+    -9.2,
+    6.7,
+    81.9,
+    7.8
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c9a3ae"
+  },
+  "trachea": {
+   "files": [
+    "trachea.bin"
+   ],
+   "triangles": 1276,
+   "bytes": 14644,
+   "bbox": [
+    -1.3,
+    48.5,
+    -1.9,
+    1.3,
+    60.3,
+    2.3
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#a8b0b8"
+  },
+  "esophagus": {
+   "files": [
+    "esophagus.bin"
+   ],
+   "triangles": 1430,
+   "bytes": 17044,
+   "bbox": [
+    -0.9,
+    35.2,
+    -3.3,
+    1.6,
+    60.2,
+    1.2
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#b59a8c"
+  },
+  "lung_right": {
+   "files": [
+    "lung_right.bin"
+   ],
+   "triangles": 3368,
+   "bytes": 37636,
+   "bbox": [
+    -12.7,
+    30.4,
+    -8,
+    -0.1,
+    55.8,
+    10.1
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c98f9b"
+  },
+  "lung_left": {
+   "files": [
+    "lung_left.bin"
+   ],
+   "triangles": 3370,
+   "bytes": 38644,
+   "bbox": [
+    0.6,
+    30.1,
+    -7.9,
+    12.6,
+    55.9,
+    10
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c98f9b"
+  },
+  "heart": {
+   "files": [
+    "heart.bin"
+   ],
+   "triangles": 1910,
+   "bytes": 16792,
+   "bbox": [
+    -3.6,
+    37,
+    -2.9,
+    8,
+    47.6,
+    8
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#b8524f"
+  },
+  "aorta": {
+   "files": [
+    "aorta.bin"
+   ],
+   "triangles": 3922,
+   "bytes": 46120,
+   "bbox": [
+    -0.8,
+    14.6,
+    -4.8,
+    3.2,
+    52.5,
+    4.3
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c0655f"
+  },
+  "liver": {
+   "files": [
+    "liver.bin"
+   ],
+   "triangles": 3038,
+   "bytes": 36460,
+   "bbox": [
+    -11.7,
+    21.6,
+    -5.4,
+    8.2,
+    39,
+    9.6
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#8a5a3c",
+   "layer": "superficial"
+  },
+  "gallbladder": {
+   "files": [
+    "gallbladder.bin"
+   ],
+   "triangles": 728,
+   "bytes": 8548,
+   "bbox": [
+    -7.2,
+    24.5,
+    3.3,
+    -3.6,
+    29.1,
+    7.6
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#7f9a5c"
+  },
+  "stomach": {
+   "files": [
+    "stomach.bin"
+   ],
+   "triangles": 2186,
+   "bytes": 26260,
+   "bbox": [
+    -2.7,
+    24.8,
+    -1.6,
+    11.5,
+    36.8,
+    9.9
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c9a15f",
+   "layer": "superficial"
+  },
+  "spleen": {
+   "files": [
+    "spleen.bin"
+   ],
+   "triangles": 1494,
+   "bytes": 17848,
+   "bbox": [
+    4.3,
+    25.7,
+    -4.8,
+    11.7,
+    34.1,
+    5.1
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#7d5a86"
+  },
+  "pancreas": {
+   "files": [
+    "pancreas.bin"
+   ],
+   "triangles": 1396,
+   "bytes": 16336,
+   "bbox": [
+    -5.2,
+    20.8,
+    1.3,
+    6.1,
+    28,
+    5.3
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c9b06a"
+  },
+  "kidney_right": {
+   "files": [
+    "kidney_right.bin"
+   ],
+   "triangles": 1298,
+   "bytes": 15544,
+   "bbox": [
+    -9.5,
+    18.6,
+    -5.2,
+    -3.5,
+    28.8,
+    0.1
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#8a5f4a"
+  },
+  "kidney_left": {
+   "files": [
+    "kidney_left.bin"
+   ],
+   "triangles": 1272,
+   "bytes": 15208,
+   "bbox": [
+    2.5,
+    20.1,
+    -4.4,
+    8.6,
+    30.4,
+    0
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#8a5f4a"
+  },
+  "adrenal_right": {
+   "files": [
+    "adrenal_right.bin"
+   ],
+   "triangles": 620,
+   "bytes": 7096,
+   "bbox": [
+    -5.8,
+    25.6,
+    -4.1,
+    -2.3,
+    30.1,
+    -1.6
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c9a25f"
+  },
+  "adrenal_left": {
+   "files": [
+    "adrenal_left.bin"
+   ],
+   "triangles": 716,
+   "bytes": 8368,
+   "bbox": [
+    1.9,
+    26.3,
+    -4,
+    5.1,
+    31.8,
+    -0.7
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c9a25f"
+  },
+  "small_intestine": {
+   "files": [
+    "small_intestine.bin"
+   ],
+   "triangles": 3508,
+   "bytes": 29884,
+   "bbox": [
+    -9.7,
+    1.1,
+    0.5,
+    10.5,
+    28.7,
+    8.7
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#d8a679",
+   "layer": "superficial"
+  },
+  "large_intestine": {
+   "files": [
+    "large_intestine.bin"
+   ],
+   "triangles": 3486,
+   "bytes": 34744,
+   "bbox": [
+    -10.7,
+    3.2,
+    -3.5,
+    11.2,
+    27.3,
+    9.2
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c08a5c",
+   "layer": "superficial"
+  },
+  "bladder": {
+   "files": [
+    "bladder.bin"
+   ],
+   "triangles": 1216,
+   "bytes": 14584,
+   "bbox": [
+    -3.6,
+    -2.5,
+    -4.1,
+    3.6,
+    2.7,
+    4.2
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#c9c47f"
+  },
+  "prostate": {
+   "files": [
+    "prostate.bin"
+   ],
+   "triangles": 522,
+   "bytes": 6280,
+   "bbox": [
+    -1.7,
+    -4.4,
+    -2.9,
+    1.7,
+    -2.1,
+    0.2
+   ],
+   "system": "viscera",
+   "kind": "organ",
+   "color": "#a08a70"
+  },
+  "skull": {
+   "files": [
+    "cranium.bin",
+    "mandible.bin"
+   ],
+   "triangles": 4710,
+   "bytes": 0,
+   "bbox": [
+    -7.2,
+    61.7,
+    -9.9,
+    7.2,
+    82.4,
+    9.9
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "spine": {
+   "files": [
+    "cervical_vertebrae.bin",
+    "thoracic_vertebrae.bin",
+    "lumbar_vertebrae.bin",
+    "sacrum.bin"
+   ],
+   "triangles": 9390,
+   "bytes": 0,
+   "bbox": [
+    -6,
+    -2.3,
+    -9.6,
+    6.3,
+    67.6,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "shoulder_girdle": {
+   "files": [
+    "clavicle_left.bin",
+    "clavicle_right.bin",
+    "scapula_left.bin",
+    "scapula_right.bin"
+   ],
+   "triangles": 7920,
+   "bytes": 0,
+   "bbox": [
+    -16.8,
+    38.7,
+    -10.8,
+    16.8,
+    55.3,
+    5
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "rib_cage": {
+   "files": [
+    "ribs.bin",
+    "sternum.bin"
+   ],
+   "triangles": 6014,
+   "bytes": 0,
+   "bbox": [
+    -13.7,
+    19.6,
+    -9.3,
+    13.6,
+    57.3,
+    11
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "pelvis": {
+   "files": [
+    "hip_bones.bin",
+    "sacrum.bin"
+   ],
+   "triangles": 5726,
+   "bytes": 0,
+   "bbox": [
+    -13.1,
+    -5.5,
+    -9.1,
+    13.3,
+    15.3,
+    5.6
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "upper_arm_left": {
+   "files": [
+    "humerus_left.bin"
+   ],
+   "triangles": 3274,
+   "bytes": 0,
+   "bbox": [
+    14,
+    22.5,
+    -4.9,
+    24.1,
+    53.3,
+    0
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "forearm_left": {
+   "files": [
+    "radius_left.bin",
+    "ulna_left.bin"
+   ],
+   "triangles": 4108,
+   "bytes": 0,
+   "bbox": [
+    19.7,
+    0.1,
+    -5.6,
+    28,
+    24.9,
+    2.7
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "hand_left": {
+   "files": [
+    "carpals_left.bin",
+    "metacarpals_left.bin",
+    "phalanges_hand_left.bin"
+   ],
+   "triangles": 3548,
+   "bytes": 0,
+   "bbox": [
+    21.9,
+    -15.1,
+    1,
+    32.4,
+    0.8,
+    9.5
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "upper_arm_right": {
+   "files": [
+    "humerus_right.bin"
+   ],
+   "triangles": 3274,
+   "bytes": 0,
+   "bbox": [
+    -24.1,
+    22.5,
+    -4.9,
+    -14,
+    53.3,
+    0
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "forearm_right": {
+   "files": [
+    "radius_right.bin",
+    "ulna_right.bin"
+   ],
+   "triangles": 4182,
+   "bytes": 0,
+   "bbox": [
+    -28,
+    0.1,
+    -5.6,
+    -19.7,
+    24.9,
+    2.7
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "hand_right": {
+   "files": [
+    "carpals_right.bin",
+    "metacarpals_right.bin",
+    "phalanges_hand_right.bin"
+   ],
+   "triangles": 3548,
+   "bytes": 0,
+   "bbox": [
+    -32.4,
+    -15.1,
+    1,
+    -21.9,
+    0.8,
+    9.5
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "thigh_left": {
+   "files": [
+    "femur_left.bin"
+   ],
+   "triangles": 4000,
+   "bytes": 0,
+   "bbox": [
+    3.3,
+    -41.1,
+    -5.6,
+    14.4,
+    2.9,
+    1.9
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "lower_leg_left": {
+   "files": [
+    "tibia_left.bin",
+    "fibula_left.bin",
+    "patella_left.bin"
+   ],
+   "triangles": 7282,
+   "bytes": 0,
+   "bbox": [
+    3.8,
+    -77.4,
+    -6,
+    12.6,
+    -37.7,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "foot_left": {
+   "files": [
+    "tarsals_left.bin",
+    "metatarsals_left.bin",
+    "phalanges_foot_left.bin"
+   ],
+   "triangles": 4002,
+   "bytes": 0,
+   "bbox": [
+    5.5,
+    -81.8,
+    -8.7,
+    14.6,
+    -74.4,
+    13.4
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "thigh_right": {
+   "files": [
+    "femur_right.bin"
+   ],
+   "triangles": 4000,
+   "bytes": 0,
+   "bbox": [
+    -14.4,
+    -41.1,
+    -5.6,
+    -3.3,
+    2.9,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "lower_leg_right": {
+   "files": [
+    "tibia_right.bin",
+    "fibula_right.bin",
+    "patella_right.bin"
+   ],
+   "triangles": 7290,
+   "bytes": 0,
+   "bbox": [
+    -12.6,
+    -77.4,
+    -6,
+    -3.8,
+    -37.7,
+    2
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  },
+  "foot_right": {
+   "files": [
+    "tarsals_right.bin",
+    "metatarsals_right.bin",
+    "phalanges_foot_right.bin"
+   ],
+   "triangles": 3998,
+   "bytes": 0,
+   "bbox": [
+    -14.6,
+    -81.8,
+    -8.7,
+    -5.5,
+    -74.4,
+    13.4
+   ],
+   "system": "skeleton",
+   "kind": "region",
+   "color": "#e6dcc4"
+  }
+ }
+}

@@ -30,7 +30,7 @@ export interface SceneManifest {
   examples: { request: string; params: Record<string, unknown> }[];
   engines?: string[];
   /** Explore-in-3D affordance: present when a 3Dmol.js view can be built for this scene. */
-  model3d?: { kind: "molecule"; source: "preset" | "smiles" };
+  model3d?: { kind: "molecule"; source: "preset" | "smiles" } | { kind: "anatomy" };
   /** Intrinsic interactions the scene offers while paused (free play, exercises). */
   interactions?: InteractionKind[];
   /** True when params_schema was widened (data-schema.ts) to accept "{id.var}" tokens. */

@@ -1,0 +1,12 @@
+The atlas JSON files in this directory are derived from BodyParts3D
+(The Database Center for Life Science, Japan), release 3.0 / 20110915,
+and are licensed under the Creative Commons Attribution-ShareAlike 2.1
+Japan licence: https://creativecommons.org/licenses/by-sa/2.1/jp/
+
+Attribution required by the licensor:
+"BodyParts3D, © The Database Center for Life Science licensed under
+CC Attribution-Share Alike 2.1 Japan"
+
+Derivative works of these files must be distributed under the same
+licence. The drawcast application code around them is MIT-licensed and
+is not a derivative of the data.

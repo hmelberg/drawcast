@@ -9,13 +9,18 @@
 // engines.ts's smiles-drawer chunk.
 
 import { scenes } from "../scenes/registry";
+import { ensureEngines, getLoadedEngines } from "../scenes/engines";
+import type { AnatomyEngine, AtlasPart } from "../scenes/anatomy/types";
+import { anatomyInputFrom, decodeMesh, packUrl, partName, peelOpacity, peelRanks, toCustomShape, visibleParts, type Anatomy3dInput, type PackMesh } from "./anatomy3d";
 
 // ---------- qualification ----------
 
-export interface Model3dQuery {
-  kind: "molecule";
-  input: { xyz: string } | { smiles: string };
-}
+/** Molecules bring their own coordinates (a preset's xyz or a SMILES to look
+ *  up); the anatomy kind brings the figure's params, and the mesh pack in
+ *  public/anatomy3d/ supplies the geometry at open time. */
+export type Model3dQuery =
+  | { kind: "molecule"; input: { xyz: string } | { smiles: string } }
+  | { kind: "anatomy"; input: Anatomy3dInput };
 
 /**
  * Null unless spec.template's registry manifest carries model3d AND the spec
@@ -26,8 +31,10 @@ export interface Model3dQuery {
 export function qualifiesFor3d(spec: { template?: string; params?: Record<string, unknown> }): Model3dQuery | null {
   if (!spec.template) return null;
   const m3 = scenes[spec.template]?.manifest.model3d;
-  if (!m3 || m3.kind !== "molecule") return null;
+  if (!m3) return null;
   const params = spec.params ?? {};
+  if (m3.kind === "anatomy") return { kind: "anatomy", input: anatomyInputFrom(params) };
+  if (m3.kind !== "molecule") return null;
   if (m3.source === "preset") {
     const name = typeof params.molecule === "string" ? params.molecule : "methane";
     const xyz = xyzFromPreset(name) ?? xyzFromPreset("methane");
@@ -105,6 +112,26 @@ export interface Model3dViewer {
   clear(): unknown;
   addPropertyLabels(prop: string, sel: Record<string, unknown>, style: Record<string, unknown>): unknown;
   removeAllLabels(): unknown;
+  /** A custom triangle mesh (the anatomy kind); the returned shape restyles in place. */
+  addCustom(spec: Record<string, unknown>): Model3dShape;
+  removeAllShapes(): unknown;
+  getView(): unknown;
+  setView(view: unknown): unknown;
+  rotate(angle: number, axis: string): unknown;
+}
+
+/** The handle 3dmol returns for one shape — only what the peel needs. */
+export interface Model3dShape {
+  updateStyle(spec: Record<string, unknown>): void;
+}
+
+/** The dialog's handle on a mounted body: peel, camera presets, the clicked part's name. */
+export interface AnatomyScene {
+  /** One id per part shown, in draw order. */
+  parts: string[];
+  setPeel(peel: number): void;
+  view(preset: "front" | "side" | "back"): void;
+  onName(cb: (name: string | null) => void): void;
 }
 
 /**
@@ -206,6 +233,57 @@ async function fetchPubchemSdf(smiles: string, signal: AbortSignal): Promise<str
   }
 }
 
+// ---------- the mesh pack ----------
+
+/** Injectable fetch for the mesh pack — tests serve a synthetic pack through it. */
+export const ANATOMY3D_DEF: { fetch: (url: string, signal: AbortSignal) => Promise<ArrayBuffer | string> } = {
+  fetch: async (url, signal) => {
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`mesh pack fetch failed (${res.status}) for ${url.split("/").pop()}`);
+    return url.endsWith(".json") ? res.text() : res.arrayBuffer();
+  },
+};
+
+interface PackIndex {
+  parts: Record<string, { files: string[]; color: string; bbox: number[] }>;
+}
+
+/** Decoded meshes by file, kept for the session: a second open of the same
+ *  body costs no download. A failed fetch is forgotten so the next open retries. */
+const meshCache = new Map<string, Promise<PackMesh>>();
+
+interface LoadedPart {
+  id: string;
+  part: AtlasPart;
+  color: string;
+  /** The part's front-most point (pack Z, toward the camera) — the peel's order. */
+  zFront: number;
+  meshes: PackMesh[];
+}
+
+/** The parts the figure shows, with their pack meshes: index.json first, then
+ *  one file per part (a region: its bones' files). Parts the pack lacks — the
+ *  authored uterus — are left out, never fatal. */
+async function loadAnatomy(q: Anatomy3dInput, signal: AbortSignal): Promise<LoadedPart[]> {
+  await ensureEngines(["anatomy"]);
+  const all = (getLoadedEngines(["anatomy"]).anatomy as AnatomyEngine).parts({ systems: q.systems, sex: q.sex });
+  const base = typeof document !== "undefined" ? document.baseURI : "http://localhost/";
+  const index = JSON.parse(String(await ANATOMY3D_DEF.fetch(packUrl("index.json", base), signal))) as PackIndex;
+  const ids = visibleParts(all, q).filter((id) => index.parts[id] !== undefined);
+  const file = (f: string): Promise<PackMesh> => {
+    let p = meshCache.get(f);
+    if (!p) {
+      p = ANATOMY3D_DEF.fetch(packUrl(f, base), signal).then((b) => decodeMesh(b as ArrayBuffer));
+      meshCache.set(f, p);
+      p.catch(() => meshCache.delete(f));
+    }
+    return p;
+  };
+  return Promise.all(
+    ids.map(async (id) => ({ id, part: all[id], color: index.parts[id].color, zFront: index.parts[id].bbox[5] ?? 0, meshes: await Promise.all(index.parts[id].files.map(file)) })),
+  );
+}
+
 // ---------- viewer lifecycle ----------
 
 /**
@@ -245,7 +323,7 @@ export async function openModel3d(
   container: HTMLElement,
   q: Model3dQuery,
   signal: AbortSignal,
-  opts?: { onMounted?: (viewer: Model3dViewer) => void },
+  opts?: { onMounted?: (viewer: Model3dViewer) => void; onAnatomy?: (scene: AnatomyScene) => void },
 ): Promise<() => void> {
   let viewer: Model3dViewer | null = null;
   const destroy = (): void => {
@@ -261,6 +339,48 @@ export async function openModel3d(
   container.replaceChildren("Loading 3D viewer…");
   try {
     const $3Dmol = (await ensure3dmol()) as Model3dNamespace;
+    if (q.kind === "anatomy") {
+      const loaded = await loadAnatomy(q.input, signal);
+      // Same checkpoint as the molecule path: the pack may have taken long
+      // enough for this open to have been superseded or closed.
+      if (signal.aborted || !host.open) return destroy;
+      container.replaceChildren();
+      viewer = $3Dmol.createViewer(container, { backgroundColor: "white" });
+      const v = viewer;
+      const names = q.input.names;
+      let nameCb: (name: string | null) => void = () => undefined;
+      const ranks = peelRanks(loaded.map((l) => l.zFront));
+      const shapes: { part: AtlasPart; rank: number; shape: Model3dShape }[] = [];
+      loaded.forEach(({ part, color, meshes }, i) => {
+        for (const mesh of meshes) {
+          const spec: Record<string, unknown> = { ...toCustomShape(mesh, color, peelOpacity(part, ranks[i], 0)), callback: () => nameCb(partName(part, names)) };
+          shapes.push({ part, rank: ranks[i], shape: v.addCustom(spec) });
+        }
+      });
+      v.zoomTo();
+      v.render();
+      const front = v.getView();
+      v.spin(true);
+      const scene: AnatomyScene = {
+        parts: loaded.map((l) => l.id),
+        setPeel: (peel) => {
+          for (const { part, rank, shape } of shapes) shape.updateStyle({ opacity: peelOpacity(part, rank, peel) });
+          v.render();
+        },
+        view: (preset) => {
+          v.setView(front);
+          if (preset === "side") v.rotate(90, "y");
+          if (preset === "back") v.rotate(180, "y");
+          v.render();
+        },
+        onName: (cb) => {
+          nameCb = cb;
+        },
+      };
+      opts?.onMounted?.(v);
+      opts?.onAnatomy?.(scene);
+      return destroy;
+    }
     const data = "xyz" in q.input ? q.input.xyz : await fetchPubchemSdf(q.input.smiles, signal);
     const format = "xyz" in q.input ? "xyz" : "sdf";
     // Immediately before the mount, not before: this is the checkpoint that

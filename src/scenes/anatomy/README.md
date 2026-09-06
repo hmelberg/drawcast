@@ -72,6 +72,29 @@ red when it is revealed after a miss or a skip. That lives in the player
 (`glowWhile` in `src/render/player.ts`) and works on every template whose
 answer is a drawn element.
 
+## The 3D panel
+
+`public/anatomy3d/` is the same body as meshes: one decimated `.bin` per bone
+and organ plus the skin, built by `scripts/build-anatomy-meshes.mjs` from the
+same STL cache (`node scripts/build-anatomy-meshes.mjs`; run it whenever the
+part table changes, and commit the pack — it is under the atlas's CC BY-SA
+licence, with its own `LICENSE` and `ATTRIBUTION.md`). Pack units are
+centimetres, re-centred on the skin, +Y up, +Z toward the camera. Decimation
+is grid clustering at the base cell (2 mm bones, 3 mm organs, 6 mm skin) to
+share vertices, then quadric edge collapse to the budget: skin 20 000
+triangles, other parts 400–4 000 by size; the whole pack must stay under
+200 000 (pinned by `tests/anatomy3d-pack.test.ts`; measured 143 584, 1.6 MB).
+Regions list their bones' files, so nothing is stored twice. The panel shows
+what the figure shows — `visibleParts` in `src/ui/anatomy3d.ts` is the
+template's leaf rule again, cross-checked against the real layout — coloured
+as in 2D, each part clickable for its name in the figure's language.
+**Peel works from the front**: parts are ranked by the front-most point of
+their pack bbox (not the atlas's mean depth — the lungs' centre lies behind
+the heart's, but their front edges hide it), and the slider fades the front
+ranks first over a soft edge, so at peel 1 only the furthest-back part is
+left. Front/Side/Back are camera presets. 3dmol computes the normals itself
+(`normalArr: []`).
+
 Adding a system (muscles, vessels, nerves): a fourth atlas file, a new value
 in `AtlasSystem`, a new entry in the template's `systems` enum, and its parts
 in `bodyparts.mjs`. The engine merges by system already.

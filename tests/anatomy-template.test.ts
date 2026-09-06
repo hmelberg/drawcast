@@ -354,9 +354,9 @@ describe("anatomy: the examples", () => {
     expect(JSON.stringify(lay(p))).toBe(JSON.stringify(lay(p)));
   });
 
-  test("drawcast ships ten anatomy examples", async () => {
+  test("drawcast ships eleven anatomy examples", async () => {
     const bundled = (await import("../src/examples.json")).default as { spec?: { template?: string } }[];
-    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(10);
+    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(11);
   });
 });
 
@@ -366,6 +366,10 @@ describe("anatomy round 2: skin, layers, smoothing", () => {
     await ensureEngines(["anatomy"]);
     registerPack("anatomy", anatomyYaml);
   });
+  test("the template advertises the 3D panel", () => {
+    expect(scenes.anatomy.manifest.model3d).toEqual({ kind: "anatomy" });
+  });
+
   const leafOf = (params: Record<string, unknown>, id: string) => leafDrawables(lay(params).drawables).filter((d) => d.id === id || d.id.startsWith(id + "__"));
 
   test("the default ground is a skin wash: an area, no stroke", () => {

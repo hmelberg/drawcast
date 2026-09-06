@@ -12962,5 +12962,22 @@
         { "quiz": { "question": "Which organ lies behind the stomach, tucked against the back wall?", "choices": ["The liver", "The pancreas", "The bladder"], "correct": 1, "right": "The pancreas — behind the stomach, in front of the spine. Switch to Behind in the tray to see it clear of the stomach." } }
       ]
     }
+  },
+  {
+    "request": "Show the heart between the lungs, and let me see it in 3D.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "See it in 3D",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "detail": 2, "focus": ["thorax"], "labels": "focus", "highlight": ["heart"] },
+      "commands": [
+        { "draw": ["frame", "lung_right", "label_lung_right", "lung_left", "label_lung_left"], "speak": "Two lungs, one on each side of the chest — the right one a little larger, the left one leaving room." },
+        { "draw": ["heart", "label_heart"], "speak": "Room for the heart, which sits between them, tilted a little to the left." },
+        { "draw": ["trachea", "label_trachea"], "speak": "The windpipe comes down from above and splits into the two lungs." },
+        { "highlight": { "target": ["heart"] }, "speak": "Everything here has a front and a back: the heart leans forward, the great vessels leave it behind and above." },
+        { "quiz": { "question": "Which lung is the larger one?", "choices": ["The right lung", "The left lung", "They are the same"], "correct": 1, "right": "The right — the heart takes part of the left side of the chest." } },
+        { "speak": "A drawing shows the front. The 3D button under the figure shows the same body from any side — turn it, and peel the front away, layer by layer, until the heart sits alone in its place." }
+      ]
+    }
   }
 ]

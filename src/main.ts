@@ -31,7 +31,7 @@ import {
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engines";
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
-import { openModel3d, qualifiesFor3d, setModel3dLabels, type Model3dViewer } from "./ui/model3d";
+import { openModel3d, qualifiesFor3d, setModel3dLabels, type AnatomyScene, type Model3dViewer } from "./ui/model3d";
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { openDestinations, saveDestinations, OPEN_LABELS, SAVE_LABELS, type CredentialState } from "./ui/destinations";
@@ -2215,9 +2215,30 @@ const model3dSpinBtn = h("button", {}, "Pause spin");
 const model3dLabelsBtn = h("button", {}, "Hide labels");
 const model3dModal = createModal("⬡ Explore in 3D", { size: "m", class: "model3d-dialog" });
 const model3dDialog = model3dModal.dialog;
-model3dModal.body.append(model3dContainer);
-model3dModal.footer.append(model3dSpinBtn, model3dLabelsBtn);
+const model3dTitle = model3dDialog.querySelector<HTMLElement>(".dialog-head h3");
+// The anatomy kind's controls: a peel slider, three camera presets, the
+// clicked part's name and the credit the mesh licence asks for. Hidden for
+// molecules, where the labels toggle shows instead.
+const model3dPeel = h("input", { type: "range", min: "0", max: "1", step: "0.01", value: "0", class: "model3d-peel", "aria-label": "Peel: fade the skin, the bones and the outer organs" }) as HTMLInputElement;
+const model3dPeelRow = h("label", { class: "model3d-peelrow" }, "Peel", model3dPeel);
+const model3dViews = (["front", "side", "back"] as const).map((p) => h("button", { class: "model3d-view", "data-view": p }, p[0].toUpperCase() + p.slice(1)));
+const model3dName = h("div", { class: "model3d-name", "aria-live": "polite" });
+const model3dCredit = h("div", { class: "model3d-credit" }, "Meshes: BodyParts3D, © The Database Center for Life Science, CC BY-SA 2.1 Japan");
+const model3dAnatomyControls = h("div", { class: "model3d-anatomy" }, model3dPeelRow, ...model3dViews);
+model3dModal.body.append(model3dContainer, model3dName, model3dCredit);
+model3dModal.footer.append(model3dSpinBtn, model3dLabelsBtn, model3dAnatomyControls);
 app.appendChild(model3dDialog);
+
+let model3dScene: AnatomyScene | null = null;
+model3dPeel.addEventListener("input", () => model3dScene?.setPeel(Number(model3dPeel.value)));
+for (const b of model3dViews) b.addEventListener("click", () => model3dScene?.view(b.dataset.view as "front" | "side" | "back"));
+function showAnatomyControls(on: boolean): void {
+  model3dAnatomyControls.hidden = !on;
+  model3dCredit.hidden = !on;
+  model3dName.hidden = !on;
+  model3dLabelsBtn.hidden = on; // atom labels are a molecule thing
+  if (model3dTitle) model3dTitle.textContent = on ? "⬡ The body in 3D" : "⬡ Explore in 3D";
+}
 
 let model3dDestroy: (() => void) | null = null;
 let model3dViewer: Model3dViewer | null = null;
@@ -2258,6 +2279,10 @@ function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): v
   const ac = new AbortController();
   model3dAbort = ac;
   model3dViewer = null;
+  model3dScene = null;
+  model3dPeel.value = "0";
+  model3dName.textContent = "";
+  showAnatomyControls(q.kind === "anatomy");
   setModel3dSpin(true); // every open starts spinning, whatever the last session did
   setModel3dLabelsState(true); // and with element labels showing
   model3dDialog.showModal();
@@ -2266,8 +2291,14 @@ function openModel3dDialog(q: NonNullable<ReturnType<typeof qualifiesFor3d>>): v
       if (!ac.signal.aborted) {
         model3dViewer = v;
         v.spin(model3dSpinning); // re-apply any toggle click that landed during the async mount
-        setModel3dLabels(v, model3dLabelsOn); // same for the labels toggle (clear-then-add, so never stacked)
+        if (q.kind === "molecule") setModel3dLabels(v, model3dLabelsOn); // same for the labels toggle (clear-then-add, so never stacked)
       }
+    },
+    onAnatomy: (scene) => {
+      if (ac.signal.aborted) return;
+      model3dScene = scene;
+      scene.onName((name) => (model3dName.textContent = name ?? ""));
+      scene.setPeel(Number(model3dPeel.value)); // a drag that landed during the download
     },
   }).then((destroy) => {
     if (ac.signal.aborted) {
@@ -2286,6 +2317,7 @@ model3dDialog.addEventListener("close", () => {
   model3dDestroy?.();
   model3dDestroy = null;
   model3dViewer = null;
+  model3dScene = null;
   model3dContainer.replaceChildren();
 });
 
@@ -2565,7 +2597,7 @@ async function present(andPlay = false): Promise<void> {
         const q = qualifiesFor3d(item.spec);
         const bar = host.querySelector<HTMLElement>(".cs-controlbar");
         if (q && bar) {
-          const model3dBtn = h("button", { class: "cs-bar-btn model3d-btn", title: "Explore this molecule in 3D" }, "⬡ 3D");
+          const model3dBtn = h("button", { class: "cs-bar-btn model3d-btn", title: q.kind === "anatomy" ? "See this body in 3D" : "Explore this molecule in 3D" }, "⬡ 3D");
           model3dBtn.addEventListener("click", () => openModel3dDialog(q));
           bar.appendChild(model3dBtn);
         }
