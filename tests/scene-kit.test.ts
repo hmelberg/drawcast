@@ -162,8 +162,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 7 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(7);
+test("KIT_VERSION is 8 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(8);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
