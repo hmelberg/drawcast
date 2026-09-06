@@ -19,6 +19,14 @@
 //           their Emularity player with their ROM arrangement, embeddable
 //           (no frame-ancestors), click-to-start.
 //
+// Mounting a 1541 ROM to unlock .d64 was investigated on 2026-09-07 and does
+// not work: VirtualC64 accepts a drive ROM only if it is 16384 bytes AND
+// starts with one of four original Commodore signatures (or Dolphin DOS) —
+// see Emulator/Media/RomFile.cpp. The free MIT one (Pascual_DOS-1541) starts
+// 78 D8 A2 and is refused outright, and by its own account does not do fast
+// loaders anyway. The full measurement is in the M9 section of
+// docs/superpowers/specs/2026-09-05-c64-round-design.md.
+//
 // The catalogue and the viewer's own URLs always go to vc64web.
 //
 // Both endpoints answer cross-origin (`access-control-allow-origin: *` on the
