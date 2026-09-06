@@ -1629,6 +1629,17 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tray-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 .cs-tray-actions { display: flex; justify-content: flex-end; }
 .cs-tray-continue { font-size: var(--text-xs); }
+
+/* The anatomy Body section: click-to-zoom overlay, breadcrumbs, pill rows. */
+.cs-bodyexplore { position: absolute; inset: 0; z-index: 4; cursor: zoom-in; }
+.cs-tray-body { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.cs-body-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: var(--text-xs); }
+.cs-body-crumb { background: none; border: 0; padding: 2px 4px; font: inherit; color: var(--ink); cursor: pointer; text-decoration: underline dotted; }
+.cs-body-crumb.current { text-decoration: none; font-weight: 600; cursor: default; }
+.cs-body-sep { opacity: 0.6; }
+.cs-body-named { min-height: 1.2em; font-size: var(--text-xs); font-style: italic; color: var(--ink); }
+.cs-body-pills { display: flex; flex-direction: column; gap: 4px; }
+.cs-body-pillrow .cs-tray-pill.selected { background: var(--ink); color: var(--paper); }
 .cs-tray-btn.open { color: var(--ink); }
 .cs-tray-btn.pulse { animation: tray-pulse 1s ease-in-out 4; color: var(--ink); }
 @keyframes tray-pulse {

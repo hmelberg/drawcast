@@ -32,6 +32,7 @@ import { h, logicalPoint } from "./dom";
 import { overCaption } from "./caption";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
+import { mountBodySection, type BodySection } from "./body-explore";
 import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
@@ -96,7 +97,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // Every Commodore gets the row — a game to play is one of the things you
   // can do with it, not the condition for having a menu at all.
   const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && (typeof e.game === "string" || isC64Screen(e)));
-  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0) return;
+  // An anatomy figure always has a body to explore, slider or no slider.
+  const bodyTemplate = hd.spec.template === "anatomy";
+  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0 && !bodyTemplate) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -108,19 +111,24 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // are the ways back.
   const stage = host.querySelector<HTMLElement>(".cs-stage");
   const freezeClick = (e: Event): void => {
-    if (e.target instanceof Element && (e.target.closest("button") || e.target.closest(".cs-codeedit"))) return;
+    // Buttons, the code card and the Body section's click overlay keep their clicks.
+    if (e.target instanceof Element && (e.target.closest("button") || e.target.closest(".cs-codeedit") || e.target.closest(".cs-bodyexplore"))) return;
     e.stopPropagation();
   };
   let unguide: (() => void) | null = null;
   /** Set while an explore command holds the run — Continue resolves it. */
   let gateResolve: (() => void) | null = null;
+  /** The anatomy Body section, while the tray shows one. */
+  let bodySection: BodySection | null = null;
 
   // ---- ONE preview state for every control in the tray ----------------------
   // previewParams and previewSpec each repaint from the honest boundary and
   // know nothing of the other, so a tray that holds both a slider and an
   // edited script must remember both and repaint through a single call —
   // otherwise a slider drag after a Run silently discards the viewer's script.
-  const overrides: Record<string, number> = {};
+  // Sliders write numbers; the Body section writes focus/highlight arrays and
+  // layer/systems/names strings. previewParams takes them all.
+  const overrides: Record<string, unknown> = {};
   const patches = new Map<string, { code: string; result: string }>();
   // ONE draft per script, and every surface showing that script is told when
   // it changes — so typing in the tray and finishing on the screen (or the
@@ -253,6 +261,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const close = (): void => {
     tray.hidden = true;
     trayBtn.classList.remove("open");
+    bodySection?.destroy();
+    bodySection = null;
     thawStage();
     unguide?.();
     unguide = null;
@@ -380,7 +390,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     return true;
   };
 
-  const open = (opts: { filter?: string[]; gated?: boolean; code?: string; onCode?: string } = {}): void => {
+  const open = (opts: { filter?: string[]; gated?: boolean; code?: string; onCode?: string; anatomy?: boolean } = {}): void => {
     // Snap to the boundary first: it aborts any in-flight step and lands
     // paused, so previews never paint over half-drawn strokes. NOT when an
     // explore gate called us — the run is parked on the gate's promise, and
@@ -404,6 +414,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       params: opts.filter,
       code: opts.code,
       open: opts.onCode,
+      bodyTemplate,
+      anatomy: opts.anatomy,
     });
     // The activity pills (spec §13's scheduled convergence): rendered from
     // the same interactions registry the context menu reads — right-click
@@ -423,6 +435,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         row.appendChild(pill);
       }
       tray.appendChild(row);
+    }
+    // The Body section: click a part of the figure to zoom in, crumbs back,
+    // pills for layer, systems and names. Its every action is a preview
+    // through the same overrides → repaint as the sliders, so Continue's
+    // clearPreview restores the lesson.
+    bodySection?.destroy();
+    bodySection = null;
+    if (plan.body) {
+      bodySection = mountBodySection({ hd, stage, overrides, repaint });
+      tray.appendChild(bodySection.el);
     }
     // The machines first — the ≡ on a Commodore opens THIS as its menu, so
     // what you can do with the machine leads: the lesson's own program, the
@@ -783,7 +805,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         signal.removeEventListener("abort", onAbort);
         resolve();
       };
-      open({ filter: step.params, gated: true, code: step.code });
+      open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy });
     });
 
   /**
