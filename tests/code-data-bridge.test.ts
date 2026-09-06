@@ -134,11 +134,11 @@ describe("data tokens — substitute", () => {
 });
 
 describe("code facade — paths ride the request and the cache key", () => {
-  test("CODE_VERSION is 7 (a run may leave a C64 screen behind)", () => {
+  test("CODE_VERSION is 8 (immediate-mode screens and the cursor)", () => {
     // Bumped whenever a stamped envelope MEANS something different — v5 grew
     // data/dataErrors, v6 changed what a figure looks like, v7 added the
-    // screen — so a cached run misses cleanly instead of replaying stale ink.
-    expect(CODE_VERSION).toBe(7);
+    // screen, v8 the per-line screens — so a cached run misses cleanly.
+    expect(CODE_VERSION).toBe(8);
   });
 
   test("the key differs by requested paths and is order-independent", () => {

@@ -256,6 +256,54 @@ Found on the way and fixed: the font first landed in the wrong folder
 (the shell's cwd had been reset), which the browser reported as an OTS
 parsing error — the served file was index.html.
 
+## M5 — white type, no halo, the cursor, and the conversation (SHIPPED)
+
+Hans, 2026-09-06: "fargen på fonten er feil … lyseblå font med hvitt omriss.
+Fonten skal være hvit uten omriss." And: a slowly blinking white square for
+the cursor, if easy. And: on the machine the output comes right under the
+command, then you type the next — a layout "often called notebook or cells";
+generalise it to every language only if it is easy.
+
+- **The outline was the text halo**: every text drawable is painted with a
+  5-unit stroke in the paper's colour under its glyphs (svg-backend.ts),
+  which on a blue screen is a cream outline around every letter. A screen
+  has no paper: `font: "c64"` gets no halo.
+- **White** (`C64_TEXT = 1`). The machine's own power-on default is light
+  blue (14) — one number to flip back — and POKE 646 and the colour codes
+  still do what they do.
+- **The cursor**: a cell in the type's colour at the screen's cursor
+  (`cursor` in the envelope's screen), blinking at 1.1 s in the live figure
+  through a CSS animation (`blink` on an area drawable → `.cs-blink`); a
+  frame of the video export simply shows it on.
+- **READY.** after a program ends (a newline first when the cursor is
+  mid-line), after an error, and after every immediate-mode line — what the
+  machine says, and where the cursor waits.
+- **Immediate mode IS the cell layout, and the machine already had the
+  rule**: lines with numbers are a program (LISTed, RUN); lines without are
+  typed one at a time, each answered right under it, READY. between, the
+  screen scrolling when it must. `isImmediate(source)` (code/c64.ts) is the
+  one rule, read by the interpreter and by the layout — the layout must know
+  which beats to mint before any run has happened. The interpreter keeps one
+  state across the lines (variables, colours, the screen), reports an error
+  and goes on to the next line as the machine does, and returns the screen
+  after each line (`screens`, `lineRows`; CODE_VERSION 8). The layout mints
+  `_out_k` per line — the screen after line k — and `_out` as the last, and
+  types `_line_k` where the cursor stood when that line was typed.
+- **Not generalised.** A `show: "cell"` for Python or R is a notebook: the
+  script run once per line prefix (N runs, cacheable), and a layout that
+  interleaves each line with output of any height, figures included. That is
+  a round of its own, not a flag — and the C64 got it free because the
+  machine's own conversation is exactly that layout.
+
+A third bundled example, "Talk to a Commodore 64 in immediate mode": PRINT
+2+2, POKE the border and background black, PRINT a word in yellow — eight
+beats, each `_line_k` then `_out_k`.
+
+Measured in the live smoke: fill #ffffff with no stroke and no paint-order
+on a screen's text; the cursor's group carries `cs-blink` and the computed
+animation runs; four screens with lineRows [0, 3, 5, 7] and the cursor at
+[10, 0]; the border black from the second screen on; HELLO in #edf171.
+
 ## M3 — the original plan (kept for the record)
 
 Our own CBM BASIC V2 in TypeScript as `language: "basic"`, written from the

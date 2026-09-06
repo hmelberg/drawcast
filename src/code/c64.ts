@@ -34,7 +34,10 @@ export const C64_ROWS = 25;
 /** The screen a C64 wakes up on: light blue on blue, blue border. */
 export const C64_BORDER = 14;
 export const C64_BACKGROUND = 6;
-export const C64_TEXT = 14;
+/** The type. The machine's own power-on default is light blue (14); Hans
+ *  asked for white (1), 2026-09-06 — one number to flip back. POKE 646 and the
+ *  colour codes still do what they do. */
+export const C64_TEXT = 1;
 
 /**
  * What a run leaves on the screen. Strings rather than arrays so a stamped
@@ -48,6 +51,8 @@ export interface C64Screen {
   colors: string[];
   border: number;
   background: number;
+  /** Where the cursor waits — [row, col] — for the blinking square. */
+  cursor?: [number, number];
 }
 
 /** PETSCII control codes that change the text colour, keyed by code. */
@@ -102,6 +107,17 @@ export const C64_BOOT_LINES: readonly (readonly [row: number, text: string])[] =
  */
 export function c64EmulatorUrl(game: string): string {
   return `https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3#${game}`;
+}
+
+/**
+ * Whether a source is immediate mode — no line numbered — where the machine
+ * runs each line the moment RETURN is pressed and prints under it, or a
+ * program to be LISTed and RUN. The machine's own rule, so a lesson needs no
+ * word for it. Here, and not in the interpreter, because the layout must
+ * know which beats to mint before any run has happened.
+ */
+export function isImmediate(source: string): boolean {
+  return !source.split("\n").some((l) => /^\s*\d+/.test(l));
 }
 
 /** A blank screen in the machine's own colours. */

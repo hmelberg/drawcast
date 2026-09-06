@@ -34,6 +34,10 @@ const FIGURE_CSS = `
   src: ${C64_FONT_URLS.map((u) => `url(${u}) format('woff2')`).join(", ")};
   font-display: swap;
 }
+/* The Commodore's cursor: a square that blinks slowly. A CSS animation, so a
+   frame of the video export simply shows it on. */
+@keyframes cs-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.cs-blink { animation: cs-blink 1.1s steps(1, end) infinite; }
 .cs-stage {
   position: relative;
   width: 100%;

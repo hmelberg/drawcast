@@ -26,7 +26,8 @@
 //   refused     DATA READ RESTORE DIM ON INPUT GET OPEN CLOSE SYS WAIT USR
 //               DEF FN TAB SPC and the trigonometry — each with the reason.
 
-import { C64_BACKGROUND, C64_BORDER, C64_COLS, C64_ROWS, C64_TEXT, PETSCII_COLOR, blankScreen, screenChar, screenCode, type C64Screen } from "./c64";
+import { C64_BACKGROUND, C64_BORDER, C64_COLS, C64_ROWS, C64_TEXT, PETSCII_COLOR, blankScreen, isImmediate, screenChar, screenCode, type C64Screen } from "./c64";
+export { isImmediate } from "./c64";
 import type { CodeRunResult } from "./envelope";
 import type { CodeRunRequest } from "./run";
 
@@ -42,9 +43,10 @@ class BasicError extends Error {
   ) {
     super(kind);
   }
-  /** `?SYNTAX ERROR IN 20` — the machine's own sentence, then ours. */
+  /** `?SYNTAX ERROR IN 20` — the machine's own sentence, then ours. An
+   *  immediate-mode line (numbered -1 inside) has no line to name. */
   text(): string {
-    const at = this.line === null ? "" : ` IN ${this.line}`;
+    const at = this.line === null || this.line < 0 ? "" : ` IN ${this.line}`;
     return `?${this.kind}${at}${this.why ? ` (${this.why})` : ""}`;
   }
 }
@@ -203,6 +205,8 @@ class Screen {
   col = 0;
   /** What PRINT wrote, as lines — the envelope's stdout and the ask's answer. */
   printed: string[] = [""];
+  /** Off while the OPERATOR types (the listing, RUN): on the screen, not in stdout. */
+  recording = true;
   /** Every POKE/PEEK to an address that is not the screen's: what was poked. */
   memory = new Map<number, number>();
 
@@ -215,7 +219,7 @@ class Screen {
   newline(): void {
     this.col = 0;
     this.row++;
-    this.printed.push("");
+    if (this.recording) this.printed.push("");
     if (this.row >= C64_ROWS) {
       this.chars.shift();
       this.colors.shift();
@@ -229,13 +233,20 @@ class Screen {
     this.chars[this.row][this.col] = ch;
     this.colors[this.row][this.col] = this.color;
     this.col++;
-    this.printed[this.printed.length - 1] += ch;
+    if (this.recording) this.printed[this.printed.length - 1] += ch;
   }
   /** What the OPERATOR typed — the listing and RUN — shown on the screen but
    *  never part of what the program printed. */
   type(text: string): void {
+    this.recording = false;
     this.write(text);
-    this.printed = [""];
+    this.recording = true;
+  }
+  /** READY. on its own line, and the cursor under it — what the machine says
+   *  when a program ends or an error has been reported. */
+  ready(): void {
+    if (this.col > 0) this.type("\n");
+    this.type("READY.\n");
   }
   write(text: string): void {
     for (const ch of text) {
@@ -280,6 +291,7 @@ class Screen {
     s.colors = this.colors.map((r) => r.map((c) => c.toString(16)).join(""));
     s.border = this.border;
     s.background = this.background;
+    s.cursor = [this.row, this.col];
     return s;
   }
 }
@@ -328,7 +340,7 @@ class Interpreter {
   steps = 0;
   static MAX_STEPS = 400000;
 
-  constructor(private lines: Line[]) {}
+  constructor(public lines: Line[]) {}
 
   run(): void {
     let li = 0;
@@ -700,11 +712,21 @@ class Interpreter {
 
 export interface BasicRun {
   ok: boolean;
+  /** The screen at the end. */
   screen: C64Screen;
+  /** Immediate mode: the screen after each line, in order. */
+  screens?: C64Screen[];
+  /** Immediate mode: the row each line was typed on, before any scroll. */
+  lineRows?: number[];
   stdout: string;
   error?: string;
   vars: Map<string, Value>;
 }
+
+/** A line as the operator types it: uppercase outside quotes (one case on
+ *  this machine), the newline included. */
+const typed = (line: string): string => line.replace(/"[^"]*"|[^"]+/g, (m) => (m.startsWith('"') ? m : m.toUpperCase())) + "\n";
+
 
 /** The program as the operator typed it: uppercase outside quotes, wrapped at
  *  the screen's edge, RUN under it — so the run's screen shows what a real
@@ -712,15 +734,47 @@ export interface BasicRun {
 function typeListing(screen: Screen, source: string): void {
   for (const line of source.replace(/\s+$/, "").split("\n")) {
     if (line.trim() === "") continue;
-    screen.type(line.replace(/"[^"]*"|[^"]+/g, (m) => (m.startsWith('"') ? m : m.toUpperCase())) + "\n");
+    screen.type(typed(line));
   }
   screen.type("RUN\n");
 }
 
-/** Run a program to completion (or to its first error). Pure. With
- *  `listing`, the screen first shows the program and RUN, as the machine's
- *  would; without it the program owns the whole screen (the tests' view). */
+const asBasicError = (err: unknown): BasicError => (err instanceof BasicError ? err : new BasicError("SYNTAX ERROR", null, (err as Error).message));
+
+/**
+ * Run a program to completion (or to its first error). Pure. With `listing`,
+ * the screen shows what the machine's would — the program typed, RUN, its
+ * output, READY. — and in immediate mode each bare line typed, run and
+ * answered in turn; without it the program owns the whole screen (the
+ * tests' view of the interpreter alone).
+ */
 export function runBasic(source: string, opts: { listing?: boolean } = {}): BasicRun {
+  const stdout = (s: Screen): string => s.printed.join("\n").replace(/\n$/, "");
+  if (isImmediate(source) && source.trim() !== "") {
+    // Immediate mode: one line at a time, the state kept, an error reported
+    // and then the next line as if nothing happened — the machine's way.
+    const interp = new Interpreter([]);
+    const screens: C64Screen[] = [];
+    const lineRows: number[] = [];
+    let firstError: string | undefined;
+    for (const raw of source.replace(/\s+$/, "").split("\n")) {
+      if (raw.trim() === "") continue;
+      lineRows.push(interp.screen.row);
+      if (opts.listing) interp.screen.type(typed(raw));
+      try {
+        interp.lines = [{ num: -1, toks: tokenize(raw.trim(), null) }];
+        interp.run();
+      } catch (err) {
+        const e = asBasicError(err);
+        firstError ??= e.text();
+        interp.screen.type(`${e.text().split(" (")[0]}\n`);
+      }
+      if (opts.listing) interp.screen.ready();
+      screens.push(interp.screen.snapshot());
+    }
+    const screen = screens[screens.length - 1] ?? interp.screen.snapshot();
+    return { ok: firstError === undefined, screen, screens, lineRows, stdout: stdout(interp.screen), ...(firstError ? { error: firstError } : {}), vars: interp.vars };
+  }
   const it = new Interpreter([]);
   if (opts.listing) typeListing(it.screen, source);
   try {
@@ -728,11 +782,13 @@ export function runBasic(source: string, opts: { listing?: boolean } = {}): Basi
     const interp = new Interpreter(lines);
     if (opts.listing) typeListing(interp.screen, source);
     interp.run();
-    return { ok: true, screen: interp.screen.snapshot(), stdout: interp.screen.printed.join("\n").replace(/\n$/, ""), vars: interp.vars };
+    if (opts.listing) interp.screen.ready();
+    return { ok: true, screen: interp.screen.snapshot(), stdout: stdout(interp.screen), vars: interp.vars };
   } catch (err) {
-    const e = err instanceof BasicError ? err : new BasicError("SYNTAX ERROR", null, (err as Error).message);
+    const e = asBasicError(err);
     // The error lands on the screen too, as it would on the machine.
-    it.screen.write(`\n${e.text().split(" (")[0]}\n`);
+    it.screen.type(`\n${e.text().split(" (")[0]}\n`);
+    if (opts.listing) it.screen.ready();
     return { ok: false, screen: it.screen.snapshot(), stdout: "", error: e.text(), vars: it.vars };
   }
 }
@@ -741,7 +797,15 @@ export function runBasic(source: string, opts: { listing?: boolean } = {}): Basi
 export async function run(req: CodeRunRequest): Promise<CodeRunResult> {
   req.onStatus?.("running", "Running…");
   const r = runBasic(req.code, { listing: true });
-  const result: CodeRunResult = { ok: r.ok, stdout: r.stdout, stderr: "", figures: [], screen: r.screen, ...(r.error ? { error: r.error } : {}) };
+  const result: CodeRunResult = {
+    ok: r.ok,
+    stdout: r.stdout,
+    stderr: "",
+    figures: [],
+    screen: r.screen,
+    ...(r.screens ? { screens: r.screens, lineRows: r.lineRows } : {}),
+    ...(r.error ? { error: r.error } : {}),
+  };
   // The data bridge: a requested path is a variable name (A, A$, N%).
   if (req.paths && req.paths.length > 0) {
     result.data = {};

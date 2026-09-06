@@ -83,6 +83,9 @@ export interface StrokeDrawable extends BaseDrawable {
 export interface AreaDrawable extends BaseDrawable {
   kind: "area";
   pts: Pt[];
+  /** Blinks at the machine's slow rate in the live figure (a CSS animation the
+   *  export cannot run — there it is simply on). The C64's cursor. */
+  blink?: boolean;
   /**
    * Rings punched out of `pts`: the counters of a letterform (the hole in a
    * "b", the two in an "8"). Painted as extra subpaths of the SAME path with

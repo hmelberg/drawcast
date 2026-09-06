@@ -256,6 +256,7 @@ function plainPath(d: string, style: { color: string; strokeWidth: number; fill?
 
 function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "text" | "image" }>): void {
   if (d.kind === "area") {
+    if (d.blink) g.classList.add("cs-blink");
     if (isExactArea(d)) {
       g.appendChild(exactAreaPath(d));
       return;
@@ -310,10 +311,14 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     t.setAttribute("fill", d.style.color);
     // Paper-colored halo: text stays legible when it grazes a stroke
     // (the label solver treats strokes as soft obstacles).
-    t.setAttribute("paint-order", "stroke");
-    t.setAttribute("stroke", FIGURE_GROUND);
-    t.setAttribute("stroke-width", "5");
-    t.setAttribute("stroke-linejoin", "round");
+    // …but not on a Commodore screen: there the halo was a cream outline
+    // around every glyph (Hans, 2026-09-06), and a screen has no paper.
+    if (d.font !== "c64") {
+      t.setAttribute("paint-order", "stroke");
+      t.setAttribute("stroke", FIGURE_GROUND);
+      t.setAttribute("stroke-width", "5");
+      t.setAttribute("stroke-linejoin", "round");
+    }
     t.setAttribute("font-size", String(d.fontSize));
     t.setAttribute("font-family", d.font === "mono" ? MONO_FONT : d.font === "c64" ? C64_FONT : fontStack(d.family));
     // In mono text the whitespace IS content — a Python body loses its
@@ -356,6 +361,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     return g;
   }
   if (d.kind === "area") {
+    if (d.blink) g.classList.add("cs-blink");
     // An exact area is exact in BOTH styles: hachure at gap 5.5 across a 54 px
     // glyph stem is one or two wobbling strokes, which is what "grainy" was.
     if (isExactArea(d)) {

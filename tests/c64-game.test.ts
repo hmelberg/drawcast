@@ -44,6 +44,10 @@ describe("what the layout draws for a switched-on machine", () => {
     expect(ready.font).toBe("c64"); // the machine's own face, one em square per cell
     expect(ready.style.color).toBe(C64_PALETTE[C64_TEXT]);
     expect((leaf({}, "c64__boot0") as TextDrawable).text).toContain("COMMODORE 64 BASIC V2");
+    // …and the cursor waits under READY., blinking, in the type's colour.
+    const cur = leaf({}, "c64__cursor") as AreaDrawable;
+    expect(cur.blink).toBe(true);
+    expect(cur.style.fill).toBe(C64_PALETTE[C64_TEXT]);
   });
 
   test("a play mark on the screen's centre, white so it reads on blue", () => {

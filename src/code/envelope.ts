@@ -10,7 +10,7 @@
 import type { C64Screen } from "./c64";
 
 /** Bump whenever the envelope shape or the capture pipeline changes. */
-export const CODE_VERSION = 7; // v7: a run may leave a C64 screen behind (language: basic)
+export const CODE_VERSION = 8; // v8: immediate-mode screens per line, and the cursor (language: basic)
 
 export interface CodeFigure {
   /** PNG data URI (self-contained, export-safe — the ImageDrawable contract). */
@@ -39,6 +39,10 @@ export interface CodeRunResult {
   /** The 40 × 25 screen a BASIC run left behind (code/c64.ts) — drawn as ink
    *  in place of stdout when present. */
   screen?: C64Screen;
+  /** Immediate mode (bare lines): the screen after each line, and the row each
+   *  line was typed on — one `_out_k` beat per line. */
+  screens?: C64Screen[];
+  lineRows?: number[];
   /** Harvested script variables keyed by the requested dotted path ("y",
    *  "df.gdp") — plain JSON: numbers, strings, lists, objects, and
    *  {columns, rows} for a DataFrame (see code/harvest.ts). */

@@ -12520,5 +12520,74 @@
         }
       ]
     }
+  },
+  {
+    "request": "Talk to a Commodore 64 in immediate mode: ask it a sum, change the border and the background colour, and print a word in another colour",
+    "spec": {
+      "elements": [
+        {
+          "id": "c64",
+          "type": "code",
+          "language": "basic",
+          "width": 640,
+          "y": 380,
+          "draw": {
+            "mode": "type"
+          },
+          "code": "PRINT 2+2\nPOKE 53280,0\nPOKE 53281,0\nPRINT CHR$(158);\"HELLO\""
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "c64"
+          ],
+          "speak": "A Commodore 64, switched on. It is not waiting for a program. It is waiting for you: type a line, press RETURN, and it answers on the next."
+        },
+        {
+          "draw": [
+            "c64_line_1"
+          ],
+          "speak": "PRINT two plus two."
+        },
+        {
+          "draw": [
+            "c64_out_1"
+          ],
+          "speak": "Four — with a space in front of it, where a minus sign would go, and READY. under it. The machine is done, and it says so every time."
+        },
+        {
+          "draw": [
+            "c64_line_2"
+          ],
+          "speak": "POKE writes one byte straight into the video chip. Fifty-three thousand two hundred and eighty is the border."
+        },
+        {
+          "draw": [
+            "c64_out_2"
+          ],
+          "speak": "Black. No menu, no setting, one number."
+        },
+        {
+          "draw": [
+            "c64_line_3",
+            "c64_out_3"
+          ],
+          "speak": "And eighty-one is the background."
+        },
+        {
+          "draw": [
+            "c64_line_4"
+          ],
+          "speak": "Colours are characters too: printing character one-fifty-eight switches the ink to yellow before the word."
+        },
+        {
+          "draw": [
+            "c64_out_4"
+          ],
+          "speak": "That is the whole interface. Every line you type is a conversation with a chip, and it always ends with READY."
+        }
+      ]
+    }
   }
 ]

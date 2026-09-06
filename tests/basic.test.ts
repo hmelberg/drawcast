@@ -124,6 +124,9 @@ describe("the facade", () => {
     expect(rows[3]).toBe("40 PRINT T");
     expect(rows[4]).toBe("RUN");
     expect(rows[5]).toBe(" 45");
+    expect(rows[6]).toBe("READY.");
+    expect(res.screen!.cursor).toEqual([7, 0]);
+    expect(res.screens).toBeUndefined(); // a numbered program is one run
     expect(res.data).toEqual({ T: 45, n$: "OK" });
     expect(res.dataErrors).toEqual({ Z: "no variable Z" });
   });
@@ -141,23 +144,68 @@ describe("the layout draws the screen a run left", () => {
   };
 
   test("the field takes the program's colours and every run of text is ink in its own colour", () => {
-    const l = layoutSpec(spec('10 POKE 53280,0:POKE 53281,5\n20 PRINT "HELLO";CHR$(5);" THERE"'), heuristicMeasure);
+    const l = layoutSpec(spec('10 POKE 53280,0:POKE 53281,5\n20 PRINT "HELLO";CHR$(158);" THERE"'), heuristicMeasure);
     const all = flattenDrawables(l.drawables);
     // The machine's own field (the boot colours) is under the run's, which
     // repaints in the program's colours — the run is its own beat.
     expect((all.find((d) => d.id === "b__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[14]);
     expect((all.find((d) => d.id === "b__run__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[0]);
     expect((all.find((d) => d.id === "b__run__screen") as AreaDrawable).style.fill).toBe(C64_PALETTE[5]);
-    const texts = all.filter((d) => d.kind === "text" && d.id.startsWith("b__scr")) as TextDrawable[];
+    const texts = all.filter((d) => d.kind === "text" && d.id.startsWith("b__run__scr")) as TextDrawable[];
     expect(texts.map((t) => [t.text, t.style.color])).toEqual([
-      ["HELLO", C64_PALETTE[14]],
-      ["THERE", C64_PALETTE[1]],
+      ["HELLO", C64_PALETTE[1]], // white: the type's colour here (the machine's own default is 14)
+      ["THERE", C64_PALETTE[7]], // yellow, after CHR$(158)
     ]);
     expect(all.some((d) => d.id.startsWith("b__boot"))).toBe(false); // a program on the machine: no boot screen
+    const cursor = all.find((d) => d.id === "b__run__cursor") as AreaDrawable;
+    expect(cursor.blink).toBe(true);
+    expect(cursor.style.fill).toBe(C64_PALETTE[1]);
     // The listing is typed onto the screen as its own beats, in the machine's face.
     const line1 = all.find((d) => d.id === "b_line_1") as TextDrawable;
     expect(line1.font).toBe("c64");
     expect(line1.text).toBe("10 POKE 53280,0:POKE 53281,5");
     expect(all.some((d) => d.id === "b__play")).toBe(false); // no game, no play mark
+  });
+});
+
+describe("immediate mode — bare lines, the machine's own conversation", () => {
+  test("each line is typed, run and answered in turn, with READY. between and the cursor under", () => {
+    const r = runBasic('PRINT 2+2\nA=7\nPRINT A*6', { listing: true });
+    expect(r.ok).toBe(true);
+    expect(r.screens).toHaveLength(3);
+    expect(r.lineRows).toEqual([0, 3, 5]); // each line typed where the cursor was
+    const rows = r.screen.chars.map((x) => x.trimEnd());
+    expect(rows.slice(0, 8)).toEqual(["PRINT 2+2", " 4", "READY.", "A=7", "READY.", "PRINT A*6", " 42", "READY."]);
+    expect(r.screen.cursor).toEqual([8, 0]);
+    expect(r.stdout).toBe(" 4 \n 42 "); // what the machine printed, not what was typed
+    // the first screen shows only the first exchange
+    expect(r.screens![0].chars.map((x) => x.trimEnd()).slice(0, 3)).toEqual(["PRINT 2+2", " 4", "READY."]);
+  });
+
+  test("an error is reported and the next line goes on, as on the machine", () => {
+    const r = runBasic('PRINT 1/0\nPRINT "STILL HERE"', { listing: true });
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe("?DIVISION BY ZERO ERROR");
+    const rows = r.screen.chars.map((x) => x.trimEnd());
+    expect(rows.slice(0, 6)).toEqual(["PRINT 1/0", "?DIVISION BY ZERO ERROR", "READY.", 'PRINT "STILL HERE"', "STILL HERE", "READY."]);
+  });
+
+  test("the layout mints one _out_k beat per line, and _out is the last screen", () => {
+    const code = "PRINT 2+2\nPOKE 53280,0";
+    const r = runBasic(code, { listing: true });
+    const env = { ok: r.ok, stdout: r.stdout, stderr: "", figures: [], screen: r.screen, screens: r.screens, lineRows: r.lineRows };
+    const l = layoutSpec(
+      { elements: [{ id: "i", type: "code", language: "basic", code, code_result: JSON.stringify(env) }], commands: [{ draw: ["i", "i_line_1", "i_out_1", "i_line_2", "i_out_2"] }] } as unknown as Spec,
+      heuristicMeasure,
+    );
+    expect(l.order.filter((id) => id.startsWith("i_out"))).toEqual(["i_out_1", "i_out_2", "i_out"]);
+    const all = flattenDrawables(l.drawables);
+    // line 2 was typed on row 3, under " 4" and READY.
+    const line2 = all.find((d) => d.id === "i_line_2") as TextDrawable;
+    const line1 = all.find((d) => d.id === "i_line_1") as TextDrawable;
+    expect(line1.pos[1] - line2.pos[1]).toBeCloseTo(3 * line1.fontSize, 5);
+    // the second screen's border went black; the first's did not
+    expect((all.find((d) => d.id === "i__o2__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[0]);
+    expect((all.find((d) => d.id === "i__o1__border") as AreaDrawable).style.fill).toBe(C64_PALETTE[14]);
   });
 });

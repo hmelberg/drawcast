@@ -19,7 +19,7 @@
 // sits on the screen and comes back with `_out`, so it is never painted over.
 
 import { decodeCodeResult } from "../code/envelope";
-import { C64_BACKGROUND, C64_BOOT_LINES, C64_BORDER, C64_COLS, C64_PALETTE, C64_ROWS, C64_TEXT, type C64Screen } from "../code/c64";
+import { C64_BACKGROUND, C64_BOOT_LINES, C64_BORDER, C64_COLS, C64_PALETTE, C64_ROWS, C64_TEXT, isImmediate, type C64Screen } from "../code/c64";
 import { CANVAS } from "./canvas";
 import { chromeDrawables, findMarkRow, frameSpace, normalizeMarks, rectPts, TYPE_CPS, type CodeCtx, type CodeFrame } from "./code";
 import { COLORS, SKETCH_MS, Z_AREA, Z_STROKE, Z_TEXT, defaultStyle, type Drawable } from "./model";
@@ -105,6 +105,43 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       ? { mode: "type", duration: Math.max(400, Math.round((text.length / TYPE_CPS) * 1000)) }
       : resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
   });
+  /** The cursor: a white cell that blinks in the live figure. */
+  const cursorCell = (sid: string, at: [number, number] | undefined): Drawable[] => {
+    if (!at || at[0] >= C64_ROWS) return [];
+    return [
+      {
+        id: sid,
+        kind: "area",
+        pts: rectPts(screenX + at[1] * cell, screenTop - cell * (at[0] + 1), cell, cell),
+        precise: true,
+        blink: true,
+        z: Z_TEXT,
+        style: resolveStyle(undefined, { fill: C64_PALETTE[C64_TEXT], opacity: 1, strokeWidth: 0 }),
+        drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+      },
+    ];
+  };
+  /** Everything a screen snapshot shows: the field in its colours, every run
+   *  of text, the cursor — the machine at one moment. */
+  const screenDrawables = (sid: string, screen: C64Screen): Drawable[] => {
+    const outList: Drawable[] = [...field(sid, screen.border, screen.background)];
+    screen.chars.forEach((line, r) => {
+      let col = 0;
+      while (col < line.length) {
+        if (line[col] === " ") {
+          col++;
+          continue;
+        }
+        const c = screen.colors[r]?.[col] ?? "1";
+        let end = col;
+        while (end < line.length && (screen.colors[r]?.[end] ?? "1") === c && !(line[end] === " " && (end + 1 >= line.length || line[end + 1] === " "))) end++;
+        outList.push(rowText(`${sid}__scr${r}_${col}`, r, col, line.slice(col, end), parseInt(c, 16)));
+        col = end;
+      }
+    });
+    outList.push(...cursorCell(`${sid}__cursor`, screen.cursor));
+    return outList;
+  };
   const playMark = (): Drawable[] => {
     if (el.game === undefined) return [];
     const pcx = screenX + (C64_COLS * cell) / 2;
@@ -144,6 +181,7 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   if (lines.length === 0) {
     // Nothing to run: the boot screen, and the mark that starts the game.
     C64_BOOT_LINES.forEach(([row, text], i) => machine.push(rowText(`${el.id}__boot${i}`, row, 0, text, C64_TEXT)));
+    machine.push(...cursorCell(`${el.id}__cursor`, [C64_BOOT_LINES[C64_BOOT_LINES.length - 1][0] + 1, 0]));
   }
   machine.push(...playMark());
   const out: Drawable[] = [
@@ -151,12 +189,17 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   ];
 
   // ---- the listing, typed onto the screen ----------------------------------
+  // In immediate mode a line is typed wherever the cursor was after the
+  // line before — the run says where (lineRows); a program's lines stack from
+  // the top. Without a run yet, both stack from the top.
+  const immediate = lines.length > 0 && isImmediate(source);
   const blocks: { rows: string[] }[] = [];
   let row = 0;
   lines.forEach((line, i) => {
     const id = `${el.id}_line_${i + 1}`;
     const rowsOf = listingRows(line);
     blocks.push({ rows: rowsOf });
+    if (immediate && result?.lineRows?.[i] !== undefined) row = result.lineRows[i];
     ctx.extraOrder.push(id);
     ctx.anchors[id] = [screenX, screenTop - cell * (row + 0.5)];
     const typed = el.draw?.mode === "type";
@@ -173,7 +216,7 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     }
     row += rowsOf.length;
   });
-  if (row > C64_ROWS - 2) ctx.warnings.push(`code "${el.id}": a ${row}-row listing leaves the machine no room to RUN under it — keep a C64 program short`);
+  if (!immediate && row > C64_ROWS - 2) ctx.warnings.push(`code "${el.id}": a ${row}-row listing leaves the machine no room to RUN under it — keep a C64 program short`);
 
   // ---- marks: the marker pen, on the cell grid -----------------------------
   normalizeMarks(el.marks).forEach((m, k) => {
@@ -210,40 +253,32 @@ export function c64ScreenDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     });
   });
 
-  // ---- RUN: the screen the program left ------------------------------------
-  // Always minted, like a panel's `_out`: an unresolved run keeps the beat.
+  // ---- what the machine shows after the lines ------------------------------
+  // A program: `_out` is RUN — the field repainted with the screen the run
+  // left. Immediate mode: `_out_k` is the screen after line k (typed, run,
+  // answered, READY.), and `_out` is the last of them. Always minted, like a
+  // panel's `_out`: an unresolved run keeps the beat.
+  const beat = (sid: string, children: Drawable[]): Drawable => ({ id: sid, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children });
   const outId = `${el.id}_out`;
+  if (immediate) {
+    // One beat per line, minted whether or not the run has happened yet —
+    // a storyboard written before the run must still find every id.
+    lines.forEach((_, k) => {
+      const sid = `${el.id}_out_${k + 1}`;
+      const screen = result?.screens?.[k];
+      ctx.extraOrder.push(sid);
+      ctx.anchors[sid] = [cx, cy];
+      out.push(beat(sid, screen ? [...screenDrawables(`${el.id}__o${k + 1}`, screen), ...playMark()] : []));
+    });
+  }
   ctx.extraOrder.push(outId);
   ctx.anchors[outId] = [cx, cy];
   const runChildren: Drawable[] = [];
   if (lines.length > 0) {
-    const screen: C64Screen | undefined = result?.ok ? result.screen : undefined;
-    if (screen) {
-      runChildren.push(...field(`${el.id}__run`, screen.border, screen.background));
-      screen.chars.forEach((line, r) => {
-        let col = 0;
-        while (col < line.length) {
-          if (line[col] === " ") {
-            col++;
-            continue;
-          }
-          const c = screen.colors[r]?.[col] ?? "e";
-          let end = col;
-          while (end < line.length && (screen.colors[r]?.[end] ?? "e") === c && !(line[end] === " " && (end + 1 >= line.length || line[end + 1] === " "))) end++;
-          runChildren.push(rowText(`${el.id}__scr${r}_${col}`, r, col, line.slice(col, end), parseInt(c, 16)));
-          col = end;
-        }
-      });
-    } else if (result && !result.ok) {
-      // The error, as the machine prints it, under the listing.
-      runChildren.push(rowText(`${el.id}__err`, Math.min(C64_ROWS - 2, row + 1), 0, (result.error ?? "?ERROR").split(" (")[0].slice(0, C64_COLS), C64_TEXT));
-      runChildren.push(rowText(`${el.id}__ready`, Math.min(C64_ROWS - 1, row + 2), 0, "READY.", C64_TEXT));
-    } else {
-      // Not run yet (node, offline): RUN typed, and the machine waiting.
-      runChildren.push(rowText(`${el.id}__runline`, Math.min(C64_ROWS - 1, row), 0, "RUN", C64_TEXT));
-    }
+    if (result?.screen) runChildren.push(...screenDrawables(`${el.id}__run`, result.screen));
+    else runChildren.push(rowText(`${el.id}__runline`, Math.min(C64_ROWS - 1, row), 0, immediate ? "" : "RUN", C64_TEXT)); // not run yet (node, offline)
     runChildren.push(...playMark());
   }
-  out.push({ id: outId, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children: runChildren });
+  out.push(beat(outId, runChildren));
   return out;
 }
