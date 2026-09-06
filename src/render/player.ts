@@ -58,6 +58,11 @@ const SCROLL_MS = 250; // a code window sliding one or more rows
 // 0 ms — a snap where everything else fades. The floor keeps clear soft.
 const CLEAR_MIN_MS = 250;
 
+/** One swell of the answer glow a click question puts on the correct element. */
+const ANSWER_GLOW_MS = 1200;
+/** The click gate's "right" green (styles.css --ok) — a literal, since SVG presentation attributes cannot read CSS variables. */
+const ANSWER_OK_COLOR = "#4a7c59";
+
 export class Player {
   private plan: Plan;
   private elements: Map<string, RenderedElement>;
@@ -762,10 +767,17 @@ export class Player {
         if (!this.autoAnswers && this.askGate !== null) {
           this.callbacks.onAnswer?.({ index, kind: "ask", question: step.question, given: attempts, expected: answer, correct: isRight(typed) });
         }
+        // A click question shows WHERE the answer was: the element glows
+        // while the answer line is spoken — green when the viewer found it,
+        // the highlight colour when it is revealed after a miss or a skip.
+        // Live viewers only: the movie's laser has already tapped it.
+        const glowIds = step.widget === "click" && step.answerBox && !this.autoAnswers && this.askGate !== null ? [answer] : [];
         if (isRight(typed)) {
-          if (step.right) await this.speakLine(step.right, step, signal);
+          await this.glowWhile(glowIds, ANSWER_OK_COLOR, signal, async () => {
+            if (step.right) await this.speakLine(step.right, step, signal);
+          });
         } else if (step.reveal) {
-          await this.speakLine(step.right ?? answer, step, signal);
+          await this.glowWhile(glowIds, undefined, signal, () => this.speakLine(step.right ?? answer, step, signal));
         }
         if (!this.autoAnswers && this.askGate !== null && typed !== null) {
           const target = isRight(typed) ? step.rightGoto : step.wrongGoto;
@@ -1013,6 +1025,30 @@ export class Player {
       const e = ease(t);
       for (const m of moves) m.el.setOffset!(m.from[0] + (m.to[0] - m.from[0]) * e, m.from[1] + (m.to[1] - m.from[1]) * e);
     });
+  }
+
+  /**
+   * Runs `work` (a spoken line, typically) while `ids` glow, in full swells
+   * of ANSWER_GLOW_MS until the work is done — at least one whole swell, so
+   * a silent player still shows the element. No effects or no ids: just the
+   * work. The glow is always cleared, even on abort.
+   */
+  private async glowWhile(ids: string[], color: string | undefined, signal: AbortSignal, work: () => Promise<void>): Promise<void> {
+    const effects = this.effects;
+    if (!effects || ids.length === 0) {
+      await work();
+      return;
+    }
+    let working = true;
+    const done = work().finally(() => (working = false));
+    try {
+      do {
+        await this.progress(ANSWER_GLOW_MS, signal, (t) => effects.setHighlight(ids, "glow", t, null, color));
+      } while (working && !signal.aborted);
+    } finally {
+      effects.endHighlight(ids);
+    }
+    await done;
   }
 
   private progress(ms: number, signal: AbortSignal, onTick: (t: number) => void): Promise<void> {

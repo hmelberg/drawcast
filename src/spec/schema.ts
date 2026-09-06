@@ -400,7 +400,7 @@ const commandSchema = {
           type: "string",
           enum: ["click", "piano", "chess", "code"],
           description:
-            "Answer device instead of typing: click = click the named element on the figure (answer = its id); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one). Requires answer. In movies the laser pointer demonstrates.",
+            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one). Requires answer. In movies the laser pointer demonstrates.",
         },
         code: {
           type: "string",

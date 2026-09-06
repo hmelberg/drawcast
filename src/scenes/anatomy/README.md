@@ -59,6 +59,19 @@ authored beat that opens the section and waits. The rules — which region a
 click zooms to, the breadcrumb path — live in `src/ui/body-model.ts` and are
 tested against the real atlas; the DOM is `src/ui/body-explore.ts`.
 
+## Pointing at a part
+
+Two kinds of emphasis, one word. The template's `highlight` **param** tints
+parts for the whole figure (and, with `labels: focus`, names them). The
+`highlight` **command** is the gesture: `{"highlight": {"target": ["liver"]},
+"speak": "…"}` pulses (or `glow`s, or `circle`s) the part for exactly as long
+as the sentence, then lets go — the way to talk about one organ. A click
+question (`ask` with `widget: "click"`) needs neither: when the answer is
+spoken, the correct part glows by itself — green when the viewer found it,
+red when it is revealed after a miss or a skip. That lives in the player
+(`glowWhile` in `src/render/player.ts`) and works on every template whose
+answer is a drawn element.
+
 Adding a system (muscles, vessels, nerves): a fourth atlas file, a new value
 in `AtlasSystem`, a new entry in the template's `systems` enum, and its parts
 in `bodyparts.mjs`. The engine merges by system already.
