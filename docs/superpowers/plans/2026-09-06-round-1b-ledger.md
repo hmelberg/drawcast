@@ -141,3 +141,8 @@ Ruling: the final whole-branch review is split by repository and the client half
 CLIENT SIDE OF ROUND 1b COMPLETE: Tasks 9, 10, 11 — drawcast 0650fbf..f61c563, vitest 4632, tsc clean. Nothing here depends on the Anvil pull except the smoke.
 
 PUSHED to drawcast-anvil origin/master: e98cbb1..8299fc8 (12 commits), on Hans's "push" 2026-09-06. Verified origin/master == 8299fc8. Hans pulls in the Anvil editor with "source code"; Task 12 (the smoke) follows the pull.
+
+## Addendum 1b+ — passwords for proven accounts (Hans, 2026-09-06: "ja")
+
+Hans asked why not email+password via Anvil. Answer given: Anvil's password login and its self-service signup are one switch, and open signup is what lets a stranger plant a row under a victim's address with a password of their own. Chosen design (Hans: ja): `use_email: true` + `allow_signup: false` — no self-service password signup exists, every new account is created by the link (proven), Google/Microsoft/Facebook sign in only rows that exist, and a password is set through Anvil's reset mail (an address proof). A spent link now stamps `confirmed_email` on a PASSWORDLESS row — the click is the proof and there is no password to unlock; round 1a's rule stands for rows that carry one. Pull ritual: Hans must NOT flip the flags in the editor (an "Edited settings" commit would collide); the repo sets them.
+Addendum: dispatched (sonnet implementer; opus review — the sign-in surface).
