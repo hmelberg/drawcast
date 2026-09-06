@@ -429,26 +429,33 @@ Open follow-ups:
   users and models paste existing graphs straight in. Keep JSON params as
   the primary Spec surface (schema validation + repair pipeline stay
   intact); DOT enters as an input/interchange format, not a replacement.
-- **Anatomy, next rounds** (M1+M2 shipped 2026-09-06; see
-  `docs/superpowers/specs/2026-09-05-anatomy-design.md`):
+- **Anatomy, next rounds** (M1+M2 shipped 2026-09-06; round 2 part 1 — the
+  body from BodyParts3D, skin ground, layers — shipped 2026-09-06; see
+  `docs/superpowers/specs/2026-09-05-anatomy-design.md` and
+  `docs/superpowers/specs/2026-09-06-anatomy-round-2-design.md`):
+  - **Exploration in the drawer (round 2, part 2).** Click a region to zoom,
+    breadcrumbs, layer/systems/names controls; `explore: { anatomy: true }`.
+  - **3D panel (round 2, part 3).** `manifest.model3d: { kind: "anatomy" }`;
+    decimated BodyParts3D meshes in `public/anatomy3d/` under CC BY-SA, one
+    `addCustom` per part, a peel slider, the DBCLS credit in the panel.
   - **Sound (M3).** `tones.ts` has no noise source. Heart sounds want a `noise`
     layer (BufferSource + BiquadFilter) on `Recipe`, plus a `listen` widget — a
     click that PLAYS rather than judges. ~100–150 lines. Synthesised sounds will
     be recognisable, not clinical; real auscultation training needs recordings.
-  - **3D panel (M4).** `manifest.model3d: {kind, source}` is already the seam.
-    3dmol has no STL parser but `addCustom({vertexArr, faceArr})` renders
-    arbitrary meshes with clickable shapes. BodyParts3D supplies ~3000 meshes
-    named `FMA<id>.stl` under CC BY-SA 2.1 Japan — fine beside MIT code in its
-    own directory, since ShareAlike binds the adapted material and not the
-    collection. Check the legal code (not the deed) on relicensing adaptations
-    under CC BY-SA 4.0 before starting.
+  - **Missing from BodyParts3D 3.0:** the coccyx, the thyroid gland, a female
+    body (the uterus is the one authored part). BodyParts3D 4.0 or Z-Anatomy
+    for a second body; authored blobs for the two small parts.
+  - **The diaphragm as a dome line.** Its frontal projection is a sheet that
+    covers the upper abdomen, so it is left out; the right drawing is the
+    dome's upper edge as an open stroke.
   - **Multi-target click asks.** `ask.widget: "click"` takes ONE element id, so
     "click all four heart valves" or "click either kidney" is not expressible.
-  - **Posterior view.** LadyofHats' `Human skeleton back en.svg` is PD but its
-    groups are unnamed — a naming job before it is an atlas.
+  - **Posterior and lateral views.** The meshes are 3D; a second projection
+    axis is one line in the build. The `view` param already exists.
   - **Concave region silhouettes.** Detail 1 is convex hulls — a mannequin.
-    The union of a region's bones, dilated, would read as a body.
-  - **Muscles, age.** The `systems` param already has the right shape.
+    Rasterising the region's bones together and contouring would give the
+    real silhouette with the pipeline that exists now.
+  - **Muscles, vessels, nerves.** BodyParts3D has them; a part table entry each.
 
 ## Phase C — structure
 

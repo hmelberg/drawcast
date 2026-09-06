@@ -12871,5 +12871,83 @@
         }
       ]
     }
+  },
+  {
+    "request": "Show the human body with its organs, and name them.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "The body, named",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "detail": 2, "labels": "all" },
+      "commands": [
+        { "draw": ["body_outline", "brain", "trachea", "lung_right", "lung_left", "heart"], "speak": "A body from the front. The chest: two lungs around the heart, the windpipe above." },
+        { "draw": ["liver", "stomach", "spleen", "pancreas", "kidney_right", "kidney_left", "small_intestine", "large_intestine", "bladder"], "speak": "The belly: liver to the right, stomach to the left, the gut in the middle, kidneys behind, bladder at the bottom." },
+        { "draw": ["label_brain", "label_lung_right", "label_lung_left", "label_heart", "label_trachea", "label_liver", "label_stomach", "label_spleen", "label_pancreas", "label_kidney_right", "label_kidney_left", "label_small_intestine", "label_large_intestine", "label_bladder"], "speak": "And their names, the way an anatomical plate would give them." },
+        { "quiz": { "question": "Which organ lies highest in the belly on the body's right?", "choices": ["The liver", "The spleen", "The bladder"], "correct": 1, "right": "The liver — tucked up under the right ribs, the largest gland in the body." } }
+      ]
+    }
+  },
+  {
+    "request": "What lies behind the intestines?",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "What lies behind",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "commands": [
+        { "draw": ["body_outline", "lung_right", "lung_left", "heart", "liver", "stomach", "small_intestine", "large_intestine", "bladder"], "speak": "Seen from the front, the gut, the liver and the stomach fill the belly." },
+        { "draw": ["kidney_right", "kidney_left", "spleen", "pancreas"], "speak": "Behind them, drawn with a broken line because they are hidden, lie four more organs." },
+        { "quiz": { "question": "Which pair sits behind the gut, either side of the spine?", "choices": ["The lungs", "The kidneys", "The adrenal glands only"], "correct": 2, "right": "The kidneys — retroperitoneal, at the level of the lowest ribs." } },
+        { "ask": { "question": "Click on the left kidney.", "widget": "click", "answer": "kidney_left", "right": "That is the left kidney, a little higher than the right one, which the liver pushes down." } }
+      ]
+    }
+  },
+  {
+    "request": "Lær meg de latinske navnene på knoklene i beinet.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "Latinske navn",
+      "template": "anatomy",
+      "params": { "systems": ["skeleton"], "detail": 2, "focus": ["leg_left"], "labels": "all", "names": "la" },
+      "commands": [
+        { "draw": ["frame", "femur_left", "label_femur_left"], "speak": "Lårbeinet heter os femoris, kroppens lengste knokkel." },
+        { "draw": ["patella_left", "label_patella_left", "tibia_left", "label_tibia_left", "fibula_left", "label_fibula_left"], "speak": "Kneskålen er patella, skinnebeinet tibia og det tynne leggbeinet fibula." },
+        { "draw": ["tarsals_left", "metatarsals_left", "phalanges_foot_left", "hip_left", "knee_left", "ankle_left"], "speak": "Fotrotsbeina heter ossa tarsi, mellomfotsbeina ossa metatarsi, og tåbeina phalanges pedis." },
+        { "ask": { "question": "Hva heter lårbeinet på latin?", "answer": "Os femoris", "right": "Os femoris — femur er lår." } },
+        { "ask": { "question": "Og skinnebeinet?", "answer": "Tibia", "right": "Tibia, det bærende beinet i leggen." } }
+      ]
+    }
+  },
+  {
+    "request": "Draw the skeleton in plain ink and quiz me on it.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "The skeleton in ink",
+      "template": "anatomy",
+      "params": { "systems": ["skeleton"], "detail": 2, "color": "mono", "outline": "line", "labels": "none" },
+      "commands": [
+        { "draw": ["body_outline", "cranium", "mandible", "cervical_vertebrae", "thoracic_vertebrae", "lumbar_vertebrae", "sacrum", "ribs", "sternum"], "speak": "The axial skeleton: skull, spine, rib cage, in plain ink." },
+        { "draw": ["clavicle_left", "clavicle_right", "scapula_left", "scapula_right", "humerus_left", "humerus_right", "radius_left", "ulna_left", "radius_right", "ulna_right", "hand_left", "hand_right"], "speak": "The arms hang from the shoulder girdle." },
+        { "draw": ["hip_bones", "femur_left", "femur_right", "patella_left", "patella_right", "tibia_left", "fibula_left", "tibia_right", "fibula_right", "foot_left", "foot_right"], "speak": "And the legs from the pelvis." },
+        { "quiz": { "question": "How many bones does one hand have?", "choices": ["14", "27", "52"], "correct": 2, "right": "27 — eight carpals, five metacarpals and fourteen phalanges." } },
+        { "ask": { "question": "Click on the sternum.", "widget": "click", "answer": "sternum", "right": "The sternum, the breastbone, where the ribs meet in front." } }
+      ]
+    }
+  },
+  {
+    "request": "Zoom inn på hånden og vis knoklene.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "Inne i hånden",
+      "template": "anatomy",
+      "params": { "systems": ["skeleton"], "focus": ["hand_left"], "labels": "focus", "names": "nb", "detail": 2 },
+      "commands": [
+        { "draw": ["frame", "carpals_left", "label_carpals_left"], "speak": "Håndrotsbeina, åtte små knokler i to rader." },
+        { "draw": ["metacarpals_left", "label_metacarpals_left"], "speak": "Så de fem mellomhåndsbeina." },
+        { "draw": ["phalanges_hand_left", "label_phalanges_hand_left"], "speak": "Og fingerbeina, tre i hver finger, to i tommelen." },
+        { "ask": { "question": "Klikk på håndrotsbeina.", "widget": "click", "answer": "carpals_left", "right": "Håndrotsbeina — de ligger i håndleddet, mellom underarmen og mellomhånden." } },
+        { "ask": { "question": "Klikk på fingerbeina.", "widget": "click", "answer": "phalanges_hand_left", "right": "Fingerbeina, phalanges — fjorten i alt." } }
+      ]
+    }
   }
 ]

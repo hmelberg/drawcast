@@ -663,7 +663,6 @@ export const VISCERA = [
   { id: "lung_left", composite: "FMA7310", parent: "thorax", detail: 1, color: "#c98f9b", uberon: "UBERON:0002167", name: { en: "Left lung", nb: "Venstre lunge", la: "Pulmo sinister" } },
   { id: "heart", composite: "FMA7088", parent: "thorax", detail: 1, color: "#b8524f", uberon: "UBERON:0000948", name: { en: "Heart", nb: "Hjerte", la: "Cor" } },
   { id: "aorta", fma: ["FMA3734"], parent: "thorax", detail: 3, behind: true, color: "#c0655f", uberon: "UBERON:0000947", name: { en: "Aorta", nb: "Hovedpulsåre", la: "Aorta" } },
-  { id: "diaphragm", fma: ["FMA13295"], parent: "thorax", detail: 2, color: "#b8877f", name: { en: "Diaphragm", nb: "Mellomgulv", la: "Diaphragma" } },
   { id: "liver", fma: ["FMA7197"], parent: "abdomen", detail: 1, layer: "superficial", color: "#8a5a3c", uberon: "UBERON:0002107", name: { en: "Liver", nb: "Lever", la: "Hepar" } },
   { id: "gallbladder", fma: ["FMA7202"], parent: "abdomen", detail: 3, color: "#7f9a5c", name: { en: "Gallbladder", nb: "Galleblære", la: "Vesica biliaris" } },
   { id: "stomach", fma: ["FMA7148"], parent: "abdomen", detail: 1, layer: "superficial", color: "#c9a15f", uberon: "UBERON:0000945", name: { en: "Stomach", nb: "Magesekk", la: "Gaster" } },
@@ -1464,9 +1463,9 @@ Append to `src/examples.json` (before the closing `]`). Ids named in `draw` must
     "template": "anatomy",
     "params": { "systems": ["viscera"], "detail": 2, "labels": "all" },
     "commands": [
-      { "draw": ["body_outline", "brain", "trachea", "lung_right", "lung_left", "heart", "diaphragm"], "speak": "A body from the front. The chest: two lungs around the heart, the windpipe above, the diaphragm below." },
+      { "draw": ["body_outline", "brain", "trachea", "lung_right", "lung_left", "heart"], "speak": "A body from the front. The chest: two lungs around the heart, the windpipe above." },
       { "draw": ["liver", "stomach", "spleen", "pancreas", "kidney_right", "kidney_left", "small_intestine", "large_intestine", "bladder"], "speak": "The belly: liver to the right, stomach to the left, the gut in the middle, kidneys behind, bladder at the bottom." },
-      { "draw": ["label_brain", "label_lung_right", "label_lung_left", "label_heart", "label_trachea", "label_diaphragm", "label_liver", "label_stomach", "label_spleen", "label_pancreas", "label_kidney_right", "label_kidney_left", "label_small_intestine", "label_large_intestine", "label_bladder"], "speak": "And their names, the way an anatomical plate would give them." },
+      { "draw": ["label_brain", "label_lung_right", "label_lung_left", "label_heart", "label_trachea", "label_liver", "label_stomach", "label_spleen", "label_pancreas", "label_kidney_right", "label_kidney_left", "label_small_intestine", "label_large_intestine", "label_bladder"], "speak": "And their names, the way an anatomical plate would give them." },
       { "quiz": { "question": "Which organ lies highest in the belly on the body's right?", "choices": ["The liver", "The spleen", "The bladder"], "correct": 1, "right": "The liver — tucked up under the right ribs, the largest gland in the body." } }
     ]
   }
@@ -1479,7 +1478,7 @@ Append to `src/examples.json` (before the closing `]`). Ids named in `draw` must
     "template": "anatomy",
     "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
     "commands": [
-      { "draw": ["body_outline", "lung_right", "lung_left", "heart", "diaphragm", "liver", "stomach", "small_intestine", "large_intestine", "bladder"], "speak": "Seen from the front, the gut, the liver and the stomach fill the belly." },
+      { "draw": ["body_outline", "lung_right", "lung_left", "heart", "liver", "stomach", "small_intestine", "large_intestine", "bladder"], "speak": "Seen from the front, the gut, the liver and the stomach fill the belly." },
       { "draw": ["kidney_right", "kidney_left", "spleen", "pancreas"], "speak": "Behind them, drawn with a broken line because they are hidden, lie four more organs." },
       { "quiz": { "question": "Which pair sits behind the gut, either side of the spine?", "choices": ["The lungs", "The kidneys", "The adrenal glands only"], "correct": 2, "right": "The kidneys — retroperitoneal, at the level of the lowest ribs." } },
       { "ask": { "question": "Click on the left kidney.", "widget": "click", "answer": "kidney_left", "right": "That is the left kidney, a little higher than the right one, which the liver pushes down." } }
