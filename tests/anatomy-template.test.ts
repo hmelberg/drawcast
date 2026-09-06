@@ -366,6 +366,10 @@ describe("anatomy round 2: skin, layers, smoothing", () => {
     await ensureEngines(["anatomy"]);
     registerPack("anatomy", anatomyYaml);
   });
+  test("the template advertises the 3D panel", () => {
+    expect(scenes.anatomy.manifest.model3d).toEqual({ kind: "anatomy" });
+  });
+
   const leafOf = (params: Record<string, unknown>, id: string) => leafDrawables(lay(params).drawables).filter((d) => d.id === id || d.id.startsWith(id + "__"));
 
   test("the default ground is a skin wash: an area, no stroke", () => {

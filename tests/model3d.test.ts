@@ -16,6 +16,12 @@ import { validateTemplateDoc, docToManifest } from "../src/scenes/doc";
 import { scenes } from "../src/scenes/registry";
 import { registerPack, unregisterPack } from "../src/scenes/packs";
 import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
+import anatomyYaml from "../src/scenes/packs/anatomy.yaml?raw";
+import { ANATOMY3D_DEF, type AnatomyScene } from "../src/ui/model3d";
+import { anatomyInputFrom, visibleParts } from "../src/ui/anatomy3d";
+import { ensureEngines, getLoadedEngines } from "../src/scenes/engines";
+import type { AnatomyEngine } from "../src/scenes/anatomy/types";
+import { clusterMesh, encodeMesh } from "../scripts/anatomy/mesh.mjs";
 
 describe("xyzFromPreset", () => {
   test("methane: count line 5, 1 carbon + 4 hydrogens", () => {
@@ -130,7 +136,23 @@ describe("ensure3dmol", () => {
   test("loads once and caches; returns the resolved namespace", async () => {
     resetModel3dCacheForTests(); // order-independence: don't inherit another test's cached value
     let loads = 0;
-    const fakeNs: Model3dNamespace = { createViewer: () => ({ addModel: () => undefined, setStyle: () => undefined, zoomTo: () => undefined, spin: () => undefined, render: () => undefined, clear: () => undefined, addPropertyLabels: () => undefined, removeAllLabels: () => undefined }) };
+    const fakeNs: Model3dNamespace = {
+      createViewer: () => ({
+        addModel: () => undefined,
+        setStyle: () => undefined,
+        zoomTo: () => undefined,
+        spin: () => undefined,
+        render: () => undefined,
+        clear: () => undefined,
+        addPropertyLabels: () => undefined,
+        removeAllLabels: () => undefined,
+        addCustom: () => ({ updateStyle: () => undefined }),
+        removeAllShapes: () => undefined,
+        getView: () => [],
+        setView: () => undefined,
+        rotate: () => undefined,
+      }),
+    };
     MODEL3D_DEF.load = async () => {
       loads++;
       return { default: fakeNs };
@@ -398,5 +420,187 @@ describe("bundled templates carry model3d", () => {
     registerPack("chemistry", chemistryYaml);
     expect(scenes.molecule.manifest.model3d).toEqual({ kind: "molecule", source: "smiles" });
     unregisterPack("chemistry");
+  });
+});
+
+// The anatomy kind: the figure's params say which parts, the mesh pack says
+// how they look, and the viewer gets one addCustom per mesh. Same stub
+// discipline as above — a fake 3dmol namespace, a fake pack behind
+// ANATOMY3D_DEF.fetch, the real atlas for the part rules.
+describe("model3d kind anatomy", () => {
+  const docBase = (model3d?: unknown): Record<string, unknown> => ({
+    template: "m3_a",
+    version: 1,
+    kit: 1,
+    status: "ready",
+    description: "d",
+    params: {},
+    element_ids: {},
+    examples: [],
+    layout: "return { drawables: [], labels: [], anchors: {}, order: [] };",
+    ...(model3d !== undefined ? { model3d } : {}),
+  });
+
+  test('doc validation accepts { kind: "anatomy" } without a source, and still rejects junk', () => {
+    const v = validateTemplateDoc(docBase({ kind: "anatomy" }));
+    expect(v.errors).toEqual([]);
+    expect(docToManifest(v.doc!).model3d).toEqual({ kind: "anatomy" });
+    expect(validateTemplateDoc(docBase({ kind: "anatomy", source: "preset" })).errors[0]).toMatch(/source/);
+    expect(validateTemplateDoc(docBase({ kind: "molecule" })).errors[0]).toMatch(/source/);
+    expect(validateTemplateDoc(docBase({ kind: "protein" })).errors[0]).toMatch(/model3d\.kind/);
+  });
+
+  test("the anatomy pack carries it, and qualifiesFor3d reads the figure's params", async () => {
+    await ensureEngines(["anatomy"]);
+    registerPack("anatomy", anatomyYaml);
+    try {
+      expect(scenes.anatomy.manifest.model3d).toEqual({ kind: "anatomy" });
+      const q = qualifiesFor3d({ template: "anatomy", params: { systems: ["skeleton"], detail: 3, names: "nb" } });
+      expect(q).toEqual({ kind: "anatomy", input: { systems: ["skeleton"], detail: 3, layer: "superficial", focus: [], outline: "skin", sex: "neutral", names: "nb" } });
+      expect(qualifiesFor3d({ template: "anatomy" })?.kind).toBe("anatomy");
+    } finally {
+      unregisterPack("anatomy");
+    }
+  });
+
+  describe("openModel3d, anatomy branch", () => {
+    const cubeBytes = (): ArrayBuffer => {
+      const b = encodeMesh(clusterMesh(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1]), 0.5));
+      return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+    };
+    /** A pack of exactly these parts, all the same two-triangle mesh. */
+    const fakePack = (ids: string[]): string => {
+      const parts: Record<string, unknown> = {};
+      for (const id of ids) parts[id] = { files: [`${id}.bin`], triangles: 2, bytes: 0, bbox: [0, 0, 0, 1, 1, 1], system: "viscera", kind: "organ", color: "#123456" };
+      return JSON.stringify({ version: 1, units: "cm", source: "test", parts });
+    };
+    const stubViewer = () => {
+      const shapes: { spec: Record<string, unknown>; styles: Record<string, unknown>[] }[] = [];
+      const calls: string[] = [];
+      const viewer = {
+        addModel: () => calls.push("addModel"),
+        setStyle: () => undefined,
+        zoomTo: () => calls.push("zoomTo"),
+        render: () => calls.push("render"),
+        spin: (on: boolean | string) => calls.push(`spin:${on}`),
+        clear: () => calls.push("clear"),
+        addPropertyLabels: () => calls.push("addPropertyLabels"),
+        removeAllLabels: () => undefined,
+        addCustom: (spec: Record<string, unknown>) => {
+          const s = { spec, styles: [] as Record<string, unknown>[] };
+          shapes.push(s);
+          return { updateStyle: (st: Record<string, unknown>) => s.styles.push(st) };
+        },
+        removeAllShapes: () => calls.push("removeAllShapes"),
+        getView: () => ["view"],
+        setView: (v: unknown) => calls.push(`setView:${JSON.stringify(v)}`),
+        rotate: (a: number, ax: string) => calls.push(`rotate:${a}${ax}`),
+      };
+      return { viewer, shapes, calls };
+    };
+    const withStubs = async (params: Record<string, unknown>, packIdsFrom: (visible: string[]) => string[]) => {
+      resetModel3dCacheForTests();
+      await ensureEngines(["anatomy"]);
+      const { viewer, shapes, calls } = stubViewer();
+      MODEL3D_DEF.load = async () => ({ createViewer: () => viewer });
+      const q = { kind: "anatomy" as const, input: anatomyInputFrom(params) };
+      const all = (getLoadedEngines(["anatomy"]).anatomy as AnatomyEngine).parts({ systems: q.input.systems, sex: q.input.sex });
+      const visible = visibleParts(all, q.input);
+      const packIds = packIdsFrom(visible);
+      const fetched: string[] = [];
+      ANATOMY3D_DEF.fetch = async (url) => {
+        fetched.push(url);
+        return url.endsWith("index.json") ? fakePack(packIds) : cubeBytes();
+      };
+      let scene: AnatomyScene | null = null;
+      const container = { replaceChildren: vi.fn() } as unknown as HTMLElement;
+      const destroy = await openModel3d({ open: true } as unknown as HTMLDialogElement, container, q, new AbortController().signal, {
+        onAnatomy: (s) => {
+          scene = s;
+        },
+      });
+      return { shapes, calls, fetched, scene: scene as AnatomyScene | null, destroy, packIds, visible, container };
+    };
+
+    afterEach(() => {
+      resetModel3dCacheForTests();
+    });
+
+    test("one addCustom per visible part, coloured from the pack, skin translucent, then zoomTo and a spin", async () => {
+      const { shapes, calls, fetched, packIds, visible, container } = await withStubs({ systems: ["viscera"], detail: 1 }, (ids) => ids);
+      expect(fetched[0]).toMatch(/anatomy3d\/index\.json$/);
+      expect(visible.at(-1)).toBe("body_outline");
+      expect(shapes.length).toBe(packIds.length);
+      expect(shapes.map((s) => s.spec.color)).toEqual(packIds.map(() => "#123456"));
+      expect(shapes.at(-1)!.spec.opacity).toBeCloseTo(0.3); // the skin: a faint shell
+      expect(shapes[0].spec.opacity).toBe(1);
+      expect(shapes[0].spec.clickable).toBe(true);
+      expect(shapes[0].spec.normalArr).toEqual([]);
+      expect(calls).toContain("zoomTo");
+      expect(calls).toContain("spin:true");
+      expect(calls).not.toContain("addModel");
+      expect(calls).not.toContain("addPropertyLabels"); // atom labels are a molecule thing
+      expect(container.replaceChildren).toHaveBeenLastCalledWith(); // cleared for the canvas, no failure text
+    });
+
+    test("a part the pack lacks is skipped, not fatal", async () => {
+      const { shapes, packIds } = await withStubs({ systems: ["viscera"], detail: 1 }, (ids) => ids.filter((id) => id !== "liver"));
+      expect(packIds).not.toContain("liver");
+      expect(shapes.length).toBe(packIds.length);
+    });
+
+    test("the scene handle: peel restyles the shapes, presets set the view, a click names the part", async () => {
+      const { shapes, calls, scene } = await withStubs({ systems: ["viscera"], detail: 1 }, (ids) => ids);
+      expect(scene).not.toBeNull();
+      expect(scene!.parts).toContain("heart");
+      scene!.setPeel(1);
+      expect(shapes.at(-1)!.styles.at(-1)).toEqual({ opacity: 0 }); // skin gone
+      const heart = scene!.parts.indexOf("heart");
+      expect(shapes[heart].styles.at(-1)).toEqual({ opacity: 1 }); // a deep organ stays
+      scene!.view("side");
+      expect(calls.slice(-3, -1)).toEqual(['setView:["view"]', "rotate:90y"]);
+      scene!.view("back");
+      expect(calls.slice(-3, -1)).toEqual(['setView:["view"]', "rotate:180y"]);
+      scene!.view("front");
+      expect(calls.at(-2)).toBe('setView:["view"]');
+      let named: string | null = "unset";
+      scene!.onName((n) => (named = n));
+      (shapes[heart].spec.callback as () => void)();
+      expect(named).toBe("Heart");
+    });
+
+    test("names follow the figure's language", async () => {
+      const { shapes, scene } = await withStubs({ systems: ["viscera"], detail: 1, names: "nb" }, (ids) => ids);
+      let named: string | null = null;
+      scene!.onName((n) => (named = n));
+      (shapes[scene!.parts.indexOf("heart")].spec.callback as () => void)();
+      expect(named).toBe("Hjerte");
+    });
+
+    test("a failed index fetch shows plain failure text and never throws", async () => {
+      resetModel3dCacheForTests();
+      MODEL3D_DEF.load = async () => ({ createViewer: () => stubViewer().viewer });
+      ANATOMY3D_DEF.fetch = async () => {
+        throw new Error("offline");
+      };
+      const container = { replaceChildren: vi.fn() } as unknown as HTMLElement;
+      await openModel3d({ open: true } as unknown as HTMLDialogElement, container, { kind: "anatomy", input: anatomyInputFrom({}) }, new AbortController().signal);
+      expect(container.replaceChildren).toHaveBeenLastCalledWith(expect.stringMatching(/Couldn't load the 3D view: offline/));
+    });
+
+    test("a superseded open never mounts the body", async () => {
+      resetModel3dCacheForTests();
+      const { viewer, shapes } = stubViewer();
+      MODEL3D_DEF.load = async () => ({ createViewer: () => viewer });
+      const ac = new AbortController();
+      ANATOMY3D_DEF.fetch = async (url) => {
+        ac.abort(); // the dialog closes while the pack is in flight
+        return url.endsWith("index.json") ? fakePack([]) : cubeBytes();
+      };
+      const container = { replaceChildren: vi.fn() } as unknown as HTMLElement;
+      await openModel3d({ open: true } as unknown as HTMLDialogElement, container, { kind: "anatomy", input: anatomyInputFrom({}) }, ac.signal);
+      expect(shapes).toEqual([]);
+      expect(container.replaceChildren).toHaveBeenCalledTimes(1); // only the "Loading…" line
+    });
   });
 });

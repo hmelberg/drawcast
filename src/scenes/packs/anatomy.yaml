@@ -8,6 +8,8 @@ version: 2
 kit: 8
 status: ready
 engines: [anatomy]
+model3d:
+  kind: anatomy
 description: >-
   The human body drawn from a named anatomical atlas, seen from the front: a
   body outline with the internal organs (default) and/or the skeleton with its
@@ -30,7 +32,9 @@ description: >-
   chooses the label language. Choose this scene for ANY request to draw,
   label, locate or quiz the human body, an organ, a bone, a joint, the
   skeleton, the abdomen, or where something is in the body. An unrecognised
-  part name is skipped and listed in a small note rather than failing.
+  part name is skipped and listed in a small note rather than failing. The
+  ⬡ 3D button in the app shows the same body as meshes — say so in a closing
+  line when the lesson is about shape or depth.
   Silhouettes are frontal projections of BodyParts3D meshes (© The Database
   Center for Life Science, CC BY-SA 2.1 Japan).
 params:

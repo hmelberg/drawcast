@@ -19,7 +19,7 @@ export interface TemplateDoc {
   examples: { request: string; params: Record<string, unknown> }[];
   engines?: string[];
   /** Explore-in-3D affordance: present when a 3Dmol.js view can be built for this scene. */
-  model3d?: { kind: "molecule"; source: "preset" | "smiles" };
+  model3d?: { kind: "molecule"; source: "preset" | "smiles" } | { kind: "anatomy" };
   /** Intrinsic interactions the scene offers while paused (free play, exercises). */
   interactions?: InteractionKind[];
   /** JS function body: (params, kit, engines) => SceneLayout. Required when ready. */
@@ -105,9 +105,15 @@ export function validateTemplateDoc(raw: unknown): DocResult {
       errors.push("model3d must be an object");
     } else {
       const m3 = d.model3d as Record<string, unknown>;
-      if (m3.kind !== "molecule") errors.push(`model3d.kind must be "molecule" — got ${JSON.stringify(m3.kind)}`);
-      if (m3.source !== "preset" && m3.source !== "smiles") {
-        errors.push(`model3d.source must be "preset" or "smiles" — got ${JSON.stringify(m3.source)}`);
+      if (m3.kind === "molecule") {
+        if (m3.source !== "preset" && m3.source !== "smiles") {
+          errors.push(`model3d.source must be "preset" or "smiles" — got ${JSON.stringify(m3.source)}`);
+        }
+      } else if (m3.kind === "anatomy") {
+        // The mesh pack in public/anatomy3d/ is the source; there is nothing to choose.
+        if (m3.source !== undefined) errors.push('model3d.source does not apply to kind "anatomy" — the mesh pack is the source');
+      } else {
+        errors.push(`model3d.kind must be "molecule" or "anatomy" — got ${JSON.stringify(m3.kind)}`);
       }
     }
   }
