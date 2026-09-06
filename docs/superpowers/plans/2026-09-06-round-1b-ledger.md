@@ -139,3 +139,5 @@ ANVIL SIDE READY TO PUSH: e98cbb1..8299fc8 (12 commits), pytest 400 exit 0. Held
 Ruling: the final whole-branch review is split by repository and the client half runs NOW, in parallel with Task 8's review — the client side has been complete since Task 11 and its reviewer is read-only in a different repository; the Anvil half follows Task 8. One fix wave covers both halves. Cost if wrong: two final reviewers instead of one, each seeing one repo — the cross-repo seams (the body shapes, the status words) are named in each dispatch so neither reviewer is blind to the other side.
 
 CLIENT SIDE OF ROUND 1b COMPLETE: Tasks 9, 10, 11 — drawcast 0650fbf..f61c563, vitest 4632, tsc clean. Nothing here depends on the Anvil pull except the smoke.
+
+PUSHED to drawcast-anvil origin/master: e98cbb1..8299fc8 (12 commits), on Hans's "push" 2026-09-06. Verified origin/master == 8299fc8. Hans pulls in the Anvil editor with "source code"; Task 12 (the smoke) follows the pull.
