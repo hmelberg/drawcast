@@ -313,3 +313,29 @@ describe("anatomy: asking the viewer to find things", () => {
     }
   });
 });
+
+describe("anatomy: the examples", () => {
+  beforeEach(async () => {
+    unregisterPack("anatomy");
+    await ensureEngines(["anatomy"]);
+    registerPack("anatomy", anatomyYaml);
+  });
+
+  test("every anatomy manifest example is lint-clean, not merely error-free", () => {
+    for (const ex of scenes.anatomy.manifest.examples) {
+      const res = layoutSpec({ template: "anatomy", params: ex.params, elements: [] } as never);
+      expect(res.warnings, `"${ex.request}" produced fallback warnings`).toEqual([]);
+      expect(res.issues.map((i) => i.message), `"${ex.request}"`).toEqual([]);
+    }
+  });
+
+  test("the layout is deterministic", () => {
+    const p = scenes.anatomy.manifest.examples[0].params;
+    expect(JSON.stringify(lay(p))).toBe(JSON.stringify(lay(p)));
+  });
+
+  test("drawcast ships four anatomy examples", async () => {
+    const bundled = (await import("../src/examples.json")).default as { spec?: { template?: string } }[];
+    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(4);
+  });
+});

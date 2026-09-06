@@ -12541,5 +12541,52 @@
         { "highlight": { "target": ["liver"], "effect": "glow" }, "speak": "That is the liver." }
       ]
     }
+  },
+  {
+    "request": "Zoom inn på buken og fortell hva som er der.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "Inne i buken",
+      "template": "anatomy",
+      "params": { "systems": ["viscera"], "focus": ["abdomen"], "highlight": ["liver", "stomach", "spleen", "pancreas"], "labels": "focus", "names": "nb", "detail": 2 },
+      "commands": [
+        { "draw": ["frame", "liver", "label_liver", "stomach", "label_stomach"], "speak": "Vi zoomer inn på buken. Leveren ligger på kroppens høyre side, magesekken på venstre." },
+        { "draw": ["spleen", "label_spleen"], "speak": "Bak magesekken, oppunder ribbeina, ligger milten." },
+        { "draw": ["pancreas", "label_pancreas", "small_intestine", "large_intestine", "gallbladder"], "speak": "Bukspyttkjertelen ligger på tvers bakerst i buken, halvt skjult av alt som ligger foran." },
+        { "quiz": { "question": "Hvilket av disse ligger på kroppens VENSTRE side?", "choices": ["Leveren", "Milten"], "correct": 2, "right": "Milten ligger til venstre; leveren fyller høyre side under ribbeina." } }
+      ]
+    }
+  },
+  {
+    "request": "Show a skeleton with a broken thigh bone and ask what is wrong.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "Something is broken",
+      "template": "anatomy",
+      "params": { "systems": ["skeleton"], "detail": 1, "labels": "none", "findings": [{ "part": "thigh_left", "condition": "fracture", "severity": "severe" }] },
+      "commands": [
+        { "draw": ["body_outline", "skull", "spine", "rib_cage", "pelvis", "shoulder_girdle"], "speak": "A skeleton, seen from the front: skull, spine, rib cage, pelvis." },
+        { "draw": ["upper_arm_left", "forearm_left", "hand_left", "upper_arm_right", "forearm_right", "hand_right", "thigh_left", "lower_leg_left", "foot_left", "thigh_right", "lower_leg_right", "foot_right"], "speak": "Arms and legs." },
+        { "draw": ["finding_thigh_left"], "speak": "One thing here is not as it should be." },
+        { "quiz": { "question": "What has happened?", "choices": ["The thigh bone is fractured", "The hip is dislocated", "Nothing is wrong"], "correct": 1, "right": "The femur is fractured — the break runs straight across the shaft of the thigh bone." } },
+        { "ask": { "question": "Click on the broken bone.", "widget": "click", "answer": "thigh_left", "right": "That is the femur, the longest and strongest bone you have — which is why breaking it takes so much force." } }
+      ]
+    }
+  },
+  {
+    "request": "Quiz me on the joints of the leg.",
+    "packs": ["anatomy"],
+    "spec": {
+      "title": "The joints of the leg",
+      "template": "anatomy",
+      "params": { "systems": ["skeleton"], "detail": 2, "focus": ["leg_left"], "labels": "none" },
+      "commands": [
+        { "draw": ["frame", "femur_left", "patella_left", "tibia_left", "fibula_left", "tarsals_left", "metatarsals_left", "phalanges_foot_left"], "speak": "The left leg: thigh bone, kneecap, shin and calf bones, and the foot." },
+        { "draw": ["hip_left", "knee_left", "ankle_left"], "speak": "Three joints connect them. Find each one." },
+        { "ask": { "question": "Click on the knee.", "widget": "click", "answer": "knee_left", "right": "The knee — where the femur meets the tibia, with the patella riding in front." } },
+        { "ask": { "question": "Click on the ankle.", "widget": "click", "answer": "ankle_left", "right": "The ankle — the tibia standing on the talus, the topmost of the tarsal bones." } },
+        { "ask": { "question": "Click on the hip.", "widget": "click", "answer": "hip_left", "right": "The hip — the head of the femur sitting in the socket of the pelvis." } }
+      ]
+    }
   }
 ]
