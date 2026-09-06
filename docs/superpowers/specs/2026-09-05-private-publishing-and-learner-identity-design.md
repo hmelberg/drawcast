@@ -178,6 +178,20 @@ keeping the password was people without a platform account, and the link
 serves exactly them. The link may also land on the server's own page, for a
 teacher who wants the dashboard: the app redeems it into a session there.
 
+**Addendum (Hans, 2026-09-06): a password for a proven account.** Hans asked
+for email + password as an option. It is safe under one condition — that a
+password can never be *registered*, only *set* by someone who has proved the
+address. So `use_email` goes back on with `allow_signup` **off**: Anvil's
+self-service signup no longer exists, every new account is created by the
+link, Google/Microsoft/Facebook sign in only rows that already exist, and a
+password is set through Anvil's own reset mail, which only the address's
+owner receives. A spent link stamps `confirmed_email` on a **passwordless**
+row — the click is the proof and there is nothing to unlock — so a row the
+link created may later take a password and still ask for a link; round 1a's
+rule (never confirm a row that carries a password) stands for the rows it
+was written for. The cost: a new person's first sign-in is the link, whatever
+they mean to use afterwards.
+
 **"Author key" disappears from the vocabulary.** The app says *Sign in* and
 *Signed in as …*; the token is an implementation detail. `users.author_key`
 becomes a `tokens` table with one row per browser — revocable individually,
@@ -679,7 +693,9 @@ move.
   that never confirms (bounded by the per-address and per-IP budgets, and
   sweepable); and Hans's own row signs in by Google or by the link.
   `confirm_email` stays as it is — it governs a signup path that no longer
-  exists.
+  exists. (Addendum, §1: the password came back as an *option* for proven
+  accounts, with signup closed; the planted-row class stays closed because
+  a password can only be set through the reset mail.)
 - **The `users` table stops being teachers only.** `_user_by_email`'s
   full-table scan must be re-read against a table with student rows in it.
 - **A catalogue is a moderation surface.** The moment strangers can list
