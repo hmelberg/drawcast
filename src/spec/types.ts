@@ -348,7 +348,14 @@ export interface AskArgs {
    *  piano = press a key on the drawn keyboard (answer = the note, e.g. "C4");
    *  chess = click two squares (answer = the move, e.g. "e2e4");
    *  code = write a script on a code panel (implied by `code`). Requires answer. */
-  widget?: "click" | "piano" | "chess" | "code";
+  widget?: "click" | "piano" | "chess" | "code" | "drag";
+  /** drag widget: what to drag onto the figure — element ids, notes (piano) or
+   *  squares (chess), each with an optional label (default: the id humanised).
+   *  The answer is implied (all of them); `right` is required. */
+  items?: (string | { id: string; label?: string })[];
+  /** drag widget: how far outside a target's outline a drop may land and still
+   *  count, as a fraction of the target's bbox diagonal (default 0.25; 0 = inside only). */
+  tolerance?: number;
   /** code widget: the code element the viewer writes in — normally an empty
    *  or stubbed panel with a frame, which opens with its editor on it. */
   code?: string;

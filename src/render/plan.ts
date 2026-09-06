@@ -9,6 +9,7 @@ import type { Pt } from "../layout/model";
 import type { CodeWindow } from "../layout/code";
 import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
+import { normalizeItems } from "../ui/drag-model";
 import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
@@ -36,8 +37,13 @@ export type PlanStep = (
       required: boolean;
       rightGoto?: string;
       wrongGoto?: string;
-      widget?: "click" | "piano" | "chess" | "code";
+      widget?: "click" | "piano" | "chess" | "code" | "drag";
       answerBox?: BBox;
+      /** drag widget: the chips, in order; element = a part of the figure (shown and glowed at the end). */
+      items?: { id: string; label: string; element: boolean }[];
+      tolerance?: number;
+      /** drag widget: every target's box, in item order — the movie's laser taps each. */
+      answerBoxes?: BBox[];
       /** code widget: the panel the viewer writes in, and what to read back. */
       codeId?: string;
       expect?: string;
@@ -280,10 +286,33 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // intro prepends either way (inside the step, so skipping skips it).
       if (currentNarration === undefined) currentNarration = cmd.ask.question;
       if (cmd.ask.intro) currentNarration = `${cmd.ask.intro} ${currentNarration}`;
+      // The drag widget: each item is an element of the figure (its box; shown
+      // when the question ends), a piano note or a chess square. What nothing
+      // locates is skipped and said. The answer is all of them.
+      let drag: { items: { id: string; label: string; element: boolean }[]; boxes: BBox[]; answer: string } | undefined;
+      if (cmd.ask.widget === "drag" && cmd.ask.items) {
+        const items: { id: string; label: string; element: boolean }[] = [];
+        const boxes: BBox[] = [];
+        for (const it of normalizeItems(cmd.ask.items)) {
+          const own = currentBox(it.id);
+          const box = own ?? pianoKeyBox(pianoOctaves(opts.animateBase), it.id) ?? chessSquareBox(opts.animateBase?.["flip"] === true, it.id);
+          if (!box) {
+            warnings.push(`drag item "${it.id}" is not an element, a note or a square of this figure (skipped)`);
+            continue;
+          }
+          items.push({ id: it.id, label: it.label, element: own !== null });
+          boxes.push(box);
+        }
+        drag = { items, boxes, answer: items.map((i) => i.id).join(",") };
+        const shown = items.filter((i) => i.element).map((i) => i.id);
+        shown.forEach((id) => mentioned.add(id));
+        makeVisible(shown); // the reveal: the true parts are there once the question ends
+      }
       pushStep({
         kind: "ask",
         question: cmd.ask.question,
         ...(cmd.ask.answer !== undefined ? { answer: cmd.ask.answer } : {}),
+        ...(drag ? { answer: drag.answer, items: drag.items, tolerance: cmd.ask.tolerance ?? 0.25, answerBoxes: drag.boxes, ...(drag.boxes[0] ? { answerBox: drag.boxes[0] } : {}) } : {}),
         ...(cmd.ask.right !== undefined ? { right: cmd.ask.right } : {}),
         ...(cmd.ask.wrong !== undefined ? { wrong: cmd.ask.wrong } : {}),
         reveal: cmd.ask.reveal !== false,
