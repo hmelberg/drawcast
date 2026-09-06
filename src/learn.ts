@@ -52,15 +52,19 @@ export type LearnEvent = { kind: "opened" | "completed"; cast: string } | ({ kin
 const MAX_ATTEMPTS = 10;
 const MAX_TEXT = 2000;
 
+/** What became of a report. `refused` is the server's no — `401 key` (the
+ *  token is dead) or `403 enrol` (the account is not in this cast's course)
+ *  — and the caller stops asking for this cast; `failed` is everything else
+ *  (no token, not a cast key, the network, a 5xx, a 429), after which the
+ *  next event may still get through. None of it is the player's business
+ *  to shout about; it goes on drawing. */
+export type SendOutcome = "ok" | "refused" | "failed";
+
 /**
- * Report one event under the account `key` names. `false` for every way it
- * can fail — no token, a key that is not a cast key, the network, and the
- * server's own refusals: `401 key` (the token is dead) and `403 enrol` (the
- * account is not in this cast's course). None of those is the player's
- * business to shout about; it goes on drawing.
+ * Report one event under the account `key` names. Never throws.
  */
-export async function sendEvent(api: string, ev: LearnEvent, key: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
-  if (!CAST_KEY_RE.test(ev.cast) || !key) return false;
+export async function sendEvent(api: string, ev: LearnEvent, key: string, fetchImpl: typeof fetch = fetch): Promise<SendOutcome> {
+  if (!CAST_KEY_RE.test(ev.cast) || !key) return "failed";
   const payload: LearnEvent =
     ev.kind === "answer"
       ? { ...ev, given: ev.given.slice(-MAX_ATTEMPTS).map((g) => g.slice(0, MAX_TEXT)), expected: ev.expected.slice(0, MAX_TEXT) }
@@ -74,13 +78,14 @@ export async function sendEvent(api: string, ev: LearnEvent, key: string, fetchI
       body: JSON.stringify({ key, ...payload }),
       keepalive: true,
     });
-    return res.ok;
+    if (res.ok) return "ok";
+    return res.status === 401 || res.status === 403 ? "refused" : "failed";
   } catch {
-    return false;
+    return "failed";
   }
 }
 
-export type JoinOutcome = "ok" | "key" | "closed" | "run" | "invalid" | "rate" | "error";
+export type JoinOutcome = "ok" | "pending" | "rejected" | "key" | "closed" | "run" | "invalid" | "rate" | "error";
 
 export interface JoinRequest {
   /** The course key — what a course name resolves to (owner/repo/<dir>). */
@@ -95,10 +100,11 @@ export interface JoinRequest {
 /**
  * One click for a signed-in account (spec §3). Idempotent on the server, so
  * joining twice is the same enrolment. Never throws; an empty token is "key"
- * without a request, since the server could only answer 401 to it. The
- * server's words map one to one: `401 key`, `403 closed` (the run is not
- * taking learners), `404 run` (no such run), `400 invalid` (the body itself
- * was refused — an answer, not an outage), `429 rate`.
+ * without a request, since the server could only answer 401 to it. `200
+ * {state}` maps to `ok`, `pending` or `rejected`. The rest of the server's
+ * words map one to one: `401 key`, `403 closed` (the run is not taking
+ * learners), `404 run` (no such run), `400 invalid` (the body itself was
+ * refused — an answer, not an outage), `429 rate`.
  */
 export async function joinCourse(api: string, key: string, req: JoinRequest, fetchImpl: typeof fetch = fetch): Promise<JoinOutcome> {
   if (!key) return "key";
@@ -108,7 +114,13 @@ export async function joinCourse(api: string, key: string, req: JoinRequest, fet
       headers: { "content-type": "text/plain" },
       body: JSON.stringify({ key, ...req }),
     });
-    if (res.ok) return "ok";
+    if (res.ok) {
+      // The answer's `state` (spec §3): pending when the run wants approval,
+      // rejected when the teachers already said no. A 200 with anything
+      // else — active, no field, a body that is not JSON — is in.
+      const body = (await res.json().catch(() => ({}))) as { state?: unknown };
+      return body.state === "pending" ? "pending" : body.state === "rejected" ? "rejected" : "ok";
+    }
     switch (res.status) {
       case 401:
         return "key";
@@ -133,6 +145,10 @@ export function joinNote(outcome: JoinOutcome): string {
   switch (outcome) {
     case "ok":
       return "You're in. Your progress and answers in this course are kept for you and its teachers.";
+    case "pending":
+      return "Your request is with the course's teachers — you'll get an email when they decide.";
+    case "rejected":
+      return "The course's teachers declined your request to join. If that seems wrong, ask them directly.";
     case "key":
       return "Your sign-in has expired — sign in again to join.";
     case "closed":

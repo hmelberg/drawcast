@@ -1797,11 +1797,18 @@ const settingsBlocks = new Map<string, HTMLElement>([
       "div",
       { class: "settings-field" },
       h("label", {}, "drawcast account"),
-      h("div", { class: "settings-row" }, signInBtn, signOutBtn, signInState),
+      h(
+        "div",
+        { class: "settings-row" },
+        signInBtn,
+        signOutBtn,
+        signInState,
+        h("a", { href: `${DEFAULT_ENROLL_API}/`, target: "_blank", rel: "noopener" }, "Your account"),
+      ),
       h(
         "div",
         { class: "settings-note" },
-        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out here, or from the dashboard for every browser at once.",
+        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out here, or from the dashboard for every browser at once. Your account page on the server shows the courses you follow, your progress, and the way out of a course.",
       ),
     ),
   ],
@@ -4196,7 +4203,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
  * reason the Drive publish gives below: the GitHub default would charge for
  * every line again, or hand over lines from a different publish entirely.
  */
-async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access: ServerAccess }): Promise<void> {
+async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access?: ServerAccess }): Promise<void> {
   const accountToken = getToken();
   if (!accountToken) {
     setStatus("Not signed in — sign in from Settings → Publishing (drawcast account) to publish to the drawcast server.", "error");
@@ -4274,17 +4281,17 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     } else {
       note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
     }
-    // Which door this publish just set. The server writes `access` on EVERY
-    // spec write and the panel starts closed on every open, so a cast
-    // published as "Anyone with the link", edited and republished is now
-    // closed — and every link already shared answers a sign-in prompt. The
-    // publish is the only party that knows what it sent, so it says so, in
-    // the same line and the same voice as the narration. (Reading the live
-    // setting back before publishing is spec §5's cure, and round 1's.)
+    // Which door this publish set, or that it left the door alone: the
+    // server keeps the course's value unless the body carries one (spec §5),
+    // so *as before* is a true statement about what happened, not a guess.
     const door =
-      access === "open"
-        ? " — open: anyone with the link can watch"
-        : ' — closed: only you can watch, signed in; a link shared while it was open now asks to sign in (publish again as "Anyone with the link" to reopen it)';
+      access === undefined
+        ? " — who can watch: as before (enrolled learners and you, on a first publish)"
+        : access === "open"
+          ? " — open: anyone with the link can watch"
+          : access === "signed-in"
+            ? " — anyone signed in can watch"
+            : " — enrolled learners (and you) can watch; a link shared while it was open now asks to sign in";
     if (typeof out.audio === "object") {
       setStatus(
         `Published to ${address}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,

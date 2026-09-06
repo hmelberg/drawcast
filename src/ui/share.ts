@@ -162,13 +162,14 @@ export interface ShareDeps {
    * mean what they mean above; `name` is the server panel's name field — a
    * slug like Link's, the key's first segment and the name registered after
    * the publish — undefined when left empty; `access` is the "Who can watch"
-   * choice, two of spec §5's three values in this round.
+   * choice — one of spec §5's three values, or undefined for "as before",
+   * which sends nothing and leaves the course's door as the server has it.
    *
    * Required for the same reason `publishDrive` is: the server is never
    * offered to a course here (`courses: false`), so course.ts passes a stub
    * it had to write rather than a field a future caller can forget.
    */
-  publishServer: (choices: { bake: boolean; embedImages: boolean; name?: string; access: ServerAccess }) => Promise<void>;
+  publishServer: (choices: { bake: boolean; embedImages: boolean; name?: string; access?: ServerAccess }) => Promise<void>;
   /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
@@ -642,14 +643,17 @@ function build(): ShareSession {
   );
   const serverNameCheck = buildNameCheck(serverNameInput);
   const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput, serverNameCheck.button), serverNameCheck.note, serverNameHint);
-  // "Who can watch" (spec §5, question 2) — two of its three values in this
-  // round, because two are all the server enforces: `open` is public,
-  // anything else is the owner's alone until enrolment lands. Defaults
-  // CLOSED, unlike GitHub, where the files are public whatever is chosen.
+  // "Who can watch" (spec §5, question 2): the COURSE's door, edited live
+  // in the dashboard — so the default here is "as before", which sends
+  // nothing and leaves the server's value alone. A choice is the author's
+  // explicit edit and writes through. Absence-means-keep is what stops a
+  // republished lecture from re-opening a door a teacher closed.
   const serverAccess = h("select", { "aria-label": "Who can watch" }) as HTMLSelectElement;
   for (const [v, label] of [
-    ["enrolled", "Only you, for now"],
+    ["", "As before"],
     ["open", "Anyone with the link"],
+    ["signed-in", "Anyone signed in"],
+    ["enrolled", "Enrolled learners (and you)"],
   ]) {
     serverAccess.appendChild(h("option", { value: v }, label));
   }
@@ -657,13 +661,10 @@ function build(): ShareSession {
     "div",
     {},
     h("label", { class: "quiet-label" }, "Who can watch ", serverAccess),
-    // Said before the click, like the narration: the choice is not remembered
-    // and the server keeps only the last answer, so a republish left on
-    // "Only you" closes a cast that was open — and every shared link with it.
     h(
       "div",
       { class: "hint" },
-      "A closed cast plays only for you, signed in; enrolment comes next. Every publish sets this anew — publishing again on “Only you” closes a cast that was open.",
+      "As before keeps what the server has — enrolled learners and you, on a first publish. A choice here is the course's door, the same door the dashboard edits: it applies at once to every lecture published under this name.",
     ),
   );
   // Narration defaults ON here too (spec §4, after round 0's quota
@@ -706,7 +707,8 @@ function build(): ShareSession {
       location.href = signInUrl(location.href);
       return;
     }
-    const access: ServerAccess = serverAccess.value === "open" ? "open" : "enrolled";
+    const access: ServerAccess | undefined =
+      serverAccess.value === "open" || serverAccess.value === "signed-in" || serverAccess.value === "enrolled" ? serverAccess.value : undefined;
     // The blur handler's normalization, applied here too — Safari does not
     // move focus to a clicked button, so the field can reach Publish raw, and
     // a raw `learn-russian/3` would pass normalizeName as a sub-name and put
@@ -1327,11 +1329,12 @@ function build(): ShareSession {
     refreshCountViewsChoice(doc);
     refreshSignupChoice(doc, current.subject);
     // The server panel: same prefill as Link (one name across both targets),
-    // access back to closed — a decision about one publish, like the embed
-    // boxes, not a setting — and the sign-in state as of this open.
+    // access back to "as before" — this is the course's door, not a decision
+    // this one publish gets to make by default — and the sign-in state as of
+    // this open.
     serverNameInput.value = doc.publishedAs ?? slugify(doc.title);
     serverNameCheck.reset();
-    serverAccess.value = "enrolled";
+    serverAccess.value = "";
     serverChoices.refresh(doc, current.subject);
     refreshServerSignIn();
     // A filename, not a slug — and the name the file ALREADY has wins over

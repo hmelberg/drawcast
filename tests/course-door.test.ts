@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import type { JoinOutcome } from "../src/learn";
 import { joinNote } from "../src/learn";
-import { courseDoor, type DoorDeps } from "../src/viewer";
+import { courseDoor, deniedDoor, type DoorDeps } from "../src/viewer";
 
 class El {
   tagName: string;
@@ -71,17 +71,20 @@ const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 const RESOLVED = { kind: "course" as const, target: "hmelberg/dcast/learn-russian", page: "https://hmelberg.github.io/dcast/learn-russian/" };
 
 /** A door with every outside dependency recorded, answering `outcome` to a join. */
-function door(opts: { token: string; outcome?: JoinOutcome | Promise<JoinOutcome>; page?: string | null }) {
-  let token = opts.token;
+function door(
+  o: { token: string; outcome?: JoinOutcome | Promise<JoinOutcome>; page?: string | null },
+  opts?: { onJoined?: () => void; lead?: string },
+) {
+  let token = o.token;
   const deps: DoorDeps = {
     token: () => token,
     forget: vi.fn(() => {
       token = "";
     }),
     signIn: vi.fn(),
-    join: vi.fn(async () => opts.outcome ?? "ok"),
+    join: vi.fn(async () => o.outcome ?? "ok"),
   };
-  const root = courseDoor("learn-russian", { ...RESOLVED, page: opts.page === undefined ? RESOLVED.page : opts.page }, deps) as unknown as El;
+  const root = courseDoor("learn-russian", { ...RESOLVED, page: o.page === undefined ? RESOLVED.page : o.page }, deps, opts) as unknown as El;
   const button = root.all().find((e) => e.tagName === "button")!;
   const note = root.all().find((e) => e.className === "viewer-status")!;
   const links = () => root.all().filter((e) => e.tagName === "a");
@@ -157,5 +160,72 @@ describe("the door, signed in", () => {
     expect(d.button.textContent).toBe("Join this course");
     expect(d.deps.forget).not.toHaveBeenCalled();
     expect(d.links()).toHaveLength(0);
+  });
+  test("pending: the button goes, the note is not an error, no lecture link appears — the teachers decide", async () => {
+    const d = door({ token: "tok", outcome: "pending", page: null });
+    d.button.click();
+    await tick();
+    expect(d.note.textContent).toBe(joinNote("pending"));
+    expect(d.note.classList.contains("error")).toBe(false);
+    expect(d.button.hidden).toBe(true);
+    expect(d.links()).toHaveLength(0);
+    expect(d.deps.forget).not.toHaveBeenCalled();
+  });
+  test("rejected: the button goes and the note is an error", async () => {
+    const d = door({ token: "tok", outcome: "rejected", page: null });
+    d.button.click();
+    await tick();
+    expect(d.note.textContent).toBe(joinNote("rejected"));
+    expect(d.note.classList.contains("error")).toBe(true);
+    expect(d.button.hidden).toBe(true);
+    expect(d.links()).toHaveLength(0);
+  });
+  test("with onJoined, a successful join calls it instead of adding the first-lecture link — the caller knows what comes next", async () => {
+    const onJoined = vi.fn();
+    const d = door({ token: "tok", outcome: "ok", page: null }, { onJoined });
+    d.button.click();
+    await tick();
+    expect(onJoined).toHaveBeenCalledTimes(1);
+    expect(d.links()).toHaveLength(0);
+    expect(d.button.hidden).toBe(true);
+  });
+  test("a lead replaces the default sentence above the button", () => {
+    const d = door({ token: "tok" }, { lead: "This drawcast is part of a course you have not joined." });
+    expect(d.note.textContent).toBe("This drawcast is part of a course you have not joined.");
+  });
+});
+
+describe("the door on a refused server cast", () => {
+  function denied(status: 401 | 403, token: string, outcome: JoinOutcome = "ok") {
+    const onJoined = vi.fn();
+    const deps: DoorDeps = { token: () => token, forget: vi.fn(), signIn: vi.fn(), join: vi.fn(async () => outcome) };
+    const root = deniedDoor("anvil/spanish1/01-intro.yaml", status, deps, onJoined) as unknown as El;
+    return { root, deps, onJoined, button: root.all().find((e) => e.tagName === "button")!, note: root.all().find((e) => e.className === "viewer-status")! };
+  }
+  test("401: one button, the sign-in, and no join", () => {
+    const d = denied(401, "");
+    expect(d.button.textContent).toBe("Sign in to watch");
+    d.button.click();
+    expect(d.deps.forget).toHaveBeenCalledTimes(1);
+    expect(d.deps.signIn).toHaveBeenCalledTimes(1);
+    expect(d.deps.join).not.toHaveBeenCalled();
+  });
+  test("403: the course's door, built from the cast key alone — the course is anvil/<slug>, the heading the slug — and a join reloads", async () => {
+    const d = denied(403, "tok");
+    expect(d.root.all().find((e) => e.tagName === "h1")!.textContent).toBe("Spanish1");
+    expect(d.note.textContent).toMatch(/part of a course/i);
+    expect(d.button.textContent).toBe("Join this course");
+    d.button.click();
+    await tick();
+    expect(d.deps.join).toHaveBeenCalledWith("tok", { course: "anvil/spanish1", title: "Spanish1", page: "https://drawcast.app/#spanish1" });
+    expect(d.onJoined).toHaveBeenCalledTimes(1);
+  });
+  test("403, pending: the note says the teachers decide and nothing reloads", async () => {
+    const d = denied(403, "tok", "pending");
+    d.button.click();
+    await tick();
+    expect(d.note.textContent).toBe(joinNote("pending"));
+    expect(d.onJoined).not.toHaveBeenCalled();
+    expect(d.button.hidden).toBe(true);
   });
 });

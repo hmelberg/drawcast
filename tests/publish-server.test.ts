@@ -93,6 +93,13 @@ describe("publishToServer", () => {
     expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
     expect(JSON.parse(init.body as string)).toEqual({ key: "t", cast: "anvil/spanish1/01-intro.yaml", title: "Intro", spec: "meta: {}\n", access: "enrolled" });
   });
+  test("no access chosen, no access in the body — absent means keep (spec §5)", async () => {
+    const { impl, calls } = fetchWith(() => okJson());
+    await publishToServer({ ...ARGS, access: undefined }, impl);
+    const body = JSON.parse(calls()[0][1].body as string) as Record<string, unknown>;
+    expect("access" in body).toBe(false);
+    expect(body).toMatchObject({ key: "t", cast: "anvil/spanish1/01-intro.yaml", title: "Intro" });
+  });
   test("the audio goes RAW — the document itself as the body, the cast and the token in the query", async () => {
     const { impl, calls } = fetchWith(okJson);
     await publishToServer({ ...ARGS, token: "a b" }, impl);
@@ -168,7 +175,7 @@ describe("the drawcast server in Share", () => {
     expect(store).toMatch(/return v === [^\n]*"server"/);
   });
   test("hands publishServer the shared choices plus the name and the access", () => {
-    expect(share).toMatch(/publishServer:\s*\(choices:\s*\{\s*bake:\s*boolean;\s*embedImages:\s*boolean;\s*name\?:\s*string;\s*access:\s*ServerAccess\s*\}\)\s*=>\s*Promise<void>/);
+    expect(share).toMatch(/publishServer:\s*\(choices:\s*\{\s*bake:\s*boolean;\s*embedImages:\s*boolean;\s*name\?:\s*string;\s*access\?:\s*ServerAccess\s*\}\)\s*=>\s*Promise<void>/);
   });
   test("has a panel and an action button of its own in the modal shell", () => {
     expect(share).toMatch(/const panels: Record<ShareTo, HTMLElement> = \{[^}]*server: serverPanel/);
@@ -186,12 +193,22 @@ describe("the drawcast server in Share", () => {
     const prep = share.slice(share.indexOf("function prepPanels(): void {"), share.indexOf("function refresh(deps: ShareDeps): void {"));
     expect(prep).toContain("refreshServerSignIn();");
   });
-  test("who can watch: two values, closed by default, reset on every open", () => {
+  test("who can watch: as before by default — which sends nothing — then the three doors, reset to as-before on every open", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
-    expect(panel).toContain('["enrolled", "Only you, for now"]');
+    expect(panel).toContain('["", "As before"]');
     expect(panel).toContain('["open", "Anyone with the link"]');
-    expect(panel).toMatch(/serverAccess\.value === "open" \? "open" : "enrolled"/);
-    expect(share).toContain('serverAccess.value = "enrolled";');
+    expect(panel).toContain('["signed-in", "Anyone signed in"]');
+    expect(panel).toContain('["enrolled", "Enrolled learners (and you)"]');
+    expect(panel).toMatch(/const access: ServerAccess \| undefined =/);
+    // Pin the fallback itself, not just the declaration's type: a republish
+    // left at "As before" must send nothing, and "ServerAccess | undefined"
+    // alone does not prove the ternary's else-branch is undefined rather
+    // than round 0's closed-by-default "enrolled".
+    expect(panel).toContain('? serverAccess.value : undefined');
+    expect(panel).not.toContain(': "enrolled";');
+    expect(panel).not.toContain('"Only you, for now"');
+    expect(share).toContain('serverAccess.value = "";');
+    expect(share).not.toContain('serverAccess.value = "enrolled";');
   });
   test("narration is ticked by default on the server panel — storage is free, synthesis is not", () => {
     // Round 0 measured the quota (plans/2026-09-05-round-0-measurements.md):
@@ -220,10 +237,11 @@ describe("the drawcast server in Share", () => {
     expect(panel).toContain("with the same name and title replaces the copy on the server; a changed title may write a new copy beside the old one");
     expect(panel).not.toContain("under the same name replaces the copy");
   });
-  test("says before the click that access is set anew on every publish", () => {
+  test("says before the click that as-before keeps the server's door, and that a choice is the course's, live", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
-    expect(panel).toContain("Every publish sets this anew");
-    expect(panel).toContain("closes a cast that was open");
+    expect(panel).toContain("As before keeps what the server has");
+    expect(panel).toContain("same door the dashboard edits");
+    expect(panel).not.toContain("Every publish sets this anew");
   });
   test("says before the click what unticked narration does, and that plays are not counted here", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
@@ -295,19 +313,19 @@ describe("publishServerCast — main.ts's wiring", () => {
     // and the "also at" note is NOT appended when the short form won
     expect(main).toMatch(/else note = nameNote\(outcome, slug\);/);
   });
-  test("every successful publish says which door it set — the server writes access on every spec write, and the panel starts closed", () => {
-    // A cast published open, edited and republished with the select left at
-    // its default is now closed, and every shared link asks to sign in. The
-    // publish is the only party that knows what it sent, so both success
-    // lines carry it (the failure line too: the spec, and its access, landed).
-    expect(serverCast).toMatch(/const door =\s*access === "open"\s*\?/);
+  test("every successful publish says which door it set — or that it left the door alone", () => {
+    expect(serverCast).toMatch(/const door =\s*access === undefined\s*\?/);
+    expect(serverCast).toContain("as before");
     expect(serverCast).toContain("open: anyone with the link can watch");
-    expect(serverCast).toContain("closed: only you can watch, signed in; a link shared while it was open now asks to sign in");
+    expect(serverCast).toContain("anyone signed in can watch");
+    expect(serverCast).toContain("enrolled learners (and you) can watch");
     expect(serverCast).toMatch(/setStatus\(`Published to \$\{address\}\$\{silent\}\$\{door\}/);
     expect(serverCast).toMatch(/`Published to \$\{address\}\$\{door\}, but WITHOUT its narration/);
-    // Round 0 stops the silence only; reading the live setting back first is
-    // spec §5's cure and round 1's job.
     expect(serverCast).not.toMatch(/api\/cast\?cast=.*access/);
+  });
+  test("Settings links the account home on the server", () => {
+    expect(main).toContain('"Your account"');
+    expect(main).toMatch(/href: `\$\{DEFAULT_ENROLL_API\}\/`/);
   });
   test("the course panel passes a loud stub, like Drive's", () => {
     expect(course).toMatch(/publishServer: async \(\) => shareStatus\(/);

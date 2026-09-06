@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import { anvilHashFor } from "../src/names";
-import { fetchAnvilText, parseViewerHash } from "../src/viewer";
+import { CastDenied, fetchAnvilText, parseViewerHash } from "../src/viewer";
 
 const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
@@ -155,20 +155,36 @@ describe("fetchAnvilText", () => {
     expect(urls.some((u) => /^https:\/\/a\/_\/api\/cast\?cast=anvil%2Fspanish1%2F01\.yaml&key=/.test(u))).toBe(true);
     expect(urls.some((u) => /^https:\/\/a\/_\/api\/cast\/audio\?cast=anvil%2Fspanish1%2F01\.yaml&key=/.test(u))).toBe(true);
   });
-  test("a refusal names the door, not the network", async () => {
+  test("403 — signed in without standing — is a typed refusal the viewer turns into the course's door", async () => {
     const { impl } = fetchWith(() => new Response("{}", { status: 403 }));
-    await expect(fetchAnvilText(REF, impl)).rejects.toThrow(/sign in|not yours/i);
+    const err = await fetchAnvilText(REF, impl).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CastDenied);
+    expect((err as CastDenied).status).toBe(403);
+    expect((err as Error).message).toMatch(/join/i);
   });
-  test("401 — the server's answer to no token at all — is the same door", async () => {
+  test("401 — nobody signed in — is the same class, and says to sign in", async () => {
     const { f, impl } = fetchWith(() => new Response("{}", { status: 401 }));
-    await expect(fetchAnvilText(REF, impl)).rejects.toThrow(/sign in/i);
+    const err = await fetchAnvilText(REF, impl).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CastDenied);
+    expect((err as CastDenied).status).toBe(401);
+    expect((err as Error).message).toMatch(/sign in/i);
     // BOTH requests went out, and that is the accepted cost of fetching them
-    // in parallel: the audio leaves before the spec's status is known, so a
-    // reader who will be refused asks for audio it will also be refused.
-    // Pinned rather than tolerated — if this ever reads 1 again, the fetches
-    // have gone back to sequential and every first play pays an extra
-    // round trip (measured 2026-09-05: ~0.25 s of a ~0.7 s start).
+    // in parallel: the audio leaves before the spec's status is known.
+    // Pinned — if this ever reads 1 again, the fetches have gone back to
+    // sequential and every first play pays an extra round trip.
     expect(f).toHaveBeenCalledTimes(2);
+  });
+  test("the viewer renders a refused server cast as a door, before the generic error line", () => {
+    const run = viewer.slice(viewer.indexOf("export async function runViewer("));
+    const at = run.indexOf("} catch (err) {");
+    const handler = run.slice(at, run.indexOf("status.classList.add(\"error\")", at));
+    expect(handler).toContain("err instanceof CastDenied && req.anvil");
+    expect(handler).toContain("deniedDoor(req.anvil.cast, err.status)");
+    expect(handler.indexOf("deniedDoor(")).toBeLessThan(handler.indexOf("(err as Error).message"));
+    // The door replaces the viewer chrome, not the status line inside it —
+    // a nested door doubled the padding and left a Share button under it.
+    expect(handler).toContain("app.replaceChildren(deniedDoor(");
+    expect(handler).not.toContain("status.replaceWith(deniedDoor(");
   });
   test("a missing cast says so, without blaming the sign-in", async () => {
     const { impl } = fetchWith(() => new Response("{}", { status: 404 }));
@@ -213,8 +229,8 @@ describe("runViewer takes the fourth source through the same door as the others"
     // counter never sees this key (the test above), and this block never
     // uses the counter's.
     expect(viewer).toMatch(/const castKey = req\.anvil \? req\.anvil\.cast : req\.gh \? castKeyFor\(req\.gh\) : null;/);
-    expect(viewer).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey \} : null;/);
-    expect(viewer.match(/void sendEvent\(reporter\.api, \{ kind: "[a-z]+", cast: reporter\.cast/g)).toHaveLength(3);
+    expect(viewer).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey, stopped: false \} : null;/);
+    expect(viewer.match(/report\(\{ kind: "[a-z]+", cast: reporter\.cast/g)).toHaveLength(3);
     const learners = viewer.slice(viewer.indexOf("const castKey = req.anvil"), viewer.indexOf("const settings = loadSettings();"));
     expect(learners.length).toBeGreaterThan(0);
     expect(learners).not.toMatch(/viewKey|recordView|readViewCount/);

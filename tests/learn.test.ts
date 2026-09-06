@@ -81,7 +81,7 @@ describe("firstOpenInSession", () => {
 describe("sendEvent", () => {
   test("posts JSON as text/plain to <api>/_/api/event, carrying the account token as key — and no code", async () => {
     const f = fetchReturning(200, { ok: true });
-    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, f)).toBe(true);
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, f)).toBe("ok");
     const [url, init] = callOf(f);
     expect(url).toBe("https://drawcast.anvil.app/_/api/event");
     expect(init.method).toBe("POST");
@@ -118,22 +118,24 @@ describe("sendEvent", () => {
   });
   test("a cast key that is not a cast key is refused without a request", async () => {
     const f = fetchReturning(200, { ok: true });
-    expect(await sendEvent(API, { kind: "opened", cast: "not-a-key" }, KEY, f)).toBe(false);
+    expect(await sendEvent(API, { kind: "opened", cast: "not-a-key" }, KEY, f)).toBe("failed");
     expect(calls(f)).toBe(0);
   });
   test("no token, no request: signed out reports nothing", async () => {
     const f = fetchReturning(200, { ok: true });
-    expect(await sendEvent(API, { kind: "opened", cast: CAST }, "", f)).toBe(false);
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, "", f)).toBe("failed");
     expect(calls(f)).toBe(0);
   });
-  test("a refusal is false, never a throw into playback — 403 enrol, 401 key, a 500, the network", async () => {
-    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(403, { error: "enrol" }))).toBe(false);
-    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(401, { error: "key" }))).toBe(false);
-    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(500, {}))).toBe(false);
+  test("the answer names the kind of failure, and never throws into playback: a refusal (401 key, 403 enrol) is the server's no; a 500 or the network is 'failed'", async () => {
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(200, { ok: true }))).toBe("ok");
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(403, { error: "enrol" }))).toBe("refused");
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(401, { error: "key" }))).toBe("refused");
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(500, {}))).toBe("failed");
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, fetchReturning(429, { error: "rate" }))).toBe("failed");
     const dead = vi.fn(async () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
-    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, dead)).toBe(false);
+    expect(await sendEvent(API, { kind: "opened", cast: CAST }, KEY, dead)).toBe("failed");
   });
 });
 
@@ -173,7 +175,7 @@ describe("joinCourse", () => {
     expect(await joinCourse(API, KEY, REQ, dead)).toBe("error");
   });
   test("every outcome has its own sentence saying what to do next", () => {
-    const outcomes: JoinOutcome[] = ["ok", "key", "closed", "run", "invalid", "rate", "error"];
+    const outcomes: JoinOutcome[] = ["ok", "pending", "rejected", "key", "closed", "run", "invalid", "rate", "error"];
     const notes = outcomes.map((o) => joinNote(o));
     for (const note of notes) expect(note.length).toBeGreaterThan(10);
     expect(new Set(notes).size).toBe(outcomes.length);
@@ -182,5 +184,20 @@ describe("joinCourse", () => {
     expect(joinNote("closed")).toMatch(/ask its teacher/);
     expect(joinNote("invalid")).not.toMatch(/could not reach/i);
     expect(joinNote("error")).toMatch(/could not reach/i);
+  });
+  test("a 200 whose state is pending or rejected is that, not 'ok' — the run wants approval, or already said no", async () => {
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(200, { ok: true, state: "pending" }))).toBe("pending");
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(200, { ok: true, state: "rejected" }))).toBe("rejected");
+    // Anything else in a 200 — active, a missing field, a body that is not
+    // JSON — is in.
+    expect(await joinCourse(API, KEY, REQ, fetchReturning(200, { ok: true }))).toBe("ok");
+    const notJson = vi.fn(async () => new Response("ok", { status: 200 })) as unknown as typeof fetch;
+    expect(await joinCourse(API, KEY, REQ, notJson)).toBe("ok");
+  });
+  test("the notes for pending and rejected tell the learner what happens next, and never say 'You're in'", () => {
+    expect(joinNote("pending")).toMatch(/teachers/i);
+    expect(joinNote("pending")).toMatch(/email/i);
+    expect(joinNote("rejected")).toMatch(/declined/i);
+    for (const o of ["pending", "rejected"] as const) expect(joinNote(o)).not.toMatch(/you're in/i);
   });
 });
