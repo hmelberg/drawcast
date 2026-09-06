@@ -89,14 +89,31 @@ export function visibleParts(all: Record<string, AtlasPart>, q: Anatomy3dInput):
 
 // ---------- how the parts look ----------
 
-/** How see-through a part is at a peel value in [0, 1]: the skin is a faint
- *  shell that goes first, superficial organs and the whole skeleton fade with
- *  the peel, deep organs stay solid — so peeling shows what lies behind. */
-export function peelOpacity(part: Pick<AtlasPart, "kind" | "system" | "layer">, peel: number): number {
+/** The peel works from the front: each part's rank in [0, 1] is where its
+ *  front-most point sits among the parts shown — 0 for the one reaching
+ *  furthest toward the camera (the skin, when it is there), 1 for the one
+ *  furthest back. Ranks come from the pack's bounding boxes (max Z), not the
+ *  atlas's mean depth: the lungs' centre lies behind the heart's, but their
+ *  front edges lie in front of it, and it is the front edges that hide. One
+ *  part, or all at the same depth: every rank 0. */
+export function peelRanks(zFronts: number[]): number[] {
+  const max = Math.max(...zFronts);
+  const min = Math.min(...zFronts);
+  const span = max - min;
+  return zFronts.map((z) => (span > 0 ? (max - z) / span : 0));
+}
+
+/** The width of the peel's soft edge, in rank units. */
+export const PEEL_EDGE = 0.1;
+
+/** How see-through a part is at a peel value in [0, 1]: parts whose rank is
+ *  in front of the peel fade out over PEEL_EDGE, parts behind it stay. The
+ *  skin is a faint shell (0.3) even before any peel. At peel 1 only the
+ *  furthest-back part remains. */
+export function peelOpacity(part: Pick<AtlasPart, "kind">, rank: number, peel: number): number {
   const p = Math.max(0, Math.min(1, peel));
-  if (part.kind === "outline") return 0.3 * (1 - p);
-  if (part.layer === "superficial" || part.system === "skeleton") return 1 - p;
-  return 1;
+  const o = Math.max(0, Math.min(1, (rank - p + PEEL_EDGE) / PEEL_EDGE));
+  return part.kind === "outline" ? 0.3 * o : o;
 }
 
 export interface CustomShape {

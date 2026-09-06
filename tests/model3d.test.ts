@@ -468,10 +468,15 @@ describe("model3d kind anatomy", () => {
       const b = encodeMesh(clusterMesh(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1]), 0.5));
       return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
     };
-    /** A pack of exactly these parts, all the same two-triangle mesh. */
+    /** A pack of exactly these parts, all the same two-triangle mesh. Front Z
+     *  (bbox[5]) puts the skin furthest forward, the heart furthest back, the
+     *  rest in between — the order the peel works in. */
     const fakePack = (ids: string[]): string => {
       const parts: Record<string, unknown> = {};
-      for (const id of ids) parts[id] = { files: [`${id}.bin`], triangles: 2, bytes: 0, bbox: [0, 0, 0, 1, 1, 1], system: "viscera", kind: "organ", color: "#123456" };
+      for (const id of ids) {
+        const zFront = id === "body_outline" ? 10 : id === "heart" ? 0 : 5;
+        parts[id] = { files: [`${id}.bin`], triangles: 2, bytes: 0, bbox: [0, 0, 0, 1, 1, zFront], system: "viscera", kind: "organ", color: "#123456" };
+      }
       return JSON.stringify({ version: 1, units: "cm", source: "test", parts });
     };
     const stubViewer = () => {
@@ -554,9 +559,14 @@ describe("model3d kind anatomy", () => {
       expect(scene).not.toBeNull();
       expect(scene!.parts).toContain("heart");
       scene!.setPeel(1);
-      expect(shapes.at(-1)!.styles.at(-1)).toEqual({ opacity: 0 }); // skin gone
+      expect(shapes.at(-1)!.styles.at(-1)).toEqual({ opacity: 0 }); // the skin, furthest forward, is gone
       const heart = scene!.parts.indexOf("heart");
-      expect(shapes[heart].styles.at(-1)).toEqual({ opacity: 1 }); // a deep organ stays
+      expect(shapes[heart].styles.at(-1)).toEqual({ opacity: 1 }); // the furthest-back part stays
+      const liver = scene!.parts.indexOf("liver");
+      expect(shapes[liver].styles.at(-1)).toEqual({ opacity: 0 }); // the middle is peeled too
+      scene!.setPeel(0.5);
+      expect(shapes[liver].styles.at(-1)).toEqual({ opacity: 1 }); // rank 0.5 sits exactly at the peel: whole
+      expect(shapes.at(-1)!.styles.at(-1)).toEqual({ opacity: 0 });
       scene!.view("side");
       expect(calls.slice(-3, -1)).toEqual(['setView:["view"]', "rotate:90y"]);
       scene!.view("back");

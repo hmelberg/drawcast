@@ -11,7 +11,7 @@
 import { scenes } from "../scenes/registry";
 import { ensureEngines, getLoadedEngines } from "../scenes/engines";
 import type { AnatomyEngine, AtlasPart } from "../scenes/anatomy/types";
-import { anatomyInputFrom, decodeMesh, packUrl, partName, peelOpacity, toCustomShape, visibleParts, type Anatomy3dInput, type PackMesh } from "./anatomy3d";
+import { anatomyInputFrom, decodeMesh, packUrl, partName, peelOpacity, peelRanks, toCustomShape, visibleParts, type Anatomy3dInput, type PackMesh } from "./anatomy3d";
 
 // ---------- qualification ----------
 
@@ -245,7 +245,7 @@ export const ANATOMY3D_DEF: { fetch: (url: string, signal: AbortSignal) => Promi
 };
 
 interface PackIndex {
-  parts: Record<string, { files: string[]; color: string }>;
+  parts: Record<string, { files: string[]; color: string; bbox: number[] }>;
 }
 
 /** Decoded meshes by file, kept for the session: a second open of the same
@@ -256,6 +256,8 @@ interface LoadedPart {
   id: string;
   part: AtlasPart;
   color: string;
+  /** The part's front-most point (pack Z, toward the camera) — the peel's order. */
+  zFront: number;
   meshes: PackMesh[];
 }
 
@@ -277,7 +279,9 @@ async function loadAnatomy(q: Anatomy3dInput, signal: AbortSignal): Promise<Load
     }
     return p;
   };
-  return Promise.all(ids.map(async (id) => ({ id, part: all[id], color: index.parts[id].color, meshes: await Promise.all(index.parts[id].files.map(file)) })));
+  return Promise.all(
+    ids.map(async (id) => ({ id, part: all[id], color: index.parts[id].color, zFront: index.parts[id].bbox[5] ?? 0, meshes: await Promise.all(index.parts[id].files.map(file)) })),
+  );
 }
 
 // ---------- viewer lifecycle ----------
@@ -345,13 +349,14 @@ export async function openModel3d(
       const v = viewer;
       const names = q.input.names;
       let nameCb: (name: string | null) => void = () => undefined;
-      const shapes: { part: AtlasPart; shape: Model3dShape }[] = [];
-      for (const { part, color, meshes } of loaded) {
+      const ranks = peelRanks(loaded.map((l) => l.zFront));
+      const shapes: { part: AtlasPart; rank: number; shape: Model3dShape }[] = [];
+      loaded.forEach(({ part, color, meshes }, i) => {
         for (const mesh of meshes) {
-          const spec: Record<string, unknown> = { ...toCustomShape(mesh, color, peelOpacity(part, 0)), callback: () => nameCb(partName(part, names)) };
-          shapes.push({ part, shape: v.addCustom(spec) });
+          const spec: Record<string, unknown> = { ...toCustomShape(mesh, color, peelOpacity(part, ranks[i], 0)), callback: () => nameCb(partName(part, names)) };
+          shapes.push({ part, rank: ranks[i], shape: v.addCustom(spec) });
         }
-      }
+      });
       v.zoomTo();
       v.render();
       const front = v.getView();
@@ -359,7 +364,7 @@ export async function openModel3d(
       const scene: AnatomyScene = {
         parts: loaded.map((l) => l.id),
         setPeel: (peel) => {
-          for (const { part, shape } of shapes) shape.updateStyle({ opacity: peelOpacity(part, peel) });
+          for (const { part, rank, shape } of shapes) shape.updateStyle({ opacity: peelOpacity(part, rank, peel) });
           v.render();
         },
         view: (preset) => {

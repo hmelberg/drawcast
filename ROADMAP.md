@@ -430,11 +430,12 @@ Open follow-ups:
   the primary Spec surface (schema validation + repair pipeline stay
   intact); DOT enters as an input/interchange format, not a replacement.
 - **Anatomy, next rounds** (M1+M2 shipped 2026-09-06; round 2 part 1 — the
-  body from BodyParts3D, skin ground, layers — and part 2 — the Body section
-  of the explore tray, `explore: { anatomy: true }` — shipped 2026-09-06; see
+  body from BodyParts3D, skin ground, layers — part 2 — the Body section of
+  the explore tray, `explore: { anatomy: true }` — and part 3 — the ⬡ 3D
+  panel from the mesh pack in `public/anatomy3d/`, peel, presets, click to
+  name — all shipped 2026-09-06; see
   `docs/superpowers/specs/2026-09-05-anatomy-design.md` and
-  `docs/superpowers/specs/2026-09-06-anatomy-round-2-design.md`):
-  - **3D panel (round 2, part 3).** `manifest.model3d: { kind: "anatomy" }`;
+  `docs/superpowers/specs/2026-09-06-anatomy-round-2-design.md`): `manifest.model3d: { kind: "anatomy" }`;
     decimated BodyParts3D meshes in `public/anatomy3d/` under CC BY-SA, one
     `addCustom` per part, a peel slider, the DBCLS credit in the panel.
   - **Sound (M3).** `tones.ts` has no noise source. Heart sounds want a `noise`

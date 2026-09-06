@@ -4,7 +4,7 @@ import { registerPack, unregisterPack } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import anatomyYaml from "../src/scenes/packs/anatomy.yaml?raw";
 import type { AnatomyEngine, AtlasPart } from "../src/scenes/anatomy/types";
-import { anatomyInputFrom, packUrl, partName, peelOpacity, toCustomShape, visibleParts, type PackMesh } from "../src/ui/anatomy3d";
+import { anatomyInputFrom, packUrl, partName, PEEL_EDGE, peelOpacity, peelRanks, toCustomShape, visibleParts, type PackMesh } from "../src/ui/anatomy3d";
 
 // The 3D panel shows what the figure shows. These tests hold the panel's own
 // copy of the rules against the template's real layout.
@@ -72,21 +72,37 @@ describe("visibleParts agrees with the template's own leaf rule", () => {
   });
 });
 
-describe("peelOpacity", () => {
-  test("skin is a faint shell that peels away first", () => {
-    expect(peelOpacity(all.body_outline, 0)).toBeCloseTo(0.3);
-    expect(peelOpacity(all.body_outline, 1)).toBe(0);
+describe("peelRanks: the front-most part first", () => {
+  test("ranks run from 0 at the largest front Z to 1 at the smallest", () => {
+    expect(peelRanks([14.3, 10, 7.8, 2])).toEqual([0, (14.3 - 10) / 12.3, (14.3 - 7.8) / 12.3, 1]);
   });
-  test("superficial organs and the skeleton fade with the peel; deep organs never do", () => {
-    expect(peelOpacity(all.liver, 0.25)).toBeCloseTo(0.75);
-    expect(peelOpacity(all.femur_left, 0.5)).toBeCloseTo(0.5);
-    expect(peelOpacity(all.kidney_left, 0.9)).toBe(1);
-    expect(peelOpacity(all.pancreas, 1)).toBe(1);
-    expect(peelOpacity(all.heart, 1)).toBe(1);
+  test("one part, or all at one depth: every rank 0", () => {
+    expect(peelRanks([5])).toEqual([0]);
+    expect(peelRanks([5, 5, 5])).toEqual([0, 0, 0]);
+  });
+});
+
+describe("peelOpacity", () => {
+  test("nothing is peeled at 0; the skin is a faint shell even then", () => {
+    expect(peelOpacity(all.heart, 0.5, 0)).toBe(1);
+    expect(peelOpacity(all.heart, 0, 0)).toBe(1);
+    expect(peelOpacity(all.body_outline, 0, 0)).toBeCloseTo(0.3);
+  });
+  test("a part in front of the peel fades over the soft edge; one behind it stays", () => {
+    expect(peelOpacity(all.lung_left, 0.2, 0.5)).toBe(0); // well in front of the peel
+    expect(peelOpacity(all.lung_left, 0.45, 0.5)).toBeCloseTo(0.5); // half-way through the edge
+    expect(peelOpacity(all.lung_left, 0.5, 0.5)).toBe(1); // at the peel: still whole
+    expect(peelOpacity(all.heart, 0.8, 0.5)).toBe(1);
+    expect(PEEL_EDGE).toBe(0.1);
+  });
+  test("at peel 1 only the furthest-back part remains; the skin is gone", () => {
+    expect(peelOpacity(all.body_outline, 0, 1)).toBe(0);
+    expect(peelOpacity(all.lung_left, 0.5, 1)).toBe(0);
+    expect(peelOpacity(all.thoracic_vertebrae, 1, 1)).toBe(1);
   });
   test("peel is clamped", () => {
-    expect(peelOpacity(all.liver, -1)).toBe(1);
-    expect(peelOpacity(all.liver, 2)).toBe(0);
+    expect(peelOpacity(all.liver, 0.5, -1)).toBe(1);
+    expect(peelOpacity(all.liver, 0.5, 2)).toBe(0);
   });
 });
 
