@@ -400,8 +400,26 @@ conversions, the boot lines, the screen's aspect, and the emulator URL.
   BASIC exception that happens to run. A `page.goto` to a URL that differs
   only in the hash does NOT restart vc64web — the smoke used
   `location.reload()`.
-- **Archive picks stay in the Archive's own player**: their items are mostly
-  `.d64`, and Open ROMs have no drive ROM. Items with a `.prg`/`.t64`/`.crt`
-  COULD run in our emulator the catalogue way (archive.org `/cors/` answers
-  cross-origin) — not built; Open ROMs compatibility for 1980s commercial
-  games is the open question.
+- **Archive picks: .prg now plays HERE** (built the same day Hans asked).
+  The Archive tells us what an item boots from — every result carries
+  `emulator_ext`/`emulator_start`, and they ride along in the SEARCH response,
+  so the choice of player costs no extra request. Measured over the whole
+  collection: 96 038 items boot from `.d64`, 2 520 from `.tap`, 196 from
+  `.prg`, 14 from `.t64`/`.crt`. A `.prg` hit is marked in the result list and
+  runs in OUR emulator from `archive.org/cors/<id>/<file>` (the only path of
+  theirs that answers cross-origin — `/download/` redirects to a node that
+  does not); everything else keeps the Archive's own player, and the modal's
+  "open in new tab" goes to the item page, which is the fallback when a
+  program will not start on the free ROMs.
+- **What the free ROMs cannot do, measured 2026-09-06**: a `.d64` sits at
+  READY with no drive even with `dialog_on_missing_roms=false` and
+  `dialog_on_disk=false`; a `.tap` gets through vc64web's tape dialog and then
+  answers `?DEVICE NOT PRESENT`. So disks and tapes are not a matter of
+  suppressing a dialog — the ROMs are missing, full stop.
+- **Hit rate on the eight most-downloaded `.prg` items: six ran** (Portal,
+  Nyan Cat, Big Pixel Nyan, Angry Birds, Chemical Plant Zone, Iceblox Plus);
+  Sonic jammed the CPU and Deflex Remake came up as garbage. A jam raises
+  vc64web's own `alert()` inside the iframe — we cannot catch it, which is
+  the other reason the item page stays one click away.
+- **A wrong file name is an `alert("Error: Failed to fetch")`**, so the name
+  must come from the item's `emulator_start`, never be guessed from the id.

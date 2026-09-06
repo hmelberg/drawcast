@@ -321,11 +321,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     return null;
   };
   /** Switch the machine on: the emulator page, in the modal, with the program in its hash. */
-  const startGame = (url: string, onClose?: () => void): { close: () => void } | null => {
+  const startGame = (url: string, onClose?: () => void, href?: string): { close: () => void } | null => {
     if (!stage) return null;
     return openMediaModal(stage, hd, {
       src: c64EmulatorUrl(url),
-      href: url,
+      // Where "open in a new tab" goes. For an Archive pick that is the
+      // ITEM's page — which carries the Archive's own working player, the
+      // fallback for a program the free ROMs cannot start — not the .prg.
+      href: href ?? url,
       allow: "autoplay; gamepad; fullscreen; clipboard-write",
       ...(onClose ? { onClose } : {}),
     });
@@ -505,9 +508,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // pick runs in the ARCHIVE's own player (see code/c64-archive.ts for
         // why not vc64web: disks need a drive ROM the free ROMs lack). Nothing
         // hosted or chosen by us; the Archive's arrangement, in our modal.
+        // A hit whose item boots from a .prg plays in OUR emulator (keyboard
+        // joystick, no click to start); a disk or tape opens the Archive's own
+        // player. The search result says which — see code/c64-archive.ts.
         const arow = h("div", { class: "cs-tray-row cs-tray-c64" });
         arow.appendChild(h("span", { class: "cs-tray-label" }, "Internet Archive"));
-        const q = h("input", { type: "search", class: "cs-tray-url", placeholder: "Search 17 000 C64 titles…", "aria-label": "Search the Internet Archive" }) as HTMLInputElement;
+        const q = h("input", { type: "search", class: "cs-tray-url", placeholder: "Search the Archive's C64 library…", "aria-label": "Search the Internet Archive" }) as HTMLInputElement;
         const go = h("button", { class: "cs-tray-run" }, "Search");
         const hits = h("select", { class: "cs-menu-select cs-tray-c64-pick", "aria-label": "Results" }) as HTMLSelectElement;
         hits.hidden = true;
@@ -522,15 +528,29 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           try {
             const res = await fetch(archiveSearchUrl(q.value));
             found = parseArchiveSearch(await res.json());
-            hits.replaceChildren(...found.map((f, i) => h("option", { value: String(i) }, f.year ? `${f.title} (${f.year})` : f.title)));
+            hits.replaceChildren(
+              ...found.map((f, i) => {
+                const name = f.year ? `${f.title} (${f.year})` : f.title;
+                return h("option", { value: String(i) }, f.direct ? `\u26a1 ${name}` : name);
+              }),
+            );
             hits.hidden = aplay.hidden = found.length === 0;
-            anote.textContent = found.length === 0 ? "Nothing with that name in the Archive's C64 library." : `${found.length} found — runs in the Archive's own emulator (click its screen to start).`;
+            if (found.length === 0) anote.textContent = "Nothing with that name in the Archive's C64 library.";
+            else describePick();
           } catch {
             anote.textContent = "The Archive did not answer — try again in a moment.";
           } finally {
             go.disabled = false;
           }
         };
+        /** What Play will do with the hit that is selected right now. */
+        const describePick = (): void => {
+          const hit = found[Number(hits.value)];
+          anote.textContent = hit?.direct
+            ? `${found.length} found. \u26a1 plays right here — cursor keys and space are the joystick.`
+            : `${found.length} found — this one runs in the Archive's own player (click its screen to start).`;
+        };
+        hits.addEventListener("change", describePick);
         go.addEventListener("click", () => void search());
         q.addEventListener("keydown", (e) => {
           e.stopPropagation();
@@ -538,11 +558,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         });
         aplay.addEventListener("click", () => {
           const hit = found[Number(hits.value)];
-          const src = hit ? archiveEmbedUrl(hit.id) : null;
-          if (!hit || !src || !stage) return;
+          if (!hit || !stage) return;
+          const src = hit.direct ? null : archiveEmbedUrl(hit.id);
+          if (!hit.direct && !src) return;
           restore();
           close();
-          openMediaModal(stage, hd, { src, href: archivePageUrl(hit.id), allow: "autoplay; gamepad; fullscreen" });
+          if (hit.direct) startGame(hit.direct, undefined, archivePageUrl(hit.id));
+          else openMediaModal(stage, hd, { src: src!, href: archivePageUrl(hit.id), allow: "autoplay; gamepad; fullscreen" });
         });
         arow.appendChild(q);
         arow.appendChild(go);
