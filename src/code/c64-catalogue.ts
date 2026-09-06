@@ -28,7 +28,7 @@ export interface C64Program {
   licence: string;
 }
 
-// Every URL below was checked 2026-09-05: an https host that answers
+// Every URL below was checked 2026-09-05/06: an https host that answers
 // cross-origin (`access-control-allow-origin: *`), a real PRG (the two
 // load-address bytes 01 08), and a repository whose LICENSE says it may be
 // shared. GitHub's raw files are the ideal host for that: the licence sits
@@ -70,6 +70,63 @@ export const C64_PROGRAMS: readonly C64Program[] = [
     url: "https://vc64web.github.io/doc/media/wolfling14.prg",
     note: "A small platform game — the demo vc64web's own documentation ships.",
     licence: "vc64web's own demonstration file, on their URL",
+  },
+  // ---- added 2026-09-06, each one booted in vc64web + Open ROMs and seen
+  // running (Hans: "could we have more games there that work in the same
+  // way?"). The same hunt REFUSED, for the record: every plain-BASIC game
+  // (Open ROMs' BASIC is unfinished — "?NOT IMPLEMENTED ERROR", "?UNDEF'D
+  // STATEMENT"; tenlander above is the lucky exception), a compiled-BASIC
+  // one that jumps into KERNAL addresses the open ROM lacks (BRK), a
+  // chipdisk that does not start from BASIC, and two ports whose graphics
+  // belong to someone the repository's licence does not speak for.
+  {
+    key: "invaders",
+    title: "XCB Invaders",
+    url: "https://raw.githubusercontent.com/neilsf/XC-BASIC/master/examples/invaders/invaders.prg",
+    note: "Space-invaders in XC-BASIC, the compiled BASIC dialect's own example — fire to start.",
+    licence: "MIT (github.com/neilsf/XC-BASIC)",
+  },
+  {
+    key: "puralax",
+    title: "Puralax",
+    url: "https://raw.githubusercontent.com/neilsf/XC-BASIC/master/examples/puralax/puralax.prg",
+    note: "A colour-flooding puzzle game, ported to the C64 in XC-BASIC by Csaba Fekete — F1 to start.",
+    licence: "MIT (github.com/neilsf/XC-BASIC)",
+  },
+  {
+    key: "c-rex",
+    title: "C-Rex Offline",
+    url: "https://raw.githubusercontent.com/wertstahl/C-Rex-Offline-C64/master/prg/C-REX-OFFLINE-Final.prg",
+    note: "Chrome's no-internet dinosaur runner, rebuilt for the C64 with music by LFT — fire to jump.",
+    licence: "GPL-3.0 (github.com/wertstahl/C-Rex-Offline-C64)",
+  },
+  {
+    key: "ronino",
+    title: "Ronino",
+    url: "https://raw.githubusercontent.com/simopa/RONINO/main/ronino.prg",
+    note: "A board-game duel against the computer (NegaMax with alpha-beta pruning), written in C with Oscar64.",
+    licence: "BSD-3-Clause (github.com/simopa/RONINO)",
+  },
+  {
+    key: "3d-cube",
+    title: "3D Cube",
+    url: "https://raw.githubusercontent.com/rohingosling/3d-cube-commodore/main/build/cube-c64.prg",
+    note: "A wireframe cube you rotate in real time — F2 to start, F1 for the keys. A demo, not a game.",
+    licence: "MIT (github.com/rohingosling/3d-cube-commodore)",
+  },
+  {
+    key: "panopticon",
+    title: "Panopticon",
+    url: "https://raw.githubusercontent.com/elsewhere/panopticon/main/panopticon.prg",
+    note: "A demoscene demo from Revision 2014: effects and music, no controls — sit back and watch.",
+    licence: "Unlicense (github.com/elsewhere/panopticon)",
+  },
+  {
+    key: "diffusion",
+    title: "Diffusion",
+    url: "https://raw.githubusercontent.com/pstankiewicz/diffusion/master/diffusion_horizontal.prg",
+    note: "Particles diffusing across a grid, live — a tiny KickC simulation, no controls.",
+    licence: "MIT (github.com/pstankiewicz/diffusion)",
   },
 ];
 

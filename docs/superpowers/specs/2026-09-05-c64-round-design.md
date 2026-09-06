@@ -380,3 +380,28 @@ conversions, the boot lines, the screen's aspect, and the emulator URL.
   screen draws in the system mono, and the colours carry the look.
 - **A program inside the spec** (base64) needs vc64web's player script or a
   reimplementation of its postMessage handshake. Later, if wanted.
+
+## M7 (2026-09-06): keys reach the joystick; a bigger catalogue
+
+- **Joystick on the keyboard by default** — the emulator URL carries
+  `port2=true` (cursor keys + space in port 2), and the media modal hands
+  keyboard focus INTO the iframe on open and on load. Hans: the emulator
+  opened with the controls off and had to be clicked first. (64e26bd)
+- **Seven more programs**, all GitHub-raw, all licensed by their repository,
+  each booted in vc64web + Open ROMs and watched running: `invaders`,
+  `puralax` (XC-BASIC examples, MIT), `c-rex` (GPL-3), `ronino` (BSD-3),
+  `3d-cube` (MIT), `panopticon` (Unlicense demo, Revision 2014), `diffusion`
+  (MIT). Search: 13 GitHub queries → 39 licensed repos with .prg files → 18
+  CORS-checked `$0801` candidates → 13 smoked in the browser.
+- **Open ROMs finding**: plain BASIC V2 programs mostly FAIL there
+  (`?NOT IMPLEMENTED ERROR`, `?UNDEF'D STATEMENT ERROR`) and compiled BASIC
+  that calls KERNAL routines by address BRKs — machine-code games written
+  with cc65/KickC/Oscar64/XC-BASIC are the safe kind. `tenlander` is the
+  BASIC exception that happens to run. A `page.goto` to a URL that differs
+  only in the hash does NOT restart vc64web — the smoke used
+  `location.reload()`.
+- **Archive picks stay in the Archive's own player**: their items are mostly
+  `.d64`, and Open ROMs have no drive ROM. Items with a `.prg`/`.t64`/`.crt`
+  COULD run in our emulator the catalogue way (archive.org `/cors/` answers
+  cross-origin) — not built; Open ROMs compatibility for 1980s commercial
+  games is the open question.

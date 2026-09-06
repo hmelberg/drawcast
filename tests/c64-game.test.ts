@@ -135,7 +135,7 @@ describe("the catalogue", () => {
     expect(resolveGame("wolfling")).toEqual({ url: GAME, title: "Wolfling" });
     expect(resolveGame("c64maze")).toEqual({ url: "https://raw.githubusercontent.com/DarwinNE/C64maze/master/c64maze.prg", title: "C64maze" });
     expect(resolveGame(GAME)).toEqual({ url: GAME, title: "wolfling14.prg" });
-    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(c64maze, crowboy, space-shooter, tenlander, wolfling\) nor an https URL/);
+    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(c64maze, crowboy, space-shooter, tenlander, wolfling, invaders, puralax, c-rex, ronino, 3d-cube, panopticon, diffusion\) nor an https URL/);
     expect(resolveGame("http://example.org/x.prg").reason).toMatch(/https/);
     expect(resolveGame("https://example.org/x.prg#v2").reason).toMatch(/'#'/);
     expect(resolveGame("https://csdb.dk/getinternalfile.php/1/x.prg").reason).toMatch(/csdb\.dk sends no CORS header/);
@@ -179,6 +179,10 @@ describe("the Archive", () => {
 
   test("every catalogue program names the licence that lets us point at it", () => {
     for (const p of C64_PROGRAMS) expect(p.licence.length).toBeGreaterThan(3);
-    expect(C64_PROGRAMS.map((p) => p.key)).toEqual(["c64maze", "crowboy", "space-shooter", "tenlander", "wolfling"]);
+    expect(C64_PROGRAMS.map((p) => p.key)).toEqual([
+      "c64maze", "crowboy", "space-shooter", "tenlander", "wolfling",
+      // 2026-09-06: each booted in vc64web + Open ROMs and seen running
+      "invaders", "puralax", "c-rex", "ronino", "3d-cube", "panopticon", "diffusion",
+    ]);
   });
 });
