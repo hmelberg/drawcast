@@ -5,7 +5,7 @@ import { scenes } from "../src/scenes/registry";
 import { ensureEngines } from "../src/scenes/engines";
 import { flattenDrawables, leafDrawables } from "../src/layout/model";
 import { elementBBoxes, elementRings, layoutSpec } from "../src/layout/layout";
-import { hitElement } from "../src/ui/hit";
+import { hitElement, pointInRing } from "../src/ui/hit";
 import { validateSpec } from "../src/spec/schema";
 import { planCommands } from "../src/render/plan";
 
@@ -113,7 +113,9 @@ describe("anatomy: narrowing and naming", () => {
     expect(ids).toContain("stomach");
     expect(ids).toContain("gallbladder"); // focus pins its subtree to detail 3
     expect(ids).not.toContain("brain");
-    expect(ids).not.toContain("body_outline");
+    // Under focus the silhouette is at most a clipped skin wash — never a stroke that could leave the canvas.
+    const outline = leafDrawables(lay({ focus: ["abdomen"] }).drawables).filter((d) => d.id === "body_outline" || d.id.startsWith("body_outline__"));
+    expect(outline.some((d) => d.kind === "stroke")).toBe(false);
     expect(ids).toContain("frame");
   });
 
@@ -198,8 +200,8 @@ describe("anatomy: narrowing and naming", () => {
   test("the drawn scene never exceeds its point budget", () => {
     const r = lay({ systems: ["skeleton", "viscera"], detail: 3 });
     const pts = leafDrawables(r.drawables).reduce((s, d) => s + ("pts" in d ? d.pts.length : 0), 0);
-    // Ink and wash share each ring, so the drawable count is twice the atlas count; the budget is on atlas points.
-    expect(pts).toBeLessThanOrEqual(2 * 4000 + 200);
+    // Rings are smoothed ×4 and drawn twice (wash + ink); the 6 000 budget is on atlas points.
+    expect(pts).toBeLessThanOrEqual(8 * 6000 + 500);
   });
 });
 
@@ -287,14 +289,32 @@ describe("anatomy: asking the viewer to find things", () => {
     expect(plan.warnings.filter((w) => w.includes("unknown id"))).toEqual([]);
   });
 
+  /** A point inside `id`'s outline and inside no other part's — the measured
+   *  organs overlap in projection (the liver's dome sits behind the lung
+   *  base), so a centroid is not always an unambiguous click. */
+  const soleInterior = (rings: Map<string, [number, number][][]>, id: string): [number, number] => {
+    const own = rings.get(id)!;
+    const xs = own[0].map((p) => p[0]), ys = own[0].map((p) => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    for (let fy = 0.1; fy < 1; fy += 0.1) for (let fx = 0.1; fx < 1; fx += 0.1) {
+      const p: [number, number] = [x0 + fx * (x1 - x0), y0 + fy * (y1 - y0)];
+      if (!own.some((r) => pointInRing(r, p))) continue;
+      let alone = true;
+      // The skin wash and the frame enclose everything; they are the ground, not neighbours.
+      for (const [other, rs] of rings) if (other !== id && other !== "body_outline" && other !== "frame" && rs.some((r) => pointInRing(r, p))) { alone = false; break; }
+      if (alone) return p;
+    }
+    throw new Error(`${id} has no point of its own`);
+  };
+
   test("a click inside the liver resolves to the liver, not to a neighbour whose box overlaps it", () => {
     const res = layoutSpec({ template: "anatomy", params: { systems: ["viscera"], detail: 2, labels: "none" }, elements: [] } as never);
     const boxes = elementBBoxes(res);
     const rings = elementRings(res);
     expect(rings.get("liver"), "the liver must be a closed shape").toBeDefined();
-    expect(hitElement(boxes, centroidOf(rings.get("liver")![0] as [number, number][]), 0, rings)).toBe("liver");
-    // The stomach's box overlaps the liver's; its own centroid still answers "stomach".
-    expect(hitElement(boxes, centroidOf(rings.get("stomach")![0] as [number, number][]), 0, rings)).toBe("stomach");
+    expect(hitElement(boxes, soleInterior(rings, "liver"), 0, rings)).toBe("liver");
+    // The stomach's box overlaps the liver's; a point of its own still answers "stomach".
+    expect(hitElement(boxes, soleInterior(rings, "stomach"), 0, rings)).toBe("stomach");
   });
 
   test("a click on a joint answers the joint, though it sits on top of two bones", () => {
@@ -334,8 +354,69 @@ describe("anatomy: the examples", () => {
     expect(JSON.stringify(lay(p))).toBe(JSON.stringify(lay(p)));
   });
 
-  test("drawcast ships four anatomy examples", async () => {
+  test("drawcast ships nine anatomy examples", async () => {
     const bundled = (await import("../src/examples.json")).default as { spec?: { template?: string } }[];
-    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(4);
+    expect(bundled.filter((e) => e.spec?.template === "anatomy").length).toBe(9);
+  });
+});
+
+describe("anatomy round 2: skin, layers, smoothing", () => {
+  beforeEach(async () => {
+    unregisterPack("anatomy");
+    await ensureEngines(["anatomy"]);
+    registerPack("anatomy", anatomyYaml);
+  });
+  const leafOf = (params: Record<string, unknown>, id: string) => leafDrawables(lay(params).drawables).filter((d) => d.id === id || d.id.startsWith(id + "__"));
+
+  test("the default ground is a skin wash: an area, no stroke", () => {
+    const parts = leafOf({}, "body_outline");
+    expect(parts.some((d) => d.kind === "area")).toBe(true);
+    expect(parts.some((d) => d.kind === "stroke")).toBe(false);
+  });
+
+  test("outline: line draws the silhouette as a closed stroke; none draws nothing", () => {
+    const line = leafOf({ outline: "line" }, "body_outline");
+    expect(line.some((d) => d.kind === "stroke" && (d as { closed?: boolean }).closed)).toBe(true);
+    expect(line.some((d) => d.kind === "area")).toBe(false);
+    expect(leafOf({ outline: "none" }, "body_outline")).toEqual([]);
+    expect(idsOf({ outline: "none" })).not.toContain("body_outline");
+  });
+
+  test("under focus the skin is clipped to the crop and nothing leaves the canvas", () => {
+    for (const outline of ["skin", "line", "none"]) {
+      const res = layoutSpec({ template: "anatomy", params: { focus: ["abdomen"], outline }, elements: [] } as never);
+      expect(res.issues.filter((i) => i.rule === "out-of-canvas"), outline).toEqual([]);
+    }
+    expect(idsOf({ focus: ["abdomen"] })).toContain("frame");
+  });
+
+  test("layer: deep lifts the gut, liver and stomach away and nothing else", () => {
+    const shallow = new Set(idsOf({ detail: 2 }));
+    const deep = new Set(idsOf({ detail: 2, layer: "deep" }));
+    const gone = [...shallow].filter((id) => !deep.has(id)).sort();
+    expect(gone).toEqual(["large_intestine", "liver", "small_intestine", "stomach"]);
+    expect([...deep].filter((id) => !shallow.has(id))).toEqual([]);
+  });
+
+  test("a part behind the gut is dashed while the gut covers it, solid once the gut is lifted", () => {
+    const covered = leafOf({ detail: 2 }, "kidney_left").find((d) => d.kind === "stroke")!;
+    expect(covered.style.dash).toBe(true);
+    const bare = leafOf({ detail: 2, layer: "deep" }, "kidney_left").find((d) => d.kind === "stroke")!;
+    expect(bare.style.dash).not.toBe(true);
+    const liver = leafOf({ detail: 2 }, "liver").find((d) => d.kind === "stroke")!;
+    expect(liver.style.dash).not.toBe(true);
+  });
+
+  test("every drawn ring is smoothed four samples per atlas point, and the pen is softer", async () => {
+    const atlas = (await import("../src/scenes/anatomy/atlas/atlas-viscera.json")).default as { parts: Record<string, { rings: { outer: number[][] }[] }> };
+    const heartInk = leafOf({}, "heart").find((d) => d.kind === "stroke")!;
+    expect((heartInk as { pts: unknown[] }).pts.length).toBe(4 * atlas.parts.heart.rings[0].outer.length);
+    expect(heartInk.style.roughness).toBe(0.7);
+  });
+
+  test("draw order follows measured depth: posterior organs before anterior ones", () => {
+    const order = lay({ detail: 2 }).order;
+    expect(order.indexOf("kidney_left")).toBeLessThan(order.indexOf("small_intestine"));
+    expect(order.indexOf("lung_left")).toBeLessThan(order.indexOf("heart"));
   });
 });

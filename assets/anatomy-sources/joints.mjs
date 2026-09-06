@@ -4,8 +4,8 @@
 // touch along a line), so it takes the mandible's topmost vertex — a condyle.
 
 export const JOINTS = [
-  { id: "shoulder_left", between: ["humerus_left", "scapula"], parent: "arm_left", name: { en: "Left shoulder", nb: "Venstre skulder", la: "Articulatio humeri sinistra" } },
-  { id: "shoulder_right", between: ["humerus_right", "scapula"], parent: "arm_right", name: { en: "Right shoulder", nb: "Høyre skulder", la: "Articulatio humeri dextra" } },
+  { id: "shoulder_left", between: ["humerus_left", "scapula_left"], parent: "arm_left", name: { en: "Left shoulder", nb: "Venstre skulder", la: "Articulatio humeri sinistra" } },
+  { id: "shoulder_right", between: ["humerus_right", "scapula_right"], parent: "arm_right", name: { en: "Right shoulder", nb: "Høyre skulder", la: "Articulatio humeri dextra" } },
   { id: "elbow_left", between: ["humerus_left", "ulna_left"], parent: "arm_left", name: { en: "Left elbow", nb: "Venstre albue", la: "Articulatio cubiti sinistra" } },
   { id: "elbow_right", between: ["humerus_right", "ulna_right"], parent: "arm_right", name: { en: "Right elbow", nb: "Høyre albue", la: "Articulatio cubiti dextra" } },
   { id: "wrist_left", between: ["radius_left", "carpals_left"], parent: "arm_left", name: { en: "Left wrist", nb: "Venstre håndledd", la: "Articulatio radiocarpalis sinistra" } },

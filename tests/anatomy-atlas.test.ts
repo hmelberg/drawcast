@@ -1,17 +1,20 @@
 import { describe, expect, test } from "vitest";
-import body from "../src/scenes/anatomy/atlas-body.json";
-import skeleton from "../src/scenes/anatomy/atlas-skeleton.json";
-import viscera from "../src/scenes/anatomy/atlas-viscera.json";
+import body from "../src/scenes/anatomy/atlas/atlas-body.json";
+import skeleton from "../src/scenes/anatomy/atlas/atlas-skeleton.json";
+import viscera from "../src/scenes/anatomy/atlas/atlas-viscera.json";
 import type { Atlas, AtlasPart, AnatomyEngine } from "../src/scenes/anatomy/types";
 import { ensureEngines, getLoadedEngines } from "../src/scenes/engines";
 
 const BODY = body as unknown as Atlas;
 const SKELETON = skeleton as unknown as Atlas;
 const VISCERA = viscera as unknown as Atlas;
+// Budgets: the measured totals of the first BodyParts3D build (1 151 / 3 674 /
+// 1 137 points, 2026-09-06) plus ~30 % headroom. Raise one only with a reason
+// in the commit.
 const ATLASES: [string, Atlas, number][] = [
   ["body", BODY, 1500],
-  ["skeleton", SKELETON, 4000],
-  ["viscera", VISCERA, 4000],
+  ["skeleton", SKELETON, 4800],
+  ["viscera", VISCERA, 1500],
 ];
 /** Parents may live in another file: the bones' parents are the body atlas's regions. */
 const EVERY_PART: Record<string, AtlasPart> = { ...BODY.parts, ...SKELETON.parts, ...VISCERA.parts };
@@ -41,6 +44,9 @@ describe.each(ATLASES)("%s atlas", (_name, atlas, budget) => {
       expect([1, 2, 3]).toContain(p.detail);
       expect(["any", "female", "male"]).toContain(p.sex);
       expect(Number.isFinite(p.depth), `${id}: depth`).toBe(true);
+      expect(["bodyparts3d", "authored"]).toContain(p.source);
+      if (p.layer) expect(["superficial", "deep"]).toContain(p.layer);
+      if (p.behind) expect(p.layer, `${id}: a part behind others is not itself superficial`).not.toBe("superficial");
       if (p.kind === "group") expect(p.rings, `${id}: a group owns no geometry`).toEqual([]);
       else expect(p.rings.length, `${id}: needs at least one ring`).toBeGreaterThan(0);
       for (const ring of p.rings) {
@@ -112,6 +118,26 @@ test("every region hull encloses the bones it stands for", () => {
 test("the sexed organs are the only sexed parts", () => {
   const sexed = Object.entries(EVERY_PART).filter(([, p]) => p.sex !== "any").map(([id]) => id).sort();
   expect(sexed).toEqual(["prostate", "uterus"]);
+});
+
+test("everything but the uterus is measured", () => {
+  const authored = Object.entries(EVERY_PART).filter(([, p]) => p.source === "authored").map(([id]) => id);
+  expect(authored).toEqual(["uterus"]);
+});
+
+test("the skin is one silhouette", () => {
+  expect(BODY.parts.body_outline.rings.length).toBe(1);
+  expect(BODY.parts.body_outline.rings[0].outer.length).toBeGreaterThan(60);
+});
+
+test("the superficial layer is exactly the gut, liver and stomach", () => {
+  const superficial = Object.entries(VISCERA.parts).filter(([, p]) => p.layer === "superficial").map(([id]) => id).sort();
+  expect(superficial).toEqual(["large_intestine", "liver", "small_intestine", "stomach"]);
+});
+
+test("depth puts the kidneys behind the intestines and the heart in front of the lungs' bulk", () => {
+  expect(VISCERA.parts.kidney_left.depth).toBeLessThan(VISCERA.parts.small_intestine.depth);
+  expect(VISCERA.parts.heart.depth).toBeGreaterThan(VISCERA.parts.lung_left.depth);
 });
 
 describe("the anatomy engine", () => {

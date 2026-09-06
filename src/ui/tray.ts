@@ -154,7 +154,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const repaint = (): void => {
     const view = panelViewFor(stage);
     if (patches.size === 0 && (!view || view.idle())) {
-      hd.timeline.previewParams(overrides);
+      // revealNew: a template whose element SET depends on a param (anatomy's
+      // detail, chess's free play) mints ids the plan never drew. Without the
+      // flag the preview rebuilds only what is already visible — so the
+      // anatomy detail slider changed nothing on screen. Measured against the
+      // plan-time layout, so ids the storyboard deliberately hides stay hidden.
+      hd.timeline.previewParams(overrides, { revealNew: true });
       return;
     }
     let elements = (hd.spec.elements ?? []).map((e) => {

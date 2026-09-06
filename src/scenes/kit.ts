@@ -38,7 +38,7 @@ import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 7; // v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 8; // v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -49,6 +49,8 @@ export interface StrokeOpts {
   strokeWidth?: number;
   dash?: boolean;
   opacity?: number;
+  /** Pen wobble for the sketchy renderer; default is the style's. Anatomy uses 0.7. */
+  roughness?: number;
   /** Which mover of a moving field this belongs to — see `crossing` on
    *  BaseDrawable (layout/model.ts). Race templates only. */
   crossing?: string;
@@ -238,7 +240,7 @@ export interface SceneKit {
    * outlines above all). `holes` punches counters out of it (the hole in a
    * "b", the two in an "8") using fill-rule evenodd, and implies `precise`.
    */
-  area(id: string, pts: Pt[], fill: string, o?: { opacity?: number; ms?: number; holes?: Pt[][]; precise?: boolean }): AreaDrawable;
+  area(id: string, pts: Pt[], fill: string, o?: { opacity?: number; ms?: number; holes?: Pt[][]; precise?: boolean; roughness?: number }): AreaDrawable;
   text(id: string, pos: Pt, s: string, o?: TextOpts): TextDrawable;
   /**
    * The caption for one axis of an L-shaped axes pair, placed by the app's
@@ -264,6 +266,8 @@ export interface SceneKit {
   wave(from: Pt, length: number, amplitude: number, wavelength: number, step?: number): Pt[];
   /** Catmull–Rom smoothing through the given points. */
   smooth(pts: Pt[], per?: number): Pt[];
+  /** Periodic Catmull–Rom through a CLOSED ring — no seam. `per` samples per edge (default 4). */
+  smoothClosed(pts: Pt[], per?: number): Pt[];
   /** Polyline offset by d to the left of travel (double bonds, membranes). */
   parallelOffset(pts: Pt[], d: number): Pt[];
   /** Closed 7-point block-arrow polygon from → to (β-strands, big arrows). */
@@ -559,6 +563,7 @@ export const kit: SceneKit = {
         ...(o.strokeWidth !== undefined && { strokeWidth: o.strokeWidth }),
         ...(o.dash !== undefined && { dash: o.dash }),
         ...(o.opacity !== undefined && { opacity: o.opacity }),
+        ...(o.roughness !== undefined && { roughness: o.roughness }),
       }),
       drawOpts: o.instant ? defaultDrawOpts("instant") : defaultDrawOpts("sketch", o.ms ?? SKETCH_MS.stroke),
     };
@@ -574,7 +579,7 @@ export const kit: SceneKit = {
       ...(precise !== undefined && { precise }),
       z: Z_AREA,
       // A shaded region is a wash (0.35); an exact shape is ink (1).
-      style: defaultStyle({ fill, opacity: o.opacity ?? (precise ? 1 : 0.35), strokeWidth: 0 }),
+      style: defaultStyle({ fill, opacity: o.opacity ?? (precise ? 1 : 0.35), strokeWidth: 0, ...(o.roughness !== undefined && { roughness: o.roughness }) }),
       drawOpts: defaultDrawOpts("sketch", o.ms ?? SKETCH_MS.region),
     };
   },
@@ -670,6 +675,22 @@ export const kit: SceneKit = {
       }
     }
     out.push([pts[pts.length - 1][0], pts[pts.length - 1][1]]);
+    return out;
+  },
+  smoothClosed(pts, per = 4) {
+    const n = pts.length;
+    if (n < 3) return pts.map((p): Pt => [p[0], p[1]]);
+    const out: Pt[] = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      for (let j = 0; j < per; j++) {
+        const t = j / per, t2 = t * t, t3 = t2 * t;
+        out.push([
+          0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+          0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3),
+        ]);
+      }
+    }
     return out;
   },
   parallelOffset(pts, d) {

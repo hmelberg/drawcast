@@ -1,6 +1,29 @@
 # Anatomy sources
 
-## human-skeleton-front.svg
+## BodyParts3D 3.0 (the atlas source since round 2, 2026-09-06)
+
+- Title: BodyParts3D / Anatomography, release 3.0 (20110915), one adult male
+- Publisher: The Database Center for Life Science (DBCLS), Japan
+- Obtained via: https://github.com/Kevin-Mattheus-Moerman/BodyParts3D
+  (binary STL conversions of the original OBJ files, plus `parts_list_e.txt`,
+  `composite_parts.txt`, `conventional_part_of.txt`)
+- Licence: **CC BY-SA 2.1 Japan**. Attribution: "BodyParts3D, © The Database
+  Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan".
+  Citation: Mitsuhashi N et al., Nucleic Acids Res. 2009;37:D782-5,
+  doi:10.1093/nar/gkn613; archive doi:10.18908/lsdba.nbdc00837-000.
+- Downloaded on demand by `scripts/build-anatomy-atlas.mjs` into
+  `.cache/bodyparts3d/` (gitignored, ~150 MB, never committed). The derived
+  atlas lives in `src/scenes/anatomy/atlas/` under its own LICENSE.
+- Axes (measured 2026-09-06): patient's left is +x, anterior is −y, up is +z,
+  millimetres. The frontal view is X = x, Y_down = z_top − z; draw depth is
+  mean −y.
+- Only leaf element files exist in the mirror; composites (heart, brain, skull,
+  rib cage, vertebra sets, hand and foot bone sets) are assembled from
+  `composite_parts.txt`. Sided hand/foot bones are the elements whose names
+  carry "right"/"left". Not in the dataset: coccyx, thyroid gland, uterus (the
+  uterus is the one authored part).
+
+## human-skeleton-front.svg (RESERVE — no longer used by the build)
 
 - Title: Human skeleton front en.svg
 - Author: LadyofHats (Mariana Ruiz Villarreal)

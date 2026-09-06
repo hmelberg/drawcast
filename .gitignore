@@ -13,3 +13,6 @@ dist-engine/
 
 # CPython bytecode from scripts/mdlib-sanity.py — the snapshot ships verbatim
 __pycache__/
+
+# BodyParts3D downloads for scripts/build-anatomy-atlas.mjs — tens of MB, refetched on demand
+.cache/

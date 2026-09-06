@@ -1,11 +1,11 @@
 pack: anatomy
 title: Anatomy
-description: "The human body from a named atlas: organs, bones and joints, colour-coded, at three levels of detail, with every part clickable by name."
+description: "The human body from a named atlas: organs, bones and joints, colour-coded, at three levels of detail, with every part clickable by name. Silhouettes are frontal projections of BodyParts3D meshes (© The Database Center for Life Science, CC BY-SA 2.1 Japan)."
 ---
 template: anatomy
 title: Human anatomy (organs, skeleton, joints)
-version: 1
-kit: 7
+version: 2
+kit: 8
 status: ready
 engines: [anatomy]
 description: >-
@@ -28,6 +28,8 @@ description: >-
   label, locate or quiz the human body, an organ, a bone, a joint, the
   skeleton, the abdomen, or where something is in the body. An unrecognised
   part name is skipped and listed in a small note rather than failing.
+  Silhouettes are frontal projections of BodyParts3D meshes (© The Database
+  Center for Life Science, CC BY-SA 2.1 Japan).
 params:
   type: object
   properties:
@@ -66,6 +68,14 @@ params:
       type: string
       enum: [none, focus, all]
       description: "Which parts get their name written beside them: none, focus (the default: only focused, highlighted or marked parts), or all (every drawn part except the joints)."
+    outline:
+      type: string
+      enum: [skin, line, none]
+      description: "The ground the parts sit on: skin (default) is a soft skin-coloured wash of the body's silhouette with no line; line draws the silhouette as an ink outline; none draws only the parts."
+    layer:
+      type: string
+      enum: [superficial, deep]
+      description: "superficial (default) shows the organs as seen from the front — the gut, liver and stomach in front, kidneys and pancreas dashed behind them. deep lifts the gut, liver and stomach away so the kidneys, adrenals, pancreas, spleen and aorta show in full. Use deep for anything about the retroperitoneum or 'what lies behind'."
     markers:
       type: array
       items:
@@ -96,7 +106,7 @@ params:
     title:
       type: string
 element_ids:
-  body_outline: the body silhouette, drawn on every whole-body figure and left out under focus
+  body_outline: "the body's silhouette — a skin wash by default (outline: skin), an ink outline (line), or absent (none); under focus only a clipped wash, never a stroke"
   frame: a light dashed frame around the crop, present only under focus
   <part_id>: every drawn part is its own element and its id IS its anatomical id (heart, liver, femur_left, knee_left, hand_left at detail 1–2, carpals_left at detail 3) — these are the ids an ask with widget "click" compares against
   label_<part_id>: that part's written name, when labels ask for it
@@ -109,10 +119,10 @@ examples:
     params: { labels: "all", detail: 1 }
   - request: "Where is the liver? Show the body so I can point at it."
     params: { systems: ["viscera"], detail: 2, highlight: ["liver"], labels: "none" }
-  - request: "Zoom inn på buken og navngi det som er der."
-    params: { focus: ["abdomen"], labels: "all", names: "nb" }
-  - request: "Show the skeleton and mark the knees."
-    params: { systems: ["skeleton"], detail: 2, highlight: ["knee_left", "knee_right"], labels: "focus" }
+  - request: "Vis hva som ligger bak tarmene."
+    params: { systems: ["viscera"], detail: 2, layer: "deep", labels: "all", names: "nb" }
+  - request: "The skeleton in plain ink, with the knees marked."
+    params: { systems: ["skeleton"], detail: 2, color: "mono", outline: "line", highlight: ["knee_left", "knee_right"], labels: "focus" }
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const eng = engines.anatomy;
@@ -126,6 +136,11 @@ layout: |
   const namesIn = params.names === "nb" || params.names === "la" ? params.names : "en";
   const labelMode = params.labels === "all" || params.labels === "none" ? params.labels : "focus";
   const mono = params.color === "mono";
+  const outlineMode = params.outline === "line" || params.outline === "none" ? params.outline : "skin";
+  const layerIn = params.layer === "deep" ? "deep" : "superficial";
+  const ROUGH = 0.7;                      // the anatomy pen: a quick sketch, not a nervous one
+  const SKIN = "#f1dccb";
+  const SM = (ring) => kit.smoothClosed(ring, 4);
   const focusIn = Array.isArray(params.focus) ? params.focus : [];
   const highlightIn = Array.isArray(params.highlight) ? params.highlight : [];
   const markersIn = Array.isArray(params.markers) ? params.markers.slice(0, 8) : [];
@@ -166,9 +181,11 @@ layout: |
   // at level 3; the rest at the requested level (lowered if over budget).
   const hasGeo = (id) => all[id].rings.length > 0 && all[id].kind !== "outline";
   const drawnAt = (id, L) => hasGeo(id) && all[id].detail <= L && !(children[id] || []).some((c) => hasGeo(c) && all[c].detail <= L);
-  const leaves = (L) => Object.keys(all).filter((id) => drawnAt(id, focusIds.has(id) ? 3 : L) && (!focusing || focusIds.has(id)));
+  const leaves = (L) => Object.keys(all).filter((id) => drawnAt(id, focusIds.has(id) ? 3 : L) && (!focusing || focusIds.has(id)) && !(layerIn === "deep" && all[id].layer === "superficial"));
   const countPts = (ids) => ids.reduce((s, id) => s + all[id].rings.reduce((t, r) => t + r.outer.length + (r.holes || []).reduce((u, h) => u + h.length, 0), 0), 0);
-  const POINT_BUDGET = 4000;
+  // Atlas points before smoothing (×4) and ink+wash (×2): 6 000 here is ≈ 48 000
+  // drawn, the ceiling for both systems at detail 3; world_map ships 33 000.
+  const POINT_BUDGET = 6000;
   let level = detail, drawIds = leaves(level), reduced = false;
   while (countPts(drawIds) > POINT_BUDGET && level > 1) { level--; drawIds = leaves(level); reduced = true; }
 
@@ -206,11 +223,54 @@ layout: |
     anchors.title = [500, 726];
   }
 
-  // The ground: the whole body's outline, or a frame around the crop.
-  if (!focusing && all.body_outline) {
-    push(kit.stroke("body_outline", all.body_outline.rings[0].outer.map(P), { closed: true, color: C.guide, strokeWidth: 3, ms: MS.stroke }));
-    anchors.body_outline = P(centroidOf(all.body_outline.rings));
-  } else if (focusing) {
+  // The ground. Skin: a wash of the silhouette, no line — paper, not ink, so
+  // labels may cross it and lint has nothing to catch. Line: the silhouette
+  // as ink. Under focus the wash is clipped to the crop box (a rectangle
+  // clip, Sutherland–Hodgman) and a frame marks the crop; a stroke outline is
+  // never drawn under focus because it would leave the canvas.
+  const clipToBox = (ring, x0, y0, x1, y1) => {
+    let out = ring;
+    const clipEdge = (pts, inside, intersect) => {
+      const res = [];
+      for (let i = 0; i < pts.length; i++) {
+        const cur = pts[i], prev = pts[(i - 1 + pts.length) % pts.length];
+        const ci = inside(cur), pi = inside(prev);
+        if (ci) { if (!pi) res.push(intersect(prev, cur)); res.push(cur); }
+        else if (pi) res.push(intersect(prev, cur));
+      }
+      return res;
+    };
+    const lerpX = (a, b, x) => [x, a[1] + (b[1] - a[1]) * ((x - a[0]) / (b[0] - a[0]))];
+    const lerpY = (a, b, y) => [a[0] + (b[0] - a[0]) * ((y - a[1]) / (b[1] - a[1])), y];
+    out = clipEdge(out, (p) => p[0] >= x0, (a, b) => lerpX(a, b, x0));
+    out = clipEdge(out, (p) => p[0] <= x1, (a, b) => lerpX(a, b, x1));
+    out = clipEdge(out, (p) => p[1] >= y0, (a, b) => lerpY(a, b, y0));
+    out = clipEdge(out, (p) => p[1] <= y1, (a, b) => lerpY(a, b, y1));
+    return out;
+  };
+  if (all.body_outline && outlineMode !== "none") {
+    const ring = all.body_outline.rings[0];
+    const outer = SM(ring.outer), holes = (ring.holes || []).map(SM);
+    if (!focusing) {
+      if (outlineMode === "skin") {
+        push(kit.area("body_outline", outer.map(P), SKIN, { opacity: 0.35, holes: holes.length ? holes.map((h) => h.map(P)) : undefined, roughness: 0.5, ms: MS.region }));
+      } else {
+        push(kit.group("body_outline", [
+          kit.stroke("body_outline__ink0", outer.map(P), { closed: true, color: C.guide, strokeWidth: 3, roughness: 0.6, ms: MS.stroke }),
+          ...holes.map((h, j) => kit.stroke("body_outline__hole0_" + j, h.map(P), { closed: true, color: C.guide, strokeWidth: 2, roughness: 0.6, ms: MS.stroke })),
+        ]));
+      }
+      anchors.body_outline = P(centroidOf(all.body_outline.rings));
+    } else if (outlineMode === "skin") {
+      const clipped = clipToBox(outer, bx0, by0, bx1, by1);
+      const clippedHoles = holes.map((h) => clipToBox(h, bx0, by0, bx1, by1)).filter((h) => h.length >= 3);
+      if (clipped.length >= 3) {
+        push(kit.area("body_outline", clipped.map(P), SKIN, { opacity: 0.35, holes: clippedHoles.length ? clippedHoles.map((h) => h.map(P)) : undefined, roughness: 0.5, ms: MS.region }));
+        anchors.body_outline = P(centroidOf([{ outer: clipped }]));
+      }
+    }
+  }
+  if (focusing) {
     push(kit.stroke("frame", [[FRAME.x0, FRAME.y0], [FRAME.x1, FRAME.y0], [FRAME.x1, FRAME.y1], [FRAME.x0, FRAME.y1]], { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
   }
 
@@ -248,15 +308,17 @@ layout: |
     const ink = lit ? C.accent : C.ink;
     const kids = [];
     rings.forEach((ring, i) => {
-      const outer = ring.outer.map(P);
-      const holes = (ring.holes || []).map((h) => h.map(P));
+      const outer = SM(ring.outer).map(P);
+      const holes = (ring.holes || []).map((h) => SM(h).map(P));
+      // A part behind the gut is dashed while the gut covers it: "this lies behind".
+      const dashed = isAbsent(id) || (part.behind === true && layerIn === "superficial" && systems.includes("viscera"));
       if (part.kind === "joint") {
-        kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: lit ? C.accent : "#b5533c", strokeWidth: lit ? 3.5 : 2.5, ms: MS.dot }));
+        kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: lit ? C.accent : "#b5533c", strokeWidth: lit ? 3.5 : 2.5, roughness: ROUGH, ms: MS.dot }));
         return;
       }
-      if (!isAbsent(id)) kids.push(kit.area(id + "__fill" + i, outer, fillOf(id), { opacity: lit ? 0.8 : (mono ? 0.18 : 0.45), holes: holes.length ? holes : undefined, ms: MS.region }));
-      kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: isAbsent(id) ? C.guide : ink, strokeWidth: lit ? 3 : 2, dash: isAbsent(id) || undefined, ms: MS.stroke }));
-      holes.forEach((h, j) => kids.push(kit.stroke(id + "__hole" + i + "_" + j, h, { closed: true, color: ink, strokeWidth: 1.6, ms: MS.stroke })));
+      if (!isAbsent(id)) kids.push(kit.area(id + "__fill" + i, outer, fillOf(id), { opacity: lit ? 0.8 : (mono ? 0.18 : 0.45), holes: holes.length ? holes : undefined, roughness: ROUGH, ms: MS.region }));
+      kids.push(kit.stroke(id + "__ink" + i, outer, { closed: true, color: isAbsent(id) ? C.guide : ink, strokeWidth: lit ? 3 : 2, dash: dashed || undefined, roughness: ROUGH, ms: MS.stroke }));
+      holes.forEach((h, j) => kids.push(kit.stroke(id + "__hole" + i + "_" + j, h, { closed: true, color: ink, strokeWidth: 1.6, roughness: ROUGH, ms: MS.stroke })));
     });
     push(kit.group(id, kids));
     anchors[id] = P(centroidOf(rings));
