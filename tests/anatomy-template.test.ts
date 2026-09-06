@@ -4,7 +4,10 @@ import { registerPack, unregisterPack } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { ensureEngines } from "../src/scenes/engines";
 import { flattenDrawables, leafDrawables } from "../src/layout/model";
-import { layoutSpec } from "../src/layout/layout";
+import { elementBBoxes, elementRings, layoutSpec } from "../src/layout/layout";
+import { hitElement } from "../src/ui/hit";
+import { validateSpec } from "../src/spec/schema";
+import { planCommands } from "../src/render/plan";
 
 const lay = (params: Record<string, unknown>) => scenes.anatomy.layout!(params);
 const idsOf = (params: Record<string, unknown>) => lay(params).order;
@@ -251,5 +254,62 @@ describe("anatomy: findings", () => {
   test("a figure with findings is still lint-clean", () => {
     const res = layoutSpec({ template: "anatomy", params: { systems: ["skeleton"], detail: 2, labels: "none", findings: [{ part: "femur_left", condition: "fracture", severity: "severe" }] }, elements: [] } as never);
     expect(res.issues.map((i) => i.message)).toEqual([]);
+  });
+});
+
+describe("anatomy: asking the viewer to find things", () => {
+  beforeEach(async () => {
+    unregisterPack("anatomy");
+    await ensureEngines(["anatomy"]);
+    registerPack("anatomy", anatomyYaml);
+  });
+
+  const centroidOf = (ring: [number, number][]): [number, number] => [
+    ring.reduce((s, p) => s + p[0], 0) / ring.length,
+    ring.reduce((s, p) => s + p[1], 0) / ring.length,
+  ];
+
+  test("a locate-the-organ spec validates, plans, and its answer is a real element", () => {
+    const spec = {
+      title: "Find the liver",
+      template: "anatomy",
+      params: { systems: ["viscera"], detail: 2, labels: "none" },
+      elements: [],
+      commands: [
+        { draw: ["body_outline", "liver", "stomach", "heart"] },
+        { ask: { question: "Click on the liver.", widget: "click", answer: "liver", right: "The liver sits under the right ribs, the body's largest gland." } },
+      ],
+    };
+    expect(validateSpec(spec)).toMatchObject({ ok: true });
+    const res = layoutSpec(spec as never);
+    expect(res.order).toContain("liver");
+    const plan = planCommands(spec.commands as never, res.order);
+    expect(plan.warnings.filter((w) => w.includes("unknown id"))).toEqual([]);
+  });
+
+  test("a click inside the liver resolves to the liver, not to a neighbour whose box overlaps it", () => {
+    const res = layoutSpec({ template: "anatomy", params: { systems: ["viscera"], detail: 2, labels: "none" }, elements: [] } as never);
+    const boxes = elementBBoxes(res);
+    const rings = elementRings(res);
+    expect(rings.get("liver"), "the liver must be a closed shape").toBeDefined();
+    expect(hitElement(boxes, centroidOf(rings.get("liver")![0] as [number, number][]), 0, rings)).toBe("liver");
+    // The stomach's box overlaps the liver's; its own centroid still answers "stomach".
+    expect(hitElement(boxes, centroidOf(rings.get("stomach")![0] as [number, number][]), 0, rings)).toBe("stomach");
+  });
+
+  test("a click on a joint answers the joint, though it sits on top of two bones", () => {
+    const res = layoutSpec({ template: "anatomy", params: { systems: ["skeleton"], detail: 2, labels: "none" }, elements: [] } as never);
+    const boxes = elementBBoxes(res);
+    const rings = elementRings(res);
+    expect(hitElement(boxes, centroidOf(rings.get("knee_left")![0] as [number, number][]), 0, rings)).toBe("knee_left");
+  });
+
+  test("every drawn part can be the answer to a click ask", () => {
+    const res = layoutSpec({ template: "anatomy", params: { systems: ["skeleton", "viscera"], detail: 2, labels: "none" }, elements: [] } as never);
+    const rings = elementRings(res);
+    for (const id of res.order) {
+      if (id === "body_outline" || id === "frame" || id === "missing_note" || id === "title") continue;
+      expect(rings.has(id), `${id} has no outline to click on`).toBe(true);
+    }
   });
 });
