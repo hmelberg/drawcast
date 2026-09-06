@@ -163,6 +163,18 @@ describe("the Archive", () => {
     expect(new URL(archiveSearchUrl("  ")).searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (*)");
   });
 
+  test("the Demos button browses the scene's own productions, narrowed to what plays here", () => {
+    // pouet.net's C64 productions as the Archive imported them; the .prg ones
+    // are the demos a viewer can watch without leaving the figure.
+    expect(new URL(archiveSearchUrl("", { demos: true })).searchParams.get("q")).toBe(
+      "collection:softwarelibrary_c64 AND identifier:pouet_* AND emulator_ext:prg AND (*)",
+    );
+    expect(new URL(archiveSearchUrl("laxity", { demos: true })).searchParams.get("q")).toBe(
+      "collection:softwarelibrary_c64 AND identifier:pouet_* AND emulator_ext:prg AND (laxity)",
+    );
+    expect(new URL(archiveSearchUrl("x", { rows: 4 })).searchParams.get("rows")).toBe("4");
+  });
+
   test("hits come out in the Archive's order, and an identifier that could not be a path is dropped", () => {
     const hits = parseArchiveSearch({
       response: { docs: [{ identifier: "Baffle_1994_Feniks", title: "Baffle (1994)(Feniks)", year: "1994" }, { identifier: "../x", title: "no" }, { identifier: "Bare_Id" }] },

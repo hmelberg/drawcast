@@ -423,3 +423,31 @@ conversions, the boot lines, the screen's aspect, and the emulator URL.
   the other reason the item page stays one click away.
 - **A wrong file name is an `alert("Error: Failed to fetch")`**, so the name
   must come from the item's `emulator_start`, never be guessed from the id.
+
+## M8 (2026-09-07): demos, and what the free ROMs make of them
+
+Hans asked what about demos. Measured, not guessed:
+
+- **The scene is already in the search** — the Archive imported pouet.net's C64
+  productions as `pouet_*` items: 245 in the C64 collection, 147 of them one
+  `.prg` file. Those are marked and play right here like any other program.
+  Nobody would think to search for "pouet", so the tray got a **Demos** button
+  that browses exactly that set (`identifier:pouet_* AND emulator_ext:prg`).
+- **Three of five booted demos ran**: Lines (LSR 64, Function 2019), 2600 AD,
+  and the Skyrim demo — graphics and SID music, no click to start. Epic Sax
+  Gandalf and Piano Intro both stopped with `?UNDEF'D STATEMENT ERROR IN 30`.
+  That is NOT the start-up line: every one of them, working or not, is the
+  same `SYS2061` BASIC stub (checked byte by byte against panopticon, c64maze,
+  nyan and invaders, which all run). The two that fail crash back into BASIC
+  from machine code, on a KERNAL the free ROMs implement differently.
+- **The famous multi-part demos cannot come here at all.** We Are Demo,
+  Comaland, Edge of Disgrace, Uncensored, Mekanix, Royal Arte, Deus Ex
+  Machina — every one is a `.d64`, and a disk needs the drive ROM. They stay
+  in the Archive's own player, which has the ROMs and plays them fine. Even
+  if we extracted the first file from the image ourselves, multi-part demos
+  load more parts through custom fast-loaders that talk to the drive
+  hardware — so a D64 reader would not buy them either. Not worth building.
+- **SID music has no home on the Archive**: one item with a playable `.prg`
+  (a PSID64 conversion). The music people actually hear here comes from the
+  demos and from music intros in the same pouet set.
+

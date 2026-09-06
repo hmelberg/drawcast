@@ -515,18 +515,23 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         arow.appendChild(h("span", { class: "cs-tray-label" }, "Internet Archive"));
         const q = h("input", { type: "search", class: "cs-tray-url", placeholder: "Search the Archive's C64 library…", "aria-label": "Search the Internet Archive" }) as HTMLInputElement;
         const go = h("button", { class: "cs-tray-run" }, "Search");
+        // Demos are the other half of a Commodore: nobody would think to
+        // search for "pouet", so the scene's productions get their own button.
+        const godemo = h("button", { class: "cs-tray-run" }, "Demos");
         const hits = h("select", { class: "cs-menu-select cs-tray-c64-pick", "aria-label": "Results" }) as HTMLSelectElement;
         hits.hidden = true;
         const aplay = h("button", { class: "cs-tray-run" }, "Play ▶");
         aplay.hidden = true;
         const anote = h("span", { class: "cs-tray-status" }, "");
         let found: ArchiveHit[] = [];
-        const search = async (): Promise<void> => {
-          if (q.value.trim() === "") return;
-          go.disabled = true;
+        const search = async (demos = false): Promise<void> => {
+          // A name is needed to search the whole library; "Demos" browses, so
+          // an empty box is the whole scene list.
+          if (q.value.trim() === "" && !demos) return;
+          go.disabled = godemo.disabled = true;
           anote.textContent = "Searching…";
           try {
-            const res = await fetch(archiveSearchUrl(q.value));
+            const res = await fetch(archiveSearchUrl(q.value, { demos }));
             found = parseArchiveSearch(await res.json());
             hits.replaceChildren(
               ...found.map((f, i) => {
@@ -535,12 +540,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
               }),
             );
             hits.hidden = aplay.hidden = found.length === 0;
-            if (found.length === 0) anote.textContent = "Nothing with that name in the Archive's C64 library.";
+            if (found.length === 0) anote.textContent = demos ? "No demo with that name plays here — the plain search finds the rest." : "Nothing with that name in the Archive's C64 library.";
             else describePick();
           } catch {
             anote.textContent = "The Archive did not answer — try again in a moment.";
           } finally {
-            go.disabled = false;
+            go.disabled = godemo.disabled = false;
           }
         };
         /** What Play will do with the hit that is selected right now. */
@@ -552,6 +557,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         };
         hits.addEventListener("change", describePick);
         go.addEventListener("click", () => void search());
+        godemo.addEventListener("click", () => void search(true));
         q.addEventListener("keydown", (e) => {
           e.stopPropagation();
           if (e.key === "Enter") void search();
@@ -568,6 +574,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         });
         arow.appendChild(q);
         arow.appendChild(go);
+        arow.appendChild(godemo);
         arow.appendChild(hits);
         arow.appendChild(aplay);
         arow.appendChild(anote);

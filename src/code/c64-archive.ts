@@ -41,9 +41,22 @@ const ID_RE = /^[A-Za-z0-9._-]+$/;
 /** A file name we are willing to address: one path segment, no traversal. */
 const FILE_RE = /^[^/\\]+$/;
 
+/**
+ * The demoscene half of the collection: pouet.net's C64 productions, as the
+ * Archive imported them (245 of them, 147 in one file). Nobody would guess to
+ * search for "pouet", so the tray has a button for this — and it is narrowed
+ * to what the free ROMs can start, because a demo you watch RIGHT NOW is the
+ * point. Famous multi-part demos (We Are Demo, Comaland, Edge of Disgrace)
+ * are disk images and are not in here; the plain search still finds them, in
+ * the Archive's own player.
+ */
+const DEMOS = "identifier:pouet_* AND emulator_ext:prg";
+
 /** A full-text search over the Archive's C64 software, newest-popular first. */
-export function archiveSearchUrl(query: string, rows = 12): string {
-  const q = `collection:softwarelibrary_c64 AND (${query.trim().replace(/[()"]/g, " ").trim() || "*"})`;
+export function archiveSearchUrl(query: string, opts: { rows?: number; demos?: boolean } = {}): string {
+  const { rows = 12, demos = false } = opts;
+  const scope = demos ? `collection:softwarelibrary_c64 AND ${DEMOS}` : "collection:softwarelibrary_c64";
+  const q = `${scope} AND (${query.trim().replace(/[()"]/g, " ").trim() || "*"})`;
   const p = new URLSearchParams({ q, rows: String(rows), output: "json", "sort[]": "downloads desc" });
   // emulator_ext/emulator_start ride along in the SEARCH result (measured), so
   // deciding which player a hit needs costs no second request per result.
