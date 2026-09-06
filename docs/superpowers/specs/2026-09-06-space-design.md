@@ -199,18 +199,75 @@ centred on the zenith, the horizon as the outer circle, N at the top and E on
 the LEFT (a planisphere held overhead). Objects below the horizon are omitted.
 
 `sky` engine (`src/scenes/space/sky.ts` + loader) bundles:
-- `stars-45.json`: the 921 stars to magnitude 4,5 from `stars.6.json`
-  (HIP id, RA deg, Dec deg, mag, B−V) — 36 KB compact.
-- `constellation-lines.json`: the 27 KB d3-celestial file, as is.
-- `constellation-names.json`: 89 entries `{abbr, en, la, nb}`; the Norwegian
-  names are hand-written (d3-celestial has none).
+- `stars-45.json`: every star to magnitude 4,5 from `stars.6.json` PLUS every
+  star any constellation line touches — 1 040 stars, 52 KB compact
+  (`{i: HIP, c: [RA deg, Dec deg], m: mag, b: B−V}`). The union matters:
+  119 of the 750 stars the lines need are fainter than 4,5 and 28 are fainter
+  than 5,0, so a plain magnitude cut would leave constellation figures with
+  gaps.
+- `constellations.json`: 88 entries `{abbr: {la, nb, en, edges}}` — 14 KB,
+  where `edges` is the constellation's figure as pairs of HIP numbers. See
+  §6.1 for how it is built and what it makes possible.
 - `starnames-bright.json`: proper names for stars to magnitude 3,0
   (`{hip, en, nb}`; nb only where it differs).
 - `messier.json`: 110 objects, 21 KB, drawn only when `messier: true`.
-- LICENSE + ATTRIBUTION for the d3-celestial data (BSD-3-Clause, Olaf Frohn).
-Optional deeper stars (to mag 6) come from jsdelivr at runtime when
-`limit_mag > 4.5`; if the fetch fails the bundled set is drawn and a note says
-so.
+- LICENSE + ATTRIBUTION for the d3-celestial data (BSD-3-Clause, Olaf Frohn);
+  the Norwegian constellation names come from the Norwegian Wikipedia list of
+  constellations (CC BY-SA).
+Whole bundled sky payload: 66 KB. Optional deeper stars (to mag 6) come from
+jsdelivr at runtime when `limit_mag > 4.5`; if the fetch fails the bundled set
+is drawn and a note says so.
+
+### 6.1 The constellation figures, and the answer key they give us
+
+d3-celestial's `constellations.lines.json` draws each figure as a
+`MultiLineString` in RA/Dec, not as star references. Measured 2026-09-06: every
+one of its vertices lies within 0,35° of a star in the magnitude-6 catalogue —
+799 of 800 vertices across all 88 constellations, one unmatched. So a build
+step (`scripts/build-sky-data.mjs`) snaps each vertex to its nearest catalogue
+star and stores the figure as **pairs of HIP numbers**: 735 edges over 88
+constellations, from 1 edge (Canis Minor, Canes Venatici) to 29 (Sagittarius).
+
+That turns the drawing into a machine-checkable answer key, which is what makes
+the exercise below possible in both directions. The build script is run once
+and its output committed; the app never fetches it.
+
+### 6.2 Connect the stars — the exercise in two directions
+
+Hans, 2026-09-06: "å be brukeren trekke linjer mellom stjerner som utgjør ulike
+stjernebilder … Øvelsen kan gå begge veier."
+
+**Direction A — the lines are drawn, name the constellation.** No new
+machinery: `quiz` with four names, or `ask` with a typed answer. One wrinkle:
+`ask.answer` is a single string compared trimmed and case-insensitively
+(`src/spec/schema.ts:388`), so a figure whose name differs across languages
+(Store bjørn / Ursa Major / Great Bear) needs the question to name the language
+it wants ("Skriv det latinske navnet"). Whether `answer` should instead accept
+alternatives is an open question for the round-2 brainstorm, not a decision
+taken here — it would change comparison semantics every template shares.
+
+**Direction B — the name is given, draw the lines.** This is new machinery: a
+sixth `ask.widget`, `connect`. Sketch, to be settled when round 2 is designed:
+- `{"ask": {"question": "Draw Orion.", "widget": "connect", "answer": "con_ori",
+  "right": "…"}}` — the answer is the constellation id; the key is its `edges`.
+- The viewer drags from star to star; a drag whose ends fall within a tolerance
+  of a drawn star snaps to it and lays down one segment. Clicking a segment
+  removes it. The figure keeps its stars but hides that constellation's lines
+  until the reveal.
+- Grading compares the viewer's edge set against the key's, unordered, each
+  edge undirected. The threshold (exact, or "every key edge plus at most one
+  stray") is a round-2 decision.
+- The reveal reuses the drag widget's two-colour glow: the true figure is
+  drawn, the viewer's correct edges green, strays red.
+- It fits the existing intrinsic-interaction pattern
+  (`KNOWN_INTERACTIONS = ["piano", "chess"]`, `src/scenes/types.ts:20`), so
+  `sky_map` would declare `interactions: [connect]` the way `piano_keys`
+  declares `piano`. Adding a widget value touches three places, not the
+  five-place verb list — no new verb.
+- Scope guard: 29 edges (Sagittarius) is too much to draw by hand. Round 2
+  should cap the exercise at the figures worth teaching (Orion 24, the Plough
+  as a subset of Ursa Major, Cassiopeia, Cygnus, Leo, Scorpius) rather than
+  offering all 88.
 
 Sun, Moon and planets are placed by astronomy-engine: `Equator` (of date, with
 aberration) → `Horizon` for the observer. The Moon is drawn with its phase
@@ -241,7 +298,9 @@ keeps the sketch style.
 
 Examples: "Find Orion tonight" (click `con_ori`), "Where is Jupiter tonight?"
 (`show: [jupiter]`, highlight), "The sky turns" (`animate` `hours` 0 → 6),
-"Name the constellations" (drag with items `con_ori`, `con_uma`, `con_cas`…).
+"Name the constellations" (drag with items `con_ori`, `con_uma`, `con_cas`…),
+and the two directions of §6.2: "Which constellation is this?" (quiz over the
+drawn figure) and "Draw Orion" (`widget: "connect"`).
 
 The ⊕ Space section gains: click a constellation or star → info card (name in
 three languages, brightest star, Wikipedia summary); pills for time (now, +1 h,
