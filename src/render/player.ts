@@ -237,6 +237,8 @@ export class Player {
   private appliedParams: Record<string, number> = {};
   /** True once any reprojector.frame() has run since the last commit — forces the next applyParams to commit even if params compare equal (frame() left the DOM at a live, possibly detached, mid-tween state). */
   private geometryDirty = false;
+  /** Ids the plan-time layout had: anything a later param change mints beyond these was never addressable by a visibility verb and joins the implicit final draw (shown as soon as it exists). */
+  private readonly planTimeIds: ReadonlySet<string>;
   state: PlayerState = "idle";
 
   constructor(
@@ -249,6 +251,7 @@ export class Player {
   ) {
     this.plan = plan;
     this.elements = elements;
+    this.planTimeIds = new Set(elements.keys());
     this.speech = speech;
     this.captionEl = captionEl;
     this.effects = opts.effects ?? null;
@@ -390,7 +393,7 @@ export class Player {
       const turn = scene.turns[id];
       if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot);
       else el.setOffset?.(dx, dy);
-      if (visible.has(id)) el.finish();
+      if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
       else el.hide();
     }
     this.effects?.setPointer(null);
@@ -979,7 +982,8 @@ export class Player {
             const start = step.starts[key];
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
-          rp.frame(cur, visible, before.offsets);
+          // reveal ids the tween mints (a 40th slice): they join the implicit final draw
+          rp.frame(cur, visible, before.offsets, true);
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now

@@ -182,4 +182,32 @@ describe("the animate action", () => {
     const linearFirst = await firstNonZeroFrame({ easing: "linear" });
     expect(smoothstepFirst).toBeLessThan(linearFirst * 0.5);
   });
+
+  test("ids a param change mints are shown; plan-time ids keep following the scene", async () => {
+    const calls: Record<string, string[]> = { finish: [], hide: [] };
+    const stub = (id: string): RenderedElement => ({
+      id, durationMs: 0,
+      setProgress() {}, finish() { calls.finish.push(id); }, hide() { calls.hide.push(id); }, setOffset() {},
+    });
+    // Plan-time layout: piece_1 and piece_2 exist; only piece_1 is drawn.
+    const planTime = new Map([["piece_1", stub("piece_1")], ["piece_2", stub("piece_2")]]);
+    const plan = planCommands([{ draw: ["piece_1"] }, { animate: { n: 4 }, duration: 0.05 }], ["piece_1", "piece_2"], { animateBase: { n: 2 } });
+    const frames: { revealNew?: boolean }[] = [];
+    const rp: Reprojector = {
+      frame: (_p, _v, _o, revealNew) => { frames.push({ revealNew }); },
+      // The committed layout at n = 4 mints piece_3 and piece_4.
+      commit: () => new Map([["piece_1", stub("piece_1")], ["piece_2", stub("piece_2")], ["piece_3", stub("piece_3")], ["piece_4", stub("piece_4")]]),
+    };
+    const player = new Player(plan, planTime, new StubSpeech(), null, { mode: "silent" });
+    player.reprojector = rp;
+    await player.play();
+    expect(frames.length).toBeGreaterThan(0);
+    expect(frames.every((f) => f.revealNew === true)).toBe(true);
+    // After the commit: the drawn plan-time id and both minted ids are shown; the undrawn plan-time id stays hidden.
+    const shown = new Set(calls.finish.slice(calls.finish.lastIndexOf("piece_1")));
+    expect(shown.has("piece_3")).toBe(true);
+    expect(shown.has("piece_4")).toBe(true);
+    expect(calls.hide).toContain("piece_2");
+    expect(shown.has("piece_2")).toBe(false);
+  });
 });
