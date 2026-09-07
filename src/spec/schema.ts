@@ -61,6 +61,24 @@ const endRefSchema = {
   additionalProperties: false,
 };
 
+/**
+ * The element-level `from`/`to` fields do double duty: an arrow/edge endpoint
+ * (the endRefSchema shape), OR — on sector/arc — a plain number (a degree).
+ * A `type` array keeps this flat (no oneOf/anyOf) per this file's own rule.
+ */
+const endOrAngleSchema = {
+  type: ["object", "number"],
+  description:
+    "arrow/edge: endpoint — ref to an element id, OR x+y coordinates (domain coordinates if a domain is declared, else logical). " +
+    "sector/arc: instead, a plain NUMBER — from = start angle, to = end angle, in degrees counter-clockwise from +x (0 = right, 90 = up).",
+  properties: {
+    ref: { type: "string" },
+    x: { type: "number" },
+    y: { type: "number" },
+  },
+  additionalProperties: false,
+};
+
 const elementSchema = {
   type: "object",
   description:
@@ -71,7 +89,10 @@ const elementSchema = {
     id: { type: "string", description: "Unique id, referenced by commands and other elements." },
     type: {
       type: "string",
-      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code"],
+      enum: [
+        "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
+        "sector", "arc", "polygon", "pieces",
+      ],
     },
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
@@ -95,9 +116,9 @@ const elementSchema = {
       additionalProperties: false,
     },
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
-    // arrow / edge
-    from: endRefSchema,
-    to: endRefSchema,
+    // arrow / edge (also sector/arc — see endOrAngleSchema)
+    from: endOrAngleSchema,
+    to: endOrAngleSchema,
     curved: { type: "boolean", description: "arrow/edge: bow the line slightly." },
     // label
     text: { type: "string", description: "label/text/node: the text content." },
@@ -138,18 +159,29 @@ const elementSchema = {
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
     closed: { type: "boolean", description: "path: close the polyline." },
-    x: { type: "number", description: "text/shape: logical x (y-up canvas)." },
-    y: { type: "number", description: "text/shape: logical y (y-up canvas)." },
+    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical x (y-up canvas) — the centre, for the shapes that have one." },
+    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical y (y-up canvas) — the centre, for the shapes that have one." },
     width: { type: "number", description: "shape rect / portrait / source / code: width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
     height: { type: "number", description: "shape rect: height in logical units." },
-    radius: { type: "number", description: "shape circle: radius in logical units." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
+    // sector / arc / polygon / pieces
+    sides: { type: "integer", minimum: 3, description: "polygon: sides of a REGULAR polygon centred at x,y with radius — instead of points." },
+    rotation: { type: "number", description: "polygon: turn a regular polygon by this many degrees." },
+    n: {
+      type: "integer",
+      minimum: 2,
+      maximum: 128,
+      description:
+        "pieces: how many pieces to cut — e.g. 12 sectors of a circle. Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
+    },
     // portrait / source
     of: {
       type: "string",
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
-        "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it.",
+        "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
+        "pieces: the literal string \"sectors\" — the only cut shape this version supports.",
     },
     url: {
       type: "string",
@@ -1015,6 +1047,21 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "shape":
       need(!!el.shape, "needs shape");
+      break;
+    case "sector":
+    case "arc":
+      need(typeof el.radius === "number" && typeof el.from === "number" && typeof el.to === "number", "needs radius, from and to");
+      break;
+    case "polygon":
+      need(
+        (Array.isArray(el.points) && el.points.length >= 3) || (typeof el.sides === "number" && typeof el.radius === "number"),
+        "needs points (≥ 3), or sides + radius for a regular polygon",
+      );
+      break;
+    case "pieces":
+      need(el.of === "sectors", 'needs of: "sectors"');
+      need(typeof el.radius === "number", "needs radius");
+      need(typeof el.n === "number", "needs n (how many pieces)");
       break;
     case "code":
       // A machine with a program on it and nothing to run (`game`, no code) is

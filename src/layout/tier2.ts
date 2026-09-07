@@ -25,7 +25,21 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
-import type { SpecElement } from "../spec/types";
+import type { EndRef, SpecElement } from "../spec/types";
+
+/**
+ * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
+ * the piece's own id (`<parentId>_<k>`) — what the `move` (rotate) and
+ * `arrange` verbs need: the pivot to turn about (apex), where the piece's
+ * own mass sits (centroid), and the wedge it occupies (midAngle/halfAngle).
+ */
+export interface PieceGeometry {
+  apex: Pt;
+  centroid: Pt;
+  midAngle: number;
+  halfAngle: number;
+  radius: number;
+}
 
 export interface Tier2Result {
   drawables: Drawable[];
@@ -35,7 +49,8 @@ export interface Tier2Result {
   /**
    * Command-addressable ids tier-2 minted that are NOT spec element ids — a
    * source element's quote highlights (`<id>_quote`, `<id>_quote_2`, …), which
-   * the storyboard times to the narration beat on their own line.
+   * the storyboard times to the narration beat on their own line, and a
+   * `pieces` element's `<id>_1` … `<id>_n` sectors.
    */
   extraOrder: string[];
   warnings: string[];
@@ -44,6 +59,10 @@ export interface Tier2Result {
   /** Each drawn code pane's text rectangle, keyed by element id — where the
    *  in-place editor lays itself down. */
   panes: Record<string, BBox>;
+  /** Per-piece geometry (see PieceGeometry), keyed by the piece's own id. */
+  pieces: Record<string, PieceGeometry>;
+  /** parent `pieces` element id → its child piece ids, in order. */
+  pieceGroups: Record<string, string[]>;
 }
 
 interface Ctx {
@@ -60,6 +79,8 @@ interface Ctx {
   warnings: string[];
   windows: Record<string, CodeWindow>;
   panes: Record<string, BBox>;
+  pieces: Record<string, PieceGeometry>;
+  pieceGroups: Record<string, string[]>;
 }
 
 export function layoutElements(
@@ -85,6 +106,8 @@ export function layoutElements(
     windows: {},
     panes: {},
     warnings: [],
+    pieces: {},
+    pieceGroups: {},
   };
 
   // Pass 1: position free nodes deterministically on a circle.
@@ -196,10 +219,32 @@ export function layoutElements(
       case "code":
         drawables.push(...codeDrawables(el, ctx));
         break;
+      case "sector":
+        drawables.push(...sectorDrawables(el, ctx));
+        break;
+      case "arc":
+        drawables.push(arcDrawable(el, ctx));
+        break;
+      case "polygon":
+        drawables.push(...polygonDrawables(el, ctx));
+        break;
+      case "pieces":
+        drawables.push(...piecesDrawables(el, ctx));
+        break;
     }
   }
 
-  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings, windows: ctx.windows, panes: ctx.panes };
+  return {
+    drawables,
+    labels,
+    anchors: ctx.anchors,
+    extraOrder: ctx.extraOrder,
+    warnings: ctx.warnings,
+    windows: ctx.windows,
+    panes: ctx.panes,
+    pieces: ctx.pieces,
+    pieceGroups: ctx.pieceGroups,
+  };
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
@@ -461,15 +506,22 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number } | undefined, c
   return null;
 }
 
+/** arrow/edge's `from`/`to` narrowed away from sector/arc's plain-number reuse of the same fields. */
+function asEndRef(v: EndRef | number | undefined): EndRef | undefined {
+  return typeof v === "number" ? undefined : v;
+}
+
 function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
-  const from = resolveEnd(el.from, ctx);
-  const to = resolveEnd(el.to, ctx);
+  const fromRef = asEndRef(el.from);
+  const toRef = asEndRef(el.to);
+  const from = resolveEnd(fromRef, ctx);
+  const to = resolveEnd(toRef, ctx);
   if (!from || !to) return [];
   const dist = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
   const ux = (to[0] - from[0]) / dist;
   const uy = (to[1] - from[1]) / dist;
-  const rFrom = el.from?.ref ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
-  const rTo = el.to?.ref ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
+  const rFrom = fromRef?.ref ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) + 4 : 0;
+  const rTo = toRef?.ref ? (ctx.nodeRadius.get(toRef.ref) ?? 10) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];
@@ -907,5 +959,139 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: Math.max(320, Math.min(1500, ww * 7)) }),
     });
   });
+  return out;
+}
+
+// --- sector / arc / polygon / pieces (design §2.2) ---------------------
+
+const DEG = Math.PI / 180;
+
+/** `from`/`to` on sector/arc are a plain number (reusing arrow/edge's fields — see EndRef widening in spec/types.ts). */
+function angleOf(v: EndRef | number | undefined, fallback: number): number {
+  return typeof v === "number" ? v : fallback;
+}
+
+/** A closed fan: the centre, then the arc boundary — a sector's outline. */
+function sectorPts(c: Pt, r: number, from: number, to: number, steps = 24): Pt[] {
+  const pts: Pt[] = [c];
+  for (let i = 0; i <= steps; i++) {
+    const a = (from + ((to - from) * i) / steps) * DEG;
+    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/** The arc boundary alone, no centre point — an arc has no interior to close. */
+function arcPts(c: Pt, r: number, from: number, to: number, steps = 32): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = (from + ((to - from) * i) / steps) * DEG;
+    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/**
+ * A closed outline with a wash, the pair every filled primitive is made of —
+ * mirrors shapeDrawable/regionDrawable's ids (outline = the element id, wash
+ * = `${id}_fill`, found via SUB_SUFFIXES) and regionDrawable's opacity
+ * convention (a style.opacity the author set always wins; otherwise the wash
+ * defaults dimmer than the outline, which stays fully opaque).
+ */
+function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
+  const outlineStyle = resolveStyle(el.style);
+  const out: Drawable[] = [];
+  if (outlineStyle.fill) {
+    out.push({
+      id: `${id}_fill`,
+      kind: "area",
+      pts,
+      z: Z_AREA,
+      style: resolveStyle(el.style, { opacity: 0.35 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.region }),
+    });
+  }
+  out.push({
+    id,
+    kind: "stroke",
+    pts,
+    closed: true,
+    z: Z_STROKE,
+    style: outlineStyle,
+    drawOpts: resolveDrawOpts(el.draw),
+  });
+  return out;
+}
+
+function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const r = el.radius ?? 100;
+  const from = angleOf(el.from, 0);
+  const to = angleOf(el.to, 90);
+  const pts = sectorPts(c, r, from, to);
+  const mid = (from + to) / 2;
+  ctx.anchors[el.id] = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
+  return filledOutline(el.id, pts, el);
+}
+
+function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const r = el.radius ?? 100;
+  const from = angleOf(el.from, 0);
+  const to = angleOf(el.to, 180);
+  const pts = arcPts(c, r, from, to);
+  ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)];
+  return { id: el.id, kind: "stroke", pts, z: Z_STROKE, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw) };
+}
+
+function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  let pts: Pt[];
+  if (el.points && el.points.length >= 3) {
+    pts = el.points as Pt[];
+  } else {
+    const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+    const n = Math.max(3, Math.round(el.sides ?? 5));
+    const r = el.radius ?? 100;
+    const rot = (el.rotation ?? 0) * DEG;
+    pts = Array.from({ length: n }, (_, i): Pt => {
+      const a = rot + Math.PI / 2 + (2 * Math.PI * i) / n; // first vertex on top
+      return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)];
+    });
+  }
+  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  ctx.anchors[el.id] = [cx, cy];
+  return filledOutline(el.id, pts, el);
+}
+
+/**
+ * `pieces: {of: "sectors"}` cuts a circle into n equal sectors, each its own
+ * command-addressable id `<id>_1` … `<id>_n` (pushed to extraOrder — the
+ * parent id itself draws nothing and is skipped in layout.ts's order loop).
+ * Each piece is a plain filledOutline pair (no group wrapper), so it is found
+ * by drawablesForId/elementRings exactly like a standalone sector.
+ */
+function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const r = el.radius ?? 120;
+  const n = Math.max(2, Math.round(el.n ?? 8));
+  const step = 360 / n;
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  for (let k = 0; k < n; k++) {
+    const id = `${el.id}_${k + 1}`;
+    const from = k * step;
+    const to = (k + 1) * step;
+    const pts = sectorPts(c, r, from, to);
+    const mid = (from + to) / 2;
+    const centroid: Pt = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
+    out.push(...filledOutline(id, pts, el));
+    ctx.anchors[id] = centroid;
+    ctx.pieces[id] = { apex: c, centroid, midAngle: mid, halfAngle: step / 2, radius: r };
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
   return out;
 }

@@ -24,7 +24,11 @@ export type ElementType =
   | "shape"
   | "portrait"
   | "source"
-  | "code";
+  | "code"
+  | "sector"
+  | "arc"
+  | "polygon"
+  | "pieces";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -82,8 +86,10 @@ export interface SpecElement {
   at?: { x?: number; y?: number; intersection_of?: string[] };
   guides?: boolean;
   // arrow / edge
-  from?: EndRef;
-  to?: EndRef;
+  /** arrow/edge endpoint (ref/x/y). sector/arc: a plain NUMBER instead — start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
+  from?: EndRef | number;
+  /** arrow/edge endpoint (ref/x/y). sector/arc: a plain NUMBER instead — end angle in degrees. */
+  to?: EndRef | number;
   curved?: boolean;
   // label
   text?: string;
@@ -111,8 +117,15 @@ export interface SpecElement {
   height?: number;
   radius?: number;
   font_size?: number;
+  // sector / arc / polygon / pieces (design §2.2) — from/to reused above (arrow/edge), radius/x/y reused above (tier-3 raw)
+  /** polygon: number of sides of a regular polygon (with radius, x, y). */
+  sides?: number;
+  /** polygon: rotation of a regular polygon in degrees. */
+  rotation?: number;
+  /** pieces: how many pieces to cut a shape into. */
+  n?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
-  /** Person's name (portrait) or work's title (source) — resolved via Wikipedia when url/strokes are absent. */
+  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, the literal "sectors". */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;

@@ -6,7 +6,7 @@ import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
 import type { Spec } from "../spec/types";
 import { coVisible, lintLayout, type LintIssue } from "../lint/lint";
-import { layoutElements } from "./tier2";
+import { layoutElements, type PieceGeometry } from "./tier2";
 import type { CodeWindow } from "./code";
 import { annotationDrawables } from "./annotate";
 import { placeLabels, type LabelRequest, type Obstacle } from "./labels";
@@ -29,6 +29,13 @@ export interface LayoutResult {
    *  id — where ui/code-editor lays its text area down. Absent for a panel
    *  that draws no code. */
   panes?: Record<string, BBox>;
+  /** Per-piece geometry from `pieces` elements (apex/centroid/angles), keyed
+   *  by the piece's own id `<parentId>_<k>` — what move (rotate) and arrange
+   *  read. Empty when the spec has no pieces elements. */
+  pieces: Record<string, PieceGeometry>;
+  /** `pieces` parent element id → its child piece ids, in order. Empty when
+   *  the spec has no pieces elements. */
+  pieceGroups: Record<string, string[]>;
 }
 
 export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure): LayoutResult {
@@ -51,6 +58,8 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   const order: string[] = [];
   let windows: Record<string, CodeWindow> = {};
   let panes: Record<string, BBox> = {};
+  let pieces: Record<string, PieceGeometry> = {};
+  let pieceGroups: Record<string, string[]> = {};
   let seedAnchors: Record<string, Pt> = {};
   let seedCurveSamples: Record<string, Pt[]> = {};
   let templateIds: string[] = [];
@@ -90,10 +99,15 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     warnings.push(...tier2.warnings);
     windows = tier2.windows;
     panes = tier2.panes;
+    pieces = tier2.pieces;
+    pieceGroups = tier2.pieceGroups;
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
       if (el.type === "code" && el.show === "none") continue;
+      // A pieces element's parent id draws nothing itself — its n pieces
+      // (already in tier2.extraOrder) are the command-addressable elements.
+      if (el.type === "pieces") continue;
       if (!order.includes(el.id)) order.push(el.id);
     }
     // Ids tier-2 minted itself (a source element's quote highlights) come
@@ -137,7 +151,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
 
   const issues = lintLayout(drawables, measure, spec.commands);
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
