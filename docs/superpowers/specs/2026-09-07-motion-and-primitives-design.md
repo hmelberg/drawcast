@@ -125,3 +125,49 @@ pieces metadata), schema, the template at t ∈ {0, 0.5, 1} and n ∈ {12, 40}
 lint-clean, the bundled example through the examples test. Live: the
 πr² example rendered and played in the app, and one freehand spec with
 `pieces` + `arrange` rendered (a screenshot mid-tween).
+
+## 5. Addendum 2026-09-08 (Hans): zoom, fade, more examples
+
+Hans asked for three more things, with "spec what is not too complicated and
+follow your recommendations". Decisions:
+
+### 5.1 Zoom — two things, one already there
+
+- **Zoom the VIEW onto an object** exists: `camera: { center: { ref: "hex" },
+  zoom: 3 }` (and `camera: { reset: true }`). Nothing to build; the prompt
+  already teaches it.
+- **Scale the OBJECT** (grow or shrink it in place, the "zoom in on this
+  piece" of a demonstration): `move` gains `scale` — a uniform factor about
+  `pivot` (default the element's current centre), cumulative across moves.
+  The pose model grows from offset + turn to offset + turn + scale sharing
+  ONE pivot in the original frame: `x ↦ s·R(deg)(x − p) + p + offset`.
+  Rotation and uniform scaling about the same point commute, so the
+  composition rules stay exact: adding a scale by k about a current point Q
+  gives `s := s·k`, `offset := k(p + offset − Q) + Q − p` (the rotation
+  rule with R(δ) replaced by k); adding a rotation is unchanged. The SVG
+  transform becomes `translate(dx, −dy) rotate(−deg, P) translate(P)
+  scale(s) translate(−P)` with P the flipped pivot. Stroke widths scale
+  with the element (it is a zoom). Attached labels follow the translation
+  only. Tween: scale linear in time.
+
+### 5.2 Fade — a persistent opacity verb
+
+`fade: { target, to, duration?, easing? }` sets an element's opacity
+persistently (0–1; `to: 1` restores), tweened over `duration` (default 1 s).
+It lives in the scene state (`opacities`), so scrubbing and step-back
+honour it, and attached labels fade with their element. It is distinct
+from `focus`/`highlight` (transient emphasis that ends by itself) and from
+`hide` (gone, not hit-testable). Backend: the SVG `opacity` ATTRIBUTE on the
+element's groups, so `focus`'s CSS `style.opacity` dimming on leaf nodes
+still works on top and its removal cannot undo a fade. `target` may be a
+pieces id (expands). Not done: fading a template's whole figure (`target`
+lists ids; use several).
+
+### 5.3 More bundled examples
+
+Three freehand examples in `src/examples.json` that exercise the new verbs
+end to end (the πr² template example is already there): sectors zipped
+into a rectangle with `pieces` + `arrange`; the parallelogram area (cut a
+triangle with `polygon`, `fade` the original, `move` the piece across,
+draw the rectangle); similar triangles (`camera` zoom onto a triangle, then
+`move … scale: 2` about a vertex, the original outline drawn inside).

@@ -1281,3 +1281,338 @@ Expected: PASS.
 - Spec coverage: §2.1 → Task 1 (rotate/to/pivot, pose composition, transform step, labels follow, backend); §2.2 → Task 2 (sector/arc/polygon/pieces, pieces metadata, prompt); §2.3 → Task 3 (arrange, expandId, zipper); §2.4 → Task 4 (template + example); §4 verification → each task's tests plus the controller's live smoke.
 - Type consistency: `Turn`, `composeTurn`, `poseOf`, `poseCentre` (Task 1) are what Task 3 imports; `PieceGeometry`, `LayoutResult.pieces`, `pieceGroups` (Task 2) are what Task 3's `pieceOf`/`expandId` read; `TransformItem` is shared by Tasks 1 and 3.
 - Placeholders: none; every code step carries the code.
+
+---
+
+## Addendum 2026-09-08 — scale, fade, more examples (spec §5)
+
+Tasks 7–9 run after Tasks 1–6 have landed. Names as landed: `Turn { deg; pivot }` in `src/render/pose.ts`; `composeTurn`, `poseOf`, `poseCentre`; `TransformItem`; `SceneState.turns`; the `move` branch and `currentBox` in `src/render/plan.ts`; `setTransform(dx, dy, deg, pivot)` in `src/render/svg-backend.ts`; sector/arc angles `start`/`end`; the wash drawable `<id>_wash`; `PlanOptions.attachedTo`, `expandId`, `pieceOf`.
+
+### Task 7: `move` gains `scale` (a uniform factor about the pivot)
+
+**Files:**
+- Modify: `src/render/pose.ts` (`Turn.scale`, `composeScale`, `poseOf` with scale)
+- Modify: `src/render/plan.ts` (the `move` branch: `hasScale`, compose scale before rotate; the "needs one of" check and warning text; `currentBox`'s identity test)
+- Modify: `src/render/player.ts` (the `transform` tween lerps `scale`; `applyScene` and the `move` case pass it)
+- Modify: `src/render/backend.ts` (`setTransform?(dx, dy, deg, pivot, scale?)`), `src/render/svg-backend.ts` (`setTransform` with `scale`)
+- Modify: `src/spec/types.ts` (`MoveArgs.scale`), `src/spec/schema.ts` (`move.scale` + the semantic check), `src/llm/prompts/compiler-v1.md` (the `move` bullet: one clause)
+- Test: `tests/pose.test.ts`, `tests/plan.test.ts`, `tests/schema.test.ts` (extend)
+
+**Interfaces:**
+- Produces: `Turn { deg: number; pivot: Pt; scale?: number }` (absent = 1); `composeScale(offset, turn, factor, pivotNow): { offset; turn }`; `poseOf` honours `turn.scale`; `RenderedElement.setTransform?(dx, dy, deg, pivot, scale?)`.
+- Consumes: everything listed above as landed.
+
+- [ ] **Step 1: Failing pose tests** — append to `tests/pose.test.ts` (merge `composeScale` into the existing import; `close`, `poseOf`, `composeTurn` are already there):
+
+```ts
+describe("composeScale", () => {
+  test("a first scale about the element's own point keeps the offset and stores the pivot in the original frame", () => {
+    const r = composeScale([10, 5], undefined, 2, [110, 55]);
+    expect(r.turn.scale).toBe(2);
+    expect(r.turn.deg).toBe(0);
+    close(r.turn.pivot, [100, 50]);
+    close(r.offset, [10, 5]);
+  });
+  test("scaling about a point elsewhere moves the element: ×2 about the origin sends (10,0) to (20,0)", () => {
+    const r = composeScale([0, 0], undefined, 2, [0, 0]);
+    close(poseOf(r.offset, r.turn)([10, 0]), [20, 0]);
+  });
+  test("scale and rotation about the same current point commute: the point under the pivot never moves", () => {
+    const a = composeScale([30, 0], undefined, 2, [130, 0]);
+    const b = composeTurn(a.offset, a.turn, 90, [130, 0]);
+    expect(b.turn.scale).toBe(2);
+    close(poseOf(b.offset, b.turn)([100, 0]), [130, 0]);
+    // a point 10 right of the pivot ends 20 ABOVE it (scaled ×2, then turned 90° ccw)
+    close(poseOf(b.offset, b.turn)([110, 0]), [130, 20]);
+  });
+  test("the inverse map undoes scale", () => {
+    const a = composeScale([5, 5], undefined, 0.5, [50, 50]);
+    const fwd = poseOf(a.offset, a.turn);
+    const inv = poseOf(a.offset, a.turn, true);
+    close(inv(fwd([123, 45])), [123, 45]);
+  });
+});
+```
+
+- [ ] **Step 2: Run** `npx vitest run tests/pose.test.ts` — FAIL (no `composeScale`).
+
+- [ ] **Step 3: Implement in `src/render/pose.ts`**
+
+```ts
+export interface Turn {
+  deg: number;
+  pivot: Pt;
+  /** Uniform scale about the same pivot (absent = 1). Rotation and uniform scaling about one point commute, so the pose is x ↦ s·R(deg)(x − p) + p + offset. */
+  scale?: number;
+}
+
+/** True when the pose is still the identity, so a new pivot may be chosen. */
+const isIdentity = (turn: Turn | undefined): boolean => !turn || (turn.deg === 0 && (turn.scale ?? 1) === 1);
+
+export function composeTurn(offset: Pt, turn: Turn | undefined, deltaDeg: number, pivotNow: Pt): { offset: Pt; turn: Turn } {
+  const p: Pt = isIdentity(turn) ? [pivotNow[0] - offset[0], pivotNow[1] - offset[1]] : turn!.pivot;
+  const deg = (turn?.deg ?? 0) + deltaDeg;
+  const v: Pt = [p[0] + offset[0] - pivotNow[0], p[1] + offset[1] - pivotNow[1]];
+  const rv = rotateVec(v, deltaDeg);
+  const next: Pt = [rv[0] + pivotNow[0] - p[0], rv[1] + pivotNow[1] - p[1]];
+  return { offset: next, turn: { deg, pivot: p, scale: turn?.scale ?? 1 } };
+}
+
+/** Add a uniform scale by `factor` about `pivotNow` (current coordinates): S(k,Q)(sR(x−p)+p+t) = ks·R(x−p) + p + [k(p + t − Q) + Q − p]. */
+export function composeScale(offset: Pt, turn: Turn | undefined, factor: number, pivotNow: Pt): { offset: Pt; turn: Turn } {
+  const p: Pt = isIdentity(turn) ? [pivotNow[0] - offset[0], pivotNow[1] - offset[1]] : turn!.pivot;
+  const scale = (turn?.scale ?? 1) * factor;
+  const v: Pt = [p[0] + offset[0] - pivotNow[0], p[1] + offset[1] - pivotNow[1]];
+  const next: Pt = [factor * v[0] + pivotNow[0] - p[0], factor * v[1] + pivotNow[1] - p[1]];
+  return { offset: next, turn: { deg: turn?.deg ?? 0, pivot: p, scale } };
+}
+```
+
+and in `poseOf` multiply by the scale: forward `const r = rotateVec([x - p[0], y - p[1]], deg); return [s * r[0] + p[0] + offset[0], s * r[1] + p[1] + offset[1]]` with `const s = turn?.scale ?? 1`; inverse `const r = rotateVec([(x - offset[0] - p[0]) / s, (y - offset[1] - p[1]) / s], -deg)`. The existing `composeTurn` tests must stay green (the pivot-choice guard changes from `turn.deg !== 0` to `!isIdentity(turn)`, identical for scale-less turns). Existing tests that compare a turn with `toEqual({ deg, pivot })` will now see `scale: 1` — update them to include `scale: 1` or compare fields.
+
+- [ ] **Step 4: Run** `npx vitest run tests/pose.test.ts` — PASS.
+
+- [ ] **Step 5: Types, schema, prompt**
+
+`src/spec/types.ts` `MoveArgs`: add `/** Uniform scale factor about pivot (default the element's centre); cumulative across moves. */ scale?: number;`. `src/spec/schema.ts` `move.properties`: add
+```ts
+        scale: { type: "number", exclusiveMinimum: 0, description: "Grow or shrink the element by this factor about `pivot` (default its own centre), cumulative across moves — e.g. \"scale\": 2 doubles it in place, 0.5 halves it. Combine with rotate/by/to." },
+```
+extend the `move` description's first sentence with "or scale by a factor", and the semantic check to include `cmd.move.scale === undefined` as a fifth condition with the text `move needs one of by, to, path, rotate or scale`. Update the pre-existing tests' regexes that match the old text (`grep -rn "path or rotate" tests`). `src/llm/prompts/compiler-v1.md` `move` bullet: after the `rotate` clause add "`scale: 2` grows it about the pivot (a zoom on the OBJECT; `camera` zooms the VIEW)".
+
+- [ ] **Step 6: Failing plan + schema tests** — append to the `describe("move", …)` in `tests/plan.test.ts` (import `poseOf` from `../src/render/pose`):
+
+```ts
+  test("scale composes a pose about the element's centre", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], scale: 2 } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items[0].to.turn.scale).toBe(2);
+    expect(step.items[0].to.turn.pivot).toEqual([200, 150]);
+    expect(step.items[0].to.offset).toEqual([0, 0]);
+    expect(plan.states[1].turns.demand_curve.scale).toBe(2);
+  });
+  test("scale about an explicit pivot shifts the offset exactly", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], scale: 2, pivot: [100, 100] } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const it = (plan.steps[1] as Extract<PlanStep, { kind: "transform" }>).items[0];
+    // the corner under the pivot stays put; the far corner (300,200) lands at (500,300)
+    expect(poseOf(it.to.offset, it.to.turn)([100, 100])).toEqual([100, 100]);
+    expect(poseOf(it.to.offset, it.to.turn)([300, 200])).toEqual([500, 300]);
+  });
+```
+And in `tests/schema.test.ts` next to the rotate tests: `scale: 2` alone is a valid move; `scale: 0` is rejected by the schema.
+
+- [ ] **Step 7: Planner** — in the `move` branch: `const hasScale = cmd.move.scale !== undefined && cmd.move.scale !== 1;` join it to the "needs one of" condition (and its warning text) and to the pose-change condition (`if (!hasRotate && !hasTo && !hasScale)` keeps the plain move step); inside the pose loop, after the translation and BEFORE the rotate block:
+```ts
+          if (hasScale) {
+            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+            const c = composeScale(offset, turn, cmd.move.scale!, pivotNow);
+            offset = c.offset;
+            turn = c.turn;
+          }
+```
+The rotate block must then compose on `turn`, not `turn0` — change its `composeTurn(offset, turn0, …)` and `poseCentre(box, offset, turn0)` to use `turn`. `TransformItem` defaults `{ deg: 0, pivot: [0,0] }` stay valid (scale absent = 1). `currentBox`'s early-return condition becomes `turn === undefined || (turn.deg === 0 && (turn.scale ?? 1) === 1)`.
+
+- [ ] **Step 8: Player + backends** — `backend.ts`: `setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number): void;` (doc: uniform scale about the same pivot, default 1). `svg-backend.ts` `setTransform(dx, dy, deg, pivot, scale = 1)`: hoist `const px = pivot[0].toFixed(1); const py = (CANVAS.h - pivot[1]).toFixed(1);`, use them in the rotate part, and after it `if (scale !== 1) parts.push(\`translate(${px} ${py}) scale(${scale.toFixed(4)}) translate(${-pivot[0]} ${-(CANVAS.h - pivot[1])})\`)` (format the negated values with `toFixed(1)` too). `player.ts`: in the `transform` tween add `const sc = (it.from.turn.scale ?? 1) + ((it.to.turn.scale ?? 1) - (it.from.turn.scale ?? 1)) * e;` and pass it as the fifth argument; in `applyScene` and the `move` case pass `turn.scale ?? 1`.
+
+- [ ] **Step 9: Run** `npx vitest run tests/pose.test.ts tests/plan.test.ts tests/schema.test.ts tests/arrange.test.ts && npx tsc --noEmit` — PASS, tsc clean.
+
+- [ ] **Step 10: Report.**
+
+---
+
+### Task 8: the `fade` verb (persistent opacity)
+
+**Files:**
+- Modify: `src/spec/types.ts` (`FadeArgs`, `Command.fade`), `src/spec/schema.ts` (`fade` command schema, `ACTION_VERBS`, the verb list in the command description, `normalizeSpec` bare-string coercion), `src/lint/lint.ts` (`ACTION_KEYS`), `src/render/plan.ts` (`ACTION_KEYS`, `SceneState.opacities`, `INITIAL_STATE`, the step union, the state snapshot, the `fade` branch after `arrange`), `src/render/player.ts` (`case "fade"`, `applyScene`), `src/render/backend.ts` (`setOpacity?`), `src/render/svg-backend.ts` (`setOpacity`), `src/llm/prompts/compiler-v1.md` (verb list + a bullet after `arrange`)
+- Test: `tests/plan.test.ts`, `tests/schema.test.ts` (extend)
+
+**Interfaces:**
+- Produces: `FadeArgs { target: string[] | string; to: number; duration?: number; easing?: Easing }`; `SceneState.opacities: Record<string, number>` (absent = 1); step `{ kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }`; `RenderedElement.setOpacity?(alpha: number): void`.
+
+- [ ] **Step 1: Failing tests** — `tests/plan.test.ts`:
+
+```ts
+describe("fade", () => {
+  test("fade records a persistent opacity and tweens from the previous value", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { fade: { target: ["demand_curve"], to: 0.3 } }, { fade: { target: "demand_curve", to: 1, duration: 0.5 } }], allIds);
+    const s1 = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s1.kind).toBe("fade");
+    expect(s1.items).toEqual([{ id: "demand_curve", from: 1, to: 0.3 }]);
+    expect(s1.seconds).toBe(1);
+    expect(plan.states[1].opacities.demand_curve).toBe(0.3);
+    const s2 = plan.steps[2] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s2.items).toEqual([{ id: "demand_curve", from: 0.3, to: 1 }]);
+    expect(s2.seconds).toBe(0.5);
+    expect(plan.states[2].opacities.demand_curve).toBe(1);
+  });
+  test("attached labels fade with their element, once", () => {
+    const plan = planCommands([{ draw: ["demand_curve", "label_D"] }, { fade: { target: ["demand_curve"], to: 0.2 } }], allIds, {
+      attachedTo: (id) => (id === "demand_curve" ? ["label_D", "label_D"] : []),
+    });
+    const s = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s.items.map((i) => i.id)).toEqual(["demand_curve", "label_D"]);
+    expect(plan.states[1].opacities.label_D).toBe(0.2);
+  });
+  test("a pieces id expands and `to` is clamped to 0…1", () => {
+    const plan = planCommands([{ draw: ["k"] }, { fade: { target: "k", to: 1.7 } }], ["k_1", "k_2"], { expandId: (id) => (id === "k" ? ["k_1", "k_2"] : null) });
+    const s = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s.items.map((i) => i.id)).toEqual(["k_1", "k_2"]);
+    expect(s.items[0].to).toBe(1);
+  });
+  test("fade on an unknown id is skipped with a warning", () => {
+    const plan = planCommands([{ fade: { target: ["nope"], to: 0.5 } }], ["axes"]);
+    expect(plan.steps.filter((s) => s.kind === "fade")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/fade/);
+  });
+});
+```
+`tests/schema.test.ts`: `{ fade: { target: ["a"], to: 0.3 } }` validates; `{ fade: { target: ["a"] } }` (no `to`) is rejected; a bare-string target validates.
+
+- [ ] **Step 2: Run** `npx vitest run tests/plan.test.ts tests/schema.test.ts` — FAIL.
+
+- [ ] **Step 3: Types + schema + lint + prompt**
+
+`types.ts`:
+```ts
+export interface FadeArgs {
+  /** Element ids, or one pieces id (all its pieces). */
+  target: string[] | string;
+  /** Opacity 0–1 to settle at; 1 restores. Persistent until the next fade. */
+  to: number;
+  /** seconds (default 1) */
+  duration?: number;
+  easing?: Easing;
+}
+```
+and `fade?: FadeArgs;` on `Command` after `arrange`. `schema.ts` command property:
+```ts
+    fade: {
+      type: "object",
+      description:
+        "Persistently dim elements (or restore them with to: 1) so the rest stands out — e.g. {\"fade\": {\"target\": [\"supply\"], \"to\": 0.25, \"duration\": 1}, \"speak\": \"Set supply aside for a moment.\"}. Attached labels fade with their element. It stays until the next fade; use hide to remove an element, focus/highlight for a momentary emphasis that ends by itself.",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        to: { type: "number", minimum: 0, maximum: 1, description: "Opacity to settle at — e.g. 0.25 dims, 1 restores." },
+        duration: { type: "number", description: "Seconds (default 1)." },
+        easing: { type: "string", enum: [/* copy move's enum exactly */] },
+      },
+      required: ["target", "to"],
+      additionalProperties: false,
+    },
+```
+Add `"fade"` to `ACTION_VERBS` (schema), `ACTION_KEYS` (lint.ts and plan.ts), the verb list in the command schema's description, and `normalizeSpec`'s bare-string coercion (as for `arrange`). Prompt: add `fade` to the verb list on line ~31 and a bullet after `arrange`: "- `fade`: `{\"fade\": {\"target\": [\"supply\"], \"to\": 0.25}}` — persistently dims (or restores with `to: 1`) elements so the rest stands out; attached labels fade with them. `hide` removes; `focus`/`highlight` are momentary."
+
+- [ ] **Step 4: Planner** — `SceneState` gains `/** Persistent opacity per faded id (absent = 1). */ opacities: Record<string, number>;`, `INITIAL_STATE` gets `opacities: {}`, keep `const opacities: Record<string, number> = {}` beside `turns`, include `opacities: { ...opacities }` in every `states.push`; the step union gains `| { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }`. Branch after `arrange`:
+```ts
+    } else if (cmd.fade !== undefined) {
+      const ids = resolveIds(cmd.fade.target, "fade");
+      if (ids.length === 0) continue;
+      const to = Math.max(0, Math.min(1, cmd.fade.to));
+      const items: { id: string; from: number; to: number }[] = [];
+      const seen = new Set<string>();
+      const fadeOne = (id: string) => {
+        if (seen.has(id)) return;
+        seen.add(id);
+        items.push({ id, from: opacities[id] ?? 1, to });
+        opacities[id] = to;
+      };
+      for (const id of ids) fadeOne(id);
+      for (const id of ids) for (const f of opts.attachedTo?.(id) ?? []) if (known.has(f) && !ids.includes(f)) fadeOne(f);
+      pushStep({ kind: "fade", items, seconds: cmd.fade.duration ?? 1, easing: cmd.fade.easing ?? "ease-in-out" });
+    }
+```
+(`resolveIds` already warns on unknown ids naming the verb — confirm the warning text contains "fade"; if it does not, add `warnings.push("fade: no known targets — skipped")` on the empty case.)
+
+- [ ] **Step 5: Player + backends** — `backend.ts`: `/** Persistent opacity 0–1 (1 clears it). Independent of the focus effect's dimming. */ setOpacity?(alpha: number): void;`. `svg-backend.ts` on the element handle: `setOpacity(alpha: number): void { for (const g of this.groups) { if (alpha >= 1) g.removeAttribute("opacity"); else g.setAttribute("opacity", Math.max(0, alpha).toFixed(3)); } }` — the ATTRIBUTE, so `setFocus`'s `style.opacity` on leaf nodes still layers on top and `endFocus` cannot undo a fade. `player.ts`: `applyScene` adds `el.setOpacity?.(scene.opacities[id] ?? 1);`; new `case "fade"` beside `transform`: tween `it.from + (it.to − it.from) · ease(t)` into `el.setOpacity` for every item whose element has it, over `step.seconds` via `this.progress`.
+
+- [ ] **Step 6: Run** `npx vitest run tests/plan.test.ts tests/schema.test.ts tests/lint.test.ts && npx tsc --noEmit` — PASS.
+
+- [ ] **Step 7: Report.**
+
+---
+
+### Task 9: three bundled examples + docs addendum
+
+**Files:**
+- Modify: `src/examples.json` (splice three entries before the final `]`, 2-space indent, never re-serialise), `ROADMAP.md` (extend the "Motion and primitives" section with scale/fade/examples), `docs/superpowers/plans/2026-09-07-motion-and-primitives-ledger.md` (an "Addendum: scale, fade, examples" section)
+- Test: `tests/examples.test.ts` (existing; must stay green — it demands zero lint issues at rest, every command id resolving, params satisfying the schema)
+
+- [ ] **Step 1: Add the three examples** (Norwegian requests; adjust a text position by a few units only if the examples test reports a lint issue, and say so). Check the field names against the landed schema before pasting (`points`, `font_size`, `style.color`/`strokeWidth`/`fill`, `camera.center` as `{ "ref": … }`), and copy exactly the top-level keys the neighbouring entries have (`request`, `packs`, `spec`, anything else).
+
+```json
+  {
+    "request": "Vis med kakestykker at en sirkel kan legges om til nesten et rektangel (fri tegning, uten mal).",
+    "packs": [],
+    "spec": {
+      "title": "Sektorer blir et rektangel",
+      "elements": [
+        { "id": "kake", "type": "pieces", "of": "sectors", "x": 300, "y": 380, "radius": 130, "n": 12, "style": { "fill": "#f2c14e" } },
+        { "id": "radius", "type": "path", "points": [[300, 380], [425.6, 413.6]], "style": { "color": "#b5482e", "strokeWidth": 3 } },
+        { "id": "t_base", "type": "text", "text": "πr", "x": 650, "y": 285, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_height", "type": "text", "text": "r", "x": 905, "y": 380, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["kake"], "parallel": true, "speak": "En sirkel delt i tolv like kakestykker." },
+        { "draw": ["radius"], "speak": "Hvert stykke har radius r som side, og en liten bit av omkretsen som bue." },
+        { "hide": ["radius"] },
+        { "arrange": { "target": "kake", "layout": "zipper", "at": [650, 380], "duration": 3 }, "speak": "Snu annethvert stykke og skyv dem sammen som tenner i en glidelås." },
+        { "draw": ["t_base", "t_height"], "speak": "Grunnlinjen er halve omkretsen, πr, og høyden er r. Arealet er πr ganger r." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er arealet av et parallellogram grunnlinje ganger høyde?",
+    "packs": [],
+    "spec": {
+      "title": "Parallellogram = rektangel",
+      "elements": [
+        { "id": "para", "type": "polygon", "points": [[200, 300], [600, 300], [700, 500], [300, 500]], "style": { "fill": "#87a878" } },
+        { "id": "bit", "type": "polygon", "points": [[200, 300], [300, 300], [300, 500]], "style": { "fill": "#f2c14e" } },
+        { "id": "rekt", "type": "polygon", "points": [[300, 300], [700, 300], [700, 500], [300, 500]], "style": { "color": "#b5482e", "strokeWidth": 3 } },
+        { "id": "t_b", "type": "text", "text": "b", "x": 500, "y": 270, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_h", "type": "text", "text": "h", "x": 730, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["para"], "speak": "Et parallellogram med grunnlinje b og høyde h." },
+        { "draw": ["bit"], "speak": "Klipp av trekanten på venstre side." },
+        { "fade": { "target": ["para"], "to": 0.3 } },
+        { "move": { "target": ["bit"], "by": [400, 0], "duration": 1.5 }, "speak": "Flytt den over til høyre side. Arealet er det samme." },
+        { "draw": ["rekt", "t_b", "t_h"], "speak": "Nå har vi et rektangel med sidene b og h. Arealet er b ganger h." }
+      ]
+    }
+  },
+  {
+    "request": "Vis hva som skjer med en trekant når den forstørres til det dobbelte fra ett hjørne (formlikhet).",
+    "packs": [],
+    "spec": {
+      "title": "Formlikhet: dobbelt så stor",
+      "elements": [
+        { "id": "tri", "type": "polygon", "points": [[300, 250], [500, 250], [400, 400]], "style": { "fill": "#f2c14e" } },
+        { "id": "orig", "type": "polygon", "points": [[300, 250], [500, 250], [400, 400]], "style": { "color": "#b5482e", "strokeWidth": 3 } },
+        { "id": "t_big", "type": "text", "text": "2b", "x": 500, "y": 220, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["tri"], "speak": "En trekant med grunnlinje b." },
+        { "camera": { "center": { "ref": "tri" }, "zoom": 2, "duration": 1.2 }, "speak": "Se nøye på hjørnet nede til venstre." },
+        { "camera": { "reset": true, "duration": 1 } },
+        { "move": { "target": ["tri"], "scale": 2, "pivot": [300, 250], "duration": 2 }, "speak": "Forstørr den til det dobbelte fra det hjørnet: hver side blir dobbelt så lang." },
+        { "draw": ["orig"], "speak": "Den opprinnelige trekanten får plass fire ganger inni. Arealet blir fire ganger så stort, ikke to." },
+        { "fade": { "target": ["tri"], "to": 0.5 } },
+        { "draw": ["t_big"] }
+      ]
+    }
+  }
+```
+
+- [ ] **Step 2: Run** `npx vitest run tests/examples.test.ts` — PASS (fix a flagged lint issue by moving the named text a few units, and record the move in the report).
+
+- [ ] **Step 3: Docs** — `ROADMAP.md`: in the "Motion and primitives" section add three lines (scale on move; the fade verb; the three freehand examples) and, under the non-goals, "fading a whole template figure needs its ids listed". Ledger: append a section "Addendum 2026-09-08: scale, fade, examples" — what shipped per task with file names, what the reviews caught, and the smoke result the controller reports in the dispatch.
+
+- [ ] **Step 4: Run** `npx vitest run && npx tsc --noEmit` — full suite green; report the count.
+
+- [ ] **Step 5: Report.**
