@@ -24,10 +24,12 @@ import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } fro
 import { sampleSvgPath } from "./svgpath";
 import type { Atlas, AtlasPart, AtlasSystem, AnatomyEngine } from "./anatomy/types";
 export type { AnatomyEngine } from "./anatomy/types";
+import type { ChemElement, ElementsEngine } from "./elements/types";
+export type { ElementsEngine } from "./elements/types";
 import type { BodiesTable, SpaceEngine } from "./space/types";
 export type { SpaceEngine } from "./space/types";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "space"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "elements", "space"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -633,6 +635,36 @@ async function loadAnatomy(): Promise<AnatomyEngine> {
   };
 }
 
+/** The periodic table: one generated JSON (~15 kB), lazy like every other
+ *  engine, with the three lookups a drawn table and its drills both need. */
+async function loadElements(): Promise<ElementsEngine> {
+  const mod = await import("./elements/elements.json");
+  const all = (mod.default as unknown as { elements: ChemElement[] }).elements;
+
+  // One index over symbols, atomic numbers and all three languages' names —
+  // built once, so `find` stays a lookup however a spec spells the element.
+  const index = new Map<string, ChemElement>();
+  const put = (k: string | number | null, el: ChemElement) => {
+    if (k === null || k === "") return;
+    const key = String(k).toLowerCase();
+    if (!index.has(key)) index.set(key, el); // first writer wins: symbol before name.
+  };
+  for (const el of all) put(el.symbol, el);
+  for (const el of all) {
+    put(el.z, el);
+    put(el.name.en, el);
+    put(el.name.nb, el);
+    put(el.name.la, el);
+  }
+
+  return {
+    all: () => all,
+    bySymbol: (symbol) => all.find((e) => e.symbol.toLowerCase() === String(symbol).toLowerCase()) ?? null,
+    find: (query) => index.get(String(query).trim().toLowerCase()) ?? null,
+    nameIn: (el, lang) => (lang === "nb" ? el.name.nb : lang === "la" ? (el.name.la ?? el.name.en) : el.name.en),
+  };
+}
+
 /** The solar system: the bodies table and astronomy-engine in one lazy chunk.
  *  engine.ts imports astronomy-engine statically, so the dynamic import of
  *  engine.ts IS the code-split boundary — never import ./space/engine or
@@ -648,6 +680,7 @@ export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   chess: { load: loadChess },
   geo: { load: loadGeo },
   anatomy: { load: loadAnatomy },
+  elements: { load: loadElements },
   space: { load: loadSpace },
 };
 

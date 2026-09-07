@@ -56,24 +56,34 @@ describe("the default catalog", () => {
     expect(t).toContain("Pack available but not enabled: Maps");
   });
 
-  // Measured at the space round (2026-09-07), default packs enabled (games and
-  // maps off): 78 ready templates, catalogText({request:""}).length = 254666
-  // chars (~63667 tokens at chars/4); the largest single entry is line_chart
-  // at 12395 chars, then qaly_profiles at 9991 and bar_race at 8844.
+  // Measured at the space/periodic merge (2026-09-07), default packs enabled
+  // (games and maps off): 79 ready templates, catalogText({request:""}).length
+  // = 258427 chars (~64607 tokens at chars/4); the largest single entry is
+  // line_chart at 12395 chars, then qaly_profiles at 9991 and bar_race at
+  // 8844. periodic_table is 3761 and solar_system 6921 — neither is near the
+  // top. The mean entry is 3248.
   //
   // The bound is the LARGEST ENTRY, not the total and not the mean. A ceiling
   // on the total expires every time a pack lands: the 250000 one was set at
   // Task 13 (2026-08-25) against 45 templates and 118582 chars, and by this
   // round the catalog had grown into it, so a single new template had to move
-  // it. The mean was the next attempt and cannot catch what this comment
-  // claims to catch: 3265 against a 4500 ceiling is 96000 chars of headroom
-  // spread over 78 templates, so ONE template would have to grow by 96000
-  // chars — eight times the largest entry there is — before the ratio noticed.
-  // A max is the shape of the claim: one template's prose sprawling past what
-  // a catalog entry should cost fails here as soon as it does it. The floor on
-  // the total guards the opposite failure, a catalog that has COLLAPSED — no
-  // per-entry bound can see that, because a pack that fails to register takes
-  // its entries out of the measurement entirely.
+  // it — which is what happened twice independently, the space round and the
+  // periodic-table round each meeting a catalog at ~99% of its own guard and
+  // each having to raise the number rather than learn anything from it. The
+  // mean was the next attempt and cannot catch what this comment claims to
+  // catch: 3248 against a 4500 ceiling is 99000 chars of headroom spread over
+  // 79 templates, so ONE template would have to grow by 99000 chars — eight
+  // times the largest entry there is — before the ratio noticed. A max is the
+  // shape of the claim: one template's prose sprawling past what a catalog
+  // entry should cost fails here as soon as it does it. The floor on the total
+  // guards the opposite failure, a catalog that has COLLAPSED — no per-entry
+  // bound can see that, because a pack that fails to register takes its
+  // entries out of the measurement entirely.
+  //
+  // What the retired total ceiling was really pointing at, and what neither
+  // bound here answers, is whether the two-level index (TEMPLATE_FULL_THRESHOLD,
+  // tested above) should start engaging for the default configuration. That is
+  // a decision about every template, not one to make while adding one.
   test("the default catalog stays within a sane budget — no single template sprawls", () => {
     const text = catalogText({ request: "" });
     expect(text.length).toBeGreaterThan(200_000);

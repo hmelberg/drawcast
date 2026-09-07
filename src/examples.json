@@ -12873,151 +12873,1003 @@
   },
   {
     "request": "Show the human body with its organs, and name them.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "The body, named",
       "template": "anatomy",
-      "params": { "systems": ["viscera"], "detail": 2, "labels": "all" },
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "labels": "all"
+      },
       "commands": [
-        { "draw": ["body_outline", "brain", "trachea", "lung_right", "lung_left", "heart"], "speak": "A body from the front. The chest: two lungs around the heart, the windpipe above." },
-        { "draw": ["liver", "stomach", "spleen", "pancreas", "kidney_right", "kidney_left", "small_intestine", "large_intestine", "bladder"], "speak": "The belly: liver to the right, stomach to the left, the gut in the middle, kidneys behind, bladder at the bottom." },
-        { "draw": ["label_brain", "label_lung_right", "label_lung_left", "label_heart", "label_trachea", "label_liver", "label_stomach", "label_spleen", "label_pancreas", "label_kidney_right", "label_kidney_left", "label_small_intestine", "label_large_intestine", "label_bladder"], "speak": "And their names, the way an anatomical plate would give them." },
-        { "quiz": { "question": "Which organ lies highest in the belly on the body's right?", "choices": ["The liver", "The spleen", "The bladder"], "correct": 1, "right": "The liver — tucked up under the right ribs, the largest gland in the body." } }
+        {
+          "draw": [
+            "body_outline",
+            "brain",
+            "trachea",
+            "lung_right",
+            "lung_left",
+            "heart"
+          ],
+          "speak": "A body from the front. The chest: two lungs around the heart, the windpipe above."
+        },
+        {
+          "draw": [
+            "liver",
+            "stomach",
+            "spleen",
+            "pancreas",
+            "kidney_right",
+            "kidney_left",
+            "small_intestine",
+            "large_intestine",
+            "bladder"
+          ],
+          "speak": "The belly: liver to the right, stomach to the left, the gut in the middle, kidneys behind, bladder at the bottom."
+        },
+        {
+          "draw": [
+            "label_brain",
+            "label_lung_right",
+            "label_lung_left",
+            "label_heart",
+            "label_trachea",
+            "label_liver",
+            "label_stomach",
+            "label_spleen",
+            "label_pancreas",
+            "label_kidney_right",
+            "label_kidney_left",
+            "label_small_intestine",
+            "label_large_intestine",
+            "label_bladder"
+          ],
+          "speak": "And their names, the way an anatomical plate would give them."
+        },
+        {
+          "quiz": {
+            "question": "Which organ lies highest in the belly on the body's right?",
+            "choices": [
+              "The liver",
+              "The spleen",
+              "The bladder"
+            ],
+            "correct": 1,
+            "right": "The liver — tucked up under the right ribs, the largest gland in the body."
+          }
+        }
       ]
     }
   },
   {
     "request": "What lies behind the intestines?",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "What lies behind",
       "template": "anatomy",
-      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "labels": "none"
+      },
       "commands": [
-        { "draw": ["body_outline", "lung_right", "lung_left", "heart", "liver", "stomach", "small_intestine", "large_intestine", "bladder"], "speak": "Seen from the front, the gut, the liver and the stomach fill the belly." },
-        { "draw": ["kidney_right", "kidney_left", "spleen", "pancreas"], "speak": "Behind them, drawn with a broken line because they are hidden, lie four more organs." },
-        { "quiz": { "question": "Which pair sits behind the gut, either side of the spine?", "choices": ["The lungs", "The kidneys", "The adrenal glands only"], "correct": 2, "right": "The kidneys — retroperitoneal, at the level of the lowest ribs." } },
-        { "ask": { "question": "Click on the left kidney.", "widget": "click", "answer": "kidney_left", "right": "That is the left kidney, a little higher than the right one, which the liver pushes down." } }
+        {
+          "draw": [
+            "body_outline",
+            "lung_right",
+            "lung_left",
+            "heart",
+            "liver",
+            "stomach",
+            "small_intestine",
+            "large_intestine",
+            "bladder"
+          ],
+          "speak": "Seen from the front, the gut, the liver and the stomach fill the belly."
+        },
+        {
+          "draw": [
+            "kidney_right",
+            "kidney_left",
+            "spleen",
+            "pancreas"
+          ],
+          "speak": "Behind them, drawn with a broken line because they are hidden, lie four more organs."
+        },
+        {
+          "quiz": {
+            "question": "Which pair sits behind the gut, either side of the spine?",
+            "choices": [
+              "The lungs",
+              "The kidneys",
+              "The adrenal glands only"
+            ],
+            "correct": 2,
+            "right": "The kidneys — retroperitoneal, at the level of the lowest ribs."
+          }
+        },
+        {
+          "ask": {
+            "question": "Click on the left kidney.",
+            "widget": "click",
+            "answer": "kidney_left",
+            "right": "That is the left kidney, a little higher than the right one, which the liver pushes down."
+          }
+        }
       ]
     }
   },
   {
     "request": "Lær meg de latinske navnene på knoklene i beinet.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "Latinske navn",
       "template": "anatomy",
-      "params": { "systems": ["skeleton"], "detail": 2, "focus": ["leg_left"], "labels": "all", "names": "la" },
+      "params": {
+        "systems": [
+          "skeleton"
+        ],
+        "detail": 2,
+        "focus": [
+          "leg_left"
+        ],
+        "labels": "all",
+        "names": "la"
+      },
       "commands": [
-        { "draw": ["frame", "femur_left", "label_femur_left"], "speak": "Lårbeinet heter os femoris, kroppens lengste knokkel." },
-        { "draw": ["patella_left", "label_patella_left", "tibia_left", "label_tibia_left", "fibula_left", "label_fibula_left"], "speak": "Kneskålen er patella, skinnebeinet tibia og det tynne leggbeinet fibula." },
-        { "draw": ["tarsals_left", "metatarsals_left", "phalanges_foot_left", "hip_left", "knee_left", "ankle_left"], "speak": "Fotrotsbeina heter ossa tarsi, mellomfotsbeina ossa metatarsi, og tåbeina phalanges pedis." },
-        { "ask": { "question": "Hva heter lårbeinet på latin?", "answer": "Os femoris", "right": "Os femoris — femur er lår." } },
-        { "ask": { "question": "Og skinnebeinet?", "answer": "Tibia", "right": "Tibia, det bærende beinet i leggen." } }
+        {
+          "draw": [
+            "frame",
+            "femur_left",
+            "label_femur_left"
+          ],
+          "speak": "Lårbeinet heter os femoris, kroppens lengste knokkel."
+        },
+        {
+          "draw": [
+            "patella_left",
+            "label_patella_left",
+            "tibia_left",
+            "label_tibia_left",
+            "fibula_left",
+            "label_fibula_left"
+          ],
+          "speak": "Kneskålen er patella, skinnebeinet tibia og det tynne leggbeinet fibula."
+        },
+        {
+          "draw": [
+            "tarsals_left",
+            "metatarsals_left",
+            "phalanges_foot_left",
+            "hip_left",
+            "knee_left",
+            "ankle_left"
+          ],
+          "speak": "Fotrotsbeina heter ossa tarsi, mellomfotsbeina ossa metatarsi, og tåbeina phalanges pedis."
+        },
+        {
+          "ask": {
+            "question": "Hva heter lårbeinet på latin?",
+            "answer": "Os femoris",
+            "right": "Os femoris — femur er lår."
+          }
+        },
+        {
+          "ask": {
+            "question": "Og skinnebeinet?",
+            "answer": "Tibia",
+            "right": "Tibia, det bærende beinet i leggen."
+          }
+        }
       ]
     }
   },
   {
     "request": "Draw the skeleton in plain ink and quiz me on it.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "The skeleton in ink",
       "template": "anatomy",
-      "params": { "systems": ["skeleton"], "detail": 2, "color": "mono", "outline": "line", "labels": "none" },
+      "params": {
+        "systems": [
+          "skeleton"
+        ],
+        "detail": 2,
+        "color": "mono",
+        "outline": "line",
+        "labels": "none"
+      },
       "commands": [
-        { "draw": ["body_outline", "cranium", "mandible", "cervical_vertebrae", "thoracic_vertebrae", "lumbar_vertebrae", "sacrum", "ribs", "sternum"], "speak": "The axial skeleton: skull, spine, rib cage, in plain ink." },
-        { "draw": ["clavicle_left", "clavicle_right", "scapula_left", "scapula_right", "humerus_left", "humerus_right", "radius_left", "ulna_left", "radius_right", "ulna_right", "hand_left", "hand_right"], "speak": "The arms hang from the shoulder girdle." },
-        { "draw": ["hip_bones", "femur_left", "femur_right", "patella_left", "patella_right", "tibia_left", "fibula_left", "tibia_right", "fibula_right", "foot_left", "foot_right"], "speak": "And the legs from the pelvis." },
-        { "quiz": { "question": "How many bones does one hand have?", "choices": ["14", "27", "52"], "correct": 2, "right": "27 — eight carpals, five metacarpals and fourteen phalanges." } },
-        { "ask": { "question": "Click on the sternum.", "widget": "click", "answer": "sternum", "right": "The sternum, the breastbone, where the ribs meet in front." } }
+        {
+          "draw": [
+            "body_outline",
+            "cranium",
+            "mandible",
+            "cervical_vertebrae",
+            "thoracic_vertebrae",
+            "lumbar_vertebrae",
+            "sacrum",
+            "ribs",
+            "sternum"
+          ],
+          "speak": "The axial skeleton: skull, spine, rib cage, in plain ink."
+        },
+        {
+          "draw": [
+            "clavicle_left",
+            "clavicle_right",
+            "scapula_left",
+            "scapula_right",
+            "humerus_left",
+            "humerus_right",
+            "radius_left",
+            "ulna_left",
+            "radius_right",
+            "ulna_right",
+            "hand_left",
+            "hand_right"
+          ],
+          "speak": "The arms hang from the shoulder girdle."
+        },
+        {
+          "draw": [
+            "hip_bones",
+            "femur_left",
+            "femur_right",
+            "patella_left",
+            "patella_right",
+            "tibia_left",
+            "fibula_left",
+            "tibia_right",
+            "fibula_right",
+            "foot_left",
+            "foot_right"
+          ],
+          "speak": "And the legs from the pelvis."
+        },
+        {
+          "quiz": {
+            "question": "How many bones does one hand have?",
+            "choices": [
+              "14",
+              "27",
+              "52"
+            ],
+            "correct": 2,
+            "right": "27 — eight carpals, five metacarpals and fourteen phalanges."
+          }
+        },
+        {
+          "ask": {
+            "question": "Click on the sternum.",
+            "widget": "click",
+            "answer": "sternum",
+            "right": "The sternum, the breastbone, where the ribs meet in front."
+          }
+        }
       ]
     }
   },
   {
     "request": "Zoom inn på hånden og vis knoklene.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "Inne i hånden",
       "template": "anatomy",
-      "params": { "systems": ["skeleton"], "focus": ["hand_left"], "labels": "focus", "names": "nb", "detail": 2 },
+      "params": {
+        "systems": [
+          "skeleton"
+        ],
+        "focus": [
+          "hand_left"
+        ],
+        "labels": "focus",
+        "names": "nb",
+        "detail": 2
+      },
       "commands": [
-        { "draw": ["frame", "carpals_left", "label_carpals_left"], "speak": "Håndrotsbeina, åtte små knokler i to rader." },
-        { "draw": ["metacarpals_left", "label_metacarpals_left"], "speak": "Så de fem mellomhåndsbeina." },
-        { "draw": ["phalanges_hand_left", "label_phalanges_hand_left"], "speak": "Og fingerbeina, tre i hver finger, to i tommelen." },
-        { "ask": { "question": "Klikk på håndrotsbeina.", "widget": "click", "answer": "carpals_left", "right": "Håndrotsbeina — de ligger i håndleddet, mellom underarmen og mellomhånden." } },
-        { "ask": { "question": "Klikk på fingerbeina.", "widget": "click", "answer": "phalanges_hand_left", "right": "Fingerbeina, phalanges — fjorten i alt." } }
+        {
+          "draw": [
+            "frame",
+            "carpals_left",
+            "label_carpals_left"
+          ],
+          "speak": "Håndrotsbeina, åtte små knokler i to rader."
+        },
+        {
+          "draw": [
+            "metacarpals_left",
+            "label_metacarpals_left"
+          ],
+          "speak": "Så de fem mellomhåndsbeina."
+        },
+        {
+          "draw": [
+            "phalanges_hand_left",
+            "label_phalanges_hand_left"
+          ],
+          "speak": "Og fingerbeina, tre i hver finger, to i tommelen."
+        },
+        {
+          "ask": {
+            "question": "Klikk på håndrotsbeina.",
+            "widget": "click",
+            "answer": "carpals_left",
+            "right": "Håndrotsbeina — de ligger i håndleddet, mellom underarmen og mellomhånden."
+          }
+        },
+        {
+          "ask": {
+            "question": "Klikk på fingerbeina.",
+            "widget": "click",
+            "answer": "phalanges_hand_left",
+            "right": "Fingerbeina, phalanges — fjorten i alt."
+          }
+        }
       ]
     }
   },
   {
     "request": "Let me explore the body myself.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "Explore the body",
       "template": "anatomy",
-      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "labels": "none"
+      },
       "commands": [
-        { "draw": ["body_outline", "brain", "trachea", "lung_right", "lung_left", "heart", "liver", "stomach", "spleen", "pancreas", "kidney_right", "kidney_left", "small_intestine", "large_intestine", "bladder"], "speak": "Here is the body with its organs in place. Nothing is named yet — that is your job." },
-        { "explore": { "anatomy": true }, "speak": "Click anything you are curious about to zoom in, click again to see its name, and use the crumbs to come back. Press Continue when you are done." },
-        { "quiz": { "question": "Which organ lies behind the stomach, tucked against the back wall?", "choices": ["The liver", "The pancreas", "The bladder"], "correct": 1, "right": "The pancreas — behind the stomach, in front of the spine. Switch to Behind in the tray to see it clear of the stomach." } }
+        {
+          "draw": [
+            "body_outline",
+            "brain",
+            "trachea",
+            "lung_right",
+            "lung_left",
+            "heart",
+            "liver",
+            "stomach",
+            "spleen",
+            "pancreas",
+            "kidney_right",
+            "kidney_left",
+            "small_intestine",
+            "large_intestine",
+            "bladder"
+          ],
+          "speak": "Here is the body with its organs in place. Nothing is named yet — that is your job."
+        },
+        {
+          "explore": {
+            "anatomy": true
+          },
+          "speak": "Click anything you are curious about to zoom in, click again to see its name, and use the crumbs to come back. Press Continue when you are done."
+        },
+        {
+          "quiz": {
+            "question": "Which organ lies behind the stomach, tucked against the back wall?",
+            "choices": [
+              "The liver",
+              "The pancreas",
+              "The bladder"
+            ],
+            "correct": 1,
+            "right": "The pancreas — behind the stomach, in front of the spine. Switch to Behind in the tray to see it clear of the stomach."
+          }
+        }
       ]
     }
   },
   {
     "request": "Show the heart between the lungs, and let me see it in 3D.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "See it in 3D",
       "template": "anatomy",
-      "params": { "systems": ["viscera"], "detail": 2, "focus": ["thorax"], "labels": "focus", "highlight": ["heart"] },
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "focus": [
+          "thorax"
+        ],
+        "labels": "focus",
+        "highlight": [
+          "heart"
+        ]
+      },
       "commands": [
-        { "draw": ["frame", "lung_right", "label_lung_right", "lung_left", "label_lung_left"], "speak": "Two lungs, one on each side of the chest — the right one a little larger, the left one leaving room." },
-        { "draw": ["heart", "label_heart"], "speak": "Room for the heart, which sits between them, tilted a little to the left." },
-        { "draw": ["trachea", "label_trachea"], "speak": "The windpipe comes down from above and splits into the two lungs." },
-        { "highlight": { "target": ["heart"] }, "speak": "Everything here has a front and a back: the heart leans forward, the great vessels leave it behind and above." },
-        { "quiz": { "question": "Which lung is the larger one?", "choices": ["The right lung", "The left lung", "They are the same"], "correct": 1, "right": "The right — the heart takes part of the left side of the chest." } },
-        { "speak": "A drawing shows the front. The 3D button under the figure shows the same body from any side — turn it, and peel the front away, layer by layer, until the heart sits alone in its place." }
+        {
+          "draw": [
+            "frame",
+            "lung_right",
+            "label_lung_right",
+            "lung_left",
+            "label_lung_left"
+          ],
+          "speak": "Two lungs, one on each side of the chest — the right one a little larger, the left one leaving room."
+        },
+        {
+          "draw": [
+            "heart",
+            "label_heart"
+          ],
+          "speak": "Room for the heart, which sits between them, tilted a little to the left."
+        },
+        {
+          "draw": [
+            "trachea",
+            "label_trachea"
+          ],
+          "speak": "The windpipe comes down from above and splits into the two lungs."
+        },
+        {
+          "highlight": {
+            "target": [
+              "heart"
+            ]
+          },
+          "speak": "Everything here has a front and a back: the heart leans forward, the great vessels leave it behind and above."
+        },
+        {
+          "quiz": {
+            "question": "Which lung is the larger one?",
+            "choices": [
+              "The right lung",
+              "The left lung",
+              "They are the same"
+            ],
+            "correct": 1,
+            "right": "The right — the heart takes part of the left side of the chest."
+          }
+        },
+        {
+          "speak": "A drawing shows the front. The 3D button under the figure shows the same body from any side — turn it, and peel the front away, layer by layer, until the heart sits alone in its place."
+        }
       ]
     }
   },
   {
     "request": "Let me place the organs myself.",
-    "packs": ["anatomy"],
+    "packs": [
+      "anatomy"
+    ],
     "spec": {
       "title": "Place the organs",
       "template": "anatomy",
-      "params": { "systems": ["viscera"], "detail": 2, "labels": "none" },
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "labels": "none"
+      },
       "commands": [
-        { "draw": ["body_outline", "lung_right", "lung_left"], "speak": "A body, and its two lungs. Three organs are missing." },
-        { "ask": { "question": "Drag each organ to where it belongs.", "widget": "drag", "items": [{ "id": "heart", "label": "Heart" }, { "id": "liver", "label": "Liver" }, { "id": "stomach", "label": "Stomach" }], "right": "The heart between the lungs, a little to the left; the liver under the right ribs; the stomach to the left, just below the heart.", "wrong": "Feel for the ribs: the heart sits between the lungs, the liver just under them on the body's right." } },
-        { "draw": ["small_intestine", "large_intestine", "bladder"], "speak": "Below them the gut fills the belly, and the bladder sits at the bottom." }
+        {
+          "draw": [
+            "body_outline",
+            "lung_right",
+            "lung_left"
+          ],
+          "speak": "A body, and its two lungs. Three organs are missing."
+        },
+        {
+          "ask": {
+            "question": "Drag each organ to where it belongs.",
+            "widget": "drag",
+            "items": [
+              {
+                "id": "heart",
+                "label": "Heart"
+              },
+              {
+                "id": "liver",
+                "label": "Liver"
+              },
+              {
+                "id": "stomach",
+                "label": "Stomach"
+              }
+            ],
+            "right": "The heart between the lungs, a little to the left; the liver under the right ribs; the stomach to the left, just below the heart.",
+            "wrong": "Feel for the ribs: the heart sits between the lungs, the liver just under them on the body's right."
+          }
+        },
+        {
+          "draw": [
+            "small_intestine",
+            "large_intestine",
+            "bladder"
+          ],
+          "speak": "Below them the gut fills the belly, and the bladder sits at the bottom."
+        }
       ]
     }
   },
   {
     "request": "Let me put the Nordic names on the map.",
-    "packs": ["maps"],
+    "packs": [
+      "maps"
+    ],
     "spec": {
       "title": "Name the Nordics",
       "template": "world_map",
-      "params": { "focus": ["Norway", "Sweden", "Finland", "Denmark"] },
+      "params": {
+        "focus": [
+          "Norway",
+          "Sweden",
+          "Finland",
+          "Denmark"
+        ]
+      },
       "commands": [
-        { "draw": ["country_norway", "country_sweden", "country_finland", "country_denmark"], "speak": "Four Nordic countries, unnamed." },
-        { "ask": { "question": "Drag each name onto its country.", "widget": "drag", "items": [{ "id": "country_norway", "label": "Norway" }, { "id": "country_sweden", "label": "Sweden" }, { "id": "country_finland", "label": "Finland" }, { "id": "country_denmark", "label": "Denmark" }], "right": "Norway along the Atlantic coast, Sweden beside it, Finland to the east, and Denmark on the peninsula to the south.", "wrong": "Norway has the long coast; Finland touches Russia; Denmark is the small one in the south." } }
+        {
+          "draw": [
+            "country_norway",
+            "country_sweden",
+            "country_finland",
+            "country_denmark"
+          ],
+          "speak": "Four Nordic countries, unnamed."
+        },
+        {
+          "ask": {
+            "question": "Drag each name onto its country.",
+            "widget": "drag",
+            "items": [
+              {
+                "id": "country_norway",
+                "label": "Norway"
+              },
+              {
+                "id": "country_sweden",
+                "label": "Sweden"
+              },
+              {
+                "id": "country_finland",
+                "label": "Finland"
+              },
+              {
+                "id": "country_denmark",
+                "label": "Denmark"
+              }
+            ],
+            "right": "Norway along the Atlantic coast, Sweden beside it, Finland to the east, and Denmark on the peninsula to the south.",
+            "wrong": "Norway has the long coast; Finland touches Russia; Denmark is the small one in the south."
+          }
+        }
       ]
     }
   },
   {
     "request": "Let me find C, E and G on the keyboard.",
-    "packs": ["music"],
+    "packs": [
+      "music"
+    ],
     "spec": {
       "title": "Find the C major chord",
       "template": "piano_keys",
-      "params": { "octaves": 1, "labels": false, "highlight": ["C4", "E4", "G4"] },
+      "params": {
+        "octaves": 1,
+        "labels": false,
+        "highlight": [
+          "C4",
+          "E4",
+          "G4"
+        ]
+      },
       "commands": [
-        { "draw": ["keys"], "speak": "One octave, no names on the keys." },
-        { "ask": { "question": "Drag C, E and G onto their keys.", "widget": "drag", "items": [{ "id": "C4", "label": "C" }, { "id": "E4", "label": "E" }, { "id": "G4", "label": "G" }], "tolerance": 0.1, "right": "C is the white key just left of the pair of black keys; E and G are two and four white keys to its right — together, the C major chord.", "wrong": "Find the pair of black keys: C is the white key just left of it." } },
-        { "draw": ["highlight_0", "highlight_1", "highlight_2"], "speak": "C, E, G." }
+        {
+          "draw": [
+            "keys"
+          ],
+          "speak": "One octave, no names on the keys."
+        },
+        {
+          "ask": {
+            "question": "Drag C, E and G onto their keys.",
+            "widget": "drag",
+            "items": [
+              {
+                "id": "C4",
+                "label": "C"
+              },
+              {
+                "id": "E4",
+                "label": "E"
+              },
+              {
+                "id": "G4",
+                "label": "G"
+              }
+            ],
+            "tolerance": 0.1,
+            "right": "C is the white key just left of the pair of black keys; E and G are two and four white keys to its right — together, the C major chord.",
+            "wrong": "Find the pair of black keys: C is the white key just left of it."
+          }
+        },
+        {
+          "draw": [
+            "highlight_0",
+            "highlight_1",
+            "highlight_2"
+          ],
+          "speak": "C, E, G."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show me the periodic table and explain how it is organised.",
+    "packs": [
+      "chemistry"
+    ],
+    "spec": {
+      "title": "The periodic table",
+      "template": "periodic_table",
+      "params": {
+        "colour_by": "category",
+        "title": "The periodic table"
+      },
+      "commands": [
+        {
+          "speak": "Everything the universe is made of, arranged by a single number."
+        },
+        {
+          "draw": [
+            "grid"
+          ],
+          "speak": "Eighteen columns and seven rows. The shape is not decoration — it is the argument."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "cell_H",
+            "cell_He",
+            "cell_Li",
+            "cell_Be",
+            "cell_B",
+            "cell_C",
+            "cell_N",
+            "cell_O",
+            "cell_F",
+            "cell_Ne",
+            "cell_Na",
+            "cell_Mg",
+            "cell_Al",
+            "cell_Si",
+            "cell_P",
+            "cell_S",
+            "cell_Cl",
+            "cell_Ar",
+            "cell_K",
+            "cell_Ca",
+            "cell_Sc",
+            "cell_Ti",
+            "cell_V",
+            "cell_Cr",
+            "cell_Mn",
+            "cell_Fe",
+            "cell_Co",
+            "cell_Ni",
+            "cell_Cu",
+            "cell_Zn",
+            "cell_Ga",
+            "cell_Ge",
+            "cell_As",
+            "cell_Se",
+            "cell_Br",
+            "cell_Kr",
+            "cell_Rb",
+            "cell_Sr",
+            "cell_Y",
+            "cell_Zr",
+            "cell_Nb",
+            "cell_Mo",
+            "cell_Tc",
+            "cell_Ru",
+            "cell_Rh",
+            "cell_Pd",
+            "cell_Ag",
+            "cell_Cd",
+            "cell_In",
+            "cell_Sn",
+            "cell_Sb",
+            "cell_Te",
+            "cell_I",
+            "cell_Xe",
+            "cell_Cs",
+            "cell_Ba",
+            "cell_La",
+            "cell_Ce",
+            "cell_Pr",
+            "cell_Nd",
+            "cell_Pm",
+            "cell_Sm",
+            "cell_Eu",
+            "cell_Gd",
+            "cell_Tb",
+            "cell_Dy",
+            "cell_Ho",
+            "cell_Er",
+            "cell_Tm",
+            "cell_Yb",
+            "cell_Lu",
+            "cell_Hf",
+            "cell_Ta",
+            "cell_W",
+            "cell_Re",
+            "cell_Os",
+            "cell_Ir",
+            "cell_Pt",
+            "cell_Au",
+            "cell_Hg",
+            "cell_Tl",
+            "cell_Pb",
+            "cell_Bi",
+            "cell_Po",
+            "cell_At",
+            "cell_Rn",
+            "cell_Fr",
+            "cell_Ra",
+            "cell_Ac",
+            "cell_Th",
+            "cell_Pa",
+            "cell_U",
+            "cell_Np",
+            "cell_Pu",
+            "cell_Am",
+            "cell_Cm",
+            "cell_Bk",
+            "cell_Cf",
+            "cell_Es",
+            "cell_Fm",
+            "cell_Md",
+            "cell_No",
+            "cell_Lr",
+            "cell_Rf",
+            "cell_Db",
+            "cell_Sg",
+            "cell_Bh",
+            "cell_Hs",
+            "cell_Mt",
+            "cell_Ds",
+            "cell_Rg",
+            "cell_Cn",
+            "cell_Nh",
+            "cell_Fl",
+            "cell_Mc",
+            "cell_Lv",
+            "cell_Ts",
+            "cell_Og"
+          ],
+          "parallel": true,
+          "speak": "One box per element, in order of atomic number: how many protons sit in the nucleus."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "cell_H"
+            }
+          },
+          "speak": "It starts with hydrogen. One proton."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "cell_He"
+            }
+          },
+          "speak": "Two protons, and we are already at the far right — helium, which reacts with nothing."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "speak": "Read across a row and the properties change step by step. Read down a column and they repeat."
+        },
+        {
+          "draw": [
+            "fill_H",
+            "fill_He",
+            "fill_Li",
+            "fill_Be",
+            "fill_B",
+            "fill_C",
+            "fill_N",
+            "fill_O",
+            "fill_F",
+            "fill_Ne",
+            "fill_Na",
+            "fill_Mg",
+            "fill_Al",
+            "fill_Si",
+            "fill_P",
+            "fill_S",
+            "fill_Cl",
+            "fill_Ar",
+            "fill_K",
+            "fill_Ca",
+            "fill_Sc",
+            "fill_Ti",
+            "fill_V",
+            "fill_Cr",
+            "fill_Mn",
+            "fill_Fe",
+            "fill_Co",
+            "fill_Ni",
+            "fill_Cu",
+            "fill_Zn",
+            "fill_Ga",
+            "fill_Ge",
+            "fill_As",
+            "fill_Se",
+            "fill_Br",
+            "fill_Kr",
+            "fill_Rb",
+            "fill_Sr",
+            "fill_Y",
+            "fill_Zr",
+            "fill_Nb",
+            "fill_Mo",
+            "fill_Tc",
+            "fill_Ru",
+            "fill_Rh",
+            "fill_Pd",
+            "fill_Ag",
+            "fill_Cd",
+            "fill_In",
+            "fill_Sn",
+            "fill_Sb",
+            "fill_Te",
+            "fill_I",
+            "fill_Xe",
+            "fill_Cs",
+            "fill_Ba",
+            "fill_La",
+            "fill_Ce",
+            "fill_Pr",
+            "fill_Nd",
+            "fill_Pm",
+            "fill_Sm",
+            "fill_Eu",
+            "fill_Gd",
+            "fill_Tb",
+            "fill_Dy",
+            "fill_Ho",
+            "fill_Er",
+            "fill_Tm",
+            "fill_Yb",
+            "fill_Lu",
+            "fill_Hf",
+            "fill_Ta",
+            "fill_W",
+            "fill_Re",
+            "fill_Os",
+            "fill_Ir",
+            "fill_Pt",
+            "fill_Au",
+            "fill_Hg",
+            "fill_Tl",
+            "fill_Pb",
+            "fill_Bi",
+            "fill_Po",
+            "fill_At",
+            "fill_Rn",
+            "fill_Fr",
+            "fill_Ra",
+            "fill_Ac",
+            "fill_Th",
+            "fill_Pa",
+            "fill_U",
+            "fill_Np",
+            "fill_Pu",
+            "fill_Am",
+            "fill_Cm",
+            "fill_Bk",
+            "fill_Cf",
+            "fill_Es",
+            "fill_Fm",
+            "fill_Md",
+            "fill_No",
+            "fill_Lr",
+            "fill_Rf",
+            "fill_Db",
+            "fill_Sg",
+            "fill_Bh",
+            "fill_Hs",
+            "fill_Mt",
+            "fill_Ds",
+            "fill_Rg",
+            "fill_Cn",
+            "fill_Nh",
+            "fill_Fl",
+            "fill_Mc",
+            "fill_Lv",
+            "fill_Ts",
+            "fill_Og"
+          ],
+          "parallel": true,
+          "speak": "Colour the boxes by family and that repetition becomes visible: metals filling the left, non-metals in the top right corner."
+        },
+        {
+          "draw": [
+            "legend"
+          ]
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "speak": "That is the whole idea. Mendeleev arranged the elements he knew by weight, saw the pattern return, and left gaps where the pattern said something must exist. It did."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor heter jern Fe?",
+    "packs": [
+      "chemistry"
+    ],
+    "spec": {
+      "title": "Jern, Fe",
+      "template": "periodic_table",
+      "lang": "nb",
+      "params": {
+        "element": "Fe",
+        "names": "la",
+        "title": "Jern — Fe"
+      },
+      "commands": [
+        {
+          "speak": "Jern heter Fe. Ingen av bokstavene står i ordet «jern»."
+        },
+        {
+          "draw": [
+            "cell_Fe"
+          ],
+          "speak": "Svaret står i kortet: det latinske navnet er ferrum, og symbolet er de to første bokstavene der."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "speak": "Tallet 26 er antall protoner. Massen, femtiseks, er protoner og nøytroner til sammen."
+        },
+        {
+          "speak": "Elleve grunnstoffer har symboler fra latin på denne måten: natrium, kalium, aurum for gull, plumbum for bly. De var kjent lenge før engelsk fikk et ord for dem."
+        },
+        {
+          "draw": [
+            "title"
+          ]
+        }
       ]
     }
   },

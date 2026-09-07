@@ -37,7 +37,7 @@ import { mountSpaceSection, type SpaceSection } from "./space-explore";
 import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
-import { sliderSpecs, trayPlan, type SliderSpec } from "./tray-model";
+import { choiceSpecs, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl } from "../code/c64";
@@ -71,6 +71,29 @@ function liveSliders(hd: RenderHandle): { spec: SliderSpec; value: number }[] {
     .filter((s): s is { spec: SliderSpec; value: number } => s.value !== null);
 }
 
+/** Segmented controls whose param currently holds one of its own words — a
+ *  row of buttons with none of them pressed would be asking the viewer to
+ *  guess what the figure is already doing. This is also what keeps a param
+ *  that a oneOf lets be EITHER (supply_demand's `steepness`: "gentle" or
+ *  1.4) from growing both controls: a numeric value reads as no choice, a
+ *  word reads as no slider, and whichever the spec set is the one offered. */
+function liveChoices(hd: RenderHandle): { spec: ChoiceSpec; value: string }[] {
+  const tpl = hd.spec.template;
+  if (!tpl) return [];
+  const schema = scenes[tpl]?.manifest.params_schema;
+  if (!schema) return [];
+  const n = hd.timeline.position;
+  const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
+  // The sliders' precedence, in one overlay: the viewer's own committed
+  // values win over the plan's boundary params, which win over the spec's.
+  // (The runtime map holds numbers — a {var} animate — so a path it has
+  // taken over reads as no choice at all; that param is the slider's now.)
+  const effective = withOverrides(withOverrides(hd.spec.params, boundary.params), hd.timeline.getParamOverrides());
+  return choiceSpecs(schema)
+    .map((spec) => ({ spec, value: readChoice(effective, spec.path) }))
+    .filter((c): c is { spec: ChoiceSpec; value: string } => c.value !== null && c.spec.values.includes(c.value));
+}
+
 function fmt(x: number): string {
   return Math.abs(x) >= 10 ? String(Math.round(x)) : String(Math.round(x * 100) / 100);
 }
@@ -102,7 +125,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // solar-system figure a sky (its days slider comes from the schema anyway).
   const bodyTemplate = hd.spec.template === "anatomy";
   const spaceTemplate = hd.spec.template === "solar_system";
-  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0 && !bodyTemplate && !spaceTemplate) return;
+  if (
+    liveSliders(hd).length === 0 &&
+    liveChoices(hd).length === 0 &&
+    interactions.length === 0 &&
+    editable.length === 0 &&
+    games.length === 0 &&
+    !bodyTemplate &&
+    !spaceTemplate
+  )
+    return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -328,11 +360,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     return null;
   };
   /** Switch the machine on: the emulator page, in the modal, with the program in its hash. */
-  const startGame = (url: string, onClose?: () => void): { close: () => void } | null => {
+  const startGame = (url: string, onClose?: () => void, href?: string): { close: () => void } | null => {
     if (!stage) return null;
     return openMediaModal(stage, hd, {
       src: c64EmulatorUrl(url),
-      href: url,
+      // Where "open in a new tab" goes. For an Archive pick that is the
+      // ITEM's page — which carries the Archive's own working player, the
+      // fallback for a program the free ROMs cannot start — not the .prg.
+      href: href ?? url,
       allow: "autoplay; gamepad; fullscreen; clipboard-write",
       ...(onClose ? { onClose } : {}),
     });
@@ -414,8 +449,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // opened it, exactly what the beat named when an explore did (the rule
     // lives in tray-model, testable without a DOM).
     const sliders = liveSliders(hd);
+    const choices = liveChoices(hd);
     const plan = trayPlan({
       sliderPaths: sliders.map((s) => s.spec.path),
+      choicePaths: choices.map((c) => c.spec.path),
       codeIds: editable.map((e) => e.id),
       gated: opts.gated,
       params: opts.filter,
@@ -439,7 +476,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           restore(); // the session runs on the honest boundary
           close();
           if (a.id === "vs_computer") mountChessVs(stage, hd);
-          else mountQuiz(stage, hd, a.kind);
+          else mountQuiz(stage, hd, a);
         });
         row.appendChild(pill);
       }
@@ -521,47 +558,73 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // pick runs in the ARCHIVE's own player (see code/c64-archive.ts for
         // why not vc64web: disks need a drive ROM the free ROMs lack). Nothing
         // hosted or chosen by us; the Archive's arrangement, in our modal.
+        // A hit whose item boots from a .prg plays in OUR emulator (keyboard
+        // joystick, no click to start); a disk or tape opens the Archive's own
+        // player. The search result says which — see code/c64-archive.ts.
         const arow = h("div", { class: "cs-tray-row cs-tray-c64" });
         arow.appendChild(h("span", { class: "cs-tray-label" }, "Internet Archive"));
-        const q = h("input", { type: "search", class: "cs-tray-url", placeholder: "Search 17 000 C64 titles…", "aria-label": "Search the Internet Archive" }) as HTMLInputElement;
+        const q = h("input", { type: "search", class: "cs-tray-url", placeholder: "Search the Archive's C64 library…", "aria-label": "Search the Internet Archive" }) as HTMLInputElement;
         const go = h("button", { class: "cs-tray-run" }, "Search");
+        // Demos are the other half of a Commodore: nobody would think to
+        // search for "pouet", so the scene's productions get their own button.
+        const godemo = h("button", { class: "cs-tray-run" }, "Demos");
         const hits = h("select", { class: "cs-menu-select cs-tray-c64-pick", "aria-label": "Results" }) as HTMLSelectElement;
         hits.hidden = true;
         const aplay = h("button", { class: "cs-tray-run" }, "Play ▶");
         aplay.hidden = true;
         const anote = h("span", { class: "cs-tray-status" }, "");
         let found: ArchiveHit[] = [];
-        const search = async (): Promise<void> => {
-          if (q.value.trim() === "") return;
-          go.disabled = true;
+        const search = async (demos = false): Promise<void> => {
+          // A name is needed to search the whole library; "Demos" browses, so
+          // an empty box is the whole scene list.
+          if (q.value.trim() === "" && !demos) return;
+          go.disabled = godemo.disabled = true;
           anote.textContent = "Searching…";
           try {
-            const res = await fetch(archiveSearchUrl(q.value));
+            const res = await fetch(archiveSearchUrl(q.value, { demos }));
             found = parseArchiveSearch(await res.json());
-            hits.replaceChildren(...found.map((f, i) => h("option", { value: String(i) }, f.year ? `${f.title} (${f.year})` : f.title)));
+            hits.replaceChildren(
+              ...found.map((f, i) => {
+                const name = f.year ? `${f.title} (${f.year})` : f.title;
+                return h("option", { value: String(i) }, f.direct ? `\u26a1 ${name}` : name);
+              }),
+            );
             hits.hidden = aplay.hidden = found.length === 0;
-            anote.textContent = found.length === 0 ? "Nothing with that name in the Archive's C64 library." : `${found.length} found — runs in the Archive's own emulator (click its screen to start).`;
+            if (found.length === 0) anote.textContent = demos ? "No demo with that name plays here — the plain search finds the rest." : "Nothing with that name in the Archive's C64 library.";
+            else describePick();
           } catch {
             anote.textContent = "The Archive did not answer — try again in a moment.";
           } finally {
-            go.disabled = false;
+            go.disabled = godemo.disabled = false;
           }
         };
+        /** What Play will do with the hit that is selected right now. */
+        const describePick = (): void => {
+          const hit = found[Number(hits.value)];
+          anote.textContent = hit?.direct
+            ? `${found.length} found. \u26a1 plays right here — cursor keys and space are the joystick.`
+            : `${found.length} found — this one runs in the Archive's own player (click its screen to start).`;
+        };
+        hits.addEventListener("change", describePick);
         go.addEventListener("click", () => void search());
+        godemo.addEventListener("click", () => void search(true));
         q.addEventListener("keydown", (e) => {
           e.stopPropagation();
           if (e.key === "Enter") void search();
         });
         aplay.addEventListener("click", () => {
           const hit = found[Number(hits.value)];
-          const src = hit ? archiveEmbedUrl(hit.id) : null;
-          if (!hit || !src || !stage) return;
+          if (!hit || !stage) return;
+          const src = hit.direct ? null : archiveEmbedUrl(hit.id);
+          if (!hit.direct && !src) return;
           restore();
           close();
-          openMediaModal(stage, hd, { src, href: archivePageUrl(hit.id), allow: "autoplay; gamepad; fullscreen" });
+          if (hit.direct) startGame(hit.direct, undefined, archivePageUrl(hit.id));
+          else openMediaModal(stage, hd, { src: src!, href: archivePageUrl(hit.id), allow: "autoplay; gamepad; fullscreen" });
         });
         arow.appendChild(q);
         arow.appendChild(go);
+        arow.appendChild(godemo);
         arow.appendChild(hits);
         arow.appendChild(aplay);
         arow.appendChild(anote);
@@ -581,6 +644,35 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           "♟️ Playable while paused — click a piece, then its target square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
         ),
       );
+    }
+    // The modes come before the magnitudes: a choice says what the figure IS
+    // (oral vs iv, linear vs convex), a slider says how much of it — and a
+    // slider read under the wrong mode is a number about the wrong figure.
+    for (const { spec, value } of plan.choices.map((p) => choices.find((c) => c.spec.path === p)!)) {
+      const group = h("div", { class: "cs-tray-choice", role: "group", "aria-label": spec.label });
+      const btns: HTMLButtonElement[] = [];
+      const mark = (chosen: string): void => {
+        for (const b of btns) {
+          const on = b.dataset.value === chosen;
+          b.classList.toggle("on", on);
+          b.setAttribute("aria-pressed", String(on));
+        }
+      };
+      for (const v of spec.values) {
+        const btn = h("button", { class: "cs-tray-choicebtn", "data-value": v }, v);
+        btn.addEventListener("click", () => {
+          overrides[spec.path] = v; // a slider's route exactly: one preview state…
+          mark(v);
+          repaint(); // …and one repaint, so an edited script survives the press
+        });
+        btns.push(btn);
+        group.appendChild(btn);
+      }
+      // A tray that rebuilds mid-explore (a second opening, an explore beat)
+      // must show what the VIEWER last pressed, not the boundary's word.
+      const pressed = overrides[spec.path];
+      mark(typeof pressed === "string" ? pressed : value);
+      tray.appendChild(h("div", { class: "cs-tray-row" }, h("span", { class: "cs-tray-label" }, spec.label), group));
     }
     for (const { spec, value } of plan.sliders.map((p) => sliders.find((s) => s.spec.path === p)!)) {
       const range = h("input", {

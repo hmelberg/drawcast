@@ -274,12 +274,12 @@ test("PACK_DEFS has physics with a loader", () => {
   expect(typeof PACK_DEFS.physics.load).toBe("function");
 });
 
-const CHEMISTRY_TEMPLATE_IDS = ["molecule", "reaction_scheme", "energy_diagram", "lewis_dot", "lab_apparatus"];
+const CHEMISTRY_TEMPLATE_IDS = ["molecule", "reaction_scheme", "energy_diagram", "lewis_dot", "lab_apparatus", "periodic_table"];
 
 describe("chemistry pack", () => {
   beforeEach(() => unregisterPack("chemistry"));
 
-  test("parses and registers five templates; molecule declares the engine", () => {
+  test("parses and registers six templates; molecule declares the engine", () => {
     const r = registerPack("chemistry", chemistryYaml);
     expect(r).toMatchObject({ ok: true, templateIds: CHEMISTRY_TEMPLATE_IDS });
     expect(scenes.molecule.manifest.engines).toEqual(["smilesdrawer"]);
@@ -296,9 +296,11 @@ describe("chemistry pack", () => {
     expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 
-  test("every chemistry example renders clean and deterministically (engine pre-loaded)", async () => {
-    await ensureEngines(["smilesdrawer"]);
+  test("every chemistry example renders clean and deterministically (engines pre-loaded)", async () => {
     registerPack("chemistry", chemistryYaml);
+    // Every engine the pack's own manifests declare, not a hardcoded one: the
+    // next template to need a second engine should not have to find this line.
+    await ensureEngines([...new Set(CHEMISTRY_TEMPLATE_IDS.flatMap((tid) => scenes[tid].manifest.engines ?? []))]);
     for (const tid of CHEMISTRY_TEMPLATE_IDS) {
       for (const ex of scenes[tid].manifest.examples) {
         const res = layoutSpec({ template: tid, params: ex.params, elements: [] } as never);

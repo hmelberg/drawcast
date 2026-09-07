@@ -400,8 +400,97 @@ conversions, the boot lines, the screen's aspect, and the emulator URL.
   BASIC exception that happens to run. A `page.goto` to a URL that differs
   only in the hash does NOT restart vc64web — the smoke used
   `location.reload()`.
-- **Archive picks stay in the Archive's own player**: their items are mostly
-  `.d64`, and Open ROMs have no drive ROM. Items with a `.prg`/`.t64`/`.crt`
-  COULD run in our emulator the catalogue way (archive.org `/cors/` answers
-  cross-origin) — not built; Open ROMs compatibility for 1980s commercial
-  games is the open question.
+- **Archive picks: .prg now plays HERE** (built the same day Hans asked).
+  The Archive tells us what an item boots from — every result carries
+  `emulator_ext`/`emulator_start`, and they ride along in the SEARCH response,
+  so the choice of player costs no extra request. Measured over the whole
+  collection: 96 038 items boot from `.d64`, 2 520 from `.tap`, 196 from
+  `.prg`, 14 from `.t64`/`.crt`. A `.prg` hit is marked in the result list and
+  runs in OUR emulator from `archive.org/cors/<id>/<file>` (the only path of
+  theirs that answers cross-origin — `/download/` redirects to a node that
+  does not); everything else keeps the Archive's own player, and the modal's
+  "open in new tab" goes to the item page, which is the fallback when a
+  program will not start on the free ROMs.
+- **What the free ROMs cannot do, measured 2026-09-06**: a `.d64` sits at
+  READY with no drive even with `dialog_on_missing_roms=false` and
+  `dialog_on_disk=false`; a `.tap` gets through vc64web's tape dialog and then
+  answers `?DEVICE NOT PRESENT`. So disks and tapes are not a matter of
+  suppressing a dialog — the ROMs are missing, full stop.
+- **Hit rate on the eight most-downloaded `.prg` items: six ran** (Portal,
+  Nyan Cat, Big Pixel Nyan, Angry Birds, Chemical Plant Zone, Iceblox Plus);
+  Sonic jammed the CPU and Deflex Remake came up as garbage. A jam raises
+  vc64web's own `alert()` inside the iframe — we cannot catch it, which is
+  the other reason the item page stays one click away.
+- **A wrong file name is an `alert("Error: Failed to fetch")`**, so the name
+  must come from the item's `emulator_start`, never be guessed from the id.
+
+## M8 (2026-09-07): demos, and what the free ROMs make of them
+
+Hans asked what about demos. Measured, not guessed:
+
+- **The scene is already in the search** — the Archive imported pouet.net's C64
+  productions as `pouet_*` items: 245 in the C64 collection, 147 of them one
+  `.prg` file. Those are marked and play right here like any other program.
+  Nobody would think to search for "pouet", so the tray got a **Demos** button
+  that browses exactly that set (`identifier:pouet_* AND emulator_ext:prg`).
+- **Three of five booted demos ran**: Lines (LSR 64, Function 2019), 2600 AD,
+  and the Skyrim demo — graphics and SID music, no click to start. Epic Sax
+  Gandalf and Piano Intro both stopped with `?UNDEF'D STATEMENT ERROR IN 30`.
+  That is NOT the start-up line: every one of them, working or not, is the
+  same `SYS2061` BASIC stub (checked byte by byte against panopticon, c64maze,
+  nyan and invaders, which all run). The two that fail crash back into BASIC
+  from machine code, on a KERNAL the free ROMs implement differently.
+- **The famous multi-part demos cannot come here at all.** We Are Demo,
+  Comaland, Edge of Disgrace, Uncensored, Mekanix, Royal Arte, Deus Ex
+  Machina — every one is a `.d64`, and a disk needs the drive ROM. They stay
+  in the Archive's own player, which has the ROMs and plays them fine. Even
+  if we extracted the first file from the image ourselves, multi-part demos
+  load more parts through custom fast-loaders that talk to the drive
+  hardware — so a D64 reader would not buy them either. Not worth building.
+- **SID music has no home on the Archive**: one item with a playable `.prg`
+  (a PSID64 conversion). The music people actually hear here comes from the
+  demos and from music intros in the same pouet set.
+
+## M9 (2026-09-07): can we mount a 1541 ROM and get .d64? Measured: no
+
+Hans passed on a correct analysis — vc64web emulates the drive, and a `.d64`
+needs a 1541 ROM the free set lacks — and asked whether it works. The
+mechanism is real; the ROM is the wall. Everything below was measured, not
+read off a wiki.
+
+**The injection path works, and we would not need their script.** The player
+script is only a convenience wrapper over a postMessage protocol we can speak
+ourselves: fetch the bytes in our page, then post
+`{cmd:"load", floppy_rom: Uint8Array, file: Uint8Array, file_name}` to the
+iframe. Two details cost an hour to find:
+- the emulator NEVER announces itself. It answers `render_run_state` only
+  when the parent posts the string `"poll_state"` — poll until it replies,
+  then inject. Waiting for an unsolicited ready message waits forever.
+- an injected ROM is written to `localStorage` on vc64web.github.io, so it
+  persists for that viewer across visits, and our iframe shares that origin.
+
+**But VirtualC64 whitelists ROMs by signature.** `Emulator/Media/RomFile.cpp`
+accepts a 1541 ROM only at exactly 16384 bytes AND starting with one of
+`97 AA AA`, `97 E0 43`, `97 46 AD`, `97 DB 43` (the four Commodore
+revisions), or two Dolphin DOS layouts. Anything else is not "unknown but
+loadable" — it is refused: `wasm_loadfile("1541.rom", …)` returns `""` and
+nothing is stored.
+
+**There IS a free 1541 ROM, and it is refused.** `Pascual_DOS-1541` (MIT,
+clean-room, 16384 bytes, verified in VICE, sister project of free BASIC and
+KERNAL ROMs) is the real thing — and it starts `78 D8 A2`, so it fails the
+whitelist. Measured end to end: ROM and a 175 KB `.d64` delivered to the
+iframe, emulator reset, then `LOAD"$",8` → `?DEVICE NOT PRESENT ERROR`, and
+`localStorage` holds only the three Open ROMs. Even if the signature check
+were relaxed, that ROM says in its own README that it deliberately does not
+support fast loaders or internals-based protection — which is what nearly
+every commercial disk title and every multi-part demo uses.
+
+**The one arrangement that would work**: the viewer supplies their own
+original 1541 ROM. vc64web's ROM dialog already stores it under its origin,
+so a viewer who installs it once at vc64web.github.io gets disks inside
+drawcast with no change from us; a file input in the tray would do the same
+more visibly. We would ship no ROM either way. Not built: the Archive's own
+player already plays those disks, so the gain is integration polish for the
+few viewers who own a ROM.
+

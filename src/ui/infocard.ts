@@ -13,12 +13,14 @@
 import type { RenderHandle } from "../render";
 import { INITIAL_STATE } from "../render/plan";
 import { wikiSummaryUrl } from "../render/portrait";
-import { chessSquareAt, pianoKeyAt, pianoOctaves } from "../render/widgets";
+import { chessSquareAt, periodicSymbols, pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { elementBBoxes } from "../layout/layout";
 import { bboxOfText } from "../layout/geometry";
 import { leafDrawables, type TextDrawable } from "../layout/model";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
+import { getLoadedEngines } from "../scenes/engines";
+import type { ElementsEngine, ElementNameLang } from "../scenes/elements/types";
 import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-model";
 import { contextWords, matchWiki, selectedPhrase, type WikiCandidate } from "./wiki-match";
 import { linkActionsFor } from "./link-model";
@@ -55,6 +57,38 @@ function trimExtract(s: string): string {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), SUMMARY_MAX - 30))}…`;
 }
 
+/**
+ * Names the SCENE knows for its own parts, for the ids no word on the canvas
+ * can speak for (interactivity spec §6). Read off the manifest's declared
+ * interactions — the one source the tray and the context menu also read, never
+ * sniffed from the template id.
+ *
+ * The periodic table is the case this exists for: its cells print "Fe" and
+ * "26", both of which `meaningfulName` rightly screens out, so without this
+ * the richest set of clickable parts in the library would carry no cards at
+ * all. With it, all 118 do, named in the figure's own language.
+ */
+function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
+  const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
+  if (!interactions.includes("periodic")) return [];
+  let eng: ElementsEngine;
+  try {
+    // A periodic figure cannot be on screen unless its engine loaded before
+    // layout ran — but a card is not worth throwing at a viewer over.
+    eng = getLoadedEngines(["elements"]).elements as ElementsEngine;
+  } catch {
+    return [];
+  }
+  const raw = hd.spec.params?.["names"];
+  const lang: ElementNameLang = raw === "nb" || raw === "la" ? raw : "en";
+  const out: { id: string; name: string }[] = [];
+  for (const symbol of periodicSymbols(hd.layout.order)) {
+    const el = eng.bySymbol(symbol);
+    if (el) out.push({ id: "cell_" + symbol, name: eng.nameIn(el, lang) });
+  }
+  return out;
+}
+
 export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
   // The words a template DREW count too, not just the spec's own elements —
   // otherwise an axis caption, a node's text and a legend entry are all dead.
@@ -65,7 +99,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
   const drawnTexts = leafDrawables(hd.layout.drawables)
     .filter((d): d is TextDrawable => d.kind === "text")
     .map((d) => ({ id: d.id, text: d.text, owner: ownerOf.get(d.id) }));
-  const targets = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts });
+  const targets = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts, sceneNames: sceneNamesFor(hd) });
   // A figure of pure geometry carries no card — but it still NARRATES, and a
   // viewer can still select a phrase in that narration, so the caption half is
   // wired regardless. With neither, the scene pays nothing.

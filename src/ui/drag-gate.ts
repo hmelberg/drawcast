@@ -7,7 +7,7 @@
 import type { RenderHandle } from "../render";
 import { elementBBoxes, elementRings } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
-import { chessSquareBox, pianoKeyBox, pianoOctaves } from "../render/widgets";
+import { chessSquareBox, periodicCellBox, pianoKeyBox, pianoOctaves } from "../render/widgets";
 import { h, logicalPoint } from "./dom";
 import { dragSummary, judgeDrop, resolveDragTargets, type DragJudgement, type DragTarget } from "./drag-model";
 import type { AskGateStep } from "./controls";
@@ -22,11 +22,13 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       stage.querySelector(".cs-figgate")?.remove();
+      const boxes = elementBBoxes(hd.layout, makeBrowserMeasure());
       const { targets } = resolveDragTargets(step.items ?? [], {
-        boxes: elementBBoxes(hd.layout, makeBrowserMeasure()),
+        boxes,
         rings: elementRings(hd.layout),
         noteBox: (n) => pianoKeyBox(pianoOctaves(hd.spec.params), n),
         squareBox: (s) => chessSquareBox(hd.spec.params?.["flip"] === true, s),
+        cellBox: (sym) => periodicCellBox(boxes, sym),
       });
       if (targets.length === 0) {
         // Nothing to place (the planner skipped every item): no gate, no answer.

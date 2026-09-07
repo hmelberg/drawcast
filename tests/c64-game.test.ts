@@ -148,7 +148,7 @@ describe("the catalogue", () => {
 });
 
 // ---- the Internet Archive as a source the viewer picks from ----------------
-import { archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch } from "../src/code/c64-archive";
+import { archiveDirectUrl, archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch } from "../src/code/c64-archive";
 
 describe("the Archive", () => {
   test("the search is scoped to the C64 library and asks for what the tray shows", () => {
@@ -156,10 +156,23 @@ describe("the Archive", () => {
     expect(u.hostname).toBe("archive.org");
     expect(u.searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (boulder dash)");
     expect(u.searchParams.get("output")).toBe("json");
-    expect(u.searchParams.getAll("fl[]")).toEqual(["identifier", "title", "year"]);
+    // the emulator fields ride along, so no second request decides the player
+    expect(u.searchParams.getAll("fl[]")).toEqual(["identifier", "title", "year", "emulator_ext", "emulator_start"]);
     // quotes and parentheses would break the query language; an empty query is everything
     expect(new URL(archiveSearchUrl('x ("y")')).searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (x   y)");
     expect(new URL(archiveSearchUrl("  ")).searchParams.get("q")).toBe("collection:softwarelibrary_c64 AND (*)");
+  });
+
+  test("the Demos button browses the scene's own productions, narrowed to what plays here", () => {
+    // pouet.net's C64 productions as the Archive imported them; the .prg ones
+    // are the demos a viewer can watch without leaving the figure.
+    expect(new URL(archiveSearchUrl("", { demos: true })).searchParams.get("q")).toBe(
+      "collection:softwarelibrary_c64 AND identifier:pouet_* AND emulator_ext:prg AND (*)",
+    );
+    expect(new URL(archiveSearchUrl("laxity", { demos: true })).searchParams.get("q")).toBe(
+      "collection:softwarelibrary_c64 AND identifier:pouet_* AND emulator_ext:prg AND (laxity)",
+    );
+    expect(new URL(archiveSearchUrl("x", { rows: 4 })).searchParams.get("rows")).toBe("4");
   });
 
   test("hits come out in the Archive's order, and an identifier that could not be a path is dropped", () => {
@@ -175,6 +188,38 @@ describe("the Archive", () => {
     expect(archiveEmbedUrl("Baffle_1994_Feniks")).toBe("https://archive.org/embed/Baffle_1994_Feniks");
     expect(archiveEmbedUrl("a/b")).toBeNull();
     expect(archivePageUrl("Baffle_1994_Feniks")).toBe("https://archive.org/details/Baffle_1994_Feniks");
+  });
+
+  test("an item that boots from a .prg gets a URL our own emulator can load", () => {
+    // measured 2026-09-06: /cors/ answers cross-origin, /download/ does not
+    expect(archiveDirectUrl("nyan_c64", "prg", "nyan.prg")).toBe("https://archive.org/cors/nyan_c64/nyan.prg");
+    expect(archiveDirectUrl("sonic_c64", "PRG", "SONIC.PRG")).toBe("https://archive.org/cors/sonic_c64/SONIC.PRG");
+    // a name with a space is the Archive's to choose; we encode it, never paste it
+    expect(archiveDirectUrl("x", "prg", "big pixel.prg")).toBe("https://archive.org/cors/x/big%20pixel.prg");
+    // disks and tapes cannot start on the free ROMs — they stay with the Archive
+    expect(archiveDirectUrl("d", "d64", "d.d64")).toBeNull();
+    expect(archiveDirectUrl("t", "tap", "t.tap")).toBeNull();
+    // and nothing the Archive says talks us into another path
+    expect(archiveDirectUrl("x", "prg", "../../etc/passwd.prg")).toBeNull();
+    expect(archiveDirectUrl("x", "prg", "a/b.prg")).toBeNull();
+    expect(archiveDirectUrl("a/b", "prg", "x.prg")).toBeNull();
+    expect(archiveDirectUrl("x", "prg", 7)).toBeNull();
+    expect(archiveDirectUrl("x", undefined, "x.prg")).toBeNull();
+  });
+
+  test("the hits carry the direct URL, so the tray knows which player a pick needs", () => {
+    const hits = parseArchiveSearch({
+      response: {
+        docs: [
+          { identifier: "nyan_c64", title: "Nyan Cat", year: 2011, emulator_ext: "prg", emulator_start: "nyan.prg" },
+          { identifier: "riverraid", title: "River Raid", emulator_ext: "d64", emulator_start: "riverraid.d64" },
+        ],
+      },
+    });
+    expect(hits).toEqual([
+      { id: "nyan_c64", title: "Nyan Cat", year: "2011", direct: "https://archive.org/cors/nyan_c64/nyan.prg" },
+      { id: "riverraid", title: "River Raid" },
+    ]);
   });
 
   test("every catalogue program names the licence that lets us point at it", () => {
