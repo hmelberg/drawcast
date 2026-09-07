@@ -105,11 +105,36 @@ export const C64_BOOT_LINES: readonly (readonly [row: number, text: string])[] =
  * the .prg flashed, 50 frames/s). Hash-separated, so the program URL itself
  * may not contain a '#' — the lint says so.
  */
-export function c64EmulatorUrl(game: string): string {
+export function c64EmulatorUrl(game: string, opts: { touch?: boolean; noFile?: boolean } = {}): string {
   // port2=true: the keyboard IS a joystick in port 2 (cursor keys, space to
   // fire) from the first frame — the port nearly every game reads. Without
   // it a viewer had to find the switch inside the emulator's own bar.
-  return `https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3#port2=true#${game}`;
+  //
+  // touch=true, and it MUST come first (vc64web's own rule): on a phone or a
+  // tablet there is no keyboard to be a joystick, so port 2 gets an on-screen
+  // one instead. We hide the emulator's navbar, so a touch viewer could not
+  // reach that switch at all — the game would simply not respond.
+  //
+  // noFile: the machine boots empty because what goes in it — a disk, and the
+  // viewer's drive ROM beside it — arrives as bytes afterwards, which a URL
+  // cannot carry. Its two dialogs are silenced for the same reason: nobody
+  // should be asked to confirm an insert they did not make.
+  const stick = opts.touch ? "#touch=true#port2=true" : "#port2=true";
+  const base = `https://vc64web.github.io/#openROMS=true#navbar=hidden#wide=true#border=0.3${stick}`;
+  return opts.noFile ? `${base}#dialog_on_missing_roms=false#dialog_on_disk=false` : `${base}#${game}`;
+}
+
+/**
+ * Is the viewer's MAIN pointer a finger? `any-pointer` would also catch a
+ * laptop with a touchscreen, where the keyboard is right there and the better
+ * joystick. Defaults to false anywhere without matchMedia.
+ */
+export function prefersTouchJoystick(): boolean {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  } catch {
+    return false;
+  }
 }
 
 /**

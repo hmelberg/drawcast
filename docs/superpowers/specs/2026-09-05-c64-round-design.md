@@ -494,3 +494,208 @@ more visibly. We would ship no ROM either way. Not built: the Archive's own
 player already plays those disks, so the gain is integration polish for the
 few viewers who own a ROM.
 
+## M10 (2026-09-07): cartridges join; Jumpman Junior cannot
+
+Hans asked whether Jumpman Junior could play on the free ROMs instead of the
+Archive's player. It cannot: every copy the Archive holds is a `.d64`
+(`Jumpman_Junior_1983_Epyx_cr_Antirom`, `…_cr_MrO`, and a compilation), and a
+disk needs the drive ROM that M9 showed we cannot supply. It plays in the
+Archive's own player, which has the ROMs — search, pick, Play, one click on
+its screen.
+
+Looking for it turned up two formats we had never tried:
+
+- **`.crt` cartridges now run here.** A cartridge takes the machine over at
+  reset and never asks the ROMs to load anything, so it is the one format
+  with nothing to go wrong. Both tried ran perfectly: Joust's unreleased
+  prototype and Nono Pixie. Five in the collection. Routed to our emulator.
+- **`.t64` stays with the Archive.** It is a tape ARCHIVE, so it does load
+  into memory with no drive — and then does not start: Sword of Fargoal
+  (Epyx 1983) answered `?NOT IMPLEMENTED ERROR IN 1` on a `POKE…CLR:SYS`
+  line, and ZZ Top's RUN did nothing at all. Both failures are the free
+  ROMs' unfinished BASIC again. Nine items; not worth a special case.
+
+The direct-URL rule now also insists the file name agrees with the type the
+item declares, so a mislabelled item cannot smuggle one format in as another.
+
+## M9b (2026-09-07): the ROM route, read properly
+
+Hans pointed at the wiki again. He is right that embedding, ROM preloading
+and `.d64` autostart are all documented — and reading the code behind those
+pages changes one thing in M9's conclusion.
+
+- **The project supplies no drive ROM, and neither does Open ROMs.** The repo
+  ships three files (`roms/basic_generic.rom`, `kernal_generic.rom`,
+  `chargen_openroms.rom`), and `fetchOpenROMS()` fetches basic, kernal and
+  chargen from mega65.github.io. Their `bin/` folder has no 1541 ROM at all.
+  Every ROM URL in the whole wiki is a `my-site.de/floppy.rom` placeholder,
+  and the base64 example on the ROM page decodes to `97 AA AA` — the original
+  Commodore image. The documented arrangement IS "bring your own".
+- **The emulator has a fourth socket.** The ROM dialog carries `basic`,
+  `kernal`, `charset` and `disk drive rom`, and the disk dialog says so:
+  "no rom-chip in floppy drive installed … Head over to roms setting and
+  provide the rom first."
+- **The load order is what matters, and it is in our favour.** On
+  `MSG_ROM_MISSING` the emulator calls `load_roms(true)` FIRST, which installs
+  whatever `localStorage` holds — including `vc1541_rom.bin` — into the core,
+  and only falls back to `fetchOpenROMS()` if something required is still
+  missing. Our `openROMS=true` does not override an installed ROM. And that
+  storage belongs to vc64web.github.io, the origin our iframe loads.
+
+So: a viewer who drops their own 1541 ROM into that socket once, at
+vc64web.github.io, has it inside drawcast too, and disks would run in our
+frame — real drive emulation, so fast loaders and protection work, unlike the
+free clean-room ROM.
+
+What we do NOT get from that alone: our tray routes by file type, so `.d64`
+picks still go to the Archive's player. Benefiting would need drawcast to
+know the viewer has a ROM — a file field in the tray that stores the ROM on
+our side and injects it with `{cmd:"load", floppy_rom, …}` (the postMessage
+handshake in M9, which we can speak without their script). Offered to Hans,
+not built: it means holding a copyrighted file the viewer supplies, and the
+Archive's own player already plays those disks today.
+
+## M11 (2026-09-07): our embed against their player — one real gap
+
+Hans asked whether our embedding is already good. Compared against the
+`vc64webplayer` pages: yes, and deliberately so. Their player is a
+convenience wrapper that puts THEIR script (and jQuery) in OUR page, replaces
+an element with the iframe, and draws its own icon bar. We build the same
+iframe from the same hash config ourselves, which keeps a third-party script
+out of the page and lets our own modal chrome (close, open in new tab,
+Escape) do the framing. The two things their bar has that we do not are a
+reset and an audio toggle; the emulator's own navbar would give both, and we
+hide it.
+
+The one real gap the comparison found was **touch**. `touch=true`, set
+BEFORE `port2=true` (their documented order), makes port 2 an on-screen
+joystick instead of the keyboard. Without it a phone or tablet viewer got a
+keyboard joystick with no keyboard, and — because we hide the navbar — no way
+to reach the switch. The game simply would not respond. Now the URL carries
+it whenever the viewer's MAIN pointer is coarse (`(pointer: coarse)`, not
+`any-pointer`, so a laptop with a touchscreen keeps the better keyboard
+joystick). Verified in the emulator: port 2 reports `touch` and a
+`touch_joystick1` element appears over the running game.
+
+## M12 (2026-09-07): the drive-ROM search, done properly
+
+Hans asked for one more sweep — GitHub, MEGA65, anywhere. The complete map:
+
+| What | Licence | Would the emulator take it? |
+|---|---|---|
+| `Pascual_DOS-1541` | MIT, clean-room | No — starts `78 D8 A2` |
+| `mist64/dos1541` | none (Commodore's own source) | Yes — it builds the original |
+| `donnchawp/DolphinDOS2` | "Unlicense", by a third party | Yes — signature matches |
+| MEGA65 open-roms | free | Nothing to take: no drive ROM exists |
+
+- **MEGA65 has none and says so.** `STATUS.md` lists `floppy drive | NOT DONE`,
+  and their published `bin/` holds only BASIC, KERNAL, chargen and MEGA65 ROMs.
+- **mist64/dos1541 is Commodore's own source**, reconstructed and adapted to
+  cc65 — "All versions build into the exact ROM images". That is the original,
+  in source form, with no licence. Not ours to ship.
+- **DolphinDOS 2 would work, and that is the trap.** Its `dd2_1541.rom` is
+  32768 bytes with `4C 4B A3` at offset `0x2000` — checked with a range
+  request, and exactly the Dolphin row in VirtualC64's table. But the
+  Unlicense on it is a third party's declaration over a 1980s German
+  commercial product they state they are not affiliated with, so it clears
+  nothing. Shipping it is the same act as shipping Commodore's ROM.
+- **Waiting for upstream will not help by itself.** Current VirtualC64 master
+  (`VCCore/Media/RomFile.cpp`) carries the identical whitelist, so no future
+  vc64web rebuild accepts the free ROM.
+- **Why the free ROM was never made recognisable**: its author targets VICE,
+  where `-dos1541 dos.bin` loads any file. Emulator signature matching simply
+  never came up for them. Two closed issues, no discussion of it.
+
+Three ways forward, none taken without Hans:
+1. The viewer's own ROM — works today (M9b), nothing for us to ship.
+2. Ask upstream (vc64web or VirtualC64) to accept an unrecognised 16 KB drive
+   ROM. One row in a table on their side, and the MIT ROM then works for
+   everyone. A public request, so Hans's to make.
+3. Host our own vc64web build (GPL-3, they document building it) with the
+   check relaxed, shipping the MIT ROM beside it. Licence-clean, but we take
+   on a WASM emulator to maintain.
+
+**Measure before choosing 2 or 3.** The free ROM states it does not do fast
+loaders, and most commercial disk titles use them — so the payoff might be
+small. VICE would answer it directly (`x64sc -dos1541 dos.bin` against a
+sample of Archive disks), and VICE is not installed here. That measurement is
+the honest next step, not a ROM hunt.
+
+## M13 (2026-09-07): read at the C++ entry point — there is no side door
+
+Hans asked whether a floppy ROM can be got into vc64web at all. It can, and we
+have done it: the postMessage channel carries a ROM and a disk image, and the
+emulator resets around them. The wall is the FILE, not the channel — and this
+pass read the actual entry point instead of inferring from the JS.
+
+`mainsdl.cpp`, `wasm_loadFile()`: after the D64/G64/PRG/CRT/snapshot branches
+fall through, everything left is tried as a ROM with `new RomFile(blob, len)`.
+That constructor throws for any buffer the signature table does not know, and
+the glue then prints "Failed to read ROM image" and returns `""`. Only if it
+succeeds does the code go on to classify the type — and, for a VC1541 ROM,
+to do the part nothing else does:
+
+```cpp
+wrapper->emu->set(OPT_DRV_CONNECT, true, DRIVE8);
+wrapper->emu->set(OPT_DRV_POWER_SWITCH, true);
+```
+
+So the drive is not merely ROM-less without a recognised image; it is not
+connected or powered at all. That is the `?DEVICE NOT PRESENT` we measured.
+
+Two consequences worth keeping:
+
+- **There is no unchecked path.** `wasm_loadFile` is the only ROM entrance,
+  and the emulator's `{cmd:"script"}` console cannot route around it — the
+  exported surface has no lower-level "load these bytes as a drive ROM".
+  Connecting and powering the drive by hand would give it no code to run.
+- **A viewer's own stored ROM does get the full treatment.** `load_roms(true)`
+  calls this same function, so the connect-and-power step runs for a ROM
+  restored from localStorage exactly as for a freshly dropped one. M9b's
+  conclusion holds at the C++ level, not just the JS.
+
+## M14 (2026-09-07): the drive, brought by the viewer
+
+Built at Hans's word. A 1541 is a computer with its own firmware, no free copy
+of it exists (M12), and the emulator will only accept the original image or
+Dolphin DOS (M9). So the drawn machine gets a disk drive the only honest way:
+the viewer installs the ROM they own, and drawcast ships, hosts and names
+nothing.
+
+- **The field** sits in the ≡ tray under "Disk drive". It reads the file in the
+  browser and checks it against VirtualC64's own table
+  (`code/c64-drive-rom.ts`, mirroring `Emulator/Media/RomFile.cpp`) BEFORE
+  storing it, so a wrong pick is answered in the same second — "That file is
+  2 KB. A drive ROM is 16 KB, 24 KB, 32 KB" — instead of failing mutely inside
+  the emulator. Kept in the viewer's own localStorage; one button removes it.
+- **A disk cannot be named in a URL**, because the ROM has to go in beside it.
+  So a disk starts through the postMessage handshake from M9 instead: boot the
+  emulator empty (`noFile`, both dialogs silenced), poll `"poll_state"` until
+  it answers, then hand over `{cmd:"load", floppy_rom, file, file_name}` and
+  type `load"*",8,1` … `run` the way a person would. We fetch the image
+  ourselves, so a host that refuses cross-origin reads is something we can say
+  out loud rather than a machine that sits there.
+- **Disks become ⚡ picks only when a ROM is in.** `archiveDirectUrl` takes a
+  `disks` flag; without it `.d64` still goes to the Archive's player, and the
+  note offers the reason. Tapes stay out either way — they load and then will
+  not run (M10).
+
+Smoked end to end with a SYNTHETIC ROM — 16 KB of zeros with `97 AA AA` at the
+front, which is what the emulator identifies on, and which carries nothing of
+anyone's firmware. Searching "river raid" went from every hit unmarked to 11 of
+12 marked; Play opened the emulator with no file in its hash; and the screen
+read
+
+```
+READY.
+LOAD"*",8,1
+
+SEARCHING FOR *
+```
+
+where before a disk answered `?DEVICE NOT PRESENT ERROR` at once. The drive is
+connected, powered and being addressed — it simply never answers, because the
+test ROM is zeros. With a real ROM that is the line where the file loads. Every
+link in our chain is verified; the only untested one is the one we deliberately
+do not hold.
+

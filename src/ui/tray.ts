@@ -40,7 +40,9 @@ import { pianoOctaves } from "../render/widgets";
 import { choiceSpecs, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
-import { c64EmulatorUrl } from "../code/c64";
+import { c64EmulatorUrl, prefersTouchJoystick } from "../code/c64";
+import { decodeRom, encodeRom, identifyDriveRom, isDiskImage } from "../code/c64-drive-rom";
+import { getDriveRom, setDriveRom } from "../store";
 import { archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch, type ArchiveHit } from "../code/c64-archive";
 import { C64_PROGRAMS, resolveGame } from "../code/c64-catalogue";
 import { isC64Screen } from "../layout/c64-screen";
@@ -363,12 +365,37 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const startGame = (url: string, onClose?: () => void, href?: string): { close: () => void } | null => {
     if (!stage) return null;
     return openMediaModal(stage, hd, {
-      src: c64EmulatorUrl(url),
+      src: c64EmulatorUrl(url, { touch: prefersTouchJoystick() }),
       // Where "open in a new tab" goes. For an Archive pick that is the
       // ITEM's page — which carries the Archive's own working player, the
       // fallback for a program the free ROMs cannot start — not the .prg.
       href: href ?? url,
       allow: "autoplay; gamepad; fullscreen; clipboard-write",
+      ...(onClose ? { onClose } : {}),
+    });
+  };
+  /**
+   * A DISK needs the drive, and the drive needs the ROM the viewer installed:
+   * both go in as bytes after the emulator starts, because a ROM cannot be
+   * named in a URL. We fetch the image ourselves, so a host that refuses
+   * cross-origin reads is a thing we can say out loud instead of a machine
+   * that sits there. Falls back to the ordinary path for everything else.
+   */
+  const startDisk = async (url: string, onClose?: () => void, href?: string): Promise<{ close: () => void } | null> => {
+    const rom = getDriveRom();
+    if (!stage || !rom || !isDiskImage(url)) return startGame(url, onClose, href);
+    let file: Uint8Array;
+    try {
+      file = new Uint8Array(await (await fetch(url, { cache: "no-store" })).arrayBuffer());
+    } catch {
+      return null; // the caller says so; see the Archive and Own-URL rows
+    }
+    const name = url.split("/").pop()?.split("?")[0] || "disk.d64";
+    return openMediaModal(stage, hd, {
+      src: c64EmulatorUrl("", { touch: prefersTouchJoystick(), noFile: true }),
+      href: href ?? url,
+      allow: "autoplay; gamepad; fullscreen; clipboard-write",
+      inject: { floppyRom: decodeRom(rom.data), file, fileName: name },
       ...(onClose ? { onClose } : {}),
     });
   };
@@ -544,9 +571,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
             }
           }
           if (!target) return;
+          const disk = target;
+          if (isDiskImage(disk) && !getDriveRom()) {
+            note.textContent = "A disk needs a drive ROM — install yours below, or use a .prg, .crt or .t64.";
+            return;
+          }
           restore(); // the emulator plays on the honest boundary
           close();
-          startGame(target);
+          void startDisk(disk).then((h2) => {
+            if (!h2) note.textContent = "That host would not hand the disk over to the emulator.";
+          });
         });
         row.appendChild(pick);
         row.appendChild(url);
@@ -582,7 +616,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           anote.textContent = "Searching…";
           try {
             const res = await fetch(archiveSearchUrl(q.value, { demos }));
-            found = parseArchiveSearch(await res.json());
+            found = parseArchiveSearch(await res.json(), { disks: getDriveRom() !== null });
             hits.replaceChildren(
               ...found.map((f, i) => {
                 const name = f.year ? `${f.title} (${f.year})` : f.title;
@@ -604,6 +638,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           anote.textContent = hit?.direct
             ? `${found.length} found. \u26a1 plays right here — cursor keys and space are the joystick.`
             : `${found.length} found — this one runs in the Archive's own player (click its screen to start).`;
+          if (hit && !hit.direct && !getDriveRom()) anote.textContent += " A disk drive ROM would bring disks here too.";
         };
         hits.addEventListener("change", describePick);
         go.addEventListener("click", () => void search());
@@ -619,7 +654,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           if (!hit.direct && !src) return;
           restore();
           close();
-          if (hit.direct) startGame(hit.direct, undefined, archivePageUrl(hit.id));
+          if (hit.direct) void startDisk(hit.direct, undefined, archivePageUrl(hit.id));
           else openMediaModal(stage, hd, { src: src!, href: archivePageUrl(hit.id), allow: "autoplay; gamepad; fullscreen" });
         });
         arow.appendChild(q);
@@ -629,6 +664,56 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         arow.appendChild(aplay);
         arow.appendChild(anote);
         tray.appendChild(arow);
+
+        // The drive itself. A 1541 is a computer with its own firmware, and
+        // there is no free copy of it anywhere — so the only honest way to
+        // give the drawn machine a disk drive is for the VIEWER to bring the
+        // ROM they own. Their file, their browser; drawcast ships nothing,
+        // fetches nothing, and names no source. See code/c64-drive-rom.ts.
+        const drow = h("div", { class: "cs-tray-row cs-tray-c64" });
+        drow.appendChild(h("span", { class: "cs-tray-label" }, "Disk drive"));
+        const romFile = h("input", { type: "file", class: "cs-tray-url", accept: ".rom,.bin", "aria-label": "Your 1541 drive ROM" }) as HTMLInputElement;
+        const romDrop = h("button", { class: "cs-tray-run" }, "Remove");
+        const romNote = h("span", { class: "cs-tray-status" }, "");
+        const showRom = (): void => {
+          const rom = getDriveRom();
+          romFile.hidden = rom !== null;
+          romDrop.hidden = rom === null;
+          romNote.textContent = rom
+            ? `${rom.label} installed — disk images play here now.`
+            : "Disks need a 1541 ROM, and no free one exists. Choose your own file to give the machine a drive.";
+        };
+        showRom();
+        romFile.addEventListener("change", () => {
+          const f = romFile.files?.[0];
+          if (!f) return;
+          romNote.textContent = "Reading…";
+          void f
+            .arrayBuffer()
+            .then((buf) => {
+              const bytes = new Uint8Array(buf);
+              const verdict = identifyDriveRom(bytes);
+              if (!verdict.ok) {
+                romNote.textContent = verdict.reason;
+                romFile.value = "";
+                return;
+              }
+              setDriveRom({ name: f.name, label: verdict.label, data: encodeRom(bytes) });
+              showRom();
+            })
+            .catch(() => {
+              romNote.textContent = "That file could not be read.";
+            });
+        });
+        romDrop.addEventListener("click", () => {
+          setDriveRom(null);
+          romFile.value = "";
+          showRom();
+        });
+        drow.appendChild(romFile);
+        drow.appendChild(romDrop);
+        drow.appendChild(romNote);
+        tray.appendChild(drow);
       }
     }
     if (playable) {

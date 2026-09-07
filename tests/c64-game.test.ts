@@ -26,6 +26,12 @@ describe("the emulator URL", () => {
     expect(u).toContain("#openROMS=true");
     expect(u).toContain("#navbar=hidden");
     expect(u).toContain("#port2=true"); // the keyboard is a joystick from the first frame
+    expect(u).not.toContain("touch=true"); // a keyboard is the better joystick when there is one
+    // on a phone there is no keyboard to be a joystick, and vc64web wants the
+    // switch BEFORE the port — its own documented order
+    const t = c64EmulatorUrl(GAME, { touch: true });
+    expect(t).toContain("#touch=true#port2=true#");
+    expect(t.indexOf("touch=true")).toBeLessThan(t.indexOf("port2=true"));
     expect(u.endsWith(`#${GAME}`)).toBe(true);
   });
 });
@@ -196,9 +202,16 @@ describe("the Archive", () => {
     expect(archiveDirectUrl("sonic_c64", "PRG", "SONIC.PRG")).toBe("https://archive.org/cors/sonic_c64/SONIC.PRG");
     // a name with a space is the Archive's to choose; we encode it, never paste it
     expect(archiveDirectUrl("x", "prg", "big pixel.prg")).toBe("https://archive.org/cors/x/big%20pixel.prg");
+    // a cartridge takes the machine over at reset: nothing to load, nothing to fail
+    expect(archiveDirectUrl("c64_joust_prototype", "crt", "joust.crt")).toBe("https://archive.org/cors/c64_joust_prototype/joust.crt");
     // disks and tapes cannot start on the free ROMs — they stay with the Archive
     expect(archiveDirectUrl("d", "d64", "d.d64")).toBeNull();
     expect(archiveDirectUrl("t", "tap", "t.tap")).toBeNull();
+    // a .t64 loads with no drive but will not start on the free ROMs' BASIC (both tried)
+    expect(archiveDirectUrl("z", "t64", "z.t64")).toBeNull();
+    // the name has to agree with what the item says it is
+    expect(archiveDirectUrl("x", "crt", "x.prg")).toBeNull();
+    expect(archiveDirectUrl("x", "prg", "x.crt")).toBeNull();
     // and nothing the Archive says talks us into another path
     expect(archiveDirectUrl("x", "prg", "../../etc/passwd.prg")).toBeNull();
     expect(archiveDirectUrl("x", "prg", "a/b.prg")).toBeNull();
@@ -229,5 +242,80 @@ describe("the Archive", () => {
       // 2026-09-06: each booted in vc64web + Open ROMs and seen running
       "invaders", "puralax", "c-rex", "ronino", "3d-cube", "panopticon", "diffusion",
     ]);
+  });
+});
+
+// ---- the drive ROM the viewer supplies ---------------------------------------
+import { identifyDriveRom, encodeRom, decodeRom, isDiskImage, DRIVE_ROM_SIGNATURES } from "../src/code/c64-drive-rom";
+
+describe("the drive ROM", () => {
+  const rom = (size: number, head: number[], at = 0): Uint8Array => {
+    const b = new Uint8Array(size);
+    b.set(head, at);
+    return b;
+  };
+
+  test("the table is the emulator's, byte for byte", () => {
+    // VirtualC64, Emulator/Media/RomFile.cpp — four Commodore revisions and
+    // two Dolphin layouts. Checking here means a viewer who picks the wrong
+    // file is told so, instead of the emulator refusing it in silence.
+    expect(DRIVE_ROM_SIGNATURES.map((s) => `${s.size}:${s.offset}:${s.magic.join(",")}`)).toEqual([
+      "16384:0:151,170,170",
+      "16384:0:151,224,67",
+      "16384:0:151,70,173",
+      "16384:0:151,219,67",
+      "24576:0:76,75,163",
+      "32768:8192:76,75,163",
+    ]);
+  });
+
+  test("an original 1541 image is recognised, and Dolphin at its own offset", () => {
+    expect(identifyDriveRom(rom(0x4000, [0x97, 0xaa, 0xaa]))).toEqual({ ok: true, label: "Commodore 1541" });
+    expect(identifyDriveRom(rom(0x4000, [0x97, 0xdb, 0x43]))).toEqual({ ok: true, label: "Commodore 1541" });
+    expect(identifyDriveRom(rom(0x6000, [0x4c, 0x4b, 0xa3]))).toEqual({ ok: true, label: "Dolphin DOS" });
+    expect(identifyDriveRom(rom(0x8000, [0x4c, 0x4b, 0xa3], 0x2000))).toEqual({ ok: true, label: "Dolphin DOS" });
+    // the same bytes at the wrong place are not that ROM
+    expect(identifyDriveRom(rom(0x8000, [0x4c, 0x4b, 0xa3])).ok).toBe(false);
+  });
+
+  test("a file that will not work says which file it is", () => {
+    // a disk image, picked by mistake: the size alone gives it away
+    const disk = identifyDriveRom(new Uint8Array(174848));
+    expect(disk.ok).toBe(false);
+    expect(disk.ok === false && disk.reason).toContain("171 KB");
+    // the free clean-room ROM: right size, bytes the emulator has never been
+    // taught (measured 2026-09-07 — it starts 78 D8 A2)
+    const free = identifyDriveRom(rom(0x4000, [0x78, 0xd8, 0xa2]));
+    expect(free.ok).toBe(false);
+    expect(free.ok === false && free.reason).toContain("not a drive ROM the emulator knows");
+  });
+
+  test("the bytes survive the round trip through storage", () => {
+    const b = rom(0x4000, [0x97, 0xaa, 0xaa]);
+    b[0x3fff] = 0xff;
+    b[123] = 0x80; // a high byte: base64 of a binary, not of text
+    expect(Array.from(decodeRom(encodeRom(b)))).toEqual(Array.from(b));
+  });
+
+  test("only disks need the drive", () => {
+    expect(isDiskImage("https://x/y.d64")).toBe(true);
+    expect(isDiskImage("https://x/Y.G64?cachebust=1")).toBe(true);
+    expect(isDiskImage("https://x/y.prg")).toBe(false);
+    expect(isDiskImage("https://x/y.crt")).toBe(false);
+    expect(isDiskImage("https://x/d64.prg")).toBe(false); // the name, not the path
+  });
+
+  test("a disk becomes a pick that plays here only once a drive ROM is in", () => {
+    expect(archiveDirectUrl("riverraid", "d64", "riverraid.d64")).toBeNull();
+    expect(archiveDirectUrl("riverraid", "d64", "riverraid.d64", { disks: true })).toBe("https://archive.org/cors/riverraid/riverraid.d64");
+    // a tape still will not run, drive or no drive
+    expect(archiveDirectUrl("z", "tap", "z.tap", { disks: true })).toBeNull();
+    expect(archiveDirectUrl("z", "t64", "z.t64", { disks: true })).toBeNull();
+    // and the search hands the flag through
+    const hits = parseArchiveSearch(
+      { response: { docs: [{ identifier: "riverraid", title: "River Raid", emulator_ext: "d64", emulator_start: "riverraid.d64" }] } },
+      { disks: true },
+    );
+    expect(hits[0].direct).toBe("https://archive.org/cors/riverraid/riverraid.d64");
   });
 });

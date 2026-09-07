@@ -7,6 +7,7 @@ import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
 import type { LintIssue } from "./lint/lint";
+import type { StoredDriveRom } from "./code/c64-drive-rom";
 import type { RenderStyle } from "./render";
 
 const KEYS = {
@@ -21,6 +22,9 @@ const KEYS = {
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
   githubToken: "drawcast.githubtoken",
+  // The viewer's OWN 1541 ROM (code/c64-drive-rom.ts). Their file, their
+  // browser: drawcast neither ships one nor knows where they got it.
+  driveRom: "drawcast.c64.driveRom.v1",
   myTemplates: "drawcast.myTemplates.v1",
   remotePacks: "drawcast.remotePacks.v1",
   vendedKeys: "drawcast.vendedKeys.v1",
@@ -309,6 +313,28 @@ export function setGithubToken(token: string): void {
 // session token (spec §1), and it lives in src/account.ts with the handshake
 // that mints it. store.ts stays UI-free and account-free — account.ts may
 // never import this file, or the viewer chunk would carry the whole library.
+
+/**
+ * The 1541 disk-drive ROM the viewer supplied, so disk images can start on the
+ * drawn Commodore. There is no free drive ROM to ship and we do not fetch one
+ * from anywhere — this is a file the viewer chose from their own machine, kept
+ * in their own browser. Clearing it is one button in the tray.
+ */
+export function getDriveRom(): StoredDriveRom | null {
+  try {
+    const raw = localStorage.getItem(KEYS.driveRom);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<StoredDriveRom>;
+    return typeof v?.data === "string" && typeof v.label === "string" ? { name: typeof v.name === "string" ? v.name : "rom", label: v.label, data: v.data } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setDriveRom(rom: StoredDriveRom | null): void {
+  if (rom) localStorage.setItem(KEYS.driveRom, JSON.stringify(rom));
+  else localStorage.removeItem(KEYS.driveRom);
+}
 
 export function getTtsKey(): string {
   return localStorage.getItem(KEYS.ttsKey) || (import.meta.env.VITE_GOOGLE_TTS_KEY ?? "");
