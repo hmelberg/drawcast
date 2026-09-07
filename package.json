@@ -14,6 +14,7 @@
     "smoke:race": "node scripts/smoke-race.mjs",
     "sweep:round": "node scripts/sweep-round-examples.mjs",
     "sync:mdlib": "node scripts/sync-mdlib.mjs",
+    "build:sky": "node scripts/build-sky-data.mjs",
     "sanity:mdlib": "python3 scripts/mdlib-sanity.py"
   },
   "dependencies": {
