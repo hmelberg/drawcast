@@ -313,10 +313,10 @@ describe("solar_system: focus, moons, time, highlight, clicks", () => {
 });
 
 describe("bundled space examples", () => {
-  test("drawcast ships six space examples — five for the solar system, one for the sky", () => {
+  test("drawcast ships ten space examples — five for the solar system, five for the sky", () => {
     const space = (bundledExamples as { packs?: string[]; spec?: { template?: string } }[]).filter((e) => e.packs?.includes("space"));
-    expect(space).toHaveLength(6);
-    expect(space.filter((e) => e.spec?.template === "sky_map")).toHaveLength(1);
+    expect(space).toHaveLength(10);
+    expect(space.filter((e) => e.spec?.template === "sky_map")).toHaveLength(5);
   });
 });
 
