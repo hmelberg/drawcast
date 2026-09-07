@@ -7,15 +7,19 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEngines, getLoadedEngines } from "../src/scenes/engines";
 import type { AltAz, Chart, Constellation, SkyEngine, Star } from "../src/scenes/space/sky-types";
+import type { SpaceEngine } from "../src/scenes/space/types";
+import { cardFacts, phaseLine } from "../src/ui/space-model";
 import {
-  DAY_CHOICES, HOUR_CHOICES, conWikiTitle, constellationFacts, focusTransform, inFrame, starFacts, starWikiTitle, targetAt,
-  visibleField,
+  DAY_CHOICES, HOUR_CHOICES, bodyLang, conWikiTitle, constellationFacts, focusTransform, inFrame, starFacts, starWikiTitle,
+  targetAt, visibleField,
 } from "../src/ui/sky-model";
 
 let sky: SkyEngine;
+let spc: SpaceEngine;
 beforeAll(async () => {
-  await ensureEngines(["sky"]);
+  await ensureEngines(["sky", "space"]);
   sky = getLoadedEngines(["sky"]).sky as SkyEngine;
+  spc = getLoadedEngines(["space"]).space as SpaceEngine;
 });
 
 describe("what a click on the chart means", () => {
@@ -44,6 +48,19 @@ describe("what a click on the chart means", () => {
   test("the slop is a real radius, not a bounding box", () => {
     expect(targetAt([100, 113], stars, [], 14)).toEqual({ kind: "star", hip: 1 });
     expect(targetAt([110, 110], stars, [], 14)).toBeNull();   // 14.1 away, diagonally
+  });
+
+  // Every shown Sun/Moon/planet is its own separate drawable in the template
+  // (unlike the one-element star field), so it is a hit target on exactly
+  // the same footing as a star — this is the case that failed before bodies
+  // were threaded through targetAt/visibleField at all.
+  test("a click on a body is that body, not nothing and not the nearest unrelated star", () => {
+    const bodies = [{ id: "saturn", at: [600, 600] as [number, number] }];
+    expect(targetAt([602, 601], stars, segs, undefined, bodies)).toEqual({ kind: "body", id: "saturn" });
+    // Without a body list at all (the pre-fix call shape), the same click
+    // finds nothing there — a body the caller never passed in was never on
+    // the page, and empty sky is not the nearest star two rings away.
+    expect(targetAt([602, 601], stars, segs)).toBeNull();
   });
 });
 
@@ -230,5 +247,51 @@ describe("the visible field", () => {
     const pos = new Map<number, AltAz>([[1, { alt: 80, az: 10 }]]);
     const f = visibleField({ stars, constellations: [], pos, chart: CHART, limitMag: 4.5, mode: "both" });
     expect(f.stars.map((s) => s.hip)).toEqual([1]);
+  });
+
+  // Every shown body is its own separate drawable in the template, with no
+  // magnitude cutoff to exempt — it is on the page exactly when it is above
+  // the horizon (and, under focus, inside the crop). Omitting `bodies`
+  // altogether (as every test above does) must still leave the field empty:
+  // this is the case that failed before bodies existed here at all.
+  test("bodies are on the page exactly when they are up, and never otherwise", () => {
+    const empty = visibleField({ stars: [], constellations: [], pos: new Map(), chart: CHART, limitMag: 4.5, mode: "both" });
+    expect(empty.bodies).toEqual([]);
+    const bodies: Record<string, AltAz> = { saturn: { alt: 30, az: 100 }, mercury: { alt: -2, az: 10 } };
+    const f = visibleField({ stars: [], constellations: [], pos: new Map(), chart: CHART, limitMag: 4.5, mode: "both", bodies });
+    expect(f.bodies.map((b) => b.id)).toEqual(["saturn"]); // mercury is below the horizon
+  });
+
+  test("under focus, a body outside the crop is dropped, the same as a background star", () => {
+    const constellations = [con("Foo", [[1, 3]])];
+    const pos = new Map<number, AltAz>([[1, { alt: 89, az: 0 }], [3, { alt: 88, az: 90 }]]);
+    const bodies: Record<string, AltAz> = { saturn: { alt: 45, az: 180 } }; // far from the tiny focused figure
+    const f = visibleField({
+      stars: [], constellations, pos, chart: CHART, limitMag: 4.5, mode: "both", bodies, focus: constellations[0],
+    });
+    expect(f.bodies).toEqual([]);
+  });
+});
+
+// The sky section reuses round 1's own card functions (space-model.ts) for a
+// body — nothing new to test there — but the SkyLang → SpaceLang collapse
+// (Latin chart labels fall back to English facts) is this section's own
+// rule, and the Moon is the body a viewer is most likely to click, since it
+// is the one drawn with a phase in the first place.
+describe("a body's card", () => {
+  test("Latin chart labels fall back to English facts; Norwegian stays Norwegian", () => {
+    expect(bodyLang("la")).toBe("en");
+    expect(bodyLang("en")).toBe("en");
+    expect(bodyLang("nb")).toBe("nb");
+  });
+
+  test("a body's card carries real facts, and the Moon's phase line is never empty", () => {
+    const moon = spc.body("moon")!;
+    const facts = cardFacts(moon, spc.all(), bodyLang("en"));
+    expect(facts.length).toBeGreaterThan(0);
+    expect(facts.some((f) => f.label === "Radius")).toBe(true);
+    const phase = spc.phase(new Date("2026-09-20T20:00:00Z"));
+    expect(phaseLine(phase, bodyLang("en"))).toMatch(/^Phase: .+, \d+ % lit$/);
+    expect(phaseLine(phase, bodyLang("nb"))).toMatch(/^Fase: .+, \d+ % opplyst$/);
   });
 });

@@ -6,12 +6,13 @@
 
 import { FRAME, edgeStars, project, starColor, STAR_TINTS } from "../scenes/space/sky-rules";
 import type { AltAz, Chart, Constellation, SkyLang, Star } from "../scenes/space/sky-types";
-import type { Choice, Fact } from "./space-model";
+import type { Choice, Fact, SpaceLang } from "./space-model";
 
 export type Pt = [number, number];
 
 export type SkyTarget =
   | { kind: "star"; hip: number }
+  | { kind: "body"; id: string }
   | { kind: "constellation"; abbr: string };
 
 const dist2 = (a: Pt, b: Pt): number => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
@@ -27,27 +28,38 @@ function segDist2(p: Pt, a: Pt, b: Pt): number {
 }
 
 /**
- * What a click on the chart means: the nearest drawn star within `slop`, else
- * the constellation whose lines pass closest within `slop`, else nothing.
+ * What a click on the chart means: the nearest drawn star or body within
+ * `slop`, else the constellation whose lines pass closest within `slop`, else
+ * nothing.
  *
  * The section hit-tests itself rather than going through hitElement, because
  * the star field is ONE element (`draw` has no wildcard, so it has to be) and
- * a click inside it would otherwise only ever answer "the stars". A star beats
- * a line at equal distance: the smaller, definite thing is what was aimed at.
+ * a click inside it would otherwise only ever answer "the stars". A body is
+ * NOT that case — the template pushes every shown Sun/Moon/planet as its own
+ * separate drawable (`kit.ball(b.id, …)`), so hitElement could already find
+ * one on its own — but this section never goes through hitElement at all, so
+ * a body is hit-tested here too, on the same field the click overlay builds
+ * (`visibleField`). A star or a body beats a line at equal distance: the
+ * smaller, definite thing is what was aimed at.
  */
 export function targetAt(
   p: Pt,
   stars: readonly { hip: number; at: Pt }[],
   segs: readonly { abbr: string; a: Pt; b: Pt }[],
   slop = 14,
+  bodies: readonly { id: string; at: Pt }[] = [],
 ): SkyTarget | null {
   const r2 = slop * slop;
-  let bestStar: number | null = null, bestStarD = r2;
+  let best: SkyTarget | null = null, bestD = r2;
   for (const s of stars) {
     const d = dist2(p, s.at);
-    if (d <= bestStarD) { bestStarD = d; bestStar = s.hip; }
+    if (d <= bestD) { bestD = d; best = { kind: "star", hip: s.hip }; }
   }
-  if (bestStar !== null) return { kind: "star", hip: bestStar };
+  for (const b of bodies) {
+    const d = dist2(p, b.at);
+    if (d <= bestD) { bestD = d; best = { kind: "body", id: b.id }; }
+  }
+  if (best !== null) return best;
   let bestCon: string | null = null, bestConD = r2;
   for (const s of segs) {
     const d = segDist2(p, s.a, s.b);
@@ -150,6 +162,15 @@ export function starWikiTitle(s: Star, lang: SkyLang): string {
   return (lang === "nb" && s.name_nb ? s.name_nb : s.name) ?? `HIP ${s.hip}`;
 }
 
+/** A body's card reuses round 1's own `cardFacts`/`bodyLabel`/`phaseLine`
+ *  (`space-model.ts`), which only know `SpaceLang` (en/nb) — one language
+ *  short of the chart's own `SkyLang` (en/nb/la). Latin chart labels fall
+ *  back to English facts, the same collapse the Wikipedia fetch already uses
+ *  for a Latin-labelled chart. */
+export function bodyLang(lang: SkyLang): SpaceLang {
+  return lang === "nb" ? "nb" : "en";
+}
+
 // ---- the focus portrait's own projection, so a click lands on the star the
 // eye sees ----------------------------------------------------------------
 
@@ -213,28 +234,39 @@ export interface VisibleFieldInput {
   /** A constellation already confirmed to have at least one visible edge —
    *  the caller resolves `focus` the same way, for the same reason. */
   focus?: Constellation;
+  /** Candidate Sun/Moon/planet positions, keyed by the round-1 `space` id —
+   *  `engines.sky.bodyPositions`'s own return shape, already narrowed to the
+   *  ids `show`/`mark`/`highlight` resolve to (this function does not know
+   *  the group words "planets"/"inner"/"outer"/"all"; the caller does, via
+   *  `engines.space.bodies`). Every shown body is its own drawable in the
+   *  template (unlike the star field), so it needs no line-reachability or
+   *  magnitude exemption — just up, and on the page. */
+  bodies?: Readonly<Record<string, AltAz>>;
   frame?: Frame;
 }
 
 export interface VisibleField {
   stars: { hip: number; at: Pt }[];
+  bodies: { id: string; at: Pt }[];
   segs: { abbr: string; a: Pt; b: Pt }[];
 }
 
 /**
- * The chart's own drawn field, projected to screen points: which stars and
- * constellation edges are actually ON THE PAGE right now, and where. These
- * are the three rules space.yaml's sky_map layout draws by, reconstructed so
- * a click can never find something the chart does not show:
+ * The chart's own drawn field, projected to screen points: which stars,
+ * bodies and constellation edges are actually ON THE PAGE right now, and
+ * where. These are the rules space.yaml's sky_map layout draws by,
+ * reconstructed so a click can never find something the chart does not show:
  *
  * - an edge is a hit target only when it is actually DRAWN — both its stars
  *   above the horizon, and the mode not "names" (names with no lines);
  * - a star fainter than `limitMag` is still on the page when a drawn edge
  *   reaches it, or the author named it in `mark`/`highlight` — but a
  *   `"names"`/`"none"` chart draws no edges, so it exempts no one;
- * - under `focus`, every position goes through the same magnifying-glass
- *   transform (`focusTransform`) the portrait uses, and anything the crop
- *   removes is dropped here too.
+ * - a candidate body is on the page when it is above the horizon — no
+ *   magnitude rule, since every shown body is drawn regardless;
+ * - under `focus`, every position (star OR body) goes through the same
+ *   magnifying-glass transform (`focusTransform`) the portrait uses, and
+ *   anything the crop removes is dropped here too.
  *
  * targetAt then hit-tests a click against exactly this — never against the
  * whole catalogue, and never against last render's field.
@@ -242,6 +274,7 @@ export interface VisibleField {
 export function visibleField(input: VisibleFieldInput): VisibleField {
   const { stars, constellations, pos, chart, limitMag, mode, focus } = input;
   const markStars = input.markStars ?? new Set<number>();
+  const bodies = input.bodies ?? {};
   const frame = input.frame ?? FRAME;
 
   const bothUp = (a: number, b: number): [AltAz, AltAz] | null => {
@@ -287,5 +320,14 @@ export function visibleField(input: VisibleFieldInput): VisibleField {
     if (!onPage(sp)) continue;
     outStars.push({ hip: s.hip, at: sp });
   }
-  return { stars: outStars, segs };
+
+  const outBodies: { id: string; at: Pt }[] = [];
+  for (const [id, q] of Object.entries(bodies)) {
+    if (q.alt < 0) continue;
+    const sp = proj(q);
+    if (!onPage(sp)) continue;
+    outBodies.push({ id, at: sp });
+  }
+
+  return { stars: outStars, bodies: outBodies, segs };
 }
