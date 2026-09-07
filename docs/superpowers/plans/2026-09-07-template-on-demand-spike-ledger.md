@@ -225,6 +225,19 @@ harness now blocks the HMR websocket (`page.routeWebSocket`) and catches
 per-arm errors. Background commands cap at 10 minutes, so each topic
 runs as its own job, four in parallel.
 
+Caveat on the "system prompt 178 934 chars" figure in the bicycle table:
+measured afterwards, the full default catalog (84 ready templates, all 15
+default packs) is 278 746 chars ≈ 75k tokens on its own, so the baseline
+arm's prompt cannot have carried the whole catalog. The harness waited
+for "more than 60 templates registered", not for startup to finish, so
+the baseline probably saw a partial catalog. It changes nothing about the
+comparison (none of the five topics had a template to find) but the
+number is not "the app's prompt size". Keyword-selector hit-rate over the
+152 bundled template examples, same measurement: top-1 68 %, top-3 80 %,
+top-5 85 % — the misses are story-shaped requests ("How do economists
+check whether a policy actually worked?" → event_study), i.e. exactly
+where a lexical selector fails and a semantic one would not.
+
 Second trap: a `render()` fired the instant every pack template had a
 `layout` in the registry hit "unknown template bicycle_drivetrain" —
 startup re-registers packs after the first registration lands, and the
