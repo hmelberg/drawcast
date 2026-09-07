@@ -156,7 +156,15 @@ describe("the code-split boundary", () => {
   test("the light half never pulls astronomy-engine in", async () => {
     const { readFileSync } = await import("node:fs");
     for (const f of ["sky-rules.ts", "sky-types.ts"]) {
-      const src = readFileSync(new URL(`../src/scenes/space/${f}`, import.meta.url), "utf8");
+      // Comments are stripped before the assertion (the same idiom
+      // tests/viewer-anvil.test.ts, tests/names-entry.test.ts and
+      // tests/learn-viewer.test.ts use for source-text pins) so a
+      // documentation comment that NAMES astronomy-engine — explaining, say,
+      // why this file does not import it — cannot trip this check. Only a
+      // real `import ... from "astronomy-engine"` may. Do not "simplify"
+      // this back to a raw grep of the file text.
+      const src = readFileSync(new URL(`../src/scenes/space/${f}`, import.meta.url), "utf8")
+        .replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
       expect(src, f).not.toMatch(/astronomy-engine/);
     }
   });

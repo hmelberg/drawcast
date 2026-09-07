@@ -1,5 +1,5 @@
 // The sky map's data shapes and the engine a layout sees as `engines.sky`.
-// Nothing here imports the ephemeris library: the tray reaches this file and the
+// Nothing here imports astronomy-engine: the tray reaches this file and the
 // engine chunk must stay behind sky.ts's dynamic import (the same rule
 // types.ts follows for round 1).
 
