@@ -13905,15 +13905,15 @@
     }
   },
   {
-    "request": "Put the planets in order.",
+    "request": "Why are the inner planets small and the outer ones huge?",
     "packs": ["space"],
     "spec": {
-      "title": "The planets in order",
+      "title": "Rock near the Sun, gas far from it",
       "template": "solar_system",
       "params": { "view": "row", "scale": "schematic", "date": "2026-09-06", "names": "none" },
       "commands": [
-        { "draw": ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "scale_note"], "speak": "The Sun and its eight planets in a line, closest first. None of them is named." },
-        { "ask": { "question": "Drag each name onto its planet.", "widget": "drag", "items": [{ "id": "mercury", "label": "Mercury" }, { "id": "venus", "label": "Venus" }, { "id": "earth", "label": "Earth" }, { "id": "mars", "label": "Mars" }, { "id": "jupiter", "label": "Jupiter" }, { "id": "saturn", "label": "Saturn" }, { "id": "uranus", "label": "Uranus" }, { "id": "neptune", "label": "Neptune" }], "tolerance": 1, "right": "Mercury, Venus, Earth, Mars, then Jupiter, Saturn, Uranus and Neptune — the small rocky four, then the giants.", "wrong": "The rocky planets come first, small and close to the Sun; the giants follow, and Saturn is the one with the ring." } }
+        { "draw": ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "scale_note"], "speak": "The Sun and its eight planets in a line, closest first, names left off. Look at the split: four small, then four huge, and nothing in between." },
+        { "ask": { "question": "Drag each name onto its planet.", "intro": "Close to the young Sun it was too hot for ice to survive, so there was only rock and metal to build with — and there is not much of either. Further out ice lasted, there was far more of it, and those four grew heavy enough to hold on to gas as well.", "widget": "drag", "items": [{ "id": "mercury", "label": "Mercury" }, { "id": "venus", "label": "Venus" }, { "id": "earth", "label": "Earth" }, { "id": "mars", "label": "Mars" }, { "id": "jupiter", "label": "Jupiter" }, { "id": "saturn", "label": "Saturn" }, { "id": "uranus", "label": "Uranus" }, { "id": "neptune", "label": "Neptune" }], "tolerance": 1, "right": "Mercury, Venus, Earth, Mars, then Jupiter, Saturn, Uranus and Neptune. The line where ice could survive falls between Mars and Jupiter — and so does the split between small and huge.", "wrong": "The four rocky ones come first, small and close to the Sun; the four giants follow, and Saturn is the one with the ring." } }
       ]
     }
   },
@@ -13932,16 +13932,16 @@
     }
   },
   {
-    "request": "Show me Jupiter and its moons.",
+    "request": "How did Jupiter's moons show the Earth is not the centre?",
     "packs": ["space"],
     "spec": {
-      "title": "Jupiter and its moons",
+      "title": "The four that go round something else",
       "template": "solar_system",
       "params": { "focus": "jupiter", "moons": ["jupiter"], "date": "2026-09-09" },
       "commands": [
-        { "draw": ["frame", "jupiter", "label_jupiter", "axis", "scale_note"], "speak": "Jupiter, close up, with its spin axis leaning a mere three degrees." },
-        { "draw": ["orbit_io", "io", "label_io", "orbit_europa", "europa", "label_europa"], "speak": "Io and Europa, the two inner Galilean moons — volcanic Io, and Europa with an ocean under its ice." },
-        { "draw": ["orbit_ganymede", "ganymede", "label_ganymede", "orbit_callisto", "callisto", "label_callisto"], "speak": "Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet." },
+        { "draw": ["frame", "jupiter", "label_jupiter", "axis", "scale_note"], "speak": "Jupiter, close up. In 1610 Galileo turned a new telescope on it and found four small lights beside it that shifted from one night to the next." },
+        { "draw": ["orbit_io", "io", "label_io", "orbit_europa", "europa", "label_europa"], "speak": "Io and Europa, the two inner ones — volcanic Io, and Europa with an ocean under its ice." },
+        { "draw": ["orbit_ganymede", "ganymede", "label_ganymede", "orbit_callisto", "callisto", "label_callisto"], "speak": "Then Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet. Four bodies plainly circling Jupiter and not us — the first things anyone had seen going round another planet." },
         { "explore": { "space": true }, "speak": "Click any moon to look closer, use the crumbs to come back out, and try the scale and date buttons. Press Continue when you are done." },
         { "quiz": { "question": "Which of the four is the largest?", "choices": ["Io", "Europa", "Ganymede", "Callisto"], "correct": 3, "right": "Ganymede — larger than the planet Mercury." } }
       ]

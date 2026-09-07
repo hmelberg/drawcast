@@ -21,7 +21,31 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
-### 2026-09-01 — Explain by contrast, and explain what the viewer would wonder about
+### 2026-09-07 — A bundled example starts from a question, or from something worth explaining
+
+Hans: «Generelt er det fint om eksemplene tar utgangspunkt i et spørsmål
+eller noe de vil forklare.»
+
+**Distillation.** The `request` line of a bundled example is not a caption —
+it is the user input the model learns to recognise, and the example is the
+answer it learns to give. A request phrased as an errand ("Show me X", "Put
+the Ys in order") teaches the model that the app draws things on command. A
+request phrased as a question, or as something someone wants understood,
+teaches it that the app answers. The same applies to the beats: a figure that
+labels its parts has explained nothing; the example should carry an idea the
+viewer would not have guessed.
+
+This is the same instinct as the situate rule (2026-08-26) applied one level
+up: that rule governs the opening beat, this one governs what the whole
+example is FOR.
+
+**Status.** Applied to the `space` pack the day it shipped. Of its five
+examples, three already asked a question ("Which one is Mars?", "How big is
+Jupiter?", "Where are the planets today?") and two were errands: "Put the
+planets in order." and "Show me Jupiter and its moons." Both rewritten to
+start from a question the figure actually answers, without touching their
+params. The wider sweep of `src/examples.json` for errand-shaped requests
+remains open — see the candidates list.
 
 Hans: "Sometimes explanation by contrast is useful. For instance when
 explaining the production possibilities frontier (one of our examples) the
@@ -408,3 +432,9 @@ talky-stretch (3+ speak-only lines in a row).
       the lead-time-bias problem — mechanics before motivation — is common
       across src/examples.json. Review every example's first two beats
       against the situate rule; rewrite the openings that fail it.
+- [ ] **Sweep the bundled examples for errand-shaped requests** (2026-09-07):
+      a `request` that says "Show me X", "Draw Y" or "Put the Zs in order"
+      teaches the model that the app takes orders rather than answers
+      questions. Grep `src/examples.json` for imperative openings and rewrite
+      each as the question its figure actually answers. The `space` pack's
+      two were done at the time; the rest of the file was not.
