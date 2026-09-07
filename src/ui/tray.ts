@@ -34,6 +34,7 @@ import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
 import { mountBodySection, type BodySection } from "./body-explore";
 import { mountSpaceSection, type SpaceSection } from "./space-explore";
+import { mountSkySection } from "./sky-explore";
 import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
@@ -124,9 +125,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // can do with it, not the condition for having a menu at all.
   const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && (typeof e.game === "string" || isC64Screen(e)));
   // An anatomy figure always has a body to explore, slider or no slider; a
-  // solar-system figure a sky (its days slider comes from the schema anyway).
+  // solar-system figure its planets, and a sky map the sky over a place.
   const bodyTemplate = hd.spec.template === "anatomy";
-  const spaceTemplate = hd.spec.template === "solar_system";
+  const spaceTemplate = hd.spec.template === "solar_system" || hd.spec.template === "sky_map";
   if (
     liveSliders(hd).length === 0 &&
     liveChoices(hd).length === 0 &&
@@ -519,11 +520,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       bodySection = mountBodySection({ hd, stage, overrides, repaint });
       tray.appendChild(bodySection.el);
     }
-    // The Space section, the Body section's twin for a solar system.
+    // The Space section, the Body section's twin — the solar system's planets,
+    // or a sky map's stars and constellations.
     spaceSection?.destroy();
     spaceSection = null;
     if (plan.space) {
-      spaceSection = mountSpaceSection({ hd, stage, overrides, repaint });
+      spaceSection = hd.spec.template === "sky_map"
+        ? mountSkySection({ hd, stage, overrides, repaint })
+        : mountSpaceSection({ hd, stage, overrides, repaint });
       tray.appendChild(spaceSection.el);
     }
     // The machines first — the ≡ on a Commodore opens THIS as its menu, so

@@ -370,7 +370,7 @@ const commandSchema = {
         space: {
           type: "boolean",
           description:
-            "On a solar_system figure: open the Space section of the explore tray — click a planet or moon to look closer, breadcrumbs back out, pills for scale, names and date, a fact card with the Wikipedia summary — and wait for Continue. The authored 'look around the solar system yourself' moment. App only; movies skip the beat.",
+            "On a solar_system figure: open the Space section of the explore tray — click a planet or moon to look closer, breadcrumbs back out, pills for scale, names and date, a fact card with the Wikipedia summary. On a sky_map figure the same flag opens the sky's own section — click a star or a constellation to read about it, pills for the hour, the date and where you are standing. Either way the lesson waits for Continue. The authored 'look around yourself' moment. App only; movies skip the beat.",
         },
       },
       additionalProperties: false,

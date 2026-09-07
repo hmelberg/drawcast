@@ -159,7 +159,7 @@ export interface TrayPlan {
   scripts: { id: string; expanded: boolean }[];
   /** The anatomy Body section: click-to-zoom, breadcrumbs, layer/systems/names. */
   body: boolean;
-  /** The solar-system Space section: click a body to focus on it, breadcrumbs, scale/names/date pills, the fact card. */
+  /** The Space section: a solar system's bodies, or a sky map's stars and constellations. */
   space: boolean;
 }
 
@@ -180,7 +180,7 @@ export function trayPlan(input: {
   bodyTemplate?: boolean;
   /** The beat's `anatomy` flag. */
   anatomy?: boolean;
-  /** The figure is a solar_system template: it has a sky to explore. */
+  /** The figure is a solar_system or sky_map template: it has a Space section. */
   spaceTemplate?: boolean;
   /** The beat's `space` flag. */
   space?: boolean;

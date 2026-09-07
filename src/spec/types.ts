@@ -298,7 +298,8 @@ export interface Command {
   /** A named position in the storyboard — the target of quiz/ask gotos. */
   label?: string;
   /** Open the explore tray and wait (app only; movies skip the whole beat,
-   *  narration included). params restricts which sliders show. */
+   *  narration included). params restricts which sliders show; `space` opens
+   *  the Space section — the solar system's bodies, or a sky map's sky. */
   explore?: { params?: string[]; code?: string; game?: string; anatomy?: boolean; space?: boolean };
   /** Conditional jump on a stored ask answer. Live viewers only; movies stay linear. */
   if?: IfArgs;
