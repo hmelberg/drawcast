@@ -461,6 +461,15 @@ Open follow-ups:
     Rasterising the region's bones together and contouring would give the
     real silhouette with the pipeline that exists now.
   - **Muscles, vessels, nerves.** BodyParts3D has them; a part table entry each.
+- **Space, round 1** (shipped 2026-09-06; spec
+  `docs/superpowers/specs/2026-09-06-space-design.md`, plan
+  `docs/superpowers/plans/2026-09-06-space-round-1.md`): the `space` pack —
+  `solar_system` (top / row / tilted, four scales, `focus` with moons and
+  ring, `days` animatable), the lazy `space` engine on astronomy-engine, the
+  ⊕ Space section with the Wikipedia card, `explore: { space: true }`, kit v9
+  `ball()`. Rounds 2 (`sky_map`) and 3 (three.js panel) next. Open: eccentric
+  and inclined orbits, Uranus's ring, more moons (Wikidata's units are mixed),
+  the Moon's phase drawn on the disc.
 
 ## Phase C — structure
 
