@@ -75,8 +75,8 @@ describe("cardFacts", () => {
     expect(fact("triton", "en", "Orbital period")).toBe("5.88 days (retrograde)");
     expect(fact("haumea", "en", "Axial tilt")).toBe("—");
   });
-  test("Charon is tidally locked in Pluto's equatorial plane: retrograde like Pluto itself, not prograde", () => {
-    expect(fact("charon", "en", "Rotation")).toBe("6.4 days (retrograde)");
+  test("Charon is tidally locked in prograde step with its own (prograde) orbit, unlike retrograde Triton", () => {
+    expect(fact("charon", "en", "Rotation")).toBe("6.4 days");
   });
   test("the Moon, in Norwegian: a moon of Earth, km not AU, decimal commas", () => {
     expect(fact("moon", "nb", "Type")).toBe("Måne rundt Jorden");

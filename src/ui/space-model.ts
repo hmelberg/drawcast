@@ -73,7 +73,7 @@ const dec = (s: string, lang: SpaceLang): string => (lang === "nb" ? s.replace("
 export function fmtKm(km: number, lang: SpaceLang): string {
   if (km >= 1e6) {
     const m = km / 1e6;
-    return `${dec(m >= 1000 ? m.toFixed(0) : m.toFixed(1), lang)}${THIN}${lang === "nb" ? "mill. km" : "million km"}`;
+    return `${dec(m >= 1000 ? fmtInt(m) : m.toFixed(1), lang)}${THIN}${lang === "nb" ? "mill. km" : "million km"}`;
   }
   return `${fmtInt(km)}${THIN}km`;
 }
@@ -91,8 +91,14 @@ export function fmtRotation(h: number, lang: SpaceLang): string {
 }
 
 export function fmtMass(kg: number, lang: SpaceLang): string {
-  const e = Math.floor(Math.log10(kg));
-  return `${dec((kg / 10 ** e).toFixed(2), lang)} × 10^${e}${THIN}kg`;
+  let e = Math.floor(Math.log10(kg));
+  let mantissa = kg / 10 ** e;
+  // Math.log10 of an exact power of ten can land a hair under or over the
+  // integer (Math.log10(1e21) === 20.999999999999996), which would otherwise
+  // print "10.00 × 10^20" or "0.10 × 10^22" instead of "1.00 × 10^21".
+  if (mantissa >= 10) { mantissa /= 10; e += 1; }
+  else if (mantissa < 1) { mantissa *= 10; e -= 1; }
+  return `${dec(mantissa.toFixed(2), lang)} × 10^${e}${THIN}kg`;
 }
 
 const KIND: Record<Body["kind"], Record<SpaceLang, string>> = {
