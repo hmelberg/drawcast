@@ -531,6 +531,38 @@ describe("sky_map: focus — one figure, filling the page", () => {
     expect(win({ focus: "Krypton" }).order).toContain("horizon");   // falls back to the whole sky
   });
 
+  test("every one of the 88 figures can be the subject, at any season", () => {
+    // The sweep's three portraits are Orion, the Plough and Cassiopeia, which
+    // are the three a test can name — and three of eighty-eight is not a
+    // claim about `focus`. Sagittarius has 29 edges and Triangulum has 2;
+    // Hydra sprawls a third of the way round the sky and Crux never rises
+    // here. All of them, at the four seasons: 156 of the 352 were really
+    // portraits, the other 196 were below the horizon and said so, and none
+    // produced a lint issue or fell through to tier-2.
+    const noteOf = (r: { drawables: Drawable[] }): string => {
+      const d = flattenDrawables(r.drawables).find((x) => x.id === "sky_note");
+      return d && d.kind === "text" ? d.text : "";
+    };
+    const bad: string[] = [];
+    let drew = 0;
+    for (const c of sky.constellations()) {
+      for (const time of ["2026-03-20T21:00:00Z", "2026-06-21T01:00:00Z", "2026-09-22T21:00:00Z", WINTER]) {
+        const r = layoutSpec(spec({ time, focus: c.abbr }));
+        if (r.order.includes("frame")) {
+          drew++;
+          if (!r.order.includes(`con_${c.abbr.toLowerCase()}`)) bad.push(`${c.abbr} ${time}: framed but not drawn`);
+          if (!r.order.includes(`label_con_${c.abbr.toLowerCase()}`)) bad.push(`${c.abbr} ${time}: drawn but not named`);
+        } else if (!noteOf(r).includes(sky.name(c, "en"))) {
+          bad.push(`${c.abbr} ${time}: no portrait and no word about why`);
+        }
+        for (const i of r.issues) bad.push(`${c.abbr} ${time}: [${i.severity}] ${i.message}`);
+        for (const w of r.warnings) bad.push(`${c.abbr} ${time}: WARN ${w}`);
+      }
+    }
+    expect(bad.slice(0, 6)).toEqual([]);
+    expect(drew).toBeGreaterThan(100);
+  }, 60000);
+
   test("a figure entirely below the horizon is SAID, not silently blank", () => {
     // Crux never rises over Oslo.
     const r = win({ focus: "Crux" });
