@@ -13971,8 +13971,8 @@
       "template": "sky_map",
       "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "mark": ["Orion"], "names": "la", "days": 0 },
       "commands": [
-        { "draw": ["horizon", "compass_n", "compass_e", "compass_s", "compass_w", "stars", "figures", "place_label"], "speak": "Nine in the evening, the night before the winter solstice, and this is the whole sky over Oslo — the rim is the horizon, the middle is straight up." },
-        { "draw": ["con_ori", "label_con_ori"], "speak": "Orion is the winter shape everyone knows: three stars in a row with a bright one above and below. Every December evening it climbs the eastern sky and stays up long after midnight." },
+        { "draw": ["horizon", "compass_n", "compass_e", "compass_s", "compass_w", "stars", "figures", "place_label"], "speak": "A quarter to ten in the evening, the night before the winter solstice, and this is the whole sky over Oslo — the rim is the horizon, the middle is straight up." },
+        { "draw": ["con_ori", "label_con_ori"], "speak": "Orion is the winter shape everyone knows among all those traced overhead: three stars in a row with a bright one above and below. Every December evening it climbs the eastern sky and stays up long after midnight." },
         { "animate": { "days": 182 }, "duration": 9, "easing": "linear", "speak": "Now hold the hour still and let half a year go by. The Earth carries you round the far side of its orbit, so at nine in the evening your night side is pointing the opposite way — and Orion is out there in broad daylight, behind the Sun." },
         { "quiz": { "question": "Why is Orion missing in June?", "choices": ["It has moved to another part of the galaxy", "It is above the horizon only in daytime", "It is too faint in summer"], "correct": 2, "right": "It is up in the daytime. Nothing out there moved — we did, half an orbit's worth, and the night now faces the other way." } }
       ]
@@ -13986,7 +13986,7 @@
       "template": "sky_map",
       "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "focus": "Cassiopeia", "names": "la" },
       "commands": [
-        { "draw": ["frame", "caph", "shedar", "navi", "ruchbah", "hip_8886"], "speak": "A patch of the northern sky, magnified. Five stars of about the same brightness, and no two of them the same distance from us — this shape is a trick of where we happen to stand." },
+        { "draw": ["frame", "caph", "shedar", "navi", "ruchbah", "hip_8886"], "speak": "A patch of the northern sky, magnified. Four stars close together in brightness, and a fifth a full magnitude fainter — and no two of them the same distance from us: this shape is a trick of where we happen to stand." },
         { "draw": ["con_cas"], "speak": "Joined up, they trace a zigzag — a W one night, an M another, depending on which way round the sky has turned. From this far north it never sets: it wheels round the pole all night and all year, which is why sailors used it to find north when cloud hid the pole star itself." },
         { "quiz": { "question": "Which constellation is this?", "choices": ["Cassiopeia", "Perseus", "Andromeda", "Ursa Major"], "correct": 1, "right": "Cassiopeia — the queen, drawn as a W or an M depending on which way round the sky has turned." } }
       ]
@@ -14001,8 +14001,9 @@
       "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "focus": "Ursa Major", "names": "la" },
       "commands": [
         { "draw": ["frame", "hip_41704", "hip_44127", "hip_44471", "hip_46733", "hip_46853", "hip_48319", "hip_48402", "hip_50372", "hip_50801", "merak", "dubhe", "hip_54539", "hip_55203", "hip_55219", "hip_57399", "phecda", "hip_59774", "alioth", "mizar", "alkaid"], "speak": "Et utsnitt av himmelen mot nord, forstørret. Tjue stjerner her — langt flere enn den kjente firkanten med hank du kanskje venter å se." },
-        { "draw": ["con_uma"], "speak": "Sammen tegner de en hel bjørn: rygg, lang hale og fire bein. Karlsvogna er bare de sju klareste av de tjue — ryggen og halen, ikke bena." },
-        { "highlight": { "target": ["dubhe", "merak"] }, "speak": "To av dem er verdt å kjenne ved navn: Dubhe og Merak, i enden av ryggen. En linje gjennom dem, fem ganger så lang, treffer polarstjernen — og dermed nord, uten kompass." },
+        { "draw": ["con_uma"], "speak": "Sammen tegner de en hel bjørn: rygg, lang hale og fire bein. De sju du kjenner som Karlsvogna er bare ryggen og halen — beina er ikke med." },
+        { "highlight": { "target": ["hip_59774"] }, "speak": "Se på denne: Megrez, der ryggen møter halen. Den er tydelig svakere enn de seks andre i vogna, og derfor ser skålen litt skjev ut." },
+        { "highlight": { "target": ["dubhe", "merak"] }, "speak": "To andre er verdt å kjenne ved navn: Dubhe og Merak, i enden av ryggen. En linje gjennom dem, fem ganger så lang, treffer polarstjernen — og dermed nord, uten kompass." },
         { "ask": { "question": "Skriv det latinske navnet på stjernebildet.", "intro": "Det har tre navn: ett norsk, ett engelsk og ett latinsk, og astronomer over hele verden bruker det latinske.", "answer": "Ursa Major", "right": "Ursa Major — Store bjørn. Karlsvogna er bare ryggen og halen på den.", "wrong": "Det norske navnet er Store bjørn — det latinske er to ord som betyr omtrent det samme." } }
       ]
     }
