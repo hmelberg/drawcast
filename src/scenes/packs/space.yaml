@@ -416,7 +416,14 @@ layout: |
       const t = (centre.tilt_deg * Math.PI) / 180, len = extent(centre, centreDrawn) * 1.35;
       axisPts = [[c0.x - len * Math.sin(t), c0.y - len * Math.cos(t)], [c0.x + len * Math.sin(t), c0.y + len * Math.cos(t)]];
     }
-    const framePts = focusId ? [[F.x0, F.y0], [F.x1, F.y0], [F.x1, F.y1], [F.x0, F.y1]] : null;
+    // Traced as an open path that returns to its start, NOT a closed stroke.
+    // Drawn the same either way, but `closed: true` would make elementRings
+    // hand the frame a hit OUTLINE, and hitElement answers with the smallest
+    // outline containing the point and never looks at boxes after that
+    // (src/ui/hit.ts, "Pass 1"). A border around the whole portrait would then
+    // win every click, and the ⊕ Space section, click questions and drag
+    // questions all read the same call. A frame is a border, not a region.
+    const framePts = focusId ? [[F.x0, F.y0], [F.x1, F.y0], [F.x1, F.y1], [F.x0, F.y1], [F.x0, F.y0]] : null;
     const placed = sats.map((b, i) => {
       const a = angles[b.id], ex = orbitR[i] * Math.cos(a), ey = orbitR[i] * Math.sin(a);
       const q = P(ex, ey);
@@ -607,7 +614,7 @@ layout: |
     // ---- and now the ink, back to front -------------------------------------
     // Orbits first (guides behind everything), then the centre and its axis,
     // then the bodies far-to-near so a near one covers a far one when tilted.
-    if (framePts) push(kit.stroke("frame", framePts, { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+    if (framePts) push(kit.stroke("frame", framePts, { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
     if (orbitsOn) sats.forEach((b, i) => {
       push(kit.stroke("orbit_" + b.id, orbitPts[i], { closed: orbitWhole[i], color: C.guide, strokeWidth: 1.2, dash: true, ms: MS.guides }));
       anchors["orbit_" + b.id] = orbitPts[i][0];

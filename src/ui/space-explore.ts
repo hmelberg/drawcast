@@ -72,6 +72,14 @@ export function mountSpaceSection(opts: { hd: RenderHandle; stage: HTMLElement |
   const setFocus = (focus: string | null): void => {
     if (focus) overrides.focus = focus;
     else delete overrides.focus;
+    // The authored `moons` names satellites of the AUTHORED focus. Once the
+    // viewer walks somewhere else it describes a body that is no longer on
+    // screen, and the template says so in a note — "Unknown: jupiter (not a
+    // moon of io)" — which reads as an error the viewer caused by looking
+    // around. An empty filter means "this body's own moons" (measured: the
+    // same figure as no `moons` at all), so it clears the authored value
+    // without hiding anything. Continue restores the authored params.
+    overrides.moons = [];
     repaint();
     render();
   };

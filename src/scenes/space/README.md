@@ -137,6 +137,39 @@ Neither breaks anything — both are `warn`-level lint, and the figure is
 still correct — but a developer chasing lint noise on a real request should
 know these two are structural, not a regression.
 
+- **The centre of a portrait loses a click to its own axis.** `hitElement`
+  (`src/ui/hit.ts`) judges outlined shapes on their outline and everything else
+  on its box, smallest box wins. `kit.ball` draws a body as one point plus a
+  circle `shapeHint`, so a disc declares no outline and competes on its box —
+  and the spin axis drawn through it is a thin line whose box is far smaller.
+  A click dead centre on the focused body therefore answers `axis`. Harmless
+  where it shows: the centre of a portrait is already the focus, so that click
+  should change nothing anyway. It would matter to a click question aimed at the
+  centre body of a portrait. Pinned by `tests/space-hit.test.ts` so it cannot
+  drift unnoticed. The honest fix is to let a filled disc declare an outline,
+  which changes hit-testing for every template that draws circle-hinted strokes
+  (`src/layout/tier2.ts` does) — a decision for the repository, not this pack.
+
+### Fixed after the round shipped (2026-09-07)
+
+Hans found the ⊕ Space section's "click any moon to look closer" doing nothing.
+Two defects, both in figures that draw a `frame`, which is exactly the `focus`
+portraits the invitation appears on:
+
+1. **The frame swallowed every click.** It was drawn `closed: true`, so
+   `elementRings` handed it a hit outline covering the whole canvas.
+   `hitElement`'s outline pass returns the smallest outline containing the point
+   and never reaches the box pass, so the border answered every click and
+   `bodyOfElement` turned that into "not a body, keep the current focus" —
+   nothing happened. It is traced now as an open path that returns to its start:
+   the same dashed rectangle, no outline. This also silently broke click and
+   drag questions on any focus figure, since all three read the same call.
+2. **Walking to a moon accused the viewer of an error.** The authored `moons`
+   names satellites of the authored focus, so after a click it described a body
+   no longer on screen and the figure grew "Unknown: jupiter (not a moon of
+   io)". The tray now sends an empty filter with each focus change, which the
+   template reads as "this body's own moons".
+
 ## Ids
 
 Body ids are the English names in lower case and ARE the element ids
