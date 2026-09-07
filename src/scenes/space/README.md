@@ -132,9 +132,11 @@ card's formatted facts, the Wikipedia URL and response shape — live in
 `space-explore.ts` is the DOM glue: it renders the hint, crumbs, pill rows
 and card, and wires the click overlay. Keep it that way — anything that can
 be expressed as a pure function of the table and the current params belongs
-in `space-model.ts`, where a test can hold it against a value, not in the
-explore module, which only vitest-free manual smoke and the tests around it
-exercise indirectly.
+in `space-model.ts`, where a test can pin it. `space-explore.ts` itself has
+no unit tests of its own (the anatomy Body section is the same); the manual
+smoke checklist (`docs/superpowers/plans/2026-09-06-space-round-1-smoke.md`)
+is what actually exercises its DOM wiring — a reason, not an excuse, to keep
+that file as thin as possible.
 
 ## Rounds ahead
 
