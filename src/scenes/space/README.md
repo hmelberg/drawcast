@@ -483,6 +483,15 @@ that as a fall-through to tier-2, which is a WARNING and never an issue.
 
 ## A sweep has to prove it swept
 
+**Read `layoutSpec(spec).issues`, never `.warnings`.** That is the field
+`tests/examples.test.ts` asserts on, and the one that carries the lint. A
+layout's `.warnings` are its own complaints about its params, and a template
+that never complains leaves it empty for every figure — so a sweep written
+against `.warnings` comes back green over a chart riddled with collisions and
+proves nothing at all. This round's first measurement of a defect that
+warned on every single date read `.warnings` and saw nothing; the number that
+found it read `.issues`.
+
 `resolveTime` answers a `time` it cannot parse with the real clock, and says
 nothing. Its pattern used not to accept the fractional seconds
 `Date.toISOString()` always writes, so a 200-moment sweep built the honest way
