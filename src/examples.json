@@ -14835,5 +14835,67 @@
         { "speak": "Så πr² er ikke et mysterium. Det er omkretsen ganget med radien, halvert av en sirkel som er rettet ut." }
       ]
     }
+  },
+  {
+    "request": "Vis med kakestykker at en sirkel kan legges om til nesten et rektangel (fri tegning, uten mal).",
+    "packs": [],
+    "spec": {
+      "title": "Sektorer blir et rektangel",
+      "elements": [
+        { "id": "kake", "type": "pieces", "of": "sectors", "x": 300, "y": 380, "radius": 130, "n": 12, "style": { "fill": "#f2c14e" } },
+        { "id": "radius", "type": "path", "points": [[300, 380], [425.6, 413.6]], "style": { "color": "#b5482e", "stroke_width": 3 } },
+        { "id": "t_base", "type": "text", "text": "πr", "x": 650, "y": 285, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_height", "type": "text", "text": "r", "x": 905, "y": 380, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["kake_1", "kake_2", "kake_3", "kake_4", "kake_5", "kake_6", "kake_7", "kake_8", "kake_9", "kake_10", "kake_11", "kake_12"], "parallel": true, "speak": "En sirkel delt i tolv like kakestykker." },
+        { "draw": ["radius"], "speak": "Hvert stykke har radius r som side, og en liten bit av omkretsen som bue." },
+        { "hide": ["radius"] },
+        { "arrange": { "target": ["kake_1", "kake_2", "kake_3", "kake_4", "kake_5", "kake_6", "kake_7", "kake_8", "kake_9", "kake_10", "kake_11", "kake_12"], "layout": "zipper", "at": [650, 380], "duration": 3 }, "speak": "Snu annethvert stykke og skyv dem sammen som tenner i en glidelås." },
+        { "draw": ["t_base", "t_height"], "speak": "Grunnlinjen er halve omkretsen, πr, og høyden er r. Arealet er πr ganger r." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er arealet av et parallellogram grunnlinje ganger høyde?",
+    "packs": [],
+    "spec": {
+      "title": "Parallellogram = rektangel",
+      "elements": [
+        { "id": "para", "type": "polygon", "points": [[200, 300], [600, 300], [700, 500], [300, 500]], "style": { "fill": "#87a878" } },
+        { "id": "bit", "type": "polygon", "points": [[200, 300], [300, 300], [300, 500]], "style": { "fill": "#f2c14e" } },
+        { "id": "rekt", "type": "polygon", "points": [[300, 300], [700, 300], [700, 500], [300, 500]], "style": { "color": "#b5482e", "stroke_width": 3 } },
+        { "id": "t_b", "type": "text", "text": "b", "x": 500, "y": 270, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_h", "type": "text", "text": "h", "x": 730, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["para"], "speak": "Et parallellogram med grunnlinje b og høyde h." },
+        { "draw": ["bit"], "speak": "Klipp av trekanten på venstre side." },
+        { "fade": { "target": ["para"], "to": 0.3 } },
+        { "move": { "target": ["bit"], "by": [400, 0], "duration": 1.5 }, "speak": "Flytt den over til høyre side. Arealet er det samme." },
+        { "draw": ["rekt", "t_b", "t_h"], "speak": "Nå har vi et rektangel med sidene b og h. Arealet er b ganger h." }
+      ]
+    }
+  },
+  {
+    "request": "Vis hva som skjer med en trekant når den forstørres til det dobbelte fra ett hjørne (formlikhet).",
+    "packs": [],
+    "spec": {
+      "title": "Formlikhet: dobbelt så stor",
+      "elements": [
+        { "id": "tri", "type": "polygon", "points": [[300, 250], [500, 250], [400, 400]], "style": { "fill": "#f2c14e" } },
+        { "id": "orig", "type": "polygon", "points": [[300, 250], [500, 250], [400, 400]], "style": { "color": "#b5482e", "stroke_width": 3 } },
+        { "id": "t_big", "type": "text", "text": "2b", "x": 500, "y": 220, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["tri"], "speak": "En trekant med grunnlinje b." },
+        { "camera": { "center": { "ref": "tri" }, "zoom": 2, "duration": 1.2 }, "speak": "Se nøye på hjørnet nede til venstre." },
+        { "camera": { "reset": true, "duration": 1 } },
+        { "move": { "target": ["tri"], "scale": 2, "pivot": [300, 250], "duration": 2 }, "speak": "Forstørr den til det dobbelte fra det hjørnet: hver side blir dobbelt så lang." },
+        { "draw": ["orig"], "speak": "Den opprinnelige trekanten får plass fire ganger inni. Arealet blir fire ganger så stort, ikke to." },
+        { "fade": { "target": ["tri"], "to": 0.5 } },
+        { "draw": ["t_big"] }
+      ]
+    }
   }
 ]

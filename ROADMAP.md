@@ -217,11 +217,26 @@ geometry):
    mints mid-scene, so `animate: {n: 40}` shows all forty slices instead of
    only the twelve drawn at the template's rest state — caught by the first
    live smoke and folded into this round as its own task.
+6. **`move.scale`** grows a pose by a uniform factor about the same pivot as
+   `rotate` (`composeScale`, `Turn.scale` in `src/render/pose.ts`) — the SVG
+   transform composes as `translate rotate translate scale translate`, so a
+   shape can grow AND turn from one corner in a single move.
+7. **`fade`** persistently dims or restores elements (`SceneState.opacities`,
+   the `fade` player step, `RenderedElement.setOpacity` — the SVG opacity
+   attribute) so it layers independently of `focus`'s momentary dimming; the
+   planner dedupes followers the same way `arrange` does.
+8. **Three bundled freehand examples** (`src/examples.json`, no template)
+   put the new verbs through their paces: kakestykker rearranged into a
+   rectangle (the πr² proof, drawn by hand this time), a parallellogram cut
+   and slid into a rectangle (`fade` + `move`), and a triangle scaled ×2 from
+   one corner to show why the area quadruples, not doubles (`move.scale` +
+   `camera` + `fade`).
 
 Deliberately not done (design §3): rotated text stays unrotated — labels
 follow translations only, never turn; `zipper` is defined for sectors, not a
-general "tile these polygons" layout; no scale/flip transform and no
-morphing between shapes.
+general "tile these polygons" layout; no flip/mirror, no morphing between
+shapes. Fading a whole template figure needs its ids listed — `fade` takes
+element ids like every other target list, not a template name.
 
 ### Follow-ups this round deliberately left
 

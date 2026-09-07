@@ -224,10 +224,10 @@ end to end; after `animate: {n: 40}` all forty pieces render, SVG extents
   independently by the Task 3 implementer and confirmed by the Task 3
   reviewer — not triaged or fixed here.
 - **`language` on `circle_sectors` is inert** (Task 4 minor, deferred).
-- **Design's three deliberate non-goals** (§3, unchanged): rotated text
-  stays unrotated (labels follow translations only); `zipper` is defined
-  for sectors, not a general "tile these polygons" layout; no scale/flip
-  transform and no morphing between shapes.
+- **Design's three deliberate non-goals** (§3, updated — scale shipped in
+  Task 7): rotated text stays unrotated (labels follow translations only);
+  `zipper` is defined for sectors, not a general "tile these polygons"
+  layout; no flip/mirror, no morphing between shapes.
 - Smaller minors left on record across the reviews, none reopened: `to`
   against a null bbox is a silent no-op; default pivot against a null bbox
   is the origin; `rotate: 0` validates but is a no-op; the transform tween
@@ -242,3 +242,57 @@ end to end; after `animate: {n: 40}` all forty pieces render, SVG extents
   `circle_sectors` at `n = 2` or `n = 64`, and at `n = 64` `label_height`
   sits close to the canvas's right edge (x ≈ 939); a redundant hide
   assertion in Task 6's animate test.
+
+## Addendum 2026-09-08: scale, fade, examples
+
+**Task 7 — `move.scale`.** A pose now carries a uniform scale about the same
+pivot as `rotate` (`Turn.scale`, `composeScale` in `src/render/pose.ts`); the
+SVG transform composes as `translate rotate translate scale translate`, so a
+single move can grow and turn an element from one corner at once. Reviewed
+clean.
+
+**Task 8 — `fade`.** A new persistent-dim verb: `SceneState.opacities`
+(`src/render/plan.ts`) tracks each element's settled opacity, a `fade` player
+step tweens it, and `RenderedElement.setOpacity` (`src/render/backend.ts`,
+implemented in `src/render/svg-backend.ts`) applies it as the SVG opacity
+attribute — a separate channel from `focus`'s momentary dimming, so the two
+layer independently instead of fighting over one property. The planner
+dedupes `fade`'s followers the same way `arrange` already does.
+
+**Task 9 — three bundled examples + this addendum.** Added to
+`src/examples.json` (spliced before the closing `]`, matching the file's
+existing 2-space/one-line-per-command formatting): "Sektorer blir et
+rektangel" (freehand `pieces`/`arrange: zipper`, no template — the πr² proof
+drawn by hand), "Parallellogram = rektangel" (`polygon` + `fade` + `move`,
+the cut-and-slide proof that a parallelogram's area is base × height), and
+"Formlikhet: dobbelt så stor" (`polygon` + `camera` + `move.scale` + `fade`,
+showing a triangle scaled ×2 from one corner quadruples the area rather than
+doubling it). Two problems caught by `tests/examples.test.ts` before these
+were clean, both fixed here, not in production code:
+
+- The brief's draft style objects used `strokeWidth`; the landed schema
+  (`src/spec/schema.ts`) only recognizes `stroke_width` — the wrong key is
+  silently dropped by AJV's `additionalProperties: false` rather than
+  rejected loudly, so this would not have surfaced until someone looked at
+  the rendered stroke. Fixed to `stroke_width` in all three examples.
+- The first draft addressed the "kake" `pieces` group by its parent id alone
+  in `draw`/`arrange.target` (as `src/render/index.ts`'s wiring of
+  `expandId`/`pieceOf` from `layout.pieceGroups`/`layout.pieces` supports
+  live). But `tests/examples.test.ts` calls
+  `planCommands(spec.commands, layout.order)` directly, without those two
+  options — so in THIS test path a `pieces` parent id is not in `layout.order`
+  and does not expand, and is reported as an unknown id. Fixed by listing the
+  twelve expanded ids (`kake_1` … `kake_12`) explicitly, which resolves in
+  both the test and the live player (`layout.pieces`/`layout.pieceGroups` are
+  keyed by the leaf ids either way). Left on record for whoever next authors
+  a freehand `pieces` example: the group-id shorthand the design promises
+  only works past this specific test when spelled out, a live/test asymmetry
+  in `tests/examples.test.ts`'s own call, not a bug in `expandId`/`pieceOf`
+  themselves.
+
+All three examples pass every check in `tests/examples.test.ts` (validates,
+lays out and lints clean, every command id resolves, params/template
+checks). Full suite green (`npx vitest run`) and `npx tsc --noEmit` clean —
+counts in the Task 9 report. **Not run: a browser smoke of the three new
+examples.** The controller has not yet driven them in a live browser the way
+Smoke 1/2 above did for the πr² example; this addendum does not claim one.
