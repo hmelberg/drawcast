@@ -28,8 +28,10 @@ import type { ChemElement, ElementsEngine } from "./elements/types";
 export type { ElementsEngine } from "./elements/types";
 import type { BodiesTable, SpaceEngine } from "./space/types";
 export type { SpaceEngine } from "./space/types";
+import type { ConstellationTable, SkyEngine, StarTable } from "./space/sky-types";
+export type { SkyEngine } from "./space/sky-types";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "elements", "space"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "elements", "space", "sky"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -674,6 +676,22 @@ async function loadSpace(): Promise<SpaceEngine> {
   return makeSpaceEngine(tableMod.default as unknown as BodiesTable);
 }
 
+/** The night sky: two committed tables (69 KB) and astronomy-engine in one
+ *  lazy chunk. A SECOND engine rather than a bigger `space` one, because
+ *  engines load per template and folding the star tables into `space` would
+ *  charge every solar_system figure for a sky it never draws. sky.ts imports
+ *  astronomy-engine statically, so the dynamic import of sky.ts IS the
+ *  code-split boundary — never import ./space/sky from anywhere the main
+ *  chunk reaches; sky-types.ts and sky-rules.ts are the light half. */
+async function loadSky(): Promise<SkyEngine> {
+  const [{ makeSkyEngine }, starsMod, consMod] = await Promise.all([
+    import("./space/sky"),
+    import("./space/sky/stars.json"),
+    import("./space/sky/constellations.json"),
+  ]);
+  return makeSkyEngine(starsMod.default as unknown as StarTable, consMod.default as unknown as ConstellationTable);
+}
+
 export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   smilesdrawer: { load: loadSmilesDrawer },
   mathjax: { load: loadMathJax },
@@ -682,6 +700,7 @@ export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   anatomy: { load: loadAnatomy },
   elements: { load: loadElements },
   space: { load: loadSpace },
+  sky: { load: loadSky },
 };
 
 const cache = new Map<string, unknown>();

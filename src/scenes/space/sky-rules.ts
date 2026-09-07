@@ -1,6 +1,6 @@
 // The sky map's pure rules: the projection, the alt/az transform, the star
 // dot's size and tint, the clock, the observer presets and the one foot
-// caption's wording. No DOM, no astronomy-engine — the ephemeris lives in
+// caption's wording. No DOM, no ephemeris library — the ephemeris lives in
 // sky.ts, which is the code-split boundary. A layout body cannot import, so
 // the engine re-exposes these as engines.sky.*.
 
@@ -20,7 +20,7 @@ export const CHART: Chart = Object.freeze({ cx: 500, cy: 385, r: 285 });
 /** The box a `focus` portrait crops to — round 1's frame, same numbers. */
 export const FRAME = Object.freeze({ x0: 60, y0: 80, x1: 940, y1: 700 });
 
-/** J2000 → equatorial of date. `rot` is astronomy-engine's Rotation_EQJ_EQD
+/** J2000 → equatorial of date. `rot` is the ephemeris library's Rotation_EQJ_EQD
  *  matrix, whose convention is out[j] = Σᵢ rot[i][j]·in[i]. Twenty-six years
  *  of precession moves a star by about 0.35° — more than a bright star's drawn
  *  radius — for one matrix per frame and nine multiply-adds per star. */
@@ -36,7 +36,7 @@ export function precess(rot: readonly (readonly number[])[], raDeg: number, decD
 }
 
 /** Equatorial of date → horizontal, for latitude `latDeg` at local sidereal
- *  time `lstDeg`. Azimuth is degrees clockwise from north, astronomy-engine's
+ *  time `lstDeg`. Azimuth is degrees clockwise from north, the ephemeris library's
  *  own convention — and this agrees with its Horizon() to four decimals
  *  (tests/sky-rules.test.ts), at a tenth of a millisecond for a thousand stars. */
 export function altAz(raDeg: number, decDeg: number, lstDeg: number, latDeg: number): AltAz {
