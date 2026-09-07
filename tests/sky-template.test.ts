@@ -11,7 +11,7 @@ import spaceYaml from "../src/scenes/packs/space.yaml?raw";
 import { registerPack, unregisterPack } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { ensureEngines, getLoadedEngines } from "../src/scenes/engines";
-import { elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { elementBBoxes, elementRings, layoutSpec } from "../src/layout/layout";
 import { flattenDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import type { SkyEngine } from "../src/scenes/space/sky-types";
 
@@ -320,6 +320,188 @@ describe("sky_map: the captions cannot collide, because there is only one of eac
   });
 });
 
+describe("sky_map: the constellation figures", () => {
+  // A December evening: Orion is up over Oslo, which is what makes it the
+  // figure every test here can name.
+  const WINTER = "2026-12-20T21:00:00Z";
+  const win = (params: Record<string, unknown>) => scenes.sky_map.layout!({ time: WINTER, ...params });
+
+  test("the figures are ONE element by default, because no author can list them", () => {
+    const r = win({});
+    expect(r.order).toContain("figures");
+    expect(r.order.filter((id) => id.startsWith("con_"))).toEqual([]);
+    const segs = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("figures__"));
+    expect(segs.length).toBeGreaterThan(80);
+    for (const s of segs) expect((s as StrokeDrawable).pts).toHaveLength(2);
+  });
+
+  /** Every circle-hinted dot on the page, keyed by its exact centre — the star
+   *  field, the singled-out stars and the bodies alike. A line endpoint has to
+   *  land on one of these, because that is the whole claim: the drawing IS the
+   *  answer key, not a picture that resembles it. */
+  const dotCentres = (r: ReturnType<typeof win>): Set<string> => {
+    const out = new Set<string>();
+    for (const d of flattenDrawables(r.drawables)) {
+      if (d.kind !== "stroke") continue;
+      const hint = (d as StrokeDrawable).shapeHint;
+      if (hint?.type === "circle") out.add(hint.c.join(","));
+    }
+    return out;
+  };
+
+  test("every drawn line joins two stars that are both above the horizon", () => {
+    const r = win({});
+    const dots = dotCentres(r);
+    const segs = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("figures__")) as StrokeDrawable[];
+    expect(segs.length).toBeGreaterThan(80);
+    for (const s of segs) {
+      for (const p of s.pts) {
+        // Every endpoint is inside the dome — which, since a point outside it
+        // is below the horizon, is the same statement as "both stars are up".
+        expect(Math.hypot(p[0] - sky.chart.cx, p[1] - sky.chart.cy)).toBeLessThanOrEqual(sky.chart.r + 0.001);
+        expect(dots.has(p.join(",")), `line endpoint ${p.join(",")} has no star`).toBe(true);
+      }
+    }
+  });
+
+  test("a star a drawn line needs is drawn however faint — a line to nothing is a lie", () => {
+    // 119 of the 756 line stars are fainter than 4.5 and 27 fainter than 5.0,
+    // so a magnitude cut alone would leave the figures with holes.
+    const r = win({ limit_mag: 2 });
+    const dots = dotCentres(r);
+    const segs = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("figures__")) as StrokeDrawable[];
+    expect(segs.length).toBeGreaterThan(20);
+    for (const s of segs) for (const p of s.pts) expect(dots.has(p.join(",")), `${s.id} ends at nothing`).toBe(true);
+    // …and the figures really did keep stars the cut would have thrown away.
+    const faint = sky.stars().filter((x) => x.mag > 2 && sky.constellations().some((c) => c.edges.some((e) => e[0] === x.hip || e[1] === x.hip)));
+    expect(faint.length).toBeGreaterThan(100);
+  });
+
+  test("constellations: none draws no lines and no names", () => {
+    const r = win({ constellations: "none" });
+    expect(r.order).not.toContain("figures");
+    expect(r.order.filter((id) => id.startsWith("label_con_"))).toEqual([]);
+    expect(r.order).toContain("stars");
+  });
+
+  test("constellations: lines draws lines and no names; names draws names and no lines", () => {
+    const lines = win({ constellations: "lines" });
+    expect(lines.order).toContain("figures");
+    expect(lines.order.filter((id) => id.startsWith("label_con_"))).toEqual([]);
+    const only = win({ constellations: "names" });
+    expect(only.order).not.toContain("figures");
+    expect(only.order.filter((id) => id.startsWith("label_con_")).length).toBeGreaterThan(0);
+  });
+
+  test("a constellation the author singles out leaves the group and becomes its own element", () => {
+    const r = win({ mark: ["Orion"] });
+    expect(r.order).toContain("con_ori");
+    expect(r.order).toContain("figures");
+    const own = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("con_ori__"));
+    expect(own.length).toBeGreaterThanOrEqual(15);
+    expect(flattenDrawables(r.drawables).some((d) => d.id.startsWith("figures__Ori"))).toBe(false);
+    // highlight tints it as well as lifting it.
+    const hot = flattenDrawables(win({ highlight: ["Orion"] }).drawables).find((d) => d.id.startsWith("con_ori__")) as StrokeDrawable;
+    expect(hot.style.color).toBe("#8a5fa8");
+  });
+
+  test("a figure draws in about a second however many lines it has", () => {
+    // The group-duration trap again: Sagittarius has 29 edges, and 29 strokes
+    // at SKETCH_MS.stroke would be forty seconds of drawing.
+    const r = win({ mark: ["Orion"] });
+    const total = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("con_ori__")).reduce((n, d) => n + d.drawOpts.duration, 0);
+    expect(total).toBeLessThan(2000);
+    const field = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("figures__")).reduce((n, d) => n + d.drawOpts.duration, 0);
+    expect(field).toBeLessThan(4000);
+  });
+});
+
+describe("sky_map: names on a crowded chart", () => {
+  const WINTER = "2026-12-20T21:00:00Z";
+  const win = (params: Record<string, unknown>) => scenes.sky_map.layout!({ time: WINTER, ...params });
+  const namesOf = (r: ReturnType<typeof win>) => r.order.filter((id) => id.startsWith("label_con_"));
+
+  // The guard against the cheap fix. A name is written only where it costs
+  // nothing, which is what makes the sweep clean — so the sweep alone would
+  // also pass a template that wrote NO names at all. These are the floor.
+  test("the default chart names a real handful of constellations", () => {
+    expect(namesOf(win({})).length).toBeGreaterThanOrEqual(5);
+  });
+
+  test("Orion is named on a December evening over Oslo", () => {
+    expect(namesOf(win({}))).toContain("label_con_ori");
+  });
+
+  test("three languages give three different words on the page", () => {
+    const at = (params: Record<string, unknown>) => {
+      const d = flattenDrawables(win(params).drawables).find((x) => x.id === "label_con_uma");
+      return d && d.kind === "text" ? d.text : undefined;
+    };
+    expect(at({ focus: "UMa" })).toBe("The Great Bear");
+    expect(at({ focus: "UMa", names: "la" })).toBe("Ursa Major");
+    expect(at({ focus: "UMa", names: "nb" })).toBe("Store bjørn");
+    expect(at({ focus: "UMa", names: "none" })).toBeUndefined();
+  });
+
+  test("a name is never written where it would cross a line or another name", () => {
+    // The same rule lint applies, applied here to the names this layout placed
+    // itself — which is the only reason it is allowed to place them.
+    const r = layoutSpec(spec({ time: WINTER }));
+    expect(r.issues.filter((i) => i.ids.some((id) => id.startsWith("label_"))).map((i) => i.message)).toEqual([]);
+  });
+});
+
+describe("sky_map: focus — one figure, filling the page", () => {
+  const WINTER = "2026-12-20T21:00:00Z";
+  const win = (params: Record<string, unknown>) => scenes.sky_map.layout!({ time: WINTER, ...params });
+
+  test("focus draws that figure alone, names it, and gives every one of its stars an id", () => {
+    const r = win({ focus: "Orion" });
+    expect(r.order).toContain("con_ori");
+    expect(r.order).not.toContain("figures");
+    expect(r.order).toContain("label_con_ori");     // a portrait ALWAYS names its subject
+    expect(r.order).toContain("frame");
+    expect(r.order).not.toContain("horizon");       // the crop does not keep the rim
+    const ori = sky.findConstellation("Ori")!;
+    for (const h of sky.edgeStars(ori)) {
+      const s = sky.star(h)!;
+      expect(r.order, `HIP ${h}`).toContain(sky.starId(s));
+    }
+    expect(r.order).toContain("betelgeuse");
+    expect(r.order).toContain("rigel");
+  });
+
+  test("the frame owns no clicks — it is a border, not a region", () => {
+    const r = layoutSpec(spec({ time: WINTER, focus: "Orion" }));
+    expect(r.order).toContain("frame");
+    expect([...elementRings(r).keys()]).not.toContain("frame");
+  });
+
+  test("the portrait really is bigger than the same figure on the whole sky", () => {
+    const span = (params: Record<string, unknown>): number => {
+      const b = elementBBoxes(layoutSpec(spec({ time: WINTER, ...params }))).get("con_ori")!;
+      return Math.max(b.w, b.h);
+    };
+    expect(span({ focus: "Orion" })).toBeGreaterThan(2 * span({ mark: ["Orion"] }));
+  });
+
+  test("focus resolves however the model spells it", () => {
+    for (const q of ["Orion", "orion", "Ori", "con_ori"]) {
+      expect(win({ focus: q }).order, q).toContain("con_ori");
+    }
+    expect(textOf(win({ focus: "Krypton" }), "sky_note")).toContain("Unknown: Krypton");
+    expect(win({ focus: "Krypton" }).order).toContain("horizon");   // falls back to the whole sky
+  });
+
+  test("a figure entirely below the horizon is SAID, not silently blank", () => {
+    // Crux never rises over Oslo.
+    const r = win({ focus: "Crux" });
+    expect(textOf(r, "sky_note")).toContain("Below the horizon: The Southern Cross");
+    expect(r.order).toContain("horizon");
+    expect(r.order).toContain("stars");
+  });
+});
+
 describe("sky_map: lint-clean over a year of moments", () => {
   // Round 1's lesson, in one test: its default figure warned on EVERY date and
   // nothing noticed for a whole round. 200 moments, stepping 1.837 days and
@@ -351,9 +533,35 @@ describe("sky_map: lint-clean over a year of moments", () => {
     expect(fields.size).toBe(20);
   });
 
+  // The same guard, for what THIS round varies. A row called "a portrait of
+  // Orion" proves nothing about portraits if Orion is below the horizon at all
+  // 200 moments and every one of them quietly fell back to the whole sky; a
+  // row called "with lines but no names" proves nothing if no line was ever
+  // drawn; and a chart that named no constellation at all would sweep clean
+  // for the worst possible reason. So each row's subject is counted before any
+  // row is believed. Measured: 200/200 charts draw figures, 147/200 of the
+  // Orion portraits really are portraits, and a chart names 24–35 figures.
+  test("the sweep really draws the figures the rows are named after", () => {
+    const count = (params: Record<string, unknown>, id: string) =>
+      moments(200).filter((time) => lay({ ...params, time }).order.includes(id)).length;
+    expect(count({}, "figures")).toBe(200);
+    expect(count({ constellations: "lines" }, "figures")).toBe(200);
+    expect(count({ constellations: "names" }, "figures")).toBe(0);
+    const named = moments(200).map((time) => lay({ time }).order.filter((id) => id.startsWith("label_con_")).length);
+    expect(Math.min(...named)).toBeGreaterThanOrEqual(15);
+    expect(count({ mark: ["Orion"] }, "con_ori")).toBeGreaterThan(100);
+    // `frame` is drawn only when a figure really was magnified, so this counts
+    // the moments each portrait row was a portrait at all.
+    expect(count({ focus: "Orion" }, "frame")).toBeGreaterThan(100);
+    expect(count({ focus: "Ursa Major" }, "frame")).toBe(200);
+    expect(count({ focus: "Cassiopeia", names: "nb" }, "frame")).toBe(200);
+  }, 60000);
+
   test.each([
     ["the default figure", {}],
     ["in Norwegian", { names: "nb" }],
+    ["in Latin", { names: "la" }],
+    ["with no names at all", { names: "none" }],
     ["from Tromsø", { lat: 69.65, lon: 18.96, place: "Tromsø" }],
     ["from the equator", { lat: 0, lon: 0, place: "The equator" }],
     ["from Sydney", { lat: -33.87, lon: 151.21, place: "Sydney" }],
@@ -362,11 +570,38 @@ describe("sky_map: lint-clean over a year of moments", () => {
     ["with a planet named that is sometimes down", { show: ["jupiter", "saturn"] }],
     ["with a star singled out", { mark: ["Vega"], highlight: ["Sirius"] }],
     ["with an unknown name", { show: ["planets", "krypton"] }],
+    ["with lines but no names", { constellations: "lines" }],
+    ["with names but no lines", { constellations: "names" }],
+    ["with a constellation singled out", { mark: ["Orion"], highlight: ["Cassiopeia"] }],
+    ["a portrait of Orion", { focus: "Orion" }],
+    ["a portrait of the Plough", { focus: "Ursa Major" }],
+    ["a portrait of Cassiopeia in Norwegian", { focus: "Cassiopeia", names: "nb" }],
   ])("%s is lint-clean on every one of 200 moments", (_what, params) => {
     const { dirty, count } = sweep(params);
     expect(dirty).toEqual([]);
     expect(count).toBe(0);
   }, 30000);
+
+  test("a copy translated into a language the pack does not know keeps its names apart", () => {
+    // applyTextMap runs AFTER this body (src/layout/layout.ts:111), so every
+    // clearance was measured for the word written HERE. A character of
+    // headroom is what the layout buys, and it reserves that character against
+    // the drawn LINES as well as against the other names — which is what makes
+    // this zero rather than the handful of `label_con_ori` ("Orione") grazes it
+    // was when only the label-label side was padded.
+    const text_map = {
+      Orion: "Orione", "The Great Bear": "Orsa Maggiore", "The Little Bear": "Orsa Minore",
+      Cassiopeia: "Cassiopea", "The Bull": "Toro", "The Twins": "Gemelli", "The Charioteer": "Auriga",
+      Sirius: "Sirio", Vega: "Vega", "The Sun is up — these stars are there, but you cannot see them": "Il Sole è alto",
+    };
+    const residual: string[] = [];
+    for (const time of moments(40)) {
+      const res = layoutSpec({ template: "sky_map", params: { time }, elements: [], text_map } as never);
+      expect(res.issues.filter((i) => i.rule === "overlap-label-label").map((i) => i.message), time).toEqual([]);
+      for (const i of res.issues) residual.push(`${time}: ${i.message}`);
+    }
+    expect(residual.length, residual.join("\n")).toBe(0);
+  });
 
   test("the clean figure is not clean because it draws nothing", () => {
     const r = lay({});

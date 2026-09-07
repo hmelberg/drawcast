@@ -13953,7 +13953,7 @@
     "spec": {
       "title": "The sky turns because we do",
       "template": "sky_map",
-      "params": { "time": "2026-09-07T22:00:00+02:00", "lat": 59.91, "lon": 10.75, "place": "Oslo", "mark": ["Polaris"], "hours": 0 },
+      "params": { "time": "2026-09-07T22:00:00+02:00", "lat": 59.91, "lon": 10.75, "place": "Oslo", "mark": ["Polaris"], "hours": 0, "constellations": "none" },
       "commands": [
         { "draw": ["horizon", "compass_n", "compass_e", "compass_s", "compass_w", "place_label"], "speak": "The rim of this circle is the horizon all the way round you, and the middle is straight up. North is at the top — and east is on the left, because you are looking at a chart held over your head rather than a map of the ground." },
         { "draw": ["stars", "saturn", "label_saturn", "sky_note"], "speak": "Oslo, a quarter to nine on a September evening. Every star bright enough to see on a clear night out of town, where it really was — and low in the east, one point that is not a star at all." },

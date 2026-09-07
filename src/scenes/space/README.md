@@ -253,6 +253,66 @@ compass letters sit at `r + 20`, outside the rim.
   make the field take minutes.
 - **The Sun's position is always computed, even when `show` never names it.**
   Whether it is day is a fact about the moment, not about the author's list.
+- **The constellation figures are ONE element too** (`figures`), for the same
+  reason the star field is: `draw` has no wildcard, and which figures are up is
+  a fact about the hour. `mark`, `highlight` or `focus` lifts one out as
+  `con_<abbr>`. Their 350-odd segments share a 2 600 ms budget, and a lifted
+  figure a 1 200 ms one.
+- **An edge is drawn only when BOTH its stars are above the horizon.** A line
+  running off into the ground is not what a setting constellation looks like:
+  its lower half is simply gone, and that is what a viewer sees.
+- **A star a drawn line reaches is drawn whatever `limit_mag` says.** 119 of
+  the 756 stars the figures need are fainter than 4.5 and 27 fainter than 5.0,
+  so a magnitude cut alone would leave the shapes full of holes — and a line
+  ending at nothing is a lie about the sky. `tests/sky-template.test.ts` checks
+  the strong form of this: every line endpoint lands exactly on the centre of a
+  drawn dot, at `limit_mag: 2` as well as at the default. The drawing IS the
+  answer key.
+- **`take` asks the constellation index first.** "Leo" and "Orion" are figures,
+  and no star carries either name. One key really is shared — `Men` is both
+  Mensa and a catalogue star name — and the figure wins it.
+
+## `focus`: a portrait is the same projection through a magnifying glass
+
+The figure's own stars are projected as usual; then the plane is scaled about
+the figure's centre and shifted to the frame's centre. Nothing about the
+geometry changes, so the stereographic stretch near the rim is inherited
+honestly rather than hidden. The zoom is whatever fits the figure inside
+`FRAME` with 110 units of padding, clamped to 1…6.
+
+The crop is why the horizon is not drawn — there is no rim on the page any
+more, so there is no compass either — and a `frame` says "this is a detail"
+instead. That frame is traced as an OPEN path that returns to its start: round
+1 shipped it `closed: true` and it swallowed every click.
+
+The crop never removes the subject. Above zoom 1 the fit is what chose the
+zoom; at zoom 1 the figure's half-span cannot exceed the dome's radius, 285,
+while the frame allows 310 above and below the centre it is moved to. What the
+crop does remove is the sky AROUND the subject — background stars, and bodies,
+which is also what keeps a magnified planet inside the ±4000 the compile guard
+allows. A body cropped away is NOT reported as set: it has not set, it is
+outside the detail, and the caption would be lying if it said otherwise.
+
+Under `focus` every star the figure's lines reach becomes its own element, so a
+question can name any of them — `betelgeuse`, or `hip_25281` where the
+catalogue has no proper name. A figure entirely below the horizon is said so in
+the caption ("Below the horizon: The Southern Cross") and the whole sky is
+drawn instead; it is never a blank page.
+
+## Constellation names: an atlas names what it has room for
+
+Names go on largest figure first — the shape an eye finds first is the one
+worth naming — and only where the name costs NOTHING by the hard/soft price
+list below. A name lying across the lines of the very shape it names is worse
+than no name, so a figure that has no free spot goes unnamed. On a December
+evening over Oslo that still names 24–35 of the 39 figures that are up.
+
+A portrait is the one exception: its subject is the whole point of the page, so
+its name takes the cheapest spot rather than only a free one.
+
+Because "write nothing" is also lint-clean, the sweep alone cannot justify this
+rule. `tests/sky-template.test.ts` holds the floor: at least five names on the
+default chart, Orion among them, three different words in three languages.
 
 ## Labels here: hard cost and soft cost
 
@@ -272,12 +332,33 @@ obstacle shape (`{x, y, w, h}` boxes, `boxHit`, seeded from
   off. But a name that walked three rings out to dodge two dots no longer
   reads as belonging to anything, which is what the ring cost buys back.
 
-A BODY always gets its name and takes the cheapest spot; a STAR takes a spot
-with no hard cost or goes unnamed. Candidates aim INWARD first, toward the
-zenith, where the dome is emptiest — outward from a body near the rim runs
-off the page. Obstacle lists are pruned once per NAME (`boxNear`,
-`nearSegs`) rather than per candidate, which is what keeps the 2 000-layout
-sweeps under 200 ms each.
+A BODY always gets its name and takes the cheapest spot; a STAR, and a
+CONSTELLATION on the whole-sky chart, takes a spot with no hard cost or goes
+unnamed. Candidates aim INWARD first, toward the zenith, where the dome is
+emptiest — outward from a body near the rim runs off the page — except a
+constellation's, which aims BELOW its own middle first, because the middle of a
+constellation is exactly where its own lines are.
+
+The clearance a name reserves is a character wider than the word actually
+written (`TRANSLATED_ROOM`), because `applyTextMap` swaps the words after this
+body has run. That character is reserved against the drawn LINES as well as
+against the other names — the core the stroke rule measures is the core of the
+padded box, not of the box. It was not, at first, and five of the translation
+guard's Italian `label_con_ori` ("Orione") labels grazed a line the English
+ones cleared.
+
+Obstacle lists are pruned once per NAME (`boxNear`, `nearSegs`) rather than per
+candidate. With the figures on the page `guides` holds 350 more two-point lines
+than it did, so it is a FLAT SOUP of endpoint pairs walked once per name rather
+than a list of polylines pruned one call each — the difference between a sweep
+that runs and one that times out.
+
+Eight candidate sides and three rings were enough for a chart whose only lines
+were the rim and the Moon. With the figures drawn, a body's name — which is
+always written, free spot or not — landed on a line at four moments of the
+sweep. The fix was a wider search, never a lower bar: sixteen sides and five
+rings, and the search still stops the instant it finds a spot that costs
+nothing at all.
 
 ## `show`, and what is not in the sky
 
@@ -336,14 +417,16 @@ its meaning.
 
 ## Ids
 
-`horizon`, `compass_n/e/s/w`, `stars`, `place_label`, `sky_note`, `title`;
-one id per drawn body (`sun`, `moon`, `mars`, …) and `label_<id>`; a star
-named in `mark` or `highlight` becomes `<proper name in lower case>` with
-`label_<that>`.
+`horizon`, `compass_n/e/s/w`, `stars`, `figures`, `place_label`, `sky_note`,
+`title`; one id per drawn body (`sun`, `moon`, `mars`, …) and `label_<id>`; a
+star named in `mark` or `highlight` becomes `<proper name in lower case>` with
+`label_<that>`. A constellation named in `mark`, `highlight` or `focus` becomes
+`con_<abbr in lower case>` with `label_con_<abbr>`; under `focus` its stars get
+`hip_<number>` where they have no proper name, and the crop is bordered by
+`frame` (which replaces `horizon` and the compass).
 
 ## Rounds ahead
 
-Round 2 continues: the constellation figures and their names on top of
-`sky_map` (`figures`, `con_<abbr>`, `frame`, `hip_<n>`), and the ⊕ Sky
-section. Round 3: `model3d: { kind: space }` (three.js) — `texture` in the
-table is reserved for it.
+Round 2 continues: the ⊕ Sky section. Round 3:
+`model3d: { kind: space }` (three.js) — `texture` in the table is reserved for
+it.

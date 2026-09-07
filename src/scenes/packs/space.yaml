@@ -686,9 +686,14 @@ description: >-
   no author can know which stars are up at a given hour — so to ask a question
   about one star, name it in `mark` and it becomes its own element with its own
   name as its id ({"ask": {"question": "Which one is Vega?", "widget": "click",
-  "answer": "vega"}}); `highlight` marks AND tints. Choose this scene for any
-  request about tonight's sky, a constellation, a named star, where a planet is
-  tonight, the Moon's phase, or why the sky turns.
+  "answer": "vega"}}); `highlight` marks AND tints. The constellation figures
+  are ONE element too, `figures`, for the same reason; `mark: ["Orion"]`,
+  `highlight` or `focus` lifts one out as `con_ori`, and `focus` magnifies it to
+  fill the page with every one of its own stars addressable. The figures come
+  from a bundled answer key — each is stored as pairs of catalogue stars, so
+  what is drawn and what a question grades against are the same thing. Choose
+  this scene for any request about tonight's sky, a constellation, a named star,
+  where a planet is tonight, the Moon's phase, or why the sky turns.
 params:
   type: object
   properties:
@@ -724,6 +729,14 @@ params:
       minimum: 2
       maximum: 4.5
       description: "The faintest star drawn (default 4.5, which is roughly what a dark suburban sky shows). 2 keeps only the few dozen brightest. A star does not change size when this does."
+    constellations:
+      type: string
+      enum: [both, lines, names, none]
+      description: "both (default): the figures drawn and the ones that have room named. lines: the figures with no names. names: names with no lines. none: neither. The chart names as many as it can place cleanly, largest first — a star chart names what it has room for, the way an atlas does. This is about the whole sky: a focus draws and names its own subject whatever this says."
+    focus:
+      type: string
+      description: "One constellation — its abbreviation (Ori), its Latin, English or Norwegian name, or its element id (con_ori). That figure alone fills the page, magnified, with EVERY one of its own stars given its own element id (a proper name where it has one, else hip_<number>) so a question can name any of them; the horizon goes and a dashed frame says this is a detail. A figure that is entirely below the horizon is said so in the caption and the whole sky is drawn instead."
+      x-translate: false
     names:
       type: string
       enum: [en, nb, la, none]
@@ -752,6 +765,11 @@ element_ids:
   compass_s: "S at the bottom"
   compass_w: "W on the right"
   stars: every star that is not singled out, as one element — this is what an author draws when the stars come out
+  figures: every constellation's lines that is not singled out, as one element — what an author draws when the shapes come out
+  con_<abbr>: a constellation named in mark, highlight or focus becomes its own element — con_ori, con_uma, con_cas
+  label_con_<abbr>: that constellation's written name, in the language names chose
+  hip_<number>: under focus, a star of that figure with no proper name of its own
+  frame: a light dashed border around the crop (focus only)
   <star_name>: a star named in mark or highlight becomes its own element, its id its proper name in lower case (sirius, vega, betelgeuse)
   <body_id>: sun, moon, mercury, venus, mars, jupiter, saturn, uranus or neptune, drawn only when it is above the horizon
   moon: the Moon, drawn with the phase it has that night, its lit side turned toward the Sun
@@ -766,6 +784,8 @@ examples:
     params: { time: "2026-09-07T22:00:00+02:00", show: ["saturn"], highlight: ["saturn"], names: "nb" }
   - request: "Which star is Vega?"
     params: { time: "2026-09-07T22:00:00+02:00", mark: ["Vega", "Deneb", "Altair"] }
+  - request: "Where is Orion in the winter sky?"
+    params: { time: "2026-12-20T21:00:00Z", mark: ["Orion"], names: "la" }
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const eng = engines.sky, spc = engines.space;
@@ -812,9 +832,16 @@ layout: |
   // given hour, so the field is ONE element. Anything named in `mark` or
   // `highlight` is lifted OUT of it into its own element, which is what makes
   // a click question and the highlight command reach a single star.
-  const markStars = new Set(), markBodies = new Set();
-  const litStars = new Set(), litBodies = new Set();
-  const take = (q, stars, bodies) => {
+  const markStars = new Set(), markBodies = new Set(), markCons = new Set();
+  const litStars = new Set(), litBodies = new Set(), litCons = new Set();
+  // Constellation FIRST: "Leo" and "Orion" are figures, and no star carries
+  // either name, so the order is unambiguous and it is the commoner ask. One
+  // key really is shared — "Men" is both Mensa and a catalogue star name — and
+  // the constellation wins it, which is what somebody typing three letters
+  // into a sky chart means.
+  const take = (q, stars, bodies, cons) => {
+    const c = eng.findConstellation(q);
+    if (c) { cons.add(c.abbr); return true; }
     const s = eng.findStar(q);
     if (s) { stars.add(s.hip); return true; }
     const hits = skyBodies(q);
@@ -822,10 +849,19 @@ layout: |
     for (const b of hits) bodies.add(b.id);
     return true;
   };
-  for (const q of list(params.mark)) if (!take(q, markStars, markBodies)) sayUnknown(q);
+  for (const q of list(params.mark)) if (!take(q, markStars, markBodies, markCons)) sayUnknown(q);
   for (const q of list(params.highlight)) {
-    if (take(q, litStars, litBodies)) take(q, markStars, markBodies);
+    if (take(q, litStars, litBodies, litCons)) take(q, markStars, markBodies, markCons);
     else sayUnknown(q);
+  }
+  const conMode = oneOf(params.constellations, ["both", "lines", "names", "none"], "both");
+  // `focus` is resolved here, with the rest of what the author named, but
+  // whether it can be DRAWN is not known until the stars have been placed —
+  // a figure wholly below the horizon becomes a caption instead, below.
+  let focusCon = null;
+  if (typeof params.focus === "string" && params.focus.trim() !== "") {
+    const c = eng.findConstellation(params.focus);
+    if (c) focusCon = c; else sayUnknown(params.focus);
   }
 
   // ---- the bodies ---------------------------------------------------------
@@ -864,26 +900,13 @@ layout: |
   const up = showIds.filter((id) => bPos[id] && bPos[id].alt >= 0);
   const daylight = bPos.sun !== undefined && bPos.sun.alt > -0.5;
 
-  // ---- the captions, measured before anything is placed -------------------
-  const clauses = eng.noteClauses({ daylight: daylight, below: below, unknown: unknown, symbols: up.length > 0 }, L);
-  let noteText = clauses.join(" · ");
-  // ONE caption, and it drops its cheapest clause rather than running off the
-  // page. Round 1's known limit was two captions colliding in this same foot
-  // strip; one caption cannot collide with itself.
-  while (clauses.length > 0 && kit.textWidth(noteText, NOTE_PX) > F.x1 - F.x0) { clauses.pop(); noteText = clauses.join(" · "); }
-  const clock = eng.localClock(at, lon);
-  const placeLine = (placeText !== "" ? placeText + " · " : "") + clock.date + " " + clock.time;
-  const titleText = typeof params.title === "string" && params.title.trim() !== "" ? params.title.trim() : "";
-  const textBox = (at2, s, fs, start) => { const w = kit.textWidth(s, fs), h = fs * 1.25; return { x: start ? at2[0] : at2[0] - w / 2, y: at2[1] - h / 2, w, h }; };
-  const captionBoxes = () => {
-    const out = [textBox([F.x0, 24], placeLine, NOTE_PX, true)];
-    if (noteText !== "") out.push(textBox([F.x0, 52], noteText, NOTE_PX, true));
-    if (titleText !== "") out.push(textBox([500, 726], titleText, 30));
-    return out;
-  };
-
   // ---- geometry, all measured before any ink ------------------------------
-  const P = (p) => eng.project(p, CH);
+  // The FIGURES come before the captions, and the captions before the rest of
+  // the geometry, because the two ends depend on each other: a `focus` that is
+  // entirely below the horizon becomes a clause of the caption rather than a
+  // blank page, and nothing can be projected until the magnification a
+  // portrait applies is known. The order is: stars placed → figures chosen →
+  // zoom → everything projected → captions → rim, compass and star field.
   // Traced right round and then back to the FIRST POINT ITSELF, not to a
   // recomputed cos(2π) — which lands half an ulp off and leaves a hairline gap
   // in the rim where the pen started.
@@ -893,22 +916,94 @@ layout: |
     pts.push([pts[0][0], pts[0][1]]);
     return pts;
   };
-  const horizonPts = ring([CH.cx, CH.cy], CH.r, 144);
-
-  const COMPASS = [[0, "compass_n", "N", "N"], [90, "compass_e", "E", "Ø"], [180, "compass_s", "S", "S"], [270, "compass_w", "W", "V"]];
-  const compass = COMPASS.map((c) => {
-    const rr = CH.r + 20, a = (c[0] * Math.PI) / 180;
-    return { id: c[1], text: L === "nb" ? c[3] : c[2], at: [CH.cx - rr * Math.sin(a), CH.cy + rr * Math.cos(a)] };
-  });
-
   const sPos = eng.starPositions(at, lat, lon);
+
+  // An edge is drawn only when BOTH its stars are above the horizon. A line
+  // running off into the ground is not what a setting constellation looks
+  // like: its lower half is simply gone, and that is what a viewer sees.
+  const segsOf = (c) => c.edges.filter((e) => {
+    const pa = sPos.get(e[0]), pb = sPos.get(e[1]);
+    return pa !== undefined && pb !== undefined && pa.alt >= 0 && pb.alt >= 0;
+  });
+  if (focusCon && segsOf(focusCon).length === 0) { below.push(eng.name(focusCon, L)); focusCon = null; }
+  const chosen = [];
+  if (focusCon) chosen.push(focusCon);
+  else if (conMode !== "none") for (const c of eng.constellations()) if (segsOf(c).length > 0) chosen.push(c);
+
+  // A portrait is the same projection through a magnifying glass: the figure's
+  // own stars are projected as usual, then the plane is scaled and shifted to
+  // fill the frame. Nothing about the geometry changes — the stretch near the
+  // rim is inherited honestly — and the crop is why the horizon is not drawn.
+  let zoom = 1, Z = (q) => q;
+  if (focusCon) {
+    const pts = eng.edgeStars(focusCon).map((h) => sPos.get(h)).filter((p) => p !== undefined && p.alt >= 0).map((p) => eng.project(p, CH));
+    const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+    const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    const pad = 110;                          // room for the names and the frame
+    zoom = Math.min(6, Math.max(1, Math.min((F.x1 - F.x0 - 2 * pad) / Math.max(1, x1 - x0), (F.y1 - F.y0 - 2 * pad) / Math.max(1, y1 - y0))));
+    const bx = (x0 + x1) / 2, by = (y0 + y1) / 2;
+    Z = (q) => [500 + (q[0] - bx) * zoom, 390 + (q[1] - by) * zoom];
+  }
+  const P = (p) => Z(eng.project(p, CH));
+  const dotScale = Math.min(2, 0.5 + 0.5 * zoom);
+  // A portrait CROPS: anything projected outside the frame is off the page —
+  // which is also what keeps a magnified body inside the ±4000 the compile
+  // guard allows. The focused figure itself is never cropped: above zoom 1 the
+  // fit is what chose the zoom, and at zoom 1 the whole dome is 570 across
+  // while the frame gives 620, so every point of a figure centred in it lands
+  // inside. So this only ever removes the sky AROUND the subject.
+  const onPage = (q) => focusCon === null || (q[0] >= F.x0 && q[0] <= F.x1 && q[1] >= F.y0 && q[1] <= F.y1);
+
+  // The drawn segments, in canvas units, worked out once: a name has to keep
+  // off them, the ink draws them, and the star loop has to know which faint
+  // stars they reach.
+  const drawnCons = [], segPts = {}, conMid = {}, conExt = {}, lineStars = new Set();
+  for (const c of chosen) {
+    const keep = [];
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const e of segsOf(c)) {
+      const a = P(sPos.get(e[0])), b = P(sPos.get(e[1]));
+      if (!onPage(a) || !onPage(b)) continue;
+      keep.push([a, b]);
+      lineStars.add(e[0]);
+      lineStars.add(e[1]);
+      for (const q of [a, b]) {
+        if (q[0] < x0) x0 = q[0];
+        if (q[0] > x1) x1 = q[0];
+        if (q[1] < y0) y0 = q[1];
+        if (q[1] > y1) y1 = q[1];
+      }
+    }
+    if (keep.length === 0) continue;
+    drawnCons.push(c);
+    segPts[c.abbr] = keep;
+    // The MIDDLE of what is actually drawn — where the name goes, and where a
+    // `point` or a `label` command aimed at con_ori should land. An endpoint of
+    // the first edge would be a corner of the shape, which is not where anyone
+    // means when they point at a constellation.
+    conMid[c.abbr] = [(x0 + x1) / 2, (y0 + y1) / 2];
+    conExt[c.abbr] = { e: Math.max(x1 - x0, y1 - y0) / 2, span: (x1 - x0) * (y1 - y0) };
+  }
+  // Which figures leave the `figures` group and become elements of their own.
+  const lifted = new Set(markCons);
+  if (focusCon) lifted.add(focusCon.abbr);
+
   const field = [], byName = new Map();
   for (const s of eng.stars()) {
     const p = sPos.get(s.hip);
     if (!p || p.alt < 0) continue;
-    const singled = markStars.has(s.hip);
-    if (s.mag > limit && !singled) continue;
-    const d = { s: s, at: P(p), r: eng.starRadius(s.mag) };
+    // Under `focus` every star the figure's own lines reach is singled out, so
+    // a question can name any of them — by its proper name where it has one,
+    // else by hip_<number>.
+    const singled = markStars.has(s.hip) || (focusCon !== null && lineStars.has(s.hip));
+    // A star a drawn line REACHES is drawn whatever limit_mag says: 119 of the
+    // 756 stars the figures need are fainter than 4.5 and 27 fainter than 5.0,
+    // and a line ending at nothing is a lie about the sky.
+    if (s.mag > limit && !singled && !lineStars.has(s.hip)) continue;
+    const at2 = P(p);
+    if (!onPage(at2)) continue;
+    const d = { s: s, at: at2, r: eng.starRadius(s.mag) * dotScale };
     if (!singled) { field.push(d); continue; }
     // TWO catalogue stars share the proper name "Alnair" (HIP 68002, ζ Cen,
     // and HIP 109268, α Gru), so `mark: ["hip_68002", "hip_109268"]` would
@@ -923,10 +1018,15 @@ layout: |
   }
   const own = [...byName.values()];
 
-  const bodies = up.map((id) => {
-    const b = spc.body(id);
-    return { id: id, b: b, at: P(bPos[id]), r: id === "sun" ? 11 : id === "moon" ? 12 : 6 };
-  });
+  // A body is cropped by a portrait exactly as a star is — magnified, most of
+  // the sky is off the page. It is not reported as set: it has not set, it is
+  // outside the detail, and the caption would be lying if it said otherwise.
+  const bodies = [];
+  for (const id of up) {
+    const at2 = P(bPos[id]);
+    if (!onPage(at2)) continue;
+    bodies.push({ id: id, b: spc.body(id), at: at2, r: id === "sun" ? 11 : id === "moon" ? 12 : 6 });
+  }
 
   // The Moon's two outlines, worked out here rather than with the ink, because
   // its rim is a stroke a name has to keep off — the same reason round 1 hands
@@ -952,6 +1052,38 @@ layout: |
     for (let i = 0; i <= 32; i++) { const t = -Math.PI / 2 + (Math.PI * i) / 32, ct = Math.cos(t), st = Math.sin(t); moonLit.push([c[0] + r * ct * dir[0] + r * st * nrm[0], c[1] + r * ct * dir[1] + r * st * nrm[1]]); }
     for (let i = 32; i >= 0; i--) { const t = -Math.PI / 2 + (Math.PI * i) / 32, ct = Math.cos(t), st = Math.sin(t); moonLit.push([c[0] + d * ct * dir[0] + r * st * nrm[0], c[1] + d * ct * dir[1] + r * st * nrm[1]]); }
   }
+
+  // ---- the captions, measured before any name is placed -------------------
+  const clauses = eng.noteClauses({ daylight: daylight, below: below, unknown: unknown, symbols: bodies.length > 0 }, L);
+  let noteText = clauses.join(" · ");
+  // ONE caption, and it drops its cheapest clause rather than running off the
+  // page. Round 1's known limit was two captions colliding in this same foot
+  // strip; one caption cannot collide with itself.
+  while (clauses.length > 0 && kit.textWidth(noteText, NOTE_PX) > F.x1 - F.x0) { clauses.pop(); noteText = clauses.join(" · "); }
+  const clock = eng.localClock(at, lon);
+  const placeLine = (placeText !== "" ? placeText + " · " : "") + clock.date + " " + clock.time;
+  const titleText = typeof params.title === "string" && params.title.trim() !== "" ? params.title.trim() : "";
+  const textBox = (at2, s, fs, start) => { const w = kit.textWidth(s, fs), h = fs * 1.25; return { x: start ? at2[0] : at2[0] - w / 2, y: at2[1] - h / 2, w, h }; };
+  const captionBoxes = () => {
+    const out = [textBox([F.x0, 24], placeLine, NOTE_PX, true)];
+    if (noteText !== "") out.push(textBox([F.x0, 52], noteText, NOTE_PX, true));
+    if (titleText !== "") out.push(textBox([500, 726], titleText, 30));
+    return out;
+  };
+
+  // ---- the rim, or the crop that replaces it ------------------------------
+  const horizonPts = focusCon ? null : ring([CH.cx, CH.cy], CH.r, 144);
+  // Traced as an open path that returns to its start, NOT closed: true — the
+  // same reason as the horizon, and the exact bug round 1 shipped in a frame.
+  const framePts = focusCon ? [[F.x0, F.y0], [F.x1, F.y0], [F.x1, F.y1], [F.x0, F.y1], [F.x0, F.y0]] : null;
+
+  const COMPASS = [[0, "compass_n", "N", "N"], [90, "compass_e", "E", "Ø"], [180, "compass_s", "S", "S"], [270, "compass_w", "W", "V"]];
+  // The letters name points ON the horizon, so a portrait — which has none —
+  // has no compass either, and the names must not dodge letters nobody sees.
+  const compass = focusCon ? [] : COMPASS.map((c) => {
+    const rr = CH.r + 20, a = (c[0] * Math.PI) / 180;
+    return { id: c[1], text: L === "nb" ? c[3] : c[2], at: [CH.cx - rr * Math.sin(a), CH.cy + rr * Math.cos(a)] };
+  });
 
   // ---- names -------------------------------------------------------------
   // Two rules, and they are different on purpose.
@@ -988,16 +1120,17 @@ layout: |
   };
   // How far a box is from a point, per axis — the one test both prunings use.
   const boxNear = (b, c, reach) => Math.max(b.x - c[0], 0, c[0] - (b.x + b.w)) < reach && Math.max(b.y - c[1], 0, c[1] - (b.y + b.h)) < reach;
-  // Only the segments of a guide that could possibly reach this name, as a
-  // flat list of endpoint PAIRS. Four hundred stars and a 144-segment rim,
-  // times thirty candidate spots, times a name, times two thousand layouts in
-  // the sweep, is the difference between a test that runs and one that times
-  // out — and pruning once per NAME instead of once per candidate is where the
-  // whole saving is.
-  const nearSegs = (pts, c, reach) => {
+  // Only the segments of the drawn ink that could possibly reach this name.
+  // `guides` is a FLAT SOUP of endpoint pairs rather than a list of polylines:
+  // with the figures on it the page carries three hundred and fifty two-point
+  // lines on a December evening, and one pass over the soup per NAME — rather
+  // than one pruning call per polyline per name — is the difference between a
+  // sweep that runs and one that times out. Pruning once per name instead of
+  // once per candidate spot is where the rest of the saving is.
+  const nearSegs = (c, reach) => {
     const out = [];
-    for (let j = 0; j + 1 < pts.length; j++) {
-      const a = pts[j], b = pts[j + 1];
+    for (let j = 0; j < guides.length; j += 2) {
+      const a = guides[j], b = guides[j + 1];
       const bx = { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) };
       if (boxNear(bx, c, reach)) { out.push(a); out.push(b); }
     }
@@ -1006,8 +1139,16 @@ layout: |
 
   const written = captionBoxes();
   for (const c of compass) written.push(textBox(c.at, c.text, COMPASS_PX));
-  const guides = [horizonPts];                       // Task 5 pushes the constellation lines here
-  if (moonRim) guides.push(moonRim);
+  const guides = [];
+  const addGuide = (pts) => { for (let j = 0; j + 1 < pts.length; j++) { guides.push(pts[j]); guides.push(pts[j + 1]); } };
+  // Every line that will be drawn, so no name is written across one. A chart
+  // asked for names WITHOUT lines has none to dodge — that is the whole
+  // difference between `constellations: "names"` and `"both"`.
+  const showLines = conMode !== "names" || focusCon !== null;
+  if (showLines) for (const c of drawnCons) for (const s of segPts[c.abbr]) { guides.push(s[0]); guides.push(s[1]); }
+  if (horizonPts) addGuide(horizonPts);
+  if (framePts) addGuide(framePts);
+  if (moonRim) addGuide(moonRim);
   const discs = [];
   for (const d of field) discs.push(boxAt(d.at, 2 * d.r, 2 * d.r));
   for (const d of own) discs.push(boxAt(d.at, 2 * d.r * 1.25, 2 * d.r * 1.25));
@@ -1040,15 +1181,20 @@ layout: |
     const reach = e + gaps[gaps.length - 1] + w + LABEL_H + 8;
     const near = written.filter((t) => boxNear(t, c, reach));
     const dots = discs.filter((t) => boxNear(t, c, reach));
-    const segs = guides.map((g) => nearSegs(g, c, reach)).filter((s) => s.length > 0);
+    const segs = nearSegs(c, reach);
     let best = null, bestHard = Infinity, bestSoft = Infinity;
     for (const q of spotsAround(c, w, e, dirs, gaps)) {
       const bx = boxAt(q.at, w, LABEL_H);
       let hard = bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0;
       const room = { x: bx.x - TRANSLATED_ROOM / 2, y: bx.y, w: bx.w + TRANSLATED_ROOM, h: bx.h };
       for (const t of near) if (boxHit(room, t, 2)) hard += 100;
-      const co = coreOf(bx);
-      for (const s of segs) for (let j = 0; j < s.length; j += 2) if (segHit(s[j], s[j + 1], co)) { hard += 10; break; }
+      // The core of the ROOM, not of the box: the headroom a translated copy
+      // will need is reserved against the drawn lines exactly as it is against
+      // the other names. Measured — "Orion" becoming "Orione" grew the core by
+      // three units a side and put five of the sweep's Italian labels across a
+      // line that the English ones cleared.
+      const co = coreOf(room);
+      for (let j = 0; j < segs.length; j += 2) if (segHit(segs[j], segs[j + 1], co)) hard += 10;
       let soft = q.ring * RING_COST;
       for (const t of dots) if (boxHit(bx, t, 2)) soft += 1;
       if (hard < bestHard || (hard === bestHard && soft < bestSoft)) { best = bx; bestHard = hard; bestSoft = soft; }
@@ -1060,18 +1206,48 @@ layout: |
   };
 
   if (names !== "none") {
-    const IN = [], STEP = Math.PI / 4;
-    // Inward first, then round the compass from there.
-    for (const m of [0, 1, -1, 2, -2, 3, -3, 4]) IN.push(m * STEP);
+    // Inward first, then round the compass from there, in sixteenths. Eight
+    // sides and three rings were enough for a chart whose only drawn lines
+    // were the rim and the Moon: with the figures on it there are three
+    // hundred and fifty more, and a body's name — which is always written,
+    // free spot or not — landed across one of them on four moments of the
+    // sweep. The fix is a wider search, never a lower bar: a 22.5° step and
+    // two more rings, and the search still stops the moment it finds a spot
+    // that costs nothing at all.
+    const IN = [0], STEP = Math.PI / 8;
+    for (let m = 1; m <= 8; m++) { IN.push(m * STEP); if (m < 8) IN.push(-m * STEP); }
     for (const b of bodies) {
       const th0 = Math.atan2(CH.cy - b.at[1], CH.cx - b.at[0]);
-      place("label_" + b.id, b.at, b.r, bodyName(b.id), litBodies.has(b.id) ? C.accent : C.ink, IN.map((d) => th0 + d), [8, 24, 42], false);
+      place("label_" + b.id, b.at, b.r, bodyName(b.id), litBodies.has(b.id) ? C.accent : C.ink, IN.map((d) => th0 + d), [8, 22, 36, 52, 70], false);
     }
     for (const d of own) {
       const t = eng.starName(d.s, L);
       if (!t) continue;
       const th0 = Math.atan2(CH.cy - d.at[1], CH.cx - d.at[0]);
       place("label_" + eng.starId(d.s), d.at, d.r * 1.25, t, litStars.has(d.s.hip) ? C.accent : C.ink, IN.map((x) => th0 + x), [8, 22, 38], true);
+    }
+  }
+
+  // Constellation names, LARGEST FIGURE FIRST — the one an eye finds first is
+  // the one worth naming — and only where the name costs nothing. An atlas
+  // names what it has room for; a name lying across the lines of the very
+  // shape it names is worse than no name. A portrait is the exception: its
+  // subject is the whole point of the page, so its name takes the cheapest
+  // spot rather than only a free one. The floor tests in
+  // tests/sky-template.test.ts are what stop "cheapest is to write nothing".
+  const showConNames = names !== "none" && (conMode === "both" || conMode === "names" || focusCon !== null);
+  if (showConNames) {
+    const jobs = drawnCons.slice().sort((a, b) => conExt[b.abbr].span - conExt[a.abbr].span);
+    // Below the figure's middle first, then round the compass from there: the
+    // name of a shape reads as a caption under it, and the middle of a
+    // constellation is exactly where its own lines are.
+    const RING = [0, 1, -1, 2, -2, 3, -3, 4].map((m) => (m * Math.PI) / 4 - Math.PI / 2);
+    for (const c of jobs) {
+      place(
+        "label_" + eng.conId(c), conMid[c.abbr], Math.min(conExt[c.abbr].e, 90), eng.name(c, L),
+        litCons.has(c.abbr) ? C.accent : C.ink,
+        RING, [6, 22, 40], focusCon === null,
+      );
     }
   }
 
@@ -1082,8 +1258,31 @@ layout: |
   // hitElement answers with the smallest outline containing the point and
   // never looks at boxes after that (src/ui/hit.ts, "Pass 1") — the rim would
   // win every click meant for a star. Round 1 shipped exactly that as a frame.
-  push(kit.stroke("horizon", horizonPts, { color: C.guide, strokeWidth: 2, ms: MS.guides }));
+  if (horizonPts) push(kit.stroke("horizon", horizonPts, { color: C.guide, strokeWidth: 2, ms: MS.guides }));
+  if (framePts) push(kit.stroke("frame", framePts, { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
   for (const c of compass) { push(kit.text(c.id, c.at, c.text, { fontSize: COMPASS_PX, color: C.ink })); anchors[c.id] = c.at; }
+
+  if (showLines) {
+    // A group's leaf durations ACCUMULATE, so a figure's edges share a budget:
+    // Sagittarius has 29 of them, and 29 full strokes would be forty seconds
+    // of drawing for one constellation.
+    const loose = drawnCons.filter((c) => !lifted.has(c.abbr));
+    const total = loose.reduce((n, c) => n + segPts[c.abbr].length, 0);
+    if (total > 0) {
+      const per = Math.max(4, Math.round(2600 / total));
+      const kids = [];
+      for (const c of loose) segPts[c.abbr].forEach((s, i) => kids.push(kit.stroke("figures__" + c.abbr + "_" + i, s, { color: C.guide, strokeWidth: 1.2, ms: per })));
+      push(kit.group("figures", kids));
+      anchors.figures = [CH.cx, CH.cy];
+    }
+    for (const c of drawnCons) {
+      if (!lifted.has(c.abbr)) continue;
+      const on = litCons.has(c.abbr), id = eng.conId(c);
+      const per = Math.max(20, Math.round(1200 / segPts[c.abbr].length));
+      push(kit.group(id, segPts[c.abbr].map((s, i) => kit.stroke(id + "__" + i, s, { color: on ? C.accent : C.guide, strokeWidth: on ? 2.5 : 1.6, ms: per }))));
+      anchors[id] = conMid[c.abbr];
+    }
+  }
 
   if (field.length > 0) {
     // A group's leaf durations ACCUMULATE (src/render/svg-backend.ts:583-589),

@@ -61,3 +61,22 @@ describe("the Moon answers for its whole disc, lit or not", () => {
     expect(Math.max(...areas)).toBeGreaterThan(0.6 * box.w * box.h);
   });
 });
+
+describe("a constellation answers for its own patch of sky", () => {
+  const WINTER = "2026-12-20T21:00:00Z";
+  test("a click inside a singled-out figure answers that figure", () => {
+    expect(clickOn({ time: WINTER, mark: ["Orion"] }, "con_ori")).toBe("con_ori");
+  });
+
+  test("a click on a named star inside it answers the star, which is the smaller thing", () => {
+    // Smallest box wins (src/ui/hit.ts pass 2), and that is the right answer:
+    // a click ON Betelgeuse means Betelgeuse. This is why the constellation
+    // questions in this round are quizzes and typed answers, not click asks.
+    expect(clickOn({ time: WINTER, mark: ["Orion", "Betelgeuse"] }, "betelgeuse")).toBe("betelgeuse");
+  });
+
+  test("in a portrait every star of the figure answers for itself", () => {
+    const params = { time: WINTER, focus: "Orion" };
+    for (const id of ["betelgeuse", "rigel"]) expect(clickOn(params, id), id).toBe(id);
+  });
+});
