@@ -233,8 +233,8 @@ morphing between shapes.
 - **The zipper's non-sector fallback row ignores `gap`.**
 - **`captionLines` (`src/llm/subtitles.ts`) plans with an empty id list**,
   so a `speak` paired with `move`, `highlight`, or `arrange` never reaches
-  the subtitle track — pre-existing, confirmed independently by two
-  reviewers this round, not fixed.
+  the subtitle track — pre-existing, flagged by the Task 3 implementer and
+  confirmed by its reviewer this round, not fixed.
 - **`language` on `circle_sectors` is inert.**
 
 ## Sound (the play command) — done 2026-08-26

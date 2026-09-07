@@ -178,9 +178,9 @@ minted ids should join the implicit final draw, the same way
 ruling was wrong: a template that deliberately mints hidden ids under a
 param change would now show them — none such is known to exist.
 
-Shipped: `planTimeIds`, `applyScene` showing previously-unknown ids, and
-`animate`'s frame step running with `revealNew = true` (`src/render/player.ts`
-and related plumbing in `src/render/index.ts`/`backend.ts`/`svg-backend.ts`).
+Shipped, entirely in `src/render/player.ts` (plus its test): `planTimeIds`,
+`applyScene` showing previously-unknown ids, and `animate`'s frame step
+running with `revealNew = true`.
 
 Review (package `72e188a..0eb8692`) came back clean on first pass; Task 6
 complete. One minor left on record: a redundant hide assertion in the
