@@ -31,12 +31,30 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(ROOT, ".cache/sky");
 const OUT = join(ROOT, "src/scenes/space/sky");
 const NAMES = join(ROOT, "src/scenes/space/sky-names.json");
-const BASE = "https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/data/";
+// Pinned to a commit SHA, not a branch: an early round-2 run against
+// "@master" drifted from the 2026-09-06 measured doc (800 vertices measured
+// vs 893 fetched the next day, same URL) even though nothing in this file
+// changed — a fresh clone or a wiped .cache/sky pulls whatever master holds
+// that day. jsdelivr serves a commit SHA the same way it serves a branch
+// name, so pinning costs nothing and makes the build reproducible. This is a
+// deliberate improvement over scripts/anatomy/bp3d.mjs's MIRROR, which still
+// pins to a branch ("main") — that script gets away with it because BodyParts3D
+// is static; d3-celestial's data files are not, so the sky build needs the
+// stronger guarantee. SHA 7e720a3de062059d4c5400a379146a601d9010e0 is
+// ofrohn/d3-celestial's master HEAD as of 2026-09-07, chosen because it
+// reproduces the 893-vertex content this round's build was actually made
+// from (see docs/superpowers/specs/2026-09-07-sky-data-measured.md).
+const BASE = "https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@7e720a3de062059d4c5400a379146a601d9010e0/data/";
 
 /** Magnitude cut for the FIELD stars. Every constellation-line star is kept
  *  whatever its magnitude — see the union below. */
 const LIMIT_MAG = 4.5;
-/** The measured snapping tolerance: 799 of 800 vertices match under it. */
+/** Proper names are carried only for the stars a teaching chart would ask
+ *  about; the faint field stays anonymous. */
+const NAME_MAG = 3.0;
+/** The measured snapping tolerance: at most one vertex per run fails to
+ *  match under it (799 of 800 in the 2026-09-06 measurement; 892 of 893 in
+ *  the 2026-09-07 pinned rebuild — same one-vertex shortfall, larger source). */
 const SNAP_DEG = 0.35;
 
 async function grab(name) {
@@ -179,7 +197,7 @@ if (!/sirius/i.test(proper.get(brightest.hip) ?? "")) {
 const stars = kept
   .sort((a, b) => a.hip - b.hip)
   .map((s) => {
-    const n = s.mag <= 3.0 ? (proper.get(s.hip) ?? null) : null;
+    const n = s.mag <= NAME_MAG ? (proper.get(s.hip) ?? null) : null;
     const nb = n ? (names.stars_nb[n] ?? null) : null;
     return {
       i: s.hip,
@@ -192,6 +210,19 @@ const stars = kept
   });
 const namedCount = stars.filter((s) => s.n).length;
 if (namedCount < 100) throw new Error(`only ${namedCount} stars got a proper name — starnames.json was not read properly`);
+
+// bvOf() parses a string today (stars.6.json's own shape, verified on the
+// live fetch). If that shape changes again, a silent parse failure would
+// null out every star's colour index the same way the unparsed typeof
+// check once did — so fail loudly instead, the way the two checks above do.
+const bvMissing = stars.filter((s) => s.b === null).length;
+if (bvMissing > stars.length * 0.05) {
+  const sample = starsRaw.features.slice(0, 3).map((f) => f.properties.bv);
+  throw new Error(
+    `${bvMissing} of ${stars.length} kept stars have no B-V — bvOf() is not reading stars.6.json's ` +
+      `"bv" property correctly. First three raw values: ${JSON.stringify(sample)}.`,
+  );
+}
 
 // ---- write ------------------------------------------------------------------
 

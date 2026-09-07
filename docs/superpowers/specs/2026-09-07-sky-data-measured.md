@@ -37,6 +37,16 @@ This is what makes the connect-the-stars exercise gradeable in both directions
 (spec §6.2). Build it once with a script and commit the output; the app never
 fetches it.
 
+**Pinned rebuild, 2026-09-07** (`scripts/build-sky-data.mjs`, pinned to
+`ofrohn/d3-celestial@7e720a3de062059d4c5400a379146a601d9010e0` after Task 1's
+first run against the unpinned `@master` branch drifted from the numbers
+above): **741 edges, 756 distinct stars, 893 vertices, still exactly 1
+unmatched.** 88 constellations and the faintest line star (5,89) match this
+measurement exactly; edges and vertex/star counts differ by about 0,8–12 %.
+This is upstream content drift on the source between 2026-09-06 and
+2026-09-07, not a change in method or snapping tolerance — the pinned SHA now
+makes the larger count the reproducible one.
+
 ## The bundled star set must be a union, not a magnitude cut
 
 **119 of the 750 stars the lines need are fainter than magnitude 4,5, and 28
