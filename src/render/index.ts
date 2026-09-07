@@ -187,6 +187,12 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       const b = elementBBoxes(layoutFor(params, true), measure);
       return (id) => b.get(id) ?? null;
     },
+    attachedTo: (id) => {
+      const out: string[] = [];
+      for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);
+      if (layout.order.includes(`label_${id}`)) out.push(`label_${id}`, `label_${id}_leader`);
+      return out.filter((x) => layout.order.includes(x));
+    },
   });
 
   const mounted = await renderer.mount(layout, spec, stage);

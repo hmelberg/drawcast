@@ -217,3 +217,18 @@ describe("element links", () => {
     expect(r.errors[0]).toMatch(/http/);
   });
 });
+
+describe("move: rotate / to / pivot", () => {
+  const base = (move: object) => ({ elements: [{ id: "a", type: "path", points: [[0, 0], [10, 10]] }], commands: [{ draw: ["a"] }, { move }] });
+  test("rotate alone is a valid move", () => {
+    expect(validateSpec(base({ target: ["a"], rotate: 90 })).ok).toBe(true);
+  });
+  test("to with a pivot is valid", () => {
+    expect(validateSpec(base({ target: ["a"], to: [500, 300], rotate: -45, pivot: [500, 300] })).ok).toBe(true);
+  });
+  test("a move with none of by/to/path/rotate is rejected", () => {
+    const v = validateSpec(base({ target: ["a"] }));
+    expect(v.ok).toBe(false);
+    expect(v.errors.join(" ")).toMatch(/by, to, path or rotate/);
+  });
+});

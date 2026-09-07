@@ -119,8 +119,42 @@ describe("move", () => {
 
   test("move without by/path is skipped with a warning", () => {
     const plan = planCommands([{ move: { target: ["axes"] } }], ["axes"]);
-    expect(plan.warnings.join(" ")).toMatch(/by\/path/);
+    expect(plan.warnings.join(" ")).toMatch(/by, to, path or rotate/);
     expect(plan.steps.filter((s) => s.kind === "move")).toHaveLength(0);
+  });
+
+  test("rotate records a turn in the state and emits a transform step", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], rotate: 90 } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items).toHaveLength(1);
+    expect(step.items[0].to.turn.deg).toBe(90);
+    expect(step.items[0].to.turn.pivot).toEqual([200, 150]); // the bbox centre, original frame
+    expect(plan.states[1].turns.demand_curve).toEqual({ deg: 90, pivot: [200, 150] });
+    expect(plan.states[1].offsets.demand_curve ?? [0, 0]).toEqual([0, 0]);
+  });
+  test("to moves the centre to the destination (a delta from the current centre)", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], to: [400, 300] } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    expect(plan.states[1].offsets.demand_curve).toEqual([200, 150]);
+  });
+  test("attached labels follow a translation but not a rotation", () => {
+    const plan = planCommands(
+      [{ draw: ["demand_curve", "label_D"] }, { move: { target: ["demand_curve"], by: [10, 0], rotate: 45 } }],
+      allIds,
+      { bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }), attachedTo: (id) => (id === "demand_curve" ? ["label_D"] : []) },
+    );
+    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+    expect(plan.states[1].turns.label_D).toBeUndefined();
+    expect(plan.states[1].turns.demand_curve?.deg).toBe(45);
+  });
+  test("move with neither by, to, path nor rotate is skipped with a warning", () => {
+    const plan = planCommands([{ move: { target: ["axes"] } }], ["axes"]);
+    expect(plan.steps.filter((s) => s.kind === "move" || s.kind === "transform")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/move/);
   });
 });
 

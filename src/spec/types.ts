@@ -197,8 +197,14 @@ export interface MoveArgs {
   target: string[] | string;
   /** [dx, dy] delta — domain units when a domain is declared, else logical. */
   by?: [number, number];
+  /** Absolute destination for the element's centre (same units as by); alternative to by/path. */
+  to?: [number, number];
   /** Waypoint offsets from the element's starting position; the last is the final offset. */
   path?: [number, number][];
+  /** Degrees, counter-clockwise (y-up); the element turns about `pivot`. */
+  rotate?: number;
+  /** The point to turn about, in current coordinates (same units as by). Default: the element's own centre. */
+  pivot?: [number, number];
   /** seconds */
   duration?: number;
   easing?: Easing;

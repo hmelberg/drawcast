@@ -492,7 +492,7 @@ const commandSchema = {
     move: {
       type: "object",
       description:
-        "Translate elements by a delta or along a path of offsets. Moves ONLY the listed elements — attached labels, intersection points, or regions do NOT follow; move them explicitly or redraw derived elements.",
+        "Translate and/or rotate elements: by a delta, to a destination, along a path, or by rotate degrees. Attached labels FOLLOW a translation (they do not rotate); intersection points, regions and other derived elements do not — redraw those.",
       properties: {
         target: idListSchema("Element ids to move together."),
         by: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[dx, dy] delta — domain units when a domain is declared, else logical units." },
@@ -501,6 +501,9 @@ const commandSchema = {
           items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
           description: "Waypoint offsets from the element's starting position (same units as by); the last waypoint is the final offset. Use instead of by for curved or multi-leg motion.",
         },
+        to: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Absolute destination for the element's CENTRE (same units as by) — instead of by/path. Attached labels follow." },
+        rotate: { type: "number", description: "Turn the element by this many DEGREES, counter-clockwise, about `pivot` (default: its own centre) — e.g. {\"move\": {\"target\": [\"slice_3\"], \"rotate\": 180, \"duration\": 1}} flips a slice. Combine with by/to to slide and turn at once." },
+        pivot: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "With rotate: the point to turn about, in current coordinates (same units as by). Omit for the element's centre." },
         duration: { type: "number", description: "Seconds (default 1)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
       },
@@ -820,8 +823,8 @@ function semanticErrors(spec: Spec): string[] {
       errors.push(`commands[${i}]: voice and delivery only apply to a command with speak`);
     }
     if (cmd.parallel !== undefined && verb !== "draw" && verb !== "erase") errors.push(`commands[${i}]: parallel only applies to draw/erase`);
-    if (verb === "move" && !cmd.move!.by && !(cmd.move!.path && cmd.move!.path.length > 0)) {
-      errors.push(`commands[${i}]: move needs by ([dx, dy]) or a non-empty path`);
+    if (cmd.move !== undefined && cmd.move.by === undefined && cmd.move.to === undefined && (cmd.move.path === undefined || cmd.move.path.length === 0) && cmd.move.rotate === undefined) {
+      errors.push(`commands[${i}]: move needs one of by, to, path or rotate`);
     }
     if (verb === "point") {
       const at = cmd.point!.at;

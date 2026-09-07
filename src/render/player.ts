@@ -387,7 +387,9 @@ export class Player {
     const visible = new Set(scene.visible);
     for (const [id, el] of this.elements) {
       const [dx, dy] = scene.offsets[id] ?? [0, 0];
-      el.setOffset?.(dx, dy);
+      const turn = scene.turns[id];
+      if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot);
+      else el.setOffset?.(dx, dy);
       if (visible.has(id)) el.finish();
       else el.hide();
     }
@@ -994,6 +996,22 @@ export class Player {
           for (const el of els) {
             const [bx, by] = bases.get(el.id)!;
             el.setOffset!(bx + px, by + py);
+          }
+        });
+        return;
+      }
+      case "transform": {
+        const ease = EASINGS[step.easing];
+        const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setTransform || x.el?.setOffset);
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const e = ease(t);
+          for (const { it, el } of items) {
+            const dx = it.from.offset[0] + (it.to.offset[0] - it.from.offset[0]) * e;
+            const dy = it.from.offset[1] + (it.to.offset[1] - it.from.offset[1]) * e;
+            const deg = it.from.turn.deg + (it.to.turn.deg - it.from.turn.deg) * e;
+            const pivot = it.to.turn.pivot;
+            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot);
+            else el!.setOffset!(dx, dy);
           }
         });
         return;

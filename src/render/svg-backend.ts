@@ -592,9 +592,17 @@ class SvgElementHandle implements RenderedElement {
 
   /** Persistent translation, logical units y-up (the y-flip happens here). */
   setOffset(dx: number, dy: number): void {
+    this.setTransform(dx, dy, 0, [0, 0]);
+  }
+
+  /** Pose: SVG rotates clockwise in y-down, so a y-up counter-clockwise `deg` is `rotate(-deg)` about the flipped pivot; rotate first, then translate. */
+  setTransform(dx: number, dy: number, deg: number, pivot: Pt): void {
+    const parts: string[] = [];
+    if (dx !== 0 || dy !== 0) parts.push(`translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+    if (deg !== 0) parts.push(`rotate(${(-deg).toFixed(2)} ${pivot[0].toFixed(1)} ${(CANVAS.h - pivot[1]).toFixed(1)})`);
     for (const g of this.groups) {
-      if (dx === 0 && dy === 0) g.removeAttribute("transform");
-      else g.setAttribute("transform", `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+      if (parts.length === 0) g.removeAttribute("transform");
+      else g.setAttribute("transform", parts.join(" "));
     }
   }
 
