@@ -61,24 +61,6 @@ const endRefSchema = {
   additionalProperties: false,
 };
 
-/**
- * The element-level `from`/`to` fields do double duty: an arrow/edge endpoint
- * (the endRefSchema shape), OR — on sector/arc — a plain number (a degree).
- * A `type` array keeps this flat (no oneOf/anyOf) per this file's own rule.
- */
-const endOrAngleSchema = {
-  type: ["object", "number"],
-  description:
-    "arrow/edge: endpoint — ref to an element id, OR x+y coordinates (domain coordinates if a domain is declared, else logical). " +
-    "sector/arc: instead, a plain NUMBER — from = start angle, to = end angle, in degrees counter-clockwise from +x (0 = right, 90 = up).",
-  properties: {
-    ref: { type: "string" },
-    x: { type: "number" },
-    y: { type: "number" },
-  },
-  additionalProperties: false,
-};
-
 const elementSchema = {
   type: "object",
   description:
@@ -116,9 +98,9 @@ const elementSchema = {
       additionalProperties: false,
     },
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
-    // arrow / edge (also sector/arc — see endOrAngleSchema)
-    from: endOrAngleSchema,
-    to: endOrAngleSchema,
+    // arrow / edge
+    from: endRefSchema,
+    to: endRefSchema,
     curved: { type: "boolean", description: "arrow/edge: bow the line slightly." },
     // label
     text: { type: "string", description: "label/text/node: the text content." },
@@ -166,6 +148,8 @@ const elementSchema = {
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces
+    start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
+    end: { type: "number", description: "sector/arc: end angle in degrees, counter-clockwise from +x — e.g. start: 0, end: 90 is the upper-right quarter." },
     sides: { type: "integer", minimum: 3, description: "polygon: sides of a REGULAR polygon centred at x,y with radius — instead of points." },
     rotation: { type: "number", description: "polygon: turn a regular polygon by this many degrees." },
     n: {
@@ -1050,7 +1034,7 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "sector":
     case "arc":
-      need(typeof el.radius === "number" && typeof el.from === "number" && typeof el.to === "number", "needs radius, from and to");
+      need(typeof el.radius === "number" && typeof el.start === "number" && typeof el.end === "number", "needs radius, start and end");
       break;
     case "polygon":
       need(

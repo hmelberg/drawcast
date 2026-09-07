@@ -86,10 +86,8 @@ export interface SpecElement {
   at?: { x?: number; y?: number; intersection_of?: string[] };
   guides?: boolean;
   // arrow / edge
-  /** arrow/edge endpoint (ref/x/y). sector/arc: a plain NUMBER instead — start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
-  from?: EndRef | number;
-  /** arrow/edge endpoint (ref/x/y). sector/arc: a plain NUMBER instead — end angle in degrees. */
-  to?: EndRef | number;
+  from?: EndRef;
+  to?: EndRef;
   curved?: boolean;
   // label
   text?: string;
@@ -117,7 +115,11 @@ export interface SpecElement {
   height?: number;
   radius?: number;
   font_size?: number;
-  // sector / arc / polygon / pieces (design §2.2) — from/to reused above (arrow/edge), radius/x/y reused above (tier-3 raw)
+  // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
+  /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
+  start?: number;
+  /** sector/arc: end angle in degrees, counter-clockwise from +x. */
+  end?: number;
   /** polygon: number of sides of a regular polygon (with radius, x, y). */
   sides?: number;
   /** polygon: rotation of a regular polygon in degrees. */

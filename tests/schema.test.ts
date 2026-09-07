@@ -218,6 +218,13 @@ describe("element links", () => {
   });
 });
 
+describe("arrow/edge from/to stay endpoint objects — sector/arc's angles are separate start/end fields", () => {
+  test("an arrow with numeric from/to (sector/arc's shape) is rejected, not silently endpoint-less", () => {
+    const r = validateSpec({ elements: [{ id: "arr", type: "arrow", from: 45, to: 90 }], commands: [{ draw: ["arr"] }] });
+    expect(r.ok).toBe(false);
+  });
+});
+
 describe("move: rotate / to / pivot", () => {
   const base = (move: object) => ({ elements: [{ id: "a", type: "path", points: [[0, 0], [10, 10]] }], commands: [{ draw: ["a"] }, { move }] });
   test("rotate alone is a valid move", () => {

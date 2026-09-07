@@ -25,7 +25,7 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
-import type { EndRef, SpecElement } from "../spec/types";
+import type { SpecElement } from "../spec/types";
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -506,22 +506,15 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number } | undefined, c
   return null;
 }
 
-/** arrow/edge's `from`/`to` narrowed away from sector/arc's plain-number reuse of the same fields. */
-function asEndRef(v: EndRef | number | undefined): EndRef | undefined {
-  return typeof v === "number" ? undefined : v;
-}
-
 function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
-  const fromRef = asEndRef(el.from);
-  const toRef = asEndRef(el.to);
-  const from = resolveEnd(fromRef, ctx);
-  const to = resolveEnd(toRef, ctx);
+  const from = resolveEnd(el.from, ctx);
+  const to = resolveEnd(el.to, ctx);
   if (!from || !to) return [];
   const dist = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
   const ux = (to[0] - from[0]) / dist;
   const uy = (to[1] - from[1]) / dist;
-  const rFrom = fromRef?.ref ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) + 4 : 0;
-  const rTo = toRef?.ref ? (ctx.nodeRadius.get(toRef.ref) ?? 10) + 4 : 0;
+  const rFrom = el.from?.ref ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
+  const rTo = el.to?.ref ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];
@@ -966,11 +959,6 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 
 const DEG = Math.PI / 180;
 
-/** `from`/`to` on sector/arc are a plain number (reusing arrow/edge's fields — see EndRef widening in spec/types.ts). */
-function angleOf(v: EndRef | number | undefined, fallback: number): number {
-  return typeof v === "number" ? v : fallback;
-}
-
 /** A closed fan: the centre, then the arc boundary — a sector's outline. */
 function sectorPts(c: Pt, r: number, from: number, to: number, steps = 24): Pt[] {
   const pts: Pt[] = [c];
@@ -994,16 +982,19 @@ function arcPts(c: Pt, r: number, from: number, to: number, steps = 32): Pt[] {
 /**
  * A closed outline with a wash, the pair every filled primitive is made of —
  * mirrors shapeDrawable/regionDrawable's ids (outline = the element id, wash
- * = `${id}_fill`, found via SUB_SUFFIXES) and regionDrawable's opacity
+ * = `${id}_wash`, found via SUB_SUFFIXES) and regionDrawable's opacity
  * convention (a style.opacity the author set always wins; otherwise the wash
- * defaults dimmer than the outline, which stays fully opaque).
+ * defaults dimmer than the outline, which stays fully opaque). NOT `_fill`:
+ * that suffix is already a public, independently addressable sub-id across
+ * the shipped scene packs (e.g. `nucleus`/`nucleus_fill`), so reusing it here
+ * would double-paint their washes and let highlight/dim/erase leak onto them.
  */
 function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
   const outlineStyle = resolveStyle(el.style);
   const out: Drawable[] = [];
   if (outlineStyle.fill) {
     out.push({
-      id: `${id}_fill`,
+      id: `${id}_wash`,
       kind: "area",
       pts,
       z: Z_AREA,
@@ -1026,8 +1017,8 @@ function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
 function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
   const r = el.radius ?? 100;
-  const from = angleOf(el.from, 0);
-  const to = angleOf(el.to, 90);
+  const from = el.start ?? 0;
+  const to = el.end ?? 90;
   const pts = sectorPts(c, r, from, to);
   const mid = (from + to) / 2;
   ctx.anchors[el.id] = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
@@ -1037,8 +1028,8 @@ function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
   const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
   const r = el.radius ?? 100;
-  const from = angleOf(el.from, 0);
-  const to = angleOf(el.to, 180);
+  const from = el.start ?? 0;
+  const to = el.end ?? 180;
   const pts = arcPts(c, r, from, to);
   ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)];
   return { id: el.id, kind: "stroke", pts, z: Z_STROKE, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw) };

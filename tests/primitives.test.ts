@@ -2,12 +2,36 @@ import { describe, expect, test } from "vitest";
 import { layoutSpec, elementRings } from "../src/layout/layout";
 import type { Spec } from "../src/spec/types";
 import { validateSpec } from "../src/spec/schema";
+import { defaultDrawOpts, defaultStyle, drawablesForId, type Drawable } from "../src/layout/model";
 
 const spec = (elements: unknown[]): Spec => ({ elements, commands: [] }) as unknown as Spec;
 
+describe("wash suffix — a primitive's own sub-id, not the shipped packs' public `_fill`", () => {
+  const body: Drawable = { id: "body", kind: "stroke", pts: [[0, 0]], z: 1, style: defaultStyle(), drawOpts: defaultDrawOpts() };
+  const bodyFill: Drawable = {
+    id: "body_fill",
+    kind: "area",
+    pts: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+    ],
+    z: 0,
+    style: defaultStyle(),
+    drawOpts: defaultDrawOpts(),
+  };
+  test("a pack's own <id>_fill is a SEPARATE public id — drawablesForId(\"body\") does not sweep it up", () => {
+    expect(drawablesForId([body, bodyFill], "body")).toEqual([body]);
+  });
+  test("but <id>_wash IS a sub-drawable of its parent", () => {
+    const wash: Drawable = { ...bodyFill, id: "body_wash" };
+    expect(drawablesForId([body, wash], "body")).toEqual([body, wash]);
+  });
+});
+
 describe("sector / arc / polygon", () => {
   test("a sector is a closed outline with a wash, anchored at its centroid", () => {
-    const out = layoutSpec(spec([{ id: "s", type: "sector", x: 500, y: 375, radius: 100, from: 0, to: 90, style: { fill: "#f2c14e" } }]));
+    const out = layoutSpec(spec([{ id: "s", type: "sector", x: 500, y: 375, radius: 100, start: 0, end: 90, style: { fill: "#f2c14e" } }]));
     expect(out.warnings).toEqual([]);
     expect(out.order).toContain("s");
     const rings = elementRings(out);
@@ -16,7 +40,7 @@ describe("sector / arc / polygon", () => {
     expect(box.length).toBeGreaterThan(0);
   });
   test("an arc is a stroke only — no closed outline", () => {
-    const out = layoutSpec(spec([{ id: "a", type: "arc", x: 500, y: 375, radius: 100, from: 0, to: 180 }]));
+    const out = layoutSpec(spec([{ id: "a", type: "arc", x: 500, y: 375, radius: 100, start: 0, end: 180 }]));
     expect(out.warnings).toEqual([]);
     expect(elementRings(out).has("a")).toBe(false);
   });
@@ -31,8 +55,8 @@ describe("sector / arc / polygon", () => {
     expect(rings.get("tri")?.[0]).toHaveLength(3);
   });
   test("the schema accepts them and rejects a sector without a radius", () => {
-    expect(validateSpec({ elements: [{ id: "s", type: "sector", x: 1, y: 1, radius: 5, from: 0, to: 30 }], commands: [] }).ok).toBe(true);
-    expect(validateSpec({ elements: [{ id: "s", type: "sector", x: 1, y: 1, from: 0, to: 30 }], commands: [] }).ok).toBe(false);
+    expect(validateSpec({ elements: [{ id: "s", type: "sector", x: 1, y: 1, radius: 5, start: 0, end: 30 }], commands: [] }).ok).toBe(true);
+    expect(validateSpec({ elements: [{ id: "s", type: "sector", x: 1, y: 1, start: 0, end: 30 }], commands: [] }).ok).toBe(false);
   });
 });
 
