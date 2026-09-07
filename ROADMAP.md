@@ -148,15 +148,39 @@ call).
    Also from this round: an **Effort** setting (high / medium / low)
    beside the model, for the creative rounds of generate, revise and
    author.
-4. **Later — sharing.** A "suggest for the shared library" action on a
-   saved template (default on, decided with the ruling above): Anvil or a
-   PR to the drawcast-templates repo, with review before anything is
-   served to others, since a template's layout is JavaScript that runs in
-   every viewer's browser. Not before step 3 has been used for a while.
-5. **Also open:** maps' countries as parts (scene names from the geo
-   engine, the anatomy hook); the fixed prompt parts (compiler prompt
-   41k chars, schema 39k, fewshots 14k) are now the bigger half of every
-   request — the next slimming target, unrelated to routing.
+4. **Next — sharing: the community pack.** A template one user got
+   authored on demand becomes available to everyone, with a review in
+   between. Design (2026-09-07, Hans's defaults):
+   - **Submission, default on.** When an on-demand template is saved it
+     is also sent to the Anvil backend as a proposal: the template
+     document, the request that produced it, and the sender (e-mail when
+     logged in). A checkbox in the Templates panel turns it off. Before
+     sending, the proposal must pass the examples' own gates — compiles,
+     lints clean, has named parts, id not taken in the shared pack.
+   - **Review in the admin dashboard.** A list of proposals with a
+     preview link (opens the template in drawcast.app) and approve /
+     reject. Not optional: a template's layout is JavaScript that runs in
+     every viewer's browser, so nothing is served to others unseen.
+     Reviewers: admin; whether teachers too is open.
+   - **Serving as one pack.** Approved templates form the `community`
+     pack, served by Anvil as YAML at a stable URL and listed in the
+     official index (`hmelberg/drawcast-templates`), so it appears in the
+     Templates panel and the router like any other pack — the remote-pack
+     mechanism as it is, no new loader.
+   - Why Anvil rather than pull requests to the templates repo: the app
+     already talks to Anvil with accounts; a PR flow would need GitHub
+     login from every submitter. GitHub stays the place the reviewed pack
+     is published from.
+   - Hans takes two Anvil pulls along the way (the proposals table and
+     endpoint, then the admin list), as in earlier rounds.
+5. **Also open:** the on-demand offer only lives in the editor's
+   single-figure flow (courses and embeds log `none_fits` but do not
+   offer); maps' countries as parts (scene names from the geo engine, the
+   anatomy hook); the fixed prompt parts (compiler prompt 41k chars,
+   schema 39k, fewshots 14k ≈ 26k tokens) are now the bigger half of every
+   request — the next slimming target, unrelated to routing; the author
+   bench and the Wikipedia reference-image experiment, once real
+   `none_fits` requests have accumulated.
 
 ## Sound (the play command) — done 2026-08-26
 
