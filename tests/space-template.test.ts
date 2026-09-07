@@ -104,7 +104,12 @@ describe("solar_system: registration and the default figure", () => {
     }
   });
 
-  test("the same params give byte-identical layouts — no clock in the layout", () => {
+  // Determinism for a PINNED date, which is what every sweep in this file
+  // rests on. Not the absence of a clock: `resolveDate`
+  // (src/scenes/space/ephemeris.ts) is one by design, and reads the real one
+  // whenever `date` is missing or "today" — `lay` pins a date so that this
+  // file never asks it to.
+  test("the same params and the same date give byte-identical layouts", () => {
     expect(JSON.stringify(lay({ view: "tilted" }))).toBe(JSON.stringify(lay({ view: "tilted" })));
   });
 });
@@ -113,6 +118,34 @@ describe("solar_system: scale", () => {
   test("schematic keeps the Sun within a sixth of the frame, in both views", () => {
     expect(radiusOf(lay({}), "sun")).toBeLessThanOrEqual(104);
     expect(radiusOf(lay({ view: "row" }), "sun")).toBeLessThanOrEqual(104);
+  });
+
+  // The branch nothing else reaches: a selection that resolves to NO body.
+  // `bodies: ["krypton"]` is a real request — an unrecognised name is skipped
+  // by design and noted, not refused — and it takes the whole layout down a
+  // path where no gap between orbits sets any size, so the centre falls back
+  // to a fixed one. That fallback was a bare 120, above SUN_CAP (103), and
+  // drew a Sun 39 % of the frame tall while the file's own comment promised a
+  // sixth. Nothing tested it, in either direction.
+  test("a selection that resolves to no bodies keeps the Sun inside its cap, and says what it did not know", () => {
+    for (const view of ["top", "row", "tilted"]) {
+      for (const scale of ["schematic", "sizes", "distances", "log"]) {
+        const what = `${view}/${scale}`;
+        const r = lay({ bodies: ["krypton"], view, scale });
+        expect(labelText(r, "missing_note"), what).toBe("Unknown: krypton");
+        expect(labelText(r, "label_sun"), what).toBe("Sun");
+        const res = layoutSpec(spec({ bodies: ["krypton"], view, scale }));
+        expect(res.issues.map((i) => `[${i.severity}] ${i.message}`), what).toEqual([]);
+        // Measured on what was DRAWN, not on the radius asked for: from above
+        // the Sun is a disc, in a row at true sizes it is a clipped segment
+        // and has no radius at all.
+        expect(elementBBoxes(res).get("sun")!.h / 2, what).toBeLessThanOrEqual(104);
+      }
+    }
+    // The other way into that branch, and the reason the fallback is not
+    // simply SUN_CAP: a portrait of a moonless body is not the Sun, and the
+    // body IS the figure, so it keeps the larger size.
+    expect(radiusOf(lay({ focus: "venus" }), "venus")).toBeGreaterThan(104);
   });
 
   test("sizes in a row keeps Jupiter/Earth ≈ 11 and shows the Sun as a segment inside the canvas", () => {
@@ -243,6 +276,28 @@ describe("solar_system: focus, moons, time, highlight, clicks", () => {
     expect(r.order).toContain("venus");
   });
 
+  // The group words the schema documents for `bodies` — planets | inner |
+  // outer | all — work here too, and have to: the same params schema teaches
+  // them, so a model writing highlight: ["inner"] is generalising exactly what
+  // this pack taught it. Expanding one name at a time and keeping bodies[0]
+  // tinted Mercury and dropped Venus, Earth and Mars, with no note and no
+  // warning — a figure quietly wrong rather than loudly.
+  test("highlight expands group words the way bodies does, and an unknown name still reaches the note", () => {
+    const tinted = (params: Record<string, unknown>): string[] =>
+      flattenDrawables(lay(params).drawables)
+        .filter((d) => d.kind === "stroke" && (d as StrokeDrawable).shapeHint?.type === "circle" && (d as StrokeDrawable).style.color === COLORS.accent)
+        .map((d) => d.id.replace(/__disc$/, ""))
+        .sort();
+    expect(tinted({ highlight: ["inner"] })).toEqual(["earth", "mars", "mercury", "venus"]);
+    expect(tinted({ highlight: ["inner"] })).toEqual(tinted({ highlight: ["mercury", "venus", "earth", "mars"] }));
+    expect(tinted({ highlight: ["planets"] })).toHaveLength(8);
+    // And the misses still get their note: the expansion carries them, so a
+    // name nobody can tint is said out loud rather than dropped.
+    expect(tinted({ highlight: ["krypton"] })).toEqual([]);
+    expect(labelText(lay({ highlight: ["krypton"] }), "missing_note")).toBe("Unknown: krypton");
+    expect(labelText(lay({ highlight: ["earth", "krypton"] }), "missing_note")).toBe("Unknown: krypton");
+  });
+
   test("a body's box is its disc, so a click-ask can hit even a small planet", () => {
     const box = elementBBoxes(layoutSpec(spec({}))).get("mercury")!;
     expect(box.w).toBeCloseTo(2 * radiusOf(lay({}), "mercury"), 3);
@@ -369,11 +424,26 @@ describe("solar_system: names clear the ink on any date", () => {
   // CAPTIONS colliding, it reproduces identically on the commit before this
   // work, and it belongs to whoever owns that strip — not to the names. What
   // is pinned here is that no NAME is caught up in it.
-  test("no name is caught in the strip where two captions collide", () => {
+  // BOTH branches, because they place their names by two different rules and
+  // for one round only one of them was swept here. The row seeded its obstacle
+  // list empty and never looked at a caption, so this test read clean on the
+  // default top view while `{ view: "row", scale: "sizes", bodies:
+  // ["jupiter", "krypton"] }` wrote Jupiter's name straight across
+  // missing_note. A claim about that strip has to be made about everything
+  // that writes into it. (A row's own note stays short — it clips the Sun
+  // rather than shrinking it — so at this width its two captions clear each
+  // other; what the row shares is the STRIP, and a name stepping down into
+  // it.)
+  test.each(["top", "row"])("in the %s view, no name is caught in the strip where two captions collide", (view) => {
     for (const date of days(200)) {
-      const issues = layoutSpec(spec({ scale: "sizes", title: "The planets to scale", bodies: ["planets", "krypton"], date })).issues;
+      const issues = layoutSpec(spec({ view, scale: "sizes", title: "The planets to scale", bodies: ["planets", "krypton"], date })).issues;
       expect(issues.filter((i) => i.ids.some((id) => id.startsWith("label_"))).map((i) => i.message), date).toEqual([]);
     }
+    // The case the row missed, kept beside the sweep because it is the same
+    // claim: one body big enough to fill the frame (Jupiter at true sizes is
+    // 337 px across) starts its name at y 37, and missing_note is at y 36.
+    const solo = layoutSpec(spec({ view, scale: "sizes", bodies: ["jupiter", "krypton"] })).issues;
+    expect(solo.filter((i) => i.ids.some((id) => id.startsWith("label_"))).map((i) => i.message), view).toEqual([]);
   });
 
   // The limit this pack now owns, pinned at the size that matters — and it is

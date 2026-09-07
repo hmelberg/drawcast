@@ -57,21 +57,35 @@ describe("the default catalog", () => {
   });
 
   // Measured at the space round (2026-09-07), default packs enabled (games and
-  // maps off): 78 ready templates, catalogText({request:""}).length = 254611
-  // chars (~63653 tokens at chars/4) — 3264 chars per template.
+  // maps off): 78 ready templates, catalogText({request:""}).length = 254666
+  // chars (~63667 tokens at chars/4); the largest single entry is line_chart
+  // at 12395 chars, then qaly_profiles at 9991 and bar_race at 8844.
   //
-  // The load-bearing bound is the RATIO, not the total. A ceiling on the total
-  // expires every time a pack lands: the 250000 one was set at Task 13
-  // (2026-08-25) against 45 templates and 118582 chars, and by this round the
-  // catalog had grown into it, so a single new template had to move it. Chars
-  // per template stays valid however many packs ship, and catches the thing
-  // worth catching — one template's prose sprawling past what a catalog entry
-  // should cost. The floor guards the opposite failure, a catalog that has
-  // COLLAPSED: a ratio alone cannot see that, because a pack that fails to
-  // register takes its templates out of both halves of the fraction.
-  test("the default catalog stays within a sane budget — per template, not just in total", () => {
-    const size = catalogText({ request: "" }).length;
-    expect(size).toBeGreaterThan(200_000);
-    expect(size / readyIds().length).toBeLessThan(4_500);
+  // The bound is the LARGEST ENTRY, not the total and not the mean. A ceiling
+  // on the total expires every time a pack lands: the 250000 one was set at
+  // Task 13 (2026-08-25) against 45 templates and 118582 chars, and by this
+  // round the catalog had grown into it, so a single new template had to move
+  // it. The mean was the next attempt and cannot catch what this comment
+  // claims to catch: 3265 against a 4500 ceiling is 96000 chars of headroom
+  // spread over 78 templates, so ONE template would have to grow by 96000
+  // chars — eight times the largest entry there is — before the ratio noticed.
+  // A max is the shape of the claim: one template's prose sprawling past what
+  // a catalog entry should cost fails here as soon as it does it. The floor on
+  // the total guards the opposite failure, a catalog that has COLLAPSED — no
+  // per-entry bound can see that, because a pack that fails to register takes
+  // its entries out of the measurement entirely.
+  test("the default catalog stays within a sane budget — no single template sprawls", () => {
+    const text = catalogText({ request: "" });
+    expect(text.length).toBeGreaterThan(200_000);
+    // One entry runs from its own heading to the next; the last one carries
+    // the catalog's trailing "available but not enabled" lines, so it stops
+    // there. Measured on the text the model actually reads, not on a manifest.
+    const entries = text
+      .split("### Scene template: ")
+      .slice(1)
+      .map((e) => ({ id: e.slice(0, e.indexOf(" (")), chars: e.split("\n\nPack available but not enabled:")[0].length }));
+    expect(entries).toHaveLength(readyIds().length);
+    const largest = entries.reduce((a, b) => (b.chars > a.chars ? b : a));
+    expect(largest.chars, `${largest.id} is the biggest catalog entry`).toBeLessThan(16_000);
   });
 });

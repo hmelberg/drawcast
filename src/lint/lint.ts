@@ -207,6 +207,12 @@ export function lintLayoutDetailed(
   for (const t of texts) {
     const full = bboxOfText(t, measure);
     if (clippedAway(t, full)) continue;
+    // These four numbers are COPIED, of necessity, into the space pack's
+    // `coreOf` (src/scenes/packs/space.yaml, the solar_system layout): that
+    // template places its own names and has to reserve the box this rule will
+    // measure, and a layout body is compiled from YAML with no way to import.
+    // Change them here and change them there — the 200-date sweeps in
+    // tests/space-template.test.ts are the only thing that would notice.
     const core = { x: full.x + full.w * 0.2, y: full.y + full.h * 0.25, w: full.w * 0.6, h: full.h * 0.5 };
     for (const s of strokes) {
       if (s.id === `${t.id}_leader`) continue;

@@ -153,11 +153,15 @@ layout: |
     const f = eng.bodies([params.focus]);
     if (f.bodies[0]) focusId = f.bodies[0].id; else missing.push(params.focus.trim());
   }
+  // Expanded as ONE selection, exactly the way `bodies` is above — the params
+  // schema offers the same group words there, so a model writing
+  // highlight: ["inner"] is generalising what this pack taught it. Taking
+  // bodies[0] of a per-name expansion tinted Mercury and dropped Venus, Earth
+  // and Mars, with no note and no warning.
   const highlightIds = new Set();
-  for (const hn of Array.isArray(params.highlight) ? params.highlight : []) {
-    const hb = eng.bodies([hn]);
-    if (hb.bodies[0]) highlightIds.add(hb.bodies[0].id); else missing.push(String(hn));
-  }
+  const hi = eng.bodies(Array.isArray(params.highlight) ? params.highlight : []);
+  for (const b of hi.bodies) highlightIds.add(b.id);
+  missing.push(...hi.missing);
   const orbitsOn = params.orbits !== false && view !== "row";
 
   // The centre and what orbits it: the Sun and the picked planets, or the
@@ -176,9 +180,15 @@ layout: |
 
   // Where each body is on its orbit: the true angle for the date. Eccentricity
   // and inclination are not drawn this round — every body sits ON its circle.
+  // Read in one place only, by the view below (the guard here is that
+  // branch's own condition, inverted): a line-up has no orbits, so it has no
+  // angles either, and the ephemeris call it does not read would say
+  // otherwise to anyone reading this.
   const angles = {};
-  const pos = focusId ? eng.moonPositions(focusId, sats.map((b) => b.id), date) : eng.positions(sats.map((b) => b.id), date);
-  for (const b of sats) { const p = pos[b.id]; angles[b.id] = p ? Math.atan2(p.y, p.x) : 0; }
+  if (view !== "row" || focusId) {
+    const pos = focusId ? eng.moonPositions(focusId, sats.map((b) => b.id), date) : eng.positions(sats.map((b) => b.id), date);
+    for (const b of sats) { const p = pos[b.id]; angles[b.id] = p ? Math.atan2(p.y, p.x) : 0; }
+  }
 
   // No solver requests: this pack writes every name itself (see "names"
   // below), so `labels` goes back empty and the placement is all in one place.
@@ -237,6 +247,16 @@ layout: |
   // nothing through obstacleBoxes (layout/layout.ts); a layout that places its
   // own names has to list them itself, and this is that list.
   const textBox = (at, s, fs, start) => { const w = kit.textWidth(s, fs), h = fs * 1.25; return { x: start ? at[0] : at[0] - w / 2, y: at[1] - h / 2, w, h }; };
+  // ONE box shape for the whole layout — {x, y, w, h} at the LOW corner — and
+  // one test. textBox builds a caption's, boxAt a name's, boxHit compares any
+  // two. The row used to hold its names as centre triples {x, y, w} and
+  // compare them inline by centre distance: arithmetically the same thing (two
+  // boxes of one height clear each other by `pad` exactly when their centres
+  // are further apart than half the widths plus pad), but a different enough
+  // SHAPE that the caption boxes could not be handed to it — and so, for a
+  // round, the row was the one branch that never saw a caption at all.
+  const boxAt = (c, w, h) => ({ x: c[0] - w / 2, y: c[1] - h / 2, w, h });
+  const boxHit = (a, b, pad) => a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
   const linearBar = () => (pxPerKm && (mode === "sizes" || mode === "distances") ? eng.scaleBar(mode, pxPerKm, L) : null);
   const captionBoxes = () => {
     const out = [textBox([F.x0, 36], eng.scaleNote(mode, L, reducedName), NOTE_PX, true)];
@@ -315,13 +335,27 @@ layout: |
       const texts = sats.map(nameOf);
       const widths = texts.map((t) => kit.textWidth(t, LABEL_PX));
       const tiers = eng.labelTiers(xs, widths, 6);
-      const written = [];
+      // The captions are on the list from the start, the way they are in the
+      // view below: they are pushed at the end but their boxes are fixed
+      // already, and a name stepping DOWN walks straight into the strip along
+      // the foot where scale_note, missing_note and the bar's label sit. One
+      // giant body is all it takes — Jupiter at true sizes is 337 px across,
+      // so its name starts at y 37 and missing_note is at 36.
+      const written = captionBoxes();
       sats.forEach((b, i) => {
         const w = widths[i];
         const tx = Math.min(1000 - w / 2 - 4, Math.max(w / 2 + 4, xs[i]));
-        let ty = y - rs[i] - 16 - tiers[i] * LABEL_STEP;
-        for (let guard = 0; guard <= sats.length && written.some((q) => Math.abs(q.x - tx) * 2 < q.w + w + 4 && Math.abs(q.y - ty) < LABEL_H + 2); guard++) ty -= LABEL_STEP;
-        written.push({ x: tx, y: ty, w });
+        const y0 = y - rs[i] - 16 - tiers[i] * LABEL_STEP;
+        const free = (t) => { const bx = boxAt([tx, t], w, LABEL_H); return bx.y > 4 && bx.y + bx.h < kit.CANVAS.h - 4 && !written.some((q) => boxHit(bx, q, 2)); };
+        const walk = (dir) => { let t = y0; for (let guard = 0; guard <= sats.length + 2 && !free(t); guard++) t += dir * LABEL_STEP; return free(t) ? t : null; };
+        // Down first — under the body is where a row's name belongs. But down
+        // runs out: below a disc that fills the frame there is the caption
+        // strip and then the edge of the page, and no number of steps helps.
+        // So the same search runs UPWARD from the same start, ending on the
+        // disc itself, where a name reads on its halo and costs no lint (a
+        // body is a circle hint, not a polyline, so no stroke rule sees it).
+        const ty = walk(-1) ?? walk(1) ?? y0;
+        written.push(boxAt([tx, ty], w, LABEL_H));
         push(kit.text("label_" + b.id, [tx, ty], texts[i], { fontSize: LABEL_PX, color: lit(b.id) ? C.accent : C.ink }));
         anchors["label_" + b.id] = [tx, ty];
       });
@@ -346,11 +380,19 @@ layout: |
     const orbitR = eng.orbitRadii(sats, mode, rMin, R_MAX);
     const gaps = orbitR.map((r, i) => (i === 0 ? r : r - orbitR[i - 1]));
     const gapMin = gaps.length > 0 ? Math.min(...gaps) : R_MAX;
-    const largestPx = n === 0 ? 120 : Math.max(3, 0.42 * gapMin);
+    // Nothing orbits: no gap between rings sets the sizes, so the centre body
+    // takes a fixed one. For the Sun that is SUN_CAP — the sixth of the frame
+    // this layout promises at the top of the file, which a bare 120 quietly
+    // broke (`bodies: ["krypton"]` resolves to nothing and drew the Sun at
+    // 120, 39 % of the frame's height across). A focus portrait of a moonless
+    // body — `focus: "venus"` — is not the Sun and IS the whole figure, so it
+    // keeps the larger one.
+    const soloPx = focusId ? 120 : SUN_CAP;
+    const largestPx = n === 0 ? soloPx : Math.max(3, 0.42 * gapMin);
     if (mode === "distances" && n > 0) pxPerKm = R_MAX / Math.max(...sats.map((b) => b.a_km));
     const rad = eng.drawnRadii(centre, sats, mode, largestPx, mode === "distances" && pxPerKm ? pxPerKm : undefined);
     if (mode === "sizes" && n > 0) pxPerKm = largestPx / Math.max(...sats.map((b) => b.r_km));
-    const centreCap = n === 0 ? 120 : Math.max(3, Math.min(SUN_CAP, orbitR[0] - 12));
+    const centreCap = n === 0 ? soloPx : Math.max(3, Math.min(SUN_CAP, orbitR[0] - 12));
     if (mode === "sizes" && rad.centre > centreCap) reducedName = nameOf(centre);
     const centreR = Math.min(rad.centre, centreCap);
     // Straight down on the plane the ring is an annulus; a focus portrait
@@ -416,10 +458,14 @@ layout: |
     // measures with the same heuristic lint does, so the boxes reserved here
     // are the boxes lint will check — the anatomy pack's columns place names
     // themselves for the same reason.
-    const boxAt = (c, w, h) => ({ x: c[0] - w / 2, y: c[1] - h / 2, w, h });
+    // The core lint reads a label by: the middle 60 % across and 50 % down of
+    // its box, offset a fifth and a quarter in. A SILENT COPY of the four
+    // numbers in `lintText` (src/lint/lint.ts, the overlap-label-stroke rule)
+    // — a layout body is compiled from YAML and cannot import, so the
+    // duplication is forced. Change one, change the other: the 200-date sweeps
+    // in tests/space-template.test.ts are all that would notice.
     const coreOf = (b) => ({ x: b.x + b.w * 0.2, y: b.y + b.h * 0.25, w: b.w * 0.6, h: b.h * 0.5 });
     const grow = (b, kx, ky) => ({ x: b.x - kx, y: b.y - ky, w: b.w + 2 * kx, h: b.h + 2 * ky });
-    const boxHit = (a, b, pad) => a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
     const turn = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
     const segHit = (a, b, r) => {
       if (Math.max(a[0], b[0]) < r.x || Math.min(a[0], b[0]) > r.x + r.w || Math.max(a[1], b[1]) < r.y || Math.min(a[1], b[1]) > r.y + r.h) return false;

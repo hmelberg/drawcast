@@ -42,8 +42,12 @@ and says so in `scale_note`:
 - **schematic** (default) — sizes compressed toward readable, orbits spaced
   evenly. Nothing is measurable; it is a map, not a photograph.
 - **sizes** — true relative radii, orbits still evenly spaced. Jupiter is
-  eleven Earths across; in the `row` view the Sun is so large only its edge
-  fits the page, and the note says so (`scale_note`'s `reduced` case).
+  eleven Earths across; in the `row` view the Sun is so large that only its
+  edge fits the page, and what is drawn is the circular segment inside the
+  frame (`sunSegment`). The `reduced` wording of `scale_note` ("Sizes to
+  scale, Sun reduced, distances not") is NOT the row's: it belongs to the
+  views that shrink the centre body rather than clip it — from above, and
+  under `focus`.
 - **distances** — true relative orbit radii, every body drawn the same small
   dot. Pair it with `bodies: ["inner"]` or `["outer"]` — the whole system at
   once crowds the inner planets into the Sun.
@@ -83,6 +87,16 @@ one fixed guess during development). Each name then climbs whole tier-steps
 until its box is actually clear of every name already written, rather than
 trusting the tier index alone.
 
+Both branches measure against the same list, in the same shape: boxes
+`{x, y, w, h}` at the low corner, compared with `boxHit`, seeded with the
+captions from `captionBoxes()` — the notes, the title and the bar's label are
+pushed at the end but their boxes are fixed long before, and a name has to see
+them. The row's own step is DOWNWARD (under the body), and below a disc that
+fills the frame the next line is the caption strip and then the edge of the
+page; when the search below fails, the same search runs upward from the same
+start and the name ends on the disc itself, where it reads on its halo and no
+lint rule sees it (a body is a circle hint, not a polyline).
+
 ## Known limits (honest, not fixed this round)
 
 - **`bodies: ["all"]` still produces warnings.** The group expands to the
@@ -97,14 +111,27 @@ trusting the tier index alone.
   `log`; `row`/`distances` collides Mercury's and Venus's labels with the
   Sun's, and every `top` and `tilted` combination collides at least one
   label with an orbit.
-- **`scale: "sizes"` plus an unknown body id collides two captions.** An
-  unknown name in `bodies` writes `missing_note` ("Unknown: …"); the `sizes`
-  mode, when the Sun (or focus body) has to be capped down, writes
-  `scale_note` with the same `reduced` wording ("Sizes to scale, Sun
-  reduced, distances not"). Both are pinned to the same corner of the foot
-  strip, and with both conditions true at once they overlap — a genuine
+- **A wide enough foot strip collides two captions.** An unknown name in
+  `bodies` writes `missing_note` ("Unknown: …") across the middle of the strip
+  along the foot; `scale_note` starts at the left of that same strip, and from
+  above at `scale: "sizes"` it grows to its `reduced` wording ("Sizes to
+  scale, Sun reduced, distances not") and reaches it — a genuine
   `overlap-label-label` warning between `scale_note` and `missing_note`.
-  Reproduce with `{ scale: "sizes", bodies: ["planets", "krypton"] }`.
+  Reproduce with `{ scale: "sizes", bodies: ["planets", "krypton"] }`. A row
+  clips the Sun rather than shrinking it, so its note never takes the longer
+  wording and it needs a longer list of unknown names to collide the same two
+  captions — `bodies: ["planets", "krypton", "vulcan", "romulus", "tatooine"]`
+  does it.
+
+  The collision stays between the two CAPTIONS: no name is caught up in it,
+  swept over 200 dates in the top view AND in the row
+  (`tests/space-template.test.ts`, "in the … view, no name is caught in the
+  strip where two captions collide"). That containment is a claim this file got
+  wrong once, and it is worth saying why: the sweep ran the default `top` view only, while the
+  row seeded its obstacle list empty and never consulted `captionBoxes()` at
+  all, so `{ view: "row", scale: "sizes", bodies: ["jupiter", "krypton"] }`
+  wrote Jupiter's name straight across `missing_note`. Both branches measure
+  the same caption boxes now, and the sweep covers both.
 
 Neither breaks anything — both are `warn`-level lint, and the figure is
 still correct — but a developer chasing lint noise on a real request should

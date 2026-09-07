@@ -54,6 +54,24 @@ describe("the bodies table", () => {
     expect(B("neptune").name.nb).toBe("Neptun");
     expect(B("ganymede").wiki.nb).toBe("Ganymedes");
   });
+
+  // The tidal lock, which is the whole of a moon's rotation column: every moon
+  // in this table turns once per orbit, so its rot_h is its period in hours —
+  // and a retrograde orbit turns retrograde with it, which is why the SIGN is
+  // part of the invariant and not a detail. Triton is the one negative pair.
+  // The sign is also the part that has actually been wrong: Charon's rot_h was
+  // flipped and reverted during this round, and the only thing that stood
+  // between the flip and the fact card was one formatted string. Half an hour
+  // is the tolerance because the table rounds (Iapetus is 4.8 minutes out).
+  test("every moon is tidally locked — its rotation is its own period, sign and all", () => {
+    const moons = table.bodies.filter((b) => b.kind === "moon");
+    expect(moons).toHaveLength(21);
+    for (const b of moons) {
+      expect(Math.sign(b.rot_h), `${b.id} rot_h ${b.rot_h} vs period_d ${b.period_d}`).toBe(Math.sign(b.period_d));
+      expect(Math.abs(Math.abs(b.rot_h) - Math.abs(b.period_d) * 24), b.id).toBeLessThanOrEqual(0.5);
+    }
+    expect(B("triton").rot_h).toBeLessThan(0);   // the retrograde one really is in there
+  });
 });
 
 describe("expandBodies", () => {

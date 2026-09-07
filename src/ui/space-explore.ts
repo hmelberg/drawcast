@@ -13,8 +13,8 @@ import type { SpaceEngine } from "../scenes/space/types";
 import { h, logicalPoint } from "./dom";
 import { hitElement } from "./hit";
 import {
-  DATE_CHOICES, NAME_CHOICES, ROOT_LABEL, SCALE_CHOICES, bodyLabel, breadcrumbFor, cardFacts, dateChoiceIso, focusTargetFor, phaseLine, positionNote,
-  readWikiSummary, wikiSummaryUrl, type Choice, type SpaceLang, type WikiSummary,
+  DATE_CHOICES, NAME_CHOICES, ROOT_LABEL, SCALE_CHOICES, bodyLabel, breadcrumbFor, cardFacts, dateChoiceIso, focusTargetFor, isoDate, phaseLine,
+  positionNote, readWikiSummary, wikiSummaryUrl, type Choice, type SpaceLang, type WikiSummary,
 } from "./space-model";
 
 export interface SpaceSection {
@@ -141,7 +141,13 @@ export function mountSpaceSection(opts: { hd: RenderHandle; stage: HTMLElement |
     pills.appendChild(pillRow(ROW.scale[L], SCALE_CHOICES, (v) => v === scaleNow, (v) => { overrides.scale = v; }));
     const namesNow = typeof current().names === "string" ? (current().names as string) : "en";
     pills.appendChild(pillRow(ROW.names[L], NAME_CHOICES, (v) => v === namesNow, (v) => { overrides.names = v; }));
-    const dateNowIso = typeof current().date === "string" ? (current().date as string) : dateChoiceIso(0);
+    // The day the figure RESOLVES to, not the string it was authored with:
+    // `date` is "today" in some specs, absent in others and an explicit ISO
+    // string in all five bundled examples, and comparing the raw param meant
+    // no pill was ever lit unless the author happened to write today's date.
+    // resolveDate is the pack's one clock (src/scenes/space/ephemeris.ts) and
+    // knows all three forms.
+    const dateNowIso = isoDate(eng.resolveDate(current().date, 0));
     pills.appendChild(pillRow(ROW.date[L], DATE_CHOICES, (v) => dateChoiceIso(v) === dateNowIso, (v) => { overrides.date = dateChoiceIso(v); }));
 
     renderCard(focus ?? "sun");
