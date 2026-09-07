@@ -40,7 +40,7 @@ import { pianoOctaves } from "../render/widgets";
 import { choiceSpecs, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
-import { c64EmulatorUrl } from "../code/c64";
+import { c64EmulatorUrl, prefersTouchJoystick } from "../code/c64";
 import { archiveEmbedUrl, archivePageUrl, archiveSearchUrl, parseArchiveSearch, type ArchiveHit } from "../code/c64-archive";
 import { C64_PROGRAMS, resolveGame } from "../code/c64-catalogue";
 import { isC64Screen } from "../layout/c64-screen";
@@ -363,7 +363,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const startGame = (url: string, onClose?: () => void, href?: string): { close: () => void } | null => {
     if (!stage) return null;
     return openMediaModal(stage, hd, {
-      src: c64EmulatorUrl(url),
+      src: c64EmulatorUrl(url, { touch: prefersTouchJoystick() }),
       // Where "open in a new tab" goes. For an Archive pick that is the
       // ITEM's page — which carries the Archive's own working player, the
       // fallback for a program the free ROMs cannot start — not the .prg.

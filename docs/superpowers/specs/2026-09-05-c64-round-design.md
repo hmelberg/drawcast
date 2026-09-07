@@ -555,3 +555,25 @@ handshake in M9, which we can speak without their script). Offered to Hans,
 not built: it means holding a copyrighted file the viewer supplies, and the
 Archive's own player already plays those disks today.
 
+## M11 (2026-09-07): our embed against their player — one real gap
+
+Hans asked whether our embedding is already good. Compared against the
+`vc64webplayer` pages: yes, and deliberately so. Their player is a
+convenience wrapper that puts THEIR script (and jQuery) in OUR page, replaces
+an element with the iframe, and draws its own icon bar. We build the same
+iframe from the same hash config ourselves, which keeps a third-party script
+out of the page and lets our own modal chrome (close, open in new tab,
+Escape) do the framing. The two things their bar has that we do not are a
+reset and an audio toggle; the emulator's own navbar would give both, and we
+hide it.
+
+The one real gap the comparison found was **touch**. `touch=true`, set
+BEFORE `port2=true` (their documented order), makes port 2 an on-screen
+joystick instead of the keyboard. Without it a phone or tablet viewer got a
+keyboard joystick with no keyboard, and — because we hide the navbar — no way
+to reach the switch. The game simply would not respond. Now the URL carries
+it whenever the viewer's MAIN pointer is coarse (`(pointer: coarse)`, not
+`any-pointer`, so a laptop with a touchscreen keeps the better keyboard
+joystick). Verified in the emulator: port 2 reports `touch` and a
+`touch_joystick1` element appears over the running game.
+

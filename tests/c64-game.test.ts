@@ -26,6 +26,12 @@ describe("the emulator URL", () => {
     expect(u).toContain("#openROMS=true");
     expect(u).toContain("#navbar=hidden");
     expect(u).toContain("#port2=true"); // the keyboard is a joystick from the first frame
+    expect(u).not.toContain("touch=true"); // a keyboard is the better joystick when there is one
+    // on a phone there is no keyboard to be a joystick, and vc64web wants the
+    // switch BEFORE the port — its own documented order
+    const t = c64EmulatorUrl(GAME, { touch: true });
+    expect(t).toContain("#touch=true#port2=true#");
+    expect(t.indexOf("touch=true")).toBeLessThan(t.indexOf("port2=true"));
     expect(u.endsWith(`#${GAME}`)).toBe(true);
   });
 });
