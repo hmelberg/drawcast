@@ -67,6 +67,10 @@ export interface MoonLimb {
 export interface NoteParts {
   daylight: boolean;
   below: string[];
+  /** Named, above the horizon, and cropped off the page by a `focus` portrait
+   *  — a different fact from `below`, and the reason the two are separate
+   *  clauses rather than one list of things that are not on the page. */
+  outside: string[];
   unknown: string[];
   symbols: boolean;
 }

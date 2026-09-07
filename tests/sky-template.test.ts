@@ -63,6 +63,42 @@ describe("sky_map: registration and the default figure", () => {
     expect(textOf(lay({ names: "nb" }), "compass_e")).toBe("Ø");
   });
 
+  test("north is up because POLARIS is up there, not because the compass agrees", () => {
+    // The test above only checks that the layout agrees with ITSELF: negate
+    // project()'s y term and the compass letters turn over with the chart, and
+    // it still passes. Polaris is the one star whose place on the page is
+    // fixed by something outside this template — it stands due north at an
+    // altitude equal to the observer's latitude — so a sign that flipped would
+    // fail against the sky rather than against a letter the same code drew.
+    //
+    // The canvas is y-up with the origin bottom-left (src/layout/canvas.ts:1)
+    // and the single flip to SVG's y-down happens at emission in the backend
+    // (canvas.ts:33, render/svg-backend.ts), so a HIGHER logical y is nearer
+    // the top of the page.
+    const pos = sky.starPositions(new Date(AT), 59.91, 10.75);
+    const pole = pos.get(sky.findStar("Polaris")!.hip)!;
+    expect(pole.alt).toBeCloseTo(59.91, 0);                     // as high up as Oslo is north
+    expect(Math.min(pole.az, 360 - pole.az)).toBeLessThan(2);   // and due north
+    const at = sky.project(pole, sky.chart);
+    expect(at[1]).toBeGreaterThan(sky.chart.cy);                // …so it is drawn ABOVE the middle
+    expect(Math.abs(at[0] - sky.chart.cx)).toBeLessThan(8);
+    const dot = leaf(lay({ mark: ["Polaris"] }), "polaris") as StrokeDrawable;
+    const c = dot.shapeHint?.type === "circle" ? dot.shapeHint.c : dot.pts[0];
+    expect(c[1]).toBeGreaterThan(sky.chart.cy);                 // in the figure, not just the rules
+    // And east is on the left for the same kind of reason: the drawn star
+    // nearest due east — azimuth being astronomy-engine's own convention,
+    // clockwise from north, checked against its Horizon() in
+    // tests/sky-rules.test.ts — lands left of the middle.
+    let east = null;
+    for (const s of sky.stars()) {
+      const q = pos.get(s.hip)!;
+      if (q.alt < 5 || q.alt > 40 || s.mag > 4.5) continue;
+      if (east === null || Math.abs(q.az - 90) < Math.abs(pos.get(east.hip)!.az - 90)) east = s;
+    }
+    expect(Math.abs(pos.get(east!.hip)!.az - 90), east!.name ?? `HIP ${east!.hip}`).toBeLessThan(5);
+    expect(sky.project(pos.get(east!.hip)!, sky.chart)[0]).toBeLessThan(sky.chart.cx);
+  });
+
   test("the horizon is a circle, and it owns no clicks — it is an edge, not a region", () => {
     const h = leaf(lay({}), "horizon") as StrokeDrawable;
     expect(h.kind).toBe("stroke");
@@ -377,6 +413,23 @@ describe("sky_map: the constellation figures", () => {
     expect(faint.length).toBeGreaterThan(100);
   });
 
+  test("a chart that draws no line keeps no star for one", () => {
+    // The exemption's own justification is that a line ending at nothing is a
+    // lie — which says nothing about a chart with no lines on it. Measured at
+    // limit_mag 2 on this December evening: 361 field stars while the figures
+    // are drawn, and 23 when they are not, in BOTH the modes that draw none.
+    const dots = (params: Record<string, unknown>) =>
+      flattenDrawables(win(params).drawables).filter((d) => d.id.startsWith("stars__hip_")).length;
+    expect(dots({ limit_mag: 2, constellations: "lines" })).toBe(dots({ limit_mag: 2 }));
+    expect(dots({ limit_mag: 2 })).toBeGreaterThan(300);
+    expect(dots({ limit_mag: 2, constellations: "names" })).toBe(dots({ limit_mag: 2, constellations: "none" }));
+    expect(dots({ limit_mag: 2, constellations: "none" })).toBeLessThan(40);
+    // …and the default limit is unaffected either way: those stars are drawn
+    // because they are bright enough, not because a line reaches them.
+    expect(dots({})).toBeGreaterThan(dots({ constellations: "none" }));
+    expect(dots({ constellations: "none" })).toBeGreaterThan(400);
+  });
+
   test("constellations: none draws no lines and no names", () => {
     const r = win({ constellations: "none" });
     expect(r.order).not.toContain("figures");
@@ -563,6 +616,56 @@ describe("sky_map: focus — one figure, filling the page", () => {
     expect(drew).toBeGreaterThan(100);
   }, 60000);
 
+  test("everything else the author named and the crop took is SAID", () => {
+    // The pack's contract, in its own description: a thing you named that is
+    // not on the page is said so rather than silently missing. A portrait
+    // crops the whole sky away around its subject, which is the biggest way
+    // this template can lose a named thing — and it lost six of them without a
+    // word. "Outside view" is maps.yaml's phrase for a marker outside a
+    // cropped map; it is a different fact from "below the horizon", which is
+    // why it is a different clause.
+    const r = win({ focus: "Orion", mark: ["Vega", "Polaris", "Ursa Major"], show: ["jupiter", "saturn", "moon"] });
+    const note = textOf(r, "sky_note") ?? "";
+    expect(note).toContain("Outside view:");
+    for (const name of ["The Great Bear", "Polaris", "Vega", "Jupiter", "Saturn", "Moon"]) {
+      expect(note, name).toContain(name);
+      expect(r.order, name).not.toContain(name.toLowerCase().replace(/\s+/g, "_"));
+    }
+    // A cropped body is NOT reported as set: it has not set.
+    expect(note).not.toContain("Below the horizon");
+    expect(textOf(win({ focus: "Orion", mark: ["Vega"], names: "nb" }), "sky_note")).toContain("Utenfor utsnittet: Vega");
+    // And nothing is invented: a portrait nobody asked anything else of says
+    // nothing about the sky it cropped.
+    expect(textOf(win({ focus: "Orion" }), "sky_note") ?? "").not.toContain("Outside view");
+  });
+
+  test("a marked constellation that never rose is SAID too", () => {
+    // The manifest's own fourth example has this shape — mark: ["Orion"] on a
+    // date — and half the year Orion is down. It used to produce neither a
+    // con_ori nor a word.
+    const r = win({ mark: ["Crux"] });
+    expect(r.order).not.toContain("con_cru");
+    expect(textOf(r, "sky_note")).toContain("Below the horizon: The Southern Cross");
+    // Up, but not in this portrait, is the other clause — and it is not said
+    // twice when focus and mark name the same figure.
+    expect(textOf(win({ focus: "Crux", mark: ["Crux"] }), "sky_note")).toContain("Below the horizon: The Southern Cross");
+    expect((textOf(win({ focus: "Crux", mark: ["Crux"] }), "sky_note") ?? "").match(/Southern Cross/g)).toHaveLength(1);
+  });
+
+  test("a portrait's own stars share a drawing budget, like every other crowd", () => {
+    // Separate elements, not a group — but a plan draws them one after another
+    // all the same. Orion's 23 dots at SKETCH_MS.dot would be 9.7 seconds.
+    const r = win({ focus: "Orion" });
+    const ids = new Set(sky.edgeStars(sky.findConstellation("Ori")!).map((h) => sky.starId(sky.star(h)!)));
+    const dots = flattenDrawables(r.drawables).filter((d) => ids.has(d.id));
+    expect(dots).toHaveLength(23);
+    expect(dots.reduce((n, d) => n + d.drawOpts.duration, 0)).toBeLessThan(2200);
+    // …and two marked stars on a whole-sky chart still get the full dot time.
+    const two = flattenDrawables(lay({ mark: ["Vega", "Deneb"] }).drawables).filter((d) => d.id === "vega" || d.id === "deneb");
+    expect(two).toHaveLength(2);
+    for (const d of two) expect(d.drawOpts.duration).toBe(420);   // SKETCH_MS.dot
+  });
+
   test("a figure entirely below the horizon is SAID, not silently blank", () => {
     // Crux never rises over Oslo.
     const r = win({ focus: "Crux" });
@@ -580,13 +683,31 @@ describe("sky_map: lint-clean over a year of moments", () => {
   const moments = (n: number): string[] =>
     Array.from({ length: n }, (_, i) => new Date(Date.UTC(2026, 0, 1) + i * (1.837 * 86400000 + 1.373 * 3600000)).toISOString());
 
-  const sweep = (params: Record<string, unknown>): { dirty: string[]; count: number } => {
+  /** What each row's 200 layouts contained, recorded AS THEY ARE SWEPT and
+   *  read back by the guard below. Counting the subjects in a second pass laid
+   *  1 400 charts a second time for five and a half seconds, and proved facts
+   *  about layouts the rows had not asserted on; this is the same ones. */
+  const drew: Record<string, { figures: number; frame: number; con_ori: number; names: number[] }> = {};
+
+  const sweep = (params: Record<string, unknown>, row = ""): { dirty: string[]; count: number } => {
     const dirty: string[] = [];
+    const seen = { figures: 0, frame: 0, con_ori: 0, names: [] as number[] };
     let count = 0;
     for (const time of moments(200)) {
-      const issues = layoutSpec(spec({ ...params, time })).issues;
-      if (issues.length > 0) { count++; dirty.push(`${time}: [${issues[0].severity}] ${issues[0].message}`); }
+      const r = layoutSpec(spec({ ...params, time }));
+      if (r.issues.length > 0) { count++; dirty.push(`${time}: [${r.issues[0].severity}] ${r.issues[0].message}`); }
+      // One allocation-free pass over `order`: four `includes`/`filter` calls
+      // over 450 ids, 200 times, 19 rows, is two seconds of nothing.
+      let named = 0;
+      for (const id of r.order) {
+        if (id.startsWith("label_con_")) named++;
+        else if (id === "figures") seen.figures++;
+        else if (id === "frame") seen.frame++;
+        else if (id === "con_ori") seen.con_ori++;
+      }
+      seen.names.push(named);
     }
+    if (row !== "") drew[row] = seen;
     return { dirty: dirty.slice(0, 4), count };
   };
 
@@ -603,31 +724,6 @@ describe("sky_map: lint-clean over a year of moments", () => {
     expect(fields.size).toBe(20);
   });
 
-  // The same guard, for what THIS round varies. A row called "a portrait of
-  // Orion" proves nothing about portraits if Orion is below the horizon at all
-  // 200 moments and every one of them quietly fell back to the whole sky; a
-  // row called "with lines but no names" proves nothing if no line was ever
-  // drawn; and a chart that named no constellation at all would sweep clean
-  // for the worst possible reason. So each row's subject is counted before any
-  // row is believed. Measured: 200/200 charts draw figures, 147/200 of the
-  // Orion portraits really are portraits, and a chart names 24–35 figures.
-  test("the sweep really draws the figures the rows are named after", () => {
-    const count = (params: Record<string, unknown>, id: string) =>
-      moments(200).filter((time) => lay({ ...params, time }).order.includes(id)).length;
-    expect(count({}, "figures")).toBe(200);
-    expect(count({ constellations: "lines" }, "figures")).toBe(200);
-    expect(count({ constellations: "names" }, "figures")).toBe(0);
-    // 11 to 24 names on the 200 charts, 17 on average — measured.
-    const named = moments(200).map((time) => lay({ time }).order.filter((id) => id.startsWith("label_con_")).length);
-    expect(Math.min(...named)).toBeGreaterThanOrEqual(8);
-    expect(count({ mark: ["Orion"] }, "con_ori")).toBeGreaterThan(100);
-    // `frame` is drawn only when a figure really was magnified, so this counts
-    // the moments each portrait row was a portrait at all.
-    expect(count({ focus: "Orion" }, "frame")).toBeGreaterThan(100);
-    expect(count({ focus: "Ursa Major" }, "frame")).toBe(200);
-    expect(count({ focus: "Cassiopeia", names: "nb" }, "frame")).toBe(200);
-  }, 60000);
-
   test.each([
     ["the default figure", {}],
     ["in Norwegian", { names: "nb" }],
@@ -636,7 +732,8 @@ describe("sky_map: lint-clean over a year of moments", () => {
     ["from Tromsø", { lat: 69.65, lon: 18.96, place: "Tromsø" }],
     ["from the equator", { lat: 0, lon: 0, place: "The equator" }],
     ["from Sydney", { lat: -33.87, lon: 151.21, place: "Sydney" }],
-    ["with only the brightest stars", { limit_mag: 2 }],
+    ["at the brightest limit, where the figures keep their faint stars", { limit_mag: 2 }],
+    ["at the brightest limit with no figures to keep them", { limit_mag: 2, constellations: "none" }],
     ["with a title over it", { title: "The sky over Oslo tonight" }],
     ["with a planet named that is sometimes down", { show: ["jupiter", "saturn"] }],
     ["with a star singled out", { mark: ["Vega"], highlight: ["Sirius"] }],
@@ -647,11 +744,41 @@ describe("sky_map: lint-clean over a year of moments", () => {
     ["a portrait of Orion", { focus: "Orion" }],
     ["a portrait of the Plough", { focus: "Ursa Major" }],
     ["a portrait of Cassiopeia in Norwegian", { focus: "Cassiopeia", names: "nb" }],
-  ])("%s is lint-clean on every one of 200 moments", (_what, params) => {
-    const { dirty, count } = sweep(params);
+  ])("%s is lint-clean on every one of 200 moments", (what, params) => {
+    const { dirty, count } = sweep(params, what);
     expect(dirty).toEqual([]);
     expect(count).toBe(0);
   }, 30000);
+
+  // The same guard as the one above, for what THIS round varies — and it reads
+  // what the rows recorded WHILE sweeping, so it is provably about the very
+  // layouts they called clean. A row called "a portrait of Orion" proves
+  // nothing about portraits if Orion was below the horizon at all 200 moments
+  // and every one of them quietly fell back to the whole sky; a row called
+  // "with lines but no names" proves nothing if no line was ever drawn; and a
+  // chart that named no constellation at all would sweep clean for the worst
+  // possible reason. Measured: 200/200 charts draw figures, 147/200 of the
+  // Orion portraits really are portraits, and a chart names 11–24 figures.
+  test("…and those 200 moments really drew what the rows are named after", () => {
+    const at = (row: string) => {
+      const f = drew[row];
+      expect(f, `row "${row}" did not sweep — the rows above must run first`).toBeDefined();
+      return f!;
+    };
+    expect(at("the default figure").figures).toBe(200);
+    expect(at("with lines but no names").figures).toBe(200);
+    expect(at("with names but no lines").figures).toBe(0);
+    expect(Math.min(...at("the default figure").names)).toBeGreaterThanOrEqual(8);
+    expect(at("with names but no lines").names.every((n) => n > 0)).toBe(true);
+    expect(at("with no names at all").names.every((n) => n === 0)).toBe(true);
+    // `frame` is drawn only when a figure really was magnified, and `con_ori`
+    // only when Orion had an edge with both stars up.
+    expect(at("with a constellation singled out").con_ori).toBeGreaterThan(100);
+    expect(at("a portrait of Orion").frame).toBeGreaterThan(100);
+    expect(at("a portrait of the Plough").frame).toBe(200);
+    expect(at("a portrait of Cassiopeia in Norwegian").frame).toBe(200);
+    expect(at("the default figure").frame).toBe(0);
+  });
 
   test("a copy translated into a language the pack does not know keeps its names apart", () => {
     // applyTextMap runs AFTER this body (src/layout/layout.ts:111), so every

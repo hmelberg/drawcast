@@ -213,6 +213,19 @@ cannot disagree.
 laid on the ground, so the projection swaps east and west against a map. The
 compass letters sit at `r + 20`, outside the rim.
 
+**The chart is not upside down**, and the way to be sure of that is not the
+compass. The canvas is y-up with the origin bottom-left
+(`src/layout/canvas.ts:1`) and the ONE flip to SVG's y-down happens at emission
+in the backend (`canvas.ts:33`, `render/svg-backend.ts`), so a higher logical
+`y` is nearer the top of the page and `place_label` at `y = 24` is the FOOT.
+Read logical coordinates without that flip and every figure in the repository
+looks mirrored. The compass test only checks that the layout agrees with
+itself — negate `project`'s `y` term and the letters turn over with the chart
+and it still passes — so there is a second test that ties the orientation to
+the sky instead: Polaris, which stands due north at an altitude equal to the
+observer's latitude, must be drawn ABOVE the centre, and the star nearest due
+east must land left of it.
+
 ## Why these shapes, and not the obvious ones
 
 - **The horizon is an OPEN path that returns to its start**, never
@@ -261,13 +274,20 @@ compass letters sit at `r + 20`, outside the rim.
 - **An edge is drawn only when BOTH its stars are above the horizon.** A line
   running off into the ground is not what a setting constellation looks like:
   its lower half is simply gone, and that is what a viewer sees.
-- **A star a drawn line reaches is drawn whatever `limit_mag` says.** 119 of
+- **A star a DRAWN line reaches is drawn whatever `limit_mag` says.** 119 of
   the 756 stars the figures need are fainter than 4.5 and 27 fainter than 5.0,
   so a magnitude cut alone would leave the shapes full of holes — and a line
   ending at nothing is a lie about the sky. `tests/sky-template.test.ts` checks
   the strong form of this: every line endpoint lands exactly on the centre of a
   drawn dot, at `limit_mag: 2` as well as at the default. The drawing IS the
   answer key.
+  The word DRAWN is load-bearing, and was not there at first. The exemption
+  followed the figures being CHOSEN rather than being drawn, so
+  `constellations: "names"` — names with no lines — kept every faint line star
+  for lines it never drew: 361 dots at `limit_mag: 2` where `"none"` gave 23.
+  There is nothing to lie about when there is no line, so `lineStars` is built
+  only when `showLines`, and the manifest's `limit_mag` text says which modes
+  give the bright stars alone.
 - **`take` asks the constellation index first.** "Leo" and "Orion" are figures,
   and no star carries either name. One key really is shared — `Men` is both
   Mensa and a catalogue star name — and the figure wins it.
@@ -290,14 +310,34 @@ zoom; at zoom 1 the figure's half-span cannot exceed the dome's radius, 285,
 while the frame allows 310 above and below the centre it is moved to. What the
 crop does remove is the sky AROUND the subject — background stars, and bodies,
 which is also what keeps a magnified planet inside the ±4000 the compile guard
-allows. A body cropped away is NOT reported as set: it has not set, it is
-outside the detail, and the caption would be lying if it said otherwise.
+allows.
+
+**And what it removes, it says.** The pack's contract is that a thing the
+author NAMED is said rather than silently missing, and a portrait is the
+biggest way this template can lose one: `{focus: "Orion", mark: ["Vega",
+"Polaris"], show: ["jupiter", "saturn", "moon"]}` lost five named things and
+wrote an empty caption. A named star, body or constellation that is up but
+outside the crop now gets a clause of its own, "Outside view: …", borrowed word
+for word from `maps.yaml`, which says the same thing about a marker outside a
+cropped map. It is a separate clause from "Below the horizon: …" because it is
+a separate fact: a cropped body is NOT reported as set — it has not set, it is
+outside the detail, and the caption would be lying if it said otherwise. The
+same clause covers a `mark`ed constellation that a portrait excludes, and
+`below` now covers a `mark`ed constellation that never rose — which is exactly
+the shape of the manifest's own fourth example half the year.
 
 Under `focus` every star the figure's lines reach becomes its own element, so a
 question can name any of them — `betelgeuse`, or `hip_25281` where the
-catalogue has no proper name. A figure entirely below the horizon is said so in
-the caption ("Below the horizon: The Southern Cross") and the whole sky is
-drawn instead; it is never a blank page.
+catalogue has no proper name. Those are separate elements rather than a group,
+but a plan draws them one after another all the same, so their durations
+accumulate exactly as a group's leaves do: Orion's 23 dots at `SKETCH_MS.dot`
+would be 9.7 seconds of a 17-second page. They take the dot time or a share of
+two seconds, whichever is shorter, so a pair of `mark`ed stars on a whole-sky
+chart is unchanged.
+
+A figure entirely below the horizon is said so in the caption ("Below the
+horizon: The Southern Cross") and the whole sky is drawn instead; it is never a
+blank page.
 
 ## Constellation names: an atlas names what it has room for
 

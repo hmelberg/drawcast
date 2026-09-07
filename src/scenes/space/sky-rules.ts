@@ -176,6 +176,10 @@ export function noteClauses(p: NoteParts, lang: SkyLang): string[] {
   const out: string[] = [];
   if (p.daylight) out.push(nb ? "Sola er oppe — stjernene er der, men du kan ikke se dem" : "The Sun is up — these stars are there, but you cannot see them");
   if (p.below.length > 0) out.push((nb ? "Under horisonten: " : "Below the horizon: ") + p.below.join(", "));
+  // Up, but not on this page — a portrait shows one figure and crops the rest
+  // of the sky away. `maps.yaml` says the same thing with the same words when
+  // a marker falls outside a cropped map.
+  if (p.outside.length > 0) out.push((nb ? "Utenfor utsnittet: " : "Outside view: ") + p.outside.join(", "));
   if (p.unknown.length > 0) out.push((nb ? "Ukjent: " : "Unknown: ") + p.unknown.join(", "));
   if (p.symbols) out.push(nb ? "Sol, måne og planeter som symboler, ikke i målestokk" : "Sun, Moon and planets as symbols, not to scale");
   return out;

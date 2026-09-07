@@ -213,14 +213,22 @@ describe("names, ids and the caption", () => {
   });
 
   test("the caption's clauses come in the order they matter, cheapest last", () => {
-    const all = noteClauses({ daylight: true, below: ["Jupiter"], unknown: ["krypton"], symbols: true }, "en");
-    expect(all).toHaveLength(4);
+    // The template joins these with " · " and drops from the END while the
+    // line is too wide, so the order IS the priority. "Below the horizon" and
+    // "Outside view" are two different facts — a thing that has set, and a
+    // thing that is up but cropped away by a focus portrait — and they are two
+    // clauses for that reason, the wording of the second borrowed from
+    // maps.yaml, which says the same thing about a cropped map.
+    const all = noteClauses({ daylight: true, below: ["Jupiter"], outside: ["Vega"], unknown: ["krypton"], symbols: true }, "en");
+    expect(all).toHaveLength(5);
     expect(all[0]).toMatch(/^The Sun is up/);
     expect(all[1]).toBe("Below the horizon: Jupiter");
-    expect(all[2]).toBe("Unknown: krypton");
-    expect(all[3]).toMatch(/symbols/);
-    expect(noteClauses({ daylight: false, below: [], unknown: [], symbols: false }, "en")).toEqual([]);
-    expect(noteClauses({ daylight: false, below: ["Jupiter"], unknown: [], symbols: false }, "nb")[0]).toBe("Under horisonten: Jupiter");
+    expect(all[2]).toBe("Outside view: Vega");
+    expect(all[3]).toBe("Unknown: krypton");
+    expect(all[4]).toMatch(/symbols/);
+    expect(noteClauses({ daylight: false, below: [], outside: [], unknown: [], symbols: false }, "en")).toEqual([]);
+    const nb = noteClauses({ daylight: false, below: ["Jupiter"], outside: ["Vega"], unknown: [], symbols: false }, "nb");
+    expect(nb).toEqual(["Under horisonten: Jupiter", "Utenfor utsnittet: Vega"]);
   });
 
   test("the observer presets are the four the tray offers", () => {

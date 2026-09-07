@@ -728,14 +728,14 @@ params:
       type: number
       minimum: 2
       maximum: 4.5
-      description: "The faintest star drawn (default 4.5, which is roughly what a dark suburban sky shows). 2 keeps only the few dozen brightest. A star does not change size when this does."
+      description: "The faintest star drawn (default 4.5, which is roughly what a dark suburban sky shows). 2 keeps only the few dozen brightest — PLUS every star a drawn constellation line reaches, however faint, because a line ending at nothing is a lie; add constellations: none (or names) for a chart of the bright stars alone. A star does not change size when this does."
     constellations:
       type: string
       enum: [both, lines, names, none]
       description: "both (default): the figures drawn and the ones that have room named. lines: the figures with no names. names: names with no lines. none: neither. The chart names as many as it can place cleanly, largest first — a star chart names what it has room for, the way an atlas does. This is about the whole sky: a focus draws and names its own subject whatever this says."
     focus:
       type: string
-      description: "One constellation — its abbreviation (Ori), its Latin, English or Norwegian name, or its element id (con_ori). That figure alone fills the page, magnified, with EVERY one of its own stars given its own element id (a proper name where it has one, else hip_<number>) so a question can name any of them; the horizon goes and a dashed frame says this is a detail. A figure that is entirely below the horizon is said so in the caption and the whole sky is drawn instead."
+      description: "One constellation — its abbreviation (Ori), its Latin, English or Norwegian name, or its element id (con_ori). That figure alone fills the page, magnified, with EVERY one of its own stars given its own element id (a proper name where it has one, else hip_<number>) so a question can name any of them; the horizon goes and a dashed frame says this is a detail. A figure that is entirely below the horizon is said so in the caption and the whole sky is drawn instead. The crop takes the rest of the sky with it: anything else you named — a star in mark, a body in show, another constellation — is left out and listed in the caption as \"Outside view: …\"."
       x-translate: false
     names:
       type: string
@@ -775,7 +775,7 @@ element_ids:
   moon: the Moon, drawn with the phase it has that night, its lit side turned toward the Sun
   label_<id>: the written name of a body or a singled-out star
   place_label: the place and the local time, along the foot
-  sky_note: "the figure's one caption: daylight, anything named that has set, unknown names, and that the Sun, Moon and planets are drawn as symbols"
+  sky_note: "the figure's one caption: daylight, anything named that has set, anything named that a focus portrait cropped off the page, unknown names, and that the Sun, Moon and planets are drawn as symbols"
   title: figure title, when set
 examples:
   - request: "What is up over Oslo tonight?"
@@ -925,10 +925,31 @@ layout: |
     const pa = sPos.get(e[0]), pb = sPos.get(e[1]);
     return pa !== undefined && pb !== undefined && pa.alt >= 0 && pb.alt >= 0;
   });
-  if (focusCon && segsOf(focusCon).length === 0) { below.push(eng.name(focusCon, L)); focusCon = null; }
+  const sayBelow = (t) => { if (below.indexOf(t) < 0) below.push(t); };
+  if (focusCon && segsOf(focusCon).length === 0) { sayBelow(eng.name(focusCon, L)); focusCon = null; }
   const chosen = [];
   if (focusCon) chosen.push(focusCon);
   else if (conMode !== "none") for (const c of eng.constellations()) if (segsOf(c).length > 0) chosen.push(c);
+  // Whether the LINES are drawn at all, needed this early because a chart that
+  // draws none has no reason to keep the faint stars they would have reached.
+  const showLines = conMode !== "names" || focusCon !== null;
+
+  // Named, up, and not on this page: a portrait shows one figure and crops the
+  // rest of the sky away. The pack's contract is that a thing the author named
+  // is SAID rather than silently missing, and this is a different fact from
+  // "below the horizon" — the same distinction maps.yaml draws with
+  // "Outside view: …" for a marker outside a cropped map.
+  const outside = [];
+  const sayOutside = (t) => { if (outside.indexOf(t) < 0) outside.push(t); };
+  const onChart = new Set(chosen.map((c) => c.abbr));
+  for (const abbr of markCons) {
+    // A figure the author turned off with constellations: "none" is not
+    // missing — it was removed by the same params that named it.
+    if (onChart.has(abbr) || conMode === "none") continue;
+    const c = eng.findConstellation(abbr);
+    if (segsOf(c).length === 0) sayBelow(eng.name(c, L));
+    else if (focusCon) sayOutside(eng.name(c, L));
+  }
 
   // A portrait is the same projection through a magnifying glass: the figure's
   // own stars are projected as usual, then the plane is scaled and shifted to
@@ -966,8 +987,11 @@ layout: |
       const a = P(sPos.get(e[0])), b = P(sPos.get(e[1]));
       if (!onPage(a) || !onPage(b)) continue;
       keep.push([a, b]);
-      lineStars.add(e[0]);
-      lineStars.add(e[1]);
+      // Only when the lines are actually DRAWN. The faint-star exemption below
+      // exists because a line ending at nothing is a lie — and `names` mode
+      // draws no line, so there is nothing to lie about and no reason to keep
+      // three hundred stars the author's limit_mag threw out.
+      if (showLines) { lineStars.add(e[0]); lineStars.add(e[1]); }
       for (const q of [a, b]) {
         if (q[0] < x0) x0 = q[0];
         if (q[0] > x1) x1 = q[0];
@@ -1002,7 +1026,12 @@ layout: |
     // and a line ending at nothing is a lie about the sky.
     if (s.mag > limit && !singled && !lineStars.has(s.hip)) continue;
     const at2 = P(p);
-    if (!onPage(at2)) continue;
+    if (!onPage(at2)) {
+      // Cropped away by the portrait. A star the AUTHOR named is said so; the
+      // rest of the field goes without a word, as it does on any detail view.
+      if (markStars.has(s.hip)) sayOutside(eng.starName(s, L) || eng.starId(s));
+      continue;
+    }
     const d = { s: s, at: at2, r: eng.starRadius(s.mag) * dotScale };
     if (!singled) { field.push(d); continue; }
     // TWO catalogue stars share the proper name "Alnair" (HIP 68002, ζ Cen,
@@ -1019,12 +1048,17 @@ layout: |
   const own = [...byName.values()];
 
   // A body is cropped by a portrait exactly as a star is — magnified, most of
-  // the sky is off the page. It is not reported as set: it has not set, it is
+  // the sky is off the page. It is not reported as SET: it has not set, it is
   // outside the detail, and the caption would be lying if it said otherwise.
+  // It is reported as outside the view, on the same rule `below` uses: only a
+  // body the author named, since the default list is half missing anyway.
   const bodies = [];
   for (const id of up) {
     const at2 = P(bPos[id]);
-    if (!onPage(at2)) continue;
+    if (!onPage(at2)) {
+      if (asked.length > 0 || markBodies.has(id)) sayOutside(bodyName(id));
+      continue;
+    }
     bodies.push({ id: id, b: spc.body(id), at: at2, r: id === "sun" ? 11 : id === "moon" ? 12 : 6 });
   }
 
@@ -1054,7 +1088,7 @@ layout: |
   }
 
   // ---- the captions, measured before any name is placed -------------------
-  const clauses = eng.noteClauses({ daylight: daylight, below: below, unknown: unknown, symbols: bodies.length > 0 }, L);
+  const clauses = eng.noteClauses({ daylight: daylight, below: below, outside: outside, unknown: unknown, symbols: bodies.length > 0 }, L);
   let noteText = clauses.join(" · ");
   // ONE caption, and it drops its cheapest clause rather than running off the
   // page. Round 1's known limit was two captions colliding in this same foot
@@ -1144,7 +1178,6 @@ layout: |
   // Every line that will be drawn, so no name is written across one. A chart
   // asked for names WITHOUT lines has none to dodge — that is the whole
   // difference between `constellations: "names"` and `"both"`.
-  const showLines = conMode !== "names" || focusCon !== null;
   if (showLines) for (const c of drawnCons) for (const s of segPts[c.abbr]) { guides.push(s[0]); guides.push(s[1]); }
   if (horizonPts) addGuide(horizonPts);
   if (framePts) addGuide(framePts);
@@ -1373,9 +1406,16 @@ layout: |
     push(kit.group("stars", field.map((d) => kit.ball("stars__hip_" + d.s.hip, d.at, d.r, { fill: eng.starColor(d.s.bv), strokeWidth: 0.8, ms: per }))));
     anchors.stars = [CH.cx, CH.cy];
   }
+  // These are separate ELEMENTS, not a group, but a plan draws them one after
+  // another all the same, so their durations accumulate exactly as a group's
+  // leaves do. Two marked stars should keep the full dot time; a portrait,
+  // which singles out every star its figure's lines reach, must not — Orion's
+  // 23 dots at MS.dot would be 9.7 seconds of a 17-second page. So: the dot
+  // time, or a share of two seconds, whichever is shorter.
+  const ownMs = Math.max(60, Math.min(MS.dot, Math.round(2000 / Math.max(1, own.length))));
   for (const d of own) {
     const id = eng.starId(d.s), on = litStars.has(d.s.hip);
-    push(kit.ball(id, d.at, d.r * 1.25, { fill: on ? C.accent : eng.starColor(d.s.bv), color: on ? C.accent : undefined, strokeWidth: on ? 2 : 0.8, ms: MS.dot }));
+    push(kit.ball(id, d.at, d.r * 1.25, { fill: on ? C.accent : eng.starColor(d.s.bv), color: on ? C.accent : undefined, strokeWidth: on ? 2 : 0.8, ms: ownMs }));
     anchors[id] = d.at;
   }
 
