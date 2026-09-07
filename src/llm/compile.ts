@@ -9,6 +9,7 @@ import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, st
 import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import type { RouteResult } from "./router";
+import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -138,6 +139,18 @@ export interface GenerateConfig {
   route?: (request: string, signal?: AbortSignal) => Promise<RouteResult>;
   /** Effort for the creative round (Settings). Repairs and the pedagogy pass always run low; omitted = the API default (high). */
   effort?: Effort;
+  /** Named phases the status line can show between deltas: "routing", "writing the spec", "checking the code", "teaching pass". */
+  onPhase?: (phase: string) => void;
+  /**
+   * Multi-part generation only (llm/multi.ts): after the parts land, every
+   * part the router found nothing for and the compiler drew freehand gets a
+   * template authored and is redrawn with it, one part after another, each
+   * new template in the registry before the next part is looked at. Read
+   * nowhere in generateSpec itself; the single-figure path OFFERS instead.
+   */
+  templatesOnDemand?: boolean;
+  /** The app's hook to keep a template authored on demand (My templates + panels). */
+  onTemplateAuthored?: (t: { id: string; yaml: string; doc: TemplateDoc }) => void;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
@@ -268,6 +281,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   let route: RouteInfo | undefined;
   let shortlist: string[] | undefined;
   if (cfg.route && !cfg.forcedTemplate && catalogIsTwoLevel(cfg.excludeIds)) {
+    cfg.onPhase?.("choosing templates");
     const t0 = performance.now();
     try {
       const r = await cfg.route(request, cfg.signal);
@@ -322,6 +336,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       // also run at low effort. The creative round is left at the model's own
       // default — that judgment is the product.
       const round = rounds.length + 1;
+      cfg.onPhase?.(label === "initial" ? (round > 1 ? `writing the spec, attempt ${round}` : "writing the spec") : `repairing (${label === "schema-repair" ? "schema" : "layout"})`);
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema, {
         signal: cfg.signal,
         effort: label === "initial" ? cfg.effort : "low",

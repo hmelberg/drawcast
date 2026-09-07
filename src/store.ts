@@ -71,6 +71,8 @@ export interface Settings {
   model: string;
   /** Effort for the creative rounds (generate, revise, author): thinking depth and token spend. Repairs always run low. */
   effort: "low" | "medium" | "high";
+  /** Template on demand without asking: a single figure the router found nothing for is authored a template and redrawn at once; in a multi-part drawcast or a course every such part is, one after another. Off = the single-figure OFFER only. */
+  templatesOnDemand: boolean;
   style: RenderStyle;
   /** Viewer's text size in the player — a base size (22/32/38), or null to follow the drawcast. */
   textSize: number | null;
@@ -162,6 +164,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   effort: "high",
+  templatesOnDemand: false,
   style: "clean",
   textSize: null,
   textFamily: null,

@@ -108,6 +108,47 @@ parts gets told what to add).
   chain, of which the authoring call is most. Third attempt: the first
   overran the 32k ceiling, the second lost its stream (both above).
 
+## Follow-up the same evening (Hans): progress, cost, courses
+
+- **What the model is writing, visible.** The spec pane always streamed the
+  reply, but it sits inside the editor, which is folded while one waits.
+  Now a `.editor-live` tail (last ~420 chars) shows under the status line
+  during any streamed call, and `GenerateConfig.onPhase` names the phase
+  between deltas: "choosing templates", "writing the spec", "repairing
+  (schema | layout)", "teaching pass"; a multi-part run names the part
+  ("part 3: authoring a template", "part 5: redrawing with …").
+- **What it cost.** `llm/client.ts` keeps a call ledger — every call's
+  model, uncached input, cache reads/writes and output — reset when a
+  generation starts and summarised when it ends: "≈ $0.84 · 140k tokens
+  in (124k cached) · 2k out · 3 calls" on the benzene-ring smoke (a cold
+  cache: the first call writes ~46k tokens of prefix at 1.25×; a warm one
+  is a few cents). List prices by model prefix, unknown models priced as
+  Opus, always an estimate. Appended to the status of generate, multi-part,
+  revise and template on demand.
+- **Templates on demand, decided before Generate.** A checkbox in the
+  generate menu ("Author templates when none fits", `settings.
+  templatesOnDemand`, default off). On: a single figure the router found
+  nothing for is authored a template and redrawn at once (no offer); a
+  multi-part drawcast or a COURSE handles every such part after the
+  parallel pass, one after another (`llm/multi.ts authorTemplatesForParts`):
+  each part is first re-routed, because a template authored for an earlier
+  part may fit it — then it is simply regenerated with the router's
+  shortlist — otherwise it gets its own template. Every authored document
+  is saved to My templates through `onTemplateAuthored` and embedded in
+  every part that uses it. Off: the single-figure offer only; courses
+  never stop to ask either way.
+- **Courses now use the router.** The course panel built its config
+  without `route` (so every lecture part shortlisted by keywords); it now
+  gets the router, the effort setting and the on-demand switch through its
+  deps, the same as Generate.
+- The choices button's summary now names the effort and the on-demand
+  switch beside the model.
+
+Verified: 5348 tests; Playwright smoke of a real "Draw a benzene ring."
+generation — phases seen in the status, the live tail visible on 28 of
+the polls, the cost line at the end. The course path is wired but not
+smoked live (a course run is ~20 Opus calls).
+
 ## Not done / follow-ups
 
 - The offer appears only in the editor's single-figure flow. Multi-part

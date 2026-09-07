@@ -14,7 +14,7 @@ import { generateParts } from "./llm/multi";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
-import { MODELS, describeApiError } from "./llm/client";
+import { MODELS, callLedger, costSummary, describeApiError, formatCost, resetCallLedger } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
 import { atNewest, currentVersion, emptyStack, pushManualEdit, pushVersion, restoreViewed, seedStack, viewAt, type Stack } from "./history";
@@ -409,6 +409,20 @@ function toggleTheater(): void {
 // ---------- editor mode ----------
 
 const statusEl = h("div", { class: "editor-status hint" });
+// The live tail of what the model is writing, under the status line — the
+// spec pane streams the whole text too, but that pane is inside the editor,
+// which is usually closed while one waits. A few lines here prove the model
+// is writing and show WHAT (Hans, 2026-09-07).
+const liveEl = h("pre", { class: "editor-live", hidden: "" });
+const LIVE_TAIL = 420;
+function renderLive(text: string): void {
+  if (!text) {
+    liveEl.hidden = true;
+    return;
+  }
+  liveEl.textContent = (text.length > LIVE_TAIL ? "…" : "") + text.slice(-LIVE_TAIL);
+  liveEl.hidden = false;
+}
 
 function setStatus(text: string, kind: "info" | "error" | "ok" = "info"): void {
   statusEl.textContent = text;
@@ -596,6 +610,11 @@ const effortSel = h(
   h("option", { value: "low" }, "Low — quick sketch"),
 );
 effortSel.value = settings.effort;
+// Template on demand without asking (Hans, 2026-09-07): decided BEFORE
+// Generate so a course never stops to ask part by part. Off = the single-
+// figure offer only.
+const templatesOnDemandBox = h("input", { type: "checkbox", title: "When no template fits a figure, author one and redraw at once — in a multi-part drawcast or a course, for every such part in turn (~4 min each). Off: single figures get an offer instead." }) as HTMLInputElement;
+templatesOnDemandBox.checked = settings.templatesOnDemand;
 
 const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
@@ -1091,6 +1110,7 @@ const genChoices = h(
   instrChoiceLabel,
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
+  h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
 );
 const choicesBtn = h("button", {
   class: "choices-toggle",
@@ -1113,7 +1133,9 @@ function refreshChoicesToggle(): void {
   // (B6) must not hide the fact (final review 2026-09-02).
   const showVariant = settings.developerMode || settings.variant !== variants[0].name;
   const dev = showVariant ? ` · Instructions: ${prompt}` : "";
-  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model}`;
+  const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
+  const onDemand = settings.templatesOnDemand ? " · Templates on demand" : "";
+  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
 
@@ -1145,6 +1167,7 @@ const editorWrap = h(
     genChoices,
   ),
   statusEl,
+  liveEl,
   h(
     "div",
     { class: "editor-split" },
@@ -2987,6 +3010,13 @@ function startAiStatus(label: string, phase = ""): void {
 function stopAiStatus(): void {
   if (aiTicker !== null) window.clearInterval(aiTicker);
   aiTicker = null;
+  renderLive("");
+}
+
+/** What this generation cost, from the client's call ledger — "" when nothing was called. */
+function costText(): string {
+  const s = costSummary(callLedger());
+  return s.calls > 0 ? ` · ${formatCost(s)}` : "";
 }
 
 /** How a round's label reads in the status line. Round 1 has nothing to add. */
@@ -3012,12 +3042,14 @@ function streamIntoSpec(text: string): void {
   }
   specArea.value = text;
   specArea.scrollTop = specArea.scrollHeight;
+  renderLive(text);
 }
 
 /** `restore` puts the pre-call text back — for a cancel or a failure, not a success. */
 function endSpecStream(restore: boolean): void {
   if (specBeforeStream !== null && restore) specArea.value = specBeforeStream;
   specBeforeStream = null;
+  renderLive("");
   specArea.classList.remove("streaming");
   applyHistoryUi(); // owns readOnly (it is also the version-viewing lock)
 }
@@ -3060,6 +3092,7 @@ async function generate(): Promise<void> {
       return;
     }
     startAiStatus("Generating");
+    resetCallLedger();
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
       pedagogyReview: true,
@@ -3074,6 +3107,10 @@ async function generate(): Promise<void> {
       priorityIds,
       route: (req, signal) => routeTemplates(req, { apiKey, signal }),
       signal: controller.signal,
+      onPhase: (phase) => {
+        aiPhase = phase;
+        renderAiStatus();
+      },
       onProgress: ({ label, round, text }) => {
         aiChars = text.length;
         aiPhase = phaseText(label, round);
@@ -3100,21 +3137,25 @@ async function generate(): Promise<void> {
     playlist.meta.prompt = rawRequest;
     setDoc(
       { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist },
-      outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`,
+      (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) + costText(),
       { label: rawRequest, kind: "generate" },
     );
     autosave();
     lastLogId = logId; // after setDoc, so the rating stars target this generation
     // Template on demand: the router found nothing and the figure is
-    // freehand — offer to author a template for this kind of figure and
-    // redraw. An offer, never automatic: it costs four minutes and a few
-    // dollars' worth of tokens, and the freehand drawing may already be
-    // what was wanted.
+    // freehand. With the option on (decided before Generate), author a
+    // template and redraw at once; otherwise offer — it costs four minutes
+    // and a few dollars' worth of tokens, and the freehand drawing may
+    // already be what was wanted.
     if (outcome.route?.noneFits && !outcome.spec.template) {
       const freehand = outcome.spec;
-      setStatusAction("No scene template draws this figure, so it was drawn freehand.", "Author a template and redraw (~4 min)", () => {
-        void authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
-      });
+      if (settings.templatesOnDemand) {
+        await authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
+      } else {
+        setStatusAction("No scene template draws this figure, so it was drawn freehand.", "Author a template and redraw (~4 min)", () => {
+          void authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
+        });
+      }
     }
   } finally {
     // Unconditional, in this order: an early return above (or a throw) must not
@@ -3139,6 +3180,9 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
   const controller = new AbortController();
   setAiBusy(true, controller);
   startAiStatus("Authoring a template", "writing the brief");
+  // The ledger keeps running from the generation that led here, so the
+  // status at the end names the whole cost — freehand draft, brief, template
+  // and redraw together.
   try {
     const r = await authorOnDemand(request, freehand, {
       apiKey,
@@ -3192,7 +3236,7 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
     const n = outcome.rounds.length;
     setDoc(
       { id: null, driveFileId: null, sourcePath: null, title: outcome.spec!.title ?? request, prompt: rawRequest, playlist },
-      `Authored the template "${r.doc!.template}" (${r.authorRounds} round${r.authorRounds === 1 ? "" : "s"}, saved to My templates) and redrew with it in ${n} round${n === 1 ? "" : "s"}.`,
+      `Authored the template "${r.doc!.template}" (${r.authorRounds} round${r.authorRounds === 1 ? "" : "s"}, saved to My templates) and redrew with it in ${n} round${n === 1 ? "" : "s"}.` + costText(),
       { label: `${rawRequest} (with a new template)`, kind: "generate" },
     );
     autosave();
@@ -3224,6 +3268,7 @@ async function revise(): Promise<void> {
   setAiBusy(true, controller);
   try {
     startAiStatus("Revising");
+    resetCallLedger();
     const outcome = await reviseDocument(docText, instruction, {
       apiKey,
       model: settings.model,
@@ -3254,7 +3299,7 @@ async function revise(): Promise<void> {
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
       { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
-      `Revised: ${instruction}`,
+      `Revised: ${instruction}` + costText(),
       { label, kind: "revise" },
     );
     lastLogId = logId; // after setDoc, so the rating stars target this revision
@@ -3306,6 +3351,7 @@ async function generateMulti(
   // writing into one pane would interleave into nonsense. The counter below
   // is this path's progress signal.
   startAiStatus("Outlining a multi-part drawcast");
+  resetCallLedger();
   let partTitles: string[] = [];
   const result = await generateParts(
     { request: parsed.clean, parts: parsed.parts, brief },
@@ -3321,9 +3367,15 @@ async function generateMulti(
       forcedTemplate,
       priorityIds,
       route: (req, sig) => routeTemplates(req, { apiKey, signal: sig }),
+      templatesOnDemand: settings.templatesOnDemand,
+      onTemplateAuthored: keepAuthoredTemplate,
       signal,
     },
     {
+      onPhase: (text) => {
+        aiPhase = text;
+        renderAiStatus();
+      },
       onOutline: (outline) => {
         partTitles = outline.parts.map((p) => p.title);
         aiLabel = `Generating ${outline.parts.length} parts in parallel`;
@@ -3357,12 +3409,19 @@ async function generateMulti(
   playlist.meta.prompt = rawRequest;
   setDoc(
     { id: null, driveFileId: null, sourcePath: null, title, prompt: rawRequest, playlist },
-    result.failed.length > 0
+    (result.failed.length > 0
       ? `Generated ${result.specs.length}/${n} parts (part${result.failed.length > 1 ? "s" : ""} ${result.failed.join(", ")} failed).`
-      : `Generated a ${result.specs.length}-part drawcast.`,
+      : `Generated a ${result.specs.length}-part drawcast.`) + costText(),
     { label: rawRequest, kind: "generate" },
   );
   autosave();
+}
+
+/** A template authored on demand during a multi-part run or a course: kept the way the single-figure path keeps it. */
+function keepAuthoredTemplate(t: { id: string; yaml: string }): void {
+  saveMyTemplate({ id: t.id, yaml: t.yaml, ts: new Date().toISOString() });
+  refreshMyTemplates();
+  refreshTemplatePicker();
 }
 
 // TRULY empty (Hans 2026-09-02): a blank page, not a starter example — the
@@ -3698,6 +3757,8 @@ function openCourse(id?: string): void {
     styleText: () => activeStyleText(),
     exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
     bundledExemplars: () => bundledExemplarPool(),
+    route: (req, sig) => routeTemplates(req, { apiKey: getApiKey(), signal: sig }),
+    onTemplateAuthored: keepAuthoredTemplate,
     setStatus,
     openDrawing: (id) => {
       const saved = loadLibrary().find((d) => d.id === id);
@@ -5096,6 +5157,10 @@ modelSel.addEventListener("change", () => {
 });
 effortSel.addEventListener("change", () => {
   settings.effort = effortSel.value === "low" || effortSel.value === "medium" ? effortSel.value : "high";
+  persist();
+});
+templatesOnDemandBox.addEventListener("change", () => {
+  settings.templatesOnDemand = templatesOnDemandBox.checked;
   persist();
 });
 styleSel.addEventListener("change", () => {
