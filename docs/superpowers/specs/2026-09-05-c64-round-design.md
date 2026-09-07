@@ -577,3 +577,47 @@ it whenever the viewer's MAIN pointer is coarse (`(pointer: coarse)`, not
 joystick). Verified in the emulator: port 2 reports `touch` and a
 `touch_joystick1` element appears over the running game.
 
+## M12 (2026-09-07): the drive-ROM search, done properly
+
+Hans asked for one more sweep — GitHub, MEGA65, anywhere. The complete map:
+
+| What | Licence | Would the emulator take it? |
+|---|---|---|
+| `Pascual_DOS-1541` | MIT, clean-room | No — starts `78 D8 A2` |
+| `mist64/dos1541` | none (Commodore's own source) | Yes — it builds the original |
+| `donnchawp/DolphinDOS2` | "Unlicense", by a third party | Yes — signature matches |
+| MEGA65 open-roms | free | Nothing to take: no drive ROM exists |
+
+- **MEGA65 has none and says so.** `STATUS.md` lists `floppy drive | NOT DONE`,
+  and their published `bin/` holds only BASIC, KERNAL, chargen and MEGA65 ROMs.
+- **mist64/dos1541 is Commodore's own source**, reconstructed and adapted to
+  cc65 — "All versions build into the exact ROM images". That is the original,
+  in source form, with no licence. Not ours to ship.
+- **DolphinDOS 2 would work, and that is the trap.** Its `dd2_1541.rom` is
+  32768 bytes with `4C 4B A3` at offset `0x2000` — checked with a range
+  request, and exactly the Dolphin row in VirtualC64's table. But the
+  Unlicense on it is a third party's declaration over a 1980s German
+  commercial product they state they are not affiliated with, so it clears
+  nothing. Shipping it is the same act as shipping Commodore's ROM.
+- **Waiting for upstream will not help by itself.** Current VirtualC64 master
+  (`VCCore/Media/RomFile.cpp`) carries the identical whitelist, so no future
+  vc64web rebuild accepts the free ROM.
+- **Why the free ROM was never made recognisable**: its author targets VICE,
+  where `-dos1541 dos.bin` loads any file. Emulator signature matching simply
+  never came up for them. Two closed issues, no discussion of it.
+
+Three ways forward, none taken without Hans:
+1. The viewer's own ROM — works today (M9b), nothing for us to ship.
+2. Ask upstream (vc64web or VirtualC64) to accept an unrecognised 16 KB drive
+   ROM. One row in a table on their side, and the MIT ROM then works for
+   everyone. A public request, so Hans's to make.
+3. Host our own vc64web build (GPL-3, they document building it) with the
+   check relaxed, shipping the MIT ROM beside it. Licence-clean, but we take
+   on a WASM emulator to maintain.
+
+**Measure before choosing 2 or 3.** The free ROM states it does not do fast
+loaders, and most commercial disk titles use them — so the payoff might be
+small. VICE would answer it directly (`x64sc -dos1541 dos.bin` against a
+sample of Archive disks), and VICE is not installed here. That measurement is
+the honest next step, not a ROM hunt.
+
