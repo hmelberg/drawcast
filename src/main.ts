@@ -8,6 +8,7 @@ import { type RenderHandle, type RenderStyle } from "./render";
 import type { TextFamily } from "./layout/text-style";
 import { canRender, needsRender } from "./render/policy";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
+import { routeTemplates } from "./llm/router";
 import { generateParts } from "./llm/multi";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
@@ -3055,6 +3056,7 @@ async function generate(): Promise<void> {
       brief,
       forcedTemplate,
       priorityIds,
+      route: (req, signal) => routeTemplates(req, { apiKey, signal }),
       signal: controller.signal,
       onProgress: ({ label, round, text }) => {
         aiChars = text.length;
@@ -3208,6 +3210,7 @@ async function generateMulti(
       bundledExemplars: bundledExemplarPool(),
       forcedTemplate,
       priorityIds,
+      route: (req, sig) => routeTemplates(req, { apiKey, signal: sig }),
       signal,
     },
     {

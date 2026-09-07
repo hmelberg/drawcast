@@ -12,17 +12,20 @@ import type { SceneManifest } from "./types";
 import { PACK_DEFS, packTemplateIds } from "./packs";
 
 /**
- * Where the catalog degrades from "full entry for everything" to
- * index + hot set. The default library now spans the bundled academic packs
- * (built-ins + the physics/chemistry/biology domain packs, all enabled by
- * default) — set well above that count so the out-of-the-box configuration
- * keeps every parameter schema in front of the model. That buys back a fully
- * cache-stable prefix (no per-request keyword shortlist) plus no
- * need_template round-trips, each of which rebuilds a fresh, uncached
- * prefix. The two-level machinery stays as the safety valve for user
- * templates and remote packs pushing past this threshold.
+ * Where the catalog switches from "full entry for everything" to
+ * index + hot set. Until 2026-09-07 this sat ABOVE the default library so
+ * every parameter schema stayed in front of the model: the only shortlist
+ * was keyword overlap, which found the intended template in its top 5 for
+ * 92.6 % of 338 known requests and missed every request shaped like a
+ * story. With the template router (src/llm/router.ts — a Haiku call over
+ * the index, 94.4 % alone, 97.9 % joined with the keyword picks) the
+ * two-level regime became the default: the bundled library (84 ready
+ * templates, ~279k chars in full) now reaches the model as a ~24k-char
+ * index plus the core and a five-entry shortlist. Below this number — a
+ * single-domain library, a host embed — everything is still expanded and
+ * no router is needed.
  */
-export const TEMPLATE_FULL_THRESHOLD = 100; // raised 2026-09-02 with the data pack; Hans OK
+export const TEMPLATE_FULL_THRESHOLD = 40; // lowered 2026-09-07: the router (src/llm/router.ts) makes two-level the default regime
 
 /** Always promoted to a full entry once the catalog goes two-level. */
 const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
@@ -44,6 +47,15 @@ export interface CatalogOpts {
   priorityIds?: string[];
   /** Template ids to hide from the catalog entirely (host embeds exclude e.g. molecule_3d). */
   excludeIds?: string[];
+  /**
+   * A router's picks for THIS request (src/llm/router.ts), best first: in the
+   * two-level regime these become the full entries in `variable` instead of
+   * the keyword shortlist. Unknown, stub and already-stable ids are dropped;
+   * at most HOT_SHORTLIST travel. Absent (or empty) means "use the keyword
+   * selector", so a router outage degrades to today's behaviour, never to
+   * an index-only prompt.
+   */
+  shortlist?: string[];
 }
 
 function fullEntry(manifest: SceneManifest): string {
@@ -72,6 +84,62 @@ function firstSentence(description: string): string {
   const m = /^[^.!?]*[.!?]/.exec(description.trim());
   return (m ? m[0] : description.trim()).trim();
 }
+
+/** The "Choose this scene for …" sentence most descriptions carry — the
+ *  author's own routing hint, written for exactly this purpose. */
+function chooseSentence(description: string): string | null {
+  const m = /\b(?:Choose|Use|Pick) this[^.!?]*[.!?]/.exec(description);
+  return m ? m[0].trim() : null;
+}
+
+/**
+ * The index a ROUTER reads (src/llm/router.ts): one line per ready template
+ * — id, the first sentence, the "Choose this for…" sentence when there is
+ * one, and up to two example requests. Meaning, not keywords, is what the
+ * router matches on, so the line carries what a template is FOR rather than
+ * its parameter schema. Byte-stable for a given library, so the router's
+ * system prompt caches like the compiler's.
+ */
+export function routerIndexText(opts: { excludeIds?: string[] } = {}): string {
+  const excluded = new Set(opts.excludeIds ?? []);
+  return Object.values(scenes)
+    .filter((s) => s.manifest.status === "ready" && !excluded.has(s.manifest.name))
+    .map(({ manifest }) => {
+      const choose = chooseSentence(manifest.description);
+      const first = firstSentence(manifest.description);
+      const examples = manifest.examples
+        .slice(0, 2)
+        .map((ex) => `"${ex.request}"`)
+        .join("; ");
+      return `- ${manifest.name}: ${first}${choose && choose !== first ? ` ${choose}` : ""}${examples ? ` e.g. ${examples}` : ""}`;
+    })
+    .join("\n");
+}
+
+/** True when the default library is past the point where every template
+ *  gets a full entry — the regime in which a shortlist (router or keyword)
+ *  decides what the model sees in full. */
+export function catalogIsTwoLevel(excludeIds: string[] = []): boolean {
+  const excluded = new Set(excludeIds);
+  return Object.values(scenes).filter((s) => s.manifest.status === "ready" && !excluded.has(s.manifest.name)).length > TEMPLATE_FULL_THRESHOLD;
+}
+
+/** Full entries for EVERY template regardless of the threshold — the
+ *  measurement the pack-budget test and the catalog sweep read. */
+export function catalogFullText(opts: { excludeIds?: string[] } = {}): string {
+  const excluded = new Set(opts.excludeIds ?? []);
+  const parts: string[] = [];
+  for (const { manifest } of Object.values(scenes).filter((s) => !excluded.has(s.manifest.name))) {
+    parts.push(manifest.status === "ready" ? fullEntry(manifest) : stubLine(manifest));
+  }
+  for (const p of Object.values(PACK_DEFS).filter((def) => packTemplateIds(def.id).length === 0)) {
+    parts.push(`Pack available but not enabled: ${p.title} — ${p.description}`);
+  }
+  return parts.join("\n\n");
+}
+
+/** At most this many router-picked entries travel in full with a request. */
+export const HOT_SHORTLIST = 5;
 
 function dedupe(ids: string[]): string[] {
   return [...new Set(ids)];
@@ -201,9 +269,14 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   for (const p of unregisteredPacks) stableParts.push(`Pack available but not enabled: ${p.title} — ${p.description}`);
   stableParts.push(ESCALATION_PROSE);
 
-  const shortlist = selectTemplates(opts.request ?? "", 3).filter(
-    (id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id),
-  );
+  // The router's picks first, then the keyword selector's, up to HOT_SHORTLIST
+  // in all: the two miss DIFFERENT requests (measured 2026-09-07 over 338
+  // known cases — router 94.4 % in its top 5, keyword 92.6 %, their union
+  // 97.9 %), the router being terse and the keyword selector literal. Without
+  // a router it is the keyword selector alone, three deep, as before.
+  const routed = opts.shortlist && opts.shortlist.length > 0 ? dedupe(opts.shortlist).slice(0, HOT_SHORTLIST) : [];
+  const picks = routed.length > 0 ? dedupe([...routed, ...selectTemplates(opts.request ?? "", HOT_SHORTLIST)]).slice(0, HOT_SHORTLIST) : selectTemplates(opts.request ?? "", 3);
+  const shortlist = picks.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
   const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
 
   return { stable: stableParts.join("\n\n"), variable };

@@ -7,7 +7,8 @@ import { makeClient, callForJson, callForText, describeApiError, repairModelFor,
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
-import { catalogParts, detectNeedTemplate } from "../scenes/catalog";
+import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
+import type { RouteResult } from "./router";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -29,6 +30,15 @@ import fewshots from "./prompts/fewshots.json";
 const AUTHORING_CODE_CHECK_MS = 60_000;
 
 const NO_CODE_CHECK: CodeCheckOutcome = { errors: [], warnings: [] };
+
+/** The router's verdict as logged on an outcome: its picks, its "none fits", its cost. */
+export interface RouteInfo {
+  ids: string[];
+  noneFits: boolean;
+  ms: number;
+  /** Set when the router call failed; the keyword selector took over. */
+  error?: string;
+}
 
 export interface PromptVariant {
   name: string;
@@ -82,6 +92,8 @@ export interface GenerationProgress {
 export interface GenerationOutcome {
   spec: Spec | null;
   rounds: GenerationRound[];
+  /** What the template router said for this request (two-level catalog only); absent when no router ran. */
+  route?: RouteInfo;
   /** Set when no usable spec was produced. */
   error?: string;
   systemPromptChars: number;
@@ -117,6 +129,13 @@ export interface GenerateConfig {
   priorityIds?: string[];
   /** Template ids to hide from the catalog entirely (host embeds exclude e.g. molecule_3d). */
   excludeIds?: string[];
+  /**
+   * The template router (src/llm/router.ts), injected by the app: in the
+   * two-level catalog regime it names the templates to show in full for
+   * THIS request. Absent (tests, embeds without a key) means the keyword
+   * selector, exactly as before; a router failure degrades to the same.
+   */
+  route?: (request: string, signal?: AbortSignal) => Promise<RouteResult>;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
@@ -231,13 +250,33 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // so the prefix is byte-stable across requests. At or above it, catalogParts
   // splits {{CATALOG}} itself: `stable` (index + forced/priority/core hot set
   // + stubs + pack lines + escalation, NEVER the free-text request) goes into
-  // the cache_control prefix, while `variable` (the keyword-matched shortlist,
-  // selectTemplates(request, …) minus anything already in `stable`) is
+  // the cache_control prefix, while `variable` (the shortlist — the router's
+  // picks filled up with selectTemplates(request, …), minus anything in `stable`) is
   // appended to the request-dependent SUFFIX instead — so a stable preference
   // (forced template / priority packs) still pins a stable prefix and full
   // cache reuse, while a free-form request's shortlist no longer busts that
   // cache at all (a strict improvement over the pre-split tradeoff, spec §5a).
-  let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds });
+  //
+  // In the two-level regime the shortlist comes from the ROUTER when the app
+  // injects one (src/llm/router.ts): a cheap model reads the index and names
+  // the templates worth showing in full. Its picks replace the keyword
+  // shortlist in `variable`; the stable prefix is untouched either way. A
+  // forced template needs no shortlist, and a router failure (or an empty
+  // answer) leaves the keyword selector in charge — never index-only.
+  let route: RouteInfo | undefined;
+  let shortlist: string[] | undefined;
+  if (cfg.route && !cfg.forcedTemplate && catalogIsTwoLevel(cfg.excludeIds)) {
+    const t0 = performance.now();
+    try {
+      const r = await cfg.route(request, cfg.signal);
+      route = { ids: r.ids, noneFits: r.noneFits, ms: performance.now() - t0 };
+      if (r.ids.length > 0) shortlist = r.ids;
+    } catch (err) {
+      if (cfg.signal?.aborted) throw err;
+      route = { ids: [], noneFits: false, ms: performance.now() - t0, error: describeApiError(err) };
+    }
+  }
+  let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist });
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
     catalog: catalog.stable,
@@ -403,6 +442,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       rounds,
       error: describeApiError(err),
       systemPromptChars: blocks.prefix.length + suffixText.length,
+      route,
     };
   }
 
@@ -473,6 +513,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         ? undefined
         : "The model never produced a valid spec (see rounds).",
     systemPromptChars: blocks.prefix.length + suffixText.length,
+    route,
   };
 }
 

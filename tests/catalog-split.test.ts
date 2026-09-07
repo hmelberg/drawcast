@@ -98,3 +98,36 @@ describe("catalogParts above the threshold", () => {
     expect(parts.variable).toBe("");
   });
 });
+
+// The router's shortlist (src/llm/router.ts) replaces the keyword pick in
+// `variable`; stable is untouched, so the cache_control prefix is the same
+// whether a router ran or not.
+describe("catalogParts with a router shortlist", () => {
+  const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+  function fillPastThreshold(): void {
+    for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFake(`fake_${i}`);
+  }
+  test("shortlisted ids travel in full in variable, in order, capped, minus stable/unknown/stub ids", () => {
+    fillPastThreshold();
+    addFake("rs_a");
+    addFake("rs_b");
+    addFake("rs_c");
+    const { stable, variable } = catalogParts({ request: "unrelated words", shortlist: ["rs_b", "nope", "supply_demand", "rs_a", "rs_b"] });
+    expect(variable.indexOf("### Scene template: rs_b (READY")).toBeGreaterThan(-1);
+    expect(variable.indexOf("### Scene template: rs_b (READY")).toBeLessThan(variable.indexOf("### Scene template: rs_a (READY"));
+    expect(variable).not.toContain("### Scene template: rs_c (READY");
+    expect(variable).not.toContain("nope");
+    // supply_demand is CORE: it is in stable already, so never duplicated into variable.
+    expect(stable).toContain("### Scene template: supply_demand (READY");
+    expect(variable).not.toContain("### Scene template: supply_demand (READY");
+    // The router never touches the stable prefix.
+    expect(stable).toBe(catalogParts({ request: "unrelated words" }).stable);
+  });
+  test("an empty shortlist falls back to the keyword selector", () => {
+    fillPastThreshold();
+    addFake("rs_kw");
+    const withEmpty = catalogParts({ request: "Draw the rs_kw thing.", shortlist: [] });
+    expect(withEmpty.variable).toContain("### Scene template: rs_kw (READY");
+    expect(withEmpty).toEqual(catalogParts({ request: "Draw the rs_kw thing." }));
+  });
+});
