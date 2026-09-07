@@ -621,3 +621,36 @@ small. VICE would answer it directly (`x64sc -dos1541 dos.bin` against a
 sample of Archive disks), and VICE is not installed here. That measurement is
 the honest next step, not a ROM hunt.
 
+## M13 (2026-09-07): read at the C++ entry point — there is no side door
+
+Hans asked whether a floppy ROM can be got into vc64web at all. It can, and we
+have done it: the postMessage channel carries a ROM and a disk image, and the
+emulator resets around them. The wall is the FILE, not the channel — and this
+pass read the actual entry point instead of inferring from the JS.
+
+`mainsdl.cpp`, `wasm_loadFile()`: after the D64/G64/PRG/CRT/snapshot branches
+fall through, everything left is tried as a ROM with `new RomFile(blob, len)`.
+That constructor throws for any buffer the signature table does not know, and
+the glue then prints "Failed to read ROM image" and returns `""`. Only if it
+succeeds does the code go on to classify the type — and, for a VC1541 ROM,
+to do the part nothing else does:
+
+```cpp
+wrapper->emu->set(OPT_DRV_CONNECT, true, DRIVE8);
+wrapper->emu->set(OPT_DRV_POWER_SWITCH, true);
+```
+
+So the drive is not merely ROM-less without a recognised image; it is not
+connected or powered at all. That is the `?DEVICE NOT PRESENT` we measured.
+
+Two consequences worth keeping:
+
+- **There is no unchecked path.** `wasm_loadFile` is the only ROM entrance,
+  and the emulator's `{cmd:"script"}` console cannot route around it — the
+  exported surface has no lower-level "load these bytes as a drive ROM".
+  Connecting and powering the drive by hand would give it no code to run.
+- **A viewer's own stored ROM does get the full treatment.** `load_roms(true)`
+  calls this same function, so the connect-and-power step runs for a ROM
+  restored from localStorage exactly as for a freshly dropped one. M9b's
+  conclusion holds at the C++ level, not just the JS.
+
