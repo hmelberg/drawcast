@@ -8,6 +8,7 @@ version: 1
 kit: 9
 status: ready
 engines: [space]
+explore: space
 description: >-
   The Sun and its planets from a curated table and a real ephemeris: seen from
   above with every planet at its TRUE position on its orbit for a date

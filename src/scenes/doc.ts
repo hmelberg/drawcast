@@ -4,7 +4,7 @@
 import { CORE_SCHEMA, load } from "js-yaml";
 import { KIT_VERSION } from "./kit";
 import { KNOWN_ENGINES } from "./engines";
-import { KNOWN_INTERACTIONS, type InteractionKind, type SceneManifest } from "./types";
+import { KNOWN_EXPLORES, KNOWN_INTERACTIONS, type ExploreKind, type InteractionKind, type SceneManifest } from "./types";
 
 export interface TemplateDoc {
   template: string;
@@ -22,6 +22,8 @@ export interface TemplateDoc {
   model3d?: { kind: "molecule"; source: "preset" | "smiles" } | { kind: "anatomy" };
   /** Intrinsic interactions the scene offers while paused (free play, exercises). */
   interactions?: InteractionKind[];
+  /** The explore-tray section this scene carries (body / space); needs the matching engine. */
+  explore?: ExploreKind;
   /** JS function body: (params, kit, engines) => SceneLayout. Required when ready. */
   layout?: string;
   /** Opt-in: widen params_schema (data-schema.ts) at registration so numeric
@@ -100,6 +102,16 @@ export function validateTemplateDoc(raw: unknown): DocResult {
       }
     }
   }
+  if (d.explore !== undefined) {
+    if (typeof d.explore !== "string" || !(d.explore in KNOWN_EXPLORES)) {
+      errors.push(`unknown explore "${String(d.explore)}" — known: ${Object.keys(KNOWN_EXPLORES).join(", ")}`);
+    } else {
+      const engine = KNOWN_EXPLORES[d.explore as ExploreKind];
+      if (!Array.isArray(d.engines) || !(d.engines as unknown[]).includes(engine)) {
+        errors.push(`explore "${d.explore}" needs the "${engine}" engine declared in engines`);
+      }
+    }
+  }
   if (d.model3d !== undefined) {
     if (typeof d.model3d !== "object" || d.model3d === null || Array.isArray(d.model3d)) {
       errors.push("model3d must be an object");
@@ -137,6 +149,7 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     ...(doc.engines && doc.engines.length > 0 ? { engines: doc.engines } : {}),
     ...(doc.model3d ? { model3d: doc.model3d } : {}),
     ...(doc.interactions && doc.interactions.length > 0 ? { interactions: doc.interactions } : {}),
+    ...(doc.explore ? { explore: doc.explore } : {}),
     ...(doc.accepts_data ? { accepts_data: true } : {}),
   };
 }

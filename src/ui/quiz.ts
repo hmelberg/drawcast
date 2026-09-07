@@ -22,12 +22,18 @@ import {
   pianoKeyBox,
   pianoOctaves,
 } from "../render/widgets";
-import { elementBBoxes } from "../layout/layout";
+import { elementBBoxes, elementRings } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
+import { leafDrawables, type TextDrawable } from "../layout/model";
+import { INITIAL_STATE } from "../render/plan";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { getLoadedEngines } from "../scenes/engines";
 import type { ElementsEngine } from "../scenes/elements/types";
+import type { AnatomyEngine } from "../scenes/anatomy/types";
+import { scenes } from "../scenes/registry";
 import { clientPointFor, h, logicalPoint } from "./dom";
+import { hitElement } from "./hit";
+import { partsOf, partsQuizTargets, type Part } from "./parts-model";
 import { chessQuizTargets, periodicQuizTargets, pianoQuizTargets, quizPrompt, type Activity } from "./quiz-model";
 
 const QUIZ_LEN = 5;
@@ -41,6 +47,52 @@ interface Question {
   reveal: string[];
 }
 
+/**
+ * The figure's named parts (parts-model.ts), read off the mounted layout:
+ * the command-addressable boxes, and every drawn word with the top-level
+ * drawable it belongs to — the same walk the info card does, because a
+ * drawn word's owner is only reliable from the drawable tree. Measured with
+ * the browser's own text metrics, once per call; the tray calls it once to
+ * decide whether to offer the drill, the drill once more when it starts.
+ */
+export function partsFor(hd: RenderHandle): Part[] {
+  const ownerOf = new Map<string, string>();
+  for (const top of hd.layout.drawables) for (const leaf of leafDrawables([top])) ownerOf.set(leaf.id, top.id);
+  const texts = leafDrawables(hd.layout.drawables)
+    .filter((d): d is TextDrawable => d.kind === "text")
+    .map((d) => ({ id: d.id, text: d.text, owner: ownerOf.get(d.id) }));
+  return partsOf(hd.spec, { boxes: elementBBoxes(hd.layout, makeBrowserMeasure()), texts, sceneNames: sceneNamesFor(hd) });
+}
+
+/**
+ * Names the SCENE knows for its parts (interactivity spec §6: the knowledge
+ * lives in the template): a body figure's atlas names, in the figure's own
+ * language. That is what lets the drill run with the labels OFF — the
+ * anatomy example that says "let me explore the body myself" draws no
+ * names, and asking "click the liver" there is the whole point. Read off
+ * the manifest's `explore` flag, never the template id.
+ */
+function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
+  const explore = hd.spec.template ? scenes[hd.spec.template]?.manifest.explore : undefined;
+  if (explore !== "body") return [];
+  let eng: AnatomyEngine;
+  try {
+    eng = getLoadedEngines(["anatomy"]).anatomy as AnatomyEngine;
+  } catch {
+    return []; // a body cannot be on screen without its engine, but never throw at a viewer
+  }
+  const p = (hd.spec.params ?? {}) as Record<string, unknown>;
+  const lang = p.names === "nb" || p.names === "la" ? p.names : "en";
+  const sex = p.sex === "female" || p.sex === "male" ? p.sex : "neutral";
+  const all = eng.parts({ systems: ["skeleton", "viscera"], sex });
+  const out: { id: string; name: string }[] = [];
+  for (const id of hd.layout.order) {
+    const part = all[id];
+    if (part) out.push({ id, name: part.name[lang] ?? part.name.en });
+  }
+  return out;
+}
+
 export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activity): void {
   stage.querySelector(".cs-quizgate, .cs-vsgate")?.remove();
   const kind = activity.kind;
@@ -52,6 +104,24 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
   // caches the same map for the same reason).
   let cellBoxes: ReadonlyMap<string, BBox> | null = null;
   const boxes = (): ReadonlyMap<string, BBox> => (cellBoxes ??= elementBBoxes(hd.layout, makeBrowserMeasure()));
+
+  // The generic identify drill's data space: the figure's named parts, their
+  // outlines for the hit test (a liver's box swallows half a lung — hit.ts),
+  // and the words that print their names, hidden while the drill runs so
+  // "find the bridge" is not a reading test, and restored when it ends.
+  const parts: Part[] = kind === "parts" ? partsFor(hd) : [];
+  const partById = new Map(parts.map((p) => [p.id, p]));
+  const rings = kind === "parts" ? elementRings(hd.layout) : undefined;
+  let askable: Part[] = [];
+  let hiddenNames: string[] = [];
+  const hideNames = (): void => {
+    hiddenNames = [...new Set(askable.flatMap((p) => p.nameIds))];
+    hd.timeline.dimElements(hiddenNames, 0);
+  };
+  const showNames = (): void => {
+    hd.timeline.dimElements(hiddenNames, 1);
+    hiddenNames = [];
+  };
 
   const gate = h("div", { class: "cs-figgate cs-quizgate" });
   const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" });
@@ -71,6 +141,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     window.clearTimeout(timer);
     hd.timeline.callbacks.onState = prevOnState;
     hd.timeline.callbacks.onStep = prevOnStep;
+    showNames();
     stage.classList.remove("cs-exploring");
     gate.remove();
   };
@@ -103,11 +174,25 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
 
   /** Where one answer lives on the figure, in logical units. */
   const boxFor = (answer: string): BBox | null =>
-    kind === "chess" ? chessSquareBox(flip, answer) : kind === "piano" ? pianoKeyBox(octaves, answer) : periodicCellBox(boxes(), answer);
+    kind === "parts"
+      ? (partById.get(answer)?.box ?? null)
+      : kind === "chess"
+        ? chessSquareBox(flip, answer)
+        : kind === "piano"
+          ? pianoKeyBox(octaves, answer)
+          : periodicCellBox(boxes(), answer);
 
-  /** The answer under a click, or null off the instrument. */
+  /** The answer under a click, or null off the instrument. For parts: the
+   *  smallest askable part whose outline (or box) contains the click — the
+   *  click ask's own rule, with the same fat-finger slop. */
   const hitAt = (p: [number, number]): string | null =>
-    kind === "chess" ? chessSquareAt(flip, p) : kind === "piano" ? pianoKeyAt(octaves, p) : periodicCellAt(boxes(), p);
+    kind === "parts"
+      ? hitElement(new Map(askable.map((q) => [q.id, q.box])), p, 18, rings)
+      : kind === "chess"
+        ? chessSquareAt(flip, p)
+        : kind === "piano"
+          ? pianoKeyAt(octaves, p)
+          : periodicCellAt(boxes(), p);
 
   /** The steel ring on every cell the question would have accepted. */
   const revealTarget = (): void => {
@@ -141,6 +226,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
 
   const showFinal = (): void => {
     clearMarks();
+    showNames(); // the score is read with the names back on
     hint.textContent = `🎯 ${score}/${questions.length}${score === questions.length ? " — perfect!" : ""}`;
     const again = h("button", { class: "cs-cardgate-pill cs-quiz-again" }, "Again ↻");
     again.addEventListener("click", (e) => {
@@ -166,21 +252,32 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
   };
 
   const start = (): void => {
+    if (kind === "parts") {
+      // Only what is on screen at this boundary can be asked — a part the
+      // storyboard has not drawn yet is not a wrong answer, it is absent.
+      const n = hd.timeline.position;
+      const visible = new Set(n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible);
+      askable = parts.filter((p) => visible.has(p.id));
+    }
     questions =
-      kind === "chess"
-        ? chessQuizTargets(QUIZ_LEN).map((sq) => ({ prompt: quizPrompt("chess", sq), accepts: [sq], reveal: [sq] }))
-        : kind === "piano"
-          ? pianoQuizTargets(QUIZ_LEN, octaves).map((n) => ({ prompt: quizPrompt("piano", n), accepts: [n], reveal: [n] }))
-          : periodicQuizTargets(activity.id, QUIZ_LEN, drawnElements());
+      kind === "parts"
+        ? partsQuizTargets(QUIZ_LEN, askable)
+        : kind === "chess"
+          ? chessQuizTargets(QUIZ_LEN).map((sq) => ({ prompt: quizPrompt("chess", sq), accepts: [sq], reveal: [sq] }))
+          : kind === "piano"
+            ? pianoQuizTargets(QUIZ_LEN, octaves).map((n) => ({ prompt: quizPrompt("piano", n), accepts: [n], reveal: [n] }))
+            : periodicQuizTargets(activity.id, QUIZ_LEN, drawnElements());
     i = 0;
     score = 0;
     if (questions.length === 0) {
       // Nothing this figure can be asked (a table showing one element, a
-      // family drill with no family of two). Say so rather than showing an
-      // empty gate the viewer has to work out for themselves.
-      hint.textContent = "Not enough drawn here to quiz — try the whole table.";
+      // family drill with no family of two, a figure whose named parts are
+      // still undrawn). Say so rather than showing an empty gate the viewer
+      // has to work out for themselves.
+      hint.textContent = kind === "parts" ? "Nothing named is drawn yet — play a little further, then try again." : "Not enough drawn here to quiz — try the whole table.";
       return;
     }
+    if (kind === "parts") hideNames();
     ask();
   };
 

@@ -352,3 +352,14 @@ quiz generator; (5) info card v1 (name + search, then wiki summaries);
 + shallow material search — beginner strength is right for a teaching
 app; Stockfish WASM only if strength is ever actually wanted); long-press
 touch analog as its own later round.
+
+**Amendment (2026-09-07, after the template-on-demand spike).** §9's
+"identify — universal" is now built as such: any figure — template or
+freehand — with at least three named parts (`src/ui/parts-model.ts`:
+named by an attached label, a node's words, a template's `label_<part>`
+text, or the scene itself) carries a "🎯 Find the part" drill in the tray,
+with the names hidden while it runs. Bespoke drills (piano, chess,
+periodic) keep precedence; a figure never shows both. And the explore
+sections (Body, Space) are declared on the manifest (`explore: body |
+space`, each riding on its engine), never sniffed from a template id —
+the same one-source rule §6 set for `interactions`.

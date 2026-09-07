@@ -8,6 +8,7 @@ version: 2
 kit: 8
 status: ready
 engines: [anatomy]
+explore: body
 model3d:
   kind: anatomy
 description: >-

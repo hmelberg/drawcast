@@ -102,6 +102,37 @@ describe("validateTemplateDoc", () => {
   });
 });
 
+describe("explore", () => {
+  const base = () => parseTemplateDoc(GOOD).doc as unknown as Record<string, unknown>;
+  // The explore-tray sections (Body, Space) are declared on the manifest, not
+  // sniffed from a template id, and each rides on its engine.
+  test("a known explore with its engine is accepted and mapped", () => {
+    const d = base();
+    d.engines = ["anatomy"];
+    d.explore = "body";
+    const r = validateTemplateDoc(d);
+    expect(r.errors).toEqual([]);
+    expect(docToManifest(r.doc!).explore).toBe("body");
+  });
+
+  test("an explore without its engine is rejected", () => {
+    const d = base();
+    d.explore = "space";
+    expect(validateTemplateDoc(d).errors[0]).toMatch(/needs the "space" engine/);
+  });
+
+  test("an unknown explore is rejected", () => {
+    const d = base();
+    d.engines = ["anatomy"];
+    d.explore = "kitchen";
+    expect(validateTemplateDoc(d).errors[0]).toMatch(/unknown explore/);
+  });
+
+  test("no explore maps to no field", () => {
+    expect(docToManifest(validateTemplateDoc(base()).doc!).explore).toBeUndefined();
+  });
+});
+
 test("docToManifest maps fields onto SceneManifest", () => {
   const doc = parseTemplateDoc(GOOD).doc!;
   const m = docToManifest(doc);

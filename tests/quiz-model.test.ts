@@ -16,6 +16,17 @@ describe("activitiesFor", () => {
     expect(activitiesFor(["piano", "chess"]).map((a) => a.id)).toEqual(["square_quiz", "vs_computer", "note_quiz"]);
     expect(activitiesFor([])).toEqual([]);
   });
+
+  // The generic identify drill (parts-model.ts): any figure with enough
+  // named parts and NO bespoke interaction gets it — never beside a bespoke
+  // drill, so the row never offers two ways to ask "click the ___".
+  test("named parts imply the generic identify drill, only without a bespoke interaction", () => {
+    expect(activitiesFor([], 3).map((a) => a.id)).toEqual(["parts_quiz"]);
+    expect(activitiesFor([], 3)[0]).toMatchObject({ kind: "parts", label: expect.stringContaining("part") });
+    expect(activitiesFor([], 2)).toEqual([]);
+    expect(activitiesFor(["piano"], 12).map((a) => a.id)).toEqual(["note_quiz"]);
+    expect(activitiesFor(["periodic"], 118).map((a) => a.kind)).toEqual(["periodic", "periodic"]);
+  });
 });
 
 describe("chessQuizTargets", () => {
