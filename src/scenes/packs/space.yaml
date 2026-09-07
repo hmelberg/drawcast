@@ -983,7 +983,7 @@ layout: |
     // the first edge would be a corner of the shape, which is not where anyone
     // means when they point at a constellation.
     conMid[c.abbr] = [(x0 + x1) / 2, (y0 + y1) / 2];
-    conExt[c.abbr] = { e: Math.max(x1 - x0, y1 - y0) / 2, span: (x1 - x0) * (y1 - y0) };
+    conExt[c.abbr] = { hw: (x1 - x0) / 2, hh: (y1 - y0) / 2, span: (x1 - x0) * (y1 - y0) };
   }
   // Which figures leave the `figures` group and become elements of their own.
   const lifted = new Set(markCons);
@@ -1174,18 +1174,29 @@ layout: |
    *  dot under a name is only untidy, and on a star chart unavoidable, but a
    *  name that ran three rings out to dodge two of them no longer reads as
    *  belonging to anything, so a ring costs three dots. `freeOnly` means take a
-   *  spot with no HARD cost or none at all. */
+   *  spot with no HARD cost or none at all.
+   *
+   *  `spotsFn(w)` builds the candidates once the word has been measured, so a
+   *  caller can spread them however that kind of name should be spread — round
+   *  a dot for a body or a star, over the figure's own extent for a
+   *  constellation. A spot may carry its own `hard` and `soft` surcharges for
+   *  anything only the caller can know: what the constellation search adds
+   *  there is the one thing the generic price list cannot see, namely whose
+   *  figure the spot would read as belonging to. */
   const RING_COST = 3;
-  const place = (id, c, e, text, color, dirs, gaps, freeOnly) => {
+  const place = (id, c, text, color, freeOnly, spotsFn) => {
     const w = kit.textWidth(text, LABEL_PX);
-    const reach = e + gaps[gaps.length - 1] + w + LABEL_H + 8;
+    const spots = spotsFn(w);
+    let far = 0;
+    for (const q of spots) far = Math.max(far, Math.max(Math.abs(q.at[0] - c[0]), Math.abs(q.at[1] - c[1])));
+    const reach = far + (w + LABEL_H) / 2 + 8;
     const near = written.filter((t) => boxNear(t, c, reach));
     const dots = discs.filter((t) => boxNear(t, c, reach));
     const segs = nearSegs(c, reach);
     let best = null, bestHard = Infinity, bestSoft = Infinity;
-    for (const q of spotsAround(c, w, e, dirs, gaps)) {
+    for (const q of spots) {
       const bx = boxAt(q.at, w, LABEL_H);
-      let hard = bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0;
+      let hard = (bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0) + (q.hard === undefined ? 0 : q.hard);
       const room = { x: bx.x - TRANSLATED_ROOM / 2, y: bx.y, w: bx.w + TRANSLATED_ROOM, h: bx.h };
       for (const t of near) if (boxHit(room, t, 2)) hard += 100;
       // The core of the ROOM, not of the box: the headroom a translated copy
@@ -1195,7 +1206,7 @@ layout: |
       // line that the English ones cleared.
       const co = coreOf(room);
       for (let j = 0; j < segs.length; j += 2) if (segHit(segs[j], segs[j + 1], co)) hard += 10;
-      let soft = q.ring * RING_COST;
+      let soft = q.ring * RING_COST + (q.soft === undefined ? 0 : q.soft);
       for (const t of dots) if (boxHit(bx, t, 2)) soft += 1;
       if (hard < bestHard || (hard === bestHard && soft < bestSoft)) { best = bx; bestHard = hard; bestSoft = soft; }
       if (hard === 0 && soft === 0) break;
@@ -1218,13 +1229,15 @@ layout: |
     for (let m = 1; m <= 8; m++) { IN.push(m * STEP); if (m < 8) IN.push(-m * STEP); }
     for (const b of bodies) {
       const th0 = Math.atan2(CH.cy - b.at[1], CH.cx - b.at[0]);
-      place("label_" + b.id, b.at, b.r, bodyName(b.id), litBodies.has(b.id) ? C.accent : C.ink, IN.map((d) => th0 + d), [8, 22, 36, 52, 70], false);
+      place("label_" + b.id, b.at, bodyName(b.id), litBodies.has(b.id) ? C.accent : C.ink, false,
+        (w) => spotsAround(b.at, w, b.r, IN.map((d) => th0 + d), [8, 22, 36, 52, 70]));
     }
     for (const d of own) {
       const t = eng.starName(d.s, L);
       if (!t) continue;
       const th0 = Math.atan2(CH.cy - d.at[1], CH.cx - d.at[0]);
-      place("label_" + eng.starId(d.s), d.at, d.r * 1.25, t, litStars.has(d.s.hip) ? C.accent : C.ink, IN.map((x) => th0 + x), [8, 22, 38], true);
+      place("label_" + eng.starId(d.s), d.at, t, litStars.has(d.s.hip) ? C.accent : C.ink, true,
+        (w) => spotsAround(d.at, w, d.r * 1.25, IN.map((x) => th0 + x), [8, 22, 38]));
     }
   }
 
@@ -1237,16 +1250,84 @@ layout: |
   // tests/sky-template.test.ts are what stop "cheapest is to write nothing".
   const showConNames = names !== "none" && (conMode === "both" || conMode === "names" || focusCon !== null);
   if (showConNames) {
+    // A constellation's name belongs ON its own figure, the way an atlas
+    // writes it: in a gap INSIDE the shape, or failing that just past its
+    // edge — and never further. A name allowed to walk outward until it finds
+    // free paper, the way a star's does, lands in the middle of somebody
+    // else's constellation: with that search, 21 of the 39 names on a December
+    // chart sat nearer another figure's middle than their own, "The Great
+    // Bear" 166 units away in Coma Berenices.
+    //   And the rule a reader applies is proximity to LINES, not to boxes. A
+    // spread over the figure's own extent alone still left 10 of the 39 wrong,
+    // because a sprawling figure — Camelopardalis, Lacerta — has a big box
+    // with almost nothing in it, and a name in one of its corners is nearer
+    // the neighbour's stars ("The Giraffe": 52 units from its own lines and 11
+    // from Andromeda's). So a spot nearer another drawn figure's lines than
+    // its own is a HARD cost, and among the honest spots the soft term takes
+    // the one closest to its own lines.
+    const segDist = (s, p) => {
+      const a = s[0], b = s[1], vx = b[0] - a[0], vy = b[1] - a[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / (vx * vx + vy * vy || 1)));
+      return Math.hypot(p[0] - (a[0] + t * vx), p[1] - (a[1] + t * vy));
+    };
+    const near = (segs, p) => {
+      let best = Infinity;
+      for (const s of segs) { const dd = segDist(s, p); if (dd < best) best = dd; }
+      return best;
+    };
+    // "Is any of these lines nearer than d?", with a box reject first and an
+    // exit on the first hit — the question is asked of every neighbour's
+    // every segment at every candidate spot of every name, and the full
+    // distance is only ever needed for the segments that could win.
+    const nearerThan = (segs, p, d) => {
+      for (const s of segs) {
+        const a = s[0], b = s[1];
+        if (p[0] < Math.min(a[0], b[0]) - d || p[0] > Math.max(a[0], b[0]) + d) continue;
+        if (p[1] < Math.min(a[1], b[1]) - d || p[1] > Math.max(a[1], b[1]) + d) continue;
+        if (segDist(s, p) < d) return true;
+      }
+      return false;
+    };
+    // Its middle, then ellipses at a third, two thirds and the whole of the
+    // room its box leaves for a word, and one last ring a line of type OUTSIDE
+    // the box for a figure too small or too solid to hold its own name. A spot
+    // that would read as another figure's costs 40, which on the whole-sky
+    // chart — where a name is written only where it is free — means it is not
+    // written at all. The soft divisor of six makes ten units of distance from
+    // its own lines cost what two star dots under the word cost.
+    const conSpots = (mid, ext, own, others, w) => {
+      const spot = (at) => {
+        const d = near(own, at);
+        return { at: at, ring: 0, soft: d / 6, hard: nearerThan(others, at, d) ? 40 : 0 };
+      };
+      const out = [spot([mid[0], mid[1]])];
+      const hw = Math.max(ext.hw - w / 2, 0), hh = Math.max(ext.hh - LABEL_H / 2, 0);
+      const rings = [[0.34 * hw, 0.34 * hh], [0.68 * hw, 0.68 * hh], [hw, hh], [ext.hw + w / 2 + 8, ext.hh + LABEL_H / 2 + 8]];
+      for (const rr of rings) for (let k = 0; k < 12; k++) {
+        const th = (k * Math.PI) / 6;
+        out.push(spot([mid[0] + rr[0] * Math.cos(th), mid[1] + rr[1] * Math.sin(th)]));
+      }
+      return out;
+    };
+    // Largest figure first: the shape an eye finds first is the one worth
+    // naming, and it gets first refusal on the paper.
     const jobs = drawnCons.slice().sort((a, b) => conExt[b.abbr].span - conExt[a.abbr].span);
-    // Below the figure's middle first, then round the compass from there: the
-    // name of a shape reads as a caption under it, and the middle of a
-    // constellation is exactly where its own lines are.
-    const RING = [0, 1, -1, 2, -2, 3, -3, 4].map((m) => (m * Math.PI) / 4 - Math.PI / 2);
     for (const c of jobs) {
+      const mid = conMid[c.abbr], ext = conExt[c.abbr];
+      // Only the figures whose lines could possibly come nearer this name than
+      // its own do — a box test on their extents, so the comparison stays a
+      // handful of neighbours rather than all 39 that are up.
+      const others = [];
+      for (const o of drawnCons) {
+        if (o.abbr === c.abbr) continue;
+        const om = conMid[o.abbr], oe = conExt[o.abbr];
+        if (Math.abs(om[0] - mid[0]) > ext.hw + oe.hw + 120 || Math.abs(om[1] - mid[1]) > ext.hh + oe.hh + 120) continue;
+        for (const s of segPts[o.abbr]) others.push(s);
+      }
       place(
-        "label_" + eng.conId(c), conMid[c.abbr], Math.min(conExt[c.abbr].e, 90), eng.name(c, L),
-        litCons.has(c.abbr) ? C.accent : C.ink,
-        RING, [6, 22, 40], focusCon === null,
+        "label_" + eng.conId(c), mid, eng.name(c, L),
+        litCons.has(c.abbr) ? C.accent : C.ink, focusCon === null,
+        (w) => conSpots(mid, ext, segPts[c.abbr], others, w),
       );
     }
   }

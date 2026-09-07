@@ -443,6 +443,44 @@ describe("sky_map: names on a crowded chart", () => {
     expect(at({ focus: "UMa", names: "none" })).toBeUndefined();
   });
 
+  test("no name is nearer another figure's lines than its own", () => {
+    // The rule a reader actually applies: a name belongs to whatever is
+    // closest to it. Placing each name in a free spot near its own middle is
+    // not enough — a sprawling figure (Camelopardalis, Lacerta) has a big box
+    // with almost nothing in it, and a name in one of its corners lands on the
+    // neighbour's stars. Measured before the fix, on this one December chart:
+    // 10 of 39 names sat nearer another figure's lines, "The Giraffe" 52 units
+    // from its own and 11 from Andromeda's.
+    const r = win({});
+    const segsBy = new Map<string, [number, number][][]>();
+    for (const s of flattenDrawables(r.drawables).filter((d) => d.id.startsWith("figures__")) as StrokeDrawable[]) {
+      const abbr = s.id.slice("figures__".length).replace(/_\d+$/, "");
+      (segsBy.get(abbr) ?? segsBy.set(abbr, []).get(abbr)!).push(s.pts as [number, number][]);
+    }
+    const segDist = (p: [number, number], a: [number, number], b: [number, number]) => {
+      const vx = b[0] - a[0], vy = b[1] - a[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / (vx * vx + vy * vy || 1)));
+      return Math.hypot(p[0] - (a[0] + t * vx), p[1] - (a[1] + t * vy));
+    };
+    const toFigure = (p: [number, number], abbr: string) =>
+      Math.min(...segsBy.get(abbr)!.map((s) => segDist(p, s[0], s[1])));
+    const wrong: string[] = [];
+    let checked = 0;
+    for (const d of flattenDrawables(r.drawables)) {
+      if (d.kind !== "text" || !d.id.startsWith("label_con_")) continue;
+      const abbr = [...segsBy.keys()].find((k) => k.toLowerCase() === d.id.slice("label_con_".length));
+      expect(abbr, `${d.id} names a figure that is not drawn`).toBeDefined();
+      const own = toFigure(d.pos as [number, number], abbr!);
+      checked++;
+      for (const k of segsBy.keys()) {
+        const dd = toFigure(d.pos as [number, number], k);
+        if (k !== abbr && dd < own) wrong.push(`${d.text} (${abbr}) at ${own.toFixed(0)} is nearer ${k}'s lines at ${dd.toFixed(0)}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+    expect(checked).toBeGreaterThanOrEqual(5);   // …and it checked something
+  });
+
   test("a name is never written where it would cross a line or another name", () => {
     // The same rule lint applies, applied here to the names this layout placed
     // itself — which is the only reason it is allowed to place them.
@@ -547,8 +585,9 @@ describe("sky_map: lint-clean over a year of moments", () => {
     expect(count({}, "figures")).toBe(200);
     expect(count({ constellations: "lines" }, "figures")).toBe(200);
     expect(count({ constellations: "names" }, "figures")).toBe(0);
+    // 11 to 24 names on the 200 charts, 17 on average — measured.
     const named = moments(200).map((time) => lay({ time }).order.filter((id) => id.startsWith("label_con_")).length);
-    expect(Math.min(...named)).toBeGreaterThanOrEqual(15);
+    expect(Math.min(...named)).toBeGreaterThanOrEqual(8);
     expect(count({ mark: ["Orion"] }, "con_ori")).toBeGreaterThan(100);
     // `frame` is drawn only when a figure really was magnified, so this counts
     // the moments each portrait row was a portrait at all.

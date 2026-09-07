@@ -302,17 +302,41 @@ drawn instead; it is never a blank page.
 ## Constellation names: an atlas names what it has room for
 
 Names go on largest figure first — the shape an eye finds first is the one
-worth naming — and only where the name costs NOTHING by the hard/soft price
-list below. A name lying across the lines of the very shape it names is worse
-than no name, so a figure that has no free spot goes unnamed. On a December
-evening over Oslo that still names 24–35 of the 39 figures that are up.
+worth naming — and only where the name costs NOTHING. A name lying across the
+lines of the very shape it names is worse than no name, so a figure with no
+free spot goes unnamed: 11 to 24 of the 39 figures up over Oslo get one across
+the sweep's 200 moments, 17 on average.
 
-A portrait is the one exception: its subject is the whole point of the page, so
-its name takes the cheapest spot rather than only a free one.
+Two things had to be true for those names to mean anything, and the first
+attempt at this had neither.
 
-Because "write nothing" is also lint-clean, the sweep alone cannot justify this
-rule. `tests/sky-template.test.ts` holds the floor: at least five names on the
-default chart, Orion among them, three different words in three languages.
+**A name goes ON its own figure**, not next to it. The star and body searches
+walk outward from a point until they find free paper, and a constellation's
+name walking 90 units out lands in the middle of somebody else's shape:
+measured, on one December chart, 21 of 39 names sat nearer another figure's
+bounding-box middle than their own — "The Great Bear" 166 units away, in Coma
+Berenices. So the candidates are a spread over the figure's OWN extent: its
+middle, ellipses at a third, two thirds and the whole of the room its box
+leaves for a word, and one last ring a line of type outside the box, for a
+figure too small or too solid to hold its own name.
+
+**And the reader's rule is proximity to LINES, not to boxes.** That alone still
+left 10 of 39 wrong, because a sprawling figure — Camelopardalis, Lacerta —
+has a big box with almost nothing in it, and a name in one of its corners is
+nearer the neighbour's stars ("The Giraffe": 52 units from its own lines, 11
+from Andromeda's). So a spot nearer another drawn figure's lines than its own
+carries a HARD cost, which on the whole-sky chart means the name is simply not
+written; and among the honest spots, the soft term prefers the one closest to
+its own lines. `tests/sky-template.test.ts` asserts the zero directly.
+
+A portrait is the one exception to "free or nothing": its subject is the whole
+point of the page, so its name takes the cheapest spot. (It has no neighbours
+to be confused with either, so the ownership cost is vacuous there.)
+
+Because "write nothing" is also lint-clean, the sweep alone cannot justify any
+of this. `tests/sky-template.test.ts` holds the floor: at least five names on
+the default chart, Orion among them, at least eight on every moment of the
+sweep, and three different words in three languages.
 
 ## Labels here: hard cost and soft cost
 
@@ -334,10 +358,10 @@ obstacle shape (`{x, y, w, h}` boxes, `boxHit`, seeded from
 
 A BODY always gets its name and takes the cheapest spot; a STAR, and a
 CONSTELLATION on the whole-sky chart, takes a spot with no hard cost or goes
-unnamed. Candidates aim INWARD first, toward the zenith, where the dome is
-emptiest — outward from a body near the rim runs off the page — except a
-constellation's, which aims BELOW its own middle first, because the middle of a
-constellation is exactly where its own lines are.
+unnamed. A body's and a star's candidates aim INWARD first, toward the zenith,
+where the dome is emptiest — outward from a body near the rim runs off the
+page. A constellation's are a different shape entirely, and the section below
+says why.
 
 The clearance a name reserves is a character wider than the word actually
 written (`TRANSLATED_ROOM`), because `applyTextMap` swaps the words after this
