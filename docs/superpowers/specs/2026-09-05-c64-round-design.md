@@ -518,3 +518,40 @@ Looking for it turned up two formats we had never tried:
 The direct-URL rule now also insists the file name agrees with the type the
 item declares, so a mislabelled item cannot smuggle one format in as another.
 
+## M9b (2026-09-07): the ROM route, read properly
+
+Hans pointed at the wiki again. He is right that embedding, ROM preloading
+and `.d64` autostart are all documented — and reading the code behind those
+pages changes one thing in M9's conclusion.
+
+- **The project supplies no drive ROM, and neither does Open ROMs.** The repo
+  ships three files (`roms/basic_generic.rom`, `kernal_generic.rom`,
+  `chargen_openroms.rom`), and `fetchOpenROMS()` fetches basic, kernal and
+  chargen from mega65.github.io. Their `bin/` folder has no 1541 ROM at all.
+  Every ROM URL in the whole wiki is a `my-site.de/floppy.rom` placeholder,
+  and the base64 example on the ROM page decodes to `97 AA AA` — the original
+  Commodore image. The documented arrangement IS "bring your own".
+- **The emulator has a fourth socket.** The ROM dialog carries `basic`,
+  `kernal`, `charset` and `disk drive rom`, and the disk dialog says so:
+  "no rom-chip in floppy drive installed … Head over to roms setting and
+  provide the rom first."
+- **The load order is what matters, and it is in our favour.** On
+  `MSG_ROM_MISSING` the emulator calls `load_roms(true)` FIRST, which installs
+  whatever `localStorage` holds — including `vc1541_rom.bin` — into the core,
+  and only falls back to `fetchOpenROMS()` if something required is still
+  missing. Our `openROMS=true` does not override an installed ROM. And that
+  storage belongs to vc64web.github.io, the origin our iframe loads.
+
+So: a viewer who drops their own 1541 ROM into that socket once, at
+vc64web.github.io, has it inside drawcast too, and disks would run in our
+frame — real drive emulation, so fast loaders and protection work, unlike the
+free clean-room ROM.
+
+What we do NOT get from that alone: our tray routes by file type, so `.d64`
+picks still go to the Archive's player. Benefiting would need drawcast to
+know the viewer has a ROM — a file field in the tray that stores the ROM on
+our side and injects it with `{cmd:"load", floppy_rom, …}` (the postMessage
+handshake in M9, which we can speak without their script). Offered to Hans,
+not built: it means holding a copyrighted file the viewer supplies, and the
+Archive's own player already plays those disks today.
+
