@@ -69,6 +69,8 @@ export interface CallOpts {
   onDelta?: (delta: string, snapshot: string) => void;
   /** output_config.effort. Omitted means the model's default (high). */
   effort?: "low" | "medium" | "high";
+  /** max_tokens for the reply (thinking included). Default 16000; template authoring needs more. */
+  maxTokens?: number;
 }
 
 /**
@@ -91,7 +93,7 @@ async function createMessage(
   };
   const base = {
     model,
-    max_tokens: 16000,
+    max_tokens: opts.maxTokens ?? 16000,
     system,
     messages,
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),

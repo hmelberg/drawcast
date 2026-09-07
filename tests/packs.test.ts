@@ -24,11 +24,11 @@ import type { SceneLayout } from "../src/scenes/types";
 beforeEach(() => unregisterPack("physics"));
 
 describe("parsePack", () => {
-  test("parses header + four ready templates", () => {
+  test("parses header + six ready templates", () => {
     const { pack, errors } = parsePack(physicsYaml);
     expect(errors).toEqual([]);
     expect(pack?.id).toBe("physics");
-    expect(pack?.templates.map((t) => t.template)).toEqual(["ray_diagram", "wave_diagram", "circuit_diagram", "projectile_motion"]);
+    expect(pack?.templates.map((t) => t.template)).toEqual(PHYSICS_TEMPLATE_IDS);
   });
 
   test("reports YAML errors instead of throwing", () => {
@@ -43,7 +43,7 @@ describe("parsePack", () => {
   });
 });
 
-const PHYSICS_TEMPLATE_IDS = ["ray_diagram", "wave_diagram", "circuit_diagram", "projectile_motion"];
+const PHYSICS_TEMPLATE_IDS = ["ray_diagram", "wave_diagram", "circuit_diagram", "projectile_motion", "bicycle_drivetrain", "hydraulic_press"];
 
 describe("registerPack / unregisterPack", () => {
   test("registers all four templates, tracks ownership, unregisters exactly them", () => {
@@ -461,7 +461,7 @@ describe("biology pack", () => {
     }
   }
 
-  const BIOLOGY_TEMPLATE_IDS = ["membrane_bilayer", "dna_helix", "phylo_tree", "pathway", "punnett_square", "food_web"];
+  const BIOLOGY_TEMPLATE_IDS = ["membrane_bilayer", "dna_helix", "phylo_tree", "pathway", "punnett_square", "food_web", "flower_anatomy", "water_cycle"];
 
   test("parses and registers six templates in brief order", () => {
     const r = registerPack("biology", biologyYaml);
@@ -2644,7 +2644,7 @@ describe("hta pack", () => {
 describe("music pack", () => {
   beforeEach(() => unregisterPack("music"));
 
-  const TEMPLATE_IDS = ["note_sheet", "piano_keys"];
+  const TEMPLATE_IDS = ["note_sheet", "piano_keys", "violin_anatomy"];
 
   test("registers note_sheet and piano_keys", () => {
     const r = registerPack("music", musicYaml);

@@ -188,6 +188,9 @@ export async function generateTemplate(description: string, image: AuthorImage |
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object, {
         signal: cfg.signal,
         effort: isRepair ? "low" : undefined,
+        // A template document is a whole program: Opus with thinking on
+        // overran the 16k default on the first real topic (spike 2026-09-07).
+        maxTokens: 32000,
         onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ round: rounds.length + 1, text })),
       });
       // Validate first (cheap), await any declared engines BEFORE the full

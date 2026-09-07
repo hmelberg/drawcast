@@ -1,6 +1,6 @@
 pack: physics
 title: Physics
-description: Optics ray diagrams and wave diagrams — classroom physics figures with computed geometry.
+description: Optics ray diagrams, wave diagrams, circuits, projectiles, a bicycle drivetrain and a hydraulic press — classroom physics figures with computed geometry.
 ---
 template: ray_diagram
 title: Lens ray diagram
@@ -494,3 +494,380 @@ layout: |
   }
 
   return { drawables, labels, anchors, order };
+---
+template: bicycle_drivetrain
+title: Bicycle drivetrain & gear ratio
+version: 1
+kit: 1
+status: ready
+description: 'A side view of a bicycle drivetrain: a toothed front chainring and a smaller rear cog (sprocket) drawn at their correct relative sizes, joined by a chain that runs along both external tangents, plus the pedal crank, the rear wheel rim with spokes, force/speed arrows, and a gear-ratio caption. Choose this for anything about bicycle gears, gear ratios, chainrings, cassettes, cogs, sprockets, derailleurs, mechanical advantage on a bike, or why a small chainring with a big cog is easier to pedal than a big chainring with a small cog. Teeth counts are params, so you can show a climbing gear vs a top gear by re-rendering with different numbers.'
+params:
+  type: object
+  properties:
+    front_teeth:
+      type: integer
+      description: Teeth on the front chainring (default 52). Sizes are drawn in proportion to the two teeth counts.
+      minimum: 7
+      maximum: 80
+    rear_teeth:
+      type: integer
+      description: Teeth on the rear cog / sprocket (default 16).
+      minimum: 7
+      maximum: 80
+    show_chain:
+      type: boolean
+      description: Draw the chain wrapping both sprockets (default true).
+    show_crank:
+      type: boolean
+      description: Draw the pedal crank arm and pedal (default true).
+    show_arrows:
+      type: boolean
+      description: Draw the pedal force arrow and the rear-wheel rotation/speed arrow (default true). Turn off for a plain mechanical diagram.
+    show_wheel:
+      type: boolean
+      description: Draw the faint rear wheel rim and spokes behind the cog for context (default true).
+    show_teeth:
+      type: boolean
+      description: Draw individual teeth on both sprockets (default true).
+    show_ratio:
+      type: boolean
+      description: Show the gear-ratio caption at the bottom (default true).
+    front_label:
+      type: string
+      description: Label for the chainring (default "52T chainring" from front_teeth).
+    rear_label:
+      type: string
+      description: Label for the rear cog (default "16T rear cog" from rear_teeth).
+    chain_label:
+      type: string
+      description: Label for the chain (default "Chain").
+    crank_label:
+      type: string
+      description: Label for the crank arm (default "Crank arm").
+    pedal_label:
+      type: string
+      description: Label for the pedal force arrow (default "Pedal force").
+    wheel_label:
+      type: string
+      description: Label for the rear-wheel speed arrow (default "Wheel turns N× per pedal turn").
+    ratio_caption:
+      type: string
+      description: Override the bottom gear-ratio caption text.
+element_ids:
+  wheel_rim: faint rear wheel rim arc
+  spokes: the rear wheel spokes (one group)
+  chainring: front chainring pitch circle
+  chainring_teeth: the chainring's teeth (one group)
+  chainring_hub: crank axle / bottom bracket circle
+  cog: rear cog pitch circle
+  cog_teeth: the rear cog's teeth (one group)
+  cog_hub: rear axle circle
+  chain: the closed chain loop around both sprockets
+  chain_links: the chain link ticks along the two straight runs (one group)
+  crank: the crank arm
+  pedal: the pedal at the end of the crank
+  pedal_arrow: downward force arrow at the pedal
+  wheel_arrow: curved rotation/speed arrow around the rear wheel
+  ratio_caption: the gear-ratio caption text at the bottom
+  label_front / label_rear / label_chain / label_crank / label_pedal_force / label_wheel: the name labels
+examples:
+  - request: Draw a bike drivetrain and explain what a gear ratio is.
+    params: {}
+  - request: Why is a small chainring with a big cog easier to pedal? Show a climbing gear.
+    params:
+      front_teeth: 34
+      rear_teeth: 28
+      show_arrows: true
+      pedal_label: Less force needed
+      wheel_label: Wheel turns only 1.21× per pedal turn
+layout: |-
+  const P=params||{};
+  const C=kit.COLORS,MS=kit.SKETCH_MS;
+  const cl=(v,d)=>{const n=Math.round(Number(v));return Number.isFinite(n)?Math.max(7,Math.min(80,n)):d;};
+  const front=cl(P.front_teeth??52,52);
+  const rear=cl(P.rear_teeth??16,16);
+  const showChain=P.show_chain!==false;
+  const showCrank=P.show_crank!==false;
+  const showArrows=P.show_arrows!==false;
+  const showWheel=P.show_wheel!==false;
+  const showTeeth=P.show_teeth!==false;
+  const showRatio=P.show_ratio!==false;
+  const ratio=front/rear;
+  const rs=String(Math.round(ratio*100)/100);
+  const drawables=[],labels=[],anchors={},order=[];
+  const push=(d)=>{drawables.push(d);order.push(d.id);};
+  const lab=(id,a,side,t,color,fs)=>{if(!t)return;labels.push(kit.label(id,a,side,t,{color:color,fontSize:fs??24}));order.push(id);};
+  const rad=(deg)=>deg*Math.PI/180;
+  const k=135/Math.max(front,rear);
+  const r1=Math.max(24,front*k),r2=Math.max(24,rear*k);
+  const c1=[368,400],c2=[762,400];
+  anchors.chainring=c1;anchors.cog=c2;
+
+  const rimR=208;
+  if(showWheel){
+    push(kit.stroke("wheel_rim",kit.arc(c2,rimR,rad(102),rad(-102),46),{color:C.guide,strokeWidth:2.5,ms:MS.curve}));
+    const spokes=[];
+    [80,40,0,-40,-80].forEach((deg,i)=>{
+      const th=rad(deg);
+      spokes.push(kit.stroke("spoke_"+i,[[c2[0]+(r2+7)*Math.cos(th),c2[1]+(r2+7)*Math.sin(th)],[c2[0]+rimR*Math.cos(th),c2[1]+rimR*Math.sin(th)]],{color:C.guide,strokeWidth:1.8,ms:MS.guides}));
+    });
+    push(kit.group("spokes",spokes));
+    anchors.wheel=[c2[0]+rimR*Math.cos(rad(45)),c2[1]+rimR*Math.sin(rad(45))];
+  }
+
+  push(kit.stroke("chainring",[c1],{shapeHint:{type:"circle",c:c1,r:r1},strokeWidth:4.5,ms:MS.node}));
+  if(showTeeth){
+    const t=[];const n=Math.min(front,72);
+    for(let i=0;i<n;i++){const th=(i/n)*2*Math.PI;t.push(kit.stroke("ct_"+i,[[c1[0]+r1*Math.cos(th),c1[1]+r1*Math.sin(th)],[c1[0]+(r1+10)*Math.cos(th),c1[1]+(r1+10)*Math.sin(th)]],{strokeWidth:2.5,ms:MS.dot}));}
+    push(kit.group("chainring_teeth",t));
+  }
+  push(kit.stroke("chainring_hub",[c1],{shapeHint:{type:"circle",c:c1,r:13},strokeWidth:3,ms:MS.dot}));
+  lab("label_front",[c1[0],c1[1]+r1+14],"above",P.front_label??(front+"T chainring"),C.ink,26);
+
+  push(kit.stroke("cog",[c2],{shapeHint:{type:"circle",c:c2,r:r2},strokeWidth:4.5,ms:MS.node}));
+  if(showTeeth){
+    const t=[];const n=Math.min(rear,72);
+    for(let i=0;i<n;i++){const th=(i/n)*2*Math.PI;t.push(kit.stroke("rt_"+i,[[c2[0]+r2*Math.cos(th),c2[1]+r2*Math.sin(th)],[c2[0]+(r2+9)*Math.cos(th),c2[1]+(r2+9)*Math.sin(th)]],{strokeWidth:2.5,ms:MS.dot}));}
+    push(kit.group("cog_teeth",t));
+  }
+  push(kit.stroke("cog_hub",[c2],{shapeHint:{type:"circle",c:c2,r:10},strokeWidth:3,ms:MS.dot}));
+  lab("label_rear",[c2[0],c2[1]+r2+14],"above",P.rear_label??(rear+"T rear cog"),C.ink,26);
+
+  const d=Math.hypot(c2[0]-c1[0],c2[1]-c1[1]);
+  const alpha=Math.atan2(c2[1]-c1[1],c2[0]-c1[0]);
+  const gamma=Math.acos(Math.max(-1,Math.min(1,(r1-r2)/d)));
+  const aUp=alpha+gamma,aLo=alpha-gamma;
+  const p1u=[c1[0]+r1*Math.cos(aUp),c1[1]+r1*Math.sin(aUp)];
+  const p2u=[c2[0]+r2*Math.cos(aUp),c2[1]+r2*Math.sin(aUp)];
+  const p1l=[c1[0]+r1*Math.cos(aLo),c1[1]+r1*Math.sin(aLo)];
+  const p2l=[c2[0]+r2*Math.cos(aLo),c2[1]+r2*Math.sin(aLo)];
+  if(showChain){
+    const chainPts=[p1u].concat(kit.arc(c2,r2,aUp,aLo,20)).concat(kit.arc(c1,r1,aLo,aUp-2*Math.PI,30));
+    push(kit.stroke("chain",chainPts,{closed:true,strokeWidth:3.5,ms:MS.curve}));
+    const links=[];
+    [[p1u,p2u],[p1l,p2l]].forEach((rn,ri)=>{
+      const a=rn[0],b=rn[1];
+      const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
+      const nx=-(b[1]-a[1])/L,ny=(b[0]-a[0])/L;
+      const n=Math.max(3,Math.round(L/28));
+      for(let i=1;i<n;i++){
+        const t=i/n,qx=a[0]+(b[0]-a[0])*t,qy=a[1]+(b[1]-a[1])*t;
+        links.push(kit.stroke("chain_link_"+ri+"_"+i,[[qx+nx*5,qy+ny*5],[qx-nx*5,qy-ny*5]],{strokeWidth:2.5,ms:MS.dot}));
+      }
+    });
+    push(kit.group("chain_links",links));
+    anchors.chain=[(p1u[0]+p2u[0])/2,(p1u[1]+p2u[1])/2];
+    lab("label_chain",[(p1u[0]+p2u[0])/2,(p1u[1]+p2u[1])/2+8],"above",P.chain_label??"Chain",C.ink,24);
+  }
+
+  if(showCrank){
+    const cAng=rad(-100);
+    const L=r1+58;
+    const pd=[c1[0]+L*Math.cos(cAng),c1[1]+L*Math.sin(cAng)];
+    push(kit.stroke("crank",[c1,pd],{color:C.accent,strokeWidth:9,ms:MS.stroke}));
+    const px=-Math.sin(cAng),py=Math.cos(cAng);
+    push(kit.stroke("pedal",[[pd[0]+px*26,pd[1]+py*26],[pd[0]-px*26,pd[1]-py*26]],{color:C.accent,strokeWidth:10,ms:MS.stroke}));
+    anchors.pedal=pd;
+    lab("label_crank",[(c1[0]+pd[0])/2-16,(c1[1]+pd[1])/2],"left",P.crank_label??"Crank arm",C.accent,24);
+    if(showArrows){
+      const a0=[pd[0],pd[1]-18],a1=[pd[0],pd[1]-104];
+      push(kit.stroke("pedal_arrow",[a0,a1],{color:C.demand,strokeWidth:4,arrowhead:"end",ms:MS.connector}));
+      anchors.pedal_arrow=a1;
+      lab("label_pedal_force",a1,"left",P.pedal_label??"Pedal force",C.demand,24);
+    }
+  }
+
+  if(showArrows){
+    const ar=Math.min(172,r2+64);
+    const pts=kit.arc(c2,ar,rad(62),rad(-62),24);
+    push(kit.stroke("wheel_arrow",pts,{color:C.supply,strokeWidth:4,arrowhead:"end",ms:MS.connector}));
+    const tip=pts[pts.length-1];
+    anchors.wheel_arrow=tip;
+    lab("label_wheel",tip,"below-right",P.wheel_label??("Wheel turns "+rs+"\u00d7 per pedal turn"),C.supply,24);
+  }
+
+  if(showRatio){
+    const cap=P.ratio_caption??(front+"T : "+rear+"T  =  "+rs+" wheel turns per pedal turn");
+    push(kit.text("ratio_caption",[500,46],cap,{fontSize:30}));
+    anchors.ratio=[500,46];
+  }
+
+  return {drawables,labels,anchors,order};
+---
+template: hydraulic_press
+title: Hydraulic press (Pascal's principle)
+version: 1
+kit: 1
+status: ready
+description: 'A hydraulic press / lift / jack in cross-section: two connected cylinders of different bore joined by a fluid-filled channel, a small input piston pushed down by a force arrow and a wide output piston carrying a load block, with area labels (A₁, A₂), force labels, an optional displacement mark (d₁ down, d₂ = d₁/ratio up) and an optional pressure equation P = F₁/A₁ = F₂/A₂. Choose this scene for any request about hydraulic presses, hydraulic lifts, jacks, brakes, Pascal''s principle / Pascal''s law, pressure transmitted equally through a fluid, force multiplication, or ''why can a small force lift a heavy load''. The piston width ratio follows √(area ratio), since the drawing is a cross-section of round cylinders.'
+params:
+  type: object
+  properties:
+    areaRatio:
+      type: number
+      description: Output piston area divided by input piston area, A₂/A₁ (default 4). Clamped to 1.2–12 for drawability; the drawn bore ratio is its square root.
+    inputForce:
+      type: number
+      description: Numeric value of the input force applied to the small piston (default 100). Output force is shown as inputForce × areaRatio.
+    forceUnit:
+      type: string
+      description: Unit shown after force values (default "N").
+    showValues:
+      type: boolean
+      description: Show numeric force values and the numeric area relation (default true). Set false for a purely symbolic figure with just F₁, F₂, A₁, A₂.
+    inputLabel:
+      type: string
+      description: Symbol for the input force (default "F₁").
+    outputLabel:
+      type: string
+      description: Symbol for the output force / lifted load (default "F₂").
+    smallAreaLabel:
+      type: string
+      description: Label for the small piston area (default "A₁").
+    largeAreaLabel:
+      type: string
+      description: Label for the large piston area (default "A₂").
+    loadLabel:
+      type: string
+      description: Text written inside the load block on the big piston (default "Load"; e.g. "Car", "1000 kg").
+    fluidLabel:
+      type: string
+      description: Label for the fluid in the connecting channel (default "Incompressible fluid"). Empty string hides it.
+    title:
+      type: string
+      description: Optional caption across the top of the figure (e.g. "Hydraulic jack"). Empty by default.
+    showDisplacement:
+      type: boolean
+      description: 'Show the displacement marks: the small piston travels d₁ down while the large piston rises only d₂ = d₁/ratio (default false). Use it when explaining that work is conserved.'
+    showEquation:
+      type: boolean
+      description: Show the pressure equation lines P = F₁/A₁ = F₂/A₂ (and the numeric output force) at the top (default true).
+element_ids:
+  ground / ground_line: hatched ground the press rests on
+  vessel_outer / vessel_inner: the two walls of the connected cylinders
+  fluid: the shaded fluid filling the channel and both bores
+  piston_small / piston_small_fill: the narrow input piston
+  rod_small / plate_small: the input piston rod and its push plate
+  piston_large / piston_large_fill: the wide output piston
+  load / load_fill / load_text: the load block resting on the big piston
+  force_in: the downward input force arrow
+  force_out: the upward output force arrow above the load
+  displacement: group of dashed levels and d₁/d₂ travel arrows (optional)
+  eq_pressure / eq_force / eq_dist: the pressure, force and distance equation lines
+  title: optional caption
+  label_force_in / label_force_out / label_area_small / label_area_large / label_fluid / label_d1 / label_d2: the collision-solved name labels
+examples:
+  - request: Draw a hydraulic press and show why a small force can lift a heavy load.
+    params: {}
+  - request: 'Explain Pascal''s principle with a hydraulic jack lifting a car: 50 N input, area ratio 10, show the distances each piston moves.'
+    params:
+      areaRatio: 10
+      inputForce: 50
+      loadLabel: Car
+      showDisplacement: true
+      title: Hydraulic jack
+layout: |-
+  const C=kit.COLORS,MS=kit.SKETCH_MS;
+  const drawables=[],labels=[],anchors={},order=[];
+  const push=(d)=>{drawables.push(d);order.push(d.id);};
+  const addLabel=(id,at,side,text,o)=>{labels.push(kit.label(id,at,side,text,o||{}));order.push(id);};
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const rawR=Number(params.areaRatio);
+  const r=clamp(Number.isFinite(rawR)&&rawR>0?rawR:4,1.2,12);
+  const unit=params.forceUnit??"N";
+  const showValues=params.showValues!==false;
+  const rawF=Number(params.inputForce);
+  const F1=Number.isFinite(rawF)?rawF:100;
+  const F2=F1*r;
+  const l1=params.inputLabel??"F₁";
+  const l2=params.outputLabel??"F₂";
+  const a1=params.smallAreaLabel??"A₁";
+  const a2=params.largeAreaLabel??"A₂";
+  const loadLabel=params.loadLabel??"Load";
+  const fluidLabel=params.fluidLabel??"Incompressible fluid";
+  const title=params.title??"";
+  const showD=params.showDisplacement===true;
+  const showEq=params.showEquation!==false;
+  const fmt=(v)=>String(Math.round(v*10)/10);
+
+  const w1=96;
+  const w2=clamp(w1*Math.sqrt(r),130,300);
+  const xs=250,xl=690;
+  const xsL=xs-w1/2,xsR=xs+w1/2;
+  const xlL=xl-w2/2,xlR=xl+w2/2;
+  const yBot=120,yBase=200;
+  const topS=560,topL=410;
+  const ysP=430,ysT=ysP+22;
+  const ylP=360,ylT=ylP+26;
+  const plateY=585;
+  const rectPts=(x0,y0,x1,y1)=>[[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
+
+  const gy=yBot-2;
+  push(kit.stroke("ground_line",[[xsL-46,gy],[xlR+46,gy]],{color:C.guide,strokeWidth:2.5,ms:MS.guides}));
+  const gticks=kit.hatch([xsL-36,gy],[xlR+36,gy],22,18,-1).map((s,i)=>kit.stroke("ground_h"+i,s,{color:C.guide,strokeWidth:2,ms:MS.guides}));
+  push(kit.group("ground",gticks));
+
+  push(kit.stroke("vessel_outer",[[xsL,topS],[xsL,yBot],[xlR,yBot],[xlR,topL]],{strokeWidth:5,ms:MS.stroke}));
+  push(kit.stroke("vessel_inner",[[xsR,topS],[xsR,yBase],[xlL,yBase],[xlL,topL]],{strokeWidth:5,ms:MS.stroke}));
+
+  const fluidPts=[[xsL,ysP],[xsL,yBot],[xlR,yBot],[xlR,ylP],[xlL,ylP],[xlL,yBase],[xsR,yBase],[xsR,ysP]];
+  push(kit.area("fluid",fluidPts,C.supply,{opacity:0.25,ms:MS.region}));
+
+  push(kit.area("piston_small_fill",rectPts(xsL,ysP,xsR,ysT),C.ink,{opacity:0.18,ms:MS.region}));
+  push(kit.stroke("piston_small",rectPts(xsL,ysP,xsR,ysT),{closed:true,strokeWidth:4,ms:MS.node}));
+  push(kit.stroke("rod_small",[[xs,ysT],[xs,plateY]],{strokeWidth:4,ms:MS.connector}));
+  push(kit.stroke("plate_small",[[xs-42,plateY],[xs+42,plateY]],{strokeWidth:4,ms:MS.connector}));
+
+  push(kit.area("piston_large_fill",rectPts(xlL,ylP,xlR,ylT),C.ink,{opacity:0.18,ms:MS.region}));
+  push(kit.stroke("piston_large",rectPts(xlL,ylP,xlR,ylT),{closed:true,strokeWidth:4,ms:MS.node}));
+
+  const bw=Math.min(w2*0.78,230),bh=82;
+  const by0=ylT,by1=ylT+bh;
+  push(kit.area("load_fill",rectPts(xl-bw/2,by0,xl+bw/2,by1),C.accent,{opacity:0.18,ms:MS.region}));
+  push(kit.stroke("load",rectPts(xl-bw/2,by0,xl+bw/2,by1),{closed:true,color:C.accent,strokeWidth:4,ms:MS.node}));
+  if(loadLabel)push(kit.text("load_text",[xl,by0+bh/2],loadLabel,{fontSize:28,color:C.accent}));
+
+  push(kit.stroke("force_in",[[xs,690],[xs,plateY+8]],{arrowhead:"end",color:C.demand,strokeWidth:5,ms:MS.connector}));
+  addLabel("label_force_in",[xs-8,644],"left",showValues?l1+" = "+fmt(F1)+" "+unit:l1,{color:C.demand,fontSize:28});
+  push(kit.stroke("force_out",[[xl,by1+8],[xl,by1+78]],{arrowhead:"end",color:C.accent,strokeWidth:5,ms:MS.connector}));
+  addLabel("label_force_out",[xl+10,by1+48],"right",showValues?l2+" = "+fmt(F2)+" "+unit:l2,{color:C.accent,fontSize:28});
+
+  addLabel("label_area_small",[xs,ysP+11],"right",a1,{color:C.ink,fontSize:26});
+  addLabel("label_area_large",[xl,ylP+13],"left",showValues?a2+" = "+fmt(r)+" × "+a1:a2,{color:C.ink,fontSize:26});
+  if(fluidLabel)addLabel("label_fluid",[470,178],"above",fluidLabel,{color:C.supply,fontSize:24});
+
+  if(showD){
+    const d1=70,d2=70/r;
+    const kids=[];
+    kids.push(kit.stroke("disp_s_now",[[xsL-50,ysT],[xsL,ysT]],{dash:true,color:C.guide,strokeWidth:2,ms:MS.guides}));
+    kids.push(kit.stroke("disp_s_next",[[xsL-50,ysT-d1],[xsR+10,ysT-d1]],{dash:true,color:C.guide,strokeWidth:2,ms:MS.guides}));
+    kids.push(kit.stroke("disp_s_arrow",[[xsL-32,ysT],[xsL-32,ysT-d1]],{arrowhead:"end",color:C.guide,strokeWidth:2.5,ms:MS.connector}));
+    kids.push(kit.stroke("disp_l_now",[[xlR,ylT],[xlR+50,ylT]],{dash:true,color:C.guide,strokeWidth:2,ms:MS.guides}));
+    kids.push(kit.stroke("disp_l_next",[[xlL-10,ylT+d2],[xlR+50,ylT+d2]],{dash:true,color:C.guide,strokeWidth:2,ms:MS.guides}));
+    kids.push(kit.stroke("disp_l_arrow",[[xlR+32,ylT],[xlR+32,ylT+d2]],{arrowhead:"end",color:C.guide,strokeWidth:2.5,ms:MS.connector}));
+    push(kit.group("displacement",kids));
+    addLabel("label_d1",[xsL-36,ysT-d1/2],"left","d₁",{color:C.guide,fontSize:26});
+    addLabel("label_d2",[xlR+36,ylT+d2/2],"right","d₂",{color:C.guide,fontSize:26});
+    anchors.d1=[xsL-32,ysT-d1/2];
+    anchors.d2=[xlR+32,ylT+d2/2];
+  }
+
+  if(showEq){
+    push(kit.text("eq_pressure",[452,662],"P = "+l1+"/"+a1+" = "+l2+"/"+a2,{fontSize:30,color:C.ink}));
+    if(showValues)push(kit.text("eq_force",[452,622],l2+" = "+fmt(r)+" × "+l1+" = "+fmt(F2)+" "+unit,{fontSize:26,color:C.accent}));
+    if(showD)push(kit.text("eq_dist",[452,586],"d₂ = d₁ / "+fmt(r),{fontSize:26,color:C.guide}));
+    anchors.equation=[452,662];
+  }
+  if(title)push(kit.text("title",[500,716],title,{fontSize:32}));
+
+  anchors.piston_small=[xs,ysP+11];
+  anchors.piston_large=[xl,ylP+13];
+  anchors.fluid=[470,160];
+  anchors.load=[xl,by0+bh/2];
+  anchors.force_in=[xs,644];
+  anchors.force_out=[xl,by1+45];
+  anchors.small_cylinder=[xs,ysP+70];
+  anchors.large_cylinder=[xl,ylP-70];
+  anchors.channel=[470,160];
+
+  return {drawables,labels,anchors,order};
