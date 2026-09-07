@@ -575,11 +575,18 @@ class SvgElementHandle implements RenderedElement {
   private leaves: LeafHandle[];
   private cumulative: number[];
   private groups: SVGGElement[];
+  /** Per-leaf node `setOpacity` targets: the leaf's own `<g>` for stroke/area
+   *  (whose reveal never touches that node's opacity — see makeLeafHandle),
+   *  or a dedicated wrapper `<g>` ABOVE it for text/image (whose reveal DOES
+   *  write that node's `style.opacity` every frame, which would otherwise
+   *  clobber a persistent fade). See buildNodes' `fadeNode`. */
+  private fadeGroups: SVGGElement[];
 
-  constructor(id: string, leaves: LeafHandle[], groups: SVGGElement[]) {
+  constructor(id: string, leaves: LeafHandle[], groups: SVGGElement[], fadeGroups: SVGGElement[]) {
     this.id = id;
     this.leaves = leaves;
     this.groups = groups;
+    this.fadeGroups = fadeGroups;
     this.cumulative = [];
     let acc = 0;
     for (const l of leaves) {
@@ -610,11 +617,16 @@ class SvgElementHandle implements RenderedElement {
   }
 
   /** Persistent opacity (the `opacity` ATTRIBUTE, not CSS) — the fade verb's
-   *  store. Kept independent of the focus effect's `style.opacity` on leaf
-   *  nodes, so ending a focus never undoes a fade, and a fade layers under
-   *  whatever transient dimming focus applies on top. */
+   *  store, applied to fadeGroups (see its doc comment). Kept independent of
+   *  the focus effect's `style.opacity` on leaf nodes: for stroke/area that
+   *  attribute and the leaf's style compose by CSS's normal override+revert
+   *  (style wins while focus is active, and removing it on endFocus falls
+   *  back to this attribute); for text/image the wrapper's attribute and the
+   *  leaf's style are on DIFFERENT nodes, so SVG's nested-opacity compositing
+   *  multiplies them instead — either way, ending a focus never undoes a
+   *  fade, and a fade layers under whatever transient dimming focus applies. */
   setOpacity(alpha: number): void {
-    for (const g of this.groups) {
+    for (const g of this.fadeGroups) {
       if (alpha >= 1) g.removeAttribute("opacity");
       else g.setAttribute("opacity", Math.max(0, alpha).toFixed(3));
     }
@@ -885,19 +897,32 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       // duplicating the loop.
       const buildNodes = (
         l: LayoutResult,
-        into: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
+        into: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[]>,
         visible?: ReadonlySet<string>,
         offsets?: Record<string, Pt>,
       ) => {
         for (const id of l.order) {
           if (visible && !visible.has(id)) continue;
           const parts = drawablesForId(l.drawables, id);
-          const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[] = [];
+          const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[] = [];
           for (const leaf of leafDrawables(parts)) {
             const g = drawLeaf(rc, leaf);
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
             if (dx !== 0 || dy !== 0) g.setAttribute("transform", `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+            // Text/image leaves settle their OWN reveal (and, for images,
+            // every tween frame) as `g.style.opacity` — see makeLeafHandle —
+            // which would silently override a persistent fade's `opacity`
+            // ATTRIBUTE if fade also targeted `g`. So those two kinds get an
+            // extra wrapper `<g>` that fade targets instead (SvgElementHandle's
+            // fadeGroups), leaving `g`'s own opacity entirely to the leaf's
+            // reveal/focus; the two nest, so SVG's opacity compositing
+            // multiplies them. Stroke/area leaves have no such conflict
+            // (their reveal never touches `g`'s opacity) and fade targets `g`
+            // directly, exactly as before.
+            const fadeNode: SVGGElement =
+              leaf.kind === "text" || leaf.kind === "image" ? (document.createElementNS(SVG_NS, "g") as SVGGElement) : g;
+            if (fadeNode !== g) fadeNode.appendChild(g);
             // A clipped leaf scrolls INSIDE a fixed window: the clip sits on
             // a static wrapper, the offset transform stays on the leaf's own
             // group (the handle's setOffset targets that one), so the window
@@ -905,18 +930,18 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
             if (leaf.clip) {
               const wrap = document.createElementNS(SVG_NS, "g") as SVGGElement;
               wrap.setAttribute("clip-path", `url(#${clipFor(leaf.clip)})`);
-              wrap.appendChild(g);
+              wrap.appendChild(fadeNode);
               layers[z].appendChild(wrap);
             } else {
-              layers[z].appendChild(g);
+              layers[z].appendChild(fadeNode);
             }
-            entry.push({ g, leaf });
+            entry.push({ g, leaf, fadeNode });
           }
           into.set(id, entry);
         }
       };
 
-      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>();
+      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[]>();
       buildNodes(layout, leafNodes);
 
       container.appendChild(svg);
@@ -928,7 +953,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       // Handles need the nodes in the DOM (getTotalLength).
       const elements = new Map<string, RenderedElement>();
       for (const [id, entry] of leafNodes) {
-        elements.set(id, new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g)));
+        elements.set(
+          id,
+          new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g), entry.map(({ fadeNode }) => fadeNode)),
+        );
       }
 
       return {
@@ -957,7 +985,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           nudgeTextsIntoCanvas(svg);
           const els = new Map<string, RenderedElement>();
           for (const [id, entry] of leafNodes) {
-            els.set(id, new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g)));
+            els.set(
+              id,
+              new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g), entry.map(({ fadeNode }) => fadeNode)),
+            );
           }
           return els;
         },
