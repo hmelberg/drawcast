@@ -1552,6 +1552,9 @@ layout: |-
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const rot = (p, c, a) => { const dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * Math.cos(a) - dy * Math.sin(a), c[1] + dx * Math.sin(a) + dy * Math.cos(a)]; };
   const lerp = (a, b, u) => a + (b - a) * u;
+  // Piece 0's own apex/delta, hoisted so radius_line/label_r can track it
+  // with the SAME interpolation the piece uses (never computed twice).
+  let apex0 = null, delta0 = 0;
   for (let k = 0; k < n; k++) {
     const a0 = k * step, a1 = (k + 1) * step, mid = (a0 + a1) / 2;
     const up = k % 2 === 0;
@@ -1562,6 +1565,7 @@ layout: |-
     const apexTo = [x0 + k * s, rectCy + (up ? -R / 2 : R / 2)];
     const angle = delta * t;
     const apex = [lerp(CIRCLE[0], apexTo[0], t), lerp(CIRCLE[1], apexTo[1], t)];
+    if (k === 0) { apex0 = apex; delta0 = delta; }
     const pts = [CIRCLE];
     const steps = 20;
     for (let i = 0; i <= steps; i++) { const a = a0 + (step * i) / steps; pts.push([CIRCLE[0] + R * Math.cos(a), CIRCLE[1] + R * Math.sin(a)]); }
@@ -1576,11 +1580,15 @@ layout: |-
     anchors[id] = [cm[0] + apex[0] - CIRCLE[0], cm[1] + apex[1] - CIRCLE[1]];
   }
   if (showRadius) {
-    const a = t < 0.5 ? half : Math.PI / 2;
-    const apex = t < 0.5 ? CIRCLE : [x0, rectCy - R / 2];
-    const tip = [apex[0] + R * Math.cos(a), apex[1] + R * Math.sin(a)];
+    // Tracks piece_1's own mid-line continuously: half (t=0) rotating by
+    // piece 0's own delta to pi/2 (t=1) — the same apex/angle the piece
+    // itself uses, so the two can never drift apart mid-tween.
+    const angle = half + delta0 * t;
+    const apex = apex0;
+    const tip = [apex[0] + R * Math.cos(angle), apex[1] + R * Math.sin(angle)];
     push(kit.stroke("radius_line", [apex, tip], { color: C.demand, strokeWidth: 3, ms: MS.stroke }));
-    labels.push(kit.label("label_r", [(apex[0] + tip[0]) / 2, (apex[1] + tip[1]) / 2], t < 0.5 ? "above" : "left", "r", { color: C.demand, fontSize: 26 }));
+    const side = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle)) ? "above" : "left";
+    labels.push(kit.label("label_r", [(apex[0] + tip[0]) / 2, (apex[1] + tip[1]) / 2], side, "r", { color: C.demand, fontSize: 26 }));
     order.push("label_r");
     anchors.radius_line = tip;
   }

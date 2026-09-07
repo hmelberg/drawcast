@@ -37,6 +37,24 @@ describe("circle_sectors", () => {
     expect(out.warnings).toEqual([]);
     expect(out.order.filter((id) => id.startsWith("piece_"))).toHaveLength(23);
   });
+  test("radius_line/label_r track piece_1's own apex continuously — no t=0.5 jump — and stay clean through the tween", () => {
+    for (const t of [0.25, 0.5, 0.75]) {
+      const out = lay({ n: 12, t });
+      expect(out.warnings, `t=${t}`).toEqual([]);
+      expect(out.issues, `t=${t}`).toEqual([]);
+    }
+    const out = lay({ n: 12, t: 0.5 });
+    // Derive piece_1's actual apex from the layout output (its body/edge
+    // points start at the apex), not from a recomputed constant — a
+    // hand-derived expected value could drift from the template's own math
+    // the same way the bug did.
+    const piece1 = out.drawables.find((d) => d.id === "piece_1") as { pts: [number, number][] } | undefined;
+    const radiusLine = out.drawables.find((d) => d.id === "radius_line") as { pts: [number, number][] } | undefined;
+    expect(piece1).toBeDefined();
+    expect(radiusLine).toBeDefined();
+    expect(radiusLine!.pts[0][0]).toBeCloseTo(piece1!.pts[0][0], 6);
+    expect(radiusLine!.pts[0][1]).toBeCloseTo(piece1!.pts[0][1], 6);
+  });
   test("both manifest examples lint clean and the bundled example validates", () => {
     for (const ex of scenes.circle_sectors.manifest.examples) {
       const out = layoutSpec({ template: "circle_sectors", params: ex.params, elements: [] } as never);
