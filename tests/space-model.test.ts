@@ -3,8 +3,8 @@ import bodiesJson from "../src/scenes/space/bodies.json";
 import type { BodiesTable } from "../src/scenes/space/types";
 import { indexBodies } from "../src/scenes/space/rules";
 import {
-  DATE_CHOICES, NAME_CHOICES, ROOT_LABEL, SCALE_CHOICES, bodyLabel, bodyOfElement, breadcrumbFor, cardFacts, focusTargetFor, isoDate, phaseLine,
-  positionNote, readWikiSummary, wikiSummaryUrl,
+  DATE_CHOICES, NAME_CHOICES, ROOT_LABEL, SCALE_CHOICES, bodyLabel, bodyOfElement, breadcrumbFor, cardFacts, dateChoiceIso, focusTargetFor, isoDate,
+  phaseLine, positionNote, readWikiSummary, wikiSummaryUrl,
 } from "../src/ui/space-model";
 
 const bodies = indexBodies(bodiesJson as unknown as BodiesTable);
@@ -115,5 +115,11 @@ describe("notes, phase, Wikipedia", () => {
   });
   test("isoDate is the UTC day", () => {
     expect(isoDate(new Date(Date.UTC(2026, 8, 6, 23, 59)))).toBe("2026-09-06");
+  });
+  test("dateChoiceIso is the UTC day offset from now, injectable for a deterministic test", () => {
+    const now = new Date(Date.UTC(2026, 8, 6, 12, 0));
+    expect(dateChoiceIso(0, now)).toBe("2026-09-06");
+    expect(dateChoiceIso(-365, now)).toBe("2025-09-06");
+    expect(dateChoiceIso(365, now)).toBe("2027-09-06");
   });
 });

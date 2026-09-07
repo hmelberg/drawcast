@@ -168,3 +168,8 @@ export function readWikiSummary(json: unknown): WikiSummary | null {
 export function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
+
+/** The Date pill's choices as ISO dates — `offsetDays` from `now` (the real clock unless a test injects one). */
+export function dateChoiceIso(offsetDays: number, now: Date = new Date()): string {
+  return isoDate(new Date(now.getTime() + offsetDays * 86400000));
+}

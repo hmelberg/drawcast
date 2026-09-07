@@ -13,7 +13,7 @@ import type { SpaceEngine } from "../scenes/space/types";
 import { h, logicalPoint } from "./dom";
 import { hitElement } from "./hit";
 import {
-  DATE_CHOICES, NAME_CHOICES, ROOT_LABEL, SCALE_CHOICES, bodyLabel, breadcrumbFor, cardFacts, focusTargetFor, isoDate, phaseLine, positionNote,
+  DATE_CHOICES, NAME_CHOICES, ROOT_LABEL, SCALE_CHOICES, bodyLabel, breadcrumbFor, cardFacts, dateChoiceIso, focusTargetFor, phaseLine, positionNote,
   readWikiSummary, wikiSummaryUrl, type Choice, type SpaceLang, type WikiSummary,
 } from "./space-model";
 
@@ -62,7 +62,7 @@ export function mountSpaceSection(opts: { hd: RenderHandle; stage: HTMLElement |
   };
   const dateNow = (): Date => eng.resolveDate(current().date, current().days);
 
-  const el = h("div", { class: "cs-tray-body cs-tray-space" });
+  const el = h("div", { class: "cs-tray-body" });
   const hint = h("div", { class: "cs-tray-hint" });
   const crumbs = h("div", { class: "cs-body-crumbs" });
   const pills = h("div", { class: "cs-body-pills" });
@@ -141,8 +141,8 @@ export function mountSpaceSection(opts: { hd: RenderHandle; stage: HTMLElement |
     pills.appendChild(pillRow(ROW.scale[L], SCALE_CHOICES, (v) => v === scaleNow, (v) => { overrides.scale = v; }));
     const namesNow = typeof current().names === "string" ? (current().names as string) : "en";
     pills.appendChild(pillRow(ROW.names[L], NAME_CHOICES, (v) => v === namesNow, (v) => { overrides.names = v; }));
-    const dateOf = (offsetDays: number): string => isoDate(new Date(Date.now() + offsetDays * 86400000));
-    pills.appendChild(pillRow(ROW.date[L], DATE_CHOICES, (v) => overrides.date === dateOf(v), (v) => { overrides.date = dateOf(v); }));
+    const dateNowIso = typeof current().date === "string" ? (current().date as string) : dateChoiceIso(0);
+    pills.appendChild(pillRow(ROW.date[L], DATE_CHOICES, (v) => dateChoiceIso(v) === dateNowIso, (v) => { overrides.date = dateChoiceIso(v); }));
 
     renderCard(focus ?? "sun");
   };
