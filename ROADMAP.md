@@ -479,7 +479,8 @@ Open follow-ups:
   constellation figures as pairs of catalogue stars, the Sun, Moon and
   naked-eye planets by ephemeris with the Moon's phase drawn and turned toward
   the Sun, `hours`/`days` animatable, `focus` portraits, the lazy `sky` engine,
-  and the ⊕ Space section's sky half. Direction A of the connect-the-stars
+  and the ⊕ tray's Sky section, a sibling of round 1's Space section.
+  Direction A of the connect-the-stars
   exercise (the lines are drawn, name the constellation) ships as a quiz and as
   a typed answer. Open: Direction B — `ask.widget: "connect"`, its own round;
   Messier objects; deeper stars than magnitude 4.5; a `focus` that re-centres
