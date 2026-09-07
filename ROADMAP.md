@@ -470,6 +470,22 @@ Open follow-ups:
   `ball()`. Rounds 2 (`sky_map`) and 3 (three.js panel) next. Open: eccentric
   and inclined orbits, Uranus's ring, more moons (Wikidata's units are mixed),
   the Moon's phase drawn on the disc.
+- **Space, round 2** (shipped 2026-09-08; spec
+  `docs/superpowers/specs/2026-09-06-space-design.md` §6 with every measured
+  number in `…/2026-09-07-sky-data-measured.md`, plan
+  `docs/superpowers/plans/2026-09-07-space-round-2.md`): `sky_map` — a
+  stereographic planisphere from a place at a moment (north up, east LEFT),
+  1 040 bundled stars sized by magnitude and tinted by B−V, the 88
+  constellation figures as pairs of catalogue stars, the Sun, Moon and
+  naked-eye planets by ephemeris with the Moon's phase drawn and turned toward
+  the Sun, `hours`/`days` animatable, `focus` portraits, the lazy `sky` engine,
+  and the ⊕ Space section's sky half. Direction A of the connect-the-stars
+  exercise (the lines are drawn, name the constellation) ships as a quiz and as
+  a typed answer. Open: Direction B — `ask.widget: "connect"`, its own round;
+  Messier objects; deeper stars than magnitude 4.5; a `focus` that re-centres
+  the projection rather than magnifying it; and the language wrinkle §6.2
+  named — `ask.answer` is one string, so a figure with three names needs the
+  question to say which one it wants.
 
 ## Phase C — structure
 

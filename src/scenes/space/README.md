@@ -209,6 +209,32 @@ The chart geometry — `{ cx: 500, cy: 385, r: 285 }` — is `CHART` in
 `sky-rules.ts`, defined once so the template and the tray's click overlay
 cannot disagree.
 
+## The data, and what makes the figures gradeable
+
+`sky/stars.json` and `sky/constellations.json` are generated once by
+`scripts/build-sky-data.mjs` and committed; the app never fetches them at
+runtime. d3-celestial draws each constellation as raw coordinate polylines,
+which cannot be checked against anything. The build snaps every vertex to
+its nearest catalogue star — within 0.35°, all but one of them — and stores
+each figure as pairs of Hipparcos numbers instead of coordinates: 741 edges
+over 88 figures. That is what makes "draw Orion" gradeable against a fixed
+answer key, and it is why the edges ship this round even though the
+`connect` widget that will read them (spec §6.2 Direction B) does not.
+
+The source is pinned to a commit SHA, not `@master`. The doc that planned
+this round measured 735 edges from 800 vertices on 2026-09-06; the same
+script run live against `@master` on 2026-09-07 returned 741 edges from 893
+vertices, because upstream had added detail to the raw lines in between —
+the top-five figures by edge count matched the measured doc exactly, which a
+snapping bug could not do while moving the total, and the faintest line star
+(5.89) matched exactly too. The build now pins that commit, so a wiped-cache
+rebuild reproduces the committed files byte for byte — the count that ships
+is stable even though the count a live fetch would measure on a given day is
+not. See `sky/ATTRIBUTION.md` and `sky/LICENSE` for what is owed to
+d3-celestial (the star and line data, BSD-3-Clause) and to the Norwegian
+Wikipedia list of constellation names (CC BY-SA) that `sky-names.json` draws
+from.
+
 **East is on the LEFT.** A planisphere is held up and looked through, not
 laid on the ground, so the projection swaps east and west against a map. The
 compass letters sit at `r + 20`, outside the rim.
@@ -225,6 +251,17 @@ and it still passes — so there is a second test that ties the orientation to
 the sky instead: Polaris, which stands due north at an altitude equal to the
 observer's latitude, must be drawn ABOVE the centre, and the star nearest due
 east must land left of it.
+
+The alt/az transform itself is hand-rolled — a handful of trig calls per
+star — rather than a call to astronomy-engine's own `Horizon()`, and it is
+not an approximation that trades accuracy for speed: checked independently
+against `Horizon()` for three stars at a fixed instant, the two agree to six
+decimal places (`tests/sky-rules.test.ts` pins the bar at four). What the
+hand-rolled version buys is a thousand stars projected in a tenth of a
+millisecond, against a thousand `Horizon()` calls. J2000 catalogue
+coordinates ARE precessed to the date first (`precess()` in `sky-rules.ts`)
+— twenty-six years of precession moves a star by about 0.35°, more than a
+bright star's drawn radius, so skipping it would visibly mis-place the sky.
 
 ## Why these shapes, and not the obvious ones
 
@@ -260,10 +297,12 @@ east must land left of it.
   engine's own `fraction` at eighteen phases rather than thresholds at two.
 - **The star field is ONE element** (`stars`), because `draw` has no wildcard
   and no author can know which stars are up at a given hour. `mark` lifts a
-  named star out into its own element (id = its proper name in lower case),
-  `highlight` lifts AND tints. **Its 400 dots share a 2 200 ms budget**: a
-  group's leaf durations accumulate, so a fixed per-dot sketch time would
-  make the field take minutes.
+  named star out into its own element (id = its proper name in lower case)
+  WITHOUT tinting it; `highlight` lifts AND tints. That is what makes
+  `{"ask": {"widget": "click", "answer": "sirius"}}` writable — the figure
+  does not give the answer away by colouring it. **Its 400 dots share a
+  2 200 ms budget**: a group's leaf durations accumulate, so a fixed per-dot
+  sketch time would make the field take minutes.
 - **The Sun's position is always computed, even when `show` never names it.**
   Whether it is day is a fact about the moment, not about the author's list.
 - **The constellation figures are ONE element too** (`figures`), for the same
@@ -464,6 +503,51 @@ be used belongs: throwing would blank the figure over a typo. `T24:00:00` is
 the one ISO clock that rolls on purpose — midnight ending the day — and keeps
 its meaning.
 
+## One caption
+
+Round 1 shipped a known limit: `scale_note` and `missing_note` could collide
+in the same foot strip, with the recorded remedy "place the second relative
+to the first's measured right edge" — still open, since round 1 ended before
+applying it (see round 1's "Known limits" above). This template starts one
+step past that instead of repeating it: there is ONE caption, `sky_note`,
+composed by `noteClauses()` in `sky-rules.ts` from up to five facts in the
+order they matter — daylight, anything named that has set, anything a
+`focus` portrait cropped off the page, unknown names, and that the Sun, Moon
+and planets are drawn as symbols — joined with " · " and dropped from the
+END, cheapest clause last, while the line is still too wide. One caption
+cannot collide with itself.
+
+## The ⊕ Sky section (`src/ui/sky-model.ts` + `sky-explore.ts`)
+
+Splits the way round 1's Space section does: the rules — hit-testing, what
+is actually on the page right now, the card's formatted facts, the
+Wikipedia title — live in `sky-model.ts`, DOM-free and unit-tested against
+the real tables; `sky-explore.ts` is the DOM glue, with no unit tests of its
+own, same convention as `space-explore.ts`.
+
+It cannot use `hitElement` (`src/ui/hit.ts`): a click inside the `stars` or
+`figures` group would only ever answer "the stars" or "the figures," never
+a particular one. So it projects the sky itself, with the exact same
+`engines.sky.chart` the template drew at, and asks `visibleField` for
+precisely the stars and constellation edges the page is showing RIGHT NOW —
+gated by `limit_mag`, the `constellations` mode, the `mark`/`highlight`
+exemption, and a `focus` portrait's crop and magnifying-glass transform — so
+a click can never find something the chart does not draw. `targetAt` then
+finds the nearest star or line, a star beating a line at equal distance.
+
+A body (Sun, Moon or planet) is hit-tested on the same footing, but NOT
+through `hitElement` either — because that reasoning never applied to
+bodies in the first place. Every shown body is its own drawable element in
+`space.yaml`, unlike the one-element star field. It was missed in the first
+draft of this section anyway, reproducing Hans's one bug report against
+round 1 almost exactly (clicking a moon did nothing), and was fixed before
+merge rather than left as a known limit: `targetAt` gained a `bodies`
+parameter appended after the existing ones, so every old call keeps its old
+meaning; `visibleField` gained a parallel body list with the same
+focus-crop; and the card renders from round 1's own `cardFacts`/
+`bodyLabel`/`phaseLine` — the Moon's phase as a sentence below the facts,
+not a fact row, because a phase is not that kind of information.
+
 ## Known limits (honest, not fixed)
 
 - **The clock is local SOLAR time**, per `localClock`'s definition in
@@ -478,6 +562,23 @@ its meaning.
 - **The phase reads small.** The Moon is drawn at r = 12 on a chart 570
   across — twenty times its true size, as `sky_note` says — and at that size
   a thin crescent is a subtle shading rather than a shape.
+- **Messier objects are not drawn.** `messier: true` is not a param this
+  round. The build's source measurement never measured that data's JSON
+  shape, and drawing one would add no new machinery — dots on the same
+  projection that already exists. A follow-up, not a gap in the design.
+- **No deeper stars at runtime.** `limit_mag` stops at 4.5, the faintest the
+  bundled union holds. The spec offered a jsdelivr fetch beyond that, but a
+  layout body runs synchronously and the engine loads before any params are
+  known, so the value that would trigger the fetch is read at a point where
+  nothing can await it. Dropping the feature removes a promise the
+  architecture could not have kept.
+- **`focus` magnifies; it does not re-project.** A portrait scales the same
+  stereographic plane about the figure's centre rather than re-centring the
+  projection there, so a constellation low on the horizon carries the rim's
+  stretch into its close-up (see "`focus`: a portrait is the same
+  projection through a magnifying glass" above). Honest, and visible;
+  re-centring means a second projection origin and a second set of
+  geometry tests.
 
 ## Ids
 
@@ -491,6 +592,12 @@ star named in `mark` or `highlight` becomes `<proper name in lower case>` with
 
 ## Rounds ahead
 
-Round 2 continues: the ⊕ Sky section. Round 3:
+Round 2 shipped the ⊕ Sky section along with the chart itself — see above.
+Open, and deliberately not this round: `ask.widget: "connect"` (spec §6.2
+Direction B — given a name, draw the lines; the 741-edge answer key already
+ships), Messier objects, stars fainter than 4.5 at runtime, a `focus` that
+re-centres the projection rather than magnifying it, and the language
+wrinkle in spec §6.2 — `ask.answer` is one string, so a figure with three
+names needs the question to say which one it wants. Round 3:
 `model3d: { kind: space }` (three.js) — `texture` in the table is reserved for
 it.
