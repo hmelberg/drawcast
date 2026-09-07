@@ -33,6 +33,7 @@ import { overCaption } from "./caption";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
 import { mountBodySection, type BodySection } from "./body-explore";
+import { mountSpaceSection, type SpaceSection } from "./space-explore";
 import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
@@ -97,9 +98,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // Every Commodore gets the row — a game to play is one of the things you
   // can do with it, not the condition for having a menu at all.
   const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && (typeof e.game === "string" || isC64Screen(e)));
-  // An anatomy figure always has a body to explore, slider or no slider.
+  // An anatomy figure always has a body to explore, slider or no slider; a
+  // solar-system figure a sky (its days slider comes from the schema anyway).
   const bodyTemplate = hd.spec.template === "anatomy";
-  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0 && !bodyTemplate) return;
+  const spaceTemplate = hd.spec.template === "solar_system";
+  if (liveSliders(hd).length === 0 && interactions.length === 0 && editable.length === 0 && games.length === 0 && !bodyTemplate && !spaceTemplate) return;
 
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
@@ -112,7 +115,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const stage = host.querySelector<HTMLElement>(".cs-stage");
   const freezeClick = (e: Event): void => {
     // Buttons, the code card and the Body section's click overlay keep their clicks.
-    if (e.target instanceof Element && (e.target.closest("button") || e.target.closest(".cs-codeedit") || e.target.closest(".cs-bodyexplore"))) return;
+    if (e.target instanceof Element && (e.target.closest("button") || e.target.closest(".cs-codeedit") || e.target.closest(".cs-bodyexplore") || e.target.closest(".cs-spaceexplore"))) return;
     e.stopPropagation();
   };
   let unguide: (() => void) | null = null;
@@ -120,6 +123,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   let gateResolve: (() => void) | null = null;
   /** The anatomy Body section, while the tray shows one. */
   let bodySection: BodySection | null = null;
+  /** The solar-system Space section, while the tray shows one. */
+  let spaceSection: SpaceSection | null = null;
 
   // ---- ONE preview state for every control in the tray ----------------------
   // previewParams and previewSpec each repaint from the honest boundary and
@@ -263,6 +268,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     trayBtn.classList.remove("open");
     bodySection?.destroy();
     bodySection = null;
+    spaceSection?.destroy();
+    spaceSection = null;
     thawStage();
     unguide?.();
     unguide = null;
@@ -390,7 +397,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     return true;
   };
 
-  const open = (opts: { filter?: string[]; gated?: boolean; code?: string; onCode?: string; anatomy?: boolean } = {}): void => {
+  const open = (opts: { filter?: string[]; gated?: boolean; code?: string; onCode?: string; anatomy?: boolean; space?: boolean } = {}): void => {
     // Snap to the boundary first: it aborts any in-flight step and lands
     // paused, so previews never paint over half-drawn strokes. NOT when an
     // explore gate called us — the run is parked on the gate's promise, and
@@ -416,6 +423,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       open: opts.onCode,
       bodyTemplate,
       anatomy: opts.anatomy,
+      spaceTemplate,
+      space: opts.space,
     });
     // The activity pills (spec §13's scheduled convergence): rendered from
     // the same interactions registry the context menu reads — right-click
@@ -445,6 +454,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (plan.body) {
       bodySection = mountBodySection({ hd, stage, overrides, repaint });
       tray.appendChild(bodySection.el);
+    }
+    // The Space section, the Body section's twin for a solar system.
+    spaceSection?.destroy();
+    spaceSection = null;
+    if (plan.space) {
+      spaceSection = mountSpaceSection({ hd, stage, overrides, repaint });
+      tray.appendChild(spaceSection.el);
     }
     // The machines first — the ≡ on a Commodore opens THIS as its menu, so
     // what you can do with the machine leads: the lesson's own program, the
@@ -805,7 +821,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         signal.removeEventListener("abort", onAbort);
         resolve();
       };
-      open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy });
+      open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
     });
 
   /**
