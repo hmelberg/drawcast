@@ -36,7 +36,7 @@ beforeAll(async () => {
 describe("solar_system: registration and the default figure", () => {
   test("registers as one ready template", () => {
     unregisterPack("space");
-    expect(registerPack("space", spaceYaml)).toMatchObject({ ok: true, templateIds: ["solar_system"] });
+    expect(registerPack("space", spaceYaml)).toMatchObject({ ok: true, templateIds: ["solar_system", "sky_map"] });
   });
 
   test("draws the Sun, the eight planets, their orbits and names, and the scale note", () => {
@@ -313,8 +313,10 @@ describe("solar_system: focus, moons, time, highlight, clicks", () => {
 });
 
 describe("bundled space examples", () => {
-  test("drawcast ships five space examples", () => {
-    expect((bundledExamples as { packs?: string[] }[]).filter((e) => e.packs?.includes("space"))).toHaveLength(5);
+  test("drawcast ships six space examples — five for the solar system, one for the sky", () => {
+    const space = (bundledExamples as { packs?: string[]; spec?: { template?: string } }[]).filter((e) => e.packs?.includes("space"));
+    expect(space).toHaveLength(6);
+    expect(space.filter((e) => e.spec?.template === "sky_map")).toHaveLength(1);
   });
 });
 

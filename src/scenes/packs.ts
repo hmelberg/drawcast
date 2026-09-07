@@ -115,7 +115,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
   space: {
     id: "space",
     title: "Space",
-    description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name.",
+    description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name — and the night sky over a place at a moment, stars, planets and the Moon's phase.",
     load: async () => (await import("./packs/space.yaml?raw")).default,
   },
 };

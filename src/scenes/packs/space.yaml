@@ -1,6 +1,6 @@
 pack: space
 title: Space
-description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name. Positions from astronomy-engine (MIT); facts from the NASA planetary fact sheets."
+description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name — and the night sky over a place at a moment, with the stars, the planets and the Moon's phase where they really are. Positions from astronomy-engine (MIT); facts from the NASA planetary fact sheets; stars from d3-celestial (BSD-3-Clause), Hipparcos."
 ---
 template: solar_system
 title: The solar system (planets, dwarf planets, moons)
@@ -659,5 +659,476 @@ layout: |
     push(kit.text("missing_note", [500, 36], missingText, { fontSize: NOTE_PX, color: C.guide }));
     anchors.missing_note = [500, 36];
   }
+
+  return { drawables, labels, anchors, order };
+---
+template: sky_map
+title: The night sky from a place at a time
+version: 1
+kit: 9
+status: ready
+engines: [space, sky]
+description: >-
+  THE SKY OVERHEAD, from a place on Earth at a moment: a round chart with the
+  zenith at its centre and the horizon as its rim, north at the top and EAST ON
+  THE LEFT — the way a planisphere reads when you hold it up and look through
+  it. Every star to `limit_mag` that is above the horizon is drawn, sized by
+  brightness and tinted by colour, from a bundled catalogue of 1 040 stars; the
+  Sun, Moon and naked-eye planets are placed by a real ephemeris and the Moon
+  is drawn with the phase it actually has that night, its lit side turned
+  toward the Sun. `lat`/`lon`/`place` say where the viewer stands (Oslo by
+  default), `time` when (an ISO datetime, or now); `hours` and `days` are
+  numeric offsets from it and THE ANIMATABLE HANDLES — {"animate": {"hours":
+  6}} turns the sky through a night, {"animate": {"days": 182}} shows why the
+  same stars are not up in six months. Anything below the horizon is simply not
+  drawn, and a body you named in `show` that has set is SAID so in the caption
+  rather than silently missing. The star field is ONE element, `stars`, because
+  no author can know which stars are up at a given hour — so to ask a question
+  about one star, name it in `mark` and it becomes its own element with its own
+  name as its id ({"ask": {"question": "Which one is Vega?", "widget": "click",
+  "answer": "vega"}}); `highlight` marks AND tints. Choose this scene for any
+  request about tonight's sky, a constellation, a named star, where a planet is
+  tonight, the Moon's phase, or why the sky turns.
+params:
+  type: object
+  properties:
+    lat:
+      type: number
+      minimum: -90
+      maximum: 90
+      description: "Observer's latitude in degrees north (default 59.91, Oslo). Negative is south."
+    lon:
+      type: number
+      minimum: -180
+      maximum: 180
+      description: "Observer's longitude in degrees east (default 10.75, Oslo). Negative is west."
+    place:
+      type: string
+      description: "The place name written under the chart (default Oslo, and only when lat/lon are the default too — a chart at other coordinates does not claim to be somewhere it is not)."
+    time:
+      type: string
+      description: "ISO datetime with its offset (2026-09-07T22:00:00+02:00), or now (the default). Without an offset the time is read as UTC; a bare date means 22:00 local solar time where the observer stands."
+      x-translate: false
+    hours:
+      type: number
+      minimum: -24
+      maximum: 24
+      description: "Offset from time in hours (default 0) — an animatable handle: animate hours to 6 and the sky turns a quarter of a circle about the pole. Write the starting value (0) in params when you animate."
+    days:
+      type: number
+      minimum: -366
+      maximum: 366
+      description: "Offset from time in days (default 0) — the other animatable handle: animate days to 182 and the same hour of night shows the opposite half of the sky."
+    limit_mag:
+      type: number
+      minimum: 2
+      maximum: 4.5
+      description: "The faintest star drawn (default 4.5, which is roughly what a dark suburban sky shows). 2 keeps only the few dozen brightest. A star does not change size when this does."
+    names:
+      type: string
+      enum: [en, nb, la, none]
+      description: "Label language: en (default; the descriptive English names, The Great Bear), la (the international Latin names, Ursa Major), nb (Norwegian, Store bjørn), none. Star proper names are the same word in every language except where Norwegian has its own."
+    show:
+      type: array
+      items: { type: string }
+      description: "Which Sun/Moon/planet ids to mark (sun, moon, mercury, venus, mars, jupiter, saturn, uranus, neptune), or the group words planets, inner, outer, all, which expand in place. Default: sun, moon and the five planets you can see with the naked eye, drawn when they are up and passed over in silence when they are not. Name one explicitly and the chart SAYS so when it is below the horizon."
+      x-translate: false
+    mark:
+      type: array
+      items: { type: string }
+      description: "Stars or bodies to lift out into their own elements so a question or a highlight command can address them, WITHOUT changing how they look — the way to write {\"ask\": {\"widget\": \"click\", \"answer\": \"sirius\"}} without the figure giving the answer away. A star's id is its proper name in lower case (sirius, betelgeuse)."
+      x-translate: false
+    highlight:
+      type: array
+      items: { type: string }
+      description: "Stars or bodies to tint for the whole figure; they are lifted into their own elements too. To make one glow for ONE sentence use the highlight COMMAND instead ({\"highlight\": {\"target\": [\"sirius\"]}}), and a click question glows its answer by itself."
+      x-translate: false
+    title:
+      type: string
+element_ids:
+  horizon: the circle where the sky meets the ground — everything drawn is inside it
+  compass_n: "N at the top of the chart"
+  compass_e: "E on the LEFT (a chart held overhead reverses east and west)"
+  compass_s: "S at the bottom"
+  compass_w: "W on the right"
+  stars: every star that is not singled out, as one element — this is what an author draws when the stars come out
+  <star_name>: a star named in mark or highlight becomes its own element, its id its proper name in lower case (sirius, vega, betelgeuse)
+  <body_id>: sun, moon, mercury, venus, mars, jupiter, saturn, uranus or neptune, drawn only when it is above the horizon
+  moon: the Moon, drawn with the phase it has that night, its lit side turned toward the Sun
+  label_<id>: the written name of a body or a singled-out star
+  place_label: the place and the local time, along the foot
+  sky_note: "the figure's one caption: daylight, anything named that has set, unknown names, and that the Sun, Moon and planets are drawn as symbols"
+  title: figure title, when set
+examples:
+  - request: "What is up over Oslo tonight?"
+    params: { time: "2026-09-07T22:00:00+02:00" }
+  - request: "Hvor er Saturn i kveld?"
+    params: { time: "2026-09-07T22:00:00+02:00", show: ["saturn"], highlight: ["saturn"], names: "nb" }
+  - request: "Which star is Vega?"
+    params: { time: "2026-09-07T22:00:00+02:00", mark: ["Vega", "Deneb", "Altair"] }
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const eng = engines.sky, spc = engines.space;
+  const CH = eng.chart;                                  // { cx: 500, cy: 385, r: 285 }
+  const F = { x0: 60, y0: 80, x1: 940, y1: 700 };
+  const NOTE_PX = 18, LABEL_PX = 19, COMPASS_PX = 20;
+  const LABEL_H = LABEL_PX * 1.25;
+  // Headroom for the OTHER word: a translated copy swaps the words this body
+  // measured AFTER it has run (src/layout/text-map.ts) and leaves every box
+  // where it was put. A character's width, added to the clearance a name
+  // reserves — never to where a candidate sits.
+  const TRANSLATED_ROOM = kit.textWidth("n", LABEL_PX);
+
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const clamp = (lo, hi, v) => Math.max(lo, Math.min(hi, v));
+  const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim() !== "") : []);
+  const oneOf = (v, opts, d) => (typeof v === "string" && opts.indexOf(v) >= 0 ? v : d);
+
+  const lat = clamp(-90, 90, num(params.lat, 59.91));
+  const lon = ((num(params.lon, 10.75) + 540) % 360) - 180;
+  const names = oneOf(params.names, ["en", "nb", "la", "none"], "en");
+  const L = names === "none" ? "en" : names;
+  const bodyLang = L === "nb" ? "nb" : "en";
+  const limit = clamp(2, 4.5, num(params.limit_mag, 4.5));
+  const at = eng.resolveTime(params.time, params.hours, params.days, lon);
+  // A chart at coordinates the author chose does not claim to be Oslo.
+  const defaultSpot = params.lat === undefined && params.lon === undefined;
+  const placeText = typeof params.place === "string" && params.place.trim() !== "" ? params.place.trim() : (defaultSpot ? "Oslo" : "");
+
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const unknown = [];
+  const sayUnknown = (q) => { const s = q.trim(); if (unknown.indexOf(s) < 0) unknown.push(s); };
+
+  // The nine the sky can place — sky.ts's ephemeris knows exactly these. Every
+  // other body in the round-1 table (Earth, a moon, a dwarf planet) has no
+  // naked-eye place in a chart of the sky, so it is not drawn.
+  const SKY_IDS = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"];
+  const GROUP_WORDS = ["planets", "inner", "outer", "all"];
+  const skyBodies = (q) => spc.bodies([q]).bodies.filter((b) => SKY_IDS.indexOf(b.id) >= 0);
+
+  // ---- what the author singled out ---------------------------------------
+  // `draw` has no wildcard and the model cannot know which stars are up at a
+  // given hour, so the field is ONE element. Anything named in `mark` or
+  // `highlight` is lifted OUT of it into its own element, which is what makes
+  // a click question and the highlight command reach a single star.
+  const markStars = new Set(), markBodies = new Set();
+  const litStars = new Set(), litBodies = new Set();
+  const take = (q, stars, bodies) => {
+    const s = eng.findStar(q);
+    if (s) { stars.add(s.hip); return true; }
+    const hits = skyBodies(q);
+    if (hits.length === 0) return false;
+    for (const b of hits) bodies.add(b.id);
+    return true;
+  };
+  for (const q of list(params.mark)) if (!take(q, markStars, markBodies)) sayUnknown(q);
+  for (const q of list(params.highlight)) {
+    if (take(q, litStars, litBodies)) take(q, markStars, markBodies);
+    else sayUnknown(q);
+  }
+
+  // ---- the bodies ---------------------------------------------------------
+  const DEFAULT_SHOW = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+  const asked = list(params.show);
+  const showIds = [];
+  const addBody = (id) => { if (showIds.indexOf(id) < 0) showIds.push(id); };
+  if (asked.length === 0) {
+    for (const id of DEFAULT_SHOW) addBody(id);
+  } else for (const q of asked) {
+    // The sibling template's `bodies` takes the same group words, so a model
+    // writing show: ["outer"] here is generalising what this pack taught it —
+    // and EVERY body of the expansion is kept, never just the first (round 1's
+    // own scar, in solar_system's highlight param). Earth rides in on
+    // "planets" and "all" and can never be a point in its own sky, so it drops
+    // out without a word; a name nobody can place is only "unknown" when the
+    // author typed that name themselves.
+    const hits = skyBodies(q);
+    for (const b of hits) addBody(b.id);
+    if (hits.length === 0 && GROUP_WORDS.indexOf(q.trim().toLowerCase()) < 0) sayUnknown(q);
+  }
+  for (const id of markBodies) addBody(id);
+  // The Sun is asked for whether or not it is drawn: whether it is DAY is a
+  // fact about the moment, not about the author's list.
+  const posIds = showIds.slice();
+  if (posIds.indexOf("sun") < 0) posIds.push("sun");
+  const bPos = eng.bodyPositions(posIds, at, lat, lon);
+  const bodyName = (id) => { const b = spc.body(id); return b ? (b.name[bodyLang] || b.name.en) : id; };
+  const below = [];
+  // Only a body the author NAMED is reported as set: the default list is half
+  // below the horizon at any hour, and saying so every time would be noise.
+  for (const id of showIds) {
+    const p = bPos[id];
+    if ((!p || p.alt < 0) && (asked.length > 0 || markBodies.has(id))) below.push(bodyName(id));
+  }
+  const up = showIds.filter((id) => bPos[id] && bPos[id].alt >= 0);
+  const daylight = bPos.sun !== undefined && bPos.sun.alt > -0.5;
+
+  // ---- the captions, measured before anything is placed -------------------
+  const clauses = eng.noteClauses({ daylight: daylight, below: below, unknown: unknown, symbols: up.length > 0 }, L);
+  let noteText = clauses.join(" · ");
+  // ONE caption, and it drops its cheapest clause rather than running off the
+  // page. Round 1's known limit was two captions colliding in this same foot
+  // strip; one caption cannot collide with itself.
+  while (clauses.length > 0 && kit.textWidth(noteText, NOTE_PX) > F.x1 - F.x0) { clauses.pop(); noteText = clauses.join(" · "); }
+  const clock = eng.localClock(at, lon);
+  const placeLine = (placeText !== "" ? placeText + " · " : "") + clock.date + " " + clock.time;
+  const titleText = typeof params.title === "string" && params.title.trim() !== "" ? params.title.trim() : "";
+  const textBox = (at2, s, fs, start) => { const w = kit.textWidth(s, fs), h = fs * 1.25; return { x: start ? at2[0] : at2[0] - w / 2, y: at2[1] - h / 2, w, h }; };
+  const captionBoxes = () => {
+    const out = [textBox([F.x0, 24], placeLine, NOTE_PX, true)];
+    if (noteText !== "") out.push(textBox([F.x0, 52], noteText, NOTE_PX, true));
+    if (titleText !== "") out.push(textBox([500, 726], titleText, 30));
+    return out;
+  };
+
+  // ---- geometry, all measured before any ink ------------------------------
+  const P = (p) => eng.project(p, CH);
+  // Traced right round and then back to the FIRST POINT ITSELF, not to a
+  // recomputed cos(2π) — which lands half an ulp off and leaves a hairline gap
+  // in the rim where the pen started.
+  const ring = (c, r, n) => {
+    const pts = [];
+    for (let i = 0; i < n; i++) { const t = (2 * Math.PI * i) / n; pts.push([c[0] + r * Math.cos(t), c[1] + r * Math.sin(t)]); }
+    pts.push([pts[0][0], pts[0][1]]);
+    return pts;
+  };
+  const horizonPts = ring([CH.cx, CH.cy], CH.r, 144);
+
+  const COMPASS = [[0, "compass_n", "N", "N"], [90, "compass_e", "E", "Ø"], [180, "compass_s", "S", "S"], [270, "compass_w", "W", "V"]];
+  const compass = COMPASS.map((c) => {
+    const rr = CH.r + 20, a = (c[0] * Math.PI) / 180;
+    return { id: c[1], text: L === "nb" ? c[3] : c[2], at: [CH.cx - rr * Math.sin(a), CH.cy + rr * Math.cos(a)] };
+  });
+
+  const sPos = eng.starPositions(at, lat, lon);
+  const field = [], own = [], ownIds = new Set();
+  for (const s of eng.stars()) {
+    const p = sPos.get(s.hip);
+    if (!p || p.alt < 0) continue;
+    const singled = markStars.has(s.hip);
+    if (s.mag > limit && !singled) continue;
+    if (!singled) { field.push({ s: s, at: P(p), r: eng.starRadius(s.mag) }); continue; }
+    // TWO catalogue stars share the proper name "Alnair" (HIP 68002 and
+    // 109268), so two `mark: ["hip_68002", "hip_109268"]` would mint the id
+    // "alnair" twice — a duplicate drawable id, which the compile guard throws
+    // on and layoutSpec catches as a silent fall-through to tier-2. The first
+    // one wins, the way findStar's index already resolves the name.
+    const sid = eng.starId(s);
+    if (ownIds.has(sid)) continue;
+    ownIds.add(sid);
+    own.push({ s: s, at: P(p), r: eng.starRadius(s.mag) });
+  }
+
+  const bodies = up.map((id) => {
+    const b = spc.body(id);
+    return { id: id, b: b, at: P(bPos[id]), r: id === "sun" ? 11 : id === "moon" ? 12 : 6 };
+  });
+
+  // The Moon's two outlines, worked out here rather than with the ink, because
+  // its rim is a stroke a name has to keep off — the same reason round 1 hands
+  // Saturn's ring rim to the label search.
+  let moonRim = null, moonLit = null;
+  for (const b of bodies) {
+    if (b.id !== "moon") continue;
+    const limb = eng.moonLimb(at, lat, lon), r = b.r, c = b.at;
+    moonRim = ring(c, r, 48);
+    let dir = [1, 0];
+    if (limb.toward) {
+      const q = P(limb.toward), dx = q[0] - c[0], dy = q[1] - c[1], m = Math.hypot(dx, dy) || 1;
+      dir = [dx / m, dy / m];
+    }
+    const nrm = [-dir[1], dir[0]];
+    // The terminator is a half-ellipse whose semi-axis along the bright
+    // direction is r(1 - 2k): +r at new (it lies on the limb, no lit area),
+    // 0 at quarter (a straight edge through the centre), -r at full (it
+    // reaches the far limb and the whole disc is lit). The lit area then works
+    // out to exactly k·πr², which is what makes the phase checkable by area.
+    const d = r * (1 - 2 * limb.fraction);
+    moonLit = [];
+    for (let i = 0; i <= 32; i++) { const t = -Math.PI / 2 + (Math.PI * i) / 32, ct = Math.cos(t), st = Math.sin(t); moonLit.push([c[0] + r * ct * dir[0] + r * st * nrm[0], c[1] + r * ct * dir[1] + r * st * nrm[1]]); }
+    for (let i = 32; i >= 0; i--) { const t = -Math.PI / 2 + (Math.PI * i) / 32, ct = Math.cos(t), st = Math.sin(t); moonLit.push([c[0] + d * ct * dir[0] + r * st * nrm[0], c[1] + d * ct * dir[1] + r * st * nrm[1]]); }
+  }
+
+  // ---- names -------------------------------------------------------------
+  // Two rules, and they are different on purpose.
+  //   A BODY the author asked for by name always gets its name, so its search
+  //   takes the CHEAPEST spot; its candidates aim INWARD, toward the zenith,
+  //   where the dome is emptiest — a name placed outward from a body near the
+  //   rim runs off the page.
+  //   A STAR's name is written only where it costs the READER nothing: a name
+  //   on another name, across the rim, or off the page is worse than no name,
+  //   so a star that cannot have one goes without. Star dots are a different
+  //   matter — they are the page a star chart writes on, they carry no lint
+  //   (a dot is a one-point stroke with a circle hint, so no stroke rule sees
+  //   it), and refusing to write over them would leave the field unnamed. So
+  //   the price list has two buckets: `hard` is what a reader — and lint —
+  //   would call a defect, `soft` is only untidy, and a spot is chosen by
+  //   hard first, soft second. tests/sky-template.test.ts holds the floor so
+  //   this cannot become "write nothing and lint clean".
+  const boxAt = (c, w, h) => ({ x: c[0] - w / 2, y: c[1] - h / 2, w, h });
+  const boxHit = (a, b, pad) => a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
+  // The core lint reads a label by: the middle 60 % across and 50 % down of
+  // its box, offset a fifth and a quarter in. A SILENT COPY of the four
+  // numbers in lintText (src/lint/lint.ts, the overlap-label-stroke rule) — a
+  // layout body is compiled from YAML and cannot import, so the duplication is
+  // forced. Change one, change the other; the 200-moment sweeps in
+  // tests/sky-template.test.ts are all that would notice.
+  const coreOf = (b) => ({ x: b.x + b.w * 0.2, y: b.y + b.h * 0.25, w: b.w * 0.6, h: b.h * 0.5 });
+  const turn = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  const segHit = (a, b, r) => {
+    if (Math.max(a[0], b[0]) < r.x || Math.min(a[0], b[0]) > r.x + r.w || Math.max(a[1], b[1]) < r.y || Math.min(a[1], b[1]) > r.y + r.h) return false;
+    if (a[0] >= r.x && a[0] <= r.x + r.w && a[1] >= r.y && a[1] <= r.y + r.h) return true;
+    const k = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+    for (let j = 0; j < 4; j++) { const u = k[j], v = k[(j + 1) % 4]; if (turn(a, b, u) !== turn(a, b, v) && turn(u, v, a) !== turn(u, v, b)) return true; }
+    return false;
+  };
+  // How far a box is from a point, per axis — the one test both prunings use.
+  const boxNear = (b, c, reach) => Math.max(b.x - c[0], 0, c[0] - (b.x + b.w)) < reach && Math.max(b.y - c[1], 0, c[1] - (b.y + b.h)) < reach;
+  // Only the segments of a guide that could possibly reach this name, as a
+  // flat list of endpoint PAIRS. Four hundred stars and a 144-segment rim,
+  // times thirty candidate spots, times a name, times two thousand layouts in
+  // the sweep, is the difference between a test that runs and one that times
+  // out — and pruning once per NAME instead of once per candidate is where the
+  // whole saving is.
+  const nearSegs = (pts, c, reach) => {
+    const out = [];
+    for (let j = 0; j + 1 < pts.length; j++) {
+      const a = pts[j], b = pts[j + 1];
+      const bx = { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) };
+      if (boxNear(bx, c, reach)) { out.push(a); out.push(b); }
+    }
+    return out;
+  };
+
+  const written = captionBoxes();
+  for (const c of compass) written.push(textBox(c.at, c.text, COMPASS_PX));
+  const guides = [horizonPts];                       // Task 5 pushes the constellation lines here
+  if (moonRim) guides.push(moonRim);
+  const discs = [];
+  for (const d of field) discs.push(boxAt(d.at, 2 * d.r, 2 * d.r));
+  for (const d of own) discs.push(boxAt(d.at, 2 * d.r * 1.25, 2 * d.r * 1.25));
+  for (const b of bodies) discs.push(boxAt(b.at, 2 * b.r, 2 * b.r));
+
+  const nameTexts = [];
+  /** Candidate spots around a point, each carrying which `gaps` ring it came
+   *  from: `dirs` are screen directions in preference order, `gaps` how far
+   *  past the disc to sit. */
+  const spotsAround = (c, w, e, dirs, gaps) => {
+    const out = [];
+    for (let g = 0; g < gaps.length; g++) for (const th of dirs) {
+      const dx = Math.cos(th), dy = Math.sin(th);
+      const d = e + gaps[g] + (Math.abs(dx) * w + Math.abs(dy) * LABEL_H) / 2;
+      out.push({ at: [c[0] + dx * d, c[1] + dy * d], ring: g });
+    }
+    return out;
+  };
+  /** What a spot costs the reader. `hard`: off the page is unreadable and a
+   *  lint error; two names on top of each other are two names nobody can read;
+   *  a name across a drawn line is the graze lint warns about. `soft`: how far
+   *  out the name had to walk, plus the star dots it ends up sitting on — a
+   *  dot under a name is only untidy, and on a star chart unavoidable, but a
+   *  name that ran three rings out to dodge two of them no longer reads as
+   *  belonging to anything, so a ring costs three dots. `freeOnly` means take a
+   *  spot with no HARD cost or none at all. */
+  const RING_COST = 3;
+  const place = (id, c, e, text, color, dirs, gaps, freeOnly) => {
+    const w = kit.textWidth(text, LABEL_PX);
+    const reach = e + gaps[gaps.length - 1] + w + LABEL_H + 8;
+    const near = written.filter((t) => boxNear(t, c, reach));
+    const dots = discs.filter((t) => boxNear(t, c, reach));
+    const segs = guides.map((g) => nearSegs(g, c, reach)).filter((s) => s.length > 0);
+    let best = null, bestHard = Infinity, bestSoft = Infinity;
+    for (const q of spotsAround(c, w, e, dirs, gaps)) {
+      const bx = boxAt(q.at, w, LABEL_H);
+      let hard = bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0;
+      const room = { x: bx.x - TRANSLATED_ROOM / 2, y: bx.y, w: bx.w + TRANSLATED_ROOM, h: bx.h };
+      for (const t of near) if (boxHit(room, t, 2)) hard += 100;
+      const co = coreOf(bx);
+      for (const s of segs) for (let j = 0; j < s.length; j += 2) if (segHit(s[j], s[j + 1], co)) { hard += 10; break; }
+      let soft = q.ring * RING_COST;
+      for (const t of dots) if (boxHit(bx, t, 2)) soft += 1;
+      if (hard < bestHard || (hard === bestHard && soft < bestSoft)) { best = bx; bestHard = hard; bestSoft = soft; }
+      if (hard === 0 && soft === 0) break;
+    }
+    if (!best || (freeOnly && bestHard > 0)) return;
+    written.push({ x: best.x - TRANSLATED_ROOM / 2, y: best.y, w: best.w + TRANSLATED_ROOM, h: best.h });
+    nameTexts.push({ id: id, at: [best.x + best.w / 2, best.y + best.h / 2], text: text, color: color });
+  };
+
+  if (names !== "none") {
+    const IN = [], STEP = Math.PI / 4;
+    // Inward first, then round the compass from there.
+    for (const m of [0, 1, -1, 2, -2, 3, -3, 4]) IN.push(m * STEP);
+    for (const b of bodies) {
+      const th0 = Math.atan2(CH.cy - b.at[1], CH.cx - b.at[0]);
+      place("label_" + b.id, b.at, b.r, bodyName(b.id), litBodies.has(b.id) ? C.accent : C.ink, IN.map((d) => th0 + d), [8, 24, 42], false);
+    }
+    for (const d of own) {
+      const t = eng.starName(d.s, L);
+      if (!t) continue;
+      const th0 = Math.atan2(CH.cy - d.at[1], CH.cx - d.at[0]);
+      place("label_" + eng.starId(d.s), d.at, d.r * 1.25, t, litStars.has(d.s.hip) ? C.accent : C.ink, IN.map((x) => th0 + x), [8, 22, 38], true);
+    }
+  }
+
+  // ---- and now the ink, back to front -------------------------------------
+  // The rim is traced as an OPEN path that returns to its start, NOT
+  // closed: true. Drawn the same either way, but `closed` would make
+  // elementRings hand the horizon a hit OUTLINE covering the whole sky, and
+  // hitElement answers with the smallest outline containing the point and
+  // never looks at boxes after that (src/ui/hit.ts, "Pass 1") — the rim would
+  // win every click meant for a star. Round 1 shipped exactly that as a frame.
+  push(kit.stroke("horizon", horizonPts, { color: C.guide, strokeWidth: 2, ms: MS.guides }));
+  for (const c of compass) { push(kit.text(c.id, c.at, c.text, { fontSize: COMPASS_PX, color: C.ink })); anchors[c.id] = c.at; }
+
+  if (field.length > 0) {
+    // A group's leaf durations ACCUMULATE (src/render/svg-backend.ts:583-589),
+    // so a fixed per-dot sketch time would make the star field take minutes.
+    // The field draws in about two seconds however many stars are in it.
+    const per = Math.max(4, Math.round(2200 / field.length));
+    push(kit.group("stars", field.map((d) => kit.ball("stars__hip_" + d.s.hip, d.at, d.r, { fill: eng.starColor(d.s.bv), strokeWidth: 0.8, ms: per }))));
+    anchors.stars = [CH.cx, CH.cy];
+  }
+  for (const d of own) {
+    const id = eng.starId(d.s), on = litStars.has(d.s.hip);
+    push(kit.ball(id, d.at, d.r * 1.25, { fill: on ? C.accent : eng.starColor(d.s.bv), color: on ? C.accent : undefined, strokeWidth: on ? 2 : 0.8, ms: MS.dot }));
+    anchors[id] = d.at;
+  }
+
+  for (const b of bodies) {
+    const on = litBodies.has(b.id);
+    if (b.id === "moon" && moonRim) {
+      // The WHOLE disc is filled first. An `area` is a hit outline and
+      // hitElement's box pass SKIPS any id that already has one, so a moon
+      // that filled only its crescent would lose every click on its dark half
+      // to whatever lies behind it.
+      //   The two washes are the other way round from the sky: this is ink on
+      // warm paper (kit.GROUND #faf6ec), and nothing can be painted BRIGHTER
+      // than the paper. So the dark half is the shaded one and the lit half is
+      // COLORS.paper — the bright warm white kept for exactly this, a shape
+      // that has to read as unpainted on top of a tinted one. A hand drawing
+      // of a phase has always shaded the dark side.
+      push(kit.group("moon", [
+        kit.area("moon__disc", moonRim, on ? C.accent : b.b.color, { opacity: 0.62, ms: MS.region }),
+        kit.area("moon__lit", moonLit, C.paper, { opacity: 0.95, ms: MS.region }),
+        kit.stroke("moon__rim", moonRim, { color: on ? C.accent : C.guide, strokeWidth: on ? 3 : 1.4, ms: MS.stroke }),
+      ]));
+      anchors.moon = b.at;
+      continue;
+    }
+    push(kit.ball(b.id, b.at, b.r, { fill: on ? C.accent : b.b.color, color: on ? C.accent : undefined, strokeWidth: on ? 3 : 1.5, ms: MS.dot }));
+    anchors[b.id] = b.at;
+  }
+
+  for (const t of nameTexts) { push(kit.text(t.id, t.at, t.text, { fontSize: LABEL_PX, color: t.color })); anchors[t.id] = t.at; }
+
+  push(kit.text("place_label", [F.x0, 24], placeLine, { fontSize: NOTE_PX, color: C.guide, anchor: "start" }));
+  anchors.place_label = [F.x0, 24];
+  if (noteText !== "") {
+    push(kit.text("sky_note", [F.x0, 52], noteText, { fontSize: NOTE_PX, color: C.guide, anchor: "start" }));
+    anchors.sky_note = [F.x0, 52];
+  }
+  if (titleText !== "") { push(kit.text("title", [500, 726], titleText, { fontSize: 30 })); anchors.title = [500, 726]; }
 
   return { drawables, labels, anchors, order };

@@ -198,7 +198,111 @@ smoke checklist (`docs/superpowers/plans/2026-09-06-space-round-1-smoke.md`)
 is what actually exercises its DOM wiring — a reason, not an excuse, to keep
 that file as thin as possible.
 
+# The space pack — round 2: `sky_map`
+
+The same pack file's second document draws the sky over a place at a moment:
+the horizon as a rim, the zenith at the centre, every catalogued star above
+the horizon, and the Sun, Moon and planets where a real ephemeris puts them.
+Data and rules: `sky/stars.json`, `sky/constellations.json`, `sky-rules.ts`
+(pure) and `sky.ts` (the astronomy-engine chunk, reached as `engines.sky`).
+The chart geometry — `{ cx: 500, cy: 385, r: 285 }` — is `CHART` in
+`sky-rules.ts`, defined once so the template and the tray's click overlay
+cannot disagree.
+
+**East is on the LEFT.** A planisphere is held up and looked through, not
+laid on the ground, so the projection swaps east and west against a map. The
+compass letters sit at `r + 20`, outside the rim.
+
+## Why these shapes, and not the obvious ones
+
+- **The horizon is an OPEN path that returns to its start**, never
+  `closed: true`. A closed stroke becomes a hit outline (`elementRings`), and
+  `hitElement` answers with the smallest outline containing the point and
+  never reaches the box pass — the rim would win every click meant for a
+  star. That is round 1's `frame` bug, met before it could happen. `ring()`
+  in the layout closes by pushing a copy of the first point rather than
+  recomputing `cos(2π)`, which lands half an ulp off and leaves a hairline
+  gap where the pen started.
+- **The Moon fills its WHOLE disc before its lit part**, for the same reason
+  from the other side: an `area` IS an outline, and the box pass skips any id
+  that has one, so a moon that filled only its crescent would lose every
+  click on its dark half to whatever lies behind it.
+- **The lit half is `COLORS.paper`, the dark half a wash of the Moon's own
+  colour.** Nothing can be painted brighter than the warm paper the figure is
+  drawn on, so the phase is drawn the way a hand always has: shade the dark
+  side. The terminator is a half-ellipse of semi-axis `r(1 − 2k)` along the
+  bright direction — `+r` at new, `0` at quarter, `−r` at full — which makes
+  the lit area exactly `k·πr²` and so checkable by area against the engine's
+  own illuminated fraction.
+- **The star field is ONE element** (`stars`), because `draw` has no wildcard
+  and no author can know which stars are up at a given hour. `mark` lifts a
+  named star out into its own element (id = its proper name in lower case),
+  `highlight` lifts AND tints. **Its 400 dots share a 2 200 ms budget**: a
+  group's leaf durations accumulate, so a fixed per-dot sketch time would
+  make the field take minutes.
+- **The Sun's position is always computed, even when `show` never names it.**
+  Whether it is day is a fact about the moment, not about the author's list.
+
+## Labels here: hard cost and soft cost
+
+The template places its own names, like round 1's, and against the same
+obstacle shape (`{x, y, w, h}` boxes, `boxHit`, seeded from
+`captionBoxes()`). What is new is that the price list has two buckets:
+
+- **hard** — off the page (a lint error), another name (an
+  `overlap-label-label` warning), a drawn line across the label's core (an
+  `overlap-label-stroke` warning). These are what a reader, and the linter,
+  call a defect.
+- **soft** — how far out the name had to walk (three per candidate ring),
+  plus the star dots it ends up sitting on (one each). A dot under a name
+  costs no lint at all: `kit.ball` is a one-point stroke with a circle hint,
+  and the stroke rule needs two points. It is only untidy — and on a chart
+  with four hundred dots, refusing to write over one would leave every name
+  off. But a name that walked three rings out to dodge two dots no longer
+  reads as belonging to anything, which is what the ring cost buys back.
+
+A BODY always gets its name and takes the cheapest spot; a STAR takes a spot
+with no hard cost or goes unnamed. Candidates aim INWARD first, toward the
+zenith, where the dome is emptiest — outward from a body near the rim runs
+off the page. Obstacle lists are pruned once per NAME (`boxNear`,
+`nearSegs`) rather than per candidate, which is what keeps the 2 000-layout
+sweeps under 200 ms each.
+
+## `show`, and what is not in the sky
+
+`show` takes the same group words `solar_system`'s `bodies` does (`planets`,
+`inner`, `outer`, `all`) and keeps EVERY body of an expansion, never just the
+first — round 1's own scar, in its `highlight` param. Only the nine the
+ephemeris knows can be drawn; Earth rides in on `planets` and `all` and drops
+out without a word, because nobody typed its name. A name the author DID type
+that matches nothing goes to the caption's "Unknown:" clause, never to an
+exception.
+
+## Known limits (honest, not fixed)
+
+- **The clock is local SOLAR time**, per `localClock`'s definition in
+  `sky-rules.ts` — 21:43 where an Oslo wall clock says 23:00 in summer. It
+  needs no timezone table and is deterministic, and `place_label` writes it
+  plainly, but a viewer comparing it with their own clock will find it off by
+  the zone offset plus the equation of longitude.
+- **Seven planets in one patch of sky crowd their names.** `show: ["planets"]`
+  during a conjunction season puts five labels in a hand's width of chart;
+  they stay lint-clean and each stays nearest its own dot, but they are
+  tight. The figure is honest about it rather than dropping names.
+- **The phase reads small.** The Moon is drawn at r = 12 on a chart 570
+  across — twenty times its true size, as `sky_note` says — and at that size
+  a thin crescent is a subtle shading rather than a shape.
+
+## Ids
+
+`horizon`, `compass_n/e/s/w`, `stars`, `place_label`, `sky_note`, `title`;
+one id per drawn body (`sun`, `moon`, `mars`, …) and `label_<id>`; a star
+named in `mark` or `highlight` becomes `<proper name in lower case>` with
+`label_<that>`.
+
 ## Rounds ahead
 
-Round 2: `sky_map` + the `sky` engine. Round 3: `model3d: { kind: space }`
-(three.js) — `texture` in the table is reserved for it.
+Round 2 continues: the constellation figures and their names on top of
+`sky_map` (`figures`, `con_<abbr>`, `frame`, `hip_<n>`), and the ⊕ Sky
+section. Round 3: `model3d: { kind: space }` (three.js) — `texture` in the
+table is reserved for it.
