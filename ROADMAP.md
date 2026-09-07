@@ -182,6 +182,61 @@ call).
    bench and the Wikipedia reference-image experiment, once real
    `none_fits` requests have accumulated.
 
+## Motion and primitives — done 2026-09-08
+
+The πr² drawcast ("Hvorfor er arealet av en sirkel πr²?") exposed a gap: the
+compiler could only swap matplotlib stills in and out, because nothing in
+drawcast could move a piece and turn it. Hans's brief: objects should be
+movable and rotatable in general, and geometric primitives should exist
+(template or built-in) — both general, not specific to one drawcast. Design:
+`docs/superpowers/specs/2026-09-07-motion-and-primitives-design.md`.
+Ledger: `docs/superpowers/plans/2026-09-07-motion-and-primitives-ledger.md`.
+
+Three layers, one principle (the model writes semantics, code computes
+geometry):
+
+1. **`move` grows a pose.** `rotate` (degrees, CCW), `pivot` and `to` join
+   `by`/`path`; every element carries a pose (`offset`, `turn`) composed
+   exactly across repeated moves (`src/render/pose.ts`), tweened by a new
+   `transform` player step; attached labels follow a translation but never
+   rotate.
+2. **Tier-2 gains geometric primitives.** `sector` / `arc` / `polygon` and
+   the generator `pieces` (`of: "sectors"`, emits `<id>_1 … <id>_n`, each its
+   own drawable; the layout records `LayoutResult.pieces` geometry for
+   `arrange` to read); angles are `start`/`end`, washes are `<id>_wash`.
+3. **`arrange`** (`src/render/arrange.ts`): `row` / `zipper` / `grid` /
+   `ring` / `stack` lay out any ids (or one `pieces` id, expanded) from
+   computed bounding boxes and pose composition — `zipper` is the
+   rearrangement proof, alternating sectors on a common line into a bumpy
+   rectangle.
+4. **`circle_sectors` template** (mathlogic pack) interpolates every
+   sector's rotation and translation continuously in `t`, so `animate: {n:
+   40}` refines the cut and `animate: {t: 1}` plays the zip; a bundled
+   example rebuilds the πr² drawcast on it.
+5. **Player reveal.** `animate` now reveals element ids a param change
+   mints mid-scene, so `animate: {n: 40}` shows all forty slices instead of
+   only the twelve drawn at the template's rest state — caught by the first
+   live smoke and folded into this round as its own task.
+
+Deliberately not done (design §3): rotated text stays unrotated — labels
+follow translations only, never turn; `zipper` is defined for sectors, not a
+general "tile these polygons" layout; no scale/flip transform and no
+morphing between shapes.
+
+### Follow-ups this round deliberately left
+
+- **Zipper angle normalisation.** Rotation deltas are not normalised to
+  (−180°, 180°], so a slice can spin 432° on its way into place — observed
+  live, cosmetic.
+- **`arrange` warns nothing for invisible targets** — no warning when a
+  target is hidden or missing.
+- **The zipper's non-sector fallback row ignores `gap`.**
+- **`captionLines` (`src/llm/subtitles.ts`) plans with an empty id list**,
+  so a `speak` paired with `move`, `highlight`, or `arrange` never reaches
+  the subtitle track — pre-existing, confirmed independently by two
+  reviewers this round, not fixed.
+- **`language` on `circle_sectors` is inert.**
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
