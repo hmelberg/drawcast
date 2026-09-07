@@ -126,6 +126,12 @@ layout: |
   // so a step of the line plus 4 leaves 2 units to spare. Never a bare
   // constant — the step has to follow the size of the type it moves.
   const LABEL_H = LABEL_PX * 1.25, LABEL_STEP = LABEL_H + 4;
+  // Headroom for the OTHER word. A translated copy swaps the words this body
+  // computed AFTER it has run (layout/text-map.ts) and leaves every box where
+  // it was put, so a layout that places its own names measures the word
+  // written here, not the one that lands. A character's width, added where it
+  // is free — see the two places below, and the limit stated at the second.
+  const TRANSLATED_ROOM = kit.textWidth("n", LABEL_PX);
 
   const view = params.view === "row" || params.view === "tilted" ? params.view : "top";
   const mode = params.scale === "sizes" || params.scale === "distances" || params.scale === "log" ? params.scale : "schematic";
@@ -212,13 +218,38 @@ layout: |
     return rg ? kit.group(id, [...rg.back, { ...disc, id: id + "__disc" }, ...rg.front]) : disc;
   };
 
-  if (typeof params.title === "string" && params.title.trim() !== "") {
-    push(kit.text("title", [500, 726], params.title, { fontSize: 30 }));
+  const titleText = typeof params.title === "string" && params.title.trim() !== "" ? params.title : "";
+  const missingText = missing.length > 0 ? (L === "nb" ? "Ukjent: " : "Unknown: ") + missing.join(", ") : "";
+  if (titleText !== "") {
+    push(kit.text("title", [500, 726], titleText, { fontSize: 30 }));
     anchors.title = [500, 726];
   }
 
   let pxPerKm = null;      // for the scale bar: px per km of DISTANCE (distances) or of RADIUS (sizes)
   let reducedName = "";    // the centre body the note has to admit it shrank — the Sun, or the focus body
+
+  // The captions every figure carries, and where they will be. They are pushed
+  // at the END — the notes and the bar in the strip along the foot of the page,
+  // the title in the strip along the top — but their boxes are fixed the
+  // moment `pxPerKm` and `reducedName` are, and a name looking for room has to
+  // see them: the outermost orbit runs 27 units under the title's box, which
+  // is one step of a name's search away. The shared solver got them for
+  // nothing through obstacleBoxes (layout/layout.ts); a layout that places its
+  // own names has to list them itself, and this is that list.
+  const textBox = (at, s, fs, start) => { const w = kit.textWidth(s, fs), h = fs * 1.25; return { x: start ? at[0] : at[0] - w / 2, y: at[1] - h / 2, w, h }; };
+  const linearBar = () => (pxPerKm && (mode === "sizes" || mode === "distances") ? eng.scaleBar(mode, pxPerKm, L) : null);
+  const captionBoxes = () => {
+    const out = [textBox([F.x0, 36], eng.scaleNote(mode, L, reducedName), NOTE_PX, true)];
+    if (titleText !== "") out.push(textBox([500, 726], titleText, 30));
+    if (missingText !== "") out.push(textBox([500, 36], missingText, NOTE_PX));
+    const b = linearBar();
+    if (b) out.push(textBox([F.x1 - b.lengthPx / 2, 22], b.label, 16));
+    return out;
+  };
+  const captionRules = () => {
+    const b = linearBar();
+    return b ? [[[F.x1 - b.lengthPx, 40], [F.x1, 40]], [[F.x1 - b.lengthPx, 34], [F.x1 - b.lengthPx, 46]], [[F.x1, 34], [F.x1, 46]]] : [];
+  };
 
   if (view === "row" && !focusId) {
     // ---- the line-up ------------------------------------------------------
@@ -270,8 +301,9 @@ layout: |
       anchors.sun = sunC;
     }
     sats.forEach((b, i) => { push(bodyElement(b, b.id, [xs[i], y], rs[i], false)); anchors[b.id] = [xs[i], y]; });
-    // Names above the bodies, in tiers when neighbours are closer than a name
-    // is wide. A tier is a HORIZONTAL grouping — it only says which names
+    // Names under the bodies (the canvas is y-up, so subtracting from y goes
+    // DOWN the page), in tiers when neighbours are closer than a name is
+    // wide. A tier is a HORIZONTAL grouping — it only says which names
     // cannot share a line. The vertical is this layout's own, and a tier index
     // times a step is not enough on its own: every name starts just clear of
     // its OWN disc, and the discs differ in size, so a body a little larger
@@ -386,7 +418,7 @@ layout: |
     // themselves for the same reason.
     const boxAt = (c, w, h) => ({ x: c[0] - w / 2, y: c[1] - h / 2, w, h });
     const coreOf = (b) => ({ x: b.x + b.w * 0.2, y: b.y + b.h * 0.25, w: b.w * 0.6, h: b.h * 0.5 });
-    const grow = (b, k) => ({ x: b.x - k, y: b.y - k, w: b.w + 2 * k, h: b.h + 2 * k });
+    const grow = (b, kx, ky) => ({ x: b.x - kx, y: b.y - ky, w: b.w + 2 * kx, h: b.h + 2 * ky });
     const boxHit = (a, b, pad) => a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
     const turn = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
     const segHit = (a, b, r) => {
@@ -421,10 +453,9 @@ layout: |
     const nameTexts = [];
     if (names !== "none") {
       // What a name may not touch: any disc (its whole box — a name never sits
-      // on a body), any name already written, and — with its core, the way
-      // lint reads it — every guide except the one orbit that will duck. The
-      // scale note and the title live in the strips above and below the orbit
-      // field, further than a line clear of anything drawn inside it.
+      // on a body), any text already on the page, whether a name written here
+      // or a caption pushed at the end, and — with its core, the way lint
+      // reads it — every guide except the one orbit that will duck.
       const discs = [boxAt([c0.x, c0.y], 2 * extent(centre, centreDrawn), 2 * extent(centre, centreDrawn))];
       for (const p of placed) discs.push(boxAt([p.q.x, p.q.y], 2 * extent(p.b, p.r), 2 * extent(p.b, p.r)));
       const guides = [];
@@ -439,7 +470,8 @@ layout: |
       };
       ringRim(centre, [c0.x, c0.y], centreDrawn);
       for (const p of placed) ringRim(p.b, [p.q.x, p.q.y], p.r);
-      const written = [];
+      const written = captionBoxes();
+      for (const pts of captionRules()) guides.push({ id: "scale_bar", pts, ring: -1 });
       if (ruler) {
         guides.push({ id: "scale_bar", pts: [[ruler.a.x, ruler.a.y], [ruler.z.x, ruler.z.y]], ring: -1 });
         guides.push({ id: "scale_bar", pts: [[ruler.a.x - 6, ruler.a.y], [ruler.a.x + 6, ruler.a.y]], ring: -1 });
@@ -452,6 +484,21 @@ layout: |
       const jobs = [{ id: "label_" + centre.id, q: c0, e: extent(centre, centreDrawn), text: nameOf(centre), color: C.ink, ring: -1, a: 0 }];
       for (const p of placed) jobs.push({ id: "label_" + p.b.id, q: p.q, e: extent(p.b, p.r), text: nameOf(p.b), color: lit(p.b.id) ? C.accent : C.ink, ring: p.i, a: p.a });
       for (const p of jobs) {
+        // THE LIMIT OF PLACING OUR OWN NAMES, and what is done about it. A
+        // translated copy swaps these words after this body has run and leaves
+        // every box where it was put, so every measurement here is of the word
+        // written NOW. A character of headroom goes into the clearance between
+        // names (`room` below) and into the gap cut in the ring (the duck) —
+        // measured, both are free. It does NOT go into where a candidate sits:
+        // letting it move the candidates as well takes the Jupiter portrait
+        // from 200 dates clean to 0, because the gap between Jupiter's disc
+        // and Io's ring is 27 units and the name stops fitting the only place
+        // it fits. Paying for a hypothetical figure with a real one is not a
+        // trade worth making. So: a swap of a character or so reads; a longer
+        // one can reach a neighbouring name, or — where the search had to use
+        // a gap rather than a ring — the next ring along, and the translated
+        // copy lints where this one does not. The row view above has placed
+        // its own names since before this, with the same limit.
         const text = p.text, w = kit.textWidth(text, LABEL_PX), e = p.e, own = p.ring >= 0 ? "orbit_" + sats[p.ring].id : "";
         const cands = [];
         // First choice: along its own orbit, just clear of the body, either
@@ -462,8 +509,9 @@ layout: |
           const q = P(orbitR[p.ring] * Math.cos(p.a + k * turnBy), orbitR[p.ring] * Math.sin(p.a + k * turnBy));
           cands.push([q.x, q.y]);
         }
-        // Then out from the body and round the compass, starting outward
-        // (straight up for the centre, which has no outward).
+        // Then out from the body and round the compass, starting outward —
+        // and for the centre, which has no outward, straight DOWN the page
+        // (−π/2 on a y-up canvas), under the body the way a caption sits.
         const th0 = p.ring >= 0 ? Math.atan2(p.q.y - c0.y, p.q.x - c0.x) : -Math.PI / 2;
         for (const extra of [6, 26]) for (const m of [0, 1, -1, 2, -2, 3, -3, 4]) {
           const th = th0 + (m * Math.PI) / 4, dx = Math.cos(th), dy = Math.sin(th);
@@ -479,21 +527,32 @@ layout: |
         // lint warns about; a name touching a disc is only untidy — measured,
         // it beat every ordering that treated a body as the worse offence,
         // because next to a body is where the name belongs.
+        // Two boxes per candidate: `bx` is what gets drawn, `room` is the same
+        // box a character wider, for the word a translation may put there.
         let pick = null, best = null, bestCost = Infinity;
         for (const c of cands) {
-          const bx = boxAt(c, w, LABEL_H), co = coreOf(bx);
+          const bx = boxAt(c, w, LABEL_H), room = boxAt(c, w + TRANSLATED_ROOM, LABEL_H), co = coreOf(bx);
           let cost = bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0;
-          for (const q of written) if (boxHit(bx, q, 2)) cost += 100;
+          for (const q of written) if (boxHit(room, q, 2)) cost += 100;
           for (const g of guides) if (g.id !== own && pathHit(g.pts, co, g.ring === -2 || (g.ring >= 0 && orbitWhole[g.ring]))) cost += 10;
           for (const q of discs) if (boxHit(bx, q, 2)) cost += 6;
           if (cost === 0) { pick = bx; break; }
           if (cost < bestCost) { bestCost = cost; best = bx; }
         }
         if (!pick) pick = best;
-        written.push(pick);
+        written.push(grow(pick, TRANSLATED_ROOM / 2, 0));
         nameTexts.push({ id: p.id, at: [pick.x + pick.w / 2, pick.y + pick.h / 2], text, color: p.color });
         if (orbitsOn && p.ring >= 0) {
-          const arc = duck(orbitPts[p.ring], grow(pick, 2));
+          // The gap is cut wider than the name by a character, and taller by
+          // nothing: a swapped word grows sideways — its line height is the
+          // font's, not the language's — and on the innermost ring, where the
+          // circle turns fastest, every unit of height costs degrees of arc.
+          const arc = duck(orbitPts[p.ring], grow(pick, 2 + TRANSLATED_ROOM, 2));
+          // Written back IN PLACE, and that is load-bearing: the guide entry
+          // above holds this very array, so the names still to be placed see
+          // the ring as it will be drawn — a spot inside a gap already cut is
+          // free, and a ring that has ducked is no longer whole (orbitWhole
+          // says so, and pathHit closes the ring only while it is).
           if (arc) { orbitPts[p.ring].length = 0; for (const q of arc) orbitPts[p.ring].push(q); orbitWhole[p.ring] = false; }
         }
       }
@@ -532,7 +591,7 @@ layout: |
   // Every figure says which truth it keeps; sizes and distances add a bar at the bottom right.
   push(kit.text("scale_note", [F.x0, 36], eng.scaleNote(mode, L, reducedName), { fontSize: NOTE_PX, color: C.guide, anchor: "start" }));
   anchors.scale_note = [F.x0, 36];
-  const bar = pxPerKm && (mode === "sizes" || mode === "distances") ? eng.scaleBar(mode, pxPerKm, L) : null;
+  const bar = linearBar();
   if (bar) {
     const bx1 = F.x1, bx0 = F.x1 - bar.lengthPx, by = 40;
     push(kit.group("scale_bar", [
@@ -543,8 +602,8 @@ layout: |
     ]));
     anchors.scale_bar = [(bx0 + bx1) / 2, by];
   }
-  if (missing.length > 0) {
-    push(kit.text("missing_note", [500, 36], (L === "nb" ? "Ukjent: " : "Unknown: ") + missing.join(", "), { fontSize: NOTE_PX, color: C.guide }));
+  if (missingText !== "") {
+    push(kit.text("missing_note", [500, 36], missingText, { fontSize: NOTE_PX, color: C.guide }));
     anchors.missing_note = [500, 36];
   }
 

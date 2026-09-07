@@ -6,6 +6,7 @@ import { scenes } from "../src/scenes/registry";
 import { ensureEngines } from "../src/scenes/engines";
 import { COLORS, flattenDrawables, leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { heuristicMeasure } from "../src/layout/measure";
 
 const DATE = "2026-09-06";
 const lay = (params: Record<string, unknown>) => scenes.solar_system.layout!({ date: DATE, ...params });
@@ -16,10 +17,10 @@ const radiusOf = (r: ReturnType<typeof lay>, id: string): number => {
   const d = (leaf(r, id + "__disc") ?? leaf(r, id)) as StrokeDrawable | undefined;
   return d?.shapeHint?.type === "circle" ? d.shapeHint.r : NaN;
 };
-/** Label text wherever the layout put it: a solver request (top views) or a placed text (row). */
+/** Any text this layout drew. The pack issues no solver requests any more — it
+ *  places every name itself, in the top views as well as the row, so a name is
+ *  a drawable like the notes and the scale bar's caption. */
 const labelText = (r: ReturnType<typeof lay>, id: string): string | undefined => {
-  const req = r.labels.find((l) => l.id === id);
-  if (req) return req.text;
   const d = leaf(r, id);
   return d && d.kind === "text" ? d.text : undefined;
 };
@@ -273,6 +274,10 @@ describe("solar_system: names clear the ink on any date", () => {
     for (let i = 0; i < n; i++) out.push(new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString().slice(0, 10));
     return out;
   };
+  const labelTextOf = (r: { drawables: Drawable[] }, id: string): string | undefined => {
+    const d = flattenDrawables(r.drawables).find((x) => x.id === id);
+    return d && d.kind === "text" ? d.text : undefined;
+  };
   const sweep = (params: Record<string, unknown>): { dirty: string[]; count: number } => {
     const dirty: string[] = [];
     let count = 0;
@@ -312,18 +317,91 @@ describe("solar_system: names clear the ink on any date", () => {
   });
 
   // An orbit a name sits on is drawn as a circle with a gap, not as a shorter
-  // circle: the arc that goes misses only the name, and the ring still reads
-  // as a ring. (72 points to the ring, so "nearly all of it" is ≥ 60.)
+  // circle: what goes is the name's own footprint (plus a character's headroom
+  // for a translated word), the rest of the ring is untouched, and it still
+  // reads as a ring. The ring is 72 points; the widest break measured over 200
+  // dates and eight configurations is Mercury's — the innermost and smallest
+  // ring, where a seven-letter name is a fifth of the whole circumference —
+  // at 50 points kept in the tilted view, 55 from above. Two thirds is the
+  // line: below that a ring has been shortened rather than broken.
   test("an orbit that carries a name ducks under it — and keeps its shape", () => {
-    const r = lay({});
-    const orbits = PLANETS.map((p) => leaf(r, "orbit_" + p) as StrokeDrawable);
-    for (const o of orbits) {
-      expect(o.kind).toBe("stroke");
-      expect(o.pts.length, o.id).toBeGreaterThanOrEqual(60);
-      const rr = o.pts.map((q) => Math.hypot(q[0] - 500, q[1] - 390));
-      expect(Math.max(...rr) - Math.min(...rr), o.id).toBeLessThan(1);   // still a circle
+    let ducked = 0;
+    for (const view of ["top", "tilted"]) {
+      for (const date of days(60)) {
+        const r = lay({ view, date });
+        for (const p of PLANETS) {
+          const o = leaf(r, "orbit_" + p) as StrokeDrawable;
+          expect(o.kind, p).toBe("stroke");
+          expect(o.pts.length, `${p} on ${date}`).toBeGreaterThanOrEqual(48);
+          if (view === "top") {
+            const rr = o.pts.map((q) => Math.hypot(q[0] - 500, q[1] - 390));
+            expect(Math.max(...rr) - Math.min(...rr), o.id).toBeLessThan(1);   // still a circle
+          }
+          if (o.closed !== true) ducked++;
+        }
+      }
     }
-    expect(orbits.some((o) => o.closed !== true), "no orbit had to duck at all").toBe(true);
+    expect(ducked, "no orbit ever had to duck at all").toBeGreaterThan(0);
+  });
+
+  // A layout that places its own names owns the whole obstacle list, and the
+  // first version of this fix left four things off it: `title` at the top of
+  // the page, `scale_note` and `missing_note` along the foot, and the scale
+  // bar. They are pushed after the names but their boxes are fixed before, and
+  // the compass fallback reaches them — the outermost orbit runs 27 units
+  // under the title's box, one step of the search away. The shared solver had
+  // them for nothing, through obstacleBoxes. Nothing else in this file sets a
+  // title or names an unknown body, which is exactly how the gap survived.
+  test.each([
+    ["a title", { title: "Where the eight planets stood on this date" }],
+    ["a missing note", { bodies: ["planets", "krypton", "vulcan"] }],
+    ["a title over a scale bar", { scale: "distances", bodies: ["inner"], title: "The inner planets, to scale" }],
+    ["a title over a focus portrait", { focus: "jupiter", title: "Jupiter and its four Galilean moons" }],
+  ])("%s is an obstacle to a name like any other text", (_what, params) => {
+    const { dirty, count } = sweep(params);
+    expect(dirty).toEqual([]);
+    expect(count).toBe(0);
+  });
+
+  // The one combination that cannot be asserted clean: at scale "sizes" the
+  // note grows to "Sizes to scale, Sun reduced, distances not" and runs into
+  // `missing_note`, which sits in the same strip along the foot. That is two
+  // CAPTIONS colliding, it reproduces identically on the commit before this
+  // work, and it belongs to whoever owns that strip — not to the names. What
+  // is pinned here is that no NAME is caught up in it.
+  test("no name is caught in the strip where two captions collide", () => {
+    for (const date of days(200)) {
+      const issues = layoutSpec(spec({ scale: "sizes", title: "The planets to scale", bodies: ["planets", "krypton"], date })).issues;
+      expect(issues.filter((i) => i.ids.some((id) => id.startsWith("label_"))).map((i) => i.message), date).toEqual([]);
+    }
+  });
+
+  // The limit this pack now owns, pinned at the size that matters — and it is
+  // a real limit, not a hypothetical one. A translated copy swaps the drawn
+  // words AFTER the layout has run (src/layout/text-map.ts) and leaves every
+  // box where it was put, so every clearance here was measured for the English
+  // word. What the fix buys is stated here: a character of headroom in the
+  // clearance between names, and the same headroom in the gap cut in each
+  // ring, so a proper noun that grows by a character — these are the Italian
+  // names, and Sole, Mercurio, Venere and Saturno all do — still reads.
+  // What it does not buy is a name the search had to put in a GAP rather than
+  // on its own ring: there the room is the gap's, and a longer word can reach
+  // the next ring along. Measured at one date in sixty for this set, and
+  // pinned so it cannot quietly get worse.
+  test("a copy translated into a language the pack does not know keeps its names apart", () => {
+    const text_map = {
+      Sun: "Sole", Mercury: "Mercurio", Venus: "Venere", Earth: "Terra", Mars: "Marte",
+      Jupiter: "Giove", Saturn: "Saturno", Uranus: "Urano", Neptune: "Nettuno",
+      "Not to scale": "Non in scala",
+    };
+    let residual = 0;
+    for (const date of days(60)) {
+      const res = layoutSpec({ template: "solar_system", params: { date }, elements: [], text_map } as never);
+      expect(labelTextOf(res, "label_neptune"), date).toBe("Nettuno");   // the swap really happened
+      expect(res.issues.filter((i) => i.rule === "overlap-label-label").map((i) => i.message), date).toEqual([]);
+      residual += res.issues.length;
+    }
+    expect(residual).toBeLessThanOrEqual(3);
   });
 
   // Defect B in one line: the step between two rows of names has to clear a
@@ -335,9 +413,10 @@ describe("solar_system: names clear the ink on any date", () => {
     for (let i = 0; i < names.length; i++) {
       for (let j = i + 1; j < names.length; j++) {
         const a = names[i], b = names[j];
-        const aw = 0.52 * 19 * a.text.length, bw = 0.52 * 19 * b.text.length;
+        // Measured the way lint measures, not with a copy of its constants.
+        const aw = heuristicMeasure(a.text, a.fontSize).w, bw = heuristicMeasure(b.text, b.fontSize).w;
         const near = Math.abs(a.pos[0] - b.pos[0]) * 2 < aw + bw + 4;
-        if (near) expect(Math.abs(a.pos[1] - b.pos[1]), `${a.id}/${b.id}`).toBeGreaterThanOrEqual(19 * 1.25 + 2);
+        if (near) expect(Math.abs(a.pos[1] - b.pos[1]), `${a.id}/${b.id}`).toBeGreaterThanOrEqual(heuristicMeasure(a.text, a.fontSize).h + 2);
       }
     }
   });
