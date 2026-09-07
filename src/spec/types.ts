@@ -1,3 +1,4 @@
+import type { TemplateDoc } from "../scenes/doc";
 // The single spec format the LLM ever sees. See BRIEF.md and src/spec/schema.ts.
 // All coordinates are logical (1000×750, y-up, origin bottom-left) or domain
 // coordinates when a `domain` is declared — never screen pixels.
@@ -432,6 +433,13 @@ export interface Spec {
   canvas?: { width: number; height: number };
   template?: string;
   params?: Record<string, unknown>;
+  /**
+   * Template documents this drawcast carries with it (template-on-demand):
+   * registered on load by every render path, never shadowing a built-in,
+   * so a published cast renders for a viewer who has none of the author's
+   * My templates. The compiler never writes this field; the app does.
+   */
+  templates?: TemplateDoc[];
   domain?: { x?: [number, number]; y?: [number, number] };
   elements?: SpecElement[];
   commands?: Command[];

@@ -25,6 +25,8 @@ export interface LintIssue {
     | "out-of-canvas"
     | "font-too-small"
     | "slow-start"
+    /** authoring only: a figure of many strokes exposes no named, outlined part the identify drill or a click ask could use */
+    | "drillable-parts"
     | "talky-stretch"
     | "ask-var"
     | "source-use"

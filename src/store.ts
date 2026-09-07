@@ -69,6 +69,8 @@ export function migrateShareTo(v: string): ShareTo {
 
 export interface Settings {
   model: string;
+  /** Effort for the creative rounds (generate, revise, author): thinking depth and token spend. Repairs always run low. */
+  effort: "low" | "medium" | "high";
   style: RenderStyle;
   /** Viewer's text size in the player — a base size (22/32/38), or null to follow the drawcast. */
   textSize: number | null;
@@ -159,6 +161,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
+  effort: "high",
   style: "clean",
   textSize: null,
   textFamily: null,

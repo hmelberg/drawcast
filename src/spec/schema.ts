@@ -14,6 +14,7 @@ import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
 import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
+import { validateTemplateDoc } from "../scenes/doc";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -674,10 +675,18 @@ const TRANSLATION_FIELDS = {
   },
 } as const;
 
+/** Template documents a drawcast carries (template-on-demand, step 3).
+ *  Document-only: the model never sees or writes it; each entry is checked
+ *  as a TemplateDoc in semanticErrors, and registered by every render path
+ *  (scenes/cast-templates.ts). */
+const TEMPLATE_FIELDS = {
+  templates: { type: "array", items: { type: "object" } },
+} as const;
+
 /** The authoring schema plus the fields tooling stamps. What validateSpec checks. */
 export const documentSchema = {
   ...specSchema,
-  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS },
+  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS, ...TEMPLATE_FIELDS },
 } as const;
 
 const ajv = new AjvCtor({ allErrors: true, strict: false });
@@ -737,6 +746,13 @@ export function isBlankSpec(spec: Spec): boolean {
 
 function semanticErrors(spec: Spec): string[] {
   const errors: string[] = [];
+
+  // An embedded template must be a valid template document, or the cast
+  // would carry something no render path can register.
+  (spec.templates ?? []).forEach((doc, i) => {
+    const v = validateTemplateDoc(doc);
+    if (!v.doc) errors.push(`templates[${i}]: ${v.errors[0] ?? "invalid template document"}`);
+  });
 
   if (!spec.template && !(spec.elements && spec.elements.length > 0)) {
     errors.push("spec has neither a template nor any elements — nothing to draw");

@@ -111,7 +111,7 @@ beating freehand clearly for anything that looks like a thing (a violin,
 a flower, a drivetrain). The five criteria still decide what is worth a
 HAND-BUILT template; the on-demand path below covers the rest.
 
-## Template on demand — steps 1–2 done 2026-09-07, step 3 next
+## Template on demand — steps 1–3 done 2026-09-07, sharing next
 
 Hans's question (2026-09-07): when a request has no template, can drawcast
 author one as part of answering, and can the intrinsic interactions be
@@ -130,21 +130,24 @@ call).
    and shortlists; joined with the keyword picks 97.6 % top-5 recall over
    338 known requests; threshold 100 → 40; system prompt ≈105k → ≈46k
    tokens. `npm run selector:eval --router --gate 0.95` is the bench.
-3. **Next — template on demand.** The router's `none_fits` (logged on
-   every outcome) is the trigger. Offer, not automation: "no template
-   draws this — author one? (~4 min)". On yes: the shipped authoring
-   pipeline with a compiler-written description, then the same request
-   compiled with the new template forced. **Ruling (Hans, 2026-09-07):
-   every generated template is SAVED to My templates automatically** — no
-   keep/discard prompt; My templates already has delete, and with the
-   router a saved template costs one index line. The template must also
-   travel INSIDE the cast (published casts do not carry My templates
-   today — `publish/*` knows nothing of them, and a viewer gets "unknown
-   template"), so step 3 includes embedding the template document in the
-   spec/cast and registering it on load, with the same never-shadow rule
-   as user templates. Prerequisites in the authoring prompt: the seven
-   engines (it documents one), `interactions`/`explore`/`model3d`, a lint
-   rule for named, closed parts, and a repair round on warnings.
+3. **Done — template on demand**
+   (`2026-09-07-template-on-demand-ledger.md`). The router's `none_fits`
+   is the trigger; the editor offers "Author a template and redraw
+   (~4 min)" after a freehand result. On yes (`src/llm/on-demand.ts`): a
+   brief from the repair model (request + the freehand spec's elements, at
+   most ten parts) → the authoring pipeline → registered and, per Hans's
+   ruling, SAVED to My templates unconditionally → the request redrawn
+   with the template forced → the document embedded in the spec
+   (`spec.templates`), which every render path registers on sight
+   (`scenes/cast-templates.ts`, never shadowing a built-in), so a
+   published cast renders for a viewer with none of the author's
+   templates. Authoring prompt refreshed (seven engines with their
+   interfaces, the parts rule, no title, two exemplars); warnings earn one
+   repair; a `drillable-parts` lint; a 64k output ceiling with one retry
+   at lower effort after a cut-off. Verified end to end on a sailing boat.
+   Also from this round: an **Effort** setting (high / medium / low)
+   beside the model, for the creative rounds of generate, revise and
+   author.
 4. **Later — sharing.** A "suggest for the shared library" action on a
    saved template (default on, decided with the ruling above): Anvil or a
    PR to the drawcast-templates repo, with review before anything is

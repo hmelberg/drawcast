@@ -3,7 +3,7 @@
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { makeClient, callForJson, callForText, describeApiError, repairModelFor, type JsonCallMeta } from "./client";
+import { makeClient, callForJson, callForText, describeApiError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
@@ -136,6 +136,8 @@ export interface GenerateConfig {
    * selector, exactly as before; a router failure degrades to the same.
    */
   route?: (request: string, signal?: AbortSignal) => Promise<RouteResult>;
+  /** Effort for the creative round (Settings). Repairs and the pedagogy pass always run low; omitted = the API default (high). */
+  effort?: Effort;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
@@ -322,7 +324,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       const round = rounds.length + 1;
       const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema, {
         signal: cfg.signal,
-        effort: label === "initial" ? undefined : "low",
+        effort: label === "initial" ? cfg.effort : "low",
         onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
       });
 

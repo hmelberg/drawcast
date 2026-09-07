@@ -61,6 +61,9 @@ function textOf(response: Anthropic.Message): string {
     .join("");
 }
 
+/** The effort dial: thinking depth and overall token spend. "high" is the API default. */
+export type Effort = "low" | "medium" | "high";
+
 /** Per-call knobs: cancellation, live text, and the effort dial repairs turn down. */
 export interface CallOpts {
   /** Aborts the request in flight — the SDK throws APIUserAbortError. */
@@ -68,7 +71,7 @@ export interface CallOpts {
   /** Each text delta plus the running snapshot, as the model writes it. */
   onDelta?: (delta: string, snapshot: string) => void;
   /** output_config.effort. Omitted means the model's default (high). */
-  effort?: "low" | "medium" | "high";
+  effort?: Effort;
   /** max_tokens for the reply (thinking included). Default 16000; template authoring needs more. */
   maxTokens?: number;
 }
