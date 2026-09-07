@@ -14810,5 +14810,30 @@
         }
       ]
     }
+  },
+  {
+    "request": "Hvorfor er arealet av en sirkel πr²?",
+    "packs": [
+      "mathlogic"
+    ],
+    "spec": {
+      "title": "Hvorfor er arealet av en sirkel πr²?",
+      "template": "circle_sectors",
+      "params": { "n": 12, "t": 0, "language": "nb" },
+      "elements": [
+        { "id": "eq", "type": "text", "text": "πr · r = πr²", "x": 690, "y": 120, "font_size": 36, "style": { "color": "#b5482e" } },
+        { "id": "mark", "type": "annotation", "target": "eq", "kind": "box" }
+      ],
+      "commands": [
+        { "draw": ["piece_1", "piece_2", "piece_3", "piece_4", "piece_5", "piece_6", "piece_7", "piece_8", "piece_9", "piece_10", "piece_11", "piece_12"], "parallel": true, "speak": "πr² ser ut som noe man bare må pugge, men formelen kan du klippe ut med saks. Her er en sirkel delt i tolv like kakestykker." },
+        { "draw": ["radius_line", "label_r"], "speak": "Radien er r, og hele buen rundt er omkretsen, to π r." },
+        { "pause": 0.4 },
+        { "animate": { "t": 1 }, "duration": 4, "speak": "Nå snur vi annenhvert stykke og skyver dem sammen, som tenner i en glidelås. Arealet er uendret, vi har bare flyttet bitene." },
+        { "draw": ["label_base", "label_height"], "speak": "Halve omkretsen ligger nede og halve oppe, så grunnlinjen er πr, og høyden er radien r." },
+        { "animate": { "n": 40 }, "duration": 3, "easing": "linear", "speak": "Med førti tynnere stykker blir den bulkete kanten nesten helt rett: et rektangel." },
+        { "draw": ["eq", "mark"], "speak": "Grunnlinje ganger høyde: πr ganger r, altså πr²." },
+        { "speak": "Så πr² er ikke et mysterium. Det er omkretsen ganget med radien, halvert av en sirkel som er rettet ut." }
+      ]
+    }
   }
 ]

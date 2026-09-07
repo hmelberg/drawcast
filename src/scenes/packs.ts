@@ -49,7 +49,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
   mathlogic: {
     id: "mathlogic",
     title: "Math & logic",
-    description: "Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations.",
+    description: "Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations, and the circle cut into sectors that zip into the πr² rectangle.",
     load: async () => (await import("./packs/mathlogic.yaml?raw")).default,
   },
   medicine: {

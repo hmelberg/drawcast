@@ -1,6 +1,6 @@
 pack: mathlogic
 title: Math & logic
-description: Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations.
+description: Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations, and the circle cut into sectors that zip into the πr² rectangle.
 ---
 template: venn_diagram
 title: Venn / Euler diagram
@@ -1484,4 +1484,112 @@ layout: |
     order = order.concat(["title"]);
   }
 
+  return { drawables, labels, anchors, order };
+---
+template: circle_sectors
+title: Circle cut into sectors → the πr² rectangle
+version: 1
+kit: 9
+status: ready
+description: >-
+  A circle of radius r cut into n equal sectors that zip together into a
+  near-rectangle of width πr and height r — the classic proof that the
+  area of a circle is πr². The param t morphs the figure: t = 0 is the
+  circle, t = 1 the zipped rectangle, and animate moves every piece on
+  the way; n refines the cut (with 40 pieces the top edge is nearly
+  straight). Choose this for ANY request about why the area of a circle is
+  πr², the area of a disc, rearranging sectors into a rectangle, or
+  Archimedes' circle-and-triangle argument.
+params:
+  type: object
+  properties:
+    n:
+      type: integer
+      minimum: 2
+      maximum: 64
+      description: "How many sectors (default 12). animate to 40 to refine the cut."
+    t:
+      type: number
+      minimum: 0
+      maximum: 1
+      description: "0 = the circle, 1 = the zipped rectangle (default 0); animate from 0 to 1 to move the pieces."
+    show_radius:
+      type: boolean
+      description: "Draw the radius line and its label r (default true)."
+    labels:
+      type: boolean
+      description: "Label the rectangle's base πr and height r (default true). Drawn at the rectangle's eventual position from t = 0 onward, so a caller can draw them any time."
+    language:
+      type: string
+      enum: [en, nb]
+      description: "Label language (default en)."
+element_ids:
+  piece_<k>: sector k of n (1-based), a closed outline with a wash — every one moves with t
+  radius_line: the radius drawn inside the first sector (when show_radius)
+  label_r: the radius label
+  label_base: the rectangle's base label "πr" (when labels; present at every t, positioned where the rectangle forms)
+  label_height: the rectangle's height label "r" (when labels; present at every t, positioned where the rectangle forms)
+examples:
+  - request: "Why is the area of a circle πr²? Show the circle cut into slices."
+    params: { n: 12, t: 0 }
+  - request: "Show the slices zipped into a rectangle with forty thin pieces."
+    params: { n: 40, t: 1, language: en }
+layout: |-
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const n = Math.max(2, Math.min(64, Math.round(Number(params.n ?? 12))));
+  const t = Math.max(0, Math.min(1, Number(params.t ?? 0)));
+  const showRadius = params.show_radius !== false;
+  const labelsOn = params.labels !== false;
+  const R = 150;
+  const CIRCLE = [300, 375];
+  const step = (2 * Math.PI) / n;
+  const half = step / 2;
+  const s = R * Math.sin(half);
+  const rectCx = 690;
+  const rectCy = 375;
+  const x0 = rectCx - (s * (n - 1)) / 2;
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const rot = (p, c, a) => { const dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * Math.cos(a) - dy * Math.sin(a), c[1] + dx * Math.sin(a) + dy * Math.cos(a)]; };
+  const lerp = (a, b, u) => a + (b - a) * u;
+  for (let k = 0; k < n; k++) {
+    const a0 = k * step, a1 = (k + 1) * step, mid = (a0 + a1) / 2;
+    const up = k % 2 === 0;
+    const targetMid = up ? Math.PI / 2 : -Math.PI / 2;
+    let delta = targetMid - mid;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    while (delta < -Math.PI) delta += 2 * Math.PI;
+    const apexTo = [x0 + k * s, rectCy + (up ? -R / 2 : R / 2)];
+    const angle = delta * t;
+    const apex = [lerp(CIRCLE[0], apexTo[0], t), lerp(CIRCLE[1], apexTo[1], t)];
+    const pts = [CIRCLE];
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) { const a = a0 + (step * i) / steps; pts.push([CIRCLE[0] + R * Math.cos(a), CIRCLE[1] + R * Math.sin(a)]); }
+    const moved = pts.map((p) => { const q = rot(p, CIRCLE, angle); return [q[0] + apex[0] - CIRCLE[0], q[1] + apex[1] - CIRCLE[1]]; });
+    const id = "piece_" + (k + 1);
+    // Two top-level drawables, not a group: "_body" is a SUB_SUFFIX
+    // (layout/model.ts drawablesForId) that auto-bundles with its base id
+    // for both drawing and lint/anchor purposes, without needing a group.
+    push(kit.area(id, moved, C.region1, { opacity: 0.45, ms: MS.region }));
+    drawables.push(kit.stroke(id + "_body", moved, { closed: true, color: C.ink, strokeWidth: 2.5, ms: MS.stroke }));
+    const cm = rot([CIRCLE[0] + 0.6 * R * Math.cos(mid), CIRCLE[1] + 0.6 * R * Math.sin(mid)], CIRCLE, angle);
+    anchors[id] = [cm[0] + apex[0] - CIRCLE[0], cm[1] + apex[1] - CIRCLE[1]];
+  }
+  if (showRadius) {
+    const a = t < 0.5 ? half : Math.PI / 2;
+    const apex = t < 0.5 ? CIRCLE : [x0, rectCy - R / 2];
+    const tip = [apex[0] + R * Math.cos(a), apex[1] + R * Math.sin(a)];
+    push(kit.stroke("radius_line", [apex, tip], { color: C.demand, strokeWidth: 3, ms: MS.stroke }));
+    labels.push(kit.label("label_r", [(apex[0] + tip[0]) / 2, (apex[1] + tip[1]) / 2], t < 0.5 ? "above" : "left", "r", { color: C.demand, fontSize: 26 }));
+    order.push("label_r");
+    anchors.radius_line = tip;
+  }
+  if (labelsOn) {
+    labels.push(kit.label("label_base", [rectCx, rectCy - R / 2 - 8], "below", "πr", { color: C.demand, fontSize: 28 }));
+    labels.push(kit.label("label_height", [x0 + s * (n - 1) + s + 10, rectCy], "right", "r", { color: C.demand, fontSize: 28 }));
+    order.push("label_base", "label_height");
+    anchors.label_base = [rectCx, rectCy - R / 2 - 30];
+  }
+  anchors.circle = CIRCLE;
+  anchors.rectangle = [rectCx, rectCy];
   return { drawables, labels, anchors, order };
