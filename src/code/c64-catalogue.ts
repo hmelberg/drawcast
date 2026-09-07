@@ -28,11 +28,12 @@ export interface C64Program {
   licence: string;
 }
 
-// Every URL below was checked 2026-09-05/06: an https host that answers
-// cross-origin (`access-control-allow-origin: *`), a real PRG (the two
-// load-address bytes 01 08), and a repository whose LICENSE says it may be
-// shared. GitHub's raw files are the ideal host for that: the licence sits
-// beside the file, and CORS is on for the whole domain.
+// Every URL below was checked: an https host that answers cross-origin, a real
+// program (the load-address bytes 01 08) or a real cartridge (the sixteen
+// bytes "C64 CARTRIDGE   "), and a licence naming who may share it. GitHub's
+// raw files are the ideal host: the licence sits beside the file and CORS is
+// on for the whole domain. archive.org/cors/ is the other one that answers —
+// its /download/ path redirects to a node that does not.
 export const C64_PROGRAMS: readonly C64Program[] = [
   {
     key: "c64maze",
@@ -127,6 +128,31 @@ export const C64_PROGRAMS: readonly C64Program[] = [
     url: "https://raw.githubusercontent.com/pstankiewicz/diffusion/master/diffusion_horizontal.prg",
     note: "Particles diffusing across a grid, live — a tiny KickC simulation, no controls.",
     licence: "MIT (github.com/pstankiewicz/diffusion)",
+  },
+  // ---- cartridges, added 2026-09-06 ----------------------------------------
+  // A cartridge is the surest thing on the free ROMs: it takes the machine
+  // over at reset and never asks them to load anything. These two are the
+  // only ones we could find anywhere that state a licence — both from their
+  // uploader on the Internet Archive, which is the same standard as a
+  // repository's LICENSE file. (The Archive's other three cartridges — the
+  // Joust prototype, Caren and the Tangled Tentacles, a Hokuto Force intro —
+  // say nothing about rights, so they stay where a VIEWER picks them in the
+  // ⊕ tray's Archive search, and are not put in an author's hands here.
+  // GitHub has none at all: 74 licensed C64 repositories searched, zero .crt,
+  // and release assets do not answer cross-origin anyway.)
+  {
+    key: "nono-pixie",
+    title: "Nono Pixie",
+    url: "https://archive.org/cors/nonopixie/nonopixie.crt",
+    note: "A nonogram puzzle cartridge with 100 puzzles, by Carl-Henrik Skårstedt (2019) — fire to start.",
+    licence: "CC BY-NC-ND 4.0, declared by the uploader (archive.org/details/nonopixie)",
+  },
+  {
+    key: "space-orbs",
+    title: "Space Orbs",
+    url: "https://archive.org/cors/spaceorbs/spaceorbs.crt",
+    note: "A co-operative falling-orbs puzzle for two, by Space Moguls Games (2019).",
+    licence: "CC BY-ND 4.0, declared by the uploader (archive.org/details/spaceorbs)",
   },
 ];
 
