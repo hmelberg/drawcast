@@ -103,6 +103,58 @@ discussion; the two managed risks are shoehorning (kept in check by honest
 "Choose this for…" scoping and the fall-through) and catalog weight (the
 two-level catalog above `TEMPLATE_FULL_THRESHOLD`).
 
+Revised 2026-09-07 with the template router (below): catalog weight is
+now one index line per template (~50 tokens) plus a place on the
+router's list, not a full entry on every request — so the bar for
+"earns its weight" is lower, and the spike showed authored templates
+beating freehand clearly for anything that looks like a thing (a violin,
+a flower, a drivetrain). The five criteria still decide what is worth a
+HAND-BUILT template; the on-demand path below covers the rest.
+
+## Template on demand — steps 1–2 done 2026-09-07, step 3 next
+
+Hans's question (2026-09-07): when a request has no template, can drawcast
+author one as part of answering, and can the intrinsic interactions be
+generalised so new figures get them? Assessment and spike:
+`docs/superpowers/plans/2026-09-07-template-on-demand-spike-ledger.md`
+(five template-less requests both ways — the authored template won four
+clearly, drew one, at 2.6–4.6× the wall time, all of it the authoring
+call).
+
+1. **Done — the generic identify drill + `explore:` on the manifest**
+   (`2026-09-07-parts-drill-ledger.md`): "🎯 Find the part" for any figure
+   with three named parts, names hidden while it runs; Body/Space
+   declared on the manifest, never sniffed from a template id.
+2. **Done — the template router + two-level catalog as default**
+   (`2026-09-07-template-router-ledger.md`): Haiku reads a one-line index
+   and shortlists; joined with the keyword picks 97.6 % top-5 recall over
+   338 known requests; threshold 100 → 40; system prompt ≈105k → ≈46k
+   tokens. `npm run selector:eval --router --gate 0.95` is the bench.
+3. **Next — template on demand.** The router's `none_fits` (logged on
+   every outcome) is the trigger. Offer, not automation: "no template
+   draws this — author one? (~4 min)". On yes: the shipped authoring
+   pipeline with a compiler-written description, then the same request
+   compiled with the new template forced. **Ruling (Hans, 2026-09-07):
+   every generated template is SAVED to My templates automatically** — no
+   keep/discard prompt; My templates already has delete, and with the
+   router a saved template costs one index line. The template must also
+   travel INSIDE the cast (published casts do not carry My templates
+   today — `publish/*` knows nothing of them, and a viewer gets "unknown
+   template"), so step 3 includes embedding the template document in the
+   spec/cast and registering it on load, with the same never-shadow rule
+   as user templates. Prerequisites in the authoring prompt: the seven
+   engines (it documents one), `interactions`/`explore`/`model3d`, a lint
+   rule for named, closed parts, and a repair round on warnings.
+4. **Later — sharing.** A "suggest for the shared library" action on a
+   saved template (default on, decided with the ruling above): Anvil or a
+   PR to the drawcast-templates repo, with review before anything is
+   served to others, since a template's layout is JavaScript that runs in
+   every viewer's browser. Not before step 3 has been used for a while.
+5. **Also open:** maps' countries as parts (scene names from the geo
+   engine, the anatomy hook); the fixed prompt parts (compiler prompt
+   41k chars, schema 39k, fewshots 14k) are now the bigger half of every
+   request — the next slimming target, unrelated to routing.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
