@@ -393,6 +393,7 @@ export class Player {
       const turn = scene.turns[id];
       if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1);
       else el.setOffset?.(dx, dy);
+      el.setOpacity?.(scene.opacities[id] ?? 1);
       if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
       else el.hide();
     }
@@ -1023,6 +1024,15 @@ export class Player {
             if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc);
             else el!.setOffset!(dx, dy);
           }
+        });
+        return;
+      }
+      case "fade": {
+        const ease = EASINGS[step.easing];
+        const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setOpacity);
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const e = ease(t);
+          for (const { it, el } of items) el!.setOpacity!(it.from + (it.to - it.from) * e);
         });
         return;
       }

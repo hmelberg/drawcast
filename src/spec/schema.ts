@@ -289,7 +289,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -547,6 +547,19 @@ const commandSchema = {
       required: ["target", "layout"],
       additionalProperties: false,
     },
+    fade: {
+      type: "object",
+      description:
+        "Persistently dim elements (or restore them with to: 1) so the rest stands out — e.g. {\"fade\": {\"target\": [\"supply\"], \"to\": 0.25, \"duration\": 1}, \"speak\": \"Set supply aside for a moment.\"}. Attached labels fade with their element. It stays until the next fade; use hide to remove an element, focus/highlight for a momentary emphasis that ends by itself.",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        to: { type: "number", minimum: 0, maximum: 1, description: "Opacity to settle at — e.g. 0.25 dims, 1 restores." },
+        duration: { type: "number", description: "Seconds (default 1)." },
+        easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+      },
+      required: ["target", "to"],
+      additionalProperties: false,
+    },
     camera: {
       type: "object",
       description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
@@ -762,6 +775,8 @@ export function normalizeSpec(spec: unknown): unknown {
     // arrange's whole point is that ONE pieces id names them all, so the bare
     // string is the common form — normalize it like every other target list.
     if (cmd.arrange) cmd.arrange.target = toList(cmd.arrange.target)!;
+    // fade's target follows the same one-or-many convention as arrange/move.
+    if (cmd.fade) cmd.fade.target = toList(cmd.fade.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -801,7 +816,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

@@ -242,6 +242,16 @@ export interface ArrangeArgs {
   easing?: Easing;
 }
 
+export interface FadeArgs {
+  /** Element ids, or one pieces id (all its pieces). */
+  target: string[] | string;
+  /** Opacity 0–1 to settle at; 1 restores. Persistent until the next fade. */
+  to: number;
+  /** seconds (default 1) */
+  duration?: number;
+  easing?: Easing;
+}
+
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
@@ -299,6 +309,8 @@ export interface Command {
   /** Lay elements out (row / zipper / grid / ring / stack) and animate them
    *  there — every position and turn computed from the targets' geometry. */
   arrange?: ArrangeArgs;
+  /** Persistently dim elements (or restore with to: 1); attached labels fade with them. */
+  fade?: FadeArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths

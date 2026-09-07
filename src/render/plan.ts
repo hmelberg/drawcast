@@ -76,6 +76,7 @@ export type PlanStep = (
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing }
+  | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
   | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string> }
   | {
@@ -117,9 +118,11 @@ export interface SceneState {
   camera: BBox | null;
   /** Cumulative animate overrides at this boundary (dot paths → numeric value). */
   params: Record<string, number>;
+  /** Persistent opacity per faded id (absent = 1). */
+  opacities: Record<string, number>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {} };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {} };
 
 export interface Plan {
   steps: PlanStep[];
@@ -175,6 +178,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const visibleSet = new Set<string>();
   const offsets: Record<string, Pt> = {};
   const turns: Record<string, Turn> = {};
+  const opacities: Record<string, number> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
@@ -195,7 +199,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       };
     }
     steps.push(step);
-    states.push({ visible: [...visible], offsets: { ...offsets }, turns: { ...turns }, camera, params: { ...params } });
+    states.push({ visible: [...visible], offsets: { ...offsets }, turns: { ...turns }, camera, params: { ...params }, opacities: { ...opacities } });
   };
   /** The window's scroll: the highest visible line's bottom sits at the
    *  window's bottom. Every line of the element gets the offset — the hidden
@@ -266,7 +270,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -610,6 +614,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         }
       }
       pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
+    } else if (cmd.fade !== undefined) {
+      const ids = resolveIds(cmd.fade.target, "fade");
+      if (ids.length === 0) continue;
+      const to = Math.max(0, Math.min(1, cmd.fade.to));
+      const items: { id: string; from: number; to: number }[] = [];
+      const seen = new Set<string>();
+      const fadeOne = (id: string) => {
+        if (seen.has(id)) return;
+        seen.add(id);
+        items.push({ id, from: opacities[id] ?? 1, to });
+        opacities[id] = to;
+      };
+      for (const id of ids) fadeOne(id);
+      for (const id of ids) for (const f of opts.attachedTo?.(id) ?? []) if (known.has(f) && !ids.includes(f)) fadeOne(f);
+      pushStep({ kind: "fade", items, seconds: cmd.fade.duration ?? 1, easing: cmd.fade.easing ?? "ease-in-out" });
     } else if (cmd.camera !== undefined) {
       let box: BBox | null = null;
       if (!cmd.camera.reset) {

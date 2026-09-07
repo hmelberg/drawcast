@@ -609,6 +609,17 @@ class SvgElementHandle implements RenderedElement {
     }
   }
 
+  /** Persistent opacity (the `opacity` ATTRIBUTE, not CSS) — the fade verb's
+   *  store. Kept independent of the focus effect's `style.opacity` on leaf
+   *  nodes, so ending a focus never undoes a fade, and a fade layers under
+   *  whatever transient dimming focus applies on top. */
+  setOpacity(alpha: number): void {
+    for (const g of this.groups) {
+      if (alpha >= 1) g.removeAttribute("opacity");
+      else g.setAttribute("opacity", Math.max(0, alpha).toFixed(3));
+    }
+  }
+
   setProgress(t: number): void {
     const elapsed = t * this.durationMs;
     this.leaves.forEach((leaf, i) => {

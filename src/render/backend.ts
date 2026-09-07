@@ -30,6 +30,8 @@ export interface RenderedElement {
    * setOffset(dx, dy) is setTransform(dx, dy, 0, [0, 0]).
    */
   setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number): void;
+  /** Persistent opacity 0–1 (1 clears it). Independent of the focus effect's dimming. */
+  setOpacity?(alpha: number): void;
 }
 
 /**

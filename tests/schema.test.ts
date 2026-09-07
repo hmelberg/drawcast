@@ -267,3 +267,19 @@ describe("arrange", () => {
     expect(v.errors.join(" ")).toMatch(/at most one action/i);
   });
 });
+
+describe("fade", () => {
+  const spec = (fade: object) => ({
+    elements: [{ id: "a", type: "shape", shape: "circle", x: 100, y: 100, radius: 20 }],
+    commands: [{ draw: ["a"] }, { fade }],
+  });
+  test("a valid fade validates", () => {
+    expect(validateSpec(spec({ target: ["a"], to: 0.3 })).ok).toBe(true);
+  });
+  test("to is required", () => {
+    expect(validateSpec(spec({ target: ["a"] })).ok).toBe(false);
+  });
+  test("a bare-string target validates", () => {
+    expect(validateSpec(spec({ target: "a", to: 0.3 })).ok).toBe(true);
+  });
+});

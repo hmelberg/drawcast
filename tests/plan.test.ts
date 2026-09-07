@@ -382,3 +382,37 @@ describe("arrange", () => {
     expect(plan.states[1].offsets["label_k_1"]).toBeUndefined();
   });
 });
+
+describe("fade", () => {
+  test("fade records a persistent opacity and tweens from the previous value", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { fade: { target: ["demand_curve"], to: 0.3 } }, { fade: { target: "demand_curve", to: 1, duration: 0.5 } }], allIds);
+    const s1 = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s1.kind).toBe("fade");
+    expect(s1.items).toEqual([{ id: "demand_curve", from: 1, to: 0.3 }]);
+    expect(s1.seconds).toBe(1);
+    expect(plan.states[1].opacities.demand_curve).toBe(0.3);
+    const s2 = plan.steps[2] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s2.items).toEqual([{ id: "demand_curve", from: 0.3, to: 1 }]);
+    expect(s2.seconds).toBe(0.5);
+    expect(plan.states[2].opacities.demand_curve).toBe(1);
+  });
+  test("attached labels fade with their element, once", () => {
+    const plan = planCommands([{ draw: ["demand_curve", "label_D"] }, { fade: { target: ["demand_curve"], to: 0.2 } }], allIds, {
+      attachedTo: (id) => (id === "demand_curve" ? ["label_D", "label_D"] : []),
+    });
+    const s = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s.items.map((i) => i.id)).toEqual(["demand_curve", "label_D"]);
+    expect(plan.states[1].opacities.label_D).toBe(0.2);
+  });
+  test("a pieces id expands and `to` is clamped to 0…1", () => {
+    const plan = planCommands([{ draw: ["k"] }, { fade: { target: "k", to: 1.7 } }], ["k_1", "k_2"], { expandId: (id) => (id === "k" ? ["k_1", "k_2"] : null) });
+    const s = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s.items.map((i) => i.id)).toEqual(["k_1", "k_2"]);
+    expect(s.items[0].to).toBe(1);
+  });
+  test("fade on an unknown id is skipped with a warning", () => {
+    const plan = planCommands([{ fade: { target: ["nope"], to: 0.5 } }], ["axes"]);
+    expect(plan.steps.filter((s) => s.kind === "fade")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/fade/);
+  });
+});
