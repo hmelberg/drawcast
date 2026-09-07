@@ -14,7 +14,9 @@ import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
-import { composeTurn, poseCentre, type Turn } from "./pose";
+import { composeTurn, poseCentre, poseOf, type Turn } from "./pose";
+import { arrangeTargets, type ArrangeInput } from "./arrange";
+import type { PieceGeometry } from "../layout/tier2";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -146,6 +148,10 @@ export interface PlanOptions {
   animateBase?: Record<string, unknown> | null;
   /** After an animate step, the planner switches its bbox source to this so later steps target post-animate geometry. */
   bboxesFor?: (params: Record<string, number>) => (id: string) => BBox | null;
+  /** Piece geometry from the layout (the pieces element), by piece id. */
+  pieceOf?: (id: string) => PieceGeometry | null;
+  /** A pieces id → its piece ids, so one id can name them all. */
+  expandId?: (id: string) => string[] | null;
 }
 
 const CAMERA_MAX_ZOOM = 8;
@@ -227,21 +233,40 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   };
   const resolveIds = (raw: string[] | string | undefined, verb: string): string[] => {
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
-    return requested.filter((id) => {
-      if (known.has(id)) return true;
+    // A `pieces` parent id stands for all its pieces: naming it draws,
+    // highlights or arranges every piece, which is what the prompt promises.
+    return requested.flatMap((id) => {
+      const kids = opts.expandId?.(id);
+      if (kids && kids.length > 0) return kids.filter((k) => known.has(k));
+      if (known.has(id)) return [id];
       warnings.push(`${verb} command references unknown id "${id}" (dropped)`);
-      return false;
+      return [];
     });
   };
-  /** Element's current visual bbox: layout bbox shifted by its accumulated offset. */
+  /** Element's current visual bbox: layout bbox under its accumulated pose —
+   *  shifted by the offset, and, when it has been turned, the bounds of the
+   *  four rotated corners, so highlight/camera/arrange aim where it now is. */
   const currentBox = (id: string): BBox | null => {
     const box = bboxOf(id);
     if (!box) return null;
-    const [dx, dy] = offsets[id] ?? [0, 0];
-    return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
+    const offset: Pt = offsets[id] ?? [0, 0];
+    const turn = turns[id];
+    if (turn === undefined || turn.deg === 0) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
+    const map = poseOf(offset, turn);
+    const corners: Pt[] = ([
+      [box.x, box.y],
+      [box.x + box.w, box.y],
+      [box.x + box.w, box.y + box.h],
+      [box.x, box.y + box.h],
+    ] as Pt[]).map(map);
+    const xs = corners.map((c) => c[0]);
+    const ys = corners.map((c) => c[1]);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -521,6 +546,44 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         }
         pushStep({ kind: "transform", items, seconds, easing });
       }
+    } else if (cmd.arrange !== undefined) {
+      const ids = resolveIds(cmd.arrange.target, "arrange");
+      if (ids.length === 0) continue;
+      const inputs: ArrangeInput[] = [];
+      for (const id of ids) {
+        const box = currentBox(id);
+        if (!box) {
+          warnings.push(`arrange target "${id}" has no geometry (skipped)`);
+          continue;
+        }
+        const pose = { offset: offsets[id] ?? ([0, 0] as Pt), turn: turns[id] };
+        const raw = bboxOf(id)!;
+        inputs.push({ id, box, centre: poseCentre(raw, pose.offset, pose.turn), piece: opts.pieceOf?.(id) ?? undefined, pose });
+      }
+      if (inputs.length === 0) continue;
+      const at = cmd.arrange.at ? toLogical(cmd.arrange.at as Pt) : undefined;
+      const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap: cmd.arrange.gap ?? 6, columns: cmd.arrange.columns });
+      const items: TransformItem[] = [];
+      for (const p of placed) {
+        const input = inputs.find((i) => i.id === p.id)!;
+        const from = { offset: input.pose.offset, turn: input.pose.turn ?? { deg: 0, pivot: [0, 0] as Pt } };
+        let offset: Pt = input.pose.offset;
+        let turn: Turn | undefined = input.pose.turn;
+        if (p.rotate !== undefined && p.pivotNow && p.apexTo) {
+          const pivotNow = poseOf(offset, turn)(p.pivotNow); // the apex where it is now
+          const c = composeTurn(offset, turn, p.rotate, pivotNow);
+          offset = c.offset;
+          turn = c.turn;
+          // the apex is the pivot, so it did not move; slide it to apexTo
+          offset = [offset[0] + p.apexTo[0] - pivotNow[0], offset[1] + p.apexTo[1] - pivotNow[1]];
+        } else if (p.centre) {
+          offset = [offset[0] + p.centre[0] - input.centre[0], offset[1] + p.centre[1] - input.centre[1]];
+        }
+        items.push({ id: p.id, from, to: { offset, turn: turn ?? { deg: 0, pivot: [0, 0] } } });
+        offsets[p.id] = offset;
+        if (turn) turns[p.id] = turn;
+      }
+      pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
     } else if (cmd.camera !== undefined) {
       let box: BBox | null = null;
       if (!cmd.camera.reset) {

@@ -289,7 +289,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -526,6 +526,26 @@ const commandSchema = {
       required: ["target"],
       additionalProperties: false,
     },
+    arrange: {
+      type: "object",
+      description:
+        "Lay the targets out and animate them there — code computes every position and turn. layout: row (left to right), zipper (sector pieces alternately up and down, interleaved into the πr² rectangle), grid, ring, stack. target may be ONE pieces id for all its pieces. at = the centre of the arrangement (default: where the targets are now). {\"arrange\": {\"target\": \"kake\", \"layout\": \"zipper\", \"at\": [650, 375], \"duration\": 3}, \"speak\": \"Now we zip the slices together…\"}",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        layout: {
+          type: "string",
+          enum: ["row", "zipper", "grid", "ring", "stack"],
+          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"row\" lines them up left to right.",
+        },
+        at: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Centre of the arrangement (same units as move.by). Default: the targets' current centroid." },
+        gap: { type: "number", description: "Space between neighbours in logical units (default 6)." },
+        columns: { type: "integer", minimum: 1, description: "grid: pieces per row." },
+        duration: { type: "number", description: "Seconds (default 2)." },
+        easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+      },
+      required: ["target", "layout"],
+      additionalProperties: false,
+    },
     camera: {
       type: "object",
       description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
@@ -738,6 +758,9 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.highlight) cmd.highlight.target = toList(cmd.highlight.target)!;
     if (cmd.focus) cmd.focus.target = toList(cmd.focus.target)!;
     if (cmd.move) cmd.move.target = toList(cmd.move.target)!;
+    // arrange's whole point is that ONE pieces id names them all, so the bare
+    // string is the common form — normalize it like every other target list.
+    if (cmd.arrange) cmd.arrange.target = toList(cmd.arrange.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -777,7 +800,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

@@ -308,3 +308,34 @@ describe("animate planning", () => {
     expect(plan.steps[0].narration).toBe("spin");
   });
 });
+
+describe("arrange", () => {
+  const pieces = ["k_1", "k_2", "k_3", "k_4"];
+  const opts = {
+    bboxOf: (id: string) => (pieces.includes(id) ? { x: 200, y: 300, w: 100, h: 80 } : null),
+    expandId: (id: string) => (id === "k" ? pieces : null),
+    pieceOf: (id: string) => {
+      const k = pieces.indexOf(id);
+      return k < 0 ? null : { apex: [300, 375] as [number, number], centroid: [0, 0] as [number, number], midAngle: (k + 0.5) * 90, halfAngle: 45, radius: 120 };
+    },
+  };
+  test("a pieces id expands to its pieces; zipper emits one transform step with a turn per piece", () => {
+    const plan = planCommands([{ draw: ["k"] }, { arrange: { target: "k", layout: "zipper", at: [600, 375] } }], pieces, opts);
+    expect((plan.steps[0] as { ids: string[] }).ids).toEqual(pieces);
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items.map((i) => i.id)).toEqual(pieces);
+    expect(step.items[0].to.turn.deg).toBeCloseTo(90 - 45, 6);
+    expect(step.items[1].to.turn.deg).toBeCloseTo(-90 - 135, 6);
+    expect(plan.states[1].turns.k_1.deg).toBeCloseTo(45, 6);
+  });
+  test("row on plain elements is a pure translation to a centred row", () => {
+    const plan = planCommands([{ draw: ["a", "b"] }, { arrange: { target: ["a", "b"], layout: "row", at: [500, 375], gap: 20 } }], ["a", "b"], {
+      bboxOf: (id) => (id === "a" ? { x: 0, y: 0, w: 100, h: 50 } : { x: 900, y: 700, w: 100, h: 50 }),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items[0].to.offset).toEqual([390, 350]); // a's centre (50,25) → (440,375)
+    expect(step.items[1].to.offset).toEqual([-390, -350]); // b's centre (950,725) → (560,375)
+    expect(step.items.every((i) => i.to.turn.deg === 0)).toBe(true);
+  });
+});

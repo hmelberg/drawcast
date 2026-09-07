@@ -187,6 +187,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       const b = elementBBoxes(layoutFor(params, true), measure);
       return (id) => b.get(id) ?? null;
     },
+    pieceOf: (id) => layout.pieces[id] ?? null,
+    expandId: (id) => layout.pieceGroups[id] ?? null,
     attachedTo: (id) => {
       const out: string[] = [];
       for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);

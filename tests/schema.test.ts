@@ -239,3 +239,25 @@ describe("move: rotate / to / pivot", () => {
     expect(v.errors.join(" ")).toMatch(/by, to, path or rotate/);
   });
 });
+
+describe("arrange", () => {
+  const spec = (arrange: object) => ({
+    elements: [{ id: "kake", type: "pieces", of: "sectors", x: 300, y: 375, radius: 120, n: 12 }],
+    commands: [{ draw: ["kake"] }, { arrange }],
+  });
+  test("a pieces id zipped is a valid arrange", () => {
+    expect(validateSpec(spec({ target: "kake", layout: "zipper", at: [650, 375], duration: 3 })).ok).toBe(true);
+  });
+  test("layout is required and must be one of the five", () => {
+    expect(validateSpec(spec({ target: "kake" })).ok).toBe(false);
+    expect(validateSpec(spec({ target: "kake", layout: "spiral" })).ok).toBe(false);
+  });
+  test("arrange counts as an action verb: it cannot share a command with move", () => {
+    const v = validateSpec({
+      elements: [{ id: "kake", type: "pieces", of: "sectors", x: 300, y: 375, radius: 120, n: 12 }],
+      commands: [{ arrange: { target: "kake", layout: "row" }, move: { target: "kake", by: [10, 0] } }],
+    });
+    expect(v.ok).toBe(false);
+    expect(v.errors.join(" ")).toMatch(/at most one action/i);
+  });
+});

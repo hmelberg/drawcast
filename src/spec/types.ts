@@ -225,6 +225,21 @@ export interface MoveArgs {
   easing?: Easing;
 }
 
+export interface ArrangeArgs {
+  /** Element ids, or ONE pieces id (all its pieces). */
+  target: string[] | string;
+  layout: "row" | "zipper" | "grid" | "ring" | "stack";
+  /** Centre of the arrangement (same units as move.by); default: the targets' current centroid. */
+  at?: [number, number];
+  /** Space between neighbours, logical units (default 6). */
+  gap?: number;
+  /** grid: pieces per row. */
+  columns?: number;
+  /** seconds (default 2) */
+  duration?: number;
+  easing?: Easing;
+}
+
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
@@ -279,6 +294,9 @@ export interface Command {
   point?: PointArgs;
   /** Translate elements by a delta or along a path of offsets. */
   move?: MoveArgs;
+  /** Lay elements out (row / zipper / grid / ring / stack) and animate them
+   *  there — every position and turn computed from the targets' geometry. */
+  arrange?: ArrangeArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths
