@@ -156,6 +156,32 @@ describe("the clock", () => {
     }
   });
 
+  test("a string that only LOOKS like a date does not become a different one", () => {
+    // A regex match is not a date. Date.UTC and Date.parse both ROLL what will
+    // not fit — "2026-13-45" becomes 2027-02-14, "2026-02-30" becomes March 2,
+    // "T25:00" becomes tomorrow at 01:00 — so the figure would name one date
+    // and draw another. That is the "now" fallback's own defect one step
+    // later, and it is the fallback these belong in instead. Silent, on
+    // purpose: throwing would blank the figure over a typo.
+    const now = new Date("2026-03-01T12:00:00Z");
+    for (const bad of [
+      "2026-13-45", "2026-00-10", "2026-02-30", "2027-02-29",
+      "2026-13-45T10:00", "2026-02-30T10:00", "2026-02-30T10:00:00+02:00",
+      "2026-09-07T25:00", "2026-09-07T12:61", "2026-09-07T10:00:60",
+      "2026-09-07T25:00:00Z", "2026-09-07T12:61:00+02:00",
+    ]) {
+      expect(resolveTime(bad, 0, 0, 0, now).getTime(), bad).toBe(now.getTime());
+    }
+    // …and every form next door to one of those still resolves to itself.
+    expect(resolveTime("2026-12-31", 0, 0, 0, now).toISOString()).toBe("2026-12-31T22:00:00.000Z");
+    expect(resolveTime("2024-02-29T23:59:59Z", 0, 0, 0, now).toISOString()).toBe("2024-02-29T23:59:59.000Z");
+    expect(resolveTime("2026-09-07T23:59:59.999+02:00", 0, 0, 0, now).toISOString()).toBe("2026-09-07T21:59:59.999Z");
+    // T24:00 is the one ISO clock that rolls ON PURPOSE — midnight ending the
+    // day — so it keeps the meaning it has rather than being thrown out with
+    // T25:00.
+    expect(resolveTime("2026-09-07T24:00:00Z", 0, 0, 0, now).toISOString()).toBe("2026-09-08T00:00:00.000Z");
+  });
+
   test("the written clock is local solar time, and it needs no timezone table", () => {
     expect(localClock(new Date("2026-09-07T21:17:00Z"), 10.75)).toEqual({ date: "2026-09-07", time: "22:00" });
     expect(localClock(new Date("2026-09-07T23:30:00Z"), 18.96).date).toBe("2026-09-08");   // Tromsø rolls over

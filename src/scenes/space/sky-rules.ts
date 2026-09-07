@@ -90,6 +90,24 @@ export function starColor(bv: number | null): string {
 const HOUR_MS = 3600000;
 const DAY_MS = 86400000;
 
+/** Is this calendar day the day it says it is? `Date.UTC` ROLLS what will not
+ *  fit rather than refusing it — month 13 becomes next January, 2026-02-30
+ *  becomes March 2 — so the only way to know a matched date is real is to
+ *  build it and read the fields back out. (A two-digit year is rolled too:
+ *  Date.UTC(26, …) means 1926, which this catches as a disagreement.) */
+function realDay(y: number, mo: number, da: number): boolean {
+  const b = new Date(Date.UTC(y, mo - 1, da));
+  return b.getUTCFullYear() === y && b.getUTCMonth() + 1 === mo && b.getUTCDate() === da;
+}
+
+/** …and is this a clock? The same rolling applies to the time of day, but one
+ *  rolled clock is legitimate: T24:00:00 is midnight ENDING the day, the one
+ *  ISO form that means the roll, so it keeps its meaning rather than being
+ *  thrown out with T25:00. */
+function realClock(hh: number, mi: number, sec: number): boolean {
+  return hh < 24 ? mi < 60 && sec < 60 : hh === 24 && mi === 0 && sec === 0;
+}
+
 /**
  * The pack's ONE clock for the sky. "now" — or anything unusable — is the real
  * moment; an ISO datetime carrying an offset or a Z is that instant; one
@@ -111,12 +129,21 @@ export function resolveTime(time: unknown, hours: unknown, days: unknown, lon = 
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   let ms: number;
   if (full) {
+    const y = +full[1], mo = +full[2], da = +full[3], hh = +full[4], mi = +full[5];
     const sec = full[6] === undefined ? 0 : Number(full[6]);
-    ms = full[7]
-      ? Date.parse(s.replace(" ", "T"))
-      : Date.UTC(+full[1], +full[2] - 1, +full[3], +full[4], +full[5], Math.floor(sec), Math.round((sec % 1) * 1000));
+    // A regex match is not a date, and BOTH constructors here roll silently
+    // rather than refusing: "2026-13-45" resolves to 2027-02-14 and "T25:00"
+    // to the next day at 01:00. A figure that names one date and draws another
+    // is the "now" fallback's own defect one step later, so a matched-but-
+    // impossible instant goes to that fallback instead of to a wrong sky.
+    ms = realDay(y, mo, da) && realClock(hh, mi, sec)
+      ? (full[7]
+        ? Date.parse(s.replace(" ", "T"))
+        : Date.UTC(y, mo - 1, da, hh, mi, Math.floor(sec), Math.round((sec % 1) * 1000)))
+      : NaN;
   } else if (dateOnly) {
-    ms = Date.UTC(+dateOnly[1], +dateOnly[2] - 1, +dateOnly[3]) + Math.round((22 - lon / 15) * HOUR_MS);
+    const y = +dateOnly[1], mo = +dateOnly[2], da = +dateOnly[3];
+    ms = realDay(y, mo, da) ? Date.UTC(y, mo - 1, da) + Math.round((22 - lon / 15) * HOUR_MS) : NaN;
   } else {
     ms = now.getTime();
   }

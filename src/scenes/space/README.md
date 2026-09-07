@@ -308,6 +308,17 @@ moment the test ran, and passed. The pattern reads them now, and
 200 moments must produce 200 different `place_label` clocks before any row of
 the sweep is believed.
 
+The same function had the same defect from the other side: a regex match is
+not a date. `Date.UTC` and `Date.parse` both ROLL what will not fit rather
+than refusing it — `2026-13-45` resolved to 2027-02-14, `2026-02-30` to March
+2, `T25:00` to the next day at 01:00 — so a figure could name one date and
+draw another. The day is now built and read back out of its own construction
+(`realDay`), the clock is range-checked (`realClock`), and anything that
+disagrees joins the silent `now` fallback, which is where input that cannot
+be used belongs: throwing would blank the figure over a typo. `T24:00:00` is
+the one ISO clock that rolls on purpose — midnight ending the day — and keeps
+its meaning.
+
 ## Known limits (honest, not fixed)
 
 - **The clock is local SOLAR time**, per `localClock`'s definition in
