@@ -150,26 +150,31 @@ describe("sky_map: the Sun, the Moon and the planets", () => {
     expect(textOf(lay({ mark: ["vulcan"] }), "sky_note")).toContain("Unknown: vulcan");
   });
 
-  test("the Moon is drawn with its phase — a full disc when full, a sliver when new", () => {
-    const lit = (time: string): number => {
+  test("the Moon's lit area IS its illuminated fraction, at every phase", () => {
+    // The terminator is a half-ellipse of semi-axis r(1 − 2k) along the bright
+    // direction, which makes the lit area exactly k·πr². So the check is not
+    // two thresholds at two hand-picked dates — it is the engine's own
+    // `fraction`, at whatever phase the Moon happens to be in, which catches a
+    // sign error in the terminator at ANY phase rather than at the two the
+    // dates were chosen for. (The polygon is a 64-gon inscribed in the disc,
+    // so it under-reads by 0.15 % — well inside two decimal places.)
+    const disc = Math.PI * 12 * 12;
+    let checked = 0;
+    for (let day = 0; day < 30; day += 1.7) {
+      const time = new Date(Date.UTC(2026, 1, 15) + day * 86400000).toISOString();
       const r = layoutSpec(spec({ time, show: ["moon"] }));
       const d = flattenDrawables(r.drawables).find((x) => x.id === "moon__lit") as { pts: [number, number][] } | undefined;
-      if (!d) return 0;
+      if (!d) continue;                       // the Moon is below the horizon at this hour
       let a = 0;
       for (let i = 0; i < d.pts.length; i++) {
         const p = d.pts[i], q = d.pts[(i + 1) % d.pts.length];
         a += p[0] * q[1] - q[0] * p[1];
       }
-      return Math.abs(a) / 2;
-    };
-    // Two moments in 2026 chosen by phase, then checked by area against the
-    // engine's own illuminated fraction rather than by eye.
-    const disc = Math.PI * 12 * 12;
-    const full = lit("2026-09-26T22:00:00Z");
-    const crescent = lit("2026-02-22T20:00:00Z");
-    expect(full / disc).toBeGreaterThan(0.85);
-    expect(crescent / disc).toBeLessThan(0.45);
-    expect(crescent).toBeGreaterThan(0);
+      const want = sky.moonLimb(new Date(time), 59.91, 10.75).fraction;
+      expect(Math.abs(a) / 2 / disc, `${time} (fraction ${want.toFixed(3)})`).toBeCloseTo(want, 2);
+      checked++;
+    }
+    expect(checked, "no moment in the sweep had the Moon up").toBeGreaterThan(5);
   });
 
   test("the Moon fills its WHOLE disc, so its dark half still answers a click", () => {
@@ -332,6 +337,19 @@ describe("sky_map: lint-clean over a year of moments", () => {
     }
     return { dirty: dirty.slice(0, 4), count };
   };
+
+  // The guard that makes every row below mean anything. `resolveTime` answers
+  // an unparseable `time` with the REAL clock and says nothing, so a sweep
+  // whose timestamps it cannot read is two hundred copies of this instant —
+  // which is exactly what these rows were until the pattern learned to read
+  // the milliseconds `toISOString()` always writes (src/scenes/space/
+  // sky-rules.ts). A sweep has to prove it swept.
+  test("the sweep really moves the sky — 200 moments, 200 different skies", () => {
+    const clocks = new Set(moments(200).map((time) => textOf(lay({ time }), "place_label")!));
+    expect(clocks.size).toBe(200);
+    const fields = new Set(moments(20).map((time) => JSON.stringify(lay({ time }).drawables)));
+    expect(fields.size).toBe(20);
+  });
 
   test.each([
     ["the default figure", {}],

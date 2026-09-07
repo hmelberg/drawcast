@@ -100,11 +100,21 @@ const DAY_MS = 86400000;
  */
 export function resolveTime(time: unknown, hours: unknown, days: unknown, lon = 0, now: Date = new Date()): Date {
   const s = typeof time === "string" ? time.trim() : "";
-  const full = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(Z|[+-]\d{2}:?\d{2})?$/.exec(s);
+  // The seconds may carry a fraction, because `new Date().toISOString()` — the
+  // canonical way anything in this codebase writes an instant — ALWAYS emits
+  // ".mmm". Without that group the pattern rejected the commonest ISO string
+  // there is and fell through to `now`, which is the worst failure this
+  // function has: a figure that names a date and quietly draws today. Nothing
+  // says so out loud, so a sweep over a year of timestamps silently became two
+  // hundred copies of one real moment.
+  const full = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?(Z|[+-]\d{2}:?\d{2})?$/.exec(s);
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   let ms: number;
   if (full) {
-    ms = full[7] ? Date.parse(s.replace(" ", "T")) : Date.UTC(+full[1], +full[2] - 1, +full[3], +full[4], +full[5], +(full[6] ?? 0));
+    const sec = full[6] === undefined ? 0 : Number(full[6]);
+    ms = full[7]
+      ? Date.parse(s.replace(" ", "T"))
+      : Date.UTC(+full[1], +full[2] - 1, +full[3], +full[4], +full[5], Math.floor(sec), Math.round((sec % 1) * 1000));
   } else if (dateOnly) {
     ms = Date.UTC(+dateOnly[1], +dateOnly[2] - 1, +dateOnly[3]) + Math.round((22 - lon / 15) * HOUR_MS);
   } else {

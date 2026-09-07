@@ -122,6 +122,21 @@ describe("the clock", () => {
     expect(resolveTime("2026-09-07T22:00", 0, 0, 10.75).toISOString()).toBe("2026-09-07T22:00:00.000Z");
   });
 
+  test("the string Date itself writes round-trips — milliseconds and all", () => {
+    // `toISOString()` ALWAYS emits ".mmm", so this is the commonest ISO string
+    // there is: every generated timestamp, every sweep, every `new Date(x)`
+    // handed back as text. The pattern used to reject it and fall through to
+    // `now` WITHOUT A WORD — a figure that names a date and draws today, and a
+    // 200-moment sweep in tests/sky-template.test.ts that was really two
+    // hundred copies of one real instant.
+    const now = new Date("2000-01-01T00:00:00Z");
+    for (const iso of ["2026-01-06T16:22:58.800Z", "2026-09-07T21:00:00.000Z", "2026-02-22T20:00:00.123+02:00"]) {
+      expect(resolveTime(iso, 0, 0, 10.75, now).toISOString(), iso).toBe(new Date(iso).toISOString());
+    }
+    // …and with no offset it is still read as UTC, fraction included.
+    expect(resolveTime("2026-09-07T22:00:30.250", 0, 0, 10.75, now).toISOString()).toBe("2026-09-07T22:00:30.250Z");
+  });
+
   test("a bare date is 22:00 local solar time where the observer stands", () => {
     // Oslo, lon 10.75 -> 22:00 local solar is 21:17 UTC.
     expect(resolveTime("2026-09-07", 0, 0, 10.75).toISOString()).toBe("2026-09-07T21:17:00.000Z");

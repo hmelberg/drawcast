@@ -902,23 +902,26 @@ layout: |
   });
 
   const sPos = eng.starPositions(at, lat, lon);
-  const field = [], own = [], ownIds = new Set();
+  const field = [], byName = new Map();
   for (const s of eng.stars()) {
     const p = sPos.get(s.hip);
     if (!p || p.alt < 0) continue;
     const singled = markStars.has(s.hip);
     if (s.mag > limit && !singled) continue;
-    if (!singled) { field.push({ s: s, at: P(p), r: eng.starRadius(s.mag) }); continue; }
-    // TWO catalogue stars share the proper name "Alnair" (HIP 68002 and
-    // 109268), so two `mark: ["hip_68002", "hip_109268"]` would mint the id
-    // "alnair" twice — a duplicate drawable id, which the compile guard throws
-    // on and layoutSpec catches as a silent fall-through to tier-2. The first
-    // one wins, the way findStar's index already resolves the name.
-    const sid = eng.starId(s);
-    if (ownIds.has(sid)) continue;
-    ownIds.add(sid);
-    own.push({ s: s, at: P(p), r: eng.starRadius(s.mag) });
+    const d = { s: s, at: P(p), r: eng.starRadius(s.mag) };
+    if (!singled) { field.push(d); continue; }
+    // TWO catalogue stars share the proper name "Alnair" (HIP 68002, ζ Cen,
+    // and HIP 109268, α Gru), so `mark: ["hip_68002", "hip_109268"]` would
+    // mint the id "alnair" twice — a duplicate drawable id, which the compile
+    // guard throws on and layoutSpec catches as a silent fall-through to
+    // tier-2. The BRIGHTER one keeps the name, which is the star the name
+    // means and the same rule findStar's index follows; the other goes back
+    // into the field rather than vanishing from a sky it is really in.
+    const sid = eng.starId(s), held = byName.get(sid);
+    if (held === undefined) { byName.set(sid, d); continue; }
+    if (s.mag < held.s.mag) { byName.set(sid, d); field.push(held); } else field.push(d);
   }
+  const own = [...byName.values()];
 
   const bodies = up.map((id) => {
     const b = spc.body(id);
@@ -1109,9 +1112,20 @@ layout: |
       // COLORS.paper — the bright warm white kept for exactly this, a shape
       // that has to read as unpainted on top of a tinted one. A hand drawing
       // of a phase has always shaded the dark side.
+      //   Both are `precise`, and that is what makes the knock-out a knock-out.
+      // A plain kit.area is a SHADED REGION: the sketchy backend hachures it at
+      // gap 5.5 and the clean one outlines it in ink (src/render/svg-backend.ts,
+      // the two `isExactArea` branches). Across a disc 24 units wide that is
+      // four hatch strokes, and paper-coloured hatching laid BETWEEN grey
+      // hatching hides nothing — the phase would have gone back to invisible in
+      // the style this figure is normally drawn in. `precise` renders one flat
+      // filled path, stroke none, at the asked opacity, identically in both
+      // styles; it is the same knock-out idiom a white chess piece uses
+      // (src/scenes/packs/games.yaml). It changes nothing about elementRings,
+      // the hit test or the lint — an area is an outline either way.
       push(kit.group("moon", [
-        kit.area("moon__disc", moonRim, on ? C.accent : b.b.color, { opacity: 0.62, ms: MS.region }),
-        kit.area("moon__lit", moonLit, C.paper, { opacity: 0.95, ms: MS.region }),
+        kit.area("moon__disc", moonRim, on ? C.accent : b.b.color, { opacity: 0.62, precise: true, ms: MS.region }),
+        kit.area("moon__lit", moonLit, C.paper, { opacity: 0.95, precise: true, ms: MS.region }),
         kit.stroke("moon__rim", moonRim, { color: on ? C.accent : C.guide, strokeWidth: on ? 3 : 1.4, ms: MS.stroke }),
       ]));
       anchors.moon = b.at;

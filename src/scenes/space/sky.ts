@@ -54,9 +54,16 @@ export function makeSkyEngine(starTable: StarTable, conTable: ConstellationTable
   // constellation five, and a chart that answered to only one of them would
   // send half of them to the "unknown" clause of its own caption.
   const starIndex = new Map<string, Star>();
+  // A HIP key belongs to exactly one star, but a PROPER NAME need not: the
+  // catalogue calls both HIP 68002 (ζ Cen, mag 2.55) and HIP 109268 (α Gru,
+  // mag 1.73) "Alnair". Whoever types that name means the one you can see —
+  // so brightness settles a collision, not catalogue order, which happened to
+  // hand the name to the fainter of the two.
   const put = (k: string | number, s: Star): void => {
     const key = String(k).trim().toLowerCase();
-    if (key !== "" && !starIndex.has(key)) starIndex.set(key, s);
+    if (key === "") return;
+    const held = starIndex.get(key);
+    if (held === undefined || s.mag < held.mag) starIndex.set(key, s);
   };
   for (const s of stars) {
     put(s.hip, s);

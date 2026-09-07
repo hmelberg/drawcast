@@ -228,12 +228,23 @@ compass letters sit at `r + 20`, outside the rim.
   that has one, so a moon that filled only its crescent would lose every
   click on its dark half to whatever lies behind it.
 - **The lit half is `COLORS.paper`, the dark half a wash of the Moon's own
-  colour.** Nothing can be painted brighter than the warm paper the figure is
-  drawn on, so the phase is drawn the way a hand always has: shade the dark
-  side. The terminator is a half-ellipse of semi-axis `r(1 − 2k)` along the
-  bright direction — `+r` at new, `0` at quarter, `−r` at full — which makes
-  the lit area exactly `k·πr²` and so checkable by area against the engine's
-  own illuminated fraction.
+  colour, and BOTH are `precise: true`.** Nothing can be painted brighter than
+  the warm paper the figure is drawn on, so the phase is drawn the way a hand
+  always has: shade the dark side. `precise` is what makes that a knock-out
+  rather than a hope — a plain `kit.area` is a *shaded region*, which the
+  sketchy backend hachures at `hachureGap: 5.5` and the clean one outlines in
+  ink (`src/render/svg-backend.ts`, the two `isExactArea` branches). Across a
+  disc 24 units wide that is four hatch strokes, and paper-coloured hatching
+  laid between grey hatching hides nothing; without `precise` the lit polygon
+  also draws its own 1.8-wide INK outline, so the Moon renders as a struck-
+  through circle. `precise` gives one flat filled path, `stroke: none`, at the
+  asked opacity, identically in both styles — the same idiom a white chess
+  piece uses in `games.yaml`. It changes nothing about `elementRings`, the hit
+  test or the lint.
+  The terminator is a half-ellipse of semi-axis `r(1 − 2k)` along the bright
+  direction — `+r` at new, `0` at quarter, `−r` at full — which makes the lit
+  area exactly `k·πr²`, and the test asserts that identity against the
+  engine's own `fraction` at eighteen phases rather than thresholds at two.
 - **The star field is ONE element** (`stars`), because `draw` has no wildcard
   and no author can know which stars are up at a given hour. `mark` lifts a
   named star out into its own element (id = its proper name in lower case),
@@ -277,6 +288,25 @@ ephemeris knows can be drawn; Earth rides in on `planets` and `all` and drops
 out without a word, because nobody typed its name. A name the author DID type
 that matches nothing goes to the caption's "Unknown:" clause, never to an
 exception.
+
+A proper name need not be unique: the catalogue calls both HIP 68002 (ζ Cen,
+mag 2.55) and HIP 109268 (α Gru, mag 1.73) "Alnair". The BRIGHTER one keeps
+the name — in `findStar`'s index and in the template's own `own` list, which
+must agree — and the other goes back into the field rather than vanishing from
+a sky it is really in. Minting the id twice is not a cosmetic problem: a
+duplicate drawable id throws in the compile guard, and `layoutSpec` catches
+that as a fall-through to tier-2, which is a WARNING and never an issue.
+
+## A sweep has to prove it swept
+
+`resolveTime` answers a `time` it cannot parse with the real clock, and says
+nothing. Its pattern used not to accept the fractional seconds
+`Date.toISOString()` always writes, so a 200-moment sweep built the honest way
+— `new Date(base + i·step).toISOString()` — was two hundred copies of the
+moment the test ran, and passed. The pattern reads them now, and
+`tests/sky-template.test.ts` carries the guard that would have caught it:
+200 moments must produce 200 different `place_label` clocks before any row of
+the sweep is believed.
 
 ## Known limits (honest, not fixed)
 

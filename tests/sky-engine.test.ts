@@ -52,6 +52,24 @@ describe("the tables, and finding things in them", () => {
     expect(sky.findStar("krypton")).toBeUndefined();
   });
 
+  test("when two stars carry the same proper name, the name means the BRIGHTER one", () => {
+    // The catalogue calls both HIP 68002 (ζ Cen, mag 2.55) and HIP 109268
+    // (α Gru, mag 1.73) "Alnair". Catalogue order handed the name to ζ Cen,
+    // which is not the star anyone means by it.
+    const shared = new Map<string, number[]>();
+    for (const s of sky.stars()) {
+      if (!s.name) continue;
+      const key = s.name.toLowerCase();
+      shared.set(key, [...(shared.get(key) ?? []), s.hip]);
+    }
+    const collisions = [...shared].filter(([, hips]) => hips.length > 1);
+    expect(collisions.length, "no shared proper name left in the table — drop this test").toBeGreaterThan(0);
+    for (const [name, hips] of collisions) {
+      const brightest = hips.map((h) => sky.star(h)!).reduce((a, b) => (b.mag < a.mag ? b : a));
+      expect(sky.findStar(name)!.hip, name).toBe(brightest.hip);
+    }
+  });
+
   test("a constellation answers to its abbreviation, its id and all three names", () => {
     const uma = sky.findConstellation("UMa")!;
     for (const q of ["uma", "con_uma", "Ursa Major", "The Great Bear", "store bjørn"]) {
