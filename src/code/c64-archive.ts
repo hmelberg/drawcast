@@ -81,8 +81,12 @@ export function archiveSearchUrl(query: string, opts: { rows?: number; demos?: b
   return `https://archive.org/advancedsearch.php?${p.toString()}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=emulator_ext&fl[]=emulator_start`;
 }
 
-/** The hits out of the search's JSON, in the order the Archive ranked them. */
-export function parseArchiveSearch(json: unknown): ArchiveHit[] {
+/**
+ * The hits out of the search's JSON, in the order the Archive ranked them.
+ * `disks` says the viewer has installed a drive ROM, which is the one thing
+ * that moves a `.d64` from the Archive's player into ours.
+ */
+export function parseArchiveSearch(json: unknown, opts: { disks?: boolean } = {}): ArchiveHit[] {
   const docs = (json as { response?: { docs?: unknown[] } })?.response?.docs;
   if (!Array.isArray(docs)) return [];
   const out: ArchiveHit[] = [];
@@ -91,7 +95,7 @@ export function parseArchiveSearch(json: unknown): ArchiveHit[] {
     if (typeof doc.identifier !== "string" || !ID_RE.test(doc.identifier)) continue;
     const title = typeof doc.title === "string" ? doc.title : Array.isArray(doc.title) ? String(doc.title[0] ?? doc.identifier) : doc.identifier;
     const year = typeof doc.year === "string" || typeof doc.year === "number" ? String(doc.year) : undefined;
-    const direct = archiveDirectUrl(doc.identifier, doc.emulator_ext, doc.emulator_start);
+    const direct = archiveDirectUrl(doc.identifier, doc.emulator_ext, doc.emulator_start, opts);
     out.push({ id: doc.identifier, title, ...(year ? { year } : {}), ...(direct ? { direct } : {}) });
   }
   return out;
@@ -109,6 +113,8 @@ export function archivePageUrl(id: string): string {
 
 /** What the free ROMs can start on their own: a program, or a cartridge. */
 const DIRECT_EXT = ["prg", "crt"];
+/** What a drive ROM adds. Tapes are not here: they load and then will not run. */
+const DISK_EXT = ["d64", "g64"];
 
 /**
  * The ready-to-load URL for an item the free ROMs can start — or null for
@@ -117,11 +123,12 @@ const DIRECT_EXT = ["prg", "crt"];
  * encoded, never pasted into a URL as it came. A name we cannot address is
  * not an error; the item simply goes to the Archive's player like a disk.
  */
-export function archiveDirectUrl(id: string, ext: unknown, start: unknown): string | null {
+export function archiveDirectUrl(id: string, ext: unknown, start: unknown, opts: { disks?: boolean } = {}): string | null {
   if (!ID_RE.test(id)) return null;
   if (typeof ext !== "string") return null;
   const kind = ext.toLowerCase();
-  if (!DIRECT_EXT.includes(kind)) return null;
+  const allowed = opts.disks ? [...DIRECT_EXT, ...DISK_EXT] : DIRECT_EXT;
+  if (!allowed.includes(kind)) return null;
   if (typeof start !== "string" || !FILE_RE.test(start) || !start.toLowerCase().endsWith(`.${kind}`)) return null;
   return `https://archive.org/cors/${id}/${encodeURIComponent(start)}`;
 }

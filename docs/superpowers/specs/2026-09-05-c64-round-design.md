@@ -654,3 +654,48 @@ Two consequences worth keeping:
   restored from localStorage exactly as for a freshly dropped one. M9b's
   conclusion holds at the C++ level, not just the JS.
 
+## M14 (2026-09-07): the drive, brought by the viewer
+
+Built at Hans's word. A 1541 is a computer with its own firmware, no free copy
+of it exists (M12), and the emulator will only accept the original image or
+Dolphin DOS (M9). So the drawn machine gets a disk drive the only honest way:
+the viewer installs the ROM they own, and drawcast ships, hosts and names
+nothing.
+
+- **The field** sits in the ≡ tray under "Disk drive". It reads the file in the
+  browser and checks it against VirtualC64's own table
+  (`code/c64-drive-rom.ts`, mirroring `Emulator/Media/RomFile.cpp`) BEFORE
+  storing it, so a wrong pick is answered in the same second — "That file is
+  2 KB. A drive ROM is 16 KB, 24 KB, 32 KB" — instead of failing mutely inside
+  the emulator. Kept in the viewer's own localStorage; one button removes it.
+- **A disk cannot be named in a URL**, because the ROM has to go in beside it.
+  So a disk starts through the postMessage handshake from M9 instead: boot the
+  emulator empty (`noFile`, both dialogs silenced), poll `"poll_state"` until
+  it answers, then hand over `{cmd:"load", floppy_rom, file, file_name}` and
+  type `load"*",8,1` … `run` the way a person would. We fetch the image
+  ourselves, so a host that refuses cross-origin reads is something we can say
+  out loud rather than a machine that sits there.
+- **Disks become ⚡ picks only when a ROM is in.** `archiveDirectUrl` takes a
+  `disks` flag; without it `.d64` still goes to the Archive's player, and the
+  note offers the reason. Tapes stay out either way — they load and then will
+  not run (M10).
+
+Smoked end to end with a SYNTHETIC ROM — 16 KB of zeros with `97 AA AA` at the
+front, which is what the emulator identifies on, and which carries nothing of
+anyone's firmware. Searching "river raid" went from every hit unmarked to 11 of
+12 marked; Play opened the emulator with no file in its hash; and the screen
+read
+
+```
+READY.
+LOAD"*",8,1
+
+SEARCHING FOR *
+```
+
+where before a disk answered `?DEVICE NOT PRESENT ERROR` at once. The drive is
+connected, powered and being addressed — it simply never answers, because the
+test ROM is zeros. With a real ROM that is the line where the file loads. Every
+link in our chain is verified; the only untested one is the one we deliberately
+do not hold.
+
