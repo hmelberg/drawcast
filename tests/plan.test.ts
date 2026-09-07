@@ -156,6 +156,29 @@ describe("move", () => {
     expect(plan.steps.filter((s) => s.kind === "move" || s.kind === "transform")).toHaveLength(0);
     expect(plan.warnings.join(" ")).toMatch(/move/);
   });
+  test("a follower named twice by attachedTo (e.g. a label id matching label_<target>) is moved once", () => {
+    const plan = planCommands(
+      [{ draw: ["demand_curve", "label_D"] }, { move: { target: ["demand_curve"], by: [10, 0], rotate: 45 } }],
+      allIds,
+      { bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }), attachedTo: (id) => (id === "demand_curve" ? ["label_D", "label_D"] : []) },
+    );
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.filter((it) => it.id === "label_D")).toHaveLength(1);
+    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+  });
+  test("two targets sharing a follower move it once", () => {
+    const plan = planCommands(
+      [{ draw: ["demand_curve", "supply_curve", "label_D"] }, { move: { target: ["demand_curve", "supply_curve"], by: [10, 0], rotate: 45 } }],
+      allIds,
+      {
+        bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }),
+        attachedTo: (id) => (id === "demand_curve" || id === "supply_curve" ? ["label_D"] : []),
+      },
+    );
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.filter((it) => it.id === "label_D")).toHaveLength(1);
+    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+  });
 });
 
 describe("highlight and point", () => {

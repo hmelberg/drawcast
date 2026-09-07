@@ -995,7 +995,12 @@ export class Player {
           const [px, py] = pathPosition(step.path, ease(t));
           for (const el of els) {
             const [bx, by] = bases.get(el.id)!;
-            el.setOffset!(bx + px, by + py);
+            // A plain move never changes an element's turn — carry the
+            // existing pose through setTransform so an earlier rotate isn't
+            // dropped by setOffset's transform-attribute rewrite.
+            const turn = before.turns[el.id];
+            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot);
+            else el.setOffset!(bx + px, by + py);
           }
         });
         return;

@@ -191,7 +191,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       const out: string[] = [];
       for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);
       if (layout.order.includes(`label_${id}`)) out.push(`label_${id}`, `label_${id}_leader`);
-      return out.filter((x) => layout.order.includes(x));
+      // A spec label id can coincide with the implicit label_<id> convention
+      // (e.g. {"id": "label_req", "attach_to": "req"}) — dedupe so the same
+      // follower id isn't returned twice.
+      return [...new Set(out)].filter((x) => layout.order.includes(x));
     },
   });
 

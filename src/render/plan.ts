@@ -462,7 +462,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       const seconds = cmd.move.duration ?? 1;
       const easing = cmd.move.easing ?? "ease-in-out";
-      const followers = (id: string): string[] => (opts.attachedTo?.(id) ?? []).filter((f) => known.has(f) && !ids.includes(f));
+      // Dedupe here too: a spec label's own id can coincide with the
+      // implicit label_<id> convention, so a single attachedTo(id) call may
+      // list the same follower twice even when the caller already dedupes.
+      const followers = (id: string): string[] => [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => known.has(f) && !ids.includes(f));
       if (!hasRotate && !hasTo) {
         // Plain translation, possibly along waypoints: the move step as before, followers included.
         const rawPath = hasPath ? cmd.move.path! : [cmd.move.by!];
@@ -477,6 +480,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       } else {
         // A pose change: per-id from/to, tweened together.
         const items: TransformItem[] = [];
+        // Two targets in the same move can share a follower (e.g. two
+        // elements both labeled by the same annotation) — move it once,
+        // with whichever target claims it first.
+        const movedFollowers = new Set<string>();
         for (const id of ids) {
           const box = bboxOf(id);
           const offset0: Pt = offsets[id] ?? [0, 0];
@@ -504,6 +511,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           offsets[id] = offset;
           if (turn) turns[id] = turn;
           for (const f of followers(id)) {
+            if (movedFollowers.has(f)) continue;
+            movedFollowers.add(f);
             const o: Pt = offsets[f] ?? [0, 0];
             const next: Pt = [o[0] + delta[0], o[1] + delta[1]];
             items.push({ id: f, from: { offset: o, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } }, to: { offset: next, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } } });
