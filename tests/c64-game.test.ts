@@ -196,9 +196,16 @@ describe("the Archive", () => {
     expect(archiveDirectUrl("sonic_c64", "PRG", "SONIC.PRG")).toBe("https://archive.org/cors/sonic_c64/SONIC.PRG");
     // a name with a space is the Archive's to choose; we encode it, never paste it
     expect(archiveDirectUrl("x", "prg", "big pixel.prg")).toBe("https://archive.org/cors/x/big%20pixel.prg");
+    // a cartridge takes the machine over at reset: nothing to load, nothing to fail
+    expect(archiveDirectUrl("c64_joust_prototype", "crt", "joust.crt")).toBe("https://archive.org/cors/c64_joust_prototype/joust.crt");
     // disks and tapes cannot start on the free ROMs — they stay with the Archive
     expect(archiveDirectUrl("d", "d64", "d.d64")).toBeNull();
     expect(archiveDirectUrl("t", "tap", "t.tap")).toBeNull();
+    // a .t64 loads with no drive but will not start on the free ROMs' BASIC (both tried)
+    expect(archiveDirectUrl("z", "t64", "z.t64")).toBeNull();
+    // the name has to agree with what the item says it is
+    expect(archiveDirectUrl("x", "crt", "x.prg")).toBeNull();
+    expect(archiveDirectUrl("x", "prg", "x.crt")).toBeNull();
     // and nothing the Archive says talks us into another path
     expect(archiveDirectUrl("x", "prg", "../../etc/passwd.prg")).toBeNull();
     expect(archiveDirectUrl("x", "prg", "a/b.prg")).toBeNull();

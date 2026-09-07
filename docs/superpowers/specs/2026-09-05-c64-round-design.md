@@ -494,3 +494,27 @@ more visibly. We would ship no ROM either way. Not built: the Archive's own
 player already plays those disks, so the gain is integration polish for the
 few viewers who own a ROM.
 
+## M10 (2026-09-07): cartridges join; Jumpman Junior cannot
+
+Hans asked whether Jumpman Junior could play on the free ROMs instead of the
+Archive's player. It cannot: every copy the Archive holds is a `.d64`
+(`Jumpman_Junior_1983_Epyx_cr_Antirom`, `…_cr_MrO`, and a compilation), and a
+disk needs the drive ROM that M9 showed we cannot supply. It plays in the
+Archive's own player, which has the ROMs — search, pick, Play, one click on
+its screen.
+
+Looking for it turned up two formats we had never tried:
+
+- **`.crt` cartridges now run here.** A cartridge takes the machine over at
+  reset and never asks the ROMs to load anything, so it is the one format
+  with nothing to go wrong. Both tried ran perfectly: Joust's unreleased
+  prototype and Nono Pixie. Five in the collection. Routed to our emulator.
+- **`.t64` stays with the Archive.** It is a tape ARCHIVE, so it does load
+  into memory with no drive — and then does not start: Sword of Fargoal
+  (Epyx 1983) answered `?NOT IMPLEMENTED ERROR IN 1` on a `POKE…CLR:SYS`
+  line, and ZZ Top's RUN did nothing at all. Both failures are the free
+  ROMs' unfinished BASIC again. Nine items; not worth a special case.
+
+The direct-URL rule now also insists the file name agrees with the type the
+item declares, so a mislabelled item cannot smuggle one format in as another.
+
