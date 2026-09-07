@@ -236,7 +236,13 @@ describe("move: rotate / to / pivot", () => {
   test("a move with none of by/to/path/rotate is rejected", () => {
     const v = validateSpec(base({ target: ["a"] }));
     expect(v.ok).toBe(false);
-    expect(v.errors.join(" ")).toMatch(/by, to, path or rotate/);
+    expect(v.errors.join(" ")).toMatch(/by, to, path, rotate or scale/);
+  });
+  test("scale alone is a valid move", () => {
+    expect(validateSpec(base({ target: ["a"], scale: 2 })).ok).toBe(true);
+  });
+  test("scale of 0 is rejected by the schema", () => {
+    expect(validateSpec(base({ target: ["a"], scale: 0 })).ok).toBe(false);
   });
 });
 

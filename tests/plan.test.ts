@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { planCommands, INITIAL_STATE, type PlanStep } from "../src/render/plan";
+import { poseOf } from "../src/render/pose";
 import { CANVAS } from "../src/layout/canvas";
 
 const allIds = ["axes", "demand_curve", "label_D", "supply_curve"];
@@ -119,7 +120,7 @@ describe("move", () => {
 
   test("move without by/path is skipped with a warning", () => {
     const plan = planCommands([{ move: { target: ["axes"] } }], ["axes"]);
-    expect(plan.warnings.join(" ")).toMatch(/by, to, path or rotate/);
+    expect(plan.warnings.join(" ")).toMatch(/by, to, path, rotate or scale/);
     expect(plan.steps.filter((s) => s.kind === "move")).toHaveLength(0);
   });
 
@@ -132,7 +133,7 @@ describe("move", () => {
     expect(step.items).toHaveLength(1);
     expect(step.items[0].to.turn.deg).toBe(90);
     expect(step.items[0].to.turn.pivot).toEqual([200, 150]); // the bbox centre, original frame
-    expect(plan.states[1].turns.demand_curve).toEqual({ deg: 90, pivot: [200, 150] });
+    expect(plan.states[1].turns.demand_curve).toEqual({ deg: 90, pivot: [200, 150], scale: 1 });
     expect(plan.states[1].offsets.demand_curve ?? [0, 0]).toEqual([0, 0]);
   });
   test("to moves the centre to the destination (a delta from the current centre)", () => {
@@ -178,6 +179,26 @@ describe("move", () => {
     const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
     expect(step.items.filter((it) => it.id === "label_D")).toHaveLength(1);
     expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+  });
+  test("scale composes a pose about the element's centre", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], scale: 2 } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items[0].to.turn.scale).toBe(2);
+    expect(step.items[0].to.turn.pivot).toEqual([200, 150]);
+    expect(step.items[0].to.offset).toEqual([0, 0]);
+    expect(plan.states[1].turns.demand_curve.scale).toBe(2);
+  });
+  test("scale about an explicit pivot shifts the offset exactly", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], scale: 2, pivot: [100, 100] } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const it = (plan.steps[1] as Extract<PlanStep, { kind: "transform" }>).items[0];
+    // the corner under the pivot stays put; the far corner (300,200) lands at (500,300)
+    expect(poseOf(it.to.offset, it.to.turn)([100, 100])).toEqual([100, 100]);
+    expect(poseOf(it.to.offset, it.to.turn)([300, 200])).toEqual([500, 300]);
   });
 });
 

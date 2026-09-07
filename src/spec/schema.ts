@@ -508,7 +508,7 @@ const commandSchema = {
     move: {
       type: "object",
       description:
-        "Translate and/or rotate elements: by a delta, to a destination, along a path, or by rotate degrees. Attached labels FOLLOW a translation (they do not rotate); intersection points, regions and other derived elements do not — redraw those.",
+        "Translate and/or rotate and/or scale elements: by a delta, to a destination, along a path, by rotate degrees, or scale by a factor. Attached labels FOLLOW a translation (they do not rotate); intersection points, regions and other derived elements do not — redraw those.",
       properties: {
         target: idListSchema("Element ids to move together."),
         by: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[dx, dy] delta — domain units when a domain is declared, else logical units." },
@@ -520,6 +520,7 @@ const commandSchema = {
         to: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Absolute destination for the element's CENTRE (same units as by) — instead of by/path — e.g. \"to\": [500, 300] sends the centre to that point. Attached labels follow." },
         rotate: { type: "number", description: "Turn the element by this many DEGREES, counter-clockwise, about `pivot` (default: its own centre) — e.g. {\"move\": {\"target\": [\"slice_3\"], \"rotate\": 180, \"duration\": 1}} flips a slice. Combine with by/to to slide and turn at once." },
         pivot: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "With rotate: the point to turn about, in current coordinates (same units as by) — e.g. \"pivot\": [300, 375] with rotate turns the element about the circle's centre. Omit for the element's own centre." },
+        scale: { type: "number", exclusiveMinimum: 0, description: "Grow or shrink the element by this factor about `pivot` (default its own centre), cumulative across moves — e.g. \"scale\": 2 doubles it in place, 0.5 halves it. Combine with rotate/by/to." },
         duration: { type: "number", description: "Seconds (default 1)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
       },
@@ -862,8 +863,15 @@ function semanticErrors(spec: Spec): string[] {
       errors.push(`commands[${i}]: voice and delivery only apply to a command with speak`);
     }
     if (cmd.parallel !== undefined && verb !== "draw" && verb !== "erase") errors.push(`commands[${i}]: parallel only applies to draw/erase`);
-    if (cmd.move !== undefined && cmd.move.by === undefined && cmd.move.to === undefined && (cmd.move.path === undefined || cmd.move.path.length === 0) && cmd.move.rotate === undefined) {
-      errors.push(`commands[${i}]: move needs one of by, to, path or rotate`);
+    if (
+      cmd.move !== undefined &&
+      cmd.move.by === undefined &&
+      cmd.move.to === undefined &&
+      (cmd.move.path === undefined || cmd.move.path.length === 0) &&
+      cmd.move.rotate === undefined &&
+      cmd.move.scale === undefined
+    ) {
+      errors.push(`commands[${i}]: move needs one of by, to, path, rotate or scale`);
     }
     if (verb === "point") {
       const at = cmd.point!.at;

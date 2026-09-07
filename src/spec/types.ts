@@ -220,6 +220,8 @@ export interface MoveArgs {
   rotate?: number;
   /** The point to turn about, in current coordinates (same units as by). Default: the element's own centre. */
   pivot?: [number, number];
+  /** Uniform scale factor about pivot (default the element's centre); cumulative across moves. */
+  scale?: number;
   /** seconds */
   duration?: number;
   easing?: Easing;

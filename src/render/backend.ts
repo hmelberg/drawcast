@@ -25,10 +25,11 @@ export interface RenderedElement {
   setOffset?(dx: number, dy: number): void;
   /**
    * Persistent pose: translate by (dx, dy) after rotating by `deg`
-   * (counter-clockwise, y-up) about `pivot` in the element's ORIGINAL frame
-   * (design §2.1). setOffset(dx, dy) is setTransform(dx, dy, 0, [0, 0]).
+   * (counter-clockwise, y-up) and uniformly scaling by `scale` (default 1),
+   * both about `pivot` in the element's ORIGINAL frame (design §2.1).
+   * setOffset(dx, dy) is setTransform(dx, dy, 0, [0, 0]).
    */
-  setTransform?(dx: number, dy: number, deg: number, pivot: Pt): void;
+  setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number): void;
 }
 
 /**

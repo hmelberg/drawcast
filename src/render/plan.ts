@@ -14,7 +14,7 @@ import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
-import { composeTurn, poseCentre, poseOf, type Turn } from "./pose";
+import { composeScale, composeTurn, poseCentre, poseOf, type Turn } from "./pose";
 import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
 
@@ -251,7 +251,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     if (!box) return null;
     const offset: Pt = offsets[id] ?? [0, 0];
     const turn = turns[id];
-    if (turn === undefined || turn.deg === 0) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
+    if (turn === undefined || (turn.deg === 0 && (turn.scale ?? 1) === 1)) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
     const map = poseOf(offset, turn);
     const corners: Pt[] = ([
       [box.x, box.y],
@@ -481,8 +481,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const hasBy = cmd.move.by !== undefined;
       const hasTo = cmd.move.to !== undefined;
       const hasRotate = cmd.move.rotate !== undefined && cmd.move.rotate !== 0;
-      if (ids.length === 0 || (!hasPath && !hasBy && !hasTo && !hasRotate)) {
-        if (!hasPath && !hasBy && !hasTo && !hasRotate) warnings.push("move command needs one of by, to, path or rotate — skipped");
+      const hasScale = cmd.move.scale !== undefined && cmd.move.scale !== 1;
+      if (ids.length === 0 || (!hasPath && !hasBy && !hasTo && !hasRotate && !hasScale)) {
+        if (!hasPath && !hasBy && !hasTo && !hasRotate && !hasScale) warnings.push("move command needs one of by, to, path, rotate or scale — skipped");
         continue;
       }
       const seconds = cmd.move.duration ?? 1;
@@ -491,7 +492,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // implicit label_<id> convention, so a single attachedTo(id) call may
       // list the same follower twice even when the caller already dedupes.
       const followers = (id: string): string[] => [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => known.has(f) && !ids.includes(f));
-      if (!hasRotate && !hasTo) {
+      if (!hasRotate && !hasTo && !hasScale) {
         // Plain translation, possibly along waypoints: the move step as before, followers included.
         const rawPath = hasPath ? cmd.move.path! : [cmd.move.by!];
         const path = rawPath.map((d) => deltaToLogical(d as Pt));
@@ -526,9 +527,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             delta = deltaToLogical(cmd.move.path![cmd.move.path!.length - 1] as Pt);
           }
           offset = [offset[0] + delta[0], offset[1] + delta[1]];
+          if (hasScale) {
+            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+            const c = composeScale(offset, turn, cmd.move.scale!, pivotNow);
+            offset = c.offset;
+            turn = c.turn;
+          }
           if (hasRotate) {
-            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn0) : [offset[0], offset[1]];
-            const c = composeTurn(offset, turn0, cmd.move.rotate!, pivotNow);
+            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+            const c = composeTurn(offset, turn, cmd.move.rotate!, pivotNow);
             offset = c.offset;
             turn = c.turn;
           }

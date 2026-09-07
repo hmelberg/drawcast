@@ -391,7 +391,7 @@ export class Player {
     for (const [id, el] of this.elements) {
       const [dx, dy] = scene.offsets[id] ?? [0, 0];
       const turn = scene.turns[id];
-      if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot);
+      if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1);
       else el.setOffset?.(dx, dy);
       if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
       else el.hide();
@@ -1003,7 +1003,7 @@ export class Player {
             // existing pose through setTransform so an earlier rotate isn't
             // dropped by setOffset's transform-attribute rewrite.
             const turn = before.turns[el.id];
-            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot);
+            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot, turn.scale ?? 1);
             else el.setOffset!(bx + px, by + py);
           }
         });
@@ -1019,7 +1019,8 @@ export class Player {
             const dy = it.from.offset[1] + (it.to.offset[1] - it.from.offset[1]) * e;
             const deg = it.from.turn.deg + (it.to.turn.deg - it.from.turn.deg) * e;
             const pivot = it.to.turn.pivot;
-            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot);
+            const sc = (it.from.turn.scale ?? 1) + ((it.to.turn.scale ?? 1) - (it.from.turn.scale ?? 1)) * e;
+            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc);
             else el!.setOffset!(dx, dy);
           }
         });

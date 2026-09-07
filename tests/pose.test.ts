@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { composeTurn, poseOf } from "../src/render/pose";
+import { composeScale, composeTurn, poseOf } from "../src/render/pose";
 
 const close = (a: [number, number], b: [number, number]) => {
   expect(a[0]).toBeCloseTo(b[0], 6);
@@ -31,5 +31,33 @@ describe("composeTurn", () => {
     const a = composeTurn([0, 0], undefined, 90, [0, 0]); // 90° about origin
     const b = composeTurn(a.offset, a.turn, 90, [50, 0]); // then 90° about the point now at (50,0)
     close(poseOf(b.offset, b.turn)(poseOf(a.offset, a.turn, true)([50, 0])), [50, 0]);
+  });
+});
+
+describe("composeScale", () => {
+  test("a first scale about the element's own point keeps the offset and stores the pivot in the original frame", () => {
+    const r = composeScale([10, 5], undefined, 2, [110, 55]);
+    expect(r.turn.scale).toBe(2);
+    expect(r.turn.deg).toBe(0);
+    close(r.turn.pivot, [100, 50]);
+    close(r.offset, [10, 5]);
+  });
+  test("scaling about a point elsewhere moves the element: ×2 about the origin sends (10,0) to (20,0)", () => {
+    const r = composeScale([0, 0], undefined, 2, [0, 0]);
+    close(poseOf(r.offset, r.turn)([10, 0]), [20, 0]);
+  });
+  test("scale and rotation about the same current point commute: the point under the pivot never moves", () => {
+    const a = composeScale([30, 0], undefined, 2, [130, 0]);
+    const b = composeTurn(a.offset, a.turn, 90, [130, 0]);
+    expect(b.turn.scale).toBe(2);
+    close(poseOf(b.offset, b.turn)([100, 0]), [130, 0]);
+    // a point 10 right of the pivot ends 20 ABOVE it (scaled ×2, then turned 90° ccw)
+    close(poseOf(b.offset, b.turn)([110, 0]), [130, 20]);
+  });
+  test("the inverse map undoes scale", () => {
+    const a = composeScale([5, 5], undefined, 0.5, [50, 50]);
+    const fwd = poseOf(a.offset, a.turn);
+    const inv = poseOf(a.offset, a.turn, true);
+    close(inv(fwd([123, 45])), [123, 45]);
   });
 });

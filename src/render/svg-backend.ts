@@ -595,11 +595,14 @@ class SvgElementHandle implements RenderedElement {
     this.setTransform(dx, dy, 0, [0, 0]);
   }
 
-  /** Pose: SVG rotates clockwise in y-down, so a y-up counter-clockwise `deg` is `rotate(-deg)` about the flipped pivot; rotate first, then translate. */
-  setTransform(dx: number, dy: number, deg: number, pivot: Pt): void {
+  /** Pose: SVG rotates clockwise in y-down, so a y-up counter-clockwise `deg` is `rotate(-deg)` about the flipped pivot; translate, then rotate about the pivot, then scale about the same pivot. */
+  setTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1): void {
     const parts: string[] = [];
+    const px = pivot[0].toFixed(1);
+    const py = (CANVAS.h - pivot[1]).toFixed(1);
     if (dx !== 0 || dy !== 0) parts.push(`translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
-    if (deg !== 0) parts.push(`rotate(${(-deg).toFixed(2)} ${pivot[0].toFixed(1)} ${(CANVAS.h - pivot[1]).toFixed(1)})`);
+    if (deg !== 0) parts.push(`rotate(${(-deg).toFixed(2)} ${px} ${py})`);
+    if (scale !== 1) parts.push(`translate(${px} ${py}) scale(${scale.toFixed(4)}) translate(${(-pivot[0]).toFixed(1)} ${(-(CANVAS.h - pivot[1])).toFixed(1)})`);
     for (const g of this.groups) {
       if (parts.length === 0) g.removeAttribute("transform");
       else g.setAttribute("transform", parts.join(" "));
