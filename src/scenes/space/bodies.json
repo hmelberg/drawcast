@@ -35,6 +35,6 @@
     { "id": "titania", "kind": "moon", "name": { "en": "Titania", "nb": "Titania" }, "parent": "uranus", "r_km": 788.9, "mass_kg": 3.53e21, "a_km": 436300, "period_d": 8.706, "e": 0.0011, "rot_h": 208.9, "tilt_deg": 0, "color": "#a9a49c", "wiki": { "en": "Titania (moon)", "nb": "Titania (måne)" } },
     { "id": "oberon", "kind": "moon", "name": { "en": "Oberon", "nb": "Oberon" }, "parent": "uranus", "r_km": 761.4, "mass_kg": 3.01e21, "a_km": 583500, "period_d": 13.463, "e": 0.0014, "rot_h": 323.1, "tilt_deg": 0, "color": "#9b958d", "wiki": { "en": "Oberon (moon)", "nb": "Oberon (måne)" } },
     { "id": "triton", "kind": "moon", "name": { "en": "Triton", "nb": "Triton" }, "parent": "neptune", "r_km": 1353.4, "mass_kg": 2.14e22, "a_km": 354760, "period_d": -5.877, "e": 0, "rot_h": -141, "tilt_deg": 0, "color": "#c8b8c8", "wiki": { "en": "Triton (moon)", "nb": "Triton (måne)" } },
-    { "id": "charon", "kind": "moon", "name": { "en": "Charon", "nb": "Charon" }, "parent": "pluto", "r_km": 606, "mass_kg": 1.586e21, "a_km": 19591, "period_d": 6.387, "e": 0.0002, "rot_h": 153.29, "tilt_deg": 0, "color": "#a8a29a", "wiki": { "en": "Charon", "nb": "Charon (måne)" } }
+    { "id": "charon", "kind": "moon", "name": { "en": "Charon", "nb": "Charon" }, "parent": "pluto", "r_km": 606, "mass_kg": 1.586e21, "a_km": 19591, "period_d": 6.387, "e": 0.0002, "rot_h": -153.29, "tilt_deg": 0, "color": "#a8a29a", "wiki": { "en": "Charon", "nb": "Charon (måne)" } }
   ]
 }
