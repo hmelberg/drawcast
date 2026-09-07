@@ -94,7 +94,7 @@ params:
 element_ids:
   sun: the Sun — a shaded disc, or, in a row at true sizes, the visible edge of a disc far larger than the page
   <body_id>: every drawn body is its own element and its id IS its name in lower case (mars, jupiter, io) — the ids an ask with widget "click" or "drag" compares against; Saturn's ring is part of saturn
-  orbit_<body_id>: that body's dashed orbit circle (top and tilted views; a row has none)
+  orbit_<body_id>: that body's dashed orbit circle, broken where the body's own name is written across it (top and tilted views; a row has none)
   label_<body_id>: that body's written name, when names is not none
   axis: the focus body's spin axis, leaning by its axial tilt (focus only)
   frame: a light dashed frame around the crop (focus only)
@@ -120,6 +120,12 @@ layout: |
   const R_MAX = 290;                                        // the outermost orbit in the top views
   const SUN_CAP = Math.floor((F.y1 - F.y0) / 6);            // 103: the Sun never takes more than a sixth of the frame
   const LABEL_PX = 19, NOTE_PX = 18;
+  // The box lint measures around a one-line name (fontSize × the 1.25 line
+  // height of layout/labels.ts), and the least a name may step to clear one
+  // already written: lint calls two text boxes closer than 2 units an overlap,
+  // so a step of the line plus 4 leaves 2 units to spare. Never a bare
+  // constant — the step has to follow the size of the type it moves.
+  const LABEL_H = LABEL_PX * 1.25, LABEL_STEP = LABEL_H + 4;
 
   const view = params.view === "row" || params.view === "tilted" ? params.view : "top";
   const mode = params.scale === "sizes" || params.scale === "distances" || params.scale === "log" ? params.scale : "schematic";
@@ -168,6 +174,8 @@ layout: |
   const pos = focusId ? eng.moonPositions(focusId, sats.map((b) => b.id), date) : eng.positions(sats.map((b) => b.id), date);
   for (const b of sats) { const p = pos[b.id]; angles[b.id] = p ? Math.atan2(p.y, p.x) : 0; }
 
+  // No solver requests: this pack writes every name itself (see "names"
+  // below), so `labels` goes back empty and the placement is all in one place.
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const nameOf = (b) => b.name[L] || b.name.en;
@@ -209,10 +217,8 @@ layout: |
     anchors.title = [500, 726];
   }
 
-  const orbitIds = sats.map((b) => "orbit_" + b.id);
   let pxPerKm = null;      // for the scale bar: px per km of DISTANCE (distances) or of RADIUS (sizes)
   let reducedName = "";    // the centre body the note has to admit it shrank — the Sun, or the focus body
-  const labelReq = [];     // solver requests, placed at the end
 
   if (view === "row" && !focusId) {
     // ---- the line-up ------------------------------------------------------
@@ -264,15 +270,26 @@ layout: |
       anchors.sun = sunC;
     }
     sats.forEach((b, i) => { push(bodyElement(b, b.id, [xs[i], y], rs[i], false)); anchors[b.id] = [xs[i], y]; });
-    // Names under the bodies, in tiers when neighbours are closer than a name is wide.
+    // Names above the bodies, in tiers when neighbours are closer than a name
+    // is wide. A tier is a HORIZONTAL grouping — it only says which names
+    // cannot share a line. The vertical is this layout's own, and a tier index
+    // times a step is not enough on its own: every name starts just clear of
+    // its OWN disc, and the discs differ in size, so a body a little larger
+    // than its neighbour eats into the step and the two boxes touch again
+    // (Venus/Earth in a true-size row missed each other by 0.05 units). So the
+    // step is a real line of type, and each name then steps up by whole lines
+    // until its box really is clear of every name already written.
     if (names !== "none") {
       const texts = sats.map(nameOf);
       const widths = texts.map((t) => kit.textWidth(t, LABEL_PX));
       const tiers = eng.labelTiers(xs, widths, 6);
+      const written = [];
       sats.forEach((b, i) => {
         const w = widths[i];
         const tx = Math.min(1000 - w / 2 - 4, Math.max(w / 2 + 4, xs[i]));
-        const ty = y - rs[i] - 16 - tiers[i] * 26;
+        let ty = y - rs[i] - 16 - tiers[i] * LABEL_STEP;
+        for (let guard = 0; guard <= sats.length && written.some((q) => Math.abs(q.x - tx) * 2 < q.w + w + 4 && Math.abs(q.y - ty) < LABEL_H + 2); guard++) ty -= LABEL_STEP;
+        written.push({ x: tx, y: ty, w });
         push(kit.text("label_" + b.id, [tx, ty], texts[i], { fontSize: LABEL_PX, color: lit(b.id) ? C.accent : C.ink }));
         anchors["label_" + b.id] = [tx, ty];
       });
@@ -308,48 +325,34 @@ layout: |
     // leans its axis, so there the ring is the tilted ellipse everyone pictures.
     const flat = view === "top" && !focusId;
 
-    if (focusId) {
-      push(kit.stroke("frame", [[F.x0, F.y0], [F.x1, F.y0], [F.x1, F.y1], [F.x0, F.y1]], { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
-    }
-    // Orbits first (guides behind everything), then the centre and its axis,
-    // then the bodies far-to-near so a near one covers a far one when tilted.
-    if (orbitsOn) sats.forEach((b, i) => {
+    // Everything is MEASURED before anything is drawn, because the names have
+    // to be placed before the orbits go down: the one orbit a name sits on has
+    // to duck under it.
+    const c0 = P(0, 0);
+    const centreDrawn = centreR * c0.s;
+    const orbitPts = sats.map((b, i) => {
       const pts = [];
       for (let k = 0; k < 72; k++) { const t = (2 * Math.PI * k) / 72; const q = P(orbitR[i] * Math.cos(t), orbitR[i] * Math.sin(t)); pts.push([q.x, q.y]); }
-      push(kit.stroke("orbit_" + b.id, pts, { closed: true, color: C.guide, strokeWidth: 1.2, dash: true, ms: MS.guides }));
-      anchors["orbit_" + b.id] = pts[0];
+      return pts;
     });
-    const c0 = P(0, 0);
-    push(bodyElement(centre, centre.id, [c0.x, c0.y], centreR * c0.s, flat));
-    anchors[centre.id] = [c0.x, c0.y];
+    const orbitWhole = sats.map(() => true);
+    let axisPts = null;
     if (focusId && typeof centre.tilt_deg === "number") {
       // The spin axis, leaning by the axial tilt, long enough to read past the disc (and the ring).
-      const t = (centre.tilt_deg * Math.PI) / 180, len = extent(centre, centreR * c0.s) * 1.35;
-      push(kit.stroke("axis", [[c0.x - len * Math.sin(t), c0.y - len * Math.cos(t)], [c0.x + len * Math.sin(t), c0.y + len * Math.cos(t)]], { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
-      anchors.axis = [c0.x, c0.y];
+      const t = (centre.tilt_deg * Math.PI) / 180, len = extent(centre, centreDrawn) * 1.35;
+      axisPts = [[c0.x - len * Math.sin(t), c0.y - len * Math.cos(t)], [c0.x + len * Math.sin(t), c0.y + len * Math.cos(t)]];
     }
+    const framePts = focusId ? [[F.x0, F.y0], [F.x1, F.y0], [F.x1, F.y1], [F.x0, F.y1]] : null;
     const placed = sats.map((b, i) => {
       const a = angles[b.id], ex = orbitR[i] * Math.cos(a), ey = orbitR[i] * Math.sin(a);
       const q = P(ex, ey);
-      return { b, q, r: rad.bodies[i] * q.s, ey, ux: Math.cos(a), uy: Math.sin(a) };
+      return { b, i, a, q, r: rad.bodies[i] * q.s, ey };
     });
     placed.sort((u, v) => v.ey - u.ey);   // far first
-    for (const p of placed) { push(bodyElement(p.b, p.b.id, [p.q.x, p.q.y], p.r, flat)); anchors[p.b.id] = [p.q.x, p.q.y]; }
-
-    // Names beside the bodies, placed by the solver: each hangs off its body's
-    // outward edge on the side away from the centre, may lie across the orbit
-    // guides (dashed, faint — not ink), and must miss every other body and name.
-    if (names !== "none") {
-      for (const p of placed) {
-        const side = p.ux >= 0 ? (p.uy >= 0 ? "above-right" : "below-right") : (p.uy >= 0 ? "above-left" : "below-left");
-        const e = extent(p.b, p.r);
-        labelReq.push({ id: "label_" + p.b.id, at: [p.q.x + p.ux * e, p.q.y + p.uy * e], side, text: nameOf(p.b), color: lit(p.b.id) ? C.accent : C.ink, ignore: [p.b.id, ...orbitIds] });
-      }
-      labelReq.push({ id: "label_" + centre.id, at: [c0.x, c0.y - extent(centre, centreR * c0.s)], side: "below", text: nameOf(centre), color: C.ink, ignore: [centre.id, "axis", ...orbitIds] });
-    }
 
     // Log distances have no linear bar: a decade ruler from r(d) to r(10d)
     // straight down from the centre, when a decade pair fits the drawn range.
+    let ruler = null;
     if (mode === "log" && n > 1) {
       const as = sats.map((b) => b.a_km), aMin = Math.min(...as), aMax = Math.max(...as);
       const units = focusId ? [1e4, 1e5, 1e6, 1e7] : [0.1, 1, 10, 100].map((au) => eng.km(au));
@@ -359,21 +362,171 @@ layout: |
         const r1 = eng.logRadius(pair, aMin, aMax, rMin, R_MAX), r2 = eng.logRadius(10 * pair, aMin, aMax, rMin, R_MAX);
         const a = P(0, -r1), z = P(0, -r2);
         const fmt = (d) => focusId ? String(Math.round(d)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f") : String(Math.round(eng.au(d) * 10) / 10).replace(".", L === "nb" ? "," : ".");
-        const text = fmt(pair) + " → " + fmt(10 * pair) + (focusId ? " km" : " AU");
-        push(kit.group("scale_bar", [
-          kit.stroke("scale_bar__line", [[a.x, a.y], [z.x, z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
-          kit.stroke("scale_bar__t0", [[a.x - 6, a.y], [a.x + 6, a.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
-          kit.stroke("scale_bar__t1", [[z.x - 6, z.y], [z.x + 6, z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
-          kit.text("scale_bar__label", [(a.x + z.x) / 2 + 10, (a.y + z.y) / 2], text, { fontSize: 16, color: C.guide, anchor: "start" }),
-        ]));
-        anchors.scale_bar = [(a.x + z.x) / 2, (a.y + z.y) / 2];
+        ruler = { a, z, text: fmt(pair) + " → " + fmt(10 * pair) + (focusId ? " km" : " AU") };
       }
     }
-  }
 
-  for (const q of labelReq) {
-    labels.push({ ...kit.label(q.id, q.at, q.side, q.text, { color: q.color, fontSize: LABEL_PX }), ignore: q.ignore });
-    order.push(q.id);
+    // ---- names -------------------------------------------------------------
+    // A name is written beside its body and ALONG its own orbit, and that one
+    // orbit ducks under it. The break is arithmetic, not taste: eight evenly
+    // spaced orbits leave 33 units between rings, while the core of a 19-unit
+    // name — the box lint measures a stroke against — is 43 units across its
+    // diagonal. No ring gap can hold one at any size lint calls readable (its
+    // floor is 14), so a name that clears every ring does not exist. Sitting
+    // ON its own ring is the one placement whose core stays clear of every
+    // OTHER ring, and breaking a line so that it can carry its own label is
+    // what an atlas has always done with a contour. The rings on either side
+    // pass through the outer margin of the box, which is what the halo — and
+    // lint's core, rather than the whole box — is for.
+    // Placed here rather than by the shared solver (layout/labels.ts) because
+    // the break has to know where the name landed, and because the solver's
+    // eight sides at two rings cannot aim at a 33-unit gap. kit.textWidth
+    // measures with the same heuristic lint does, so the boxes reserved here
+    // are the boxes lint will check — the anatomy pack's columns place names
+    // themselves for the same reason.
+    const boxAt = (c, w, h) => ({ x: c[0] - w / 2, y: c[1] - h / 2, w, h });
+    const coreOf = (b) => ({ x: b.x + b.w * 0.2, y: b.y + b.h * 0.25, w: b.w * 0.6, h: b.h * 0.5 });
+    const grow = (b, k) => ({ x: b.x - k, y: b.y - k, w: b.w + 2 * k, h: b.h + 2 * k });
+    const boxHit = (a, b, pad) => a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
+    const turn = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+    const segHit = (a, b, r) => {
+      if (Math.max(a[0], b[0]) < r.x || Math.min(a[0], b[0]) > r.x + r.w || Math.max(a[1], b[1]) < r.y || Math.min(a[1], b[1]) > r.y + r.h) return false;
+      if (a[0] >= r.x && a[0] <= r.x + r.w && a[1] >= r.y && a[1] <= r.y + r.h) return true;
+      const k = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+      for (let j = 0; j < 4; j++) { const u = k[j], v = k[(j + 1) % 4]; if (turn(a, b, u) !== turn(a, b, v) && turn(u, v, a) !== turn(u, v, b)) return true; }
+      return false;
+    };
+    const pathHit = (pts, r, closed) => { const m = closed ? pts.length : pts.length - 1; for (let j = 0; j < m; j++) if (segHit(pts[j], pts[(j + 1) % pts.length], r)) return true; return false; };
+    // The ring minus the arc inside the box: the longest run of it that
+    // survives, drawn as one open polyline the long way round. A ring so small
+    // that a name would take most of it keeps its whole circle — a stub reads
+    // as a mistake, while a graze is only a graze, and lint says so either way.
+    const duck = (pts, r) => {
+      const m = pts.length, ok = [];
+      for (let j = 0; j < m; j++) ok.push(!segHit(pts[j], pts[(j + 1) % m], r));
+      if (ok.every((v) => v)) return null;
+      let bs = -1, bl = 0;
+      for (let s = 0; s < m; s++) {
+        if (!ok[s] || ok[(s - 1 + m) % m]) continue;
+        let len = 0;
+        while (len < m && ok[(s + len) % m]) len++;
+        if (len > bl) { bl = len; bs = s; }
+      }
+      if (bs < 0 || bl < m / 2) return null;
+      const out = [];
+      for (let j = 0; j <= bl; j++) out.push(pts[(bs + j) % m]);
+      return out;
+    };
+
+    const nameTexts = [];
+    if (names !== "none") {
+      // What a name may not touch: any disc (its whole box — a name never sits
+      // on a body), any name already written, and — with its core, the way
+      // lint reads it — every guide except the one orbit that will duck. The
+      // scale note and the title live in the strips above and below the orbit
+      // field, further than a line clear of anything drawn inside it.
+      const discs = [boxAt([c0.x, c0.y], 2 * extent(centre, centreDrawn), 2 * extent(centre, centreDrawn))];
+      for (const p of placed) discs.push(boxAt([p.q.x, p.q.y], 2 * extent(p.b, p.r), 2 * extent(p.b, p.r)));
+      const guides = [];
+      if (orbitsOn) sats.forEach((b, i) => guides.push({ id: "orbit_" + b.id, pts: orbitPts[i], ring: i }));
+      if (axisPts) guides.push({ id: "axis", pts: axisPts, ring: -1 });
+      if (framePts) guides.push({ id: "frame", pts: framePts, ring: -2 });
+      // A ring around a body is ink like any other: Mimas is closer to Saturn's
+      // rings than to any orbit, and its name has to clear their rim.
+      const ringRim = (b, at, r) => {
+        const rg = ringPieces(b, "rim", at, r, flat);
+        if (rg) for (const d of [...rg.back, ...rg.front]) if (d.kind === "stroke") guides.push({ id: "rim", pts: d.pts, ring: -1 });
+      };
+      ringRim(centre, [c0.x, c0.y], centreDrawn);
+      for (const p of placed) ringRim(p.b, [p.q.x, p.q.y], p.r);
+      const written = [];
+      if (ruler) {
+        guides.push({ id: "scale_bar", pts: [[ruler.a.x, ruler.a.y], [ruler.z.x, ruler.z.y]], ring: -1 });
+        guides.push({ id: "scale_bar", pts: [[ruler.a.x - 6, ruler.a.y], [ruler.a.x + 6, ruler.a.y]], ring: -1 });
+        guides.push({ id: "scale_bar", pts: [[ruler.z.x - 6, ruler.z.y], [ruler.z.x + 6, ruler.z.y]], ring: -1 });
+        written.push({ x: (ruler.a.x + ruler.z.x) / 2 + 10, y: (ruler.a.y + ruler.z.y) / 2 - 10, w: kit.textWidth(ruler.text, 16), h: 20 });
+      }
+      // The centre goes first, and not out of politeness: it is the one body
+      // with no ring of its own to sit on, so it has to take a gap, and the
+      // gap it can reach is the innermost one — the same one Mercury wants.
+      const jobs = [{ id: "label_" + centre.id, q: c0, e: extent(centre, centreDrawn), text: nameOf(centre), color: C.ink, ring: -1, a: 0 }];
+      for (const p of placed) jobs.push({ id: "label_" + p.b.id, q: p.q, e: extent(p.b, p.r), text: nameOf(p.b), color: lit(p.b.id) ? C.accent : C.ink, ring: p.i, a: p.a });
+      for (const p of jobs) {
+        const text = p.text, w = kit.textWidth(text, LABEL_PX), e = p.e, own = p.ring >= 0 ? "orbit_" + sats[p.ring].id : "";
+        const cands = [];
+        // First choice: along its own orbit, just clear of the body, either
+        // way round. On a ring too small to carry a name — the inner planets
+        // at true distances — the turn would be most of a circle; skip it.
+        const turnBy = p.ring >= 0 ? (w / 2 + e + 6) / Math.max(orbitR[p.ring], 1) : Infinity;
+        if (turnBy < 1.2) for (const k of [1, -1, 1.5, -1.5, 2.1, -2.1]) {
+          const q = P(orbitR[p.ring] * Math.cos(p.a + k * turnBy), orbitR[p.ring] * Math.sin(p.a + k * turnBy));
+          cands.push([q.x, q.y]);
+        }
+        // Then out from the body and round the compass, starting outward
+        // (straight up for the centre, which has no outward).
+        const th0 = p.ring >= 0 ? Math.atan2(p.q.y - c0.y, p.q.x - c0.x) : -Math.PI / 2;
+        for (const extra of [6, 26]) for (const m of [0, 1, -1, 2, -2, 3, -3, 4]) {
+          const th = th0 + (m * Math.PI) / 4, dx = Math.cos(th), dy = Math.sin(th);
+          const d = e + extra + (Math.abs(dx) * w + Math.abs(dy) * LABEL_H) / 2;
+          cands.push([p.q.x + dx * d, p.q.y + dy * d]);
+        }
+        // The first spot that costs nothing wins, so the order above is the
+        // preference. When no spot is free — thirteen rings in 230 units
+        // cannot carry thirteen names — take the CHEAPEST rather than the
+        // first, and the prices are what each fault costs the reader: off the
+        // page is a lint error and unreadable; two names on top of each other
+        // are two names nobody can read; a name across a guide is the graze
+        // lint warns about; a name touching a disc is only untidy — measured,
+        // it beat every ordering that treated a body as the worse offence,
+        // because next to a body is where the name belongs.
+        let pick = null, best = null, bestCost = Infinity;
+        for (const c of cands) {
+          const bx = boxAt(c, w, LABEL_H), co = coreOf(bx);
+          let cost = bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0;
+          for (const q of written) if (boxHit(bx, q, 2)) cost += 100;
+          for (const g of guides) if (g.id !== own && pathHit(g.pts, co, g.ring === -2 || (g.ring >= 0 && orbitWhole[g.ring]))) cost += 10;
+          for (const q of discs) if (boxHit(bx, q, 2)) cost += 6;
+          if (cost === 0) { pick = bx; break; }
+          if (cost < bestCost) { bestCost = cost; best = bx; }
+        }
+        if (!pick) pick = best;
+        written.push(pick);
+        nameTexts.push({ id: p.id, at: [pick.x + pick.w / 2, pick.y + pick.h / 2], text, color: p.color });
+        if (orbitsOn && p.ring >= 0) {
+          const arc = duck(orbitPts[p.ring], grow(pick, 2));
+          if (arc) { orbitPts[p.ring].length = 0; for (const q of arc) orbitPts[p.ring].push(q); orbitWhole[p.ring] = false; }
+        }
+      }
+    }
+
+    // ---- and now the ink, back to front -------------------------------------
+    // Orbits first (guides behind everything), then the centre and its axis,
+    // then the bodies far-to-near so a near one covers a far one when tilted.
+    if (framePts) push(kit.stroke("frame", framePts, { closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+    if (orbitsOn) sats.forEach((b, i) => {
+      push(kit.stroke("orbit_" + b.id, orbitPts[i], { closed: orbitWhole[i], color: C.guide, strokeWidth: 1.2, dash: true, ms: MS.guides }));
+      anchors["orbit_" + b.id] = orbitPts[i][0];
+    });
+    push(bodyElement(centre, centre.id, [c0.x, c0.y], centreDrawn, flat));
+    anchors[centre.id] = [c0.x, c0.y];
+    if (axisPts) {
+      push(kit.stroke("axis", axisPts, { color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides }));
+      anchors.axis = [c0.x, c0.y];
+    }
+    for (const p of placed) { push(bodyElement(p.b, p.b.id, [p.q.x, p.q.y], p.r, flat)); anchors[p.b.id] = [p.q.x, p.q.y]; }
+    if (ruler) {
+      push(kit.group("scale_bar", [
+        kit.stroke("scale_bar__line", [[ruler.a.x, ruler.a.y], [ruler.z.x, ruler.z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+        kit.stroke("scale_bar__t0", [[ruler.a.x - 6, ruler.a.y], [ruler.a.x + 6, ruler.a.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+        kit.stroke("scale_bar__t1", [[ruler.z.x - 6, ruler.z.y], [ruler.z.x + 6, ruler.z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
+        kit.text("scale_bar__label", [(ruler.a.x + ruler.z.x) / 2 + 10, (ruler.a.y + ruler.z.y) / 2], ruler.text, { fontSize: 16, color: C.guide, anchor: "start" }),
+      ]));
+      anchors.scale_bar = [(ruler.a.x + ruler.z.x) / 2, (ruler.a.y + ruler.z.y) / 2];
+    }
+    for (const t of nameTexts) {
+      push(kit.text(t.id, t.at, t.text, { fontSize: LABEL_PX, color: t.color }));
+      anchors[t.id] = t.at;
+    }
   }
 
   // Every figure says which truth it keeps; sizes and distances add a bar at the bottom right.

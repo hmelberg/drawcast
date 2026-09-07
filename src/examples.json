@@ -13045,8 +13045,7 @@
       "params": { "view": "row", "scale": "sizes", "date": "2026-09-06" },
       "commands": [
         { "draw": ["sun", "label_sun", "scale_note", "scale_bar"], "speak": "Sizes to scale this time. The Sun is so large that only its edge fits on the page." },
-        { "draw": ["mercury", "venus", "earth", "label_earth", "mars"], "speak": "The four rocky planets are specks beside it — Earth is a dot a hundredth of the Sun's width." },
-        { "hide": ["label_mercury", "label_venus", "label_mars"] },
+        { "draw": ["mercury", "label_mercury", "venus", "label_venus", "earth", "label_earth", "mars", "label_mars"], "speak": "The four rocky planets are specks beside it — Earth is a dot a hundredth of the Sun's width." },
         { "draw": ["jupiter", "label_jupiter"], "speak": "Jupiter: eleven Earths across, and heavier than all the other planets put together." },
         { "draw": ["saturn", "label_saturn", "uranus", "label_uranus", "neptune", "label_neptune"], "speak": "Saturn with its rings, then the two ice giants, Uranus and Neptune — near twins." },
         { "quiz": { "question": "Which of the two ice giants is larger?", "choices": ["Uranus", "Neptune", "They are the same size"], "correct": 1, "right": "Uranus, by a whisker — 25 400 kilometres in radius to Neptune's 24 600. Neptune is the heavier one, though." } }
@@ -13086,11 +13085,11 @@
     "spec": {
       "title": "Jupiter and its moons",
       "template": "solar_system",
-      "params": { "focus": "jupiter", "moons": ["jupiter"], "orbits": false, "date": "2026-09-09" },
+      "params": { "focus": "jupiter", "moons": ["jupiter"], "date": "2026-09-09" },
       "commands": [
         { "draw": ["frame", "jupiter", "label_jupiter", "axis", "scale_note"], "speak": "Jupiter, close up, with its spin axis leaning a mere three degrees." },
-        { "draw": ["io", "label_io", "europa", "label_europa"], "speak": "Io and Europa, the two inner Galilean moons — volcanic Io, and Europa with an ocean under its ice." },
-        { "draw": ["ganymede", "label_ganymede", "callisto", "label_callisto"], "speak": "Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet." },
+        { "draw": ["orbit_io", "io", "label_io", "orbit_europa", "europa", "label_europa"], "speak": "Io and Europa, the two inner Galilean moons — volcanic Io, and Europa with an ocean under its ice." },
+        { "draw": ["orbit_ganymede", "ganymede", "label_ganymede", "orbit_callisto", "callisto", "label_callisto"], "speak": "Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet." },
         { "explore": { "space": true }, "speak": "Click any moon to look closer, use the crumbs to come back out, and try the scale and date buttons. Press Continue when you are done." },
         { "quiz": { "question": "Which of the four is the largest?", "choices": ["Io", "Europa", "Ganymede", "Callisto"], "correct": 3, "right": "Ganymede — larger than the planet Mercury." } }
       ]

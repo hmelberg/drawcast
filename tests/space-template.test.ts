@@ -4,7 +4,7 @@ import bundledExamples from "../src/examples.json";
 import { registerPack, unregisterPack } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { ensureEngines } from "../src/scenes/engines";
-import { COLORS, flattenDrawables, leafDrawables, type Drawable, type StrokeDrawable } from "../src/layout/model";
+import { COLORS, flattenDrawables, leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
 
 const DATE = "2026-09-06";
@@ -90,11 +90,16 @@ describe("solar_system: registration and the default figure", () => {
   // deliberately omits `date` ("right now" is its whole point), and letting
   // that resolve to today would make this test's geometry, and so its verdict,
   // change with the sky.
-  test("every example in the manifest lays out with no warning and no error lint", () => {
+  // `warnings` is the NARROWER field: it carries the layout's own complaints,
+  // not the lint's. Both of this template's first two defects — names lying
+  // across the orbit guides, and a row's name tiers stepping less than a line
+  // of type — showed up in `issues` and in nothing else, which is how they
+  // shipped. Assert on `issues`, and on all of them, not just the errors.
+  test("every example in the manifest lays out with NO lint issue at all", () => {
     for (const ex of scenes.solar_system.manifest.examples) {
       const res = layoutSpec({ template: "solar_system", params: { date: DATE, ...ex.params }, elements: [] } as never);
       expect(res.warnings, ex.request).toEqual([]);
-      expect(res.issues.filter((i) => i.severity === "error").map((i) => i.message), ex.request).toEqual([]);
+      expect(res.issues.map((i) => `[${i.severity}] ${i.message}`), ex.request).toEqual([]);
     }
   });
 
@@ -254,5 +259,86 @@ describe("solar_system: focus, moons, time, highlight, clicks", () => {
 describe("bundled space examples", () => {
   test("drawcast ships five space examples", () => {
     expect((bundledExamples as { packs?: string[] }[]).filter((e) => e.packs?.includes("space"))).toHaveLength(5);
+  });
+});
+
+// Both of the template's first defects were SYSTEMATIC — every date, or one
+// date in three — and invisible to a single-date test, because where a body
+// stands on its orbit is what decides whether its name has room. So sweep the
+// sky. A body moves, the geometry moves with it, and 200 consecutive days is
+// enough to walk Mercury round its orbit twice and Mars past half of its own.
+describe("solar_system: names clear the ink on any date", () => {
+  const days = (n: number): string[] => {
+    const out: string[] = [];
+    for (let i = 0; i < n; i++) out.push(new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString().slice(0, 10));
+    return out;
+  };
+  const sweep = (params: Record<string, unknown>): { dirty: string[]; count: number } => {
+    const dirty: string[] = [];
+    let count = 0;
+    for (const date of days(200)) {
+      const issues = layoutSpec(spec({ ...params, date })).issues;
+      if (issues.length > 0) { count++; dirty.push(`${date}: ${issues[0].message}`); }
+    }
+    return { dirty: dirty.slice(0, 4), count };
+  };
+
+  // The orbits are ON in all three, which is the whole point: with them off
+  // the figure was always clean, and that is what hid the defect.
+  test.each([
+    ["the default figure", { view: "top", scale: "schematic" }],
+    ["a focus portrait with its moons", { focus: "jupiter", moons: ["jupiter"] }],
+    ["the inner planets at true distances", { view: "top", scale: "distances", bodies: ["inner"] }],
+    ["a true-size line-up", { view: "row", scale: "sizes" }],
+  ])("%s is lint-clean on every one of 200 dates", (_what, params) => {
+    const { dirty, count } = sweep(params);
+    expect(dirty).toEqual([]);
+    expect(count).toBe(0);
+  });
+
+  // The guard against the cheap fix. Every one of these would silence the
+  // warnings by drawing less, and none of them is allowed: every body keeps
+  // its name, every orbit is still drawn, and a name is still a full 19 units.
+  test("the clean figure still draws every orbit and names every body", () => {
+    const r = lay({});
+    for (const p of PLANETS) {
+      expect(r.order, p).toContain("orbit_" + p);
+      expect(labelText(r, "label_" + p), p).toBeTruthy();
+    }
+    expect(labelText(r, "label_sun")).toBe("Sun");
+    for (const d of flattenDrawables(r.drawables)) {
+      if (d.kind === "text" && d.id.startsWith("label_")) expect(d.fontSize, d.id).toBe(19);
+    }
+  });
+
+  // An orbit a name sits on is drawn as a circle with a gap, not as a shorter
+  // circle: the arc that goes misses only the name, and the ring still reads
+  // as a ring. (72 points to the ring, so "nearly all of it" is ≥ 60.)
+  test("an orbit that carries a name ducks under it — and keeps its shape", () => {
+    const r = lay({});
+    const orbits = PLANETS.map((p) => leaf(r, "orbit_" + p) as StrokeDrawable);
+    for (const o of orbits) {
+      expect(o.kind).toBe("stroke");
+      expect(o.pts.length, o.id).toBeGreaterThanOrEqual(60);
+      const rr = o.pts.map((q) => Math.hypot(q[0] - 500, q[1] - 390));
+      expect(Math.max(...rr) - Math.min(...rr), o.id).toBeLessThan(1);   // still a circle
+    }
+    expect(orbits.some((o) => o.closed !== true), "no orbit had to duck at all").toBe(true);
+  });
+
+  // Defect B in one line: the step between two rows of names has to clear a
+  // real line of type (19 × 1.25) plus the 2 units lint keeps between boxes —
+  // 26 did not, and the discs a name starts above are not all the same size.
+  test("in a row, no two names come within a line of type of each other", () => {
+    const r = lay({ view: "row", scale: "sizes" });
+    const names = flattenDrawables(r.drawables).filter((d): d is TextDrawable => d.kind === "text" && d.id.startsWith("label_"));
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        const a = names[i], b = names[j];
+        const aw = 0.52 * 19 * a.text.length, bw = 0.52 * 19 * b.text.length;
+        const near = Math.abs(a.pos[0] - b.pos[0]) * 2 < aw + bw + 4;
+        if (near) expect(Math.abs(a.pos[1] - b.pos[1]), `${a.id}/${b.id}`).toBeGreaterThanOrEqual(19 * 1.25 + 2);
+      }
+    }
   });
 });
