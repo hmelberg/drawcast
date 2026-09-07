@@ -338,4 +338,26 @@ describe("arrange", () => {
     expect(step.items[1].to.offset).toEqual([-390, -350]); // b's centre (950,725) → (560,375)
     expect(step.items.every((i) => i.to.turn.deg === 0)).toBe(true);
   });
+  test("attached labels follow a row translation — once per label, by their element's delta, unturned", () => {
+    const plan = planCommands([{ draw: ["a", "b"] }, { arrange: { target: ["a", "b"], layout: "row", at: [500, 375], gap: 20 } }], ["a", "b", "label_a"], {
+      bboxOf: (id) => (id === "a" ? { x: 0, y: 0, w: 100, h: 50 } : id === "b" ? { x: 900, y: 700, w: 100, h: 50 } : { x: 0, y: 60, w: 40, h: 20 }),
+      // both targets claim the same label, and the list repeats it: it moves ONCE, with a
+      attachedTo: (id) => (id === "a" || id === "b" ? ["label_a", "label_a"] : []),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    const label = step.items.filter((i) => i.id === "label_a");
+    expect(label).toHaveLength(1);
+    expect(label[0].to.offset).toEqual([390, 350]); // a's delta, and both started at [0, 0]
+    expect(label[0].to.turn.deg).toBe(0);
+    expect(plan.states[1].offsets["label_a"]).toEqual([390, 350]);
+  });
+  test("a zipper piece's attached label stays put — the slice turns, the label must not", () => {
+    const plan = planCommands([{ draw: ["k"] }, { arrange: { target: "k", layout: "zipper", at: [600, 375] } }], [...pieces, "label_k_1"], {
+      ...opts,
+      attachedTo: (id) => (id === "k_1" ? ["label_k_1"] : []),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.map((i) => i.id)).toEqual(pieces);
+    expect(plan.states[1].offsets["label_k_1"]).toBeUndefined();
+  });
 });
