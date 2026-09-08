@@ -9,6 +9,7 @@ kit: 9
 status: ready
 engines: [space]
 explore: space
+interactions: [space]
 description: >-
   The Sun and its planets from a curated table and a real ephemeris: seen from
   above with every planet at its TRUE position on its orbit for a date
@@ -670,6 +671,7 @@ kit: 9
 status: ready
 engines: [space, sky]
 explore: space
+interactions: [sky]
 description: >-
   THE SKY OVERHEAD, from a place on Earth at a moment: a round chart with the
   zenith at its centre and the horizon as its rim, north at the top and EAST ON

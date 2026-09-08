@@ -19,13 +19,16 @@ export interface Activity {
 
 /** The activities a scene's manifest interactions imply. The kind IS the
  *  data space: declaring `chess` buys free play AND its drills — no
- *  per-activity manifest vocabulary. A figure that declares nothing but
- *  has named parts (`partsCount`, see parts-model.ts) gets the generic
- *  identify drill instead — never alongside a bespoke one, so the row
- *  never offers two ways to ask "click the ___". */
+ *  per-activity manifest vocabulary. A bespoke activity DISPLACES the
+ *  generic identify drill — a declaration alone does not: `space` and
+ *  `sky` are declared only so free play can name a click's target
+ *  (cards), imply no drill of their own, and so fall through to the same
+ *  generic drill a figure with no declared interaction gets when it has
+ *  named parts (`partsCount`, see parts-model.ts). The row never offers
+ *  two ways to ask "click the ___", because the generic drill is added
+ *  only when nothing bespoke was. */
 export function activitiesFor(interactions: readonly string[], partsCount = 0): Activity[] {
   const out: Activity[] = [];
-  if (interactions.length === 0 && partsCount >= MIN_PARTS) return [{ kind: "parts", id: "parts_quiz", label: "🎯 Find the part" }];
   if (interactions.includes("chess")) {
     out.push({ kind: "chess", id: "square_quiz", label: "🎯 Find the square" });
     out.push({ kind: "chess", id: "vs_computer", label: "♟ Play the computer" });
@@ -35,6 +38,10 @@ export function activitiesFor(interactions: readonly string[], partsCount = 0): 
     out.push({ kind: "periodic", id: "element_quiz", label: "🎯 Find the element" });
     out.push({ kind: "periodic", id: "group_quiz", label: "🔎 Find the family" });
   }
+  // A kind declared for its CARDS (space, sky) implies no drill of its own.
+  // The generic identify drill is what such a figure should keep — the early
+  // return this replaces took it away from anything that declared anything.
+  if (out.length === 0 && partsCount >= MIN_PARTS) out.push({ kind: "parts", id: "parts_quiz", label: "🎯 Find the part" });
   return out;
 }
 

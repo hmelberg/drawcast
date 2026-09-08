@@ -21,6 +21,8 @@ import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
 import { getLoadedEngines } from "../scenes/engines";
 import type { ElementsEngine, ElementNameLang } from "../scenes/elements/types";
+import type { SpaceEngine } from "../scenes/space/types";
+import type { SkyEngine, SkyLang } from "../scenes/space/sky-types";
 import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-model";
 import { contextWords, matchWiki, selectedPhrase, type WikiCandidate } from "./wiki-match";
 import { linkActionsFor } from "./link-model";
@@ -67,26 +69,73 @@ function trimExtract(s: string): string {
  * "26", both of which `meaningfulName` rightly screens out, so without this
  * the richest set of clickable parts in the library would carry no cards at
  * all. With it, all 118 do, named in the figure's own language.
+ *
+ * `space` and `sky` are the same idea for free play: a planet or a star is
+ * drawn as a bare coloured dot, with no printed word `meaningfulName` could
+ * ever find, so a paused click needs the engine to say what it is.
  */
 function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
-  if (!interactions.includes("periodic")) return [];
-  let eng: ElementsEngine;
-  try {
-    // A periodic figure cannot be on screen unless its engine loaded before
-    // layout ran — but a card is not worth throwing at a viewer over.
-    eng = getLoadedEngines(["elements"]).elements as ElementsEngine;
-  } catch {
-    return [];
-  }
   const raw = hd.spec.params?.["names"];
-  const lang: ElementNameLang = raw === "nb" || raw === "la" ? raw : "en";
-  const out: { id: string; name: string }[] = [];
-  for (const symbol of periodicSymbols(hd.layout.order)) {
-    const el = eng.bySymbol(symbol);
-    if (el) out.push({ id: "cell_" + symbol, name: eng.nameIn(el, lang) });
+  if (interactions.includes("periodic")) {
+    let eng: ElementsEngine;
+    try {
+      // A periodic figure cannot be on screen unless its engine loaded before
+      // layout ran — but a card is not worth throwing at a viewer over.
+      eng = getLoadedEngines(["elements"]).elements as ElementsEngine;
+    } catch {
+      return [];
+    }
+    const lang: ElementNameLang = raw === "nb" || raw === "la" ? raw : "en";
+    const out: { id: string; name: string }[] = [];
+    for (const symbol of periodicSymbols(hd.layout.order)) {
+      const el = eng.bySymbol(symbol);
+      if (el) out.push({ id: "cell_" + symbol, name: eng.nameIn(el, lang) });
+    }
+    return out;
   }
-  return out;
+  if (interactions.includes("space")) {
+    let eng: SpaceEngine;
+    try {
+      // Same forgiveness as the periodic branch: a card is not worth
+      // throwing at a viewer over.
+      eng = getLoadedEngines(["space"]).space as SpaceEngine;
+    } catch {
+      return [];
+    }
+    const lang: "en" | "nb" = raw === "nb" ? "nb" : "en";
+    const out: { id: string; name: string }[] = [];
+    for (const id of hd.layout.order) {
+      if (id.includes("__")) continue; // group leaves — usable() screens these out too
+      const body = eng.body(id);
+      if (body) out.push({ id, name: body.name[lang] });
+    }
+    return out;
+  }
+  if (interactions.includes("sky")) {
+    let sky: SkyEngine;
+    let spc: SpaceEngine;
+    try {
+      const loaded = getLoadedEngines(["sky", "space"]);
+      sky = loaded.sky as SkyEngine;
+      spc = loaded.space as SpaceEngine;
+    } catch {
+      return [];
+    }
+    const lang: SkyLang = raw === "nb" || raw === "la" ? raw : "en";
+    const out: { id: string; name: string }[] = [];
+    for (const id of hd.layout.order) {
+      if (id.includes("__")) continue; // group leaves ("stars__hip_…") — usable() screens these out too
+      const con = sky.findConstellation(id);
+      if (con) { out.push({ id, name: sky.name(con, lang) }); continue; }
+      const star = sky.findStar(id);
+      if (star) { out.push({ id, name: sky.starName(star, lang) ?? `HIP ${star.hip}` }); continue; }
+      const body = spc.body(id);
+      if (body) out.push({ id, name: body.name[lang === "nb" ? "nb" : "en"] });
+    }
+    return out;
+  }
+  return [];
 }
 
 export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
