@@ -5,6 +5,9 @@
 // that file thin, not an excuse.
 
 import { beforeAll, describe, expect, test } from "vitest";
+import spaceYaml from "../src/scenes/packs/space.yaml?raw";
+import { registerPack, unregisterPack } from "../src/scenes/packs";
+import { scenes } from "../src/scenes/registry";
 import { ensureEngines, getLoadedEngines } from "../src/scenes/engines";
 import type { AltAz, Chart, Constellation, SkyEngine, Star } from "../src/scenes/space/sky-types";
 import type { SpaceEngine } from "../src/scenes/space/types";
@@ -293,5 +296,92 @@ describe("a body's card", () => {
     const phase = spc.phase(new Date("2026-09-20T20:00:00Z"));
     expect(phaseLine(phase, bodyLang("en"))).toMatch(/^Phase: .+, \d+ % lit$/);
     expect(phaseLine(phase, bodyLang("nb"))).toMatch(/^Fase: .+, \d+ % opplyst$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The one test that holds the two ends together.
+//
+// Everything above this line is synthetic: three stars, one figure, positions
+// invented so a rule can be read in isolation. That is the right shape for a
+// rule — and it is exactly why none of it can see the failure that matters
+// here. visibleField and focusTransform RE-DERIVE the template's own drawing
+// rules (the crop, `pad`, the zoom clamp, the centre of the frame, which
+// stars a figure exempts from limit_mag), and two re-derivations that merely
+// agree with themselves can drift apart without a single test going red. The
+// consequence is round 1's own bug report: every click on a focused chart
+// lands on the wrong star, with a green suite.
+//
+// So: draw the real thing, and check the tray's field against the drawing's
+// own anchors. The template puts every star of a focused figure in `anchors`
+// — `hip_<number>` where the catalogue has no proper name, the name in lower
+// case where it has one — which is the drawn position, in canvas units. If
+// the two sides ever stop reading the same SKY_DEFAULTS, this is what says so.
+describe("the tray's field against the template's own drawing", () => {
+  const WINTER = "2026-12-20T21:00:00Z"; // Orion is up over Oslo on a December evening
+
+  beforeAll(() => {
+    unregisterPack("space");
+    registerPack("space", spaceYaml);
+  });
+
+  test("under focus, every star the portrait draws is where the click overlay thinks it is", () => {
+    const D = sky.defaults;
+    const drawn = scenes.sky_map.layout!({ time: WINTER, focus: "Orion" });
+    const at = sky.resolveTime(WINTER, undefined, undefined, D.lon);
+    const field = visibleField({
+      stars: sky.stars(),
+      constellations: sky.constellations(),
+      pos: sky.starPositions(at, D.lat, D.lon),
+      chart: sky.chart,
+      limitMag: sky.limitMag(undefined),
+      mode: "both",
+      focus: sky.findConstellation("Orion")!,
+    });
+
+    const seen = new Map(field.stars.map((s) => [s.hip, s.at]));
+    const hipOfId = new Map(sky.stars().map((s) => [sky.starId(s), s.hip]));
+    let checked = 0, anonymous = 0, named = 0;
+    for (const [id, anchor] of Object.entries(drawn.anchors)) {
+      const hip = hipOfId.get(id);
+      if (hip === undefined) continue;                    // a label, a body, the frame
+      const p = seen.get(hip);
+      expect(p, `${id} is drawn at ${anchor.join(",")} but is not in the click field at all`).toBeDefined();
+      expect(Math.hypot(p![0] - anchor[0], p![1] - anchor[1]), `${id} is drawn and clicked in two different places`).toBeLessThan(1);
+      checked++;
+      if (id.startsWith("hip_")) anonymous++; else named++;
+    }
+    // Orion's lines reach 23 stars, and both kinds of id have to be covered:
+    // the ones with proper names (betelgeuse, rigel) and the ones without.
+    expect(checked).toBeGreaterThanOrEqual(20);
+    expect(anonymous).toBeGreaterThan(0);
+    expect(named).toBeGreaterThan(0);
+    expect(drawn.anchors.betelgeuse).toBeDefined();
+  });
+
+  test("and the same holds with the whole sky, where no magnifying glass is involved", () => {
+    const D = sky.defaults;
+    const drawn = scenes.sky_map.layout!({ time: WINTER, mark: ["Sirius", "Vega", "Capella"] });
+    const at = sky.resolveTime(WINTER, undefined, undefined, D.lon);
+    const marked = new Set(["Sirius", "Vega", "Capella"].map((n) => sky.findStar(n)!.hip));
+    const field = visibleField({
+      stars: sky.stars(),
+      constellations: sky.constellations(),
+      pos: sky.starPositions(at, D.lat, D.lon),
+      chart: sky.chart,
+      limitMag: sky.limitMag(undefined),
+      mode: "both",
+      markStars: marked,
+    });
+    const seen = new Map(field.stars.map((s) => [s.hip, s.at]));
+    for (const name of ["sirius", "vega", "capella"]) {
+      const anchor = drawn.anchors[name];
+      if (anchor === undefined) continue;                 // that one has set by 21:00
+      const hip = sky.findStar(name)!.hip;
+      const p = seen.get(hip);
+      expect(p, `${name} is drawn but not clickable`).toBeDefined();
+      expect(Math.hypot(p![0] - anchor[0], p![1] - anchor[1]), name).toBeLessThan(1);
+    }
+    expect(drawn.anchors.vega ?? drawn.anchors.capella).toBeDefined();
   });
 });

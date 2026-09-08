@@ -9,8 +9,8 @@
 
 import * as AstroNs from "astronomy-engine";
 import {
-  CHART, DEG, PLACES, altAz, conId, constellationName, edgeStars, expandConstellations, expandStars,
-  localClock, noteClauses, placeName, precess, project, resolveTime, starColor, starId, starName, starRadius,
+  CHART, DEG, PLACES, SKY_DEFAULTS, altAz, conId, constellationName, edgeStars, expandConstellations, expandStars,
+  fitNote, limitMag, localClock, placeName, precess, project, resolveTime, starColor, starId, starName, starRadius,
 } from "./sky-rules";
 import type { AltAz, Constellation, ConstellationTable, SkyEngine, Star, StarTable } from "./sky-types";
 
@@ -81,6 +81,7 @@ export function makeSkyEngine(starTable: StarTable, conTable: ConstellationTable
 
   return {
     chart: CHART,
+    defaults: SKY_DEFAULTS,
     stars: () => stars,
     star: (hip) => byHip.get(hip),
     findStar: (q) => (typeof q === "string" ? starIndex.get(q.trim().toLowerCase()) : undefined),
@@ -162,7 +163,8 @@ export function makeSkyEngine(starTable: StarTable, conTable: ConstellationTable
     starName,
     starId,
     conId,
-    noteClauses,
+    limitMag,
+    fitNote,
     places: () => PLACES,
     placeName,
   };

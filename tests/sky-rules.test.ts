@@ -7,8 +7,9 @@ import * as A from "astronomy-engine";
 import starTable from "../src/scenes/space/sky/stars.json";
 import conTable from "../src/scenes/space/sky/constellations.json";
 import {
-  CHART, DEG, PLACES, STAR_TINTS, altAz, conId, constellationName, edgeStars, expandConstellations,
-  expandStars, localClock, noteClauses, precess, project, resolveTime, starColor, starId, starName, starRadius,
+  CHART, DEG, PLACES, SKY_DEFAULTS, STAR_TINTS, altAz, conId, constellationName, edgeStars, expandConstellations,
+  expandStars, fitNote, limitMag, localClock, midOf, noteClauses, precess, project, resolveTime, starColor, starId,
+  starName, starRadius,
 } from "../src/scenes/space/sky-rules";
 import type { ConstellationTable, StarTable } from "../src/scenes/space/sky-types";
 import { relativeLuminance } from "./contrast";
@@ -229,6 +230,114 @@ describe("names, ids and the caption", () => {
     expect(noteClauses({ daylight: false, below: [], outside: [], unknown: [], symbols: false }, "en")).toEqual([]);
     const nb = noteClauses({ daylight: false, below: ["Jupiter"], outside: ["Vega"], unknown: [], symbols: false }, "nb");
     expect(nb).toEqual(["Under horisonten: Jupiter", "Utenfor utsnittet: Vega"]);
+  });
+
+  // The width policy, one rung at a time. A character is a unit here, so the
+  // ladder can be read rather than measured: the point of each rung is WHICH
+  // clause pays, and the answer is never a clause that names something the
+  // author asked about. The first version of this dropped from the end while
+  // the line was too wide, and the end is where those three clauses live —
+  // "Below the horizon", "Outside view", "Unknown". Writing less is
+  // lint-clean, so only a test like this one can see it.
+  describe("and the caption fits the page by giving up detail, never a fact", () => {
+    const M = (s: string): number => s.length;
+    const P = { daylight: true, below: ["Mercury", "Venus", "Mars"], outside: [], unknown: ["krypton"], symbols: true };
+    const FULL = "The Sun is up — these stars are there, but you cannot see them · Below the horizon: Mercury, Venus, Mars · Unknown: krypton · Sun, Moon and planets as symbols, not to scale";
+
+    test("with room for everything, everything is written", () => {
+      expect(fitNote(P, "en", FULL.length, M)).toBe(FULL);
+      expect(fitNote(P, "en", 10_000, M)).toBe(noteClauses(P, "en").join(" · "));
+      expect(fitNote({ daylight: false, below: [], outside: [], unknown: [], symbols: false }, "en", 100, M)).toBe("");
+    });
+
+    test("the rungs, in order: symbols, then the lesson, then the tails, then the counts", () => {
+      const noSymbols = "The Sun is up — these stars are there, but you cannot see them · Below the horizon: Mercury, Venus, Mars · Unknown: krypton";
+      const brief = "The Sun is up · Below the horizon: Mercury, Venus, Mars · Unknown: krypton";
+      const tail1 = "The Sun is up · Below the horizon: Mercury, Venus +1 · Unknown: krypton";
+      const tail2 = "The Sun is up · Below the horizon: Mercury +2 · Unknown: krypton";
+      const counted = "The Sun is up · Below the horizon: +3 · Unknown: krypton";
+      // 1. `symbols` is the ONE clause that names nothing anybody typed.
+      expect(fitNote(P, "en", FULL.length - 1, M)).toBe(noSymbols);
+      // 2. the daylight sentence keeps its fact and loses its lesson, because
+      //    the author's names outrank the teaching.
+      expect(fitNote(P, "en", noSymbols.length - 1, M)).toBe(brief);
+      // 3. the lists count their tails, cheapest clause first and one name at
+      //    a time. "Unknown" names one thing, so it has no tail to give up.
+      expect(fitNote(P, "en", brief.length - 1, M)).toBe(tail1);
+      expect(fitNote(P, "en", tail1.length - 1, M)).toBe(tail2);
+      // 4. and only then a whole list becomes a count — never for a clause
+      //    naming ONE thing, where "+1" costs the same and says less.
+      expect(fitNote(P, "en", tail2.length - 1, M)).toBe(counted);
+      expect(fitNote(P, "en", counted.length - 1, M)).toMatch(/…$/);
+      // Every rung still SAYS all three things.
+      for (const s of [noSymbols, brief, tail1, tail2, counted]) {
+        expect(s).toContain("The Sun is up");
+        expect(s).toContain("Below the horizon:");
+        expect(s).toContain("Unknown: krypton");
+      }
+    });
+
+    test("a naming clause is never dropped, however narrow the line", () => {
+      // Twelve typos at night used to produce NO caption at all: the loop
+      // popped the only clause there was and wrote nothing.
+      const typos = { daylight: false, below: [], outside: [], unknown: ["krypton", "vulcan", "romulus", "tatooine"], symbols: false };
+      for (let w = 12; w < 90; w++) {
+        const line = fitNote(typos, "en", w, M);
+        expect(line, `width ${w}`).not.toBe("");
+        expect(line, `width ${w}`).toContain("Unknown:");
+        expect(line.length, `width ${w}`).toBeLessThanOrEqual(w);
+      }
+      expect(fitNote(typos, "en", 40, M)).toBe("Unknown: krypton, vulcan, romulus +1");
+      expect(fitNote(typos, "en", 20, M)).toBe("Unknown: krypton +3");
+      expect(fitNote(typos, "en", 13, M)).toBe("Unknown: +4");
+    });
+
+    test("an absurd name is cut, not swallowed", () => {
+      const long = { daylight: false, below: [], outside: [], unknown: ["x".repeat(400)], symbols: false };
+      const line = fitNote(long, "en", 60, M);
+      expect(line).toHaveLength(60);
+      expect(line.startsWith("Unknown: xxx")).toBe(true);
+      expect(line.endsWith("…")).toBe(true);
+    });
+
+    test("Norwegian shortens the same way", () => {
+      const nb = { daylight: true, below: ["Merkur", "Venus"], outside: [], unknown: [], symbols: true };
+      expect(fitNote(nb, "nb", 60, M)).toBe("Sola er oppe · Under horisonten: Merkur, Venus");
+      expect(fitNote(nb, "nb", 42, M)).toBe("Sola er oppe · Under horisonten: Merkur +1");
+      expect(fitNote(nb, "nb", 41, M)).toBe("Sola er oppe · Under horisonten: +2");
+    });
+  });
+
+  // One definition, read by the template (as engines.sky.defaults) and by the
+  // tray's click overlay (imported). Six of these were typed out twice before
+  // — the nine ids, the seven default bodies, Oslo, the magnitude cut, the
+  // portrait's pad and its centre — and a second copy of a number is how the
+  // page and the click field come to draw two different charts.
+  test("the chart's defaults are one frozen definition, and the portrait's centre is derived", () => {
+    expect(Object.isFrozen(SKY_DEFAULTS)).toBe(true);
+    expect(SKY_DEFAULTS.ids).toEqual(["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]);
+    expect(SKY_DEFAULTS.show).toEqual(["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]);
+    // Every default body is one the ephemeris knows.
+    for (const id of SKY_DEFAULTS.show) expect(SKY_DEFAULTS.ids).toContain(id);
+    // The default observer IS the first tray preset, not a second Oslo.
+    expect({ lat: SKY_DEFAULTS.lat, lon: SKY_DEFAULTS.lon }).toMatchObject({ lat: PLACES[0].lat, lon: PLACES[0].lon });
+    expect(SKY_DEFAULTS.frame).toEqual({ x0: 60, y0: 80, x1: 940, y1: 700 });
+    // 500, 390 — computed from the frame it fills, never typed a second time.
+    expect(midOf(SKY_DEFAULTS.frame)).toEqual([500, 390]);
+    expect(midOf({ x0: 0, y0: 0, x1: 10, y1: 40 })).toEqual([5, 20]);
+  });
+
+  test("limit_mag is clamped in ONE place, so the page and the click field cannot disagree", () => {
+    expect(limitMag(undefined)).toBe(4.5);
+    expect(limitMag(null)).toBe(4.5);
+    expect(limitMag("bright")).toBe(4.5);
+    expect(limitMag(Number.NaN)).toBe(4.5);
+    expect(limitMag(3.2)).toBe(3.2);
+    // A hand-edited spec or a tray override outside the range the bundled
+    // union can honour comes back inside it, both ends.
+    expect(limitMag(9)).toBe(4.5);
+    expect(limitMag(-4)).toBe(2);
+    expect(limitMag(SKY_DEFAULTS.magMin)).toBe(SKY_DEFAULTS.magMin);
   });
 
   test("the observer presets are the four the tray offers", () => {

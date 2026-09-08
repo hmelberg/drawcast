@@ -54,6 +54,35 @@ export interface Chart {
   r: number;
 }
 
+/** The box a `focus` portrait crops to, in canvas units. Round 1's `Frame`
+ *  has the same shape and the same numbers; this is the sky's own so that
+ *  sky-types.ts stays the light half's one dependency. */
+export interface Frame {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** The shape of sky-rules.ts's SKY_DEFAULTS — the chart's own defaults and a
+ *  `focus` portrait's magnifying glass, defined once and read by both the
+ *  template (through `engines.sky.defaults`) and the tray. */
+export interface SkyDefaults {
+  /** The nine bodies the sky's ephemeris knows, by their round-1 `space` ids. */
+  readonly ids: readonly string[];
+  /** What `show` draws when the author names nothing. */
+  readonly show: readonly string[];
+  readonly lat: number;
+  readonly lon: number;
+  readonly magMin: number;
+  readonly magMax: number;
+  readonly frame: Frame;
+  /** Room left round a focused figure inside `frame`, and the zoom clamp. */
+  readonly pad: number;
+  readonly zoomMin: number;
+  readonly zoomMax: number;
+}
+
 /** The Moon's phase, and where its bright limb points ON THE SKY: a point 5°
  *  from the Moon along the great circle toward the Sun, which the template
  *  projects to get the direction on the page. null at new or full, where the
@@ -90,6 +119,10 @@ export interface ConstellationTable {
 export interface SkyEngine {
   /** The drawn dome — ONE definition, shared by the template and the tray's click overlay. */
   chart: Chart;
+  /** The chart's defaults and a portrait's magnifying glass (sky-rules.ts's
+   *  SKY_DEFAULTS) — the same object the tray imports, so the page and the
+   *  click field cannot be built from two different sets of numbers. */
+  defaults: SkyDefaults;
   stars(): Star[];
   star(hip: number): Star | undefined;
   /** By proper name (en or nb), "hip_1234", or a bare HIP number. Case-insensitive. */
@@ -116,7 +149,12 @@ export interface SkyEngine {
   starName(s: Star, lang: SkyLang): string | null;
   starId(s: Star): string;
   conId(c: Constellation): string;
-  noteClauses(p: NoteParts, lang: SkyLang): string[];
+  /** `limit_mag` clamped to the range the bundled union can honour. */
+  limitMag(v: unknown): number;
+  /** The caption the figure writes: the clauses that matter, shortened until
+   *  the line fits `maxWidth` under `measure` — never a naming clause
+   *  dropped. See fitNote in sky-rules.ts for the order of concessions. */
+  fitNote(p: NoteParts, lang: SkyLang, maxWidth: number, measure: (s: string) => number): string;
   places(): readonly Place[];
   placeName(p: Place, lang: SkyLang): string;
 }

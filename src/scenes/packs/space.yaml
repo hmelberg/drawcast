@@ -790,7 +790,14 @@ layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const eng = engines.sky, spc = engines.space;
   const CH = eng.chart;                                  // { cx: 500, cy: 385, r: 285 }
-  const F = { x0: 60, y0: 80, x1: 940, y1: 700 };
+  // The chart's own defaults and a portrait's magnifying glass, from
+  // sky-rules.ts — ONE definition, which the tray's click overlay imports and
+  // this template reads through the engine. A copy here is how round 1's one
+  // bug report comes back: change `pad` and the page moves while a click on a
+  // focused chart keeps landing where the star used to be, with a green suite.
+  const D = eng.defaults;
+  const F = D.frame;                                     // { x0: 60, y0: 80, x1: 940, y1: 700 }
+  const MID = [(F.x0 + F.x1) / 2, (F.y0 + F.y1) / 2];    // where a portrait puts its subject
   const NOTE_PX = 18, LABEL_PX = 19, COMPASS_PX = 20;
   const LABEL_H = LABEL_PX * 1.25;
   // Headroom for the OTHER word: a translated copy swaps the words this body
@@ -804,12 +811,15 @@ layout: |
   const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim() !== "") : []);
   const oneOf = (v, opts, d) => (typeof v === "string" && opts.indexOf(v) >= 0 ? v : d);
 
-  const lat = clamp(-90, 90, num(params.lat, 59.91));
-  const lon = ((num(params.lon, 10.75) + 540) % 360) - 180;
+  const lat = clamp(-90, 90, num(params.lat, D.lat));
+  const lon = ((num(params.lon, D.lon) + 540) % 360) - 180;
   const names = oneOf(params.names, ["en", "nb", "la", "none"], "en");
   const L = names === "none" ? "en" : names;
   const bodyLang = L === "nb" ? "nb" : "en";
-  const limit = clamp(2, 4.5, num(params.limit_mag, 4.5));
+  // Clamped by the engine, not here: the tray's click overlay asks the same
+  // function, so a tray override or a hand-edited spec can never build a click
+  // field out of stars this page does not draw.
+  const limit = eng.limitMag(params.limit_mag);
   const at = eng.resolveTime(params.time, params.hours, params.days, lon);
   // A chart at coordinates the author chose does not claim to be Oslo.
   const defaultSpot = params.lat === undefined && params.lon === undefined;
@@ -822,8 +832,10 @@ layout: |
 
   // The nine the sky can place — sky.ts's ephemeris knows exactly these. Every
   // other body in the round-1 table (Earth, a moon, a dwarf planet) has no
-  // naked-eye place in a chart of the sky, so it is not drawn.
-  const SKY_IDS = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"];
+  // naked-eye place in a chart of the sky, so it is not drawn. The list lives
+  // in sky-rules.ts (SKY_DEFAULTS) because the tray's click overlay resolves
+  // `show` against the same nine.
+  const SKY_IDS = D.ids;
   const GROUP_WORDS = ["planets", "inner", "outer", "all"];
   const skyBodies = (q) => spc.bodies([q]).bodies.filter((b) => SKY_IDS.indexOf(b.id) >= 0);
 
@@ -865,7 +877,7 @@ layout: |
   }
 
   // ---- the bodies ---------------------------------------------------------
-  const DEFAULT_SHOW = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+  const DEFAULT_SHOW = D.show;
   const asked = list(params.show);
   const showIds = [];
   const addBody = (id) => { if (showIds.indexOf(id) < 0) showIds.push(id); };
@@ -961,10 +973,12 @@ layout: |
     const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
     const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-    const pad = 110;                          // room for the names and the frame
-    zoom = Math.min(6, Math.max(1, Math.min((F.x1 - F.x0 - 2 * pad) / Math.max(1, x1 - x0), (F.y1 - F.y0 - 2 * pad) / Math.max(1, y1 - y0))));
+    const pad = D.pad;                        // room for the names and the frame
+    zoom = Math.min(D.zoomMax, Math.max(D.zoomMin, Math.min((F.x1 - F.x0 - 2 * pad) / Math.max(1, x1 - x0), (F.y1 - F.y0 - 2 * pad) / Math.max(1, y1 - y0))));
     const bx = (x0 + x1) / 2, by = (y0 + y1) / 2;
-    Z = (q) => [500 + (q[0] - bx) * zoom, 390 + (q[1] - by) * zoom];
+    // MID, not a second copy of 500, 390: the subject goes to the middle of
+    // the frame it is being fitted into, which is what "fills the frame" means.
+    Z = (q) => [MID[0] + (q[0] - bx) * zoom, MID[1] + (q[1] - by) * zoom];
   }
   const P = (p) => Z(eng.project(p, CH));
   const dotScale = Math.min(2, 0.5 + 0.5 * zoom);
@@ -1088,12 +1102,19 @@ layout: |
   }
 
   // ---- the captions, measured before any name is placed -------------------
-  const clauses = eng.noteClauses({ daylight: daylight, below: below, outside: outside, unknown: unknown, symbols: bodies.length > 0 }, L);
-  let noteText = clauses.join(" · ");
-  // ONE caption, and it drops its cheapest clause rather than running off the
-  // page. Round 1's known limit was two captions colliding in this same foot
-  // strip; one caption cannot collide with itself.
-  while (clauses.length > 0 && kit.textWidth(noteText, NOTE_PX) > F.x1 - F.x0) { clauses.pop(); noteText = clauses.join(" · "); }
+  // ONE caption, and it gives up DETAIL rather than facts. Round 1's known
+  // limit was two captions colliding in this same foot strip; one caption
+  // cannot collide with itself — but the first fix for the WIDTH popped whole
+  // clauses off the end, and three of the five name what the author asked
+  // about ("Below the horizon", "Outside view", "Unknown"). Dropping those is
+  // lint-clean and invisible to any sweep: `show: ["all"]` by day came out as
+  // the daylight sentence alone. The whole policy is fitNote in sky-rules.ts,
+  // where a test can pin it; the template says only how wide the line may be
+  // and how to measure it.
+  const noteText = eng.fitNote(
+    { daylight: daylight, below: below, outside: outside, unknown: unknown, symbols: bodies.length > 0 },
+    L, F.x1 - F.x0, (s) => kit.textWidth(s, NOTE_PX),
+  );
   const clock = eng.localClock(at, lon);
   const placeLine = (placeText !== "" ? placeText + " · " : "") + clock.date + " " + clock.time;
   const titleText = typeof params.title === "string" && params.title.trim() !== "" ? params.title.trim() : "";

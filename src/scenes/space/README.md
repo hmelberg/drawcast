@@ -209,6 +209,19 @@ The chart geometry — `{ cx: 500, cy: 385, r: 285 }` — is `CHART` in
 `sky-rules.ts`, defined once so the template and the tray's click overlay
 cannot disagree.
 
+**Every other number they share is `SKY_DEFAULTS`, in the same file**: the
+nine ids the ephemeris knows, the seven bodies `show` draws when the author
+names nothing, Oslo, `limit_mag`'s 2…4.5 range, and a portrait's frame, `pad`
+and zoom clamp. The template reads it as `engines.sky.defaults`; the tray
+imports it. Six of those were typed out twice — once in `space.yaml`, once in
+`sky-explore.ts` — and a second copy of a number is precisely how the page and
+the click field come to draw two different charts. The portrait's centre is no
+longer a number at all: `midOf(SKY_DEFAULTS.frame)` computes the 500, 390 that
+round 1's own design document derives from the frame twenty lines earlier.
+`limit_mag` goes through one function too (`limitMag`), because the tray read
+its default without the template's clamp, so an override of 9 built a click
+field out of stars the page never drew.
+
 ## The data, and what makes the figures gradeable
 
 `sky/stars.json` and `sky/constellations.json` are generated once by
@@ -220,6 +233,12 @@ each figure as pairs of Hipparcos numbers instead of coordinates: 741 edges
 over 88 figures. That is what makes "draw Orion" gradeable against a fixed
 answer key, and it is why the edges ship this round even though the
 `connect` widget that will read them (spec §6.2 Direction B) does not.
+
+That claim rests on the unmatched count being about one, so the build now
+THROWS above five rather than printing the number and writing the files
+anyway: a vertex that finds no star within 0.35° is dropped and its line
+broken silently, and a rebuild against a shifted catalogue or a changed
+`SNAP_DEG` would otherwise commit three hundred missing edges on a green run.
 
 The source is pinned to a commit SHA, not `@master`. The doc that planned
 this round measured 735 edges from 800 vertices on 2026-09-06; the same
@@ -337,7 +356,10 @@ The figure's own stars are projected as usual; then the plane is scaled about
 the figure's centre and shifted to the frame's centre. Nothing about the
 geometry changes, so the stereographic stretch near the rim is inherited
 honestly rather than hidden. The zoom is whatever fits the figure inside
-`FRAME` with 110 units of padding, clamped to 1…6.
+`SKY_DEFAULTS.frame` with `pad` (110) units of padding, clamped to
+`zoomMin`…`zoomMax` (1…6) — the tray's `focusTransform` reads the same
+constants, and `tests/sky-model.test.ts` ties the two together against the
+real template's own anchors (see the ⊕ Sky section below).
 
 The crop is why the horizon is not drawn — there is no rim on the page any
 more, so there is no compass either — and a `frame` says "this is a detail"
@@ -522,9 +544,46 @@ step past that instead of repeating it: there is ONE caption, `sky_note`,
 composed by `noteClauses()` in `sky-rules.ts` from up to five facts in the
 order they matter — daylight, anything named that has set, anything a
 `focus` portrait cropped off the page, unknown names, and that the Sun, Moon
-and planets are drawn as symbols — joined with " · " and dropped from the
-END, cheapest clause last, while the line is still too wide. One caption
-cannot collide with itself.
+and planets are drawn as symbols. One caption cannot collide with itself.
+
+**And when the line is too wide it gives up DETAIL, never a fact.** That is
+`fitNote()`, and it is not where this started. The first version joined the
+clauses with " · " and popped from the END while the line was too wide,
+cheapest clause last — which is safe only if the tail clauses are cheap, and
+they are not: positions 2, 3 and 4 are "Below the horizon", "Outside view" and
+"Unknown", the three that exist to keep the pack's contract that a thing the
+author NAMED is said rather than silently missing. Measured: `{time:
+"2026-06-21T02:00:00Z", show: ["all"]}` wrote the daylight sentence ALONE and
+dropped "Below the horizon: Mercury, Venus, Jupiter"; a portrait with four
+`mark`ed stars dropped eight cropped-away names and wrote the same single
+clause — *the very failure the `focus` section below says this round fixed*,
+put back by the width policy for a slightly longer list; and twelve unknown
+names at night produced no `sky_note` element at all, twelve typos and no
+complaint. Because it was width-dependent it was also intermittent: the same
+params kept "Below the horizon: Neptune" at noon and lost it at ten, so an
+author could not tell when the promise held. **Writing less is lint-clean, so
+no sweep can see any of this** — the same shape as the two defects this round
+caught by measuring what a figure SAYS rather than what it warns about.
+
+So the concessions run cheapest first, and none of them is a naming clause:
+
+1. drop `symbols` — the one clause that names nothing anybody typed, and the
+   only droppable one;
+2. shorten the daylight sentence to its bare fact ("The Sun is up"); what is
+   lost is the lesson, and the author's names outrank it;
+3. count the tails of the naming lists, cheapest clause first, one name at a
+   time, down to one name apiece — "Below the horizon: Mercury, Venus +5";
+4. count a list whole ("Unknown: +12"), never for a clause naming ONE thing,
+   where "+1" would cost the same and say less;
+5. and, only for an absurd name, cut the line with an ellipsis.
+
+A naming clause's HEAD therefore survives every rung: the caption always says
+that something the author named has set, or was cropped away, or matched
+nothing, and how many. `tests/sky-rules.test.ts` walks the ladder rung by rung
+with a character as the unit of width, and `tests/sky-template.test.ts` holds
+the four measured cases above against the real template — plus the property
+the old policy really lacked: over all 24 hours of a day, a named body that is
+down is SAID at every one of them.
 
 ## The ⊕ Sky section (`src/ui/sky-model.ts` + `sky-explore.ts`)
 
@@ -556,6 +615,20 @@ meaning; `visibleField` gained a parallel body list with the same
 focus-crop; and the card renders from round 1's own `cardFacts`/
 `bodyLabel`/`phaseLine` — the Moon's phase as a sentence below the facts,
 not a fact row, because a phase is not that kind of information.
+
+**`visibleField` and `focusTransform` RE-DERIVE the template's drawing rules,
+so one test draws the real chart and checks them against it.** Every other
+test of those two uses a synthetic three-star table — the right shape for
+reading one rule in isolation, and exactly why none of them can see the
+failure that matters: two re-derivations that merely agree with themselves can
+drift apart with a green suite, and the consequence is round 1's own bug
+report (a click on a focused chart landing on the wrong star). `SKY_DEFAULTS`
+removes most of the opportunity; the test removes the rest. It lays out
+`{focus: "Orion", time: WINTER}`, reads the `hip_*` and proper-name anchors out
+of the template's own `SceneLayout.anchors` — every star of a focused figure is
+one — and asserts each is within a unit of `visibleField`'s point for the same
+star. Changing `pad` in the YAML alone moves them 25 units apart, which is what
+the test says out loud.
 
 ## Known limits (honest, not fixed)
 

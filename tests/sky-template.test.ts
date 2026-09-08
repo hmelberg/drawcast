@@ -353,6 +353,79 @@ describe("sky_map: the captions cannot collide, because there is only one of eac
     expect(note).toMatch(/^The Sun is up/);            // the clause that matters most survives
     expect(note).not.toMatch(/as symbols/);            // the cheapest one went
     expect(note.length).toBeGreaterThan(20);
+    expect(note).toContain("Unknown: krypton");        // and the author's own names stay
+  });
+
+  // The four measurements below are what the first width policy did: it
+  // popped whole clauses off the END while the line was too wide, and three
+  // of the five clauses live at that end — the three that keep the pack's
+  // contract that a thing the author NAMED is said rather than silently
+  // missing (`show`'s own description promises it, and so does `focus`: "what
+  // it removes, it says"). No sweep can see this, because writing LESS is
+  // lint-clean. Each case is the string that was actually drawn.
+  describe("and it never stops naming what the author asked for", () => {
+    const noteOf = (params: Record<string, unknown>): string => textOf(lay(params), "sky_note") ?? "";
+    // The caption starts at the frame's left edge and may not pass its right.
+    const withinFrame = (params: Record<string, unknown>): boolean => {
+      const box = elementBBoxes(layoutSpec(spec(params))).get("sky_note");
+      return box === undefined || box.x + box.w <= 940.5;
+    };
+
+    test("a daylight chart still lists the bodies that have set", () => {
+      // Was: "The Sun is up — these stars are there, but you cannot see them",
+      // and nothing else. Three named planets below the horizon, dropped.
+      const p = { time: "2026-06-21T02:00:00Z", show: ["all"] };
+      const note = noteOf(p);
+      expect(note).toContain("Below the horizon:");
+      for (const name of ["Mercury", "Venus", "Jupiter"]) expect(note).toContain(name);
+      expect(withinFrame(p)).toBe(true);
+    });
+
+    test("a portrait still lists what its crop took — the failure this round was supposed to have fixed", () => {
+      // Was: the daylight sentence alone. Eight named things off the page and
+      // not one of them mentioned — the exact defect the "Outside view"
+      // clause was added for, put back by the width policy for a slightly
+      // longer list.
+      const p = { time: "2026-06-21T10:00:00Z", focus: "Orion", show: ["all"], mark: ["Vega", "Polaris", "Deneb", "Altair"] };
+      const note = noteOf(p);
+      expect(note).toContain("Outside view:");
+      for (const name of ["Polaris", "Vega", "Deneb"]) expect(note).toContain(name);
+      expect(withinFrame(p)).toBe(true);
+    });
+
+    test("twelve typos are twelve typos, not silence", () => {
+      // Was: no sky_note element at all. Twelve unknown names, no complaint.
+      const p = { time: "2026-06-21T23:00:00Z", mark: ["krypton", "vulcan", "romulus", "tatooine", "arrakis", "gallifrey", "pandora", "coruscant", "naboo", "endor", "hoth", "dagobah"] };
+      const note = noteOf(p);
+      expect(note).toMatch(/^Unknown: krypton/);
+      // Whatever it has room for by name, and a count for the rest, adding up
+      // to the twelve that were typed.
+      const named = note.slice("Unknown: ".length).split(" +")[0].split(", ").length;
+      const rest = Number(/\+(\d+)$/.exec(note)?.[1] ?? 0);
+      expect(named + rest).toBe(12);
+      expect(withinFrame(p)).toBe(true);
+    });
+
+    test("and the case that already worked still works, unchanged", () => {
+      expect(noteOf({ time: "2026-06-21T12:00:00Z", show: ["all"] }))
+        .toBe("The Sun is up — these stars are there, but you cannot see them · Below the horizon: Neptune");
+    });
+
+    test("the fit is width-driven, so the FACTS must not flicker with the hour", () => {
+      // The old policy's worst property was intermittency: the same params
+      // kept "Below the horizon: Neptune" at noon and lost it at ten. Detail
+      // may still come and go with the width — that is what a fit is — but a
+      // named body that is down must be SAID at every hour of the day.
+      for (let h = 0; h < 24; h++) {
+        const t = `2026-06-21T${String(h).padStart(2, "0")}:00:00Z`;
+        const pos = sky.bodyPositions([...sky.defaults.ids], sky.resolveTime(t, undefined, undefined, sky.defaults.lon), sky.defaults.lat, sky.defaults.lon);
+        const down = ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"].filter((id) => pos[id].alt < 0);
+        const note = noteOf({ time: t, show: ["all"] });
+        if (down.length > 0) expect(note, t).toContain("Below the horizon:");
+        else expect(note, t).not.toContain("Below the horizon:");
+        expect(withinFrame({ time: t, show: ["all"] }), t).toBe(true);
+      }
+    });
   });
 });
 
@@ -808,6 +881,24 @@ describe("sky_map: lint-clean over a year of moments", () => {
     for (const d of flattenDrawables(r.drawables)) {
       if (d.kind === "text") expect(d.fontSize, d.id).toBeGreaterThanOrEqual(14);
     }
+  });
+
+  // The manifest is a document, so it cannot reference SKY_DEFAULTS — its
+  // numbers are typed out for the model to read. That makes it the one copy
+  // left, and this is what keeps it honest: a range the schema advertises but
+  // the template clamps differently would let a model write a spec the chart
+  // silently overrules.
+  test("what the manifest promises about limit_mag is what the engine actually does", () => {
+    const schema = scenes.sky_map.manifest.params_schema as { properties: Record<string, { minimum?: number; maximum?: number; description: string }> };
+    const p = schema.properties;
+    expect(p.limit_mag.minimum).toBe(sky.defaults.magMin);
+    expect(p.limit_mag.maximum).toBe(sky.defaults.magMax);
+    expect(sky.limitMag(p.limit_mag.maximum)).toBe(p.limit_mag.maximum);
+    expect(sky.limitMag(p.limit_mag.minimum)).toBe(p.limit_mag.minimum);
+    // And the defaults the descriptions quote.
+    expect(p.lat.description).toContain(String(sky.defaults.lat));
+    expect(p.lon.description).toContain(String(sky.defaults.lon));
+    expect(p.limit_mag.description).toContain(`default ${sky.defaults.magMax}`);
   });
 
   test("the manifest's own examples lay out with NO lint issue at all", () => {

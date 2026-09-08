@@ -23,6 +23,7 @@
 
 import type { RenderHandle } from "../render";
 import { getLoadedEngines } from "../scenes/engines";
+import { SKY_DEFAULTS, limitMag } from "../scenes/space/sky-rules";
 import type { Constellation, SkyEngine, SkyLang } from "../scenes/space/sky-types";
 import type { SpaceEngine } from "../scenes/space/types";
 import { h, logicalPoint } from "./dom";
@@ -45,12 +46,12 @@ const ROW: Record<"hour" | "date" | "place", Record<"en" | "nb", string>> = {
 };
 const CREDIT = "Wikipedia, CC BY-SA";
 const CON_MODES = ["both", "lines", "names", "none"] as const;
-// The nine round-1 `space` ids the sky's ephemeris knows (space.yaml's own
-// SKY_IDS) and what `show` defaults to when the author names nothing
-// (space.yaml's own DEFAULT_SHOW) — the exact list the template draws, so the
-// click overlay's candidate set never drifts from what is actually on screen.
-const SKY_IDS = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"];
-const DEFAULT_SHOW = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+// The nine ids the sky's ephemeris knows, what `show` defaults to, where the
+// chart stands and how faint it goes: SKY_DEFAULTS, the same object the
+// template reads as `engines.sky.defaults`. Not a copy of the template's
+// numbers — the numbers themselves, so the click overlay's candidate set
+// cannot drift from what is on screen.
+const { ids: SKY_IDS, show: DEFAULT_SHOW } = SKY_DEFAULTS;
 
 const listOf = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
@@ -67,7 +68,7 @@ export function mountSkySection(opts: { hd: RenderHandle; stage: HTMLElement | n
   };
   const uiLang = (): "en" | "nb" => (lang() === "nb" ? "nb" : "en");
   const num = (v: unknown, d: number): number => (typeof v === "number" && Number.isFinite(v) ? v : d);
-  const where = (): { lat: number; lon: number } => ({ lat: num(current().lat, 59.91), lon: num(current().lon, 10.75) });
+  const where = (): { lat: number; lon: number } => ({ lat: num(current().lat, SKY_DEFAULTS.lat), lon: num(current().lon, SKY_DEFAULTS.lon) });
   const moment = (): Date => {
     const w = where();
     return eng.resolveTime(current().time, current().hours, current().days, w.lon);
@@ -254,7 +255,10 @@ export function mountSkySection(opts: { hd: RenderHandle; stage: HTMLElement | n
         constellations: eng.constellations(),
         pos,
         chart: eng.chart,
-        limitMag: num(current().limit_mag, 4.5),
+        // Through the engine's own clamp, not a bare default: the template
+        // clamps to 2…4.5, so an override or a hand-edited spec of 9 would
+        // otherwise put stars in the click field that the page never drew.
+        limitMag: limitMag(current().limit_mag),
         mode,
         markStars,
         focus,

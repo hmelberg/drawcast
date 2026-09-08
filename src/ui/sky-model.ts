@@ -4,8 +4,8 @@
 // tables. Imports only the light half — never sky.ts, so astronomy-engine
 // stays in the engine's lazy chunk.
 
-import { FRAME, edgeStars, project, starColor, STAR_TINTS } from "../scenes/space/sky-rules";
-import type { AltAz, Chart, Constellation, SkyLang, Star } from "../scenes/space/sky-types";
+import { SKY_DEFAULTS, edgeStars, midOf, project, starColor, STAR_TINTS } from "../scenes/space/sky-rules";
+import type { AltAz, Chart, Constellation, Frame, SkyLang, Star } from "../scenes/space/sky-types";
 import type { Choice, Fact, SpaceLang } from "./space-model";
 
 export type Pt = [number, number];
@@ -174,45 +174,44 @@ export function bodyLang(lang: SkyLang): SpaceLang {
 // ---- the focus portrait's own projection, so a click lands on the star the
 // eye sees ----------------------------------------------------------------
 
-export interface Frame {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
 /**
  * The magnifying-glass transform a `focus` portrait applies (space.yaml's
  * sky_map layout, the "Z" closure): fit `points` — the figure's own visible
  * edge stars, already projected through the whole-sky dome (`engines.sky.
- * project`) — inside `frame` with `pad` room, zoom clamped 1…6, centred at
- * (500, 390). Those are the exact numbers the template uses, so the section's
- * click overlay can hit-test a focused chart against the same picture the
- * viewer sees rather than the unfocused whole sky.
+ * project`) — inside `frame` with `pad` room, zoom clamped to
+ * SKY_DEFAULTS.zoomMin…zoomMax, and moved to the middle of that frame. Those
+ * are not "the same numbers the template uses" but THE numbers: frame, pad and
+ * clamp all come from SKY_DEFAULTS, which the template reads as
+ * `engines.sky.defaults`, so the click overlay hit-tests the picture the
+ * viewer is actually looking at. `tests/sky-model.test.ts` ties the two ends
+ * together on the real template — anchors against this field — because two
+ * functions that merely agree today are how round 1's "clicking a moon did
+ * nothing" gets back in.
  *
  * No points (the figure is entirely below the horizon) is the identity — the
  * template's own fallback in that case is to stop focusing and draw the whole
  * sky instead, which the caller must also do before reaching for this.
  */
-export function focusTransform(points: readonly Pt[], frame: Frame = FRAME, pad = 110): (p: Pt) => Pt {
+export function focusTransform(points: readonly Pt[], frame: Frame = SKY_DEFAULTS.frame, pad = SKY_DEFAULTS.pad): (p: Pt) => Pt {
   if (points.length === 0) return (p) => p;
   const xs = points.map((q) => q[0]), ys = points.map((q) => q[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
   const y0 = Math.min(...ys), y1 = Math.max(...ys);
   const zoom = Math.min(
-    6,
+    SKY_DEFAULTS.zoomMax,
     Math.max(
-      1,
+      SKY_DEFAULTS.zoomMin,
       Math.min((frame.x1 - frame.x0 - 2 * pad) / Math.max(1, x1 - x0), (frame.y1 - frame.y0 - 2 * pad) / Math.max(1, y1 - y0)),
     ),
   );
   const bx = (x0 + x1) / 2, by = (y0 + y1) / 2;
-  return (p) => [500 + (p[0] - bx) * zoom, 390 + (p[1] - by) * zoom];
+  const mid = midOf(frame);
+  return (p) => [mid[0] + (p[0] - bx) * zoom, mid[1] + (p[1] - by) * zoom];
 }
 
 /** Whether a (possibly zoomed) point is inside `frame` — a portrait crops
  *  everything else off the page, and a click out there should find nothing. */
-export function inFrame(p: Pt, frame: Frame = FRAME): boolean {
+export function inFrame(p: Pt, frame: Frame = SKY_DEFAULTS.frame): boolean {
   return p[0] >= frame.x0 && p[0] <= frame.x1 && p[1] >= frame.y0 && p[1] <= frame.y1;
 }
 
@@ -275,7 +274,7 @@ export function visibleField(input: VisibleFieldInput): VisibleField {
   const { stars, constellations, pos, chart, limitMag, mode, focus } = input;
   const markStars = input.markStars ?? new Set<number>();
   const bodies = input.bodies ?? {};
-  const frame = input.frame ?? FRAME;
+  const frame = input.frame ?? SKY_DEFAULTS.frame;
 
   const bothUp = (a: number, b: number): [AltAz, AltAz] | null => {
     const pa = pos.get(a), pb = pos.get(b);

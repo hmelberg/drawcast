@@ -5,7 +5,7 @@
 // the engine re-exposes these as engines.sky.*.
 
 import type {
-  Chart, Constellation, ConstellationTable, NoteParts, Place, SkyLang, Star, StarTable, AltAz,
+  Chart, Constellation, ConstellationTable, Frame, NoteParts, Place, SkyDefaults, SkyLang, Star, StarTable, AltAz,
 } from "./sky-types";
 
 export const DEG = Math.PI / 180;
@@ -17,8 +17,60 @@ export const DEG = Math.PI / 180;
  *  foot lines at y 52 and y 24 — measured so no two boxes meet. */
 export const CHART: Chart = Object.freeze({ cx: 500, cy: 385, r: 285 });
 
-/** The box a `focus` portrait crops to — round 1's frame, same numbers. */
-export const FRAME = Object.freeze({ x0: 60, y0: 80, x1: 940, y1: 700 });
+/** The box a `focus` portrait crops to — round 1's frame, same numbers. Read
+ *  it as SKY_DEFAULTS.frame: one name for it, so the template and the tray
+ *  cannot end up holding two. */
+const FRAME: Frame = Object.freeze({ x0: 60, y0: 80, x1: 940, y1: 700 });
+
+/** The middle of a box — a portrait's magnifying glass moves the figure HERE,
+ *  and 500, 390 is what this returns for FRAME. Derived, never typed twice. */
+export function midOf(f: Frame): [number, number] {
+  return [(f.x0 + f.x1) / 2, (f.y0 + f.y1) / 2];
+}
+
+/**
+ * The one definition of what a sky chart draws when the author says nothing,
+ * and of the numbers a `focus` portrait magnifies by. The template reads them
+ * through `engines.sky.defaults`; the tray's click overlay imports them
+ * directly. Neither keeps a copy, because a copy is how round 1's one bug
+ * report ("clicking a moon did nothing") comes back: change `pad` here and
+ * the page and the click field move together, where two copies would move the
+ * page alone and leave every click on a focused chart landing on the wrong
+ * star with a green suite.
+ */
+export const SKY_DEFAULTS: SkyDefaults = Object.freeze({
+  /** The nine bodies the sky's ephemeris knows, by their round-1 `space` ids.
+   *  Everything else in that table — a moon, a dwarf planet — has no
+   *  naked-eye place in a chart of the sky, so it is left out rather than
+   *  faked. */
+  ids: Object.freeze(["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]) as readonly string[],
+  /** What `show` draws when the author names nothing: the Sun, the Moon and
+   *  the five planets you can see without a telescope. */
+  show: Object.freeze(["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]) as readonly string[],
+  /** Oslo — PLACES[0], and the chart's default observer. */
+  lat: 59.91,
+  lon: 10.75,
+  /** `limit_mag`'s range: 4.5 is the faintest the bundled union holds, and 2
+   *  is as bright as a chart can be cut and still be a chart. */
+  magMin: 2,
+  magMax: 4.5,
+  /** A portrait: the box it crops to, the room it leaves round the figure
+   *  inside that box, and the zoom clamp. */
+  frame: FRAME,
+  pad: 110,
+  zoomMin: 1,
+  zoomMax: 6,
+});
+
+/** `limit_mag` as the chart actually uses it — the author's number clamped to
+ *  the range the bundled union can honour, or the default when there is no
+ *  usable number. ONE function, because the page and the tray's click overlay
+ *  both need the answer: a tray override or a hand-edited spec that skipped
+ *  the clamp would build a click field out of stars the page never drew. */
+export function limitMag(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : SKY_DEFAULTS.magMax;
+  return Math.max(SKY_DEFAULTS.magMin, Math.min(SKY_DEFAULTS.magMax, n));
+}
 
 /** J2000 → equatorial of date. `rot` is astronomy-engine's Rotation_EQJ_EQD
  *  matrix, whose convention is out[j] = Σᵢ rot[i][j]·in[i]. Twenty-six years
@@ -164,25 +216,149 @@ export function localClock(at: Date, lon: number): { date: string; time: string 
   };
 }
 
-/**
- * The figure's ONE caption, as clauses in the order they matter. The template
- * joins them with " · " and drops from the END while the line is too wide,
- * which is why the cheapest clause is last. Round 1's known limit was two
- * captions colliding in the same foot strip; one caption cannot collide with
- * itself.
- */
-export function noteClauses(p: NoteParts, lang: SkyLang): string[] {
+/** One clause of the caption, in the parts the fit needs in order to shorten
+ *  it instead of losing it. */
+interface Clause {
+  /** The whole sentence for a prose clause; the "Below the horizon: " opener
+   *  for a clause that lists what the author asked about. */
+  head: string;
+  /** The names — empty for a prose clause. */
+  items: readonly string[];
+  /** A prose clause's short form: the same fact without the lesson. */
+  short?: string;
+  /** `symbols` alone. It is the one clause that names nothing anybody typed,
+   *  so it is the one clause the fit may remove outright. */
+  droppable?: boolean;
+}
+
+function clauseParts(p: NoteParts, lang: SkyLang): Clause[] {
   const nb = lang === "nb";
-  const out: string[] = [];
-  if (p.daylight) out.push(nb ? "Sola er oppe — stjernene er der, men du kan ikke se dem" : "The Sun is up — these stars are there, but you cannot see them");
-  if (p.below.length > 0) out.push((nb ? "Under horisonten: " : "Below the horizon: ") + p.below.join(", "));
+  const out: Clause[] = [];
+  if (p.daylight) {
+    out.push({
+      head: nb ? "Sola er oppe — stjernene er der, men du kan ikke se dem" : "The Sun is up — these stars are there, but you cannot see them",
+      items: [],
+      short: nb ? "Sola er oppe" : "The Sun is up",
+    });
+  }
+  if (p.below.length > 0) out.push({ head: nb ? "Under horisonten: " : "Below the horizon: ", items: p.below });
   // Up, but not on this page — a portrait shows one figure and crops the rest
   // of the sky away. `maps.yaml` says the same thing with the same words when
   // a marker falls outside a cropped map.
-  if (p.outside.length > 0) out.push((nb ? "Utenfor utsnittet: " : "Outside view: ") + p.outside.join(", "));
-  if (p.unknown.length > 0) out.push((nb ? "Ukjent: " : "Unknown: ") + p.unknown.join(", "));
-  if (p.symbols) out.push(nb ? "Sol, måne og planeter som symboler, ikke i målestokk" : "Sun, Moon and planets as symbols, not to scale");
+  if (p.outside.length > 0) out.push({ head: nb ? "Utenfor utsnittet: " : "Outside view: ", items: p.outside });
+  if (p.unknown.length > 0) out.push({ head: nb ? "Ukjent: " : "Unknown: ", items: p.unknown });
+  if (p.symbols) {
+    out.push({
+      head: nb ? "Sol, måne og planeter som symboler, ikke i målestokk" : "Sun, Moon and planets as symbols, not to scale",
+      items: [],
+      droppable: true,
+    });
+  }
   return out;
+}
+
+/**
+ * The figure's ONE caption, as whole clauses in the order they matter — what
+ * the line says when there is room for all of it. `fitNote` is what the
+ * template actually writes; this is the wording and the priority, and the
+ * order is the priority: the cheapest clause is last.
+ */
+export function noteClauses(p: NoteParts, lang: SkyLang): string[] {
+  return clauseParts(p, lang).map((c) => c.head + c.items.join(", "));
+}
+
+/** A clause written with `keep` of its names, the rest counted: "Below the
+ *  horizon: Mercury, Venus +5". `keep` 0 counts them all — "Unknown: +12" —
+ *  which is the last thing tried, and never for a clause naming ONE thing,
+ *  where "+1" would cost the same and say less. */
+function clauseText(c: Clause, keep: number, brief: boolean): string {
+  if (c.items.length === 0) return brief && c.short !== undefined ? c.short : c.head;
+  const kept = c.items.slice(0, Math.max(0, keep));
+  const rest = c.items.length - kept.length;
+  if (kept.length === 0) return c.head + "+" + rest;
+  return c.head + kept.join(", ") + (rest > 0 ? " +" + rest : "");
+}
+
+/** Cut a line that will not fit even at its shortest, rather than say nothing
+ *  at all. Only an author who typed a three-hundred-character name can reach
+ *  this, and a trimmed name back is better than silence. */
+function clip(s: string, maxWidth: number, measure: (t: string) => number): string {
+  if (measure(s) <= maxWidth) return s;
+  let out = s;
+  while (out.length > 1 && measure(out + "…") > maxWidth) out = out.slice(0, -1);
+  return out + "…";
+}
+
+/**
+ * The caption as it is actually written: the clauses joined with " · ",
+ * given up DETAIL first and never a fact, until the line fits `maxWidth`
+ * under `measure` (the template hands over kit.textWidth at the caption's own
+ * size).
+ *
+ * The width policy is here, and not in the template, because writing LESS is
+ * lint-clean and no sweep can see it. The first version popped whole clauses
+ * off the end while the line was too wide, which is safe only if the tail
+ * clauses are cheap — and they are not: positions 2, 3 and 4 are the three
+ * that keep the pack's contract that a thing the author NAMED is said rather
+ * than silently missing (space.yaml's own `show` description promises it, and
+ * `focus`'s "what it removes, it says"). `{time: "2026-06-21T10:00:00Z",
+ * show: ["all"]}` came out as the daylight sentence ALONE, every named body
+ * below the horizon dropped, and twelve unknown names at night produced no
+ * caption at all — twelve typos, no complaint. Worse, it depended on the
+ * width, so the promise held at one hour and not the next.
+ *
+ * So the concessions run cheapest-first, and none of them is a whole naming
+ * clause:
+ *   1. drop `symbols` — the only clause that names nothing anybody typed;
+ *   2. shorten the daylight sentence to its bare fact ("The Sun is up") —
+ *      what is left is the lesson, and the author's names outrank it;
+ *   3. count the tails of the naming lists, cheapest clause first, down to
+ *      one name apiece — "Below the horizon: Mercury, Venus +5";
+ *   4. count a list whole ("Unknown: +12"), cheapest first, when even that is
+ *      too wide;
+ *   5. and, only for an absurd name, cut the line with an ellipsis.
+ * A naming clause is never removed, so its HEAD survives every rung: the
+ * caption always says that something the author named has set, or was cropped
+ * away, or matched nothing, and how many.
+ */
+export function fitNote(p: NoteParts, lang: SkyLang, maxWidth: number, measure: (s: string) => number): string {
+  const all = clauseParts(p, lang);
+  if (all.length === 0) return "";
+  const keep = all.map((c) => c.items.length);
+  let symbols = true, brief = false;
+  const text = (): string => {
+    const parts: string[] = [];
+    for (let i = 0; i < all.length; i++) {
+      if (all[i].droppable === true && !symbols) continue;
+      parts.push(clauseText(all[i], keep[i], brief));
+    }
+    return parts.join(" · ");
+  };
+  const fits = (): boolean => measure(text()) <= maxWidth;
+
+  if (fits()) return text();
+  symbols = false;
+  if (fits()) return text();
+  brief = true;
+  if (fits()) return text();
+  // Cheapest clause first, and only ever one name at a time, so a caption
+  // gives up as little as the line demands.
+  const lists: number[] = [];
+  for (let i = 0; i < all.length; i++) if (all[i].items.length > 0) lists.push(i);
+  for (let n = lists.length - 1; n >= 0; n--) {
+    const i = lists[n];
+    while (keep[i] > 1) {
+      keep[i]--;
+      if (fits()) return text();
+    }
+  }
+  for (let n = lists.length - 1; n >= 0; n--) {
+    const i = lists[n];
+    if (all[i].items.length < 2) continue;
+    keep[i] = 0;
+    if (fits()) return text();
+  }
+  return clip(text(), maxWidth, measure);
 }
 
 export function constellationName(c: Constellation, lang: SkyLang): string {
