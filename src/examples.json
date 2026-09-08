@@ -15056,5 +15056,166 @@
         { "draw": ["t_lik"], "speak": "Den fargede lengden er nøyaktig den samme. To firedeler og en halv er samme brøk, bare skrevet med forskjellige deler." }
       ]
     }
+  },
+  {
+    "request": "Hvordan legger man sammen to vektorer?",
+    "packs": [],
+    "spec": {
+      "title": "Vektorsum: hale mot spiss",
+      "elements": [
+        { "id": "a", "type": "arrow", "from": { "x": 200, "y": 250 }, "to": { "x": 480, "y": 330 }, "style": { "color": "#b5482e", "stroke_width": 4 } },
+        { "id": "la", "type": "label", "attach_to": "a", "side": "below", "text": "a", "style": { "color": "#b5482e" } },
+        { "id": "b", "type": "arrow", "from": { "x": 200, "y": 450 }, "to": { "x": 330, "y": 650 }, "style": { "color": "#2f6b8f", "stroke_width": 4 } },
+        { "id": "lb", "type": "label", "attach_to": "b", "side": "left", "text": "b", "style": { "color": "#2f6b8f" } },
+        { "id": "sum", "type": "arrow", "from": { "x": 200, "y": 250 }, "to": { "x": 610, "y": 530 }, "style": { "color": "#8a5fa8", "stroke_width": 4 } },
+        { "id": "lsum", "type": "label", "attach_to": "sum", "side": "below-right", "text": "a + b", "style": { "color": "#8a5fa8" } }
+      ],
+      "commands": [
+        { "draw": ["a", "la"], "speak": "To vektorer. Den røde er a: den peker mot høyre og litt opp." },
+        { "draw": ["b", "lb"], "speak": "Den blå er b: kortere, og mest oppover." },
+        { "move": { "target": ["b"], "anchor": "tail", "to": { "ref": "a", "anchor": "tip" }, "duration": 1.5 }, "speak": "Å legge dem sammen betyr å sette halen på b i spissen av a." },
+        { "draw": ["sum", "lsum"], "speak": "Summen går fra start til slutt: fra halen på a til spissen av b." },
+        { "point": { "at": { "ref": "b", "anchor": "tip" }, "gesture": "circle" }, "speak": "Rekkefølgen spiller ingen rolle: b først og så a ender i samme punkt." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er arealet av en trekant halvparten av grunnlinje ganger høyde?",
+    "packs": [],
+    "spec": {
+      "title": "Trekant = halvt parallellogram",
+      "elements": [
+        { "id": "tri", "type": "polygon", "points": [[250, 250], [650, 250], [400, 550]], "style": { "fill": "#f2c14e" } },
+        { "id": "kopi", "type": "polygon", "points": [[250, 250], [650, 250], [400, 550]], "style": { "fill": "#87a878" } },
+        { "id": "para", "type": "polygon", "points": [[250, 250], [650, 250], [800, 550], [400, 550]], "style": { "color": "#b5482e", "stroke_width": 3 } },
+        { "id": "t_b", "type": "text", "text": "b", "x": 450, "y": 220, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_h", "type": "text", "text": "h", "x": 830, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["tri"], "speak": "En trekant med grunnlinje b og høyde h. Hvorfor er arealet halvparten av b ganger h?" },
+        { "draw": ["kopi"], "speak": "Lag en kopi av trekanten, oppå den første." },
+        { "move": { "target": ["kopi"], "rotate": 180, "pivot": { "anchor": "side_2" }, "duration": 2 }, "speak": "Snu kopien en halv omdreining om midtpunktet på den skrå siden." },
+        { "draw": ["para", "t_b", "t_h"], "speak": "Sammen fyller de to trekantene et parallellogram med samme grunnlinje og samme høyde: areal b ganger h." },
+        { "fade": { "target": ["kopi"], "to": 0.25 } },
+        { "highlight": { "target": ["tri"], "effect": "glow" }, "speak": "Trekanten er nøyaktig halvparten av det. Derfor: en halv b h." }
+      ]
+    }
+  },
+  {
+    "request": "Hvilken vei går et punkt på et hjul som ruller?",
+    "packs": [],
+    "spec": {
+      "title": "Sykloiden",
+      "elements": [
+        { "id": "bakke", "type": "path", "points": [[60, 200], [940, 200]], "style": { "color": "#8f887c", "stroke_width": 3 } },
+        { "id": "hjul", "type": "shape", "shape": "circle", "x": 160, "y": 260, "radius": 60, "style": { "color": "#3d3833", "stroke_width": 3 } },
+        { "id": "eike", "type": "path", "points": [[160, 260], [160, 200]], "style": { "color": "#8f887c", "stroke_width": 2 } },
+        { "id": "prikk", "type": "shape", "shape": "circle", "x": 160, "y": 200, "radius": 7, "style": { "color": "#b5482e", "fill": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["bakke", "hjul", "eike", "prikk"], "speak": "Et hjul med radius r står på bakken, og ett punkt på kanten er merket rødt. Hvor går det punktet når hjulet ruller?" },
+        { "move": { "target": ["hjul", "eike", "prikk"], "by": [377, 0], "rotate": -360, "pivot": { "ref": "hjul" }, "trail": { "of": "eike", "anchor": "end" }, "duration": 4, "easing": "linear" }, "speak": "Én omdreining. Punktet stiger, svever over hjulet, og lander på bakken igjen." },
+        { "highlight": { "target": ["eike_trail"], "effect": "glow" }, "speak": "Buen heter sykloiden. Den er ikke en sirkelbue: punktet står stille i det øyeblikket det treffer bakken." },
+        { "point": { "at": { "ref": "prikk" }, "gesture": "tap" }, "speak": "Og avstanden hjulet rullet på én omdreining er omkretsen: to pi r." }
+      ]
+    }
+  },
+  {
+    "request": "Hvordan henger husholdninger og bedrifter sammen i økonomien?",
+    "packs": [],
+    "spec": {
+      "title": "Det økonomiske kretsløpet",
+      "elements": [
+        { "id": "hush", "type": "node", "shape": "rect", "text": "Husholdninger", "x": 220, "y": 375 },
+        { "id": "bedr", "type": "node", "shape": "rect", "text": "Bedrifter", "x": 780, "y": 375 },
+        { "id": "lonn", "type": "arrow", "from": { "ref": "bedr" }, "to": { "ref": "hush" }, "curved": true, "style": { "color": "#2f6b8f", "stroke_width": 3 } },
+        { "id": "l_lonn", "type": "label", "attach_to": "lonn", "side": "below", "text": "Lønn og inntekt", "style": { "color": "#2f6b8f" } },
+        { "id": "kjop", "type": "arrow", "from": { "ref": "hush" }, "to": { "ref": "bedr" }, "curved": true, "style": { "color": "#b5482e", "stroke_width": 3 } },
+        { "id": "l_kjop", "type": "label", "attach_to": "kjop", "side": "above", "text": "Kjøp av varer", "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["hush", "bedr"], "speak": "To slags aktører: husholdninger som eier arbeidskraften, og bedrifter som lager varene." },
+        { "draw": ["lonn", "l_lonn"], "speak": "Bedriftene betaler lønn. Pengene går fra bedriftene til husholdningene." },
+        { "draw": ["kjop", "l_kjop"], "speak": "Husholdningene bruker pengene på varer. Da går de tilbake til bedriftene." },
+        { "flow": { "along": ["lonn", "kjop"] }, "speak": "Pengene sirkulerer. Det én bruker, er det en annen tjener, og i neste runde er inntekten tilbake hos den som brukte." },
+        { "flow": { "along": ["kjop"], "speed": 40, "color": "#8f887c" }, "speak": "Sparer husholdningene mer, tynnes strømmen: bedriftene selger mindre, og lønningene i neste runde blir lavere." }
+      ]
+    }
+  },
+  {
+    "request": "Hva skjer med en figur når den speiles?",
+    "packs": [],
+    "spec": {
+      "title": "Speiling",
+      "elements": [
+        { "id": "akse", "type": "path", "points": [[500, 200], [500, 620]], "style": { "color": "#8f887c", "stroke_width": 2, "dash": true } },
+        { "id": "tri", "type": "polygon", "points": [[250, 300], [450, 300], [300, 520]], "style": { "fill": "#f2c14e" } },
+        { "id": "skygge", "type": "polygon", "points": [[250, 300], [450, 300], [300, 520]], "style": { "color": "#8f887c", "dash": true } },
+        { "id": "t_a", "type": "text", "text": "A", "x": 230, "y": 280, "font_size": 26 },
+        { "id": "t_b", "type": "text", "text": "B", "x": 470, "y": 280, "font_size": 26 },
+        { "id": "t_c", "type": "text", "text": "C", "x": 290, "y": 545, "font_size": 26 }
+      ],
+      "commands": [
+        { "draw": ["tri", "t_a", "t_b", "t_c"], "speak": "En trekant med hjørnene A, B og C, lest mot klokka." },
+        { "draw": ["akse"], "speak": "Og en speilingsakse. Hva skjer når trekanten speiles i den?" },
+        { "draw": ["skygge"] },
+        { "flip": { "target": ["tri"], "line": { "from": { "ref": "akse", "anchor": "start" }, "to": { "ref": "akse", "anchor": "end" } }, "duration": 1.6 }, "speak": "Hvert punkt havner like langt på den andre siden av aksen. Formen og størrelsen er bevart." },
+        { "point": { "at": { "ref": "tri", "anchor": "vertex_2" }, "gesture": "circle" }, "speak": "Men rekkefølgen har snudd: A, B, C går nå med klokka. En speiling kan aldri lages med bare flytting og dreining." },
+        { "flip": { "target": ["tri"], "axis": "horizontal", "duration": 1.2 }, "speak": "Speil én gang til, om en vannrett linje gjennom midten: da er retningen mot klokka igjen." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor forandrer ikke arealet seg når et parallellogram skjæres?",
+    "packs": [],
+    "spec": {
+      "title": "Skjæring bevarer areal",
+      "elements": [
+        { "id": "para", "type": "polygon", "points": [[200, 250], [550, 250], [700, 500], [350, 500]], "style": { "fill": "#87a878" } },
+        { "id": "rekt", "type": "polygon", "points": [[200, 250], [550, 250], [550, 500], [200, 500]], "style": { "color": "#8f887c", "dash": true } },
+        { "id": "t_b", "type": "text", "text": "b", "x": 375, "y": 220, "font_size": 30 },
+        { "id": "t_h", "type": "text", "text": "h", "x": 170, "y": 375, "font_size": 30 }
+      ],
+      "commands": [
+        { "draw": ["para", "t_b", "t_h"], "speak": "Et parallellogram med grunnlinje b og høyde h. Tenk på det som en stabel med tynne kort." },
+        { "draw": ["rekt"], "speak": "Skyv kortene så stabelen står rett. Hvert kort er like langt som før, og det er like mange kort." },
+        { "morph": { "target": ["para"], "to": { "ref": "rekt" }, "duration": 2 }, "speak": "Da er figuren et rektangel med sidene b og h. Arealet er uendret: b ganger h." },
+        { "morph": { "target": ["para"], "stretch": [2, 1], "pivot": { "anchor": "left" }, "duration": 1.5 }, "speak": "Dobler vi grunnlinja og lar høyden stå, blir arealet dobbelt så stort. Ikke fire ganger: bare den ene faktoren vokste." }
+      ]
+    }
+  },
+  {
+    "request": "Hva er egentlig et integral?",
+    "packs": ["mathlogic"],
+    "spec": {
+      "title": "Integralet: summen av tynne søyler",
+      "template": "riemann_sum",
+      "params": { "expr": "x*x/10 + 1", "x_from": 0, "x_to": 10, "a": 2, "b": 8, "n": 4, "rule": "left", "x_label": "x", "y_label": "f(x)" },
+      "commands": [
+        { "draw": ["axes", "x_label", "y_label", "curve"], "speak": "Hva er arealet under en kurve? Ingen formel for rektangler hjelper når kanten er buet." },
+        { "draw": ["area", "label_a", "label_b"], "speak": "Vi vil ha arealet mellom a og b. Ideen er å bytte det ut med noe vi kan regne på." },
+        { "draw": ["bar_1", "bar_2", "bar_3", "bar_4"], "parallel": true, "speak": "Fire søyler, hver like høy som kurven i venstre kant. Søyler kan vi summere." },
+        { "draw": ["sum_label", "exact_label"], "speak": "Summen er for liten: søylene mangler skivene under kurven." },
+        { "animate": { "n": 40 }, "duration": 4, "speak": "Flere og tynnere søyler. Feilen krymper for hver deling." },
+        { "highlight": { "target": ["sum_label"], "effect": "glow" }, "speak": "Grensen når søylene blir uendelig tynne er integralet. Det er ikke en formel: det er en sum som har sluttet å forandre seg." }
+      ]
+    }
+  },
+  {
+    "request": "Hva er den deriverte?",
+    "packs": ["mathlogic"],
+    "spec": {
+      "title": "Den deriverte: stigningen i ett punkt",
+      "template": "tangent_secant",
+      "params": { "expr": "x*x/10 + 1", "x_from": 0, "x_to": 10, "at": 4, "h": 4, "x_label": "x", "y_label": "f(x)" },
+      "commands": [
+        { "draw": ["axes", "x_label", "y_label", "curve"], "speak": "Hvor bratt er en kurve i ett punkt? En rett linje har én stigning, men denne stiger mer og mer." },
+        { "draw": ["point_a", "point_b", "secant"], "speak": "Ta to punkter på kurven, A og B, og trekk linja gjennom dem." },
+        { "draw": ["run", "rise", "label_dx", "label_dy", "slope_label"], "speak": "Stigningen er endring i høyde delt på endring i bredde: delta y over delta x." },
+        { "animate": { "h": 0.05 }, "duration": 4, "speak": "Flytt B nærmere A. Linja vipper, og stigningstallet nærmer seg én bestemt verdi." },
+        { "draw": ["tangent", "derivative_label"], "speak": "Den verdien er den deriverte i A: stigningen til tangenten, linja som bare så vidt berører kurven." },
+        { "highlight": { "target": ["derivative_label"], "effect": "glow" }, "speak": "Den deriverte er altså ikke en stigning mellom to punkter, men det stigningen går mot når punktene smelter sammen." }
+      ]
+    }
   }
 ]

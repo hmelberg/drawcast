@@ -1712,9 +1712,9 @@ layout: |-
     for (let i = 0; i < m; i++) { const x = a + ((b - a) * (i + 0.5)) / m; exact += Math.max(0, fx(x)) * ((b - a) / m); }
     const tx = plot.x0 + 24, ty = plot.y1 - 16;
     push(kit.text("sum_label", [tx, ty], "Σ ≈ " + sum.toFixed(1) + "  (n = " + n + ")", { fontSize: 26, color: C.supply, anchor: "start" }));
-    push(kit.text("exact_label", [tx, ty - 34], "∫ ≈ " + exact.toFixed(1), { fontSize: 26, color: C.demand, anchor: "start" }));
+    push(kit.text("exact_label", [tx, ty - 40], "∫ ≈ " + exact.toFixed(1), { fontSize: 26, color: C.demand, anchor: "start" }));
     anchors.sum_label = [tx + 60, ty];
-    anchors.exact_label = [tx + 60, ty - 34];
+    anchors.exact_label = [tx + 60, ty - 40];
   }
   return { drawables, labels, anchors, order };
 ---
@@ -1845,7 +1845,7 @@ layout: |-
   anchors.point_b = B;
   const tx = plot.x0 + 24, ty = plot.y1 - 16;
   push(kit.text("slope_label", [tx, ty], "slope ≈ " + secSlope.toFixed(2), { fontSize: 26, color: C.supply, anchor: "start" }));
-  push(kit.text("derivative_label", [tx, ty - 34], "f′(" + fmt(xa) + ") = " + deriv.toFixed(2), { fontSize: 26, color: C.demand, anchor: "start" }));
+  push(kit.text("derivative_label", [tx, ty - 40], "f′(" + fmt(xa) + ") = " + deriv.toFixed(2), { fontSize: 26, color: C.demand, anchor: "start" }));
   anchors.slope_label = [tx + 60, ty];
-  anchors.derivative_label = [tx + 60, ty - 34];
+  anchors.derivative_label = [tx + 60, ty - 40];
   return { drawables, labels, anchors, order };

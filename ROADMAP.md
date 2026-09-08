@@ -290,6 +290,45 @@ planning with an empty id list, and the inert `language` param on
   focus dimming, an in-flight reveal's partial progress — is still lost on a
   tween frame, by design: those nodes carry no handles.
 
+## Anchors and motion round 2 — done 2026-09-08
+
+Hans's question: what else should drawcast have to explain visually — more
+primitives, mathematical objects as templates, other ways to divide, stack or
+move? The assessment (design
+`docs/superpowers/specs/2026-09-08-anchors-and-motion-round-2-design.md`,
+ledger `docs/superpowers/plans/2026-09-08-anchors-and-motion-round-2-ledger.md`):
+the biggest gap was not a shape but that the model still computed coordinates
+for pivots, destinations and arrow endpoints. Shipped:
+
+1. **Anchors.** Named points on every element (`center`, the box's edges and
+   corners; `vertex_k` / `side_k` / `centroid` on polygons; `apex` / `arc` /
+   `start` / `end` on sectors; `tail` / `tip` on arrows; `point_k` on paths),
+   accepted wherever a verb takes a point (`PointRef`: `[x, y]` or
+   `{ref, anchor}`) — `move.to`, `move.pivot`, `arrange.at`, `point.at`,
+   `camera.center`, arrow endpoints — plus `move.anchor` for which point of
+   the moving element lands. An explicit pivot now rides with the move's own
+   translation, so `by` + `rotate` rolls a wheel instead of swinging it.
+2. **Followers ride the pose change.** A label follows its element's turn and
+   scale (positioned, never rotated) — zipper and fan carry their labels too.
+3. **`flip`.** Reflection across an axis or a drawn line, in the pose model
+   (`Turn.mirror`, exact composition), played as a turn-over (a squash
+   through the mirror line).
+4. **`morph`.** An outline tweened to another element's outline, to points, or
+   `stretch: [sx, sy]` about a pivot (shearing, non-uniform scale); scene
+   state `shapes`, backend `setPoints`.
+5. **`trail`** on `move`: the track of an anchor minted as an element
+   `<id>_trail` (cycloids, orbits), fadeable and erasable.
+6. **`flow`.** Dots or dashes streaming along strokes while a sentence lands
+   (circular flow, current, blood, traffic).
+7. **`riemann_sum` and `tangent_secant`** in the mathlogic pack — calculus
+   had no template.
+8. Eight bundled examples, every one a question.
+
+Deliberately not done: a copies generator, `angle` / `measure` elements,
+solids, more `pieces` cuts (rings, triangles, halving), more `arrange`
+layouts (sort, align, mirror), rotated text, anchors on template ids beyond
+the box, a persistent flow, morphing a `shape` circle.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument

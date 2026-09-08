@@ -51,6 +51,10 @@ describe("compiler prompt style rules", () => {
     expect(line).toMatch(/`morph`/);
     expect(line).toMatch(/`flow`/);
   });
+
+  test("teaches anchors and the four motion-round-2 verbs", () => {
+    for (const s of ["\"anchor\": \"tail\"", "`flip`", "`morph`", "`flow`", "\"trail\": true", "riemann_sum", "tangent_secant", "compute a coordinate for a point you can name"]) expect(compilerV1).toContain(s);
+  });
 });
 
 describe("buildSystemPrompt", () => {
