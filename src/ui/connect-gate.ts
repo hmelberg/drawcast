@@ -20,6 +20,7 @@ import { connectKey, type ConnectEdge, type ConnectStar } from "../render/widget
 import {
   connectOpens,
   connectProgress,
+  connectResolution,
   connectSummary,
   edgeAt,
   gradeConnect,
@@ -278,7 +279,10 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         summary.textContent = summaryText;
         summary.hidden = false;
         window.setTimeout(remove, LINGER_MS);
-        resolve(grade.pass ? answer : summaryText);
+        // connectResolution (connect-model.ts) owns the pass→answer /
+        // fail→summary decision — pinned in node, where a DOM-side inversion
+        // of this arm would otherwise be invisible to every test here.
+        resolve(connectResolution(grade, answer));
       };
 
       // --- pointer gesture state (one active gesture at a time) ---

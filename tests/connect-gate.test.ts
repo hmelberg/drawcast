@@ -86,13 +86,19 @@ describe("connect-gate.ts", () => {
     expect(source).toMatch(/LINGER_MS\s*=\s*2600/);
   });
 
-  it("resolves the answer id on a pass and the (unequal) summary string otherwise", () => {
-    // gradeConnect's pass decides which of the two the player's branch sees;
-    // connectSummary can never equal the answer id, so a wrong drawing can't
-    // accidentally walk the right-goto path.
+  it("resolves through connectResolution, not a re-implemented pass/fail ternary", () => {
+    // Which string a grade resolves to — the answer id on a pass, the
+    // summary otherwise — is a pure decision pinned in node
+    // (tests/connect-model.test.ts, including the destructive check: the
+    // two arms inverted). This file can only check that the gate USES that
+    // tested seam instead of re-deriving the same ternary inline, where an
+    // inversion would again be invisible to every test here.
+    const domImport = /import\s*\{([^}]*)\}\s*from\s*"\.\/connect-model";/.exec(source)?.[1] ?? "";
+    expect(domImport).toMatch(/\bconnectResolution\b/);
     expect(source).toMatch(/gradeConnect\(/);
-    expect(source).toMatch(/connectSummary\(/);
-    expect(source).toMatch(/\.pass\s*\?/);
+    expect(source).toMatch(/resolve\(connectResolution\(grade,\s*answer\)\)/);
+    // Not re-implemented inline: no second `grade.pass ?` ternary feeding resolve.
+    expect(source).not.toMatch(/resolve\(grade\.pass\s*\?/);
   });
 
   it("decides the star gesture from where the pointer came up, never from how far it moved", () => {

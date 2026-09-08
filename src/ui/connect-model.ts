@@ -145,6 +145,16 @@ export function connectSummary(g: ConnectGrade): string {
   return `${g.hits.length} of ${total} lines, ${extra === 0 ? "none extra" : `${extra} extra`}`;
 }
 
+/** What the gate must resolve on Done: the answer id itself on a pass, the
+ *  summary line otherwise — never the reverse. This is the widget's whole
+ *  output contract (what the player, then `answersMatch`, ultimately sees),
+ *  and it belongs here rather than inline in the DOM gate for the same
+ *  reason `connectOpens` does: a decision left inside the DOM file is a
+ *  decision no test in this repo's node-only vitest can ever see fail. */
+export function connectResolution(grade: ConnectGrade, answer: string): string {
+  return grade.pass ? answer : connectSummary(grade);
+}
+
 /** Whether a gate may open on this key at all — the ONE decision the DOM
  *  gate must not make for itself, because vitest runs in `node` and nothing
  *  in this repo mounts a DOM: a decision left inside a DOM file is a

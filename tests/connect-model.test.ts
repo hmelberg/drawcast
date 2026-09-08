@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  CONNECT_MAX_EDGES, connectOpens, connectProgress, connectSummary, edgeAt,
+  CONNECT_MAX_EDGES, connectOpens, connectProgress, connectResolution, connectSummary, edgeAt,
   escapeSelectorValue, gradeConnect, hiddenLeafSelector, makeEdge,
   medianNearestNeighbour, restoreOpacity, snapRadiusFor, snapStar, toggleEdge,
+  type ConnectGrade,
 } from "../src/ui/connect-model";
 
 const stars = [
@@ -81,6 +82,37 @@ describe("words", () => {
     expect(connectSummary(gradeConnect(key, key))).toBe("2 of 2 lines, none extra");
     expect(connectSummary(gradeConnect([makeEdge("a", "b"), makeEdge("a", "c")], key)))
       .toBe("1 of 2 lines, 1 extra");
+  });
+});
+
+describe("connectResolution", () => {
+  const key = [makeEdge("a", "b"), makeEdge("b", "c")];
+  const pass: ConnectGrade = gradeConnect(key, key);
+  const miss: ConnectGrade = gradeConnect([makeEdge("a", "b")], key);
+
+  it("resolves to the answer id itself on a pass", () => {
+    expect(pass.pass).toBe(true);
+    expect(connectResolution(pass, "con_ori")).toBe("con_ori");
+  });
+
+  it("resolves to the summary string on a miss, and never to the answer", () => {
+    expect(miss.pass).toBe(false);
+    const resolved = connectResolution(miss, "con_ori");
+    expect(resolved).toBe(connectSummary(miss));
+    expect(resolved).not.toBe("con_ori");
+  });
+
+  it("the miss value can never equal the answer — the two arms track grade.pass, not each other", () => {
+    // A summary line ("n of m lines, ...") can never collide with an
+    // element id, which is what makes the pass/fail arms distinguishable
+    // at all. Proven directly here rather than assumed: for a failing
+    // grade, whatever the answer id is, the resolved value is the summary,
+    // not that id.
+    for (const answer of ["con_ori", "con_cas", "0 of 2 lines, none extra", ""]) {
+      const resolved = connectResolution(miss, answer);
+      expect(resolved).toBe(connectSummary(miss));
+      if (answer !== connectSummary(miss)) expect(resolved).not.toBe(answer);
+    }
   });
 });
 
