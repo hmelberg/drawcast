@@ -1025,7 +1025,9 @@ function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   ctx.anchors[el.id] = centroid;
   // A standalone sector is a piece too: arrange's zipper and fan read its
   // apex and angles here, exactly as they read a `pieces` child's.
-  ctx.pieces[el.id] = { apex: c, centroid, midAngle: mid, halfAngle: (to - from) / 2, radius: r };
+  // |end − start|: a sector written the other way round (start 90, end 30)
+  // draws fine, and its half-span must stay positive for zipper and fan.
+  ctx.pieces[el.id] = { apex: c, centroid, midAngle: mid, halfAngle: Math.abs(to - from) / 2, radius: r };
   return filledOutline(el.id, pts, el);
 }
 

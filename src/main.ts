@@ -3013,7 +3013,6 @@ function stopAiStatus(): void {
   renderLive("");
 }
 
-/** What this generation cost, from the client's call ledger — "" when nothing was called. */
 /**
  * What the figure was built on, for the status line: the template it uses,
  * or that it is freehand and what the router had to say — so a stale build
@@ -3022,10 +3021,12 @@ function stopAiStatus(): void {
 function routeText(template: string | undefined, route: RouteInfo | undefined): string {
   if (template) return ` · via ${template}`;
   if (!route) return " · freehand";
+  if (route.error) return " · freehand (router failed; keywords chose)";
   if (route.noneFits || route.ids.length === 0) return " · freehand (no template fits)";
   return ` · freehand (router offered ${route.ids.slice(0, 3).join(", ")})`;
 }
 
+/** What this generation cost, from the client's call ledger — "" when nothing was called. */
 function costText(): string {
   const s = costSummary(callLedger());
   return s.calls > 0 ? ` · ${formatCost(s)}` : "";

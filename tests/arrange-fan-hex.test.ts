@@ -37,10 +37,25 @@ describe("fan", () => {
     expect(out[1].apexTo).toEqual([100, 100]);
     expect(out[1].rotate).toBeCloseTo(30, 6);
   });
-  test("a non-sector target in a fan goes to a row above the fan", () => {
+  test("a non-sector target in a fan goes to a row on the far side of the apex from the fan", () => {
+    // The fan spans 0°–30° (bisector 15°), so the row sits below-left of the apex.
     const out = arrangeTargets([sector("a", [100, 100], 0, 30), item("t", 0, 0)], "fan", { at: [500, 500], gap: 0 });
     expect(out[1].centre).toBeDefined();
-    expect(out[1].centre![1]).toBeGreaterThan(500);
+    expect(out[1].centre![1]).toBeLessThan(500);
+    expect(out[1].centre![0]).toBeLessThan(500);
+  });
+  test("a sector already moved and turned by an earlier move still lands right, and is the default apex", () => {
+    // Original apex (100,100); the pose puts it at (300,100) turned 90°: its mid-direction is now 15° + 90°.
+    const moved = { ...sector("a", [100, 100], 0, 30), pose: { offset: [200, 0] as P, turn: { deg: 90, pivot: [100, 100] as P } } };
+    const out = arrangeTargets([moved, sector("b", [700, 700], 40, 100)], "fan", { gap: 0, start: 0 });
+    expect(out[0].apexTo).toEqual([300, 100]);
+    expect(out[0].rotate).toBeCloseTo(-90, 6); // back to mid 15°
+    expect(out[1].apexTo).toEqual([300, 100]);
+    expect(out[1].rotate).toBeCloseTo(30 + 30 - 70, 6); // mid 70° → 60°
+  });
+  test("a sector written end-before-start keeps a positive half-span", () => {
+    const layout = layoutSpec({ elements: [{ id: "s", type: "sector", x: 100, y: 100, radius: 50, start: 90, end: 30 }] } as unknown as Spec);
+    expect(layout.pieces.s.halfAngle).toBe(30);
   });
 });
 
@@ -142,9 +157,10 @@ describe("sub-suffix id collisions", () => {
 
 describe("subtitles for point and camera beats", () => {
   test("a speak paired with a point.at.ref or camera.center.ref reaches the caption track", () => {
+    // No draw beat names "a": only the point/camera refs can put it in the known set.
     const spec = {
       elements: [{ id: "a", type: "text", text: "A", x: 100, y: 100 }],
-      commands: [{ draw: ["a"] }, { point: { at: { ref: "a" } }, speak: "P" }, { camera: { center: { ref: "a" }, zoom: 2 }, speak: "C" }],
+      commands: [{ point: { at: { ref: "a" } }, speak: "P" }, { camera: { center: { ref: "a" }, zoom: 2 }, speak: "C" }],
     } as unknown as Spec;
     const lines = captionLines(spec);
     expect(lines).toContain("P");

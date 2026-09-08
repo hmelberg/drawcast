@@ -258,13 +258,16 @@ planning with an empty id list, and the inert `language` param on
 
 - **`arrange` warns nothing for invisible targets** — no warning when a
   target is hidden or missing.
-- **The zipper's non-sector fallback row ignores `gap`.**
 - Done 2026-09-08 (the "fan/hex" round): `camera.center.ref` and
   `point.at.ref` now expand a `pieces` id to the box around every piece;
   an element id that reads as another element's sub-drawable (`sky` +
   `sky_wash`) is a validation ERROR (only the actual collision — `sky_wash`
-  alone is fine); a `speak` on a `point`/`camera` beat reaches the subtitle
-  track; two more `arrange` layouts, `fan` (sectors side by side about one
+  alone is fine); a `speak` on a `point` beat reaches the subtitle track
+  (`camera` never lost its line — its branch warns rather than skips);
+  the zipper's and fan's non-sector fallback row share one helper and honour
+  `gap`; `point` at a moved element no longer adds the offset twice (the
+  planner already aims at the current box); two more `arrange` layouts,
+  `fan` (sectors side by side about one
   apex — the angle-sum proof) and `hex` (a honeycomb), and standalone
   `sector` elements carry piece geometry so both zipper and fan take them;
   the generate status line names the template used or that the figure is

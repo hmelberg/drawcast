@@ -51,10 +51,10 @@ function apexNow(i: ArrangeInput): Pt {
 
 export function arrangeTargets(items: ArrangeInput[], layout: ArrangeLayout, opts: { at?: Pt; gap: number; columns?: number; start?: number }): ArrangeOutput[] {
   const firstSector = items.find((i) => i.piece);
-  // A fan gathers the pieces about ONE apex: with no `at`, the first sector stays where it is and the others come to it.
+  // A fan gathers the pieces about ONE apex: with no `at`, the first sector's apex stays put (the piece itself still turns to `start`) and the others come to it.
   const at = opts.at ?? (layout === "fan" && firstSector ? apexNow(firstSector) : centroidOf(items));
   const gap = opts.gap;
-  if (layout === "zipper" && items.some((i) => i.piece)) return zipper(items, at);
+  if (layout === "zipper" && items.some((i) => i.piece)) return zipper(items, at, gap);
   if (layout === "fan" && items.some((i) => i.piece)) return fan(items, at, opts.start ?? 0, gap);
   if (layout === "hex") return hex(items, at, gap);
   if (layout === "row" || layout === "zipper" || layout === "fan") {
@@ -94,7 +94,7 @@ export function arrangeTargets(items: ArrangeInput[], layout: ArrangeLayout, opt
 }
 
 /** Sector pieces zipped into the πr² rectangle: even pieces point up with the apex below the midline, odd pieces point down with the apex above it, apexes stepping by r·sin(halfAngle). */
-function zipper(items: ArrangeInput[], at: Pt): ArrangeOutput[] {
+function zipper(items: ArrangeInput[], at: Pt, gap: number): ArrangeOutput[] {
   const sectors = items.filter((i) => i.piece);
   const others = items.filter((i) => !i.piece);
   const r = sectors[0].piece!.radius;
@@ -115,11 +115,19 @@ function zipper(items: ArrangeInput[], at: Pt): ArrangeOutput[] {
     // more than a full turn on its way to a destination one nudge away.
     return { id: i.id, rotate: shortestTurn(targetMid - midNow), pivotNow: i.piece!.apex, apexTo };
   });
-  if (others.length > 0) {
-    const row = arrangeTargets(others, "row", { at: [at[0], at[1] - r], gap: 10 });
-    out.push(...row);
-  }
+  out.push(...othersRow(others, at, r, gap, 90));
   return out;
+}
+
+/**
+ * Where a layout built from sector pieces puts the targets that are not
+ * sectors: a row `r + 40` away from `at`, on the far side from `awayFrom`
+ * (degrees) — clear of the figure the sectors form — with the caller's gap.
+ */
+function othersRow(others: ArrangeInput[], at: Pt, r: number, gap: number, awayFrom: number): ArrangeOutput[] {
+  if (others.length === 0) return [];
+  const a = (awayFrom + 180) * DEG;
+  return arrangeTargets(others, "row", { at: [at[0] + (r + 40) * Math.cos(a), at[1] + (r + 40) * Math.sin(a)], gap });
 }
 
 /**
@@ -127,8 +135,9 @@ function zipper(items: ArrangeInput[], at: Pt): ArrangeOutput[] {
  * at `start` degrees (counter-clockwise from +x) and each next one continues
  * where the previous ended — the angle-sum proof (three corners torn off
  * and set on a line make a half turn). Each piece is turned about its own
- * apex and slid so that apex lands on `at`. Non-sector targets line up in a
- * row above the fan.
+ * apex and slid so that apex lands on `at`; `gap` does not apply to the
+ * sectors (the proof needs them to touch). Non-sector targets line up in a
+ * row on the far side of `at` from the fan.
  */
 function fan(items: ArrangeInput[], at: Pt, start: number, gap: number): ArrangeOutput[] {
   const sectors = items.filter((i) => i.piece);
@@ -138,28 +147,29 @@ function fan(items: ArrangeInput[], at: Pt, start: number, gap: number): Arrange
     const half = i.piece!.halfAngle;
     const targetMid = angle + half;
     angle += 2 * half;
+    // A scale does not change a direction, so only the turn corrects midNow.
     const midNow = i.piece!.midAngle + (i.pose.turn?.deg ?? 0);
     return { id: i.id, rotate: shortestTurn(targetMid - midNow), pivotNow: i.piece!.apex, apexTo: at };
   });
-  if (others.length > 0) {
-    const r = Math.max(...sectors.map((i) => i.piece!.radius));
-    out.push(...arrangeTargets(others, "row", { at: [at[0], at[1] + r + 40], gap }));
-  }
+  const r = Math.max(...sectors.map((i) => i.piece!.radius));
+  out.push(...othersRow(others, at, r, gap, (start + angle) / 2));
   return out;
 }
 
 /**
  * A honeycomb: the first target sits at `at`, the next six around it, then
- * a ring of twelve, and so on — neighbours one flat-to-flat distance apart
- * (the smaller side of the first target's box, plus `gap`). A flat-topped
+ * a ring of twelve, and so on — neighbours one flat-to-flat distance apart:
+ * the smallest side of any target's box (so a turned or larger cell cannot
+ * open seams for the rest), plus `gap` (0 for a tight comb). A flat-topped
  * hexagon (wider than tall) has its neighbours at 30° + 60°k, a pointy-topped
- * one at 60°k; any other shape gets the pointy-top lattice.
+ * one at 60°k; any other shape gets the pointy-top lattice. Slots go in
+ * target order, so list the centre cell first.
  */
 function hex(items: ArrangeInput[], at: Pt, gap: number): ArrangeOutput[] {
   if (items.length === 0) return [];
   const w = items[0].box.w;
   const h = items[0].box.h;
-  const d = Math.min(w, h) + gap;
+  const d = Math.min(...items.map((i) => Math.min(i.box.w, i.box.h))) + gap;
   const base = w > h ? 30 : 0;
   const dir = (k: number): Pt => [Math.cos((base + 60 * k) * DEG), Math.sin((base + 60 * k) * DEG)];
   const positions: Pt[] = [at];

@@ -952,9 +952,10 @@ export class Player {
       case "point": {
         if (!this.effects) return;
         const effects = this.effects;
-        const [dx, dy] = step.refId ? before.offsets[step.refId] ?? [0, 0] : [0, 0];
-        const box: BBox | undefined = step.box && { x: step.box.x + dx, y: step.box.y + dy, w: step.box.w, h: step.box.h };
-        const path = pointerPath({ x: step.x + dx, y: step.y + dy, box }, step.gesture);
+        // The planner aimed at the element's CURRENT box (its pose applied),
+        // so nothing is added here — adding the offset again sent the laser
+        // twice as far for a moved element.
+        const path = pointerPath({ x: step.x, y: step.y, box: step.box }, step.gesture);
         try {
           await this.progress(step.seconds * 1000, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
         } finally {

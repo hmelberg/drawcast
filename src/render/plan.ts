@@ -471,7 +471,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           continue;
         }
         refId = at.ref;
-        if (kids.length === 0 && !visibleSet.has(at.ref)) warnings.push(`point target "${at.ref}" is not visible at that point`);
+        const invisible = kids.length > 0 ? !kids.some((k) => visibleSet.has(k)) : !visibleSet.has(at.ref);
+        if (invisible) warnings.push(`point target "${at.ref}" is not visible at that point`);
         // A pieces id points at the whole group: the box around every piece.
         const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(at.ref);
         if (b) {
@@ -586,11 +587,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (inputs.length === 0) continue;
       const at = cmd.arrange.at ? toLogical(cmd.arrange.at as Pt) : undefined;
-      const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap: cmd.arrange.gap ?? 6, columns: cmd.arrange.columns, start: cmd.arrange.start });
+      // A honeycomb is a zero-seam packing, so hex alone defaults to no gap.
+      const gap = cmd.arrange.gap ?? (cmd.arrange.layout === "hex" ? 0 : 6);
+      const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap, columns: cmd.arrange.columns, start: cmd.arrange.start });
       const items: TransformItem[] = [];
       // Attached labels ride along with a TRANSLATION, exactly as under move —
       // an arranged row of labeled shapes must not leave its labels behind.
-      // The zipper is a rotation about each apex and carries nothing: a label
+      // The zipper and the fan are rotations about each apex and carry nothing: a label
       // does not turn over with its slice. Dedupe across the whole loop, since
       // two targets can share one label (and attachedTo may repeat an id).
       const followers = (id: string): string[] => [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => known.has(f) && !ids.includes(f));

@@ -541,7 +541,7 @@ const commandSchema = {
         },
         at: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Centre the arrangement here (same units as move.by) — e.g. \"at\": [650, 375] builds it in the right half of the canvas; for fan it is the shared apex. Default: the targets' current centroid." },
         start: { type: "number", description: "fan: the angle where the first piece begins, degrees counter-clockwise from +x — e.g. \"start\": 0 lays the angles along a horizontal line rightwards (default 0)." },
-        gap: { type: "number", description: "Space between neighbours in logical units (default 6) — e.g. \"gap\": 20 for an airy row." },
+        gap: { type: "number", description: "Space between neighbours in logical units (default 6; hex defaults to 0 for a tight comb) — e.g. \"gap\": 20 for an airy row. fan's sectors always touch; gap applies only to non-sector targets there." },
         columns: { type: "integer", minimum: 1, description: "grid: pieces per row — e.g. \"columns\": 4 lays twelve pieces out four wide." },
         duration: { type: "number", description: "Seconds (default 2)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },

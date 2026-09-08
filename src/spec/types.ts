@@ -308,7 +308,7 @@ export interface Command {
   point?: PointArgs;
   /** Translate elements by a delta or along a path of offsets. */
   move?: MoveArgs;
-  /** Lay elements out (row / zipper / grid / ring / stack) and animate them
+  /** Lay elements out (row / zipper / fan / grid / ring / hex / stack) and animate them
    *  there — every position and turn computed from the targets' geometry. */
   arrange?: ArrangeArgs;
   /** Persistently dim elements (or restore with to: 1); attached labels fade with them. */
