@@ -350,7 +350,7 @@ export interface AskArgs {
    *  piano = press a key on the drawn keyboard (answer = the note, e.g. "C4");
    *  chess = click two squares (answer = the move, e.g. "e2e4");
    *  code = write a script on a code panel (implied by `code`). Requires answer. */
-  widget?: "click" | "piano" | "chess" | "code" | "drag";
+  widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
   /** drag widget: what to drag onto the figure — element ids, notes (piano) or
    *  squares (chess), each with an optional label (default: the id humanised).
    *  The answer is implied (all of them); `right` is required. */

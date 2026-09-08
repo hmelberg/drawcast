@@ -890,10 +890,7 @@ function semanticErrors(spec: Spec): string[] {
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
-      // `AskArgs.widget` in spec/types.ts is not widened for "connect" yet — later
-      // tasks wire the widget into planning/UI and touch that type then. Compare
-      // through `unknown` here so this schema-only check does not force that.
-      const isConnect = (a.widget as unknown as string) === "connect";
+      const isConnect = a.widget === "connect";
       if (!isDrag && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }

@@ -183,7 +183,7 @@ export interface AskGateStep {
   answer?: string;
   retry: boolean;
   required: boolean;
-  widget?: "click" | "piano" | "chess" | "code" | "drag";
+  widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
   /** drag widget: the chips, in order. */
   items?: { id: string; label: string; element: boolean }[];
   tolerance?: number;

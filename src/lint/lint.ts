@@ -318,10 +318,7 @@ export function lintLayoutDetailed(
   // have none, and every one of them must pay nothing for this pass.
   const connectAsks: { i: number; answer: string }[] = [];
   (commands ?? []).forEach((c, i) => {
-    // `AskArgs.widget` in spec/types.ts is not widened for "connect" yet
-    // (schema.ts's own validation compares the same way, through `unknown`).
-    const widget = c.ask?.widget as unknown as string | undefined;
-    if (widget === "connect" && typeof c.ask?.answer === "string") connectAsks.push({ i, answer: c.ask.answer });
+    if (c.ask?.widget === "connect" && typeof c.ask?.answer === "string") connectAsks.push({ i, answer: c.ask.answer });
   });
   if (connectAsks.length > 0) {
     const leafBoxes = new Map<string, BBox>();
