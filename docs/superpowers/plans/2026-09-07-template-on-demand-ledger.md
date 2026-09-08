@@ -255,3 +255,28 @@ Open (from the same smoke, not built): the router's precision in Norwegian
 freehand cases in the bench so it can be measured; the generation log
 records no route, so after the fact only the status line ever said what
 the router offered.
+
+## 2026-09-09 — the automatic path never ran (Hans's status line)
+
+Hans pasted the status he got with the checkbox on: "An AI call is still
+running — wait for it to finish before authoring a template." That is
+`blockedByAi` inside `authorTemplateAndRedraw`, and generate() AWAITED that
+function from inside its own try — while `aiBusy` was still true from
+`setAiBusy(true, controller)` at the top of generate(). So the automatic
+single-figure path refused itself on every run since it was added
+(2026-09-07 evening); only the OFFER path — clicked after the generation had
+ended — ever authored a template (the sailboat E2E went through the offer).
+Yesterday's "I think it generated a template" was this refusal; the
+freehand he pasted was simply the generation's result.
+
+Fix: generate() decides inside the try (`authorNext = () => …`) and runs it
+after the finally has released the busy flag; authoring is its own AI span
+with its own controller and Cancel, exactly like the offer. The freehand
+result is on screen and in history first, then the status switches to
+"Authoring a template". `blockedByAi` stays in authorTemplateAndRedraw —
+the offer clicked during another call must still be refused.
+
+Test: tests/on-demand-auto-path.test.ts pins the SOURCE (no DOM in vitest):
+generate() never awaits authorTemplateAndRedraw; the deferred call sits
+after the last `setAiBusy(false)`; the guard remains. Not live-smoked — the
+path after the fix is the offer path, which was.

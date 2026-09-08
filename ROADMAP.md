@@ -177,6 +177,15 @@ call).
    measures none_fits on six English cases only), and the generation log
    does not record the route, so what the router said is visible only in
    the status line.
+   **The automatic path never ran (2026-09-09, same smoke).** With the
+   checkbox on, generate() awaited `authorTemplateAndRedraw` from inside its
+   own busy span, and that function's `blockedByAi` guard refused it every
+   time ("An AI call is still running — wait for it to finish before
+   authoring a template"). Only the offer, clicked after a generation had
+   ended, ever authored. Now generate() decides inside its try and runs the
+   authoring after the finally has released the busy flag, as its own span
+   with its own Cancel. Pinned at source level by
+   tests/on-demand-auto-path.test.ts.
 4. **Next — sharing: the community pack.** A template one user got
    authored on demand becomes available to everyone, with a review in
    between. Design (2026-09-07, Hans's defaults):

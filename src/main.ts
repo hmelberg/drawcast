@@ -3114,6 +3114,13 @@ async function generate(): Promise<void> {
   const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
   const controller = new AbortController();
   setAiBusy(true, controller);
+  // Template on demand, automatic: decided inside the try, RUN after the
+  // finally below has released the busy flag. authorTemplateAndRedraw is its
+  // own AI span (own controller, own Cancel) and refuses to start while a
+  // call is marked busy — awaited from inside this try it refused every time
+  // ("An AI call is still running — wait for it to finish before authoring a
+  // template", Hans 2026-09-09), so the automatic path never ran.
+  let authorNext: (() => Promise<void>) | null = null;
   try {
     if (parsed.playlist) {
       await generateMulti(rawRequest, parsed, brief, apiKey, forcedTemplate, priorityIds, controller.signal);
@@ -3180,7 +3187,7 @@ async function generate(): Promise<void> {
     if (templateWorthy(outcome.spec)) {
       const freehand = outcome.spec;
       if (settings.templatesOnDemand) {
-        await authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
+        authorNext = () => authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
       } else {
         setStatusAction("No scene template draws this figure, so it was drawn freehand.", "Author a template and redraw (~4 min)", () => {
           void authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
@@ -3194,6 +3201,8 @@ async function generate(): Promise<void> {
     endSpecStream(true);
     setAiBusy(false);
   }
+  // The freehand result is on screen and in history; authoring starts as its own span.
+  if (authorNext) await authorNext();
 }
 
 /**
