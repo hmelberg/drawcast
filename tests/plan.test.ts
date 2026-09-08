@@ -142,15 +142,28 @@ describe("move", () => {
     });
     expect(plan.states[1].offsets.demand_curve).toEqual([200, 150]);
   });
-  test("attached labels follow a translation but not a rotation", () => {
+  test("attached labels ride a rotation by their own box centre — the label's own turn stays undefined (design §2.2)", () => {
+    // demand_curve's box is {0,0,10,10} (centre 5,5) — its own default pivot,
+    // since no explicit pivot is given. label_D's box is DISTINCT ({15,0,10,10},
+    // centre 20,5) so its centre sits off that pivot and the rotation actually
+    // displaces it — a same-box fixture here would make the box-centre rule and
+    // the old pure-translation rule agree by coincidence and prove nothing.
+    const boxes: Record<string, { x: number; y: number; w: number; h: number }> = { demand_curve: { x: 0, y: 0, w: 10, h: 10 }, label_D: { x: 15, y: 0, w: 10, h: 10 } };
     const plan = planCommands(
-      [{ draw: ["demand_curve", "label_D"] }, { move: { target: ["demand_curve"], by: [10, 0], rotate: 45 } }],
+      [{ draw: ["demand_curve", "label_D"] }, { move: { target: ["demand_curve"], by: [10, 0], rotate: 90 } }],
       allIds,
-      { bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }), attachedTo: (id) => (id === "demand_curve" ? ["label_D"] : []) },
+      { bboxOf: (id) => boxes[id], attachedTo: (id) => (id === "demand_curve" ? ["label_D"] : []) },
     );
-    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+    expect(plan.states[1].turns.demand_curve?.deg).toBe(90);
+    // demand_curve's own centre IS its pivot, so its offset is just the translation.
+    expect(plan.states[1].offsets.demand_curve).toEqual([10, 0]);
+    // label_D's centre (20,5), relative to the pivot (5,5), is v=(15,0); a 90°
+    // turn sends v to (0,15) (rotateVec is [-y,x] at 90°); adding the pivot (5,5)
+    // and the translation (10,0) lands it at (15,20) — a [-5,15] displacement
+    // from its untouched start (20,5). The old pure-translation rule would have
+    // given [10,0]: this is nowhere close, so the test actually distinguishes them.
+    expect(plan.states[1].offsets.label_D).toEqual([-5, 15]);
     expect(plan.states[1].turns.label_D).toBeUndefined();
-    expect(plan.states[1].turns.demand_curve?.deg).toBe(45);
   });
   test("move with neither by, to, path nor rotate is skipped with a warning", () => {
     const plan = planCommands([{ move: { target: ["axes"] } }], ["axes"]);
