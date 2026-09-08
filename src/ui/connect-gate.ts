@@ -83,7 +83,8 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         resolve(null);
         return;
       }
-      const key = connectKey(leafDrawables(hd.layout.drawables), elementBBoxes(hd.layout, makeBrowserMeasure()), answer);
+      const layout = hd.timeline.paintedLayout() ?? hd.layout;
+      const key = connectKey(leafDrawables(layout.drawables), elementBBoxes(layout, makeBrowserMeasure()), answer);
       // The ONE decision left to the model — lint already refused this
       // figure at compile time, and a viewer must never meet a question
       // that cannot be won.
