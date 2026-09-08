@@ -77,13 +77,19 @@ const distToSegment = (p: Pt, a: Pt, b: Pt): number => {
 export function edgeAt(p: Pt, drawn: readonly ConnectEdge[], stars: readonly ConnectStar[], tol: number): ConnectEdge | null {
   const at = new Map(stars.map((s) => [s.id, s.at] as const));
   let best: ConnectEdge | null = null;
-  let bestD = tol;
+  let bestD = Infinity;
   for (const e of drawn) {
     const a = at.get(e[0]);
     const b = at.get(e[1]);
     if (!a || !b) continue;
     const d = distToSegment(p, a, b);
-    if (d <= bestD) {
+    if (d > tol) continue;
+    // Strictly less, same direction as snapStar's tie-break: the FIRST
+    // segment within tol wins a tie rather than the last one drawn. Real
+    // click geometry never lands exactly equidistant from two drawn
+    // segments, so nothing exercises this — it's a consistency choice
+    // between this function and its neighbour, not a load-bearing one.
+    if (d < bestD) {
       bestD = d;
       best = e;
     }

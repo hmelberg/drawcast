@@ -29,6 +29,15 @@ describe("edges", () => {
     expect(one).toEqual([["a", "b"]]);
     expect(toggleEdge(one, makeEdge("b", "a"))).toEqual([]);
   });
+  it("never mutates its input — the gate holds this same array across pointer events", () => {
+    const input = [makeEdge("a", "b")];
+    toggleEdge(input, makeEdge("b", "c")); // an add
+    expect(input.length).toBe(1);
+    expect(input).toEqual([["a", "b"]]);
+    toggleEdge(input, makeEdge("a", "b")); // a remove
+    expect(input.length).toBe(1);
+    expect(input).toEqual([["a", "b"]]);
+  });
   it("finds the segment under a click, and nothing off it", () => {
     const drawn = [makeEdge("a", "b")];
     expect(edgeAt([5, 0.5], drawn, stars, 2)).toEqual(["a", "b"]);
