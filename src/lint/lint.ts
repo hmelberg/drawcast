@@ -10,6 +10,8 @@ import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
 import { resolveGame } from "../code/c64-catalogue";
 import { scanDataTokens } from "../code/tokens";
+import { connectKey } from "../render/widgets";
+import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 
 export const FONT_FLOOR = 14;
 /** The floor for the Commodore 64 face: a pixel glyph the size of its cell. */
@@ -32,10 +34,18 @@ export interface LintIssue {
     | "source-use"
     | "code-use"
     /** params measured against the template's own params_schema, not the wire schema. */
-    | "template-params";
+    | "template-params"
+    /** a connect question the viewer cannot win, or one that is unfair given what has (not) been drawn yet */
+    | "connect";
   ids: string[];
   message: string;
   severity: "warn" | "error";
+}
+
+/** `draw`/`show`/`erase`/`hide`/`clear.keep` all take either a single id or a
+ *  list — this is the one place that difference is normalised away. */
+function idsOf(raw: string[] | string | undefined): string[] {
+  return typeof raw === "string" ? [raw] : raw ?? [];
 }
 
 /**
@@ -59,7 +69,7 @@ export function coVisible(commands: Command[] | undefined, allIds: string[]): (a
     const list = [...visible];
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) pairs.add(key(list[i], list[j]));
   };
-  const ids = (raw: string[] | string | undefined): string[] => (typeof raw === "string" ? [raw] : raw ?? []);
+  const ids = idsOf;
   for (const c of commands) {
     const revealed = [...ids(c.draw), ...ids(c.show)];
     if (revealed.length > 0) {
@@ -85,6 +95,32 @@ export function coVisible(commands: Command[] | undefined, allIds: string[]): (a
   for (const id of allIds) if (!managed.has(id)) visible.add(id);
   snapshot();
   return (a, b) => a === b || pairs.has(key(a, b));
+}
+
+/**
+ * Whether `id` is already on screen right before `commands[askIndex]` fires —
+ * the same little state machine `coVisible` runs (draw/show reveal;
+ * erase/hide/clear conceal; an id no command ever manages counts as visible
+ * from the start), but read at one moving point in the timeline instead of
+ * folded into an all-pairs table. This is what makes an exact connect key
+ * honest (spec §6.3): a viewer asked cold to draw a constellation is graded
+ * against one publisher's convention, but a viewer who watched the figure
+ * drawn earlier in the cast is asked to remember a shape they just saw —
+ * which is the exercise.
+ */
+function visibleBeforeAsk(commands: Command[], askIndex: number, id: string): boolean {
+  const touched = commands.some(
+    (c) => idsOf(c.draw).includes(id) || idsOf(c.show).includes(id) || idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id),
+  );
+  if (!touched) return true; // never managed anywhere in the cast: visible from the start
+  let visible = false;
+  for (let i = 0; i < askIndex; i++) {
+    const c = commands[i];
+    if (idsOf(c.draw).includes(id) || idsOf(c.show).includes(id)) visible = true;
+    if (idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id)) visible = false;
+    if (c.clear !== undefined && visible && !idsOf(c.clear.keep).includes(id)) visible = false;
+  }
+  return visible;
 }
 
 /**
@@ -227,6 +263,67 @@ export function lintLayoutDetailed(
           rule: "overlap-label-stroke",
           ids: [t.id, s.id],
           message: `label "${t.id}" ("${t.text}") sits on stroke "${s.id}" — move it to a different side`,
+          severity: "warn",
+        });
+      }
+    }
+  }
+
+  // connect: refuse a constellation question the viewer cannot win, and —
+  // independently — one that is unfair given what has (not) been drawn yet.
+  // Built lazily, only when a connect ask is actually present: most figures
+  // have none, and every one of them must pay nothing for this pass.
+  const connectAsks: { i: number; answer: string }[] = [];
+  (commands ?? []).forEach((c, i) => {
+    // `AskArgs.widget` in spec/types.ts is not widened for "connect" yet
+    // (schema.ts's own validation compares the same way, through `unknown`).
+    const widget = c.ask?.widget as unknown as string | undefined;
+    if (widget === "connect" && typeof c.ask?.answer === "string") connectAsks.push({ i, answer: c.ask.answer });
+  });
+  if (connectAsks.length > 0) {
+    const leafBoxes = new Map<string, BBox>();
+    for (const d of leaves) {
+      if (d.kind === "text") leafBoxes.set(d.id, bboxOfText(d, measure));
+      else if (d.kind === "image") leafBoxes.set(d.id, { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h });
+      else if (d.pts.length > 0) leafBoxes.set(d.id, bboxOfPts(d.pts));
+    }
+    for (const { i, answer } of connectAsks) {
+      const prefix = `${answer}__`;
+      const drawnHere = leaves.some((d) => d.id === answer || d.id.startsWith(prefix));
+      const key = connectKey(leaves, leafBoxes, answer);
+      // At most one of these four — a figure that is not drawn has no edges
+      // either, and saying both is noise — in the table's own order.
+      if (!drawnHere) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: "${answer}" is not drawn in this figure — a connect question needs focus on that constellation`,
+          severity: "warn",
+        });
+      } else if (key.edges.length === 0) {
+        issues.push({ rule: "connect", ids: [answer], message: `connect: "${answer}" has no lines to draw`, severity: "warn" });
+      } else if (key.unmatched > 0) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: ${key.unmatched} of "${answer}"'s points have no star to join — the figure cannot be drawn as it stands`,
+          severity: "warn",
+        });
+      } else if (key.edges.length > CONNECT_MAX_EDGES) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: "${answer}" has ${key.edges.length} lines; the cap is ${CONNECT_MAX_EDGES} (Orion's) — ask which constellation it is instead`,
+          severity: "warn",
+        });
+      }
+      // Reported independently of the four above: a figure can be perfectly
+      // drawable and the question still unfair.
+      if (!visibleBeforeAsk(commands ?? [], i, answer)) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: "${answer}" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
           severity: "warn",
         });
       }
