@@ -1273,6 +1273,57 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   animation: none;
 }
 
+/* The connect question: press a star and drag to the next (or tap one, then
+   tap another — the two-tap path, for touch) to join them; a click on a
+   drawn segment removes it. The overlay is client-pixel SVG on top of the
+   figure, whose own lines the gate hides for the question's duration. */
+.cs-connectgate { cursor: crosshair; }
+.cs-connect-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Empty space falls through to the gate's own pointer handlers; only a
+     drawn segment is its own hit target, so a click can land ON it. */
+  pointer-events: none;
+}
+.cs-connect-star {
+  fill: var(--surface);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.cs-connect-star.armed { fill: var(--steel); stroke: var(--steel); }
+.cs-connect-line {
+  stroke: var(--steel);
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: stroke;
+}
+.cs-connect-line.right { stroke: var(--ok); }
+.cs-connect-line.wrong { stroke: var(--loss); }
+.cs-connect-band {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.cs-connect-counter,
+.cs-connect-summary {
+  position: absolute;
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: none;
+}
+.cs-connect-done {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 1rem;
+  pointer-events: auto;
+}
+
 /* Info card: name + summary + actions at the pointer, over the paused figure. */
 .cs-infocard {
   position: absolute;
