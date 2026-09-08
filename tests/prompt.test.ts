@@ -43,6 +43,12 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("scatter_plot");
     expect(compilerV1).toContain("line_chart");
   });
+
+  test("the action-verb inventory lists flip", () => {
+    const line = compilerV1.split("\n").find((l) => l.includes("Each command sets ONE action verb"));
+    expect(line).toBeDefined();
+    expect(line).toMatch(/`flip`/);
+  });
 });
 
 describe("buildSystemPrompt", () => {

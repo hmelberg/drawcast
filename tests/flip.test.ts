@@ -36,6 +36,10 @@ describe("flip planning", () => {
     const spec = { elements: [{ id: "tri", type: "polygon", points: [[0, 0], [10, 0], [0, 10]] }], commands: [{ flip: { target: ["tri"], axis: "horizontal" }, speak: "Mirror it." }] };
     expect(validateSpec(spec as never).ok).toBe(true);
   });
+  test("a bare-string target validates (the pieces-id form)", () => {
+    const spec = { elements: [{ id: "tri", type: "polygon", points: [[0, 0], [10, 0], [0, 10]] }], commands: [{ flip: { target: "tri", axis: "horizontal" } }] };
+    expect(validateSpec(spec as never).ok).toBe(true);
+  });
 });
 
 describe("mirror and squash in the SVG transform", () => {

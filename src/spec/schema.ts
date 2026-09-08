@@ -819,6 +819,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.arrange) cmd.arrange.target = toList(cmd.arrange.target)!;
     // fade's target follows the same one-or-many convention as arrange/move.
     if (cmd.fade) cmd.fade.target = toList(cmd.fade.target)!;
+    // flip's target follows the same one-or-many convention as fade/arrange/move.
+    if (cmd.flip) cmd.flip.target = toList(cmd.flip.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
