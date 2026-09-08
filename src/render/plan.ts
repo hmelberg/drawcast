@@ -82,6 +82,18 @@ export type PlanStep = (
   | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
   | { kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing }
+  | {
+      kind: "flow";
+      ids: string[];
+      seconds: number;
+      speed: number;
+      spacing: number;
+      marks: "dots" | "dashes";
+      color?: string;
+      reverse: boolean;
+      /** Narrated with no explicit duration: run in cycles until the voice ends. */
+      untilNarrationEnd?: boolean;
+    }
   | { kind: "camera"; box: BBox | null; seconds: number }
   | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string> }
   | {
@@ -426,7 +438,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return out;
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -910,6 +922,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (items.length === 0) continue;
       pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out" });
+    } else if (cmd.flow !== undefined) {
+      const ids = resolveIds(cmd.flow.along, "flow");
+      if (ids.length === 0) continue;
+      for (const id of ids) if (!visibleSet.has(id)) warnings.push(`flow target "${id}" is not visible at that point`);
+      pushStep({
+        kind: "flow",
+        ids,
+        seconds: cmd.flow.duration ?? 3,
+        speed: cmd.flow.speed ?? 120,
+        spacing: cmd.flow.spacing ?? 24,
+        marks: cmd.flow.kind ?? "dots",
+        color: cmd.flow.color,
+        reverse: cmd.flow.reverse === true,
+        ...(cmd.flow.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
+      });
     } else if (cmd.fade !== undefined) {
       const ids = resolveIds(cmd.fade.target, "fade");
       if (ids.length === 0) continue;

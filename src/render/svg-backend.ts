@@ -22,7 +22,7 @@ import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
-import type { BackendEffects, BackendModule, MountResult, RenderedElement, Squash } from "./backend";
+import type { BackendEffects, BackendModule, FlowOpts, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
@@ -814,6 +814,7 @@ function makeEffects(
   rc: RoughSVG | null,
 ): BackendEffects {
   const active = new Map<string, HighlightNodes>();
+  const flows = new Map<string, SVGPathElement[]>();
   const keyOf = (ids: string[]) => ids.join("|");
   let pointer: SVGGElement | null = null;
 
@@ -891,6 +892,42 @@ function makeEffects(
       for (const id of dimIds) {
         for (const { g } of leafNodes.get(id) ?? []) g.style.removeProperty("opacity");
       }
+    },
+
+    setFlow(ids: string[], o: FlowOpts, frame: { travelled: number; alpha: number }): void {
+      const key = keyOf(ids);
+      let paths = flows.get(key);
+      if (!paths) {
+        paths = [];
+        for (const id of ids) {
+          for (const { g, leaf } of leafNodes.get(id) ?? []) {
+            if (leaf.kind !== "stroke" || leaf.pts.length < 2 || leaf.shapeHint) continue;
+            const p = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+            p.setAttribute("d", pathFromPts(leaf.pts, leaf.closed));
+            p.setAttribute("fill", "none");
+            p.setAttribute("stroke", o.color ?? leaf.style.color);
+            p.setAttribute("stroke-linecap", "round");
+            p.setAttribute("stroke-width", o.marks === "dots" ? "7" : "4");
+            p.setAttribute("stroke-dasharray", o.marks === "dots" ? `0.1 ${o.spacing}` : `${o.spacing / 2} ${o.spacing / 2}`);
+            p.style.pointerEvents = "none";
+            g.appendChild(p); // inside the leaf's own group: inherits the element's pose and fade
+            paths.push(p);
+          }
+        }
+        flows.set(key, paths);
+      }
+      const phase = frame.travelled % o.spacing;
+      const offset = o.reverse ? phase : -phase;
+      for (const p of paths) {
+        p.setAttribute("stroke-dashoffset", offset.toFixed(2));
+        p.setAttribute("opacity", (0.95 * Math.max(0, Math.min(1, frame.alpha))).toFixed(3));
+      }
+    },
+
+    endFlow(ids: string[]): void {
+      const key = keyOf(ids);
+      for (const p of flows.get(key) ?? []) p.remove();
+      flows.delete(key);
     },
 
     setPointer(p: Pt | null): void {

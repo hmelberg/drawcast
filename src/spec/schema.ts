@@ -308,7 +308,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / flow / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -631,6 +631,22 @@ const commandSchema = {
       required: ["target"],
       additionalProperties: false,
     },
+    flow: {
+      type: "object",
+      description:
+        "Something STREAMS along strokes while the sentence lands — money round the circular flow, current in a circuit, blood, water, traffic, infection along a contact: {\"flow\": {\"along\": [\"wages\", \"spending\"]}, \"speak\": \"Money circulates…\"}. Transient like highlight; with a paired speak and no duration it runs until the voice ends. \"reverse\": true streams the other way; \"kind\": \"dashes\" for a pulse rather than particles.",
+      properties: {
+        along: idListSchema("Stroke element ids to stream along (arrows, edges, paths, curves, arcs)."),
+        duration: { type: "number", description: "Seconds (default 3; omit with a paired speak to hold until the voice ends)." },
+        speed: { type: "number", exclusiveMinimum: 0, description: "Logical units per second (default 120) — 40 reads as a trickle, 300 as a rush." },
+        spacing: { type: "number", exclusiveMinimum: 0, description: "Units between marks (default 24)." },
+        kind: { type: "string", enum: ["dots", "dashes"], description: "dots = particles (default); dashes = a moving pulse." },
+        color: { type: "string", description: "Mark colour (default: the stroke's own)." },
+        reverse: { type: "boolean", description: "Stream from the stroke's end to its start." },
+      },
+      required: ["along"],
+      additionalProperties: false,
+    },
     camera: {
       type: "object",
       description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
@@ -852,6 +868,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.flip) cmd.flip.target = toList(cmd.flip.target)!;
     // morph's target follows the same one-or-many convention as fade/arrange/move/flip.
     if (cmd.morph) cmd.morph.target = toList(cmd.morph.target)!;
+    // flow's along follows the same one-or-many convention as morph's target.
+    if (cmd.flow) cmd.flow.along = toList(cmd.flow.along)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -891,7 +909,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

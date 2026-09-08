@@ -15,6 +15,17 @@ import type { Turn } from "./pose";
  *  per-frame prefix in CURRENT coordinates — never part of a settled pose. */
 export interface Squash { at: Pt; angle: number; k: number }
 
+/** flow's per-frame options — stable across a step, distinct from the frame's `travelled`/`alpha`. */
+export interface FlowOpts {
+  /** Units between marks. */
+  spacing: number;
+  marks: "dots" | "dashes";
+  /** Default: the stroke's own colour. */
+  color?: string;
+  /** Stream from the stroke's end to its start. */
+  reverse: boolean;
+}
+
 export interface RenderedElement {
   id: string;
   /** Intrinsic animation duration in ms (0 = instant). */
@@ -65,6 +76,14 @@ export interface BackendEffects {
   setFocus?(dimIds: string[], alpha: number): void;
   /** Restore any leftover dim (abort/scrub safety). */
   endFocus?(dimIds: string[]): void;
+  /**
+   * Marks streaming along the ids' strokes: `travelled` is the distance
+   * covered so far (logical units), `alpha` the ramp (0–1). Stateless per
+   * frame; endFlow removes the overlays.
+   */
+  setFlow?(ids: string[], opts: FlowOpts, frame: { travelled: number; alpha: number }): void;
+  /** Remove any leftover flow overlays for these ids (abort/scrub safety). */
+  endFlow?(ids: string[]): void;
   /** Show the laser dot at a logical y-up point; null hides it. */
   setPointer(p: Pt | null): void;
   /** Jump the camera to a logical y-up viewBox; null = full canvas. */

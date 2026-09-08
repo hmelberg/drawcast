@@ -952,6 +952,31 @@ export class Player {
         }
         return;
       }
+      case "flow": {
+        const effects = this.effects;
+        if (!effects?.setFlow) return;
+        const o = { spacing: step.spacing, marks: step.marks, color: step.color, reverse: step.reverse };
+        const paint = (elapsedMs: number, alpha: number) => effects.setFlow!(step.ids, o, { travelled: (elapsedMs / 1000) * step.speed, alpha });
+        try {
+          if (step.untilNarrationEnd && this.narrationVoice) {
+            let speaking = true;
+            void this.narrationVoice.finally(() => (speaking = false));
+            let base = 0;
+            const CYCLE = 1000;
+            while (speaking && !signal.aborted) {
+              await this.progress(CYCLE, signal, (t) => paint(base + t * CYCLE, Math.min(1, (base + t * CYCLE) / 300)));
+              base += CYCLE;
+            }
+            if (!signal.aborted) await this.progress(300, signal, (t) => paint(base + t * 300, 1 - t));
+          } else {
+            const ms = step.seconds * 1000;
+            await this.progress(ms, signal, (t) => paint(t * ms, Math.min(1, t / 0.1, (1 - t) / 0.1)));
+          }
+        } finally {
+          effects.endFlow?.(step.ids);
+        }
+        return;
+      }
       case "point": {
         if (!this.effects) return;
         const effects = this.effects;

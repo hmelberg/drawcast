@@ -294,6 +294,22 @@ export interface MorphArgs {
   easing?: Easing;
 }
 
+export interface FlowArgs {
+  /** Stroke element ids the marks stream along (arrow, edge, path, curve, arc, template strokes). */
+  along: string[] | string;
+  /** Seconds (default 3; with a paired speak and no duration: until the voice ends). */
+  duration?: number;
+  /** Logical units per second (default 120). */
+  speed?: number;
+  /** Units between marks (default 24). */
+  spacing?: number;
+  kind?: "dots" | "dashes";
+  /** Default: the element's own colour. */
+  color?: string;
+  /** Stream from the stroke's end to its start. */
+  reverse?: boolean;
+}
+
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
@@ -357,6 +373,8 @@ export interface Command {
   flip?: FlipArgs;
   /** Tween an outline to new points, another outline, or a stretch. */
   morph?: MorphArgs;
+  /** Dots or dashes streaming along strokes while the sentence lands. */
+  flow?: FlowArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths

@@ -63,6 +63,9 @@ function mentionedIds(spec: Spec): string[] {
       if (v && typeof v === "object") add((v as Record<string, unknown>).target);
       else add(v);
     }
+    // flow's ids sit under `along`, not `target` like the verbs above.
+    const flow = c.flow;
+    if (flow && typeof flow === "object") add((flow as Record<string, unknown>).along);
     const clear = c.clear;
     if (clear && typeof clear === "object") add((clear as Record<string, unknown>).keep);
     // Verbs that name ONE element under a nested ref: point.at.ref, camera.center.ref.

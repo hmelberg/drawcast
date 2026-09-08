@@ -116,6 +116,11 @@ describe("validateSpec — gesture verbs", () => {
     expect(r.ok).toBe(true);
   });
 
+  test("accepts a bare-string flow.along", () => {
+    const r = validateSpec({ ...base, commands: [{ flow: { along: "wire" } }] });
+    expect(r.ok).toBe(true);
+  });
+
   test("rejects two action verbs on one command", () => {
     const r = validateSpec({ ...base, commands: [{ hide: ["a"], show: ["b"] }] });
     expect(r.ok).toBe(false);

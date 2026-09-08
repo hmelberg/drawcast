@@ -44,11 +44,12 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("line_chart");
   });
 
-  test("the action-verb inventory lists flip and morph", () => {
+  test("the action-verb inventory lists flip, morph and flow", () => {
     const line = compilerV1.split("\n").find((l) => l.includes("Each command sets ONE action verb"));
     expect(line).toBeDefined();
     expect(line).toMatch(/`flip`/);
     expect(line).toMatch(/`morph`/);
+    expect(line).toMatch(/`flow`/);
   });
 });
 
