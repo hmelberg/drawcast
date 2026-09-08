@@ -1308,32 +1308,38 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   opacity: 0.6;
   pointer-events: none;
 }
-/* Stacked above the shared .cs-figgate-hint (bottom: 1.1rem) so the two read
-   as two lines, not one collision, while both stand at once. */
-.cs-connect-counter {
+/* Bottom bar: Done (left), the status stack (center), Skip (right) — one
+   flex row, not three independently absolutely-positioned pills nudged by
+   hand to not collide at some particular viewport width. justify-content
+   pushes Done and Skip to the ends; the status stack takes what's left
+   (min-width: 0 lets it actually shrink/wrap instead of overflowing), so a
+   long hint runs into its OWN space, never under a button, at any width. */
+.cs-connect-bar {
   position: absolute;
-  bottom: 2.7rem;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0.9rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem;
   pointer-events: none;
-  animation: none;
 }
-/* The hint and the counter are both gone by the time this shows (finish()
-   removes/hides them), so the summary alone takes the standard hint spot. */
-.cs-connect-summary {
-  position: absolute;
-  bottom: 1.1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-  animation: none;
+.cs-connect-bar > * { pointer-events: auto; }
+.cs-connect-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
 }
-.cs-connect-done {
-  position: absolute;
-  bottom: 1.2rem;
-  left: 1rem;
-  pointer-events: auto;
-}
+/* Every pill in the stack is static by default (a counter that updates
+   every tap shouldn't bob); the hint alone keeps the shared nudge, the same
+   attention cue every other figgate's hint uses while it waits. */
+.cs-connect-status .cs-waitgate-pill { animation: none; }
+.cs-connect-hint { animation: waitgate-nudge 1.6s ease-in-out infinite; }
 
 /* Info card: name + summary + actions at the pointer, over the paused figure. */
 .cs-infocard {

@@ -122,7 +122,7 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
 
       const hint = h(
         "span",
-        { class: "cs-waitgate-pill cs-figgate-hint" },
+        { class: "cs-waitgate-pill cs-connect-hint" },
         "Press a star and drag to the next. Click a line to remove it ▸",
       );
       const counter = h("span", { class: "cs-waitgate-pill cs-connect-counter" }, connectProgress(0, key.edges.length));
@@ -130,7 +130,13 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       summary.hidden = true;
       const doneBtn = h("button", { class: "cs-cardgate-pill ok cs-connect-done" }, "Done ▸");
       let skip: HTMLButtonElement | undefined;
-      const gate = h("div", { class: "cs-figgate cs-connectgate" }, ink, counter, summary, hint, doneBtn);
+      // One flex row — Done, the status stack, Skip — rather than three
+      // independently absolutely-positioned pills nudged by hand: a layout
+      // that cannot let a long hint run under a button, at any width,
+      // instead of numbers tuned to not collide today.
+      const status = h("div", { class: "cs-connect-status" }, counter, hint, summary);
+      const bar = h("div", { class: "cs-connect-bar" }, doneBtn, status);
+      const gate = h("div", { class: "cs-figgate cs-connectgate" }, ink, bar);
 
       // Every point drawn in the overlay goes through clientPointFor — the
       // star positions (already logical) and, for the live rubber band, a
@@ -199,16 +205,38 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         bandLine.style.display = "";
       };
 
-      const onResize = (): void => {
+      const remeasure = (): void => {
         positionStars();
         renderMarks();
         updateBand();
       };
-      window.addEventListener("resize", onResize);
+      // A ResizeObserver on the stage, the pattern panel-view.ts already
+      // uses for exactly this (its own paintVeil): it fires on a window
+      // resize (which resizes the stage too, subsuming the plain listener),
+      // AND on anything that resizes the stage without resizing the window —
+      // a panel opening, a caption reflowing when a webfont lands, a CSS
+      // transition, a viewBox change — none of which self-heal any other
+      // way, since positionStars() is no longer called on every pointermove.
+      // It also fires the FIRST time the stage gets a non-zero size, which
+      // rescues a gate that opened while the stage measured zero (a hidden
+      // tab, the same frame the figure appears): positionStars() finds real
+      // numbers, not an empty cache stuck for the question's whole life.
+      let stopObserving: () => void;
+      if (typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(remeasure);
+        ro.observe(stage);
+        stopObserving = () => ro.disconnect();
+      } else {
+        // No ResizeObserver in this runtime (this repo's own vitest, or a
+        // very old browser): the plain window listener is the fallback it
+        // would otherwise subsume, not a belt-and-braces kept alongside it.
+        window.addEventListener("resize", remeasure);
+        stopObserving = () => window.removeEventListener("resize", remeasure);
+      }
 
       const remove = (): void => {
         signal.removeEventListener("abort", onAbort);
-        window.removeEventListener("resize", onResize);
+        stopObserving();
         restoreLines();
         gate.remove();
       };
@@ -263,8 +291,9 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         // here would retarget their own "click" listener's event to `gate`
         // instead of the button per the pointer-capture spec's compatibility
         // mouse events — silently breaking Done and Skip. Leave button
-        // presses to the buttons.
-        if (e.target instanceof HTMLButtonElement) return;
+        // presses to the buttons. `closest`, not a same-element check: a
+        // label or an icon wrapped inside the pill must not reopen this.
+        if (e.target instanceof Element && e.target.closest("button")) return;
         const p = logicalPoint(stage, e);
         if (!p) return;
         gesturePointerId = e.pointerId;
@@ -291,10 +320,21 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       });
 
       // Decided from WHERE THE POINTER CAME UP, never from how far it moved
-      // to get there — a press-drag and a two-tap are the same gesture read
-      // at its endpoint, so there is no distance threshold to tune, and
-      // nothing that behaves differently on a trackpad than on glass, where
-      // a real tap routinely drifts more than a few px.
+      // to get there. The press-drag path and the two-tap path are NOT two
+      // gestures with a branch between them — they are the SAME gesture,
+      // read only at its endpoint:
+      //   up on a DIFFERENT star than the press → toggle that edge outright
+      //     (the press-drag's happy path).
+      //   up on the SAME star as the press (a tap):
+      //     - an EARLIER tap already armed some other star → toggle the
+      //       edge between THAT star and this one. This is the two-tap
+      //       path's completion, and it is not a special case to simplify
+      //       away: delete it and tapping star A then star B goes back to
+      //       moving a highlight and drawing nothing (round 2, finding 1).
+      //     - that other star already armed IS this one → disarm it
+      //       (tapping the armed star again changes your mind).
+      //     - nothing armed yet → arm this star, waiting for the next tap.
+      //   up on empty space → cancel: nothing drawn, nothing stays armed.
       gate.addEventListener("pointerup", (e) => {
         if (settled || e.pointerId !== gesturePointerId) return;
         try {
@@ -308,29 +348,30 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         const upStar = p && snapStar(p, key.stars, snapRadius);
         clearGesture();
 
-        if (pressed) {
-          if (upStar && upStar.id === pressed.id) {
-            // Up on the SAME star it went down on: arm it, or — tapping the
-            // already-armed star again — disarm it. The natural way to
-            // change your mind, and the two-tap path's first half.
-            armed = armed && armed.id === pressed.id ? null : pressed;
-          } else if (upStar) {
-            // Up on a DIFFERENT star: lay (or remove) the segment between
-            // them — the press-drag's happy path, and the two-tap path's
-            // second half, both land here identically.
-            drawn = toggleEdge(drawn, makeEdge(pressed.id, upStar.id));
-            armed = null; // this gesture just completed something: a
-            // SEPARATE star armed from some earlier, unrelated tap must not
-            // silently re-close (and so erase) the pair just drawn.
+        if (pressed && upStar && upStar.id !== pressed.id) {
+          drawn = toggleEdge(drawn, makeEdge(pressed.id, upStar.id));
+          armed = null;
+        } else if (pressed && upStar && upStar.id === pressed.id) {
+          if (armed && armed.id !== pressed.id) {
+            drawn = toggleEdge(drawn, makeEdge(armed.id, pressed.id));
+            armed = null;
+          } else if (armed && armed.id === pressed.id) {
+            armed = null;
+          } else {
+            armed = pressed;
           }
-          // Up on empty space: cancel — nothing drawn, and (per clearGesture,
-          // already run) nothing left armed by this gesture either.
+        } else if (pressed) {
+          // Up on empty space, press started on a star: cancel outright.
+          armed = null;
         } else if (missedEdge) {
           // Started on empty space, on top of a drawn segment: the undo IS
           // the click, wherever the pointer lets go.
           drawn = toggleEdge(drawn, missedEdge);
           armed = null;
         }
+        // Neither a star nor a drawn segment under the press: a genuine
+        // miss, left alone — a slightly-off tap shouldn't cost the viewer
+        // their pending arm.
 
         counter.textContent = connectProgress(drawn.length, key.edges.length);
         renderMarks();
@@ -357,7 +398,11 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       });
 
       if (!step.required) {
-        skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸");
+        // cs-cardgate-pill.skip is the dashed, muted LOOK every skip pill
+        // shares; cs-figgate-skip (the other gates' own corner positioning)
+        // is deliberately left off — this one's position comes from being a
+        // flex child of .cs-connect-bar instead.
+        skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸");
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           if (settled) return;
@@ -365,7 +410,7 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
           remove();
           resolve(null);
         });
-        gate.appendChild(skip);
+        bar.appendChild(skip);
       }
 
       gate.addEventListener("click", (e) => e.stopPropagation());

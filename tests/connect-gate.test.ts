@@ -101,8 +101,33 @@ describe("connect-gate.ts", () => {
     // drift more than a few CSS px routinely. There is now no threshold to
     // drift past.
     expect(source).not.toMatch(/DRAG_MIN_PX/);
+    expect(source).toMatch(/upStar\.id\s*!==\s*pressed\.id/);
     expect(source).toMatch(/upStar\.id\s*===\s*pressed\.id/);
-    expect(source).toMatch(/armed\s*=\s*armed\s*&&\s*armed\.id\s*===\s*pressed\.id\s*\?\s*null\s*:\s*pressed/);
+  });
+
+  it("actually completes the two-tap path: an earlier armed star closes against THIS tap", () => {
+    // Review round 2, finding 1: round 1's fix removed the distance
+    // threshold but never added a branch that READS `armed` to build an
+    // edge — tap A then tap B just moved a highlight and drew nothing. This
+    // is the one line that makes the two-tap path (the one that has to work
+    // on touch) actually draw something.
+    expect(source).toMatch(/armed\s*&&\s*armed\.id\s*!==\s*pressed\.id/);
+    const completion = /armed\s*&&\s*armed\.id\s*!==\s*pressed\.id\s*\)\s*\{([\s\S]{0,200}?)\}/.exec(source)?.[1] ?? "";
+    expect(completion).toMatch(/toggleEdge\(drawn,\s*makeEdge\(armed\.id,\s*pressed\.id\)\)/);
+    expect(completion).toMatch(/armed\s*=\s*null/);
+    // Named as ONE gesture, not two — the exact comment finding 1 asked for,
+    // so the completion branch doesn't get "simplified" back out.
+    expect(source).toMatch(/SAME gesture/);
+  });
+
+  it("cancels outright on empty space, per finding 4 — armed is actually cleared, not just claimed to be", () => {
+    // Round 1's comment claimed clearGesture() already cleared `armed` on a
+    // release over empty space; clearGesture() never touched `armed` at
+    // all, so the claim was false — inert only because nothing yet
+    // completed a tap-armed pair (finding 1), and about to become a live
+    // bug the moment that got fixed.
+    const emptySpaceBranch = /else if \(pressed\) \{([\s\S]{0,120}?)\}/.exec(source)?.[1] ?? "";
+    expect(emptySpaceBranch).toMatch(/armed\s*=\s*null/);
   });
 
   it("captures the pointer unconditionally on pointerdown, so a miss can still end the gesture", () => {
@@ -114,41 +139,85 @@ describe("connect-gate.ts", () => {
     expect(source).toMatch(/addEventListener\(\s*"lostpointercapture"/);
   });
 
-  it("never captures a press that lands on the Done/Skip buttons themselves", () => {
-    // Self-caught while fixing the above: capturing unconditionally also
-    // captures a press that starts ON a <button> child of the gate, which
-    // retargets that button's own "click" (a pointer-capture compatibility
-    // mouse event) to the gate instead — silently breaking Done and Skip.
+  it("never captures a press that lands on the Done/Skip buttons themselves, even a labelled inner element", () => {
+    // Self-caught fixing the above: capturing unconditionally also captures
+    // a press that starts ON a <button> child of the gate, which retargets
+    // that button's own "click" (a pointer-capture compatibility mouse
+    // event) to the gate instead — silently breaking Done and Skip. Round 2
+    // asked for `closest("button")`, not a same-element check, so a label
+    // or icon wrapped inside the pill can't slip past the guard.
     const downBody = /gate\.addEventListener\(\s*"pointerdown"[\s\S]*?\n\s*\}\);/.exec(source)?.[0] ?? "";
     expect(downBody).not.toBe("");
-    expect(downBody).toMatch(/instanceof HTMLButtonElement/);
+    expect(downBody).not.toMatch(/instanceof HTMLButtonElement/);
+    expect(downBody).toMatch(/\.closest\(\s*"button"\s*\)/);
     // The guard must come before setPointerCapture is ever reached.
-    expect(downBody.indexOf("instanceof HTMLButtonElement")).toBeLessThan(downBody.indexOf("setPointerCapture"));
+    expect(downBody.indexOf('closest("button")')).toBeLessThan(downBody.indexOf("setPointerCapture"));
   });
 
   it("clears the armed star whenever a gesture completes a segment, not only on cancel", () => {
     // Review round 1, finding 3: tap A, drag A→B to draw the line, then tap
     // B used to silently re-toggle (and so erase) the edge just drawn,
     // because `armed` survived the drag that completed it.
-    const upStarBranch = /else if \(upStar\) \{([\s\S]*?)\n\s*\}/.exec(source)?.[1] ?? "";
-    expect(upStarBranch).toMatch(/toggleEdge/);
-    expect(upStarBranch).toMatch(/armed\s*=\s*null/);
+    const dragBranch = /if \(pressed && upStar && upStar\.id !== pressed\.id\) \{([\s\S]*?)\n\s*\}/.exec(source)?.[1] ?? "";
+    expect(dragBranch).toMatch(/toggleEdge/);
+    expect(dragBranch).toMatch(/armed\s*=\s*null/);
     const missedEdgeBranch = /else if \(missedEdge\) \{([\s\S]*?)\n\s*\}/.exec(source)?.[1] ?? "";
     expect(missedEdgeBranch).toMatch(/toggleEdge/);
     expect(missedEdgeBranch).toMatch(/armed\s*=\s*null/);
   });
 
   it("tells the viewer both halves of the gesture, like every other figgate's hint", () => {
-    expect(source).toMatch(/cs-figgate-hint/);
+    expect(source).toMatch(/cs-connect-hint/);
     expect(source).toMatch(/Press a star and drag to the next/);
     expect(source).toMatch(/[Cc]lick a line to remove it/);
   });
 
+  it("lays out Done, the status stack, and Skip so they cannot collide, rather than nudged pixel offsets", () => {
+    // Review round 2, finding 5: a 58-character hint at bottom: 1.1rem ran
+    // under Done/Skip at bottom: 1.2rem on a narrow phone — fixed with a
+    // layout, not a bigger number. cs-figgate-skip (every OTHER gate's own
+    // independently-absolutely-positioned corner pill) is deliberately left
+    // off the skip button here — its position now comes from being a flex
+    // child of the bar instead, which is what makes collision structurally
+    // impossible rather than merely untuned-into today.
+    expect(source).toMatch(/cs-connect-bar/);
+    expect(source).toMatch(/cs-connect-status/);
+    // Checked on the actual skip button's class list, not the whole file —
+    // the class is deliberately named (and explained) in a comment nearby.
+    const skipCall = /skip = h\("button",\s*\{\s*class:\s*"([^"]*)"/.exec(source)?.[1] ?? "";
+    expect(skipCall).not.toBe("");
+    expect(skipCall).not.toMatch(/cs-figgate-skip/);
+  });
+
   it("never mutates stage.style.touchAction — .cs-figgate's own CSS already covers exactly the gate's lifetime", () => {
-    // Review round 1, finding 6: a JS save/restore on a SHARED element,
-    // restored only after the linger, could leak "none" onto the stage past
-    // this gate's own lifetime if two connect gates ever overlapped.
+    // Review round 1, finding 6 (upheld on re-review): a JS save/restore on
+    // a SHARED element, restored only after the linger, could leak "none"
+    // onto the stage past this gate's own lifetime if two connect gates
+    // ever overlapped. .cs-figgate already sets touch-action: none on the
+    // GATE div itself (styles.css:1191), scoped by construction.
     expect(source).not.toMatch(/stage\.style\.touchAction/);
+  });
+
+  it("remeasures via a ResizeObserver on the stage, disconnected on every exit path", () => {
+    // Review round 2, findings 2 and 3: a star cache that measures zero at
+    // mount (a gate opening the same frame the figure appears, a hidden
+    // tab) stayed empty forever with only a window `resize` listener — and
+    // anything that resizes the STAGE without resizing the window (a panel
+    // opening, a caption reflow, a CSS transition, a viewBox change) left
+    // the dots and segments painted at stale coordinates while hit-testing,
+    // which measures live, stayed correct — so a click would land on a star
+    // that isn't where it's drawn. A ResizeObserver on stage fixes both: it
+    // fires on anything that resizes the stage, INCLUDING the first time it
+    // goes from zero to a real size.
+    expect(source).toMatch(/new ResizeObserver\(/);
+    expect(source).toMatch(/ro\.observe\(stage\)/);
+    expect(source).toMatch(/ro\.disconnect\(\)/);
+    // The window listener is a fallback for a runtime with no
+    // ResizeObserver, not kept alongside it — the observer subsumes a
+    // window resize (which resizes the stage too) as one case among many.
+    const stopObserving = /let stopObserving: \(\) => void;([\s\S]*?)\n\s{6}const remove/.exec(source)?.[1] ?? "";
+    expect(stopObserving).toMatch(/typeof ResizeObserver/);
+    expect(stopObserving).toMatch(/window\.addEventListener\("resize"/);
   });
 
   it("pointermove only moves the rubber band — it never re-measures every star or rebuilds the marks", () => {

@@ -126,6 +126,22 @@ describe("medianNearestNeighbour", () => {
     expect(Number.isFinite(medianNearestNeighbour([]))).toBe(false);
     expect(medianNearestNeighbour([stars[0]])).toBe(Infinity);
   });
+  it("is the SORTED median, not whichever distance sits at the middle INPUT index", () => {
+    // Five points on a line at 0, 5, 15, 45, 95 (gaps 5, 10, 30, 50); each
+    // point's own nearest-neighbour distance: 0→5, 5→5, 15→10, 45→30, 95→50.
+    // Sorted, the median (middle of five) is 10. Fed here in a SCRAMBLED
+    // order — [45, 0, 95, 5, 15] gives raw distances [30, 5, 50, 5, 10] —
+    // deliberately not pre-sorted, so an implementation that dropped its own
+    // sort and just indexed the middle of the input would answer 50, not 10.
+    const scrambled = [
+      { id: "d", at: [45, 0] as [number, number] },
+      { id: "a", at: [0, 0] as [number, number] },
+      { id: "e", at: [95, 0] as [number, number] },
+      { id: "b", at: [5, 0] as [number, number] },
+      { id: "c", at: [15, 0] as [number, number] },
+    ];
+    expect(medianNearestNeighbour(scrambled)).toBe(10);
+  });
 });
 
 describe("snapRadiusFor", () => {
@@ -138,6 +154,20 @@ describe("snapRadiusFor", () => {
     ];
     // median NN 1000 * 0.4 = 400, clamped down to the 40 ceiling.
     expect(snapRadiusFor(wide)).toBe(40);
+  });
+  it("actually applies the 0.4 multiplier, not just the two clamp bounds", () => {
+    // median NN 50 * 0.4 = 20 lands STRICTLY between the [12, 40] clamps, so
+    // this can only pass with the real multiplier — 10× smaller (0.04) would
+    // answer 12 (clamped up), 10× larger (4) would answer 40 (clamped
+    // down); neither the stars-fixture case above nor the wide-fixture case
+    // distinguishes those from the real 0.4, since both already land ON a
+    // clamp regardless of the multiplier's actual value.
+    const fifty = [
+      { id: "a", at: [0, 0] as [number, number] },
+      { id: "b", at: [50, 0] as [number, number] },
+    ];
+    expect(medianNearestNeighbour(fifty)).toBe(50);
+    expect(snapRadiusFor(fifty)).toBe(20);
   });
   it("falls back to the ceiling rather than NaN or zero when there's nothing to measure", () => {
     expect(snapRadiusFor([])).toBe(40);
