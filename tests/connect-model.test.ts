@@ -121,7 +121,7 @@ it("caps the exercise at Orion's own size", () => {
 });
 
 describe("connectOpens", () => {
-  const key = (n: number) => ({ stars: Array(n + 1).fill(0), edges: Array(n).fill(0) });
+  const key = (n: number) => ({ stars: Array(n + 1).fill(0), edges: Array(n).fill(0), unmatched: 0 });
   it("opens on a figure that can be drawn", () => {
     expect(connectOpens(key(24))).toBe(true);
     expect(connectOpens(key(1))).toBe(true);
@@ -131,8 +131,16 @@ describe("connectOpens", () => {
     expect(connectOpens(key(29))).toBe(false);
   });
   it("refuses a figure that is not there", () => {
-    expect(connectOpens({ stars: [], edges: [] })).toBe(false);
-    expect(connectOpens({ stars: [1, 2], edges: [] })).toBe(false);
+    expect(connectOpens({ stars: [], edges: [], unmatched: 0 })).toBe(false);
+    expect(connectOpens({ stars: [1, 2], edges: [], unmatched: 0 })).toBe(false);
+  });
+  // Final whole-branch review, F6: connectOpens ignored `unmatched`, so a
+  // figure with a vertex no star sits under (part of its key undrawable)
+  // could still open a gate — the two callers of ConnectKey disagreed about
+  // what `unmatched` means. Lint already refuses this same figure
+  // (lint.ts's `connect` rule), so the gate now agrees.
+  it("refuses a figure with any unmatched vertex, even when edges and stars both pass", () => {
+    expect(connectOpens({ ...key(2), unmatched: 1 })).toBe(false);
   });
 });
 

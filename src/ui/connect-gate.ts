@@ -226,14 +226,18 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       // A ResizeObserver on the stage, the pattern panel-view.ts already
       // uses for exactly this (its own paintVeil): it fires on a window
       // resize (which resizes the stage too, subsuming the plain listener),
-      // AND on anything that resizes the stage without resizing the window —
-      // a panel opening, a caption reflowing when a webfont lands, a CSS
-      // transition, a viewBox change — none of which self-heal any other
+      // AND on anything that resizes the STAGE ELEMENT'S OWN BOX without
+      // resizing the window — a panel opening, a caption reflowing when a
+      // webfont lands, a CSS transition — none of which self-heal any other
       // way, since positionStars() is no longer called on every pointermove.
       // It also fires the FIRST time the stage gets a non-zero size, which
       // rescues a gate that opened while the stage measured zero (a hidden
       // tab, the same frame the figure appears): positionStars() finds real
       // numbers, not an empty cache stuck for the question's whole life.
+      // NOT covered: a `camera` zoom, which rewrites the SVG's viewBox
+      // without changing the stage element's own box — ResizeObserver does
+      // not fire for that. Harmless today (no command runs while a gate is
+      // open), but worth knowing if that ever changes.
       let stopObserving: () => void;
       if (typeof ResizeObserver !== "undefined") {
         const ro = new ResizeObserver(remeasure);

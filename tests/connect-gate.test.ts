@@ -208,13 +208,15 @@ describe("connect-gate.ts", () => {
     // Review round 2, findings 2 and 3: a star cache that measures zero at
     // mount (a gate opening the same frame the figure appears, a hidden
     // tab) stayed empty forever with only a window `resize` listener — and
-    // anything that resizes the STAGE without resizing the window (a panel
-    // opening, a caption reflow, a CSS transition, a viewBox change) left
-    // the dots and segments painted at stale coordinates while hit-testing,
+    // anything that resizes the STAGE ELEMENT'S OWN BOX without resizing the
+    // window (a panel opening, a caption reflow, a CSS transition) left the
+    // dots and segments painted at stale coordinates while hit-testing,
     // which measures live, stayed correct — so a click would land on a star
     // that isn't where it's drawn. A ResizeObserver on stage fixes both: it
-    // fires on anything that resizes the stage, INCLUDING the first time it
-    // goes from zero to a real size.
+    // fires on anything that resizes the stage's own box, INCLUDING the
+    // first time it goes from zero to a real size. NOT a `camera` zoom
+    // (final review, F9): that rewrites the SVG's viewBox without resizing
+    // the stage element, so the observer does not see it.
     expect(source).toMatch(/new ResizeObserver\(/);
     expect(source).toMatch(/ro\.observe\(stage\)/);
     expect(source).toMatch(/ro\.disconnect\(\)/);

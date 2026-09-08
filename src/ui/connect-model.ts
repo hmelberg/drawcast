@@ -159,10 +159,14 @@ export function connectResolution(grade: ConnectGrade, answer: string): string {
  *  gate must not make for itself, because vitest runs in `node` and nothing
  *  in this repo mounts a DOM: a decision left inside a DOM file is a
  *  decision no test will ever see. A figure needs at least one edge to draw
- *  and at least two stars to draw it between, and must not exceed
- *  `CONNECT_MAX_EDGES` (the Eridanus/Sagittarius cap). */
-export function connectOpens(key: { stars: readonly unknown[]; edges: readonly unknown[] }): boolean {
-  return key.edges.length >= 1 && key.edges.length <= CONNECT_MAX_EDGES && key.stars.length >= 2;
+ *  and at least two stars to draw it between, must not exceed
+ *  `CONNECT_MAX_EDGES` (the Eridanus/Sagittarius cap), and must have no
+ *  `unmatched` vertex — `ConnectKey.unmatched`'s own doc comment
+ *  (render/widgets.ts) already calls that the caller's cue to refuse rather
+ *  than ship a question part of whose key nobody can draw; lint agrees
+ *  (lint.ts's `connect` rule), and now so does the gate. */
+export function connectOpens(key: { stars: readonly unknown[]; edges: readonly unknown[]; unmatched: number }): boolean {
+  return key.edges.length >= 1 && key.edges.length <= CONNECT_MAX_EDGES && key.stars.length >= 2 && key.unmatched === 0;
 }
 
 /** The median nearest-neighbour distance among a figure's own stars — its
