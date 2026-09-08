@@ -73,8 +73,14 @@ function trimExtract(s: string): string {
  * `space` and `sky` are the same idea for free play: a planet or a star is
  * drawn as a bare coloured dot, with no printed word `meaningfulName` could
  * ever find, so a paused click needs the engine to say what it is.
+ *
+ * Exported for `tests/connect-freeplay.test.ts`, which drives it against
+ * real `sky_map`/`solar_system` layouts rather than a hand-built fixture —
+ * this is the one function that actually knows a "cell_Fe" or a "polaris"
+ * from a "frame", so a test that never calls it cannot catch a branch that
+ * quietly returns nothing.
  */
-function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
+export function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const raw = hd.spec.params?.["names"];
   if (interactions.includes("periodic")) {
@@ -95,45 +101,44 @@ function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
     return out;
   }
   if (interactions.includes("space")) {
-    let eng: SpaceEngine;
     try {
       // Same forgiveness as the periodic branch: a card is not worth
-      // throwing at a viewer over.
-      eng = getLoadedEngines(["space"]).space as SpaceEngine;
+      // throwing at a viewer over — widened to the whole lookup, since a
+      // body table with a hole in it should fail exactly the same way a
+      // missing engine does, not crash the pause.
+      const eng = getLoadedEngines(["space"]).space as SpaceEngine;
+      const lang: "en" | "nb" = raw === "nb" ? "nb" : "en";
+      const out: { id: string; name: string }[] = [];
+      for (const id of hd.layout.order) {
+        if (id.includes("__")) continue; // group leaves — usable() screens these out too
+        const body = eng.body(id);
+        if (body) out.push({ id, name: body.name[lang] });
+      }
+      return out;
     } catch {
       return [];
     }
-    const lang: "en" | "nb" = raw === "nb" ? "nb" : "en";
-    const out: { id: string; name: string }[] = [];
-    for (const id of hd.layout.order) {
-      if (id.includes("__")) continue; // group leaves — usable() screens these out too
-      const body = eng.body(id);
-      if (body) out.push({ id, name: body.name[lang] });
-    }
-    return out;
   }
   if (interactions.includes("sky")) {
-    let sky: SkyEngine;
-    let spc: SpaceEngine;
     try {
       const loaded = getLoadedEngines(["sky", "space"]);
-      sky = loaded.sky as SkyEngine;
-      spc = loaded.space as SpaceEngine;
+      const sky = loaded.sky as SkyEngine;
+      const spc = loaded.space as SpaceEngine;
+      const lang: SkyLang = raw === "nb" || raw === "la" ? raw : "en";
+      const out: { id: string; name: string }[] = [];
+      for (const id of hd.layout.order) {
+        if (id.includes("__")) continue; // group leaves ("stars__hip_…") — usable() screens these out too
+        const con = sky.findConstellation(id);
+        if (con) { out.push({ id, name: sky.name(con, lang) }); continue; }
+        const star = sky.findStar(id);
+        if (star) { out.push({ id, name: sky.starName(star, lang) ?? `HIP ${star.hip}` }); continue; }
+        const body = spc.body(id);
+        if (body) out.push({ id, name: body.name[lang === "nb" ? "nb" : "en"] });
+      }
+      return out;
     } catch {
       return [];
     }
-    const lang: SkyLang = raw === "nb" || raw === "la" ? raw : "en";
-    const out: { id: string; name: string }[] = [];
-    for (const id of hd.layout.order) {
-      if (id.includes("__")) continue; // group leaves ("stars__hip_…") — usable() screens these out too
-      const con = sky.findConstellation(id);
-      if (con) { out.push({ id, name: sky.name(con, lang) }); continue; }
-      const star = sky.findStar(id);
-      if (star) { out.push({ id, name: sky.starName(star, lang) ?? `HIP ${star.hip}` }); continue; }
-      const body = spc.body(id);
-      if (body) out.push({ id, name: body.name[lang === "nb" ? "nb" : "en"] });
-    }
-    return out;
   }
   return [];
 }
