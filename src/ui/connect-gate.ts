@@ -128,7 +128,12 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       const counter = h("span", { class: "cs-waitgate-pill cs-connect-counter" }, connectProgress(0, key.edges.length));
       const summary = h("span", { class: "cs-waitgate-pill cs-connect-summary" });
       summary.hidden = true;
-      const doneBtn = h("button", { class: "cs-cardgate-pill ok cs-connect-done" }, "Done ▸");
+      // cs-cardgate-pill.ok is the shared rounded-primary-pill LOOK; no
+      // connect-specific class here — the flex bar positions it, and it
+      // needs nothing else the round-trip through the stylesheet would earn
+      // its own rule for (a stamped class with no CSS reads as live styling
+      // to the next person who touches this file).
+      const doneBtn = h("button", { class: "cs-cardgate-pill ok" }, "Done ▸");
       let skip: HTMLButtonElement | undefined;
       // One flex row — Done, the status stack, Skip — rather than three
       // independently absolutely-positioned pills nudged by hand: a layout
@@ -136,7 +141,13 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       // instead of numbers tuned to not collide today.
       const status = h("div", { class: "cs-connect-status" }, counter, hint, summary);
       const bar = h("div", { class: "cs-connect-bar" }, doneBtn, status);
-      const gate = h("div", { class: "cs-figgate cs-connectgate" }, ink, bar);
+      // No connect-specific modifier class on the gate itself (unlike
+      // dragGateFor's cs-draggate, which overrides .cs-figgate's cursor):
+      // this gate wants exactly .cs-figgate's own defaults (crosshair,
+      // touch-action: none, the position/z-index every figgate shares), and
+      // every actually-connect-specific rule already lives under its own
+      // cs-connect-* class instead.
+      const gate = h("div", { class: "cs-figgate" }, ink, bar);
 
       // Every point drawn in the overlay goes through clientPointFor — the
       // star positions (already logical) and, for the live rubber band, a
@@ -370,8 +381,15 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
           armed = null;
         }
         // Neither a star nor a drawn segment under the press: a genuine
-        // miss, left alone — a slightly-off tap shouldn't cost the viewer
-        // their pending arm.
+        // miss on both ends, and `armed` is left exactly as it was —
+        // DELIBERATELY not cleared, even though the press started and
+        // ended on empty space. A tap that lands on nothing is far more
+        // likely a fumbled tap at a small star than a deliberate cancel,
+        // and there is already a way to change your mind: tapping the
+        // armed star again. Losing the viewer's armed star because they
+        // missed it by three pixels would be the worse failure. Consequence
+        // to hold onto if this ever looks like a bug: tap A, tap empty,
+        // tap B — A is still armed, and the line A–B appears.
 
         counter.textContent = connectProgress(drawn.length, key.edges.length);
         renderMarks();

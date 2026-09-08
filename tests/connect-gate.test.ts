@@ -236,4 +236,74 @@ describe("connect-gate.ts", () => {
     expect(finishBody).not.toBe("");
     expect(finishBody.match(/connectSummary\(/g)?.length ?? 0).toBe(1);
   });
+
+  it("stamps no cs-connect-* class in the markup that the stylesheet leaves unstyled", () => {
+    // Review round 3, finding 2: cs-connect-counter/-summary/-done were
+    // stamped by the flex-bar rewrite with no CSS rule left for them — a
+    // class in the markup and nowhere in the stylesheet reads as live
+    // styling to the next person who touches this. Every cs-connect-*
+    // class this file creates must appear as a selector in styles.css.
+    // (This test itself caught a SECOND instance while being written:
+    // cs-connectgate, orphaned since round 1 removed its only rule — see
+    // the gate's own "no connect-specific modifier class" comment.)
+    const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+    // Three shapes this file stamps a class through: h()'s plain string,
+    // setAttribute with a plain string, and setAttribute with a template
+    // literal (a dynamic verdict/armed suffix) — the `${...}` is stripped
+    // from the WHOLE captured value first, so a suffix glued directly onto
+    // the static prefix with no space (cs-connect-star${armed ? ... : ...})
+    // doesn't survive as a garbled fragment once split on whitespace.
+    const rawValues = [
+      ...[...source.matchAll(/class:\s*"([^"]*)"/g)].map((m) => m[1]),
+      ...[...source.matchAll(/setAttribute\("class",\s*"([^"]*)"\)/g)].map((m) => m[1]),
+      ...[...source.matchAll(/setAttribute\("class",\s*`([^`]*)`/g)].map((m) => m[1]),
+    ];
+    const classes = new Set(
+      rawValues
+        .map((c) => c.replace(/\$\{[^}]*\}/g, ""))
+        .flatMap((c) => c.split(/\s+/))
+        .map((c) => c.trim())
+        .filter((c) => c.startsWith("cs-connect")),
+    );
+    expect(classes.size).toBeGreaterThan(0); // the extraction itself must find something, or this test proves nothing
+    expect([...classes]).toEqual(
+      expect.arrayContaining([
+        "cs-connect-ink",
+        "cs-connect-star",
+        "cs-connect-line",
+        "cs-connect-band",
+        "cs-connect-bar",
+        "cs-connect-status",
+        "cs-connect-hint",
+        "cs-connect-counter",
+        "cs-connect-summary",
+      ]),
+    ); // pins the extraction against silently finding nothing for one of the known classes
+    for (const cls of classes) {
+      expect(css).toMatch(new RegExp(`\\.${cls}\\b`));
+    }
+  });
+});
+
+describe("connect gate CSS (src/styles.css)", () => {
+  const css = () => readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  it("the hint keeps the shared waitgate nudge; the counter and summary do not — via disjoint selectors, not a specificity fight", () => {
+    // Review round 3, finding 1: .cs-connect-status .cs-waitgate-pill {
+    // animation: none } was specificity (0,2,0) and matched the hint too
+    // (it's a .cs-waitgate-pill inside .cs-connect-status); .cs-connect-hint
+    // {animation: waitgate-nudge} at (0,1,0) lost that fight every time, so
+    // the nudge that draws the eye to the one instruction the viewer needs
+    // never ran. The fix must not reintroduce a selector that matches BOTH
+    // the hint and the counter/summary.
+    const text = css();
+    // Requires the brace so a comment MENTIONING the old broken selector
+    // (as this very fix's own explanation does, right above the real rule)
+    // doesn't itself trip the check — only an actual, active rule would.
+    expect(text).not.toMatch(/\.cs-connect-status\s+\.cs-waitgate-pill\s*\{/);
+    const offRule = /\.cs-connect-counter,\s*\n?\s*\.cs-connect-summary\s*\{([^}]*)\}/.exec(text)?.[1] ?? "";
+    expect(offRule).toMatch(/animation:\s*none/);
+    const hintRule = /\.cs-connect-hint\s*\{([^}]*)\}/.exec(text)?.[1] ?? "";
+    expect(hintRule).toMatch(/animation:\s*waitgate-nudge/);
+  });
 });

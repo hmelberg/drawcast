@@ -1335,11 +1335,25 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   min-width: 0;
   text-align: center;
 }
-/* Every pill in the stack is static by default (a counter that updates
-   every tap shouldn't bob); the hint alone keeps the shared nudge, the same
-   attention cue every other figgate's hint uses while it waits. */
-.cs-connect-status .cs-waitgate-pill { animation: none; }
-.cs-connect-hint { animation: waitgate-nudge 1.6s ease-in-out infinite; }
+/* The counter and the summary are static (a count that updates every tap
+   shouldn't bob, and neither should a settled verdict); the hint keeps the
+   shared waitgate nudge, the same attention cue every other figgate's hint
+   uses to draw the eye to the one instruction the viewer needs. Named as
+   two DISJOINT selectors, neither matching the other's element, rather
+   than "every pill in the stack is off, except the hint" (a blanket rule
+   on .cs-connect-status .cs-waitgate-pill, undone by a narrower override
+   on .cs-connect-hint) — that shape is what silently kept the hint from
+   ever nudging: the blanket rule's TWO classes (0,2,0) beat the hint
+   override's ONE (0,1,0), so "off" always won regardless of source order.
+   There is no specificity fight left to lose when the two rules never
+   target the same element to begin with. */
+.cs-connect-counter,
+.cs-connect-summary {
+  animation: none;
+}
+.cs-connect-hint {
+  animation: waitgate-nudge 1.6s ease-in-out infinite;
+}
 
 /* Info card: name + summary + actions at the pointer, over the paused figure. */
 .cs-infocard {
