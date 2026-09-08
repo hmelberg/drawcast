@@ -19,6 +19,8 @@ import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/anchors";
 import { morphPair, stretchPts } from "./morph";
+import { pathPosition } from "./effects";
+import { cumulativeLengthFractions, type TrailSpec } from "./trails";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -76,8 +78,8 @@ export type PlanStep = (
       untilNarrationEnd?: boolean;
     }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
-  | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
-  | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing }
+  | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
+  | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
   | { kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
@@ -118,6 +120,14 @@ export interface MorphItem {
   leaves: { leafId: string; from: Pt[]; to: Pt[] }[];
 }
 
+/** A trail's progress table for one step (design §2.5): the player looks up
+ *  the eased time in `lengthAt` (arc-length parameterized) and hands the
+ *  result to the trail element's setProgress. */
+export interface TrailProgress {
+  id: string;
+  lengthAt: number[];
+}
+
 /** Scene state at a step boundary. A pure function of the step index. */
 export interface SceneState {
   /** Ids visible after this step, in draw order. */
@@ -145,6 +155,8 @@ export interface Plan {
   /** Label name → step index (the label step itself). Gotos resolve here. */
   labels: Record<string, number>;
   warnings: string[];
+  /** Trails the moves minted (design §2.5): render() appends them to every layout it mounts. */
+  trails: TrailSpec[];
 }
 
 export interface PlanOptions {
@@ -187,6 +199,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const states: SceneState[] = [];
   const warnings: string[] = [];
   const labels: Record<string, number> = {};
+  /** Trails minted by move.trail (design §2.5), returned on the Plan. */
+  const trails: TrailSpec[] = [];
+  /** A minted trail's box, in its own current (already-posed) coordinates — boxOf checks this first. */
+  const trailBoxes = new Map<string, BBox>();
+  /** How many trails a given target has already left — the `_2`, `_3` … suffix. */
+  const trailCount = new Map<string, number>();
   /** Ask store → default, in command order — the fallback for "{var}" animate targets. */
   const storeDefaults: Record<string, string> = {};
   /** Ids whose visibility the spec manages explicitly — excluded from the implicit final draw. */
@@ -288,8 +306,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
-  /** The layout box of an id, or — once it has morphed — the box of its current points. */
+  /** The layout box of an id: a minted trail's own box first, else — once it has morphed — the box of its current points, else the layout box. */
   const boxOf = (id: string): BBox | null => {
+    const t = trailBoxes.get(id);
+    if (t) return t;
     const s = shapes[id];
     if (s) {
       const b = ptsBox(Object.values(s).flat());
@@ -641,6 +661,33 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       const seconds = cmd.move.duration ?? 1;
       const easing = cmd.move.easing ?? "ease-in-out";
+      const trailOpt = cmd.move.trail === true ? {} : cmd.move.trail || null;
+      /** Sample the trailed anchor along a pose tween (design §2.5) and mint the trail element. */
+      const mintTrail = (poseAt: (id: string, u: number) => { offset: Pt; turn: Turn | undefined }): TrailProgress[] => {
+        if (!trailOpt) return [];
+        const of = trailOpt.of ?? ids[0];
+        if (!ids.includes(of)) {
+          warnings.push(`move.trail.of "${of}" is not one of the move's targets — no trail`);
+          return [];
+        }
+        const anchor = anchorOriginal(of, trailOpt.anchor ?? "center", "move");
+        if (!anchor) return [];
+        const pts: Pt[] = [];
+        for (let k = 0; k <= 60; k++) {
+          const p = poseAt(of, k / 60);
+          pts.push(poseOf(p.offset, p.turn)(anchor));
+        }
+        const n = (trailCount.get(of) ?? 0) + 1;
+        trailCount.set(of, n);
+        const trailId = n === 1 ? `${of}_trail` : `${of}_trail_${n}`;
+        trails.push({ id: trailId, pts, color: trailOpt.color, width: trailOpt.width ?? 2.5 });
+        const b = ptsBox(pts);
+        if (b) trailBoxes.set(trailId, b);
+        known.add(trailId);
+        mentioned.add(trailId);
+        makeVisible([trailId]);
+        return [{ id: trailId, lengthAt: cumulativeLengthFractions(pts) }];
+      };
       // Dedupe here too: a spec label's own id can coincide with the
       // implicit label_<id> convention, so a single attachedTo(id) call may
       // list the same follower twice even when the caller already dedupes.
@@ -651,11 +698,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const path = rawPath.map((d) => deltaToLogical(d as Pt));
         const [fx, fy] = path[path.length - 1];
         const moving = [...new Set([...ids, ...ids.flatMap(followers)])];
+        const bases = Object.fromEntries(ids.map((id) => [id, offsets[id] ?? [0, 0]]));
         for (const id of moving) {
           const [ox, oy] = offsets[id] ?? [0, 0];
           offsets[id] = [ox + fx, oy + fy];
         }
-        pushStep({ kind: "move", ids: moving, path, seconds, easing });
+        const stepTrails = mintTrail((id, u) => {
+          const [px, py] = pathPosition(path, u);
+          return { offset: [bases[id][0] + px, bases[id][1] + py], turn: turns[id] };
+        });
+        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails });
       } else {
         // A pose change: per-id from/to, tweened together.
         const items: TransformItem[] = [];
@@ -708,7 +760,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           if (turn) turns[id] = turn;
           items.push(...followerItems(id, { offset: offset0, turn: turn0 }, { offset, turn }, movedFollowers, ids));
         }
-        pushStep({ kind: "transform", items, seconds, easing });
+        const stepTrails = mintTrail((id, u) => {
+          const it = items.find((x) => x.id === id)!;
+          const lerp = (a: number, b: number) => a + (b - a) * u;
+          return {
+            offset: [lerp(it.from.offset[0], it.to.offset[0]), lerp(it.from.offset[1], it.to.offset[1])],
+            turn: { deg: lerp(it.from.turn.deg, it.to.turn.deg), pivot: it.to.turn.pivot, scale: lerp(it.from.turn.scale ?? 1, it.to.turn.scale ?? 1), mirror: it.to.turn.mirror },
+          };
+        });
+        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails });
       }
     } else if (cmd.arrange !== undefined) {
       const ids = resolveIds(cmd.arrange.target, "arrange");
@@ -1033,5 +1093,5 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, labels, warnings };
+  return { steps, states, labels, warnings, trails };
 }

@@ -9,6 +9,7 @@ import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
 import { withNewIdsVisible, withOverrides } from "./params";
 import { planCommands, type Plan, type PlanOptions } from "./plan";
+import { withTrails, type TrailSpec } from "./trails";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
@@ -200,8 +201,12 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
   // is a distinct param set — caching them would hoard hundreds of layouts).
   const boundaryLayouts = new Map<string, LayoutResult>();
+  // Trails (design §2.5): set once the plan is known, below — layoutFor and
+  // the mounted layout both append them, so a reprojected preview or a
+  // scrub carries the trail element too.
+  let trails: TrailSpec[] = [];
   const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult => {
-    if (Object.keys(params).length === 0 && !elements) return layout;
+    if (Object.keys(params).length === 0 && !elements) return withTrails(layout, trails);
     // An elements override is the code editor's preview: never cached, its
     // key would be the whole patched script.
     const key = cache && !elements ? JSON.stringify(Object.entries(params).sort()) : undefined;
@@ -212,7 +217,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       textStyle,
     );
     if (key !== undefined) boundaryLayouts.set(key, l);
-    return l;
+    return withTrails(l, trails);
   };
 
   const plan = planCommands(spec.commands, layout.order, {
@@ -226,8 +231,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     },
     ...planOptionsFor(spec, layout),
   });
+  trails = plan.trails;
+  const mountedLayout = withTrails(layout, trails);
 
-  const mounted = await renderer.mount(layout, spec, stage);
+  const mounted = await renderer.mount(mountedLayout, spec, stage);
 
   const speech = options.speech ?? new SpeechManager();
   const player = new Player(
@@ -259,7 +266,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   const handle: RenderHandle = {
     timeline: player,
-    layout,
+    layout: mountedLayout,
     plan,
     spec,
     authored,

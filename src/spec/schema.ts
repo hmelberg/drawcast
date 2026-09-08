@@ -543,6 +543,13 @@ const commandSchema = {
         scale: { type: "number", exclusiveMinimum: 0, description: "Grow or shrink the element by this factor about `pivot` (default its own centre), cumulative across moves — e.g. \"scale\": 2 doubles it in place, 0.5 halves it. Combine with rotate/by/to." },
         duration: { type: "number", description: "Seconds (default 1)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        trail: {
+          oneOf: [
+            { type: "boolean" },
+            { type: "object", properties: { of: { type: "string" }, anchor: { type: "string" }, color: { type: "string" }, width: { type: "number" } }, additionalProperties: false },
+          ],
+          description: "Leave the TRACK of the motion as a new element <id>_trail (the locus): true traces the first target's centre; {\"of\": \"dot\", \"anchor\": \"bottom\"} traces that target's anchor — a point on a rolling wheel draws the cycloid, a planet its orbit. Fade, erase or highlight the trail afterwards by its id.",
+        },
       },
       required: ["target"],
       additionalProperties: false,

@@ -234,6 +234,8 @@ export interface MoveArgs {
   /** seconds */
   duration?: number;
   easing?: Easing;
+  /** Leave the track of one target's anchor as an element `<id>_trail` — e.g. `true` traces the first target's centre, `{"of": "wheel", "anchor": "bottom"}` traces that point (a rolling wheel's bottom draws the cycloid). */
+  trail?: boolean | { of?: string; anchor?: string; color?: string; width?: number };
 }
 
 export interface ArrangeArgs {

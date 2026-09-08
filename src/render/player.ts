@@ -11,6 +11,7 @@ import type { LayoutResult } from "../layout/layout";
 import { INITIAL_STATE } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
+import { lengthFractionAt } from "./trails";
 import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
@@ -1014,7 +1015,8 @@ export class Player {
         const bases = new Map<string, Pt>(els.map((el): [string, Pt] => [el.id, before.offsets[el.id] ?? [0, 0]]));
         const ease = EASINGS[step.easing];
         await this.progress(step.seconds * 1000, signal, (t) => {
-          const [px, py] = pathPosition(step.path, ease(t));
+          const e = ease(t);
+          const [px, py] = pathPosition(step.path, e);
           for (const el of els) {
             const [bx, by] = bases.get(el.id)!;
             // A plain move never changes an element's turn — carry the
@@ -1024,6 +1026,7 @@ export class Player {
             if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
             else el.setOffset!(bx + px, by + py);
           }
+          for (const tr of step.trails ?? []) this.elements.get(tr.id)?.setProgress(lengthFractionAt(tr.lengthAt, e));
         });
         return;
       }
@@ -1049,6 +1052,7 @@ export class Player {
             if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc, it.to.turn.mirror ?? false);
             else el!.setOffset!(dx, dy);
           }
+          for (const tr of step.trails ?? []) this.elements.get(tr.id)?.setProgress(lengthFractionAt(tr.lengthAt, e));
         });
         return;
       }
