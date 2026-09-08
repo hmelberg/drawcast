@@ -163,6 +163,20 @@ call).
    templates authored · M parts left freehand (cap 3)". Only authoring got
    slower (cap × ~4 min for the run instead of parallel); parts with a
    template are untouched. Still not live-smoked in a course.
+   **The trigger (2026-09-09, Hans's smoke).** "Vis delene i en symaskin og
+   hva hver gjør" with the switch on authored nothing: the router offered
+   `violin_anatomy` (Norwegian "delene i en …" reads as anatomy to Haiku;
+   the English request gets `none_fits`), the compiler, shown the violin in
+   full, rightly drew freehand — and the trigger was the router's
+   `none_fits`. Now the trigger is the RESULT: freehand with at least
+   MIN_PARTS (3) named parts (`on-demand.ts templateWorthy` — authored
+   labels on drawables, the drill's reading minus nodes), whatever the router
+   said; both the offer and the automatic path, single figure and course.
+   Open from the same smoke: the router's precision in Norwegian (3 of 4
+   template-less Norwegian requests were offered a wrong template; the bench
+   measures none_fits on six English cases only), and the generation log
+   does not record the route, so what the router said is visible only in
+   the status line.
 4. **Next — sharing: the community pack.** A template one user got
    authored on demand becomes available to everyone, with a review in
    between. Design (2026-09-07, Hans's defaults):

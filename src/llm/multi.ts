@@ -6,7 +6,7 @@
 import { generateOutline, generateSpec, type GenerateConfig, type GenerationOutcome } from "./compile";
 import { buildPartRequest, type Outline } from "./outline";
 import { generationGate } from "./limit";
-import { authorOnDemand } from "./on-demand";
+import { authorOnDemand, templateWorthy } from "./on-demand";
 import { createOnDemandRun, type OnDemandRun } from "./on-demand-run";
 import type { Spec } from "../spec/types";
 
@@ -42,8 +42,8 @@ export interface PartsHooks {
 
 /**
  * Template on demand across the parts (cfg.templatesOnDemand): after the
- * parallel pass, every part the router found nothing for and the compiler
- * drew freehand is handled IN ORDER — first re-routed, because a template
+ * parallel pass, every part the compiler drew freehand with named parts
+ * (templateWorthy — whatever the router said) is handled IN ORDER — first re-routed, because a template
  * authored earlier in the RUN (by this lecture or a parallel one) may now fit
  * (then it is simply regenerated with the router's shortlist); otherwise a
  * template is authored for it and it is redrawn, if the run's cap allows —
@@ -74,7 +74,8 @@ async function authorTemplatesForParts(
   for (let i = 0; i < outcomes.length; i++) {
     if (cfg.signal?.aborted) return;
     const o = outcomes[i];
-    if (!o.spec || o.spec.template || !o.route?.noneFits) continue;
+    // Freehand with named parts is the trigger, not the router's verdict (on-demand.ts templateWorthy).
+    if (!o.spec || !templateWorthy(o.spec)) continue;
     const request = buildPartRequest(req.request, plan, i, req.brief);
     const label = `part ${i + 1}`;
     const freehand = o.spec;

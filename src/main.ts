@@ -9,7 +9,7 @@ import type { TextFamily } from "./layout/text-style";
 import { canRender, needsRender } from "./render/policy";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant, type RouteInfo } from "./llm/compile";
 import { routeTemplates } from "./llm/router";
-import { authorOnDemand } from "./llm/on-demand";
+import { authorOnDemand, templateWorthy } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
 import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
@@ -614,7 +614,7 @@ effortSel.value = settings.effort;
 // Template on demand without asking (Hans, 2026-09-07): decided BEFORE
 // Generate so a course never stops to ask part by part. Off = the single-
 // figure offer only.
-const templatesOnDemandBox = h("input", { type: "checkbox", title: "When no template fits a figure, author one and redraw at once — in a multi-part drawcast or a course, for every such part in turn (~4 min each). Off: single figures get an offer instead." }) as HTMLInputElement;
+const templatesOnDemandBox = h("input", { type: "checkbox", title: "When a figure with named parts is drawn freehand (no template fit it), author a template and redraw at once — in a multi-part drawcast or a course, for every such part in turn (~4 min each). Off: single figures get an offer instead." }) as HTMLInputElement;
 templatesOnDemandBox.checked = settings.templatesOnDemand;
 // The cap (Hans, 2026-09-08): a course with many template-less figures must
 // not run for an hour — at most this many templates per multi-part run or
@@ -3170,12 +3170,14 @@ async function generate(): Promise<void> {
     );
     autosave();
     lastLogId = logId; // after setDoc, so the rating stars target this generation
-    // Template on demand: the router found nothing and the figure is
-    // freehand. With the option on (decided before Generate), author a
-    // template and redraw at once; otherwise offer — it costs four minutes
-    // and a few dollars' worth of tokens, and the freehand drawing may
-    // already be what was wanted.
-    if (outcome.route?.noneFits && !outcome.spec.template) {
+    // Template on demand: the figure is freehand and names its parts —
+    // whatever the router said (it offered the violin for a Norwegian sewing
+    // machine; the compiler, shown the violin in full, rightly declined).
+    // With the option on (decided before Generate), author a template and
+    // redraw at once; otherwise offer — it costs four minutes and a few
+    // dollars' worth of tokens, and the freehand drawing may already be
+    // what was wanted.
+    if (templateWorthy(outcome.spec)) {
       const freehand = outcome.spec;
       if (settings.templatesOnDemand) {
         await authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);

@@ -132,3 +132,70 @@ describe("authorOnDemand", () => {
     expect(r.outcome?.spec).toBeNull();
   });
 });
+
+// The trigger (Hans, 2026-09-09): a template is authored or offered when the
+// figure was drawn FREEHAND and has named parts — whatever the router said.
+// The router offered violin_anatomy for "Vis delene i en symaskin", the
+// compiler rightly drew freehand, and nothing happened because the old
+// trigger was the router's none_fits.
+import { MIN_PARTS } from "../src/ui/parts-model";
+import { namedParts, templateWorthy } from "../src/llm/on-demand";
+
+const part = (id: string, name: string) => [
+  { id, type: "path", points: [[0, 0], [10, 10]] },
+  { id: `label_${id}`, type: "label", text: name, attach_to: id },
+];
+const withParts = (...names: string[]): Spec =>
+  ({ elements: names.flatMap((n, i) => part(`p${i}`, n)), commands: [] }) as unknown as Spec;
+
+describe("templateWorthy", () => {
+  test("the rule is the drill's: at least MIN_PARTS named parts", () => {
+    expect(MIN_PARTS).toBe(3);
+    expect(templateWorthy(withParts("Needle", "Bobbin", "Presser foot"))).toBe(true);
+    expect(templateWorthy(withParts("Needle", "Bobbin"))).toBe(false);
+  });
+  test("a figure that already uses a template is never a candidate", () => {
+    const s = withParts("Needle", "Bobbin", "Presser foot");
+    (s as unknown as { template: string }).template = "violin_anatomy";
+    expect(templateWorthy(s)).toBe(false);
+  });
+  test("two labels on the same drawable name one part", () => {
+    const s = {
+      elements: [
+        ...part("hull", "Hull"),
+        { id: "hull_lbl2", type: "label", text: "Skrog", attach_to: "hull" },
+        ...part("mast", "Mast"),
+      ],
+      commands: [],
+    } as unknown as Spec;
+    expect(namedParts(s)).toEqual(["hull", "mast"]);
+  });
+  test("a label on nothing, on a text, or on a sub-drawable names no part", () => {
+    const s = {
+      elements: [
+        { id: "cap", type: "text", text: "A caption", x: 1, y: 1 },
+        { id: "l1", type: "label", text: "Ghost", attach_to: "missing" },
+        { id: "l2", type: "label", text: "Words", attach_to: "cap" },
+        { id: "wheel", type: "shape", shape: "circle", x: 1, y: 1, radius: 4 },
+        { id: "l3", type: "label", text: "Spoke", attach_to: "wheel__sub" },
+        { id: "l4", type: "label", text: "Wheel", attach_to: "wheel" },
+      ],
+      commands: [],
+    } as unknown as Spec;
+    expect(namedParts(s)).toEqual(["wheel"]);
+  });
+  test("nodes of a flowchart are not parts of a thing — no template for a freehand diagram", () => {
+    const s = {
+      elements: [
+        { id: "a", type: "node", text: "Start here" },
+        { id: "b", type: "node", text: "Then this" },
+        { id: "c", type: "node", text: "Finally" },
+      ],
+      commands: [],
+    } as unknown as Spec;
+    expect(templateWorthy(s)).toBe(false);
+  });
+  test("the sailing-boat fixture with one label is not worthy; the freehand summary still lists it", () => {
+    expect(templateWorthy(freehand)).toBe(false);
+  });
+});

@@ -215,3 +215,43 @@ alone; the default of three; switch off). 5924 vitest, tsc clean.
 Not done: a live course smoke with the switch on (~20 Opus calls plus the
 authoring); the offer form for courses (roadmap item 5); help.html says
 nothing about the cap (it says nothing about the checkbox either).
+
+## 2026-09-09 — the trigger is the result, not the router (Hans: "gjør 1")
+
+Hans's smoke: "Vis delene i en symaskin og hva hver gjør", switch on. A good
+freehand drawcast, no template. Routed the request afterwards
+(scratch script over vite's ssrLoadModule, one Haiku call each):
+
+| request | router | none_fits |
+|---|---|---|
+| Vis delene i en symaskin og hva hver gjør | violin_anatomy | no |
+| Show the parts of a sewing machine and what each does. | — | yes |
+| Forklar hvordan en toalettsisterne fungerer. | hydraulic_press | no |
+| Tegn en vulkan i tverrsnitt med navn på delene. | — | yes |
+| Vis delene i en middelalderborg. | anatomy | no |
+
+The compiler was shown the violin in full and composed freehand — the right
+call — but the trigger in both main.ts and multi.ts was `route.noneFits`,
+so neither the automatic path nor the offer fired. The English request
+would have authored.
+
+- **`on-demand.ts namedParts(spec)` / `templateWorthy(spec)`**: freehand
+  (no `template`) and at least `MIN_PARTS` (3, imported from
+  ui/parts-model) distinct drawables named by authored labels — the drill's
+  reading of a label (meaningfulName, not on words, not a sub-drawable;
+  `NEVER_A_PART` now exported) minus the drill's other sources: a node's
+  words name a flowchart box, not a part of a thing, and a template for
+  "the flowchart about X" is worth nothing. Both trigger sites use it; the
+  router's verdict now only colours the status line.
+- Tests: on-demand.test.ts (rule = MIN_PARTS; template → never; two labels
+  on one drawable = one part; label on nothing/text/sub-drawable = none;
+  three nodes = not worthy), on-demand-course.test.ts (freehand WITH parts
+  handled though the router offered violin_anatomy; freehand WITHOUT parts
+  left alone though the router said none_fits). The course fixture's
+  freehand outcome gained three labelled parts.
+
+Open (from the same smoke, not built): the router's precision in Norwegian
+— a prompt line ("the template must draw THIS thing") plus Norwegian
+freehand cases in the bench so it can be measured; the generation log
+records no route, so after the fact only the status line ever said what
+the router offered.

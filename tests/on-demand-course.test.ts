@@ -30,8 +30,20 @@ const DOC: TemplateDoc = {
   params: {}, element_ids: {}, examples: [], layout: "return { drawables: [], labels: [], anchors: {}, order: [] };",
 };
 
-const freehand = (): GenerationOutcome => ({
-  spec: { elements: [], commands: [] } as unknown as Spec,
+/** A freehand figure that names three parts — what makes a part a template candidate (on-demand.ts templateWorthy). */
+const PARTS = ["hull", "mast", "keel"].flatMap((id) => [
+  { id, type: "path", points: [[0, 0], [10, 10]] },
+  { id: `label_${id}`, type: "label", text: id.toUpperCase(), attach_to: id },
+]);
+const freehand = (route = { ids: [] as string[], noneFits: true }): GenerationOutcome => ({
+  spec: { elements: PARTS, commands: [] } as unknown as Spec,
+  rounds: [],
+  route: { ...route, ms: 1 },
+  systemPromptChars: 0,
+});
+/** Freehand without named parts: a caption and an arrow — never a template candidate. */
+const plain = (): GenerationOutcome => ({
+  spec: { elements: [{ id: "cap", type: "text", text: "Just words", x: 1, y: 1 }], commands: [] } as unknown as Spec,
   rounds: [],
   route: { ids: [], noneFits: true, ms: 1 },
   systemPromptChars: 0,
@@ -102,6 +114,26 @@ describe("one template for the whole course", () => {
     expect(b.specs[0].templates).toEqual([DOC]);
     // Two freehand drawings, one redraw.
     expect(mockGenerate).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("the trigger is freehand with named parts, not the router's verdict", () => {
+  it("a freehand part with parts is handled even though the router OFFERED a template the compiler declined", async () => {
+    const run = createOnDemandRun(3);
+    mockGenerate.mockImplementation(async () => freehand({ ids: ["violin_anatomy"], noneFits: false }));
+    authorLikeReal();
+    const r = await generateFromOutline(req, plan(1), cfg(run));
+    expect(mockAuthor).toHaveBeenCalledTimes(1);
+    expect(r.specs[0].template).toBe("boat_anatomy");
+  });
+  it("a freehand part WITHOUT named parts is left alone even though the router said none fits", async () => {
+    const run = createOnDemandRun(3);
+    mockGenerate.mockImplementation(async () => plain());
+    authorLikeReal();
+    const r = await generateFromOutline(req, plan(2), cfg(run));
+    expect(mockAuthor).not.toHaveBeenCalled();
+    expect(run.skipped).toBe(0);
+    expect(r.specs.every((s) => !s.template)).toBe(true);
   });
 });
 

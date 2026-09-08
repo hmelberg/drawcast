@@ -144,10 +144,11 @@ export interface GenerateConfig {
   onPhase?: (phase: string) => void;
   /**
    * Multi-part generation only (llm/multi.ts): after the parts land, every
-   * part the router found nothing for and the compiler drew freehand gets a
-   * template authored and is redrawn with it, one part after another, each
-   * new template in the registry before the next part is looked at. Read
-   * nowhere in generateSpec itself; the single-figure path OFFERS instead.
+   * part the compiler drew freehand with named parts (on-demand.ts
+   * templateWorthy — whatever the router said) gets a template authored and
+   * is redrawn with it, one part after another, each new template in the
+   * registry before the next part is looked at. Read nowhere in generateSpec
+   * itself; the single-figure path OFFERS instead.
    */
   templatesOnDemand?: boolean;
   /** The app's hook to keep a template authored on demand (My templates + panels). */
