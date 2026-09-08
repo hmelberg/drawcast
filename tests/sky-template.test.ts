@@ -181,6 +181,34 @@ describe("sky_map: the Sun, the Moon and the planets", () => {
     expect(textOf(lay({}), "sky_note") ?? "").not.toContain("Below the horizon");
   });
 
+  // A named BODY under the horizon is said (above); so is a marked
+  // CONSTELLATION that never rose (below, in the focus section). A marked STAR
+  // was the one named thing that went silent — the `alt < 0` continue in the
+  // star loop sat ahead of every sayBelow/sayOutside, so the star was neither
+  // drawn nor mentioned, with no focus and no crop anywhere in sight. That is
+  // the same asymmetry this round set out to remove, and sky_note's own
+  // manifest line ("anything named that has set") promised otherwise.
+  test("a star named in mark but under the horizon is SAID too, with no focus in sight", () => {
+    const DOWN = "2026-06-21T10:00:00Z"; // Altair is 15° below the horizon over Oslo
+    const at = sky.resolveTime(DOWN, undefined, undefined, sky.defaults.lon);
+    const altair = sky.findStar("Altair")!;
+    expect(sky.starPositions(at, sky.defaults.lat, sky.defaults.lon).get(altair.hip)!.alt).toBeLessThan(0);
+
+    const r = lay({ time: DOWN, mark: ["Altair"] });
+    expect(r.order).not.toContain("altair");                     // not on the page…
+    expect(textOf(r, "sky_note")).toContain("Below the horizon: Altair"); // …and said so
+    expect(textOf(lay({ time: DOWN, mark: ["Altair"], names: "nb" }), "sky_note")).toContain("Under horisonten: Altair");
+    // `highlight` names things the same way `mark` does.
+    expect(textOf(lay({ time: DOWN, highlight: ["Altair"] }), "sky_note")).toContain("Below the horizon: Altair");
+    // A star that IS up is drawn and says nothing; the field is not a complaint box.
+    const upNow = lay({ mark: ["Vega"] });
+    expect(upNow.order).toContain("vega");
+    expect(textOf(upNow, "sky_note") ?? "").not.toContain("Vega");
+    // And it stays inside the page it is written on.
+    const box = elementBBoxes(layoutSpec(spec({ time: DOWN, mark: ["Altair"] }))).get("sky_note")!;
+    expect(box.x + box.w).toBeLessThanOrEqual(940.5);
+  });
+
   test("an unknown name goes to the caption, never to an exception", () => {
     expect(textOf(lay({ show: ["krypton"] }), "sky_note")).toContain("Unknown: krypton");
     expect(textOf(lay({ mark: ["vulcan"] }), "sky_note")).toContain("Unknown: vulcan");

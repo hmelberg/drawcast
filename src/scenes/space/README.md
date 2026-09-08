@@ -387,6 +387,17 @@ same clause covers a `mark`ed constellation that a portrait excludes, and
 `below` now covers a `mark`ed constellation that never rose — which is exactly
 the shape of the manifest's own fourth example half the year.
 
+**And a `mark`ed STAR that has set.** That was the last hole in the same
+contract, and it had nothing to do with the crop: the star loop's
+`if (!p || p.alt < 0) continue` sat ahead of every `sayBelow`/`sayOutside`, so
+`{mark: ["Altair"]}` at ten in the morning drew no `altair` and wrote no word
+about it — with no `focus` and no crop anywhere in sight. A named BODY under
+the horizon was said, a `mark`ed CONSTELLATION that never rose was said, and a
+star alone was silent. `sky_note`'s own manifest line promises "anything named
+that has set", so this was the manifest over-promising as well; two lines in
+the star loop, and the element_ids line for a marked star now carries the same
+"drawn only when it is above the horizon" qualifier the body line always had.
+
 Under `focus` every star the figure's lines reach becomes its own element, so a
 question can name any of them — `betelgeuse`, or `hip_25281` where the
 catalogue has no proper name. Those are separate elements rather than a group,
@@ -570,7 +581,12 @@ So the concessions run cheapest first, and none of them is a naming clause:
 1. drop `symbols` — the one clause that names nothing anybody typed, and the
    only droppable one;
 2. shorten the daylight sentence to its bare fact ("The Sun is up"); what is
-   lost is the lesson, and the author's names outrank it;
+   lost is the lesson, and the author's names outrank it. Measured on `{time:
+   "2026-06-21T02:00:00Z", show: ["all"]}`, where three named planets are down:
+   with the long sentence the line holds ONE of them and a count ("… · Below
+   the horizon: Mercury +2", 879.84 of 880 — it fits, but only just); with the
+   short one it holds all three (542.88). The rung buys NAMES, not silence,
+   and it never touches a naming clause;
 3. count the tails of the naming lists, cheapest clause first, one name at a
    time, down to one name apiece — "Below the horizon: Mercury, Venus +5";
 4. count a list whole ("Unknown: +12"), never for a clause naming ONE thing,

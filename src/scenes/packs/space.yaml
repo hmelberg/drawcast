@@ -735,7 +735,7 @@ params:
       description: "both (default): the figures drawn and the ones that have room named. lines: the figures with no names. names: names with no lines. none: neither. The chart names as many as it can place cleanly, largest first — a star chart names what it has room for, the way an atlas does. This is about the whole sky: a focus draws and names its own subject whatever this says."
     focus:
       type: string
-      description: "One constellation — its abbreviation (Ori), its Latin, English or Norwegian name, or its element id (con_ori). That figure alone fills the page, magnified, with EVERY one of its own stars given its own element id (a proper name where it has one, else hip_<number>) so a question can name any of them; the horizon goes and a dashed frame says this is a detail. A figure that is entirely below the horizon is said so in the caption and the whole sky is drawn instead. The crop takes the rest of the sky with it: anything else you named — a star in mark, a body in show, another constellation — is left out and listed in the caption as \"Outside view: …\"."
+      description: "One constellation — its abbreviation (Ori), its Latin, English or Norwegian name, or its element id (con_ori). That figure alone fills the page, magnified, with EVERY one of its own stars given its own element id (a proper name where it has one, else hip_<number>) so a question can name any of them; the horizon goes and a dashed frame says this is a detail. A figure that is entirely below the horizon is said so in the caption and the whole sky is drawn instead. The crop takes the rest of the sky with it: anything else you named — a star in mark, a body in show, another constellation — is left out and listed in the caption as \"Outside view: …\", or as \"Below the horizon: …\" if it had already set."
       x-translate: false
     names:
       type: string
@@ -770,7 +770,7 @@ element_ids:
   label_con_<abbr>: that constellation's written name, in the language names chose
   hip_<number>: under focus, a star of that figure with no proper name of its own
   frame: a light dashed border around the crop (focus only)
-  <star_name>: a star named in mark or highlight becomes its own element, its id its proper name in lower case (sirius, vega, betelgeuse)
+  <star_name>: a star named in mark or highlight becomes its own element, its id its proper name in lower case (sirius, vega, betelgeuse) — drawn only when it is above the horizon, and the caption says so when it is not
   <body_id>: sun, moon, mercury, venus, mars, jupiter, saturn, uranus or neptune, drawn only when it is above the horizon
   moon: the Moon, drawn with the phase it has that night, its lit side turned toward the Sun
   label_<id>: the written name of a body or a singled-out star
@@ -1030,7 +1030,17 @@ layout: |
   const field = [], byName = new Map();
   for (const s of eng.stars()) {
     const p = sPos.get(s.hip);
-    if (!p || p.alt < 0) continue;
+    // A star the AUTHOR named is SAID when it has set — the rule a named body
+    // and a marked constellation already followed. This `continue` used to sit
+    // ahead of every sayBelow/sayOutside, so a marked star was the ONE named
+    // thing that went silent: `mark: ["Altair"]` at an hour when Altair is
+    // down drew nothing and wrote nothing, with no focus and no crop involved.
+    // That is the asymmetry this round set out to remove, and sky_note's own
+    // manifest line promises it ("anything named that has set").
+    if (!p || p.alt < 0) {
+      if (p && markStars.has(s.hip)) sayBelow(eng.starName(s, L) || eng.starId(s));
+      continue;
+    }
     // Under `focus` every star the figure's own lines reach is singled out, so
     // a question can name any of them — by its proper name where it has one,
     // else by hip_<number>.
