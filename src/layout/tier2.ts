@@ -503,7 +503,18 @@ function rectPts(c: Pt, w: number, h: number): Pt[] {
   ];
 }
 
-function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string } | undefined, ctx: Ctx): Pt | null {
+/** A resolved endpoint, and whether it landed on an exact named/box anchor
+ *  (as opposed to the element's plain center anchor) — connectorDrawable
+ *  only backs off toward the target's edge in the latter case: a resolved
+ *  anchor point is already exact, whether or not `.anchor` was VALID (an
+ *  unrecognised anchor name still falls back to the plain anchor, and must
+ *  still get the usual backoff, not land bare on the target). */
+interface ResolvedEnd {
+  pt: Pt;
+  anchored: boolean;
+}
+
+function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string } | undefined, ctx: Ctx): ResolvedEnd | null {
   if (!end) return null;
   if (end.ref) {
     const a = ctx.anchors[end.ref];
@@ -511,9 +522,9 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
       ctx.warnings.push(`arrow/edge endpoint references unknown id "${end.ref}"`);
       return null;
     }
-    if (end.anchor === undefined) return a;
+    if (end.anchor === undefined) return { pt: a, anchored: false };
     const named = ctx.namedAnchors[end.ref]?.[end.anchor];
-    if (named) return named;
+    if (named) return { pt: named, anchored: true };
     if (isUniversalAnchor(end.anchor)) {
       // Universal anchors come off the box of what the element drew so far
       // (points only — tier-2 has no text measurer).
@@ -530,29 +541,32 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
         }
       }
       const box = ptsBox(pts);
-      if (box) return boxAnchor(box, end.anchor);
+      if (box) return { pt: boxAnchor(box, end.anchor), anchored: true };
     }
     ctx.warnings.push(`arrow/edge endpoint: "${end.ref}" has no anchor "${end.anchor}" — using its plain anchor`);
-    return a;
+    return { pt: a, anchored: false };
   }
   if (end.x !== undefined && end.y !== undefined) {
-    return ctx.domainDeclared ? [ctx.sx(end.x), ctx.sy(end.y)] : [end.x, end.y];
+    return { pt: ctx.domainDeclared ? [ctx.sx(end.x), ctx.sy(end.y)] : [end.x, end.y], anchored: false };
   }
   return null;
 }
 
 function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
-  const from = resolveEnd(el.from, ctx);
-  const to = resolveEnd(el.to, ctx);
-  if (!from || !to) return [];
+  const fromEnd = resolveEnd(el.from, ctx);
+  const toEnd = resolveEnd(el.to, ctx);
+  if (!fromEnd || !toEnd) return [];
+  const from = fromEnd.pt;
+  const to = toEnd.pt;
   const dist = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
   const ux = (to[0] - from[0]) / dist;
   const uy = (to[1] - from[1]) / dist;
-  // A bare ref backs off toward the target's edge (its node radius, or a
-  // guessed bubble); an explicit anchor already names an exact point on the
-  // target, so it lands there with no further shrink.
-  const rFrom = el.from?.ref && el.from.anchor === undefined ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
-  const rTo = el.to?.ref && el.to.anchor === undefined ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
+  // A bare ref, or one whose `.anchor` didn't actually resolve (unknown
+  // name), backs off toward the target's edge (its node radius, or a guessed
+  // bubble); a point that DID resolve through a named/box anchor is already
+  // exact, so it lands there with no further shrink.
+  const rFrom = el.from?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
+  const rTo = el.to?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];

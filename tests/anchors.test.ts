@@ -66,9 +66,10 @@ describe("layout records named anchors", () => {
     close(out.namedAnchors.cake_1.apex, [500, 200]);
     expect(out.namedAnchors.cake_1.start).toBeDefined();
   });
-  test("an arrow endpoint with an anchor lands on the named point at layout time; unknown names warn and use the element's plain anchor", () => {
+  test("an arrow endpoint with an anchor lands on the named point at layout time; unknown names warn and use the element's plain anchor, backoff included", () => {
     const els: SpecElement[] = [
       { id: "tri", type: "polygon", points: [[100, 100], [300, 100], [200, 300]] },
+      { id: "arr0", type: "arrow", from: { x: 500, y: 500 }, to: { ref: "tri" } },
       { id: "arr", type: "arrow", from: { x: 500, y: 500 }, to: { ref: "tri", anchor: "vertex_3" } },
       { id: "arr2", type: "arrow", from: { x: 500, y: 500 }, to: { ref: "tri", anchor: "top" } },
       { id: "arr3", type: "arrow", from: { x: 500, y: 500 }, to: { ref: "tri", anchor: "nonsense" } },
@@ -78,5 +79,19 @@ describe("layout records named anchors", () => {
     close(tip("arr"), [200, 300]);
     close(tip("arr2"), [200, 300]); // top of the triangle's box = its apex row, centred
     expect(r.warnings.join(" ")).toMatch(/nonsense/);
+    // An unrecognised anchor name falls all the way back to the plain
+    // anchor — same point AND same node-radius backoff as no anchor at all,
+    // not the bare unshrunk point a valid anchor gets.
+    close(tip("arr3"), tip("arr0"));
+  });
+  test("a VALID anchor on a node lands exactly on the named point, with no node-radius backoff", () => {
+    const els: SpecElement[] = [
+      { id: "n1", type: "node", x: 500, y: 400, shape: "circle" },
+      { id: "arr4", type: "arrow", from: { x: 100, y: 400 }, to: { ref: "n1", anchor: "right" } },
+    ] as SpecElement[];
+    const r = layoutElements(els, undefined);
+    const tip = (id: string) => (r.drawables.find((d) => d.id === id) as { pts: [number, number][] }).pts.slice(-1)[0];
+    const nodeRadius = 44; // default circle node radius with no text: max(44, 0/2 + 14)
+    close(tip("arr4"), [500 + nodeRadius, 400]);
   });
 });
