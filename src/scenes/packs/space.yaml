@@ -695,8 +695,11 @@ description: >-
   `highlight` or `focus` lifts one out as `con_ori`, and `focus` magnifies it to
   fill the page with every one of its own stars addressable. The figures come
   from a bundled answer key — each is stored as pairs of catalogue stars, so
-  what is drawn and what a question grades against are the same thing. Choose
-  this scene for any request about tonight's sky, a constellation, a named star,
+  what is drawn and what a question grades against are the same thing. A
+  focused figure can be asked for by hand with {"ask": {"widget": "connect",
+  "answer": "con_ori", …}} — the viewer joins star to star — capped at 24
+  lines, Orion's own count. Choose this scene for any request about tonight's
+  sky, a constellation, a named star,
   where a planet is tonight, the Moon's phase, or why the sky turns.
 params:
   type: object

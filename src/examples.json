@@ -14009,6 +14009,34 @@
     }
   },
   {
+    "request": "Do I know Orion well enough to draw it?",
+    "packs": ["space"],
+    "spec": {
+      "title": "The shield and the club this atlas draws",
+      "template": "sky_map",
+      "params": { "time": "2027-01-15T21:00:00Z", "place": "Oslo", "focus": "con_ori" },
+      "commands": [
+        { "draw": ["frame", "hip_22449", "hip_22509", "hip_22549", "hip_22845", "hip_22797", "hip_23123", "hip_22957", "bellatrix", "hip_23607", "hip_24010", "rigel", "hip_25281", "mintaka", "hip_26207", "betelgeuse", "alnilam", "alnitak", "saiph", "hip_27913", "hip_28716", "hip_29038", "hip_28614", "hip_29426"], "speak": "A January evening, and here is the patch of sky Orion sits in: twenty-three stars, no lines between them yet." },
+        { "draw": ["con_ori"], "speak": "Joined up: three stars in a short straight row make the belt; above it, Betelgeuse and Bellatrix mark the shoulders; below, Rigel is the foot. This atlas also gives Orion a shield on one raised arm and a club in the other — details plenty of star charts leave out." },
+        { "ask": { "question": "Draw Orion.", "widget": "connect", "answer": "con_ori", "right": "That's Orion — belt, shoulders, foot, shield and club: all twenty-four lines of this atlas's own figure." } }
+      ]
+    }
+  },
+  {
+    "request": "Hvordan finner jeg Kassiopeia?",
+    "packs": ["space"],
+    "spec": {
+      "title": "Fire streker som tegner en W",
+      "template": "sky_map",
+      "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "focus": "con_cas", "names": "nb" },
+      "commands": [
+        { "draw": ["frame", "caph", "shedar", "navi", "ruchbah", "hip_8886"], "speak": "Fem stjerner tett i himmelen mot nord, forstørret. Ingen streker mellom dem ennå." },
+        { "draw": ["con_cas"], "speak": "Sammen tegner de en tydelig sikksakk — en W en natt, en M en annen, avhengig av hvordan himmelen har snudd seg. Bare fire streker, fem stjerner: en av de raskeste figurene å kjenne igjen." },
+        { "ask": { "question": "Tegn Kassiopeia.", "widget": "connect", "answer": "con_cas", "right": "Der er hun — dronningen, W-en du nettopp så." } }
+      ]
+    }
+  },
+  {
     "request": "Why doesn't Jupiter twinkle when the stars do?",
     "packs": ["space"],
     "spec": {
