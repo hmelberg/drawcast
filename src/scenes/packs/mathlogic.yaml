@@ -1778,7 +1778,12 @@ layout: |-
   const x0 = num(params.x_from, 0);
   const x1 = Math.max(x0 + 1e-6, num(params.x_to, 10));
   const span = x1 - x0;
-  const xa = Math.min(Math.max(num(params.at, x0 + 0.4 * span), x0), x1);
+  // Clamp xa strictly below x1 (leaving room for at least h = 0.01) BEFORE
+  // clamping h — an `at` at or past the domain's right edge used to clamp xa
+  // all the way to x1, which then clamped xb = xa + h back down to xa too
+  // (x1 - xa = 0), making the secant's slope 0/0 = NaN. Math.max(x0, ...)
+  // guards a degenerate domain narrower than 0.01 from inverting the range.
+  const xa = Math.min(Math.max(num(params.at, x0 + 0.4 * span), x0), Math.max(x0, x1 - 0.01));
   const h = Math.max(0.01, Math.min(num(params.h, 0.4 * span), Math.max(0.01, x1 - xa)));
   const xb = Math.min(x1, xa + h);
   const showTangent = params.show_tangent !== false;

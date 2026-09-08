@@ -68,6 +68,22 @@ describe("tangent_secant", () => {
     expect(lay("tangent_secant", { at: 4, h: 4 }).order).toContain("label_dx");
     expect(lay("tangent_secant", { at: 4, h: 0.05 }).order).not.toContain("label_dx");
   });
+  test("at the domain's right edge, the secant stays finite (no NaN slope)", () => {
+    for (const params of [{ at: 10 }, { at: 10, h: 0.01 }]) {
+      const out = lay("tangent_secant", params);
+      expect(out.warnings, JSON.stringify(params)).toEqual([]);
+      expect(out.issues.filter((i) => i.severity === "error"), JSON.stringify(params)).toEqual([]);
+      expect(out.order, JSON.stringify(params)).toContain("secant");
+      expect(textOf(out, "slope_label"), JSON.stringify(params)).toMatch(/slope ≈ -?[\d.]+$/);
+    }
+  });
+  test("at below the domain's left edge clamps to x_from and stays finite too", () => {
+    const out = lay("tangent_secant", { at: -5 });
+    expect(out.warnings).toEqual([]);
+    expect(out.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(out.order).toContain("secant");
+    expect(textOf(out, "slope_label")).toMatch(/slope ≈ -?[\d.]+$/);
+  });
   test("both manifest examples lint clean", () => {
     for (const ex of scenes.tangent_secant.manifest.examples) {
       const out = lay("tangent_secant", ex.params);
