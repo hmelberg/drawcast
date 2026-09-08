@@ -1,6 +1,6 @@
 pack: mathlogic
 title: Math & logic
-description: Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations, and the circle cut into sectors that zip into the πr² rectangle.
+description: Venn diagrams, the unit circle, number lines, labeled geometry, truth tables, argument maps and handwritten equations, the circle cut into sectors that zip into the πr² rectangle, Riemann sums under a curve, and the secant that becomes the tangent.
 ---
 template: venn_diagram
 title: Venn / Euler diagram
@@ -1596,4 +1596,251 @@ layout: |-
   }
   anchors.circle = CIRCLE;
   anchors.rectangle = [rectCx, rectCy];
+  return { drawables, labels, anchors, order };
+---
+template: riemann_sum
+title: Riemann sum → the integral
+version: 1
+kit: 9
+status: ready
+description: >-
+  The area under a curve y = f(x) between a and b approximated by n
+  rectangles (left, right or midpoint rule), with the exact region washed
+  underneath, the running sum "Σ ≈" and the integral "∫ ≈" written on the
+  figure. n ANIMATES: animate n from 4 to 40 and the bars thin, the sum
+  converging on the integral. Choose this for ANY request about what an
+  integral is, the area under a curve, Riemann sums, or why more
+  rectangles give a better estimate.
+params:
+  type: object
+  properties:
+    expr:
+      type: string
+      description: "y = f(x), the same expression syntax as a curve's expr (default \"x*x/10 + 1\")."
+    x_from: { type: number, description: "Left end of the drawn domain (default 0)." }
+    x_to: { type: number, description: "Right end of the drawn domain (default 10)." }
+    a: { type: number, description: "Left end of the interval summed (default x_from)." }
+    b: { type: number, description: "Right end of the interval summed (default x_to)." }
+    n:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: "How many rectangles (default 6). animate to 40 to refine."
+    rule:
+      type: string
+      enum: [left, right, midpoint]
+      description: "Where each rectangle's height is read (default left)."
+    show_area: { type: boolean, description: "Wash the exact region under the curve (default true)." }
+    show_sum: { type: boolean, description: "Write Σ ≈ and ∫ ≈ on the figure (default true)." }
+    x_label: { type: string, description: "x-axis caption (default x)." }
+    y_label: { type: string, description: "y-axis caption (default f(x))." }
+element_ids:
+  axes: the L-shaped axes
+  x_label: x-axis caption
+  y_label: y-axis caption
+  curve: the function
+  area: the exact region under the curve on [a, b] (when show_area)
+  bar_<k>: rectangle k of n, left to right — each its own element
+  label_a: the interval's left end, on the axis
+  label_b: the interval's right end
+  sum_label: Σ ≈ … (n = …) — the rectangles' total, recomputed every frame
+  exact_label: ∫ ≈ … — the integral by fine numeric quadrature
+examples:
+  - request: "What is an integral? Show the area under a curve as rectangles."
+    params: { expr: "x*x/10 + 1", x_from: 0, x_to: 10, a: 2, b: 8, n: 4 }
+  - request: "Show a Riemann sum with forty thin rectangles under a curve."
+    params: { expr: "x*x/10 + 1", x_from: 0, x_to: 10, a: 2, b: 8, n: 40, rule: midpoint }
+layout: |-
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const exprSrc = typeof params.expr === "string" && params.expr.trim() ? params.expr : "x*x/10 + 1";
+  const f = kit.expr(exprSrc, ["x"]);
+  const fx = (x) => { const y = f({ x }); return Number.isFinite(y) ? y : 0; };
+  const x0 = num(params.x_from, 0);
+  const x1 = Math.max(x0 + 1e-6, num(params.x_to, 10));
+  const a = Math.min(Math.max(num(params.a, x0), x0), x1);
+  const b = Math.min(Math.max(num(params.b, x1), a), x1);
+  const n = Math.max(1, Math.min(200, Math.round(num(params.n, 6))));
+  const rule = params.rule === "right" || params.rule === "midpoint" ? params.rule : "left";
+  const showArea = params.show_area !== false;
+  const showSum = params.show_sum !== false;
+  const xLabel = typeof params.x_label === "string" ? params.x_label : "x";
+  const yLabel = typeof params.y_label === "string" ? params.y_label : "f(x)";
+  const plot = kit.plotArea();
+  const samples = kit.sample(fx, x0, x1, 120);
+  const yTop = Math.max(1e-9, ...samples.map((p) => p[1]), 0) * 1.1;
+  const sx = (x) => plot.x0 + ((x - x0) / (x1 - x0)) * (plot.x1 - plot.x0);
+  const sy = (y) => plot.y0 + (Math.max(0, Math.min(y, yTop)) / yTop) * (plot.y1 - plot.y0);
+  const fmt = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(1));
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.stroke("axes", [[plot.x0, plot.y1 + kit.AXIS_OVERHANG], [plot.x0, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { color: C.ink, strokeWidth: 3, ms: MS.axis }));
+  push(kit.axisLabel("x_label", "x", plot, xLabel));
+  push(kit.axisLabel("y_label", "y", plot, yLabel));
+  anchors.axes = [plot.x0, plot.y0];
+  const curvePts = samples.map(([x, y]) => [sx(x), sy(y)]);
+  push(kit.stroke("curve", curvePts, { color: C.demand, strokeWidth: 4, ms: MS.curve }));
+  anchors.curve = curvePts[curvePts.length - 1];
+  if (showArea && b > a) {
+    const under = [];
+    for (let i = 0; i <= 80; i++) { const x = a + ((b - a) * i) / 80; under.push([sx(x), sy(fx(x))]); }
+    under.push([sx(b), sy(0)], [sx(a), sy(0)]);
+    push(kit.area("area", under, C.region2, { opacity: 0.22, ms: MS.region }));
+    anchors.area = [sx((a + b) / 2), (sy(fx((a + b) / 2)) + sy(0)) / 2];
+  }
+  const w = (b - a) / n;
+  let sum = 0;
+  for (let k = 0; k < n; k++) {
+    const xl = a + k * w, xr = xl + w;
+    const xs = rule === "left" ? xl : rule === "right" ? xr : (xl + xr) / 2;
+    const h = Math.max(0, fx(xs));
+    sum += h * w;
+    const id = "bar_" + (k + 1);
+    const pts = [[sx(xl), sy(0)], [sx(xr), sy(0)], [sx(xr), sy(h)], [sx(xl), sy(h)]];
+    push(kit.area(id, pts, C.supply, { opacity: 0.35, ms: MS.region }));
+    drawables.push(kit.stroke(id + "_body", pts, { closed: true, color: C.supply, strokeWidth: 2, ms: MS.stroke }));
+    anchors[id] = [sx((xl + xr) / 2), sy(h / 2)];
+  }
+  labels.push(kit.label("label_a", [sx(a), sy(0)], "below", fmt(a), { color: C.ink, fontSize: 24 }));
+  labels.push(kit.label("label_b", [sx(b), sy(0)], "below", fmt(b), { color: C.ink, fontSize: 24 }));
+  order.push("label_a", "label_b");
+  anchors.label_a = [sx(a), sy(0)];
+  anchors.label_b = [sx(b), sy(0)];
+  if (showSum) {
+    let exact = 0;
+    const m = 2000;
+    for (let i = 0; i < m; i++) { const x = a + ((b - a) * (i + 0.5)) / m; exact += Math.max(0, fx(x)) * ((b - a) / m); }
+    const tx = plot.x0 + 24, ty = plot.y1 - 16;
+    push(kit.text("sum_label", [tx, ty], "Σ ≈ " + sum.toFixed(1) + "  (n = " + n + ")", { fontSize: 26, color: C.supply, anchor: "start" }));
+    push(kit.text("exact_label", [tx, ty - 34], "∫ ≈ " + exact.toFixed(1), { fontSize: 26, color: C.demand, anchor: "start" }));
+    anchors.sum_label = [tx + 60, ty];
+    anchors.exact_label = [tx + 60, ty - 34];
+  }
+  return { drawables, labels, anchors, order };
+---
+template: tangent_secant
+title: Secant → tangent (the derivative)
+version: 1
+kit: 9
+status: ready
+description: >-
+  A curve y = f(x) with a point A at x = at and a second point B at x = at + h,
+  the secant through them with its rise/run triangle and slope written out,
+  and the true tangent at A (dashed) with f′(at). h ANIMATES: animate h
+  toward 0 and B slides into A, the secant turns into the tangent and the
+  slope converges on the derivative. Choose this for ANY request about what
+  a derivative is, the slope of a curve at a point, a tangent line, a
+  difference quotient, or the limit of (f(x+h) − f(x))/h.
+params:
+  type: object
+  properties:
+    expr:
+      type: string
+      description: "y = f(x), the same expression syntax as a curve's expr (default \"x*x/10 + 1\")."
+    x_from: { type: number, description: "Left end of the drawn domain (default 0)." }
+    x_to: { type: number, description: "Right end of the drawn domain (default 10)." }
+    at: { type: number, description: "x of the point A the derivative is taken at (default 4)." }
+    h:
+      type: number
+      minimum: 0.01
+      maximum: 20
+      description: "Distance from A to B along x (default 4). animate toward 0.05 to turn the secant into the tangent."
+    show_tangent: { type: boolean, description: "Draw the true tangent at A, dashed (default true)." }
+    show_triangle: { type: boolean, description: "Draw the rise/run legs with Δx and Δy labels (default true)." }
+    x_label: { type: string, description: "x-axis caption (default x)." }
+    y_label: { type: string, description: "y-axis caption (default f(x))." }
+element_ids:
+  axes: the L-shaped axes
+  x_label: x-axis caption
+  y_label: y-axis caption
+  curve: the function
+  point_a: the point A at x = at
+  point_b: the point B at x = at + h
+  secant: the line through A and B
+  tangent: the tangent at A, dashed (when show_tangent)
+  run: the horizontal leg from A (when show_triangle)
+  rise: the vertical leg up to B (when show_triangle)
+  label_dx: Δx = h under the run (only while the triangle is wide enough to carry it)
+  label_dy: Δy = … beside the rise (same)
+  slope_label: slope ≈ … — the secant's slope, recomputed every frame
+  derivative_label: f′(at) = … — the true derivative at A
+examples:
+  - request: "What is a derivative? Show a secant becoming a tangent."
+    params: { expr: "x*x/10 + 1", x_from: 0, x_to: 10, at: 4, h: 4 }
+  - request: "Show the tangent to a curve at a point with its slope."
+    params: { expr: "x*x/10 + 1", x_from: 0, x_to: 10, at: 6, h: 0.05 }
+layout: |-
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const exprSrc = typeof params.expr === "string" && params.expr.trim() ? params.expr : "x*x/10 + 1";
+  const f = kit.expr(exprSrc, ["x"]);
+  const fx = (x) => { const y = f({ x }); return Number.isFinite(y) ? y : 0; };
+  const x0 = num(params.x_from, 0);
+  const x1 = Math.max(x0 + 1e-6, num(params.x_to, 10));
+  const span = x1 - x0;
+  const xa = Math.min(Math.max(num(params.at, x0 + 0.4 * span), x0), x1);
+  const h = Math.max(0.01, Math.min(num(params.h, 0.4 * span), Math.max(0.01, x1 - xa)));
+  const xb = Math.min(x1, xa + h);
+  const showTangent = params.show_tangent !== false;
+  const showTri = params.show_triangle !== false;
+  const xLabel = typeof params.x_label === "string" ? params.x_label : "x";
+  const yLabel = typeof params.y_label === "string" ? params.y_label : "f(x)";
+  const plot = kit.plotArea();
+  const samples = kit.sample(fx, x0, x1, 120);
+  const yTop = Math.max(1e-9, ...samples.map((p) => p[1]), fx(xa), fx(xb), 0) * 1.1;
+  const sx = (x) => plot.x0 + ((x - x0) / span) * (plot.x1 - plot.x0);
+  const sy = (y) => plot.y0 + (Math.max(0, Math.min(y, yTop)) / yTop) * (plot.y1 - plot.y0);
+  const fmt = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(2).replace(/0$/, ""));
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.stroke("axes", [[plot.x0, plot.y1 + kit.AXIS_OVERHANG], [plot.x0, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { color: C.ink, strokeWidth: 3, ms: MS.axis }));
+  push(kit.axisLabel("x_label", "x", plot, xLabel));
+  push(kit.axisLabel("y_label", "y", plot, yLabel));
+  anchors.axes = [plot.x0, plot.y0];
+  const curvePts = samples.map(([x, y]) => [sx(x), sy(y)]);
+  push(kit.stroke("curve", curvePts, { color: C.demand, strokeWidth: 4, ms: MS.curve }));
+  anchors.curve = curvePts[curvePts.length - 1];
+  const A = [sx(xa), sy(fx(xa))], B = [sx(xb), sy(fx(xb))];
+  // A line through P along d, clipped to the plot box (parametric slab test).
+  const clipLine = (P, d) => {
+    let t0 = -Infinity, t1 = Infinity;
+    for (const [lo, hi, p, v] of [[plot.x0, plot.x1, P[0], d[0]], [plot.y0, plot.y1, P[1], d[1]]]) {
+      if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) return null; continue; }
+      const ta = (lo - p) / v, tb = (hi - p) / v;
+      t0 = Math.max(t0, Math.min(ta, tb)); t1 = Math.min(t1, Math.max(ta, tb));
+    }
+    if (!(t0 < t1)) return null;
+    return [[P[0] + t0 * d[0], P[1] + t0 * d[1]], [P[0] + t1 * d[0], P[1] + t1 * d[1]]];
+  };
+  const dirOf = (m) => { const dx = (plot.x1 - plot.x0) / span, dy = (m * (plot.y1 - plot.y0)) / yTop; const L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; };
+  const secSlope = (fx(xb) - fx(xa)) / (xb - xa);
+  const sec = clipLine(A, dirOf(secSlope));
+  if (sec) { push(kit.stroke("secant", sec, { color: C.supply, strokeWidth: 3, ms: MS.connector })); anchors.secant = sec[1]; }
+  const eps = 1e-4 * span;
+  const deriv = (fx(xa + eps) - fx(xa - eps)) / (2 * eps);
+  if (showTangent) {
+    const tan = clipLine(A, dirOf(deriv));
+    if (tan) { push(kit.stroke("tangent", tan, { color: C.demand, strokeWidth: 3, dash: true, ms: MS.connector })); anchors.tangent = tan[1]; }
+  }
+  if (showTri) {
+    const corner = [B[0], A[1]];
+    push(kit.stroke("run", [A, corner], { color: C.guide, strokeWidth: 2.5, ms: MS.connector }));
+    push(kit.stroke("rise", [corner, B], { color: C.guide, strokeWidth: 2.5, ms: MS.connector }));
+    anchors.run = [(A[0] + corner[0]) / 2, A[1]];
+    anchors.rise = [corner[0], (corner[1] + B[1]) / 2];
+    if (corner[0] - A[0] >= 40) {
+      labels.push(kit.label("label_dx", anchors.run, "below", "Δx = " + fmt(h), { color: C.guide, fontSize: 22 }));
+      labels.push(kit.label("label_dy", anchors.rise, "right", "Δy = " + fmt(fx(xb) - fx(xa)), { color: C.guide, fontSize: 22 }));
+      order.push("label_dx", "label_dy");
+    }
+  }
+  push(kit.stroke("point_a", [A], { shapeHint: { type: "circle", c: A, r: 7 }, color: C.ink, fill: C.ink, strokeWidth: 2, ms: MS.dot }));
+  push(kit.stroke("point_b", [B], { shapeHint: { type: "circle", c: B, r: 7 }, color: C.supply, fill: C.supply, strokeWidth: 2, ms: MS.dot }));
+  anchors.point_a = A;
+  anchors.point_b = B;
+  const tx = plot.x0 + 24, ty = plot.y1 - 16;
+  push(kit.text("slope_label", [tx, ty], "slope ≈ " + secSlope.toFixed(2), { fontSize: 26, color: C.supply, anchor: "start" }));
+  push(kit.text("derivative_label", [tx, ty - 34], "f′(" + fmt(xa) + ") = " + deriv.toFixed(2), { fontSize: 26, color: C.demand, anchor: "start" }));
+  anchors.slope_label = [tx + 60, ty];
+  anchors.derivative_label = [tx + 60, ty - 34];
   return { drawables, labels, anchors, order };

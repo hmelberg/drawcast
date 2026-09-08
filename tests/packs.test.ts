@@ -994,7 +994,7 @@ describe("evidence pack", () => {
 describe("mathlogic pack", () => {
   beforeEach(() => unregisterPack("mathlogic"));
 
-  const TEMPLATE_IDS = ["venn_diagram", "unit_circle", "number_line", "geometry_figure", "truth_table", "argument_map", "equation_steps", "plot3d", "circle_sectors"];
+  const TEMPLATE_IDS = ["venn_diagram", "unit_circle", "number_line", "geometry_figure", "truth_table", "argument_map", "equation_steps", "plot3d", "circle_sectors", "riemann_sum", "tangent_secant"];
 
   function inBounds(res: ReturnType<typeof layoutSpec>) {
     expect(res.warnings).toEqual([]);
