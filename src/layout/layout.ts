@@ -197,6 +197,8 @@ function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Dra
       .map((d) => unionBBoxForId(drawables, d.id, measure)),
   );
   if (!code) return [];
+  // No pieces expansion here: the ids compared are a code element's and the
+  // template's own, neither of which can be a pieces parent.
   const together = coVisible(spec.commands, drawables.map((d) => d.id));
   for (const id of templateIds) {
     if (!together(codeId, id)) continue;

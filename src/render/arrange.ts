@@ -183,8 +183,10 @@ function fan(items: ArrangeInput[], at: Pt, start: number, gap: number): Arrange
  * the smallest side of any target's box (so a turned or larger cell cannot
  * open seams for the rest), plus `gap` (0 for a tight comb). A flat-topped
  * hexagon (wider than tall) has its neighbours at 30° + 60°k, a pointy-topped
- * one at 60°k; any other shape gets the pointy-top lattice. Slots go in
- * target order, so list the centre cell first.
+ * one at 60°k; any other shape gets the pointy-top lattice. The first
+ * target takes the centre; the rest take the nearest free ring slot. Only
+ * as many slots as targets are minted, so a partial ring has slots on the
+ * first sides it fills — a target on the far side is brought round.
  */
 function hex(items: ArrangeInput[], at: Pt, gap: number): ArrangeOutput[] {
   if (items.length === 0) return [];

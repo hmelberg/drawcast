@@ -587,6 +587,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (inputs.length === 0) continue;
       const at = cmd.arrange.at ? toLogical(cmd.arrange.at as Pt) : undefined;
+      if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && !inputs.some((i) => i.piece)) {
+        warnings.push(`arrange ${cmd.arrange.layout}: none of the targets is a sector piece — laid out as a row instead`);
+      }
       // A honeycomb is a zero-seam packing, so hex alone defaults to no gap.
       const gap = cmd.arrange.gap ?? (cmd.arrange.layout === "hex" ? 0 : 6);
       const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap, columns: cmd.arrange.columns, start: cmd.arrange.start });

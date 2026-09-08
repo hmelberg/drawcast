@@ -958,6 +958,8 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 // --- sector / arc / polygon / pieces (design §2.2) ---------------------
 
 const DEG = Math.PI / 180;
+/** Ceiling on the cells one `pieces` element may cut a rectangle into. */
+const MAX_PIECE_CELLS = 256;
 
 /** A closed fan: the centre, then the arc boundary — a sector's outline. */
 function sectorPts(c: Pt, r: number, from: number, to: number, steps = 24): Pt[] {
@@ -1105,8 +1107,13 @@ function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 function rectPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
   const w = el.width ?? 400;
   const h = el.height ?? 200;
+  // Defaults are for hand-edited specs only: validateSpec requires width,
+  // height and n (and rows for a grid). The cell count is capped at 256 —
+  // more than reads on the canvas, and lint's co-visibility bookkeeping is
+  // quadratic in visible ids (a 64 × 64 grid took layoutSpec down).
   const cols = Math.max(1, Math.round(el.n ?? 4));
-  const rows = el.of === "grid" ? Math.max(1, Math.round(el.rows ?? 2)) : 1;
+  const rawRows = el.of === "grid" ? Math.max(1, Math.round(el.rows ?? 2)) : 1;
+  const rows = Math.min(rawRows, Math.max(1, Math.floor(MAX_PIECE_CELLS / cols)));
   const cw = w / cols;
   const ch = h / rows;
   const left = c[0] - w / 2;

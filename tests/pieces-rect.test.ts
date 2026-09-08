@@ -1,10 +1,11 @@
 // pieces of a rectangle (strips, grid), lint's co-visibility seeing through a
 // pieces id, and nearest-slot assignment in ring and hex.
 import { describe, expect, test } from "vitest";
-import { elementRings, layoutSpec } from "../src/layout/layout";
+import { elementBBoxes, elementRings, layoutSpec } from "../src/layout/layout";
 import { validateSpec } from "../src/spec/schema";
 import { coVisible } from "../src/lint/lint";
 import { arrangeTargets } from "../src/render/arrange";
+import { planCommands } from "../src/render/plan";
 import type { Spec } from "../src/spec/types";
 
 type P = [number, number];
@@ -80,5 +81,39 @@ describe("nearest-slot assignment", () => {
     const by = Object.fromEntries(out.map((o) => [o.id, o.centre!]));
     expect(by.east).toEqual([604, 400]);
     expect(by.west).toEqual([396, 400]);
+  });
+});
+
+describe("guards around rectangle pieces", () => {
+  test("the cell count is capped at 256, so a schema-valid 64 × 64 grid cannot take the layout down", () => {
+    const out = layoutSpec(spec([{ id: "g", type: "pieces", of: "grid", x: 500, y: 400, width: 400, height: 300, n: 64, rows: 64 }]));
+    expect(out.pieceGroups.g).toHaveLength(256);
+  });
+  test("horizontal bands: n: 1 with rows", () => {
+    expect(validateSpec({ elements: [{ id: "b", type: "pieces", of: "grid", x: 500, y: 400, width: 400, height: 200, n: 1, rows: 4 }], commands: [] }).ok).toBe(true);
+    const out = layoutSpec(spec([{ id: "b", type: "pieces", of: "grid", x: 500, y: 400, width: 400, height: 200, n: 1, rows: 4 }]));
+    expect(out.pieceGroups.b).toEqual(["b_1", "b_2", "b_3", "b_4"]);
+  });
+  test("an element id that reads as a numbered piece of a pieces element is rejected", () => {
+    const v = validateSpec({
+      elements: [
+        { id: "rute", type: "pieces", of: "grid", x: 500, y: 400, width: 400, height: 300, n: 4, rows: 3 },
+        { id: "rute_5", type: "text", text: "x", x: 100, y: 100 },
+      ],
+      commands: [{ draw: ["rute"] }],
+    });
+    expect(v.ok).toBe(false);
+    expect(v.errors.join(" ")).toMatch(/"rute_5".*piece/);
+  });
+  test("zipper on rectangle cells warns and falls back to a row", () => {
+    const layout = layoutSpec(spec([{ id: "bar", type: "pieces", of: "strips", x: 500, y: 400, width: 400, height: 100, n: 4 }]));
+    const bboxes = elementBBoxes(layout);
+    const plan = planCommands([{ draw: ["bar"] }, { arrange: { target: "bar", layout: "zipper" } }], layout.order, {
+      bboxOf: (id) => bboxes.get(id) ?? null,
+      pieceOf: (id) => layout.pieces[id] ?? null,
+      expandId: (id) => layout.pieceGroups[id] ?? null,
+    });
+    expect(plan.warnings.join(" ")).toMatch(/zipper.*row/);
+    expect(plan.steps[1].kind).toBe("transform");
   });
 });

@@ -144,8 +144,8 @@ const elementSchema = {
     closed: { type: "boolean", description: "path: close the polyline." },
     x: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical x (y-up canvas) — the centre, for the shapes that have one." },
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical y (y-up canvas) — the centre, for the shapes that have one." },
-    width: { type: "number", description: "shape rect / portrait / source / code: width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
-    height: { type: "number", description: "shape rect: height in logical units." },
+    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
+    height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces
@@ -155,12 +155,12 @@ const elementSchema = {
     rotation: { type: "number", description: "polygon: turn a regular polygon by this many degrees." },
     n: {
       type: "integer",
-      minimum: 2,
+      minimum: 1,
       maximum: 128,
       description:
-        "pieces: how many pieces to cut — e.g. 12 sectors of a circle, 4 strips of a rectangle, or the COLUMNS of a grid (rows in `rows`). Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
+        "pieces: how many pieces to cut — e.g. 12 sectors of a circle, 4 strips of a rectangle, or the COLUMNS of a grid (rows in `rows`; n: 1 with rows: 4 gives four horizontal bands). Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
     },
-    rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left." },
+    rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left. At most 256 cells in all." },
     // portrait / source
     of: {
       type: "string",
@@ -1018,6 +1018,15 @@ function semanticErrors(spec: Spec): string[] {
       if (!id.endsWith(tail) || id.length === tail.length) continue;
       const base = id.slice(0, -tail.length);
       if (seen.has(base)) errors.push(`element ids "${base}" and "${id}" collide: "${tail}" is reserved for the sub-drawables of "${base}" — rename one of them`);
+    }
+  }
+  // A pieces element mints "<id>_1 … <id>_n"; an author-declared element with
+  // such an id would draw twice under one name.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "pieces") continue;
+    const prefix = `${el.id}_`;
+    for (const id of seen) {
+      if (id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))) errors.push(`element id "${id}" collides with a numbered piece of "${el.id}" — rename it`);
     }
   }
 
