@@ -310,10 +310,33 @@ three languages, brightest star, Wikipedia summary); pills for time (now, +1 h,
 
 Round 3 builds direction B. Three questions §6.2 left open are answered here.
 
-**Threshold.** Every edge of the key, at most one stray. Undirected pairs,
-compared as sets. A count is shown while the viewer draws ("12 / 24 linjer")
-and in the summary, so a long figure gives feedback even though the verdict is
-binary.
+**Threshold: exact.** The drawn set equals the key set. Undirected pairs,
+compared as sets, with no allowance for a stray.
+
+Hans, 2026-09-08, overruling the one-stray allowance I had proposed: «uhellet
+er allerede tilgitt av grensesnittet: du kan klikke på et segment for å fjerne
+det, og du trykker Ferdig når du selv mener du er ferdig. Det finnes ikke noe
+uopprettelig feilklikk å skåne noen for». An allowance exists to forgive an
+accident, and this interface has already forgiven it — a segment is removed by
+clicking it, and nothing is submitted until the viewer presses Done. What the
+allowance would actually buy is the app saying "right" about a drawing it then
+paints with a red line: two contradictory messages in the same moment.
+
+Worse, the allowance sat on the wrong side. Requiring all 24 edges is the
+doubtful half: the figure in the data is ONE publisher's convention, and
+d3-celestial's Orion carries the shield and the club. Someone who draws the
+hourglass with the belt — the shape most people know, and the one many atlases
+print — is short a dozen lines and told they are wrong, while knowing the
+constellation perfectly well. The viewer who adds a line, by contrast, usually
+knows a richer version. Strict where the sources disagree, lax where the viewer
+can already undo: exactly backwards.
+
+**Fairness comes from the framing instead.** A connect question belongs AFTER
+the figure has been on screen in the cast, so the task is "draw the one you just
+saw" and not "guess which convention we use". Under that framing an exact key is
+an honest demand. The gate hides the lines while the question stands, lint warns
+when nothing drew them first, the count ("12 / 24 linjer") shows the viewer
+where they are, and the reveal teaches the shape whatever the verdict.
 
 **The size cap.** Hans: «bruk en fornuftig øvre grense». **24 edges** —
 Orion's own count, and the practical ceiling for a hand-drawn dot-to-dot. It

@@ -29,8 +29,13 @@ exercise), §6.3 (what round 3 settles: threshold, cap, focus requirement),
 - **`CONNECT_MAX_EDGES = 24`.** Orion's own count. Over it, lint says so and the
   gate does not open. Exactly two figures fall outside: Eridanus (26),
   Sagittarius (29).
-- **Grading: every key edge, at most one stray.** Undirected pairs compared as
-  sets. `STRAY_ALLOWANCE = 1`.
+- **Grading is EXACT: the drawn set equals the key set.** No stray allowance.
+  The interface already forgives an accident — a segment is removed by clicking
+  it, and nothing is judged until the viewer presses Done — so an allowance
+  would only make the app say "right" about a drawing it then paints with a red
+  line. Fairness comes from the framing: **a connect question belongs after the
+  figure has been on screen**, so the task is "draw the one you just saw" and
+  not "guess which convention we use". Spec §6.3.
 - **The logical canvas is y-up, origin bottom-left.** `CANVAS.h − y` is the
   single flip and it happens at emission; `logicalPoint` and `clientPointFor`
   (`src/ui/dom.ts`) already do it. Never negate a y term to "fix" an
@@ -296,13 +301,13 @@ git commit -m "The answer key is read off the drawing, not carried beside it"
 - Produces:
   ```ts
   export const CONNECT_MAX_EDGES = 24;
-  export const STRAY_ALLOWANCE = 1;
   export function snapStar(p: Pt, stars: readonly ConnectStar[], radius: number): ConnectStar | null;
   export function makeEdge(a: string, b: string): ConnectEdge;
   export function sameEdge(a: ConnectEdge, b: ConnectEdge): boolean;
   export function toggleEdge(drawn: readonly ConnectEdge[], e: ConnectEdge): ConnectEdge[];
   export function edgeAt(p: Pt, drawn: readonly ConnectEdge[], stars: readonly ConnectStar[], tol: number): ConnectEdge | null;
   export interface ConnectGrade { hits: ConnectEdge[]; missing: ConnectEdge[]; strays: ConnectEdge[]; pass: boolean }
+  /** Exact: `pass` iff nothing is missing and nothing is extra. */
   export function gradeConnect(drawn: readonly ConnectEdge[], key: readonly ConnectEdge[]): ConnectGrade;
   export function connectProgress(drawn: number, needed: number): string;
   export function connectSummary(g: ConnectGrade): string;
@@ -364,9 +369,11 @@ describe("gradeConnect", () => {
     expect(g.missing).toEqual([]);
     expect(g.strays).toEqual([]);
   });
-  it("forgives one stray, never two", () => {
-    expect(gradeConnect([...key, makeEdge("a", "c")], key).pass).toBe(true);
-    expect(gradeConnect([...key, makeEdge("a", "c"), makeEdge("c", "a")], key).strays.length).toBe(1);
+  it("fails on one extra line — the interface already let the viewer remove it", () => {
+    const g = gradeConnect([...key, makeEdge("a", "c")], key);
+    expect(g.pass).toBe(false);
+    expect(g.strays).toEqual([["a", "c"]]);
+    expect(g.missing).toEqual([]);
   });
   it("fails when a line of the figure is missing, however few strays", () => {
     const g = gradeConnect([makeEdge("a", "b")], key);
@@ -430,9 +437,11 @@ following `src/ui/drag-model.ts` for tone and structure. Required behaviour:
   it, which the test pins), nearest wins, `null` beyond `tol`.
 - `gradeConnect` — `hits` = key edges present, `missing` = key edges absent,
   `strays` = drawn edges not in the key; `pass` = `missing.length === 0 &&
-  strays.length <= STRAY_ALLOWANCE`. Duplicates cannot occur because
-  `toggleEdge` owns the list, but grade defensively over a de-duplicated set
-  anyway — the exported function must be honest about any input.
+  strays.length === 0`. There is NO tolerance constant: an extra line is wrong,
+  because the viewer could see it and remove it before pressing Done.
+  Duplicates cannot occur because `toggleEdge` owns the list, but grade
+  defensively over a de-duplicated set anyway — the exported function must be
+  honest about any input.
 - `connectProgress(drawn, needed)` — `"3 / 24 lines"`.
 - `connectSummary` — `"1 of 2 lines, 1 extra"`, and `"none extra"` for zero.
   Singular/plural on "extra" is not needed; the count carries it.
@@ -519,10 +528,13 @@ Expected: FAIL — `"connect"` is not in the enum.
    > star to star (press one and drag to the next, or tap both) until the figure
    > is made, and `answer` is the constellation's element id (`con_ori`). Use it
    > only with `focus` on that same figure, which is what gives every one of its
-   > stars an element id; the figure's own lines are hidden while the question
-   > stands and drawn back as the reveal. At most 24 lines — Orion's own count,
-   > and the most anyone will draw by hand; for a bigger figure ask which
-   > constellation it is instead.
+   > stars an element id, and only AFTER AN EARLIER BEAT HAS DRAWN THE FIGURE —
+   > the lines are hidden while the question stands and drawn back as the
+   > reveal, so the task is "draw the one you just saw". The whole figure is
+   > required, exactly: every line and no extra one, since a wrong segment can
+   > be clicked away before Done. At most 24 lines — Orion's own count, and the
+   > most anyone will draw by hand; for a bigger figure ask which constellation
+   > it is instead.
 3. Validation, beside the drag block:
    - `connect` requires `answer` (the existing "widget requires answer" rule at
      :896 already covers it — verify, and keep it).
@@ -572,6 +584,28 @@ The four conditions, each with the message it prints (`<id>` is `ask.answer`):
 | the figure is drawn but has no edges | `connect: "<id>" has no lines to draw` |
 | a vertex has no star element under it | `connect: <n> of "<id>"'s points have no star to join — the figure cannot be drawn as it stands` |
 | over the cap | `connect: "<id>" has <n> lines; the cap is 24 (Orion's) — ask which constellation it is instead` |
+
+And ONE further condition, reported independently of those four, because a
+figure can be perfectly drawable and the question still unfair:
+
+| condition | message |
+|---|---|
+| nothing drew the figure before the ask | `connect: "<id>" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"` |
+
+That last one is what makes an exact key honest (spec §6.3). The key is one
+publisher's convention — d3-celestial's Orion carries the shield and the club —
+so a viewer asked cold would be marked wrong for drawing the hourglass everyone
+knows. Asked after seeing the figure, they are being asked to remember a shape,
+which is the exercise.
+
+How to decide it: run the same little state machine `coVisible` (:52-88) runs —
+`draw` and `show` reveal, `erase`, `hide` and `clear` conceal, and an id no
+command ever manages counts as visible from the start — but stop at the ask's
+own index and read whether the answer id is visible there. `c.draw` may be a
+string or an array; `ids()` at :62 already normalises that. Round 2's own
+examples are the shape this expects: `{"draw": ["frame", "caph", …]}`, then
+`{"draw": ["con_cas"], "speak": "Joined up, they trace a zigzag…"}`, then the
+question.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -735,8 +769,10 @@ Behaviour, in the order it happens:
 2. Hide the figure's own lines: `stage.querySelectorAll('[data-leaf-id^="<answer>__"]')`
    plus the group itself, saving each node's inline `opacity` and restoring it
    on teardown. (`svg-backend.ts:305` stamps `data-leaf-id`.) This is the gate's
-   own doing rather than the author's discipline, so a cast that draws the
-   figure first still asks an honest question.
+   own doing rather than the author's discipline. The cast is REQUIRED to have
+   drawn the figure earlier (lint warns when it has not), so the viewer is
+   always asked to draw the one they just saw — the gate's hiding is the second
+   half of that contract, not a safety net for a cast that skipped the first.
 3. Mount an `<svg class="cs-connect-ink">` overlay across the stage, drawn in
    CLIENT pixels via `clientPointFor`, holding: a dot per star (so the viewer
    can see what may be joined), the segments drawn so far, and the rubber band.
@@ -951,8 +987,10 @@ One sentence in `compiler-v1.md:70`'s paragraph, after the chess sentence:
 
 > On a `sky_map` figure focused on one constellation, `"widget": "connect"`
 > asks the viewer to DRAW it: they join star to star until the figure is made,
-> and `answer` is the constellation's element id (`con_ori`). Use `focus` on
-> that same figure, and choose one of at most 24 lines.
+> and `answer` is the constellation's element id (`con_ori`). Draw the figure
+> in an earlier beat first — the question hides it and asks for it back, so it
+> is a memory of what was just shown, never a guess at a convention. Use
+> `focus` on that same figure, and choose one of at most 24 lines.
 
 - [ ] **Step 2: Add it to the template's own description**
 
@@ -970,14 +1008,19 @@ Append to `src/examples.json` with TARGETED string edits — never re-serialize
 the file; a whole-file JSON rewrite reformats all 14 000 lines.
 
 1. **Orion, 24 lines.** Request: `"Do I know Orion well enough to draw it?"`.
-   `sky_map`, `focus: "con_ori"`, a January evening. Beats: name what is on the
-   page, hide nothing (the gate does that), ask with `widget: "connect"`, and a
-   `right` line that says what the figure is — the belt of three, the shoulders
-   Betelgeuse and Bellatrix, the foot Rigel.
+   `sky_map`, `focus: "con_ori"`, a January evening. Follow the beat order
+   round 2's own Ursa Major example uses (`src/examples.json`, "Tjue stjerner,
+   men bare sju kjente"), because that order is what makes the question fair:
+   first a `draw` of the stars with a speak line, then a `draw` of `con_ori`
+   with a speak line that walks the figure — the belt of three, the shoulders
+   Betelgeuse and Bellatrix, the foot Rigel, the shield and the club that this
+   atlas draws and many do not — and only THEN the `connect` ask. The viewer
+   has seen the figure; the gate hides it; they draw it back.
 2. **Cassiopeia, 4 lines.** Request: `"Hvordan finner jeg Kassiopeia?"` —
-   Norwegian, `names: "nb"`, `focus: "con_cas"`. The W is four lines, so this is
-   the one a viewer finishes in seconds, and it is the one that proves the
-   widget on a figure nobody needs a minute for.
+   Norwegian, `names: "nb"`, `focus: "con_cas"`. Same beat order: stars, then
+   `con_cas`, then the question. The W is four lines, so this is the one a
+   viewer finishes in seconds, and it is the one that proves the widget on a
+   figure nobody needs a minute for.
 
 - [ ] **Step 4: Run the examples guard**
 
