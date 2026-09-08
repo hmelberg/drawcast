@@ -202,3 +202,103 @@ export function periodicCellBox(boxes: ReadonlyMap<string, BBox>, symbol: string
   }
   return null;
 }
+
+// ---- connect: an answer key read off the drawing, not carried beside it ---
+// A lifted constellation (or any other connect-the-dots figure) draws its
+// lines as polylines whose vertices ARE the projected positions of the stars
+// the same layout draws as separate elements (src/scenes/packs/space.yaml,
+// the kit.group(conId, …) of kit.stroke segments beside the kit.ball dots),
+// so the star under a vertex is simply whichever star element's box centre
+// the vertex lands on. Deriving the key this way — rather than handing the
+// engine's own edge list to every caller — means what is graded and what is
+// drawn can never quietly disagree with each other.
+
+/** A star of a connect figure: the element id the viewer joins, and where its
+ *  box sits on the y-up logical canvas. */
+export interface ConnectStar {
+  id: string;
+  at: Pt;
+}
+
+/** Two star element ids, SORTED, so an edge equals itself however it was
+ *  drawn (a line drawn A→B reads the same as one drawn B→A) — which is what
+ *  lets grading compare the viewer's edges against this key as plain sets. */
+export type ConnectEdge = [string, string];
+
+export interface ConnectKey {
+  stars: ConnectStar[];
+  edges: ConnectEdge[];
+  /** Polyline vertices no star element sits under. A figure with any of
+   *  these cannot be drawn correctly, since some segment would have to end
+   *  in mid-air — the caller's cue to refuse the question rather than ship
+   *  one the viewer cannot win. */
+  unmatched: number;
+}
+
+/**
+ * The answer key for a connect widget, read off a constellation's own
+ * drawing rather than carried beside it as separate data.
+ *
+ * `leaves` is the figure's own polyline segments (ids `conId` or
+ * `conId + "__" + i`) among a bigger leaf list — everything else is ignored.
+ * `boxes` is `elementBBoxes(layout, measure)`: every OTHER top-level element
+ * becomes a star candidate, and a polyline vertex within `eps` logical units
+ * of a candidate's box centre names that candidate. `label_…` ids are
+ * skipped, because a name sits close to the star it names and would
+ * otherwise steal a vertex from the dot underneath it; the group id itself
+ * (`conId`) is skipped for the same reason — its box is the whole figure's
+ * bounding box, not a star's.
+ */
+export function connectKey(
+  leaves: readonly { id: string; pts?: readonly Pt[] }[],
+  boxes: ReadonlyMap<string, BBox>,
+  conId: string,
+  eps = 2,
+): ConnectKey {
+  const prefix = conId + "__";
+  const candidates: ConnectStar[] = [];
+  for (const [id, b] of boxes) {
+    if (id === conId || id.startsWith("label_") || id.includes("__")) continue;
+    candidates.push({ id, at: [b.x + b.w / 2, b.y + b.h / 2] });
+  }
+  const eps2 = eps * eps;
+  const starAt = (p: Pt): ConnectStar | null => {
+    let best: ConnectStar | null = null;
+    let bestD = eps2;
+    for (const c of candidates) {
+      const dx = c.at[0] - p[0];
+      const dy = c.at[1] - p[1];
+      const d = dx * dx + dy * dy;
+      if (d <= bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return best;
+  };
+
+  const stars = new Map<string, ConnectStar>();
+  const edges = new Map<string, ConnectEdge>();
+  let unmatched = 0;
+
+  for (const leaf of leaves) {
+    if (leaf.id !== conId && !leaf.id.startsWith(prefix)) continue;
+    let prev: ConnectStar | null = null;
+    for (const p of leaf.pts ?? []) {
+      const hit = starAt(p);
+      if (hit === null) {
+        unmatched++;
+        prev = null; // a segment on either side of a gap names no edge
+        continue;
+      }
+      stars.set(hit.id, hit);
+      if (prev !== null && prev.id !== hit.id) {
+        const edge: ConnectEdge = prev.id < hit.id ? [prev.id, hit.id] : [hit.id, prev.id];
+        edges.set(edge[0] + "\0" + edge[1], edge); // dedupes a pair drawn twice, either direction
+      }
+      prev = hit;
+    }
+  }
+
+  return { stars: [...stars.values()], edges: [...edges.values()], unmatched };
+}
