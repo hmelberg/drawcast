@@ -306,6 +306,10 @@ git commit -m "The answer key is read off the drawing, not carried beside it"
   export function gradeConnect(drawn: readonly ConnectEdge[], key: readonly ConnectEdge[]): ConnectGrade;
   export function connectProgress(drawn: number, needed: number): string;
   export function connectSummary(g: ConnectGrade): string;
+  /** Whether a gate may open on this key at all — the ONE decision the DOM
+   *  gate must not make for itself, because vitest runs in `node` and nothing
+   *  in this repo mounts a DOM. */
+  export function connectOpens(key: { stars: readonly unknown[]; edges: readonly unknown[] }): boolean;
   ```
 
 - [ ] **Step 1: Write the failing test**
@@ -314,8 +318,8 @@ git commit -m "The answer key is read off the drawing, not carried beside it"
 // tests/connect-model.test.ts
 import { describe, it, expect } from "vitest";
 import {
-  CONNECT_MAX_EDGES, connectProgress, connectSummary, edgeAt, gradeConnect,
-  makeEdge, snapStar, toggleEdge,
+  CONNECT_MAX_EDGES, connectOpens, connectProgress, connectSummary, edgeAt,
+  gradeConnect, makeEdge, snapStar, toggleEdge,
 } from "../src/ui/connect-model";
 
 const stars = [
@@ -389,6 +393,22 @@ describe("words", () => {
 it("caps the exercise at Orion's own size", () => {
   expect(CONNECT_MAX_EDGES).toBe(24);
 });
+
+describe("connectOpens", () => {
+  const key = (n: number) => ({ stars: Array(n + 1).fill(0), edges: Array(n).fill(0) });
+  it("opens on a figure that can be drawn", () => {
+    expect(connectOpens(key(24))).toBe(true);
+    expect(connectOpens(key(1))).toBe(true);
+  });
+  it("refuses a figure over the cap — Eridanus is 26, Sagittarius 29", () => {
+    expect(connectOpens(key(25))).toBe(false);
+    expect(connectOpens(key(29))).toBe(false);
+  });
+  it("refuses a figure that is not there", () => {
+    expect(connectOpens({ stars: [], edges: [] })).toBe(false);
+    expect(connectOpens({ stars: [1, 2], edges: [] })).toBe(false);
+  });
+});
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -416,6 +436,11 @@ following `src/ui/drag-model.ts` for tone and structure. Required behaviour:
 - `connectProgress(drawn, needed)` — `"3 / 24 lines"`.
 - `connectSummary` — `"1 of 2 lines, 1 extra"`, and `"none extra"` for zero.
   Singular/plural on "extra" is not needed; the count carries it.
+- `connectOpens` — `edges.length >= 1 && edges.length <= CONNECT_MAX_EDGES &&
+  stars.length >= 2`. This is the gate's admission rule, kept here and not in
+  the gate, because this repo's vitest runs in the `node` environment and has
+  no jsdom anywhere: a decision left inside a DOM file is a decision no test
+  will ever see.
 
 - [ ] **Step 4: Run the test**
 
@@ -689,8 +714,7 @@ git commit -m "The figure's own lines are the reveal"
 - Create: `src/ui/connect-gate.ts`
 - Modify: `src/ui/controls.ts` (the `askGate` dispatch at :967-980)
 - Modify: `src/styles.css` (the gate's own classes, beside `.cs-draggate`)
-- Test: `tests/connect-gate.test.ts` (create — jsdom, following
-  `tests/drag-gate.test.ts` if it exists; otherwise the nearest DOM-gate test)
+- Test: `tests/connect-gate.test.ts` (create — a SOURCE-DRIFT test, see Step 1)
 
 **Interfaces:**
 - Consumes: `connectKey` (Task 1), everything from `connect-model.ts` (Task 2),
@@ -704,9 +728,10 @@ git commit -m "The figure's own lines are the reveal"
 Behaviour, in the order it happens:
 
 1. Derive the key with `connectKey(leafDrawables(hd.layout.drawables), elementBBoxes(hd.layout, makeBrowserMeasure()), step.answer)`.
-   No stars, no edges, or more than `CONNECT_MAX_EDGES` → `resolve(null)` and no
-   gate: lint already said so at compile time, and a viewer must never meet a
-   question that cannot be answered.
+   Then `connectOpens(key)` (Task 2) decides whether to mount at all: false →
+   `resolve(null)` and no gate. Lint already said so at compile time, and a
+   viewer must never meet a question that cannot be answered. The rule lives in
+   the model, not here, because nothing in this repo can test a mounted gate.
 2. Hide the figure's own lines: `stage.querySelectorAll('[data-leaf-id^="<answer>__"]')`
    plus the group itself, saving each node's inline `opacity` and restoring it
    on teardown. (`svg-backend.ts:305` stamps `data-leaf-id`.) This is the gate's
@@ -733,19 +758,30 @@ Behaviour, in the order it happens:
 
 - [ ] **Step 1: Write the failing test**
 
-The gate is DOM, and the house convention is that pure rules carry the tests.
-Test what can be tested honestly in jsdom, and no more:
+**There is no jsdom in this repo.** `vitest.config.ts` sets
+`environment: "node"` and not one test file opts out, so a gate cannot be
+mounted and clicked in a test. The house's answer to that is
+`tests/gates.test.ts`: it reads the DOM file as TEXT and asserts the things
+whose absence would fail silently. Write `tests/connect-gate.test.ts` in
+exactly that style — `readFileSync(new URL("../src/ui/connect-gate.ts", import.meta.url), "utf8")` —
+and assert:
 
-```ts
-// tests/connect-gate.test.ts
-// 1. A key over the cap resolves null and mounts no gate.
-// 2. A key with no edges resolves null and mounts no gate.
-// 3. The gate hides the figure's lines while it stands and restores them after.
-// 4. Skip resolves null; abort resolves null and removes the gate.
-```
+1. The gate mounts under `cs-figgate`, the class `GATE_SELECTOR` already
+   covers. (A new class would make the stage's other gestures fight the gate,
+   which is the silent failure `gates.test.ts` exists for.)
+2. It asks `connectOpens` before mounting anything, and resolves `null` when
+   that is false — the admission rule is not re-implemented inline.
+3. Whatever it hides, it restores: the file contains a teardown that puts the
+   figure's lines back, and the hiding and the restoring name the same
+   attribute (`data-leaf-id`).
+4. It converts points with `clientPointFor` / `logicalPoint` rather than doing
+   its own client-rect arithmetic — the round-2 orientation trap lives in
+   hand-rolled coordinate math.
+5. It uses `LINGER_MS` of 2600, the same as every other card.
 
-Synthesize pointer events the way the existing gate tests do; if none exist,
-keep to the four cases above, which need no pointer geometry.
+A source-drift test is weaker than a behavioural one and the plan says so
+plainly: everything it cannot see goes on Hans's smoke checklist (Final
+verification), which is a merge condition for this round.
 
 - [ ] **Step 2: Run it and watch it fail**
 
