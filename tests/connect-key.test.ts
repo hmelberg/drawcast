@@ -36,6 +36,23 @@ describe("connectKey", () => {
     expect(k.stars.map((s) => s.id)).toEqual(["alnitak"]);
   });
 
+  // Final whole-branch review, F4: a gap flanked by two REAL stars used to
+  // mint a phantom edge between them if `prev` was not cleared at the
+  // unmatched vertex — a key that demands a line nobody drew, and no
+  // existing fixture had a matched star on both sides of a gap to catch it.
+  it("a gap flanked by two real stars names no edge across it", () => {
+    const leaves = [{ id: "con_tst__0", pts: [[10, 10], [50, 50], [30, 10]] as [number, number][] }];
+    const boxes = new Map([
+      ["alnitak", box(10, 10)],
+      ["hip_3", box(30, 10)],
+      // nothing sits under [50, 50] — the gap
+    ]);
+    const k = connectKey(leaves, boxes, "con_tst");
+    expect(k.unmatched).toBe(1);
+    expect(k.edges).toEqual([]); // NOT [["alnitak", "hip_3"]] — a phantom edge across the gap
+    expect(k.stars.map((s) => s.id).sort()).toEqual(["alnitak", "hip_3"]);
+  });
+
   // Final whole-branch review, F3: the three candidate exclusions
   // (`label_…`, a `__`-suffixed leaf id, `conId` itself) passed the full
   // suite with any one of them removed — the existing fixtures never put a
