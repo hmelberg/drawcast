@@ -272,9 +272,17 @@ planning with an empty id list, and the inert `language` param on
   `sector` elements carry piece geometry so both zipper and fan take them;
   the generate status line names the template used or that the figure is
   freehand and what the router offered.
-- **Lint's `coVisible` does not expand `pieces` ids**, so overlap rules
-  never see a pieces group as the set of drawables it becomes — a slice can
-  collide with a label without a warning.
+- Done 2026-09-08 (the "strips/grid" round): `pieces` cuts rectangles too —
+  `of: "strips"` (n vertical strips) and `of: "grid"` (n columns × `rows`
+  rows, numbered row by row from the top left) of a width × height rectangle
+  centred on x, y; cells carry no sector geometry, so zipper/fan treat them
+  as boxes while row/grid/ring/hex/stack/move/fade/highlight all take them.
+  Lint's `coVisible` now expands a `pieces` id like the plan does. `ring`
+  and the rings of `hex` hand slots out by nearness (shortest pairs first),
+  so pieces already roughly in place stay put and paths do not cross; row,
+  stack and grid keep target order, because there the order is the message.
+  Two bundled examples: 3 · 4 = 4 · 3 (a grid turned a quarter turn about
+  its centre) and 2/4 = 1/2 (two strip bars with `fade`).
 - **Cheap tween frames now carry pose and fade, but nothing else.**
   `Reprojector.frame` / `swapGeometry` take `turns` and `opacities` alongside
   `offsets` (final fix round), so a rotated, scaled or faded element no longer

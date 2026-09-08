@@ -124,10 +124,12 @@ export interface SpecElement {
   sides?: number;
   /** polygon: rotation of a regular polygon in degrees. */
   rotation?: number;
-  /** pieces: how many pieces to cut a shape into. */
+  /** pieces: how many pieces to cut a shape into (sectors, strips, or the columns of a grid). */
   n?: number;
+  /** pieces grid: rows (n is the columns). */
+  rows?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
-  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, the literal "sectors". */
+  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;

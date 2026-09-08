@@ -149,7 +149,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
-  const issues = lintLayout(drawables, measure, spec.commands);
+  const issues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id]);
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
   return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups };
 }

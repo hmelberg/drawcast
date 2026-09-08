@@ -1070,6 +1070,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
  */
 function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
   const r = el.radius ?? 120;
   const n = Math.max(2, Math.round(el.n ?? 8));
   const step = 360 / n;
@@ -1087,6 +1088,47 @@ function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     ctx.pieces[id] = { apex: c, centroid, midAngle: mid, halfAngle: step / 2, radius: r };
     ids.push(id);
     ctx.extraOrder.push(id);
+  }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
+  return out;
+}
+
+/**
+ * A width × height rectangle centred on `c`, cut into `n` vertical strips
+ * (`of: "strips"`) or `n` columns × `rows` rows (`of: "grid"`), numbered row
+ * by row from the top left. Each cell is a closed outline with a wash and
+ * its own id, like a sector piece; it carries no sector geometry, so the
+ * zipper and fan treat it as a plain box (row/grid/ring/hex/stack/fade/move
+ * all work on it).
+ */
+function rectPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  const w = el.width ?? 400;
+  const h = el.height ?? 200;
+  const cols = Math.max(1, Math.round(el.n ?? 4));
+  const rows = el.of === "grid" ? Math.max(1, Math.round(el.rows ?? 2)) : 1;
+  const cw = w / cols;
+  const ch = h / rows;
+  const left = c[0] - w / 2;
+  const top = c[1] + h / 2; // y-up: the first row is the top one
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < cols; k++) {
+      const id = `${el.id}_${r * cols + k + 1}`;
+      const x0 = left + k * cw;
+      const y1 = top - r * ch;
+      const pts: Pt[] = [
+        [x0, y1],
+        [x0 + cw, y1],
+        [x0 + cw, y1 - ch],
+        [x0, y1 - ch],
+      ];
+      out.push(...filledOutline(id, pts, el));
+      ctx.anchors[id] = [x0 + cw / 2, y1 - ch / 2];
+      ids.push(id);
+      ctx.extraOrder.push(id);
+    }
   }
   ctx.pieceGroups[el.id] = ids;
   ctx.anchors[el.id] = c;

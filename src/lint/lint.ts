@@ -49,7 +49,7 @@ export interface LintIssue {
  * here (the plan already warns about them); anything not provably transient
  * ends up coexisting, so approximation errs toward keeping warnings.
  */
-export function coVisible(commands: Command[] | undefined, allIds: string[]): (a: string, b: string) => boolean {
+export function coVisible(commands: Command[] | undefined, allIds: string[], expandId?: (id: string) => string[] | null | undefined): (a: string, b: string) => boolean {
   if (!commands || commands.length === 0) return () => true;
   const visible = new Set<string>();
   const managed = new Set<string>();
@@ -59,7 +59,14 @@ export function coVisible(commands: Command[] | undefined, allIds: string[]): (a
     const list = [...visible];
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) pairs.add(key(list[i], list[j]));
   };
-  const ids = (raw: string[] | string | undefined): string[] => (typeof raw === "string" ? [raw] : raw ?? []);
+  // A pieces id stands for all its pieces here too (the plan expands it the same way).
+  const ids = (raw: string[] | string | undefined): string[] => {
+    const list = typeof raw === "string" ? [raw] : raw ?? [];
+    return list.flatMap((id) => {
+      const kids = expandId?.(id);
+      return kids && kids.length > 0 ? kids : [id];
+    });
+  };
   for (const c of commands) {
     const revealed = [...ids(c.draw), ...ids(c.show)];
     if (revealed.length > 0) {
@@ -121,6 +128,8 @@ export function lintLayoutDetailed(
   drawables: Drawable[],
   measure: MeasureFn,
   commands?: Command[],
+  /** A pieces id → its piece ids, so `draw: ["kake"]` reveals the slices here as it does in the plan. */
+  expandId?: (id: string) => string[] | null | undefined,
 ): { issues: LintIssue[]; exempt: LintIssue[] } {
   const issues: LintIssue[] = [];
   const exempt: LintIssue[] = [];
@@ -130,7 +139,7 @@ export function lintLayoutDetailed(
   // Leaf → owning top-level element, for the co-visibility exemption.
   const owner = new Map<string, string>();
   for (const top of drawables) for (const leaf of leafDrawables([top])) owner.set(leaf.id, top.id);
-  const together = coVisible(commands, drawables.map((d) => d.id));
+  const together = coVisible(commands, drawables.map((d) => d.id), expandId);
   const coexist = (a: string, b: string) => together(owner.get(a) ?? a, owner.get(b) ?? b);
 
   for (const t of texts) {
@@ -236,8 +245,8 @@ export function lintLayoutDetailed(
   return { issues, exempt };
 }
 
-export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[]): LintIssue[] {
-  return lintLayoutDetailed(drawables, measure, commands).issues;
+export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined): LintIssue[] {
+  return lintLayoutDetailed(drawables, measure, commands, expandId).issues;
 }
 
 const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;

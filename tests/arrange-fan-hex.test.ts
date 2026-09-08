@@ -75,10 +75,15 @@ describe("hex", () => {
   test("flat-topped hexagons take the 30°-offset lattice, and the second ring holds twelve", () => {
     const items = Array.from({ length: 19 }, (_, k) => item(`h${k}`, 0, 0, 120, 104));
     const out = arrangeTargets(items, "hex", { at: [0, 0], gap: 0 });
-    const c1 = out[1].centre!;
-    expect(((Math.atan2(c1[1], c1[0]) * 180) / Math.PI + 360) % 60).toBeCloseTo(30, 6);
-    const ring2 = out.slice(7, 19).map((o) => Math.hypot(o.centre![0], o.centre![1]));
-    for (const d of ring2) expect(d).toBeGreaterThanOrEqual(104 * Math.sqrt(3) - 1e-6);
+    // Slots are handed out by nearness, so look at the SET of positions: one centre,
+    // six at one flat-to-flat distance on the 30° lattice, twelve on the second ring.
+    const dists = out.slice(1).map((o) => Math.hypot(o.centre![0], o.centre![1])).sort((a, b) => a - b);
+    expect(out[0].centre).toEqual([0, 0]);
+    for (const d of dists.slice(0, 6)) expect(d).toBeCloseTo(104, 6);
+    const ring1 = out.slice(1).filter((o) => Math.abs(Math.hypot(o.centre![0], o.centre![1]) - 104) < 1e-6);
+    for (const o of ring1) expect(((Math.atan2(o.centre![1], o.centre![0]) * 180) / Math.PI + 360) % 60).toBeCloseTo(30, 6);
+    const ring2 = dists.slice(6);
+    expect(ring2).toHaveLength(12);
     // a corner cell of ring 2 sits at twice the distance; an edge cell at √3 times
     expect(Math.max(...ring2)).toBeCloseTo(208, 6);
     expect(Math.min(...ring2)).toBeCloseTo(104 * Math.sqrt(3), 6);

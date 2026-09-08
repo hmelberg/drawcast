@@ -84,13 +84,34 @@ export function arrangeTargets(items: ArrangeInput[], layout: ArrangeLayout, opt
     const y0 = at[1] + (rows * ch - gap) / 2 - (ch - gap) / 2; // top row first, y-up
     return items.map((i, k) => ({ id: i.id, centre: [x0 + (k % cols) * cw, y0 - Math.floor(k / cols) * ch] as Pt }));
   }
-  // ring
+  // ring — slots have no order of their own, so each item takes the nearest free one
   const perimeter = items.reduce((s, i) => s + Math.max(i.box.w, i.box.h) + gap, 0);
   const r = Math.max(perimeter / (2 * Math.PI), 40);
-  return items.map((i, k) => {
+  const slots = items.map((_, k): Pt => {
     const a = Math.PI / 2 + (2 * Math.PI * k) / items.length;
-    return { id: i.id, centre: [at[0] + r * Math.cos(a), at[1] + r * Math.sin(a)] as Pt };
+    return [at[0] + r * Math.cos(a), at[1] + r * Math.sin(a)];
   });
+  return assignNearest(items, slots);
+}
+
+/**
+ * Items to slots by nearness — shortest pairs first, each item and slot used
+ * once — so pieces that are already roughly in place stay put and paths do
+ * not cross. Only for layouts whose slots carry no meaning of their own
+ * (ring, the rings of a honeycomb); a row's or grid's order IS the message.
+ */
+function assignNearest(items: ArrangeInput[], slots: Pt[]): ArrangeOutput[] {
+  const pairs: { i: number; s: number; d: number }[] = [];
+  for (let i = 0; i < items.length; i++) for (let s = 0; s < slots.length; s++) pairs.push({ i, s, d: Math.hypot(items[i].centre[0] - slots[s][0], items[i].centre[1] - slots[s][1]) });
+  pairs.sort((a, b) => a.d - b.d);
+  const slotOf = new Map<number, number>();
+  const taken = new Set<number>();
+  for (const p of pairs) {
+    if (slotOf.has(p.i) || taken.has(p.s)) continue;
+    slotOf.set(p.i, p.s);
+    taken.add(p.s);
+  }
+  return items.map((it, i) => ({ id: it.id, centre: slots[slotOf.get(i)!] }));
 }
 
 /** Sector pieces zipped into the πr² rectangle: even pieces point up with the apex below the midline, odd pieces point down with the apex above it, apexes stepping by r·sin(halfAngle). */
@@ -184,5 +205,6 @@ function hex(items: ArrangeInput[], at: Pt, gap: number): ArrangeOutput[] {
       }
     }
   }
-  return items.map((i, k) => ({ id: i.id, centre: positions[k] }));
+  // The first target takes the centre; the rest fill the rings by nearness.
+  return [{ id: items[0].id, centre: positions[0] }, ...assignNearest(items.slice(1), positions.slice(1))];
 }

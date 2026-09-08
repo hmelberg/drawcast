@@ -158,15 +158,16 @@ const elementSchema = {
       minimum: 2,
       maximum: 128,
       description:
-        "pieces: how many pieces to cut — e.g. 12 sectors of a circle. Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
+        "pieces: how many pieces to cut — e.g. 12 sectors of a circle, 4 strips of a rectangle, or the COLUMNS of a grid (rows in `rows`). Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
     },
+    rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left." },
     // portrait / source
     of: {
       type: "string",
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
-        "pieces: the literal string \"sectors\" — the only cut shape this version supports.",
+        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips) or \"grid\" (the same rectangle, n columns × rows rows).",
     },
     url: {
       type: "string",
@@ -1103,8 +1104,10 @@ function elementErrors(el: SpecElement): string[] {
       );
       break;
     case "pieces":
-      need(el.of === "sectors", 'needs of: "sectors"');
-      need(typeof el.radius === "number", "needs radius");
+      need(el.of === "sectors" || el.of === "strips" || el.of === "grid", 'needs of: "sectors", "strips" or "grid"');
+      if (el.of === "sectors") need(typeof el.radius === "number", "needs radius");
+      if (el.of === "strips" || el.of === "grid") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
+      if (el.of === "grid") need(typeof el.rows === "number", "needs rows (n is the columns)");
       need(typeof el.n === "number", "needs n (how many pieces)");
       break;
     case "code":

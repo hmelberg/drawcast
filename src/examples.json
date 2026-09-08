@@ -15012,5 +15012,49 @@
         { "draw": ["t_vinkel"], "speak": "Tre ganger 120 grader er 360 grader, en hel runde. Ingen sprekker, ingen overlapp. Derfor er sekskanten biens form: mest plass for minst voks." }
       ]
     }
+  },
+  {
+    "request": "Hvorfor er 3 ganger 4 det samme som 4 ganger 3?",
+    "packs": [],
+    "spec": {
+      "title": "3 · 4 = 4 · 3",
+      "elements": [
+        { "id": "rute", "type": "pieces", "of": "grid", "x": 500, "y": 400, "width": 400, "height": 300, "n": 4, "rows": 3, "style": { "fill": "#f2c14e" } },
+        { "id": "t_rader", "type": "text", "text": "3 rader med 4", "x": 500, "y": 650, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_kol", "type": "text", "text": "4 rader med 3", "x": 500, "y": 130, "font_size": 30, "style": { "color": "#b5482e" } },
+        { "id": "t_sum", "type": "text", "text": "= 12 ruter uansett", "x": 500, "y": 80, "font_size": 30, "style": { "color": "#2f6b8f" } }
+      ],
+      "commands": [
+        { "draw": ["rute"], "parallel": true, "speak": "Tolv like ruter i et rektangel." },
+        { "draw": ["t_rader"], "speak": "Les det radvis: tre rader med fire i hver. Tre ganger fire." },
+        { "highlight": { "target": ["rute_1", "rute_2", "rute_3", "rute_4"], "effect": "glow" }, "speak": "Her er den første raden." },
+        { "move": { "target": "rute", "rotate": 90, "pivot": [500, 400], "duration": 2 }, "speak": "Snu hele rektangelet en kvart omdreining. Ingen ruter kommer til eller forsvinner." },
+        { "draw": ["t_kol"], "speak": "Nå står det fire rader med tre i hver. Fire ganger tre." },
+        { "draw": ["t_sum"], "speak": "Samme tolv ruter, bare lest den andre veien. Derfor kan faktorene bytte plass." }
+      ]
+    }
+  },
+  {
+    "request": "Vis at 2/4 er det samme som 1/2.",
+    "packs": [],
+    "spec": {
+      "title": "2/4 = 1/2",
+      "elements": [
+        { "id": "fire", "type": "pieces", "of": "strips", "x": 500, "y": 480, "width": 480, "height": 90, "n": 4, "style": { "fill": "#f2c14e" } },
+        { "id": "to", "type": "pieces", "of": "strips", "x": 500, "y": 320, "width": 480, "height": 90, "n": 2, "style": { "fill": "#87a878" } },
+        { "id": "t_fire", "type": "text", "text": "2/4", "x": 820, "y": 480, "font_size": 34, "style": { "color": "#b5482e" } },
+        { "id": "t_to", "type": "text", "text": "1/2", "x": 820, "y": 320, "font_size": 34, "style": { "color": "#b5482e" } },
+        { "id": "t_lik", "type": "text", "text": "2/4 = 1/2", "x": 500, "y": 200, "font_size": 36, "style": { "color": "#2f6b8f" } }
+      ],
+      "commands": [
+        { "draw": ["fire"], "parallel": true, "speak": "En stang delt i fire like deler." },
+        { "fade": { "target": ["fire_3", "fire_4"], "to": 0.25 } },
+        { "draw": ["t_fire"], "speak": "To av fire deler: to firedeler." },
+        { "draw": ["to"], "parallel": true, "speak": "En like lang stang delt i to like deler." },
+        { "fade": { "target": ["to_2"], "to": 0.25 } },
+        { "draw": ["t_to"], "speak": "Én av to deler: en halv." },
+        { "draw": ["t_lik"], "speak": "Den fargede lengden er nøyaktig den samme. To firedeler og en halv er samme brøk, bare skrevet med forskjellige deler." }
+      ]
+    }
   }
 ]

@@ -417,3 +417,11 @@ Frihånd, alle på de nye verbene, alle spilt gjennom i nettleseren med ren lint
 - **`arrange fan`**: sektorer side om side om ETT apex (`at`, default første sektors nåværende apex), første begynner ved `start` grader; `hex`: bikube-spiral med flat-mot-flat-avstand = minste side av første boks + gap, 30°-gitter for flate topper. Frittstående `sector`-elementer får nå piece-geometri i layouten, så både zipper og fan tar dem. Vinkelsum-eksemplet bruker `fan` (samme transformer som den håndregnede versjonen), bikube-eksemplet `hex` (tett).
 - **Småting**: `point.at.ref`/`camera.center.ref` utvider pieces-id til unionboksen; id-kollisjon med sub-suffiks (`sky` + `sky_wash`) er valideringsfeil; `point`/`camera`-refs i `mentionedIds` for undertekster.
 - Tester: `tests/arrange-fan-hex.test.ts` (12). Full suite 5728, tsc ren. Smoke: begge omskrevne eksempler spiller med ren lint.
+
+## Striper, rutenett og småting (2026-09-08, Hans: «kjør 3 og 4»)
+
+- **`pieces` av rektangler** (`src/layout/tier2.ts` `rectPiecesDrawables`): `of: "strips"` (n striper) og `of: "grid"` (n kolonner × `rows` rader, nummerert radvis fra øverst til venstre) av en width × height-rektangel sentrert på x, y. Cellene har ingen sektorgeometri (ikke i `layout.pieces`, bare i `pieceGroups`), så zipper/fan behandler dem som bokser. Skjema: `rows`-felt, `of`-enum i semantikksjekken, prompt-linje 14.
+- **Lint** `coVisible` får `expandId` fra `layout.pieceGroups` (gjennom `lintLayout`/`lintLayoutDetailed`), så `draw: ["kake"]` avslører bitene også for overlapp-reglene.
+- **Nærmeste plass** (`assignNearest` i arrange.ts): `ring` og ringene i `hex` deler ut plasser etter korteste par først; første mål i `hex` tar fortsatt midten. Rad/stabel/rutenett beholder målrekkefølgen. Merk: `hex` lager bare så mange plasser som det er mål, så en delvis ring fylles sammenhengende fra 0°/30°.
+- Eksempler: «3 · 4 = 4 · 3» (grid som roteres 90° om sentrum — teksten over måtte flyttes til y=650 fordi det roterte rektangelet er 400 høyt) og «2/4 = 1/2» (to stripestenger med fade).
+- Tester: `tests/pieces-rect.test.ts`; full suite grønn, tsc ren; nettleser-smoke av begge eksemplene + bikuben.
