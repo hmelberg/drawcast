@@ -112,6 +112,10 @@ describe("captionLines", () => {
     // morph succeeds off leafPointsOf, not bboxOf — the dummy options object
     // needs a placeholder leaf too, or every narrated morph loses its line.
     expect(captionLines(spec([{ morph: { target: ["a"], to: [[0, 0], [10, 0], [10, 10]] }, speak: "Watch it change shape." }]))).toContain("Watch it change shape.");
+    // morph.to {ref} names a destination outline that is typically declared and
+    // never drawn, so no other verb mentions it: miss the nested ref and the
+    // planner drops the whole morph as an unknown id, line and all.
+    expect(captionLines(spec([{ morph: { target: ["a"], to: { ref: "ghost" } }, speak: "Into the ghost." }]))).toContain("Into the ghost.");
     // highlight and focus also want the target VISIBLE, as at playback — so
     // draw it first, exactly as a real spec does.
     expect(captionLines(spec([{ draw: ["a"] }, { highlight: { target: ["a"] }, speak: "Look here." }]))).toContain("Look here.");

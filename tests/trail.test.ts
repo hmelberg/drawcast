@@ -64,6 +64,35 @@ describe("trail planning", () => {
     expect((plan.steps[1] as Extract<PlanStep, { kind: "move" }>).trails![0].id).toBe("w_trail");
     expect(plan.states[2].opacities.w_trail).toBe(0.3);
   });
+  test("a trail on a SECOND target: the shared pivot is the wheel's centre before the move, so the dot still traces a cycloid", () => {
+    const two = { bboxOf: (id: string) => (id === "w" ? box(100, 200, 120, 120) : id === "d" ? box(155, 195, 10, 10) : null) };
+    const plan = planCommands(
+      [
+        { draw: ["w", "d"] },
+        { move: { target: ["w", "d"], by: [377, 0], rotate: -360, pivot: { ref: "w" }, trail: { of: "d", anchor: "bottom" }, duration: 4 } },
+      ],
+      ["w", "d"],
+      two,
+    );
+    expect(plan.warnings).toEqual([]);
+    const tr = plan.trails[0];
+    expect(tr.pts[0]).toEqual([160, 195]);
+    // pivot (160,260) for BOTH targets, so the dot swings on r = 65 and peaks
+    // 2r above its start. Resolved per target, "d" saw the wheel's post-move
+    // centre (537,260) and swung on a ~380-unit arc instead.
+    expect(Math.max(...tr.pts.map((p) => p[1]))).toBeCloseTo(325, 3);
+    expect(Math.min(...tr.pts.map((p) => p[1]))).toBeCloseTo(195, 3);
+  });
+  test("a minted trail can be arranged: the trail's own box stands in where there is no layout bbox", () => {
+    const plan = planCommands(
+      [{ draw: ["w"] }, { move: { target: ["w"], by: [100, 50], trail: true } }, { arrange: { target: ["w_trail"], layout: "row" } }],
+      ["w"],
+      opts,
+    );
+    expect(plan.warnings).toEqual([]);
+    const step = plan.steps[2] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.map((i) => i.id)).toEqual(["w_trail"]);
+  });
   test("trail.of must be one of the targets", () => {
     const plan = planCommands([{ move: { target: ["w"], by: [10, 0], trail: { of: "nope" } } }], ["w"], opts);
     expect(plan.trails).toHaveLength(0);

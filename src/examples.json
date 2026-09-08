@@ -6574,9 +6574,8 @@
         {
           "focus": {
             "target": [
-              "sick",
-              "edge_tp",
-              "edge_fn"
+              "edge_sick",
+              "sick"
             ]
           },
           "speak": "Follow the ten who are sick: the test catches nine of them and misses one."
@@ -6593,9 +6592,8 @@
         {
           "focus": {
             "target": [
-              "healthy",
-              "edge_fp",
-              "edge_fn"
+              "edge_healthy",
+              "healthy"
             ]
           },
           "speak": "But now follow the nine hundred ninety who are healthy: nine percent of them get a false alarm."
@@ -14447,9 +14445,7 @@
           "focus": {
             "target": [
               "aquifer_fill",
-              "water_table",
-              "gw_flow",
-              "label_groundwater"
+              "water_table"
             ]
           },
           "speak": "This hidden store is groundwater, and it creeps seaward for years, sometimes centuries."
@@ -15089,13 +15085,14 @@
         { "id": "kopi", "type": "polygon", "points": [[250, 250], [650, 250], [400, 550]], "style": { "fill": "#87a878" } },
         { "id": "para", "type": "polygon", "points": [[250, 250], [650, 250], [800, 550], [400, 550]], "style": { "color": "#b5482e", "stroke_width": 3 } },
         { "id": "t_b", "type": "text", "text": "b", "x": 450, "y": 220, "font_size": 30, "style": { "color": "#b5482e" } },
-        { "id": "t_h", "type": "text", "text": "h", "x": 830, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
+        { "id": "hoyde", "type": "path", "points": [[400, 250], [400, 550]], "style": { "color": "#8f887c", "stroke_width": 2, "dash": true } },
+        { "id": "t_h", "type": "text", "text": "h", "x": 375, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
       ],
       "commands": [
         { "draw": ["tri"], "speak": "En trekant med grunnlinje b og høyde h. Hvorfor er arealet halvparten av b ganger h?" },
         { "draw": ["kopi"], "speak": "Lag en kopi av trekanten, oppå den første." },
         { "move": { "target": ["kopi"], "rotate": 180, "pivot": { "anchor": "side_2" }, "duration": 2 }, "speak": "Snu kopien en halv omdreining om midtpunktet på den skrå siden." },
-        { "draw": ["para", "t_b", "t_h"], "speak": "Sammen fyller de to trekantene et parallellogram med samme grunnlinje og samme høyde: areal b ganger h." },
+        { "draw": ["para", "t_b", "hoyde", "t_h"], "speak": "Sammen fyller de to trekantene et parallellogram med samme grunnlinje og samme høyde: areal b ganger h." },
         { "fade": { "target": ["kopi"], "to": 0.25 } },
         { "highlight": { "target": ["tri"], "effect": "glow" }, "speak": "Trekanten er nøyaktig halvparten av det. Derfor: en halv b h." }
       ]
@@ -15114,8 +15111,8 @@
       ],
       "commands": [
         { "draw": ["bakke", "hjul", "eike", "prikk"], "speak": "Et hjul med radius r står på bakken, og ett punkt på kanten er merket rødt. Hvor går det punktet når hjulet ruller?" },
-        { "move": { "target": ["hjul", "eike", "prikk"], "by": [377, 0], "rotate": -360, "pivot": { "ref": "hjul" }, "trail": { "of": "eike", "anchor": "end" }, "duration": 4, "easing": "linear" }, "speak": "Én omdreining. Punktet stiger, svever over hjulet, og lander på bakken igjen." },
-        { "highlight": { "target": ["eike_trail"], "effect": "glow" }, "speak": "Buen heter sykloiden. Den er ikke en sirkelbue: punktet står stille i det øyeblikket det treffer bakken." },
+        { "move": { "target": ["hjul", "eike", "prikk"], "by": [377, 0], "rotate": -360, "pivot": { "ref": "hjul" }, "trail": { "of": "prikk" }, "duration": 4, "easing": "linear" }, "speak": "Én omdreining. Punktet stiger, svever over hjulet, og lander på bakken igjen." },
+        { "highlight": { "target": ["prikk_trail"], "effect": "glow" }, "speak": "Buen heter sykloiden. Den er ikke en sirkelbue: punktet står stille i det øyeblikket det treffer bakken." },
         { "point": { "at": { "ref": "prikk" }, "gesture": "tap" }, "speak": "Og avstanden hjulet rullet på én omdreining er omkretsen: to pi r." }
       ]
     }
@@ -15153,15 +15150,20 @@
         { "id": "skygge", "type": "polygon", "points": [[250, 300], [450, 300], [300, 520]], "style": { "color": "#8f887c", "dash": true } },
         { "id": "t_a", "type": "text", "text": "A", "x": 230, "y": 280, "font_size": 26 },
         { "id": "t_b", "type": "text", "text": "B", "x": 470, "y": 280, "font_size": 26 },
-        { "id": "t_c", "type": "text", "text": "C", "x": 290, "y": 545, "font_size": 26 }
+        { "id": "t_c", "type": "text", "text": "C", "x": 290, "y": 545, "font_size": 26 },
+        { "id": "t_a2", "type": "text", "text": "A", "x": 770, "y": 280, "font_size": 26 },
+        { "id": "t_b2", "type": "text", "text": "B", "x": 530, "y": 280, "font_size": 26 },
+        { "id": "t_c2", "type": "text", "text": "C", "x": 710, "y": 545, "font_size": 26 }
       ],
       "commands": [
         { "draw": ["tri", "t_a", "t_b", "t_c"], "speak": "En trekant med hjørnene A, B og C, lest mot klokka." },
         { "draw": ["akse"], "speak": "Og en speilingsakse. Hva skjer når trekanten speiles i den?" },
         { "draw": ["skygge"] },
         { "flip": { "target": ["tri"], "line": { "from": { "ref": "akse", "anchor": "start" }, "to": { "ref": "akse", "anchor": "end" } }, "duration": 1.6 }, "speak": "Hvert punkt havner like langt på den andre siden av aksen. Formen og størrelsen er bevart." },
-        { "point": { "at": { "ref": "tri", "anchor": "vertex_2" }, "gesture": "circle" }, "speak": "Men rekkefølgen har snudd: A, B, C går nå med klokka. En speiling kan aldri lages med bare flytting og dreining." },
-        { "flip": { "target": ["tri"], "axis": "horizontal", "duration": 1.2 }, "speak": "Speil én gang til, om en vannrett linje gjennom midten: da er retningen mot klokka igjen." }
+        { "draw": ["t_a2", "t_b2", "t_c2"], "speak": "Hjørnene er de samme, men de har byttet side: A ytterst til høyre, B nærmest aksen." },
+        { "point": { "at": { "ref": "t_b2" }, "gesture": "circle" }, "speak": "Og rekkefølgen har snudd: A, B, C går nå med klokka. En speiling kan aldri lages med bare flytting og dreining." },
+        { "flip": { "target": ["tri"], "axis": "horizontal", "duration": 1.2 }, "speak": "Speil én gang til, om en vannrett linje gjennom midten: da er retningen mot klokka igjen." },
+        { "fade": { "target": ["t_a2", "t_b2", "t_c2"], "to": 0.3 }, "speak": "Bokstavene blir stående der de var etter første speiling — trekanten har flyttet seg fra dem." }
       ]
     }
   },

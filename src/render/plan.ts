@@ -722,20 +722,34 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails });
       } else {
         // A pose change: per-id from/to, tweened together.
+        // `to` and an explicit pivot name a point in the SCENE, not in each
+        // target, so they are resolved once here, from the pre-move state.
+        // Resolving them inside the loop let a pivot {ref: "wheel"} that is
+        // itself one of the targets hand later targets the wheel's ALREADY
+        // moved centre — the cycloid that came out as a giant arc.
+        const dest = hasTo ? resolvePoint(cmd.move.to, undefined, "move") : null;
+        const pivotIsExplicit =
+          cmd.move.pivot !== undefined &&
+          (Array.isArray(cmd.move.pivot) ||
+            (cmd.move.pivot as EndRef).ref !== undefined ||
+            ((cmd.move.pivot as EndRef).x !== undefined && (cmd.move.pivot as EndRef).anchor === undefined));
+        // A ref-less {anchor} pivot stays per target: it names the moving element's own anchor.
+        const pivot0 = pivotIsExplicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
         const items: TransformItem[] = [];
         // Two targets in the same move can share a follower (e.g. two
         // elements both labeled by the same annotation) — move it once,
         // with whichever target claims it first.
         const movedFollowers = new Set<string>();
         for (const id of ids) {
-          const box = bboxOf(id);
+          // boxOf, not bboxOf: after a morph the element's real centre is the
+          // centre of its current points, not of its layout box (design §2.4).
+          const box = boxOf(id);
           const offset0: Pt = offsets[id] ?? [0, 0];
           const turn0 = turns[id];
           let offset: Pt = offset0;
           let turn: Turn | undefined = turn0;
           let delta: Pt = [0, 0];
           if (hasTo) {
-            const dest = resolvePoint(cmd.move.to, undefined, "move");
             const from = anchorNow(id, cmd.move.anchor ?? "center", "move");
             if (dest && from) delta = [dest[0] - from[0], dest[1] - from[1]];
           } else if (hasBy) {
@@ -746,10 +760,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           offset = [offset[0] + delta[0], offset[1] + delta[1]];
           let pivotNow: Pt;
           if (cmd.move.pivot !== undefined) {
-            const explicit = Array.isArray(cmd.move.pivot) || (cmd.move.pivot as EndRef).ref !== undefined || ((cmd.move.pivot as EndRef).x !== undefined && (cmd.move.pivot as EndRef).anchor === undefined);
-            const q = explicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
-            if (q) {
-              pivotNow = [q[0] + delta[0], q[1] + delta[1]]; // the pivot rides with the translation
+            if (pivot0) {
+              pivotNow = [pivot0[0] + delta[0], pivot0[1] + delta[1]]; // the pivot rides with the translation
             } else {
               const own = anchorOriginal(id, (cmd.move.pivot as EndRef).anchor ?? "center", "move");
               pivotNow = own ? poseOf(offset, turn)(own) : [offset[0], offset[1]];
@@ -793,7 +805,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           continue;
         }
         const pose = { offset: offsets[id] ?? ([0, 0] as Pt), turn: turns[id] };
-        const raw = bboxOf(id)!;
+        // boxOf, like the guard above: a minted trail has no layout bbox (and a
+        // morphed element's layout box is no longer where its points are).
+        const raw = boxOf(id)!;
         inputs.push({ id, box, centre: poseCentre(raw, pose.offset, pose.turn), piece: opts.pieceOf?.(id) ?? undefined, pose });
       }
       if (inputs.length === 0) continue;
@@ -836,6 +850,26 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const ids = resolveIds(cmd.flip.target, "flip");
       if (ids.length === 0) continue;
       const line = cmd.flip.line ? { from: resolvePoint(cmd.flip.line.from, undefined, "flip"), to: resolvePoint(cmd.flip.line.to, undefined, "flip") } : null;
+      // A named line that does not resolve, or that has no length, used to fall
+      // back to the axis default — a silent horizontal mirror about a point the
+      // author never asked for. Say so and skip instead.
+      if (line && (!line.from || !line.to)) {
+        warnings.push("flip: the line's endpoints do not resolve — skipped");
+        continue;
+      }
+      if (line && line.from && line.to && line.from[0] === line.to[0] && line.from[1] === line.to[1]) {
+        warnings.push("flip: the line's two endpoints are the same point, so it names no direction — skipped");
+        continue;
+      }
+      // `through` with a ref (or a literal point) names a place in the scene:
+      // resolve it once, before any target has been flipped. A ref-less
+      // {anchor} stays per target — it names the flipping element's own anchor.
+      const throughIsExplicit =
+        cmd.flip.through !== undefined &&
+        (Array.isArray(cmd.flip.through) ||
+          (cmd.flip.through as EndRef).ref !== undefined ||
+          ((cmd.flip.through as EndRef).x !== undefined && (cmd.flip.through as EndRef).anchor === undefined));
+      const through0 = throughIsExplicit ? resolvePoint(cmd.flip.through, undefined, "flip") : null;
       const items: TransformItem[] = [];
       const movedFollowers = new Set<string>();
       for (const id of ids) {
@@ -848,7 +882,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           at = line.from;
           angle = (Math.atan2(line.to[1] - line.from[1], line.to[0] - line.from[0]) * 180) / Math.PI;
         } else {
-          at = resolvePoint(cmd.flip.through, id, "flip") ?? anchorNow(id, "center", "flip");
+          at = (throughIsExplicit ? through0 : resolvePoint(cmd.flip.through, id, "flip")) ?? anchorNow(id, "center", "flip");
           angle = cmd.flip.axis === "horizontal" ? 0 : 90;
         }
         if (!at) {
@@ -883,6 +917,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const map = poseOf(offsets[ref] ?? [0, 0], turns[ref]);
         refRing = { pts: primary.pts.map(map), closed: primary.closed };
       }
+      // Same rule as move and flip: a pivot that names a ref (or a literal
+      // point) is resolved once, from the pre-morph state, so target two does
+      // not stretch about target one's already stretched outline.
+      const morphPivotIsExplicit =
+        cmd.morph.pivot !== undefined &&
+        (Array.isArray(cmd.morph.pivot) ||
+          (cmd.morph.pivot as EndRef).ref !== undefined ||
+          ((cmd.morph.pivot as EndRef).x !== undefined && (cmd.morph.pivot as EndRef).anchor === undefined));
+      const morphPivot0 = morphPivotIsExplicit ? resolvePoint(cmd.morph.pivot, undefined, "morph") : null;
       const items: MorphItem[] = [];
       for (const id of ids) {
         const leaves = currentLeaves(id);
@@ -902,7 +945,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           delete shapes[id];
         } else if (cmd.morph.stretch) {
           const [sx, sy] = cmd.morph.stretch;
-          const q = resolvePoint(cmd.morph.pivot, id, "morph") ?? anchorNow(id, "center", "morph") ?? [0, 0];
+          const q = (morphPivotIsExplicit ? morphPivot0 : resolvePoint(cmd.morph.pivot, id, "morph")) ?? anchorNow(id, "center", "morph") ?? [0, 0];
           for (const l of leaves) {
             const to = stretchPts(l.pts.map(fwd), q, sx, sy).map(inv);
             leafItems.push({ leafId: l.leafId, from: l.pts, to });

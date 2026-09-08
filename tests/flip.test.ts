@@ -32,6 +32,16 @@ describe("flip planning", () => {
     expect(c[0]).toBeCloseTo(650, 6);
     expect(c[1]).toBeCloseTo(150, 6);
   });
+  test("a line whose endpoint does not resolve warns and skips, instead of silently mirroring about the axis default", () => {
+    const plan = planCommands([{ flip: { target: ["tri"], line: { from: { ref: "ax", anchor: "start" }, to: { ref: "nope" } } } }], ["tri", "ax"], opts);
+    expect(plan.steps.filter((s) => s.kind === "transform")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/line/);
+  });
+  test("a line with two coincident endpoints warns and skips: atan2(0,0) is not a mirror direction", () => {
+    const plan = planCommands([{ flip: { target: ["tri"], line: { from: [400, 300], to: [400, 300] } } }], ["tri", "ax"], opts);
+    expect(plan.steps.filter((s) => s.kind === "transform")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/line/);
+  });
   test("the schema accepts flip", () => {
     const spec = { elements: [{ id: "tri", type: "polygon", points: [[0, 0], [10, 0], [0, 10]] }], commands: [{ flip: { target: ["tri"], axis: "horizontal" }, speak: "Mirror it." }] };
     expect(validateSpec(spec as never).ok).toBe(true);

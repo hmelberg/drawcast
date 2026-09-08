@@ -1010,7 +1010,7 @@ describe("mathlogic pack", () => {
     }
   }
 
-  test("registers all eight templates in brief order", () => {
+  test("registers all eleven templates in brief order", () => {
     const r = registerPack("mathlogic", mathlogicYaml);
     expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
     expect(scenes.equation_steps.manifest.engines).toEqual(["mathjax"]);

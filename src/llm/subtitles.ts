@@ -68,11 +68,16 @@ function mentionedIds(spec: Spec): string[] {
     if (flow && typeof flow === "object") add((flow as Record<string, unknown>).along);
     const clear = c.clear;
     if (clear && typeof clear === "object") add((clear as Record<string, unknown>).keep);
-    // Verbs that name ONE element under a nested ref: point.at.ref, camera.center.ref.
+    // Verbs that name ONE element under a nested ref: point.at.ref,
+    // camera.center.ref, morph.to.ref. The morph destination is often an
+    // outline that is declared but never drawn; leave it out and the planner
+    // drops the whole morph as an unknown id, taking its narration with it.
     const point = c.point as { at?: { ref?: unknown } } | undefined;
     add(point?.at?.ref);
     const camera = c.camera as { center?: { ref?: unknown } } | undefined;
     add(camera?.center?.ref);
+    const morph = c.morph as { to?: { ref?: unknown } } | undefined;
+    if (morph?.to && !Array.isArray(morph.to)) add(morph.to.ref);
   }
   return [...ids];
 }

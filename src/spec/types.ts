@@ -225,7 +225,12 @@ export interface MoveArgs {
   path?: [number, number][];
   /** Degrees, counter-clockwise (y-up); the element turns about `pivot`. */
   rotate?: number;
-  /** The point to turn or grow about, in current coordinates (same units as by). Default: the element's own centre. */
+  /** The point to turn or grow about. Either `[x, y]` / `{x, y}` (domain units
+   *  when a domain is declared), `{ref, anchor?}` — a named point on another
+   *  element, resolved once from where the scene stands BEFORE this move, and
+   *  then carried along by the move's own translation — or a bare `{anchor}`,
+   *  which names that anchor on each moving element itself.
+   *  Default: the element's own centre. */
   pivot?: PointRef;
   /** Which anchor of the moving element lands on `to` (default center). */
   anchor?: string;

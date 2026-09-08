@@ -11,7 +11,7 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
-import { layoutSpec } from "../src/layout/layout";
+import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
 import { lintCommands } from "../src/lint/lint";
@@ -70,11 +70,23 @@ describe("bundled examples stay exemplary", () => {
     expect(ready.filter((id) => !covered.has(id))).toEqual([]);
   });
 
-  test.each(cases)("%s — validates, lays out, and every command id resolves", (_req, spec) => {
+  // Planned the way render() plans it — WITH the layout's boxes. Without them
+  // every geometry-dependent verb (flip through a point, arrange, move to a
+  // ref) resolved to nothing and warned, and a gate that only read "unknown
+  // id" never saw it: the symmetry example was quietly emitting `flip target
+  // "tri" has no geometry (skipped)`. So: no warning at all, of any kind.
+  test.each(cases)("%s — validates, lays out, and plans with no warning at all", (_req, spec) => {
     expect(validateSpec(spec).ok).toBe(true);
     const layout = layoutSpec(spec);
-    const plan = planCommands(spec.commands, layout.order, planOptionsFor(spec, layout));
-    expect(plan.warnings.filter((w) => w.includes("unknown id"))).toEqual([]);
+    const bboxes = elementBBoxes(layout);
+    const plan = planCommands(spec.commands, layout.order, {
+      bboxOf: (id) => bboxes.get(id) ?? null,
+      windows: layout.windows ?? {},
+      ...domainMapping(spec.domain),
+      animateBase: spec.template ? spec.params ?? {} : null,
+      ...planOptionsFor(spec, layout),
+    });
+    expect(plan.warnings).toEqual([]);
   });
 
   // Stricter than the compiler's own repair gate (which only repairs errors):

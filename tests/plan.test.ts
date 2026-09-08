@@ -492,6 +492,25 @@ describe("anchors in commands (design §2.1)", () => {
     expect(it.to.turn.pivot[1]).toBeCloseTo(50, 6);
     expect(it.to.offset).toEqual([300, 0]);
   });
+  test("an explicit pivot is resolved once, from the pre-move state: two targets turning about the first one share its centre", () => {
+    const plan = planCommands([{ move: { target: ["a", "b"], by: [300, 0], rotate: -360, pivot: { ref: "a" } } }], ["a", "b"], opts);
+    const items = transformOf(plan).items;
+    const pa = items.find((x) => x.id === "a")!.to.turn.pivot;
+    const pb = items.find((x) => x.id === "b")!.to.turn.pivot;
+    // a's centre (200,110) in the original frame. Resolved inside the loop, b
+    // used to see a's ALREADY moved centre and swung on a 300-unit circle.
+    expect(pa[0]).toBeCloseTo(200, 6);
+    expect(pa[1]).toBeCloseTo(110, 6);
+    expect(pb[0]).toBeCloseTo(200, 6);
+    expect(pb[1]).toBeCloseTo(110, 6);
+  });
+  test("move.to is resolved once too: two targets sent to the first one's tip both aim at where it started", () => {
+    const plan = planCommands([{ move: { target: ["a", "b"], to: { ref: "a", anchor: "tip" } } }], ["a", "b"], opts);
+    const items = transformOf(plan).items;
+    // a's tip is (300,110); a's own centre (200,110) and b's centre (450,410) both land there
+    expect(items.find((x) => x.id === "a")!.to.offset).toEqual([100, 0]);
+    expect(items.find((x) => x.id === "b")!.to.offset).toEqual([-150, -300]);
+  });
   test("a universal anchor comes off the box; an unknown one warns and uses center; arrange.at takes a ref", () => {
     const plan = planCommands([{ move: { target: ["b"], to: { ref: "tri", anchor: "top_right" } } }], ["b", "tri"], opts);
     expect(plan.states[0].offsets.b).toEqual([100 - 450, 100 - 410]);

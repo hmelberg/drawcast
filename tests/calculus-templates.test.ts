@@ -21,7 +21,7 @@ describe("riemann_sum", () => {
     for (const n of [1, 6, 40, 200]) {
       const out = lay("riemann_sum", { expr: "x*x/10 + 1", x_from: 0, x_to: 10, a: 2, b: 8, n });
       expect(out.warnings, `n=${n}`).toEqual([]);
-      expect(out.issues.filter((i) => i.severity === "error"), `n=${n}`).toEqual([]);
+      expect(out.issues.map((i) => `[${i.severity}] ${i.message}`), `n=${n}`).toEqual([]);
       expect(out.order.filter((id) => /^bar_\d+$/.test(id))).toHaveLength(n);
       const m = /Σ ≈ ([\d.]+)/.exec(textOf(out, "sum_label"));
       expect(m, `n=${n}`).not.toBeNull();
@@ -42,7 +42,7 @@ describe("riemann_sum", () => {
     for (const ex of scenes.riemann_sum.manifest.examples) {
       const out = lay("riemann_sum", ex.params);
       expect(out.warnings).toEqual([]);
-      expect(out.issues.filter((i) => i.severity === "error")).toEqual([]);
+      expect(out.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
     }
   });
 });
@@ -57,7 +57,7 @@ describe("tangent_secant", () => {
     for (const h of [4, 1, 0.05]) {
       const out = lay("tangent_secant", { expr: "x*x/10 + 1", x_from: 0, x_to: 10, at: 4, h });
       expect(out.warnings, `h=${h}`).toEqual([]);
-      expect(out.issues.filter((i) => i.severity === "error"), `h=${h}`).toEqual([]);
+      expect(out.issues.map((i) => `[${i.severity}] ${i.message}`), `h=${h}`).toEqual([]);
       for (const id of ["axes", "curve", "point_a", "point_b", "secant", "tangent", "run", "rise", "slope_label", "derivative_label"]) expect(out.order, `${id} at h=${h}`).toContain(id);
       slopes.push(Number(/≈ (-?[\d.]+)/.exec(textOf(out, "slope_label"))![1]));
     }
@@ -72,7 +72,7 @@ describe("tangent_secant", () => {
     for (const params of [{ at: 10 }, { at: 10, h: 0.01 }]) {
       const out = lay("tangent_secant", params);
       expect(out.warnings, JSON.stringify(params)).toEqual([]);
-      expect(out.issues.filter((i) => i.severity === "error"), JSON.stringify(params)).toEqual([]);
+      expect(out.issues.map((i) => `[${i.severity}] ${i.message}`), JSON.stringify(params)).toEqual([]);
       expect(out.order, JSON.stringify(params)).toContain("secant");
       expect(textOf(out, "slope_label"), JSON.stringify(params)).toMatch(/slope ≈ -?[\d.]+$/);
     }
@@ -80,7 +80,7 @@ describe("tangent_secant", () => {
   test("at below the domain's left edge clamps to x_from and stays finite too", () => {
     const out = lay("tangent_secant", { at: -5 });
     expect(out.warnings).toEqual([]);
-    expect(out.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(out.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
     expect(out.order).toContain("secant");
     expect(textOf(out, "slope_label")).toMatch(/slope ≈ -?[\d.]+$/);
   });
@@ -88,7 +88,7 @@ describe("tangent_secant", () => {
     for (const ex of scenes.tangent_secant.manifest.examples) {
       const out = lay("tangent_secant", ex.params);
       expect(out.warnings).toEqual([]);
-      expect(out.issues.filter((i) => i.severity === "error")).toEqual([]);
+      expect(out.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
     }
   });
 });

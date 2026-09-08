@@ -70,6 +70,19 @@ describe("morph planning", () => {
     const mv = plan.steps[2] as Extract<PlanStep, { kind: "transform" }>;
     expect(mv.items[0].to.offset[0]).toBeCloseTo(1200 - 800, 6);
   });
+  test("a later rotate turns about the STRETCHED centre, not the layout box's (design §2.4)", () => {
+    const plan = planCommands([{ draw: ["para"] }, { morph: { target: ["para"], stretch: [4, 1], pivot: { anchor: "left" } } }, { move: { target: ["para"], rotate: 90 } }], layout.order, opts);
+    expect(plan.warnings).toEqual([]);
+    const pts = Object.values(plan.states[1].shapes.para).flat();
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2; // 200 + 4·(700−200) stretched about x = 200 → centre 1200
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const mv = plan.steps[2] as Extract<PlanStep, { kind: "transform" }>;
+    expect(cx).toBeCloseTo(1200, 6);
+    expect(mv.items[0].to.turn.pivot[0]).toBeCloseTo(cx, 6); // the layout box's centre is 450 — a different point entirely
+    expect(mv.items[0].to.turn.pivot[1]).toBeCloseTo(cy, 6);
+  });
   test("reset tweens back to the layout points and clears the state; a shape circle warns", () => {
     const plan = planCommands([{ draw: ["para", "dot"] }, { morph: { target: ["para"], stretch: [2, 1] } }, { morph: { target: ["para"], reset: true } }, { morph: { target: ["dot"], stretch: [2, 2] } }], layout.order, opts);
     expect(plan.states[2].shapes.para).toBeUndefined();
