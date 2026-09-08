@@ -38,7 +38,7 @@ export interface PartFacts {
 export const MIN_PARTS = 3;
 
 /** Element types that are words or pictures OF something, never a part with an outline of its own. */
-const NEVER_A_PART = new Set(["label", "text", "source", "code", "annotation"]);
+export const NEVER_A_PART = new Set(["label", "text", "source", "code", "annotation"]);
 
 /**
  * Every part of the figure, in draw order, one per element id. An element

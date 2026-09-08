@@ -13,7 +13,7 @@
 // practice it is already cached.
 
 import type { RenderHandle } from "../render";
-import { INITIAL_STATE } from "../render/plan";
+import { sceneAt } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
@@ -25,7 +25,7 @@ import { freeMove, legalTargets, shownFen, type ChessCtor } from "./chessplay-mo
  *  vs-computer session both start from. */
 export function boundaryChessFen(hd: RenderHandle, Chess: ChessCtor): string | null {
   const n = hd.timeline.position;
-  const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
+  const boundary = sceneAt(hd.plan, n);
   const eff = withOverrides(hd.spec.params, boundary.params);
   const moves = Array.isArray(eff["moves"]) ? (eff["moves"] as string[]) : [];
   const plies = hd.timeline.getParamOverrides()["plies_shown"] ?? readParam(eff, "plies_shown") ?? moves.length;

@@ -10,6 +10,8 @@ import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
 import { resolveGame } from "../code/c64-catalogue";
 import { scanDataTokens } from "../code/tokens";
+import { connectKey } from "../render/widgets";
+import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 
 export const FONT_FLOOR = 14;
 /** The floor for the Commodore 64 face: a pixel glyph the size of its cell. */
@@ -32,10 +34,18 @@ export interface LintIssue {
     | "source-use"
     | "code-use"
     /** params measured against the template's own params_schema, not the wire schema. */
-    | "template-params";
+    | "template-params"
+    /** a connect question the viewer cannot win, or one that is unfair given what has (not) been drawn yet */
+    | "connect";
   ids: string[];
   message: string;
   severity: "warn" | "error";
+}
+
+/** `draw`/`show`/`erase`/`hide`/`clear.keep` all take either a single id or a
+ *  list — this is the one place that difference is normalised away. */
+function idsOf(raw: string[] | string | undefined): string[] {
+  return typeof raw === "string" ? [raw] : raw ?? [];
 }
 
 /**
@@ -92,6 +102,107 @@ export function coVisible(commands: Command[] | undefined, allIds: string[], exp
   for (const id of allIds) if (!managed.has(id)) visible.add(id);
   snapshot();
   return (a, b) => a === b || pairs.has(key(a, b));
+}
+
+/**
+ * Whether `id` is already on screen right before `commands[askIndex]` fires,
+ * and — when it is — the index of the LAST command before `askIndex` that
+ * revealed it (the "revealing beat" a goto could bypass; meaningless, and
+ * left at -1, when `visible` is false). The walk is the same draw/show
+ * reveal, erase/hide/clear conceal state machine `coVisible` runs, but read
+ * at one moving point in the timeline instead of folded into an all-pairs
+ * table — and, on the "never managed" case, the OPPOSITE answer from
+ * `coVisible`'s. `coVisible` asks "were these ever on screen together" (over
+ * the whole cast), where unmanaged really does mean "present the whole time,
+ * so it coexists with everything." This asks "was this on screen YET" at a
+ * single instant, and an id no command manages is not on screen from the
+ * start — the planner collects every unmentioned id into ONE implicit `draw`
+ * step pushed AFTER every explicit command (`src/render/plan.ts:609-612`), so
+ * it is drawn LAST, after the very question it was meant to precede. That is
+ * the shape a compiling model is most likely to produce (an omitted draw,
+ * mopped up implicitly) and exactly the cast this rule exists to catch.
+ * Do not "fix" this back to match `coVisible` — the two functions answer
+ * different questions and this divergence is deliberate.
+ *
+ * This is a TEXTUAL-order walk, same approximation `coVisible` makes — it
+ * does not follow `right_goto`/`wrong_goto`/`if.goto`. Unlike `coVisible`,
+ * whose textual-order errors only ever ADD warnings (safe), a missed jump
+ * here would DROP one on the round's only fairness safeguard, so the
+ * jump-hole check below is what closes that gap instead of this walk trying
+ * (and failing) to be a full path analysis.
+ */
+function connectVisibility(commands: Command[], askIndex: number, id: string): { visible: boolean; revealIdx: number } {
+  const touched = commands.some(
+    (c) => idsOf(c.draw).includes(id) || idsOf(c.show).includes(id) || idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id),
+  );
+  if (!touched) return { visible: false, revealIdx: -1 }; // drawn by the implicit final step — not yet on screen for any ask
+  let visible = false;
+  let revealIdx = -1;
+  for (let i = 0; i < askIndex; i++) {
+    const c = commands[i];
+    if (idsOf(c.draw).includes(id) || idsOf(c.show).includes(id)) {
+      visible = true;
+      revealIdx = i;
+    }
+    if (idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id)) visible = false;
+    if (c.clear !== undefined && visible && !idsOf(c.clear.keep).includes(id)) visible = false;
+  }
+  return { visible, revealIdx };
+}
+
+/**
+ * Every command index a `right_goto`/`wrong_goto`/`if.goto` could land a
+ * viewer on — the label fields grepped directly from the source rather than
+ * assumed (`src/spec/types.ts:320,346,348,387,389`; nothing else in the repo
+ * carries a goto). An unresolved target (an unknown label) is dropped here;
+ * schema.ts's own validation already reports that separately.
+ */
+function gotoTargetIndices(commands: Command[]): number[] {
+  const labelIndex = new Map<string, number>();
+  commands.forEach((c, i) => {
+    if (typeof c.label === "string") labelIndex.set(c.label, i);
+  });
+  const targets: string[] = [];
+  for (const c of commands) {
+    if (typeof c.quiz?.right_goto === "string") targets.push(c.quiz.right_goto);
+    if (typeof c.quiz?.wrong_goto === "string") targets.push(c.quiz.wrong_goto);
+    if (typeof c.ask?.right_goto === "string") targets.push(c.ask.right_goto);
+    if (typeof c.ask?.wrong_goto === "string") targets.push(c.ask.wrong_goto);
+    if (typeof c.if?.goto === "string") targets.push(c.if.goto);
+  }
+  return targets.map((t) => labelIndex.get(t)).filter((t): t is number => t !== undefined);
+}
+
+/**
+ * Whether a sky-moving `animate` — one targeting `hours` or `days`,
+ * sky_map's own animatable handles (matched on the target path's LAST
+ * segment, so a nested path is still caught, not only a bare top-level key)
+ * — sits strictly between `revealIdx` (the beat that drew the figure) and
+ * `askIndex` (the connect question itself). Used to refuse a connect ask
+ * downstream of a turning sky: the gate derives its key from whatever is
+ * actually painted (`connect-gate.ts`'s `paintedLayout()`), but between the
+ * draw and the ask that painted layout can itself be null (an `animate`
+ * tween discards its frame before the commit that would set it — the
+ * player's own tween/commit path, not this rule's business to reach into),
+ * in which case the gate falls back to the BASE layout — the sky exactly as
+ * it stood before the turn. Either way the viewer loses: graded against a
+ * stale key that demands stars which have since set, or simply asked to
+ * redraw a shape that has visibly moved and rotated since they saw it. The
+ * framing rule this sits beside exists so the viewer draws the figure they
+ * JUST saw — a sky that turns in between breaks that promise however the
+ * key is derived, so this is a question of fairness, not a technical guard
+ * against one stale computation.
+ */
+function skyTurnsBetween(commands: Command[], revealIdx: number, askIndex: number): boolean {
+  for (let k = revealIdx + 1; k < askIndex; k++) {
+    const animate = commands[k]?.animate;
+    if (!animate) continue;
+    for (const path of Object.keys(animate)) {
+      const target = path.split(".").pop();
+      if (target === "hours" || target === "days") return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -237,6 +348,87 @@ export function lintLayoutDetailed(
           ids: [t.id, s.id],
           message: `label "${t.id}" ("${t.text}") sits on stroke "${s.id}" — move it to a different side`,
           severity: "warn",
+        });
+      }
+    }
+  }
+
+  // connect: refuse a constellation question the viewer cannot win, and —
+  // independently — one that is unfair given what has (not) been drawn yet.
+  // Built lazily, only when a connect ask is actually present: most figures
+  // have none, and every one of them must pay nothing for this pass.
+  const connectAsks: { i: number; answer: string }[] = [];
+  (commands ?? []).forEach((c, i) => {
+    if (c.ask?.widget === "connect" && typeof c.ask?.answer === "string") connectAsks.push({ i, answer: c.ask.answer });
+  });
+  if (connectAsks.length > 0) {
+    const leafBoxes = new Map<string, BBox>();
+    for (const d of leaves) {
+      if (d.kind === "text") leafBoxes.set(d.id, bboxOfText(d, measure));
+      else if (d.kind === "image") leafBoxes.set(d.id, { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h });
+      else if (d.pts.length > 0) leafBoxes.set(d.id, bboxOfPts(d.pts));
+    }
+    const jumpTargets = gotoTargetIndices(commands ?? []);
+    for (const { i, answer } of connectAsks) {
+      const prefix = `${answer}__`;
+      const drawnHere = leaves.some((d) => d.id === answer || d.id.startsWith(prefix));
+      const key = connectKey(leaves, leafBoxes, answer);
+      // At most one of these four — a figure that is not drawn has no edges
+      // either, and saying both is noise — in the table's own order.
+      if (!drawnHere) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: "${answer}" is not drawn in this figure — a connect question needs focus on that constellation`,
+          severity: "error",
+        });
+      } else if (key.edges.length === 0) {
+        issues.push({ rule: "connect", ids: [answer], message: `connect: "${answer}" has no lines to draw`, severity: "error" });
+      } else if (key.unmatched > 0) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: ${key.unmatched} of "${answer}"'s points have no star to join — the figure cannot be drawn as it stands`,
+          severity: "error",
+        });
+      } else if (key.edges.length > CONNECT_MAX_EDGES) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: "${answer}" has ${key.edges.length} lines; the cap is ${CONNECT_MAX_EDGES} (Orion's) — ask which constellation it is instead`,
+          severity: "error",
+        });
+      }
+      // Reported independently of the four above: a figure can be perfectly
+      // drawable and the question still unfair.
+      const { visible, revealIdx } = connectVisibility(commands ?? [], i, answer);
+      if (!visible) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: "${answer}" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
+          severity: "error",
+        });
+      } else if (jumpTargets.some((t) => t > revealIdx && t <= i)) {
+        // The TEXTUAL walk above says the figure is on screen, but some
+        // right_goto/wrong_goto/if.goto lands between the beat that drew it
+        // and this ask — a viewer who takes that branch never sees the draw.
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: a jump can reach this question without passing the beat that draws "${answer}" — a viewer who takes that branch is asked to draw a figure they never saw`,
+          severity: "error",
+        });
+      }
+      // Reported independently again: the sky can turn ON the main line,
+      // with no jump involved at all — see skyTurnsBetween's own comment
+      // for why this is a fairness problem, not only a stale-key one.
+      if (visible && skyTurnsBetween(commands ?? [], revealIdx, i)) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: the sky turns between the beat that draws "${answer}" and this question — a viewer is asked to redraw a figure that has moved, and part of it may have set`,
+          severity: "error",
         });
       }
     }

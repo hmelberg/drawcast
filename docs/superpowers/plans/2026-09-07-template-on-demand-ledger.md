@@ -162,3 +162,121 @@ smoked live (a course run is ~20 Opus calls).
 - Sharing to a central library: roadmap item 4, not started.
 - The Templates panel shows the saved template like any other; there is
   no marker that it was authored on demand.
+
+## 2026-09-08 — the cap and the shared run (Hans: "bygg alle tre bitene, med låsen")
+
+Hans asked for an off switch or a cap on templates authored in a course, and
+that a template authored for one part be available at once to the other
+drawcasts in the same course. Reading the code for the design found the
+second was NOT the case: `authorTemplatesForParts` kept a local `authored`
+map, and its re-route condition was `authored.size > 0` — so a lecture
+re-routed only after it had itself authored something. Lectures run in
+parallel (run.ts pours every part into one pool), so lecture A's template
+was never tried on lecture B, and two lectures finishing together could
+author twins for the same figure. The registry itself was live all along
+(`routerIndexText` reads `scenes` directly); what was missing was the
+shared state and the wait.
+
+- **`src/llm/on-demand-run.ts`** — `createOnDemandRun(max)`: the cap
+  (`take()`, a slot is spent whether the authoring succeeds or not — the cap
+  bounds spend), `authored`/`skipped` counts, the `docs` map a re-routed
+  part embeds from, and `lock(fn)` — a promise chain that runs callers one at
+  a time in arrival order and survives a throw. `onDemandSummary(run)` is
+  the status tail. `DEFAULT_ON_DEMAND_MAX = 3`.
+- **`GenerateConfig.onDemandRun` + `templatesOnDemandMax`.** The course
+  panel creates ONE run per `runCourse` and spreads it into the config; the
+  multi-part Generate creates one per generation; `generateFromOutline`
+  makes a private one from `templatesOnDemandMax` when none is given, so
+  tests and embeds keep behaving.
+- **The loop.** Per template-less part: inside the lock — re-route if
+  `run.authored > 0` (returns the id to reuse), else `take()` or count as
+  skipped with a phase line naming the cap, else author (docs/authored/
+  onTemplateAuthored). The redraw of a REUSING part runs outside the lock,
+  so a lecture that merely reuses does not hold the others. A skipped part
+  still got its re-route first.
+- **Setting** `templatesOnDemandMax` (store.ts literal 3, pinned equal to
+  the module default by tests/settings-migration.test.ts; an older blob
+  gets 3 on load). Generate menu: "at most [3] per run" beside the
+  checkbox, whole numbers 0–20; choices summary "Templates on demand (≤3
+  per run)". End status of a course or multi-part run appends
+  " · 2 templates authored · 1 part left freehand (cap 3)".
+- **Speed.** Nothing changes with the checkbox off. On: parts with a
+  template are untouched; authoring is now sequential for the run (cap × ~4
+  min worst case, was parallel across lectures with unbounded count and
+  possible twins). One Haiku re-route (~1 s) per template-less part once
+  anything was authored.
+
+Tests: tests/on-demand-run.test.ts (cap, lock order, throw release,
+summary), tests/on-demand-course.test.ts (two parallel lectures author ONCE
+and both embed the document; cap 1 of 3 → 1 authored 2 skipped with a "cap"
+phase; cap 0 authors nothing; a skipped part still reuses; the config cap
+alone; the default of three; switch off). 5924 vitest, tsc clean.
+
+Not done: a live course smoke with the switch on (~20 Opus calls plus the
+authoring); the offer form for courses (roadmap item 5); help.html says
+nothing about the cap (it says nothing about the checkbox either).
+
+## 2026-09-09 — the trigger is the result, not the router (Hans: "gjør 1")
+
+Hans's smoke: "Vis delene i en symaskin og hva hver gjør", switch on. A good
+freehand drawcast, no template. Routed the request afterwards
+(scratch script over vite's ssrLoadModule, one Haiku call each):
+
+| request | router | none_fits |
+|---|---|---|
+| Vis delene i en symaskin og hva hver gjør | violin_anatomy | no |
+| Show the parts of a sewing machine and what each does. | — | yes |
+| Forklar hvordan en toalettsisterne fungerer. | hydraulic_press | no |
+| Tegn en vulkan i tverrsnitt med navn på delene. | — | yes |
+| Vis delene i en middelalderborg. | anatomy | no |
+
+The compiler was shown the violin in full and composed freehand — the right
+call — but the trigger in both main.ts and multi.ts was `route.noneFits`,
+so neither the automatic path nor the offer fired. The English request
+would have authored.
+
+- **`on-demand.ts namedParts(spec)` / `templateWorthy(spec)`**: freehand
+  (no `template`) and at least `MIN_PARTS` (3, imported from
+  ui/parts-model) distinct drawables named by authored labels — the drill's
+  reading of a label (meaningfulName, not on words, not a sub-drawable;
+  `NEVER_A_PART` now exported) minus the drill's other sources: a node's
+  words name a flowchart box, not a part of a thing, and a template for
+  "the flowchart about X" is worth nothing. Both trigger sites use it; the
+  router's verdict now only colours the status line.
+- Tests: on-demand.test.ts (rule = MIN_PARTS; template → never; two labels
+  on one drawable = one part; label on nothing/text/sub-drawable = none;
+  three nodes = not worthy), on-demand-course.test.ts (freehand WITH parts
+  handled though the router offered violin_anatomy; freehand WITHOUT parts
+  left alone though the router said none_fits). The course fixture's
+  freehand outcome gained three labelled parts.
+
+Open (from the same smoke, not built): the router's precision in Norwegian
+— a prompt line ("the template must draw THIS thing") plus Norwegian
+freehand cases in the bench so it can be measured; the generation log
+records no route, so after the fact only the status line ever said what
+the router offered.
+
+## 2026-09-09 — the automatic path never ran (Hans's status line)
+
+Hans pasted the status he got with the checkbox on: "An AI call is still
+running — wait for it to finish before authoring a template." That is
+`blockedByAi` inside `authorTemplateAndRedraw`, and generate() AWAITED that
+function from inside its own try — while `aiBusy` was still true from
+`setAiBusy(true, controller)` at the top of generate(). So the automatic
+single-figure path refused itself on every run since it was added
+(2026-09-07 evening); only the OFFER path — clicked after the generation had
+ended — ever authored a template (the sailboat E2E went through the offer).
+Yesterday's "I think it generated a template" was this refusal; the
+freehand he pasted was simply the generation's result.
+
+Fix: generate() decides inside the try (`authorNext = () => …`) and runs it
+after the finally has released the busy flag; authoring is its own AI span
+with its own controller and Cancel, exactly like the offer. The freehand
+result is on screen and in history first, then the status switches to
+"Authoring a template". `blockedByAi` stays in authorTemplateAndRedraw —
+the offer clicked during another call must still be refused.
+
+Test: tests/on-demand-auto-path.test.ts pins the SOURCE (no DOM in vitest):
+generate() never awaits authorTemplateAndRedraw; the deferred call sits
+after the last `setAiBusy(false)`; the guard remains. Not live-smoked — the
+path after the fix is the offer path, which was.

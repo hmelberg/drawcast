@@ -439,9 +439,9 @@ const commandSchema = {
         required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
         widget: {
           type: "string",
-          enum: ["click", "piano", "chess", "code", "drag"],
+          enum: ["click", "piano", "chess", "code", "drag", "connect"],
           description:
-            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one); drag = DRAG NAMES onto the figure (items = what to place, each judged where it lands; the answer is implied and `right` is required — it must say where each belongs; parts that were not drawn appear when the question ends, hits glow green and misses red). All but drag require answer. In movies the laser pointer demonstrates.",
+            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one); drag = DRAG NAMES onto the figure (items = what to place, each judged where it lands; the answer is implied and `right` is required — it must say where each belongs; parts that were not drawn appear when the question ends, hits glow green and misses red); connect = DRAW A CONSTELLATION on a sky_map portrait (the viewer joins star to star — press one and drag to the next, or tap both — until the figure is made; answer = the constellation's element id, e.g. con_ori). Use it only with `focus` on that same figure, which is what gives every one of its stars an element id, and only AFTER AN EARLIER BEAT HAS DRAWN THE FIGURE — the lines are hidden while the question stands and drawn back as the reveal, so the task is \"draw the one you just saw\". The whole figure is required, exactly: every line and no extra one, since a wrong segment can be clicked away before Done. At most 24 lines — Orion's own count, and the most anyone will draw by hand; for a bigger figure ask which constellation it is instead. All but drag require answer. In movies the laser pointer demonstrates.",
         },
         items: {
           type: "array",
@@ -1052,6 +1052,7 @@ function semanticErrors(spec: Spec): string[] {
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
+      const isConnect = a.widget === "connect";
       if (!isDrag && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
@@ -1063,8 +1064,17 @@ function semanticErrors(spec: Spec): string[] {
         if (a.right === undefined) errors.push(`commands[${i}]: ask.widget "drag" needs right — the reveal is a sentence; the answer itself is the list of items`);
         if (a.answer !== undefined) errors.push(`commands[${i}]: ask.answer is implied by items for the drag widget — leave it out`);
         if (a.store !== undefined) errors.push(`commands[${i}]: ask.store does not apply to the drag widget`);
-      } else if (a.items !== undefined || a.tolerance !== undefined) {
-        errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"`);
+      } else {
+        if (isConnect && a.right === undefined) {
+          errors.push(`commands[${i}]: ask.widget "connect" needs right — the reveal is a sentence, spoken as the figure is drawn back`);
+        }
+        if (isConnect && a.store !== undefined) {
+          errors.push(`commands[${i}]: ask.store does not apply to the connect widget`);
+        }
+        if (a.items !== undefined || a.tolerance !== undefined) {
+          const named = a.widget !== undefined ? ` (this one is "${a.widget}")` : "";
+          errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"${named}`);
+        }
       }
       if (a.retry === true && a.wrong_goto !== undefined) {
         errors.push(`commands[${i}]: ask.retry and wrong_goto are mutually exclusive — retry re-asks in place, wrong_goto jumps away`);

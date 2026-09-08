@@ -44,7 +44,7 @@ export type PlanStep = (
       required: boolean;
       rightGoto?: string;
       wrongGoto?: string;
-      widget?: "click" | "piano" | "chess" | "code" | "drag";
+      widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
       answerBox?: BBox;
       /** drag widget: the chips, in order; element = a part of the figure (shown and glowed at the end). */
       items?: { id: string; label: string; element: boolean }[];
@@ -159,6 +159,41 @@ export interface SceneState {
 }
 
 export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {} };
+
+/** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
+export function boundaryAt(plan: Plan, n: number): SceneState {
+  return n > 0 ? plan.states[n - 1] : INITIAL_STATE;
+}
+
+/**
+ * Where the last frame is held. A drawcast that ends by wiping the stage — a
+ * trailing clear, an erase of the last thing drawn, an LLM's tidy "and we're
+ * done" — planned to end on nothing: the poster was blank and so was what
+ * the viewer looked at when the narration stopped (player round, 2026-09).
+ * The rule: the last frame holds whatever was on screen. This is the
+ * boundary after the last step that left something visible, when every
+ * later boundary is empty; null when the drawcast ends with something on
+ * screen (or never drew anything), which is the ordinary case.
+ */
+export function heldFrom(plan: Plan): number | null {
+  const n = plan.states.length;
+  if (n === 0 || plan.states[n - 1].visible.length > 0) return null;
+  for (let i = n - 2; i >= 0; i--) {
+    if (plan.states[i].visible.length > 0) return i + 1;
+  }
+  return null;
+}
+
+/**
+ * Scene state the player PAINTS at a boundary: the planned one, except that
+ * every boundary past the held frame paints the held frame. What controls,
+ * hit-testing and the poster should all read, so a click on the poster finds
+ * the elements it shows.
+ */
+export function sceneAt(plan: Plan, n: number): SceneState {
+  const held = heldFrom(plan);
+  return boundaryAt(plan, held !== null && n > held ? held : n);
+}
 
 export interface Plan {
   steps: PlanStep[];
@@ -520,6 +555,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         shown.forEach((id) => mentioned.add(id));
         makeVisible(shown); // the reveal: the true parts are there once the question ends
       }
+      // The connect widget: the figure's own lines are the reveal. The gate hides
+      // them while the viewer draws (it owns the DOM), and the plan agrees they are
+      // there once the question ends — the same contract the drag widget's items
+      // have. The key itself is read off the layout at gate time, so it is not
+      // copied into the plan, where the two could drift apart.
+      if (cmd.ask.widget === "connect" && typeof cmd.ask.answer === "string") {
+        mentioned.add(cmd.ask.answer);
+        makeVisible([cmd.ask.answer]);
+      }
       pushStep({
         kind: "ask",
         question: cmd.ask.question,
@@ -539,9 +583,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.code !== undefined ? { widget: "code" as const, codeId: cmd.ask.code } : cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
-        // The movie demo points at the answer: the element's box (click) or
+        // The movie demo points at the answer: the element's box (click), the
+        // constellation group's box (connect — the laser taps the figure), or
         // the key's box (piano — geometry mirrored from the template).
         ...(cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
+          ? { answerBox: currentBox(cmd.ask.answer)! }
+          : {}),
+        ...(cmd.ask.widget === "connect" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
           ? { answerBox: currentBox(cmd.ask.answer)! }
           : {}),
         ...(cmd.ask.widget === "piano" && cmd.ask.answer !== undefined && pianoKeyBox(pianoOctaves(opts.animateBase), cmd.ask.answer) !== null

@@ -18,6 +18,7 @@ import type { VoiceOption } from "../render/voices";
 import { gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { dragGateFor } from "./drag-gate";
+import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
 import { attachPanelView } from "./panel-view";
 import { scenes } from "../scenes/registry";
@@ -183,7 +184,7 @@ export interface AskGateStep {
   answer?: string;
   retry: boolean;
   required: boolean;
-  widget?: "click" | "piano" | "chess" | "code" | "drag";
+  widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
   /** drag widget: the chips, in order. */
   items?: { id: string; label: string; element: boolean }[];
   tolerance?: number;
@@ -963,11 +964,14 @@ export function attachPlayerControls(
   const pianoGate = pianoGateFor(stage, hd);
   const chessGate = chessGateFor(stage, hd);
   const dragGate = dragGateFor(stage, hd);
+  const connectGate = connectGateFor(stage, hd);
   hd.timeline.askGate = (signal, step) =>
     step.widget === "click"
       ? figureGate(signal, step)
       : step.widget === "drag"
         ? dragGate(signal, step)
+      : step.widget === "connect"
+        ? connectGate(signal, step)
       : step.widget === "piano"
         ? pianoGate(signal, step)
         : step.widget === "chess"

@@ -14,6 +14,7 @@ import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
 import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
+import { icon } from "./ui/icons";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import { getToken, setToken, signInUrl } from "./account";
@@ -493,10 +494,39 @@ export function deniedDoor(cast: string, status: 401 | 403, deps: DoorDeps = liv
   });
 }
 
+/**
+ * Share, as an icon in the control bar beside fullscreen (player round; C3
+ * before it, as a button in a footer strip): the Web Share API where it
+ * exists (a phone), the clipboard elsewhere, with the icon turning into a
+ * tick for a beat to say so. One element, moved from bar to bar as the
+ * playlist rebuilds it — the same way its dots and ☰ travel.
+ */
+function shareButton(): HTMLButtonElement {
+  const btn = h("button", { class: "cs-bar-btn viewer-share", title: "Share this drawcast" }, icon("share")) as HTMLButtonElement;
+  btn.addEventListener("click", () => {
+    const url = location.href;
+    const title = document.title;
+    if (navigator.share) {
+      navigator.share({ title, url }).catch(() => {
+        /* cancelled — not an error */
+      });
+      return;
+    }
+    void navigator.clipboard?.writeText(url).then(() => {
+      btn.replaceChildren(icon("check"));
+      btn.title = "Link copied";
+      window.setTimeout(() => {
+        btn.replaceChildren(icon("share"));
+        btn.title = "Share this drawcast";
+      }, 1600);
+    });
+  });
+  return btn;
+}
+
 export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
-  const titleEl = h("h1", { class: "viewer-title" }, "drawcast");
   const status = h(
     "div",
     { class: "viewer-status" },
@@ -510,38 +540,29 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   );
   // The same frame the app's player mounts into, by the same class: the
   // fullscreen rules are written against it, and a viewer-only copy of them
-  // would be a copy nobody remembers to keep in step (it wasn't).
-  const figureHost = h("div", { class: "player-figure" });
-  // C3: the Web Share API where it exists (a phone), the clipboard elsewhere.
-  const shareBtn = h("button", { class: "small viewer-share", title: "Share this drawcast" }, "↗ Share") as HTMLButtonElement;
-  shareBtn.addEventListener("click", () => {
-    const url = location.href;
-    const title = document.title;
-    if (navigator.share) {
-      navigator.share({ title, url }).catch(() => {
-        /* cancelled — not an error */
-      });
-      return;
-    }
-    void navigator.clipboard?.writeText(url).then(() => {
-      shareBtn.textContent = "✓ Link copied";
-      window.setTimeout(() => (shareBtn.textContent = "↗ Share"), 1600);
-    });
-  });
-  // The count lives under the figure, where a viewer expects it — and where
-  // the title is heading in the player round, so the row is built once.
+  // would be a copy nobody remembers to keep in step (it wasn't). The page
+  // is laid out like a watch page (player round): the frame first, sized
+  // from the viewport by styles.css so it has its shape before anything is
+  // fetched — the loading line sits inside it and steps aside when the
+  // figure mounts — and everything ABOUT the drawcast (title, count, share,
+  // comments) below it as page furniture.
+  const figureHost = h("div", { class: "player-figure" }, status);
+  const shareBtn = shareButton();
+  // Empty until the document names it: the row keeps its height meanwhile.
+  const titleEl = h("h1", { class: "viewer-title" });
   const viewsEl = h("span", { class: "viewer-views" });
   // The one line a lost narration gets (server casts): the same row as the
   // count, so it is said once and never blocks the drawing.
   const noteEl = h("span", { class: "viewer-note" });
-  const metaEl = h("div", { class: "viewer-meta" }, viewsEl, noteEl);
-  const footer = h(
+  const metaEl = h(
     "div",
-    { class: "viewer-footer" },
-    shareBtn,
-    h("a", { href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"),
+    { class: "viewer-meta" },
+    titleEl,
+    viewsEl,
+    noteEl,
+    h("a", { class: "viewer-made", href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"),
   );
-  app.append(h("div", { class: "viewer-wrap" }, titleEl, status, figureHost, metaEl, footer));
+  app.append(h("div", { class: "viewer-wrap" }, figureHost, metaEl));
 
   try {
     // Pack templates register BEFORE anything lays out — the viewer was the
@@ -678,7 +699,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         onChange: (next) => saveSettings({ ...loadSettings(), captionsOn: next.on, captionLang: next.lang }),
         hasCloudVoice: settings.cloudPlayback && getTtsKey() !== "",
       },
-      controls: { speech, fullscreenEl: figureHost },
+      controls: { speech, fullscreenEl: figureHost, trailing: [shareBtn] },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),
       onAnswer: reporter
         ? (a, _item, index) => {
@@ -712,7 +733,8 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         if (castHash && location.hash !== castHash) history.replaceState(null, "", `${location.pathname}${location.search}${castHash}`);
       });
       box.appendChild(script);
-      footer.insertAdjacentElement("beforebegin", box);
+      // Under the meta row: page furniture, outside the player's box.
+      metaEl.insertAdjacentElement("afterend", box);
     }
   } catch (err) {
     if (err instanceof CastDenied && req.anvil) {

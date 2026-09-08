@@ -61,8 +61,22 @@ describe("Player.fadeOutAll — the playlist's soft exit", () => {
 describe("clear — instant elements still fade out", () => {
   test("a zero-duration element gets a real fade on clear, not a snap", async () => {
     const t = fakeEl("t", 0);
-    const plan = planCommands([{ show: ["t"] }, { clear: {} }], ["t"]);
-    const player = new Player(plan, new Map<string, RenderedElement>([["t", t]]), new Silent(), null, { mode: "silent" });
+    const u = fakeEl("u", 0);
+    // Something is drawn AFTER the clear: a clear that would end the drawcast
+    // on an empty stage is not performed at all — the last frame holds
+    // (tests/player-hold-frame.test.ts) — so the fade under test needs a
+    // clear in the middle of the story.
+    const plan = planCommands([{ show: ["t"] }, { clear: {} }, { show: ["u"] }], ["t", "u"]);
+    const player = new Player(
+      plan,
+      new Map<string, RenderedElement>([
+        ["t", t],
+        ["u", u],
+      ]),
+      new Silent(),
+      null,
+      { mode: "silent" },
+    );
     await player.play();
     expect(t.log.filter((v) => v > 0 && v < 1).length).toBeGreaterThan(0);
     expect(t.log.at(-1)).toBe(0);

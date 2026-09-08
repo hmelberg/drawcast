@@ -23,6 +23,41 @@ import type { Spec } from "../spec/types";
 import type { TemplateDoc } from "../scenes/doc";
 import { scenes } from "../scenes/registry";
 import { registerUserTemplateYaml } from "../scenes/my-templates";
+import { MIN_PARTS, NEVER_A_PART } from "../ui/parts-model";
+import { meaningfulName } from "../ui/card-model";
+
+/**
+ * The parts a FREEHAND figure names: the distinct drawables its authored
+ * labels attach to. The same reading the identify drill (ui/parts-model.ts)
+ * gives an authored label — a meaningful name, on a drawable that is not
+ * itself words, never a sub-drawable — minus the drill's other sources:
+ * a node's own words name a box in a flowchart, not a part of a thing, and a
+ * template for "the flowchart about X" would be worth nothing.
+ */
+export function namedParts(spec: Spec): string[] {
+  const typeOf = new Map<string, string>();
+  for (const el of spec.elements ?? []) if (typeof el.id === "string") typeOf.set(el.id, el.type);
+  const ids = new Set<string>();
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "label" || typeof el.text !== "string" || typeof el.attach_to !== "string") continue;
+    const target = typeOf.get(el.attach_to);
+    if (!target || NEVER_A_PART.has(target) || el.attach_to.includes("__") || !meaningfulName(el.text)) continue;
+    ids.add(el.attach_to);
+  }
+  return [...ids];
+}
+
+/**
+ * The trigger for template on demand (Hans, 2026-09-09): the figure was drawn
+ * freehand and names at least MIN_PARTS parts — whatever the router said.
+ * The compiler saw the shortlisted templates in full and still composed
+ * freehand; that is a stronger "none fits" than the router's guess, which on
+ * a Norwegian "vis delene i en symaskin" offered the violin. The parts rule
+ * keeps an arrow or a text card from costing four minutes of authoring.
+ */
+export function templateWorthy(spec: Spec): boolean {
+  return !spec.template && namedParts(spec).length >= MIN_PARTS;
+}
 
 export interface TemplateBrief {
   id: string;

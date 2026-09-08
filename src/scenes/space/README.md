@@ -231,8 +231,8 @@ which cannot be checked against anything. The build snaps every vertex to
 its nearest catalogue star — within 0.35°, all but one of them — and stores
 each figure as pairs of Hipparcos numbers instead of coordinates: 741 edges
 over 88 figures. That is what makes "draw Orion" gradeable against a fixed
-answer key, and it is why the edges ship this round even though the
-`connect` widget that will read them (spec §6.2 Direction B) does not.
+answer key — the `connect` widget (below) reads it straight off the drawing,
+never off this file.
 
 That claim rests on the unmatched count being about one, so the build now
 THROWS above five rather than printing the number and writing the files
@@ -281,6 +281,57 @@ millisecond, against a thousand `Horizon()` calls. J2000 catalogue
 coordinates ARE precessed to the date first (`precess()` in `sky-rules.ts`)
 — twenty-six years of precession moves a star by about 0.35°, more than a
 bright star's drawn radius, so skipping it would visibly mis-place the sky.
+
+## `ask.widget: "connect"`: the key is read off the drawing, not carried beside it
+
+A connect question carries no answer key of its own. `connectKey`
+(`src/render/widgets.ts`) walks the SAME leaves the figure just drew — the
+`con_ori__0`, `con_ori__1`, … strokes a `draw: ["con_ori"]` beat already put
+on screen — and rebuilds the edge list from their endpoints, snapping each to
+the nearest individually-drawn star. `sky/constellations.json`'s 741 edges
+are read once, by the BUILD, to lay the figure out; grading never opens that
+file again. Two things follow from reading the key off the page instead of
+off the data. No caller — the lint, the gate — needs the sky engine loaded to
+grade a drawing, which is what the pack's own rule against a static import of
+`sky.ts` from `ui/` or `render/` would otherwise put in tension with this
+feature. And what is graded is provably what the viewer was shown: the key
+cannot drift from the figure on screen, because it IS that figure, re-read,
+not a second copy of it that might one day disagree.
+
+`CONNECT_MAX_EDGES = 24` (`src/ui/connect-model.ts`) is Orion's own edge
+count, taken as the ceiling on how many taps a question can fairly ask for.
+Two of the pack's 88 figures are over it and are simply never offered as
+connect questions: Eridanus (26 edges) and Sagittarius (29). The lint (rule
+`"connect"`, `src/lint/lint.ts`) refuses a cast whose answer has more edges
+than that, whose points don't all land on a drawn star, or that draws no
+lines at all — so a figure nobody could finish never ships as one.
+
+**Grading is exact: the drawn edge set equals the key set, unordered, no
+allowance for a stray** (`gradeConnect`'s `pass`, `connect-model.ts`). Hans
+overruled a one-stray-allowance draft, 2026-09-08: the interface has already
+forgiven the accident an allowance exists to forgive — a tap on a drawn
+segment removes it, and nothing is graded until the viewer presses Done. With
+no uncorrectable slip left standing, an allowance would only buy a wrong
+drawing a "right" the reveal then paints over with a red line for the stray
+it just excused.
+
+**The framing rule, and the lint that holds it.** A connect question is fair
+only once its figure has already been drawn — "draw the one you just saw,"
+never "guess which convention this atlas uses" (d3-celestial's Orion carries
+a shield and a club plenty of atlases leave off). `connectVisibility` walks
+the cast up to the ask and fails it if the answer id was never drawn or shown
+before that point; a separate check fails it if a `right_goto`/`wrong_goto`/
+`if.goto` could land a viewer on the question without passing the beat that
+drew it, since the textual walk alone would call that figure "visible" by a
+path nobody actually takes. Both bundled examples ("The shield and the club
+this atlas draws", "Fire streker som tegner en W") keep to the three-beat
+shape this rule enforces: draw the stars, draw the constellation with a
+speak line that walks it, only then ask.
+
+**The interaction**: press a star and drag to the next, or tap one and then
+the other (the two-tap path, the one touch actually uses), to lay down a
+segment; tap a drawn segment to remove it — there is no separate undo,
+because removing a wrong line already is one. Nothing is judged until Done.
 
 ## Why these shapes, and not the obvious ones
 
@@ -691,11 +742,11 @@ star named in `mark` or `highlight` becomes `<proper name in lower case>` with
 ## Rounds ahead
 
 Round 2 shipped the ⊕ Sky section along with the chart itself — see above.
-Open, and deliberately not this round: `ask.widget: "connect"` (spec §6.2
-Direction B — given a name, draw the lines; the 741-edge answer key already
-ships), Messier objects, stars fainter than 4.5 at runtime, a `focus` that
-re-centres the projection rather than magnifying it, and the language
-wrinkle in spec §6.2 — `ask.answer` is one string, so a figure with three
-names needs the question to say which one it wants. Round 3:
+Round 3 shipped `ask.widget: "connect"` (spec §6.2 Direction B, settled §6.3 —
+above), reading the same 741-edge answer key round 2 shipped for it. Open:
+Messier objects, stars fainter than 4.5 at runtime, a `focus` that re-centres
+the projection rather than magnifying it, and the language wrinkle in spec
+§6.2 — `ask.answer` is one string, so a figure with three names needs the
+question to say which one it wants. Next:
 `model3d: { kind: space }` (three.js) — `texture` in the table is reserved for
 it.

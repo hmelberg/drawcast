@@ -9,6 +9,7 @@ import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, st
 import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import type { RouteResult } from "./router";
+import type { OnDemandRun } from "./on-demand-run";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
@@ -143,14 +144,19 @@ export interface GenerateConfig {
   onPhase?: (phase: string) => void;
   /**
    * Multi-part generation only (llm/multi.ts): after the parts land, every
-   * part the router found nothing for and the compiler drew freehand gets a
-   * template authored and is redrawn with it, one part after another, each
-   * new template in the registry before the next part is looked at. Read
-   * nowhere in generateSpec itself; the single-figure path OFFERS instead.
+   * part the compiler drew freehand with named parts (on-demand.ts
+   * templateWorthy — whatever the router said) gets a template authored and
+   * is redrawn with it, one part after another, each new template in the
+   * registry before the next part is looked at. Read nowhere in generateSpec
+   * itself; the single-figure path OFFERS instead.
    */
   templatesOnDemand?: boolean;
   /** The app's hook to keep a template authored on demand (My templates + panels). */
   onTemplateAuthored?: (t: { id: string; yaml: string; doc: TemplateDoc }) => void;
+  /** Cap on templates authored in one multi-part run (Settings; default DEFAULT_ON_DEMAND_MAX, 0 = none). Read only when no onDemandRun is given. */
+  templatesOnDemandMax?: number;
+  /** The shared state of one run's authoring (on-demand-run.ts): a course hands every lecture the same object, so parallel lectures share the cap, the lock and the authored documents. */
+  onDemandRun?: OnDemandRun;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */

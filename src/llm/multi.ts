@@ -6,9 +6,9 @@
 import { generateOutline, generateSpec, type GenerateConfig, type GenerationOutcome } from "./compile";
 import { buildPartRequest, type Outline } from "./outline";
 import { generationGate } from "./limit";
-import { authorOnDemand } from "./on-demand";
+import { authorOnDemand, templateWorthy } from "./on-demand";
+import { createOnDemandRun, type OnDemandRun } from "./on-demand-run";
 import type { Spec } from "../spec/types";
-import type { TemplateDoc } from "../scenes/doc";
 
 export interface PartsRequest {
   /** The request with tags already stripped. */
@@ -42,14 +42,22 @@ export interface PartsHooks {
 
 /**
  * Template on demand across the parts (cfg.templatesOnDemand): after the
- * parallel pass, every part the router found nothing for and the compiler
- * drew freehand is handled IN ORDER — first re-routed, because a template
- * authored for an earlier part may now fit (then it is simply regenerated
- * with the router's shortlist); otherwise a template is authored for it and
- * it is redrawn. Sequential on purpose: each template must be registered
- * before the next part is looked at, or two parts about the same figure get
- * two templates. Every authored document is reported to cfg.onTemplateAuthored
- * and embedded in every part that uses it, so the parts publish intact.
+ * parallel pass, every part the compiler drew freehand with named parts
+ * (templateWorthy — whatever the router said) is handled IN ORDER — first re-routed, because a template
+ * authored earlier in the RUN (by this lecture or a parallel one) may now fit
+ * (then it is simply regenerated with the router's shortlist); otherwise a
+ * template is authored for it and it is redrawn, if the run's cap allows —
+ * past the cap it stays freehand and the run counts it.
+ *
+ * The run object (on-demand-run.ts) is what makes this hold across a course:
+ * its lock authors one template at a time for the WHOLE run, so the next
+ * template-less part looks at the registry after the previous template
+ * landed instead of authoring a twin; its docs are what a re-routed part
+ * embeds. Only the decision and the authoring sit inside the lock — the
+ * redraw of a re-routed part runs outside it, so a lecture that merely
+ * reuses a template does not hold up the others. Every authored document is
+ * reported to cfg.onTemplateAuthored and embedded in every part that uses
+ * it, so the parts publish intact.
  */
 async function authorTemplatesForParts(
   req: PartsRequest,
@@ -57,46 +65,61 @@ async function authorTemplatesForParts(
   cfg: GenerateConfig,
   outcomes: GenerationOutcome[],
   hooks: PartsHooks,
+  run: OnDemandRun,
 ): Promise<void> {
-  const authored = new Map<string, TemplateDoc>();
   const embed = (spec: Spec | null): void => {
-    const doc = spec?.template ? authored.get(spec.template) : undefined;
+    const doc = spec?.template ? run.docs.get(spec.template) : undefined;
     if (spec && doc) spec.templates = [doc];
   };
   for (let i = 0; i < outcomes.length; i++) {
     if (cfg.signal?.aborted) return;
     const o = outcomes[i];
-    if (!o.spec || o.spec.template || !o.route?.noneFits) continue;
+    // Freehand with named parts is the trigger, not the router's verdict (on-demand.ts templateWorthy).
+    if (!o.spec || !templateWorthy(o.spec)) continue;
     const request = buildPartRequest(req.request, plan, i, req.brief);
     const label = `part ${i + 1}`;
-    // Re-route: an earlier part's template may fit this one.
-    if (cfg.route && authored.size > 0) {
-      hooks.onPhase?.(`${label}: looking for a template again`);
-      const again = await cfg.route(request, cfg.signal).catch(() => null);
-      if (again && again.ids.length > 0) {
-        hooks.onPhase?.(`${label}: redrawing with ${again.ids[0]}`);
-        const redo = await generateSpec(request, cfg);
-        if (redo.spec) {
-          embed(redo.spec);
-          outcomes[i] = redo;
-        }
-        continue;
+    const freehand = o.spec;
+
+    // Inside the lock: is there now a template for this part, and if not, may
+    // one be authored? Returns the id to redraw with when the router found one.
+    const reuse = await run.lock(async (): Promise<string | null> => {
+      if (cfg.signal?.aborted) return null;
+      if (cfg.route && run.authored > 0) {
+        hooks.onPhase?.(`${label}: looking for a template again`);
+        const again = await cfg.route(request, cfg.signal).catch(() => null);
+        if (again && again.ids.length > 0) return again.ids[0];
+      }
+      if (!run.take()) {
+        run.skipped++;
+        hooks.onPhase?.(`${label}: left freehand (template cap ${run.max} reached)`);
+        return null;
+      }
+      hooks.onPhase?.(`${label}: authoring a template`);
+      const r = await authorOnDemand(request, freehand, {
+        apiKey: cfg.apiKey,
+        model: cfg.model,
+        effort: cfg.effort,
+        signal: cfg.signal,
+        onProgress: ({ phase, round }) => hooks.onPhase?.(`${label}: ${phase === "brief" ? "writing the brief" : phase === "author" ? (round > 1 ? `authoring, repair ${round - 1}` : "authoring a template") : "redrawing with the new template"}`),
+        generate: (r2, forced) => generateSpec(r2, { ...cfg, forcedTemplate: forced, route: undefined }),
+      });
+      if (r.doc && r.yaml) {
+        run.docs.set(r.doc.template, r.doc);
+        run.authored++;
+        cfg.onTemplateAuthored?.({ id: r.doc.template, yaml: r.yaml, doc: r.doc });
+      }
+      if (r.outcome?.spec) outcomes[i] = r.outcome; // authorOnDemand embedded the document already
+      return null;
+    });
+
+    if (reuse && !cfg.signal?.aborted) {
+      hooks.onPhase?.(`${label}: redrawing with ${reuse}`);
+      const redo = await generateSpec(request, cfg);
+      if (redo.spec) {
+        embed(redo.spec);
+        outcomes[i] = redo;
       }
     }
-    hooks.onPhase?.(`${label}: authoring a template`);
-    const r = await authorOnDemand(request, o.spec, {
-      apiKey: cfg.apiKey,
-      model: cfg.model,
-      effort: cfg.effort,
-      signal: cfg.signal,
-      onProgress: ({ phase, round }) => hooks.onPhase?.(`${label}: ${phase === "brief" ? "writing the brief" : phase === "author" ? (round > 1 ? `authoring, repair ${round - 1}` : "authoring a template") : "redrawing with the new template"}`),
-      generate: (r2, forced) => generateSpec(r2, { ...cfg, forcedTemplate: forced, route: undefined }),
-    });
-    if (r.doc && r.yaml) {
-      authored.set(r.doc.template, r.doc);
-      cfg.onTemplateAuthored?.({ id: r.doc.template, yaml: r.yaml, doc: r.doc });
-    }
-    if (r.outcome?.spec) outcomes[i] = r.outcome; // authorOnDemand embedded the document already
   }
 }
 
@@ -153,7 +176,10 @@ export async function generateFromOutline(
     ),
   );
 
-  if (cfg.templatesOnDemand && !cfg.signal?.aborted) await authorTemplatesForParts(req, plan, cfg, outcomes, hooks);
+  if (cfg.templatesOnDemand && !cfg.signal?.aborted) {
+    // A course hands every lecture the same run; a lone multi-part generation gets a private one with its cap.
+    await authorTemplatesForParts(req, plan, cfg, outcomes, hooks, cfg.onDemandRun ?? createOnDemandRun(cfg.templatesOnDemandMax));
+  }
 
   const specs: Spec[] = [];
   const chapterOf: (string | undefined)[] = [];

@@ -242,7 +242,8 @@ describe("runViewer takes the fourth source through the same door as the others"
     expect(viewer).toMatch(/Loading drawing from the drawcast server/);
   });
   test("a lost narration is said once, in the meta row where the view count lives", () => {
-    expect(viewer).toMatch(/h\("div", \{ class: "viewer-meta" \}, viewsEl, noteEl\)/);
+    // The row's children, in order: the title (player round), the count, the note.
+    expect(viewer).toMatch(/\{ class: "viewer-meta" \},\s*titleEl,\s*viewsEl,\s*noteEl,/);
     expect(viewer).toMatch(/if \(audioNote\) noteEl\.textContent = audioNote;/);
     expect(viewer).toMatch(/Recorded narration unavailable \(\$\{why\}\)/);
   });

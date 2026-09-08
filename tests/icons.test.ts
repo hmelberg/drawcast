@@ -5,7 +5,7 @@ import { ICON_PATHS, type IconName } from "../src/ui/icons";
 // currentColor — no emoji-class codepoints whose rendering is font-fallback
 // luck. This drift test guards the inventory the control bar builds from.
 
-const NAMES: IconName[] = ["play", "pause", "replay", "prev", "next", "volume", "muted", "theater", "fullscreen", "more"];
+const NAMES: IconName[] = ["play", "pause", "replay", "prev", "next", "volume", "muted", "theater", "fullscreen", "more", "share", "check"];
 
 describe("control-bar icon inventory", () => {
   it("carries a non-empty path for every control the bar builds", () => {
@@ -20,5 +20,6 @@ describe("control-bar icon inventory", () => {
     expect(ICON_PATHS.play).not.toBe(ICON_PATHS.replay);
     expect(ICON_PATHS.volume).not.toBe(ICON_PATHS.muted);
     expect(ICON_PATHS.prev).not.toBe(ICON_PATHS.next);
+    expect(ICON_PATHS.share).not.toBe(ICON_PATHS.check);
   });
 });

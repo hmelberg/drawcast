@@ -8,7 +8,7 @@
 import type { Plan, PlanStep, SceneState } from "./plan";
 import { answersMatch, subVars } from "../spec/answers";
 import type { LayoutResult } from "../layout/layout";
-import { INITIAL_STATE } from "./plan";
+import { heldFrom, sceneAt } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
 import { lengthFractionAt } from "./trails";
@@ -79,6 +79,10 @@ const ANSWER_OK_COLOR = "#4a7c59";
 
 export class Player {
   private plan: Plan;
+  /** The boundary the last frame is held from (plan.ts heldFrom), or null
+   *  when the drawcast ends with something on screen. Steps past it that
+   *  only take things away are not performed, so the drawing stays up. */
+  private readonly holdFrom: number | null;
   private elements: Map<string, RenderedElement>;
   private speech: SpeechLike;
   private captionEl: HTMLElement | null;
@@ -264,6 +268,7 @@ export class Player {
     callbacks: PlayerCallbacks = {},
   ) {
     this.plan = plan;
+    this.holdFrom = heldFrom(plan);
     this.elements = elements;
     this.planTimeIds = new Set(elements.keys());
     this.speech = speech;
@@ -368,9 +373,16 @@ export class Player {
     this.showCaption("");
   }
 
-  /** Scene state at a step boundary (after steps[0..n-1]). */
+  /** Scene state PAINTED at a step boundary (after steps[0..n-1]) — the
+   *  held last frame past holdFrom, the planned state everywhere else. */
   private stateAt(n: number): SceneState {
-    return n > 0 ? this.plan.states[n - 1] : INITIAL_STATE;
+    return sceneAt(this.plan, n);
+  }
+
+  /** Whether a step that only takes things away is past the held frame —
+   *  performed, it would wipe the frame the drawcast is meant to end on. */
+  private heldPast(index: number): boolean {
+    return this.holdFrom !== null && index >= this.holdFrom;
   }
 
   /** Jump to a step boundary: apply exactly the scene state after steps[0..n-1]. */
@@ -870,12 +882,13 @@ export class Player {
         for (const el of this.els(step.ids)) el.finish();
         return;
       case "hide":
+        if (this.heldPast(index)) return;
         for (const el of this.els(step.ids)) el.hide();
         await this.tweenScroll(index, signal);
         return;
       case "erase": {
         await this.narrationBarrier();
-        if (signal.aborted) return;
+        if (signal.aborted || this.heldPast(index)) return;
         const els = this.els(step.ids);
         const ms = this.paced(els, step, ERASE_SPEED);
         if (step.parallel) {
@@ -892,7 +905,7 @@ export class Player {
       }
       case "clear": {
         await this.narrationBarrier();
-        if (signal.aborted) return;
+        if (signal.aborted || this.heldPast(index)) return;
         const els = this.els(step.ids);
         await Promise.all(
           els.map((el) => this.animateRange(el, 1, 0, Math.min(Math.max(el.durationMs * 0.4, CLEAR_MIN_MS), CLEAR_MS), signal)),

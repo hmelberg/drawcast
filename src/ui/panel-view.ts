@@ -20,7 +20,7 @@ import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
 import { bboxOfPts, type BBox } from "../layout/geometry";
 import { leafDrawables, type Drawable } from "../layout/model";
-import { INITIAL_STATE } from "../render/plan";
+import { sceneAt } from "../render/plan";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
@@ -171,7 +171,7 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
   /** Hit boxes for the switches on screen at this boundary. */
   const boxes = (): Map<string, BBox> => {
     const n = hd.timeline.position;
-    const visible = n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible;
+    const visible = sceneAt(hd.plan, n).visible;
     const now = live();
     const map = new Map<string, BBox>();
     for (const [id, sw] of switches) {

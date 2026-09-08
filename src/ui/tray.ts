@@ -23,7 +23,7 @@ import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
 import { decodeCodeResult, runCode } from "../code/run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
-import { INITIAL_STATE } from "../render/plan";
+import { sceneAt } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { scenes } from "../scenes/registry";
 import { elementBBoxes } from "../layout/layout";
@@ -65,7 +65,7 @@ function liveSliders(hd: RenderHandle): { spec: SliderSpec; value: number }[] {
   const schema = scenes[tpl]?.manifest.params_schema;
   if (!schema) return [];
   const n = hd.timeline.position;
-  const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
+  const boundary = sceneAt(hd.plan, n);
   const effective = withOverrides(hd.spec.params, boundary.params);
   // The viewer's own committed numbers (a {var} animate) win over the plan's
   // fallbacks — exploration continues from where THEY left the figure.
@@ -87,7 +87,7 @@ function liveChoices(hd: RenderHandle): { spec: ChoiceSpec; value: string }[] {
   const schema = scenes[tpl]?.manifest.params_schema;
   if (!schema) return [];
   const n = hd.timeline.position;
-  const boundary = n > 0 ? hd.plan.states[n - 1] : INITIAL_STATE;
+  const boundary = sceneAt(hd.plan, n);
   // The sliders' precedence, in one overlay: the viewer's own committed
   // values win over the plan's boundary params, which win over the spec's.
   // (The runtime map holds numbers — a {var} animate — so a path it has
@@ -354,7 +354,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const paneBoxOf = (id: string): BBox | null => (hd.timeline.paintedLayout() ?? hd.layout).panes?.[id] ?? null;
   const visibleNow = (id: string): boolean => {
     const n = hd.timeline.position;
-    const visible = n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible;
+    const visible = sceneAt(hd.plan, n).visible;
     return visible.some((v) => v === id || v.startsWith(`${id}_`));
   };
 
@@ -938,7 +938,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       // itself, so any of its parts being visible counts as the screen being
       // there.
       const n = hd.timeline.position;
-      const visible = n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible;
+      const visible = sceneAt(hd.plan, n).visible;
       const shown = new Map([...boxes].filter(([id]) => visible.some((v) => v === id || v.startsWith(`${id}_`))));
       return hitElement(shown, p, 12);
     };

@@ -11,7 +11,7 @@
 // portrait pipeline already uses for the image itself.
 
 import type { RenderHandle } from "../render";
-import { INITIAL_STATE } from "../render/plan";
+import { sceneAt } from "../render/plan";
 import { wikiSummaryUrl } from "../render/portrait";
 import { chessSquareAt, periodicSymbols, pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { elementBBoxes } from "../layout/layout";
@@ -21,6 +21,8 @@ import { makeBrowserMeasure } from "../render/svg-backend";
 import { scenes } from "../scenes/registry";
 import { getLoadedEngines } from "../scenes/engines";
 import type { ElementsEngine, ElementNameLang } from "../scenes/elements/types";
+import type { SpaceEngine } from "../scenes/space/types";
+import type { SkyEngine, SkyLang } from "../scenes/space/sky-types";
 import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-model";
 import { contextWords, matchWiki, selectedPhrase, type WikiCandidate } from "./wiki-match";
 import { linkActionsFor } from "./link-model";
@@ -67,26 +69,78 @@ function trimExtract(s: string): string {
  * "26", both of which `meaningfulName` rightly screens out, so without this
  * the richest set of clickable parts in the library would carry no cards at
  * all. With it, all 118 do, named in the figure's own language.
+ *
+ * `space` and `sky` are the same idea for free play: a planet or a star is
+ * drawn as a bare coloured dot, with no printed word `meaningfulName` could
+ * ever find, so a paused click needs the engine to say what it is.
+ *
+ * Exported for `tests/connect-freeplay.test.ts`, which drives it against
+ * real `sky_map`/`solar_system` layouts rather than a hand-built fixture —
+ * this is the one function that actually knows a "cell_Fe" or a "polaris"
+ * from a "frame", so a test that never calls it cannot catch a branch that
+ * quietly returns nothing.
  */
-function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
+export function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
-  if (!interactions.includes("periodic")) return [];
-  let eng: ElementsEngine;
-  try {
-    // A periodic figure cannot be on screen unless its engine loaded before
-    // layout ran — but a card is not worth throwing at a viewer over.
-    eng = getLoadedEngines(["elements"]).elements as ElementsEngine;
-  } catch {
-    return [];
-  }
   const raw = hd.spec.params?.["names"];
-  const lang: ElementNameLang = raw === "nb" || raw === "la" ? raw : "en";
-  const out: { id: string; name: string }[] = [];
-  for (const symbol of periodicSymbols(hd.layout.order)) {
-    const el = eng.bySymbol(symbol);
-    if (el) out.push({ id: "cell_" + symbol, name: eng.nameIn(el, lang) });
+  if (interactions.includes("periodic")) {
+    let eng: ElementsEngine;
+    try {
+      // A periodic figure cannot be on screen unless its engine loaded before
+      // layout ran — but a card is not worth throwing at a viewer over.
+      eng = getLoadedEngines(["elements"]).elements as ElementsEngine;
+    } catch {
+      return [];
+    }
+    const lang: ElementNameLang = raw === "nb" || raw === "la" ? raw : "en";
+    const out: { id: string; name: string }[] = [];
+    for (const symbol of periodicSymbols(hd.layout.order)) {
+      const el = eng.bySymbol(symbol);
+      if (el) out.push({ id: "cell_" + symbol, name: eng.nameIn(el, lang) });
+    }
+    return out;
   }
-  return out;
+  if (interactions.includes("space")) {
+    try {
+      // Same forgiveness as the periodic branch: a card is not worth
+      // throwing at a viewer over — widened to the whole lookup, since a
+      // body table with a hole in it should fail exactly the same way a
+      // missing engine does, not crash the pause.
+      const eng = getLoadedEngines(["space"]).space as SpaceEngine;
+      const lang: "en" | "nb" = raw === "nb" ? "nb" : "en";
+      const out: { id: string; name: string }[] = [];
+      for (const id of hd.layout.order) {
+        if (id.includes("__")) continue; // group leaves — usable() screens these out too
+        const body = eng.body(id);
+        if (body) out.push({ id, name: body.name[lang] });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  }
+  if (interactions.includes("sky")) {
+    try {
+      const loaded = getLoadedEngines(["sky", "space"]);
+      const sky = loaded.sky as SkyEngine;
+      const spc = loaded.space as SpaceEngine;
+      const lang: SkyLang = raw === "nb" || raw === "la" ? raw : "en";
+      const out: { id: string; name: string }[] = [];
+      for (const id of hd.layout.order) {
+        if (id.includes("__")) continue; // group leaves ("stars__hip_…") — usable() screens these out too
+        const con = sky.findConstellation(id);
+        if (con) { out.push({ id, name: sky.name(con, lang) }); continue; }
+        const star = sky.findStar(id);
+        if (star) { out.push({ id, name: sky.starName(star, lang) ?? `HIP ${star.hip}` }); continue; }
+        const body = spc.body(id);
+        if (body) out.push({ id, name: body.name[lang === "nb" ? "nb" : "en"] });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
@@ -182,7 +236,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     // the viewer cannot see. A drawn word inherits the visibility of the part
     // that owns it — it appears and is erased with that part, never alone.
     const n = hd.timeline.position;
-    const visibleIds = new Set(n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible);
+    const visibleIds = new Set(sceneAt(hd.plan, n).visible);
     const visBoxes = new Map<string, BBox>();
     for (const [id, b] of hitBoxes()) {
       if (visibleIds.has(targets.get(id)?.owner ?? id)) visBoxes.set(id, b);

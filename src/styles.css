@@ -250,6 +250,17 @@ body.mode-editor main {
   max-width: 11.5rem;
 }
 .quiet-label select:hover { border-color: var(--line); background: var(--field); }
+/* The template cap: a two-digit field that sits in the row like the selects do. */
+.quiet-label input[type="number"] {
+  font-size: var(--text-sm);
+  padding: 0.25rem 0.3rem;
+  width: 3.4rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink);
+}
+.quiet-label input[type="number"]:hover,
+.quiet-label input[type="number"]:focus { border-color: var(--line); background: var(--field); }
 /* Ragged-left right-alignment reads as broken once the row wraps. */
 @media (max-width: 560px) {
   .gen-row, .gen-choices { justify-content: flex-start; }
@@ -748,6 +759,10 @@ details > summary { cursor: pointer; color: var(--muted); }
   border-color: #3d3833;
 }
 .cs-stage.is-playing .cs-bigplay { display: none; }
+/* Between the items of a playlist "done" is a cut to the next one, not the
+   end — playlist/session.ts marks the stage while that cut is pending, so
+   the replay button does not flash at every chapter boundary. */
+.cs-stage.cs-chaining .cs-bigplay { display: none; }
 
 /* The end-of-lecture "Next ▸" link (meta.next on published courses). Fixed
    ink on the figure's near-white ground, like .cs-bigplay — the figure never
@@ -1020,14 +1035,71 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   width: 480px;
 }
 
-/* ---------- standalone #gdoc viewer ---------- */
+/* ---------- standalone viewer (#gh / #gdoc / #gdrive / #anvil) ---------- */
 
-.viewer-body { display: flex; justify-content: center; }
+/* A watch page (player round, 2026-09-08): the frame first, everything
+   ABOUT the drawcast — title, count, share, comments — below it as page
+   furniture. Fullscreen already drew that boundary; this is the same one
+   on the page. */
+.viewer-body {
+  display: flex;
+  justify-content: center;
+  /* The stage's height, decided from the viewport rather than from content:
+     the smaller of 4:3 of the frame's inner width (the ordinary case on a
+     laptop) and what the window leaves once the page's own furniture is on
+     it — the wrap's padding, the frame's bar and padding, the meta row —
+     so the play bar never lands below the fold. Measured before this: a
+     730 px window put the bar off-screen and the page scrolled. */
+  --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 0.75), calc(100vh - 10rem));
+}
 .viewer-wrap {
   width: min(960px, 96vw);
-  padding: 1.6rem 0 2.5rem;
+  padding: 1.2rem 0 2.5rem;
   display: flex;
   flex-direction: column;
+}
+/* The figure itself is a .player-figure here too — see the player-mode block
+   above. This used to be a byte-identical .viewer-figure copy, which meant the
+   :fullscreen rules (all keyed on .player-figure) never reached the viewer.
+
+   The frame is content-sized in the app; here it is the stage plus the bar
+   and its own padding tall from the first paint, so the page has its shape
+   at ~200 ms with the loading line inside it, instead of a bordered 16 px
+   strip that jumps to full height when the figure mounts seconds later. A
+   min-height, not a height: a params tray or a code panel opening below the
+   bar must still be free to grow the box. Fullscreen keeps its own sizing. */
+.viewer-body .player-figure:not(:fullscreen) {
+  display: flex;
+  flex-direction: column;
+  /* 3rem: the bar and the frame's padding — measured 48 px, 2026-09-08. */
+  min-height: calc(var(--viewer-stage-h) + 3rem);
+}
+/* Any difference between that estimate and the mounted figure is centred,
+   not left as a gap under the bar. */
+.viewer-body .player-figure:not(:fullscreen) .cs-figure {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+/* The title is page furniture here — the row under the frame — so the
+   frame's own title band (render/index.ts, C9: shown when the drawing does
+   not draw its title) would say it twice, one line above the other. Off on
+   the page; back in fullscreen, where the page is not there to carry it. */
+.viewer-body .player-figure:not(:fullscreen) .cs-title { display: none; }
+.viewer-body .player-figure:not(:fullscreen) > .viewer-status { margin: auto; text-align: center; }
+.viewer-body .player-figure:not(:fullscreen):has(.cs-figure) > .viewer-status { display: none; }
+/* The stage takes the height decided above and derives its width from that
+   through its own 4/3 aspect-ratio (figure-style.ts): width auto plus auto
+   side margins, which keep the flex column from stretching it back to full
+   width — the same construction as the fullscreen rule. When the window is
+   the binding constraint the stage is narrower than the frame and centred;
+   otherwise it fills it, as before. */
+.viewer-body .player-figure:not(:fullscreen) .cs-stage {
+  height: var(--viewer-stage-h);
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
 }
 .viewer-title {
   font-family: var(--sketch-font);
@@ -1036,20 +1108,29 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   margin: 0 0 0.9rem;
   align-self: flex-start;
 }
-/* The count sits under the figure, quiet by default: an empty row collapses,
-   so a drawcast published with counting off shows nothing at all rather than
-   a hole or an "N/A". */
+/* The row under the frame: the title on its own line, then the count and
+   any note at the left and the way back to the app at the right. Quiet by
+   default — an empty count shows nothing rather than a hole or an "N/A".
+   The min-height holds the row's place while the title is still unknown. */
 .viewer-meta {
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  min-height: 0;
-  padding: 0.35rem 0.1rem 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.8rem;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.1rem 0;
+}
+.viewer-meta .viewer-title {
+  flex: 1 0 100%;
+  font-size: 1.5rem;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .viewer-views {
   /* var(--text-sm), not a literal: the type-scale allowlist (tests/palette.test.ts)
-     names every literal font-size once, and this is the same size .viewer-footer
-     already uses right below it. */
+     names every literal font-size once, and this is the same size the row's
+     other text uses. */
   font-size: var(--text-sm);
   opacity: 0.65;
 }
@@ -1059,18 +1140,19 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   font-size: var(--text-sm);
   opacity: 0.65;
 }
+.viewer-made {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.viewer-made:hover { color: var(--ink); }
 .viewer-status { color: var(--muted); margin-bottom: 0.8rem; }
 .viewer-status.error { color: var(--loss); font-weight: 600; }
-/* The figure itself is a .player-figure here too — see the player-mode block
-   above. This used to be a byte-identical .viewer-figure copy, which meant the
-   :fullscreen rules (all keyed on .player-figure) never reached the viewer. */
-.viewer-footer { margin-top: 0.9rem; text-align: center; font-size: var(--text-sm); }
-/* Comments under the player (C1): giscus renders its own iframe; the box
+/* Comments under the meta row (C1): giscus renders its own iframe; the box
    just gives it the page's measure and some air. */
 .viewer-comments { width: 100%; max-width: 900px; margin: 1.2rem auto 0; }
-.viewer-share { margin-right: 0.8rem; }
-.viewer-footer a { color: var(--muted); text-decoration: none; }
-.viewer-footer a:hover { color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
@@ -1271,6 +1353,88 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   transform: translateX(-50%);
   pointer-events: none;
   animation: none;
+}
+
+/* The connect question: press a star and drag to the next (or tap one, then
+   tap another — the two-tap path, for touch) to join them; a click on a
+   drawn segment removes it. The overlay is client-pixel SVG on top of the
+   figure, whose own lines the gate hides for the question's duration.
+   (cursor and touch-action come from .cs-figgate — every figgate's own.) */
+.cs-connect-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Empty space falls through to the gate's own pointer handlers; only a
+     drawn segment is its own hit target, so a click can land ON it. */
+  pointer-events: none;
+}
+.cs-connect-star {
+  fill: var(--surface);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.cs-connect-star.armed { fill: var(--steel); stroke: var(--steel); }
+.cs-connect-line {
+  stroke: var(--steel);
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: stroke;
+}
+.cs-connect-line.right { stroke: var(--ok); }
+.cs-connect-line.wrong { stroke: var(--loss); }
+.cs-connect-band {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  opacity: 0.6;
+  pointer-events: none;
+}
+/* Bottom bar: Done (left), the status stack (center), Skip (right) — one
+   flex row, not three independently absolutely-positioned pills nudged by
+   hand to not collide at some particular viewport width. justify-content
+   pushes Done and Skip to the ends; the status stack takes what's left
+   (min-width: 0 lets it actually shrink/wrap instead of overflowing), so a
+   long hint runs into its OWN space, never under a button, at any width. */
+.cs-connect-bar {
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0.9rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+.cs-connect-bar > * { pointer-events: auto; }
+.cs-connect-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+/* The counter and the summary are static (a count that updates every tap
+   shouldn't bob, and neither should a settled verdict); the hint keeps the
+   shared waitgate nudge, the same attention cue every other figgate's hint
+   uses to draw the eye to the one instruction the viewer needs. Named as
+   two DISJOINT selectors, neither matching the other's element, rather
+   than "every pill in the stack is off, except the hint" (a blanket rule
+   on .cs-connect-status .cs-waitgate-pill, undone by a narrower override
+   on .cs-connect-hint) — that shape is what silently kept the hint from
+   ever nudging: the blanket rule's TWO classes (0,2,0) beat the hint
+   override's ONE (0,1,0), so "off" always won regardless of source order.
+   There is no specificity fight left to lose when the two rules never
+   target the same element to begin with. */
+.cs-connect-counter,
+.cs-connect-summary {
+  animation: none;
+}
+.cs-connect-hint {
+  animation: waitgate-nudge 1.6s ease-in-out infinite;
 }
 
 /* Info card: name + summary + actions at the pointer, over the paused figure. */
