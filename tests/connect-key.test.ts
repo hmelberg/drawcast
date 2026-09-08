@@ -49,6 +49,45 @@ describe("connectKey", () => {
     expect(connectKey([], new Map(), "con_ori")).toEqual({ stars: [], edges: [], unmatched: 0 });
   });
 
+  // Round 1 review, finding 1: the candidate filter lets `stars`, `frame`,
+  // `figures`, a body — anything that is not `label_…`, the group id itself,
+  // or a `__`-suffixed sub-element — compete for a vertex. Nothing stops a
+  // gap (a vertex no real star sits under, like the one above) from being
+  // claimed by whichever OTHER element happens to sit within `eps` of it,
+  // and the wide old default (2 logical units) was exactly the width that
+  // let that happen. The true match distance is floating-point noise — the
+  // template builds a vertex and its star's box from the SAME projection
+  // call — so there is no legitimate match this tight tolerance could miss,
+  // only illegitimate ones it now excludes.
+  it("a decoy near a gap cannot win it at the tight default, though the old wide one let it", () => {
+    const leaves = [{ id: "con_tst__0", pts: [[100, 100], [110, 100]] as [number, number][] }];
+    const boxes = new Map([
+      ["star", box(100, 100)], // sits exactly on the first vertex
+      ["decoy", box(111, 100)], // 1 unit from the SECOND vertex — no real star sits there
+    ]);
+    const tight = connectKey(leaves, boxes, "con_tst"); // the new default, eps = 0.25
+    expect(tight.unmatched).toBe(1);
+    expect(tight.edges).toEqual([]);
+    expect(tight.stars.map((s) => s.id)).toEqual(["star"]);
+
+    const wide = connectKey(leaves, boxes, "con_tst", 2); // the OLD default
+    expect(wide.unmatched).toBe(0);
+    expect(wide.edges).toEqual([["decoy", "star"]]); // the decoy wins a vertex it has no business claiming
+  });
+
+  // Finding 2: two candidates at exactly equal distance used to resolve to
+  // whichever the boxes map handed out last — Map iteration order, which is
+  // element/draw order — a coin-flip nobody had decided on purpose. `<`
+  // makes the FIRST-seen candidate win a tie, deterministically.
+  it("an exact tie goes to whichever candidate is seen first, not last", () => {
+    const leaves = [{ id: "con_tst__0", pts: [[50, 50], [50, 50]] as [number, number][] }];
+    const boxes = new Map([
+      ["first", box(50, 50)],
+      ["second", box(50, 50)], // the same exact point — a genuine tie
+    ]);
+    expect(connectKey(leaves, boxes, "con_tst").stars.map((s) => s.id)).toEqual(["first"]);
+  });
+
   describe("against a real focused chart", () => {
     // Mirrors tests/sky-template.test.ts's own setup: the engines it awaits,
     // how it re-registers the pack from the file on disk (so this file is not
@@ -84,6 +123,42 @@ describe("connectKey", () => {
       expect(k.unmatched).toBe(0);
       expect(k.edges.length).toBe(24);
       expect(k.stars.length).toBe(23);
+    });
+
+    // The Orion test above proves the tight default (eps = 0.25) matches ONE
+    // figure. This proves it is not Orion being kind: a dozen more, each its
+    // own portrait, each a real focused sky_map layout — and if even one of
+    // them came back with unmatched > 0, that would mean a polyline vertex
+    // and its star's box centre are NOT the same point after all, which is a
+    // fact worth stopping for rather than a number worth loosening.
+    it("the tight default matches every vertex of a dozen real figures, not just Orion", () => {
+      const SEASONS = ["2026-03-20T21:00:00Z", "2026-06-21T01:00:00Z", "2026-09-22T21:00:00Z", "2026-12-20T21:00:00Z"];
+      // Scorpius never clears Oslo's horizon at any of the four seasonal
+      // moments above — the same four months, seen from Sydney instead, are
+      // what put it overhead as a portrait.
+      const SCO_SYDNEY = { lat: -33.87, lon: 151.21, place: "Sydney" };
+      const SCO_TIMES = ["2026-06-15T12:00:00Z", "2026-07-15T12:00:00Z", "2026-08-15T12:00:00Z", "2026-09-15T12:00:00Z"];
+      const abbrs = ["Ori", "UMa", "Cas", "Cyg", "Leo", "Sco", "Lyr", "CMa", "Tau", "Gem", "Aur", "Boo"];
+      let checked = 0;
+      for (const abbr of abbrs) {
+        const extra = abbr === "Sco" ? SCO_SYDNEY : {};
+        const times = abbr === "Sco" ? SCO_TIMES : SEASONS;
+        let portrait: ReturnType<typeof layoutSpec> | null = null;
+        for (const time of times) {
+          const r = layoutSpec({ template: "sky_map", params: { focus: abbr, time, ...extra }, elements: [] } as never);
+          if (r.order.includes("frame")) {
+            portrait = r;
+            break;
+          }
+        }
+        expect(portrait, `${abbr} never became a portrait at any of the swept moments`).not.toBeNull();
+        const conId = "con_" + abbr.toLowerCase();
+        const k = connectKey(leafDrawables(portrait!.drawables), elementBBoxes(portrait!), conId);
+        expect(k.unmatched, `${abbr}: ${JSON.stringify(k)}`).toBe(0);
+        expect(k.edges.length, abbr).toBeGreaterThan(0);
+        checked++;
+      }
+      expect(checked).toBe(abbrs.length);
     });
   });
 });

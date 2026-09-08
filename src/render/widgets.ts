@@ -248,12 +248,23 @@ export interface ConnectKey {
  * otherwise steal a vertex from the dot underneath it; the group id itself
  * (`conId`) is skipped for the same reason — its box is the whole figure's
  * bounding box, not a star's.
+ *
+ * `eps` is deliberately tight. A polyline vertex is not NEAR a star's centre
+ * — it IS the star's centre, because the template builds both the segment
+ * points and the star's own `at` from the same `eng.project(...)` call
+ * (src/scenes/packs/space.yaml). The only real distance between them is
+ * floating-point noise, on the order of 1e-12, so a small eps already covers
+ * every true match with room to spare. A wide eps buys nothing for that
+ * case and only widens the window in which some OTHER element — the whole
+ * `stars` field, `frame`, a body — can be nearer to a vertex than the star
+ * that vertex actually means, which is a bug a wide tolerance would hide
+ * rather than prevent.
  */
 export function connectKey(
   leaves: readonly { id: string; pts?: readonly Pt[] }[],
   boxes: ReadonlyMap<string, BBox>,
   conId: string,
-  eps = 2,
+  eps = 0.25,
 ): ConnectKey {
   const prefix = conId + "__";
   const candidates: ConnectStar[] = [];
@@ -269,7 +280,12 @@ export function connectKey(
       const dx = c.at[0] - p[0];
       const dy = c.at[1] - p[1];
       const d = dx * dx + dy * dy;
-      if (d <= bestD) {
+      // Strictly less: a tie keeps the FIRST candidate at this distance
+      // (boxes iterates in element order, so "first" means "drawn first")
+      // rather than letting whichever candidate happens to be visited last
+      // silently win. Nothing exercises an exact tie today, but resolving
+      // it one deterministic way beats leaving it to Map iteration order.
+      if (d < bestD) {
         bestD = d;
         best = c;
       }
