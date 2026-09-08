@@ -3,6 +3,7 @@
 // Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
+import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
@@ -93,11 +94,18 @@ function contactEmail(): string {
  * command-addressable ids), so `draw`/`arrange` naming just the parent
  * silently drops as an unknown id instead of expanding.
  */
-export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf"> {
+export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf"> {
   return {
     pieceOf: (id) => layout.pieces[id] ?? null,
     expandId: (id) => layout.pieceGroups[id] ?? null,
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
+    leafPointsOf: (id) => {
+      const out: { leafId: string; pts: Pt[]; closed: boolean }[] = [];
+      for (const d of leafDrawables(drawablesForId(layout.drawables, id))) {
+        if ((d.kind === "stroke" && !d.shapeHint && d.pts.length >= 2) || (d.kind === "area" && d.pts.length >= 3)) out.push({ leafId: d.id, pts: d.pts, closed: d.kind === "area" || d.closed === true });
+      }
+      return out.length > 0 ? out : null;
+    },
     attachedTo: (id) => {
       const out: string[] = [];
       for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);
@@ -235,13 +243,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, turns, opacities, revealNew, elements) => {
+      frame: (params, visible, offsets, turns, opacities, revealNew, elements, shapes) => {
         const l = layoutFor(params, false, elements);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
         const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
-        mounted.swapGeometry!(l, vis, offsets, turns, opacities);
+        mounted.swapGeometry!(l, vis, offsets, turns, opacities, shapes);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
 
       },

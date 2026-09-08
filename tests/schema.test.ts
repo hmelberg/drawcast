@@ -284,6 +284,19 @@ describe("fade", () => {
   });
 });
 
+describe("morph", () => {
+  const spec = (morph: object) => ({
+    elements: [{ id: "a", type: "polygon", points: [[0, 0], [10, 0], [10, 10]] }],
+    commands: [{ draw: ["a"] }, { morph }],
+  });
+  test("a valid morph (to) validates", () => {
+    expect(validateSpec(spec({ target: ["a"], to: [[0, 0], [10, 0], [10, 10]] })).ok).toBe(true);
+  });
+  test("a bare-string target validates", () => {
+    expect(validateSpec(spec({ target: "a", stretch: [2, 1] })).ok).toBe(true);
+  });
+});
+
 describe("PointRef", () => {
   test("move.to accepts an array or a {ref, anchor} object; move.anchor is a string", () => {
     const base = { elements: [{ id: "a", type: "arrow", from: { x: 0, y: 0 }, to: { x: 10, y: 0 } }, { id: "b", type: "arrow", from: { x: 0, y: 5 }, to: { x: 10, y: 5 } }] };

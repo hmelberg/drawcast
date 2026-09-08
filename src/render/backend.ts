@@ -41,6 +41,8 @@ export interface RenderedElement {
   setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number, mirror?: boolean, squash?: Squash): void;
   /** Persistent opacity 0–1 (1 clears it). Independent of the focus effect's dimming. */
   setOpacity?(alpha: number): void;
+  /** Replace the points of the listed leaves (ORIGINAL-frame, keyed by leaf id) and rebuild them; every leaf NOT listed returns to its layout points. The pose transform stays on the leaf's group. */
+  setPoints?(points: Record<string, Pt[]>): void;
 }
 
 /**
@@ -92,6 +94,7 @@ export interface MountResult {
     offsets: Record<string, Pt>,
     turns?: Record<string, Turn>,
     opacities?: Record<string, number>,
+    shapes?: Record<string, Record<string, Pt[]>>,
   ): void;
   /**
    * Full re-mount of a new layout into the same svg: rebuilds nodes AND

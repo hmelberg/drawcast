@@ -57,7 +57,7 @@ function mentionedIds(spec: Spec): string[] {
     for (const key of ["draw", "show", "hide", "erase"] as const) add(c[key]);
     // Verbs whose ids sit under `target` (highlight and focus among them,
     // even though the shorthand looks like a bare list at the call site).
-    for (const key of ["highlight", "focus", "move", "arrange", "fade", "flip"] as const) {
+    for (const key of ["highlight", "focus", "move", "arrange", "fade", "flip", "morph"] as const) {
       const v = c[key];
       if (v && typeof v === "object") add((v as Record<string, unknown>).target);
       else add(v);

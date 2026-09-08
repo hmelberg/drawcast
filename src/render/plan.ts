@@ -17,7 +17,8 @@ import type { Delivery } from "./delivery";
 import { composeFlip, composeScale, composeTurn, isIdentity, poseCentre, poseOf, type Turn } from "./pose";
 import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
-import { boxAnchor, isUniversalAnchor } from "../layout/anchors";
+import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/anchors";
+import { morphPair, stretchPts } from "./morph";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -78,6 +79,7 @@ export type PlanStep = (
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
   | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing }
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
+  | { kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
   | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string> }
   | {
@@ -109,6 +111,13 @@ export interface TransformItem {
   flip?: { at: Pt; angle: number };
 }
 
+/** One id's morph within a `morph` step: each morphable leaf tweens from its
+ *  current ORIGINAL-frame points to its new ones. */
+export interface MorphItem {
+  id: string;
+  leaves: { leafId: string; from: Pt[]; to: Pt[] }[];
+}
+
 /** Scene state at a step boundary. A pure function of the step index. */
 export interface SceneState {
   /** Ids visible after this step, in draw order. */
@@ -123,9 +132,11 @@ export interface SceneState {
   params: Record<string, number>;
   /** Persistent opacity per faded id (absent = 1). */
   opacities: Record<string, number>;
+  /** Current ORIGINAL-frame points of every morphed leaf: element id → leaf id → points (absent = the layout's own). */
+  shapes: Record<string, Record<string, Pt[]>>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {} };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {} };
 
 export interface Plan {
   steps: PlanStep[];
@@ -160,6 +171,8 @@ export interface PlanOptions {
   expandId?: (id: string) => string[] | null;
   /** Geometric anchor of an element in its ORIGINAL frame (layout.namedAnchors), or null. */
   anchorOf?: (id: string, name: string) => Pt | null;
+  /** The morphable leaves of an element (stroke/area with pts, no shapeHint) in draw order, with their layout points. */
+  leafPointsOf?: (id: string) => { leafId: string; pts: Pt[]; closed: boolean }[] | null;
 }
 
 const CAMERA_MAX_ZOOM = 8;
@@ -184,6 +197,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const offsets: Record<string, Pt> = {};
   const turns: Record<string, Turn> = {};
   const opacities: Record<string, number> = {};
+  const shapes: Record<string, Record<string, Pt[]>> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
@@ -204,7 +218,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       };
     }
     steps.push(step);
-    states.push({ visible: [...visible], offsets: { ...offsets }, turns: { ...turns }, camera, params: { ...params }, opacities: { ...opacities } });
+    states.push({
+      visible: [...visible],
+      offsets: { ...offsets },
+      turns: { ...turns },
+      camera,
+      params: { ...params },
+      opacities: { ...opacities },
+      shapes: Object.fromEntries(Object.entries(shapes).map(([id, m]) => [id, { ...m }])),
+    });
   };
   /** The window's scroll: the highest visible line's bottom sits at the
    *  window's bottom. Every line of the element gets the offset — the hidden
@@ -266,8 +288,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
+  /** The layout box of an id, or — once it has morphed — the box of its current points. */
+  const boxOf = (id: string): BBox | null => {
+    const s = shapes[id];
+    if (s) {
+      const b = ptsBox(Object.values(s).flat());
+      if (b) return b;
+    }
+    return bboxOf(id);
+  };
+  const currentLeaves = (id: string) => {
+    const base = opts.leafPointsOf?.(id);
+    if (!base || base.length === 0) return null;
+    return base.map((l) => ({ leafId: l.leafId, pts: shapes[id]?.[l.leafId] ?? l.pts, closed: l.closed, original: l.pts }));
+  };
+
   const currentBox = (id: string): BBox | null => {
-    const box = bboxOf(id);
+    const box = boxOf(id);
     if (!box) return null;
     const offset: Pt = offsets[id] ?? [0, 0];
     const turn = turns[id];
@@ -288,9 +325,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
 
   /** A named point of an element in its ORIGINAL frame: geometric from the layout, else off its box. */
   const anchorOriginal = (id: string, name: string, verb: string): Pt | null => {
+    if (shapes[id] && !isUniversalAnchor(name)) {
+      const leaves = currentLeaves(id);
+      const primary = leaves?.find((l) => l.closed) ?? leaves?.[0];
+      const a = primary ? polygonAnchors(primary.pts)[name] : undefined;
+      if (a) return a;
+    }
     const geometric = opts.anchorOf?.(id, name) ?? null;
     if (geometric) return geometric;
-    const box = bboxOf(id);
+    const box = boxOf(id);
     if (!box) return null;
     if (!isUniversalAnchor(name)) {
       warnings.push(`${verb}: "${id}" has no anchor "${name}" — using center`);
@@ -363,7 +406,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return out;
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -748,6 +791,65 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (items.length === 0) continue;
       pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out" });
+    } else if (cmd.morph !== undefined) {
+      const ids = resolveIds(cmd.morph.target, "morph");
+      if (ids.length === 0) continue;
+      const modes = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true].filter(Boolean).length;
+      if (modes !== 1) {
+        warnings.push("morph needs exactly one of to, stretch or reset — skipped");
+        continue;
+      }
+      let refRing: { pts: Pt[]; closed: boolean } | null = null;
+      if (cmd.morph.to !== undefined && !Array.isArray(cmd.morph.to)) {
+        const ref = cmd.morph.to.ref;
+        const leaves = known.has(ref) ? currentLeaves(ref) : null;
+        const primary = leaves?.find((l) => l.closed) ?? leaves?.[0];
+        if (!primary) {
+          warnings.push(`morph: "${ref}" has no outline to morph to — skipped`);
+          continue;
+        }
+        const map = poseOf(offsets[ref] ?? [0, 0], turns[ref]);
+        refRing = { pts: primary.pts.map(map), closed: primary.closed };
+      }
+      const items: MorphItem[] = [];
+      for (const id of ids) {
+        const leaves = currentLeaves(id);
+        if (!leaves) {
+          warnings.push(`morph target "${id}" has no outline to morph (a shape circle or rect cannot — use a polygon)`);
+          continue;
+        }
+        const fwd = poseOf(offsets[id] ?? [0, 0], turns[id]);
+        const inv = poseOf(offsets[id] ?? [0, 0], turns[id], true);
+        const leafItems: MorphItem["leaves"] = [];
+        const next: Record<string, Pt[]> = {};
+        if (cmd.morph.reset) {
+          for (const l of leaves) {
+            const pair = morphPair(l.pts, l.closed, l.original, l.closed);
+            leafItems.push({ leafId: l.leafId, from: pair.from, to: pair.to });
+          }
+          delete shapes[id];
+        } else if (cmd.morph.stretch) {
+          const [sx, sy] = cmd.morph.stretch;
+          const q = resolvePoint(cmd.morph.pivot, id, "morph") ?? anchorNow(id, "center", "morph") ?? [0, 0];
+          for (const l of leaves) {
+            const to = stretchPts(l.pts.map(fwd), q, sx, sy).map(inv);
+            leafItems.push({ leafId: l.leafId, from: l.pts, to });
+            next[l.leafId] = to;
+          }
+          shapes[id] = next;
+        } else {
+          const ring = refRing ?? { pts: (cmd.morph.to as [number, number][]).map((p) => toLogical(p as Pt)), closed: true };
+          for (const l of leaves) {
+            const pair = morphPair(l.pts, l.closed, ring.pts.map(inv), refRing ? refRing.closed : l.closed);
+            leafItems.push({ leafId: l.leafId, from: pair.from, to: pair.to });
+            next[l.leafId] = pair.to;
+          }
+          shapes[id] = next;
+        }
+        items.push({ id, leaves: leafItems });
+      }
+      if (items.length === 0) continue;
+      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out" });
     } else if (cmd.fade !== undefined) {
       const ids = resolveIds(cmd.fade.target, "fade");
       if (ids.length === 0) continue;

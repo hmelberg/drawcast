@@ -39,6 +39,7 @@ export interface Reprojector {
     opacities: Record<string, number>,
     revealNew?: boolean,
     elements?: SpecElement[],
+    shapes?: Record<string, Record<string, Pt[]>>,
   ): LayoutResult | void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
@@ -406,6 +407,7 @@ export class Player {
       if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
       else el.setOffset?.(dx, dy);
       el.setOpacity?.(scene.opacities[id] ?? 1);
+      el.setPoints?.(scene.shapes[id] ?? {});
       if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
       else el.hide();
     }
@@ -999,7 +1001,7 @@ export class Player {
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
-          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true);
+          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true, undefined, before.shapes);
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
@@ -1056,6 +1058,19 @@ export class Player {
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
           for (const { it, el } of items) el!.setOpacity!(it.from + (it.to - it.from) * e);
+        });
+        return;
+      }
+      case "morph": {
+        const ease = EASINGS[step.easing];
+        const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setPoints);
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const e = ease(t);
+          for (const { it, el } of items) {
+            const pts: Record<string, Pt[]> = { ...(before.shapes[it.id] ?? {}) };
+            for (const leaf of it.leaves) pts[leaf.leafId] = leaf.from.map((p, i): Pt => [p[0] + (leaf.to[i][0] - p[0]) * e, p[1] + (leaf.to[i][1] - p[1]) * e]);
+            el!.setPoints!(pts);
+          }
         });
         return;
       }

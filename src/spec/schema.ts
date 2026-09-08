@@ -308,7 +308,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -602,6 +602,28 @@ const commandSchema = {
       required: ["target"],
       additionalProperties: false,
     },
+    morph: {
+      type: "object",
+      description:
+        "Change an element's SHAPE smoothly: {\"morph\": {\"target\": [\"para\"], \"to\": {\"ref\": \"rekt\"}}} slides a parallelogram's outline into the rectangle (shearing — the stack of cards); \"stretch\": [2, 1] with \"pivot\": {\"anchor\": \"left\"} doubles the width from the left edge (non-uniform scaling — move.scale is uniform); \"to\": [[x, y], …] gives the outline; \"reset\": true goes back. Works on polygon, path, sector, arc, curve, region and pieces; a shape circle/rect cannot morph — declare a polygon.",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        to: {
+          oneOf: [
+            { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, minItems: 3 },
+            { type: "object", properties: { ref: { type: "string" } }, required: ["ref"], additionalProperties: false },
+          ],
+          description: "The new outline — [[x, y], …] in canvas coordinates (domain units when a domain is declared), or {\"ref\": id} for another element's outline as it is now.",
+        },
+        stretch: { type: "array", items: { type: "number", exclusiveMinimum: 0 }, minItems: 2, maxItems: 2, description: "[sx, sy] factors about pivot — e.g. [2, 1] doubles the width only." },
+        pivot: pointRefSchema("With stretch: the fixed point (default the element's centre; {\"anchor\": \"bottom_left\"} without ref is its own corner)"),
+        reset: { type: "boolean", description: "Back to the layout's own points." },
+        duration: { type: "number", description: "Seconds (default 1.5)." },
+        easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+      },
+      required: ["target"],
+      additionalProperties: false,
+    },
     camera: {
       type: "object",
       description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
@@ -821,6 +843,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.fade) cmd.fade.target = toList(cmd.fade.target)!;
     // flip's target follows the same one-or-many convention as fade/arrange/move.
     if (cmd.flip) cmd.flip.target = toList(cmd.flip.target)!;
+    // morph's target follows the same one-or-many convention as fade/arrange/move/flip.
+    if (cmd.morph) cmd.morph.target = toList(cmd.morph.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -860,7 +884,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
@@ -931,6 +955,10 @@ function semanticErrors(spec: Spec): string[] {
       cmd.move.scale === undefined
     ) {
       errors.push(`commands[${i}]: move needs one of by, to, path, rotate or scale`);
+    }
+    if (cmd.morph !== undefined) {
+      const n = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true].filter(Boolean).length;
+      if (n !== 1) errors.push(`commands[${i}]: morph needs exactly one of to, stretch or reset`);
     }
     if (verb === "point") {
       const at = cmd.point!.at;

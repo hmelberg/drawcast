@@ -277,6 +277,21 @@ export interface FlipArgs {
   easing?: Easing;
 }
 
+export interface MorphArgs {
+  /** Element ids, or one pieces id. */
+  target: string[] | string;
+  /** The new outline in canvas coordinates, or another element's outline. */
+  to?: [number, number][] | { ref: string };
+  /** Per-axis factors about `pivot` (default the element's centre). */
+  stretch?: [number, number];
+  pivot?: PointRef;
+  /** Back to the layout's points. */
+  reset?: boolean;
+  /** seconds (default 1.5) */
+  duration?: number;
+  easing?: Easing;
+}
+
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
@@ -338,6 +353,8 @@ export interface Command {
   fade?: FadeArgs;
   /** Reflect elements across a line, played as a turn-over. */
   flip?: FlipArgs;
+  /** Tween an outline to new points, another outline, or a stretch. */
+  morph?: MorphArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths

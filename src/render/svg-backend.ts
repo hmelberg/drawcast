@@ -605,6 +605,15 @@ export function poseTransform(dx: number, dy: number, deg: number, pivot: Pt, sc
   return parts.length === 0 ? null : parts.join(" ");
 }
 
+/** One leaf's live nodes, as buildNodes assembles them: the leaf's own `<g>`
+ *  (data-leaf-id carrying node, rebuilt in place by setPoints), the drawable
+ *  it was built from, and the fade wrapper `<g>` above it. */
+interface LeafEntry {
+  g: SVGGElement;
+  leaf: Exclude<Drawable, { kind: "group" }>;
+  fadeNode: SVGGElement;
+}
+
 class SvgElementHandle implements RenderedElement {
   readonly id: string;
   readonly durationMs: number;
@@ -621,20 +630,46 @@ class SvgElementHandle implements RenderedElement {
    *  highlighter band snapping to full ink the first time a scene applied.
    *  On a wrapper, fade∘reveal∘focus∘authored all compose multiplicatively. */
   private fadeGroups: SVGGElement[];
+  private entries: LeafEntry[];
+  /** Per-leaf id: the points setPoints last applied (null = the layout's own). */
+  private current = new Map<string, Pt[] | null>();
 
-  constructor(id: string, leaves: LeafHandle[], groups: SVGGElement[], fadeGroups: SVGGElement[]) {
+  constructor(id: string, entries: LeafEntry[], private readonly rc: RoughSVG | null) {
     this.id = id;
-    this.leaves = leaves;
-    this.groups = groups;
-    this.fadeGroups = fadeGroups;
+    this.entries = entries;
+    this.leaves = entries.map(({ g, leaf }) => makeLeafHandle(g, leaf));
+    this.groups = entries.map(({ g }) => g);
+    this.fadeGroups = entries.map(({ fadeNode }) => fadeNode);
     this.cumulative = [];
     let acc = 0;
-    for (const l of leaves) {
+    for (const l of this.leaves) {
       this.cumulative.push(acc);
       acc += l.durationMs;
     }
     this.durationMs = acc;
-    leaves.forEach((l) => l.prepare());
+    this.leaves.forEach((l) => l.prepare());
+  }
+
+  /** Morph support: rebuild a leaf with new points, or with its own when
+   *  unlisted. Same-reference points are a no-op, so applyScene's per-boundary
+   *  call costs nothing once a boundary's shapes are already applied. */
+  setPoints(points: Record<string, Pt[]>): void {
+    this.entries.forEach((e, i) => {
+      const leaf = e.leaf;
+      if (leaf.kind !== "stroke" && leaf.kind !== "area") return;
+      // Only a stroke ever carries a shapeHint (a circle/rect drawn exactly,
+      // not from its sampled polyline) — AreaDrawable has no such field.
+      if (leaf.kind === "stroke" && leaf.shapeHint) return;
+      const want = points[leaf.id] ?? null;
+      if (want === (this.current.get(leaf.id) ?? null)) return;
+      this.current.set(leaf.id, want);
+      const drawable = want ? { ...leaf, pts: want } : leaf;
+      const rebuilt = drawLeaf(this.rc, drawable);
+      e.g.replaceChildren(...Array.from(rebuilt.children));
+      this.leaves[i] = makeLeafHandle(e.g, drawable);
+      this.leaves[i].prepare();
+      this.leaves[i].setProgress(1);
+    });
   }
 
   /** Persistent translation, logical units y-up (the y-flip happens here). */
@@ -932,20 +967,26 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       // duplicating the loop.
       const buildNodes = (
         l: LayoutResult,
-        into: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[]>,
+        into: Map<string, LeafEntry[]>,
         visible?: ReadonlySet<string>,
         offsets?: Record<string, Pt>,
         turns?: Record<string, Turn>,
         opacities?: Record<string, number>,
+        shapes?: Record<string, Record<string, Pt[]>>,
       ) => {
         for (const id of l.order) {
           if (visible && !visible.has(id)) continue;
           const parts = drawablesForId(l.drawables, id);
-          const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[] = [];
+          const entry: LeafEntry[] = [];
           const turn = turns?.[id];
           const alpha = opacities?.[id];
           for (const leaf of leafDrawables(parts)) {
-            const g = drawLeaf(rc, leaf);
+            // A morphed leaf substitutes its tween points for this frame —
+            // the same handle-less-rebuild path a rotated/scaled tween frame
+            // already relies on (see the pose comment just below).
+            const pts = shapes?.[id]?.[leaf.id];
+            const drawn = pts && (leaf.kind === "stroke" || leaf.kind === "area") ? { ...leaf, pts } : leaf;
+            const g = drawLeaf(rc, drawn);
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
             // The SAME string the element handle would write (poseTransform):
@@ -985,7 +1026,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         }
       };
 
-      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[]>();
+      const leafNodes = new Map<string, LeafEntry[]>();
       buildNodes(layout, leafNodes);
 
       container.appendChild(svg);
@@ -999,7 +1040,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       for (const [id, entry] of leafNodes) {
         elements.set(
           id,
-          new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g), entry.map(({ fadeNode }) => fadeNode)),
+          new SvgElementHandle(id, entry, rc),
         );
       }
 
@@ -1014,11 +1055,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         // overwrites (a knocked-down fill-opacity, say) would show up here as
         // a flicker for the whole tween. Keep the two in step — makeLeafHandle
         // ends its reveal on the node's own authored values.
-        swapGeometry: (l, visible, offsets, turns, opacities) => {
+        swapGeometry: (l, visible, offsets, turns, opacities, shapes) => {
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
-          buildNodes(l, new Map(), visible, offsets, turns, opacities); // throwaway map: no handles, effects keep the mount-time nodes
+          buildNodes(l, new Map(), visible, offsets, turns, opacities, shapes); // throwaway map: no handles, effects keep the mount-time nodes
         },
         remount: (l) => {
           layers[0].replaceChildren();
@@ -1031,7 +1072,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           for (const [id, entry] of leafNodes) {
             els.set(
               id,
-              new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g), entry.map(({ fadeNode }) => fadeNode)),
+              new SvgElementHandle(id, entry, rc),
             );
           }
           return els;
