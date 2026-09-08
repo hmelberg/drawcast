@@ -7,7 +7,7 @@ import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
 import type { TextFamily } from "./layout/text-style";
 import { canRender, needsRender } from "./render/policy";
-import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant } from "./llm/compile";
+import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant, type RouteInfo } from "./llm/compile";
 import { routeTemplates } from "./llm/router";
 import { authorOnDemand } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
@@ -3014,6 +3014,18 @@ function stopAiStatus(): void {
 }
 
 /** What this generation cost, from the client's call ledger — "" when nothing was called. */
+/**
+ * What the figure was built on, for the status line: the template it uses,
+ * or that it is freehand and what the router had to say — so a stale build
+ * or a forced "no template" setting is visible at once instead of guessed.
+ */
+function routeText(template: string | undefined, route: RouteInfo | undefined): string {
+  if (template) return ` · via ${template}`;
+  if (!route) return " · freehand";
+  if (route.noneFits || route.ids.length === 0) return " · freehand (no template fits)";
+  return ` · freehand (router offered ${route.ids.slice(0, 3).join(", ")})`;
+}
+
 function costText(): string {
   const s = costSummary(callLedger());
   return s.calls > 0 ? ` · ${formatCost(s)}` : "";
@@ -3137,7 +3149,7 @@ async function generate(): Promise<void> {
     playlist.meta.prompt = rawRequest;
     setDoc(
       { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist },
-      (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) + costText(),
+      (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) + routeText(outcome.spec.template, outcome.route) + costText(),
       { label: rawRequest, kind: "generate" },
     );
     autosave();

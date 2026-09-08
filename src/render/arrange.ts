@@ -4,7 +4,9 @@
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { PieceGeometry } from "../layout/tier2";
-import type { Turn } from "./pose";
+import { poseOf, type Turn } from "./pose";
+
+export type ArrangeLayout = "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex";
 
 export interface ArrangeInput {
   id: string;
@@ -42,11 +44,20 @@ function centroidOf(items: ArrangeInput[]): Pt {
   return [items.reduce((s, i) => s + i.centre[0], 0) / n, items.reduce((s, i) => s + i.centre[1], 0) / n];
 }
 
-export function arrangeTargets(items: ArrangeInput[], layout: "row" | "zipper" | "grid" | "ring" | "stack", opts: { at?: Pt; gap: number; columns?: number }): ArrangeOutput[] {
-  const at = opts.at ?? centroidOf(items);
+/** A sector's apex where it is NOW (its original apex through its pose). */
+function apexNow(i: ArrangeInput): Pt {
+  return poseOf(i.pose.offset, i.pose.turn)(i.piece!.apex);
+}
+
+export function arrangeTargets(items: ArrangeInput[], layout: ArrangeLayout, opts: { at?: Pt; gap: number; columns?: number; start?: number }): ArrangeOutput[] {
+  const firstSector = items.find((i) => i.piece);
+  // A fan gathers the pieces about ONE apex: with no `at`, the first sector stays where it is and the others come to it.
+  const at = opts.at ?? (layout === "fan" && firstSector ? apexNow(firstSector) : centroidOf(items));
   const gap = opts.gap;
   if (layout === "zipper" && items.some((i) => i.piece)) return zipper(items, at);
-  if (layout === "row" || layout === "zipper") {
+  if (layout === "fan" && items.some((i) => i.piece)) return fan(items, at, opts.start ?? 0, gap);
+  if (layout === "hex") return hex(items, at, gap);
+  if (layout === "row" || layout === "zipper" || layout === "fan") {
     const total = items.reduce((s, i) => s + i.box.w, 0) + gap * (items.length - 1);
     let x = at[0] - total / 2;
     return items.map((i) => {
@@ -109,4 +120,59 @@ function zipper(items: ArrangeInput[], at: Pt): ArrangeOutput[] {
     out.push(...row);
   }
   return out;
+}
+
+/**
+ * Sectors laid side by side about ONE apex at `at`: the first piece begins
+ * at `start` degrees (counter-clockwise from +x) and each next one continues
+ * where the previous ended — the angle-sum proof (three corners torn off
+ * and set on a line make a half turn). Each piece is turned about its own
+ * apex and slid so that apex lands on `at`. Non-sector targets line up in a
+ * row above the fan.
+ */
+function fan(items: ArrangeInput[], at: Pt, start: number, gap: number): ArrangeOutput[] {
+  const sectors = items.filter((i) => i.piece);
+  const others = items.filter((i) => !i.piece);
+  let angle = start;
+  const out: ArrangeOutput[] = sectors.map((i) => {
+    const half = i.piece!.halfAngle;
+    const targetMid = angle + half;
+    angle += 2 * half;
+    const midNow = i.piece!.midAngle + (i.pose.turn?.deg ?? 0);
+    return { id: i.id, rotate: shortestTurn(targetMid - midNow), pivotNow: i.piece!.apex, apexTo: at };
+  });
+  if (others.length > 0) {
+    const r = Math.max(...sectors.map((i) => i.piece!.radius));
+    out.push(...arrangeTargets(others, "row", { at: [at[0], at[1] + r + 40], gap }));
+  }
+  return out;
+}
+
+/**
+ * A honeycomb: the first target sits at `at`, the next six around it, then
+ * a ring of twelve, and so on — neighbours one flat-to-flat distance apart
+ * (the smaller side of the first target's box, plus `gap`). A flat-topped
+ * hexagon (wider than tall) has its neighbours at 30° + 60°k, a pointy-topped
+ * one at 60°k; any other shape gets the pointy-top lattice.
+ */
+function hex(items: ArrangeInput[], at: Pt, gap: number): ArrangeOutput[] {
+  if (items.length === 0) return [];
+  const w = items[0].box.w;
+  const h = items[0].box.h;
+  const d = Math.min(w, h) + gap;
+  const base = w > h ? 30 : 0;
+  const dir = (k: number): Pt => [Math.cos((base + 60 * k) * DEG), Math.sin((base + 60 * k) * DEG)];
+  const positions: Pt[] = [at];
+  for (let ring = 1; positions.length < items.length; ring++) {
+    for (let k = 0; k < 6 && positions.length < items.length; k++) {
+      const a = dir(k);
+      const b = dir((k + 1) % 6);
+      const corner: Pt = [at[0] + ring * d * a[0], at[1] + ring * d * a[1]];
+      const next: Pt = [at[0] + ring * d * b[0], at[1] + ring * d * b[1]];
+      for (let j = 0; j < ring && positions.length < items.length; j++) {
+        positions.push([corner[0] + ((next[0] - corner[0]) * j) / ring, corner[1] + ((next[1] - corner[1]) * j) / ring]);
+      }
+    }
+  }
+  return items.map((i, k) => ({ id: i.id, centre: positions[k] }));
 }

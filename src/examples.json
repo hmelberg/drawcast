@@ -14916,9 +14916,7 @@
         { "draw": ["va", "vb", "vc"], "parallel": true, "speak": "Vi merker de tre vinklene med hver sin farge." },
         { "fade": { "target": ["tri"], "to": 0.35 } },
         { "draw": ["linje"], "speak": "Så river vi av hjørnene og legger dem inntil hverandre på en rett linje." },
-        { "move": { "target": ["va"], "by": [200, 350], "duration": 1.2 } },
-        { "move": { "target": ["vb"], "by": [-200, 350], "rotate": -75.96, "pivot": [500, 600], "duration": 1.5 } },
-        { "move": { "target": ["vc"], "by": [50, 100], "rotate": -135, "pivot": [500, 600], "duration": 1.5 }, "speak": "De tre vinklene fyller nøyaktig en halv omdreining." },
+        { "arrange": { "target": ["va", "vb", "vc"], "layout": "fan", "at": [500, 600], "duration": 2.5 }, "speak": "De tre vinklene fyller nøyaktig en halv omdreining." },
         { "draw": ["t_sum"], "speak": "En rett linje er 180 grader. Derfor er vinkelsummen i enhver trekant 180 grader." }
       ]
     }
@@ -15010,7 +15008,7 @@
       "commands": [
         { "draw": ["midt"], "speak": "En regulær sekskant har vinkler på 120 grader i hvert hjørne." },
         { "draw": ["h1", "h2", "h3", "h4", "h5", "h6"], "parallel": true, "speak": "Seks like sekskanter til." },
-        { "arrange": { "target": ["h1", "h2", "h3", "h4", "h5", "h6"], "layout": "ring", "at": [500, 400], "gap": 0, "duration": 2.5 }, "speak": "Legger vi dem rundt den første, møtes tre hjørner i hvert punkt." },
+        { "arrange": { "target": ["midt", "h1", "h2", "h3", "h4", "h5", "h6"], "layout": "hex", "at": [500, 400], "gap": 0, "duration": 2.5 }, "speak": "Legger vi dem rundt den første, møtes tre hjørner i hvert punkt." },
         { "draw": ["t_vinkel"], "speak": "Tre ganger 120 grader er 360 grader, en hel runde. Ingen sprekker, ingen overlapp. Derfor er sekskanten biens form: mest plass for minst voks." }
       ]
     }

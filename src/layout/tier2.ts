@@ -1021,7 +1021,11 @@ function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const to = el.end ?? 90;
   const pts = sectorPts(c, r, from, to);
   const mid = (from + to) / 2;
-  ctx.anchors[el.id] = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
+  const centroid: Pt = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
+  ctx.anchors[el.id] = centroid;
+  // A standalone sector is a piece too: arrange's zipper and fan read its
+  // apex and angles here, exactly as they read a `pieces` child's.
+  ctx.pieces[el.id] = { apex: c, centroid, midAngle: mid, halfAngle: (to - from) / 2, radius: r };
   return filledOutline(el.id, pts, el);
 }
 

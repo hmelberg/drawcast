@@ -64,6 +64,11 @@ function mentionedIds(spec: Spec): string[] {
     }
     const clear = c.clear;
     if (clear && typeof clear === "object") add((clear as Record<string, unknown>).keep);
+    // Verbs that name ONE element under a nested ref: point.at.ref, camera.center.ref.
+    const point = c.point as { at?: { ref?: unknown } } | undefined;
+    add(point?.at?.ref);
+    const camera = c.camera as { center?: { ref?: unknown } } | undefined;
+    add(camera?.center?.ref);
   }
   return [...ids];
 }

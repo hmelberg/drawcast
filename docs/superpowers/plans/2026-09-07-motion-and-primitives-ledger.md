@@ -410,3 +410,10 @@ variable in the layout to remove.
 ## Fem eksempler til (2026-09-08, Hans: «lag noen flere eksempler»)
 
 Frihånd, alle på de nye verbene, alle spilt gjennom i nettleseren med ren lint: vinkelsummen i en trekant (sektorer ved hjørnene flyttes med `by` og roteres om et felles apex via `pivot` til en halvsirkel på en linje), tre åttedeler (`pieces` n=8, `arrange row` på tre biter, `fade` på resten), vektstang (`move rotate` om støttepunktet med bjelke, lodd og etiketter som ett mål, så tilbake og loddet flyttes inn), klokka (visere som `polygon`, `rotate` −90/−7,5 om sentrum, `shape: "circle"` for skiven — feltet heter `shape`, ikke `kind`), og sekskanter i `arrange ring` (rotation 30 gir flate topper så naboene ligger på 90°+60k). Ringens radius kommer fra omkretsen, så cellene får ~10 px luft; en tett bikube trenger en `hex`-oppstilling.
+
+## Fan, hex og småting (2026-09-08, Hans: «Gjør 2, 3, 4»)
+
+- **Statuslinjen** etter generering sier nå «via <template>» eller «freehand (router offered …)» / «freehand (no template fits)» (`routeText` i main.ts) — Hans’ første test etter pushen gikk mot en cachet gammel bunt, og det var usynlig.
+- **`arrange fan`**: sektorer side om side om ETT apex (`at`, default første sektors nåværende apex), første begynner ved `start` grader; `hex`: bikube-spiral med flat-mot-flat-avstand = minste side av første boks + gap, 30°-gitter for flate topper. Frittstående `sector`-elementer får nå piece-geometri i layouten, så både zipper og fan tar dem. Vinkelsum-eksemplet bruker `fan` (samme transformer som den håndregnede versjonen), bikube-eksemplet `hex` (tett).
+- **Småting**: `point.at.ref`/`camera.center.ref` utvider pieces-id til unionboksen; id-kollisjon med sub-suffiks (`sky` + `sky_wash`) er valideringsfeil; `point`/`camera`-refs i `mentionedIds` for undertekster.
+- Tester: `tests/arrange-fan-hex.test.ts` (12). Full suite 5728, tsc ren. Smoke: begge omskrevne eksempler spiller med ren lint.

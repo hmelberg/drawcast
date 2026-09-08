@@ -269,7 +269,7 @@ export function leafDrawables(drawables: Drawable[]): Exclude<Drawable, GroupDra
  * drawablesForId, so a sub-drawable whose suffix is NOT here is never painted
  * at all — silently, since it is also not an `order` entry to warn about.
  */
-const SUB_SUFFIXES = ["text", "guides", "leader", "head", "body", "dot", "value", "wash"];
+export const SUB_SUFFIXES = ["text", "guides", "leader", "head", "body", "dot", "value", "wash"];
 
 /** All top-level drawables belonging to one command-addressable element id. */
 export function drawablesForId(drawables: Drawable[], id: string): Drawable[] {

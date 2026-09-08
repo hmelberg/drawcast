@@ -9,6 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
+import { SUB_SUFFIXES } from "../layout/model";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
@@ -530,15 +531,16 @@ const commandSchema = {
     arrange: {
       type: "object",
       description:
-        "Lay the targets out and animate them there — code computes every position and turn. layout: row (left to right), zipper (sector pieces alternately up and down, interleaved into the πr² rectangle), grid, ring, stack. target may be ONE pieces id for all its pieces. at = the centre of the arrangement (default: where the targets are now). {\"arrange\": {\"target\": \"kake\", \"layout\": \"zipper\", \"at\": [650, 375], \"duration\": 3}, \"speak\": \"Now we zip the slices together…\"}",
+        "Lay the targets out and animate them there — code computes every position and turn. layout: row (left to right), zipper (sector pieces alternately up and down, interleaved into the πr² rectangle), fan (sectors side by side about ONE apex — the angle-sum proof), grid, ring, hex (a honeycomb), stack. target may be ONE pieces id for all its pieces. at = the centre of the arrangement (default: where the targets are now; fan: the first sector's apex). {\"arrange\": {\"target\": \"kake\", \"layout\": \"zipper\", \"at\": [650, 375], \"duration\": 3}, \"speak\": \"Now we zip the slices together…\"}",
       properties: {
         target: idListSchema("Element ids, or one pieces id."),
         layout: {
           type: "string",
-          enum: ["row", "zipper", "grid", "ring", "stack"],
-          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"row\" lines them up left to right.",
+          enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex"],
+          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right.",
         },
-        at: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Centre the arrangement here (same units as move.by) — e.g. \"at\": [650, 375] builds it in the right half of the canvas. Default: the targets' current centroid." },
+        at: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Centre the arrangement here (same units as move.by) — e.g. \"at\": [650, 375] builds it in the right half of the canvas; for fan it is the shared apex. Default: the targets' current centroid." },
+        start: { type: "number", description: "fan: the angle where the first piece begins, degrees counter-clockwise from +x — e.g. \"start\": 0 lays the angles along a horizontal line rightwards (default 0)." },
         gap: { type: "number", description: "Space between neighbours in logical units (default 6) — e.g. \"gap\": 20 for an airy row." },
         columns: { type: "integer", minimum: 1, description: "grid: pieces per row — e.g. \"columns\": 4 lays twelve pieces out four wide." },
         duration: { type: "number", description: "Seconds (default 2)." },
@@ -1004,6 +1006,18 @@ function semanticErrors(spec: Spec): string[] {
     if (seen.has(el.id)) errors.push(`duplicate element id "${el.id}"`);
     seen.add(el.id);
     errors.push(...elementErrors(el));
+  }
+  // An id that reads as another element's sub-drawable ("sky" + "sky_wash")
+  // would be swallowed into that element — drawn twice, highlighted with it,
+  // dimmed with it. Only the actual collision is an error; "sky_wash" alone
+  // is a fine id.
+  for (const id of seen) {
+    for (const s of SUB_SUFFIXES) {
+      const tail = `_${s}`;
+      if (!id.endsWith(tail) || id.length === tail.length) continue;
+      const base = id.slice(0, -tail.length);
+      if (seen.has(base)) errors.push(`element ids "${base}" and "${id}" collide: "${tail}" is reserved for the sub-drawables of "${base}" — rename one of them`);
+    }
   }
 
   // Data tokens ("{sim.y}") must name a CODE element of this drawcast. A

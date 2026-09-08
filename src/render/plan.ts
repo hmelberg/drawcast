@@ -250,6 +250,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** Element's current visual bbox: layout bbox under its accumulated pose —
    *  shifted by the offset, and, when it has been turned, the bounds of the
    *  four rotated corners, so highlight/camera/arrange aim where it now is. */
+  /** The box around several current boxes (a pieces group), or null when none has geometry. */
+  const unionBox = (boxes: (BBox | null)[]): BBox | null => {
+    const bs = boxes.filter((b): b is BBox => b !== null);
+    if (bs.length === 0) return null;
+    const x0 = Math.min(...bs.map((b) => b.x));
+    const y0 = Math.min(...bs.map((b) => b.y));
+    const x1 = Math.max(...bs.map((b) => b.x + b.w));
+    const y1 = Math.max(...bs.map((b) => b.y + b.h));
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  };
+
   const currentBox = (id: string): BBox | null => {
     const box = bboxOf(id);
     if (!box) return null;
@@ -454,13 +465,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       let box: BBox | undefined;
       let refId: string | undefined;
       if (at?.ref !== undefined) {
-        if (!known.has(at.ref)) {
+        const kids = opts.expandId?.(at.ref)?.filter((k) => known.has(k)) ?? [];
+        if (!known.has(at.ref) && kids.length === 0) {
           warnings.push(`point command references unknown id "${at.ref}" (skipped)`);
           continue;
         }
         refId = at.ref;
-        if (!visibleSet.has(at.ref)) warnings.push(`point target "${at.ref}" is not visible at that point`);
-        const b = currentBox(at.ref);
+        if (kids.length === 0 && !visibleSet.has(at.ref)) warnings.push(`point target "${at.ref}" is not visible at that point`);
+        // A pieces id points at the whole group: the box around every piece.
+        const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(at.ref);
         if (b) {
           box = b;
           x = b.x + b.w / 2;
@@ -573,7 +586,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (inputs.length === 0) continue;
       const at = cmd.arrange.at ? toLogical(cmd.arrange.at as Pt) : undefined;
-      const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap: cmd.arrange.gap ?? 6, columns: cmd.arrange.columns });
+      const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap: cmd.arrange.gap ?? 6, columns: cmd.arrange.columns, start: cmd.arrange.start });
       const items: TransformItem[] = [];
       // Attached labels ride along with a TRANSLATION, exactly as under move —
       // an arranged row of labeled shapes must not leave its labels behind.
@@ -640,10 +653,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           let cy: number = camera ? camera.y + camera.h / 2 : CANVAS.h / 2;
           const center = cmd.camera.center;
           if (center?.ref !== undefined) {
-            if (!known.has(center.ref)) {
+            const kids = opts.expandId?.(center.ref)?.filter((k) => known.has(k)) ?? [];
+            if (!known.has(center.ref) && kids.length === 0) {
               warnings.push(`camera command references unknown id "${center.ref}" (centering on canvas)`);
             } else {
-              const b = currentBox(center.ref);
+              // A pieces id centres on the whole group.
+              const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(center.ref);
               if (b) {
                 cx = b.x + b.w / 2;
                 cy = b.y + b.h / 2;

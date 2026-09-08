@@ -230,9 +230,11 @@ export interface MoveArgs {
 export interface ArrangeArgs {
   /** Element ids, or ONE pieces id (all its pieces). */
   target: string[] | string;
-  layout: "row" | "zipper" | "grid" | "ring" | "stack";
-  /** Centre of the arrangement (same units as move.by); default: the targets' current centroid. */
+  layout: "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex";
+  /** Centre of the arrangement (same units as move.by); default: the targets' current centroid (fan: the first sector's apex). */
   at?: [number, number];
+  /** fan: the angle (degrees, counter-clockwise from +x) where the first piece begins (default 0). */
+  start?: number;
   /** Space between neighbours, logical units (default 6). */
   gap?: number;
   /** grid: pieces per row. */

@@ -259,18 +259,19 @@ planning with an empty id list, and the inert `language` param on
 - **`arrange` warns nothing for invisible targets** — no warning when a
   target is hidden or missing.
 - **The zipper's non-sector fallback row ignores `gap`.**
-- **`camera.center.ref` and `point.at.ref` do not expand a `pieces` id.**
-  Every other id-taking verb runs its targets through `expandId`, so
-  `arrange: {target: "kake"}` reaches all twelve slices while
-  `camera: {center: {ref: "kake"}}` resolves nothing and silently keeps the
-  full canvas. Either expand and union the boxes, or lint the ref.
+- Done 2026-09-08 (the "fan/hex" round): `camera.center.ref` and
+  `point.at.ref` now expand a `pieces` id to the box around every piece;
+  an element id that reads as another element's sub-drawable (`sky` +
+  `sky_wash`) is a validation ERROR (only the actual collision — `sky_wash`
+  alone is fine); a `speak` on a `point`/`camera` beat reaches the subtitle
+  track; two more `arrange` layouts, `fan` (sectors side by side about one
+  apex — the angle-sum proof) and `hex` (a honeycomb), and standalone
+  `sector` elements carry piece geometry so both zipper and fan take them;
+  the generate status line names the template used or that the figure is
+  freehand and what the router offered.
 - **Lint's `coVisible` does not expand `pieces` ids**, so overlap rules
   never see a pieces group as the set of drawables it becomes — a slice can
   collide with a label without a warning.
-- **A lint rule for id/sub-suffix collisions.** Rejecting an element id that
-  ENDS in a `SUB_SUFFIXES` entry (`_fill`, `_wash`, …) would retire the whole
-  hazard class in one rule: today an author who names an element `x_wash`
-  shadows the generated sub-drawable of `x` with no warning at all.
 - **Cheap tween frames now carry pose and fade, but nothing else.**
   `Reprojector.frame` / `swapGeometry` take `turns` and `opacities` alongside
   `offsets` (final fix round), so a rotated, scaled or faded element no longer
