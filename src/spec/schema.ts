@@ -58,6 +58,7 @@ const endRefSchema = {
     ref: { type: "string" },
     x: { type: "number" },
     y: { type: "number" },
+    anchor: { type: "string", description: "A named point ON ref instead of its centre — e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}: center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…." },
   },
   additionalProperties: false,
 };

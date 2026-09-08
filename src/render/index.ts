@@ -82,20 +82,22 @@ function contactEmail(): string {
 }
 
 /**
- * The three `planCommands` options that read a layout but touch no DOM:
+ * The `planCommands` options that read a layout but touch no DOM:
  * `pieceOf`/`expandId` let a `pieces` parent id (and the zipper arrange it
- * feeds) resolve to its `<id>_1 … <id>_n` children, and `attachedTo` carries
- * a label along its target's `move`/`arrange`. Pulled out of `render()` so a
- * test can plan the way the app does — with `layout.order` alone (as
- * `render()` used to before this option existed), a `pieces` parent id is
- * never in scope (layout.ts skips it: the children are the
+ * feeds) resolve to its `<id>_1 … <id>_n` children, `attachedTo` carries
+ * a label along its target's `move`/`arrange`, and `anchorOf` looks up an
+ * element's named points (design §2.1) for anchor-aware targeting. Pulled out
+ * of `render()` so a test can plan the way the app does — with `layout.order`
+ * alone (as `render()` used to before this option existed), a `pieces` parent
+ * id is never in scope (layout.ts skips it: the children are the
  * command-addressable ids), so `draw`/`arrange` naming just the parent
  * silently drops as an unknown id instead of expanding.
  */
-export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId"> {
+export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf"> {
   return {
     pieceOf: (id) => layout.pieces[id] ?? null,
     expandId: (id) => layout.pieceGroups[id] ?? null,
+    anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     attachedTo: (id) => {
       const out: string[] = [];
       for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);

@@ -7,6 +7,7 @@ import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression 
 import { centroid, type BBox } from "./geometry";
 import { heuristicMeasure } from "./measure";
 import { codeDrawables, type CodeWindow } from "./code";
+import { boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import {
   COLORS,
   LINE_HEIGHT,
@@ -15,6 +16,8 @@ import {
   Z_TEXT,
   SKETCH_MS,
   defaultStyle,
+  drawablesForId,
+  leafDrawables,
   type Drawable,
   type GroupDrawable,
   type Pt,
@@ -46,6 +49,8 @@ export interface Tier2Result {
   labels: LabelRequest[];
   /** Logical anchor point per element id (for labels, arrows, and commands). */
   anchors: Record<string, Pt>;
+  /** Geometric anchors per element id (design §2.1): polygon vertex_k/side_k/centroid, sector apex/arc/start/end, arrow tail/tip/mid, path start/end/mid/point_k. */
+  namedAnchors: Record<string, Record<string, Pt>>;
   /**
    * Command-addressable ids tier-2 minted that are NOT spec element ids — a
    * source element's quote highlights (`<id>_quote`, `<id>_quote_2`, …), which
@@ -75,6 +80,9 @@ interface Ctx {
   curveSamples: Map<string, Pt[]>;
   nodeRadius: Map<string, number>;
   anchors: Record<string, Pt>;
+  namedAnchors: Record<string, Record<string, Pt>>;
+  /** The drawables laid out so far — an arrow endpoint's `anchor` reads a box off them. */
+  drawablesSoFar: Drawable[];
   extraOrder: string[];
   warnings: string[];
   windows: Record<string, CodeWindow>;
@@ -102,6 +110,8 @@ export function layoutElements(
     curveSamples: new Map(Object.entries(seedCurveSamples)),
     nodeRadius: new Map(),
     anchors: { ...seedAnchors },
+    namedAnchors: {},
+    drawablesSoFar: [],
     extraOrder: [],
     windows: {},
     panes: {},
@@ -138,6 +148,7 @@ export function layoutElements(
 
   // Pass 3: emit drawables in element order.
   const drawables: Drawable[] = [];
+  ctx.drawablesSoFar = drawables;
   const labels: LabelRequest[] = [];
   for (const el of elements) {
     switch (el.type) {
@@ -189,6 +200,7 @@ export function layoutElements(
           drawOpts: resolveDrawOpts(el.draw),
         });
         ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)] ?? [CANVAS.w / 2, CANVAS.h / 2];
+        ctx.namedAnchors[el.id] = polylineAnchors(pts, "path");
         break;
       }
       case "text": {
@@ -238,6 +250,7 @@ export function layoutElements(
     drawables,
     labels,
     anchors: ctx.anchors,
+    namedAnchors: ctx.namedAnchors,
     extraOrder: ctx.extraOrder,
     warnings: ctx.warnings,
     windows: ctx.windows,
@@ -490,7 +503,7 @@ function rectPts(c: Pt, w: number, h: number): Pt[] {
   ];
 }
 
-function resolveEnd(end: { ref?: string; x?: number; y?: number } | undefined, ctx: Ctx): Pt | null {
+function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string } | undefined, ctx: Ctx): Pt | null {
   if (!end) return null;
   if (end.ref) {
     const a = ctx.anchors[end.ref];
@@ -498,6 +511,28 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number } | undefined, c
       ctx.warnings.push(`arrow/edge endpoint references unknown id "${end.ref}"`);
       return null;
     }
+    if (end.anchor === undefined) return a;
+    const named = ctx.namedAnchors[end.ref]?.[end.anchor];
+    if (named) return named;
+    if (isUniversalAnchor(end.anchor)) {
+      // Universal anchors come off the box of what the element drew so far
+      // (points only — tier-2 has no text measurer).
+      const pts: Pt[] = [];
+      for (const d of leafDrawables(drawablesForId(ctx.drawablesSoFar, end.ref))) {
+        if (d.kind === "stroke" && d.shapeHint?.type === "circle") {
+          const { c, r } = d.shapeHint;
+          pts.push([c[0] - r, c[1] - r], [c[0] + r, c[1] + r]);
+        } else if (d.kind === "stroke" && d.shapeHint?.type === "rect") {
+          const h = d.shapeHint;
+          pts.push([h.x, h.y], [h.x + h.w, h.y + h.h]);
+        } else if (d.kind === "stroke" || d.kind === "area") {
+          pts.push(...d.pts);
+        }
+      }
+      const box = ptsBox(pts);
+      if (box) return boxAnchor(box, end.anchor);
+    }
+    ctx.warnings.push(`arrow/edge endpoint: "${end.ref}" has no anchor "${end.anchor}" — using its plain anchor`);
     return a;
   }
   if (end.x !== undefined && end.y !== undefined) {
@@ -513,8 +548,11 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   const dist = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
   const ux = (to[0] - from[0]) / dist;
   const uy = (to[1] - from[1]) / dist;
-  const rFrom = el.from?.ref ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
-  const rTo = el.to?.ref ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
+  // A bare ref backs off toward the target's edge (its node radius, or a
+  // guessed bubble); an explicit anchor already names an exact point on the
+  // target, so it lands there with no further shrink.
+  const rFrom = el.from?.ref && el.from.anchor === undefined ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
+  const rTo = el.to?.ref && el.to.anchor === undefined ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];
@@ -531,6 +569,7 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
     pts = [a, b];
   }
   ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)];
+  ctx.namedAnchors[el.id] = polylineAnchors(pts, "arrow");
   return [
     {
       id: el.id,
@@ -1025,6 +1064,7 @@ function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const mid = (from + to) / 2;
   const centroid: Pt = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
   ctx.anchors[el.id] = centroid;
+  ctx.namedAnchors[el.id] = sectorAnchors(c, r, from, to);
   // A standalone sector is a piece too: arrange's zipper and fan read its
   // apex and angles here, exactly as they read a `pieces` child's.
   // |end − start|: a sector written the other way round (start 90, end 30)
@@ -1040,6 +1080,7 @@ function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
   const to = el.end ?? 180;
   const pts = arcPts(c, r, from, to);
   ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)];
+  ctx.namedAnchors[el.id] = polylineAnchors(pts, "arc");
   return { id: el.id, kind: "stroke", pts, z: Z_STROKE, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw) };
 }
 
@@ -1060,6 +1101,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
   const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
   ctx.anchors[el.id] = [cx, cy];
+  ctx.namedAnchors[el.id] = polygonAnchors(pts);
   return filledOutline(el.id, pts, el);
 }
 
@@ -1087,6 +1129,7 @@ function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     const centroid: Pt = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
     out.push(...filledOutline(id, pts, el));
     ctx.anchors[id] = centroid;
+    ctx.namedAnchors[id] = sectorAnchors(c, r, from, to);
     ctx.pieces[id] = { apex: c, centroid, midAngle: mid, halfAngle: step / 2, radius: r };
     ids.push(id);
     ctx.extraOrder.push(id);

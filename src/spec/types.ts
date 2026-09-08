@@ -67,6 +67,8 @@ export interface EndRef {
   ref?: string;
   x?: number;
   y?: number;
+  /** A named point on ref (default center) — see PointRef's anchor names. */
+  anchor?: string;
 }
 
 export interface SpecElement {

@@ -155,6 +155,8 @@ export interface PlanOptions {
   pieceOf?: (id: string) => PieceGeometry | null;
   /** A pieces id → its piece ids, so one id can name them all. */
   expandId?: (id: string) => string[] | null;
+  /** Geometric anchor of an element in its ORIGINAL frame (layout.namedAnchors), or null. */
+  anchorOf?: (id: string, name: string) => Pt | null;
 }
 
 const CAMERA_MAX_ZOOM = 8;

@@ -36,6 +36,8 @@ export interface LayoutResult {
   /** `pieces` parent element id → its child piece ids, in order. Empty when
    *  the spec has no pieces elements. */
   pieceGroups: Record<string, string[]>;
+  /** Geometric anchors per tier-2 element id (design §2.1). Empty for a pure template spec. */
+  namedAnchors: Record<string, Record<string, Pt>>;
 }
 
 export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure): LayoutResult {
@@ -60,6 +62,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   let panes: Record<string, BBox> = {};
   let pieces: Record<string, PieceGeometry> = {};
   let pieceGroups: Record<string, string[]> = {};
+  let namedAnchors: Record<string, Record<string, Pt>> = {};
   let seedAnchors: Record<string, Pt> = {};
   let seedCurveSamples: Record<string, Pt[]> = {};
   let templateIds: string[] = [];
@@ -101,6 +104,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     panes = tier2.panes;
     pieces = tier2.pieces;
     pieceGroups = tier2.pieceGroups;
+    namedAnchors = tier2.namedAnchors;
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
@@ -151,7 +155,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
 
   const issues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id]);
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, namedAnchors };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {

@@ -73,6 +73,7 @@ describe("applyTextStyle — the drawn text matches what was measured", () => {
     warnings: [],
     pieces: {},
     pieceGroups: {},
+    namedAnchors: {},
   });
 
   test("scales every text drawable, nested ones included, and stamps family and weight", () => {
@@ -100,7 +101,7 @@ describe("the SVG backend draws the stamped face", () => {
     const { restore, doc } = installMiniDom();
     try {
       const container = new FakeNode("div", doc as never);
-      const layout: LayoutResult = { drawables: [d], order: [d.id], issues: [], warnings: [], pieces: {}, pieceGroups: {} };
+      const layout: LayoutResult = { drawables: [d], order: [d.id], issues: [], warnings: [], pieces: {}, pieceGroups: {}, namedAnchors: {} };
       await rendererFor("clean").mount(layout, {} as never, container as never);
       const out: FakeNode[] = [];
       const walk = (n: FakeNode) => {
