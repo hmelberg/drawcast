@@ -13,6 +13,7 @@ import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
+import { planOptionsFor } from "../src/render/index";
 import { lintCommands } from "../src/lint/lint";
 import { cardTargets } from "../src/ui/card-model";
 import { linkKindOf } from "../src/ui/link-model";
@@ -72,7 +73,7 @@ describe("bundled examples stay exemplary", () => {
   test.each(cases)("%s — validates, lays out, and every command id resolves", (_req, spec) => {
     expect(validateSpec(spec).ok).toBe(true);
     const layout = layoutSpec(spec);
-    const plan = planCommands(spec.commands, layout.order);
+    const plan = planCommands(spec.commands, layout.order, planOptionsFor(spec, layout));
     expect(plan.warnings.filter((w) => w.includes("unknown id"))).toEqual([]);
   });
 

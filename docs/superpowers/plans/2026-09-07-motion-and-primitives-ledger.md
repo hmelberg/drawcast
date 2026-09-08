@@ -255,9 +255,29 @@ clean.
 (`src/render/plan.ts`) tracks each element's settled opacity, a `fade` player
 step tweens it, and `RenderedElement.setOpacity` (`src/render/backend.ts`,
 implemented in `src/render/svg-backend.ts`) applies it as the SVG opacity
-attribute — a separate channel from `focus`'s momentary dimming, so the two
-layer independently instead of fighting over one property. The planner
-dedupes `fade`'s followers the same way `arrange` already does.
+attribute. The planner dedupes `fade`'s followers the same way `arrange`
+already does.
+
+Review caught: `SvgElementHandle.groups` (what `setOpacity` originally
+targeted) ARE the leaf nodes, and text/image leaves write their OWN inline
+`style.opacity` onto those same nodes every frame (reveal progress, the typed
+cursor, and — for images — every tween frame) — an inline style always beats
+a presentation attribute, so `fade` silently no-opped on labels, titles and
+images (stroke/area leaves were unaffected; their reveal never touches that
+property). Fix round 1, commit `3ec304b` ("Fix fade: text/image leaves need
+their own opacity node"): `buildNodes` now wraps only text/image leaves in a
+dedicated `fadeNode` `<g>` above the leaf's own node, and
+`SvgElementHandle.setOpacity` targets these `fadeGroups` instead of the
+transform groups; stroke/area leaves are untouched (`fadeNode === g`, the
+same attribute-on-the-leaf behavior as before, since their reveal never
+writes `style.opacity`). SVG's nested-opacity compositing multiplies the
+wrapper's persistent attribute with the leaf's own transient style, so ending
+a `focus` dim never undoes a `fade`. The implementer verified in a real
+browser (Playwright/chromium): a faded path and its attached label both read
+0.3, and a focus dim/undim round trip (0.3 → 0.16/0.048 during focus → 0.3
+after) preserves the fade; full suite (270 files, 5445 tests) and
+`tsc --noEmit` stayed clean. The re-review of this fix is running separately;
+not claimed here.
 
 **Task 9 — three bundled examples + this addendum.** Added to
 `src/examples.json` (spliced before the closing `]`, matching the file's
@@ -278,21 +298,30 @@ were clean, both fixed here, not in production code:
 - The first draft addressed the "kake" `pieces` group by its parent id alone
   in `draw`/`arrange.target` (as `src/render/index.ts`'s wiring of
   `expandId`/`pieceOf` from `layout.pieceGroups`/`layout.pieces` supports
-  live). But `tests/examples.test.ts` calls
-  `planCommands(spec.commands, layout.order)` directly, without those two
-  options — so in THIS test path a `pieces` parent id is not in `layout.order`
-  and does not expand, and is reported as an unknown id. Fixed by listing the
-  twelve expanded ids (`kake_1` … `kake_12`) explicitly, which resolves in
-  both the test and the live player (`layout.pieces`/`layout.pieceGroups` are
-  keyed by the leaf ids either way). Left on record for whoever next authors
-  a freehand `pieces` example: the group-id shorthand the design promises
-  only works past this specific test when spelled out, a live/test asymmetry
-  in `tests/examples.test.ts`'s own call, not a bug in `expandId`/`pieceOf`
-  themselves.
+  live). `tests/examples.test.ts` calls `planCommands` directly, without
+  those two options, so in that path the parent id (never itself in
+  `layout.order`) reported as unknown. Initially worked around by spelling
+  out `kake_1` … `kake_12` — **closed properly in fix round 1** instead:
+  `src/render/index.ts` now exports `planOptionsFor(spec, layout)`, pulling
+  the pure `pieceOf`/`expandId`/`attachedTo` builders out of `render()`'s own
+  `planCommands` call so a test can plan the way the app does; the test now
+  passes `planOptionsFor(spec, layout)` as its third argument, and the
+  example was restored to the parent-id shorthand
+  (`draw: ["kake"]`, `arrange: {target: "kake", ...}`) it was always meant to
+  teach. Running the full suite after that turned up one more spot with the
+  same blind spot: `tests/molecule3d.test.ts`'s own bundled-examples check
+  builds its "known id" set straight from `flattenDrawables` (which never
+  includes a `pieces` parent, only its children) with no expansion at all —
+  fixed by adding `Object.keys(res.pieceGroups)` to that set too, the same
+  principle as `planOptionsFor`'s `expandId`.
 
 All three examples pass every check in `tests/examples.test.ts` (validates,
 lays out and lints clean, every command id resolves, params/template
-checks). Full suite green (`npx vitest run`) and `npx tsc --noEmit` clean —
-counts in the Task 9 report. **Not run: a browser smoke of the three new
-examples.** The controller has not yet driven them in a live browser the way
-Smoke 1/2 above did for the πr² example; this addendum does not claim one.
+checks), the group-id shorthand resolves through `planOptionsFor` exactly as
+the live player does, and `tests/molecule3d.test.ts` no longer needs the
+spelled-out ids either. Full suite green (`npx vitest run`, 270 files / 5445
+tests) and `npx tsc --noEmit` clean after both fixes — counts in the Task 9
+report and its fix-round addendum. **Not run: a browser smoke of the three
+new examples.** The controller has not yet driven them in a live browser the
+way Smoke 1/2 above did for the πr² example; this addendum does not claim
+one.

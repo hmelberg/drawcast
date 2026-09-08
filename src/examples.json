@@ -14848,10 +14848,10 @@
         { "id": "t_height", "type": "text", "text": "r", "x": 905, "y": 380, "font_size": 30, "style": { "color": "#b5482e" } }
       ],
       "commands": [
-        { "draw": ["kake_1", "kake_2", "kake_3", "kake_4", "kake_5", "kake_6", "kake_7", "kake_8", "kake_9", "kake_10", "kake_11", "kake_12"], "parallel": true, "speak": "En sirkel delt i tolv like kakestykker." },
+        { "draw": ["kake"], "parallel": true, "speak": "En sirkel delt i tolv like kakestykker." },
         { "draw": ["radius"], "speak": "Hvert stykke har radius r som side, og en liten bit av omkretsen som bue." },
         { "hide": ["radius"] },
-        { "arrange": { "target": ["kake_1", "kake_2", "kake_3", "kake_4", "kake_5", "kake_6", "kake_7", "kake_8", "kake_9", "kake_10", "kake_11", "kake_12"], "layout": "zipper", "at": [650, 380], "duration": 3 }, "speak": "Snu annethvert stykke og skyv dem sammen som tenner i en glidelås." },
+        { "arrange": { "target": "kake", "layout": "zipper", "at": [650, 380], "duration": 3 }, "speak": "Snu annethvert stykke og skyv dem sammen som tenner i en glidelås." },
         { "draw": ["t_base", "t_height"], "speak": "Grunnlinjen er halve omkretsen, πr, og høyden er r. Arealet er πr ganger r." }
       ]
     }

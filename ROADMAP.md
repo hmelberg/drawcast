@@ -222,8 +222,15 @@ geometry):
    transform composes as `translate rotate translate scale translate`, so a
    shape can grow AND turn from one corner in a single move.
 7. **`fade`** persistently dims or restores elements (`SceneState.opacities`,
-   the `fade` player step, `RenderedElement.setOpacity` — the SVG opacity
-   attribute) so it layers independently of `focus`'s momentary dimming; the
+   the `fade` player step). `RenderedElement.setOpacity` writes the `opacity`
+   ATTRIBUTE, but text/image leaves settle their own reveal (and, for images,
+   every tween frame) as an inline `style.opacity` on that SAME node, which
+   would silently beat a plain attribute there — so `src/render/svg-backend.ts`
+   wraps only those two leaf kinds in a dedicated `<g>` that fade targets
+   instead (stroke/area leaves keep the attribute on their own group, since
+   their reveal never touches it). SVG's nested-opacity compositing multiplies
+   wrapper and leaf, so a `focus` dim/undim round trip never undoes a `fade`
+   (caught by the Task 8 review, fixed in fix round 1, commit `3ec304b`). The
    planner dedupes followers the same way `arrange` does.
 8. **Three bundled freehand examples** (`src/examples.json`, no template)
    put the new verbs through their paces: kakestykker rearranged into a

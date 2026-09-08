@@ -273,6 +273,12 @@ describe("bundled offline examples (src/examples.json)", () => {
     expect(res.warnings, label).toEqual([]);
     expect(res.issues.filter((i) => i.severity === "error"), label).toEqual([]);
     const known = new Set(flattenDrawables(res.drawables).map((d) => d.id));
+    // A `pieces` parent id draws nothing itself (its `<id>_1 … <id>_n`
+    // children are the actual drawables — see layout.ts), but `draw: ["<id>"]`
+    // is exactly how the design promises to address the whole group, and
+    // `render()`'s `planCommands` (via `planOptionsFor`'s `expandId`) resolves
+    // it live — so it is a known, drawable id here too.
+    for (const id of Object.keys(res.pieceGroups)) known.add(id);
     for (const cmd of spec.commands ?? []) {
       const drawn = (cmd as { draw?: string[] }).draw;
       for (const id of drawn ?? []) {
