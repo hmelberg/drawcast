@@ -163,6 +163,22 @@ const constellations = [...edgesByAbbr.entries()].map(([abbr, edges]) => {
 constellations.sort((a, b) => a.a.localeCompare(b.a));
 if (constellations.length !== 88) throw new Error(`got ${constellations.length} constellations, expected 88`);
 
+// The whole "the drawing IS the answer key" claim rests on this number being
+// about one. A vertex that finds no catalogue star within SNAP_DEG is dropped
+// and its line broken, silently — so a rebuild against a shifted catalogue, a
+// changed SNAP_DEG or coordinates in the wrong units would still WRITE the
+// files, with three hundred edges quietly missing or joined to the wrong
+// star. Counting it and printing it is not enough; nobody reads a log line on
+// a green run. The measurement that ships is 1 unmatched of 893 vertices, so
+// anything past a handful means the snap itself has stopped working.
+const MAX_UNMATCHED = 5;
+if (unmatched > MAX_UNMATCHED) {
+  throw new Error(
+    `${unmatched} of ${vertices} vertices matched no catalogue star within ${SNAP_DEG}° (allowed ${MAX_UNMATCHED}). `
+    + "The snap has stopped working — check the pinned source, the catalogue and SNAP_DEG before writing these files.",
+  );
+}
+
 // ---- the union: bright stars PLUS every star a line names ------------------
 
 const wanted = new Set(constellations.flatMap((c) => c.e.flat()));

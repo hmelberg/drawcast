@@ -77,7 +77,11 @@ describe("the constellation figures", () => {
     expect(cons.find((c) => c.a === "Ori")).toMatchObject({ la: "Orion", nb: "Orion" });
   });
 
-  test("735 edges, every endpoint a star in the table", () => {
+  // The band, not a number: 741 edges ship, and the count moves when upstream
+  // adds detail to the raw lines (735 when the round was planned, 741 when the
+  // pinned commit was measured). What must not move is the SHAPE of an edge —
+  // a sorted pair of stars this table actually holds.
+  test("every edge is a sorted pair of catalogue stars, and the total stays in the measured band", () => {
     const total = cons.reduce((n, c) => n + c.e.length, 0);
     expect(total).toBeGreaterThanOrEqual(700);
     expect(total).toBeLessThanOrEqual(780);
