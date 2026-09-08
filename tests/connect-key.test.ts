@@ -36,6 +36,50 @@ describe("connectKey", () => {
     expect(k.stars.map((s) => s.id)).toEqual(["alnitak"]);
   });
 
+  // Final whole-branch review, F3: the three candidate exclusions
+  // (`label_…`, a `__`-suffixed leaf id, `conId` itself) passed the full
+  // suite with any one of them removed — the existing fixtures never put a
+  // decoy in a position where it would actually WIN a vertex. Each test
+  // below puts the excluded candidate at the exact vertex AND first in the
+  // Map, so only its own guard clause can stop it from winning the tie
+  // (ties go to whichever candidate is seen first — see the tie-break note
+  // in connectKey's own doc comment).
+  it("without the label_ guard, a name at the vertex would steal it from its star", () => {
+    const leaves = [{ id: "con_tst__0", pts: [[10, 10], [20, 20]] as [number, number][] }];
+    const boxes = new Map([
+      ["label_alnitak", box(10, 10)], // first in the Map, sits exactly on the vertex
+      ["alnitak", box(10, 10)], // the real star, same point, second
+      ["hip_2", box(20, 20)],
+    ]);
+    const k = connectKey(leaves, boxes, "con_tst");
+    expect(k.stars.map((s) => s.id)).toEqual(["alnitak", "hip_2"]);
+    expect(k.edges).toEqual([["alnitak", "hip_2"]]);
+  });
+
+  it("without the __ guard, a group's own sub-leaf id at the vertex would steal it from the star", () => {
+    const leaves = [{ id: "con_tst__0", pts: [[10, 10], [20, 20]] as [number, number][] }];
+    const boxes = new Map([
+      ["other__3", box(10, 10)], // another group's own sub-leaf id, first in the Map, exactly on the vertex
+      ["alnitak", box(10, 10)],
+      ["hip_2", box(20, 20)],
+    ]);
+    const k = connectKey(leaves, boxes, "con_tst");
+    expect(k.stars.map((s) => s.id)).toEqual(["alnitak", "hip_2"]);
+    expect(k.edges).toEqual([["alnitak", "hip_2"]]);
+  });
+
+  it("without the conId guard, the figure's own bounding box would steal a vertex from the star", () => {
+    const leaves = [{ id: "con_tst__0", pts: [[10, 10], [20, 20]] as [number, number][] }];
+    const boxes = new Map([
+      ["con_tst", box(10, 10)], // the group's own box, first in the Map, exactly on the vertex
+      ["alnitak", box(10, 10)],
+      ["hip_2", box(20, 20)],
+    ]);
+    const k = connectKey(leaves, boxes, "con_tst");
+    expect(k.stars.map((s) => s.id)).toEqual(["alnitak", "hip_2"]);
+    expect(k.edges).toEqual([["alnitak", "hip_2"]]);
+  });
+
   it("gives one edge per pair however many segments repeat it", () => {
     const leaves = [
       { id: "con_tst__0", pts: [[10, 10], [20, 20]] as [number, number][] },
