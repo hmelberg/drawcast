@@ -14,6 +14,9 @@ import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
+import { composeScale, composeTurn, poseCentre, poseOf, type Turn } from "./pose";
+import { arrangeTargets, type ArrangeInput } from "./arrange";
+import type { PieceGeometry } from "../layout/tier2";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -72,6 +75,8 @@ export type PlanStep = (
     }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
   | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing }
+  | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing }
+  | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
   | { kind: "camera"; box: BBox | null; seconds: number }
   | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string> }
   | {
@@ -94,19 +99,30 @@ export type PlanStep = (
   narrationDelivery?: Delivery;
 };
 
+/** One id's pose change within a `transform` step. */
+export interface TransformItem {
+  id: string;
+  from: { offset: Pt; turn: Turn };
+  to: { offset: Pt; turn: Turn };
+}
+
 /** Scene state at a step boundary. A pure function of the step index. */
 export interface SceneState {
   /** Ids visible after this step, in draw order. */
   visible: string[];
   /** Cumulative translation per moved id, logical units (y-up). */
   offsets: Record<string, Pt>;
+  /** Cumulative rotation per turned id: degrees about a pivot in the element's ORIGINAL frame. */
+  turns: Record<string, Turn>;
   /** Camera viewBox in logical y-up coordinates; null = full canvas. */
   camera: BBox | null;
   /** Cumulative animate overrides at this boundary (dot paths → numeric value). */
   params: Record<string, number>;
+  /** Persistent opacity per faded id (absent = 1). */
+  opacities: Record<string, number>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, camera: null, params: {} };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {} };
 
 export interface Plan {
   steps: PlanStep[];
@@ -129,10 +145,16 @@ export interface PlanOptions {
   toLogical?: (p: Pt) => Pt;
   /** Domain-delta → logical-delta mapping for move.by / move.path. */
   deltaToLogical?: (d: Pt) => Pt;
+  /** Ids that ride along with an element's translation: its attached labels and their leaders. */
+  attachedTo?: (id: string) => string[];
   /** The spec's `params` when the spec has a template; null/undefined = no template, animate warns + skips. */
   animateBase?: Record<string, unknown> | null;
   /** After an animate step, the planner switches its bbox source to this so later steps target post-animate geometry. */
   bboxesFor?: (params: Record<string, number>) => (id: string) => BBox | null;
+  /** Piece geometry from the layout (the pieces element), by piece id. */
+  pieceOf?: (id: string) => PieceGeometry | null;
+  /** A pieces id → its piece ids, so one id can name them all. */
+  expandId?: (id: string) => string[] | null;
 }
 
 const CAMERA_MAX_ZOOM = 8;
@@ -155,6 +177,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   let visible: string[] = [];
   const visibleSet = new Set<string>();
   const offsets: Record<string, Pt> = {};
+  const turns: Record<string, Turn> = {};
+  const opacities: Record<string, number> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
@@ -175,7 +199,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       };
     }
     steps.push(step);
-    states.push({ visible: [...visible], offsets: { ...offsets }, camera, params: { ...params } });
+    states.push({ visible: [...visible], offsets: { ...offsets }, turns: { ...turns }, camera, params: { ...params }, opacities: { ...opacities } });
   };
   /** The window's scroll: the highest visible line's bottom sits at the
    *  window's bottom. Every line of the element gets the offset — the hidden
@@ -213,21 +237,51 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   };
   const resolveIds = (raw: string[] | string | undefined, verb: string): string[] => {
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
-    return requested.filter((id) => {
-      if (known.has(id)) return true;
+    // A `pieces` parent id stands for all its pieces: naming it draws,
+    // highlights or arranges every piece, which is what the prompt promises.
+    return requested.flatMap((id) => {
+      const kids = opts.expandId?.(id);
+      if (kids && kids.length > 0) return kids.filter((k) => known.has(k));
+      if (known.has(id)) return [id];
       warnings.push(`${verb} command references unknown id "${id}" (dropped)`);
-      return false;
+      return [];
     });
   };
-  /** Element's current visual bbox: layout bbox shifted by its accumulated offset. */
+  /** Element's current visual bbox: layout bbox under its accumulated pose —
+   *  shifted by the offset, and, when it has been turned, the bounds of the
+   *  four rotated corners, so highlight/camera/arrange aim where it now is. */
+  /** The box around several current boxes (a pieces group), or null when none has geometry. */
+  const unionBox = (boxes: (BBox | null)[]): BBox | null => {
+    const bs = boxes.filter((b): b is BBox => b !== null);
+    if (bs.length === 0) return null;
+    const x0 = Math.min(...bs.map((b) => b.x));
+    const y0 = Math.min(...bs.map((b) => b.y));
+    const x1 = Math.max(...bs.map((b) => b.x + b.w));
+    const y1 = Math.max(...bs.map((b) => b.y + b.h));
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  };
+
   const currentBox = (id: string): BBox | null => {
     const box = bboxOf(id);
     if (!box) return null;
-    const [dx, dy] = offsets[id] ?? [0, 0];
-    return { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
+    const offset: Pt = offsets[id] ?? [0, 0];
+    const turn = turns[id];
+    if (turn === undefined || (turn.deg === 0 && (turn.scale ?? 1) === 1)) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
+    const map = poseOf(offset, turn);
+    const corners: Pt[] = ([
+      [box.x, box.y],
+      [box.x + box.w, box.y],
+      [box.x + box.w, box.y + box.h],
+      [box.x, box.y + box.h],
+    ] as Pt[]).map(map);
+    const xs = corners.map((c) => c[0]);
+    const ys = corners.map((c) => c[1]);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -424,13 +478,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       let box: BBox | undefined;
       let refId: string | undefined;
       if (at?.ref !== undefined) {
-        if (!known.has(at.ref)) {
+        const kids = opts.expandId?.(at.ref)?.filter((k) => known.has(k)) ?? [];
+        if (!known.has(at.ref) && kids.length === 0) {
           warnings.push(`point command references unknown id "${at.ref}" (skipped)`);
           continue;
         }
         refId = at.ref;
-        if (!visibleSet.has(at.ref)) warnings.push(`point target "${at.ref}" is not visible at that point`);
-        const b = currentBox(at.ref);
+        const invisible = kids.length > 0 ? !kids.some((k) => visibleSet.has(k)) : !visibleSet.has(at.ref);
+        if (invisible) warnings.push(`point target "${at.ref}" is not visible at that point`);
+        // A pieces id points at the whole group: the box around every piece.
+        const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(at.ref);
         if (b) {
           box = b;
           x = b.x + b.w / 2;
@@ -451,18 +508,159 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       for (const id of ids) {
         if (!visibleSet.has(id)) warnings.push(`move target "${id}" is not visible at that point (still moved)`);
       }
-      const rawPath = cmd.move.path && cmd.move.path.length > 0 ? cmd.move.path : cmd.move.by ? [cmd.move.by] : null;
-      if (ids.length === 0 || !rawPath) {
-        if (!rawPath) warnings.push("move command without by/path skipped");
+      const hasPath = cmd.move.path !== undefined && cmd.move.path.length > 0;
+      const hasBy = cmd.move.by !== undefined;
+      const hasTo = cmd.move.to !== undefined;
+      const hasRotate = cmd.move.rotate !== undefined && cmd.move.rotate !== 0;
+      const hasScale = cmd.move.scale !== undefined && cmd.move.scale !== 1;
+      if (ids.length === 0 || (!hasPath && !hasBy && !hasTo && !hasRotate && !hasScale)) {
+        if (!hasPath && !hasBy && !hasTo && !hasRotate && !hasScale) warnings.push("move command needs one of by, to, path, rotate or scale — skipped");
         continue;
       }
-      const path = rawPath.map((d) => deltaToLogical(d as Pt));
-      const [fx, fy] = path[path.length - 1];
-      for (const id of ids) {
-        const [ox, oy] = offsets[id] ?? [0, 0];
-        offsets[id] = [ox + fx, oy + fy];
+      const seconds = cmd.move.duration ?? 1;
+      const easing = cmd.move.easing ?? "ease-in-out";
+      // Dedupe here too: a spec label's own id can coincide with the
+      // implicit label_<id> convention, so a single attachedTo(id) call may
+      // list the same follower twice even when the caller already dedupes.
+      const followers = (id: string): string[] => [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => known.has(f) && !ids.includes(f));
+      if (!hasRotate && !hasTo && !hasScale) {
+        // Plain translation, possibly along waypoints: the move step as before, followers included.
+        const rawPath = hasPath ? cmd.move.path! : [cmd.move.by!];
+        const path = rawPath.map((d) => deltaToLogical(d as Pt));
+        const [fx, fy] = path[path.length - 1];
+        const moving = [...new Set([...ids, ...ids.flatMap(followers)])];
+        for (const id of moving) {
+          const [ox, oy] = offsets[id] ?? [0, 0];
+          offsets[id] = [ox + fx, oy + fy];
+        }
+        pushStep({ kind: "move", ids: moving, path, seconds, easing });
+      } else {
+        // A pose change: per-id from/to, tweened together.
+        const items: TransformItem[] = [];
+        // Two targets in the same move can share a follower (e.g. two
+        // elements both labeled by the same annotation) — move it once,
+        // with whichever target claims it first.
+        const movedFollowers = new Set<string>();
+        for (const id of ids) {
+          const box = bboxOf(id);
+          const offset0: Pt = offsets[id] ?? [0, 0];
+          const turn0 = turns[id];
+          let offset: Pt = offset0;
+          let turn: Turn | undefined = turn0;
+          let delta: Pt = [0, 0];
+          if (hasTo && box) {
+            const centre = poseCentre(box, offset0, turn0);
+            const dest = toLogical(cmd.move.to as Pt);
+            delta = [dest[0] - centre[0], dest[1] - centre[1]];
+          } else if (hasBy) {
+            delta = deltaToLogical(cmd.move.by as Pt);
+          } else if (hasPath) {
+            delta = deltaToLogical(cmd.move.path![cmd.move.path!.length - 1] as Pt);
+          }
+          offset = [offset[0] + delta[0], offset[1] + delta[1]];
+          if (hasScale) {
+            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+            const c = composeScale(offset, turn, cmd.move.scale!, pivotNow);
+            offset = c.offset;
+            turn = c.turn;
+          }
+          if (hasRotate) {
+            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+            const c = composeTurn(offset, turn, cmd.move.rotate!, pivotNow);
+            offset = c.offset;
+            turn = c.turn;
+          }
+          items.push({ id, from: { offset: offset0, turn: turn0 ?? { deg: 0, pivot: [0, 0] } }, to: { offset, turn: turn ?? { deg: 0, pivot: [0, 0] } } });
+          offsets[id] = offset;
+          if (turn) turns[id] = turn;
+          for (const f of followers(id)) {
+            if (movedFollowers.has(f)) continue;
+            movedFollowers.add(f);
+            const o: Pt = offsets[f] ?? [0, 0];
+            const next: Pt = [o[0] + delta[0], o[1] + delta[1]];
+            items.push({ id: f, from: { offset: o, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } }, to: { offset: next, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } } });
+            offsets[f] = next;
+          }
+        }
+        pushStep({ kind: "transform", items, seconds, easing });
       }
-      pushStep({ kind: "move", ids, path, seconds: cmd.move.duration ?? 1, easing: cmd.move.easing ?? "ease-in-out" });
+    } else if (cmd.arrange !== undefined) {
+      const ids = resolveIds(cmd.arrange.target, "arrange");
+      if (ids.length === 0) continue;
+      const inputs: ArrangeInput[] = [];
+      for (const id of ids) {
+        const box = currentBox(id);
+        if (!box) {
+          warnings.push(`arrange target "${id}" has no geometry (skipped)`);
+          continue;
+        }
+        const pose = { offset: offsets[id] ?? ([0, 0] as Pt), turn: turns[id] };
+        const raw = bboxOf(id)!;
+        inputs.push({ id, box, centre: poseCentre(raw, pose.offset, pose.turn), piece: opts.pieceOf?.(id) ?? undefined, pose });
+      }
+      if (inputs.length === 0) continue;
+      const at = cmd.arrange.at ? toLogical(cmd.arrange.at as Pt) : undefined;
+      if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && !inputs.some((i) => i.piece)) {
+        warnings.push(`arrange ${cmd.arrange.layout}: none of the targets is a sector piece — laid out as a row instead`);
+      }
+      // A honeycomb is a zero-seam packing, so hex alone defaults to no gap.
+      const gap = cmd.arrange.gap ?? (cmd.arrange.layout === "hex" ? 0 : 6);
+      const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap, columns: cmd.arrange.columns, start: cmd.arrange.start });
+      const items: TransformItem[] = [];
+      // Attached labels ride along with a TRANSLATION, exactly as under move —
+      // an arranged row of labeled shapes must not leave its labels behind.
+      // The zipper and the fan are rotations about each apex and carry nothing: a label
+      // does not turn over with its slice. Dedupe across the whole loop, since
+      // two targets can share one label (and attachedTo may repeat an id).
+      const followers = (id: string): string[] => [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => known.has(f) && !ids.includes(f));
+      const movedFollowers = new Set<string>();
+      for (const p of placed) {
+        const input = inputs.find((i) => i.id === p.id)!;
+        const from = { offset: input.pose.offset, turn: input.pose.turn ?? { deg: 0, pivot: [0, 0] as Pt } };
+        let offset: Pt = input.pose.offset;
+        let turn: Turn | undefined = input.pose.turn;
+        /** The pure translation the followers share; null when the target turned. */
+        let delta: Pt | null = null;
+        if (p.rotate !== undefined && p.pivotNow && p.apexTo) {
+          const pivotNow = poseOf(offset, turn)(p.pivotNow); // the apex where it is now
+          const c = composeTurn(offset, turn, p.rotate, pivotNow);
+          offset = c.offset;
+          turn = c.turn;
+          // the apex is the pivot, so it did not move; slide it to apexTo
+          offset = [offset[0] + p.apexTo[0] - pivotNow[0], offset[1] + p.apexTo[1] - pivotNow[1]];
+        } else if (p.centre) {
+          delta = [p.centre[0] - input.centre[0], p.centre[1] - input.centre[1]];
+          offset = [offset[0] + delta[0], offset[1] + delta[1]];
+        }
+        items.push({ id: p.id, from, to: { offset, turn: turn ?? { deg: 0, pivot: [0, 0] } } });
+        offsets[p.id] = offset;
+        if (turn) turns[p.id] = turn;
+        if (delta === null) continue;
+        for (const f of followers(p.id)) {
+          if (movedFollowers.has(f)) continue;
+          movedFollowers.add(f);
+          const o: Pt = offsets[f] ?? [0, 0];
+          const next: Pt = [o[0] + delta[0], o[1] + delta[1]];
+          items.push({ id: f, from: { offset: o, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } }, to: { offset: next, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } } });
+          offsets[f] = next;
+        }
+      }
+      pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
+    } else if (cmd.fade !== undefined) {
+      const ids = resolveIds(cmd.fade.target, "fade");
+      if (ids.length === 0) continue;
+      const to = Math.max(0, Math.min(1, cmd.fade.to));
+      const items: { id: string; from: number; to: number }[] = [];
+      const seen = new Set<string>();
+      const fadeOne = (id: string) => {
+        if (seen.has(id)) return;
+        seen.add(id);
+        items.push({ id, from: opacities[id] ?? 1, to });
+        opacities[id] = to;
+      };
+      for (const id of ids) fadeOne(id);
+      for (const id of ids) for (const f of opts.attachedTo?.(id) ?? []) if (known.has(f) && !ids.includes(f)) fadeOne(f);
+      pushStep({ kind: "fade", items, seconds: cmd.fade.duration ?? 1, easing: cmd.fade.easing ?? "ease-in-out" });
     } else if (cmd.camera !== undefined) {
       let box: BBox | null = null;
       if (!cmd.camera.reset) {
@@ -474,10 +672,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           let cy: number = camera ? camera.y + camera.h / 2 : CANVAS.h / 2;
           const center = cmd.camera.center;
           if (center?.ref !== undefined) {
-            if (!known.has(center.ref)) {
+            const kids = opts.expandId?.(center.ref)?.filter((k) => known.has(k)) ?? [];
+            if (!known.has(center.ref) && kids.length === 0) {
               warnings.push(`camera command references unknown id "${center.ref}" (centering on canvas)`);
             } else {
-              const b = currentBox(center.ref);
+              // A pieces id centres on the whole group.
+              const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(center.ref);
               if (b) {
                 cx = b.x + b.w / 2;
                 cy = b.y + b.h / 2;

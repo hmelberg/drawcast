@@ -91,7 +91,7 @@ describe("previewParams", () => {
     const player = makePlayer();
     const calls: { params: Record<string, unknown>; revealNew?: boolean }[] = [];
     player.reprojector = {
-      frame: (p, _v, _o, revealNew) => {
+      frame: (p, _v, _o, _turns, _opacities, revealNew) => {
         calls.push({ params: { ...p }, revealNew });
       },
       commit: () => new Map(),

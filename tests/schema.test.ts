@@ -217,3 +217,69 @@ describe("element links", () => {
     expect(r.errors[0]).toMatch(/http/);
   });
 });
+
+describe("arrow/edge from/to stay endpoint objects — sector/arc's angles are separate start/end fields", () => {
+  test("an arrow with numeric from/to (sector/arc's shape) is rejected, not silently endpoint-less", () => {
+    const r = validateSpec({ elements: [{ id: "arr", type: "arrow", from: 45, to: 90 }], commands: [{ draw: ["arr"] }] });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("move: rotate / to / pivot", () => {
+  const base = (move: object) => ({ elements: [{ id: "a", type: "path", points: [[0, 0], [10, 10]] }], commands: [{ draw: ["a"] }, { move }] });
+  test("rotate alone is a valid move", () => {
+    expect(validateSpec(base({ target: ["a"], rotate: 90 })).ok).toBe(true);
+  });
+  test("to with a pivot is valid", () => {
+    expect(validateSpec(base({ target: ["a"], to: [500, 300], rotate: -45, pivot: [500, 300] })).ok).toBe(true);
+  });
+  test("a move with none of by/to/path/rotate is rejected", () => {
+    const v = validateSpec(base({ target: ["a"] }));
+    expect(v.ok).toBe(false);
+    expect(v.errors.join(" ")).toMatch(/by, to, path, rotate or scale/);
+  });
+  test("scale alone is a valid move", () => {
+    expect(validateSpec(base({ target: ["a"], scale: 2 })).ok).toBe(true);
+  });
+  test("scale of 0 is rejected by the schema", () => {
+    expect(validateSpec(base({ target: ["a"], scale: 0 })).ok).toBe(false);
+  });
+});
+
+describe("arrange", () => {
+  const spec = (arrange: object) => ({
+    elements: [{ id: "kake", type: "pieces", of: "sectors", x: 300, y: 375, radius: 120, n: 12 }],
+    commands: [{ draw: ["kake"] }, { arrange }],
+  });
+  test("a pieces id zipped is a valid arrange", () => {
+    expect(validateSpec(spec({ target: "kake", layout: "zipper", at: [650, 375], duration: 3 })).ok).toBe(true);
+  });
+  test("layout is required and must be one of the five", () => {
+    expect(validateSpec(spec({ target: "kake" })).ok).toBe(false);
+    expect(validateSpec(spec({ target: "kake", layout: "spiral" })).ok).toBe(false);
+  });
+  test("arrange counts as an action verb: it cannot share a command with move", () => {
+    const v = validateSpec({
+      elements: [{ id: "kake", type: "pieces", of: "sectors", x: 300, y: 375, radius: 120, n: 12 }],
+      commands: [{ arrange: { target: "kake", layout: "row" }, move: { target: "kake", by: [10, 0] } }],
+    });
+    expect(v.ok).toBe(false);
+    expect(v.errors.join(" ")).toMatch(/at most one action/i);
+  });
+});
+
+describe("fade", () => {
+  const spec = (fade: object) => ({
+    elements: [{ id: "a", type: "shape", shape: "circle", x: 100, y: 100, radius: 20 }],
+    commands: [{ draw: ["a"] }, { fade }],
+  });
+  test("a valid fade validates", () => {
+    expect(validateSpec(spec({ target: ["a"], to: 0.3 })).ok).toBe(true);
+  });
+  test("to is required", () => {
+    expect(validateSpec(spec({ target: ["a"] })).ok).toBe(false);
+  });
+  test("a bare-string target validates", () => {
+    expect(validateSpec(spec({ target: "a", to: 0.3 })).ok).toBe(true);
+  });
+});

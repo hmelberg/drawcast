@@ -8,6 +8,7 @@ import type { BBox } from "../layout/geometry";
 import type { LayoutResult } from "../layout/layout";
 import type { Pt } from "../layout/model";
 import type { HighlightEffect, Spec } from "../spec/types";
+import type { Turn } from "./pose";
 
 export interface RenderedElement {
   id: string;
@@ -23,6 +24,15 @@ export interface RenderedElement {
    * suggest — not at all.
    */
   setOffset?(dx: number, dy: number): void;
+  /**
+   * Persistent pose: translate by (dx, dy) after rotating by `deg`
+   * (counter-clockwise, y-up) and uniformly scaling by `scale` (default 1),
+   * both about `pivot` in the element's ORIGINAL frame (design §2.1).
+   * setOffset(dx, dy) is setTransform(dx, dy, 0, [0, 0]).
+   */
+  setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number): void;
+  /** Persistent opacity 0–1 (1 clears it). Independent of the focus effect's dimming. */
+  setOpacity?(alpha: number): void;
 }
 
 /**
@@ -58,11 +68,23 @@ export interface MountResult {
   /**
    * Per-frame geometry swap for the animate command: rebuild the drawable
    * nodes from a new layout at FULL progress, restricted to `visible` ids,
-   * applying `offsets` (logical y-up). The svg element, camera viewBox, and
-   * gesture overlay are untouched. Creates NO element handles and does NO
-   * measurement — it must stay cheap enough for 30–60 fps.
+   * applying the scene's pose (`offsets`, logical y-up, plus `turns`) and
+   * `opacities`. The svg element, camera viewBox, and gesture overlay are
+   * untouched. Creates NO element handles and does NO measurement — it must
+   * stay cheap enough for 30–60 fps.
+   *
+   * Every piece of per-element state the handles would apply has to be
+   * repeated here, because the rebuilt nodes have no handles: an element that
+   * was rotated, scaled or faded otherwise snaps back to translate-only for
+   * the length of a tween and jumps into place at settle.
    */
-  swapGeometry?(layout: LayoutResult, visible: ReadonlySet<string>, offsets: Record<string, Pt>): void;
+  swapGeometry?(
+    layout: LayoutResult,
+    visible: ReadonlySet<string>,
+    offsets: Record<string, Pt>,
+    turns?: Record<string, Turn>,
+    opacities?: Record<string, number>,
+  ): void;
   /**
    * Full re-mount of a new layout into the same svg: rebuilds nodes AND
    * element handles (measurement included; handles start hidden exactly like

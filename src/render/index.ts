@@ -7,7 +7,7 @@ import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
 import { withNewIdsVisible, withOverrides } from "./params";
-import { planCommands, type Plan } from "./plan";
+import { planCommands, type Plan, type PlanOptions } from "./plan";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
@@ -79,6 +79,33 @@ function contactEmail(): string {
   } catch {
     return "";
   }
+}
+
+/**
+ * The three `planCommands` options that read a layout but touch no DOM:
+ * `pieceOf`/`expandId` let a `pieces` parent id (and the zipper arrange it
+ * feeds) resolve to its `<id>_1 … <id>_n` children, and `attachedTo` carries
+ * a label along its target's `move`/`arrange`. Pulled out of `render()` so a
+ * test can plan the way the app does — with `layout.order` alone (as
+ * `render()` used to before this option existed), a `pieces` parent id is
+ * never in scope (layout.ts skips it: the children are the
+ * command-addressable ids), so `draw`/`arrange` naming just the parent
+ * silently drops as an unknown id instead of expanding.
+ */
+export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId"> {
+  return {
+    pieceOf: (id) => layout.pieces[id] ?? null,
+    expandId: (id) => layout.pieceGroups[id] ?? null,
+    attachedTo: (id) => {
+      const out: string[] = [];
+      for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);
+      if (layout.order.includes(`label_${id}`)) out.push(`label_${id}`, `label_${id}_leader`);
+      // A spec label id can coincide with the implicit label_<id> convention
+      // (e.g. {"id": "label_req", "attach_to": "req"}) — dedupe so the same
+      // follower id isn't returned twice.
+      return [...new Set(out)].filter((x) => layout.order.includes(x));
+    },
+  };
 }
 
 let fontsReady: Promise<void> | null = null;
@@ -187,6 +214,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       const b = elementBBoxes(layoutFor(params, true), measure);
       return (id) => b.get(id) ?? null;
     },
+    ...planOptionsFor(spec, layout),
   });
 
   const mounted = await renderer.mount(layout, spec, stage);
@@ -205,13 +233,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, revealNew, elements) => {
+      frame: (params, visible, offsets, turns, opacities, revealNew, elements) => {
         const l = layoutFor(params, false, elements);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
         const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
-        mounted.swapGeometry!(l, vis, offsets);
+        mounted.swapGeometry!(l, vis, offsets, turns, opacities);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
 
       },

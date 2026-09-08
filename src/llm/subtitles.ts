@@ -32,12 +32,58 @@ import type { Spec } from "../spec/types";
  * the `wrong` line is never spoken. A live viewer who answers wrong is exactly
  * the person who needs it subtitled.
  */
+/**
+ * Every element id the commands name, in command order.
+ *
+ * planCommands resolves ids against a known set and SKIPS a command whose
+ * targets all resolve to nothing — taking its paired `speak` with it. Handing
+ * it `[]` therefore silently drops the narration of every move, arrange, fade,
+ * highlight and focus in the spec, which is most of the talking in a motion
+ * drawcast. We do not have a layout here (and do not want to run one just to
+ * list strings), so the ids the author wrote ARE the known set: a caption line
+ * that survives here but not at playback costs one unused translation, while
+ * the reverse costs a viewer their subtitles.
+ */
+function mentionedIds(spec: Spec): string[] {
+  const ids = new Set<string>();
+  const add = (v: unknown): void => {
+    if (typeof v === "string") ids.add(v);
+    else if (Array.isArray(v)) for (const x of v) add(x);
+  };
+  for (const cmd of spec.commands ?? []) {
+    if (!cmd || typeof cmd !== "object") continue;
+    const c = cmd as Record<string, unknown>;
+    // Bare-id verbs, each a string or an array of them.
+    for (const key of ["draw", "show", "hide", "erase"] as const) add(c[key]);
+    // Verbs whose ids sit under `target` (highlight and focus among them,
+    // even though the shorthand looks like a bare list at the call site).
+    for (const key of ["highlight", "focus", "move", "arrange", "fade"] as const) {
+      const v = c[key];
+      if (v && typeof v === "object") add((v as Record<string, unknown>).target);
+      else add(v);
+    }
+    const clear = c.clear;
+    if (clear && typeof clear === "object") add((clear as Record<string, unknown>).keep);
+    // Verbs that name ONE element under a nested ref: point.at.ref, camera.center.ref.
+    const point = c.point as { at?: { ref?: unknown } } | undefined;
+    add(point?.at?.ref);
+    const camera = c.camera as { center?: { ref?: unknown } } | undefined;
+    add(camera?.center?.ref);
+  }
+  return [...ids];
+}
+
 export function captionLines(spec: Spec): string[] {
   const out = new Set<string>();
   const add = (text: unknown): void => {
     if (typeof text === "string" && text.trim().length > 0) out.add(text);
   };
-  for (const step of planCommands(spec.commands ?? [], []).steps) {
+  // A placeholder box for every id: `arrange` (alone among the motion verbs)
+  // also skips a target it cannot measure, and we have no layout here. The
+  // geometry it computes from a degenerate box is thrown away — only the
+  // step's narration is read.
+  const plan = planCommands(spec.commands ?? [], mentionedIds(spec), { bboxOf: () => ({ x: 0, y: 0, w: 0, h: 0 }) });
+  for (const step of plan.steps) {
     add(step.narration);
     if (step.kind === "speak") add(step.text);
     if (step.kind === "quiz") {

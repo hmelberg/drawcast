@@ -27,6 +27,20 @@ import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
 import type { SpecElement } from "../spec/types";
 
+/**
+ * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
+ * the piece's own id (`<parentId>_<k>`) — what the `move` (rotate) and
+ * `arrange` verbs need: the pivot to turn about (apex), where the piece's
+ * own mass sits (centroid), and the wedge it occupies (midAngle/halfAngle).
+ */
+export interface PieceGeometry {
+  apex: Pt;
+  centroid: Pt;
+  midAngle: number;
+  halfAngle: number;
+  radius: number;
+}
+
 export interface Tier2Result {
   drawables: Drawable[];
   labels: LabelRequest[];
@@ -35,7 +49,8 @@ export interface Tier2Result {
   /**
    * Command-addressable ids tier-2 minted that are NOT spec element ids — a
    * source element's quote highlights (`<id>_quote`, `<id>_quote_2`, …), which
-   * the storyboard times to the narration beat on their own line.
+   * the storyboard times to the narration beat on their own line, and a
+   * `pieces` element's `<id>_1` … `<id>_n` sectors.
    */
   extraOrder: string[];
   warnings: string[];
@@ -44,6 +59,10 @@ export interface Tier2Result {
   /** Each drawn code pane's text rectangle, keyed by element id — where the
    *  in-place editor lays itself down. */
   panes: Record<string, BBox>;
+  /** Per-piece geometry (see PieceGeometry), keyed by the piece's own id. */
+  pieces: Record<string, PieceGeometry>;
+  /** parent `pieces` element id → its child piece ids, in order. */
+  pieceGroups: Record<string, string[]>;
 }
 
 interface Ctx {
@@ -60,6 +79,8 @@ interface Ctx {
   warnings: string[];
   windows: Record<string, CodeWindow>;
   panes: Record<string, BBox>;
+  pieces: Record<string, PieceGeometry>;
+  pieceGroups: Record<string, string[]>;
 }
 
 export function layoutElements(
@@ -85,6 +106,8 @@ export function layoutElements(
     windows: {},
     panes: {},
     warnings: [],
+    pieces: {},
+    pieceGroups: {},
   };
 
   // Pass 1: position free nodes deterministically on a circle.
@@ -196,10 +219,32 @@ export function layoutElements(
       case "code":
         drawables.push(...codeDrawables(el, ctx));
         break;
+      case "sector":
+        drawables.push(...sectorDrawables(el, ctx));
+        break;
+      case "arc":
+        drawables.push(arcDrawable(el, ctx));
+        break;
+      case "polygon":
+        drawables.push(...polygonDrawables(el, ctx));
+        break;
+      case "pieces":
+        drawables.push(...piecesDrawables(el, ctx));
+        break;
     }
   }
 
-  return { drawables, labels, anchors: ctx.anchors, extraOrder: ctx.extraOrder, warnings: ctx.warnings, windows: ctx.windows, panes: ctx.panes };
+  return {
+    drawables,
+    labels,
+    anchors: ctx.anchors,
+    extraOrder: ctx.extraOrder,
+    warnings: ctx.warnings,
+    windows: ctx.windows,
+    panes: ctx.panes,
+    pieces: ctx.pieces,
+    pieceGroups: ctx.pieceGroups,
+  };
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
@@ -907,5 +952,192 @@ function sourceDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: Math.max(320, Math.min(1500, ww * 7)) }),
     });
   });
+  return out;
+}
+
+// --- sector / arc / polygon / pieces (design §2.2) ---------------------
+
+const DEG = Math.PI / 180;
+/** Ceiling on the cells one `pieces` element may cut a rectangle into. */
+const MAX_PIECE_CELLS = 256;
+
+/** A closed fan: the centre, then the arc boundary — a sector's outline. */
+function sectorPts(c: Pt, r: number, from: number, to: number, steps = 24): Pt[] {
+  const pts: Pt[] = [c];
+  for (let i = 0; i <= steps; i++) {
+    const a = (from + ((to - from) * i) / steps) * DEG;
+    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/** The arc boundary alone, no centre point — an arc has no interior to close. */
+function arcPts(c: Pt, r: number, from: number, to: number, steps = 32): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = (from + ((to - from) * i) / steps) * DEG;
+    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/**
+ * A closed outline with a wash, the pair every filled primitive is made of —
+ * mirrors shapeDrawable/regionDrawable's ids (outline = the element id, wash
+ * = `${id}_wash`, found via SUB_SUFFIXES) and regionDrawable's opacity
+ * convention (a style.opacity the author set always wins; otherwise the wash
+ * defaults dimmer than the outline, which stays fully opaque). NOT `_fill`:
+ * that suffix is already a public, independently addressable sub-id across
+ * the shipped scene packs (e.g. `nucleus`/`nucleus_fill`), so reusing it here
+ * would double-paint their washes and let highlight/dim/erase leak onto them.
+ */
+function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
+  const outlineStyle = resolveStyle(el.style);
+  const out: Drawable[] = [];
+  if (outlineStyle.fill) {
+    out.push({
+      id: `${id}_wash`,
+      kind: "area",
+      pts,
+      z: Z_AREA,
+      style: resolveStyle(el.style, { opacity: 0.35 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.region }),
+    });
+  }
+  out.push({
+    id,
+    kind: "stroke",
+    pts,
+    closed: true,
+    z: Z_STROKE,
+    style: outlineStyle,
+    drawOpts: resolveDrawOpts(el.draw),
+  });
+  return out;
+}
+
+function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const r = el.radius ?? 100;
+  const from = el.start ?? 0;
+  const to = el.end ?? 90;
+  const pts = sectorPts(c, r, from, to);
+  const mid = (from + to) / 2;
+  const centroid: Pt = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
+  ctx.anchors[el.id] = centroid;
+  // A standalone sector is a piece too: arrange's zipper and fan read its
+  // apex and angles here, exactly as they read a `pieces` child's.
+  // |end − start|: a sector written the other way round (start 90, end 30)
+  // draws fine, and its half-span must stay positive for zipper and fan.
+  ctx.pieces[el.id] = { apex: c, centroid, midAngle: mid, halfAngle: Math.abs(to - from) / 2, radius: r };
+  return filledOutline(el.id, pts, el);
+}
+
+function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const r = el.radius ?? 100;
+  const from = el.start ?? 0;
+  const to = el.end ?? 180;
+  const pts = arcPts(c, r, from, to);
+  ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)];
+  return { id: el.id, kind: "stroke", pts, z: Z_STROKE, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw) };
+}
+
+function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  let pts: Pt[];
+  if (el.points && el.points.length >= 3) {
+    pts = el.points as Pt[];
+  } else {
+    const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+    const n = Math.max(3, Math.round(el.sides ?? 5));
+    const r = el.radius ?? 100;
+    const rot = (el.rotation ?? 0) * DEG;
+    pts = Array.from({ length: n }, (_, i): Pt => {
+      const a = rot + Math.PI / 2 + (2 * Math.PI * i) / n; // first vertex on top
+      return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)];
+    });
+  }
+  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  ctx.anchors[el.id] = [cx, cy];
+  return filledOutline(el.id, pts, el);
+}
+
+/**
+ * `pieces: {of: "sectors"}` cuts a circle into n equal sectors, each its own
+ * command-addressable id `<id>_1` … `<id>_n` (pushed to extraOrder — the
+ * parent id itself draws nothing and is skipped in layout.ts's order loop).
+ * Each piece is a plain filledOutline pair (no group wrapper), so it is found
+ * by drawablesForId/elementRings exactly like a standalone sector.
+ */
+function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
+  const r = el.radius ?? 120;
+  const n = Math.max(2, Math.round(el.n ?? 8));
+  const step = 360 / n;
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  for (let k = 0; k < n; k++) {
+    const id = `${el.id}_${k + 1}`;
+    const from = k * step;
+    const to = (k + 1) * step;
+    const pts = sectorPts(c, r, from, to);
+    const mid = (from + to) / 2;
+    const centroid: Pt = [c[0] + r * 0.6 * Math.cos(mid * DEG), c[1] + r * 0.6 * Math.sin(mid * DEG)];
+    out.push(...filledOutline(id, pts, el));
+    ctx.anchors[id] = centroid;
+    ctx.pieces[id] = { apex: c, centroid, midAngle: mid, halfAngle: step / 2, radius: r };
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
+  return out;
+}
+
+/**
+ * A width × height rectangle centred on `c`, cut into `n` vertical strips
+ * (`of: "strips"`) or `n` columns × `rows` rows (`of: "grid"`), numbered row
+ * by row from the top left. Each cell is a closed outline with a wash and
+ * its own id, like a sector piece; it carries no sector geometry, so the
+ * zipper and fan treat it as a plain box (row/grid/ring/hex/stack/fade/move
+ * all work on it).
+ */
+function rectPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  const w = el.width ?? 400;
+  const h = el.height ?? 200;
+  // Defaults are for hand-edited specs only: validateSpec requires width,
+  // height and n (and rows for a grid). The cell count is capped at 256 —
+  // more than reads on the canvas, and lint's co-visibility bookkeeping is
+  // quadratic in visible ids (a 64 × 64 grid took layoutSpec down).
+  const cols = Math.max(1, Math.round(el.n ?? 4));
+  const rawRows = el.of === "grid" ? Math.max(1, Math.round(el.rows ?? 2)) : 1;
+  const rows = Math.min(rawRows, Math.max(1, Math.floor(MAX_PIECE_CELLS / cols)));
+  const cw = w / cols;
+  const ch = h / rows;
+  const left = c[0] - w / 2;
+  const top = c[1] + h / 2; // y-up: the first row is the top one
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < cols; k++) {
+      const id = `${el.id}_${r * cols + k + 1}`;
+      const x0 = left + k * cw;
+      const y1 = top - r * ch;
+      const pts: Pt[] = [
+        [x0, y1],
+        [x0 + cw, y1],
+        [x0 + cw, y1 - ch],
+        [x0, y1 - ch],
+      ];
+      out.push(...filledOutline(id, pts, el));
+      ctx.anchors[id] = [x0 + cw / 2, y1 - ch / 2];
+      ids.push(id);
+      ctx.extraOrder.push(id);
+    }
+  }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
   return out;
 }

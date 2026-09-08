@@ -9,6 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import type { Command, Spec, SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
+import { SUB_SUFFIXES } from "../layout/model";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
@@ -71,7 +72,10 @@ const elementSchema = {
     id: { type: "string", description: "Unique id, referenced by commands and other elements." },
     type: {
       type: "string",
-      enum: ["axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code"],
+      enum: [
+        "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
+        "sector", "arc", "polygon", "pieces",
+      ],
     },
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
@@ -138,18 +142,32 @@ const elementSchema = {
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
     closed: { type: "boolean", description: "path: close the polyline." },
-    x: { type: "number", description: "text/shape: logical x (y-up canvas)." },
-    y: { type: "number", description: "text/shape: logical y (y-up canvas)." },
-    width: { type: "number", description: "shape rect / portrait / source / code: width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
-    height: { type: "number", description: "shape rect: height in logical units." },
-    radius: { type: "number", description: "shape circle: radius in logical units." },
+    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical x (y-up canvas) — the centre, for the shapes that have one." },
+    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical y (y-up canvas) — the centre, for the shapes that have one." },
+    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
+    height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces: radius in logical units." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
+    // sector / arc / polygon / pieces
+    start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
+    end: { type: "number", description: "sector/arc: end angle in degrees, counter-clockwise from +x — e.g. start: 0, end: 90 is the upper-right quarter." },
+    sides: { type: "integer", minimum: 3, description: "polygon: sides of a REGULAR polygon centred at x,y with radius — instead of points." },
+    rotation: { type: "number", description: "polygon: turn a regular polygon by this many degrees." },
+    n: {
+      type: "integer",
+      minimum: 1,
+      maximum: 128,
+      description:
+        "pieces: how many pieces to cut — e.g. 12 sectors of a circle, 4 strips of a rectangle, or the COLUMNS of a grid (rows in `rows`; n: 1 with rows: 4 gives four horizontal bands). Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
+    },
+    rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left. At most 256 cells in all." },
     // portrait / source
     of: {
       type: "string",
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
-        "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it.",
+        "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
+        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips) or \"grid\" (the same rectangle, n columns × rows rows).",
     },
     url: {
       type: "string",
@@ -273,7 +291,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -492,7 +510,7 @@ const commandSchema = {
     move: {
       type: "object",
       description:
-        "Translate elements by a delta or along a path of offsets. Moves ONLY the listed elements — attached labels, intersection points, or regions do NOT follow; move them explicitly or redraw derived elements.",
+        "Translate and/or rotate and/or scale elements: by a delta, to a destination, along a path, by rotate degrees, or scale by a factor. Attached labels FOLLOW a translation (they do not rotate); intersection points, regions and other derived elements do not — redraw those.",
       properties: {
         target: idListSchema("Element ids to move together."),
         by: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[dx, dy] delta — domain units when a domain is declared, else logical units." },
@@ -501,10 +519,48 @@ const commandSchema = {
           items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
           description: "Waypoint offsets from the element's starting position (same units as by); the last waypoint is the final offset. Use instead of by for curved or multi-leg motion.",
         },
+        to: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Absolute destination for the element's CENTRE (same units as by) — instead of by/path — e.g. \"to\": [500, 300] sends the centre to that point. Attached labels follow." },
+        rotate: { type: "number", description: "Turn the element by this many DEGREES, counter-clockwise, about `pivot` (default: its own centre) — e.g. {\"move\": {\"target\": [\"slice_3\"], \"rotate\": 180, \"duration\": 1}} flips a slice. Combine with by/to to slide and turn at once." },
+        pivot: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "With rotate: the point to turn about, in current coordinates (same units as by) — e.g. \"pivot\": [300, 375] with rotate turns the element about the circle's centre. Omit for the element's own centre." },
+        scale: { type: "number", exclusiveMinimum: 0, description: "Grow or shrink the element by this factor about `pivot` (default its own centre), cumulative across moves — e.g. \"scale\": 2 doubles it in place, 0.5 halves it. Combine with rotate/by/to." },
         duration: { type: "number", description: "Seconds (default 1)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
       },
       required: ["target"],
+      additionalProperties: false,
+    },
+    arrange: {
+      type: "object",
+      description:
+        "Lay the targets out and animate them there — code computes every position and turn. layout: row (left to right), zipper (sector pieces alternately up and down, interleaved into the πr² rectangle), fan (sectors side by side about ONE apex — the angle-sum proof), grid, ring, hex (a honeycomb), stack. target may be ONE pieces id for all its pieces. at = the centre of the arrangement (default: where the targets are now; fan: the first sector's apex). {\"arrange\": {\"target\": \"kake\", \"layout\": \"zipper\", \"at\": [650, 375], \"duration\": 3}, \"speak\": \"Now we zip the slices together…\"}",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        layout: {
+          type: "string",
+          enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex"],
+          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right.",
+        },
+        at: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Centre the arrangement here (same units as move.by) — e.g. \"at\": [650, 375] builds it in the right half of the canvas; for fan it is the shared apex. Default: the targets' current centroid." },
+        start: { type: "number", description: "fan: the angle where the first piece begins, degrees counter-clockwise from +x — e.g. \"start\": 0 lays the angles along a horizontal line rightwards (default 0)." },
+        gap: { type: "number", description: "Space between neighbours in logical units (default 6; hex defaults to 0 for a tight comb) — e.g. \"gap\": 20 for an airy row. fan's sectors always touch; gap applies only to non-sector targets there." },
+        columns: { type: "integer", minimum: 1, description: "grid: pieces per row — e.g. \"columns\": 4 lays twelve pieces out four wide." },
+        duration: { type: "number", description: "Seconds (default 2)." },
+        easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+      },
+      required: ["target", "layout"],
+      additionalProperties: false,
+    },
+    fade: {
+      type: "object",
+      description:
+        "Persistently dim elements (or restore them with to: 1) so the rest stands out — e.g. {\"fade\": {\"target\": [\"supply\"], \"to\": 0.25, \"duration\": 1}, \"speak\": \"Set supply aside for a moment.\"}. Attached labels fade with their element. It stays until the next fade; use hide to remove an element, focus/highlight for a momentary emphasis that ends by itself.",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        to: { type: "number", minimum: 0, maximum: 1, description: "Opacity to settle at — e.g. 0.25 dims, 1 restores." },
+        duration: { type: "number", description: "Seconds (default 1)." },
+        easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+      },
+      required: ["target", "to"],
       additionalProperties: false,
     },
     camera: {
@@ -719,6 +775,11 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.highlight) cmd.highlight.target = toList(cmd.highlight.target)!;
     if (cmd.focus) cmd.focus.target = toList(cmd.focus.target)!;
     if (cmd.move) cmd.move.target = toList(cmd.move.target)!;
+    // arrange's whole point is that ONE pieces id names them all, so the bare
+    // string is the common form — normalize it like every other target list.
+    if (cmd.arrange) cmd.arrange.target = toList(cmd.arrange.target)!;
+    // fade's target follows the same one-or-many convention as arrange/move.
+    if (cmd.fade) cmd.fade.target = toList(cmd.fade.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -758,7 +819,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
@@ -820,8 +881,15 @@ function semanticErrors(spec: Spec): string[] {
       errors.push(`commands[${i}]: voice and delivery only apply to a command with speak`);
     }
     if (cmd.parallel !== undefined && verb !== "draw" && verb !== "erase") errors.push(`commands[${i}]: parallel only applies to draw/erase`);
-    if (verb === "move" && !cmd.move!.by && !(cmd.move!.path && cmd.move!.path.length > 0)) {
-      errors.push(`commands[${i}]: move needs by ([dx, dy]) or a non-empty path`);
+    if (
+      cmd.move !== undefined &&
+      cmd.move.by === undefined &&
+      cmd.move.to === undefined &&
+      (cmd.move.path === undefined || cmd.move.path.length === 0) &&
+      cmd.move.rotate === undefined &&
+      cmd.move.scale === undefined
+    ) {
+      errors.push(`commands[${i}]: move needs one of by, to, path, rotate or scale`);
     }
     if (verb === "point") {
       const at = cmd.point!.at;
@@ -950,6 +1018,27 @@ function semanticErrors(spec: Spec): string[] {
     seen.add(el.id);
     errors.push(...elementErrors(el));
   }
+  // An id that reads as another element's sub-drawable ("sky" + "sky_wash")
+  // would be swallowed into that element — drawn twice, highlighted with it,
+  // dimmed with it. Only the actual collision is an error; "sky_wash" alone
+  // is a fine id.
+  for (const id of seen) {
+    for (const s of SUB_SUFFIXES) {
+      const tail = `_${s}`;
+      if (!id.endsWith(tail) || id.length === tail.length) continue;
+      const base = id.slice(0, -tail.length);
+      if (seen.has(base)) errors.push(`element ids "${base}" and "${id}" collide: "${tail}" is reserved for the sub-drawables of "${base}" — rename one of them`);
+    }
+  }
+  // A pieces element mints "<id>_1 … <id>_n"; an author-declared element with
+  // such an id would draw twice under one name.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "pieces") continue;
+    const prefix = `${el.id}_`;
+    for (const id of seen) {
+      if (id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))) errors.push(`element id "${id}" collides with a numbered piece of "${el.id}" — rename it`);
+    }
+  }
 
   // Data tokens ("{sim.y}") must name a CODE element of this drawcast. A
   // brace+dot string that fails the grammar is a typo worth naming; anything
@@ -1022,6 +1111,23 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "shape":
       need(!!el.shape, "needs shape");
+      break;
+    case "sector":
+    case "arc":
+      need(typeof el.radius === "number" && typeof el.start === "number" && typeof el.end === "number", "needs radius, start and end");
+      break;
+    case "polygon":
+      need(
+        (Array.isArray(el.points) && el.points.length >= 3) || (typeof el.sides === "number" && typeof el.radius === "number"),
+        "needs points (≥ 3), or sides + radius for a regular polygon",
+      );
+      break;
+    case "pieces":
+      need(el.of === "sectors" || el.of === "strips" || el.of === "grid", 'needs of: "sectors", "strips" or "grid"');
+      if (el.of === "sectors") need(typeof el.radius === "number", "needs radius");
+      if (el.of === "strips" || el.of === "grid") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
+      if (el.of === "grid") need(typeof el.rows === "number", "needs rows (n is the columns)");
+      need(typeof el.n === "number", "needs n (how many pieces)");
       break;
     case "code":
       // A machine with a program on it and nothing to run (`game`, no code) is

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { planCommands, INITIAL_STATE, type PlanStep } from "../src/render/plan";
+import { poseOf } from "../src/render/pose";
 import { CANVAS } from "../src/layout/canvas";
 
 const allIds = ["axes", "demand_curve", "label_D", "supply_curve"];
@@ -119,8 +120,85 @@ describe("move", () => {
 
   test("move without by/path is skipped with a warning", () => {
     const plan = planCommands([{ move: { target: ["axes"] } }], ["axes"]);
-    expect(plan.warnings.join(" ")).toMatch(/by\/path/);
+    expect(plan.warnings.join(" ")).toMatch(/by, to, path, rotate or scale/);
     expect(plan.steps.filter((s) => s.kind === "move")).toHaveLength(0);
+  });
+
+  test("rotate records a turn in the state and emits a transform step", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], rotate: 90 } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items).toHaveLength(1);
+    expect(step.items[0].to.turn.deg).toBe(90);
+    expect(step.items[0].to.turn.pivot).toEqual([200, 150]); // the bbox centre, original frame
+    expect(plan.states[1].turns.demand_curve).toEqual({ deg: 90, pivot: [200, 150], scale: 1 });
+    expect(plan.states[1].offsets.demand_curve ?? [0, 0]).toEqual([0, 0]);
+  });
+  test("to moves the centre to the destination (a delta from the current centre)", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], to: [400, 300] } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    expect(plan.states[1].offsets.demand_curve).toEqual([200, 150]);
+  });
+  test("attached labels follow a translation but not a rotation", () => {
+    const plan = planCommands(
+      [{ draw: ["demand_curve", "label_D"] }, { move: { target: ["demand_curve"], by: [10, 0], rotate: 45 } }],
+      allIds,
+      { bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }), attachedTo: (id) => (id === "demand_curve" ? ["label_D"] : []) },
+    );
+    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+    expect(plan.states[1].turns.label_D).toBeUndefined();
+    expect(plan.states[1].turns.demand_curve?.deg).toBe(45);
+  });
+  test("move with neither by, to, path nor rotate is skipped with a warning", () => {
+    const plan = planCommands([{ move: { target: ["axes"] } }], ["axes"]);
+    expect(plan.steps.filter((s) => s.kind === "move" || s.kind === "transform")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/move/);
+  });
+  test("a follower named twice by attachedTo (e.g. a label id matching label_<target>) is moved once", () => {
+    const plan = planCommands(
+      [{ draw: ["demand_curve", "label_D"] }, { move: { target: ["demand_curve"], by: [10, 0], rotate: 45 } }],
+      allIds,
+      { bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }), attachedTo: (id) => (id === "demand_curve" ? ["label_D", "label_D"] : []) },
+    );
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.filter((it) => it.id === "label_D")).toHaveLength(1);
+    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+  });
+  test("two targets sharing a follower move it once", () => {
+    const plan = planCommands(
+      [{ draw: ["demand_curve", "supply_curve", "label_D"] }, { move: { target: ["demand_curve", "supply_curve"], by: [10, 0], rotate: 45 } }],
+      allIds,
+      {
+        bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }),
+        attachedTo: (id) => (id === "demand_curve" || id === "supply_curve" ? ["label_D"] : []),
+      },
+    );
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.filter((it) => it.id === "label_D")).toHaveLength(1);
+    expect(plan.states[1].offsets.label_D).toEqual([10, 0]);
+  });
+  test("scale composes a pose about the element's centre", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], scale: 2 } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items[0].to.turn.scale).toBe(2);
+    expect(step.items[0].to.turn.pivot).toEqual([200, 150]);
+    expect(step.items[0].to.offset).toEqual([0, 0]);
+    expect(plan.states[1].turns.demand_curve.scale).toBe(2);
+  });
+  test("scale about an explicit pivot shifts the offset exactly", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { move: { target: ["demand_curve"], scale: 2, pivot: [100, 100] } }], allIds, {
+      bboxOf: (id) => (id === "demand_curve" ? { x: 100, y: 100, w: 200, h: 100 } : null),
+    });
+    const it = (plan.steps[1] as Extract<PlanStep, { kind: "transform" }>).items[0];
+    // the corner under the pivot stays put; the far corner (300,200) lands at (500,300)
+    expect(poseOf(it.to.offset, it.to.turn)([100, 100])).toEqual([100, 100]);
+    expect(poseOf(it.to.offset, it.to.turn)([300, 200])).toEqual([500, 300]);
   });
 });
 
@@ -249,5 +327,96 @@ describe("animate planning", () => {
   test("narrated animate gets the narration pairing", () => {
     const plan = planCommands([{ animate: { azimuth: 90 }, speak: "spin" }], [], { animateBase: base });
     expect(plan.steps[0].narration).toBe("spin");
+  });
+});
+
+describe("arrange", () => {
+  const pieces = ["k_1", "k_2", "k_3", "k_4"];
+  const opts = {
+    bboxOf: (id: string) => (pieces.includes(id) ? { x: 200, y: 300, w: 100, h: 80 } : null),
+    expandId: (id: string) => (id === "k" ? pieces : null),
+    pieceOf: (id: string) => {
+      const k = pieces.indexOf(id);
+      return k < 0 ? null : { apex: [300, 375] as [number, number], centroid: [0, 0] as [number, number], midAngle: (k + 0.5) * 90, halfAngle: 45, radius: 120 };
+    },
+  };
+  test("a pieces id expands to its pieces; zipper emits one transform step with a turn per piece", () => {
+    const plan = planCommands([{ draw: ["k"] }, { arrange: { target: "k", layout: "zipper", at: [600, 375] } }], pieces, opts);
+    expect((plan.steps[0] as { ids: string[] }).ids).toEqual(pieces);
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.kind).toBe("transform");
+    expect(step.items.map((i) => i.id)).toEqual(pieces);
+    expect(step.items[0].to.turn.deg).toBeCloseTo(90 - 45, 6);
+    // Piece 2 sits at midAngle 135° and must end pointing down (−90°). The
+    // raw difference is −225°, but the delta is tweened linearly, so it is
+    // normalised to the equivalent short way round: +135°.
+    expect(step.items[1].to.turn.deg).toBeCloseTo(135, 6);
+    expect(((((135 + 135) % 360) + 360) % 360)).toBe(270); // …the same final direction as −90°
+    expect(plan.states[1].turns.k_1.deg).toBeCloseTo(45, 6);
+  });
+  test("row on plain elements is a pure translation to a centred row", () => {
+    const plan = planCommands([{ draw: ["a", "b"] }, { arrange: { target: ["a", "b"], layout: "row", at: [500, 375], gap: 20 } }], ["a", "b"], {
+      bboxOf: (id) => (id === "a" ? { x: 0, y: 0, w: 100, h: 50 } : { x: 900, y: 700, w: 100, h: 50 }),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items[0].to.offset).toEqual([390, 350]); // a's centre (50,25) → (440,375)
+    expect(step.items[1].to.offset).toEqual([-390, -350]); // b's centre (950,725) → (560,375)
+    expect(step.items.every((i) => i.to.turn.deg === 0)).toBe(true);
+  });
+  test("attached labels follow a row translation — once per label, by their element's delta, unturned", () => {
+    const plan = planCommands([{ draw: ["a", "b"] }, { arrange: { target: ["a", "b"], layout: "row", at: [500, 375], gap: 20 } }], ["a", "b", "label_a"], {
+      bboxOf: (id) => (id === "a" ? { x: 0, y: 0, w: 100, h: 50 } : id === "b" ? { x: 900, y: 700, w: 100, h: 50 } : { x: 0, y: 60, w: 40, h: 20 }),
+      // both targets claim the same label, and the list repeats it: it moves ONCE, with a
+      attachedTo: (id) => (id === "a" || id === "b" ? ["label_a", "label_a"] : []),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    const label = step.items.filter((i) => i.id === "label_a");
+    expect(label).toHaveLength(1);
+    expect(label[0].to.offset).toEqual([390, 350]); // a's delta, and both started at [0, 0]
+    expect(label[0].to.turn.deg).toBe(0);
+    expect(plan.states[1].offsets["label_a"]).toEqual([390, 350]);
+  });
+  test("a zipper piece's attached label stays put — the slice turns, the label must not", () => {
+    const plan = planCommands([{ draw: ["k"] }, { arrange: { target: "k", layout: "zipper", at: [600, 375] } }], [...pieces, "label_k_1"], {
+      ...opts,
+      attachedTo: (id) => (id === "k_1" ? ["label_k_1"] : []),
+    });
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.items.map((i) => i.id)).toEqual(pieces);
+    expect(plan.states[1].offsets["label_k_1"]).toBeUndefined();
+  });
+});
+
+describe("fade", () => {
+  test("fade records a persistent opacity and tweens from the previous value", () => {
+    const plan = planCommands([{ draw: ["demand_curve"] }, { fade: { target: ["demand_curve"], to: 0.3 } }, { fade: { target: "demand_curve", to: 1, duration: 0.5 } }], allIds);
+    const s1 = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s1.kind).toBe("fade");
+    expect(s1.items).toEqual([{ id: "demand_curve", from: 1, to: 0.3 }]);
+    expect(s1.seconds).toBe(1);
+    expect(plan.states[1].opacities.demand_curve).toBe(0.3);
+    const s2 = plan.steps[2] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s2.items).toEqual([{ id: "demand_curve", from: 0.3, to: 1 }]);
+    expect(s2.seconds).toBe(0.5);
+    expect(plan.states[2].opacities.demand_curve).toBe(1);
+  });
+  test("attached labels fade with their element, once", () => {
+    const plan = planCommands([{ draw: ["demand_curve", "label_D"] }, { fade: { target: ["demand_curve"], to: 0.2 } }], allIds, {
+      attachedTo: (id) => (id === "demand_curve" ? ["label_D", "label_D"] : []),
+    });
+    const s = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s.items.map((i) => i.id)).toEqual(["demand_curve", "label_D"]);
+    expect(plan.states[1].opacities.label_D).toBe(0.2);
+  });
+  test("a pieces id expands and `to` is clamped to 0…1", () => {
+    const plan = planCommands([{ draw: ["k"] }, { fade: { target: "k", to: 1.7 } }], ["k_1", "k_2"], { expandId: (id) => (id === "k" ? ["k_1", "k_2"] : null) });
+    const s = plan.steps[1] as Extract<PlanStep, { kind: "fade" }>;
+    expect(s.items.map((i) => i.id)).toEqual(["k_1", "k_2"]);
+    expect(s.items[0].to).toBe(1);
+  });
+  test("fade on an unknown id is skipped with a warning", () => {
+    const plan = planCommands([{ fade: { target: ["nope"], to: 0.5 } }], ["axes"]);
+    expect(plan.steps.filter((s) => s.kind === "fade")).toHaveLength(0);
+    expect(plan.warnings.join(" ")).toMatch(/fade/);
   });
 });

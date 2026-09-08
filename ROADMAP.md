@@ -182,6 +182,114 @@ call).
    bench and the Wikipedia reference-image experiment, once real
    `none_fits` requests have accumulated.
 
+## Motion and primitives — done 2026-09-08
+
+The πr² drawcast ("Hvorfor er arealet av en sirkel πr²?") exposed a gap: the
+compiler could only swap matplotlib stills in and out, because nothing in
+drawcast could move a piece and turn it. Hans's brief: objects should be
+movable and rotatable in general, and geometric primitives should exist
+(template or built-in) — both general, not specific to one drawcast. Design:
+`docs/superpowers/specs/2026-09-07-motion-and-primitives-design.md`.
+Ledger: `docs/superpowers/plans/2026-09-07-motion-and-primitives-ledger.md`.
+
+Three layers, one principle (the model writes semantics, code computes
+geometry):
+
+1. **`move` grows a pose.** `rotate` (degrees, CCW), `pivot` and `to` join
+   `by`/`path`; every element carries a pose (`offset`, `turn`) composed
+   exactly across repeated moves (`src/render/pose.ts`), tweened by a new
+   `transform` player step; attached labels follow a translation but never
+   rotate.
+2. **Tier-2 gains geometric primitives.** `sector` / `arc` / `polygon` and
+   the generator `pieces` (`of: "sectors"`, emits `<id>_1 … <id>_n`, each its
+   own drawable; the layout records `LayoutResult.pieces` geometry for
+   `arrange` to read); angles are `start`/`end`, washes are `<id>_wash`.
+3. **`arrange`** (`src/render/arrange.ts`): `row` / `zipper` / `grid` /
+   `ring` / `stack` lay out any ids (or one `pieces` id, expanded) from
+   computed bounding boxes and pose composition — `zipper` is the
+   rearrangement proof, alternating sectors on a common line into a bumpy
+   rectangle.
+4. **`circle_sectors` template** (mathlogic pack) interpolates every
+   sector's rotation and translation continuously in `t`, so `animate: {n:
+   40}` refines the cut and `animate: {t: 1}` plays the zip; a bundled
+   example rebuilds the πr² drawcast on it.
+5. **Player reveal.** `animate` now reveals element ids a param change
+   mints mid-scene, so `animate: {n: 40}` shows all forty slices instead of
+   only the twelve drawn at the template's rest state — caught by the first
+   live smoke and folded into this round as its own task.
+6. **`move.scale`** grows a pose by a uniform factor about the same pivot as
+   `rotate` (`composeScale`, `Turn.scale` in `src/render/pose.ts`) — the SVG
+   transform composes as `translate rotate translate scale translate`, so a
+   shape can grow AND turn from one corner in a single move.
+7. **`fade`** persistently dims or restores elements (`SceneState.opacities`,
+   the `fade` player step). `RenderedElement.setOpacity` writes the `opacity`
+   ATTRIBUTE on a wrapper `<g>` that `src/render/svg-backend.ts` puts above
+   EVERY leaf, of every kind — never on the leaf's own node, whose opacity is
+   already spoken for twice: text/image reveals write an inline
+   `style.opacity` there each frame, and `drawLeaf` writes a stroke/area
+   drawable's AUTHORED `style.opacity` there as an attribute. SVG's
+   nested-opacity compositing multiplies wrapper and leaf, so fade, reveal,
+   focus and authored translucency all layer instead of overwriting: a
+   `focus` dim/undim round trip never undoes a `fade`, and a 0.42 highlighter
+   band stays translucent across every scene apply. (The text/image half was
+   caught by the Task 8 review, fix round 1, commit `3ec304b`; the stroke/area
+   half — every translucent stroke in the library snapping to full ink on the
+   first `applyScene` — by the whole-branch review, final fix round.) The
+   planner dedupes followers the same way `arrange` does.
+8. **Three bundled freehand examples** (`src/examples.json`, no template)
+   put the new verbs through their paces: kakestykker rearranged into a
+   rectangle (the πr² proof, drawn by hand this time), a parallellogram cut
+   and slid into a rectangle (`fade` + `move`), and a triangle scaled ×2 from
+   one corner to show why the area quadruples, not doubles (`move.scale` +
+   `camera` + `fade`).
+
+Deliberately not done (design §3): rotated text stays unrotated — labels
+follow translations only, never turn; `zipper` is defined for sectors, not a
+general "tile these polygons" layout; no flip/mirror, no morphing between
+shapes. Fading a whole template figure needs its ids listed — `fade` takes
+element ids like every other target list, not a template name.
+
+### Follow-ups this round deliberately left
+
+Three entries that stood here — zipper angle normalisation, `captionLines`
+planning with an empty id list, and the inert `language` param on
+`circle_sectors` — were fixed in the final fix round; see the ledger's
+"Final review".
+
+- **`arrange` warns nothing for invisible targets** — no warning when a
+  target is hidden or missing.
+- Done 2026-09-08 (the "fan/hex" round): `camera.center.ref` and
+  `point.at.ref` now expand a `pieces` id to the box around every piece;
+  an element id that reads as another element's sub-drawable (`sky` +
+  `sky_wash`) is a validation ERROR (only the actual collision — `sky_wash`
+  alone is fine); a `speak` on a `point` beat reaches the subtitle track
+  (`camera` never lost its line — its branch warns rather than skips);
+  the zipper's and fan's non-sector fallback row share one helper and honour
+  `gap`; `point` at a moved element no longer adds the offset twice (the
+  planner already aims at the current box); two more `arrange` layouts,
+  `fan` (sectors side by side about one
+  apex — the angle-sum proof) and `hex` (a honeycomb), and standalone
+  `sector` elements carry piece geometry so both zipper and fan take them;
+  the generate status line names the template used or that the figure is
+  freehand and what the router offered.
+- Done 2026-09-08 (the "strips/grid" round): `pieces` cuts rectangles too —
+  `of: "strips"` (n vertical strips) and `of: "grid"` (n columns × `rows`
+  rows, numbered row by row from the top left) of a width × height rectangle
+  centred on x, y; cells carry no sector geometry, so zipper/fan treat them
+  as boxes while row/grid/ring/hex/stack/move/fade/highlight all take them.
+  Lint's `coVisible` now expands a `pieces` id like the plan does. `ring`
+  and the rings of `hex` hand slots out by nearness (shortest pairs first),
+  so pieces already roughly in place stay put and paths do not cross; row,
+  stack and grid keep target order, because there the order is the message.
+  Two bundled examples: 3 · 4 = 4 · 3 (a grid turned a quarter turn about
+  its centre) and 2/4 = 1/2 (two strip bars with `fade`).
+- **Cheap tween frames now carry pose and fade, but nothing else.**
+  `Reprojector.frame` / `swapGeometry` take `turns` and `opacities` alongside
+  `offsets` (final fix round), so a rotated, scaled or faded element no longer
+  snaps back mid-tween. Anything else a handle applies — the gesture overlay's
+  focus dimming, an in-flight reveal's partial progress — is still lost on a
+  tween frame, by design: those nodes carry no handles.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument

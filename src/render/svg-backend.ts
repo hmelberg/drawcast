@@ -23,6 +23,7 @@ import type { LayoutResult } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, MountResult, RenderedElement } from "./backend";
+import type { Turn } from "./pose";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
 /** System monospace stack: no webfont fetch, and available to the export
@@ -569,17 +570,51 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
   };
 }
 
+/**
+ * The `transform` a pose wears, or null when the pose is the identity.
+ *
+ * SVG rotates clockwise in y-down, so a y-up counter-clockwise `deg` is
+ * `rotate(-deg)` about the flipped pivot; translate, then rotate about the
+ * pivot, then scale about the same pivot.
+ *
+ * Module-level because TWO writers need the identical string: the element
+ * handle (settled state) and buildNodes (a tween frame's handle-less nodes).
+ * When only the handle knew how, every animate tween and slider preview
+ * rebuilt rotated/scaled elements with a bare translate — they snapped
+ * upright for the length of the tween and jumped back at settle.
+ */
+export function poseTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1): string | null {
+  const parts: string[] = [];
+  const px = pivot[0].toFixed(1);
+  const py = (CANVAS.h - pivot[1]).toFixed(1);
+  if (dx !== 0 || dy !== 0) parts.push(`translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+  if (deg !== 0) parts.push(`rotate(${(-deg).toFixed(2)} ${px} ${py})`);
+  if (scale !== 1) parts.push(`translate(${px} ${py}) scale(${scale.toFixed(4)}) translate(${(-pivot[0]).toFixed(1)} ${(-(CANVAS.h - pivot[1])).toFixed(1)})`);
+  return parts.length === 0 ? null : parts.join(" ");
+}
+
 class SvgElementHandle implements RenderedElement {
   readonly id: string;
   readonly durationMs: number;
   private leaves: LeafHandle[];
   private cumulative: number[];
   private groups: SVGGElement[];
+  /** Per-leaf `setOpacity` targets: a dedicated wrapper `<g>` ABOVE each
+   *  leaf's own `<g>`, for EVERY leaf kind (see buildNodes' `fadeNode`). The
+   *  wrapper exists because the leaf node's own opacity is already spoken
+   *  for, in two different ways: text/image reveals write `g.style.opacity`
+   *  every frame, and stroke/area leaves carry the drawable's AUTHORED
+   *  `style.opacity` as the `opacity` ATTRIBUTE on `g` (drawLeaf). Fading
+   *  the leaf node directly would clobber one or the other — a translucent
+   *  highlighter band snapping to full ink the first time a scene applied.
+   *  On a wrapper, fade∘reveal∘focus∘authored all compose multiplicatively. */
+  private fadeGroups: SVGGElement[];
 
-  constructor(id: string, leaves: LeafHandle[], groups: SVGGElement[]) {
+  constructor(id: string, leaves: LeafHandle[], groups: SVGGElement[], fadeGroups: SVGGElement[]) {
     this.id = id;
     this.leaves = leaves;
     this.groups = groups;
+    this.fadeGroups = fadeGroups;
     this.cumulative = [];
     let acc = 0;
     for (const l of leaves) {
@@ -592,9 +627,31 @@ class SvgElementHandle implements RenderedElement {
 
   /** Persistent translation, logical units y-up (the y-flip happens here). */
   setOffset(dx: number, dy: number): void {
+    this.setTransform(dx, dy, 0, [0, 0]);
+  }
+
+  /** Pose: see poseTransform. */
+  setTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1): void {
+    const t = poseTransform(dx, dy, deg, pivot, scale);
     for (const g of this.groups) {
-      if (dx === 0 && dy === 0) g.removeAttribute("transform");
-      else g.setAttribute("transform", `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+      if (t === null) g.removeAttribute("transform");
+      else g.setAttribute("transform", t);
+    }
+  }
+
+  /** Persistent opacity (the `opacity` ATTRIBUTE, not CSS) — the fade verb's
+   *  store, applied to fadeGroups (see its doc comment). Kept on a node of
+   *  its own, ABOVE the leaf, so it never collides with anything the leaf's
+   *  own node already uses its opacity for: the drawable's authored
+   *  translucency (an `opacity` attribute written by drawLeaf), the reveal's
+   *  `style.opacity` (text/image), or the focus effect's transient
+   *  `style.opacity`. Different nodes means SVG's nested-opacity compositing
+   *  MULTIPLIES them, so a fade to 0.5 halves a 0.42 highlighter band rather
+   *  than replacing it, and ending a focus never undoes a fade. */
+  setOpacity(alpha: number): void {
+    for (const g of this.fadeGroups) {
+      if (alpha >= 1) g.removeAttribute("opacity");
+      else g.setAttribute("opacity", Math.max(0, alpha).toFixed(3));
     }
   }
 
@@ -863,19 +920,41 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       // duplicating the loop.
       const buildNodes = (
         l: LayoutResult,
-        into: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
+        into: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[]>,
         visible?: ReadonlySet<string>,
         offsets?: Record<string, Pt>,
+        turns?: Record<string, Turn>,
+        opacities?: Record<string, number>,
       ) => {
         for (const id of l.order) {
           if (visible && !visible.has(id)) continue;
           const parts = drawablesForId(l.drawables, id);
-          const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[] = [];
+          const entry: { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[] = [];
+          const turn = turns?.[id];
+          const alpha = opacities?.[id];
           for (const leaf of leafDrawables(parts)) {
             const g = drawLeaf(rc, leaf);
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
-            if (dx !== 0 || dy !== 0) g.setAttribute("transform", `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
+            // The SAME string the element handle would write (poseTransform):
+            // a tween frame attaches no handles, so anything it does not
+            // reproduce here — a rotation, a scale — is simply lost for the
+            // length of the tween.
+            const pose = turn ? poseTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1) : poseTransform(dx, dy, 0, [0, 0]);
+            if (pose !== null) g.setAttribute("transform", pose);
+            // EVERY leaf gets a wrapper `<g>` that fade targets (the handle's
+            // fadeGroups), never the leaf's own node. The leaf node's opacity
+            // is already spoken for twice over: text/image reveals write
+            // `g.style.opacity` each frame, and drawLeaf puts the drawable's
+            // AUTHORED `style.opacity` on `g` as an attribute for stroke and
+            // area leaves. Fading `g` would clobber whichever applies; on a
+            // wrapper the two nest, and SVG's opacity compositing multiplies
+            // them instead.
+            const fadeNode = document.createElementNS(SVG_NS, "g") as SVGGElement;
+            fadeNode.appendChild(g);
+            // Same reasoning as the pose: a handle-less frame must carry the
+            // scene's fades or a dimmed element flashes back to full ink.
+            if (alpha !== undefined && alpha < 1) fadeNode.setAttribute("opacity", Math.max(0, alpha).toFixed(3));
             // A clipped leaf scrolls INSIDE a fixed window: the clip sits on
             // a static wrapper, the offset transform stays on the leaf's own
             // group (the handle's setOffset targets that one), so the window
@@ -883,18 +962,18 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
             if (leaf.clip) {
               const wrap = document.createElementNS(SVG_NS, "g") as SVGGElement;
               wrap.setAttribute("clip-path", `url(#${clipFor(leaf.clip)})`);
-              wrap.appendChild(g);
+              wrap.appendChild(fadeNode);
               layers[z].appendChild(wrap);
             } else {
-              layers[z].appendChild(g);
+              layers[z].appendChild(fadeNode);
             }
-            entry.push({ g, leaf });
+            entry.push({ g, leaf, fadeNode });
           }
           into.set(id, entry);
         }
       };
 
-      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>();
+      const leafNodes = new Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }>; fadeNode: SVGGElement }[]>();
       buildNodes(layout, leafNodes);
 
       container.appendChild(svg);
@@ -906,7 +985,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       // Handles need the nodes in the DOM (getTotalLength).
       const elements = new Map<string, RenderedElement>();
       for (const [id, entry] of leafNodes) {
-        elements.set(id, new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g)));
+        elements.set(
+          id,
+          new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g), entry.map(({ fadeNode }) => fadeNode)),
+        );
       }
 
       return {
@@ -920,11 +1002,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         // overwrites (a knocked-down fill-opacity, say) would show up here as
         // a flicker for the whole tween. Keep the two in step — makeLeafHandle
         // ends its reveal on the node's own authored values.
-        swapGeometry: (l, visible, offsets) => {
+        swapGeometry: (l, visible, offsets, turns, opacities) => {
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
-          buildNodes(l, new Map(), visible, offsets); // throwaway map: no handles, effects keep the mount-time nodes
+          buildNodes(l, new Map(), visible, offsets, turns, opacities); // throwaway map: no handles, effects keep the mount-time nodes
         },
         remount: (l) => {
           layers[0].replaceChildren();
@@ -935,7 +1017,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           nudgeTextsIntoCanvas(svg);
           const els = new Map<string, RenderedElement>();
           for (const [id, entry] of leafNodes) {
-            els.set(id, new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g)));
+            els.set(
+              id,
+              new SvgElementHandle(id, entry.map(({ g, leaf }) => makeLeafHandle(g, leaf)), entry.map(({ g }) => g), entry.map(({ fadeNode }) => fadeNode)),
+            );
           }
           return els;
         },

@@ -24,7 +24,11 @@ export type ElementType =
   | "shape"
   | "portrait"
   | "source"
-  | "code";
+  | "code"
+  | "sector"
+  | "arc"
+  | "polygon"
+  | "pieces";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -111,8 +115,21 @@ export interface SpecElement {
   height?: number;
   radius?: number;
   font_size?: number;
+  // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
+  /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
+  start?: number;
+  /** sector/arc: end angle in degrees, counter-clockwise from +x. */
+  end?: number;
+  /** polygon: number of sides of a regular polygon (with radius, x, y). */
+  sides?: number;
+  /** polygon: rotation of a regular polygon in degrees. */
+  rotation?: number;
+  /** pieces: how many pieces to cut a shape into (sectors, strips, or the columns of a grid). */
+  n?: number;
+  /** pieces grid: rows (n is the columns). */
+  rows?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
-  /** Person's name (portrait) or work's title (source) — resolved via Wikipedia when url/strokes are absent. */
+  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
@@ -197,9 +214,44 @@ export interface MoveArgs {
   target: string[] | string;
   /** [dx, dy] delta — domain units when a domain is declared, else logical. */
   by?: [number, number];
+  /** Absolute destination for the element's centre (same units as by); alternative to by/path. */
+  to?: [number, number];
   /** Waypoint offsets from the element's starting position; the last is the final offset. */
   path?: [number, number][];
+  /** Degrees, counter-clockwise (y-up); the element turns about `pivot`. */
+  rotate?: number;
+  /** The point to turn about, in current coordinates (same units as by). Default: the element's own centre. */
+  pivot?: [number, number];
+  /** Uniform scale factor about pivot (default the element's centre); cumulative across moves. */
+  scale?: number;
   /** seconds */
+  duration?: number;
+  easing?: Easing;
+}
+
+export interface ArrangeArgs {
+  /** Element ids, or ONE pieces id (all its pieces). */
+  target: string[] | string;
+  layout: "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex";
+  /** Centre of the arrangement (same units as move.by); default: the targets' current centroid (fan: the first sector's apex). */
+  at?: [number, number];
+  /** fan: the angle (degrees, counter-clockwise from +x) where the first piece begins (default 0). */
+  start?: number;
+  /** Space between neighbours, logical units (default 6). */
+  gap?: number;
+  /** grid: pieces per row. */
+  columns?: number;
+  /** seconds (default 2) */
+  duration?: number;
+  easing?: Easing;
+}
+
+export interface FadeArgs {
+  /** Element ids, or one pieces id (all its pieces). */
+  target: string[] | string;
+  /** Opacity 0–1 to settle at; 1 restores. Persistent until the next fade. */
+  to: number;
+  /** seconds (default 1) */
   duration?: number;
   easing?: Easing;
 }
@@ -258,6 +310,11 @@ export interface Command {
   point?: PointArgs;
   /** Translate elements by a delta or along a path of offsets. */
   move?: MoveArgs;
+  /** Lay elements out (row / zipper / fan / grid / ring / hex / stack) and animate them
+   *  there — every position and turn computed from the targets' geometry. */
+  arrange?: ArrangeArgs;
+  /** Persistently dim elements (or restore with to: 1); attached labels fade with them. */
+  fade?: FadeArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths

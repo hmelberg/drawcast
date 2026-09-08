@@ -18,6 +18,7 @@ import type { SpecElement } from "../spec/types";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
+import type { Turn } from "./pose";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -25,9 +26,20 @@ export type PlayerState = "idle" | "playing" | "paused" | "done";
 export interface Reprojector {
   /** Cheap per-frame swap at interpolated params. Values are numbers from
    *  animate/sliders except under free-play previews (a fen string, a moves
-   *  array). revealNew shows ids the previewed layout mints that the plan's
+   *  array). The rebuilt nodes carry NO handles, so the caller must hand over
+   *  the whole per-element scene state — `offsets`, `turns` AND `opacities` —
+   *  or a rotated/scaled/faded element snaps back for the length of the tween.
+   *  revealNew shows ids the previewed layout mints that the plan's
    *  visible set has never heard of (a chess piece on a fresh square). */
-  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean, elements?: SpecElement[]): LayoutResult | void;
+  frame(
+    params: Record<string, unknown>,
+    visible: ReadonlySet<string>,
+    offsets: Record<string, Pt>,
+    turns: Record<string, Turn>,
+    opacities: Record<string, number>,
+    revealNew?: boolean,
+    elements?: SpecElement[],
+  ): LayoutResult | void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
 }
@@ -237,6 +249,8 @@ export class Player {
   private appliedParams: Record<string, number> = {};
   /** True once any reprojector.frame() has run since the last commit — forces the next applyParams to commit even if params compare equal (frame() left the DOM at a live, possibly detached, mid-tween state). */
   private geometryDirty = false;
+  /** Ids the plan-time layout had: anything a later param change mints beyond these was never addressable by a visibility verb and joins the implicit final draw (shown as soon as it exists). */
+  private readonly planTimeIds: ReadonlySet<string>;
   state: PlayerState = "idle";
 
   constructor(
@@ -249,6 +263,7 @@ export class Player {
   ) {
     this.plan = plan;
     this.elements = elements;
+    this.planTimeIds = new Set(elements.keys());
     this.speech = speech;
     this.captionEl = captionEl;
     this.effects = opts.effects ?? null;
@@ -387,8 +402,11 @@ export class Player {
     const visible = new Set(scene.visible);
     for (const [id, el] of this.elements) {
       const [dx, dy] = scene.offsets[id] ?? [0, 0];
-      el.setOffset?.(dx, dy);
-      if (visible.has(id)) el.finish();
+      const turn = scene.turns[id];
+      if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1);
+      else el.setOffset?.(dx, dy);
+      el.setOpacity?.(scene.opacities[id] ?? 1);
+      if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
       else el.hide();
     }
     this.effects?.setPointer(null);
@@ -452,7 +470,8 @@ export class Player {
   previewParams(overrides: Record<string, unknown>, opts: { revealNew?: boolean } = {}): void {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
-    this.painted = this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, opts.revealNew) || null;
+    this.painted =
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew) || null;
     this.geometryDirty = true;
   }
 
@@ -472,7 +491,8 @@ export class Player {
     // handles: anything applied afterwards would be talking to stale nodes.
     const visible = new Set(scene.visible);
     for (const id of patch.hide ?? []) visible.delete(id);
-    this.painted = this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, true, patch.elements) || null;
+    this.painted =
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements) || null;
     this.geometryDirty = true;
   }
 
@@ -932,9 +952,10 @@ export class Player {
       case "point": {
         if (!this.effects) return;
         const effects = this.effects;
-        const [dx, dy] = step.refId ? before.offsets[step.refId] ?? [0, 0] : [0, 0];
-        const box: BBox | undefined = step.box && { x: step.box.x + dx, y: step.box.y + dy, w: step.box.w, h: step.box.h };
-        const path = pointerPath({ x: step.x + dx, y: step.y + dy, box }, step.gesture);
+        // The planner aimed at the element's CURRENT box (its pose applied),
+        // so nothing is added here — adding the offset again sent the laser
+        // twice as far for a moved element.
+        const path = pointerPath({ x: step.x, y: step.y, box: step.box }, step.gesture);
         try {
           await this.progress(step.seconds * 1000, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
         } finally {
@@ -977,7 +998,8 @@ export class Player {
             const start = step.starts[key];
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
-          rp.frame(cur, visible, before.offsets);
+          // reveal ids the tween mints (a 40th slice): they join the implicit final draw
+          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true);
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
@@ -993,8 +1015,39 @@ export class Player {
           const [px, py] = pathPosition(step.path, ease(t));
           for (const el of els) {
             const [bx, by] = bases.get(el.id)!;
-            el.setOffset!(bx + px, by + py);
+            // A plain move never changes an element's turn — carry the
+            // existing pose through setTransform so an earlier rotate isn't
+            // dropped by setOffset's transform-attribute rewrite.
+            const turn = before.turns[el.id];
+            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot, turn.scale ?? 1);
+            else el.setOffset!(bx + px, by + py);
           }
+        });
+        return;
+      }
+      case "transform": {
+        const ease = EASINGS[step.easing];
+        const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setTransform || x.el?.setOffset);
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const e = ease(t);
+          for (const { it, el } of items) {
+            const dx = it.from.offset[0] + (it.to.offset[0] - it.from.offset[0]) * e;
+            const dy = it.from.offset[1] + (it.to.offset[1] - it.from.offset[1]) * e;
+            const deg = it.from.turn.deg + (it.to.turn.deg - it.from.turn.deg) * e;
+            const pivot = it.to.turn.pivot;
+            const sc = (it.from.turn.scale ?? 1) + ((it.to.turn.scale ?? 1) - (it.from.turn.scale ?? 1)) * e;
+            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc);
+            else el!.setOffset!(dx, dy);
+          }
+        });
+        return;
+      }
+      case "fade": {
+        const ease = EASINGS[step.easing];
+        const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setOpacity);
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const e = ease(t);
+          for (const { it, el } of items) el!.setOpacity!(it.from + (it.to - it.from) * e);
         });
         return;
       }
