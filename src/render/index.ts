@@ -211,7 +211,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // key would be the whole patched script.
     const key = cache && !elements ? JSON.stringify(Object.entries(params).sort()) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
-    if (hit) return hit;
+    if (hit) return withTrails(hit, trails);
     const l = applyTextStyle(
       layoutSpec({ ...spec, params: withOverrides(spec.params, params), ...(elements ? { elements } : {}) }, measure),
       textStyle,
