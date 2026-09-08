@@ -154,3 +154,77 @@ export function connectSummary(g: ConnectGrade): string {
 export function connectOpens(key: { stars: readonly unknown[]; edges: readonly unknown[] }): boolean {
   return key.edges.length >= 1 && key.edges.length <= CONNECT_MAX_EDGES && key.stars.length >= 2;
 }
+
+/** The median nearest-neighbour distance among a figure's own stars — its
+ *  own natural spacing, so a crowded figure (a few close stars) and a
+ *  sprawling one each get a press radius sized to themselves rather than one
+ *  constant tuned for neither. Pure and DOM-free on purpose, like everything
+ *  else here: the gate's own snap radius is derived from this, and a decision
+ *  left inside the DOM file is a decision no test will ever see. */
+export function medianNearestNeighbour(stars: readonly ConnectStar[]): number {
+  const dists = stars.map((s, i) => {
+    let best = Infinity;
+    for (let j = 0; j < stars.length; j++) {
+      if (j === i) continue;
+      const d = Math.hypot(stars[j].at[0] - s.at[0], stars[j].at[1] - s.at[1]);
+      if (d < best) best = d;
+    }
+    return best;
+  });
+  dists.sort((a, b) => a - b);
+  const mid = Math.floor(dists.length / 2);
+  return dists.length % 2 === 0 ? (dists[mid - 1] + dists[mid]) / 2 : dists[mid];
+}
+
+/** Logical-unit clamp on the star-press radius: never so small a real press
+ *  misses, never so wide two stars of a crowded figure share it. No
+ *  `stars.length < 2` guard — `connectOpens` already refuses anything under
+ *  two stars before the gate ever calls this — but `medianNearestNeighbour`
+ *  answers `Infinity` for zero or one star regardless, so a direct call
+ *  (from a test, or from a caller that skipped connectOpens) still lands on
+ *  SNAP_MAX rather than NaN or a radius of zero. */
+const SNAP_MIN = 12;
+const SNAP_MAX = 40;
+export function snapRadiusFor(stars: readonly ConnectStar[]): number {
+  const nn = medianNearestNeighbour(stars);
+  if (!Number.isFinite(nn)) return SNAP_MAX;
+  return Math.max(SNAP_MIN, Math.min(SNAP_MAX, nn * 0.4));
+}
+
+/** Escapes a value for interpolation into a CSS attribute selector's quoted
+ *  string — `CSS.escape`'s own contract (a valid CSS identifier) already
+ *  neutralizes the characters, a quote or a backslash, that would otherwise
+ *  let the value break out of the quotes here. Falls back to a minimal
+ *  quote/backslash escape when the runtime has no `CSS` global — this repo's
+ *  own vitest included, which runs in `environment: "node"`. Exported so
+ *  both branches can be pinned by a test rather than only exercised by
+ *  whichever one happens to be present. */
+export function escapeSelectorValue(s: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(s);
+  return s.replace(/(["\\])/g, "\\$1");
+}
+
+/** The selector that finds every leaf of the figure named `answer` — the
+ *  leaf itself (a single-leaf figure) and every leaf of its group
+ *  (`answer__0`, `answer__1`, …) — by the `data-leaf-id` attribute
+ *  `svg-backend.ts` stamps on every leaf. `answer` is an element id, but is
+ *  escaped regardless: an id that happened to carry a quote, interpolated
+ *  unescaped, would throw INSIDE `querySelectorAll` — rejecting the promise
+ *  the player is awaiting and stopping playback with no message. */
+export function hiddenLeafSelector(answer: string): string {
+  const esc = escapeSelectorValue(answer);
+  return `[data-leaf-id="${esc}"], [data-leaf-id^="${esc}__"]`;
+}
+
+/** The restore half of hiding the figure's own lines, as a pure function: a
+ *  saved id → previous-opacity map, and a setter the gate wires to a real
+ *  DOM node. Every saved id is put back, including one whose saved opacity
+ *  was the empty string (no inline opacity at all) — genuinely restoring
+ *  that, rather than treating an empty string as "nothing to do" the way a
+ *  truthiness check would, is the whole point of pulling this out where a
+ *  test can drive it with a fake setter and see whether it does. What's left
+ *  in the DOM file is then only the wiring: finding the nodes and touching
+ *  their style, the least interesting part of the operation. */
+export function restoreOpacity(saved: ReadonlyMap<string, string>, set: (id: string, value: string) => void): void {
+  for (const [id, value] of saved) set(id, value);
+}

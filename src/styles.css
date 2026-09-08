@@ -1276,8 +1276,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* The connect question: press a star and drag to the next (or tap one, then
    tap another — the two-tap path, for touch) to join them; a click on a
    drawn segment removes it. The overlay is client-pixel SVG on top of the
-   figure, whose own lines the gate hides for the question's duration. */
-.cs-connectgate { cursor: crosshair; }
+   figure, whose own lines the gate hides for the question's duration.
+   (cursor and touch-action come from .cs-figgate — every figgate's own.) */
 .cs-connect-ink {
   position: absolute;
   inset: 0;
@@ -1308,7 +1308,18 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   opacity: 0.6;
   pointer-events: none;
 }
-.cs-connect-counter,
+/* Stacked above the shared .cs-figgate-hint (bottom: 1.1rem) so the two read
+   as two lines, not one collision, while both stand at once. */
+.cs-connect-counter {
+  position: absolute;
+  bottom: 2.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: none;
+}
+/* The hint and the counter are both gone by the time this shows (finish()
+   removes/hides them), so the summary alone takes the standard hint spot. */
 .cs-connect-summary {
   position: absolute;
   bottom: 1.1rem;

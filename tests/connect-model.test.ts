@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   CONNECT_MAX_EDGES, connectOpens, connectProgress, connectSummary, edgeAt,
-  gradeConnect, makeEdge, snapStar, toggleEdge,
+  escapeSelectorValue, gradeConnect, hiddenLeafSelector, makeEdge,
+  medianNearestNeighbour, restoreOpacity, snapRadiusFor, snapStar, toggleEdge,
 } from "../src/ui/connect-model";
 
 const stars = [
@@ -100,5 +101,90 @@ describe("connectOpens", () => {
   it("refuses a figure that is not there", () => {
     expect(connectOpens({ stars: [], edges: [] })).toBe(false);
     expect(connectOpens({ stars: [1, 2], edges: [] })).toBe(false);
+  });
+});
+
+describe("medianNearestNeighbour", () => {
+  it("is each star's closest OTHER star, at the middle of the sorted list", () => {
+    // a-b: 10, b-c: 10, a-c: 10√2 — every nearest neighbour is 10.
+    expect(medianNearestNeighbour(stars)).toBeCloseTo(10);
+  });
+  it("takes the average of the two middle values on an even count", () => {
+    const four = [
+      { id: "a", at: [0, 0] as [number, number] },
+      { id: "b", at: [1, 0] as [number, number] }, // a's nearest: 1
+      { id: "c", at: [1, 100] as [number, number] }, // nearest is d, 5 away
+      { id: "d", at: [1, 105] as [number, number] }, // nearest is c, 5 away
+    ];
+    // nearest-neighbour distances: a→1, b→1, c→5, d→5; sorted [1,1,5,5]; median (1+5)/2 = 3
+    expect(medianNearestNeighbour(four)).toBeCloseTo(3);
+  });
+  it("is not a finite distance for zero or one star — nothing else is close enough to measure to", () => {
+    // Empty: the median of nothing is NaN. One star: Infinity (no other star
+    // exists to be its neighbour). Neither is finite — which is exactly what
+    // snapRadiusFor's own fallback checks for, rather than one specific value.
+    expect(Number.isFinite(medianNearestNeighbour([]))).toBe(false);
+    expect(medianNearestNeighbour([stars[0]])).toBe(Infinity);
+  });
+});
+
+describe("snapRadiusFor", () => {
+  it("scales with the figure's own spacing, clamped to a sane range", () => {
+    // median NN 10 * 0.4 = 4, clamped up to the 12 floor.
+    expect(snapRadiusFor(stars)).toBe(12);
+    const wide = [
+      { id: "a", at: [0, 0] as [number, number] },
+      { id: "b", at: [1000, 0] as [number, number] },
+    ];
+    // median NN 1000 * 0.4 = 400, clamped down to the 40 ceiling.
+    expect(snapRadiusFor(wide)).toBe(40);
+  });
+  it("falls back to the ceiling rather than NaN or zero when there's nothing to measure", () => {
+    expect(snapRadiusFor([])).toBe(40);
+    expect(snapRadiusFor([stars[0]])).toBe(40);
+  });
+});
+
+describe("escapeSelectorValue / hiddenLeafSelector", () => {
+  it("escapes a quote and a backslash even with no CSS global (this repo's own vitest)", () => {
+    expect(typeof CSS).toBe("undefined"); // pins which branch node actually exercises
+    expect(escapeSelectorValue("con_ori")).toBe("con_ori");
+    expect(escapeSelectorValue('a"b')).toBe('a\\"b');
+    expect(escapeSelectorValue("a\\b")).toBe("a\\\\b");
+  });
+  it("prefers CSS.escape when the runtime has it", () => {
+    (globalThis as { CSS?: { escape(s: string): string } }).CSS = { escape: (s: string) => `ESC(${s})` };
+    try {
+      expect(escapeSelectorValue('a"b')).toBe('ESC(a"b)');
+    } finally {
+      delete (globalThis as { CSS?: unknown }).CSS;
+    }
+  });
+  it("matches the leaf itself and every child of its group", () => {
+    expect(hiddenLeafSelector("con_ori")).toBe('[data-leaf-id="con_ori"], [data-leaf-id^="con_ori__"]');
+  });
+  it("stays a well-formed selector (no unescaped quote) for an id carrying one", () => {
+    const sel = hiddenLeafSelector('a"b');
+    expect(sel).toBe('[data-leaf-id="a\\"b"], [data-leaf-id^="a\\"b__"]');
+  });
+});
+
+describe("restoreOpacity", () => {
+  it("puts back every saved id, including one whose saved value was empty", () => {
+    const saved = new Map([
+      ["con_ori__0", "1"],
+      ["con_ori__1", ""], // no inline opacity at all — must be restored too, not skipped
+    ]);
+    const set: [string, string][] = [];
+    restoreOpacity(saved, (id, value) => set.push([id, value]));
+    expect(set).toEqual([
+      ["con_ori__0", "1"],
+      ["con_ori__1", ""],
+    ]);
+  });
+  it("is a no-op on an empty map", () => {
+    let calls = 0;
+    restoreOpacity(new Map(), () => calls++);
+    expect(calls).toBe(0);
   });
 });
