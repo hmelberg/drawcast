@@ -114,6 +114,17 @@ the `MoveArgs.pivot` doc, the stale "eight templates" test name, and the
 template tests tightened to all lint severities. The gate, now planning
 with boxes, also exposed two older examples (the Bayes tree, the water
 cycle) whose `focus` named elements drawn in the next beat; fixed.
+The scoped re-review of the wave verdicted every item ADDRESSED with the
+pivot hoist traced by hand (all three cycloid targets get pivot (160, 260)
+and offset (377, 0)) and no new breakage. Two observations left for later:
+the "is this pivot explicit" test is now written three times (move, flip,
+morph), and the examples gate still omits `bboxesFor`, so geometry after an
+`animate` inside one example is checked against pre-animate boxes.
+
+Main had moved 35 commits (space round 3, the connect gate, the player
+round, template on demand) while this round ran; the merge was automatic
+with no conflicts, and the merged tree passed tsc, the full suite (298
+files, 6077 tests) and both builds before the push.
 
 ## Deferred (can wait)
 
