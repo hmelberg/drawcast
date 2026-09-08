@@ -1072,6 +1072,7 @@ export class Player {
             el!.setPoints!(pts);
           }
         });
+        if (signal.aborted) return; // a scrub's renderUpTo owns the state now
         // Settle on the boundary's own points — the last tween frame is
         // morphPair's K-point resample, not the layout's own vertex count, so
         // a `reset` (whose boundary carries no shapes entry at all) must be
