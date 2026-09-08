@@ -10,6 +10,11 @@ import type { Pt } from "../layout/model";
 import type { HighlightEffect, Spec } from "../spec/types";
 import type { Turn } from "./pose";
 
+/** The turn-over tween's squash: y ↦ at + Par(y − at) + k·Perp(y − at) about the
+ *  line through `at` at `angle` degrees (y-up, counter-clockwise from +x). A
+ *  per-frame prefix in CURRENT coordinates — never part of a settled pose. */
+export interface Squash { at: Pt; angle: number; k: number }
+
 export interface RenderedElement {
   id: string;
   /** Intrinsic animation duration in ms (0 = instant). */
@@ -28,9 +33,12 @@ export interface RenderedElement {
    * Persistent pose: translate by (dx, dy) after rotating by `deg`
    * (counter-clockwise, y-up) and uniformly scaling by `scale` (default 1),
    * both about `pivot` in the element's ORIGINAL frame (design §2.1).
+   * `mirror` reflects across the vertical line through the pivot before the
+   * rotation. `squash` is a per-frame prefix for the flip tween's turn-over
+   * half (design §2.3) — never part of a settled pose.
    * setOffset(dx, dy) is setTransform(dx, dy, 0, [0, 0]).
    */
-  setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number): void;
+  setTransform?(dx: number, dy: number, deg: number, pivot: Pt, scale?: number, mirror?: boolean, squash?: Squash): void;
   /** Persistent opacity 0–1 (1 clears it). Independent of the focus effect's dimming. */
   setOpacity?(alpha: number): void;
 }

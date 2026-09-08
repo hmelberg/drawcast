@@ -133,7 +133,7 @@ describe("move", () => {
     expect(step.items).toHaveLength(1);
     expect(step.items[0].to.turn.deg).toBe(90);
     expect(step.items[0].to.turn.pivot).toEqual([200, 150]); // the bbox centre, original frame
-    expect(plan.states[1].turns.demand_curve).toEqual({ deg: 90, pivot: [200, 150], scale: 1 });
+    expect(plan.states[1].turns.demand_curve).toEqual({ deg: 90, pivot: [200, 150], scale: 1, mirror: false });
     expect(plan.states[1].offsets.demand_curve ?? [0, 0]).toEqual([0, 0]);
   });
   test("to moves the centre to the destination (a delta from the current centre)", () => {

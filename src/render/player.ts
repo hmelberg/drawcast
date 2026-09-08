@@ -403,7 +403,7 @@ export class Player {
     for (const [id, el] of this.elements) {
       const [dx, dy] = scene.offsets[id] ?? [0, 0];
       const turn = scene.turns[id];
-      if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1);
+      if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
       else el.setOffset?.(dx, dy);
       el.setOpacity?.(scene.opacities[id] ?? 1);
       if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
@@ -1019,7 +1019,7 @@ export class Player {
             // existing pose through setTransform so an earlier rotate isn't
             // dropped by setOffset's transform-attribute rewrite.
             const turn = before.turns[el.id];
-            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot, turn.scale ?? 1);
+            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
             else el.setOffset!(bx + px, by + py);
           }
         });
@@ -1031,12 +1031,20 @@ export class Player {
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
           for (const { it, el } of items) {
+            if (it.flip) {
+              const half = e < 0.5;
+              const pose = half ? it.from : it.to;
+              const k = half ? 1 - 2 * e : 2 * e - 1;
+              if (el!.setTransform) el!.setTransform(pose.offset[0], pose.offset[1], pose.turn.deg, pose.turn.pivot, pose.turn.scale ?? 1, pose.turn.mirror ?? false, e >= 1 ? undefined : { at: it.flip.at, angle: it.flip.angle, k });
+              else el!.setOffset!(pose.offset[0], pose.offset[1]);
+              continue;
+            }
             const dx = it.from.offset[0] + (it.to.offset[0] - it.from.offset[0]) * e;
             const dy = it.from.offset[1] + (it.to.offset[1] - it.from.offset[1]) * e;
             const deg = it.from.turn.deg + (it.to.turn.deg - it.from.turn.deg) * e;
             const pivot = it.to.turn.pivot;
             const sc = (it.from.turn.scale ?? 1) + ((it.to.turn.scale ?? 1) - (it.from.turn.scale ?? 1)) * e;
-            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc);
+            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc, it.to.turn.mirror ?? false);
             else el!.setOffset!(dx, dy);
           }
         });

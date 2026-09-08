@@ -22,7 +22,7 @@ import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
-import type { BackendEffects, BackendModule, MountResult, RenderedElement } from "./backend";
+import type { BackendEffects, BackendModule, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
@@ -583,13 +583,25 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
  * rebuilt rotated/scaled elements with a bare translate — they snapped
  * upright for the length of the tween and jumped back at settle.
  */
-export function poseTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1): string | null {
+export function poseTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1, mirror = false, squash?: Squash): string | null {
   const parts: string[] = [];
+  if (squash && squash.k < 1) {
+    // Applied LAST (outermost): squash perpendicular to the mirror line. In
+    // SVG's y-down frame a y-up line at φ lies at −φ, so rotate(φ) aligns it
+    // with the x-axis; scale y; rotate back.
+    const qx = squash.at[0].toFixed(1);
+    const qy = (CANVAS.h - squash.at[1]).toFixed(1);
+    const k = Math.max(squash.k, 0.002).toFixed(4);
+    parts.push(`translate(${qx} ${qy}) rotate(${(-squash.angle).toFixed(2)}) scale(1 ${k}) rotate(${squash.angle.toFixed(2)}) translate(${(-squash.at[0]).toFixed(1)} ${(-(CANVAS.h - squash.at[1])).toFixed(1)})`);
+  }
   const px = pivot[0].toFixed(1);
   const py = (CANVAS.h - pivot[1]).toFixed(1);
   if (dx !== 0 || dy !== 0) parts.push(`translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`);
   if (deg !== 0) parts.push(`rotate(${(-deg).toFixed(2)} ${px} ${py})`);
-  if (scale !== 1) parts.push(`translate(${px} ${py}) scale(${scale.toFixed(4)}) translate(${(-pivot[0]).toFixed(1)} ${(-(CANVAS.h - pivot[1])).toFixed(1)})`);
+  if (scale !== 1 || mirror) {
+    // The canvas's y-flip commutes with a mirror in x, so scale(−s, s) about P is the reflection.
+    parts.push(`translate(${px} ${py}) scale(${(mirror ? -scale : scale).toFixed(4)} ${scale.toFixed(4)}) translate(${(-pivot[0]).toFixed(1)} ${(-(CANVAS.h - pivot[1])).toFixed(1)})`);
+  }
   return parts.length === 0 ? null : parts.join(" ");
 }
 
@@ -631,8 +643,8 @@ class SvgElementHandle implements RenderedElement {
   }
 
   /** Pose: see poseTransform. */
-  setTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1): void {
-    const t = poseTransform(dx, dy, deg, pivot, scale);
+  setTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1, mirror = false, squash?: Squash): void {
+    const t = poseTransform(dx, dy, deg, pivot, scale, mirror, squash);
     for (const g of this.groups) {
       if (t === null) g.removeAttribute("transform");
       else g.setAttribute("transform", t);
@@ -940,7 +952,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
             // a tween frame attaches no handles, so anything it does not
             // reproduce here — a rotation, a scale — is simply lost for the
             // length of the tween.
-            const pose = turn ? poseTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1) : poseTransform(dx, dy, 0, [0, 0]);
+            const pose = turn ? poseTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false) : poseTransform(dx, dy, 0, [0, 0]);
             if (pose !== null) g.setAttribute("transform", pose);
             // EVERY leaf gets a wrapper `<g>` that fade targets (the handle's
             // fadeGroups), never the leaf's own node. The leaf node's opacity

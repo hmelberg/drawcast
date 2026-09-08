@@ -308,7 +308,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -581,6 +581,27 @@ const commandSchema = {
       required: ["target", "to"],
       additionalProperties: false,
     },
+    flip: {
+      type: "object",
+      description:
+        "Reflect elements across a mirror line, played as a turn-over — the fourth transformation beside slide, turn and grow: {\"flip\": {\"target\": [\"tri\"], \"axis\": \"vertical\"}} mirrors about a vertical line through the element's own centre; \"line\": {\"from\": {\"ref\": \"axis\", \"anchor\": \"start\"}, \"to\": {\"ref\": \"axis\", \"anchor\": \"end\"}} mirrors across a drawn line. Attached labels follow (they never turn over themselves).",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        axis: { type: "string", enum: ["vertical", "horizontal"], description: "The mirror line's direction through `through` (default vertical)." },
+        through: pointRefSchema("A point the mirror line passes through (default: the target's own centre; {\"anchor\": \"left\"} with no ref is the target's own left edge)"),
+        line: {
+          type: "object",
+          description: "An explicit mirror line from one point to another — overrides axis/through.",
+          properties: { from: pointRefSchema("One point on the line"), to: pointRefSchema("Another point on the line") },
+          required: ["from", "to"],
+          additionalProperties: false,
+        },
+        duration: { type: "number", description: "Seconds (default 1.2)." },
+        easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+      },
+      required: ["target"],
+      additionalProperties: false,
+    },
     camera: {
       type: "object",
       description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
@@ -837,7 +858,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

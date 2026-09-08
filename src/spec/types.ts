@@ -263,6 +263,20 @@ export interface FadeArgs {
   easing?: Easing;
 }
 
+export interface FlipArgs {
+  /** Element ids, or one pieces id. */
+  target: string[] | string;
+  /** Mirror axis through `through` (default vertical). */
+  axis?: "vertical" | "horizontal";
+  /** A point on the axis (default: each target's own current centre). */
+  through?: PointRef;
+  /** An explicit mirror line (overrides axis/through). */
+  line?: { from: PointRef; to: PointRef };
+  /** seconds (default 1.2) */
+  duration?: number;
+  easing?: Easing;
+}
+
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
@@ -322,6 +336,8 @@ export interface Command {
   arrange?: ArrangeArgs;
   /** Persistently dim elements (or restore with to: 1); attached labels fade with them. */
   fade?: FadeArgs;
+  /** Reflect elements across a line, played as a turn-over. */
+  flip?: FlipArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths

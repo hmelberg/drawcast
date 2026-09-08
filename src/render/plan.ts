@@ -14,7 +14,7 @@ import type { Command, Easing, EndRef, HighlightEffect, PlayVoice, PointGesture,
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
-import { composeScale, composeTurn, poseCentre, poseOf, type Turn } from "./pose";
+import { composeFlip, composeScale, composeTurn, isIdentity, poseCentre, poseOf, type Turn } from "./pose";
 import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
 import { boxAnchor, isUniversalAnchor } from "../layout/anchors";
@@ -105,6 +105,8 @@ export interface TransformItem {
   id: string;
   from: { offset: Pt; turn: Turn };
   to: { offset: Pt; turn: Turn };
+  /** A flip: the player plays two squashed halves about this line instead of interpolating the poses. */
+  flip?: { at: Pt; angle: number };
 }
 
 /** Scene state at a step boundary. A pure function of the step index. */
@@ -269,7 +271,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     if (!box) return null;
     const offset: Pt = offsets[id] ?? [0, 0];
     const turn = turns[id];
-    if (turn === undefined || (turn.deg === 0 && (turn.scale ?? 1) === 1)) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
+    if (isIdentity(turn)) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
     const map = poseOf(offset, turn);
     const corners: Pt[] = ([
       [box.x, box.y],
@@ -361,7 +363,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return out;
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -715,6 +717,37 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         items.push(...followerItems(p.id, { offset: input.pose.offset, turn: input.pose.turn }, { offset, turn }, movedFollowers, ids));
       }
       pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
+    } else if (cmd.flip !== undefined) {
+      const ids = resolveIds(cmd.flip.target, "flip");
+      if (ids.length === 0) continue;
+      const line = cmd.flip.line ? { from: resolvePoint(cmd.flip.line.from, undefined, "flip"), to: resolvePoint(cmd.flip.line.to, undefined, "flip") } : null;
+      const items: TransformItem[] = [];
+      const movedFollowers = new Set<string>();
+      for (const id of ids) {
+        if (!visibleSet.has(id)) warnings.push(`flip target "${id}" is not visible at that point (still flipped)`);
+        const offset0: Pt = offsets[id] ?? [0, 0];
+        const turn0 = turns[id];
+        let at: Pt | null;
+        let angle: number;
+        if (line && line.from && line.to) {
+          at = line.from;
+          angle = (Math.atan2(line.to[1] - line.from[1], line.to[0] - line.from[0]) * 180) / Math.PI;
+        } else {
+          at = resolvePoint(cmd.flip.through, id, "flip") ?? anchorNow(id, "center", "flip");
+          angle = cmd.flip.axis === "horizontal" ? 0 : 90;
+        }
+        if (!at) {
+          warnings.push(`flip target "${id}" has no geometry (skipped)`);
+          continue;
+        }
+        const c = composeFlip(offset0, turn0, angle, at);
+        items.push({ id, from: { offset: offset0, turn: turn0 ?? IDENTITY }, to: c, flip: { at, angle } });
+        offsets[id] = c.offset;
+        turns[id] = c.turn;
+        items.push(...followerItems(id, { offset: offset0, turn: turn0 }, c, movedFollowers, ids));
+      }
+      if (items.length === 0) continue;
+      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out" });
     } else if (cmd.fade !== undefined) {
       const ids = resolveIds(cmd.fade.target, "fade");
       if (ids.length === 0) continue;

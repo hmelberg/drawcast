@@ -116,7 +116,7 @@ describe("fade never destroys an authored opacity", () => {
         const t = g.getAttribute("transform") ?? "";
         expect(t).toContain("translate(10.0 -20.0)");
         expect(t).toContain("rotate(-30.00");
-        expect(t).toContain("scale(2.0000)");
+        expect(t).toContain("scale(2.0000 2.0000)");
         // fade 0.5 × authored 0.4
         expect(effectiveOpacity(svg, "band")).toBeCloseTo(0.2, 6);
       } finally {
