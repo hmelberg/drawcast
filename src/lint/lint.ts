@@ -99,20 +99,26 @@ export function coVisible(commands: Command[] | undefined, allIds: string[]): (a
 
 /**
  * Whether `id` is already on screen right before `commands[askIndex]` fires —
- * the same little state machine `coVisible` runs (draw/show reveal;
- * erase/hide/clear conceal; an id no command ever manages counts as visible
- * from the start), but read at one moving point in the timeline instead of
- * folded into an all-pairs table. This is what makes an exact connect key
- * honest (spec §6.3): a viewer asked cold to draw a constellation is graded
- * against one publisher's convention, but a viewer who watched the figure
- * drawn earlier in the cast is asked to remember a shape they just saw —
- * which is the exercise.
+ * the same draw/show reveal, erase/hide/clear conceal walk `coVisible` runs,
+ * but read at one moving point in the timeline instead of folded into an
+ * all-pairs table — and, on the "never managed" case, the OPPOSITE answer
+ * from `coVisible`'s. `coVisible` asks "were these ever on screen together"
+ * (over the whole cast), where unmanaged really does mean "present the whole
+ * time, so it coexists with everything." This asks "was this on screen YET"
+ * at a single instant, and an id no command manages is not on screen from
+ * the start — the planner collects every unmentioned id into ONE implicit
+ * `draw` step pushed AFTER every explicit command (`src/render/plan.ts:609-612`),
+ * so it is drawn LAST, after the very question it was meant to precede. That
+ * is the shape a compiling model is most likely to produce (an omitted draw,
+ * mopped up implicitly) and exactly the cast this rule exists to catch.
+ * Do not "fix" this back to match `coVisible` — the two functions answer
+ * different questions and this divergence is deliberate.
  */
 function visibleBeforeAsk(commands: Command[], askIndex: number, id: string): boolean {
   const touched = commands.some(
     (c) => idsOf(c.draw).includes(id) || idsOf(c.show).includes(id) || idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id),
   );
-  if (!touched) return true; // never managed anywhere in the cast: visible from the start
+  if (!touched) return false; // drawn by the implicit final step — not yet on screen for any ask
   let visible = false;
   for (let i = 0; i < askIndex; i++) {
     const c = commands[i];
