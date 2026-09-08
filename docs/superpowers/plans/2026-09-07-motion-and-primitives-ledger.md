@@ -406,3 +406,7 @@ Removed from the template's `params` schema, from the manifest's second
 example, and from the bundled πr² example in `src/examples.json` (which passed
 `"language": "nb"` and got English labels either way). There was no dead `nb`
 variable in the layout to remove.
+
+## Fem eksempler til (2026-09-08, Hans: «lag noen flere eksempler»)
+
+Frihånd, alle på de nye verbene, alle spilt gjennom i nettleseren med ren lint: vinkelsummen i en trekant (sektorer ved hjørnene flyttes med `by` og roteres om et felles apex via `pivot` til en halvsirkel på en linje), tre åttedeler (`pieces` n=8, `arrange row` på tre biter, `fade` på resten), vektstang (`move rotate` om støttepunktet med bjelke, lodd og etiketter som ett mål, så tilbake og loddet flyttes inn), klokka (visere som `polygon`, `rotate` −90/−7,5 om sentrum, `shape: "circle"` for skiven — feltet heter `shape`, ikke `kind`), og sekskanter i `arrange ring` (rotation 30 gir flate topper så naboene ligger på 90°+60k). Ringens radius kommer fra omkretsen, så cellene får ~10 px luft; en tett bikube trenger en `hex`-oppstilling.

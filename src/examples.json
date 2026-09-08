@@ -14897,5 +14897,122 @@
         { "draw": ["t_big"] }
       ]
     }
+  },
+  {
+    "request": "Vis at vinklene i en trekant til sammen er 180 grader.",
+    "packs": [],
+    "spec": {
+      "title": "Vinkelsummen i en trekant",
+      "elements": [
+        { "id": "tri", "type": "polygon", "points": [[300, 250], [700, 250], [450, 500]], "style": { "fill": "#87a878" } },
+        { "id": "va", "type": "sector", "x": 300, "y": 250, "radius": 70, "start": 0, "end": 59.04, "style": { "fill": "#f2c14e" } },
+        { "id": "vb", "type": "sector", "x": 700, "y": 250, "radius": 70, "start": 135, "end": 180, "style": { "fill": "#d0865f" } },
+        { "id": "vc", "type": "sector", "x": 450, "y": 500, "radius": 70, "start": 239.04, "end": 315, "style": { "fill": "#8a5fa8" } },
+        { "id": "linje", "type": "path", "points": [[380, 600], [620, 600]], "style": { "color": "#b5482e", "stroke_width": 3 } },
+        { "id": "t_sum", "type": "text", "text": "180°", "x": 500, "y": 565, "font_size": 30, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["tri"], "speak": "En vilkårlig trekant med tre vinkler." },
+        { "draw": ["va", "vb", "vc"], "parallel": true, "speak": "Vi merker de tre vinklene med hver sin farge." },
+        { "fade": { "target": ["tri"], "to": 0.35 } },
+        { "draw": ["linje"], "speak": "Så river vi av hjørnene og legger dem inntil hverandre på en rett linje." },
+        { "move": { "target": ["va"], "by": [200, 350], "duration": 1.2 } },
+        { "move": { "target": ["vb"], "by": [-200, 350], "rotate": -75.96, "pivot": [500, 600], "duration": 1.5 } },
+        { "move": { "target": ["vc"], "by": [50, 100], "rotate": -135, "pivot": [500, 600], "duration": 1.5 }, "speak": "De tre vinklene fyller nøyaktig en halv omdreining." },
+        { "draw": ["t_sum"], "speak": "En rett linje er 180 grader. Derfor er vinkelsummen i enhver trekant 180 grader." }
+      ]
+    }
+  },
+  {
+    "request": "Forklar brøken tre åttedeler med en pizza.",
+    "packs": [],
+    "spec": {
+      "title": "Tre åttedeler",
+      "elements": [
+        { "id": "pizza", "type": "pieces", "of": "sectors", "x": 280, "y": 400, "radius": 140, "n": 8, "style": { "fill": "#f2c14e" } },
+        { "id": "t_hel", "type": "text", "text": "8 stykker = 1 hel", "x": 280, "y": 590, "font_size": 26, "style": { "color": "#b5482e" } },
+        { "id": "t_brok", "type": "text", "text": "3/8", "x": 720, "y": 540, "font_size": 40, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["pizza"], "parallel": true, "speak": "En pizza delt i åtte like store stykker." },
+        { "draw": ["t_hel"], "speak": "Alle åtte stykkene til sammen er én hel pizza: åtte åttedeler." },
+        { "arrange": { "target": ["pizza_1", "pizza_2", "pizza_3"], "layout": "row", "at": [720, 400], "gap": 10, "duration": 2 }, "speak": "Vi tar ut tre av stykkene." },
+        { "fade": { "target": ["pizza_4", "pizza_5", "pizza_6", "pizza_7", "pizza_8"], "to": 0.3 } },
+        { "draw": ["t_brok"], "speak": "Tre av åtte like deler: tre åttedeler. Telleren sier hvor mange, nevneren sier hvor store." }
+      ]
+    }
+  },
+  {
+    "request": "Vis hvordan en vektstang balanserer: kraft ganger arm.",
+    "packs": [],
+    "spec": {
+      "title": "Vektstang og moment",
+      "elements": [
+        { "id": "stotte", "type": "polygon", "points": [[470, 200], [530, 200], [500, 262]], "style": { "fill": "#8f887c" } },
+        { "id": "bjelke", "type": "polygon", "points": [[200, 262], [800, 262], [800, 277], [200, 277]], "style": { "fill": "#d0865f" } },
+        { "id": "lodd_a", "type": "polygon", "points": [[230, 277], [290, 277], [290, 337], [230, 337]], "style": { "fill": "#b5482e" } },
+        { "id": "lodd_b", "type": "polygon", "points": [[680, 277], [740, 277], [740, 337], [680, 337]], "style": { "fill": "#2f6b8f" } },
+        { "id": "l_a", "type": "label", "attach_to": "lodd_a", "text": "2 kg", "side": "above" },
+        { "id": "l_b", "type": "label", "attach_to": "lodd_b", "text": "1 kg", "side": "above" },
+        { "id": "t_regel", "type": "text", "text": "kraft · arm = kraft · arm", "x": 500, "y": 460, "font_size": 28, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["stotte", "bjelke"], "speak": "En vektstang som hviler på et støttepunkt i midten." },
+        { "draw": ["lodd_b", "l_b"], "speak": "Ett kilo til høyre, litt innenfor enden." },
+        { "draw": ["lodd_a", "l_a"], "speak": "To kilo til venstre, helt ute på enden." },
+        { "move": { "target": ["bjelke", "lodd_a", "lodd_b", "l_a", "l_b"], "rotate": 12, "pivot": [500, 262], "duration": 1.5 }, "speak": "Den tunge siden vipper ned. Det som teller er kraften ganger armen, altså avstanden til støttepunktet." },
+        { "move": { "target": ["bjelke", "lodd_a", "lodd_b", "l_a", "l_b"], "rotate": -12, "pivot": [500, 262], "duration": 1 } },
+        { "move": { "target": ["lodd_a", "l_a"], "by": [135, 0], "duration": 1.5 }, "speak": "Flytter vi det tunge loddet inn til halve armen, blir to kilo ganger halv arm lik ett kilo ganger hel arm." },
+        { "draw": ["t_regel"], "speak": "Momentene er like på begge sider, og stangen ligger i ro." }
+      ]
+    }
+  },
+  {
+    "request": "Vis på en klokke hva som skjer med viserne på et kvarter og en halvtime.",
+    "packs": [],
+    "spec": {
+      "title": "Klokka: kvarter og halvtime",
+      "elements": [
+        { "id": "skive", "type": "shape", "shape": "circle", "x": 500, "y": 400, "radius": 150 },
+        { "id": "n12", "type": "text", "text": "12", "x": 500, "y": 520, "font_size": 26 },
+        { "id": "n3", "type": "text", "text": "3", "x": 620, "y": 400, "font_size": 26 },
+        { "id": "n6", "type": "text", "text": "6", "x": 500, "y": 280, "font_size": 26 },
+        { "id": "n9", "type": "text", "text": "9", "x": 380, "y": 400, "font_size": 26 },
+        { "id": "timeviser", "type": "polygon", "points": [[492, 400], [508, 400], [500, 465]], "style": { "fill": "#2f6b8f", "color": "#2f6b8f" } },
+        { "id": "minuttviser", "type": "polygon", "points": [[495, 400], [505, 400], [500, 500]], "style": { "fill": "#b5482e", "color": "#b5482e" } },
+        { "id": "senter", "type": "shape", "shape": "circle", "x": 500, "y": 400, "radius": 7, "style": { "fill": "#3a3631" } }
+      ],
+      "commands": [
+        { "draw": ["skive", "n12", "n3", "n6", "n9"], "parallel": true, "speak": "En klokke. Begge viserne peker på tolv." },
+        { "draw": ["timeviser", "minuttviser", "senter"], "parallel": true },
+        { "move": { "target": ["minuttviser"], "rotate": -90, "pivot": [500, 400], "duration": 2 }, "speak": "Et kvarter senere har minuttviseren gått en kvart runde, nitti grader, til tretallet." },
+        { "move": { "target": ["timeviser"], "rotate": -7.5, "pivot": [500, 400], "duration": 1 }, "speak": "Timeviseren har bare flyttet seg litt: en kvart av veien mot ettallet." },
+        { "move": { "target": ["minuttviser"], "rotate": -90, "pivot": [500, 400], "duration": 2 }, "speak": "En halvtime etter tolv peker minuttviseren rett ned på sekstallet." },
+        { "move": { "target": ["timeviser"], "rotate": -7.5, "pivot": [500, 400], "duration": 1 }, "speak": "Og timeviseren står midt mellom tolv og ett. Klokka er halv ett." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor bygger bier cellene som sekskanter? Vis at sekskanter fyller planet.",
+    "packs": [],
+    "spec": {
+      "title": "Sekskanter fyller planet",
+      "elements": [
+        { "id": "midt", "type": "polygon", "x": 500, "y": 400, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "h1", "type": "polygon", "x": 150, "y": 620, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "h2", "type": "polygon", "x": 850, "y": 620, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "h3", "type": "polygon", "x": 850, "y": 180, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "h4", "type": "polygon", "x": 150, "y": 180, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "h5", "type": "polygon", "x": 300, "y": 90, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "h6", "type": "polygon", "x": 700, "y": 90, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
+        { "id": "t_vinkel", "type": "text", "text": "3 · 120° = 360°", "x": 500, "y": 640, "font_size": 28, "style": { "color": "#b5482e" } }
+      ],
+      "commands": [
+        { "draw": ["midt"], "speak": "En regulær sekskant har vinkler på 120 grader i hvert hjørne." },
+        { "draw": ["h1", "h2", "h3", "h4", "h5", "h6"], "parallel": true, "speak": "Seks like sekskanter til." },
+        { "arrange": { "target": ["h1", "h2", "h3", "h4", "h5", "h6"], "layout": "ring", "at": [500, 400], "gap": 0, "duration": 2.5 }, "speak": "Legger vi dem rundt den første, møtes tre hjørner i hvert punkt." },
+        { "draw": ["t_vinkel"], "speak": "Tre ganger 120 grader er 360 grader, en hel runde. Ingen sprekker, ingen overlapp. Derfor er sekskanten biens form: mest plass for minst voks." }
+      ]
+    }
   }
 ]
