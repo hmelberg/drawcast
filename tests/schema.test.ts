@@ -283,3 +283,12 @@ describe("fade", () => {
     expect(validateSpec(spec({ target: "a", to: 0.3 })).ok).toBe(true);
   });
 });
+
+describe("PointRef", () => {
+  test("move.to accepts an array or a {ref, anchor} object; move.anchor is a string", () => {
+    const base = { elements: [{ id: "a", type: "arrow", from: { x: 0, y: 0 }, to: { x: 10, y: 0 } }, { id: "b", type: "arrow", from: { x: 0, y: 5 }, to: { x: 10, y: 5 } }] };
+    expect(validateSpec({ ...base, commands: [{ move: { target: ["b"], to: [5, 5] } }] } as never).ok).toBe(true);
+    expect(validateSpec({ ...base, commands: [{ move: { target: ["b"], anchor: "tail", to: { ref: "a", anchor: "tip" } } }] } as never).ok).toBe(true);
+    expect(validateSpec({ ...base, commands: [{ move: { target: ["b"], to: "a.tip" } }] } as never).ok).toBe(false);
+  });
+});

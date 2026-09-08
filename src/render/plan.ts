@@ -10,13 +10,14 @@ import type { CodeWindow } from "../layout/code";
 import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
-import type { Command, Easing, HighlightEffect, PlayVoice, PointGesture } from "../spec/types";
+import type { Command, Easing, EndRef, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
 import { composeScale, composeTurn, poseCentre, poseOf, type Turn } from "./pose";
 import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
+import { boxAnchor, isUniversalAnchor } from "../layout/anchors";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -283,6 +284,48 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
   };
 
+  /** A named point of an element in its ORIGINAL frame: geometric from the layout, else off its box. */
+  const anchorOriginal = (id: string, name: string, verb: string): Pt | null => {
+    const geometric = opts.anchorOf?.(id, name) ?? null;
+    if (geometric) return geometric;
+    const box = bboxOf(id);
+    if (!box) return null;
+    if (!isUniversalAnchor(name)) {
+      warnings.push(`${verb}: "${id}" has no anchor "${name}" — using center`);
+      return boxAnchor(box, "center");
+    }
+    return boxAnchor(box, name);
+  };
+  /** The same point where it is NOW (through the pose); a pieces id → the box around its pieces. */
+  const anchorNow = (id: string, name: string, verb: string): Pt | null => {
+    const kids = opts.expandId?.(id)?.filter((k) => known.has(k)) ?? [];
+    if (kids.length > 0) {
+      const box = unionBox(kids.map(currentBox));
+      if (!box) return null;
+      if (!isUniversalAnchor(name)) warnings.push(`${verb}: "${id}" has no anchor "${name}" — using center`);
+      return boxAnchor(box, isUniversalAnchor(name) ? name : "center");
+    }
+    if (!known.has(id)) {
+      warnings.push(`${verb}: unknown id "${id}"`);
+      return null;
+    }
+    const p = anchorOriginal(id, name, verb);
+    return p ? poseOf(offsets[id] ?? [0, 0], turns[id])(p) : null;
+  };
+  /** A PointRef in current logical coordinates. `self` is the element a ref-less {anchor} names. */
+  const resolvePoint = (p: PointRef | undefined, self: string | undefined, verb: string): Pt | null => {
+    if (p === undefined) return null;
+    if (Array.isArray(p)) return toLogical(p as Pt);
+    const r = p as EndRef;
+    if (r.ref === undefined && r.anchor === undefined && r.x !== undefined && r.y !== undefined) return toLogical([r.x, r.y]);
+    const id = r.ref ?? self;
+    if (!id) {
+      warnings.push(`${verb}: a point needs ref, x + y, or an anchor of the target`);
+      return null;
+    }
+    return anchorNow(id, r.anchor ?? "center", verb);
+  };
+
   const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
@@ -485,6 +528,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           x = CANVAS.w / 2;
           y = CANVAS.h / 2;
         }
+        if (at.anchor !== undefined) {
+          const p = anchorNow(at.ref, at.anchor, "point");
+          if (p) {
+            [x, y] = p;
+            box = b ?? undefined;
+          } else {
+            x = CANVAS.w / 2;
+            y = CANVAS.h / 2;
+          }
+        }
       } else if (at?.x !== undefined && at?.y !== undefined) {
         [x, y] = toLogical([at.x, at.y]);
       } else {
@@ -537,24 +590,35 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           let offset: Pt = offset0;
           let turn: Turn | undefined = turn0;
           let delta: Pt = [0, 0];
-          if (hasTo && box) {
-            const centre = poseCentre(box, offset0, turn0);
-            const dest = toLogical(cmd.move.to as Pt);
-            delta = [dest[0] - centre[0], dest[1] - centre[1]];
+          if (hasTo) {
+            const dest = resolvePoint(cmd.move.to, undefined, "move");
+            const from = anchorNow(id, cmd.move.anchor ?? "center", "move");
+            if (dest && from) delta = [dest[0] - from[0], dest[1] - from[1]];
           } else if (hasBy) {
             delta = deltaToLogical(cmd.move.by as Pt);
           } else if (hasPath) {
             delta = deltaToLogical(cmd.move.path![cmd.move.path!.length - 1] as Pt);
           }
           offset = [offset[0] + delta[0], offset[1] + delta[1]];
+          let pivotNow: Pt;
+          if (cmd.move.pivot !== undefined) {
+            const explicit = Array.isArray(cmd.move.pivot) || (cmd.move.pivot as EndRef).ref !== undefined || ((cmd.move.pivot as EndRef).x !== undefined && (cmd.move.pivot as EndRef).anchor === undefined);
+            const q = explicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
+            if (q) {
+              pivotNow = [q[0] + delta[0], q[1] + delta[1]]; // the pivot rides with the translation
+            } else {
+              const own = anchorOriginal(id, (cmd.move.pivot as EndRef).anchor ?? "center", "move");
+              pivotNow = own ? poseOf(offset, turn)(own) : [offset[0], offset[1]];
+            }
+          } else {
+            pivotNow = box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+          }
           if (hasScale) {
-            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
             const c = composeScale(offset, turn, cmd.move.scale!, pivotNow);
             offset = c.offset;
             turn = c.turn;
           }
           if (hasRotate) {
-            const pivotNow: Pt = cmd.move.pivot ? toLogical(cmd.move.pivot as Pt) : box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
             const c = composeTurn(offset, turn, cmd.move.rotate!, pivotNow);
             offset = c.offset;
             turn = c.turn;
@@ -588,7 +652,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         inputs.push({ id, box, centre: poseCentre(raw, pose.offset, pose.turn), piece: opts.pieceOf?.(id) ?? undefined, pose });
       }
       if (inputs.length === 0) continue;
-      const at = cmd.arrange.at ? toLogical(cmd.arrange.at as Pt) : undefined;
+      const at = resolvePoint(cmd.arrange.at, undefined, "arrange") ?? undefined;
       if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && !inputs.some((i) => i.piece)) {
         warnings.push(`arrange ${cmd.arrange.layout}: none of the targets is a sector piece — laid out as a row instead`);
       }
@@ -670,6 +734,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
               if (b) {
                 cx = b.x + b.w / 2;
                 cy = b.y + b.h / 2;
+              }
+              if (center.anchor !== undefined) {
+                const p = anchorNow(center.ref, center.anchor, "camera");
+                if (p) [cx, cy] = p;
               }
             }
           } else if (center?.x !== undefined && center?.y !== undefined) {

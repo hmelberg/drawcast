@@ -420,3 +420,66 @@ describe("fade", () => {
     expect(plan.warnings.join(" ")).toMatch(/fade/);
   });
 });
+
+describe("anchors in commands (design §2.1)", () => {
+  const box = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
+  const boxes: Record<string, ReturnType<typeof box>> = { a: box(100, 100, 200, 20), b: box(400, 400, 100, 20), tri: box(0, 0, 100, 100) };
+  const named: Record<string, Record<string, [number, number]>> = {
+    a: { tail: [100, 110], tip: [300, 110], mid: [200, 110] },
+    b: { tail: [400, 410], tip: [500, 410], mid: [450, 410] },
+    tri: { vertex_1: [0, 0], vertex_2: [100, 0], vertex_3: [0, 100], side_2: [50, 50], centroid: [100 / 3, 100 / 3] },
+  };
+  const opts = { bboxOf: (id: string) => boxes[id] ?? null, anchorOf: (id: string, name: string) => named[id]?.[name] ?? null };
+  const transformOf = (plan: ReturnType<typeof planCommands>, i = 0) => plan.steps[i] as Extract<PlanStep, { kind: "transform" }>;
+
+  test("move.to {ref, anchor} with move.anchor: b's tail lands on a's tip", () => {
+    // drawn first so the "not visible" sanity warning stays out of the way of this assertion
+    const plan = planCommands([{ draw: ["a", "b"] }, { move: { target: ["b"], anchor: "tail", to: { ref: "a", anchor: "tip" } } }], ["a", "b"], opts);
+    expect(plan.warnings).toEqual([]);
+    const it = transformOf(plan, 1).items.find((x) => x.id === "b")!;
+    expect(it.to.offset).toEqual([-100, -300]); // tail (400,410) → tip (300,110)
+    expect(plan.states[1].offsets.b).toEqual([-100, -300]);
+  });
+  test("move.pivot {anchor} without ref is the target's own anchor: 180° about side_2 sends vertex_1 to (100,100)", () => {
+    const plan = planCommands([{ move: { target: ["tri"], rotate: 180, pivot: { anchor: "side_2" } } }], ["tri"], opts);
+    const st = plan.states[0];
+    const p = poseOf(st.offsets.tri, st.turns.tri)([0, 0]);
+    expect(p[0]).toBeCloseTo(100, 6);
+    expect(p[1]).toBeCloseTo(100, 6);
+  });
+  test("anchors resolve in CURRENT coordinates after an earlier move", () => {
+    const plan = planCommands(
+      [{ move: { target: ["a"], by: [50, 0] } }, { move: { target: ["b"], anchor: "tail", to: { ref: "a", anchor: "tip" } } }],
+      ["a", "b"],
+      opts,
+    );
+    expect(plan.states[1].offsets.b).toEqual([-50, -300]);
+  });
+  test("an explicit pivot rides with the translation: by + rotate about the element's own centre given as a ref rolls, it does not swing", () => {
+    const plan = planCommands([{ move: { target: ["tri"], by: [300, 0], rotate: -360, pivot: { ref: "tri" } } }], ["tri"], opts);
+    const it = transformOf(plan).items[0];
+    // pivot in the original frame is the centre itself, so a half-way pose is a pure slide + spin about it
+    expect(it.to.turn.pivot[0]).toBeCloseTo(50, 6);
+    expect(it.to.turn.pivot[1]).toBeCloseTo(50, 6);
+    expect(it.to.offset).toEqual([300, 0]);
+  });
+  test("a universal anchor comes off the box; an unknown one warns and uses center; arrange.at takes a ref", () => {
+    const plan = planCommands([{ move: { target: ["b"], to: { ref: "tri", anchor: "top_right" } } }], ["b", "tri"], opts);
+    expect(plan.states[0].offsets.b).toEqual([100 - 450, 100 - 410]);
+    const bad = planCommands([{ move: { target: ["b"], to: { ref: "tri", anchor: "wat" } } }], ["b", "tri"], opts);
+    expect(bad.warnings.join(" ")).toMatch(/wat/);
+    expect(bad.states[0].offsets.b).toEqual([50 - 450, 50 - 410]);
+    const arr = planCommands([{ arrange: { target: ["a", "b"], layout: "row", at: { ref: "tri", anchor: "top" } } }], ["a", "b", "tri"], opts);
+    expect(arr.warnings).toEqual([]);
+    // row aligns every item's centre to the resolved at[1] (tri's top, y=100): each item's
+    // FINAL y (its own raw centre plus the offset row gave it) lands on that same line.
+    const ys = transformOf(arr).items.map((it) => it.to.offset[1] + boxes[it.id].y + boxes[it.id].h / 2);
+    expect(ys.every((y) => Math.abs(y - ys[0]) < 1e-6)).toBe(true);
+  });
+  test("point.at and camera.center aim at an anchor", () => {
+    const plan = planCommands([{ point: { at: { ref: "a", anchor: "tip" } } }, { camera: { center: { ref: "a", anchor: "tip" }, zoom: 4 } }], ["a"], opts);
+    expect(plan.steps[0]).toMatchObject({ kind: "point", x: 300, y: 110 });
+    const cam = plan.steps[1] as Extract<PlanStep, { kind: "camera" }>;
+    expect(cam.box!.x + cam.box!.w / 2).toBeCloseTo(300, 6); // (300,110) at zoom 4 stays inside the canvas clamp
+  });
+});

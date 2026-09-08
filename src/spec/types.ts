@@ -71,6 +71,9 @@ export interface EndRef {
   anchor?: string;
 }
 
+/** A point a verb takes: [x, y] (domain units when a domain is declared, else logical) or a named point on an element. */
+export type PointRef = [number, number] | EndRef;
+
 export interface SpecElement {
   id: string;
   type: ElementType;
@@ -216,14 +219,16 @@ export interface MoveArgs {
   target: string[] | string;
   /** [dx, dy] delta — domain units when a domain is declared, else logical. */
   by?: [number, number];
-  /** Absolute destination for the element's centre (same units as by); alternative to by/path. */
-  to?: [number, number];
+  /** Absolute destination for the element's `anchor` (default its centre); alternative to by/path. */
+  to?: PointRef;
   /** Waypoint offsets from the element's starting position; the last is the final offset. */
   path?: [number, number][];
   /** Degrees, counter-clockwise (y-up); the element turns about `pivot`. */
   rotate?: number;
-  /** The point to turn about, in current coordinates (same units as by). Default: the element's own centre. */
-  pivot?: [number, number];
+  /** The point to turn or grow about, in current coordinates (same units as by). Default: the element's own centre. */
+  pivot?: PointRef;
+  /** Which anchor of the moving element lands on `to` (default center). */
+  anchor?: string;
   /** Uniform scale factor about pivot (default the element's centre); cumulative across moves. */
   scale?: number;
   /** seconds */
@@ -236,7 +241,7 @@ export interface ArrangeArgs {
   target: string[] | string;
   layout: "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex";
   /** Centre of the arrangement (same units as move.by); default: the targets' current centroid (fan: the first sector's apex). */
-  at?: [number, number];
+  at?: PointRef;
   /** fan: the angle (degrees, counter-clockwise from +x) where the first piece begins (default 0). */
   start?: number;
   /** Space between neighbours, logical units (default 6). */

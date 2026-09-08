@@ -2,8 +2,8 @@
 // 1. output constraint for the LLM (structured outputs),
 // 2. ajv validation before rendering (Loop 1.1),
 // 3. prompt documentation (embedded verbatim in the compiler prompt).
-// Keep it flat and free of oneOf/anyOf so structured-output decoding accepts it;
-// per-type requirements are enforced by the semantic checks below and fed back
+// Unions (oneOf) are fine under structured output — play, marks and drag items ship with them; keep them shallow.
+// Per-type requirements are enforced by the semantic checks below and fed back
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
@@ -51,6 +51,9 @@ const drawSchema = {
   additionalProperties: false,
 };
 
+const ANCHOR_NAMES =
+  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…";
+
 const endRefSchema = {
   type: "object",
   description: "Arrow/edge endpoint: set ref to an element id, OR x+y coordinates (domain coordinates if a domain is declared, else logical).",
@@ -58,10 +61,23 @@ const endRefSchema = {
     ref: { type: "string" },
     x: { type: "number" },
     y: { type: "number" },
-    anchor: { type: "string", description: "A named point ON ref instead of its centre — e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}: center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…." },
+    anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
   },
   additionalProperties: false,
 };
+
+/** A point a verb takes: [x, y], or a named point on an element so the model never computes it. */
+const pointRefSchema = (what: string) => ({
+  oneOf: [
+    { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+    {
+      type: "object",
+      properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" } },
+      additionalProperties: false,
+    },
+  ],
+  description: `${what} — [x, y] (domain units when a domain is declared, else logical), or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
+});
 
 const elementSchema = {
   type: "object",
@@ -520,9 +536,10 @@ const commandSchema = {
           items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
           description: "Waypoint offsets from the element's starting position (same units as by); the last waypoint is the final offset. Use instead of by for curved or multi-leg motion.",
         },
-        to: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Absolute destination for the element's CENTRE (same units as by) — instead of by/path — e.g. \"to\": [500, 300] sends the centre to that point. Attached labels follow." },
+        to: pointRefSchema("Destination of the moving element's `anchor` (default its centre) — instead of by/path — e.g. \"to\": {\"ref\": \"a\", \"anchor\": \"tip\"} with \"anchor\": \"tail\" puts b's tail on a's tip"),
+        anchor: { type: "string", description: "With to: which anchor of the MOVING element lands there (default center) — \"anchor\": \"tail\" to place an arrow's tail." },
         rotate: { type: "number", description: "Turn the element by this many DEGREES, counter-clockwise, about `pivot` (default: its own centre) — e.g. {\"move\": {\"target\": [\"slice_3\"], \"rotate\": 180, \"duration\": 1}} flips a slice. Combine with by/to to slide and turn at once." },
-        pivot: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "With rotate: the point to turn about, in current coordinates (same units as by) — e.g. \"pivot\": [300, 375] with rotate turns the element about the circle's centre. Omit for the element's own centre." },
+        pivot: pointRefSchema("With rotate/scale: the point to turn or grow about — {\"anchor\": \"vertex_2\"} (no ref) is the element's OWN vertex; {\"ref\": \"wheel\"} another element's centre; rides along with by/to, so by + rotate rolls. Omit for the element's own centre"),
         scale: { type: "number", exclusiveMinimum: 0, description: "Grow or shrink the element by this factor about `pivot` (default its own centre), cumulative across moves — e.g. \"scale\": 2 doubles it in place, 0.5 halves it. Combine with rotate/by/to." },
         duration: { type: "number", description: "Seconds (default 1)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
@@ -541,7 +558,7 @@ const commandSchema = {
           enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex"],
           description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right.",
         },
-        at: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "Centre the arrangement here (same units as move.by) — e.g. \"at\": [650, 375] builds it in the right half of the canvas; for fan it is the shared apex. Default: the targets' current centroid." },
+        at: pointRefSchema("Centre of the arrangement (default: where the targets are now; fan: the first sector's apex)"),
         start: { type: "number", description: "fan: the angle where the first piece begins, degrees counter-clockwise from +x — e.g. \"start\": 0 lays the angles along a horizontal line rightwards (default 0)." },
         gap: { type: "number", description: "Space between neighbours in logical units (default 6; hex defaults to 0 for a tight comb) — e.g. \"gap\": 20 for an airy row. fan's sectors always touch; gap applies only to non-sector targets there." },
         columns: { type: "integer", minimum: 1, description: "grid: pieces per row — e.g. \"columns\": 4 lays twelve pieces out four wide." },
