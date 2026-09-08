@@ -73,6 +73,8 @@ export interface Settings {
   effort: "low" | "medium" | "high";
   /** Template on demand without asking: a single figure the router found nothing for is authored a template and redrawn at once; in a multi-part drawcast or a course every such part is, one after another. Off = the single-figure OFFER only. */
   templatesOnDemand: boolean;
+  /** At most this many templates are authored in ONE multi-part drawcast or course run (0 = none there; a single figure is unaffected). Bounds time (~4 min each) and spend. */
+  templatesOnDemandMax: number;
   style: RenderStyle;
   /** Viewer's text size in the player — a base size (22/32/38), or null to follow the drawcast. */
   textSize: number | null;
@@ -165,6 +167,9 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   effort: "high",
   templatesOnDemand: false,
+  // A literal, not DEFAULT_ON_DEMAND_MAX: store.ts is imported by the viewer
+  // and stays free of llm/ imports. tests/settings-migration.test.ts pins the two equal.
+  templatesOnDemandMax: 3,
   style: "clean",
   textSize: null,
   textFamily: null,

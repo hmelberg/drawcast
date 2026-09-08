@@ -15,6 +15,7 @@ import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
+import { createOnDemandRun, onDemandSummary } from "../llm/on-demand-run";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import { applyViewsFlag } from "../views";
@@ -671,10 +672,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     runsActive++;
     const controller = begin();
     let last = "";
+    // ONE run object for the whole course: the lectures generate in parallel,
+    // and this is what lets a template authored for one of them be reused by
+    // the others and keeps the cap a cap for the run, not per lecture.
+    const onDemandRun = createOnDemandRun(deps.settings.templatesOnDemandMax);
     try {
       const result = await runCourse(
         doc.value,
-        config(controller.signal),
+        { ...config(controller.signal), onDemandRun },
         {
           onLecture: (index, phase) => {
             if (phase === "start") return; // the progress line covers starts
@@ -705,11 +710,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       status.textContent = "";
       const failed = result.failed.length;
       say(
-        controller.signal.aborted
+        (controller.signal.aborted
           ? `Cancelled after ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`
           : failed > 0
             ? `Generated ${result.generated}; ${failed} failed — press ⟳ on a failed lecture to try again.`
-            : `Generated ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`,
+            : `Generated ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`) + onDemandSummary(onDemandRun),
         failed > 0 ? "error" : "ok",
       );
     } catch (err) {

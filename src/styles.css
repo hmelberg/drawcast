@@ -250,6 +250,17 @@ body.mode-editor main {
   max-width: 11.5rem;
 }
 .quiet-label select:hover { border-color: var(--line); background: var(--field); }
+/* The template cap: a two-digit field that sits in the row like the selects do. */
+.quiet-label input[type="number"] {
+  font-size: var(--text-sm);
+  padding: 0.25rem 0.3rem;
+  width: 3.4rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink);
+}
+.quiet-label input[type="number"]:hover,
+.quiet-label input[type="number"]:focus { border-color: var(--line); background: var(--field); }
 /* Ragged-left right-alignment reads as broken once the row wraps. */
 @media (max-width: 560px) {
   .gen-row, .gen-choices { justify-content: flex-start; }

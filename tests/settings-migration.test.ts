@@ -20,6 +20,7 @@ vi.stubGlobal("localStorage", {
 });
 
 import { DEFAULT_SETTINGS, loadSettings, migrateShareTo } from "../src/store";
+import { DEFAULT_ON_DEMAND_MAX } from "../src/llm/on-demand-run";
 
 const SETTINGS_KEY = "drawcast.settings.v1";
 
@@ -69,5 +70,23 @@ describe("loadSettings", () => {
   it("remembers the drawcast server across a reload", () => {
     mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, shareTo: "server" }));
     expect(loadSettings().shareTo).toBe("server");
+  });
+});
+
+describe("the template-on-demand cap", () => {
+  it("defaults to the run module's default — store.ts spells it as a literal, so pin the two equal", () => {
+    expect(DEFAULT_SETTINGS.templatesOnDemandMax).toBe(DEFAULT_ON_DEMAND_MAX);
+    expect(DEFAULT_SETTINGS.templatesOnDemandMax).toBe(3);
+  });
+  it("a settings blob stored before the cap existed gets the default on load", () => {
+    const { templatesOnDemandMax: _dropped, ...older } = DEFAULT_SETTINGS;
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...older, templatesOnDemand: true }));
+    const s = loadSettings();
+    expect(s.templatesOnDemand).toBe(true);
+    expect(s.templatesOnDemandMax).toBe(3);
+  });
+  it("a stored cap survives a reload", () => {
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, templatesOnDemandMax: 0 }));
+    expect(loadSettings().templatesOnDemandMax).toBe(0);
   });
 });

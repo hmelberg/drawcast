@@ -162,3 +162,56 @@ smoked live (a course run is ~20 Opus calls).
 - Sharing to a central library: roadmap item 4, not started.
 - The Templates panel shows the saved template like any other; there is
   no marker that it was authored on demand.
+
+## 2026-09-08 — the cap and the shared run (Hans: "bygg alle tre bitene, med låsen")
+
+Hans asked for an off switch or a cap on templates authored in a course, and
+that a template authored for one part be available at once to the other
+drawcasts in the same course. Reading the code for the design found the
+second was NOT the case: `authorTemplatesForParts` kept a local `authored`
+map, and its re-route condition was `authored.size > 0` — so a lecture
+re-routed only after it had itself authored something. Lectures run in
+parallel (run.ts pours every part into one pool), so lecture A's template
+was never tried on lecture B, and two lectures finishing together could
+author twins for the same figure. The registry itself was live all along
+(`routerIndexText` reads `scenes` directly); what was missing was the
+shared state and the wait.
+
+- **`src/llm/on-demand-run.ts`** — `createOnDemandRun(max)`: the cap
+  (`take()`, a slot is spent whether the authoring succeeds or not — the cap
+  bounds spend), `authored`/`skipped` counts, the `docs` map a re-routed
+  part embeds from, and `lock(fn)` — a promise chain that runs callers one at
+  a time in arrival order and survives a throw. `onDemandSummary(run)` is
+  the status tail. `DEFAULT_ON_DEMAND_MAX = 3`.
+- **`GenerateConfig.onDemandRun` + `templatesOnDemandMax`.** The course
+  panel creates ONE run per `runCourse` and spreads it into the config; the
+  multi-part Generate creates one per generation; `generateFromOutline`
+  makes a private one from `templatesOnDemandMax` when none is given, so
+  tests and embeds keep behaving.
+- **The loop.** Per template-less part: inside the lock — re-route if
+  `run.authored > 0` (returns the id to reuse), else `take()` or count as
+  skipped with a phase line naming the cap, else author (docs/authored/
+  onTemplateAuthored). The redraw of a REUSING part runs outside the lock,
+  so a lecture that merely reuses does not hold the others. A skipped part
+  still got its re-route first.
+- **Setting** `templatesOnDemandMax` (store.ts literal 3, pinned equal to
+  the module default by tests/settings-migration.test.ts; an older blob
+  gets 3 on load). Generate menu: "at most [3] per run" beside the
+  checkbox, whole numbers 0–20; choices summary "Templates on demand (≤3
+  per run)". End status of a course or multi-part run appends
+  " · 2 templates authored · 1 part left freehand (cap 3)".
+- **Speed.** Nothing changes with the checkbox off. On: parts with a
+  template are untouched; authoring is now sequential for the run (cap × ~4
+  min worst case, was parallel across lectures with unbounded count and
+  possible twins). One Haiku re-route (~1 s) per template-less part once
+  anything was authored.
+
+Tests: tests/on-demand-run.test.ts (cap, lock order, throw release,
+summary), tests/on-demand-course.test.ts (two parallel lectures author ONCE
+and both embed the document; cap 1 of 3 → 1 authored 2 skipped with a "cap"
+phase; cap 0 authors nothing; a skipped part still reuses; the config cap
+alone; the default of three; switch off). 5924 vitest, tsc clean.
+
+Not done: a live course smoke with the switch on (~20 Opus calls plus the
+authoring); the offer form for courses (roadmap item 5); help.html says
+nothing about the cap (it says nothing about the checkbox either).

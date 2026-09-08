@@ -11,6 +11,7 @@ import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type Pro
 import { routeTemplates } from "./llm/router";
 import { authorOnDemand } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
+import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
@@ -615,6 +616,19 @@ effortSel.value = settings.effort;
 // figure offer only.
 const templatesOnDemandBox = h("input", { type: "checkbox", title: "When no template fits a figure, author one and redraw at once — in a multi-part drawcast or a course, for every such part in turn (~4 min each). Off: single figures get an offer instead." }) as HTMLInputElement;
 templatesOnDemandBox.checked = settings.templatesOnDemand;
+// The cap (Hans, 2026-09-08): a course with many template-less figures must
+// not run for an hour — at most this many templates per multi-part run or
+// course, shared across its parallel lectures (llm/on-demand-run.ts). 0 =
+// none in courses; the single-figure path never reads it.
+const templatesOnDemandMaxInput = h("input", {
+  type: "number",
+  min: "0",
+  max: "20",
+  step: "1",
+  "aria-label": "Templates authored per run, at most",
+  title: "At most this many templates are authored in one multi-part drawcast or course run (~4 min and a few dollars each). A template authored for one figure is reused by the rest of the run. 0 = none in courses; a single figure is unaffected.",
+}) as HTMLInputElement;
+templatesOnDemandMaxInput.value = String(settings.templatesOnDemandMax);
 
 const styleSel = h("select", { title: "Drawing style" });
 styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
@@ -1111,6 +1125,7 @@ const genChoices = h(
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
   h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
+  h("label", { class: "quiet-label" }, "at most ", templatesOnDemandMaxInput, " per run"),
 );
 const choicesBtn = h("button", {
   class: "choices-toggle",
@@ -1134,7 +1149,7 @@ function refreshChoicesToggle(): void {
   const showVariant = settings.developerMode || settings.variant !== variants[0].name;
   const dev = showVariant ? ` · Instructions: ${prompt}` : "";
   const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
-  const onDemand = settings.templatesOnDemand ? " · Templates on demand" : "";
+  const onDemand = settings.templatesOnDemand ? ` · Templates on demand (≤${settings.templatesOnDemandMax} per run)` : "";
   choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
@@ -3366,6 +3381,7 @@ async function generateMulti(
   startAiStatus("Outlining a multi-part drawcast");
   resetCallLedger();
   let partTitles: string[] = [];
+  const onDemandRun = createOnDemandRun(settings.templatesOnDemandMax);
   const result = await generateParts(
     { request: parsed.clean, parts: parsed.parts, brief },
     {
@@ -3381,6 +3397,7 @@ async function generateMulti(
       priorityIds,
       route: (req, sig) => routeTemplates(req, { apiKey, signal: sig }),
       templatesOnDemand: settings.templatesOnDemand,
+      onDemandRun,
       onTemplateAuthored: keepAuthoredTemplate,
       signal,
     },
@@ -3424,7 +3441,7 @@ async function generateMulti(
     { id: null, driveFileId: null, sourcePath: null, title, prompt: rawRequest, playlist },
     (result.failed.length > 0
       ? `Generated ${result.specs.length}/${n} parts (part${result.failed.length > 1 ? "s" : ""} ${result.failed.join(", ")} failed).`
-      : `Generated a ${result.specs.length}-part drawcast.`) + costText(),
+      : `Generated a ${result.specs.length}-part drawcast.`) + onDemandSummary(onDemandRun) + costText(),
     { label: rawRequest, kind: "generate" },
   );
   autosave();
@@ -5174,6 +5191,13 @@ effortSel.addEventListener("change", () => {
 });
 templatesOnDemandBox.addEventListener("change", () => {
   settings.templatesOnDemand = templatesOnDemandBox.checked;
+  persist();
+});
+templatesOnDemandMaxInput.addEventListener("change", () => {
+  // Whole numbers 0–20; anything else snaps back to what was stored.
+  const n = Math.floor(Number(templatesOnDemandMaxInput.value));
+  if (Number.isFinite(n) && n >= 0 && n <= 20) settings.templatesOnDemandMax = n;
+  templatesOnDemandMaxInput.value = String(settings.templatesOnDemandMax);
   persist();
 });
 styleSel.addEventListener("change", () => {

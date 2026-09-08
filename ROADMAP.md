@@ -148,6 +148,21 @@ call).
    Also from this round: an **Effort** setting (high / medium / low)
    beside the model, for the creative rounds of generate, revise and
    author.
+   **Cap and shared run (2026-09-08, Hans).** A course's lectures generate
+   in parallel, and until now each lecture's authoring loop knew only what
+   IT had authored — so a template made for lecture A was never tried on
+   lecture B, and two lectures finishing together could author twins. One
+   run object per course or multi-part generation
+   (`src/llm/on-demand-run.ts`, `GenerateConfig.onDemandRun`) now carries
+   the cap, the authored documents and a lock: templates are authored one at
+   a time for the whole run, each template-less part is re-routed after the
+   previous template landed and embeds the shared document when it reuses
+   it; the redraw of a reusing part runs outside the lock. Setting
+   `templatesOnDemandMax` (default 3, 0 = none in courses; the single
+   figure is unaffected) beside the checkbox; the end status says "N
+   templates authored · M parts left freehand (cap 3)". Only authoring got
+   slower (cap × ~4 min for the run instead of parallel); parts with a
+   template are untouched. Still not live-smoked in a course.
 4. **Next — sharing: the community pack.** A template one user got
    authored on demand becomes available to everyone, with a review in
    between. Design (2026-09-07, Hans's defaults):
