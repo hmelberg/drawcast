@@ -376,14 +376,30 @@ describe("arrange", () => {
     expect(label[0].to.turn.deg).toBe(0);
     expect(plan.states[1].offsets["label_a"]).toEqual([390, 350]);
   });
-  test("a zipper piece's attached label stays put — the slice turns, the label must not", () => {
+  test("a zipper piece's attached label rides the turn — its box centre goes where the piece's new pose puts it, but the text itself does not turn (design §2.2)", () => {
+    // label_k_1's box centre is (310, 340), inside k_1's own box.
+    const labelBox = { x: 300, y: 335, w: 20, h: 10 };
     const plan = planCommands([{ draw: ["k"] }, { arrange: { target: "k", layout: "zipper", at: [600, 375] } }], [...pieces, "label_k_1"], {
       ...opts,
-      attachedTo: (id) => (id === "k_1" ? ["label_k_1"] : []),
+      bboxOf: (id: string) => (pieces.includes(id) ? { x: 200, y: 300, w: 100, h: 80 } : id === "label_k_1" ? labelBox : null),
+      attachedTo: (id: string) => (id === "k_1" ? ["label_k_1"] : []),
     });
     const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
-    expect(step.items.map((i) => i.id)).toEqual(pieces);
-    expect(plan.states[1].offsets["label_k_1"]).toBeUndefined();
+    expect(step.items.map((i) => i.id)).toEqual(["k_1", "label_k_1", "k_2", "k_3", "k_4"]);
+    const k1 = step.items.find((i) => i.id === "k_1")!;
+    const label = step.items.find((i) => i.id === "label_k_1")!;
+    // The text never turns or scales, no matter how far the slice rotates.
+    expect(label.to.turn.deg).toBe(0);
+    expect(label.to.turn.scale ?? 1).toBe(1);
+    // Its box centre lands exactly where k_1's own new pose carries it: P1(c) − P0(c).
+    const centre: [number, number] = [labelBox.x + labelBox.w / 2, labelBox.y + labelBox.h / 2];
+    const before = poseOf([0, 0], undefined)(centre);
+    const after = poseOf(k1.to.offset, k1.to.turn)(centre);
+    expect(label.to.offset[0]).toBeCloseTo(after[0] - before[0], 6);
+    expect(label.to.offset[1]).toBeCloseTo(after[1] - before[1], 6);
+    // A 90°+ swing about the apex moves a box centre well away from its start.
+    expect(Math.hypot(label.to.offset[0], label.to.offset[1])).toBeGreaterThan(50);
+    expect(plan.states[1].offsets["label_k_1"]).toEqual(label.to.offset);
   });
 });
 

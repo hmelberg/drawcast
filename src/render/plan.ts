@@ -326,6 +326,41 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return anchorNow(id, r.anchor ?? "center", verb);
   };
 
+  const IDENTITY: Turn = { deg: 0, pivot: [0, 0] };
+  /** Followers ride their target's pose change: each is moved by where its own
+   *  box centre goes under the target's new pose minus where it was under the
+   *  old one (design §2.2). Text never turns or scales. `moved` dedupes a
+   *  follower two targets share; `ids` are the targets themselves. */
+  const followerItems = (
+    targetId: string,
+    from: { offset: Pt; turn: Turn | undefined },
+    to: { offset: Pt; turn: Turn | undefined },
+    moved: Set<string>,
+    ids: string[],
+  ): TransformItem[] => {
+    const out: TransformItem[] = [];
+    const before = poseOf(from.offset, from.turn);
+    const after = poseOf(to.offset, to.turn);
+    for (const f of [...new Set(opts.attachedTo?.(targetId) ?? [])]) {
+      if (!known.has(f) || ids.includes(f) || moved.has(f)) continue;
+      moved.add(f);
+      const fb = bboxOf(f);
+      const o: Pt = offsets[f] ?? [0, 0];
+      let d: Pt;
+      if (fb) {
+        const c: Pt = [fb.x + fb.w / 2, fb.y + fb.h / 2];
+        const p0 = before(c), p1 = after(c);
+        d = [p1[0] - p0[0], p1[1] - p0[1]];
+      } else {
+        d = [to.offset[0] - from.offset[0], to.offset[1] - from.offset[1]];
+      }
+      const next: Pt = [o[0] + d[0], o[1] + d[1]];
+      out.push({ id: f, from: { offset: o, turn: turns[f] ?? IDENTITY }, to: { offset: next, turn: turns[f] ?? IDENTITY } });
+      offsets[f] = next;
+    }
+    return out;
+  };
+
   const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
@@ -626,14 +661,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           items.push({ id, from: { offset: offset0, turn: turn0 ?? { deg: 0, pivot: [0, 0] } }, to: { offset, turn: turn ?? { deg: 0, pivot: [0, 0] } } });
           offsets[id] = offset;
           if (turn) turns[id] = turn;
-          for (const f of followers(id)) {
-            if (movedFollowers.has(f)) continue;
-            movedFollowers.add(f);
-            const o: Pt = offsets[f] ?? [0, 0];
-            const next: Pt = [o[0] + delta[0], o[1] + delta[1]];
-            items.push({ id: f, from: { offset: o, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } }, to: { offset: next, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } } });
-            offsets[f] = next;
-          }
+          items.push(...followerItems(id, { offset: offset0, turn: turn0 }, { offset, turn }, movedFollowers, ids));
         }
         pushStep({ kind: "transform", items, seconds, easing });
       }
@@ -660,20 +688,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const gap = cmd.arrange.gap ?? (cmd.arrange.layout === "hex" ? 0 : 6);
       const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap, columns: cmd.arrange.columns, start: cmd.arrange.start });
       const items: TransformItem[] = [];
-      // Attached labels ride along with a TRANSLATION, exactly as under move —
-      // an arranged row of labeled shapes must not leave its labels behind.
-      // The zipper and the fan are rotations about each apex and carry nothing: a label
-      // does not turn over with its slice. Dedupe across the whole loop, since
-      // two targets can share one label (and attachedTo may repeat an id).
-      const followers = (id: string): string[] => [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => known.has(f) && !ids.includes(f));
+      // Attached labels ride the pose change exactly as under move (design
+      // §2.2) — a row, a zipper or a fan of labeled shapes must not leave its
+      // labels behind. Dedupe across the whole loop, since two targets can
+      // share one label (and attachedTo may repeat an id).
       const movedFollowers = new Set<string>();
       for (const p of placed) {
         const input = inputs.find((i) => i.id === p.id)!;
         const from = { offset: input.pose.offset, turn: input.pose.turn ?? { deg: 0, pivot: [0, 0] as Pt } };
         let offset: Pt = input.pose.offset;
         let turn: Turn | undefined = input.pose.turn;
-        /** The pure translation the followers share; null when the target turned. */
-        let delta: Pt | null = null;
         if (p.rotate !== undefined && p.pivotNow && p.apexTo) {
           const pivotNow = poseOf(offset, turn)(p.pivotNow); // the apex where it is now
           const c = composeTurn(offset, turn, p.rotate, pivotNow);
@@ -682,21 +706,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           // the apex is the pivot, so it did not move; slide it to apexTo
           offset = [offset[0] + p.apexTo[0] - pivotNow[0], offset[1] + p.apexTo[1] - pivotNow[1]];
         } else if (p.centre) {
-          delta = [p.centre[0] - input.centre[0], p.centre[1] - input.centre[1]];
+          const delta: Pt = [p.centre[0] - input.centre[0], p.centre[1] - input.centre[1]];
           offset = [offset[0] + delta[0], offset[1] + delta[1]];
         }
         items.push({ id: p.id, from, to: { offset, turn: turn ?? { deg: 0, pivot: [0, 0] } } });
         offsets[p.id] = offset;
         if (turn) turns[p.id] = turn;
-        if (delta === null) continue;
-        for (const f of followers(p.id)) {
-          if (movedFollowers.has(f)) continue;
-          movedFollowers.add(f);
-          const o: Pt = offsets[f] ?? [0, 0];
-          const next: Pt = [o[0] + delta[0], o[1] + delta[1]];
-          items.push({ id: f, from: { offset: o, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } }, to: { offset: next, turn: turns[f] ?? { deg: 0, pivot: [0, 0] } } });
-          offsets[f] = next;
-        }
+        items.push(...followerItems(p.id, { offset: input.pose.offset, turn: input.pose.turn }, { offset, turn }, movedFollowers, ids));
       }
       pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
     } else if (cmd.fade !== undefined) {
