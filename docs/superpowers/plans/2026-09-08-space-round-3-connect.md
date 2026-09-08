@@ -520,9 +520,9 @@ Expected: FAIL — `"connect"` is not in the enum.
 - [ ] **Step 3: Implement**
 
 1. Enum: `enum: ["click", "piano", "chess", "code", "drag", "connect"]`.
-2. Append to the `widget` description, in the same voice, before the closing
-   "All but drag require answer" sentence (which must become "All but drag
-   require answer"): 
+2. Append to the `widget` description, in the same voice, immediately before
+   its closing sentence about which widgets require `answer` — that sentence
+   stays true as written, since `connect` requires one too: 
 
    > `connect` = DRAW A CONSTELLATION on a `sky_map` portrait: the viewer joins
    > star to star (press one and drag to the next, or tap both) until the figure
