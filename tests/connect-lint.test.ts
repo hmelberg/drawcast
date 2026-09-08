@@ -299,4 +299,82 @@ describe("connect lint", () => {
     const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
     expect(issues.filter((i) => i.rule === "connect")).toEqual([]);
   });
+
+  // Final whole-branch review, round 2 (F1's fix round): the gate derives
+  // its key from whatever is actually painted, and between the draw and the
+  // ask that painted layout can itself be null (the animate tween discards
+  // its frame before the commit that would set it) — the gate then falls
+  // back to the BASE layout, the sky exactly as it stood before the turn.
+  // Either fallback loses: a stale key demanding stars that have since set,
+  // or a shape the viewer is asked to redraw that has visibly moved since
+  // they saw it. Lint refuses the cast outright rather than trust either.
+  test("the sky turning between the draw and the ask is refused, even when nothing else is wrong", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [
+      { draw: ["con_tst", "a", "b", "c"] }, // 0: the reveal
+      { animate: { hours: 6 } }, // 1: the sky turns, between the reveal and the ask
+      askConnect("con_tst"), // 2: the connect ask itself
+    ] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect")).toEqual([
+      {
+        rule: "connect",
+        ids: ["con_tst"],
+        message: `connect: the sky turns between the beat that draws "con_tst" and this question — a viewer is asked to redraw a figure that has moved, and part of it may have set`,
+        severity: "error",
+      },
+    ]);
+  });
+
+  test("animate on days, not just hours, is caught the same way", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [{ draw: ["con_tst", "a", "b", "c"] }, { animate: { days: 182 } }, askConnect("con_tst")] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect").map((i) => i.message)).toEqual([
+      `connect: the sky turns between the beat that draws "con_tst" and this question — a viewer is asked to redraw a figure that has moved, and part of it may have set`,
+    ]);
+  });
+
+  test("an animate that does not touch hours or days is not a sky turn", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [{ draw: ["con_tst", "a", "b", "c"] }, { animate: { zoom: 2 } }, askConnect("con_tst")] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect")).toEqual([]);
+  });
+
+  test("an animate BEFORE the reveal, or AFTER the ask, does not count as between them", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [
+      { animate: { hours: 6 } }, // 0: before the figure is even drawn
+      { draw: ["con_tst", "a", "b", "c"] }, // 1: the reveal
+      askConnect("con_tst"), // 2: the connect ask itself
+      { animate: { hours: 12 } }, // 3: after the ask — too late to matter
+    ] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect")).toEqual([]);
+  });
 });

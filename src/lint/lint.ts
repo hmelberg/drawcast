@@ -167,6 +167,38 @@ function gotoTargetIndices(commands: Command[]): number[] {
 }
 
 /**
+ * Whether a sky-moving `animate` — one targeting `hours` or `days`,
+ * sky_map's own animatable handles (matched on the target path's LAST
+ * segment, so a nested path is still caught, not only a bare top-level key)
+ * — sits strictly between `revealIdx` (the beat that drew the figure) and
+ * `askIndex` (the connect question itself). Used to refuse a connect ask
+ * downstream of a turning sky: the gate derives its key from whatever is
+ * actually painted (`connect-gate.ts`'s `paintedLayout()`), but between the
+ * draw and the ask that painted layout can itself be null (an `animate`
+ * tween discards its frame before the commit that would set it — the
+ * player's own tween/commit path, not this rule's business to reach into),
+ * in which case the gate falls back to the BASE layout — the sky exactly as
+ * it stood before the turn. Either way the viewer loses: graded against a
+ * stale key that demands stars which have since set, or simply asked to
+ * redraw a shape that has visibly moved and rotated since they saw it. The
+ * framing rule this sits beside exists so the viewer draws the figure they
+ * JUST saw — a sky that turns in between breaks that promise however the
+ * key is derived, so this is a question of fairness, not a technical guard
+ * against one stale computation.
+ */
+function skyTurnsBetween(commands: Command[], revealIdx: number, askIndex: number): boolean {
+  for (let k = revealIdx + 1; k < askIndex; k++) {
+    const animate = commands[k]?.animate;
+    if (!animate) continue;
+    for (const path of Object.keys(animate)) {
+      const target = path.split(".").pop();
+      if (target === "hours" || target === "days") return true;
+    }
+  }
+  return false;
+}
+
+/**
  * An ACCEPTED overlap: two drawables that belong to DIFFERENT movers of the
  * same moving field (`crossing`, layout/model.ts). Two racers swapping places
  * share a row for the frame of the overtake; a line race's names travel with
@@ -376,6 +408,17 @@ export function lintLayoutDetailed(
           rule: "connect",
           ids: [answer],
           message: `connect: a jump can reach this question without passing the beat that draws "${answer}" — a viewer who takes that branch is asked to draw a figure they never saw`,
+          severity: "error",
+        });
+      }
+      // Reported independently again: the sky can turn ON the main line,
+      // with no jump involved at all — see skyTurnsBetween's own comment
+      // for why this is a fairness problem, not only a stale-key one.
+      if (visible && skyTurnsBetween(commands ?? [], revealIdx, i)) {
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: the sky turns between the beat that draws "${answer}" and this question — a viewer is asked to redraw a figure that has moved, and part of it may have set`,
           severity: "error",
         });
       }
