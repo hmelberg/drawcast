@@ -306,6 +306,60 @@ The ⊕ Space section gains: click a constellation or star → info card (name i
 three languages, brightest star, Wikipedia summary); pills for time (now, +1 h,
 +6 h), date and place presets (Oslo, Bergen, Tromsø, Equator).
 
+### 6.3 What round 3 settles, and what Hans changed (2026-09-08)
+
+Round 3 builds direction B. Three questions §6.2 left open are answered here.
+
+**Threshold.** Every edge of the key, at most one stray. Undirected pairs,
+compared as sets. A count is shown while the viewer draws ("12 / 24 linjer")
+and in the summary, so a long figure gives feedback even though the verdict is
+binary.
+
+**The size cap.** Hans: «bruk en fornuftig øvre grense». **24 edges** —
+Orion's own count, and the practical ceiling for a hand-drawn dot-to-dot. It
+admits every figure anyone teaches and excludes exactly two: Eridanus (26) and
+Sagittarius (29), the two that sprawl. Over the cap the planner warns and the
+gate does not open; the author prompt states the rule so the model picks a
+smaller figure, or asks direction A instead.
+
+**Every key star must be drawn.** The bundled union reaches magnitude 5,89 for
+line stars, but a whole-sky chart at `limit_mag` 4,5 draws only some of them —
+a key edge whose endpoint is not on the page cannot be drawn, and the exercise
+would be unwinnable. So a connect question belongs on a `focus` portrait of
+that same figure, which gives every one of its stars its own element id. The
+planner warns for each key star it cannot find a box for.
+
+**Not in scope.** Direction A ("which constellation is this?") already works
+with `quiz` and a typed `ask`, and shipped as two of round 2's examples. The
+multi-language `ask.answer` question §6.2 raised stays open: it would change
+comparison semantics every template shares, and no example needs it.
+
+### 6.4 Free play on the figure — clicking a planet, a star, a figure
+
+Hans, 2026-09-08: «både fri lek (klikke på planeter/stjerner) og spørsmål
+(tegne stjernebilder ved å connecte enheter)».
+
+This reverses the round-3 ruling that the connect widget needed no interaction
+kind. Both templates declare one: `solar_system` → `interactions: [space]`,
+`sky_map` → `interactions: [sky]`. Two pieces of existing machinery answer:
+
+- **Cards on scene-drawn parts.** `sceneNamesFor` (ui/infocard.ts) is the hook
+  the periodic table opened: a manifest interaction lets a template name its
+  own elements, and a paused click on a named element opens its card. For
+  `space` that is every body drawn; for `sky` every star (its proper name,
+  else "HIP 27989"), every constellation, and every body. The card is the
+  generic one — name, Wikipedia summary, Read more, Search. The ⊕ drawer
+  keeps the full fact sheet (magnitude, distance, three languages): one place
+  for facts, one for a quick look.
+- **The identify drill must not be lost.** `activitiesFor` returns the generic
+  "Find the part" drill only when a figure declares NO interaction, so
+  declaring one would silently take that drill away from both templates. It
+  gains a fall-through: a declared interaction that implies no bespoke activity
+  keeps the generic drill. No new drill is written for this round.
+
+Free play is clicking. Connecting is the question — there is no free-hand
+constellation drawing outside an ask.
+
 ## 7. The 3D panel (round 3): `model3d: {kind: space}`
 
 Backend: three.js (npm dependency `three`, lazy dynamic import, ~690 KB min
