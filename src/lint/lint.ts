@@ -98,35 +98,72 @@ export function coVisible(commands: Command[] | undefined, allIds: string[]): (a
 }
 
 /**
- * Whether `id` is already on screen right before `commands[askIndex]` fires —
- * the same draw/show reveal, erase/hide/clear conceal walk `coVisible` runs,
- * but read at one moving point in the timeline instead of folded into an
- * all-pairs table — and, on the "never managed" case, the OPPOSITE answer
- * from `coVisible`'s. `coVisible` asks "were these ever on screen together"
- * (over the whole cast), where unmanaged really does mean "present the whole
- * time, so it coexists with everything." This asks "was this on screen YET"
- * at a single instant, and an id no command manages is not on screen from
- * the start — the planner collects every unmentioned id into ONE implicit
- * `draw` step pushed AFTER every explicit command (`src/render/plan.ts:609-612`),
- * so it is drawn LAST, after the very question it was meant to precede. That
- * is the shape a compiling model is most likely to produce (an omitted draw,
+ * Whether `id` is already on screen right before `commands[askIndex]` fires,
+ * and — when it is — the index of the LAST command before `askIndex` that
+ * revealed it (the "revealing beat" a goto could bypass; meaningless, and
+ * left at -1, when `visible` is false). The walk is the same draw/show
+ * reveal, erase/hide/clear conceal state machine `coVisible` runs, but read
+ * at one moving point in the timeline instead of folded into an all-pairs
+ * table — and, on the "never managed" case, the OPPOSITE answer from
+ * `coVisible`'s. `coVisible` asks "were these ever on screen together" (over
+ * the whole cast), where unmanaged really does mean "present the whole time,
+ * so it coexists with everything." This asks "was this on screen YET" at a
+ * single instant, and an id no command manages is not on screen from the
+ * start — the planner collects every unmentioned id into ONE implicit `draw`
+ * step pushed AFTER every explicit command (`src/render/plan.ts:609-612`), so
+ * it is drawn LAST, after the very question it was meant to precede. That is
+ * the shape a compiling model is most likely to produce (an omitted draw,
  * mopped up implicitly) and exactly the cast this rule exists to catch.
  * Do not "fix" this back to match `coVisible` — the two functions answer
  * different questions and this divergence is deliberate.
+ *
+ * This is a TEXTUAL-order walk, same approximation `coVisible` makes — it
+ * does not follow `right_goto`/`wrong_goto`/`if.goto`. Unlike `coVisible`,
+ * whose textual-order errors only ever ADD warnings (safe), a missed jump
+ * here would DROP one on the round's only fairness safeguard, so the
+ * jump-hole check below is what closes that gap instead of this walk trying
+ * (and failing) to be a full path analysis.
  */
-function visibleBeforeAsk(commands: Command[], askIndex: number, id: string): boolean {
+function connectVisibility(commands: Command[], askIndex: number, id: string): { visible: boolean; revealIdx: number } {
   const touched = commands.some(
     (c) => idsOf(c.draw).includes(id) || idsOf(c.show).includes(id) || idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id),
   );
-  if (!touched) return false; // drawn by the implicit final step — not yet on screen for any ask
+  if (!touched) return { visible: false, revealIdx: -1 }; // drawn by the implicit final step — not yet on screen for any ask
   let visible = false;
+  let revealIdx = -1;
   for (let i = 0; i < askIndex; i++) {
     const c = commands[i];
-    if (idsOf(c.draw).includes(id) || idsOf(c.show).includes(id)) visible = true;
+    if (idsOf(c.draw).includes(id) || idsOf(c.show).includes(id)) {
+      visible = true;
+      revealIdx = i;
+    }
     if (idsOf(c.erase).includes(id) || idsOf(c.hide).includes(id)) visible = false;
     if (c.clear !== undefined && visible && !idsOf(c.clear.keep).includes(id)) visible = false;
   }
-  return visible;
+  return { visible, revealIdx };
+}
+
+/**
+ * Every command index a `right_goto`/`wrong_goto`/`if.goto` could land a
+ * viewer on — the label fields grepped directly from the source rather than
+ * assumed (`src/spec/types.ts:320,346,348,387,389`; nothing else in the repo
+ * carries a goto). An unresolved target (an unknown label) is dropped here;
+ * schema.ts's own validation already reports that separately.
+ */
+function gotoTargetIndices(commands: Command[]): number[] {
+  const labelIndex = new Map<string, number>();
+  commands.forEach((c, i) => {
+    if (typeof c.label === "string") labelIndex.set(c.label, i);
+  });
+  const targets: string[] = [];
+  for (const c of commands) {
+    if (typeof c.quiz?.right_goto === "string") targets.push(c.quiz.right_goto);
+    if (typeof c.quiz?.wrong_goto === "string") targets.push(c.quiz.wrong_goto);
+    if (typeof c.ask?.right_goto === "string") targets.push(c.ask.right_goto);
+    if (typeof c.ask?.wrong_goto === "string") targets.push(c.ask.wrong_goto);
+    if (typeof c.if?.goto === "string") targets.push(c.if.goto);
+  }
+  return targets.map((t) => labelIndex.get(t)).filter((t): t is number => t !== undefined);
 }
 
 /**
@@ -293,6 +330,7 @@ export function lintLayoutDetailed(
       else if (d.kind === "image") leafBoxes.set(d.id, { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h });
       else if (d.pts.length > 0) leafBoxes.set(d.id, bboxOfPts(d.pts));
     }
+    const jumpTargets = gotoTargetIndices(commands ?? []);
     for (const { i, answer } of connectAsks) {
       const prefix = `${answer}__`;
       const drawnHere = leaves.some((d) => d.id === answer || d.id.startsWith(prefix));
@@ -325,11 +363,22 @@ export function lintLayoutDetailed(
       }
       // Reported independently of the four above: a figure can be perfectly
       // drawable and the question still unfair.
-      if (!visibleBeforeAsk(commands ?? [], i, answer)) {
+      const { visible, revealIdx } = connectVisibility(commands ?? [], i, answer);
+      if (!visible) {
         issues.push({
           rule: "connect",
           ids: [answer],
           message: `connect: "${answer}" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
+          severity: "warn",
+        });
+      } else if (jumpTargets.some((t) => t > revealIdx && t <= i)) {
+        // The TEXTUAL walk above says the figure is on screen, but some
+        // right_goto/wrong_goto/if.goto lands between the beat that drew it
+        // and this ask — a viewer who takes that branch never sees the draw.
+        issues.push({
+          rule: "connect",
+          ids: [answer],
+          message: `connect: a jump can reach this question without passing the beat that draws "${answer}" — a viewer who takes that branch is asked to draw a figure they never saw`,
           severity: "warn",
         });
       }

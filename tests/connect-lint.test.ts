@@ -206,4 +206,97 @@ describe("connect lint", () => {
       `connect: "con_ori" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
     ]);
   });
+
+  // Round 2 review, gap 1: hide is erase/clear's sibling concealer and had no
+  // test of its own — the path through connectVisibility is symmetric, but
+  // untested code is unverified code.
+  test("drawn, then hidden away before the ask — still caught (hide's own test, not just erase/clear)", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [{ draw: ["con_tst", "a", "b", "c"] }, { hide: ["con_tst"] }, askConnect("con_tst")] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect")).toEqual([
+      {
+        rule: "connect",
+        ids: ["con_tst"],
+        message: `connect: "con_tst" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
+        severity: "warn",
+      },
+    ]);
+  });
+
+  // Round 2 review, gap 2: each half of "no command touches it" / "no
+  // matching leaf" was tested alone; the combination — a wholesale bogus
+  // answer id, structurally absent AND never named by any command — is what
+  // a truly broken cast looks like.
+  test("an id that is neither drawn as a leaf nor ever named by any command: both issues fire", () => {
+    const drawables = [star("frame", [500, 375])]; // no con_phantom leaf anywhere
+    const commands = [{ draw: ["frame"] }, askConnect("con_phantom")] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    const connectIssues = issues.filter((i) => i.rule === "connect");
+    expect(connectIssues.map((i) => i.message)).toEqual([
+      `connect: "con_phantom" is not drawn in this figure — a connect question needs focus on that constellation`,
+      `connect: "con_phantom" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
+    ]);
+  });
+
+  // Round 2 review, the hole itself: coVisible's textual-order approximation
+  // is safe (its errors only ADD warnings); this rule's fairness safeguard
+  // needed the opposite guard, since a missed jump would DROP a warning.
+  // right_goto/wrong_goto/if.goto can move a real viewer past commands —
+  // here, failing a LATER quiz loops back to a checkpoint planted between
+  // the draw and the connect ask, so the retry path never re-sees the draw.
+  test("a jump can land between the draw and the ask, skipping it on that branch", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [
+      { draw: ["con_tst", "a", "b", "c"] }, // 0: the reveal
+      { label: "mid" }, // 1: a checkpoint AFTER the reveal, BEFORE the ask
+      askConnect("con_tst"), // 2: the connect ask itself
+      { quiz: { question: "Another check.", choices: ["x", "y"], correct: 1, wrong_goto: "mid" } }, // 3: fails here, loops to "mid" — skipping 0
+    ] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect")).toEqual([
+      {
+        rule: "connect",
+        ids: ["con_tst"],
+        message: `connect: a jump can reach this question without passing the beat that draws "con_tst" — a viewer who takes that branch is asked to draw a figure they never saw`,
+        severity: "warn",
+      },
+    ]);
+  });
+
+  // The judgment call: a wrong_goto that jumps BACKWARD to re-explain cannot
+  // skip the draw, because "re-explain" necessarily targets a point BEFORE
+  // the reveal it is re-running — so the checkpoint sits before revealIdx,
+  // outside the (revealIdx, askIndex] window the jump-hole check watches.
+  // This is not a special case carved out of the rule; it falls out of the
+  // rule's own arithmetic, and this test is here to prove it stays that way.
+  test("an ordinary backward re-explain loop, landing before the reveal, is not a jump hole", () => {
+    const drawables = [
+      star("a", [0, 0]),
+      star("b", [10, 0]),
+      star("c", [20, 0]),
+      stroke("con_tst__0", [[0, 0], [10, 0]]),
+      stroke("con_tst__1", [[10, 0], [20, 0]]),
+    ];
+    const commands = [
+      { label: "start" }, // 0: the re-explain checkpoint, BEFORE the reveal
+      { draw: ["con_tst", "a", "b", "c"] }, // 1: the reveal
+      askConnect("con_tst"), // 2: the connect ask
+      { quiz: { question: "Another check.", choices: ["x", "y"], correct: 1, wrong_goto: "start" } }, // 3: loops all the way back to before the reveal, which replays it
+    ] as never;
+    const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
+    expect(issues.filter((i) => i.rule === "connect")).toEqual([]);
+  });
 });
