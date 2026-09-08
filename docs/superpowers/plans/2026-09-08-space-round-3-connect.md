@@ -680,9 +680,22 @@ git commit -m "Lint will not ship a constellation the viewer cannot draw"
 ### Task 5: The plan carries the reveal
 
 **Files:**
+- Modify: `src/spec/types.ts` (`AskArgs.widget`)
 - Modify: `src/render/plan.ts` (the widget union at :40, the ask branch at
   :285-343)
+- Modify: `src/ui/controls.ts` (the widget union at :186)
 - Test: `tests/connect-plan.test.ts` (create)
+
+**Three copies of one list.** `"connect"` must join the widget union in ALL
+THREE of `src/spec/types.ts`, `src/render/plan.ts:40` and
+`src/ui/controls.ts:186` in this task, together. Task 3 left them narrow on
+purpose — it was scoped to the schema — and worked around it with a contained
+cast in `src/spec/schema.ts`:
+`(a.widget as unknown as string) === "connect"`. **Widen the three unions and
+then delete that cast**, restoring a plain comparison. If any of the three is
+left narrow, `src/render/plan.ts:328` spreads `cmd.ask.widget` into the plan
+step and `tsc` fails — which is the good outcome; the bad one is widening two
+of three and leaving the cast in place as permanent cover for a type hole.
 
 **Interfaces:**
 - Produces: on an ask step with `widget: "connect"`, `answerBox` set to the
