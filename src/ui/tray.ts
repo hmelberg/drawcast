@@ -53,7 +53,8 @@ import { openMediaModal } from "./media-modal";
 import { mountCodeEditor, type CodeAsk, type CodeEditorHandle, type EditorSurface } from "./code-editor";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
-import { mountQuiz } from "./quiz";
+import { MIN_PARTS } from "./parts-model";
+import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
@@ -126,8 +127,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const games = (hd.spec.elements ?? []).filter((e) => e.type === "code" && e.show !== "none" && (typeof e.game === "string" || isC64Screen(e)));
   // An anatomy figure always has a body to explore, slider or no slider; a
   // solar-system figure its planets, and a sky map the sky over a place.
-  const bodyTemplate = hd.spec.template === "anatomy";
-  const spaceTemplate = hd.spec.template === "solar_system" || hd.spec.template === "sky_map";
+  // Declared on the manifest (`explore: body / space`), never sniffed from
+  // the template id — the same one-source rule the interactions follow.
+  const explore = hd.spec.template ? scenes[hd.spec.template]?.manifest.explore : undefined;
+  const bodyTemplate = explore === "body";
+  const spaceTemplate = explore === "space";
+  // Any figure with enough named parts and no bespoke interaction carries
+  // the generic identify drill (parts-model.ts) — a violin, a flower, a
+  // freehand flowchart. Counted once here, with the browser's text measure.
+  const partsCount = interactions.length === 0 ? partsFor(hd).length : 0;
   if (
     liveSliders(hd).length === 0 &&
     liveChoices(hd).length === 0 &&
@@ -135,7 +143,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     editable.length === 0 &&
     games.length === 0 &&
     !bodyTemplate &&
-    !spaceTemplate
+    !spaceTemplate &&
+    partsCount < MIN_PARTS
   )
     return;
 
@@ -495,7 +504,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // the same interactions registry the context menu reads — right-click
     // opens this tray, so both doors show one row. Not during an explore
     // gate: a drill would strand the parked run.
-    const acts = plan.activities ? activitiesFor(interactions) : [];
+    const acts = plan.activities ? activitiesFor(interactions, partsCount) : [];
     if (acts.length > 0 && stage) {
       const row = h("div", { class: "cs-tray-acts" });
       for (const a of acts) {
@@ -521,7 +530,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       tray.appendChild(bodySection.el);
     }
     // The Space section, the Body section's twin — the solar system's planets,
-    // or a sky map's stars and constellations.
+    // or a sky map's stars and constellations. WHETHER there is a section is
+    // the manifest's to say (`explore: space`, above); WHICH of the two panels
+    // is a matter of what the chart actually is, and only the planisphere has
+    // its own — a template that declares the section and nothing more gets the
+    // general one.
     spaceSection?.destroy();
     spaceSection = null;
     if (plan.space) {

@@ -1,6 +1,6 @@
 pack: music
 title: Music
-description: Staff notation and a piano keyboard — sheet-music figures that pair with the play command's synthesized sound.
+description: Staff notation, a piano keyboard and the parts of a violin — sheet-music figures that pair with the play command's synthesized sound.
 ---
 template: note_sheet
 title: Note sheet (staff notation)
@@ -401,3 +401,177 @@ layout: |
     push(kit.text("title", [500, 640], params.title, { fontSize: 30 }));
   }
   return { drawables, labels, anchors, order };
+---
+template: violin_anatomy
+title: Violin parts (front view)
+version: 1
+kit: 1
+status: ready
+description: 'A front (top) view of a bowed string instrument with its named parts: scroll, pegbox and pegs, neck, fingerboard, four strings, f-holes, bridge, upper and lower bouts, waist (C-bout), tailpiece and chin rest, plus an optional bow standing beside it. Body proportions can be switched between violin/fiddle, viola and cello, labels can be limited to just the parts under discussion, translated (English, German, French, Spanish, Italian), and one part can be highlighted in accent ink. Choose this scene for any request about a violin, viola, cello or fiddle — ''label the parts of a violin'', ''where is the bridge / soundpost side / f-hole'', ''what does the tailpiece do'', ''draw a fiddle'', ''parts of a cello'' — or for explaining how a bowed string instrument makes sound while pointing at scroll, pegs, strings, bridge or bow.'
+params:
+  type: object
+  properties:
+    labels:
+      type: array
+      items:
+        type: string
+        enum:
+          - scroll
+          - pegs
+          - neck
+          - fingerboard
+          - strings
+          - f_holes
+          - bridge
+          - upper_bout
+          - lower_bout
+          - waist
+          - tailpiece
+          - chinrest
+          - bow
+      description: 'Which parts get name labels. Default: every body part except the bow. Pass a short list for a focused explanation.'
+    language:
+      type: string
+      enum:
+        - en
+        - de
+        - fr
+        - es
+        - it
+      description: Language of the part labels (default 'en').
+    instrument:
+      type: string
+      enum:
+        - violin
+        - fiddle
+        - viola
+        - cello
+      description: 'Which member of the family: adjusts body width and neck length slightly (default ''violin''; ''fiddle'' is identical to violin).'
+    bow:
+      type: boolean
+      description: Draw the bow standing beside the instrument (default true). Set false for a clean parts-of-the-body figure.
+    strings:
+      type: boolean
+      description: Draw the four strings from tailpiece over the bridge to the pegs (default true).
+    highlight:
+      type: string
+      enum:
+        - scroll
+        - pegs
+        - neck
+        - fingerboard
+        - strings
+        - f_holes
+        - bridge
+        - upper_bout
+        - lower_bout
+        - waist
+        - tailpiece
+        - chinrest
+        - bow
+        - body
+      description: Draw this one part in accent ink and heavier stroke — use it when the narration is about a single part.
+  additionalProperties: false
+element_ids:
+  body_fill / body / purfling: the body outline, its pale fill and the inner purfling line
+  hi_lower_bout_r / hi_lower_bout_l / hi_upper_bout_r / hi_upper_bout_l / hi_waist_r / hi_waist_l: accent arcs drawn over the outline when a bout or the waist is highlighted
+  neck: the neck sides plus the nut line at the top
+  fingerboard_fill / fingerboard: the fingerboard lying on the neck and over the belly
+  pegbox / pegbox_slot: the pegbox and its inner slot
+  pegs: 'group: four peg shafts and heads'
+  scroll: 'group: the scroll''s outer curve and its spiral'
+  tailpiece_fill / tailpiece / tailgut: the tailpiece and the gut to the end button
+  bridge: the bridge between the f-hole notches
+  strings: 'group: the four strings'
+  fholes: 'group: both f-holes with their eyes'
+  chinrest / chinrest_clamp: the chin rest and its clamp
+  bow: 'group: bow stick, hair, frog and tip'
+  bridge_leader: thin guide from the bridge out to its label (only when bridge is labelled)
+  label_scroll / label_pegs / label_neck / label_fingerboard / label_strings / label_f_holes / label_bridge / label_upper_bout / label_lower_bout / label_waist / label_tailpiece / label_chinrest / label_bow: the part name labels
+examples:
+  - request: Draw a violin and label its parts.
+    params: {}
+  - request: Show me the bridge and f-holes on a cello, in Italian, no bow.
+    params:
+      instrument: cello
+      language: it
+      labels:
+        - bridge
+        - f_holes
+        - waist
+      bow: false
+      highlight: bridge
+layout: |-
+  const C=kit.COLORS,MS=kit.SKETCH_MS;
+  const inst=params.instrument??"violin";
+  const lang=params.language??"en";
+  const drawBow=params.bow!==false;
+  const drawStrings=params.strings!==false;
+  const hi=params.highlight??null;
+  const DEF=["scroll","pegs","neck","fingerboard","strings","f_holes","bridge","upper_bout","lower_bout","waist","tailpiece","chinrest"];
+  const wanted=new Set(params.labels??DEF);
+  const NAMES={en:{scroll:"Scroll",pegs:"Pegs",neck:"Neck",fingerboard:"Fingerboard",strings:"Strings",f_holes:"f-holes",bridge:"Bridge",upper_bout:"Upper bout",lower_bout:"Lower bout",waist:"Waist (C-bout)",tailpiece:"Tailpiece",chinrest:"Chin rest",bow:"Bow"},de:{scroll:"Schnecke",pegs:"Wirbel",neck:"Hals",fingerboard:"Griffbrett",strings:"Saiten",f_holes:"F-Löcher",bridge:"Steg",upper_bout:"Oberbügel",lower_bout:"Unterbügel",waist:"Mittelbügel",tailpiece:"Saitenhalter",chinrest:"Kinnhalter",bow:"Bogen"},fr:{scroll:"Volute",pegs:"Chevilles",neck:"Manche",fingerboard:"Touche",strings:"Cordes",f_holes:"Ouïes",bridge:"Chevalet",upper_bout:"Courbe sup.",lower_bout:"Courbe inf.",waist:"Échancrure",tailpiece:"Cordier",chinrest:"Mentonnière",bow:"Archet"},es:{scroll:"Voluta",pegs:"Clavijas",neck:"Mástil",fingerboard:"Diapasón",strings:"Cuerdas",f_holes:"Efes",bridge:"Puente",upper_bout:"Curva superior",lower_bout:"Curva inferior",waist:"Cintura",tailpiece:"Cordal",chinrest:"Barbada",bow:"Arco"},it:{scroll:"Riccio",pegs:"Piroli",neck:"Manico",fingerboard:"Tastiera",strings:"Corde",f_holes:"Effe",bridge:"Ponticello",upper_bout:"Curva superiore",lower_bout:"Curva inferiore",waist:"Vita",tailpiece:"Cordiera",chinrest:"Mentoniera",bow:"Archetto"}};
+  const T=NAMES[lang]||NAMES.en;
+  const drawables=[],labels=[],anchors={},order=[];
+  const push=(d)=>{drawables.push(d);order.push(d.id);};
+  const isHi=(p)=>hi===p;
+  const ink=(p)=>isHi(p)?C.accent:C.ink;
+  const wd=(p,w)=>isHi(p)?w+2:w;
+  const lab=(p,a,side)=>{anchors[p]=a;if(!wanted.has(p))return;const t=T[p]||p;labels.push(kit.label("label_"+p,a,side,t,{color:isHi(p)?C.accent:C.ink,fontSize:t.length>13?22:25}));order.push("label_"+p);};
+  const prof=inst==="cello"?{bw:1.12,nl:0.8}:inst==="viola"?{bw:1.06,nl:0.94}:{bw:1,nl:1};
+  const cx=400,yB=76,yT=430,sf=prof.nl;
+  const W=(w)=>w*prof.bw;
+  const right=[[30,82],[80,96],[118,122],[132,162],[124,200],[96,234],[74,256],[88,278],[108,306],[112,344],[98,386],[60,416],[26,429]];
+  const ring=[[cx,yB]];
+  for(const p of right)ring.push([cx+W(p[0]),p[1]]);
+  ring.push([cx,yT+4]);
+  for(let i=right.length-1;i>=0;i--)ring.push([cx-W(right[i][0]),right[i][1]]);
+  const body=kit.smoothClosed(ring,4);
+  const mid=(yB+yT)/2;
+  push(kit.area("body_fill",body,C.region1,{opacity:0.13}));
+  push(kit.stroke("body",body,{closed:true,color:ink("body"),strokeWidth:wd("body",4.5),roughness:0.8,ms:MS.curve}));
+  push(kit.stroke("purfling",body.map((p)=>[cx+(p[0]-cx)*0.955,mid+(p[1]-mid)*0.965]),{closed:true,color:C.guide,strokeWidth:1.6,ms:MS.guides}));
+  anchors.body=[cx,mid];
+  const boutArc=(part,j0,j1)=>{if(!isHi(part))return;for(const s of [1,-1]){const pts=[];for(let j=j0;j<=j1;j++)pts.push([cx+s*W(right[j][0]),right[j][1]]);push(kit.stroke("hi_"+part+(s>0?"_r":"_l"),kit.smooth(pts,6),{color:C.accent,strokeWidth:6,ms:MS.curve}));}};
+  boutArc("lower_bout",1,5);boutArc("upper_bout",7,11);boutArc("waist",5,7);
+  lab("upper_bout",[cx+W(112),344],"right");
+  lab("lower_bout",[cx-W(132),162],"left");
+  lab("waist",[cx-W(74)-4,256],"left");
+  const nutY=yT+125*prof.nl,pegLen=88*prof.nl,pegTop=nutY+pegLen;
+  push(kit.stroke("neck",[[cx-33,yT-6],[cx-27,nutY],[cx+27,nutY],[cx+33,yT-6]],{color:ink("neck"),strokeWidth:wd("neck",3.5),ms:MS.stroke}));
+  lab("neck",[cx+30,yT+66*prof.nl],"right");
+  push(kit.stroke("pegbox",kit.smooth([[cx-27,nutY+4],[cx-31,nutY+pegLen*0.5],[cx-25,pegTop-2],[cx+25,pegTop-2],[cx+31,nutY+pegLen*0.5],[cx+27,nutY+4]],8),{color:C.ink,strokeWidth:3.5,ms:MS.stroke}));
+  push(kit.stroke("pegbox_slot",kit.smooth([[cx-14,nutY+12],[cx-17,nutY+pegLen*0.55],[cx-11,pegTop-12],[cx+11,pegTop-12],[cx+17,nutY+pegLen*0.55],[cx+14,nutY+12]],6),{color:C.guide,strokeWidth:1.8,ms:MS.guides}));
+  const pegDefs=[[-1,0.24],[1,0.42],[-1,0.62],[1,0.82]];
+  const pegKids=[];
+  pegDefs.forEach((d,i)=>{const s=d[0],y=nutY+pegLen*d[1];pegKids.push(kit.stroke("peg_shaft_"+i,[[cx+s*27,y],[cx+s*54,y]],{color:ink("pegs"),strokeWidth:wd("pegs",3.5),ms:MS.stroke}));pegKids.push(kit.stroke("peg_head_"+i,kit.ellipse([cx+s*62,y],9,14,20),{closed:true,color:ink("pegs"),strokeWidth:wd("pegs",3),ms:MS.node}));});
+  push(kit.group("pegs",pegKids));
+  lab("pegs",[cx-72,nutY+pegLen*0.62],"left");
+  const back=kit.smooth([[cx-25,pegTop-4],[cx-30,pegTop+18*sf],[cx-16,pegTop+42*sf],[cx+12,pegTop+46*sf],[cx+30,pegTop+30*sf],[cx+30,pegTop+8*sf]],8);
+  const spir=[];
+  for(let i=0;i<=60;i++){const t=i/60;const a=-0.17*Math.PI+t*2.6*Math.PI;const r=(31-26*t)*sf;spir.push([cx+3+r*Math.cos(a),pegTop+24*sf+r*Math.sin(a)]);}
+  push(kit.group("scroll",[kit.stroke("scroll_back",back,{color:ink("scroll"),strokeWidth:wd("scroll",3.5),ms:MS.curve}),kit.stroke("scroll_spiral",spir,{color:ink("scroll"),strokeWidth:wd("scroll",2.8),ms:MS.curve})]));
+  lab("scroll",[cx,pegTop+48*sf],"above");
+  const fb=[[cx-15,nutY-2],[cx-25,264],[cx+25,264],[cx+15,nutY-2]];
+  push(kit.area("fingerboard_fill",fb,C.ink,{opacity:0.28}));
+  push(kit.stroke("fingerboard",fb,{closed:true,color:ink("fingerboard"),strokeWidth:wd("fingerboard",3),ms:MS.stroke}));
+  lab("fingerboard",[cx-40,500],"left");
+  const tp=kit.smooth([[cx-10,100],[cx-21,148],[cx-23,172],[cx+23,172],[cx+21,148],[cx+10,100]],6);
+  push(kit.area("tailpiece_fill",tp,C.ink,{opacity:0.2}));
+  push(kit.stroke("tailpiece",tp,{closed:true,color:ink("tailpiece"),strokeWidth:wd("tailpiece",3),ms:MS.stroke}));
+  push(kit.stroke("tailgut",[[cx,100],[cx,84]],{color:C.guide,strokeWidth:2.5,ms:MS.guides}));
+  lab("tailpiece",[cx+24,130],"right");
+  push(kit.stroke("bridge",kit.smooth([[cx-34,228],[cx-27,248],[cx-12,242],[cx,250],[cx+12,242],[cx+27,248],[cx+34,228]],4),{color:ink("bridge"),strokeWidth:wd("bridge",3.5),ms:MS.stroke}));
+  if(wanted.has("bridge"))push(kit.stroke("bridge_leader",[[cx+36,236],[cx+W(96)+20,236]],{color:C.guide,strokeWidth:1.5,ms:MS.guides}));lab("bridge",[cx+W(96)+22,236],"right");anchors.bridge=[cx,240];
+  if(drawStrings){const kids=[];for(let i=0;i<4;i++){const f=(i-1.5)/1.5,pd=pegDefs[i],py=nutY+pegLen*pd[1];kids.push(kit.stroke("string_"+i,[[cx+f*14,150],[cx+f*21,242],[cx+f*10,nutY+1],[cx+pd[0]*10,py]],{color:ink("strings"),strokeWidth:wd("strings",2),ms:MS.stroke}));}push(kit.group("strings",kids));}
+  lab("strings",[cx+18,400],"right");
+  const fkids=[];
+  for(const s of [1,-1]){const tag=s>0?"r":"l";const fx=cx+s*W(56),fy=252;fkids.push(kit.stroke("fhole_"+tag,kit.smooth([[fx+s*9,fy+37],[fx+s*1,fy+27],[fx-s*5,fy+10],[fx+s*5,fy-10],[fx-s*1,fy-27],[fx-s*9,fy-37]],8),{color:ink("f_holes"),strokeWidth:wd("f_holes",3),ms:MS.curve}));fkids.push(kit.stroke("fhole_eye_top_"+tag,kit.ellipse([fx+s*11,fy+40],6,6,14),{closed:true,color:ink("f_holes"),strokeWidth:2,ms:MS.dot}));fkids.push(kit.stroke("fhole_eye_bot_"+tag,kit.ellipse([fx-s*11,fy-40],8,8,16),{closed:true,color:ink("f_holes"),strokeWidth:2,ms:MS.dot}));}
+  push(kit.group("fholes",fkids));
+  lab("f_holes",[cx-W(56)-12,290],"left");
+  const chc=[cx-W(80),126];
+  push(kit.stroke("chinrest",kit.blob(chc,48,30,0.05,2),{closed:true,color:ink("chinrest"),strokeWidth:wd("chinrest",3),ms:MS.node}));
+  push(kit.stroke("chinrest_clamp",[[chc[0]+22,chc[1]+22],[chc[0]+30,chc[1]+2]],{color:C.guide,strokeWidth:2,ms:MS.guides}));
+  lab("chinrest",[chc[0]-44,122],"left");
+  if(drawBow){const kids=[];kids.push(kit.stroke("bow_stick",kit.smooth([[884,110],[876,250],[866,400],[852,545],[834,676]],8),{color:ink("bow"),strokeWidth:wd("bow",4),ms:MS.curve}));kids.push(kit.stroke("bow_hair",[[880,118],[830,668]],{color:C.guide,strokeWidth:2,ms:MS.stroke}));kids.push(kit.stroke("bow_frog",[[878,100],[896,108],[888,134],[870,126]],{closed:true,color:ink("bow"),strokeWidth:2.5,ms:MS.stroke}));kids.push(kit.stroke("bow_tip",[[822,656],[840,664],[834,688],[818,680]],{closed:true,color:ink("bow"),strokeWidth:2.5,ms:MS.stroke}));push(kit.group("bow",kids));lab("bow",[858,400],"left");}
+  return {drawables,labels,anchors,order};

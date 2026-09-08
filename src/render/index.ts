@@ -18,6 +18,7 @@ import { titleIsDrawn } from "./title";
 import { resolveSources } from "./source";
 import { loadSettings } from "../store";
 import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
+import { registerCastTemplates } from "../scenes/cast-templates";
 import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride } from "../layout/text-style";
 
 export type { RenderStyle } from "./svg-backend";
@@ -99,6 +100,9 @@ function ensureFonts(): Promise<void> {
 }
 
 export async function render(spec: Spec, container: HTMLElement, options: RenderOptions = {}): Promise<RenderHandle> {
+  // A cast that carries its own templates registers them before anything
+  // reads the registry (template-on-demand): never shadows a built-in.
+  registerCastTemplates(spec);
   ensureFigureStyles();
   await ensureFonts();
   // Portraits and sources resolve BEFORE layout (layout is synchronous):

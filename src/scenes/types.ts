@@ -20,6 +20,11 @@ export interface SceneLayout {
 export const KNOWN_INTERACTIONS = ["piano", "chess", "periodic"] as const;
 export type InteractionKind = (typeof KNOWN_INTERACTIONS)[number];
 
+/** Explore-tray sections a template can carry; each rides on the engine
+ *  named beside it, so a doc may declare one only with that engine. */
+export const KNOWN_EXPLORES = { body: "anatomy", space: "space" } as const;
+export type ExploreKind = keyof typeof KNOWN_EXPLORES;
+
 /** Scene manifest — data, improvable by Loop 2 without touching code. */
 export interface SceneManifest {
   name: string;
@@ -35,6 +40,8 @@ export interface SceneManifest {
   interactions?: InteractionKind[];
   /** True when params_schema was widened (data-schema.ts) to accept "{id.var}" tokens. */
   accepts_data?: boolean;
+  /** The explore-tray section this scene carries: the Body (anatomy engine) or the Space (space engine) panel. */
+  explore?: ExploreKind;
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */

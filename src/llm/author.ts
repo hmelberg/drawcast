@@ -6,19 +6,33 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { dump } from "js-yaml";
-import { callForJson, describeApiError, makeClient, type JsonCallMeta } from "./client";
+import { callForJson, describeApiError, makeClient, type Effort, type JsonCallMeta } from "./client";
 import { repairModelFor } from "./compile";
 import { parseTemplateDoc, validateTemplateDoc, type TemplateDoc } from "../scenes/doc";
 import { compileTemplateDoc } from "../scenes/compile";
 import { ensureEngines } from "../scenes/engines";
 import { scenes, type SceneModule } from "../scenes/registry";
 import { isUserTemplateId } from "../scenes/my-templates";
-import { layoutSpec } from "../layout/layout";
+import { layoutSpec, type LayoutResult } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import kitSource from "../scenes/kit.ts?raw";
+import enginesSource from "../scenes/engines.ts?raw";
+// The four data engines keep their interfaces beside their data; the author
+// needs those contracts as much as the ones engines.ts declares inline. The
+// sky's live in space/sky-types.ts — the light half of the sky engine, which
+// is exactly why it can be read here (space/sky.ts pulls astronomy-engine).
+import anatomyTypesSource from "../scenes/anatomy/types.ts?raw";
+import elementsTypesSource from "../scenes/elements/types.ts?raw";
+import spaceTypesSource from "../scenes/space/types.ts?raw";
+import skyTypesSource from "../scenes/space/sky-types.ts?raw";
 import exemplarYaml from "../scenes/cell_diagram/template.yaml?raw";
+import musicPackYaml from "../scenes/packs/music.yaml?raw";
+import { parsePack } from "../scenes/packs";
+import { elementBBoxes } from "../layout/layout";
+import { leafDrawables, type TextDrawable } from "../layout/model";
+import { partsOf } from "../ui/parts-model";
 import authorPromptSource from "./prompts/author-v1.md?raw";
 
 export interface AuthorImage {
@@ -51,6 +65,8 @@ export interface AuthorConfig {
   existingYaml?: string;
   /** Refine mode: prior authoring conversation to continue. */
   history?: Anthropic.MessageParam[];
+  /** Effort for the creative round (Settings); repairs always run low, a cut-off retry one step lower. */
+  effort?: Effort;
   /** Cancels the authoring call, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes the template document. */
@@ -88,10 +104,23 @@ export const TEMPLATE_DOC_API_SCHEMA = {
   required: ["template", "version", "kit", "status", "description", "params", "element_ids", "examples", "layout"],
 } as const;
 
+/** The second exemplar: an authored template that came out of the 2026-09-07
+ *  spike and was bundled — every part its own outlined element with a
+ *  `label_<part>` name, a labels list, names in six languages. */
+export function secondExemplarYaml(): string {
+  const doc = parsePack(musicPackYaml).pack?.templates.find((t) => t.template === "violin_anatomy");
+  return doc ? dump(doc, YAML_OPTS) : "";
+}
+
 export function buildAuthorSystem(): Anthropic.TextBlockParam[] {
   const text = authorPromptSource
     .replaceAll("{{KIT_SOURCE}}", kitSource)
+    .replaceAll(
+      "{{ENGINES_SOURCE}}",
+      [enginesSource, "// ---- anatomy engine types ----", anatomyTypesSource, "// ---- elements engine types ----", elementsTypesSource, "// ---- space engine types ----", spaceTypesSource, "// ---- sky engine types ----", skyTypesSource].join("\n\n"),
+    )
     .replaceAll("{{EXEMPLAR_YAML}}", exemplarYaml)
+    .replaceAll("{{EXEMPLAR_2_YAML}}", secondExemplarYaml())
     .replaceAll("{{BUILTIN_IDS}}", Object.keys(scenes).sort().join(", "));
   return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
 }
@@ -151,10 +180,49 @@ export function processAuthorDoc(json: unknown, measure: MeasureFn = heuristicMe
     // treat them as blocking errors rather than inventing a fake lint rule.
     return { doc, errors: result.warnings.map((w) => `template preview: ${w}`), lintIssues: [] };
   }
-  return { doc, errors: [], lintIssues: result.issues };
+  return { doc, errors: [], lintIssues: [...result.issues, ...partsIssues(result, measure)] };
+}
+
+/**
+ * The authoring-only lint: a figure of many strokes that exposes no named,
+ * outlined part gives the identify drill and the click/drag asks nothing to
+ * work with (ui/parts-model.ts). Charts and curves legitimately have none,
+ * so this is a warning — it earns the one repair round warnings get, and
+ * the author decides. Counted the way the drill counts: a drawable with a
+ * closed outline plus a `label_<part>` text.
+ */
+export function partsIssues(layout: { drawables: LayoutResult["drawables"]; order: string[] }, measure: MeasureFn): LintIssue[] {
+  const tops = layout.drawables.length;
+  if (tops < 5) return [];
+  const ownerOf = new Map<string, string>();
+  for (const top of layout.drawables) for (const leaf of leafDrawables([top])) ownerOf.set(leaf.id, top.id);
+  const texts = leafDrawables(layout.drawables)
+    .filter((d): d is TextDrawable => d.kind === "text")
+    .map((d) => ({ id: d.id, text: d.text, owner: ownerOf.get(d.id) }));
+  const parts = partsOf({ elements: [] } as never, { boxes: elementBBoxes(layout as LayoutResult, measure), texts });
+  if (parts.length > 0) return [];
+  return [
+    {
+      rule: "drillable-parts",
+      ids: [],
+      message:
+        "no part of this figure is drillable: give each meaningful part its own drawable id with a closed outline (closed: true, or an area) and name it with kit.label(\"label_<part>\", …) — that is what makes it clickable, draggable and quizzable. Skip this only if the figure is a chart or a curve with no parts to name.",
+      severity: "warn",
+    },
+  ];
 }
 
 const YAML_OPTS = { lineWidth: -1, noRefs: true } as const;
+
+/** Output ceiling for an authoring round, thinking included. Every call
+ *  streams (llm/client.ts), so a large ceiling costs nothing until used;
+ *  32000 was overrun by a twelve-part rig on 2026-09-07. */
+export const AUTHOR_MAX_TOKENS = 64000;
+
+/** The client's own wording for a reply that hit max_tokens (llm/client.ts). */
+export function isOutputLimitError(err: unknown): boolean {
+  return /cut off at the output limit/i.test(err instanceof Error ? err.message : String(err));
+}
 
 /** Serialize + round-trip guard: never hand the user YAML that will not parse back. */
 export function templateDocToYaml(doc: TemplateDoc): { yaml: string | null; error?: string } {
@@ -164,8 +232,15 @@ export function templateDocToYaml(doc: TemplateDoc): { yaml: string | null; erro
   return { yaml };
 }
 
-function needsAuthorRepair(errors: string[], lintIssues: LintIssue[]): boolean {
-  return errors.length > 0 || lintIssues.some((i) => i.severity === "error");
+/**
+ * Errors and error-level lint always earn a repair (up to maxRepairs).
+ * Warnings earn exactly ONE — the spike (2026-09-07) left label-on-stroke
+ * warnings on 2 of 5 authored templates because only errors were repaired,
+ * and a template is reused, so its cosmetics cost more than a spec's.
+ */
+export function needsAuthorRepair(errors: string[], lintIssues: LintIssue[], repairsUsed = 0): boolean {
+  if (errors.length > 0 || lintIssues.some((i) => i.severity === "error")) return true;
+  return repairsUsed === 0 && lintIssues.length > 0;
 }
 
 export async function generateTemplate(description: string, image: AuthorImage | null, cfg: AuthorConfig): Promise<AuthorOutcome> {
@@ -180,16 +255,40 @@ export async function generateTemplate(description: string, image: AuthorImage |
   const rounds: AuthorRound[] = [];
   let best: { doc: TemplateDoc; yaml: string } | null = null;
   let repairsUsed = 0;
+  let cutRetried = false;
 
   try {
     while (true) {
       const isRepair = rounds.length > 0;
       const roundModel = isRepair ? repairModelFor(cfg.model) : cfg.model;
-      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object, {
-        signal: cfg.signal,
-        effort: isRepair ? "low" : undefined,
-        onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ round: rounds.length + 1, text })),
-      });
+      let call: Awaited<ReturnType<typeof callForJson>>;
+      try {
+        call = await callForJson(client, roundModel, system, messages, TEMPLATE_DOC_API_SCHEMA as unknown as object, {
+          signal: cfg.signal,
+          // The creative round thinks at the model's default; a retry after a
+          // cut-off thinks less (medium) so the document itself fits.
+          effort: isRepair ? "low" : cutRetried ? (cfg.effort === "low" ? "low" : "medium") : cfg.effort,
+          // A template document is a whole program: Opus with thinking on
+          // overran the 16k default on the first real topic (spike 2026-09-07).
+          maxTokens: AUTHOR_MAX_TOKENS,
+          onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ round: rounds.length + 1, text })),
+        });
+      } catch (err) {
+        // A reply that ran past the output limit is not a failed template, it
+        // is an over-ambitious one (a twelve-part rig with three sails, seen
+        // 2026-09-07). Once: ask for a smaller document at lower effort. The
+        // cut-off reply never reached `messages`, so the instruction rides on
+        // the last user turn rather than on a new one — turns must alternate.
+        if (!cutRetried && !isRepair && isOutputLimitError(err)) {
+          cutRetried = true;
+          const last = messages[messages.length - 1];
+          const note = "\n\nYour previous reply was cut off at the output limit. Reply again with a SMALLER document: at most eight parts, compact code with no comments, one names dictionary at most.";
+          last.content = typeof last.content === "string" ? last.content + note : [...last.content, { type: "text", text: note.trim() }];
+          continue;
+        }
+        throw err;
+      }
+      const { json, raw, meta } = call;
       // Validate first (cheap), await any declared engines BEFORE the full
       // validate+collision+compile+run chain — processAuthorDoc's own layout
       // call needs the engine already loaded (getLoadedEngines is sync).
@@ -217,16 +316,18 @@ export async function generateTemplate(description: string, image: AuthorImage |
         else errors.push(y.error!);
       }
 
-      if (!needsAuthorRepair(errors, lintIssues) || repairsUsed >= maxRepairs) {
+      if (!needsAuthorRepair(errors, lintIssues, repairsUsed) || repairsUsed >= maxRepairs) {
         messages.push({ role: "assistant", content: raw });
         break;
       }
       repairsUsed++;
+      // Errors first; otherwise every issue, warnings included (they get one round).
       const lintErrors = lintIssues.filter((i) => i.severity === "error");
+      const toFix = lintErrors.length > 0 ? lintErrors : lintIssues;
       const feedback =
         errors.length > 0
           ? `The template document has problems:\n${errors.join("\n")}\n\nReturn the corrected COMPLETE template document as minified JSON.`
-          : `The template renders with visual problems:\n${lintReportText(lintErrors)}\n\nReturn the corrected COMPLETE template document as minified JSON.`;
+          : `The template renders with visual problems:\n${lintReportText(toFix)}\n\nReturn the corrected COMPLETE template document as minified JSON.`;
       messages.push({ role: "assistant", content: raw }, { role: "user", content: feedback });
     }
   } catch (err) {

@@ -481,6 +481,17 @@ export class Player {
     return this.painted;
   }
 
+  /**
+   * Add-on hook (the identify drill, ui/quiz.ts): dim these ids to alpha, or
+   * restore them with alpha 1. Rides on the focus verb's primitive and, like
+   * it, survives no scrub — which is why the drill tears down on any step.
+   */
+  dimElements(ids: string[], alpha: number): void {
+    if (!this.effects?.setFocus || ids.length === 0) return;
+    if (alpha >= 1) this.effects.endFocus?.(ids);
+    else this.effects.setFocus(ids, alpha);
+  }
+
   dispose(): void {
     this.abortRun();
   }

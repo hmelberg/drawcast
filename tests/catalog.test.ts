@@ -106,9 +106,12 @@ describe("detectNeedTemplate", () => {
 // live constant, so it never drifts silently). History: 50 -> 80 when the
 // medicine pack pushed the default library to 50 ready templates; 80 -> 100
 // on 2026-09-02 with the data pack.
-test("TEMPLATE_FULL_THRESHOLD is the deliberate 100", () => {
+test("TEMPLATE_FULL_THRESHOLD is the deliberate 40", () => {
   // Pinned as a literal so an accidental edit (a stray 10000, which would
-  // silently disable the two-level catalog) fails here; pack-defaults checks
-  // the same constant from below, against the real library size.
-  expect(TEMPLATE_FULL_THRESHOLD).toBe(100); // raised 2026-09-02 with the data pack
+  // silently disable the two-level catalog) fails here. Lowered 100 -> 40 on
+  // 2026-09-07: with the template router (src/llm/router.ts) the two-level
+  // catalog is the DEFAULT regime for the bundled library (84 ready
+  // templates, ~75k tokens in full vs ~20k as index + shortlist); 40 keeps a
+  // single-domain or host-embed library fully expanded.
+  expect(TEMPLATE_FULL_THRESHOLD).toBe(40);
 });

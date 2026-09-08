@@ -141,7 +141,7 @@ describe("the catalogue", () => {
     expect(resolveGame("wolfling")).toEqual({ url: GAME, title: "Wolfling" });
     expect(resolveGame("c64maze")).toEqual({ url: "https://raw.githubusercontent.com/DarwinNE/C64maze/master/c64maze.prg", title: "C64maze" });
     expect(resolveGame(GAME)).toEqual({ url: GAME, title: "wolfling14.prg" });
-    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(c64maze, crowboy, space-shooter, tenlander, wolfling, invaders, puralax, c-rex, ronino, 3d-cube, panopticon, diffusion\) nor an https URL/);
+    expect(resolveGame("boulder-dash").reason).toMatch(/neither a catalogue key \(c64maze, crowboy, space-shooter, tenlander, wolfling, invaders, puralax, c-rex, ronino, 3d-cube, panopticon, diffusion, nono-pixie, space-orbs\) nor an https URL/);
     expect(resolveGame("http://example.org/x.prg").reason).toMatch(/https/);
     expect(resolveGame("https://example.org/x.prg#v2").reason).toMatch(/'#'/);
     expect(resolveGame("https://csdb.dk/getinternalfile.php/1/x.prg").reason).toMatch(/csdb\.dk sends no CORS header/);
@@ -235,12 +235,28 @@ describe("the Archive", () => {
     ]);
   });
 
+  test("a cartridge in the catalogue is fetchable and says whose it is", () => {
+    const carts = C64_PROGRAMS.filter((p) => p.url.endsWith(".crt"));
+    expect(carts.length).toBeGreaterThan(0);
+    for (const c of carts) {
+      // archive.org/cors is the one path of theirs that answers cross-origin
+      expect(c.url.startsWith("https://archive.org/cors/")).toBe(true);
+      // BY: the note carries the author, the licence line carries the terms
+      expect(c.licence).toMatch(/CC BY/);
+      expect(c.note.length).toBeGreaterThan(20);
+      expect(resolveGame(c.key)).toEqual({ url: c.url, title: c.title });
+    }
+  });
+
   test("every catalogue program names the licence that lets us point at it", () => {
     for (const p of C64_PROGRAMS) expect(p.licence.length).toBeGreaterThan(3);
     expect(C64_PROGRAMS.map((p) => p.key)).toEqual([
       "c64maze", "crowboy", "space-shooter", "tenlander", "wolfling",
       // 2026-09-06: each booted in vc64web + Open ROMs and seen running
       "invaders", "puralax", "c-rex", "ronino", "3d-cube", "panopticon", "diffusion",
+      // cartridges: the surest thing on the free ROMs, and the only two that
+      // state a licence anywhere we could find
+      "nono-pixie", "space-orbs",
     ]);
   });
 });

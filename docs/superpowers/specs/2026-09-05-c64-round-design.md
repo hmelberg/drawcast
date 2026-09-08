@@ -699,3 +699,31 @@ test ROM is zeros. With a real ROM that is the line where the file loads. Every
 link in our chain is verified; the only untested one is the one we deliberately
 do not hold.
 
+## M15 (2026-09-07): two cartridges in the catalogue
+
+Hans asked for cartridge games in the tray, not only behind a search. A
+cartridge is the surest thing on the free ROMs — it takes the machine over at
+reset and never asks them to load anything — so the only question was which
+ones we may point an author at.
+
+The hunt was thin and the answer is two:
+
+- **GitHub has none.** 74 licensed C64 repositories searched by tree; zero
+  `.crt`. Release assets were checked as a second route and do not answer
+  cross-origin, so they are unusable regardless.
+- **The Archive has five, and two declare a licence.** `nonopixie` carries
+  CC BY-NC-ND 4.0 and `spaceorbs` CC BY-ND 4.0 in the item's own `licenseurl`
+  — a statement from the uploader, which is the same standard as a
+  repository's LICENSE file. Both are real games (a 100-puzzle nonogram by
+  Carl-Henrik Skårstedt; a co-op falling-orbs puzzle by Space Moguls Games),
+  both verified as genuine cartridges by the sixteen bytes
+  `C64 CARTRIDGE   `, both served with CORS from `archive.org/cors/`, and
+  both watched running.
+- **The other three say nothing about rights** — the Joust prototype, Caren
+  and the Tangled Tentacles, and a Hokuto Force intro. They stay where a
+  VIEWER picks them, in the Archive search, and are not handed to an author.
+
+The catalogue's rule needed one word widened: an entry is now a real program
+OR a real cartridge, and the licence may be the Archive's declaration as well
+as a repository's file.
+

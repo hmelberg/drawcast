@@ -103,6 +103,85 @@ discussion; the two managed risks are shoehorning (kept in check by honest
 "Choose this for…" scoping and the fall-through) and catalog weight (the
 two-level catalog above `TEMPLATE_FULL_THRESHOLD`).
 
+Revised 2026-09-07 with the template router (below): catalog weight is
+now one index line per template (~50 tokens) plus a place on the
+router's list, not a full entry on every request — so the bar for
+"earns its weight" is lower, and the spike showed authored templates
+beating freehand clearly for anything that looks like a thing (a violin,
+a flower, a drivetrain). The five criteria still decide what is worth a
+HAND-BUILT template; the on-demand path below covers the rest.
+
+## Template on demand — steps 1–3 done 2026-09-07, sharing next
+
+Hans's question (2026-09-07): when a request has no template, can drawcast
+author one as part of answering, and can the intrinsic interactions be
+generalised so new figures get them? Assessment and spike:
+`docs/superpowers/plans/2026-09-07-template-on-demand-spike-ledger.md`
+(five template-less requests both ways — the authored template won four
+clearly, drew one, at 2.6–4.6× the wall time, all of it the authoring
+call).
+
+1. **Done — the generic identify drill + `explore:` on the manifest**
+   (`2026-09-07-parts-drill-ledger.md`): "🎯 Find the part" for any figure
+   with three named parts, names hidden while it runs; Body/Space
+   declared on the manifest, never sniffed from a template id.
+2. **Done — the template router + two-level catalog as default**
+   (`2026-09-07-template-router-ledger.md`): Haiku reads a one-line index
+   and shortlists; joined with the keyword picks 97.6 % top-5 recall over
+   338 known requests; threshold 100 → 40; system prompt ≈105k → ≈46k
+   tokens. `npm run selector:eval --router --gate 0.95` is the bench.
+3. **Done — template on demand**
+   (`2026-09-07-template-on-demand-ledger.md`). The router's `none_fits`
+   is the trigger; the editor offers "Author a template and redraw
+   (~4 min)" after a freehand result. On yes (`src/llm/on-demand.ts`): a
+   brief from the repair model (request + the freehand spec's elements, at
+   most ten parts) → the authoring pipeline → registered and, per Hans's
+   ruling, SAVED to My templates unconditionally → the request redrawn
+   with the template forced → the document embedded in the spec
+   (`spec.templates`), which every render path registers on sight
+   (`scenes/cast-templates.ts`, never shadowing a built-in), so a
+   published cast renders for a viewer with none of the author's
+   templates. Authoring prompt refreshed (seven engines with their
+   interfaces, the parts rule, no title, two exemplars); warnings earn one
+   repair; a `drillable-parts` lint; a 64k output ceiling with one retry
+   at lower effort after a cut-off. Verified end to end on a sailing boat.
+   Also from this round: an **Effort** setting (high / medium / low)
+   beside the model, for the creative rounds of generate, revise and
+   author.
+4. **Next — sharing: the community pack.** A template one user got
+   authored on demand becomes available to everyone, with a review in
+   between. Design (2026-09-07, Hans's defaults):
+   - **Submission, default on.** When an on-demand template is saved it
+     is also sent to the Anvil backend as a proposal: the template
+     document, the request that produced it, and the sender (e-mail when
+     logged in). A checkbox in the Templates panel turns it off. Before
+     sending, the proposal must pass the examples' own gates — compiles,
+     lints clean, has named parts, id not taken in the shared pack.
+   - **Review in the admin dashboard.** A list of proposals with a
+     preview link (opens the template in drawcast.app) and approve /
+     reject. Not optional: a template's layout is JavaScript that runs in
+     every viewer's browser, so nothing is served to others unseen.
+     Reviewers: admin; whether teachers too is open.
+   - **Serving as one pack.** Approved templates form the `community`
+     pack, served by Anvil as YAML at a stable URL and listed in the
+     official index (`hmelberg/drawcast-templates`), so it appears in the
+     Templates panel and the router like any other pack — the remote-pack
+     mechanism as it is, no new loader.
+   - Why Anvil rather than pull requests to the templates repo: the app
+     already talks to Anvil with accounts; a PR flow would need GitHub
+     login from every submitter. GitHub stays the place the reviewed pack
+     is published from.
+   - Hans takes two Anvil pulls along the way (the proposals table and
+     endpoint, then the admin list), as in earlier rounds.
+5. **Also open:** the on-demand offer only lives in the editor's
+   single-figure flow (courses and embeds log `none_fits` but do not
+   offer); maps' countries as parts (scene names from the geo engine, the
+   anatomy hook); the fixed prompt parts (compiler prompt 41k chars,
+   schema 39k, fewshots 14k ≈ 26k tokens) are now the bigger half of every
+   request — the next slimming target, unrelated to routing; the author
+   bench and the Wikipedia reference-image experiment, once real
+   `none_fits` requests have accumulated.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument

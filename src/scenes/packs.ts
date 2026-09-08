@@ -19,7 +19,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
   physics: {
     id: "physics",
     title: "Physics",
-    description: "Optics ray diagrams and wave diagrams — classroom physics figures with computed geometry.",
+    description: "Optics ray diagrams, wave diagrams, circuits, projectiles, a bicycle drivetrain and a hydraulic press — classroom physics figures with computed geometry.",
     load: async () => (await import("./packs/physics.yaml?raw")).default,
   },
   chemistry: {
@@ -31,7 +31,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
   biology: {
     id: "biology",
     title: "Biology",
-    description: "Cell-membrane, DNA-helix, and phylogenetic-tree figures — computed geometry, no engines.",
+    description: "Cell-membrane, DNA-helix, phylogenetic-tree, pathway, Punnett-square, food-web, flower and water-cycle figures — computed geometry, no engines.",
     load: async () => (await import("./packs/biology.yaml?raw")).default,
   },
   economics: {
@@ -85,7 +85,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
   music: {
     id: "music",
     title: "Music",
-    description: "Staff notation and a piano keyboard — sheet-music figures that pair with the play command's synthesized sound.",
+    description: "Staff notation, a piano keyboard and the parts of a violin — sheet-music figures that pair with the play command's synthesized sound.",
     load: async () => (await import("./packs/music.yaml?raw")).default,
   },
   stats: {

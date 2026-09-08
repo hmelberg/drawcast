@@ -5,6 +5,7 @@
 import bundledExamples from "./examples.json";
 import { DEFAULT_MODEL } from "./llm/client";
 import { generateSpec, promptVariants, type GenerationOutcome } from "./llm/compile";
+import { routeTemplates } from "./llm/router";
 import { usableExemplars, type ExemplarCandidate } from "./llm/exemplars";
 import { isReadyTemplate } from "./scenes/catalog";
 import { PACK_DEFS, ensureEnabledPacks } from "./scenes/packs";
@@ -51,6 +52,7 @@ export async function compileFigure(request: string, opts: CompileFigureOptions)
     bundledExemplars: usableExemplars(bundledPool, isReadyTemplate),
     maxRepairs: opts.maxRepairs,
     excludeIds: HOST_EXCLUDED_TEMPLATES,
+    route: (req, signal) => routeTemplates(req, { apiKey: opts.apiKey, signal, excludeIds: HOST_EXCLUDED_TEMPLATES }),
     // Host apps have no UI for a mid-generation pyodide boot (loading pill,
     // status text) — spec §6 rules the execute-in-repair-loop check off in
     // embedded contexts; render still executes the code for real later.

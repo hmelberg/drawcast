@@ -14022,5 +14022,793 @@
         { "ask": { "question": "Click the one that is not a star.", "widget": "click", "answer": "jupiter", "right": "Jupiter — the steady one. Sunlight bounced off a planet, not a star's own light.", "wrong": "The two you were told about are stars. Look for the third bright light." } }
       ]
     }
+  },
+  {
+    "request": "Explain how bicycle gears work: why a small rear cog makes pedalling harder but faster, and a big one easier but slower.",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "Bicycle gears",
+      "template": "bicycle_drivetrain",
+      "params": {
+        "front_teeth": 52,
+        "rear_teeth": 16,
+        "show_chain": true,
+        "show_crank": true,
+        "show_arrows": true,
+        "show_wheel": true,
+        "show_teeth": true,
+        "show_ratio": true
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Bicycle gears",
+          "x": 500,
+          "y": 716,
+          "font_size": 34
+        },
+        {
+          "id": "mark_ratio",
+          "type": "annotation",
+          "target": "ratio_caption",
+          "kind": "box"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Your legs are only comfortable turning at one lazy speed — the gears decide what that speed does to the road."
+        },
+        {
+          "draw": [
+            "wheel_rim",
+            "spokes"
+          ]
+        },
+        {
+          "draw": [
+            "chainring",
+            "chainring_teeth",
+            "chainring_hub",
+            "label_front"
+          ],
+          "speak": "Up front sits the chainring, turning with your pedals: fifty-two teeth."
+        },
+        {
+          "draw": [
+            "crank",
+            "pedal",
+            "label_crank"
+          ],
+          "speak": "The crank is the lever your foot actually pushes on."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "cog",
+            "cog_teeth",
+            "cog_hub",
+            "label_rear"
+          ],
+          "speak": "At the back, a small sixteen-tooth cog, bolted straight to the wheel."
+        },
+        {
+          "draw": [
+            "chain",
+            "chain_links",
+            "label_chain"
+          ],
+          "speak": "The chain is the bookkeeper: every tooth of chain that leaves the front must arrive at the back."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "ratio_caption",
+            "mark_ratio"
+          ],
+          "speak": "So one turn of the pedals hauls fifty-two teeth of chain past a cog with only sixteen — spinning it three and a quarter times."
+        },
+        {
+          "draw": [
+            "wheel_arrow",
+            "label_wheel"
+          ],
+          "speak": "The wheel turns over three times for one turn of your legs, carrying you nearly seven metres."
+        },
+        {
+          "draw": [
+            "pedal_arrow",
+            "label_pedal_force"
+          ],
+          "speak": "But nothing is free — that reach is bought with force at the pedal, because your foot travels only its little circle."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "rear_teeth": 28
+          },
+          "duration": 3,
+          "speak": "Now shift onto the big twenty-eight-tooth cog, the one you find at the bottom of a hill."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ratio_caption"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The ratio collapses to about one point nine — the wheel now barely turns twice per stroke."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pedal_arrow"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Each stroke moves you only four metres instead of seven, so each stroke needs far less force — and the climb becomes possible."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "speak": "A gear invents no energy: it only trades force for distance, and you pick which one the road is asking for."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the parts of a violin and explain what each part does for the sound.",
+    "packs": [
+      "music"
+    ],
+    "spec": {
+      "title": "Parts of the violin, and what each does for the sound",
+      "template": "violin_anatomy",
+      "params": {
+        "instrument": "violin",
+        "bow": true,
+        "strings": true,
+        "highlight": "bridge",
+        "labels": [
+          "scroll",
+          "pegs",
+          "neck",
+          "fingerboard",
+          "strings",
+          "f_holes",
+          "bridge",
+          "upper_bout",
+          "lower_bout",
+          "waist",
+          "tailpiece",
+          "chinrest",
+          "bow"
+        ]
+      },
+      "commands": [
+        {
+          "draw": [
+            "body_fill",
+            "body",
+            "purfling"
+          ],
+          "speak": "A violin is mostly a hollow wooden box, and almost every other part exists to shake it."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "neck",
+            "fingerboard_fill",
+            "fingerboard",
+            "label_neck",
+            "label_fingerboard"
+          ],
+          "speak": "The neck carries the fingerboard: a finger pressed here shortens the vibrating string, and shorter means higher."
+        },
+        {
+          "draw": [
+            "pegbox",
+            "pegbox_slot",
+            "pegs",
+            "scroll",
+            "label_pegs",
+            "label_scroll"
+          ],
+          "speak": "At the top, four pegs hold the tension — tuning is simply tightening — while the scroll above them is carving, not acoustics."
+        },
+        {
+          "draw": [
+            "tailpiece_fill",
+            "tailpiece",
+            "tailgut",
+            "label_tailpiece"
+          ],
+          "speak": "At the other end the tailpiece anchors the strings to the body."
+        },
+        {
+          "draw": [
+            "strings",
+            "label_strings"
+          ],
+          "speak": "Between them run four strings, tuned G, D, A and E."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "bow",
+            "label_bow"
+          ],
+          "speak": "The bow's hair is coated in rosin, so it grips the string, drags it sideways, and lets it snap back — hundreds of times a second."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strings"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That stick-and-slip is the whole sound source, and on its own it would be almost inaudible."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "bridge",
+            "label_bridge"
+          ],
+          "speak": "Everything depends on this little maple wedge: the bridge stands under the strings and pushes their vibration down into the wooden belly."
+        },
+        {
+          "focus": {
+            "target": [
+              "bridge",
+              "body",
+              "body_fill"
+            ]
+          },
+          "speak": "The belly and back then move a large area of air, which is what makes a violin loud enough to fill a hall."
+        },
+        {
+          "draw": [
+            "fholes",
+            "label_f_holes"
+          ],
+          "speak": "The f-holes let the enclosed air pump in and out, and that air resonates too, strengthening the lowest notes."
+        },
+        {
+          "draw": [
+            "label_upper_bout",
+            "label_lower_bout",
+            "label_waist"
+          ],
+          "parallel": true,
+          "speak": "The wide upper and lower bouts give that air its volume; the narrow waist is cut in so the bow can reach the outer strings."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "chinrest",
+            "chinrest_clamp",
+            "label_chinrest"
+          ],
+          "speak": "The chin rest adds nothing to the tone — the violinist Louis Spohr invented it around 1820 simply so the left hand could stop holding the instrument up."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bridge"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So the string makes the pitch, but the bridge and the box make the sound."
+        },
+        {
+          "speak": "A violin is a vibrating string with an amplifier built of wood and trapped air around it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Explain the water cycle: evaporation, condensation, precipitation and collection.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "The water cycle",
+      "template": "water_cycle",
+      "params": {
+        "stages": [
+          "evaporation",
+          "condensation",
+          "precipitation",
+          "runoff",
+          "infiltration"
+        ],
+        "labels": true,
+        "groundwater": true,
+        "precipType": "rain"
+      },
+      "commands": [
+        {
+          "draw": [
+            "ocean_fill",
+            "ocean_surface",
+            "land_fill",
+            "land_surface",
+            "bedrock",
+            "bedrock_hatch",
+            "label_ocean"
+          ]
+        },
+        {
+          "draw": [
+            "sun",
+            "sun_rays"
+          ],
+          "speak": "Every drop of rain that has ever fallen on you was first lifted by sunlight."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "evaporation",
+            "label_evaporation"
+          ],
+          "speak": "Warmth pulls water off the sea surface as invisible vapour — that's evaporation, and the oceans supply most of it."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "cloud_small",
+            "cloud_small_fill"
+          ],
+          "speak": "Rising air cools, and up here the vapour clings to specks of dust and turns back into liquid droplets."
+        },
+        {
+          "draw": [
+            "condensation",
+            "label_condensation"
+          ],
+          "speak": "That change from gas to droplets is condensation — a cloud is simply where it has happened."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "cloud_main",
+            "cloud_main_fill"
+          ],
+          "speak": "Wind carries the cloud inland, over the cold high ground, where more and more droplets gather."
+        },
+        {
+          "draw": [
+            "rain",
+            "label_precipitation"
+          ],
+          "speak": "Once the droplets grow heavy enough to beat the updraft, they fall: precipitation."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cloud_main",
+              "rain"
+            ],
+            "effect": "glow"
+          },
+          "speak": "A water molecule spends only about nine days up there before it comes down again."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "runoff",
+            "river",
+            "label_runoff"
+          ],
+          "speak": "On the slope the rain gathers into streams and a river, running downhill back toward the sea."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "infiltration",
+            "water_table",
+            "aquifer_fill",
+            "label_infiltration"
+          ],
+          "speak": "But some of it soaks into the ground instead, filling the pores of the rock below — infiltration."
+        },
+        {
+          "focus": {
+            "target": [
+              "aquifer_fill",
+              "water_table",
+              "gw_flow",
+              "label_groundwater"
+            ]
+          },
+          "speak": "This hidden store is groundwater, and it creeps seaward for years, sometimes centuries."
+        },
+        {
+          "draw": [
+            "gw_flow",
+            "label_groundwater"
+          ],
+          "speak": "So collection happens twice: fast in the river, slow underground — and both arrive at the same ocean."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "evaporation"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And the moment it does, the sun is already lifting it again."
+        },
+        {
+          "speak": "No water is made or lost here — the cycle just keeps moving the same water, and the atmosphere holds only a thousandth of a percent of it at any time."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the parts of a flower and explain how pollination leads to a seed.",
+    "packs": [
+      "biology"
+    ],
+    "spec": {
+      "title": "How a flower makes a seed",
+      "template": "flower_anatomy",
+      "params": {
+        "petals": 5,
+        "stamens": 2,
+        "pollen": true,
+        "bee": true,
+        "labels": [
+          "petals",
+          "sepals",
+          "anther",
+          "filament",
+          "stigma",
+          "style",
+          "ovary",
+          "ovules",
+          "receptacle",
+          "stem",
+          "pollen",
+          "pollen_tube",
+          "bee"
+        ]
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "How a flower makes a seed",
+          "x": 500,
+          "y": 715,
+          "font_size": 34
+        },
+        {
+          "id": "seed_mark",
+          "type": "annotation",
+          "target": "label_ovules",
+          "kind": "box"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "A flower is not decoration — it is a machine for making seeds, cut open here down the middle."
+        },
+        {
+          "draw": [
+            "stem",
+            "receptacle_fill",
+            "receptacle",
+            "label_stem",
+            "label_receptacle"
+          ]
+        },
+        {
+          "draw": [
+            "sepals",
+            "label_sepals"
+          ],
+          "speak": "These green sepals wrapped the bud before it opened."
+        },
+        {
+          "draw": [
+            "petals",
+            "label_petals"
+          ],
+          "speak": "The petals are advertising — colour and scent, paid for by the plant to attract a courier."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "stamens",
+            "label_anther",
+            "label_filament"
+          ],
+          "speak": "On these slender filaments sit the anthers, and each anther is a pollen factory."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "style",
+            "stigma_fill",
+            "stigma",
+            "stigma_hairs",
+            "label_stigma",
+            "label_style"
+          ],
+          "speak": "In the middle stands the pistil: a sticky stigma on a hollow stalk called the style."
+        },
+        {
+          "draw": [
+            "ovary_fill",
+            "ovary",
+            "ovules",
+            "label_ovary",
+            "label_ovules"
+          ],
+          "speak": "And at its base, the ovary — with the ovules inside, each one holding an egg cell."
+        },
+        {
+          "focus": {
+            "target": [
+              "ovules",
+              "ovary",
+              "ovary_fill"
+            ]
+          },
+          "speak": "Everything else exists to get one pollen grain down to these."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "bee",
+            "label_bee"
+          ],
+          "speak": "Enter the courier: a bee, after nectar, brushing pollen from another flower onto its body."
+        },
+        {
+          "draw": [
+            "pollen",
+            "pollen_path",
+            "label_pollen"
+          ],
+          "speak": "It lands here, and grains stick to the stigma — that is pollination, and it is only the delivery."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "pollen_tube",
+            "label_pollen_tube"
+          ],
+          "speak": "Each grain then grows a tube, tunnelling down the style toward an ovule.",
+          "delivery": "grave"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "label_ovules"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Sperm cells travel down that tube, and fertilisation happens inside the ovary — not on the stigma."
+        },
+        {
+          "draw": [
+            "seed_mark"
+          ],
+          "speak": "A fertilised ovule becomes a seed, and the ovary swells around it into the fruit."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "speak": "Flowering plants do this twice over: one sperm cell makes the embryo, the other makes its packed lunch — the endosperm, which is most of a grain of wheat.",
+          "delivery": "soft"
+        },
+        {
+          "speak": "So pollination is the journey, fertilisation is the arrival, and the seed is what the flower was building all along."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Explain a hydraulic press: why a small force on a small piston can lift a heavy load on a big piston.",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "Hydraulic press",
+      "template": "hydraulic_press",
+      "params": {
+        "areaRatio": 4,
+        "inputForce": 100,
+        "forceUnit": "N",
+        "loadLabel": "Load",
+        "fluidLabel": "Oil — incompressible",
+        "title": "Hydraulic press",
+        "showDisplacement": true,
+        "showEquation": true
+      },
+      "elements": [
+        {
+          "id": "pascal",
+          "type": "portrait",
+          "of": "Blaise Pascal",
+          "cameo": true
+        },
+        {
+          "id": "mark_dist",
+          "type": "annotation",
+          "target": "eq_dist",
+          "kind": "box"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "A hundred newtons — one firm push with your hand — can lift a car, and here is the machine that does it."
+        },
+        {
+          "draw": [
+            "ground",
+            "ground_line",
+            "vessel_outer",
+            "vessel_inner"
+          ]
+        },
+        {
+          "draw": [
+            "fluid",
+            "label_fluid"
+          ],
+          "speak": "Two cylinders, joined at the bottom and filled with oil — a fluid that refuses to be squeezed smaller."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "piston_small",
+            "piston_small_fill",
+            "rod_small",
+            "plate_small",
+            "label_area_small"
+          ],
+          "speak": "On the left sits a narrow piston, of area A one."
+        },
+        {
+          "draw": [
+            "piston_large",
+            "piston_large_fill",
+            "label_area_large"
+          ],
+          "speak": "On the right, a wide one with four times that area."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "force_in",
+            "label_force_in"
+          ],
+          "speak": "Push down on the narrow piston with a hundred newtons."
+        },
+        {
+          "draw": [
+            "eq_pressure"
+          ],
+          "speak": "That push becomes pressure — force divided by area — and the oil carries it everywhere at once."
+        },
+        {
+          "draw": [
+            "pascal"
+          ],
+          "speak": "Blaise Pascal worked this out in the sixteen fifties: press a closed fluid anywhere, and every part of it feels the very same rise in pressure."
+        },
+        {
+          "erase": [
+            "pascal"
+          ],
+          "speak": "So the wide piston sits under exactly the pressure the small one created."
+        },
+        {
+          "draw": [
+            "force_out",
+            "load",
+            "load_fill",
+            "load_text",
+            "label_force_out",
+            "eq_force"
+          ],
+          "speak": "The same pressure acting over four times the area lifts four hundred newtons."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "eq_force"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The area is doing the multiplying — the oil only carries the message."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "areaRatio": 10
+          },
+          "duration": 3,
+          "speak": "Widen the output piston to ten times the input, and that same hand pushes with a thousand newtons."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "displacement",
+            "label_d1",
+            "label_d2",
+            "eq_dist"
+          ],
+          "speak": "Nothing is free, though: the small piston must sink ten centimetres for the load to rise one."
+        },
+        {
+          "draw": [
+            "mark_dist"
+          ],
+          "speak": "Force times distance in equals force times distance out — the work never changed.",
+          "delivery": "grave"
+        },
+        {
+          "speak": "A hydraulic press doesn't create force; it buys force by spending distance."
+        }
+      ]
+    }
   }
 ]

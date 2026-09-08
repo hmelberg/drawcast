@@ -84,6 +84,10 @@ export interface CoursePanelDeps extends CourseShareDeps {
   styleText: () => string;
   exemplars: () => Exemplar[];
   bundledExemplars: () => Exemplar[];
+  /** The template router (llm/router.ts), as the editor wires it. */
+  route?: GenerateConfig["route"];
+  /** Keeps a template authored on demand during a course (My templates + panels). */
+  onTemplateAuthored?: GenerateConfig["onTemplateAuthored"];
   setStatus: (text: string, kind?: "ok" | "error") => void;
   /** Load a saved drawcast into the main editor/player. */
   openDrawing: (id: string) => void;
@@ -439,6 +443,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       apiKey: deps.apiKey(),
       pedagogyReview: true,
       model: deps.model(),
+      // The same dials the single-figure Generate reads: effort, the template
+      // router, and template on demand for every part the router finds
+      // nothing for (decided before Generate, so a course never stops to ask).
+      effort: deps.settings.effort,
+      route: deps.route,
+      templatesOnDemand: deps.settings.templatesOnDemand,
+      onTemplateAuthored: deps.onTemplateAuthored,
       variant: deps.variant(),
       styleText: deps.styleText(),
       exemplars: deps.exemplars(),

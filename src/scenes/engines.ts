@@ -733,6 +733,10 @@ export async function ensureEnginesForTemplate(id: string): Promise<void> {
   if (engines && engines.length > 0) await ensureEngines(engines);
 }
 
-export async function ensureEnginesForSpecs(specs: { template?: string }[]): Promise<void> {
+export async function ensureEnginesForSpecs(specs: { template?: string; templates?: unknown }[]): Promise<void> {
+  // A spec may carry its own template (template-on-demand); its manifest —
+  // and so its engines — exists only once the document is registered.
+  const { registerCastTemplates } = await import("./cast-templates");
+  for (const s of specs) registerCastTemplates(s);
   for (const s of specs) if (s.template) await ensureEnginesForTemplate(s.template);
 }

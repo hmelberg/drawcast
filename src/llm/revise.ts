@@ -16,7 +16,7 @@ import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
-import { callForText, describeApiError, makeClient } from "./client";
+import { callForText, describeApiError, makeClient, type Effort } from "./client";
 import { apiSchema, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForTemplate } from "../scenes/engines";
@@ -82,6 +82,8 @@ export interface ReviseConfig {
   /** Priority packs from settings; templates in the document are added automatically. */
   priorityIds?: string[];
   maxRepairs?: number;
+  /** Effort for the creative round (Settings); repairs always run low. */
+  effort?: Effort;
   /** Cancels the revision, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model rewrites the document, once per streamed delta. */
@@ -165,7 +167,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
       const round = rounds.length + 1;
       const { text: raw, ms } = await callForText(client, model, system, messages, {
         signal: cfg.signal,
-        effort: label === "initial" ? undefined : "low",
+        effort: label === "initial" ? cfg.effort : "low",
         onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
       });
       const cleaned = stripFence(raw);

@@ -1,6 +1,6 @@
 pack: biology
 title: Biology
-description: Cell-membrane, DNA-helix, and phylogenetic-tree figures — computed geometry, no engines.
+description: Cell-membrane, DNA-helix, phylogenetic-tree, pathway, Punnett-square, food-web, flower and water-cycle figures — computed geometry, no engines.
 ---
 template: membrane_bilayer
 title: Cell membrane (phospholipid bilayer)
@@ -785,3 +785,511 @@ layout: |
   });
 
   return { drawables, labels, anchors, order };
+---
+template: flower_anatomy
+title: Flower cross-section
+version: 1
+kit: 1
+status: ready
+description: 'A longitudinal cross-section (half-section) of a typical flower with every named part: petals and sepals fanning off the receptacle, stamens (anther on a curving filament), the pistil/carpel (stigma, style, ovary containing ovules), receptacle and stem. Optional pollination story: pollen grains landing on the stigma with an approach arrow, a pollen tube growing down the style to an ovule, and a visiting bee. Choose this scene for requests about flower anatomy, ''parts of a flower'', labelling a flower diagram, stamens and pistils/carpels, pollination and pollinators, fertilisation in plants, or how a flower makes seeds. Labels can be limited to the parts under discussion and rendered in several languages.'
+params:
+  type: object
+  properties:
+    petals:
+      type: integer
+      minimum: 1
+      maximum: 10
+      description: How many petals to draw, fanned across the section (default 5).
+    stamens:
+      type: integer
+      minimum: 1
+      maximum: 6
+      description: How many stamens (anther + filament) to draw, spread symmetrically (default 2).
+    labels:
+      type: array
+      items:
+        type: string
+        enum:
+          - petals
+          - sepals
+          - stamen
+          - anther
+          - filament
+          - pistil
+          - stigma
+          - style
+          - ovary
+          - ovules
+          - receptacle
+          - stem
+          - pollen
+          - pollen_tube
+          - bee
+      description: 'Which parts get name labels. Default: the classic labelled diagram (petals, sepals, anther, filament, stigma, style, ovary, ovules, receptacle, stem, plus pollen/tube/bee when shown). Narrow this to just the parts the narration discusses.'
+    pollen:
+      type: boolean
+      description: Show pollen grains landing on the stigma plus a pollen tube growing down the style to an ovule (default false). Turn on for pollination/fertilisation explanations.
+    bee:
+      type: boolean
+      description: Show a visiting bee flying in at the upper right (default false).
+    language:
+      type: string
+      enum:
+        - en
+        - es
+        - fr
+        - de
+        - pt
+        - it
+      description: Language of the part labels (default 'en').
+    labelText:
+      type: object
+      additionalProperties:
+        type: string
+      description: Override individual label strings by part key, e.g. {"pistil":"Carpel"}.
+  additionalProperties: false
+element_ids:
+  stem: the two-line stem below the flower
+  receptacle / receptacle_fill: the receptacle cup the flower parts sit on
+  sepals: group of the sepal outlines and fills
+  petals: group of all petal outlines and fills
+  stamens: group of the filaments and anthers
+  ovary / ovary_fill: the ovary wall and its pale interior
+  ovules: group of the ovules inside the ovary
+  style: group of the two style walls
+  stigma / stigma_fill / stigma_hairs: the sticky stigma head at the top of the style
+  pollen: group of the pollen grains (only when pollen is on)
+  pollen_path: dashed arrow showing the pollen arriving at the stigma
+  pollen_tube: dashed arrow of the pollen tube growing down the style to an ovule
+  bee: group of the visiting bee (only when bee is on)
+  label_petals / label_sepals / label_stamen / label_anther / label_filament / label_pistil / label_stigma / label_style / label_ovary / label_ovules / label_receptacle / label_stem / label_pollen / label_pollen_tube / label_bee: the part name labels
+examples:
+  - request: Draw a flower in cross-section and label its parts.
+    params: {}
+  - request: Show how pollination and fertilisation work — pollen landing on the stigma and the tube growing to the ovule, with a bee visiting.
+    params:
+      petals: 5
+      pollen: true
+      bee: true
+      labels:
+        - anther
+        - stigma
+        - style
+        - ovary
+        - ovules
+        - pollen
+        - pollen_tube
+        - bee
+layout: |-
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const cx = 470;
+  const nPet = Math.max(1, Math.min(10, Math.round(params.petals ?? 5)));
+  const nStam = Math.max(1, Math.min(6, Math.round(params.stamens ?? 2)));
+  const showPollen = params.pollen === true;
+  const showBee = params.bee === true;
+  const DICT = {
+    en:{petals:"Petal",sepals:"Sepal",stamen:"Stamen",anther:"Anther",filament:"Filament",pistil:"Pistil (carpel)",stigma:"Stigma",style:"Style",ovary:"Ovary",ovules:"Ovule",receptacle:"Receptacle",stem:"Stem",pollen:"Pollen grain",pollen_tube:"Pollen tube",bee:"Bee (pollinator)"},
+    es:{petals:"Pétalo",sepals:"Sépalo",stamen:"Estambre",anther:"Antera",filament:"Filamento",pistil:"Pistilo",stigma:"Estigma",style:"Estilo",ovary:"Ovario",ovules:"Óvulo",receptacle:"Receptáculo",stem:"Tallo",pollen:"Grano de polen",pollen_tube:"Tubo polínico",bee:"Abeja"},
+    fr:{petals:"Pétale",sepals:"Sépale",stamen:"Étamine",anther:"Anthère",filament:"Filet",pistil:"Pistil",stigma:"Stigmate",style:"Style",ovary:"Ovaire",ovules:"Ovule",receptacle:"Réceptacle",stem:"Tige",pollen:"Grain de pollen",pollen_tube:"Tube pollinique",bee:"Abeille"},
+    de:{petals:"Blütenblatt",sepals:"Kelchblatt",stamen:"Staubblatt",anther:"Staubbeutel",filament:"Staubfaden",pistil:"Stempel",stigma:"Narbe",style:"Griffel",ovary:"Fruchtknoten",ovules:"Samenanlage",receptacle:"Blütenboden",stem:"Stiel",pollen:"Pollenkorn",pollen_tube:"Pollenschlauch",bee:"Biene"},
+    pt:{petals:"Pétala",sepals:"Sépala",stamen:"Estame",anther:"Antera",filament:"Filete",pistil:"Pistilo",stigma:"Estigma",style:"Estilete",ovary:"Ovário",ovules:"Óvulo",receptacle:"Receptáculo",stem:"Caule",pollen:"Grão de pólen",pollen_tube:"Tubo polínico",bee:"Abelha"},
+    it:{petals:"Petalo",sepals:"Sepalo",stamen:"Stame",anther:"Antera",filament:"Filamento",pistil:"Pistillo",stigma:"Stigma",style:"Stilo",ovary:"Ovario",ovules:"Ovulo",receptacle:"Ricettacolo",stem:"Fusto",pollen:"Granulo di polline",pollen_tube:"Tubo pollinico",bee:"Ape"}
+  };
+  const T = DICT[params.language ?? "en"] ?? DICT.en;
+  const over = params.labelText ?? {};
+  const txt = (k) => over[k] ?? T[k] ?? DICT.en[k];
+  const want = new Set(params.labels ?? ["petals","sepals","anther","filament","stigma","style","ovary","ovules","receptacle","stem","pollen","pollen_tube","bee"]);
+  const GREEN = C.supply ?? C.ink, PET = C.demand ?? C.ink, STAM = C.shifted ?? C.ink, PIS = C.accent ?? C.ink, POL = C.shifted ?? C.ink;
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const lab = (key, anchor, side, color, fs) => {
+    anchors[key] = anchor;
+    if (!want.has(key)) return;
+    const id = "label_" + key;
+    labels.push(kit.label(id, anchor, side, txt(key), { color: color, fontSize: fs ?? 24 }));
+    order.push(id);
+  };
+  const petalShape = (base, angDeg, L, W) => {
+    const a = angDeg * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), px = -dy, py = dx;
+    const p = (t, w) => [base[0] + dx * L * t + px * W * w, base[1] + dy * L * t + py * W * w];
+    return kit.smoothClosed([base, p(0.28, 0.8), p(0.68, 0.95), p(1, 0), p(0.68, -0.95), p(0.28, -0.8)], 5);
+  };
+  const rotEllipse = (c, rx, ry, a, m) => {
+    const n2 = m ?? 24, pts = [];
+    for (let k = 0; k < n2; k++) { const th = k / n2 * 2 * Math.PI, x = rx * Math.cos(th), y = ry * Math.sin(th);
+      pts.push([c[0] + x * Math.cos(a) - y * Math.sin(a), c[1] + x * Math.sin(a) + y * Math.cos(a)]); }
+    return pts;
+  };
+  const disc = (id, c, r, color, fill, sw, ms) => kit.stroke(id, [c], { shapeHint: { type: "circle", c: c, r: r }, color: color, fill: fill, strokeWidth: sw ?? 2.5, ms: ms });
+
+  push(kit.group("stem", [
+    kit.stroke("stem_l", [[cx - 15, 26], [cx - 13, 108], [cx - 16, 188]], { color: GREEN, strokeWidth: 4, ms: MS.stroke }),
+    kit.stroke("stem_r", [[cx + 15, 26], [cx + 13, 108], [cx + 16, 188]], { color: GREEN, strokeWidth: 4, ms: MS.stroke })
+  ]));
+  lab("stem", [cx + 17, 100], "right", GREEN);
+
+  const recPts = [[cx - 16, 186], [cx - 46, 212], [cx - 54, 238], [cx + 54, 238], [cx + 46, 212], [cx + 16, 186]];
+  push(kit.area("receptacle_fill", recPts, GREEN, { opacity: 0.18 }));
+  push(kit.stroke("receptacle", recPts, { closed: true, color: GREEN, strokeWidth: 3.5, ms: MS.node }));
+  lab("receptacle", [cx + 18, 186], "below-right", GREEN);
+
+  const sepChildren = [];
+  let sepTip = [cx - 130, 190];
+  [[cx - 44, 232, 198], [cx + 44, 232, 342]].forEach((s, i) => {
+    const pts = petalShape([s[0], s[1]], s[2], 140, 32);
+    sepChildren.push(kit.area("sepal_fill_" + i, pts, GREEN, { opacity: 0.18 }));
+    sepChildren.push(kit.stroke("sepal_" + i, pts, { closed: true, color: GREEN, strokeWidth: 3, ms: MS.curve }));
+    if (i === 0) sepTip = [s[0] + 140 * Math.cos(s[2] * Math.PI / 180), s[1] + 140 * Math.sin(s[2] * Math.PI / 180)];
+  });
+  push(kit.group("sepals", sepChildren));
+  lab("sepals", [sepTip[0] - 4, sepTip[1] - 4], "left", GREEN);
+
+  const petW = Math.max(26, Math.min(56, 260 / nPet));
+  const petL = 250;
+  const petChildren = [];
+  let leftTip = [cx - 200, 360], rightTip = [cx + 200, 360];
+  for (let i = 0; i < nPet; i++) {
+    const a = nPet === 1 ? 90 : 152 - (124 * i) / (nPet - 1);
+    const ar = a * Math.PI / 180;
+    const base = [cx + 14 * Math.cos(ar), 244 + 8 * Math.sin(ar)];
+    const tip = [base[0] + petL * Math.cos(ar), base[1] + petL * Math.sin(ar)];
+    const pts = petalShape(base, a, petL, petW);
+    petChildren.push(kit.area("petal_fill_" + i, pts, PET, { opacity: 0.16 }));
+    petChildren.push(kit.stroke("petal_" + i, pts, { closed: true, color: PET, strokeWidth: 3.5, ms: MS.curve }));
+    if (i === 0) leftTip = tip;
+    if (i === nPet - 1) rightTip = tip;
+  }
+  push(kit.group("petals", petChildren));
+  lab("petals", [leftTip[0] - 6, leftTip[1] + 10], "above-left", PET);
+  anchors.flower = [cx, 380];
+  anchors.petal_right = rightTip;
+
+  const stamChildren = [];
+  let rightAnther = [cx + 140, 420], rightMid = [cx + 66, 330], leftMid = [cx - 66, 330], leftAnther = [cx - 140, 420];
+  for (let i = 0; i < nStam; i++) {
+    const t = nStam === 1 ? 0 : -1 + (2 * i) / (nStam - 1);
+    const ax = cx + t * (150 - 6 * Math.abs(t));
+    const ay = 452 - 34 * Math.abs(t) + 8 * (i % 2);
+    const base = [cx + t * 20, 244];
+    const mid = [cx + t * 66, 332];
+    const top = [ax, ay - 26];
+    const path = kit.smooth([base, mid, top], 8);
+    stamChildren.push(kit.stroke("filament_" + i, path, { color: STAM, strokeWidth: 3, ms: MS.guides }));
+    const dir = Math.atan2(top[1] - mid[1], top[0] - mid[0]);
+    const apts = rotEllipse([ax, ay], 26, 13, dir, 20);
+    stamChildren.push(kit.area("anther_fill_" + i, apts, STAM, { opacity: 0.4 }));
+    stamChildren.push(kit.stroke("anther_" + i, apts, { closed: true, color: STAM, strokeWidth: 3, ms: MS.node }));
+    if (i === 0) { leftAnther = [ax, ay]; leftMid = mid; }
+    if (i === nStam - 1) { rightAnther = [ax, ay]; rightMid = mid; }
+  }
+  push(kit.group("stamens", stamChildren));
+  lab("anther", [rightAnther[0] + 6, rightAnther[1] + 10], "above-right", STAM);
+  lab("filament", [rightMid[0] + 8, rightMid[1]], "right", STAM);
+  lab("stamen", [leftMid[0] - 6, leftMid[1]], "left", STAM);
+  anchors.anther_left = leftAnther;
+
+  const ovC = [cx, 296];
+  const ovPts = kit.blob(ovC, 68, 56, 0.05, 2);
+  push(kit.area("ovary_fill", ovPts, PIS, { opacity: 0.14 }));
+  push(kit.stroke("ovary", ovPts, { closed: true, color: PIS, strokeWidth: 4, ms: MS.node }));
+  lab("ovary", [cx - 66, 302], "left", PIS);
+  const ovuleChildren = [], ovulePos = [];
+  for (let k = 0; k < 3; k++) {
+    const p = [cx - 34 + k * 34, 292];
+    ovulePos.push(p);
+    ovuleChildren.push(disc("ovule_" + k, p, 13, PIS, undefined, 2.5, MS.dot));
+    ovuleChildren.push(disc("ovule_core_" + k, p, 4, PIS, PIS, 2, MS.dot));
+  }
+  push(kit.group("ovules", ovuleChildren));
+  lab("ovules", [ovulePos[2][0] + 12, ovulePos[2][1] - 4], "right", PIS);
+
+  const styleCtr = kit.smooth([[cx, 344], [cx + 6, 404], [cx + 5, 466], [cx, 514]], 10);
+  push(kit.group("style", [
+    kit.stroke("style_l", kit.parallelOffset(styleCtr, 11), { color: PIS, strokeWidth: 3.5, ms: MS.curve }),
+    kit.stroke("style_r", kit.parallelOffset(styleCtr, -11), { color: PIS, strokeWidth: 3.5, ms: MS.curve })
+  ]));
+  lab("style", [cx - 16, 440], "left", PIS);
+
+  const stigC = [cx + 2, 534];
+  const stigPts = kit.blob(stigC, 44, 22, 0.14, 5);
+  push(kit.area("stigma_fill", stigPts, PIS, { opacity: 0.3 }));
+  push(kit.stroke("stigma", stigPts, { closed: true, color: PIS, strokeWidth: 3.5, ms: MS.node }));
+  const hairs = [];
+  for (let k = 0; k < 5; k++) {
+    const hx = stigC[0] - 30 + k * 15;
+    hairs.push(kit.stroke("stigma_hair_" + k, [[hx, stigC[1] + 15], [hx + 4 * kit.jitter(k + 3), stigC[1] + 28]], { color: PIS, strokeWidth: 2, ms: MS.dot }));
+  }
+  push(kit.group("stigma_hairs", hairs));
+  lab("stigma", [stigC[0] - 12, stigC[1] + 20], showPollen ? "above-left" : "above", PIS);
+  lab("pistil", [cx + 18, 474], "right", PIS);
+
+  if (showPollen) {
+    const grains = [];
+    const gpts = [[stigC[0] + 22, stigC[1] + 18], [stigC[0] + 80, stigC[1] + 58], [stigC[0] + 134, stigC[1] + 96]];
+    gpts.forEach((p, k) => {
+      const r0 = k === 0 ? 10 : 8;
+      grains.push(disc("pollen_grain_" + k, p, r0, POL, POL, 2.5, MS.dot));
+      for (let s = 0; s < 6; s++) {
+        const th = s / 6 * 2 * Math.PI;
+        grains.push(kit.stroke("pollen_spike_" + k + "_" + s, [[p[0] + r0 * Math.cos(th), p[1] + r0 * Math.sin(th)], [p[0] + (r0 + 5) * Math.cos(th), p[1] + (r0 + 5) * Math.sin(th)]], { color: POL, strokeWidth: 1.8, ms: MS.dot }));
+      }
+    });
+    push(kit.group("pollen", grains));
+    push(kit.stroke("pollen_path", kit.smooth([[stigC[0] + 176, stigC[1] + 140], [stigC[0] + 112, stigC[1] + 86], [stigC[0] + 42, stigC[1] + 30]], 8), { color: POL, strokeWidth: 2.5, dash: true, arrowhead: "end", ms: MS.connector }));
+    lab("pollen", [gpts[0][0] + 6, gpts[0][1] + 8], "above-right", POL);
+    const tube = kit.smooth([[stigC[0] + 6, stigC[1] - 14], [cx + 9, 470], [cx + 6, 404], [cx + 2, 352], [cx - 14, 314], [ovulePos[0][0] + 13, ovulePos[0][1] + 5]], 10);
+    push(kit.stroke("pollen_tube", tube, { color: POL, strokeWidth: 3, dash: true, arrowhead: "end", ms: MS.curve }));
+    lab("pollen_tube", [cx - 24, 480], "left", POL); anchors.pollen_tube = [cx + 6, 404];
+  }
+
+  if (showBee) {
+    const bc = [800, 616], rot = -0.32, cr = Math.cos(rot), sr = Math.sin(rot);
+    const Tf = (p) => [bc[0] + p[0] * cr - p[1] * sr, bc[1] + p[0] * sr + p[1] * cr];
+    const body = [];
+    for (let k = 0; k < 28; k++) { const th = k / 28 * 2 * Math.PI; body.push(Tf([44 * Math.cos(th), 26 * Math.sin(th)])); }
+    const children = [
+      kit.area("bee_body_fill", body, STAM, { opacity: 0.25 }),
+      kit.stroke("bee_body", body, { closed: true, color: C.ink, strokeWidth: 3.5, ms: MS.node })
+    ];
+    [-14, 4, 22].forEach((sx, k) => {
+      const hy = 26 * Math.sqrt(Math.max(0, 1 - (sx / 44) * (sx / 44)));
+      children.push(kit.stroke("bee_stripe_" + k, [Tf([sx, -hy * 0.9]), Tf([sx, hy * 0.9])], { color: C.ink, strokeWidth: 3, ms: MS.dot }));
+    });
+    const head = [];
+    for (let k = 0; k < 20; k++) { const th = k / 20 * 2 * Math.PI; head.push(Tf([-54 + 17 * Math.cos(th), 4 + 17 * Math.sin(th)])); }
+    children.push(kit.stroke("bee_head", head, { closed: true, color: C.ink, strokeWidth: 3, ms: MS.node }));
+    children.push(kit.stroke("bee_antenna_l", kit.smooth([Tf([-62, 16]), Tf([-74, 32]), Tf([-84, 44])], 6), { color: C.ink, strokeWidth: 2, ms: MS.dot }));
+    children.push(kit.stroke("bee_antenna_r", kit.smooth([Tf([-50, 20]), Tf([-56, 38]), Tf([-60, 52])], 6), { color: C.ink, strokeWidth: 2, ms: MS.dot }));
+    const wing = (id, c, rx, ry, a) => {
+      const pts = [];
+      for (let k = 0; k < 20; k++) {
+        const th = k / 20 * 2 * Math.PI, x = rx * Math.cos(th), y = ry * Math.sin(th);
+        pts.push(Tf([c[0] + x * Math.cos(a) - y * Math.sin(a), c[1] + x * Math.sin(a) + y * Math.cos(a)]));
+      }
+      return kit.stroke(id, pts, { closed: true, color: C.guide, strokeWidth: 2, ms: MS.guides });
+    };
+    children.push(wing("bee_wing_1", [-6, 34], 30, 13, 0.5));
+    children.push(wing("bee_wing_2", [18, 30], 24, 11, 0.3));
+    children.push(kit.stroke("bee_stinger", [Tf([44, -2]), Tf([58, -8])], { color: C.ink, strokeWidth: 2.5, ms: MS.dot }));
+    push(kit.group("bee", children));
+    lab("bee", [bc[0] + 4, bc[1] + 44], "above", C.ink);
+  }
+
+  return { drawables, labels, anchors, order };
+---
+template: water_cycle
+title: Water cycle cross-section
+version: 1
+kit: 1
+status: ready
+description: 'A landscape cross-section of the hydrological cycle: sun in the top-left corner, ocean on the left, a mountain on the right, clouds overhead, rain or snow falling on the mountain, a river running back to the sea, and a groundwater aquifer under the surface, with curved arrows for evaporation, condensation, precipitation, runoff and infiltration (plus optional transpiration from trees). Choose this scene for any request about the water cycle or hydrological cycle, evaporation and condensation, precipitation, ''where does rain come from'', runoff and infiltration, or groundwater recharge. Stages can be shown selectively so the narration can build the cycle one step at a time.'
+params:
+  type: object
+  properties:
+    stages:
+      type: array
+      items:
+        type: string
+        enum:
+          - evaporation
+          - condensation
+          - precipitation
+          - runoff
+          - infiltration
+          - transpiration
+      description: 'Which cycle stages to draw arrows (and labels) for. Default: evaporation, condensation, precipitation, runoff, infiltration. Use a subset to build the cycle up step by step.'
+    transpiration:
+      type: boolean
+      description: Show trees on the land with dashed transpiration arrows rising to the cloud (default false). Equivalent to adding 'transpiration' to stages.
+    groundwater:
+      type: boolean
+      description: Show the water table, the shaded aquifer, bedrock hatching and the groundwater flow arrow toward the sea (default true).
+    labels:
+      type: boolean
+      description: Show stage name labels (default true). Set false when the narration will name each stage instead.
+    precipType:
+      type: string
+      enum:
+        - rain
+        - snow
+        - both
+      description: 'Falling precipitation on the mountain: slanted rain dashes, snowflakes, or snow high up with rain lower down (default ''rain'').'
+    labelText:
+      type: object
+      description: Override the text of individual labels (e.g. translations or simpler wording).
+      properties:
+        evaporation:
+          type: string
+        condensation:
+          type: string
+        precipitation:
+          type: string
+        runoff:
+          type: string
+        infiltration:
+          type: string
+        transpiration:
+          type: string
+        ocean:
+          type: string
+        groundwater:
+          type: string
+element_ids:
+  sun / sun_rays: the sun disc in the top-left corner and its rays
+  ocean_fill / ocean_surface: the sea on the left and its wavy surface line
+  land_fill / land_surface: the land cross-section and the seabed-to-mountain profile
+  trees: small trees on the lower slope (transpiration only)
+  river: the river running down the slope back to the sea
+  aquifer_fill / water_table / bedrock / bedrock_hatch: the groundwater zone, its dashed water table, and the impermeable bedrock
+  cloud_small / cloud_small_fill / cloud_main / cloud_main_fill: the forming cloud over the sea and the big rain cloud over the mountain
+  evaporation: curved arrows rising from the ocean surface
+  transpiration: dashed arrows rising from the trees
+  condensation: the arrow feeding vapour from the small cloud into the rain cloud
+  rain / snow: the falling precipitation strokes on the mountain
+  runoff: arrows of surface flow down the slope
+  infiltration: arrows soaking down from the surface to the water table
+  gw_flow: the dashed groundwater flow arrow back to the sea
+  label_evaporation / label_condensation / label_precipitation / label_runoff / label_infiltration / label_transpiration / label_ocean / label_groundwater: the stage name labels
+examples:
+  - request: Draw the water cycle.
+    params: {}
+  - request: Explain evaporation and transpiration only — no groundwater, snow on the peak.
+    params:
+      stages:
+        - evaporation
+        - condensation
+      transpiration: true
+      groundwater: false
+      precipType: snow
+layout: |-
+  const C=kit.COLORS,MS=kit.SKETCH_MS;
+  const WATER=C.supply??C.ink,HEAT=C.demand??C.ink,VAPOR=C.accent??C.ink,ROCKC=C.guide??C.ink,LANDF=C.region1??C.guide;
+  const allStages=["evaporation","condensation","precipitation","runoff","infiltration"];
+  const stages=new Set(params.stages??allStages);
+  if(params.transpiration===true)stages.add("transpiration");
+  const showTrees=stages.has("transpiration");
+  const showGW=params.groundwater!==false;
+  const showLabels=params.labels!==false;
+  const txt=params.labelText??{};
+  const T=(k,d)=>(typeof txt[k]==="string"&&txt[k].length)?txt[k]:d;
+  const precipType=params.precipType??"rain";
+  const drawables=[],labels=[],anchors={},order=[];
+  const push=d=>{drawables.push(d);order.push(d.id);};
+  const lab=(id,at,side,text,color,fs)=>{if(!showLabels)return;labels.push(kit.label(id,at,side,text,{color:color,fontSize:fs??24}));order.push(id);};
+  const arrows=specs=>{const out=[];for(const s of specs){for(const d of kit.edgeArrow(s[0],s[1],s[2],s[3]).drawables)out.push(d);}return out;};
+  const SEA=245,BOT=60,ROCK=122;
+  const prof=[[0,158],[120,150],[240,184],[330,SEA],[400,263],[470,288],[540,326],[610,384],[680,464],[745,547],[800,494],[870,434],[960,401],[1000,391]];
+  const landY=x=>{if(x<=prof[0][0])return prof[0][1];for(let i=1;i<prof.length;i++){if(x<=prof[i][0]){const a=prof[i-1],b=prof[i];return a[1]+(b[1]-a[1])*((x-a[0])/(b[0]-a[0]));}}return prof[prof.length-1][1];};
+  const wt=x=>Math.min(landY(x)-45,SEA-8+(landY(x)-SEA)*0.32);
+
+  push(kit.ball("sun",[112,652],50,{fill:HEAT,ms:MS.node}));
+  const rays=[];
+  for(let i=0;i<8;i++){const th=i*Math.PI/4+0.2;rays.push(kit.stroke("ray_"+i,[[112+58*Math.cos(th),652+58*Math.sin(th)],[112+84*Math.cos(th),652+84*Math.sin(th)]],{color:HEAT,strokeWidth:3,ms:MS.guides}));}
+  push(kit.group("sun_rays",rays));
+  anchors.sun=[112,652];
+
+  push(kit.area("ocean_fill",[[0,SEA],[330,SEA],[240,184],[120,150],[0,158]],WATER,{opacity:0.3,ms:MS.region}));
+  push(kit.stroke("ocean_surface",kit.wave([0,SEA],332,4,95,6),{color:WATER,strokeWidth:3.5,ms:MS.curve}));
+  anchors.ocean=[150,205];
+  lab("label_ocean",[150,205],"below",T("ocean","Ocean"),WATER);
+
+  const surf=kit.smooth(prof,6);
+  push(kit.area("land_fill",surf.concat([[1000,BOT],[0,BOT]]),LANDF,{opacity:0.2,ms:MS.region}));
+  push(kit.stroke("land_surface",surf,{strokeWidth:4.5,ms:MS.curve}));
+  anchors.mountain=[745,560];
+
+  if(showTrees){
+    const trees=[];
+    [420,482,545].forEach((x,i)=>{const y=landY(x);trees.push(kit.stroke("tree_t"+i,[[x,y],[x,y+34]],{strokeWidth:3,ms:MS.guides}));trees.push(kit.stroke("tree_c"+i,kit.blob([x,y+54],22,25,0.12,i+1),{closed:true,strokeWidth:3,ms:MS.node}));});
+    push(kit.group("trees",trees));
+  }
+
+  const rxs=[742,700,655,610,560,505,450,400,336];
+  const riverPts=kit.smooth(rxs.map(x=>[x,landY(x)-13]),6);
+  push(kit.stroke("river",riverPts,{color:WATER,strokeWidth:5,arrowhead:"end",ms:MS.curve}));
+  anchors.river=[505,landY(505)-13];
+
+  if(showGW){
+    const wtPts=[];
+    for(let x=332;x<=1000;x+=42)wtPts.push([x,wt(x)]);
+    wtPts.push([1000,wt(1000)]);
+    push(kit.area("aquifer_fill",wtPts.concat([[1000,ROCK],[332,ROCK]]),WATER,{opacity:0.22,ms:MS.region}));
+    push(kit.stroke("water_table",kit.smooth(wtPts,4),{color:WATER,strokeWidth:3,dash:true,ms:MS.curve}));
+    push(kit.stroke("bedrock",kit.smooth([[300,ROCK-4],[560,ROCK+6],[800,ROCK-2],[1000,ROCK+4]],4),{color:ROCKC,strokeWidth:3,ms:MS.curve}));
+    const hs=kit.hatch([330,ROCK-6],[1000,ROCK-2],12,18,-1).map((s,i)=>kit.stroke("rock_h_"+i,s,{color:ROCKC,strokeWidth:2,ms:MS.guides}));
+    push(kit.group("bedrock_hatch",hs));
+    anchors.groundwater=[470,200];
+    lab("label_groundwater",[470,200],"below",T("groundwater","Groundwater"),WATER);
+  }
+
+  const cloudPts=(c,rx,ry,ph)=>{const pts=[];const n=56;for(let i=0;i<n;i++){const th=(i/n)*2*Math.PI;const bump=1+0.16*Math.sin(3*th+ph)+0.09*Math.sin(6*th+ph*2);const flat=Math.sin(th)<0?0.42:1;pts.push([c[0]+rx*bump*Math.cos(th),c[1]+ry*bump*flat*Math.sin(th)]);}return pts;};
+  const cs=[430,612],cm=[700,650];
+  push(kit.area("cloud_small_fill",cloudPts(cs,72,40,0.7),ROCKC,{opacity:0.16,ms:MS.region}));
+  push(kit.stroke("cloud_small",cloudPts(cs,72,40,0.7),{closed:true,strokeWidth:3.5,ms:MS.curve}));
+  push(kit.area("cloud_main_fill",cloudPts(cm,122,57,2.1),ROCKC,{opacity:0.22,ms:MS.region}));
+  push(kit.stroke("cloud_main",cloudPts(cm,122,57,2.1),{closed:true,strokeWidth:4,ms:MS.curve}));
+  anchors.cloud=cm;
+
+  if(stages.has("evaporation")){
+    push(kit.group("evaporation",arrows([["evap_1",[140,262],[300,548],{curve:-0.28,color:VAPOR,strokeWidth:3.5,ms:MS.connector}],["evap_2",[250,258],[372,558],{curve:-0.22,color:VAPOR,strokeWidth:3.5,ms:MS.connector}]])));
+    anchors.evaporation=[210,400];
+    lab("label_evaporation",[175,420],"left",T("evaporation","Evaporation"),VAPOR);
+  }
+
+  if(showTrees){
+    push(kit.group("transpiration",arrows([["transp_1",[420,landY(420)+84],[412,566],{curve:0.16,color:VAPOR,strokeWidth:3,dash:true,ms:MS.connector}],["transp_2",[520,landY(520)+84],[468,566],{curve:-0.14,color:VAPOR,strokeWidth:3,dash:true,ms:MS.connector}]])));
+    anchors.transpiration=[490,430];
+    lab("label_transpiration",[540,455],"right",T("transpiration","Transpiration"),VAPOR);
+  }
+
+  if(stages.has("condensation")){
+    push(kit.group("condensation",arrows([["cond_1",[512,618],[568,644],{curve:0.22,color:VAPOR,strokeWidth:3.5,ms:MS.connector}]])));
+    anchors.condensation=[540,655];
+    lab("label_condensation",[522,690],"above",T("condensation","Condensation"),VAPOR);
+  }
+
+  if(stages.has("precipitation")){
+    const rain=[],snow=[];
+    for(let i=0;i<20;i++){
+      const x=622+Math.abs(kit.jitter(i*3+1))*180;
+      const lo=landY(x)+30,hi=604;
+      if(hi-lo<34)continue;
+      const y=lo+Math.abs(kit.jitter(i*5+7))*(hi-lo);
+      const isSnow=precipType==="snow"||(precipType!=="rain"&&landY(x)>470);
+      if(isSnow){
+        snow.push(kit.stroke("snow_"+i+"_a",[[x-8,y],[x+8,y]],{color:WATER,strokeWidth:2.5,ms:MS.dot}));
+        snow.push(kit.stroke("snow_"+i+"_b",[[x-5,y-7],[x+5,y+7]],{color:WATER,strokeWidth:2.5,ms:MS.dot}));
+        snow.push(kit.stroke("snow_"+i+"_c",[[x-5,y+7],[x+5,y-7]],{color:WATER,strokeWidth:2.5,ms:MS.dot}));
+      }else{
+        rain.push(kit.stroke("rain_"+i,[[x+6,y+24],[x,y]],{color:WATER,strokeWidth:3,ms:MS.dot}));
+      }
+    }
+    if(rain.length)push(kit.group("rain",rain));
+    if(snow.length)push(kit.group("snow",snow));
+    anchors.precipitation=[715,560];
+    lab("label_precipitation",[822,530],"right",T("precipitation",precipType==="snow"?"Precipitation (snow)":"Precipitation"),WATER);
+  }
+
+  if(stages.has("runoff")){
+    push(kit.group("runoff",arrows([["runoff_1",[672,landY(672)+26],[600,landY(600)+22],{curve:-0.16,color:WATER,strokeWidth:3.5,ms:MS.connector}],["runoff_2",[520,landY(520)+22],[430,landY(430)+18],{curve:-0.16,color:WATER,strokeWidth:3.5,ms:MS.connector}]])));
+    anchors.runoff=[560,landY(560)+40];
+    lab("label_runoff",[578,landY(578)+52],"above-right",T("runoff","Runoff"),WATER);
+  }
+
+  if(stages.has("infiltration")){
+    const inf=[];
+    [470,565,655].forEach((x,i)=>{
+      const y0=landY(x)-8;
+      const tgt=showGW?wt(x)+10:y0-70;
+      if(y0-tgt>18){for(const d of arrows([["infil_"+i,[x,y0],[x+12,tgt],{curve:0.15,color:WATER,strokeWidth:3,ms:MS.connector}]]))inf.push(d);}
+    });
+    if(inf.length)push(kit.group("infiltration",inf));
+    anchors.infiltration=[600,330];
+    lab("label_infiltration",[648,342],"right",T("infiltration","Infiltration"),WATER);
+  }
+
+  if(showGW){
+    push(kit.group("gw_flow",arrows([["gwflow_1",[600,255],[352,196],{curve:0.1,color:WATER,strokeWidth:3,dash:true,ms:MS.connector}]])));
+  }
+
+  return {drawables:drawables,labels:labels,anchors:anchors,order:order};

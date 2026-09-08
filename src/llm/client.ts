@@ -39,10 +39,107 @@ export interface JsonCallMeta {
   ms: number;
   servedBy?: string;
   structuredOutput: boolean;
+  /** Uncached input tokens (the API's `input_tokens`). */
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  /** The model that answered. */
+  model?: string;
   /** The first reply did not parse; a repair round produced this JSON. */
   jsonRepaired?: boolean;
+}
+
+// ---- the call ledger: what one generation cost -----------------------------
+// Every call this module makes — generation rounds, the router, the outline,
+// authoring, the pedagogy pass — records its usage here, so the app can show
+// "≈ $0.48" at the end of a generation without threading meta through every
+// pipeline. The app resets it when a generation starts and reads it when the
+// generation ends; calls from parallel course parts land in the same ledger,
+// which is what a course's total should be.
+
+export interface CallUsage {
+  model: string;
+  /** Uncached input tokens, full price. */
+  input: number;
+  /** Cache reads (a tenth of the input price) and writes (1.25×). */
+  cacheRead: number;
+  cacheWrite: number;
+  output: number;
+  ms: number;
+}
+
+const ledger: CallUsage[] = [];
+
+export function resetCallLedger(): void {
+  ledger.length = 0;
+}
+
+export function callLedger(): readonly CallUsage[] {
+  return ledger;
+}
+
+function recordCall(model: string, usage: Anthropic.Usage | undefined, ms: number): void {
+  ledger.push({
+    model,
+    input: usage?.input_tokens ?? 0,
+    cacheRead: usage?.cache_read_input_tokens ?? 0,
+    cacheWrite: usage?.cache_creation_input_tokens ?? 0,
+    output: usage?.output_tokens ?? 0,
+    ms,
+  });
+}
+
+/**
+ * List prices, USD per million tokens, from Anthropic's table as cached in
+ * June 2026 (input, output); cache reads are a tenth of the input price,
+ * cache writes 1.25×. A model no row knows is priced as Opus — an estimate
+ * that errs high is the honest one. Matched by prefix so dated ids and
+ * fallbacks (`servedBy`) still price.
+ */
+const PRICES: readonly [prefix: string, input: number, output: number][] = [
+  ["claude-fable", 10, 50],
+  ["claude-mythos", 10, 50],
+  ["claude-opus", 5, 25],
+  ["claude-sonnet", 2, 10],
+  ["claude-haiku", 1, 5],
+];
+
+export function priceFor(model: string): { input: number; output: number } {
+  const row = PRICES.find(([prefix]) => model.startsWith(prefix)) ?? PRICES[2];
+  return { input: row[1], output: row[2] };
+}
+
+export interface CostSummary {
+  calls: number;
+  input: number;
+  cacheRead: number;
+  cacheWrite: number;
+  output: number;
+  usd: number;
+}
+
+export function costSummary(calls: readonly CallUsage[] = ledger): CostSummary {
+  const s: CostSummary = { calls: calls.length, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, usd: 0 };
+  for (const c of calls) {
+    const p = priceFor(c.model);
+    s.input += c.input;
+    s.cacheRead += c.cacheRead;
+    s.cacheWrite += c.cacheWrite;
+    s.output += c.output;
+    s.usd += (c.input * p.input + c.cacheRead * p.input * 0.1 + c.cacheWrite * p.input * 1.25 + c.output * p.output) / 1_000_000;
+  }
+  return s;
+}
+
+/** "≈ $0.48 · 61k tokens in (52k cached) · 8k out · 6 calls" — an estimate from list prices, never a bill. */
+export function formatCost(s: CostSummary): string {
+  if (s.calls === 0) return "";
+  const k = (n: number): string => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
+  const usd = s.usd < 0.01 ? "<$0.01" : `$${s.usd.toFixed(2)}`;
+  const inAll = s.input + s.cacheRead + s.cacheWrite;
+  const cached = s.cacheRead + s.cacheWrite;
+  return `≈ ${usd} · ${k(inAll)} tokens in${cached > 0 ? ` (${k(cached)} cached)` : ""} · ${k(s.output)} out · ${s.calls} call${s.calls === 1 ? "" : "s"}`;
 }
 
 export function opusTier(model: string): boolean {
@@ -61,6 +158,9 @@ function textOf(response: Anthropic.Message): string {
     .join("");
 }
 
+/** The effort dial: thinking depth and overall token spend. "high" is the API default. */
+export type Effort = "low" | "medium" | "high";
+
 /** Per-call knobs: cancellation, live text, and the effort dial repairs turn down. */
 export interface CallOpts {
   /** Aborts the request in flight — the SDK throws APIUserAbortError. */
@@ -68,7 +168,9 @@ export interface CallOpts {
   /** Each text delta plus the running snapshot, as the model writes it. */
   onDelta?: (delta: string, snapshot: string) => void;
   /** output_config.effort. Omitted means the model's default (high). */
-  effort?: "low" | "medium" | "high";
+  effort?: Effort;
+  /** max_tokens for the reply (thinking included). Default 16000; template authoring needs more. */
+  maxTokens?: number;
 }
 
 /**
@@ -91,7 +193,7 @@ async function createMessage(
   };
   const base = {
     model,
-    max_tokens: 16000,
+    max_tokens: opts.maxTokens ?? 16000,
     system,
     messages,
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
@@ -194,6 +296,7 @@ export async function callForJson(
   }
 
   addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
+  recordCall(response.model ?? model, response.usage, performance.now() - t0);
 
   // A cut-off reply is broken JSON by construction; name the real cause. The
   // model's thinking (on by default on Opus 5) counts against the same limit.
@@ -226,6 +329,7 @@ export async function callForJson(
       { ...opts, effort: "low" },
     );
     addAnthropicTokens((retry.usage?.input_tokens ?? 0) + (retry.usage?.output_tokens ?? 0));
+    recordCall(retry.model ?? model, retry.usage, performance.now() - t0);
     const raw2 = textOf(retry);
     try {
       json = extractJson(raw2);
@@ -246,6 +350,9 @@ export async function callForJson(
       structuredOutput: structured,
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
+      cacheReadTokens: response.usage?.cache_read_input_tokens ?? undefined,
+      cacheWriteTokens: response.usage?.cache_creation_input_tokens ?? undefined,
+      model: response.model,
       ...(jsonRepaired ? { jsonRepaired } : {}),
     },
   };
@@ -271,6 +378,7 @@ export async function callForText(
     throw new RefusalError(details?.explanation);
   }
   addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
+  recordCall(response.model ?? model, response.usage, performance.now() - t0);
   return { text: textOf(response), ms: performance.now() - t0 };
 }
 

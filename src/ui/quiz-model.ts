@@ -5,22 +5,27 @@
 // widget geometry the ask gates use.
 
 import { pianoNotes } from "../render/widgets";
+import { MIN_PARTS } from "./parts-model";
 import type { ChemElement, ElementCategory } from "../scenes/elements/types";
 
 /** A named activity a scene's interactions imply — rendered as a tray pill
  *  (and, by construction, reachable from right-click, which opens the tray:
  *  two doors, one registry — spec §13's scheduled convergence). */
 export interface Activity {
-  kind: "chess" | "piano" | "periodic";
+  kind: "chess" | "piano" | "periodic" | "parts";
   id: string;
   label: string;
 }
 
 /** The activities a scene's manifest interactions imply. The kind IS the
  *  data space: declaring `chess` buys free play AND its drills — no
- *  per-activity manifest vocabulary. */
-export function activitiesFor(interactions: readonly string[]): Activity[] {
+ *  per-activity manifest vocabulary. A figure that declares nothing but
+ *  has named parts (`partsCount`, see parts-model.ts) gets the generic
+ *  identify drill instead — never alongside a bespoke one, so the row
+ *  never offers two ways to ask "click the ___". */
+export function activitiesFor(interactions: readonly string[], partsCount = 0): Activity[] {
   const out: Activity[] = [];
+  if (interactions.length === 0 && partsCount >= MIN_PARTS) return [{ kind: "parts", id: "parts_quiz", label: "🎯 Find the part" }];
   if (interactions.includes("chess")) {
     out.push({ kind: "chess", id: "square_quiz", label: "🎯 Find the square" });
     out.push({ kind: "chess", id: "vs_computer", label: "♟ Play the computer" });
