@@ -233,13 +233,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, revealNew, elements) => {
+      frame: (params, visible, offsets, turns, opacities, revealNew, elements) => {
         const l = layoutFor(params, false, elements);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
         const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
-        mounted.swapGeometry!(l, vis, offsets);
+        mounted.swapGeometry!(l, vis, offsets, turns, opacities);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
 
       },

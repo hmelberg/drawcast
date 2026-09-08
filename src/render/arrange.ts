@@ -29,6 +29,14 @@ export interface ArrangeOutput {
 
 const DEG = Math.PI / 180;
 
+/** A rotation delta wrapped into (−180, 180] — the short way round. */
+function shortestTurn(deg: number): number {
+  let d = deg % 360;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return d;
+}
+
 function centroidOf(items: ArrangeInput[]): Pt {
   const n = Math.max(1, items.length);
   return [items.reduce((s, i) => s + i.centre[0], 0) / n, items.reduce((s, i) => s + i.centre[1], 0) / n];
@@ -90,7 +98,11 @@ function zipper(items: ArrangeInput[], at: Pt): ArrangeOutput[] {
     // mid-direction is midAngle + that turn, so the delta undoes it too —
     // otherwise the slice zips in at the wrong angle.
     const midNow = i.piece!.midAngle + (i.pose.turn?.deg ?? 0);
-    return { id: i.id, rotate: targetMid - midNow, pivotNow: i.piece!.apex, apexTo };
+    // Normalised into (−180, 180]: a raw difference of angles can be any size
+    // (a slice at midAngle −345° wanting +90° asks for 435°), and the player
+    // tweens the delta linearly — so an un-normalised delta spins the slice
+    // more than a full turn on its way to a destination one nudge away.
+    return { id: i.id, rotate: shortestTurn(targetMid - midNow), pivotNow: i.piece!.apex, apexTo };
   });
   if (others.length > 0) {
     const row = arrangeTargets(others, "row", { at: [at[0], at[1] - r], gap: 10 });

@@ -1519,10 +1519,6 @@ params:
     labels:
       type: boolean
       description: "Label the rectangle's base πr and height r (default true). Drawn at the rectangle's eventual position from t = 0 onward, so a caller can draw them any time."
-    language:
-      type: string
-      enum: [en, nb]
-      description: "Label language (default en)."
 element_ids:
   piece_<k>: sector k of n (1-based), a closed outline with a wash — every one moves with t
   radius_line: the radius drawn inside the first sector (when show_radius)
@@ -1533,7 +1529,7 @@ examples:
   - request: "Why is the area of a circle πr²? Show the circle cut into slices."
     params: { n: 12, t: 0 }
   - request: "Show the slices zipped into a rectangle with forty thin pieces."
-    params: { n: 40, t: 1, language: en }
+    params: { n: 40, t: 1 }
 layout: |-
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const n = Math.max(2, Math.min(64, Math.round(Number(params.n ?? 12))));

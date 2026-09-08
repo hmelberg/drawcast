@@ -99,6 +99,24 @@ describe("captionLines", () => {
   test("a figure of pure geometry has nothing to subtitle", () => {
     expect(captionLines(spec([{ draw: ["a"] }]))).toEqual([]);
   });
+
+  test("the motion verbs' narration survives — planCommands is given the ids the commands name", () => {
+    // planCommands drops a move/arrange/fade/highlight/focus whose targets
+    // resolve to nothing, and its paired `speak` goes with it. With an empty
+    // known-id list that was EVERY such command, so a motion drawcast lost
+    // most of its subtitles.
+    expect(captionLines(spec([{ move: { target: ["a"], by: [1, 0] }, speak: "X" }]))).toContain("X");
+    expect(captionLines(spec([{ move: { target: "a", by: [1, 0] }, speak: "Bare string target." }]))).toContain("Bare string target.");
+    expect(captionLines(spec([{ arrange: { target: ["a", "b"], layout: "row" }, speak: "Line them up." }]))).toContain("Line them up.");
+    expect(captionLines(spec([{ fade: { target: ["a"], to: 0.3 }, speak: "Dim it." }]))).toContain("Dim it.");
+    // highlight and focus also want the target VISIBLE, as at playback — so
+    // draw it first, exactly as a real spec does.
+    expect(captionLines(spec([{ draw: ["a"] }, { highlight: { target: ["a"] }, speak: "Look here." }]))).toContain("Look here.");
+    expect(captionLines(spec([{ draw: ["a"] }, { focus: { target: ["a"] }, speak: "Just this." }]))).toContain("Just this.");
+    // A move naming an id only a LATER draw introduces still counts: the ids
+    // come from the whole command list, not from what has been drawn so far.
+    expect(captionLines(spec([{ move: { target: ["a"], by: [1, 0] }, speak: "Early." }, { draw: ["a"] }]))).toContain("Early.");
+  });
 });
 
 describe("what the player actually shows is what we offer to translate", () => {

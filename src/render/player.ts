@@ -18,6 +18,7 @@ import type { SpecElement } from "../spec/types";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
+import type { Turn } from "./pose";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -25,9 +26,20 @@ export type PlayerState = "idle" | "playing" | "paused" | "done";
 export interface Reprojector {
   /** Cheap per-frame swap at interpolated params. Values are numbers from
    *  animate/sliders except under free-play previews (a fen string, a moves
-   *  array). revealNew shows ids the previewed layout mints that the plan's
+   *  array). The rebuilt nodes carry NO handles, so the caller must hand over
+   *  the whole per-element scene state — `offsets`, `turns` AND `opacities` —
+   *  or a rotated/scaled/faded element snaps back for the length of the tween.
+   *  revealNew shows ids the previewed layout mints that the plan's
    *  visible set has never heard of (a chess piece on a fresh square). */
-  frame(params: Record<string, unknown>, visible: ReadonlySet<string>, offsets: Record<string, Pt>, revealNew?: boolean, elements?: SpecElement[]): LayoutResult | void;
+  frame(
+    params: Record<string, unknown>,
+    visible: ReadonlySet<string>,
+    offsets: Record<string, Pt>,
+    turns: Record<string, Turn>,
+    opacities: Record<string, number>,
+    revealNew?: boolean,
+    elements?: SpecElement[],
+  ): LayoutResult | void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
 }
@@ -458,7 +470,8 @@ export class Player {
   previewParams(overrides: Record<string, unknown>, opts: { revealNew?: boolean } = {}): void {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
-    this.painted = this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, opts.revealNew) || null;
+    this.painted =
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew) || null;
     this.geometryDirty = true;
   }
 
@@ -478,7 +491,8 @@ export class Player {
     // handles: anything applied afterwards would be talking to stale nodes.
     const visible = new Set(scene.visible);
     for (const id of patch.hide ?? []) visible.delete(id);
-    this.painted = this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, true, patch.elements) || null;
+    this.painted =
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements) || null;
     this.geometryDirty = true;
   }
 
@@ -984,7 +998,7 @@ export class Player {
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
-          rp.frame(cur, visible, before.offsets, true);
+          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true);
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now

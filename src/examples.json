@@ -14819,7 +14819,7 @@
     "spec": {
       "title": "Hvorfor er arealet av en sirkel πr²?",
       "template": "circle_sectors",
-      "params": { "n": 12, "t": 0, "language": "nb" },
+      "params": { "n": 12, "t": 0 },
       "elements": [
         { "id": "eq", "type": "text", "text": "πr · r = πr²", "x": 690, "y": 120, "font_size": 36, "style": { "color": "#b5482e" } },
         { "id": "mark", "type": "annotation", "target": "eq", "kind": "box" }

@@ -347,7 +347,11 @@ describe("arrange", () => {
     expect(step.kind).toBe("transform");
     expect(step.items.map((i) => i.id)).toEqual(pieces);
     expect(step.items[0].to.turn.deg).toBeCloseTo(90 - 45, 6);
-    expect(step.items[1].to.turn.deg).toBeCloseTo(-90 - 135, 6);
+    // Piece 2 sits at midAngle 135° and must end pointing down (−90°). The
+    // raw difference is −225°, but the delta is tweened linearly, so it is
+    // normalised to the equivalent short way round: +135°.
+    expect(step.items[1].to.turn.deg).toBeCloseTo(135, 6);
+    expect(((((135 + 135) % 360) + 360) % 360)).toBe(270); // …the same final direction as −90°
     expect(plan.states[1].turns.k_1.deg).toBeCloseTo(45, 6);
   });
   test("row on plain elements is a pure translation to a centred row", () => {

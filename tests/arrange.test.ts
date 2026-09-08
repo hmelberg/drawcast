@@ -62,6 +62,16 @@ describe("zipper", () => {
     // mid-angle 15° is already at 45°; the delta must take it the rest of the way to 90°
     expect(out[0].rotate).toBeCloseTo(90 - 15 - 30, 6);
   });
+  test.each([12, 40])("every rotation delta takes the short way round (n = %i)", (n) => {
+    const out = arrangeTargets(Array.from({ length: n }, (_, k) => piece(k, n)), "zipper", { at: [600, 375], gap: 0 });
+    for (const o of out) {
+      // The player tweens the delta linearly, so an un-normalised one spins
+      // the slice the long way — a late slice at midAngle 345° asking for
+      // +90° used to be handed 435°, a full extra revolution.
+      expect(o.rotate!).toBeGreaterThan(-180);
+      expect(o.rotate!).toBeLessThanOrEqual(180);
+    }
+  });
   test("an element without piece geometry falls back to row placement", () => {
     const out = arrangeTargets([item("a", 0, 0), item("b", 0, 0)], "zipper", { at: [500, 375], gap: 10 });
     expect(out.map((o) => o.centre)).toEqual([[475, 375], [525, 375]]);

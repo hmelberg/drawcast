@@ -194,7 +194,7 @@ describe("the animate action", () => {
     const plan = planCommands([{ draw: ["piece_1"] }, { animate: { n: 4 }, duration: 0.05 }], ["piece_1", "piece_2"], { animateBase: { n: 2 } });
     const frames: { revealNew?: boolean }[] = [];
     const rp: Reprojector = {
-      frame: (_p, _v, _o, revealNew) => { frames.push({ revealNew }); },
+      frame: (_p, _v, _o, _turns, _opacities, revealNew) => { frames.push({ revealNew }); },
       // The committed layout at n = 4 mints piece_3 and piece_4.
       commit: () => new Map([["piece_1", stub("piece_1")], ["piece_2", stub("piece_2")], ["piece_3", stub("piece_3")], ["piece_4", stub("piece_4")]]),
     };

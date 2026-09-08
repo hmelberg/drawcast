@@ -325,3 +325,84 @@ report and its fix-round addendum. **Not run: a browser smoke of the three
 new examples.** The controller has not yet driven them in a live browser the
 way Smoke 1/2 above did for the πr² example; this addendum does not claim
 one.
+
+## Final review — the whole-branch fix round (2026-09-08)
+
+The whole-branch review raised one Critical and four Importants. All five were
+fixed in one pass, on top of `0b9d662`.
+
+**Critical: `setOpacity` destroyed authored translucency on stroke and area
+leaves.** `drawLeaf` writes a drawable's authored `style.opacity` as the
+`opacity` ATTRIBUTE on the leaf's own `<g>` (`src/render/svg-backend.ts:300`
+clean, `:401` sketchy). Fade wrote the SAME attribute on the SAME node for
+those kinds, and `Player.applyScene` calls `setOpacity(scene.opacities[id] ?? 1)`
+for every element on every scene apply — where `alpha >= 1` does
+`removeAttribute("opacity")`. So the first `applyScene` after any `animate`
+step, scrub, `stepForward`/`stepBack`, `stop()`, `showPoster()`,
+`setMode("instant")` or replay wiped the authored value: the code pane's 0.42
+highlighter bands, the `source` quote highlighter, the ECG grid, the economics
+connectors, the dashed 3-D guides and `kit`'s depth fade all jumped to full
+ink and stayed there.
+
+Fixed uniformly rather than by widening the special case: `buildNodes` now
+gives EVERY leaf, of every kind, its own fade wrapper `<g>`, and `setOpacity`
+targets only wrappers. The leaf's own node keeps whatever it already used its
+opacity for — the authored attribute, the reveal's inline style, focus's
+transient dimming — and SVG's nested-opacity compositing multiplies the two,
+so fade ∘ focus ∘ authored composes for all kinds. The doc comments on
+`SvgElementHandle.fadeGroups` and `setOpacity` that reasoned about the old
+special case were rewritten.
+
+Verified in a headless browser against the dev server (script kept out of the
+repo, in the session scratchpad), measuring the product of `getComputedStyle`
+opacity from the leaf group up to the `<svg>` for a `path` with
+`style.opacity: 0.4`:
+
+| point | before | after |
+| --- | --- | --- |
+| after `play()` (mode instant) | 1 | **0.4** |
+| after `stop()` | 1 | **0.4** |
+| after `showPoster()` | 1 | **0.4** |
+| after `stepForward()` past the draw | 1 | **0.4** |
+| after `fade {to: 0.5}` | 0.5 | **0.2** (product) |
+| after `fade {to: 1}` | 1 | **0.4** (authored, restored) |
+| after `stepBack()` | 0.5 | **0.2** |
+
+A node test covers the same ground without a browser (`tests/fade-opacity.test.ts`,
+both render styles, driving the real backend against `tests/helpers/mini-dom.ts`);
+it was confirmed to fail on the pre-fix code with exactly the "before" numbers.
+
+**Zipper rotation deltas are now normalised** to (−180°, 180°]
+(`shortestTurn` in `src/render/arrange.ts`). A shipped example spun a slice
+435° because the delta is tweened linearly. `tests/arrange.test.ts` asserts the
+bound for every piece at n = 12 and n = 40; the end-to-end apex test is
+unchanged and still passes. `tests/plan.test.ts` had encoded the un-normalised
+−225° for a four-piece zipper — updated to the equivalent +135° with a note
+that both land on the same final direction.
+
+**Cheap tween frames were dropping turns, scale and opacities — implemented,
+not deferred.** `Reprojector.frame` and `MountResult.swapGeometry` take
+`turns` and `opacities` after `offsets`; the transform-string builder came out
+of `SvgElementHandle.setTransform` into a module-level `poseTransform`, so the
+handle and `buildNodes` write byte-identical transforms, and `buildNodes` sets
+the fade attribute on the wrapper for ids in `opacities`. Every `frame(`
+caller in `player.ts` passes `scene`/`before` turns and opacities. Roughly 55
+lines across five files plus two test stubs — inside the ruling's budget, so
+it was threaded through rather than recorded as a limitation. What a tween
+frame still cannot carry (focus dimming, partial reveals) is now in ROADMAP's
+follow-up list.
+
+**`captionLines` planned with `[]`.** `src/llm/subtitles.ts` now collects
+every id the commands mention (`draw`/`show`/`hide`/`erase` bare lists, plus
+`target` on `highlight`/`focus`/`move`/`arrange`/`fade` and `clear.keep`) and
+hands that to `planCommands`, along with a placeholder `bboxOf` — `arrange`
+alone also skips a target it cannot measure, and there is no layout at
+authoring time. Without this, a `speak` paired with any motion verb never
+reached the subtitle track, which is most of the talking in a motion drawcast.
+Covered in `tests/subtitle-authoring.test.ts`.
+
+**`language` on `circle_sectors` was inert** — the layout never read it.
+Removed from the template's `params` schema, from the manifest's second
+example, and from the bundled πr² example in `src/examples.json` (which passed
+`"language": "nb"` and got English labels either way). There was no dead `nb`
+variable in the layout to remove.

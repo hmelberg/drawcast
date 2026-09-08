@@ -223,14 +223,18 @@ geometry):
    shape can grow AND turn from one corner in a single move.
 7. **`fade`** persistently dims or restores elements (`SceneState.opacities`,
    the `fade` player step). `RenderedElement.setOpacity` writes the `opacity`
-   ATTRIBUTE, but text/image leaves settle their own reveal (and, for images,
-   every tween frame) as an inline `style.opacity` on that SAME node, which
-   would silently beat a plain attribute there — so `src/render/svg-backend.ts`
-   wraps only those two leaf kinds in a dedicated `<g>` that fade targets
-   instead (stroke/area leaves keep the attribute on their own group, since
-   their reveal never touches it). SVG's nested-opacity compositing multiplies
-   wrapper and leaf, so a `focus` dim/undim round trip never undoes a `fade`
-   (caught by the Task 8 review, fixed in fix round 1, commit `3ec304b`). The
+   ATTRIBUTE on a wrapper `<g>` that `src/render/svg-backend.ts` puts above
+   EVERY leaf, of every kind — never on the leaf's own node, whose opacity is
+   already spoken for twice: text/image reveals write an inline
+   `style.opacity` there each frame, and `drawLeaf` writes a stroke/area
+   drawable's AUTHORED `style.opacity` there as an attribute. SVG's
+   nested-opacity compositing multiplies wrapper and leaf, so fade, reveal,
+   focus and authored translucency all layer instead of overwriting: a
+   `focus` dim/undim round trip never undoes a `fade`, and a 0.42 highlighter
+   band stays translucent across every scene apply. (The text/image half was
+   caught by the Task 8 review, fix round 1, commit `3ec304b`; the stroke/area
+   half — every translucent stroke in the library snapping to full ink on the
+   first `applyScene` — by the whole-branch review, final fix round.) The
    planner dedupes followers the same way `arrange` does.
 8. **Three bundled freehand examples** (`src/examples.json`, no template)
    put the new verbs through their paces: kakestykker rearranged into a
@@ -247,17 +251,32 @@ element ids like every other target list, not a template name.
 
 ### Follow-ups this round deliberately left
 
-- **Zipper angle normalisation.** Rotation deltas are not normalised to
-  (−180°, 180°], so a slice can spin 432° on its way into place — observed
-  live, cosmetic.
+Three entries that stood here — zipper angle normalisation, `captionLines`
+planning with an empty id list, and the inert `language` param on
+`circle_sectors` — were fixed in the final fix round; see the ledger's
+"Final review".
+
 - **`arrange` warns nothing for invisible targets** — no warning when a
   target is hidden or missing.
 - **The zipper's non-sector fallback row ignores `gap`.**
-- **`captionLines` (`src/llm/subtitles.ts`) plans with an empty id list**,
-  so a `speak` paired with `move`, `highlight`, or `arrange` never reaches
-  the subtitle track — pre-existing, flagged by the Task 3 implementer and
-  confirmed by its reviewer this round, not fixed.
-- **`language` on `circle_sectors` is inert.**
+- **`camera.center.ref` and `point.at.ref` do not expand a `pieces` id.**
+  Every other id-taking verb runs its targets through `expandId`, so
+  `arrange: {target: "kake"}` reaches all twelve slices while
+  `camera: {center: {ref: "kake"}}` resolves nothing and silently keeps the
+  full canvas. Either expand and union the boxes, or lint the ref.
+- **Lint's `coVisible` does not expand `pieces` ids**, so overlap rules
+  never see a pieces group as the set of drawables it becomes — a slice can
+  collide with a label without a warning.
+- **A lint rule for id/sub-suffix collisions.** Rejecting an element id that
+  ENDS in a `SUB_SUFFIXES` entry (`_fill`, `_wash`, …) would retire the whole
+  hazard class in one rule: today an author who names an element `x_wash`
+  shadows the generated sub-drawable of `x` with no warning at all.
+- **Cheap tween frames now carry pose and fade, but nothing else.**
+  `Reprojector.frame` / `swapGeometry` take `turns` and `opacities` alongside
+  `offsets` (final fix round), so a rotated, scaled or faded element no longer
+  snaps back mid-tween. Anything else a handle applies — the gesture overlay's
+  focus dimming, an in-flight reveal's partial progress — is still lost on a
+  tween frame, by design: those nodes carry no handles.
 
 ## Sound (the play command) — done 2026-08-26
 
