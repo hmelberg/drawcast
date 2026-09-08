@@ -473,7 +473,7 @@ export class Player {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew) || null;
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew, undefined, scene.shapes) || null;
     this.geometryDirty = true;
   }
 
@@ -494,7 +494,7 @@ export class Player {
     const visible = new Set(scene.visible);
     for (const id of patch.hide ?? []) visible.delete(id);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements) || null;
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements, scene.shapes) || null;
     this.geometryDirty = true;
   }
 
@@ -1072,6 +1072,13 @@ export class Player {
             el!.setPoints!(pts);
           }
         });
+        // Settle on the boundary's own points — the last tween frame is
+        // morphPair's K-point resample, not the layout's own vertex count, so
+        // a `reset` (whose boundary carries no shapes entry at all) must be
+        // re-applied here or the element keeps its resampled path until the
+        // next applyScene (a scrub).
+        const after = this.plan.states[index];
+        for (const { it, el } of items) el!.setPoints!(after.shapes[it.id] ?? {});
         return;
       }
       case "camera": {

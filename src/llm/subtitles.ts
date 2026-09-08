@@ -13,6 +13,7 @@
 
 import { callForJson, makeClient, type CallOpts } from "./client";
 import { planCommands } from "../render/plan";
+import type { Pt } from "../layout/model";
 import type { SubtitleTrack } from "../spec/subtitles";
 import type { Spec } from "../spec/types";
 
@@ -81,8 +82,14 @@ export function captionLines(spec: Spec): string[] {
   // A placeholder box for every id: `arrange` (alone among the motion verbs)
   // also skips a target it cannot measure, and we have no layout here. The
   // geometry it computes from a degenerate box is thrown away — only the
-  // step's narration is read.
-  const plan = planCommands(spec.commands ?? [], mentionedIds(spec), { bboxOf: () => ({ x: 0, y: 0, w: 0, h: 0 }) });
+  // step's narration is read. `morph` needs the same treatment: it succeeds
+  // off leafPointsOf, not bboxOf, so a single dummy closed leaf keeps a
+  // narrated morph from being skipped (and its speak line lost) here too.
+  const dummyLeaf = [{ leafId: "x", pts: [[0, 0], [1, 0], [1, 1]] as Pt[], closed: true }];
+  const plan = planCommands(spec.commands ?? [], mentionedIds(spec), {
+    bboxOf: () => ({ x: 0, y: 0, w: 0, h: 0 }),
+    leafPointsOf: () => dummyLeaf,
+  });
   for (const step of plan.steps) {
     add(step.narration);
     if (step.kind === "speak") add(step.text);

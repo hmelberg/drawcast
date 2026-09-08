@@ -109,6 +109,9 @@ describe("captionLines", () => {
     expect(captionLines(spec([{ move: { target: "a", by: [1, 0] }, speak: "Bare string target." }]))).toContain("Bare string target.");
     expect(captionLines(spec([{ arrange: { target: ["a", "b"], layout: "row" }, speak: "Line them up." }]))).toContain("Line them up.");
     expect(captionLines(spec([{ fade: { target: ["a"], to: 0.3 }, speak: "Dim it." }]))).toContain("Dim it.");
+    // morph succeeds off leafPointsOf, not bboxOf — the dummy options object
+    // needs a placeholder leaf too, or every narrated morph loses its line.
+    expect(captionLines(spec([{ morph: { target: ["a"], to: [[0, 0], [10, 0], [10, 10]] }, speak: "Watch it change shape." }]))).toContain("Watch it change shape.");
     // highlight and focus also want the target VISIBLE, as at playback — so
     // draw it first, exactly as a real spec does.
     expect(captionLines(spec([{ draw: ["a"] }, { highlight: { target: ["a"] }, speak: "Look here." }]))).toContain("Look here.");
