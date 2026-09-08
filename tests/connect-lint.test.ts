@@ -55,7 +55,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_ori"],
         message: `connect: "con_ori" is not drawn in this figure — a connect question needs focus on that constellation`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -68,7 +68,7 @@ describe("connect lint", () => {
     const commands = [{ draw: ["con_lone", "a"] }, askConnect("con_lone")] as never;
     const { issues } = lintLayoutDetailed(drawables, heuristicMeasure, commands);
     expect(issues.filter((i) => i.rule === "connect")).toEqual([
-      { rule: "connect", ids: ["con_lone"], message: `connect: "con_lone" has no lines to draw`, severity: "warn" },
+      { rule: "connect", ids: ["con_lone"], message: `connect: "con_lone" has no lines to draw`, severity: "error" },
     ]);
   });
 
@@ -88,7 +88,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_gap"],
         message: `connect: 1 of "con_gap"'s points have no star to join — the figure cannot be drawn as it stands`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -113,7 +113,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_big"],
         message: `connect: "con_big" has ${edgeCount} lines; the cap is ${CONNECT_MAX_EDGES} (Orion's) — ask which constellation it is instead`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -134,7 +134,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_tst"],
         message: `connect: "con_tst" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -163,7 +163,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_ori"],
         message: `connect: "con_ori" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -186,7 +186,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_tst"],
         message: `connect: "con_tst" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -225,7 +225,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_tst"],
         message: `connect: "con_tst" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });
@@ -271,7 +271,7 @@ describe("connect lint", () => {
         rule: "connect",
         ids: ["con_tst"],
         message: `connect: a jump can reach this question without passing the beat that draws "con_tst" — a viewer who takes that branch is asked to draw a figure they never saw`,
-        severity: "warn",
+        severity: "error",
       },
     ]);
   });

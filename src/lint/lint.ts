@@ -339,23 +339,23 @@ export function lintLayoutDetailed(
           rule: "connect",
           ids: [answer],
           message: `connect: "${answer}" is not drawn in this figure — a connect question needs focus on that constellation`,
-          severity: "warn",
+          severity: "error",
         });
       } else if (key.edges.length === 0) {
-        issues.push({ rule: "connect", ids: [answer], message: `connect: "${answer}" has no lines to draw`, severity: "warn" });
+        issues.push({ rule: "connect", ids: [answer], message: `connect: "${answer}" has no lines to draw`, severity: "error" });
       } else if (key.unmatched > 0) {
         issues.push({
           rule: "connect",
           ids: [answer],
           message: `connect: ${key.unmatched} of "${answer}"'s points have no star to join — the figure cannot be drawn as it stands`,
-          severity: "warn",
+          severity: "error",
         });
       } else if (key.edges.length > CONNECT_MAX_EDGES) {
         issues.push({
           rule: "connect",
           ids: [answer],
           message: `connect: "${answer}" has ${key.edges.length} lines; the cap is ${CONNECT_MAX_EDGES} (Orion's) — ask which constellation it is instead`,
-          severity: "warn",
+          severity: "error",
         });
       }
       // Reported independently of the four above: a figure can be perfectly
@@ -366,7 +366,7 @@ export function lintLayoutDetailed(
           rule: "connect",
           ids: [answer],
           message: `connect: "${answer}" is asked for before it has been drawn — draw the figure earlier in the cast, so the question is "draw the one you just saw" and not "guess which convention we use"`,
-          severity: "warn",
+          severity: "error",
         });
       } else if (jumpTargets.some((t) => t > revealIdx && t <= i)) {
         // The TEXTUAL walk above says the figure is on screen, but some
@@ -376,7 +376,7 @@ export function lintLayoutDetailed(
           rule: "connect",
           ids: [answer],
           message: `connect: a jump can reach this question without passing the beat that draws "${answer}" — a viewer who takes that branch is asked to draw a figure they never saw`,
-          severity: "warn",
+          severity: "error",
         });
       }
     }
