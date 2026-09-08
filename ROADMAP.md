@@ -1329,42 +1329,81 @@ evidence about the real thing.**
   `days`/`total` come from the pre-compact rollup, so it can momentarily report
   less than what was just made durable.
 
-### The player round — agreed, not started
+### The player round — delivered 2026-09-08
 
 Framed as a YouTube-like separation: the player is a hard boundary containing
 everything that changes what you see (stage, controls, params tray, code
 panels), while everything *about* the drawcast — title, view count, share,
-comments — sits below it as page furniture. Fullscreen already honours that
+comments — sits below it as page furniture. Fullscreen already honoured that
 boundary (`tests/fullscreen-frame.test.ts` enforces that every `:fullscreen`
-selector names `.player-figure`); the non-fullscreen layout does not yet.
-Unlike YouTube the box must be free to grow taller when a tray or code panel
-opens, rather than being pinned to a video-shaped rectangle.
+selector names `.player-figure`); the page now does too. Unlike YouTube the
+box stays free to grow taller when a tray or code panel opens — a min-height,
+never a height.
 
-- **Fit-to-window sizing for `#gh=` links.** Measured on a live drawcast: the
-  shell appears at 1055 ms with `.player-figure` at **960×16 px** — an empty
-  bordered strip — and jumps to 960×752 only when the figure mounts. There is
-  no animation; the box is content-sized, so it has no height until `render()`
-  fills it. And `.viewer-wrap`'s `min(960px, 96vw)` at 4:3 is ~750px tall, so
-  on a 730px viewport the play bar lands *below the fold* and the page
-  scrolls. One fix removes both: size the viewer's figure from the viewport,
-  hoisting `.viewer-body .player-figure` into the existing fullscreen rules
-  rather than writing a fourth copy of them.
-- **Comments below the drawcast**, out of the player's fixed-height column.
-- **The `.viewer-footer` strip goes**, Share becoming an icon — in the control
-  line, or in the meta row beside the count; that round decides.
-- **A poster frame**: the drawcast's final image before play instead of a
-  blank stage, cleared on play, designed so a user- or LLM-supplied start
-  image can replace the default later (`meta.poster`, defaulting to the final
-  frame). Sizing, poster and title-below want doing together — the page then
-  looks finished at 200 ms instead of at 6 seconds.
-- **The replay icon flashes at chapter boundaries** in a multi-chapter
-  drawcast; it should appear only at the true end.
-- **Drawcasts sometimes end on an empty chapter.** The last frame should hold
-  whatever was on screen.
-- **Same root cause, separate symptom:** the figure box collapses to the 16px
-  strip and re-expands at *every* playlist item change, mid-playback, because
-  `destroy()` removes the figure before the next one renders. The viewer's copy
-  goes away with the sizing fix; the app player's does not.
+What shipped (`tests/viewer-frame.test.ts`, `tests/player-hold-frame.test.ts`):
+
+- **The viewer's frame has its shape before anything is fetched.** Measured
+  before: the shell at ~1 s with `.player-figure` at 960×16 px, jumping to
+  960×752 when the figure mounted; on a 730 px window the play bar below the
+  fold. Now `--viewer-stage-h` (styles.css) decides the stage's height from
+  the viewport — the smaller of 4:3 of the frame's inner width and
+  `100vh − 10rem` — and the frame's min-height is that plus the bar and its
+  padding (3rem, measured 48 px). Measured after, 1200×730: the frame is
+  960×634 at 190 ms with the loading line centred inside it, 650 when the
+  figure mounts, the stage 760×570, the bar's bottom at 664. The stage
+  takes `height: var(--viewer-stage-h); width: auto; margin: 0 auto` — the
+  fullscreen rule's construction (auto side margins keep the flex column
+  from stretching it) — so on a short window it is narrower than the frame
+  and centred; on an ordinary laptop it fills it as before. Fullscreen keeps
+  its own rules (`:not(:fullscreen)` on every viewer rule, as
+  `tests/shell-css.test.ts` requires of any pane rule).
+- **Title, count, note, share and the way back to the app sit under the
+  frame** in `.viewer-meta`: the title on its own line, the count and any note
+  at the left, "Made with drawcast" at the right. The frame's own title band
+  (`.cs-title`, C9) is off on the page — it would say the title twice — and
+  back in fullscreen. The `.viewer-footer` strip is gone; **Share is an icon
+  in the control bar** beside fullscreen (`icons.ts` `share`/`check`), riding
+  the bar from item to item through `controls.trailing` the way the
+  playlist's dots do; the tick says "copied" for a beat. Comments mount after
+  the meta row.
+- **The last frame holds whatever was on screen** (`plan.ts` `heldFrom` /
+  `sceneAt`). A drawcast that ends by wiping the stage — a trailing `clear`,
+  an `erase` of the last thing drawn — planned to end on nothing: its poster
+  was blank (the poster IS the finished figure), and so was the frame the
+  viewer was left with. Now every boundary past the last non-empty one paints
+  that one, and the take-away steps past it (`hide`/`erase`/`clear`) are not
+  performed live; their narration still speaks. The export path plays the
+  same Player, so a video ends the same way. The UI modules that hit-test
+  against the boundary's visible set (tray, infocard, panel-view, chessplay)
+  read `sceneAt` too, so a click on the poster finds what it shows. A clear
+  in the middle of a story still clears — only the END is held.
+- **No replay flash at a chapter boundary.** Between the items of a playlist
+  "done" is a cut, not the end; `session.ts` marks the stage `cs-chaining`
+  for a done that continues (an item with a successor, the cover page) and
+  the big replay button stays hidden. Measured over a two-item playlist with
+  a chapter card: 0 samples with the button shown while chaining; replay at
+  the true end only.
+- **The box no longer collapses between items.** `swapFigure` in
+  `session.ts` holds the host's height (inline min-height) from `destroy()`
+  of the old figure until `render()` has appended the new one, then lets go;
+  every mount path (item, chapter card, cover) swaps through it. Measured:
+  the frame's height never left {634, 650} across the whole playback.
+
+Left for later:
+
+- **`meta.poster`** — an author- or LLM-supplied start image in place of the
+  default poster. The default (the held final frame) is what ships; the hook
+  is `Player.showPoster`, one place.
+- **What the seconds before mount are.** On the dev server a `#gh=` link
+  mounted at 3.6–6.4 s after the shell; the frame now looks finished during
+  them, but they are still there. Measure on the built bundle first;
+  `ensureEnabledPacks(all packs)` in `viewer.ts` is the first suspect.
+- **The chapter card mounts without a control bar** (`mountCard` never
+  attaches controls), so the bar vanishes for the card's few seconds.
+- **The viewer has no theater toggle** (only the app player passes
+  `onTheater`), and on a short window the narrowed stage leaves
+  surface-coloured bands beside it — a `fit-content` wrap would follow the
+  stage's width, if it ever matters.
 
 ## Storage beyond Anvil — when 100 GB stops being enough
 

@@ -25,7 +25,7 @@ import {
 import { elementBBoxes, elementRings } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { leafDrawables, type TextDrawable } from "../layout/model";
-import { INITIAL_STATE } from "../render/plan";
+import { sceneAt } from "../render/plan";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { getLoadedEngines } from "../scenes/engines";
 import type { ElementsEngine } from "../scenes/elements/types";
@@ -256,7 +256,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
       // Only what is on screen at this boundary can be asked — a part the
       // storyboard has not drawn yet is not a wrong answer, it is absent.
       const n = hd.timeline.position;
-      const visible = new Set(n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible);
+      const visible = new Set(sceneAt(hd.plan, n).visible);
       askable = parts.filter((p) => visible.has(p.id));
     }
     questions =

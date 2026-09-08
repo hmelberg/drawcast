@@ -124,6 +124,41 @@ export interface SceneState {
 
 export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {} };
 
+/** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
+export function boundaryAt(plan: Plan, n: number): SceneState {
+  return n > 0 ? plan.states[n - 1] : INITIAL_STATE;
+}
+
+/**
+ * Where the last frame is held. A drawcast that ends by wiping the stage — a
+ * trailing clear, an erase of the last thing drawn, an LLM's tidy "and we're
+ * done" — planned to end on nothing: the poster was blank and so was what
+ * the viewer looked at when the narration stopped (player round, 2026-09).
+ * The rule: the last frame holds whatever was on screen. This is the
+ * boundary after the last step that left something visible, when every
+ * later boundary is empty; null when the drawcast ends with something on
+ * screen (or never drew anything), which is the ordinary case.
+ */
+export function heldFrom(plan: Plan): number | null {
+  const n = plan.states.length;
+  if (n === 0 || plan.states[n - 1].visible.length > 0) return null;
+  for (let i = n - 2; i >= 0; i--) {
+    if (plan.states[i].visible.length > 0) return i + 1;
+  }
+  return null;
+}
+
+/**
+ * Scene state the player PAINTS at a boundary: the planned one, except that
+ * every boundary past the held frame paints the held frame. What controls,
+ * hit-testing and the poster should all read, so a click on the poster finds
+ * the elements it shows.
+ */
+export function sceneAt(plan: Plan, n: number): SceneState {
+  const held = heldFrom(plan);
+  return boundaryAt(plan, held !== null && n > held ? held : n);
+}
+
 export interface Plan {
   steps: PlanStep[];
   /** states[i] = scene state after steps[0..i] have completed. */

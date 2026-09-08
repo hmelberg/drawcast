@@ -10,7 +10,7 @@
 import { render, type RenderHandle, type RenderStyle } from "../render";
 import type { TextOverride } from "../layout/text-style";
 import { speechKey, type SpeakLine } from "../render/delivery";
-import type { AnswerEvent, PlaybackMode } from "../render/player";
+import type { AnswerEvent, PlaybackMode, PlayerState } from "../render/player";
 import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
@@ -359,12 +359,44 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     await mountItem(i, true);
   }
 
+  /**
+   * Replace the figure on screen with a freshly rendered one without the box
+   * collapsing in between. destroy() removes the old figure at once, and
+   * render() takes a moment (fonts, portraits, layout) before it appends the
+   * new one; in that gap a content-sized host is its padding and border — a
+   * 16 px strip — so the page jumped twice at every item change, mid-playback
+   * (player round). The host keeps its height across the swap; the hold
+   * lifts the moment the new figure is in, and the box settles to it.
+   */
+  async function swapFigure(make: () => Promise<RenderHandle>): Promise<RenderHandle> {
+    const held = host.offsetHeight;
+    if (held > 0) host.style.minHeight = `${held}px`;
+    handle?.destroy();
+    handle = null;
+    try {
+      return await make();
+    } finally {
+      host.style.minHeight = "";
+    }
+  }
+
+  /** Whether "done" on item i is a cut to the next item rather than the end
+   *  of the drawcast — the case the big replay button must not flash for. */
+  function chainsOn(i: number): boolean {
+    return items.length > 1 && i < items.length - 1 && modeRef !== "instant";
+  }
+
+  /** Hide the big replay button for a "done" that continues (styles.css
+   *  .cs-chaining). The class lives on the stage, so the next mount starts
+   *  clean; a state other than done — a scrub back — takes it off. */
+  function markChaining(s: PlayerState, chaining: boolean): void {
+    host.querySelector(".cs-stage")?.classList.toggle("cs-chaining", s === "done" && chaining);
+  }
+
   async function mountItem(i: number, autoplay: boolean): Promise<void> {
     if (destroyed) return;
     idx = i;
-    handle?.destroy();
-    handle = null;
-    const hd = await render(items[i].spec, host, renderOpts);
+    const hd = await swapFigure(() => render(items[i].spec, host, renderOpts));
     if (destroyed) {
       hd.destroy();
       return;
@@ -396,6 +428,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     hd.timeline.callbacks = {
       onState: (s) => {
         prev.onState?.(s);
+        // Between items "done" is a cut, not the end: the replay button used
+        // to flash at every chapter boundary of a lecture (player round).
+        markChaining(s, chainsOn(i));
         if (s === "done") {
           void onItemDone();
           showNextLink();
@@ -478,13 +513,11 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
 
   /** The interstitial that remains: a card where a new chapter begins. */
   async function mountCard(next: PlaylistItem, crossing: string): Promise<void> {
-    handle?.destroy();
-    handle = null;
     const card = makeChapterCard({ chapter: crossing, next: itemTitle(next), gate: advance, gap });
     // A card is synthesized here, in the playlist's own language, and carries
     // no track — its caption stays as written whatever CC is set to.
     shownSpec = null;
-    const hd = await render(card, host, renderOpts);
+    const hd = await swapFigure(() => render(card, host, renderOpts));
     if (destroyed) {
       hd.destroy();
       return;
@@ -514,10 +547,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   async function mountTitlePage(title: string, autoplay: boolean): Promise<void> {
     if (destroyed) return;
     idx = -1; // before item 0: no dot current, n jumps to the first item
-    handle?.destroy();
-    handle = null;
     shownSpec = null; // the title page is synthesized too
-    const hd = await render(makeTitlePage({ title, subtitle: playlist.meta.subtitle, gap }), host, renderOpts);
+    const hd = await swapFigure(() => render(makeTitlePage({ title, subtitle: playlist.meta.subtitle, gap }), host, renderOpts));
     if (destroyed) {
       hd.destroy();
       return;
@@ -534,6 +565,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     hd.timeline.callbacks = {
       onState: (s) => {
         prev.onState?.(s);
+        // The cover's "done" is the cut into the first item — no replay flash.
+        markChaining(s, modeRef !== "instant");
         if (s === "done" && modeRef !== "instant") void mountItem(0, true);
       },
       onStep: prev.onStep,

@@ -59,6 +59,7 @@ describe("the viewer reports as the account", () => {
   });
   test("the reporter is decided before the player mounts, and the player takes no learner control", () => {
     expect(src.indexOf("const reporter = ")).toBeLessThan(src.indexOf("await mountPlaylist("));
-    expect(src).toMatch(/controls: \{ speech, fullscreenEl: figureHost \}/);
+    // Share rides the bar (player round); nothing learner-shaped does.
+    expect(src).toMatch(/controls: \{ speech, fullscreenEl: figureHost, trailing: \[shareBtn\] \}/);
   });
 });

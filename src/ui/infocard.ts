@@ -11,7 +11,7 @@
 // portrait pipeline already uses for the image itself.
 
 import type { RenderHandle } from "../render";
-import { INITIAL_STATE } from "../render/plan";
+import { sceneAt } from "../render/plan";
 import { wikiSummaryUrl } from "../render/portrait";
 import { chessSquareAt, periodicSymbols, pianoKeyAt, pianoOctaves } from "../render/widgets";
 import { elementBBoxes } from "../layout/layout";
@@ -236,7 +236,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     // the viewer cannot see. A drawn word inherits the visibility of the part
     // that owns it — it appears and is erased with that part, never alone.
     const n = hd.timeline.position;
-    const visibleIds = new Set(n > 0 ? hd.plan.states[n - 1].visible : INITIAL_STATE.visible);
+    const visibleIds = new Set(sceneAt(hd.plan, n).visible);
     const visBoxes = new Map<string, BBox>();
     for (const [id, b] of hitBoxes()) {
       if (visibleIds.has(targets.get(id)?.owner ?? id)) visBoxes.set(id, b);
