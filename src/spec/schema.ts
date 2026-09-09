@@ -934,7 +934,23 @@ export function normalizeSpec(spec: unknown): unknown {
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   // Malformed input flows through here before validation — guard shapes.
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
-    if (el && typeof el === "object" && el.link !== undefined) el.link = toList(el.link);
+    if (!el || typeof el !== "object") continue;
+    if (el.link !== undefined) el.link = toList(el.link);
+    // A label written as TeX IS a math element: `attach_to`/`side` are the
+    // label's way of saying `at`, and `font_size` its way of saying `size`.
+    // Rewritten before validation, so everything downstream — elementErrors
+    // included — only ever sees the one spelling.
+    if (el.type === "label" && typeof el.tex === "string") {
+      const { attach_to, side, font_size } = el;
+      el.type = "math";
+      // An explicit `at` wins: it is the placement this element already speaks.
+      if (el.at === undefined && typeof attach_to === "string") el.at = { ref: attach_to, side: side ?? "above-right", gap: 8 };
+      if (el.size === undefined && typeof font_size === "number") el.size = font_size;
+      delete el.attach_to;
+      delete el.side;
+      delete el.text;
+      delete el.font_size;
+    }
   }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;

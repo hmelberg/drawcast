@@ -21,6 +21,7 @@ import { resolveSources } from "./source";
 import { loadSettings } from "../store";
 import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 import { registerCastTemplates } from "../scenes/cast-templates";
+import { ensureEnginesForSpecs } from "../scenes/engines";
 import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride } from "../layout/text-style";
 
 export type { RenderStyle } from "./svg-backend";
@@ -171,6 +172,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   registerCastTemplates(spec);
   ensureFigureStyles();
   await ensureFonts();
+  // Whatever the spec needs to be laid out at all: a template's engines, and
+  // the mathjax engine a `math` element (or a TeX label) draws with. Layout is
+  // synchronous, so an engine that is not here by now is an element that
+  // silently does not draw.
+  await ensureEnginesForSpecs([spec]);
   // Portraits and sources resolve BEFORE layout (layout is synchronous):
   // cache-warm this is milliseconds; cache-cold it fetches + traces (or
   // fetches + renders a PDF page) during figure preparation, so playback never

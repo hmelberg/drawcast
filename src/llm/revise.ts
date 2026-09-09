@@ -19,7 +19,7 @@ import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { callForText, describeApiError, makeClient, type Effort } from "./client";
 import { apiSchema, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
-import { ensureEnginesForTemplate } from "../scenes/engines";
+import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "../scenes/engines";
 import { makeBrowserMeasure } from "../render/svg-backend";
 
 export function buildReviseUser(docText: string, instruction: string): string {
@@ -184,6 +184,11 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
             errors.push(`engine load failed for "${id}": ${(err as Error).message}`);
           });
         }
+        // …and the engines the ELEMENTS need (mathjax for a `math` element),
+        // which no template names.
+        await ensureEnginesForSpecs(itemsOf(parsed.playlist).map((i) => i.spec)).catch((err) => {
+          errors.push(`engine load failed: ${(err as Error).message}`);
+        });
         const checked = checkPlaylist(parsed.playlist, measure);
         errors = [...errors, ...checked.errors];
         lintIssues = checked.lintIssues;

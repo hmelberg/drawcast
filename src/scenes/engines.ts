@@ -18,6 +18,7 @@
 
 // Type-only imports: erased at compile time, so mathjax-full/topojson stay
 // entirely inside the lazy chunks their loaders' dynamic imports create.
+import type { Spec } from "../spec/types";
 import type { LiteElement, LiteNode } from "mathjax-full/js/adaptors/lite/Element.js";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
@@ -733,10 +734,28 @@ export async function ensureEnginesForTemplate(id: string): Promise<void> {
   if (engines && engines.length > 0) await ensureEngines(engines);
 }
 
-export async function ensureEnginesForSpecs(specs: { template?: string; templates?: unknown }[]): Promise<void> {
+/**
+ * The engines a spec's own ELEMENTS need — today only mathjax, for a `math`
+ * element or a `label` written as TeX (schema.normalizeSpec turns the latter
+ * into the former, so both spellings are read here: enginesForSpec runs on
+ * raw, un-normalised specs too).
+ *
+ * Element engines only: a TEMPLATE's engines live in its manifest, and the
+ * registry is reachable from this module solely through a deferred import
+ * (the module cycle documented at the top of this file), so they cannot be
+ * named synchronously. ensureEnginesForSpecs loads both kinds.
+ */
+export function enginesForSpec(spec: Partial<Spec>): string[] {
+  const els = Array.isArray(spec?.elements) ? spec.elements : [];
+  const needsMath = els.some((el) => el && (el.type === "math" || typeof el.tex === "string"));
+  return needsMath ? ["mathjax"] : [];
+}
+
+export async function ensureEnginesForSpecs(specs: Partial<Spec>[]): Promise<void> {
   // A spec may carry its own template (template-on-demand); its manifest —
   // and so its engines — exists only once the document is registered.
   const { registerCastTemplates } = await import("./cast-templates");
   for (const s of specs) registerCastTemplates(s);
   for (const s of specs) if (s.template) await ensureEnginesForTemplate(s.template);
+  for (const s of specs) await ensureEngines(enginesForSpec(s));
 }

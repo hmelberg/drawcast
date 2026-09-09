@@ -28,10 +28,12 @@ import {
   type StrokeDrawable,
   type TextDrawable,
 } from "./model";
+import { mathDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
+import { enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { EndRef, PointRef, SpecElement } from "../spec/types";
@@ -266,6 +268,28 @@ export function layoutElements(
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
         });
         ctx.anchors[el.id] = pos;
+        break;
+      }
+      // TeX in the drawing's own hand: the mathjax engine turns it into glyph
+      // outlines (math.ts). The engine is loaded from the spec before render
+      // and before lint (engines.ensureEnginesForSpecs); layout is synchronous,
+      // so all it can do without it is say so.
+      case "math": {
+        const [cx, cy] = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
+        if (!enginesLoaded(["mathjax"])) {
+          ctx.warnings.push(`math "${el.id}": mathjax engine not loaded — skipped`);
+          break;
+        }
+        let laid: { drawables: Drawable[]; box: BBox };
+        try {
+          laid = mathDrawables(el, getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine, cx, cy);
+        } catch (err) {
+          issues.push({ rule: "math", ids: [el.id], severity: "error", message: `math "${el.id}": ${(err as Error).message}` });
+          break;
+        }
+        drawables.push(...laid.drawables);
+        ctx.anchors[el.id] = [laid.box.x + laid.box.w / 2, laid.box.y + laid.box.h / 2];
+        ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(laid.box, n)]));
         break;
       }
       case "shape":

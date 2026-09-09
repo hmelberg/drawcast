@@ -12,7 +12,7 @@ import type { RouteResult } from "./router";
 import type { OnDemandRun } from "./on-demand-run";
 import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
-import { ensureEnginesForTemplate } from "../scenes/engines";
+import { ensureEnginesForSpecs } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
@@ -449,11 +449,12 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         // An engine that cannot load becomes a validation error — repair can
         // switch template, or the round fails visibly (never a silent
         // fall-through render for a hand-authored spec).
-        if (best.template) {
-          await ensureEnginesForTemplate(best.template).catch((err) => {
-            validation.errors.push(`engine load failed: ${(err as Error).message}`);
-          });
-        }
+        // The spec's own engines too, not just its template's: a freehand
+        // `math` element must lint against real glyphs, not against the
+        // "engine not loaded" fall-through.
+        await ensureEnginesForSpecs([best]).catch((err) => {
+          validation.errors.push(`engine load failed: ${(err as Error).message}`);
+        });
         try {
           lintIssues = [...layoutSpec(best, measure).issues, ...lintCommands(best)];
         } catch (err) {

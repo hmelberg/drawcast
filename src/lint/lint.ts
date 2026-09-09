@@ -40,7 +40,9 @@ export interface LintIssue {
     /** relative placement: an unknown at.ref, or a cycle through at.ref/attach_to/members */
     | "placement"
     /** a group element whose members resolve to nothing */
-    | "group-empty";
+    | "group-empty"
+    /** a math element whose TeX the engine cannot parse */
+    | "math";
   ids: string[];
   message: string;
   severity: "warn" | "error";
