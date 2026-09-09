@@ -25,10 +25,11 @@ function deps(el: SpecElement): string[] {
   if (ref) out.push(ref);
   if (el.type === "label" && el.attach_to) out.push(el.attach_to);
   if (el.type === "group") out.push(...(el.members ?? []));
-  // A measure reads the geometry it measures out of the drawables already
-  // emitted, so a shifted target has to move BEFORE it is measured.
-  if (el.type === "measure") {
-    if (el.of) out.push(el.of);
+  // A measure reads the geometry it measures, and a connector reads the boxes
+  // it runs between, out of the drawables already emitted — so a shifted
+  // endpoint has to move BEFORE it is measured or connected to.
+  if (el.type === "measure" || el.type === "arrow" || el.type === "edge") {
+    if (el.type === "measure" && el.of) out.push(el.of);
     for (const end of [el.from, el.to]) {
       if (end && !Array.isArray(end) && typeof end === "object" && end.ref) out.push(end.ref);
     }
@@ -72,6 +73,21 @@ export function placementOrder(elements: SpecElement[], known: Set<string> = new
 export function ownBBox(mine: Drawable[], id: string, measure: MeasureFn): BBox | null {
   const ids = [...new Set(mine.map((d) => d.id))].filter((i) => i !== `${id}_leader` && i !== `${id}_guides`);
   return unionBoxes(ids.map((i) => unionBBoxForId(mine, i, measure)));
+}
+
+/**
+ * The box an `at.ref` names: the element's own ink, else — for a `pieces`
+ * parent, which mints child ids `drawablesForId` cannot reach — the union of
+ * its cells, else a zero-size box at its logical anchor (a template id that
+ * exports a point but no ink). Null when the id is nowhere at all.
+ */
+export function refBBox(ds: Drawable[], id: string, measure: MeasureFn, ctx: { pieceGroups: Record<string, string[]>; anchors: Record<string, Pt> }): BBox | null {
+  const direct = unionBBoxForId(ds, id, measure);
+  if (direct) return direct;
+  const kids = unionBoxes((ctx.pieceGroups[id] ?? []).map((k) => unionBBoxForId(ds, k, measure)));
+  if (kids) return kids;
+  const a = ctx.anchors[id];
+  return a ? { x: a[0], y: a[1], w: 0, h: 0 } : null;
 }
 
 /** dx, dy that moves `own` so that at.side / at.anchor holds against `ref`. */

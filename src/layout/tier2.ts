@@ -9,8 +9,7 @@ import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
-import { unionBBoxForId } from "./boxes";
-import { ownBBox, placementOrder, relAt, relativeDelta, shiftDrawables, shiftPoints } from "./place";
+import { ownBBox, placementOrder, refBBox, relAt, relativeDelta, shiftDrawables, shiftPoints } from "./place";
 import {
   COLORS,
   LINE_HEIGHT,
@@ -103,6 +102,10 @@ interface Ctx {
   pieces: Record<string, PieceGeometry>;
   pieceGroups: Record<string, string[]>;
   measures: Record<string, M.MeasureSpec>;
+  /** Elements built at the origin because `at.ref` places them: where each
+   *  would have gone WITHOUT `at`, so a ref that never resolves can still put
+   *  the element somewhere sane instead of in the bottom-left corner. */
+  atFallback: Record<string, Pt>;
 }
 
 export function layoutElements(
@@ -137,6 +140,7 @@ export function layoutElements(
     pieces: {},
     pieceGroups: {},
     measures: {},
+    atFallback: {},
   };
 
   // Pass 1: position free nodes deterministically on a circle.
@@ -230,7 +234,7 @@ export function layoutElements(
         break;
       }
       case "text": {
-        const pos = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+        const pos = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
         drawables.push({
           id: el.id,
           kind: "text",
@@ -291,10 +295,9 @@ export function layoutElements(
     const at = relAt(el);
     if (at?.ref && el.type !== "angle" && el.type !== "point") {
       const mine = drawables.slice(start);
-      const refBox = unionBBoxForId([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref, measure);
+      const refBox = refBBox([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref, measure, ctx);
       const ownBox = ownBBox(mine, el.id, measure);
-      if (refBox && ownBox) {
-        const [dx, dy] = relativeDelta(ownBox, refBox, ctx.namedAnchors[at.ref] ?? {}, at, el.anchor);
+      const move = (dx: number, dy: number) => {
         shiftDrawables(mine, dx, dy);
         const bump = (id: string) => {
           const a = ctx.anchors[id];
@@ -305,8 +308,30 @@ export function layoutElements(
         };
         bump(el.id);
         for (const k of ctx.pieceGroups[el.id] ?? []) bump(k);
+      };
+      const fallback = ctx.atFallback[el.id];
+      if (refBox && ownBox) {
+        const [dx, dy] = relativeDelta(ownBox, refBox, ctx.namedAnchors[at.ref] ?? {}, at, el.anchor);
+        move(dx, dy);
       } else if (!refBox) {
-        ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box yet — left where it was`);
+        // The element was already built at the origin, so leaving it there
+        // would drop it in the bottom-left corner: put it back where it
+        // would have gone with no `at` at all.
+        if (fallback) {
+          move(fallback[0], fallback[1]);
+          ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — placed at its default position`);
+        } else {
+          ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — left where it was`);
+        }
+      } else {
+        issues.push({
+          rule: "placement",
+          ids: [el.id],
+          severity: "warn",
+          message: el.type === "label"
+            ? `element "${el.id}": at is ignored — a label draws nothing of its own to place; use attach_to and side instead`
+            : `element "${el.id}": at is ignored — ${el.type} draws nothing of its own to place`,
+        });
       }
     }
     // --- end relative placement
@@ -333,8 +358,11 @@ export function layoutElements(
  * relative to another element (the post-emit shift in pass 3 then moves the
  * finished drawables into place), otherwise its own x/y or the fallback.
  */
-function originOr(el: SpecElement, fallback: Pt): Pt {
-  if (relAt(el)?.ref) return [0, 0];
+function originOr(el: SpecElement, ctx: Ctx, fallback: Pt): Pt {
+  if (relAt(el)?.ref) {
+    ctx.atFallback[el.id] = fallback;
+    return [0, 0];
+  }
   return [el.x ?? fallback[0], el.y ?? fallback[1]];
 }
 
@@ -703,13 +731,13 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.node });
   const shape = el.shape ?? "rect";
   if (shape === "circle" || shape === "chance") {
-    const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+    const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
     const r = el.radius ?? 40;
     ctx.anchors[el.id] = c;
     return { id: el.id, kind: "stroke", pts: [c], shapeHint: { type: "circle", c, r }, z: Z_STROKE, style, drawOpts };
   }
   // rect (x,y = lower-left corner in logical units)
-  const [x, y] = originOr(el, [100, 100]);
+  const [x, y] = originOr(el, ctx, [100, 100]);
   const w = el.width ?? 160;
   const h = el.height ?? 100;
   ctx.anchors[el.id] = [x + w / 2, y + h / 2];
@@ -742,7 +770,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
   // appear-at-first-mention-then-erase. Fixture: small, framed, cornered.
   const cameo = el.cameo === true;
   const w = el.width ?? (cameo ? 280 : 170);
-  const [cx, cy] = originOr(el, [cameo ? 500 : 170, cameo ? 420 : 550]);
+  const [cx, cy] = originOr(el, ctx, [cameo ? 500 : 170, cameo ? 420 : 550]);
   const photo = el.strokes ? decodePhoto(el.strokes) : null;
   const trace = !photo && el.strokes ? decodeTrace(el.strokes) : null;
   const children: Drawable[] = [];
@@ -1169,7 +1197,7 @@ function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
 }
 
 function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+  const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
   const r = el.radius ?? 100;
   const from = el.start ?? 0;
   const to = el.end ?? 90;
@@ -1187,7 +1215,7 @@ function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 }
 
 function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
-  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+  const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
   const r = el.radius ?? 100;
   const from = el.start ?? 0;
   const to = el.end ?? 180;
@@ -1381,7 +1409,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   if (el.points && el.points.length >= 3) {
     pts = el.points as Pt[];
   } else {
-    const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+    const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
     const n = Math.max(3, Math.round(el.sides ?? 5));
     const r = el.radius ?? 100;
     const rot = (el.rotation ?? 0) * DEG;
@@ -1406,7 +1434,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
  * (f = 0, not NaN).
  */
 function ellipseDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+  const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
   const rx = el.rx ?? 150, ry = el.ry ?? 100;
   const rot = (el.rotation ?? 0) * DEG;
   const turn = (p: Pt): Pt => [c[0] + (p[0] - c[0]) * Math.cos(rot) - (p[1] - c[1]) * Math.sin(rot), c[1] + (p[0] - c[0]) * Math.sin(rot) + (p[1] - c[1]) * Math.cos(rot)];
@@ -1474,7 +1502,7 @@ function lineDrawable(el: SpecElement, ctx: Ctx): Drawable | null {
  * by drawablesForId/elementRings exactly like a standalone sector.
  */
 function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
+  const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
   if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
   if (el.of === "rings") return ringPiecesDrawables(el, ctx, c);
   if (el.of === "triangles") return trianglePiecesDrawables(el, ctx, c);
