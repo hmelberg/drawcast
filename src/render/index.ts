@@ -18,6 +18,8 @@ import { resolveCode } from "./code";
 import { resolvedRenderSpec } from "./resolve";
 import { titleIsDrawn } from "./title";
 import { resolveSources } from "./source";
+import { resolveImages } from "./image";
+import { resolveIcons } from "./icon";
 import { loadSettings } from "../store";
 import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 import { registerCastTemplates } from "../scenes/cast-templates";
@@ -194,7 +196,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // "{id.path}" tokens into THESE params (the resolved clone below has the
   // values, not the tokens).
   const authored = spec;
-  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, contactEmail: contactEmail() });
+  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, contactEmail: contactEmail() });
   const renderer = rendererFor(options.style ?? "sketchy");
 
   const figure = document.createElement("div");

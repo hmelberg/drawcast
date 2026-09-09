@@ -298,6 +298,11 @@ export function layoutElements(
       case "portrait":
         drawables.push(portraitDrawable(el, ctx));
         break;
+      case "image": {
+        const group = imageDrawable(el, ctx);
+        if (group) drawables.push(group);
+        break;
+      }
       case "source":
         drawables.push(...sourceDrawables(el, ctx));
         break;
@@ -1017,6 +1022,64 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
     });
   }
   ctx.anchors[el.id] = [cx, cy];
+  return {
+    id: el.id,
+    kind: "group",
+    z: Z_STROKE,
+    style: defaultStyle(),
+    drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+    children,
+  };
+}
+
+/**
+ * An `image` element: a Commons photo resolved from a plain description
+ * (`of`, resolve/image.ts), embedded faithfully rather than traced — unlike
+ * a portrait, which draws a sketch. `strokes` is set by the resolver in the
+ * ensure phase; layout is synchronous, so an element the resolver never
+ * reached (offline, no licence, cache-cold) has none and draws nothing
+ * beyond the warning that says why. `credit` rides above the photo as a
+ * caption, licence-gated by the resolver — never fabricated here.
+ */
+function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
+  const photo = el.strokes ? decodePhoto(el.strokes) : null;
+  if (!photo) {
+    ctx.warnings.push(`no image found for "${el.of ?? el.id}"`);
+    return null;
+  }
+  const w = el.width ?? 220;
+  const h = w * photo.aspect;
+  const [cx, cy] = originOr(el, ctx, [500, 375]);
+  const children: Drawable[] = [
+    {
+      id: `${el.id}__img`,
+      kind: "image",
+      href: photo.href,
+      pos: [cx, cy],
+      w,
+      h,
+      z: Z_STROKE,
+      style: resolveStyle(undefined, {}),
+      reveal: el.reveal ?? "fade",
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+    },
+  ];
+  if (el.credit) {
+    children.push({
+      id: `${el.id}__name`,
+      kind: "text",
+      pos: [cx, cy - h / 2 - 14],
+      text: el.credit,
+      fontSize: 14,
+      anchor: "middle",
+      z: Z_TEXT,
+      style: resolveStyle(el.style, {}),
+      drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 240 }),
+    });
+  }
+  ctx.anchors[el.id] = [cx, cy];
+  const box = { x: cx - w / 2, y: cy - h / 2, w, h };
+  ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
   return {
     id: el.id,
     kind: "group",
