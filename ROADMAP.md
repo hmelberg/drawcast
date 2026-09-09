@@ -400,6 +400,115 @@ generator; `arrange` sort/align; ghosts that follow later motion;
 measuring in domain units; `unroll` beyond ring pieces; an `angle` that
 updates when its arms move.
 
+## Freehand figures — done 2026-09-09
+
+Hans's question: when nothing in the template library fits, what does
+drawcast draw? Until this round: whatever a `text`/`shape`/`path` tier-3
+figure could manage, with every coordinate computed by the model by hand
+and no way to place one part relative to another. Design
+`docs/superpowers/specs/2026-09-09-freehand-figures-design.md`, ledger
+`docs/superpowers/plans/2026-09-09-freehand-figures-ledger.md` (Part C,
+landing once the live eval's after-runs are judged). The round is judged
+on three kinds of request — schematic THINGS with named parts, FORMULAS
+next to curves, and ILLUSTRATED explanations with a real photo. Shipped:
+
+1. **Relative placement (`at`).** `{ref, side, gap}` (outside another
+   element) and `{ref, anchor}` (on one of its named points), plus an
+   element's own `anchor` for which of ITS points lands there — dependency-
+   ordered emission (a part may reference one drawn earlier), a `placement`
+   lint pass. A thing is built as one absolute part then everything else
+   `at` it — never per-element coordinates.
+2. **`group`.** `members`, a union box and anchors, planner expansion so a
+   `move`/`flip`/etc. on the group id drives every member as one; a shared
+   pivot, delta and flip axis; labels and annotations may be members too.
+   `fit: "left" | "right" | "top" | "bottom" | "full"` (or an explicit box)
+   scales and centres the whole thing into a named region of the canvas —
+   same-group overlap is exempt, and a tie across the fit boundary is
+   refused or ordered rather than silently picked.
+3. **`path.smooth`** — Catmull-Rom through the waypoints — plus fill on
+   closed paths, for organic shapes a `polygon` can't give.
+4. **`math`.** TeX rendered as hand-drawn ink via the MathJax engine
+   (matching the sketchy style, not typeset text); `label.tex` puts a short
+   equation directly on what it describes (a curve, a point) instead of a
+   `math` element's own box. Engines follow the spec, not the other way
+   round.
+5. **`image`.** A real Commons photo, resolved and embedded once, drawn
+   with a licence-gated credit caption UNDER the photo (never omitted when
+   the licence requires it); a `.credits.txt` export alongside the video;
+   the player's `⋯` overflow gains a **Credits** item.
+6. **`icon`.** Iconify keyword icons (Lucide/Tabler/Phosphor/Heroicons/
+   Material Symbols outright; Font Awesome Free, Twemoji, OpenMoji under
+   their CC licences), flattened to rings via SVG-arc-capable `svgpath.ts`,
+   scaled to a nominal size box, placeable with `at` like any element —
+   either a STAMP (unedited) or a SEED the model edits.
+7. **Router `subject` + icon seed.** The router names the request's
+   subject; when it resolves an icon, the seed rides into the user turn as
+   ready `path` elements in a group, with credit following whichever seed
+   paths survive into the final spec.
+8. **Visual repair round** (`docs/superpowers/specs/...`, Settings →
+   Advanced). Off by default: the model is shown its own last rendered
+   frame once, with the lint list, and gets one more round to fix what it
+   sees — the only source in the round that lets the model look at its own
+   drawing rather than reason blind.
+9. **Freehand first, on demand.** A single freehand figure with named parts
+   now OFFERS a template ("Author a template and redraw (~4 min)") instead
+   of authoring one automatically; a course authors on demand only once two
+   or more freehand parts land on the same shared brief id, and reuses an
+   already-authored template across the run (`templatesOnDemandMax`, default
+   3).
+10. **Prompt, few-shots, examples, style.** A new `## Freehand figures`
+    section in the compiler prompt (composition-guide-first: list the parts
+    and their relations before writing elements); the `code` bullet became
+    a conditional block (`{{CODE}}`, gated on `wantsCode`) to hold the size
+    budget; three new few-shots (a bicycle pump, a dropped ball's equations,
+    a wind turbine's gearbox) and six new bundled examples, two per target,
+    each a question; `STYLE.md`'s "A thing is drawn as named parts" entry
+    and `PEDAGOGY_RUBRIC` item 8 (NAMED PARTS).
+
+Deliberately left: Commons SVG tracing (existing diagrams as a source —
+needs a spike, files are 20–5000 paths with no part ids); photo-as-reference
+(showing the model a photo of the subject before it draws, rather than only
+embedding one after); an offline/bundled icon subset (today every icon
+resolution is a live Iconify fetch); per-element credit on the canvas for
+icons — an icon's credit rides the router/seed metadata, but unlike `image`
+nothing draws it as a caption.
+
+### Follow-ups this round deliberately left
+
+- `strokeWidth` does not scale under `fit` (only geometry and `fontSize`
+  do).
+- `scaleDrawables` is `shiftDrawables` with `scale: 1` in all but its `clip`
+  handling — collapse the two (also fixes an `at`-shifted code pane's clip).
+- A `hasLine` measure's `label_<id>` is not resolved by `ownsId`, so it is
+  not excused from `fit`'s scaling the way a line-less measure's label is.
+- A label/annotation MEMBER of a fitted group keeps its own authored font
+  size rather than scaling with the group — a deliberate ruling
+  (readability), not a defect; the font-too-small warn can still fire on it.
+- A `point` may carry `side`/`gap`/`offset` inside `at` (the schema does not
+  restrict them by type) — silently ignored rather than rejected.
+- `phaseText` in the status line has no "visual" case, so the visual repair
+  round is misreported as "repair N" (see smoke checklist §7).
+- Courses describe an authored part's brief twice (once for the sharing
+  decision, once inside `authorOnDemand`) — parked for a final fix wave;
+  costs one extra ~1.5k-token Sonnet call per course authoring, at most
+  `templatesOnDemandMax` times per run.
+- Prompt wording: point 8 hedges point 4 (the "path/shape as last resort"
+  phrasing); the `wantsCode` tag branch names a `#code` tag that does not
+  exist; Norwegian code triggers (kode/skript/simuler) are missing.
+- The spec's §7.4 timing criterion ("median < 90 s") is unrealistic at
+  effort high — even `main`'s own freehand baseline (no relative placement,
+  no groups) measured a 190 s median; to be rewritten once Part C's after-
+  run numbers give a real target.
+- Newly found while writing the smoke checklist (not yet fixed): the
+  "· seeded from `<set>`" status suffix (`main.ts` ~line 3214) and the
+  freehand template-offer message (`setStatusAction`, right after) both
+  write the same status line synchronously, with no render between — for
+  any figure that is both seeded and freehand-worthy (the common case,
+  since a seed only matters when there is no template), the seeded note is
+  overwritten before it paints. `logOutcome` does not persist `seeded`
+  either, so there is currently no way to see the seed indicator in the UI
+  on exactly the figures where it happened.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
