@@ -29,6 +29,7 @@ import {
   type TextDrawable,
 } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
+import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
@@ -232,18 +233,23 @@ export function layoutElements(
         break;
       }
       case "path": {
-        const pts = (el.points ?? []) as Pt[];
-        drawables.push({
-          id: el.id,
-          kind: "stroke",
-          pts,
-          closed: el.closed,
-          z: Z_STROKE,
-          style: resolveStyle(el.style),
-          drawOpts: resolveDrawOpts(el.draw),
-        });
-        ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)] ?? [CANVAS.w / 2, CANVAS.h / 2];
-        ctx.namedAnchors[el.id] = polylineAnchors(pts, "path");
+        const raw = (el.points ?? []) as Pt[];
+        const pts = el.smooth ? (el.closed ? catmullRomClosed(raw) : catmullRom(raw)) : raw;
+        if (el.closed && el.style?.fill) {
+          drawables.push(...filledOutline(el.id, pts, el));
+        } else {
+          drawables.push({
+            id: el.id,
+            kind: "stroke",
+            pts,
+            closed: el.closed,
+            z: Z_STROKE,
+            style: resolveStyle(el.style),
+            drawOpts: resolveDrawOpts(el.draw),
+          });
+        }
+        ctx.anchors[el.id] = raw[Math.floor(raw.length / 2)] ?? [CANVAS.w / 2, CANVAS.h / 2];
+        ctx.namedAnchors[el.id] = polylineAnchors(raw, "path");
         break;
       }
       case "text": {
