@@ -56,7 +56,7 @@ describe("the brief", () => {
 });
 
 describe("authorOnDemand", () => {
-  const outcomeWith = (spec: Spec | null): GenerationOutcome => ({ spec, rounds: [], systemPromptChars: 0 });
+  const outcomeWith = (spec: Spec | null): GenerationOutcome => ({ spec, rounds: [], systemPromptChars: 0, seeded: false });
   const brief = { id: "sailing_boat", description: "A sailing boat with hull, keel, rudder, mast, boom, mainsail and jib as named parts, labels as a list param." };
 
   test("brief → author → register → redraw, and the template rides in the spec", async () => {

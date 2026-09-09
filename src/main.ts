@@ -84,6 +84,9 @@ import { DEFAULT_ENROLL_API } from "./learn";
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { embeddedPlaylist } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
+import { resolveIcons } from "./render/icon";
+import { decodeIcon } from "./spec/trace";
+import { seedBlock, type SeedBlock } from "./llm/seed";
 import { resolveSources } from "./render/source";
 import { parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
 import { parseSourceManifest, saveSource, sourceIndexPath } from "./publish/source";
@@ -3122,6 +3125,23 @@ async function generate(): Promise<void> {
     }
     startAiStatus("Generating");
     resetCallLedger();
+    // ---- icon seed (Task 13b): fetchSeed's own SEED_ICON element never
+    // reaches validateSpec or render — it exists only to drive resolveIcons
+    // directly (`type: "icon"` isn't in spec/types.ts yet). Remembers the
+    // resolved set in a closure variable for the status line below, since
+    // GenerationOutcome only reports whether a seed was sent, not which set
+    // it came from. ----
+    let seededSet: string | undefined;
+    const fetchSeed = async (subject: string): Promise<SeedBlock | null> => {
+      const spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] } as unknown as Spec;
+      const results = await resolveIcons(spec, undefined, { forSeed: true });
+      const el = spec.elements![0] as unknown as { strokes?: string; credit?: string; set?: string };
+      const rings = el.strokes ? decodeIcon(el.strokes) : null;
+      if (!results[0]?.ok || !rings) return null;
+      seededSet = el.set;
+      return seedBlock(subject, rings, el.credit ?? "");
+    };
+    // ---- end icon seed ----
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
       pedagogyReview: true,
@@ -3135,6 +3155,7 @@ async function generate(): Promise<void> {
       forcedTemplate,
       priorityIds,
       route: (req, signal) => routeTemplates(req, { apiKey, signal }),
+      fetchSeed,
       signal: controller.signal,
       onPhase: (phase) => {
         aiPhase = phase;
@@ -3166,7 +3187,10 @@ async function generate(): Promise<void> {
     playlist.meta.prompt = rawRequest;
     setDoc(
       { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist },
-      (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) + routeText(outcome.spec.template, outcome.route) + costText(),
+      (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) +
+        routeText(outcome.spec.template, outcome.route) +
+        (outcome.seeded ? ` · seeded from ${seededSet ?? "icon"}` : "") +
+        costText(),
       { label: rawRequest, kind: "generate" },
     );
     autosave();

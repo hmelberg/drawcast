@@ -228,7 +228,7 @@ export async function generateFromOutline(
         // a call: after a cancel, dozens of doomed requests could still be
         // holding gate slots.
         cfg.signal?.aborted
-          ? Promise.resolve({ spec: null, rounds: [], error: "cancelled", systemPromptChars: 0 } satisfies GenerationOutcome)
+          ? Promise.resolve({ spec: null, rounds: [], error: "cancelled", systemPromptChars: 0, seeded: false } satisfies GenerationOutcome)
           : generateSpec(buildPartRequest(req.request, plan, i, req.brief), cfg),
       ).then((outcome) => {
         finished++;

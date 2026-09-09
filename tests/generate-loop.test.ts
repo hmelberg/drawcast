@@ -25,6 +25,8 @@ import { TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
 import type { TemplateDoc } from "../src/scenes/doc";
 import type { Exemplar } from "../src/llm/prompt";
 import type { Spec } from "../src/spec/types";
+import * as schemaModule from "../src/spec/schema";
+import type { SeedBlock } from "../src/llm/seed";
 
 const mockCallForJson = vi.mocked(callForJson);
 
@@ -454,5 +456,114 @@ describe("pedagogy review pass", () => {
     const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true, maxRepairs: 1 }));
     expect(outcome.spec).toBeNull();
     expect(outcome.rounds.every((r) => r.label !== "pedagogy")).toBe(true);
+  });
+});
+
+describe("icon seed rides the request (Task 13b)", () => {
+  // cfg.route/cfg.fetchSeed only engage above the two-level threshold (same
+  // gate as the cache-split describe block above; each test file's registry
+  // is real, so push past it explicitly rather than assume the ambient count).
+  const added: string[] = [];
+  function addFiller(id: string): void {
+    registerTemplateDoc({
+      template: id, version: 1, kit: 1, status: "ready",
+      description: `Filler template ${id} for icon-seed testing.`,
+      params: {}, element_ids: {},
+      examples: [{ request: `Draw a ${id} filler.`, params: {} }],
+      layout: `return { drawables: [], labels: [], anchors: {}, order: [] };`,
+    });
+    added.push(id);
+  }
+  function fillPastThreshold(): void {
+    const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+    for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFiller(`seed13b_filler_${i}`);
+  }
+  afterEach(() => {
+    for (const id of added.splice(0)) delete scenes[id];
+  });
+
+  const SEED: SeedBlock = { text: "SEED-MARKER-TEXT-for-bicycle-pump", ids: ["seed_1"], credit: "pump from lucide · ISC" };
+
+  test("none_fits + a named subject: fetchSeed is called, its text rides the first user message, outcome.seeded is true", async () => {
+    fillPastThreshold();
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+    const fetchSeed = vi.fn().mockResolvedValue(SEED);
+
+    const outcome = await generateSpec(
+      "draw a bicycle pump",
+      baseCfg({ route: async () => ({ ids: [], noneFits: true, subject: "bicycle pump" }), fetchSeed }),
+    );
+
+    expect(fetchSeed).toHaveBeenCalledTimes(1);
+    expect(fetchSeed.mock.calls[0][0]).toBe("bicycle pump");
+    const firstMessages = mockCallForJson.mock.calls[0][3] as { role: string; content: string }[];
+    expect(firstMessages[0].content).toContain(SEED.text);
+    expect(outcome.seeded).toBe(true);
+  });
+
+  test("a fitting template never calls fetchSeed (noneFits false); an empty subject never calls it either — outcome.seeded stays false", async () => {
+    fillPastThreshold();
+    const fetchSeed = vi.fn().mockResolvedValue(SEED);
+
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+    const fits = await generateSpec(
+      "draw supply and demand",
+      baseCfg({ route: async () => ({ ids: ["supply_demand"], noneFits: false, subject: "" }), fetchSeed }),
+    );
+    expect(fetchSeed).not.toHaveBeenCalled();
+    expect(fits.seeded).toBe(false);
+
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+    const noSubject = await generateSpec(
+      "draw a relation between two things",
+      baseCfg({ route: async () => ({ ids: [], noneFits: true, subject: "" }), fetchSeed }),
+    );
+    expect(fetchSeed).not.toHaveBeenCalled();
+    expect(noSubject.seeded).toBe(false);
+  });
+
+  test("fetchSeed missing (undefined) never blocks a none_fits + subject route: no crash, outcome.seeded is false", async () => {
+    fillPastThreshold();
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+
+    const outcome = await generateSpec(
+      "draw a bicycle pump",
+      baseCfg({ route: async () => ({ ids: [], noneFits: true, subject: "bicycle pump" }) }),
+    );
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.seeded).toBe(false);
+  });
+
+  // The wrapping `seed` group (with its `members`/`credit` fields) is not yet
+  // a schema-valid element (spec/types.ts and schema.ts don't have `type:
+  // "group"` — see src/llm/seed.ts's header comment); a real model reply
+  // carrying one would fail structural validation and never become `best`.
+  // validateSpec is stubbed for this one round only, standing in for that
+  // future schema support, so the credit-attachment wiring itself — which
+  // does not depend on the schema — can be exercised end to end.
+  test("a surviving seed_1 path gets credited on its group once best is final", async () => {
+    fillPastThreshold();
+    const fetchSeed = vi.fn().mockResolvedValue(SEED);
+    const SPEC_WITH_SURVIVING_SEED = {
+      title: "t",
+      elements: [
+        { id: "seed_1", type: "path", points: [[1, 1]] },
+        { id: "pump", type: "group", members: ["seed_1"] },
+      ],
+      commands: [],
+    };
+    const validateSpy = vi.spyOn(schemaModule, "validateSpec").mockReturnValueOnce({ ok: true, errors: [] });
+    mockCallForJson.mockResolvedValueOnce(respond(SPEC_WITH_SURVIVING_SEED));
+
+    const outcome = await generateSpec(
+      "draw a bicycle pump",
+      baseCfg({ route: async () => ({ ids: [], noneFits: true, subject: "bicycle pump" }), fetchSeed }),
+    );
+    validateSpy.mockRestore();
+
+    expect(outcome.seeded).toBe(true);
+    const group = (outcome.spec?.elements ?? []).find((e) => e.id === "pump") as { credit?: string } | undefined;
+    expect(group?.credit).toMatch(/^based on/);
   });
 });

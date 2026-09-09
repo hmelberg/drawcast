@@ -51,24 +51,27 @@ const PARTS = ["hull", "mast", "keel"].flatMap((id) => [
   { id, type: "path", points: [[0, 0], [10, 10]] },
   { id: `label_${id}`, type: "label", text: id.toUpperCase(), attach_to: id },
 ]);
-const freehand = (route = { ids: [] as string[], noneFits: true }): GenerationOutcome => ({
+const freehand = (route = { ids: [] as string[], noneFits: true, subject: "" }): GenerationOutcome => ({
   spec: { elements: PARTS, commands: [] } as unknown as Spec,
   rounds: [],
   route: { ...route, ms: 1 },
   systemPromptChars: 0,
+  seeded: false,
 });
 /** Freehand without named parts: a caption and an arrow — never a template candidate. */
 const plain = (): GenerationOutcome => ({
   spec: { elements: [{ id: "cap", type: "text", text: "Just words", x: 1, y: 1 }], commands: [] } as unknown as Spec,
   rounds: [],
-  route: { ids: [], noneFits: true, ms: 1 },
+  route: { ids: [], noneFits: true, subject: "", ms: 1 },
   systemPromptChars: 0,
+  seeded: false,
 });
 const templated = (): GenerationOutcome => ({
   spec: { template: "boat_anatomy", elements: [], commands: [] } as unknown as Spec,
   rounds: [],
-  route: { ids: ["boat_anatomy"], noneFits: false, ms: 1 },
+  route: { ids: ["boat_anatomy"], noneFits: false, subject: "", ms: 1 },
   systemPromptChars: 0,
+  seeded: false,
 });
 
 /** Authoring takes a moment (so two lectures can collide) and reports the document like the real pipeline. */
@@ -140,7 +143,7 @@ describe("one template for the whole course", () => {
 describe("the trigger is freehand with named parts sharing a subject, not the router's verdict", () => {
   it("two templateWorthy parts are handled even though the router OFFERED a template the compiler declined", async () => {
     const run = createOnDemandRun(3);
-    mockGenerate.mockImplementation(async () => (run.authored > 0 ? templated() : freehand({ ids: ["violin_anatomy"], noneFits: false })));
+    mockGenerate.mockImplementation(async () => (run.authored > 0 ? templated() : freehand({ ids: ["violin_anatomy"], noneFits: false, subject: "" })));
     authorLikeReal();
     const r = await generateFromOutline(req, plan(2), cfg(run));
     expect(mockAuthor).toHaveBeenCalledTimes(1);

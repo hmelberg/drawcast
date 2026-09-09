@@ -14,6 +14,7 @@ import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
+import { attachSeedCredit, type SeedBlock } from "./seed";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
@@ -38,6 +39,8 @@ const NO_CODE_CHECK: CodeCheckOutcome = { errors: [], warnings: [] };
 export interface RouteInfo {
   ids: string[];
   noneFits: boolean;
+  /** The THING the figure is about (router.ts's RouteResult.subject); "" when the router had none to offer. Feeds the icon seed. */
+  subject: string;
   ms: number;
   /** Set when the router call failed; the keyword selector took over. */
   error?: string;
@@ -100,6 +103,8 @@ export interface GenerationOutcome {
   /** Set when no usable spec was produced. */
   error?: string;
   systemPromptChars: number;
+  /** True when an icon seed (cfg.fetchSeed) was fetched and sent with the request — independent of whether any seed path survived into the delivered spec. */
+  seeded: boolean;
 }
 
 export interface GenerateConfig {
@@ -139,6 +144,16 @@ export interface GenerateConfig {
    * selector, exactly as before; a router failure degrades to the same.
    */
   route?: (request: string, signal?: AbortSignal) => Promise<RouteResult>;
+  /**
+   * The icon seed (src/llm/seed.ts), injected by the app: when the router
+   * names a subject but no template fits, resolves that subject to a small
+   * icon and returns its outlines as ready path elements riding the user
+   * turn — a starting shape the compiler may keep, edit, rename, extend or
+   * drop. Absent (tests, embeds without a key) means no seed is ever sent;
+   * a lookup failure (network, no icon found) resolves to null rather than
+   * throwing, so it never costs the generation.
+   */
+  fetchSeed?: (subject: string, signal?: AbortSignal) => Promise<SeedBlock | null>;
   /** Effort for the creative round (Settings). Repairs and the pedagogy pass always run low; omitted = the API default (high). */
   effort?: Effort;
   /** Named phases the status line can show between deltas: "routing", "writing the spec", "checking the code", "teaching pass". */
@@ -295,13 +310,18 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     const t0 = performance.now();
     try {
       const r = await cfg.route(request, cfg.signal);
-      route = { ids: r.ids, noneFits: r.noneFits, ms: performance.now() - t0 };
+      route = { ids: r.ids, noneFits: r.noneFits, subject: r.subject, ms: performance.now() - t0 };
       if (r.ids.length > 0) shortlist = r.ids;
     } catch (err) {
       if (cfg.signal?.aborted) throw err;
-      route = { ids: [], noneFits: false, ms: performance.now() - t0, error: describeApiError(err) };
+      route = { ids: [], noneFits: false, subject: "", ms: performance.now() - t0, error: describeApiError(err) };
     }
   }
+  // ---- icon seed (Task 13b): the router named a subject but no template
+  // fits — resolve it to an icon and let its outlines ride the request. ----
+  const seed = route?.noneFits && route.subject && cfg.fetchSeed ? await cfg.fetchSeed(route.subject, cfg.signal).catch(() => null) : null;
+  const seeded = seed !== null;
+  // ---- end icon seed ----
   let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist });
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
@@ -315,7 +335,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
 
-  const userContent = cfg.brief ? `${request}\n\n${cfg.brief}` : request;
+  const userContent = [request, cfg.brief, seed?.text].filter(Boolean).join("\n\n");
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
@@ -464,12 +484,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       messages.push({ role: "assistant", content: raw }, { role: "user", content: feedback });
     }
   } catch (err) {
+    if (seed && best) attachSeedCredit(best, seed);
     return {
       spec: best,
       rounds,
       error: describeApiError(err),
       systemPromptChars: blocks.prefix.length + suffixText.length,
       route,
+      seeded,
     };
   }
 
@@ -536,6 +558,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       /* best-effort by design */
     }
   }
+  // best is final now (the pedagogy pass, if it ran, has already adopted or
+  // discarded its candidate) — credit whichever seed paths survived into it.
+  if (seed && best) attachSeedCredit(best, seed);
   return {
     spec: best,
     rounds,
@@ -546,6 +571,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         : "The model never produced a valid spec (see rounds).",
     systemPromptChars: blocks.prefix.length + suffixText.length,
     route,
+    seeded,
   };
 }
 
