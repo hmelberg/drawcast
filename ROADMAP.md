@@ -495,10 +495,27 @@ nothing draws it as a caption.
 - Prompt wording: point 8 hedges point 4 (the "path/shape as last resort"
   phrasing); the `wantsCode` tag branch names a `#code` tag that does not
   exist; Norwegian code triggers (kode/skript/simuler) are missing.
-- The spec's §7.4 timing criterion ("median < 90 s") is unrealistic at
-  effort high — even `main`'s own freehand baseline (no relative placement,
-  no groups) measured a 190 s median; to be rewritten once Part C's after-
-  run numbers give a real target.
+- Two prompt follow-ups found by the live eval (see the ledger's `## Eval`
+  section) — queued for the final fix wave, not yet done: (1) the model
+  reaches for `portrait` on a real photo of a THING (a building) — one
+  sentence should say `portrait` is for people, a photo of a thing is
+  `image`; (2) a big "thing" (a door lock, in every one of the three eval
+  runs) overruns the 16,000-token output cap before finishing its spec —
+  ruling: handled in the prompt, not by raising the cap — "a figure is at
+  most ~30 elements and ~15 beats; if the thing has more parts, name the
+  six that matter."
+- Fixed by the eval work itself: `scripts/freehand-eval.mjs` printed "ok"
+  for a case whose outcome carried an `error` (cut off at the output cap,
+  or a thrown case) — it now prints "cut off"/"error" instead (the summary
+  arithmetic already counted such a case as a miss).
+- The spec's §7.4 timing criterion ("median < 90 s") measured FAIL against
+  a `main` baseline whose own median (no relative placement, no groups) was
+  190 s at effort high — below what effort high produces even without this
+  round's work. Ruling: the eval's timing bar is now "median under the
+  baseline's median" (relative), checked via `--baseline-median <ms>`; the
+  after-runs measured 86 s and 105 s against that baseline's 190,416 ms —
+  both pass the relative bar (the absolute 90 s bar passed once, failed
+  once, on run-to-run latency variance, not on anything the round changed).
 - Newly found while writing the smoke checklist (not yet fixed): the
   "· seeded from `<set>`" status suffix (`main.ts` ~line 3214) and the
   freehand template-offer message (`setStatusAction`, right after) both

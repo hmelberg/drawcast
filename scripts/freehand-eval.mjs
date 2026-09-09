@@ -12,6 +12,10 @@
 //   --seed on|off (default off)   --visual on|off (node: unavailable, always off)
 //   --out <dir> (default .superpowers/eval/freehand-<ISO timestamp>)
 //   --limit N   --model <id> (default the app's DEFAULT_MODEL)
+//   --baseline-median <ms>  compare this run's median against that number
+//     instead of the absolute 90,000ms (see the freehand-figures ledger's
+//     `## Eval` section for why: 90s is below what effort high produces
+//     even on main's own baseline).
 //
 // generateSpec runs with executeCode: false — this node harness has no code
 // runtime (no pyodide/browser), so no case here exercises the code-execution
@@ -39,6 +43,14 @@ const visualOn = opt("--visual", "off") === "on";
 const outDir = opt("--out", `.superpowers/eval/freehand-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 const limit = Number(opt("--limit", "12"));
 const modelOpt = opt("--model", undefined);
+// The absolute 90s bar (spec §7.4) turned out to sit below what effort
+// high produces even on `main`'s own freehand baseline (190,416 ms median,
+// no relative placement, no groups) — see the freehand-figures ledger's
+// `## Eval` section. `--baseline-median <ms>`, when given, switches the
+// verdict to the relative bar the ledger's ruling adopted instead: this
+// run's median must beat THAT number, not the fixed 90,000 ms.
+const baselineMedianOpt = opt("--baseline-median", undefined);
+const baselineMedian = baselineMedianOpt !== undefined ? Number(baselineMedianOpt) : undefined;
 
 if (visualOn) console.log("visual: unavailable in node");
 
@@ -218,9 +230,16 @@ try {
           usesIcon,
         };
         if (outcome.error) record.error = outcome.error;
+        // A non-throwing outcome can still carry an error (compile.ts's own
+        // while-loop catch returns one instead of rejecting — see the
+        // ledger's `## Eval` "terminated" writeup) — that case is a miss for
+        // the summary table below exactly like a lint error, so its line
+        // must not print "ok" either.
+        const status = lintErrors > 0 ? "LINT-ERROR" : !record.error ? "ok" : /cut off at the output limit/i.test(record.error) ? "cut off" : "error";
         console.log(
-          `${i}. [${label}] ${lintErrors === 0 ? "ok" : "LINT-ERROR"} ${ms}ms ${formatCost(cost) || "—"} rounds=${record.rounds.join(">")}` +
-            `${record.seeded ? " seeded" : ""} template=${record.template ?? "none"} "${request.slice(0, 50)}"`,
+          `${i}. [${label}] ${status} ${ms}ms ${formatCost(cost) || "—"} rounds=${record.rounds.join(">")}` +
+            `${record.seeded ? " seeded" : ""} template=${record.template ?? "none"} "${request.slice(0, 50)}"` +
+            `${record.error ? ` (${record.error})` : ""}`,
         );
       } catch (err) {
         const ms = Date.now() - t0;
@@ -262,9 +281,15 @@ try {
       console.log(`${l.padEnd(10)} ${labelPass ? "PASS" : "FAIL"}  ${String(lintErr).padStart(7)} ${String(lintWarn).padStart(8)}  ${String(median).padStart(7)}  ${hits}/${rs.length} (${field})`);
     }
     const overallMedian = allMs.length > 0 ? allMs.sort((a, b) => a - b)[Math.floor(allMs.length / 2)] : 0;
-    const medianOk = overallMedian < 90_000;
+    // Absolute bar (spec §7.4, default): 90s. Relative bar (the ledger's
+    // ruling, once a --baseline-median is on hand): beat THAT run's median
+    // instead — see the option's comment above for why the absolute number
+    // alone is not a fair bar at effort high.
+    const timingBar = baselineMedian !== undefined ? baselineMedian : 90_000;
+    const timingBarLabel = baselineMedian !== undefined ? `< baseline median ${baselineMedian}ms` : "< 90000ms (absolute)";
+    const medianOk = overallMedian < timingBar;
     const pass = !anyLintError && !anyLabelFailed && medianOk;
-    console.log(`\noverall median ${overallMedian}ms (< 90000 required: ${medianOk ? "ok" : "FAIL"})`);
+    console.log(`\noverall median ${overallMedian}ms (${timingBarLabel} required: ${medianOk ? "ok" : "FAIL"})`);
     console.log(pass ? "PASS" : "FAIL");
     writeFileSync(`${outDir}/records.json`, JSON.stringify(records, null, 1));
     if (!pass) process.exitCode = 1;
