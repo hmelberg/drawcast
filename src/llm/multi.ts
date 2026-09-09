@@ -56,17 +56,27 @@ export function sharedBriefIds(briefs: (TemplateBrief | null)[]): Set<string> {
 }
 
 /**
- * Template on demand across the parts (cfg.templatesOnDemand): a lone
- * freehand part with named parts (templateWorthy — whatever the router said)
- * stays freehand, exactly like the single-figure path (spec §5.5) — courses
- * author automatically only when the on-demand brief step (describeTemplateFor)
- * lands two or more parts on the SAME template id, i.e. a course whose
- * lecture(s) draw the same kind of figure more than once. Every part that
- * clears that bar is then handled IN ORDER — first re-routed, because a
- * template authored earlier in the RUN (by this lecture or a parallel one)
- * may now fit (then it is simply regenerated with the router's shortlist);
- * otherwise a template is authored for it and it is redrawn, if the run's cap
- * allows — past the cap it stays freehand and the run counts it.
+ * Template on demand across the parts (cfg.templatesOnDemand). Two DIFFERENT
+ * questions, both per templateWorthy part (whatever the router said — see
+ * on-demand.ts templateWorthy):
+ *
+ *   - REUSE: is there now a template for this part? Checked for EVERY
+ *     templateWorthy part, however many there are — a template authored
+ *     earlier in the RUN (by this lecture or a parallel one) may fit a
+ *     lecture with only one such part just as well as one with several.
+ *     This is unconditional; spec §5.5 says nothing about picking up an
+ *     EXISTING template.
+ *   - AUTHOR: may a NEW template be written for this part? Gated by spec
+ *     §5.5 — a lone freehand part stays freehand, in a run of one or of
+ *     many; authoring fires only when the on-demand brief step
+ *     (describeTemplateFor) lands two or more parts on the SAME id, i.e. a
+ *     course whose lecture(s) draw the same kind of figure more than once.
+ *
+ * Each part is handled IN ORDER — first re-routed (then it is simply
+ * regenerated with the router's shortlist); only failing that, and only if
+ * it cleared the sharing bar, is a template authored for it and the part
+ * redrawn, if the run's cap allows — past the cap it stays freehand and the
+ * run counts it.
  *
  * The run object (on-demand-run.ts) is what makes this hold across a course:
  * its lock authors one template at a time for the WHOLE run, so the next
@@ -92,36 +102,43 @@ async function authorTemplatesForParts(
   };
 
   // Freehand with named parts is the trigger, not the router's verdict
-  // (on-demand.ts templateWorthy) — but a single such part, here as in the
-  // single-figure path, stays freehand: spec §5.5.
+  // (on-demand.ts templateWorthy).
   const worthy = outcomes.map((o, i) => (o.spec && templateWorthy(o.spec) ? i : -1)).filter((i) => i >= 0);
-  if (worthy.length < 2 || cfg.signal?.aborted) return;
+  if (worthy.length === 0) return;
 
-  const describe = cfg.describe ?? describeTemplateFor;
+  // AUTHORING eligibility only: skipped entirely below two worthy parts — no
+  // describe call is spent chasing a shared subject that cannot exist yet —
+  // but a single worthy part still goes through the loop below for its
+  // REUSE check.
   const briefs = new Map<number, TemplateBrief | null>();
-  await Promise.all(
-    worthy.map(async (i) => {
-      const request = buildPartRequest(req.request, plan, i, req.brief);
-      const { brief } = await describe(request, outcomes[i].spec as Spec, { apiKey: cfg.apiKey, model: cfg.model, signal: cfg.signal }).catch(
-        () => ({ brief: null }) as { brief: TemplateBrief | null },
-      );
-      briefs.set(i, brief);
-    }),
-  );
-  const shared = sharedBriefIds(worthy.map((i) => briefs.get(i) ?? null));
+  let shared = new Set<string>();
+  if (worthy.length >= 2 && !cfg.signal?.aborted) {
+    const describe = cfg.describe ?? describeTemplateFor;
+    await Promise.all(
+      worthy.map(async (i) => {
+        const request = buildPartRequest(req.request, plan, i, req.brief);
+        const { brief } = await describe(request, outcomes[i].spec as Spec, { apiKey: cfg.apiKey, model: cfg.model, signal: cfg.signal }).catch(
+          () => ({ brief: null }) as { brief: TemplateBrief | null },
+        );
+        briefs.set(i, brief);
+      }),
+    );
+    shared = sharedBriefIds(worthy.map((i) => briefs.get(i) ?? null));
+  }
 
   for (const i of worthy) {
     if (cfg.signal?.aborted) return;
     const o = outcomes[i];
-    const brief = briefs.get(i) ?? null;
-    if (!o.spec || !brief || !shared.has(brief.id)) continue;
+    if (!o.spec) continue;
     const request = buildPartRequest(req.request, plan, i, req.brief);
     const label = `part ${i + 1}`;
     const freehand = o.spec;
-    hooks.onPhase?.(`${label}: shares a subject with another part — authoring`);
+    const brief = briefs.get(i) ?? null;
+    const mayAuthor = !!brief && shared.has(brief.id);
 
-    // Inside the lock: is there now a template for this part, and if not, may
-    // one be authored? Returns the id to redraw with when the router found one.
+    // Inside the lock: is there now a template for this part (REUSE, every
+    // worthy part checks this), and if not, may one be authored (gated by
+    // mayAuthor)? Returns the id to redraw with when the router found one.
     const reuse = await run.lock(async (): Promise<string | null> => {
       if (cfg.signal?.aborted) return null;
       if (cfg.route && run.authored > 0) {
@@ -129,12 +146,13 @@ async function authorTemplatesForParts(
         const again = await cfg.route(request, cfg.signal).catch(() => null);
         if (again && again.ids.length > 0) return again.ids[0];
       }
+      if (!mayAuthor) return null; // no template fits yet, and this part alone does not warrant authoring one
       if (!run.take()) {
         run.skipped++;
         hooks.onPhase?.(`${label}: left freehand (template cap ${run.max} reached)`);
         return null;
       }
-      hooks.onPhase?.(`${label}: authoring a template`);
+      hooks.onPhase?.(`${label}: shares a subject with another part — authoring`);
       const r = await authorOnDemand(request, freehand, {
         apiKey: cfg.apiKey,
         model: cfg.model,

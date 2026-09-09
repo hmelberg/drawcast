@@ -173,6 +173,32 @@ describe("the trigger is freehand with named parts sharing a subject, not the ro
   });
 });
 
+describe("reuse of an already-authored template survives the shared-subject gate", () => {
+  it("a lone worthy part still gets re-routed to a template a sibling lecture already authored — spec §5.5 gates AUTHORING, not pickup", async () => {
+    const run = createOnDemandRun(3);
+    // A sibling lecture already authored this run's one template.
+    run.authored = 1;
+    run.docs.set("boat_anatomy", DOC);
+    // First generateSpec call (the initial parallel pass) draws freehand, so
+    // the lone part clears templateWorthy; the second (the reroute's redraw)
+    // is the one that returns the template, exactly as generateSpec would
+    // once the router's shortlist includes it.
+    let calls = 0;
+    mockGenerate.mockImplementation(async () => (calls++ === 0 ? freehand() : templated()));
+    authorLikeReal();
+    const describeSpy = vi.fn(describeSame);
+    const routeSpy = vi.fn(async () => ({ ids: ["boat_anatomy"], noneFits: false, subject: "" }));
+
+    const r = await generateFromOutline(req, plan(1), cfg(run, { describe: describeSpy, route: routeSpy }));
+
+    expect(routeSpy).toHaveBeenCalledTimes(1);
+    expect(describeSpy).not.toHaveBeenCalled();
+    expect(mockAuthor).not.toHaveBeenCalled();
+    expect(r.specs[0].template).toBe("boat_anatomy");
+    expect(r.specs[0].templates).toEqual([DOC]);
+  });
+});
+
 describe("the cap", () => {
   it("authors at most max templates in a run and leaves the rest freehand, saying so", async () => {
     const run = createOnDemandRun(1);
