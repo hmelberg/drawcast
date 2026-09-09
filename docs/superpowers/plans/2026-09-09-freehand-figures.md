@@ -25,6 +25,46 @@
 
 ---
 
+## Coordination with motion round 3 (worktree `template-spike`, branch `worktree-template-spike`)
+
+Another round is in flight in the same repo: ghosts (`keep`, `ghost` on the
+motion verbs, minted elements), `angle` and `measure` elements, `pieces`
+of rings/triangles/halving, `arrange: unroll`, `ellipse` and `line`
+(`docs/superpowers/specs/2026-09-09-ghost-angle-measure-design.md`, nine
+tasks; six committed as of 2026-09-09 17:03, three left: ellipse/line,
+leftovers, prompt + seven examples). Its diff against main is 3,710 lines
+over 30 files. Where it meets this plan:
+
+| File | Round 3 | This plan | Resolution |
+|---|---|---|---|
+| `src/spec/types.ts` `SpecElement.at` | widened to `{x, y, intersection_of, ref, anchor} \| [number, number]` for `angle`'s vertex | adds `side, gap, offset` | One union: `{x?, y?, intersection_of?, ref?, anchor?, side?, gap?, offset?} \| [number, number]`. Every `at` reader in this plan guards `Array.isArray(el.at)` first. `angle`'s `at: {ref, anchor}` already means "vertex on that point" — the same semantics as this plan's anchor placement, so nothing to reconcile. |
+| `src/spec/schema.ts` `at` block, type enum, `elementErrors` | `angle`/`measure`/`ellipse`/`line`; a guard that a `point`'s `at` has no `ref`/`anchor` | `group`/`math`/`image`/`icon`; `at.ref` on coordinate-placed elements | Merge both enums; extend the shared `at` schema with `side/gap/offset`; keep round 3's `point` guard (a point never gets relative placement). |
+| `src/layout/tier2.ts` | new cases `angle`, `measure`, ring/triangle/halving pieces, `resolvePointRef`, `Ctx`/`Tier2Result.measures` | emit-order rewrite of pass 3, post-emit shift, `group`/`math`/`image`/`icon` cases, `Ctx.groups/groupBoxes/fitGroups`, `issues` | Textual conflicts certain in the switch and the `Ctx`/`Tier2Result` interfaces. Do Tasks 3–8 only on a base that already contains round 3. The post-emit shift is generic and covers the new element kinds for free; `pieces` builders take `c: Pt` — pass `originOr(el, …)` there too. |
+| `src/render/plan.ts` | ghosts, `keep`, `texts` state, measure follow, ~300 lines | `expandGroup` in `resolveIds`, shared pivot in `move` | `resolveIds` is one function — add `expandGroup` after round 3 lands; then `keep: {target: "pump"}` and `ghost: true` on a group move work for free. |
+| `src/layout/layout.ts` `LayoutResult` | `measures` | `groups`, `fitGroups` | Trivial; both fields added. |
+| `src/render/index.ts` | minted ghosts through `withTrails`, `bboxesFor` | `resolveImages`/`resolveIcons` in the ensure phase, `expandGroup` in `planOptionsFor`, engines for the spec | Different lines; rebase resolves. |
+| `src/llm/prompts/compiler-v1.md` | verb list + `keep`/`ghost` bullet, `angle`/`measure` bullets | replaces lines 14–15, moves 48–49 out | Line numbers in this plan are hints from main; after rebase find the bullets by their opening text. The prompt-size baseline (Task 10 step 1) must be measured on the MERGED base, not on today's main. |
+| `tests/prompt.test.ts`, `tests/schema.test.ts`, `tests/tier2.test.ts`, `tests/examples.test.ts` | pins added | pins added | Additive. |
+| `src/examples.json`, `fewshots.json` | seven examples (round 3 Task 9) | six examples, three few-shots | Additive; both must pass the same gate. |
+
+Semantic overlap worth using, not avoiding: a `group` is a natural
+`keep`/`ghost` target ("keep the whole pump faded while the piston
+moves"); a `measure` can measure a group member; `angle` and `measure`
+can be group members. No verb or field is defined twice.
+
+**Sequencing.** Tasks that touch none of the round-3 files can start now
+on the `freehand` worktree branched from main: **1** (helpers), **7 steps
+1–4** (image resolver only), **12 steps 1–3 and the resolver half of 6**
+(SVG arcs, Iconify resolver, licence table, codec), **13 steps 1–3 for
+`router.ts`/`seed.ts`** (compile wiring waits), **14's `visual.ts`** and
+**15's eval script**. Everything that edits `types.ts`, `schema.ts`,
+`tier2.ts`, `plan.ts`, `layout.ts`, `render/index.ts`, `compile.ts`, the
+prompt or the examples waits until round 3 is merged to main; then
+`git merge main` into `freehand`, re-run the suite, and continue with
+Tasks 2–6, 8–11 and the wiring halves of 7, 12, 13, 14.
+
+---
+
 ### Task 1: Geometry helpers — element boxes, fit regions, Catmull-Rom, simplify
 
 **Files:**
@@ -402,9 +442,11 @@ const OPPOSITE: Record<Side, string> = {
   "above-left": "bottom_right", "above-right": "bottom_left", "below-left": "top_right", "below-right": "top_left",
 };
 
+const relAt = (el: SpecElement) => (el.at && !Array.isArray(el.at) ? el.at : undefined);
+
 function deps(el: SpecElement): string[] {
   const out: string[] = [];
-  if (el.at?.ref) out.push(el.at.ref);
+  if (relAt(el)?.ref) out.push(relAt(el)!.ref!);
   if (el.type === "label" && el.attach_to) out.push(el.attach_to);
   if (el.type === "group") out.push(...(el.members ?? []));
   return out;
@@ -427,7 +469,7 @@ export function placementOrder(elements: SpecElement[], known: Set<string> = new
     for (const d of deps(el)) {
       const dep = byId.get(d);
       if (dep) visit(dep);
-      else if (!known.has(d) && el.at?.ref === d) issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `element "${el.id}": unknown ref "${d}" in at` });
+      else if (!known.has(d) && relAt(el)?.ref === d) issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `element "${el.id}": unknown ref "${d}" in at` });
     }
     state.set(el.id, 2);
     order.push(el);
@@ -547,7 +589,7 @@ In `src/layout/tier2.ts`:
 - Signature (94-100) becomes `layoutElements(elements, domain, seedAnchors = {}, seedCurveSamples = {}, opts: { measure?: MeasureFn; seedDrawables?: Drawable[] } = {})`; `const measure = opts.measure ?? heuristicMeasure`.
 - Add `issues: LintIssue[]` to `Tier2Result` (47-71) and to the return (249-260).
 - Before pass 3 (line 149): `const { order: emitOrder, issues } = placementOrder(elements, new Set(Object.keys(seedAnchors)));` and iterate `emitOrder` instead of `elements`. (Pass 1 and pass 2 keep iterating `elements`.)
-- Wrap each iteration of pass 3: record `const start = drawables.length;` before the `switch`; after it, if `el.at?.ref`:
+- Wrap each iteration of pass 3: record `const start = drawables.length;` before the `switch`; after it, if `el.at` is an object with `ref` (never for the `[x, y]` array form round 3 gives `angle`):
   ```ts
   const mine = drawables.slice(start);
   const refBox = unionBBoxForId([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], el.at.ref, measure);
@@ -873,7 +915,7 @@ describe("math element (real mathjax, node)", () => {
 import type { BBox } from "./geometry";
 import { simplifyPolyline } from "./geometry";
 import { Z_AREA, SKETCH_MS, type Drawable, type Pt } from "./model";
-import { resolveDrawOpts, resolveStyle } from "./tier2"; // exported from tier2.ts in this task (they are private today)
+import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { MathJaxEngine } from "../scenes/engines";
 import type { SpecElement } from "../spec/types";
 
@@ -902,7 +944,7 @@ export function mathDrawables(el: SpecElement, mathjax: MathJaxEngine, cx: numbe
   return { drawables: [{ id: el.id, kind: "group", children: drawables, z: Z_AREA + 1, style: ink, drawOpts: resolveDrawOpts(el.draw) }], box: { x: cx - w / 2, y: cy - h / 2, w, h } };
 }
 ```
-Note: `resolveStyle`/`resolveDrawOpts` are private in tier2.ts today. tier2.ts will import math.ts and math.ts imports tier2.ts — an import cycle. Avoid it by moving the two functions (with their helpers) into a new `src/layout/style.ts` and re-exporting them from tier2.ts; math.ts imports from `./style`. Check `laid.outlines[].pts` orientation against `mathlogic.yaml:1060-1095` (the y flip is already applied by the engine's lite adaptor path there; mirror exactly what `place` does at 1085-1090, including whether y is negated).
+Note: `resolveStyle`/`resolveDrawOpts` live in `src/layout/resolve.ts` (exported); math.ts imports them from there and never imports tier2.ts. Check `laid.outlines[].pts` orientation against `mathlogic.yaml:1060-1095` (the y flip is already applied by the engine's lite adaptor path there; mirror exactly what `place` does at 1085-1090, including whether y is negated).
 
 tier2 `case "math"`: if `!enginesLoaded(["mathjax"])` → `ctx.warnings.push(`math "${el.id}": mathjax engine not loaded — skipped`)` and break; else `const { drawables: ds, box } = mathDrawables(el, getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine, ...originOr(el, [CANVAS.w/2, CANVAS.h/2]))`, push, `ctx.anchors[el.id] = [box.x + box.w/2, box.y + box.h/2]`, `ctx.namedAnchors[el.id]` = the nine box anchors. `unionBBoxForId` already unions `<id>` groups (group children carry `__g` ids — verify `unionBBoxForId` looks through group drawables; if it only reads top-level ids, extend it to recurse into `kind: "group"` children whose group id matches).
 

@@ -78,6 +78,14 @@ one field for "where": absolute (`x, y`), intersection, or relative
 `<name>.credits.txt` next to the `.vtt`, since the VTT is a timed cue file
 and credits have no clock.
 
+Coordination note (2026-09-09): motion round 3 (ghosts, angle, measure,
+more cuts, ellipse, line — `2026-09-09-ghost-angle-measure-design.md`)
+widens `at` to `{…, ref, anchor} | [number, number]` for `angle`'s
+vertex. This round adds `side`, `gap`, `offset` to the same object; the
+array form stays `angle`'s. A `point` keeps `{x, y}`/`intersection_of`
+only (round 3's guard). The plan's coordination section lists the files
+both rounds touch and the order that avoids conflicts.
+
 Every coordinate-placed element — `text`, `shape`, `path`, `polygon`,
 `sector`, `arc`, `pieces`, `portrait`, `image`, `math`, `icon` — accepts
 `at` in place of `x`/`y`:
