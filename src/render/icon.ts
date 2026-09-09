@@ -41,9 +41,9 @@ export function iconSvgUrl(prefix: string, name: string): string {
   return `https://api.iconify.design/${prefix}/${name}.svg`;
 }
 
-/** lower-case, spaces → hyphens: how a free-text `of` becomes an Iconify icon name. */
+/** lower-case, runs of whitespace → one hyphen: how a free-text `of` becomes an Iconify icon name. */
 function slug(of: string): string {
-  return of.trim().toLowerCase().replace(/ /g, "-");
+  return of.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
 /**

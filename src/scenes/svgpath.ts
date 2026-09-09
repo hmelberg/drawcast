@@ -10,7 +10,8 @@ type Pt = [number, number];
 /** Segments per curve. 8 is invisible at glyph size and keeps rings small. */
 const CURVE_SEGMENTS = 8;
 
-const TOKEN = /([MmLlHhVvCcSsQqTtAaZz])|(-?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?)/g;
+const COMMAND_CHARS = new Set([..."MmLlHhVvCcSsQqTtAaZz"]);
+const NUMBER = /-?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?/y;
 const EPS = 1e-9;
 
 /**
@@ -19,8 +20,20 @@ const EPS = 1e-9;
  * Rings with fewer than 3 points enclose no area and are dropped.
  */
 export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
-  const cmds: (string | number)[] = [];
-  for (const m of d.matchAll(TOKEN)) cmds.push(m[1] ?? Number(m[2]));
+  // Scanned lazily, character by character, rather than pre-tokenized in one
+  // pass: an arc's largeArc/sweep flags are each EXACTLY one digit (0 or 1)
+  // per the SVG grammar, and may be written with no separator before the
+  // next flag or coordinate — "1120" is largeArc=1, sweep=1, x=20, something
+  // SVGO-minified icon sets emit routinely. A number-hungry tokenizer would
+  // swallow "1120" whole as 1120 before the arc case ever sees it, which is
+  // exactly what broke here: flags have to be peeled off the raw text one
+  // character at a time, and whatever digits are left over are still sitting
+  // at the right position in `d` for `num()` to read as the next argument.
+  let pos = 0;
+  const near = (): string => (pos < d.length ? d.slice(pos, pos + 12) : "end");
+  const skipSep = () => {
+    while (pos < d.length && (d[pos] === " " || d[pos] === "\t" || d[pos] === "\n" || d[pos] === "\r" || d[pos] === ",")) pos++;
+  };
 
   const rings: Pt[][] = [];
   let ring: Pt[] = [];
@@ -29,7 +42,6 @@ export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
   let ccx = 0, ccy = 0;        // last cubic control point (for S)
   let qcx = 0, qcy = 0;        // last quadratic control point (for T)
   let prev = "";
-  let i = 0;
 
   const push = (x: number, y: number) => {
     const last = ring[ring.length - 1];
@@ -47,9 +59,20 @@ export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
     ring = [];
   };
   const num = (): number => {
-    const v = cmds[i++];
-    if (typeof v !== "number") throw new Error(`malformed SVG path data near "${String(v ?? "end")}"`);
-    return v;
+    skipSep();
+    NUMBER.lastIndex = pos;
+    const m = NUMBER.exec(d);
+    if (!m) throw new Error(`malformed SVG path data near "${near()}"`);
+    pos += m[0].length;
+    return Number(m[0]);
+  };
+  /** An arc's largeArc/sweep flag: exactly one character, '0' or '1' — never
+   *  consumed via the general number matcher, so a flag glued directly to
+   *  the next flag or coordinate ("1120") only ever gives up its one digit. */
+  const flag = (): boolean => {
+    skipSep();
+    if (pos < d.length && (d[pos] === "0" || d[pos] === "1")) return d[pos++] === "1";
+    throw new Error(`malformed SVG path data near "${near()}"`);
   };
   const cubic = (x1: number, y1: number, x2: number, y2: number, x: number, y: number) => {
     const x0 = cx, y0 = cy;
@@ -118,14 +141,23 @@ export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
     }
   };
 
-  while (i < cmds.length) {
-    const tok = cmds[i];
-    // A bare number repeats the previous command (implicit lineto after M).
-    const cmd = typeof tok === "string" ? (i++, tok) : prev === "M" ? "L" : prev === "m" ? "l" : prev;
-    // Numbers trailing a command that takes none (or leading the data) would
-    // spin this loop forever — refuse them instead.
-    if (typeof tok === "number" && (cmd === "" || cmd.toUpperCase() === "Z")) {
-      throw new Error(`malformed SVG path data near "${tok}"`);
+  for (;;) {
+    skipSep();
+    if (pos >= d.length) break;
+    const ch = d[pos];
+    let cmd: string;
+    if (COMMAND_CHARS.has(ch)) {
+      cmd = ch;
+      pos++;
+    } else {
+      // A bare number repeats the previous command (implicit lineto after M).
+      // Numbers trailing a command that takes none (or leading the data)
+      // would spin this loop forever — refuse them instead. `pos` is left
+      // where it is; the switch below reads the number itself via num().
+      if (prev === "" || prev.toUpperCase() === "Z") {
+        throw new Error(`malformed SVG path data near "${near()}"`);
+      }
+      cmd = prev === "M" ? "L" : prev === "m" ? "l" : prev;
     }
     const rel = cmd === cmd.toLowerCase();
     const ox = rel ? cx : 0, oy = rel ? cy : 0;
@@ -152,7 +184,7 @@ export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
         break;
       }
       case "A": {
-        const rx = num(), ry = num(), rot = num(), largeArc = num() !== 0, sweep = num() !== 0;
+        const rx = num(), ry = num(), rot = num(), largeArc = flag(), sweep = flag();
         arc(rx, ry, rot, largeArc, sweep, ox + num(), oy + num());
         break;
       }

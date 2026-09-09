@@ -33,6 +33,11 @@ describe("resolveIcons", () => {
     const noSet = { elements: [{ id: "e", type: "icon", of: "smile", x: 1, y: 1 }], commands: [] };
     expect((await resolveIcons(noSet as never, deps({ [iconSearchUrl("smile", DEFAULT_PREFIXES)]: { icons: ["openmoji:smile"] } })))[0].ok).toBe(false);
   });
+  test("unknown explicit set is rejected", async () => {
+    const spec = { elements: [{ id: "e", type: "icon", of: "smile", set: "not-a-real-set", x: 1, y: 1 }], commands: [] };
+    const r = await resolveIcons(spec as never, deps({}));
+    expect(r[0]).toMatchObject({ ok: false, error: expect.stringMatching(/unknown icon set/) });
+  });
   test("svgToRings normalises the viewBox to 0..1", () => {
     const rings = svgToRings(SVG);
     expect(rings[0].every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1)).toBe(true);
