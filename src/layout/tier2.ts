@@ -375,7 +375,7 @@ export function layoutElements(
         let box = boxOfId(all, el.id, measure, ctx.groups, ctx.pieceGroups);
         // --- fit (spec §3.2): scale and centre the whole thing into a region.
         if (el.fit && box && box.w > 0 && box.h > 0) {
-          box = fitGroup(el, leaves, box, all, ctx, measure, issues);
+          box = fitGroup(el, leaves, box, all, labels, ctx, measure, issues);
         } else if (el.fit) {
           issues.push({ rule: "placement", ids: [el.id], severity: "warn", message: `group "${el.id}": nothing to fit (no member has a box)` });
         }
@@ -473,6 +473,7 @@ function fitGroup(
   leaves: string[],
   box: BBox,
   all: Drawable[],
+  labels: LabelRequest[],
   ctx: Ctx,
   measure: MeasureFn,
   issues: LintIssue[],
@@ -523,6 +524,15 @@ function fitGroup(
     }
     if (ms.circle) ms.circle = { c: map(ms.circle.c), r: ms.circle.r * s };
   }
+
+  // A member LABEL is not ink yet — layout.ts solves it against the finished
+  // drawing after tier-2 — but the point it will be solved AGAINST was read
+  // off the member when the label was emitted, which was before this fit.
+  // Move that point too, or the words land where the part used to be.
+  // (An `annotation` member needs nothing: layout.ts measures its target's
+  // box off the drawables after everything is laid out, so it reads the
+  // scaled ink already. `ignore` holds drawable ids, not geometry.)
+  for (const req of labels) if (belongs(req.id)) req.anchor = map(req.anchor);
 
   for (const d of leafDrawables(all.filter((x) => belongs(x.id)))) {
     if (d.kind !== "text" || d.fontSize >= FIT_FONT_FLOOR) continue;

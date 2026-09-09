@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { fitRegion } from "../src/layout/regions";
 import { flattenDrawables } from "../src/layout/model";
+import type { BBox } from "../src/layout/geometry";
 
 const pump = (fit: unknown) => ({
   elements: [
@@ -100,6 +101,28 @@ describe("group.fit", () => {
     const scaled = first.get("a")!;
     expect(scaled.h).toBeGreaterThan(200);
     expect(first.get("out")!.x).toBeCloseTo(scaled.x + scaled.w + 10, 0);
+  });
+
+  // Fix round 2 (found by Task 11): a member label is solved after tier-2,
+  // against an anchor read off the member BEFORE the fit scaled it.
+  test("a member label follows the scaled part instead of its old position", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "part", type: "shape", shape: "rect", x: 0, y: 0, width: 60, height: 200 },
+        { id: "name", type: "label", text: "piston", attach_to: "part", side: "right" },
+        { id: "g", type: "group", members: ["part", "name"], fit: "left" },
+      ],
+      commands: [{ draw: ["g"] }],
+    } as never);
+    const b = elementBBoxes(r);
+    const part = b.get("part")!, name = b.get("name")!;
+    expect(part.h).toBeGreaterThan(200); // the fit really did scale the part
+    const cy = (y: BBox) => y.y + y.h / 2;
+    expect(Math.abs(cy(name) - cy(part))).toBeLessThan(part.h / 2); // beside it, not below
+    expect(name.x).toBeGreaterThan(part.x); // on the right, where the label asked to be
+    expect(name.x - (part.x + part.w)).toBeLessThan(120); // and touching it, not adrift
+    // The pre-fit rect was 0,0 60×200: the words must not have stayed there.
+    expect(name.x).toBeGreaterThan(60);
   });
 
   test("a group with a fit and nothing to fit says so", () => {
