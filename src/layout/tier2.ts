@@ -5,10 +5,12 @@ import { CANVAS, linearScale, plotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
 import { centroid, type BBox } from "./geometry";
-import { heuristicMeasure } from "./measure";
+import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
+import { unionBBoxForId } from "./boxes";
+import { ownBBox, placementOrder, relAt, relativeDelta, shiftDrawables, shiftPoints } from "./place";
 import {
   COLORS,
   LINE_HEIGHT,
@@ -30,6 +32,7 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
+import type { LintIssue } from "../lint/lint";
 import type { EndRef, PointRef, SpecElement } from "../spec/types";
 
 /**
@@ -76,6 +79,8 @@ export interface Tier2Result {
   pieceGroups: Record<string, string[]>;
   /** `measure` element specs (design §2.3), keyed by the measure's own element id. */
   measures: Record<string, M.MeasureSpec>;
+  /** Structural placement defects (unknown `at.ref`, dependency cycles). */
+  issues: LintIssue[];
 }
 
 interface Ctx {
@@ -106,7 +111,11 @@ export function layoutElements(
   seedAnchors: Record<string, Pt> = {},
   /** Scene curves (in the spec's domain space): valid region/intersection references. */
   seedCurveSamples: Record<string, Pt[]> = {},
+  /** measure: the text measurer relative placement sizes boxes with.
+   *  seedDrawables: the template's drawables, so `at.ref` can name a template id. */
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[] } = {},
 ): Tier2Result {
+  const measure = opts.measure ?? heuristicMeasure;
   const plot = plotArea();
   const domainX: [number, number] = domain?.x ?? [0, 100];
   const domainY: [number, number] = domain?.y ?? [0, 100];
@@ -156,11 +165,15 @@ export function layoutElements(
     }
   }
 
-  // Pass 3: emit drawables in element order.
+  // Pass 3: emit drawables in dependency order (spec order wherever nothing
+  // has to wait) — an element placed relative to another, and a label or a
+  // measure that reads one, must come after the geometry it depends on.
   const drawables: Drawable[] = [];
   ctx.drawablesSoFar = drawables;
   const labels: LabelRequest[] = [];
-  for (const el of elements) {
+  const { order: emitOrder, issues } = placementOrder(elements, new Set(Object.keys(seedAnchors)));
+  for (const el of emitOrder) {
+    const start = drawables.length;
     switch (el.type) {
       case "axes":
         drawables.push(makeAxes(el.id, plot, el.x_label, el.y_label));
@@ -214,7 +227,7 @@ export function layoutElements(
         break;
       }
       case "text": {
-        const pos: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+        const pos = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
         drawables.push({
           id: el.id,
           kind: "text",
@@ -268,6 +281,32 @@ export function layoutElements(
         break;
       }
     }
+    // --- relative placement (place.ts): the element was built at the origin,
+    // now it moves to where `at` says. `angle` and `point` are excluded —
+    // their `at` is a POINT they resolve inside their own case (the angle's
+    // vertex; the point's coordinates, where {ref} is a reported mistake).
+    const at = relAt(el);
+    if (at?.ref && el.type !== "angle" && el.type !== "point") {
+      const mine = drawables.slice(start);
+      const refBox = unionBBoxForId([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref, measure);
+      const ownBox = ownBBox(mine, el.id, measure);
+      if (refBox && ownBox) {
+        const [dx, dy] = relativeDelta(ownBox, refBox, ctx.namedAnchors[at.ref] ?? {}, at, el.anchor);
+        shiftDrawables(mine, dx, dy);
+        const bump = (id: string) => {
+          const a = ctx.anchors[id];
+          if (a) ctx.anchors[id] = [a[0] + dx, a[1] + dy];
+          shiftPoints(ctx.namedAnchors[id], dx, dy);
+          const pg = ctx.pieces[id];
+          if (pg) { pg.apex = [pg.apex[0] + dx, pg.apex[1] + dy]; pg.centroid = [pg.centroid[0] + dx, pg.centroid[1] + dy]; }
+        };
+        bump(el.id);
+        for (const k of ctx.pieceGroups[el.id] ?? []) bump(k);
+      } else if (!refBox) {
+        ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box yet — left where it was`);
+      }
+    }
+    // --- end relative placement
   }
 
   return {
@@ -282,7 +321,18 @@ export function layoutElements(
     pieces: ctx.pieces,
     pieceGroups: ctx.pieceGroups,
     measures: ctx.measures,
+    issues,
   };
+}
+
+/**
+ * Where an element builds itself: the ORIGIN when `at.ref` places it
+ * relative to another element (the post-emit shift in pass 3 then moves the
+ * finished drawables into place), otherwise its own x/y or the fallback.
+ */
+function originOr(el: SpecElement, fallback: Pt): Pt {
+  if (relAt(el)?.ref) return [0, 0];
+  return [el.x ?? fallback[0], el.y ?? fallback[1]];
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
@@ -650,14 +700,13 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.node });
   const shape = el.shape ?? "rect";
   if (shape === "circle" || shape === "chance") {
-    const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+    const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
     const r = el.radius ?? 40;
     ctx.anchors[el.id] = c;
     return { id: el.id, kind: "stroke", pts: [c], shapeHint: { type: "circle", c, r }, z: Z_STROKE, style, drawOpts };
   }
   // rect (x,y = lower-left corner in logical units)
-  const x = el.x ?? 100;
-  const y = el.y ?? 100;
+  const [x, y] = originOr(el, [100, 100]);
   const w = el.width ?? 160;
   const h = el.height ?? 100;
   ctx.anchors[el.id] = [x + w / 2, y + h / 2];
@@ -690,8 +739,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
   // appear-at-first-mention-then-erase. Fixture: small, framed, cornered.
   const cameo = el.cameo === true;
   const w = el.width ?? (cameo ? 280 : 170);
-  const cx = el.x ?? (cameo ? 500 : 170);
-  const cy = el.y ?? (cameo ? 420 : 550);
+  const [cx, cy] = originOr(el, [cameo ? 500 : 170, cameo ? 420 : 550]);
   const photo = el.strokes ? decodePhoto(el.strokes) : null;
   const trace = !photo && el.strokes ? decodeTrace(el.strokes) : null;
   const children: Drawable[] = [];
@@ -1118,7 +1166,7 @@ function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
 }
 
 function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
   const r = el.radius ?? 100;
   const from = el.start ?? 0;
   const to = el.end ?? 90;
@@ -1136,7 +1184,7 @@ function sectorDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 }
 
 function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
-  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
   const r = el.radius ?? 100;
   const from = el.start ?? 0;
   const to = el.end ?? 180;
@@ -1330,7 +1378,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   if (el.points && el.points.length >= 3) {
     pts = el.points as Pt[];
   } else {
-    const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+    const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
     const n = Math.max(3, Math.round(el.sides ?? 5));
     const r = el.radius ?? 100;
     const rot = (el.rotation ?? 0) * DEG;
@@ -1355,7 +1403,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
  * (f = 0, not NaN).
  */
 function ellipseDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
   const rx = el.rx ?? 150, ry = el.ry ?? 100;
   const rot = (el.rotation ?? 0) * DEG;
   const turn = (p: Pt): Pt => [c[0] + (p[0] - c[0]) * Math.cos(rot) - (p[1] - c[1]) * Math.sin(rot), c[1] + (p[0] - c[0]) * Math.sin(rot) + (p[1] - c[1]) * Math.cos(rot)];
@@ -1423,7 +1471,7 @@ function lineDrawable(el: SpecElement, ctx: Ctx): Drawable | null {
  * by drawablesForId/elementRings exactly like a standalone sector.
  */
 function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const c = originOr(el, [CANVAS.w / 2, CANVAS.h / 2]);
   if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
   if (el.of === "rings") return ringPiecesDrawables(el, ctx, c);
   if (el.of === "triangles") return trianglePiecesDrawables(el, ctx, c);

@@ -36,7 +36,11 @@ export interface LintIssue {
     /** params measured against the template's own params_schema, not the wire schema. */
     | "template-params"
     /** a connect question the viewer cannot win, or one that is unfair given what has (not) been drawn yet */
-    | "connect";
+    | "connect"
+    /** relative placement: an unknown at.ref, or a cycle through at.ref/attach_to/members */
+    | "placement"
+    /** a group element whose members resolve to nothing */
+    | "group-empty";
   ids: string[];
   message: string;
   severity: "warn" | "error";

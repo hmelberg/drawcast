@@ -59,6 +59,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   if (split.code && codeEl) Object.assign(codeEl, split.code);
   if (split.box) spec.params = { ...(spec.params ?? {}), box: split.box };
   const warnings: string[] = [];
+  const issues: LintIssue[] = [];
   const drawables: Drawable[] = [];
   const labelRequests: LabelRequest[] = [];
   const order: string[] = [];
@@ -101,10 +102,12 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   }
 
   if (spec.elements && spec.elements.length > 0) {
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples);
+    // `drawables` here is the template's output — an at.ref may name a template id.
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables] });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
+    issues.push(...tier2.issues);
     windows = tier2.windows;
     panes = tier2.panes;
     pieces = tier2.pieces;
@@ -164,7 +167,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
-  const issues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id]);
+  issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id]));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
   return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, namedAnchors, measures };
 }
