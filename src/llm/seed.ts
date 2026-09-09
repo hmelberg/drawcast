@@ -34,9 +34,20 @@ export function seedBlock(subject: string, rings: Pt[][], credit: string): SeedB
     const id = `seed_${k + 1}`;
     ids.push(id);
     let eps = 0.004, pts = r;
+    // Each pass re-simplifies from the ORIGINAL ring `r`, never from `pts`
+    // (the previous pass's result) — re-running RDP on an already-simplified
+    // polyline would compound its error instead of refining it.
     while (pts.length > 40 && eps < 0.2) {
       pts = simplifyPolyline(r, eps);
       eps *= 1.6;
+    }
+    // A ring with fine detail spread evenly across its span (a zigzag, say)
+    // can still exceed 40 points when eps hits its 0.2 ceiling — RDP has
+    // nothing left to collapse. Decimate deterministically to exactly 40 by
+    // even index sampling, keeping the first and last point.
+    if (pts.length > 40) {
+      const n = pts.length;
+      pts = Array.from({ length: 40 }, (_, i) => pts[Math.round((i * (n - 1)) / 39)]);
     }
     return {
       id,
