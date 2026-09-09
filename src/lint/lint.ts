@@ -247,6 +247,10 @@ export function lintLayoutDetailed(
   commands?: Command[],
   /** A pieces id → its piece ids, so `draw: ["kake"]` reveals the slices here as it does in the plan. */
   expandId?: (id: string) => string[] | null | undefined,
+  /** Two element ids that belong to the SAME `fit` group: the author composed
+   *  that figure and the fit scaled it as one, so its own parts touching is
+   *  the drawing, not a collision. Overlap rules only. */
+  sameGroup?: (a: string, b: string) => boolean,
 ): { issues: LintIssue[]; exempt: LintIssue[] } {
   const issues: LintIssue[] = [];
   const exempt: LintIssue[] = [];
@@ -258,6 +262,7 @@ export function lintLayoutDetailed(
   for (const top of drawables) for (const leaf of leafDrawables([top])) owner.set(leaf.id, top.id);
   const together = coVisible(commands, drawables.map((d) => d.id), expandId);
   const coexist = (a: string, b: string) => together(owner.get(a) ?? a, owner.get(b) ?? b);
+  const composed = (a: string, b: string) => !!sameGroup?.(owner.get(a) ?? a, owner.get(b) ?? b);
 
   for (const t of texts) {
     // The C64 face fills its whole em square with an 8 × 8 pixel glyph, so a
@@ -314,6 +319,7 @@ export function lintLayoutDetailed(
     for (let j = i + 1; j < texts.length; j++) {
       if (clippedAway(texts[j], bboxOfText(texts[j], measure))) continue;
       if (!coexist(texts[i].id, texts[j].id)) continue;
+      if (composed(texts[i].id, texts[j].id)) continue;
       // Two rows of a Commodore screen are cells on a grid, one em apart: they
       // touch by construction and never overlap. The 2-unit pad is for labels.
       if (texts[i].font === "c64" && texts[j].font === "c64") continue;
@@ -345,6 +351,7 @@ export function lintLayoutDetailed(
     for (const s of strokes) {
       if (s.id === `${t.id}_leader`) continue;
       if (!coexist(t.id, s.id)) continue;
+      if (composed(t.id, s.id)) continue;
       // A code panel's marker pen (`<id>_mark_k`) lies UNDER that panel's own
       // lines on purpose — that is what a highlighter is. Not an overlap.
       if (/_mark_\d+$/.test(s.id) && t.id.startsWith(`${s.id.replace(/_mark_\d+$/, "")}_line_`)) continue;
@@ -443,8 +450,8 @@ export function lintLayoutDetailed(
   return { issues, exempt };
 }
 
-export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined): LintIssue[] {
-  return lintLayoutDetailed(drawables, measure, commands, expandId).issues;
+export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined, sameGroup?: (a: string, b: string) => boolean): LintIssue[] {
+  return lintLayoutDetailed(drawables, measure, commands, expandId, sameGroup).issues;
 }
 
 const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;

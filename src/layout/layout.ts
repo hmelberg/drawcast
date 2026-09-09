@@ -41,6 +41,9 @@ export interface LayoutResult {
   /** `group` element id → its members, flattened to leaf element ids — one id
    *  the commands can draw, move or highlight as a single thing. */
   groups: Record<string, string[]>;
+  /** Those groups that carry a `fit` (tier2.fitGroups): their members were
+   *  scaled and centred together, which excuses their mutual overlaps. */
+  fitGroups: Record<string, string[]>;
   /** Geometric anchors per tier-2 element id (design §2.1). Empty for a pure template spec. */
   namedAnchors: Record<string, Record<string, Pt>>;
   /** `measure` element specs (design §2.3), keyed by the measure's own element id. Empty when the spec has no measure elements. */
@@ -71,6 +74,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   let pieces: Record<string, PieceGeometry> = {};
   let pieceGroups: Record<string, string[]> = {};
   let groups: Record<string, string[]> = {};
+  let fitGroups: Record<string, string[]> = {};
   let namedAnchors: Record<string, Record<string, Pt>> = {};
   let measures: Record<string, MeasureSpec> = {};
   let seedAnchors: Record<string, Pt> = {};
@@ -117,6 +121,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     pieces = tier2.pieces;
     pieceGroups = tier2.pieceGroups;
     groups = tier2.groups;
+    fitGroups = tier2.fitGroups;
     namedAnchors = tier2.namedAnchors;
     measures = tier2.measures;
     for (const el of spec.elements) {
@@ -175,9 +180,10 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
-  issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id]));
+  const composed = (a: string, b: string) => Object.values(fitGroups).some((ls) => ls.includes(a) && ls.includes(b));
+  issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, namedAnchors, measures };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {

@@ -37,6 +37,44 @@ function deps(el: SpecElement): string[] {
   return out;
 }
 
+/**
+ * Every id a group reaches: its members, its nested groups AND their members.
+ * Used for the fit boundary — a member may be placed against a sibling, or
+ * against a nested group of its own group, but not against the outside world.
+ */
+function groupClosure(id: string, byId: Map<string, SpecElement>, seen = new Set<string>()): Set<string> {
+  const out = new Set<string>();
+  if (seen.has(id)) return out;
+  seen.add(id);
+  for (const m of byId.get(id)?.members ?? []) {
+    out.add(m);
+    if (byId.get(m)?.type === "group") for (const n of groupClosure(m, byId, seen)) out.add(n);
+  }
+  return out;
+}
+
+/**
+ * A `fit` group scales and moves its members as one, so a member placed
+ * against something OUTSIDE the group is placed against geometry the fit
+ * then walks away from — the relation the spec asked for silently breaks.
+ * Refuse it rather than draw it wrong.
+ */
+function fitBoundaryIssues(elements: SpecElement[], byId: Map<string, SpecElement>): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const reported = new Set<string>();
+  for (const g of elements) {
+    if (g.type !== "group" || !g.fit) continue;
+    const inside = groupClosure(g.id, byId);
+    for (const id of inside) {
+      const ref = relAt(byId.get(id) ?? ({} as SpecElement))?.ref;
+      if (!ref || ref === g.id || inside.has(ref) || reported.has(id)) continue;
+      reported.add(id);
+      issues.push({ rule: "placement", ids: [id], severity: "error", message: `element "${id}": at.ref "${ref}" is outside its fit group "${g.id}"` });
+    }
+  }
+  return issues;
+}
+
 /** Topological order over at.ref / attach_to / members. Unknown refs and
  *  cycles are `placement` errors; the offending elements keep their spec
  *  position so layout still emits something. Template-exported ids (not
@@ -60,6 +98,7 @@ export function placementOrder(elements: SpecElement[], known: Set<string> = new
     order.push(el);
   };
   for (const el of elements) visit(el);
+  issues.push(...fitBoundaryIssues(elements, byId));
   return { order, issues };
 }
 
@@ -122,6 +161,38 @@ export function shiftDrawables(ds: Drawable[], dx: number, dy: number): void {
       d.shapeHint = d.shapeHint.type === "circle"
         ? { ...d.shapeHint, c: [d.shapeHint.c[0] + dx, d.shapeHint.c[1] + dy] }
         : { ...d.shapeHint, x: d.shapeHint.x + dx, y: d.shapeHint.y + dy };
+    }
+  }
+}
+
+/**
+ * The uniform scale-and-centre that puts `union` inside `target`: `p' = p*s +
+ * [dx, dy]`. Uniform because a figure squeezed on one axis is a different
+ * figure — the fit gives the drawing the largest size that fits, centred, and
+ * leaves the slack as margin.
+ */
+export function fitTransform(union: BBox, target: BBox): { s: number; dx: number; dy: number } {
+  const s = Math.min(target.w / union.w, target.h / union.h);
+  const cx = target.x + target.w / 2, cy = target.y + target.h / 2;
+  const ux = union.x + union.w / 2, uy = union.y + union.h / 2;
+  return { s, dx: cx - ux * s, dy: cy - uy * s };
+}
+
+/** Scale drawables in place about the origin, then translate (fitTransform). */
+export function scaleDrawables(ds: Drawable[], s: number, dx: number, dy: number): void {
+  const m = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
+  for (const d of ds) {
+    // The window a code pane scrolls under travels with the pane.
+    if (d.clip) d.clip = { x: d.clip.x * s + dx, y: d.clip.y * s + dy, w: d.clip.w * s, h: d.clip.h * s };
+    if (d.kind === "group") { scaleDrawables(d.children, s, dx, dy); continue; }
+    if (d.kind === "text") { d.pos = m(d.pos); d.fontSize *= s; continue; }
+    if (d.kind === "image") { d.pos = m(d.pos); d.w *= s; d.h *= s; continue; }
+    d.pts = d.pts.map(m);
+    if (d.kind === "area" && d.holes) d.holes = d.holes.map((h) => h.map(m));
+    if (d.kind === "stroke" && d.shapeHint) {
+      d.shapeHint = d.shapeHint.type === "circle"
+        ? { ...d.shapeHint, c: m(d.shapeHint.c), r: d.shapeHint.r * s }
+        : { ...d.shapeHint, x: d.shapeHint.x * s + dx, y: d.shapeHint.y * s + dy, w: d.shapeHint.w * s, h: d.shapeHint.h * s };
     }
   }
 }

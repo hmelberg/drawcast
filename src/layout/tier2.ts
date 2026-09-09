@@ -10,7 +10,8 @@ import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId } from "./boxes";
-import { ownBBox, placementOrder, refBBox, relAt, relativeDelta, shiftDrawables, shiftPoints } from "./place";
+import { fitTransform, ownBBox, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
+import { fitRegion, isFitName } from "./regions";
 import {
   COLORS,
   LINE_HEIGHT,
@@ -82,6 +83,9 @@ export interface Tier2Result {
   pieceGroups: Record<string, string[]>;
   /** `group` element id → its members, flattened to leaf element ids (a nested group contributes its own leaves). */
   groups: Record<string, string[]>;
+  /** The subset of `groups` that carry a `fit`: their members were scaled and
+   *  centred as one, so two of them touching is composition, not a defect. */
+  fitGroups: Record<string, string[]>;
   /** `measure` element specs (design §2.3), keyed by the measure's own element id. */
   measures: Record<string, M.MeasureSpec>;
   /** Structural placement defects (unknown `at.ref`, dependency cycles). */
@@ -109,6 +113,8 @@ interface Ctx {
   pieceGroups: Record<string, string[]>;
   /** `group` element id → its flattened leaf member ids. */
   groups: Record<string, string[]>;
+  /** Those of them with a `fit` (see Tier2Result.fitGroups). */
+  fitGroups: Record<string, string[]>;
   /** Each group's union box, as it stood when the group was emitted. */
   groupBoxes: Record<string, BBox>;
   measures: Record<string, M.MeasureSpec>;
@@ -150,6 +156,7 @@ export function layoutElements(
     pieces: {},
     pieceGroups: {},
     groups: {},
+    fitGroups: {},
     groupBoxes: {},
     measures: {},
     atFallback: {},
@@ -359,7 +366,13 @@ export function layoutElements(
           });
         }
         ctx.groups[el.id] = leaves;
-        const box = boxOfId([...(opts.seedDrawables ?? []), ...drawables], el.id, measure, ctx.groups, ctx.pieceGroups);
+        const all = [...(opts.seedDrawables ?? []), ...drawables];
+        let box = boxOfId(all, el.id, measure, ctx.groups, ctx.pieceGroups);
+        // --- fit (spec §3.2): scale and centre the whole thing into a region.
+        if (el.fit && box && box.w > 0 && box.h > 0) {
+          box = fitGroup(el, leaves, box, all, ctx, measure, issues);
+        }
+        // --- end fit
         if (box) {
           ctx.groupBoxes[el.id] = box;
           ctx.anchors[el.id] = [box.x + box.w / 2, box.y + box.h / 2];
@@ -429,9 +442,92 @@ export function layoutElements(
     pieces: ctx.pieces,
     pieceGroups: ctx.pieceGroups,
     groups: ctx.groups,
+    fitGroups: ctx.fitGroups,
     measures: ctx.measures,
     issues,
   };
+}
+
+/** Below this, the fitted figure's own words stop being readable. The lint's
+ *  own floor (14) is the hard one; this is the group telling the author that
+ *  the region it was handed is too small for what is in it. */
+const FIT_FONT_FLOOR = 18;
+
+/**
+ * `group.fit` (spec §3.2): scale the members UNIFORMLY and centre them in the
+ * named region (or the given box), so a figure drawn at whatever size it came
+ * out lands where the author wants it at the size that fits. Everything the
+ * members own moves with the ink — their anchors, their pieces' geometry, a
+ * nested group's box, a measure's remembered endpoints — and the group's own
+ * box is recomputed from the scaled ink. Returns that new box.
+ */
+function fitGroup(
+  el: SpecElement,
+  leaves: string[],
+  box: BBox,
+  all: Drawable[],
+  ctx: Ctx,
+  measure: MeasureFn,
+  issues: LintIssue[],
+): BBox | null {
+  const target = isFitName(el.fit) ? fitRegion(el.fit) : (el.fit as BBox);
+  if (!target || !(target.w > 0) || !(target.h > 0)) {
+    issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `group "${el.id}": fit needs a region name or a box with a positive width and height` });
+    return box;
+  }
+  const { s, dx, dy } = fitTransform(box, target);
+  const map = (p: Pt): Pt => [p[0] * s + dx, p[1] * s + dy];
+  const scaleBox = (b: BBox): BBox => ({ x: b.x * s + dx, y: b.y * s + dy, w: b.w * s, h: b.h * s });
+  // Every id the group's ink hides under: a leaf, that leaf's sub-drawables
+  // and minted children (`<leaf>_…`), and the number a line-less measure
+  // keeps under a name of its own (pieceGroups).
+  const owned = [...new Set(leaves.flatMap((m) => [m, ...(ctx.pieceGroups[m] ?? [])]))];
+  const belongs = (id: string) => owned.some((m) => id === m || id.startsWith(`${m}_`));
+  // A group whose every leaf is one of ours moved with us, whether it is a
+  // member of this group or a member of a member.
+  const leafSet = new Set(leaves);
+  const nested = new Set(Object.keys(ctx.groups).filter((g) => g !== el.id && ctx.groups[g].length > 0 && ctx.groups[g].every((m) => leafSet.has(m))));
+  const touched = (id: string) => belongs(id) || nested.has(id);
+
+  scaleDrawables(all.filter((d) => belongs(d.id)), s, dx, dy);
+  for (const id of Object.keys(ctx.anchors)) if (touched(id)) ctx.anchors[id] = map(ctx.anchors[id]);
+  for (const id of Object.keys(ctx.namedAnchors)) {
+    if (!touched(id)) continue;
+    const na = ctx.namedAnchors[id];
+    for (const k of Object.keys(na)) na[k] = map(na[k]);
+  }
+  for (const id of nested) if (ctx.groupBoxes[id]) ctx.groupBoxes[id] = scaleBox(ctx.groupBoxes[id]);
+  for (const [k, pg] of Object.entries(ctx.pieces)) {
+    if (!belongs(k)) continue;
+    pg.apex = map(pg.apex);
+    pg.centroid = map(pg.centroid);
+    pg.radius *= s;
+    if (pg.ring) pg.ring = { rIn: pg.ring.rIn * s, rOut: pg.ring.rOut * s };
+    if (pg.height !== undefined) pg.height *= s;
+  }
+  // A measure remembers the points it spanned; the fit moves them like ink.
+  // The NUMBER it prints is deliberately left alone — it is the figure's own
+  // measurement, and a scale drawing keeps its dimensions.
+  for (const [id, ms] of Object.entries(ctx.measures)) {
+    if (!belongs(id)) continue;
+    for (const end of ["from", "to"] as const) {
+      const p = ms[end];
+      if (p && "pt" in p) ms[end] = { pt: map(p.pt) };
+    }
+    if (ms.circle) ms.circle = { c: map(ms.circle.c), r: ms.circle.r * s };
+  }
+
+  for (const d of leafDrawables(all.filter((x) => belongs(x.id)))) {
+    if (d.kind !== "text" || d.fontSize >= FIT_FONT_FLOOR) continue;
+    issues.push({
+      rule: "font-too-small",
+      ids: [el.id],
+      severity: "warn",
+      message: `fit box too small for the text in group "${el.id}" (${d.id} at ${Math.round(d.fontSize)})`,
+    });
+  }
+  ctx.fitGroups[el.id] = leaves;
+  return boxOfId(all, el.id, measure, ctx.groups, ctx.pieceGroups);
 }
 
 /**
