@@ -16,15 +16,18 @@ export async function snapshotPng(spec: Spec): Promise<string | null> {
   document.body.appendChild(host);
   try {
     const hd = await render(spec, host, { mode: "silent" });
-    hd.timeline.renderUpTo(hd.plan.steps.length);
-    const svg = host.querySelector<SVGSVGElement>("svg.cs-svg");
-    if (!svg) return null;
-    const canvas = document.createElement("canvas");
-    canvas.width = 1280;
-    canvas.height = 720;
-    await paintFrame(canvas.getContext("2d")!, new XMLSerializer().serializeToString(svg), await sketchFontStyle(), "", spec.title ?? "");
-    hd.destroy();
-    return canvas.toDataURL("image/png");
+    try {
+      hd.timeline.renderUpTo(hd.plan.steps.length);
+      const svg = host.querySelector<SVGSVGElement>("svg.cs-svg");
+      if (!svg) return null;
+      const canvas = document.createElement("canvas");
+      canvas.width = 1280;
+      canvas.height = 720;
+      await paintFrame(canvas.getContext("2d")!, new XMLSerializer().serializeToString(svg), await sketchFontStyle(), "", spec.title ?? "");
+      return canvas.toDataURL("image/png");
+    } finally {
+      hd.destroy();
+    }
   } finally {
     host.remove();
   }
