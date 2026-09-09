@@ -39,6 +39,8 @@ describe("embeddedPlaylist — resolves on a copy, never the document (B2, P §3
         return [];
       },
       resolveSources: async () => [],
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
     });
     expect(itemsOf(out)[0].spec).not.toBe(original);
     expect(strokesOf(itemsOf(out)[0].spec)).toBeDefined();
@@ -59,6 +61,8 @@ describe("embeddedPlaylist — resolves on a copy, never the document (B2, P §3
         for (const el of spec.elements ?? []) if (el.type === "source") (el as { strokes?: string }).strokes = "img1:aa:data:,x";
         return [];
       },
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
     });
     expect(JSON.stringify(doc)).toBe(before);
     expect(out).not.toBe(doc);
@@ -73,10 +77,37 @@ describe("embeddedPlaylist — resolves on a copy, never the document (B2, P §3
       contactEmail: "x@y.z",
       resolvePortraits: async () => [],
       resolveSources: async () => [],
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
     });
     expect(out.meta.title).toBe("Two parts");
     expect(out.meta.prompt).toBe("draw two parts");
     expect(itemsOf(out)).toHaveLength(2);
+  });
+
+  it("bakes Commons photos and Iconify glyphs too — a published cast never re-fetches them (A2, spec §3.5/§3.6)", async () => {
+    const doc = parsePlaylistText(["elements:", "  - {id: photo, type: image, of: Honeycomb}", "  - {id: bee, type: icon, of: bee}", "commands: []"].join("\n"));
+    const seen: string[] = [];
+    const out = await embeddedPlaylist(doc, {
+      contactEmail: "x@y.z",
+      resolvePortraits: async () => [],
+      resolveSources: async () => [],
+      resolveImages: async (spec) => {
+        seen.push("images");
+        for (const el of spec.elements ?? []) if (el.type === "image") (el as { strokes?: string }).strokes = "img1:aa:data:,x";
+        return [];
+      },
+      resolveIcons: async (spec) => {
+        seen.push("icons");
+        for (const el of spec.elements ?? []) if (el.type === "icon") (el as { strokes?: string }).strokes = "ico1:aa";
+        return [];
+      },
+    });
+    expect(seen.sort()).toEqual(["icons", "images"]);
+    expect(strokesOf(itemsOf(out)[0].spec, 0)).toBe("img1:aa:data:,x");
+    expect(strokesOf(itemsOf(out)[0].spec, 1)).toBe("ico1:aa");
+    // Still the copy, never the document.
+    expect(strokesOf(itemsOf(doc)[0].spec, 0)).toBeUndefined();
   });
 
   it("passes the contact email through to resolveSources", async () => {
@@ -88,6 +119,8 @@ describe("embeddedPlaylist — resolves on a copy, never the document (B2, P §3
         seen.push(opts.contactEmail);
         return [];
       },
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
     });
     expect(seen).toEqual(["hans@example.com"]);
   });
@@ -193,7 +226,7 @@ describe("publishing embeds into the copy, never the document (P §3.4)", () => 
     const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
     expect(src).toMatch(/async function publish\(\{ bake, embedImages, allowComments, countViews, allowSignup \}/);
     expect(src).toContain("async function embedLectures");
-    expect(src).toContain("embeddedPlaylist(playlist, { resolvePortraits, resolveSources, contactEmail })");
+    expect(src).toContain("embeddedPlaylist(playlist, { resolvePortraits, resolveSources, resolveImages, resolveIcons, contactEmail })");
     // Nothing to embed → the lecture's yaml is left byte-identical rather
     // than reflowed through parse+format.
     expect(src).toMatch(/const before = unembeddedImages\(playlist\);\s*\n\s*if \(before === 0\) continue;/);

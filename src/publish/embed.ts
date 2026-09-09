@@ -27,6 +27,16 @@ export interface EmbedDeps {
   resolvePortraits: (spec: Spec) => Promise<unknown>;
   /** `render/source.ts`'s resolveSources — mutates the spec it is given. */
   resolveSources: (spec: Spec, opts: { contactEmail: string }) => Promise<unknown>;
+  /**
+   * `render/image.ts`'s resolveImages — mutates the spec it is given. A
+   * published cast that still carries a bare `of:` re-fetches Wikimedia
+   * Commons in every viewer's browser; spec §3.5 says the photo is baked at
+   * publish time, like a portrait, so the page keeps working when Commons
+   * does not.
+   */
+  resolveImages: (spec: Spec) => Promise<unknown>;
+  /** `render/icon.ts`'s resolveIcons — same, for Iconify glyphs (spec §3.6). */
+  resolveIcons: (spec: Spec) => Promise<unknown>;
   /** Unpaywall wants a contact address; read fresh from Settings at publish time. */
   contactEmail: string;
 }
@@ -45,7 +55,12 @@ export interface EmbedDeps {
 export async function embeddedPlaylist(playlist: Playlist, deps: EmbedDeps): Promise<Playlist> {
   const specs = itemsOf(playlist).map((i) => structuredClone(i.spec));
   await Promise.all(
-    specs.flatMap((s) => [deps.resolvePortraits(s), deps.resolveSources(s, { contactEmail: deps.contactEmail })]),
+    specs.flatMap((s) => [
+      deps.resolvePortraits(s),
+      deps.resolveSources(s, { contactEmail: deps.contactEmail }),
+      deps.resolveImages(s),
+      deps.resolveIcons(s),
+    ]),
   );
   return playlistWithSpecs(playlist, specs);
 }

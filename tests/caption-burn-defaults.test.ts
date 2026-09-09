@@ -52,13 +52,16 @@ describe("the upload never burns in (spec §2 ruling 4)", () => {
     expect(store.length).toBeGreaterThan(1000);
     expect(store).not.toContain("burnCaptionsOnUpload");
     expect(share).not.toContain("burnCaptionsOnUpload");
-    // The upload renders with burn-in off, unconditionally.
-    expect(share).toContain("deps.renderVideo(exportSequence(playlist), false, of)");
+    // The upload renders with burn-in off, unconditionally. `seq` is the
+    // sequence resolved once for both the recording and the credits (A3).
+    expect(share).toContain("const seq = exportSequence(await embeddedPlaylist(playlist, deps.embedDeps()));");
+    expect(share).toContain("deps.renderVideo(seq, false, of)");
   });
 
   test("the download's own checkbox and setting survive", async () => {
     const share = await readFile(new URL("../src/ui/share.ts", import.meta.url), "utf8");
     expect(share).toContain("deps.settings.burnCaptions = videoBurnCb.checked;");
-    expect(share).toContain("deps.renderVideo(exportSequence(doc.playlist), videoBurnCb.checked)");
+    expect(share).toContain("const seq = exportSequence(await embeddedPlaylist(doc.playlist, deps.embedDeps()));");
+    expect(share).toContain("deps.renderVideo(seq, videoBurnCb.checked)");
   });
 });

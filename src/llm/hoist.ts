@@ -1,7 +1,8 @@
-// Encoded pixels never visit the model. A pinned/file-mode portrait — or a
-// resolved source element, whose page image is larger still — can carry
-// kilobytes of opaque data in its `strokes` field; sending that through revise
-// rounds or exemplar prompts burns tokens and risks the model corrupting it on
+// Encoded pixels never visit the model. A pinned/file-mode portrait, a
+// resolved source element (whose page image is larger still), a Commons
+// photo (`image`) or an Iconify glyph (`icon`) can carry kilobytes of opaque
+// data in its `strokes` field; sending that through revise rounds or
+// exemplar prompts burns tokens and risks the model corrupting it on
 // re-emission. So specs are HOISTED before a model call — strokes swapped for
 // a small sentinel — and restored afterwards by element id. A restored id that
 // went missing simply loses its strokes (the layout falls back to the
@@ -15,7 +16,10 @@ export const HOISTED = "@pinned";
 
 /** The field per element type that holds encoded machine output, if any. */
 function blobField(el: SpecElement): "strokes" | "code_result" | null {
-  if (el.type === "portrait" || el.type === "source") return "strokes";
+  // image/icon belong here for the same reason portrait/source do: a resolved
+  // Commons photo is 10-34 KB of base64 in three bundled examples alone, and
+  // it rode into every revise round and exemplar prompt until this list grew.
+  if (el.type === "portrait" || el.type === "source" || el.type === "image" || el.type === "icon") return "strokes";
   if (el.type === "code") return "code_result";
   return null;
 }
@@ -57,7 +61,7 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
   }
 }
 
-/** Exemplar hygiene: a spec copy with portrait/source strokes omitted entirely. */
+/** Exemplar hygiene: a spec copy with every encoded blob omitted entirely. */
 export function stripStrokesForModel(spec: Spec): Spec {
   if (!spec.elements?.some((e) => { const f = blobField(e); return f && e[f]; })) return spec;
   return {

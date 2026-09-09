@@ -46,6 +46,8 @@ import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
 import { resolvePortraits } from "../render/portrait";
 import { resolveSources } from "../render/source";
+import { resolveImages } from "../render/image";
+import { resolveIcons } from "../render/icon";
 import { unembeddedImages } from "./insert";
 import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
@@ -861,7 +863,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       const before = unembeddedImages(playlist);
       if (before === 0) continue;
       working(`Embedding images for lecture ${n + 1} of ${numbered.length}…`);
-      const done = await embeddedPlaylist(playlist, { resolvePortraits, resolveSources, contactEmail });
+      const done = await embeddedPlaylist(playlist, { resolvePortraits, resolveSources, resolveImages, resolveIcons, contactEmail });
       embeddedTotal += before - unembeddedImages(done);
       out.set(index, formatPlaylist(done, "yaml"));
     }
@@ -1141,6 +1143,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
         };
       },
       settings: deps.settings,
+      // A course never shows the video panels (shareDestinations offers Link
+      // alone for subject "course"), but the field is required rather than
+      // optional, so this is the real thing rather than a throwing stub.
+      embedDeps: () => ({ resolvePortraits, resolveSources, resolveImages, resolveIcons, contactEmail: deps.settings.contactEmail }),
       persist: deps.persist,
       setStatus: shareStatus,
       setStatusAction: deps.setStatusAction,

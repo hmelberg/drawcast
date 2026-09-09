@@ -29,6 +29,7 @@ import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type S
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken, signInUrl } from "../account";
 import { checkName, checkNote } from "../names";
+import { embeddedPlaylist, type EmbedDeps } from "../publish/embed";
 import { parseRepo, slugify } from "../publish/github";
 import type { ServerAccess } from "../publish/server";
 import { h } from "./dom";
@@ -140,6 +141,22 @@ export interface ShareDeps {
    * publishing, false removes the line; undefined for `subject: "drawcast"`.
    */
   publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }) => Promise<void>;
+  /**
+   * The four resolvers (portrait, source, image, icon) a bake runs, read
+   * fresh from Settings for the contact address — main.ts's `embedDeps()`.
+   *
+   * Share needs them for the VIDEO paths, not just publish: `creditsOf`
+   * reads what the resolvers stamped, so collecting credits from the
+   * document as the author wrote it yields an empty `<name>.credits.txt`
+   * for every freshly generated figure (A3). Both export paths resolve the
+   * playlist ONCE — on a clone, per publish/embed.ts — and hand the same
+   * sequence to `renderVideo` and to `creditsOf`.
+   *
+   * Required, not optional: a course never shows the video panels, so
+   * course.ts's caller passes its own — but one someone had to write,
+   * rather than a field a future caller can silently forget.
+   */
+  embedDeps: () => EmbedDeps;
   /**
    * Publish this document to the author's own Google Drive — the SAME
    * prepared copy `publish` sends to GitHub, written as a plain `.yaml` file
@@ -790,12 +807,16 @@ function build(): ShareSession {
       deps.beginExport("Preparing…");
       try {
         const doc = deps.doc();
-        const out = await deps.renderVideo(exportSequence(doc.playlist), videoBurnCb.checked);
+        // Resolved ONCE, on a clone: the recording and the credits file must
+        // describe the same drawing, and `creditsOf` reads only what the
+        // resolvers stamped — so an unresolved document credits nobody (A3).
+        const seq = exportSequence(await embeddedPlaylist(doc.playlist, deps.embedDeps()));
+        const out = await deps.renderVideo(seq, videoBurnCb.checked);
         if (!out) return;
         const base = fileSafe(doc.title);
         downloadBlob(`${base}.webm`, out.blob);
         downloadBlob(`${base}.vtt`, new Blob([toVtt(out.cues)], { type: "text/vtt" }));
-        const credits = creditsOf(exportSequence(doc.playlist));
+        const credits = creditsOf(seq);
         if (credits.length > 0) downloadBlob(`${base}.credits.txt`, new Blob([credits.join("\n") + "\n"], { type: "text/plain" }));
         deps.setStatus(`Done — "${base}.webm" and its subtitle file "${base}.vtt" were downloaded.`, "ok");
       } finally {
@@ -1163,7 +1184,9 @@ function build(): ShareSession {
         // Never burnt in (ruling 4): YouTube carries the subtitle track and
         // paints its own captions over the picture, so a burnt-in upload says
         // every sentence twice.
-        const out = await deps.renderVideo(exportSequence(playlist), false, of);
+        // Resolved once, and the same sequence feeds the credits file below.
+        const seq = exportSequence(await embeddedPlaylist(playlist, deps.embedDeps()));
+        const out = await deps.renderVideo(seq, false, of);
         // Null means the key is missing, the render failed, or the user
         // pressed cancel — all three already said so, and all three end the
         // queue: the rest would fail the same way or was not wanted.
@@ -1190,7 +1213,7 @@ function build(): ShareSession {
           // for them.
           const vtt = toVtt(out.cues);
           downloadBlob(`${base}.vtt`, new Blob([vtt], { type: "text/vtt" }));
-          const credits = creditsOf(exportSequence(playlist));
+          const credits = creditsOf(seq);
           if (credits.length > 0) downloadBlob(`${base}.credits.txt`, new Blob([credits.join("\n") + "\n"], { type: "text/plain" }));
           if (!res) done.push({ code, label, error: "sign-in expired" });
           else done.push({ code, label, videoId: res.videoId, vtt });

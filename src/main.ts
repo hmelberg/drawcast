@@ -83,9 +83,10 @@ import { isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName }
 import { DEFAULT_ENROLL_API } from "./learn";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
-import { embeddedPlaylist } from "./publish/embed";
+import { embeddedPlaylist, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
+import { resolveImages } from "./render/image";
 import { decodeIcon } from "./spec/trace";
 import { seedBlock, type SeedBlock } from "./llm/seed";
 import { resolveSources } from "./render/source";
@@ -4318,6 +4319,16 @@ importInput.addEventListener("change", () => {
  * deleted file, a network failure — is null, and null just means paying for
  * every line again, never a failed publish.
  */
+/**
+ * The four resolvers a publish (and a video export, through Share) bakes with,
+ * plus the contact address read FRESH from Settings — Commons photos and
+ * Iconify glyphs among them, or the published page would re-fetch them in
+ * every viewer's browser (spec §3.5, §3.6).
+ */
+function embedDeps(): EmbedDeps {
+  return { resolvePortraits, resolveSources, resolveImages, resolveIcons, contactEmail: settings.contactEmail };
+}
+
 async function publishTextFor(
   signal: AbortSignal,
   bake: boolean,
@@ -4337,7 +4348,7 @@ async function publishTextFor(
   let source = doc.playlist;
   if (embedImages && before > 0 && editorPlaylist) {
     setStatus("Embedding images…");
-    source = await embeddedPlaylist(editorPlaylist, { resolvePortraits, resolveSources, contactEmail: settings.contactEmail });
+    source = await embeddedPlaylist(editorPlaylist, embedDeps());
     const embedded = before - unembeddedImages(source);
     lastEmbedNote = embedded > 0 ? ` — ${embedded} image(s) embedded` : "";
   }
@@ -5026,6 +5037,7 @@ shareBtn.addEventListener("click", () => {
     refreshLibrary,
     refreshAccountRow,
     openSettings,
+    embedDeps,
     publish: (choices) => publishDrawcast(choices),
     publishDrive: (choices) => publishDriveCast(choices),
     publishServer: (choices) => publishServerCast(choices),

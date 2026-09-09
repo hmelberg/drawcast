@@ -43,3 +43,55 @@ describe("resolveImages", () => {
     expect(creditFromInfo(info(null))).toBeNull();
   });
 });
+
+// ---- A4: encoded pixels never visit the model -------------------------------
+//
+// `image` and `icon` resolve into the same `strokes` field a portrait uses,
+// and three bundled examples carry 10–34 KB of base64 there. Until hoist.ts's
+// blobField grew the two types, every revise round and every exemplar prompt
+// paid for them — and risked the model re-emitting a corrupted photo.
+
+describe("image/icon blobs are hoisted out of every model round-trip (A4)", () => {
+  const PHOTO = "img1:0402:data:image/jpeg;base64,AAAABBBBCCCC";
+  const GLYPH = "ico1:0402:data:image/svg+xml;base64,DDDDEEEE";
+
+  test("hoisting swaps both for the sentinel and restores them by id", async () => {
+    const { hoistPortraitStrokes, restorePortraitStrokes, HOISTED } = await import("../src/llm/hoist");
+    const { parsePlaylistText, itemsOf } = await import("../src/playlist/playlist");
+    const docText = JSON.stringify({
+      elements: [
+        { id: "photo", type: "image", of: "Honeycomb", strokes: PHOTO },
+        { id: "bee", type: "icon", of: "bee", strokes: GLYPH },
+      ],
+      commands: [],
+    });
+    const { text, blobs } = hoistPortraitStrokes(docText);
+    expect(blobs.get("photo")).toBe(PHOTO);
+    expect(blobs.get("bee")).toBe(GLYPH);
+    expect(text).toContain(HOISTED);
+    expect(text).not.toContain("data:image");
+    const revised = parsePlaylistText(text);
+    restorePortraitStrokes(revised, blobs);
+    expect(itemsOf(revised)[0].spec.elements![0].strokes).toBe(PHOTO);
+    expect(itemsOf(revised)[0].spec.elements![1].strokes).toBe(GLYPH);
+  });
+
+  test("stripStrokesForModel drops them — the bundled beehive exemplar carries no base64", async () => {
+    const { stripStrokesForModel } = await import("../src/llm/hoist");
+    const { formatExemplars } = await import("../src/llm/prompt");
+    const examples = (await import("../src/examples.json")).default as { request: string; spec?: unknown }[];
+    const stripped = stripStrokesForModel({
+      elements: [
+        { id: "photo", type: "image", of: "Honeycomb", strokes: PHOTO },
+        { id: "bee", type: "icon", of: "bee", strokes: GLYPH },
+      ],
+      commands: [],
+    } as never);
+    expect(stripped.elements![0].strokes).toBeUndefined();
+    expect(stripped.elements![1].strokes).toBeUndefined();
+    expect(stripped.elements![0].of).toBe("Honeycomb");
+    const beehive = examples.find((e) => e.request.startsWith("Hvorfor har en bikube"))!;
+    expect(JSON.stringify(beehive.spec)).toContain("data:image"); // the example really does carry one
+    expect(formatExemplars([{ prompt: beehive.request, spec: beehive.spec as never }])).not.toContain("data:image");
+  });
+});
