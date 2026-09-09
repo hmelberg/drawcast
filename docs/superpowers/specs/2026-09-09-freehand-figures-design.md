@@ -71,9 +71,16 @@ Chosen: C.
 
 ### 3.1 Relative placement: `at`
 
+Amendment 2026-09-09 (found while planning): `at` already exists on
+`point` (`{x, y, intersection_of}`). It is not renamed; `at` becomes the
+one field for "where": absolute (`x, y`), intersection, or relative
+(`ref` + `side`/`anchor`). Also: the credits list on export is a separate
+`<name>.credits.txt` next to the `.vtt`, since the VTT is a timed cue file
+and credits have no clock.
+
 Every coordinate-placed element — `text`, `shape`, `path`, `polygon`,
-`sector`, `arc`, `pieces`, `portrait`, `image`, `math` — accepts `at` in
-place of `x`/`y`:
+`sector`, `arc`, `pieces`, `portrait`, `image`, `math`, `icon` — accepts
+`at` in place of `x`/`y`:
 
 ```yaml
 at: {ref: pump_body, side: above, gap: 12}
