@@ -41,6 +41,12 @@ Freehand comes first: the automatic template-on-demand path no longer
 fires on a single freehand figure with named parts; a template is an
 upgrade the user asks for.
 
+Hans's question of 2026-09-09 on SOURCES: when the model draws freehand,
+what tells it how a thing looks? Today only its own training, the spec
+vocabulary, the exemplars and numeric lint — it never sees a reference
+and never sees its own drawing. The sources considered and the rulings
+are in section 3.6 and section 5.6.
+
 ## 2. Approaches considered
 
 - **A. Relative placement + group on the current spec.** Every
@@ -159,6 +165,58 @@ notation.
 - No `url`, no icon set. A miss draws nothing and lints a warning
   ("no image found for …") so a repair round can try another title.
 
+### 3.6 `icon`, and an icon as a seed
+
+Sources for how a thing looks, assessed 2026-09-09:
+
+| Source | Ruling |
+|---|---|
+| Keyword icons (Iconify API: Lucide, Tabler, Material, OpenMoji) | **In**: the `icon` element and the seed mode below |
+| A parts list before drawing | **In**: a rule in the composition guide (section 6.1) |
+| A rendered picture of the model's own drawing | **In** as a cuttable step: the visual repair round (section 5.6) |
+| A Commons photo shown to the model before drawing | Deferred to the next round, pending the eval |
+| Commons SVG diagrams flattened to strokes | Deferred; needs a spike (path counts, embedded text, no part ids) |
+| Wikipedia text for part names (Norwegian) | Candidate for later |
+| The user's own image | Stays with template authoring, where it exists |
+| Unicode glyphs, Quick Draw sketches | Rejected (font glyphs are not strokes; low quality) |
+
+**Icon as a stamp.**
+
+```yaml
+- id: factory
+  type: icon
+  of: "factory"          # keyword; the resolver picks the best match
+  set: lucide            # optional; default the licence-safe sets
+  size: 120
+  at: {ref: river, side: above, gap: 10}
+```
+
+- Resolved in the ensure phase through the Iconify search and SVG
+  endpoints (CORS-open), restricted to sets with MIT, Apache or CC BY
+  licences; the SVG is flattened to polylines with the existing SVG path
+  flattening (`svgpath.ts`) and drawn in the figure's style. `credit`
+  records set and licence; sets that require attribution are credited
+  in the subtitle file on export, not on the canvas.
+- An icon is one element with a box and the nine anchors: a member of a
+  group, a `ref` for `at`, a target for every verb. A miss lints a
+  warning ("no icon for …") so repair can try another keyword.
+- Cached like portraits (IndexedDB), and the strokes are encoded into
+  the element on publish so the viewer never calls Iconify.
+
+**Icon as a seed** — the model edits the icon's strokes instead of
+placing it whole. When the request asks to explain the PARTS of a thing
+(the composition guide names the cases), the generation pipeline
+resolves an icon for the subject before the main call, simplifies each
+path to 10–40 points, and hands the result to the model as ready `path`
+elements in a group (a "seed" block in the user turn). The model keeps,
+changes, removes or extends those paths and names the parts. Editing
+given coordinates is far easier for the model than inventing them, which
+is exactly the weakness this round relieves. The seed is advisory: the
+model may discard it. Cost: one lookup before generation and a few
+hundred tokens per icon. The subject keyword comes from the router call
+(it already reads the request); when the router yields no subject, no
+seed is fetched.
+
 ## 4. Layout and lint (deterministic code)
 
 1. **Resolution order.** Layout builds a dependency graph from `at.ref`
@@ -210,6 +268,15 @@ notation.
    step (which already produces a template id per freehand part) yields
    the same id for two or more parts; otherwise freehand.
 
+6. **Visual repair round (cuttable).** After the mechanical repairs, when
+   the figure is freehand and contains a group, the pipeline renders the
+   laid-out figure's last frame to a PNG with the export frame painter
+   and sends it to the model with the remaining lint warnings: "this is
+   your drawing; fix what is wrong". Adopted only if the result stays
+   valid and lints no worse, like the pedagogy pass. One extra call per
+   qualifying figure. Off by default until the eval (section 7.4) has
+   measured it with and without.
+
 ## 6. Prompt, exemplars and cost
 
 1. **Composition guide.** The tier-2/tier-3 bullets in the compiler
@@ -218,7 +285,11 @@ notation.
    absolutely and the rest with `at`; give the thing its place with
    `fit`; smooth closed `path` for organic shapes, `polygon`/`shape` for
    mechanical ones; `math` for formulas beside curves; at most one
-   `image` per figure, as illustration, never instead of the drawing.
+   `image` per figure, as illustration, never instead of the drawing;
+   an `icon` as a stamp when the figure only needs to SHOW what a thing
+   is, the icon seed when it must EXPLAIN the thing's parts. Before
+   writing elements, list the parts and how they sit relative to each
+   other (above, inside, left of), then write the spec from that list.
    Named anti-patterns: computing coordinates per element, text without
    `attach_to`, more than one image, formulas typed as `text`.
 2. **Exemplars.** Three new few-shots, one per target: a schematic thing
@@ -248,7 +319,10 @@ notation.
    font sizes; Catmull-Rom passes through every point and closes; math
    strokes from a known TeX string have a box and a stroke count; image
    resolution against a stubbed API with a hit, a miss and a missing
-   licence; planner expansion of a group for every verb; the
+   licence; icon resolution with a stubbed Iconify (hit, miss, disallowed
+   licence) and flattening of a known SVG to a bounded point count; the
+   seed block's format and its absence when the router gives no subject;
+   planner expansion of a group for every verb; the
    `placement` and `group-empty` lint rules.
 2. **Tests that can fail.** For each new rule, first a red test showing
    the rule is missing, and at least one mutation check where the
@@ -261,7 +335,8 @@ notation.
    target, half in Norwegian), run with a script modelled on
    `selector-eval.mjs`: records template choice, repair rounds, lint
    result, time and cost, and saves the specs for reading. Run once
-   before the prompt change (baseline) and once after. Pass: no
+   before the prompt change (baseline) and once after, and after with
+   the seed and the visual repair round each toggled. Pass: no
    error-severity lint, at least three of four per target use the new
    fields, median time under 90 s.
 5. **Hans's smoke test.** A checklist in docs with four figures to ask
@@ -285,11 +360,17 @@ notation.
 8. Prompt section, conditional `code` block, schema descriptions, token
    measurement.
 9. Few-shots and bundled examples, STYLE entry, lint sweep.
-10. Live eval before/after, smoke checklist, ledger.
+10. `icon` element with Iconify resolution and credit.
+11. Icon seed in the generation pipeline (router subject → simplified
+    paths in the user turn).
+12. Visual repair round (cuttable; off by default).
+13. Live eval before/after (with and without seed and visual repair),
+    smoke checklist, ledger.
 
 ## 9. Out of scope
 
 Processes and flows (already `node`/`edge`); arbitrary image URLs; user
-image files; a built-in icon set; bezier control points; a local
+image files; a bundled offline icon set; Commons SVG diagram tracing and
+photo-as-reference (next round, pending the eval); bezier control points; a local
 coordinate frame beyond `group.fit`; browser tests; changes to any
 existing template.
