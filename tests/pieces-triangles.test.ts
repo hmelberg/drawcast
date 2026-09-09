@@ -42,6 +42,18 @@ describe("pieces of triangles (design §2.4)", () => {
     expect(out.pieceGroups.q).toHaveLength(2);
     expect(out.pieces.q_1.apex).toEqual([400, 100]);
   });
+  test("an out-of-range from on a regular polygon does not throw: it warns and falls back to vertex_1", () => {
+    const out = layoutSpec(spec([{ id: "t2", type: "pieces", of: "triangles", x: 300, y: 400, radius: 120, sides: 6, from: "vertex_7" }]), heuristicMeasure);
+    expect(out.pieceGroups.t2).toHaveLength(4); // n - 2 = 6 - 2, a vertex fan (not the centre)
+    expect(out.pieces.t2_1.apex).toEqual([300, 520]); // vertex_1 of the hexagon (first vertex, on top)
+    expect(out.warnings.some((w) => w.includes("vertex_7"))).toBe(true);
+  });
+  test("an out-of-range from on a points polygon does not throw: it warns and falls back to vertex_1", () => {
+    const out = layoutSpec(spec([{ id: "q2", type: "pieces", of: "triangles", points: [[100, 100], [400, 100], [400, 300], [100, 300]], from: "vertex_0" }]), heuristicMeasure);
+    expect(out.pieceGroups.q2).toHaveLength(2);
+    expect(out.pieces.q2_1.apex).toEqual([100, 100]); // vertex_1 (the first point)
+    expect(out.warnings.some((w) => w.includes("vertex_0"))).toBe(true);
+  });
 });
 
 describe("pieces of halving", () => {

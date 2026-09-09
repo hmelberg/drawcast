@@ -1449,6 +1449,29 @@ function ringPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
 }
 
 /**
+ * Parses `from: "vertex_k"` into a 0-based index among `n` vertices, shared
+ * by both branches of `trianglePiecesDrawables` so they cannot drift apart.
+ * `from` absent → `null` (the caller's own default: the centre for a
+ * regular polygon, vertex_1 for a points polygon — the latter has no
+ * centre option, so its caller treats `null` as index 0 itself). `from`
+ * present but malformed or out of range (1..n) → a warning and index 0
+ * (vertex_1) — falling back to vertex_1 rather than the centre keeps the
+ * warning text honest: the author asked for a vertex fan, so they get one.
+ */
+function fanVertexIndex(from: unknown, n: number, id: string, warnings: string[]): number | null {
+  if (from === undefined) return null;
+  if (typeof from === "string") {
+    const m = /^vertex_(\d+)$/.exec(from);
+    if (m) {
+      const k = Number(m[1]);
+      if (k >= 1 && k <= n) return k - 1;
+    }
+  }
+  warnings.push(`pieces "${id}": from "${String(from)}" is out of range (1..${n}); using vertex_1`);
+  return 0;
+}
+
+/**
  * `pieces: {of: "triangles"}` — a regular polygon (`sides` + `radius`, like
  * `polygonDrawables`) fanned into triangles from its centre, or a polygon
  * (`points`) fanned from `vertex_1` — `from: "vertex_k"` picks the fan vertex
@@ -1463,14 +1486,13 @@ function trianglePiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
   let apexIndex: number | null = null; // null = fan from the centre
   if (el.points && el.points.length >= 3) {
     verts = el.points as Pt[];
-    const m = /^vertex_(\d+)$/.exec(typeof el.from === "string" ? el.from : "vertex_1");
-    apexIndex = Math.max(0, Math.min(verts.length - 1, (m ? Number(m[1]) : 1) - 1));
+    apexIndex = fanVertexIndex(el.from, verts.length, el.id, ctx.warnings) ?? 0;
   } else {
     const n = Math.max(3, Math.round(el.sides ?? 6));
     const r = el.radius ?? 100;
     const rot = (el.rotation ?? 0) * DEG;
     verts = Array.from({ length: n }, (_, i): Pt => { const a = rot + Math.PI / 2 + (2 * Math.PI * i) / n; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; });
-    if (typeof el.from === "string" && /^vertex_\d+$/.test(el.from)) apexIndex = Number(el.from.slice(7)) - 1;
+    apexIndex = fanVertexIndex(el.from, n, el.id, ctx.warnings);
   }
   const tris: { apex: Pt; a: Pt; b: Pt }[] = [];
   if (apexIndex === null) {
