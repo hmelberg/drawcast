@@ -52,7 +52,7 @@ const drawSchema = {
 };
 
 const ANCHOR_NAMES =
-  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…";
+  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…; angle vertex, arc";
 
 const endRefSchema = {
   type: "object",
@@ -1240,6 +1240,13 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "point":
       need(!!el.at, "needs at ({x,y} or {intersection_of})");
+      // at is a shared property (angle reuses it for its vertex — an array
+      // or a {ref, anchor} object) — a point's at stays {x, y} or
+      // {intersection_of}, so it never silently resolves to nothing.
+      if (el.at !== undefined) {
+        const at = el.at as { ref?: string; anchor?: string };
+        need(!Array.isArray(el.at) && at.ref === undefined && at.anchor === undefined, "at must be {x, y} or {intersection_of: [...]} — not [x, y] or {ref, anchor} (that's angle's vertex); write at: {x: ..., y: ...} instead");
+      }
       break;
     case "arrow":
     case "edge":

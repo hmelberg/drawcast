@@ -319,6 +319,14 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return hit;
   }
   if (at.x !== undefined && at.y !== undefined) return [at.x, at.y];
+  if (at.ref !== undefined || at.anchor !== undefined) {
+    // Defensive: validateSpec already rejects this shape on a point (at is a
+    // shared property — angle reuses it for a {ref, anchor} vertex), but a
+    // spec built by hand and never validated must still fail loudly, not
+    // silently resolve to nothing.
+    ctx.warnings.push(`point "${el.id}": at must be {x, y} or {intersection_of} — {ref, anchor} is not valid on a point`);
+    return null;
+  }
   return null;
 }
 
@@ -1134,12 +1142,20 @@ function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const dirOf = (arm: unknown): number | null => {
     if (typeof arm === "number") return arm;
     const p = resolvePointRef(arm as PointRef, ctx);
-    return p ? (Math.atan2(p[1] - at[1], p[0] - at[0]) * 180) / Math.PI : null;
+    if (!p) return null;
+    // A resolved arm that lands exactly on the vertex has no direction —
+    // atan2(0, 0) reads as a silent 0° rather than the degenerate angle it is.
+    if (Math.hypot(p[0] - at[0], p[1] - at[1]) < 1e-9) return NaN;
+    return (Math.atan2(p[1] - at[1], p[0] - at[0]) * 180) / Math.PI;
   };
   const a0 = dirOf(el.from);
   const a1 = dirOf(el.to);
   if (a0 === null || a1 === null) {
     ctx.warnings.push(`angle "${el.id}": an arm does not resolve`);
+    return [];
+  }
+  if (Number.isNaN(a0) || Number.isNaN(a1)) {
+    ctx.warnings.push(`angle "${el.id}": an arm coincides with the vertex`);
     return [];
   }
   let sweep = (((a1 - a0) % 360) + 360) % 360;

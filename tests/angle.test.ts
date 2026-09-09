@@ -37,4 +37,9 @@ describe("angle element (design §2.2)", () => {
     expect(validateSpec(spec([{ id: "x", type: "angle", at: [0, 0], from: 0 }])).ok).toBe(false);
     expect(validateSpec(spec([{ id: "x", type: "angle", at: [0, 0], from: 0, to: 90 }])).ok).toBe(true);
   });
+  test("an arm resolving to the vertex itself warns and is skipped, rather than reading as a silent 0°", () => {
+    const out = layoutSpec(spec([{ id: "d", type: "angle", at: [100, 100], from: [100, 100], to: 90 }]), heuristicMeasure);
+    expect(out.warnings).toEqual([`angle "d": an arm coincides with the vertex`]);
+    expect(flattenDrawables(out.drawables).find((dr) => dr.id === "d")).toBeUndefined();
+  });
 });
