@@ -33,6 +33,7 @@ describe("keep and ghost (design §2.1)", () => {
     expect(g.id).toBe("tri_ghost");
     expect(g.offset).toEqual([100, 0]);
     expect(g.opacity).toBe(0.3);
+    expect(g.params).toBeNull(); // tier-2: the ghost reads the layout being wrapped, never layoutAt
     expect(plan.states[2].visible).toContain("tri_ghost");
     expect(plan.states[1].visible).not.toContain("tri_ghost");
     expect(plan.steps[2]).toMatchObject({ kind: "show", ids: ["tri_ghost"], narration: "Keep it." });
@@ -89,5 +90,24 @@ describe("ghost under animate (a template)", () => {
     const out = withMinted(layout, plan.minted, (params) => layoutSpec({ ...spec, params: { ...spec.params, ...params } } as never, heuristicMeasure));
     expect(out.order).toContain("piece_1_ghost");
     expect(out.order.indexOf("piece_1_ghost")).toBe(out.order.indexOf("piece_1") - 1);
+  });
+  test("a template ghost's drawables come from layoutAt, not from whatever layout is being wrapped (a live tween frame)", async () => {
+    const { ensureEnabledPacks } = await import("../src/scenes/packs");
+    await ensureEnabledPacks(["mathlogic"]);
+    const spec = { template: "circle_sectors", params: { n: 4, t: 0 }, elements: [], commands: [{ draw: ["piece_1", "piece_2", "piece_3", "piece_4"] }, { animate: { t: 1 }, ghost: true }] };
+    const layout = layoutSpec(spec as never, heuristicMeasure);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    const plan = planCommands(spec.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, animateBase: spec.params, ...planOptionsFor(spec as never, layout) });
+    const calls: Record<string, number>[] = [];
+    const layoutAt = (params: Record<string, number>) => {
+      calls.push(params);
+      return layout; // stands in for the ghost's own (base) boundary layout
+    };
+    // A mid-tween frame layout (t partway to 1) is what render() would hand
+    // withMinted as the layout being wrapped at THIS tick — if a ghost read
+    // it instead of calling layoutAt, its geometry would move with the tween.
+    const frameLayout = layoutSpec({ ...spec, params: { ...spec.params, t: 0.5 } } as never, heuristicMeasure);
+    withMinted(frameLayout, plan.minted, layoutAt);
+    expect(calls).toEqual([{}, {}, {}, {}]); // every ghost minted at the base boundary, routed through layoutAt
   });
 });

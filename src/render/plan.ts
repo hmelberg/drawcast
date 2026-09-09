@@ -448,10 +448,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return anchorNow(id, r.anchor ?? "center", verb);
   };
 
-  /** Mint a faded copy of each id where it is NOW (design §2.1 round 3): known, mentioned, boxed and visible at once. Returns the ghost ids. */
-  const mintGhosts = (ids: string[], opacity: number, params: Record<string, number> = {}): string[] => {
+  /** Mint a faded copy of each id where it is NOW (design §2.1 round 3): known, mentioned, boxed and visible at once. Returns the ghost ids.
+   *  `params`: pass `ghostParams()` — null for a tier-2 spec (the ghost reads
+   *  the layout being wrapped), or the boundary params for a template spec
+   *  (the ghost reads its OWN boundary through `layoutAt`, never whatever
+   *  frame the wrapped layout happens to be — see minted.ts). */
+  const mintGhosts = (ids: string[], opacity: number, params: Record<string, number> | null): string[] => {
     const out: string[] = [];
     for (const id of ids) {
+      // A minted element (a trail, an earlier ghost) is not in the layout
+      // ghostDrawables reads from — ghosting it would mint an id that
+      // renders as nothing but stays in the plan, known and visible.
+      if (mintedBoxes.has(id)) {
+        warnings.push(`ghost of "${id}": a minted element cannot be ghosted (skipped)`);
+        continue;
+      }
       const box = currentBox(id);
       if (!box) {
         warnings.push(`ghost of "${id}": no geometry (skipped)`);
@@ -477,6 +488,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     if (Array.isArray(opt)) return { ids: resolveIds(opt, "ghost"), opacity: 0.3 };
     return { ids: opt.of ? resolveIds(opt.of, "ghost") : targets, opacity: opt.opacity ?? 0.3 };
   };
+  /** The params argument every mintGhosts call passes: null for a tier-2 spec
+   *  (no template — the ghost reads the layout being wrapped, whatever it
+   *  is); the CURRENT boundary params for a template spec, so a ghost minted
+   *  at the base ({} before the first animate) is still routed through
+   *  layoutAt and stays frozen there instead of riding a later tween frame. */
+  const ghostParams = (): Record<string, number> | null => (opts.animateBase === undefined || opts.animateBase === null ? null : { ...params });
 
   const IDENTITY: Turn = { deg: 0, pivot: [0, 0] };
   /** Followers ride their target's pose change: each is moved by where its own
@@ -762,7 +779,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // Minted BEFORE either half below changes offsets/turns/shapes — a
       // ghost of where the targets are RIGHT NOW, ahead of this move.
       const ghosts = ghostIdsFor(cmd.move.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       const seconds = cmd.move.duration ?? 1;
       const easing = cmd.move.easing ?? "ease-in-out";
       const trailOpt = cmd.move.trail === true ? {} : cmd.move.trail || null;
@@ -890,7 +907,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const ids = resolveIds(cmd.arrange.target, "arrange");
       if (ids.length === 0) continue;
       const ghosts = ghostIdsFor(cmd.arrange.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       const inputs: ArrangeInput[] = [];
       for (const id of ids) {
         const box = currentBox(id);
@@ -943,8 +960,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.flip !== undefined) {
       const ids = resolveIds(cmd.flip.target, "flip");
       if (ids.length === 0) continue;
-      const ghosts = ghostIdsFor(cmd.flip.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
       const line = cmd.flip.line ? { from: resolvePoint(cmd.flip.line.from, undefined, "flip"), to: resolvePoint(cmd.flip.line.to, undefined, "flip") } : null;
       // A named line that does not resolve, or that has no length, used to fall
       // back to the axis default — a silent horizontal mirror about a point the
@@ -957,6 +972,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         warnings.push("flip: the line's two endpoints are the same point, so it names no direction — skipped");
         continue;
       }
+      // Minted only once the command is known to survive the guards above —
+      // a warned-and-skipped flip must not leave a permanent ghost behind.
+      const ghosts = ghostIdsFor(cmd.flip.ghost, ids);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       // `through` with a ref (or a literal point) names a place in the scene:
       // resolve it once, before any target has been flipped. A ref-less
       // {anchor} stays per target — it names the flipping element's own anchor.
@@ -996,13 +1015,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.morph !== undefined) {
       const ids = resolveIds(cmd.morph.target, "morph");
       if (ids.length === 0) continue;
-      const ghosts = ghostIdsFor(cmd.morph.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
       const modes = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true].filter(Boolean).length;
       if (modes !== 1) {
         warnings.push("morph needs exactly one of to, stretch or reset — skipped");
         continue;
       }
+      // Minted only once the command is known to survive the guard above —
+      // a warned-and-skipped morph must not leave a permanent ghost behind.
+      const ghosts = ghostIdsFor(cmd.morph.ghost, ids);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       let refRing: { pts: Pt[]; closed: boolean } | null = null;
       if (cmd.morph.to !== undefined && !Array.isArray(cmd.morph.to)) {
         const ref = cmd.morph.to.ref;
@@ -1081,7 +1102,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.keep !== undefined) {
       const ids = resolveIds(cmd.keep.target, "keep");
       if (ids.length === 0) continue;
-      const ghostIds = mintGhosts(ids, cmd.keep.opacity ?? 0.3, { ...params });
+      const ghostIds = mintGhosts(ids, cmd.keep.opacity ?? 0.3, ghostParams());
       if (ghostIds.length === 0) continue;
       pushStep({ kind: "show", ids: ghostIds });
     } else if (cmd.fade !== undefined) {
@@ -1182,12 +1203,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
       // Ghost the visible figure at THIS boundary — the params BEFORE this
-      // animate updates them — excluding ghosts already on screen.
+      // animate updates them — excluding minted ids already on screen (a
+      // trail or an earlier ghost: mintGhosts would only warn and skip them).
       const ghosts = ghostIdsFor(
         cmd.ghost,
-        visible.filter((id) => !id.endsWith("_ghost") && !/_ghost_\d+$/.test(id)),
+        visible.filter((id) => !mintedBoxes.has(id)),
       );
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, { ...params });
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       params = { ...params, ...targets };
       pushStep({
         kind: "animate",

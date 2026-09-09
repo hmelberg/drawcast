@@ -18,8 +18,12 @@ export interface GhostSpec {
   /** The source's morphed leaf points at that moment (absent = its layout points). */
   shapes?: Record<string, Pt[]>;
   opacity: number;
-  /** For a template source: the boundary params the source is read at ({} for a tier-2 spec). */
-  params: Record<string, number>;
+  /** null = a tier-2 spec: read the wrapped layout itself. An object = a
+   *  template spec: the boundary params the source is read at through
+   *  `layoutAt` ({} is the template's own base params, still routed through
+   *  `layoutAt` — never assumed to equal the wrapped layout, which may be a
+   *  later animation frame). */
+  params: Record<string, number> | null;
 }
 
 export type MintedSpec = ({ kind: "trail" } & TrailSpec) | GhostSpec;
@@ -75,9 +79,14 @@ function ghostDrawables(sourceLayout: LayoutResult, g: GhostSpec): Drawable[] {
  * Append every minted element to a layout: trails at the end of the order
  * (drawn on top), ghosts right BEFORE their source (painted under it). An
  * id already in the order is skipped, so a cached layout can be wrapped
- * again. `layoutAt` supplies a template's boundary layout for a ghost
- * minted under animate; for a tier-2 spec it is never called ({} params
- * read the layout itself).
+ * again. `layoutAt` supplies a template's boundary layout for a ghost's
+ * source — called whenever `params` is non-null (a template spec), so a
+ * ghost minted at the base params (`{}`) is still read through `layoutAt`
+ * rather than through whatever layout happens to be getting wrapped (which,
+ * under a live tween, is a later animation frame — the ghost must stay
+ * frozen at ITS OWN params, never at the wrapped layout's). For a tier-2
+ * spec (`params: null`) `layoutAt` is never called; the wrapped layout IS
+ * the source layout.
  */
 export function withMinted(layout: LayoutResult, minted: MintedSpec[], layoutAt: (params: Record<string, number>) => LayoutResult): LayoutResult {
   if (minted.length === 0) return layout;
@@ -90,7 +99,7 @@ export function withMinted(layout: LayoutResult, minted: MintedSpec[], layoutAt:
       order.push(m.id);
       continue;
     }
-    const sourceLayout = Object.keys(m.params).length === 0 ? layout : layoutAt(m.params);
+    const sourceLayout = m.params === null ? layout : layoutAt(m.params);
     const parts = ghostDrawables(sourceLayout, m);
     if (parts.length === 0) continue;
     // Under the source: insert the ghost's drawables before the source's first drawable, and its id before the source's in the order.

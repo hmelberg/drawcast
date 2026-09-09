@@ -86,7 +86,7 @@ const ghostSchema = (what: string) => ({
     { type: "array", items: { type: "string" } },
     { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
   ],
-  description: `${what} — KEEP a faded copy of the original where it is while this plays: true keeps every target at 0.3, ["id", …] keeps those, {"of": […], "opacity": 0.2} sets the shade. The copy is an element <id>_ghost you can erase or fade later. Default: nothing is kept.`,
+  description: `${what} — KEEP a faded copy of the original where it is while this plays: true keeps every target at 0.3, ["id", …] keeps those, {"of": […], "opacity": 0.2} sets the shade. The copy is an element <id>_ghost you can erase or fade later — a pieces id ghosts every piece: kake_1_ghost, kake_2_ghost, … Default: nothing is kept.`,
 });
 
 const elementSchema = {
@@ -664,7 +664,7 @@ const commandSchema = {
     keep: {
       type: "object",
       description:
-        "Keep a faded copy of elements where they are NOW, as elements <id>_ghost — the original stays on screen while its pieces move away: {\"keep\": {\"target\": \"kake\"}, \"speak\": \"Keep the circle in mind while the slices move.\"} before an arrange or a morph. Default opacity 0.3.",
+        "Keep a faded copy of elements where they are NOW, as elements <id>_ghost — the original stays on screen while its pieces move away: {\"keep\": {\"target\": \"kake\"}, \"speak\": \"Keep the circle in mind while the slices move.\"} before an arrange or a morph. A pieces id ghosts every piece: kake_1_ghost, kake_2_ghost, … Default opacity 0.3.",
       properties: {
         target: idListSchema("Element ids, or one pieces id."),
         opacity: { type: "number", minimum: 0, maximum: 1, description: "Shade of the kept copy (default 0.3) — e.g. 0.5 for a stronger ghost." },
