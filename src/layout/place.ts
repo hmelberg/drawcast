@@ -2,7 +2,7 @@
 // out in, and the shift that puts an element where `at` says.
 import type { BBox } from "./geometry";
 import { boxAnchor } from "./anchors";
-import { unionBBoxForId, unionBoxes } from "./boxes";
+import { boxOfId, unionBBoxForId, unionBoxes } from "./boxes";
 import type { MeasureFn } from "./measure";
 import type { Drawable, Pt } from "./model";
 import type { LintIssue } from "../lint/lint";
@@ -76,13 +76,14 @@ export function ownBBox(mine: Drawable[], id: string, measure: MeasureFn): BBox 
 }
 
 /**
- * The box an `at.ref` names: the element's own ink, else — for a `pieces`
- * parent, which mints child ids `drawablesForId` cannot reach — the union of
- * its cells, else a zero-size box at its logical anchor (a template id that
- * exports a point but no ink). Null when the id is nowhere at all.
+ * The box an `at.ref` names: the element's own ink — or, for a `group`, the
+ * union of its members' ink — else, for a `pieces` parent, which mints child
+ * ids `drawablesForId` cannot reach, the union of its cells, else a zero-size
+ * box at its logical anchor (a template id that exports a point but no ink).
+ * Null when the id is nowhere at all.
  */
-export function refBBox(ds: Drawable[], id: string, measure: MeasureFn, ctx: { pieceGroups: Record<string, string[]>; anchors: Record<string, Pt> }): BBox | null {
-  const direct = unionBBoxForId(ds, id, measure);
+export function refBBox(ds: Drawable[], id: string, measure: MeasureFn, ctx: { pieceGroups: Record<string, string[]>; anchors: Record<string, Pt>; groups: Record<string, string[]> }): BBox | null {
+  const direct = boxOfId(ds, id, measure, ctx.groups);
   if (direct) return direct;
   const kids = unionBoxes((ctx.pieceGroups[id] ?? []).map((k) => unionBBoxForId(ds, k, measure)));
   if (kids) return kids;

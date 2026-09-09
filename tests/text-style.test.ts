@@ -73,6 +73,7 @@ describe("applyTextStyle — the drawn text matches what was measured", () => {
     warnings: [],
     pieces: {},
     pieceGroups: {},
+    groups: {},
     namedAnchors: {},
     measures: {},
   });
@@ -102,7 +103,7 @@ describe("the SVG backend draws the stamped face", () => {
     const { restore, doc } = installMiniDom();
     try {
       const container = new FakeNode("div", doc as never);
-      const layout: LayoutResult = { drawables: [d], order: [d.id], issues: [], warnings: [], pieces: {}, pieceGroups: {}, namedAnchors: {}, measures: {} };
+      const layout: LayoutResult = { drawables: [d], order: [d.id], issues: [], warnings: [], pieces: {}, pieceGroups: {}, groups: {}, namedAnchors: {}, measures: {} };
       await rendererFor("clean").mount(layout, {} as never, container as never);
       const out: FakeNode[] = [];
       const walk = (n: FakeNode) => {

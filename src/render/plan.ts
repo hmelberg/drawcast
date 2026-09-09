@@ -252,6 +252,9 @@ export interface PlanOptions {
   pieceOf?: (id: string) => PieceGeometry | null;
   /** A pieces id → its piece ids, so one id can name them all. */
   expandId?: (id: string) => string[] | null;
+  /** A group id → its member ids (layout's `groups`), so one id can name them
+   *  all — and, for rotate/scale, turn them as ONE thing about a shared pivot. */
+  expandGroup?: (id: string) => string[] | null;
   /** Geometric anchor of an element in its ORIGINAL frame (layout.namedAnchors), or null. */
   anchorOf?: (id: string, name: string) => Pt | null;
   /** The morphable leaves of an element (stroke/area with pts, no shapeHint) in draw order, with their layout points. */
@@ -372,7 +375,28 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     visible = visible.filter((id) => visibleSet.has(id));
     applyScroll();
   };
-  const resolveIds = (raw: string[] | string | undefined, verb: string): string[] => {
+  /** One named id → the ids actually acted on: a `pieces` parent stands for
+   *  its cells, a `group` for its members (each expanded in turn, so a group
+   *  of a cut figure reaches the cells). `quiet` drops the unknown-id warning
+   *  for a second pass over targets already resolved once. */
+  const expandOne = (id: string, verb: string, quiet: boolean): string[] => {
+    const kids = opts.expandId?.(id);
+    if (kids && kids.length > 0) return kids.filter((k) => known.has(k));
+    const members = opts.expandGroup?.(id);
+    if (members && members.length > 0) return members.flatMap((m) => expandOne(m, verb, quiet));
+    if (known.has(id)) return [id];
+    if (!quiet) warnings.push(`${verb} command references unknown id "${id}" (dropped)`);
+    return [];
+  };
+  /** The children an id that draws nothing of its own stands for — a `pieces`
+   *  parent's cells, a `group`'s members (down to their cells) — so pointing,
+   *  centring or anchoring on it reads the box around them. Empty when the id
+   *  is ink of its own, or nothing at all. */
+  const standsFor = (id: string): string[] => {
+    const own = opts.expandId?.(id) ?? opts.expandGroup?.(id);
+    return own && own.length > 0 ? expandOne(id, "", true) : [];
+  };
+  const resolveIds = (raw: string[] | string | undefined, verb: string, quiet = false): string[] => {
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
     // A `pieces` parent id stands for all its pieces: naming it draws,
     // highlights or arranges every piece, which is what the prompt promises.
@@ -380,13 +404,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     // both be named — `draw: ["kake", "kake_1"]`, or a measure beside its own
     // `label_<id>` (the measure's group IS that label) — and the draw loop
     // awaits every entry, so a repeat re-sketches the element from zero.
-    const out = requested.flatMap((id) => {
-      const kids = opts.expandId?.(id);
-      if (kids && kids.length > 0) return kids.filter((k) => known.has(k));
-      if (known.has(id)) return [id];
-      warnings.push(`${verb} command references unknown id "${id}" (dropped)`);
-      return [];
-    });
+    const out = requested.flatMap((id) => expandOne(id, verb, quiet));
     return [...new Set(out)];
   };
   /** How a command's target reads back in a warning: the id(s) the author wrote, not the expanded pieces. */
@@ -462,7 +480,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   };
   /** The same point where it is NOW (through the pose); a pieces id → the box around its pieces. */
   const anchorNow = (id: string, name: string, verb: string): Pt | null => {
-    const kids = opts.expandId?.(id)?.filter((k) => known.has(k)) ?? [];
+    const kids = standsFor(id);
     if (kids.length > 0) {
       const box = unionBox(kids.map(currentBox));
       if (!box) return null;
@@ -898,7 +916,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       let box: BBox | undefined;
       let refId: string | undefined;
       if (at?.ref !== undefined) {
-        const kids = opts.expandId?.(at.ref)?.filter((k) => known.has(k)) ?? [];
+        const kids = standsFor(at.ref);
         if (!known.has(at.ref) && kids.length === 0) {
           warnings.push(`point command references unknown id "${at.ref}" (skipped)`);
           continue;
@@ -1015,6 +1033,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const pivotIsExplicit = isExplicitPointRef(cmd.move.pivot);
         // A ref-less {anchor} pivot stays per target: it names the moving element's own anchor.
         const pivot0 = pivotIsExplicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
+        // --- group targets turn as ONE thing (design: `group`): the default
+        // pivot of every member is the group's union centre, read once from
+        // the pre-move boxes. Per-element centres would spin each part where
+        // it stands and tear the figure apart.
+        const groupPivot = new Map<string, Pt>();
+        if (cmd.move.pivot === undefined) {
+          for (const raw of typeof cmd.move.target === "string" ? [cmd.move.target] : cmd.move.target ?? []) {
+            if (!opts.expandGroup?.(raw)) continue;
+            const members = resolveIds(raw, "move", true);
+            if (members.length < 2) continue;
+            const box = unionBox(members.map(currentBox));
+            if (!box) continue;
+            const centre: Pt = [box.x + box.w / 2, box.y + box.h / 2];
+            for (const m of members) if (!groupPivot.has(m)) groupPivot.set(m, centre);
+          }
+        }
+        // --- end group pivot
         const items: TransformItem[] = [];
         // Two targets in the same move can share a follower (e.g. two
         // elements both labeled by the same annotation) — move it once,
@@ -1047,7 +1082,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
               pivotNow = own ? poseOf(offset, turn)(own) : [offset[0], offset[1]];
             }
           } else {
-            pivotNow = box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
+            const shared = groupPivot.get(id);
+            // The shared pivot rides with the translation, as an explicit one does.
+            if (shared) pivotNow = [shared[0] + delta[0], shared[1] + delta[1]];
+            else pivotNow = box ? poseCentre(box, offset, turn) : [offset[0], offset[1]];
           }
           if (hasScale) {
             const c = composeScale(offset, turn, cmd.move.scale!, pivotNow);
@@ -1336,7 +1374,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           let cy: number = camera ? camera.y + camera.h / 2 : CANVAS.h / 2;
           const center = cmd.camera.center;
           if (center?.ref !== undefined) {
-            const kids = opts.expandId?.(center.ref)?.filter((k) => known.has(k)) ?? [];
+            const kids = standsFor(center.ref);
             if (!known.has(center.ref) && kids.length === 0) {
               warnings.push(`camera command references unknown id "${center.ref}" (centering on canvas)`);
             } else {

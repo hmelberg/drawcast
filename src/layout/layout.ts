@@ -38,6 +38,9 @@ export interface LayoutResult {
   /** `pieces` parent element id → its child piece ids, in order; also a line-less
    *  `measure` (area, perimeter) → its text id. Empty when neither occurs. */
   pieceGroups: Record<string, string[]>;
+  /** `group` element id → its members, flattened to leaf element ids — one id
+   *  the commands can draw, move or highlight as a single thing. */
+  groups: Record<string, string[]>;
   /** Geometric anchors per tier-2 element id (design §2.1). Empty for a pure template spec. */
   namedAnchors: Record<string, Record<string, Pt>>;
   /** `measure` element specs (design §2.3), keyed by the measure's own element id. Empty when the spec has no measure elements. */
@@ -67,6 +70,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   let panes: Record<string, BBox> = {};
   let pieces: Record<string, PieceGeometry> = {};
   let pieceGroups: Record<string, string[]> = {};
+  let groups: Record<string, string[]> = {};
   let namedAnchors: Record<string, Record<string, Pt>> = {};
   let measures: Record<string, MeasureSpec> = {};
   let seedAnchors: Record<string, Pt> = {};
@@ -112,6 +116,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     panes = tier2.panes;
     pieces = tier2.pieces;
     pieceGroups = tier2.pieceGroups;
+    groups = tier2.groups;
     namedAnchors = tier2.namedAnchors;
     measures = tier2.measures;
     for (const el of spec.elements) {
@@ -121,6 +126,9 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
       // A pieces element's parent id draws nothing itself — its n pieces
       // (already in tier2.extraOrder) are the command-addressable elements.
       if (el.type === "pieces") continue;
+      // A group is the same kind of stand-in: it draws nothing itself, its
+      // members do. The plan expands the group id to them (expandGroup).
+      if (el.type === "group") continue;
       // Same for a line-less measure (area/perimeter): it draws no dimension
       // line of its own, only the number, which tier-2 registers as the group
       // `pieceGroups[<id>] = ["label_<id>"]`. Leaving the parent in the order
@@ -167,9 +175,9 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
-  issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id]));
+  issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id]));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, namedAnchors, measures };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, namedAnchors, measures };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {

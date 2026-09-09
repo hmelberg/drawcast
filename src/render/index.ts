@@ -98,7 +98,7 @@ function contactEmail(): string {
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn"> {
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn"> {
   // Which group each id belongs to: `arrange`/`move` change the resolved
   // CHILDREN of a `pieces` cut, while a measure anchored to the cut names the
   // PARENT — matching ids exactly left that measure stale and unwarned.
@@ -126,6 +126,7 @@ export function planOptionsFor(
         .map(([k]) => k);
     },
     expandId: (id) => layout.pieceGroups[id] ?? null,
+    expandGroup: (id) => layout.groups[id] ?? null,
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     leafPointsOf: (id) => {
       const out: { leafId: string; pts: Pt[]; closed: boolean }[] = [];

@@ -8,7 +8,8 @@ import { centroid, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
-import { boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
+import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
+import { boxOfId } from "./boxes";
 import { ownBBox, placementOrder, refBBox, relAt, relativeDelta, shiftDrawables, shiftPoints } from "./place";
 import {
   COLORS,
@@ -76,6 +77,8 @@ export interface Tier2Result {
   pieces: Record<string, PieceGeometry>;
   /** parent `pieces` element id → its child piece ids, in order. */
   pieceGroups: Record<string, string[]>;
+  /** `group` element id → its members, flattened to leaf element ids (a nested group contributes its own leaves). */
+  groups: Record<string, string[]>;
   /** `measure` element specs (design §2.3), keyed by the measure's own element id. */
   measures: Record<string, M.MeasureSpec>;
   /** Structural placement defects (unknown `at.ref`, dependency cycles). */
@@ -101,6 +104,10 @@ interface Ctx {
   panes: Record<string, BBox>;
   pieces: Record<string, PieceGeometry>;
   pieceGroups: Record<string, string[]>;
+  /** `group` element id → its flattened leaf member ids. */
+  groups: Record<string, string[]>;
+  /** Each group's union box, as it stood when the group was emitted. */
+  groupBoxes: Record<string, BBox>;
   measures: Record<string, M.MeasureSpec>;
   /** Elements built at the origin because `at.ref` places them: where each
    *  would have gone WITHOUT `at`, so a ref that never resolves can still put
@@ -139,6 +146,8 @@ export function layoutElements(
     warnings: [],
     pieces: {},
     pieceGroups: {},
+    groups: {},
+    groupBoxes: {},
     measures: {},
     atFallback: {},
   };
@@ -287,6 +296,34 @@ export function layoutElements(
         if (line) drawables.push(line);
         break;
       }
+      // A group draws nothing of its own: it names members already drawn, so
+      // one id can be drawn, moved or labelled as one thing. Members come
+      // first (place.ts `deps`), so their ink is on the table by now.
+      case "group": {
+        const leaves: string[] = [];
+        const missing: string[] = [];
+        for (const m of el.members ?? []) {
+          if (ctx.groups[m]) leaves.push(...ctx.groups[m]);
+          else if (drawables.some((d) => d.id === m || d.id.startsWith(`${m}_`)) || (opts.seedDrawables ?? []).some((d) => d.id === m)) leaves.push(m);
+          else missing.push(m);
+        }
+        if (missing.length > 0 || leaves.length === 0) {
+          issues.push({
+            rule: "group-empty",
+            ids: [el.id],
+            severity: "error",
+            message: `group "${el.id}": ${missing.length > 0 ? `unknown members ${missing.map((m) => `"${m}"`).join(", ")}` : "no members"}`,
+          });
+        }
+        ctx.groups[el.id] = leaves;
+        const box = boxOfId([...(opts.seedDrawables ?? []), ...drawables], el.id, measure, ctx.groups);
+        if (box) {
+          ctx.groupBoxes[el.id] = box;
+          ctx.anchors[el.id] = [box.x + box.w / 2, box.y + box.h / 2];
+          ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
+        }
+        break;
+      }
     }
     // --- relative placement (place.ts): the element was built at the origin,
     // now it moves to where `at` says. `angle` and `point` are excluded —
@@ -348,6 +385,7 @@ export function layoutElements(
     panes: ctx.panes,
     pieces: ctx.pieces,
     pieceGroups: ctx.pieceGroups,
+    groups: ctx.groups,
     measures: ctx.measures,
     issues,
   };
