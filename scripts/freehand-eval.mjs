@@ -82,13 +82,16 @@ const TARGET_FIELD = { thing: "usesGroup", math: "usesMath", image: "usesImage" 
 
 const server = await createServer({ root: ROOT, server: { middlewareMode: true }, appType: "custom", logLevel: "warn" });
 try {
+  // Only modules that exist on BOTH the branch and `main` are loaded here —
+  // the baseline run (plan Task 15 step 2) executes this same file against
+  // `main`'s own src (see the ROOT comment above), which has none of the
+  // seed machinery (src/render/icon.ts, src/llm/seed.ts don't exist there
+  // at all; src/spec/trace.ts exists but without decodeIcon). Those three
+  // are loaded lazily, only under `--seed on`, further down.
   const { generateSpec, promptVariants } = await server.ssrLoadModule("/src/llm/compile.ts");
   const { routeTemplates } = await server.ssrLoadModule("/src/llm/router.ts");
   const { ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } = await server.ssrLoadModule("/src/scenes/packs.ts");
   const { scenes } = await server.ssrLoadModule("/src/scenes/registry.ts");
-  const { resolveIcons } = await server.ssrLoadModule("/src/render/icon.ts");
-  const { decodeIcon } = await server.ssrLoadModule("/src/spec/trace.ts");
-  const { seedBlock } = await server.ssrLoadModule("/src/llm/seed.ts");
   const { resetCallLedger, callLedger, costSummary, formatCost, DEFAULT_MODEL } = await server.ssrLoadModule("/src/llm/client.ts");
   await ensureEnabledPacks(Object.keys(PACK_DEFS).filter((id) => !DEFAULT_OFF_PACKS.has(id)));
   const ready = new Set(Object.keys(scenes).filter((id) => scenes[id].manifest.status === "ready"));
@@ -109,14 +112,28 @@ try {
     // `--seed on` on today even though compile.ts/main.ts don't wire this
     // themselves yet: a throwaway one-icon spec, resolved for real (real
     // fetch — resolveIcons's default deps are globalThis.fetch, present in
-    // node 18+), then folded into a seed block. Null on any miss.
-    const fetchSeed = async (subject, signal) => {
-      const spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] };
-      const r = await resolveIcons(spec, undefined, { forSeed: true });
-      const el = spec.elements[0];
-      const rings = el.strokes ? decodeIcon(el.strokes) : null;
-      return r[0]?.ok && rings ? seedBlock(subject, rings, el.credit ?? "") : null;
-    };
+    // node 18+), then folded into a seed block. Null on any miss. The three
+    // modules it needs are loaded HERE, lazily, and ONLY when `--seed on` —
+    // on the baseline checkout (`main`) they don't exist yet at all, and
+    // this whole branch must stay unreached when running unseeded.
+    let fetchSeed;
+    if (seedOn) {
+      try {
+        const { resolveIcons } = await server.ssrLoadModule("/src/render/icon.ts");
+        const { decodeIcon } = await server.ssrLoadModule("/src/spec/trace.ts");
+        const { seedBlock } = await server.ssrLoadModule("/src/llm/seed.ts");
+        fetchSeed = async (subject, signal) => {
+          const spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] };
+          const r = await resolveIcons(spec, undefined, { forSeed: true });
+          const el = spec.elements[0];
+          const rings = el.strokes ? decodeIcon(el.strokes) : null;
+          return r[0]?.ok && rings ? seedBlock(subject, rings, el.credit ?? "") : null;
+        };
+      } catch {
+        console.log("seed: unavailable in this checkout — running unseeded");
+        fetchSeed = undefined;
+      }
+    }
 
     const route = (request, signal) => routeTemplates(request, { apiKey: key, model: undefined, signal });
 
@@ -161,7 +178,7 @@ try {
           variant,
           exemplars: [],
           route,
-          fetchSeed: seedOn ? fetchSeed : undefined,
+          fetchSeed,
           pedagogyReview: true,
           effort: "high",
           executeCode: false,
