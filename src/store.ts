@@ -138,6 +138,7 @@ export interface Settings {
    * settling — a freehand drawing's parts can be individually valid and
    * still misplaced relative to each other, which no text-only lint catches.
    * One extra model call per qualifying figure. Off until measured.
+   * Listed in the Advanced tab by the compile wiring (freehand Task 14 Part B).
    */
   visualRepair: boolean;
   /** How the editor presents the spec text (parsing always accepts both). */
@@ -304,7 +305,7 @@ export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = 
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
-  { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },
+  { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
 ];
 
 export function getApiKey(): string {
