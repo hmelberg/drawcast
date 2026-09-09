@@ -253,6 +253,8 @@ describe("code element — resolver", () => {
       resolvePortraits: async () => undefined,
       resolveSources: async () => undefined,
       resolveCode: async (c) => resolveCode(c, runDeps(OK)),
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
       contactEmail: "",
     });
     expect(s.elements![0].code_result).toBeUndefined();

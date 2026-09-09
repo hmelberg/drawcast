@@ -90,3 +90,52 @@ describe("group", () => {
     expect(r.groups.g).toEqual(["box", "mark"]);
   });
 });
+
+// C2: an annotation marks ALREADY-placed geometry, and it used to read the
+// drawables directly (unionBBoxForId) — which cannot see a `group` (its
+// members' ink is filed under THEIR ids) nor a line-less `measure` (an
+// area/perimeter measure draws no line, only its text). Both were reported
+// as "unknown or empty target" and silently skipped. boxOfId sees both.
+describe("annotation targets that draw nothing under their own id (C2)", () => {
+  test("a box around a GROUP surrounds the union of its members", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },
+        { id: "cap", type: "shape", shape: "circle", radius: 20, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
+        { id: "pump", type: "group", members: ["body", "cap"] },
+        { id: "ring", type: "annotation", kind: "box", target: "pump" },
+      ],
+      commands: [{ draw: ["pump"] }, { draw: ["ring"] }],
+    } as never);
+    expect(r.warnings.filter((w) => w.includes("ring"))).toEqual([]);
+    const b = elementBBoxes(r);
+    const body = b.get("body")!, cap = b.get("cap")!, ring = b.get("ring")!;
+    const unionY0 = Math.min(body.y, cap.y), unionY1 = Math.max(body.y + body.h, cap.y + cap.h);
+    // Around, not inside: the mark clears the union on every side.
+    expect(ring.x).toBeLessThan(Math.min(body.x, cap.x));
+    expect(ring.x + ring.w).toBeGreaterThan(Math.max(body.x + body.w, cap.x + cap.w));
+    expect(ring.y).toBeLessThan(unionY0);
+    expect(ring.y + ring.h).toBeGreaterThan(unionY1);
+    // And it really is the union — the cap alone would be far shorter.
+    expect(ring.h).toBeGreaterThan(unionY1 - unionY0);
+  });
+
+  test("a circle around a line-less measure lands on its label", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },
+        { id: "areal", type: "measure", of: "body", what: "area", label: "A = {value}" },
+        { id: "mark", type: "annotation", kind: "circle", target: "areal" },
+      ],
+      commands: [{ draw: ["body"] }, { draw: ["areal"] }, { draw: ["mark"] }],
+    } as never);
+    expect(r.warnings.filter((w) => w.includes("mark"))).toEqual([]);
+    const b = elementBBoxes(r);
+    // An area measure draws no line at all: its only ink is the number,
+    // filed under `label_areal`. The mark has to find it anyway.
+    const text = b.get("label_areal")!, mark = b.get("mark")!;
+    expect(mark.x).toBeLessThanOrEqual(text.x);
+    expect(mark.x + mark.w).toBeGreaterThanOrEqual(text.x + text.w);
+    expect(mark.y).toBeLessThanOrEqual(text.y);
+  });
+});

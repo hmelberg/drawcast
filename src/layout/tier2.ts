@@ -411,7 +411,27 @@ export function layoutElements(
       };
       const fallback = ctx.atFallback[el.id];
       if (refBox && ownBox) {
-        const [dx, dy] = relativeDelta(ownBox, refBox, ctx.namedAnchors[at.ref] ?? {}, at, el.anchor);
+        // Both silent failures `at` used to have (C1). A figure assembled
+        // from a misspelt anchor looks assembled, just wrong — and place.ts
+        // cannot say so itself: it knows neither the element's id nor the
+        // ref's name. Wording mirrors render/plan.ts's "— using center".
+        const refAnchors = ctx.namedAnchors[at.ref] ?? {};
+        if (at.side && at.anchor !== undefined) {
+          issues.push({
+            rule: "placement",
+            ids: [el.id],
+            severity: "warn",
+            message: `element "${el.id}": at gives both side "${at.side}" and anchor "${at.anchor}" — side is used, anchor is ignored`,
+          });
+        } else if (at.anchor !== undefined && !isUniversalAnchor(at.anchor) && refAnchors[at.anchor] === undefined) {
+          issues.push({
+            rule: "placement",
+            ids: [el.id],
+            severity: "warn",
+            message: `element "${el.id}": at.anchor "${at.anchor}" is not an anchor of "${at.ref}" — using center`,
+          });
+        }
+        const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
         move(dx, dy);
       } else if (!refBox) {
         // The element was already built at the origin, so leaving it there

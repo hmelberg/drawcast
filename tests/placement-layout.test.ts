@@ -56,6 +56,53 @@ describe("relative placement in layoutSpec", () => {
     expect(r.pieces.pie_1.apex[0]).toBeCloseTo(a.x + a.w + 20 + 50, 0);
     expect(one.x).toBeGreaterThan(a.x + a.w);
   });
+  // C1: `at` used to fail silently in two ways — an anchor name the ref does
+  // not have quietly became its centre, and `side` + `anchor` together
+  // quietly let `side` win. Both are now said out loud, because a figure
+  // assembled from a misspelt anchor looks assembled, just wrong.
+  test("an at.anchor the ref does not have is a placement WARN, and the centre is used", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "nozzle" } },
+      ],
+      commands: [{ draw: ["a", "c"] }],
+    });
+    const placement = r.issues.filter((i) => i.rule === "placement");
+    expect(placement.map((i) => i.message)).toEqual(['element "c": at.anchor "nozzle" is not an anchor of "a" — using center']);
+    expect(placement[0].severity).toBe("warn");
+    expect(placement[0].ids).toEqual(["c"]);
+    const b = elementBBoxes(r);
+    // "using center" is not a figure of speech: the circle really is centred.
+    expect(b.get("c")!.x + b.get("c")!.w / 2).toBeCloseTo(b.get("a")!.x + b.get("a")!.w / 2, 0);
+    expect(b.get("c")!.y + b.get("c")!.h / 2).toBeCloseTo(b.get("a")!.y + b.get("a")!.h / 2, 0);
+  });
+  test("an anchor the ref DOES have (its own named anchor, or a universal one) says nothing", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "p", type: "path", points: [[0, 0], [50, 30]] },
+        { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "top" } },
+        { id: "d", type: "shape", shape: "circle", radius: 10, at: { ref: "p", anchor: "start" } },
+      ],
+      commands: [{ draw: ["a", "p", "c", "d"] }],
+    });
+    expect(r.issues.filter((i) => i.rule === "placement")).toEqual([]);
+  });
+  test("side AND anchor together is a placement WARN naming the one that wins", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", side: "right", anchor: "top", gap: 5 } },
+      ],
+      commands: [{ draw: ["a", "c"] }],
+    });
+    const placement = r.issues.filter((i) => i.rule === "placement");
+    expect(placement.map((i) => i.message)).toEqual(['element "c": at gives both side "right" and anchor "top" — side is used, anchor is ignored']);
+    expect(placement[0].severity).toBe("warn");
+    const b = elementBBoxes(r);
+    expect(b.get("c")!.x).toBeCloseTo(b.get("a")!.x + b.get("a")!.w + 5, 0);
+  });
   test("at.ref may name a template id: the text lands on the template's own ink", () => {
     const r = layoutSpec({
       template: "supply_demand",

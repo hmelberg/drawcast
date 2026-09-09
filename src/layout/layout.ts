@@ -12,7 +12,7 @@ import type { CodeWindow } from "./code";
 import { annotationDrawables } from "./annotate";
 import { placeLabels, type LabelRequest, type Obstacle } from "./labels";
 import { bboxOfPts, bboxOfText, expandBox, type BBox } from "./geometry";
-import { unionBBoxForId } from "./boxes";
+import { boxOfId, unionBBoxForId } from "./boxes";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
@@ -170,7 +170,11 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
   // whether the target came from a template or from tier-2 elements.
   for (const el of spec.elements ?? []) {
     if (el.type !== "annotation") continue;
-    const box = el.target ? unionBBoxForId(drawables, el.target, measure) : null;
+    // boxOfId, not unionBBoxForId: a `group` files its ink under its MEMBERS'
+    // ids and a line-less `measure` (what: area/perimeter) draws only its
+    // text, so reading the drawables directly reported both as unknown
+    // targets and skipped the mark (C2).
+    const box = el.target ? boxOfId(drawables, el.target, measure, groups, pieceGroups) : null;
     if (!box) {
       warnings.push(`annotation "${el.id}": unknown or empty target "${el.target}" — skipped`);
       continue;

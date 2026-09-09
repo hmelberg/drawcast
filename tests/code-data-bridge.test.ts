@@ -361,6 +361,8 @@ describe("code element — resolver substitutes tokens on the clone", () => {
       resolvePortraits: async () => undefined,
       resolveSources: async () => undefined,
       resolveCode: async (c) => resolveCode(c, fakeRun({ ok: true, stdout: "", stderr: "", figures: [], data: { frames: [[1, 2]], s: [3] } })),
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
       contactEmail: "",
     });
     expect(JSON.stringify(doc)).toBe(before);
