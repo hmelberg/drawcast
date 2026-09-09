@@ -19,6 +19,7 @@ import { describeApiError } from "../llm/client";
 import { translateSpec, translateText } from "../llm/translate";
 import { lintCommands } from "../lint/lint";
 import { toVtt } from "../export/captions";
+import { creditsOf } from "../export/credits";
 import { LANGUAGES, languageLabel } from "../export/tts";
 import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
@@ -794,6 +795,8 @@ function build(): ShareSession {
         const base = fileSafe(doc.title);
         downloadBlob(`${base}.webm`, out.blob);
         downloadBlob(`${base}.vtt`, new Blob([toVtt(out.cues)], { type: "text/vtt" }));
+        const credits = creditsOf(exportSequence(doc.playlist));
+        if (credits.length > 0) downloadBlob(`${base}.credits.txt`, new Blob([credits.join("\n") + "\n"], { type: "text/plain" }));
         deps.setStatus(`Done — "${base}.webm" and its subtitle file "${base}.vtt" were downloaded.`, "ok");
       } finally {
         deps.endExport();
@@ -1187,6 +1190,8 @@ function build(): ShareSession {
           // for them.
           const vtt = toVtt(out.cues);
           downloadBlob(`${base}.vtt`, new Blob([vtt], { type: "text/vtt" }));
+          const credits = creditsOf(exportSequence(playlist));
+          if (credits.length > 0) downloadBlob(`${base}.credits.txt`, new Blob([credits.join("\n") + "\n"], { type: "text/plain" }));
           if (!res) done.push({ code, label, error: "sign-in expired" });
           else done.push({ code, label, videoId: res.videoId, vtt });
         } catch (err) {

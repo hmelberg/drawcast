@@ -1873,6 +1873,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-space-extract { margin: 0 0 4px; }
 .cs-space-credit { color: var(--muted); }
 .cs-space-credit a { color: inherit; }
+.credit-line { font-size: 12px; opacity: .8; }
 .cs-tray-btn.open { color: var(--ink); }
 .cs-tray-btn.pulse { animation: tray-pulse 1s ease-in-out 4; color: var(--ink); }
 @keyframes tray-pulse {

@@ -21,6 +21,14 @@ export interface RenderResolveDeps {
   resolveSources: (spec: Spec, opts: { contactEmail: string }) => Promise<unknown>;
   /** render/code.ts's resolveCode — mutates the spec it is given. */
   resolveCode: (spec: Spec) => Promise<unknown>;
+  /**
+   * render/image.ts's resolveImages — mutates the spec it is given. Optional
+   * for now: `type: "image"` is a freehand-figures element still being wired
+   * up (Task 7 is split across two dispatches), so the one production caller
+   * (render/index.ts) does not pass it yet — a required field here would
+   * break that call before the wiring lands.
+   */
+  resolveImages?: (spec: Spec) => Promise<unknown>;
   contactEmail: string;
 }
 
@@ -35,6 +43,7 @@ export async function resolvedRenderSpec(spec: Spec, deps: RenderResolveDeps): P
     deps.resolvePortraits(copy).catch(() => undefined),
     deps.resolveSources(copy, { contactEmail: deps.contactEmail }).catch(() => undefined),
     deps.resolveCode(copy).catch(() => undefined),
+    deps.resolveImages?.(copy).catch(() => undefined),
   ]);
   return copy;
 }

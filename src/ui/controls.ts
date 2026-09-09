@@ -18,6 +18,7 @@ import type { VoiceOption } from "../render/voices";
 import { gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { dragGateFor } from "./drag-gate";
+import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
 import { attachPanelView } from "./panel-view";
@@ -561,7 +562,7 @@ export function seekStep(x: number, left: number, width: number, total: number):
 
 /** The bar's secondary controls: always mode and speed, plus mute and/or
  *  captions when the caller wired them up. */
-export type SecondarySlot = "mode" | "speed" | "mute" | "captions";
+export type SecondarySlot = "mode" | "speed" | "mute" | "captions" | "credits";
 
 /**
  * Which secondary controls sit inline in the bar vs. behind the "⋯" overflow,
@@ -575,11 +576,17 @@ export function foldedControls(
   narrow: boolean,
   hasMute: boolean,
   hasCC: boolean,
+  hasCredits = false,
 ): { inline: SecondarySlot[]; folded: SecondarySlot[] } {
   const present: SecondarySlot[] = ["mode", "speed"];
   if (hasMute) present.push("mute");
   if (hasCC) present.push("captions");
-  return narrow ? { inline: [], folded: present } : { inline: present, folded: [] };
+  const { inline, folded } = narrow ? { inline: [] as SecondarySlot[], folded: present } : { inline: present, folded: [] as SecondarySlot[] };
+  // Credits never sit inline — there is no icon compact enough for a
+  // multi-line attribution list, so it only ever rides in the "⋯" overflow,
+  // present or not regardless of viewport width.
+  if (hasCredits) folded.push("credits");
+  return { inline, folded };
 }
 
 /** Fold-listener cleanup from a previous render of a given stageHost. Every
@@ -849,7 +856,21 @@ export function attachPlayerControls(
   };
   document.addEventListener("click", onDocClick, true);
 
-  const bySlot: Record<SecondarySlot, HTMLElement | undefined> = { mode: modeSel, speed: speedSel, mute: muteBtn, captions: ccBtn };
+  // Attribution for borrowed artwork (Commons photos, icon-set glyphs) —
+  // present only when the figure actually carries any; a drawcast with none
+  // gets no extra menu entry to fold. Built once, from the resolved spec on
+  // the handle (hd.spec), not re-read on every layout() call: credits are
+  // stamped once during resolution and never change for the life of a render.
+  const creditLines = creditsOf([hd.spec]);
+  const creditsPanel = creditLines.length
+    ? h(
+        "div",
+        { class: "menu-item" },
+        ...creditLines.map((line) => h("div", { class: "credit-line" }, line)),
+      )
+    : undefined;
+
+  const bySlot: Record<SecondarySlot, HTMLElement | undefined> = { mode: modeSel, speed: speedSel, mute: muteBtn, captions: ccBtn, credits: creditsPanel };
   /** Arranges the bar between inline and folded. Called once for the render's
    *  initial layout and again on every breakpoint crossing — re-decided each
    *  time via foldedControls() rather than trusted from a stale read, which
@@ -860,7 +881,7 @@ export function attachPlayerControls(
    *  children, so leaving it out here would make the first re-layout (the
    *  first rotation) silently drop the CC panel from the DOM. */
   const layout = (narrow: boolean): void => {
-    const decision = foldedControls(narrow, !!muteBtn, !!ccBtn);
+    const decision = foldedControls(narrow, !!muteBtn, !!ccBtn, !!creditsPanel);
     foldPanel.replaceChildren(...decision.folded.map((s) => bySlot[s] as HTMLElement));
     const inline = (slot: SecondarySlot): HTMLElement[] => (decision.inline.includes(slot) && bySlot[slot] ? [bySlot[slot] as HTMLElement] : []);
     bar.replaceChildren(
