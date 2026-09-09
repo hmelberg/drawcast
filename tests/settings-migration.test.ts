@@ -90,3 +90,18 @@ describe("the template-on-demand cap", () => {
     expect(loadSettings().templatesOnDemandMax).toBe(0);
   });
 });
+
+describe("the visual repair toggle (freehand-figures Task 14)", () => {
+  it("defaults to false — off until measured", () => {
+    expect(DEFAULT_SETTINGS.visualRepair).toBe(false);
+  });
+  it("a settings blob stored before the toggle existed gets the default (false) on load", () => {
+    const { visualRepair: _dropped, ...older } = DEFAULT_SETTINGS;
+    mem.set(SETTINGS_KEY, JSON.stringify(older));
+    expect(loadSettings().visualRepair).toBe(false);
+  });
+  it("a stored true survives a reload", () => {
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, visualRepair: true }));
+    expect(loadSettings().visualRepair).toBe(true);
+  });
+});

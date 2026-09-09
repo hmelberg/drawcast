@@ -129,7 +129,7 @@ const INK = "#3d3833";
 /** The sketch font as an inline data URI so SVG-as-image frames keep it
  *  (images loaded from SVG cannot fetch external resources). */
 let fontStylePromise: Promise<string> | null = null;
-function sketchFontStyle(): Promise<string> {
+export function sketchFontStyle(): Promise<string> {
   fontStylePromise ??= (async () => {
     try {
       const css = await (await fetch("https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap")).text();
@@ -243,7 +243,7 @@ function paintDemoCard(ctx: CanvasRenderingContext2D, demo: DemoState, elapsed: 
   ctx.restore();
 }
 
-async function paintFrame(
+export async function paintFrame(
   ctx: CanvasRenderingContext2D,
   svgText: string,
   fontStyle: string,

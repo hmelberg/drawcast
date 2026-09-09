@@ -132,6 +132,14 @@ export interface Settings {
    * Off for normal use — "Learn from this" is the user-facing feedback.
    */
   developerMode: boolean;
+  /**
+   * Visual repair (freehand-figures Task 14): after the pedagogy pass, render
+   * the figure and let the model look at its own last frame once before
+   * settling — a freehand drawing's parts can be individually valid and
+   * still misplaced relative to each other, which no text-only lint catches.
+   * One extra model call per qualifying figure. Off until measured.
+   */
+  visualRepair: boolean;
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
   /** The Share destination used last, so a repeat publish is one keypress. */
@@ -192,6 +200,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarSections: {},
   choicesOpen: false,
   developerMode: false,
+  visualRepair: false,
   specFormat: "yaml",
   shareTo: "link",
   // Every built-in pack, on. A pack that is off is invisible to the compiler
@@ -295,7 +304,7 @@ export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = 
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
-  { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "backup"] },
+  { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },
 ];
 
 export function getApiKey(): string {
