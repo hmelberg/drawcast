@@ -7,7 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
-import type { Command, Spec, SpecElement } from "./types";
+import { SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
@@ -102,6 +102,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
+        "group", "math", "image", "icon",
       ],
     },
     // axes
@@ -125,15 +126,20 @@ const elementSchema = {
             intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
             ref: { type: "string" },
             anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
+            side: { type: "string", enum: [...SIDE_VALUES], description: "Place OUTSIDE ref's box on this side, gap units away." },
+            gap: { type: "number", description: "With side: distance from ref's box, logical units." },
+            offset: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[dx, dy] nudge applied after side/gap or anchor placement." },
           },
           additionalProperties: false,
         },
         { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
       ],
       description:
-        "point: location — x+y in domain units, or intersection_of two curve ids. angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
+        "Where the element goes. point: x,y or intersection_of. Others: ref + side/gap (outside another element's box) or ref + anchor (a named point on it); optional offset. Never with x/y. " +
+        "angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
     },
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
+    anchor: { type: "string", description: "With at: which of THIS element's anchors lands there (default opposite of at.side, else center)." },
     // arrow / edge / angle
     from: {
       oneOf: [{ type: "number" }, { type: "string" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
@@ -186,9 +192,22 @@ const elementSchema = {
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
     closed: { type: "boolean", description: "path: close the polyline." },
+    smooth: { type: "boolean", description: "path: smooth curve through the points (Catmull-Rom)." },
+    members: { type: "array", items: { type: "string" }, minItems: 1, description: "group: element ids that form one thing; draw/move/highlight the group id to act on all." },
+    fit: {
+      oneOf: [
+        { type: "string", enum: ["left", "right", "top", "bottom", "full"] },
+        { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" } }, required: ["x", "y", "w", "h"], additionalProperties: false },
+      ],
+      description: "group: scale and centre the members into this region or box (aspect kept).",
+    },
+    tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
+    size: { type: "number", description: "math: font size (≥ 18). icon: box size in logical units (default 100)." },
+    set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
+    credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
     x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one." },
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one." },
-    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
+    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width." },
     height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
@@ -241,7 +260,7 @@ const elementSchema = {
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
         "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips), \"grid\" (the same rectangle, n columns × rows rows), \"rings\" (n concentric rings of a circle of radius at x, y — unroll them with arrange), " +
         "\"triangles\" (fans a regular polygon (sides + radius) or a polygon (points, from: \"vertex_k\") into triangles) or \"halving\" (halves a width × height rectangle n times, alternately, with `<id>_rest` the remainder — 1/2 + 1/4 + …). " +
-        "measure: the element to measure.",
+        "measure: the element to measure. image: what to photograph (a Commons/Wikipedia title). icon: a keyword.",
     },
     url: {
       type: "string",
@@ -1242,6 +1261,14 @@ function elementErrors(el: SpecElement): string[] {
       need(/^https?:\/\//i.test(l), `link "${l}" must be a full http(s) URL`);
     }
   }
+  // Cross-cutting: at.ref places relative to another element's box/anchor —
+  // combining it with an absolute x/y is a contradiction on every type.
+  if (el.at !== undefined && !Array.isArray(el.at)) {
+    const at = el.at as { ref?: string };
+    if (typeof at.ref === "string" && (typeof el.x === "number" || typeof el.y === "number")) {
+      errs.push(`element "${el.id}": at.ref cannot be combined with x/y`);
+    }
+  }
   switch (el.type) {
     case "curve":
       need(!!el.expr || !!el.direction, "needs either expr or a qualitative direction");
@@ -1288,9 +1315,27 @@ function elementErrors(el: SpecElement): string[] {
     case "path":
       need(Array.isArray(el.points) && el.points.length >= 2, "needs points (≥ 2)");
       break;
-    case "text":
+    case "text": {
       need(!!el.text, "needs text");
-      need(typeof el.x === "number" && typeof el.y === "number", "needs x and y (logical coordinates)");
+      const textAtRef = el.at !== undefined && !Array.isArray(el.at) && typeof (el.at as { ref?: string }).ref === "string";
+      need((typeof el.x === "number" && typeof el.y === "number") || textAtRef, "needs x and y (logical coordinates), or at: {ref: ...}");
+      break;
+    }
+    case "group":
+      if (!Array.isArray(el.members) || el.members.length === 0 || !el.members.every((m) => typeof m === "string")) {
+        errs.push(`element "${el.id}": group needs members`);
+      }
+      break;
+    case "math":
+      if (typeof el.tex !== "string" || el.tex.trim() === "") {
+        errs.push(`element "${el.id}": math needs tex`);
+      }
+      break;
+    case "image":
+    case "icon":
+      if (typeof el.of !== "string" || el.of.trim() === "") {
+        errs.push(`element "${el.id}": ${el.type} needs of`);
+      }
       break;
     case "shape":
       need(!!el.shape, "needs shape");

@@ -3148,15 +3148,14 @@ async function generate(): Promise<void> {
     resetCallLedger();
     // ---- icon seed (Task 13b): fetchSeed's own SEED_ICON element never
     // reaches validateSpec or render — it exists only to drive resolveIcons
-    // directly (`type: "icon"` isn't in spec/types.ts yet). Remembers the
-    // resolved set in a closure variable for the status line below, since
-    // GenerationOutcome only reports whether a seed was sent, not which set
-    // it came from. ----
+    // directly. Remembers the resolved set in a closure variable for the
+    // status line below, since GenerationOutcome only reports whether a seed
+    // was sent, not which set it came from. ----
     let seededSet: string | undefined;
     const fetchSeed = async (subject: string): Promise<SeedBlock | null> => {
-      const spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] } as unknown as Spec;
+      const spec: Spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] };
       const results = await resolveIcons(spec, undefined, { forSeed: true });
-      const el = spec.elements![0] as unknown as { strokes?: string; credit?: string; set?: string };
+      const el = spec.elements![0];
       const rings = el.strokes ? decodeIcon(el.strokes) : null;
       if (!results[0]?.ok || !rings) return null;
       seededSet = el.set;

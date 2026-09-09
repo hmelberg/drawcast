@@ -17,12 +17,10 @@ export const VISUAL_REPAIR_PROMPT =
  * qualifies — a templated figure has no loose parts for a snapshot to catch
  * that lint and the pedagogy pass could not already, and a freehand spec with
  * no group has nothing the round's "same ids where possible" instruction can
- * anchor to. `type: "group"` is not in ElementType yet (freehand-figures Task
- * 13 is split across dispatches) — read through `as string`, the idiom
- * image.ts and seed.ts already use for the same reason.
+ * anchor to.
  */
 export function wantsVisualRepair(spec: Spec): boolean {
-  return !spec.template && (spec.elements ?? []).some((e) => (e.type as string) === "group");
+  return !spec.template && (spec.elements ?? []).some((e) => e.type === "group");
 }
 
 /**

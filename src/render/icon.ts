@@ -8,11 +8,7 @@
 //
 // Modeled on render/image.ts: same never-throw contract, same cache
 // (cacheGet/cachePut), same injected-deps seam so tests never hit the
-// network. `type: "icon"` and the `set`/`credit`/`size` fields are not in
-// spec/types.ts yet (freehand-figures Task 12 is split across two
-// dispatches — Part B wires the schema and the layout case) — all three are
-// read/written through a narrow local type here, exactly as image.ts does
-// for `credit`.
+// network.
 
 import type { Spec, SpecElement } from "../spec/types";
 import type { Pt } from "../layout/model";
@@ -20,9 +16,6 @@ import { sampleSvgPath } from "../scenes/svgpath";
 import { decodeIcon, encodeIcon } from "../spec/trace";
 import { cacheGet, cachePut } from "./portrait";
 import { ICON_SETS } from "./icon-sets";
-
-/** An element carrying the not-yet-schema'd `icon` fields. */
-type IconEl = SpecElement & { set?: string; credit?: string; size?: number };
 
 /** Tried first when an icon element gives no explicit `set`: no attribution owed. */
 export const DEFAULT_PREFIXES = ["lucide", "tabler", "ph", "heroicons", "material-symbols"];
@@ -95,8 +88,8 @@ export interface IconResolution {
 /** Cache key for an icon element, or null when it needs no resolution. Keyed
  *  by `set` too (default "*"): the same keyword can resolve to a different
  *  icon depending on which set the author pinned it to. */
-function iconCacheKey(el: Pick<IconEl, "type" | "of" | "strokes" | "set">): string | null {
-  if ((el.type as string) !== "icon" || el.strokes) return null;
+function iconCacheKey(el: Pick<SpecElement, "type" | "of" | "strokes" | "set">): string | null {
+  if (el.type !== "icon" || el.strokes) return null;
   if (!el.of) return null;
   return `ic${ICON_VERSION}|${el.set ?? "*"}|${el.of.trim().toLowerCase()}`;
 }
@@ -125,9 +118,8 @@ function firstAllowed(icons: unknown, allow: ("permissive" | "by")[]): { prefix:
  */
 export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), opts: IconResolveOpts = {}): Promise<IconResolution[]> {
   const results: IconResolution[] = [];
-  for (const raw of spec.elements ?? []) {
-    const el = raw as IconEl;
-    if ((el.type as string) !== "icon") continue;
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "icon") continue;
     if (el.strokes && decodeIcon(el.strokes)) {
       results.push({ id: el.id, ok: true });
       continue;

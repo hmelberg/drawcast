@@ -5,17 +5,11 @@
 // Wikipedia infobox portrait) makes no promise about reuse rights.
 //
 // Modeled on render/portrait.ts's resolvePortraits: same cache, same
-// fetch→trace shape, same never-throw contract. `type: "image"` and the
-// `credit` field are not in spec/types.ts yet (freehand-figures Task 7 is
-// split across two dispatches) — both are read/written through a narrow
-// local type here so `tsc --noEmit` stays clean without touching the schema.
+// fetch→trace shape, same never-throw contract.
 
 import type { Spec, SpecElement } from "../spec/types";
 import { decodePhoto, encodePhoto } from "../spec/trace";
 import { cacheGet, cachePut, LOOK_DIM, loadRaster, styledPhotoDataUri, wikiSummaryUrl, type Raster } from "./portrait";
-
-/** An element carrying the not-yet-schema'd `image` fields. */
-type ImageEl = SpecElement & { credit?: string };
 
 /** Bump when the resolver's output changes — old cache entries stop matching. */
 const IMAGE_VERSION = 1;
@@ -88,8 +82,8 @@ export interface ImageResolution {
 }
 
 /** Cache key for an image element, or null when it needs no resolution. */
-function imageCacheKey(el: Pick<ImageEl, "type" | "of" | "strokes">): string | null {
-  if ((el.type as string) !== "image" || el.strokes) return null;
+function imageCacheKey(el: Pick<SpecElement, "type" | "of" | "strokes">): string | null {
+  if (el.type !== "image" || el.strokes) return null;
   if (!el.of) return null;
   return `i${IMAGE_VERSION}|${el.of.trim().toLowerCase()}`;
 }
@@ -110,9 +104,8 @@ function fileTitleFromUrl(url: string): string {
  */
 export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps()): Promise<ImageResolution[]> {
   const results: ImageResolution[] = [];
-  for (const raw of spec.elements ?? []) {
-    const el = raw as ImageEl;
-    if ((el.type as string) !== "image") continue;
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "image") continue;
     if (el.strokes && decodePhoto(el.strokes)) {
       results.push({ id: el.id, ok: true });
       continue;

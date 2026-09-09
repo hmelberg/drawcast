@@ -6,7 +6,7 @@
 
 import { simplifyPolyline } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import type { Spec, SpecElement } from "../spec/types";
+import type { Spec } from "../spec/types";
 
 export interface SeedBlock {
   text: string;
@@ -15,12 +15,6 @@ export interface SeedBlock {
 }
 
 const BOX = 300, CX = 500, CY = 375;
-
-/** `type: "group"`, `members` and `credit` are not in spec/types.ts yet
- *  (freehand-figures Task 13 is split across two dispatches — Part B wires
- *  fetchSeed into compile.ts/main.ts) — read/written through a narrow local
- *  type here, exactly as image.ts and icon.ts do for `credit`. */
-type SeedGroupEl = SpecElement & { members?: string[]; credit?: string };
 
 /**
  * `rings` in [0,1]×[0,1] icon space (y-up) become path elements in a
@@ -68,10 +62,10 @@ export function seedBlock(subject: string, rings: Pt[][], credit: string): SeedB
  * that absorbed a `seed_k` member. Returns whether any seed path survived.
  */
 export function attachSeedCredit(spec: Spec, seed: SeedBlock): boolean {
-  const els = (spec.elements ?? []) as SeedGroupEl[];
+  const els = spec.elements ?? [];
   const survivors = new Set(els.filter((e) => seed.ids.includes(e.id)).map((e) => e.id));
   if (survivors.size === 0) return false;
-  const group = els.find((e) => (e.type as string) === "group" && e.id === "seed") ?? els.find((e) => (e.type as string) === "group" && (e.members ?? []).some((m) => survivors.has(m)));
+  const group = els.find((e) => e.type === "group" && e.id === "seed") ?? els.find((e) => e.type === "group" && (e.members ?? []).some((m) => survivors.has(m)));
   if (group) group.credit = `based on ${seed.credit}`;
   return true;
 }

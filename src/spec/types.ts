@@ -32,7 +32,11 @@ export type ElementType =
   | "angle"
   | "measure"
   | "ellipse"
-  | "line";
+  | "line"
+  | "group"
+  | "math"
+  | "image"
+  | "icon";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -91,8 +95,11 @@ export interface SpecElement {
   expr?: string;
   x_from?: number;
   x_to?: number;
-  // point / angle
-  at?: { x?: number; y?: number; intersection_of?: string[]; ref?: string; anchor?: string } | [number, number];
+  // point / angle / relative placement
+  /** Where the element goes. point: `{x, y}` or `intersection_of`. Any coordinate-placed element: `{ref, side?, gap?, anchor?, offset?}` — placed relative to another element's box (side: outside it, gap units away; anchor: a named point on it). Never together with x/y. */
+  at?: { x?: number; y?: number; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number] } | [number, number];
+  /** Own landing point when placed with at (default: the side opposite at.side, else center). Same convention as move. */
+  anchor?: string;
   guides?: boolean;
   // arrow / edge / angle / pieces of triangles ("vertex_k")
   from?: EndRef | [number, number] | number | string;
@@ -118,6 +125,20 @@ export interface SpecElement {
   // tier-3 raw coordinates (logical units)
   points?: [number, number][];
   closed?: boolean;
+  /** path: Catmull-Rom through the points. */
+  smooth?: boolean;
+  /** group: element ids that form one thing; draw/move/highlight the group id to act on all. */
+  members?: string[];
+  /** group: scale and centre the members into this region or box (aspect kept). */
+  fit?: "left" | "right" | "top" | "bottom" | "full" | { x: number; y: number; w: number; h: number };
+  /** math: LaTeX, drawn as handwriting. label: LaTeX instead of text. */
+  tex?: string;
+  /** math: font size (x-height-based). icon: box size in logical units (default 100). */
+  size?: number;
+  /** icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY). */
+  set?: string;
+  /** image/icon: attribution (machine-written; copy VERBATIM if present). */
+  credit?: string;
   x?: number;
   y?: number;
   width?: number;
