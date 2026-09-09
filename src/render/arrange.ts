@@ -6,7 +6,7 @@ import type { Pt } from "../layout/model";
 import type { PieceGeometry } from "../layout/tier2";
 import { poseOf, type Turn } from "./pose";
 
-export type ArrangeLayout = "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex";
+export type ArrangeLayout = "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex" | "unroll";
 
 export interface ArrangeInput {
   id: string;
@@ -27,6 +27,8 @@ export interface ArrangeOutput {
   pivotNow?: Pt;
   /** …then move so the apex lands here. */
   apexTo?: Pt;
+  /** unroll: the strip this ring straightens into (four corners, current coordinates). */
+  rect?: Pt[];
 }
 
 const DEG = Math.PI / 180;
@@ -49,6 +51,21 @@ function apexNow(i: ArrangeInput): Pt {
   return poseOf(i.pose.offset, i.pose.turn)(i.piece!.apex);
 }
 
+/** Ring pieces straightened into strips (design §2.4): strip k is 2π·r_mid long and (rOut − rIn) high; innermost at the bottom, left ends aligned, the stack centred on `at`. */
+export function unrollRings(items: ArrangeInput[], at: Pt): { id: string; rect: Pt[] }[] {
+  const rings = items.filter((i) => i.piece?.ring).sort((a, b) => a.piece!.ring!.rIn - b.piece!.ring!.rIn);
+  const strips = rings.map((i) => ({ id: i.id, len: 2 * Math.PI * ((i.piece!.ring!.rIn + i.piece!.ring!.rOut) / 2), h: i.piece!.ring!.rOut - i.piece!.ring!.rIn }));
+  const total = strips.reduce((s, x) => s + x.h, 0);
+  const lmax = Math.max(...strips.map((s) => s.len));
+  const x0 = at[0] - lmax / 2;
+  let y = at[1] - total / 2;
+  return strips.map((s) => {
+    const rect: Pt[] = [[x0, y], [x0 + s.len, y], [x0 + s.len, y + s.h], [x0, y + s.h]];
+    y += s.h;
+    return { id: s.id, rect };
+  });
+}
+
 export function arrangeTargets(items: ArrangeInput[], layout: ArrangeLayout, opts: { at?: Pt; gap: number; columns?: number; start?: number }): ArrangeOutput[] {
   const firstSector = items.find((i) => i.piece);
   // A fan gathers the pieces about ONE apex: with no `at`, the first sector's apex stays put (the piece itself still turns to `start`) and the others come to it.
@@ -57,6 +74,14 @@ export function arrangeTargets(items: ArrangeInput[], layout: ArrangeLayout, opt
   if (layout === "zipper" && items.some((i) => i.piece)) return zipper(items, at, gap);
   if (layout === "fan" && items.some((i) => i.piece)) return fan(items, at, opts.start ?? 0, gap);
   if (layout === "hex") return hex(items, at, gap);
+  if (layout === "unroll") {
+    const rings = items.filter((i) => i.piece?.ring);
+    const others = items.filter((i) => !i.piece?.ring);
+    const out: ArrangeOutput[] = unrollRings(rings, at);
+    if (rings.length > 0) out.push(...othersRow(others, at, Math.max(...rings.map((i) => i.piece!.ring!.rOut)), gap, 90));
+    else out.push(...arrangeTargets(others, "row", opts));
+    return out;
+  }
   if (layout === "row" || layout === "zipper" || layout === "fan") {
     const total = items.reduce((s, i) => s + i.box.w, 0) + gap * (items.length - 1);
     let x = at[0] - total / 2;
@@ -119,13 +144,14 @@ function zipper(items: ArrangeInput[], at: Pt, gap: number): ArrangeOutput[] {
   const sectors = items.filter((i) => i.piece);
   const others = items.filter((i) => !i.piece);
   const r = sectors[0].piece!.radius;
+  const h = sectors[0].piece!.height ?? r;
   const s = r * Math.sin(sectors[0].piece!.halfAngle * DEG);
   const width = s * (sectors.length - 1);
   const x0 = at[0] - width / 2;
   const out: ArrangeOutput[] = sectors.map((i, k) => {
     const up = k % 2 === 0;
     const targetMid = up ? 90 : -90;
-    const apexTo: Pt = [x0 + k * s, at[1] + (up ? -r / 2 : r / 2)];
+    const apexTo: Pt = [x0 + k * s, at[1] + (up ? -h / 2 : h / 2)];
     // A piece may already carry a turn (an earlier `move` rotate): its
     // mid-direction is midAngle + that turn, so the delta undoes it too —
     // otherwise the slice zips in at the wrong angle.

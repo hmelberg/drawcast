@@ -44,6 +44,10 @@ export interface PieceGeometry {
   midAngle: number;
   halfAngle: number;
   radius: number;
+  /** A ring piece: its inner and outer radii (pieces of rings). */
+  ring?: { rIn: number; rOut: number };
+  /** The piece's height across its apex-to-base direction (a triangle's apothem); absent = radius. */
+  height?: number;
 }
 
 export interface Tier2Result {
@@ -1332,6 +1336,7 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
   if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
+  if (el.of === "rings") return ringPiecesDrawables(el, ctx, c);
   const r = el.radius ?? 120;
   const n = Math.max(2, Math.round(el.n ?? 8));
   const step = 360 / n;
@@ -1396,6 +1401,45 @@ function rectPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
       ids.push(id);
       ctx.extraOrder.push(id);
     }
+  }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
+  return out;
+}
+
+/** A circle of points, counter-clockwise from +x. */
+function circlePts(c: Pt, r: number, n = 48): Pt[] {
+  return Array.from({ length: n }, (_, i): Pt => [c[0] + r * Math.cos((2 * Math.PI * i) / n), c[1] + r * Math.sin((2 * Math.PI * i) / n)]);
+}
+
+/**
+ * `pieces: {of: "rings"}` — n concentric annuli of equal width, `<id>_1` the
+ * innermost. The wash is a KEYHOLE polygon (the outer circle, a seam in to
+ * the inner circle walked the other way, and back), not an area with a hole,
+ * so a morph can straighten it into a strip (design §2.4).
+ */
+function ringPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  const R = el.radius ?? 120;
+  const n = Math.max(1, Math.min(64, Math.round(el.n ?? 6)));
+  const w = R / n;
+  const style = resolveStyle(el.style);
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  for (let k = 0; k < n; k++) {
+    const rIn = k * w, rOut = (k + 1) * w;
+    const id = `${el.id}_${k + 1}`;
+    const outer = circlePts(c, rOut);
+    const inner = rIn > 0 ? circlePts(c, rIn).reverse() : [];
+    const keyhole: Pt[] = rIn > 0 ? [...outer, outer[0], inner[inner.length - 1], ...inner] : outer;
+    if (style.fill) out.push({ id: `${id}_wash`, kind: "area", pts: keyhole, z: Z_AREA, style: resolveStyle(el.style, { opacity: 0.35 }), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.region }) });
+    out.push({ id, kind: "stroke", pts: outer, closed: true, z: Z_STROKE, style, drawOpts: resolveDrawOpts(el.draw) });
+    if (rIn > 0) out.push({ id: `${id}_body`, kind: "stroke", pts: circlePts(c, rIn), closed: true, z: Z_STROKE, style, drawOpts: resolveDrawOpts(el.draw) });
+    const mid = (rIn + rOut) / 2;
+    const centroid: Pt = [c[0], c[1] + mid];
+    ctx.anchors[id] = centroid;
+    ctx.pieces[id] = { apex: c, centroid, midAngle: 90, halfAngle: 180, radius: rOut, ring: { rIn, rOut } };
+    ids.push(id);
+    ctx.extraOrder.push(id);
   }
   ctx.pieceGroups[el.id] = ids;
   ctx.anchors[el.id] = c;

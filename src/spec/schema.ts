@@ -225,7 +225,7 @@ const elementSchema = {
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
-        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips) or \"grid\" (the same rectangle, n columns × rows rows). " +
+        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips), \"grid\" (the same rectangle, n columns × rows rows) or \"rings\" (n concentric rings of a circle of radius at x, y — unroll them with arrange). " +
         "measure: the element to measure.",
     },
     url: {
@@ -605,8 +605,8 @@ const commandSchema = {
         target: idListSchema("Element ids, or one pieces id."),
         layout: {
           type: "string",
-          enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex"],
-          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right.",
+          enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex", "unroll"],
+          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right, \"unroll\" straightens ring pieces into strips stacked bottom-up (innermost first) — the circumference-equals-length proof.",
         },
         at: pointRefSchema("Centre of the arrangement (default: where the targets are now; fan: the first sector's apex)"),
         start: { type: "number", description: "fan: the angle where the first piece begins, degrees counter-clockwise from +x — e.g. \"start\": 0 lays the angles along a horizontal line rightwards (default 0)." },
@@ -1290,8 +1290,8 @@ function elementErrors(el: SpecElement): string[] {
       );
       break;
     case "pieces":
-      need(el.of === "sectors" || el.of === "strips" || el.of === "grid", 'needs of: "sectors", "strips" or "grid"');
-      if (el.of === "sectors") need(typeof el.radius === "number", "needs radius");
+      need(["sectors", "strips", "grid", "rings", "triangles", "halving"].includes(el.of as string), 'needs of: "sectors", "strips", "grid" or "rings"');
+      if (el.of === "sectors" || el.of === "rings") need(typeof el.radius === "number", "needs radius");
       if (el.of === "strips" || el.of === "grid") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
       if (el.of === "grid") need(typeof el.rows === "number", "needs rows (n is the columns)");
       need(typeof el.n === "number", "needs n (how many pieces)");

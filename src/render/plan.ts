@@ -1068,7 +1068,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // A honeycomb is a zero-seam packing, so hex alone defaults to no gap.
       const gap = cmd.arrange.gap ?? (cmd.arrange.layout === "hex" ? 0 : 6);
       const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap, columns: cmd.arrange.columns, start: cmd.arrange.start });
+      if (cmd.arrange.layout === "unroll" && !inputs.some((i) => i.piece?.ring)) {
+        warnings.push("arrange unroll: none of the targets is a ring piece — laid out as a row instead");
+      }
       const items: TransformItem[] = [];
+      const extraMorphs: MorphItem[] = [];
+      const unrolledIds: string[] = [];
       // Attached labels ride the pose change exactly as under move (design
       // §2.2) — a row, a zipper or a fan of labeled shapes must not leave its
       // labels behind. Dedupe across the whole loop, since two targets can
@@ -1076,6 +1081,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const movedFollowers = new Set<string>();
       for (const p of placed) {
         const input = inputs.find((i) => i.id === p.id)!;
+        if (p.rect) {
+          // unroll: the ring's pose does not change — it morphs its leaves
+          // (the wash/outer/inner circles) into the strip's rectangle instead.
+          const leaves = currentLeaves(p.id) ?? [];
+          const inv = poseOf(input.pose.offset, input.pose.turn, true);
+          const item: MorphItem = { id: p.id, leaves: [] };
+          const next: Record<string, Pt[]> = {};
+          for (const l of leaves) {
+            const pair = morphPair(l.pts, l.closed, p.rect.map(inv), true);
+            item.leaves.push({ leafId: l.leafId, from: pair.from, to: pair.to });
+            next[l.leafId] = pair.to;
+          }
+          shapes[p.id] = next;
+          extraMorphs.push(item);
+          unrolledIds.push(p.id);
+          continue;
+        }
         const from = { offset: input.pose.offset, turn: input.pose.turn ?? { deg: 0, pivot: [0, 0] as Pt } };
         let offset: Pt = input.pose.offset;
         let turn: Turn | undefined = input.pose.turn;
@@ -1095,8 +1117,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (turn) turns[p.id] = turn;
         items.push(...followerItems(p.id, { offset: input.pose.offset, turn: input.pose.turn }, { offset, turn }, movedFollowers, ids));
       }
-      const upd = measureUpdates(items.map((it) => it.id));
-      pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out", ...upd });
+      const upd = measureUpdates([...items.map((it) => it.id), ...unrolledIds]);
+      const mergedMorphs = [...extraMorphs, ...(upd.extraMorphs ?? [])];
+      pushStep({
+        kind: "transform",
+        items,
+        seconds: cmd.arrange.duration ?? 2,
+        easing: cmd.arrange.easing ?? "ease-in-out",
+        ...upd,
+        ...(mergedMorphs.length > 0 ? { extraMorphs: mergedMorphs } : {}),
+      });
     } else if (cmd.flip !== undefined) {
       const ids = resolveIds(cmd.flip.target, "flip");
       if (ids.length === 0) continue;
