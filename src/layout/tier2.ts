@@ -6,6 +6,7 @@ import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
 import { centroid, type BBox } from "./geometry";
 import { heuristicMeasure } from "./measure";
+import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import {
@@ -18,6 +19,7 @@ import {
   defaultStyle,
   drawablesForId,
   leafDrawables,
+  type AreaDrawable,
   type Drawable,
   type GroupDrawable,
   type Pt,
@@ -28,7 +30,7 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
-import type { PointRef, SpecElement } from "../spec/types";
+import type { EndRef, PointRef, SpecElement } from "../spec/types";
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -68,6 +70,8 @@ export interface Tier2Result {
   pieces: Record<string, PieceGeometry>;
   /** parent `pieces` element id → its child piece ids, in order. */
   pieceGroups: Record<string, string[]>;
+  /** `measure` element specs (design §2.3), keyed by the measure's own element id. */
+  measures: Record<string, M.MeasureSpec>;
 }
 
 interface Ctx {
@@ -89,6 +93,7 @@ interface Ctx {
   panes: Record<string, BBox>;
   pieces: Record<string, PieceGeometry>;
   pieceGroups: Record<string, string[]>;
+  measures: Record<string, M.MeasureSpec>;
 }
 
 export function layoutElements(
@@ -118,6 +123,7 @@ export function layoutElements(
     warnings: [],
     pieces: {},
     pieceGroups: {},
+    measures: {},
   };
 
   // Pass 1: position free nodes deterministically on a circle.
@@ -246,6 +252,9 @@ export function layoutElements(
       case "angle":
         drawables.push(...angleDrawables(el, ctx));
         break;
+      case "measure":
+        drawables.push(...measureDrawables(el, ctx));
+        break;
     }
   }
 
@@ -260,6 +269,7 @@ export function layoutElements(
     panes: ctx.panes,
     pieces: ctx.pieces,
     pieceGroups: ctx.pieceGroups,
+    measures: ctx.measures,
   };
 }
 
@@ -1183,6 +1193,85 @@ function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   }
   ctx.anchors[el.id] = arcPt;
   ctx.namedAnchors[el.id] = { vertex: at, arc: arcPt };
+  return out;
+}
+
+/** The primary ring of an element laid out so far: its first closed leaf (area or closed stroke), else its first stroke's points. */
+function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean } | null {
+  const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => d.kind === "stroke" || d.kind === "area");
+  const closed = leaves.find((d) => d.kind === "area" || (d.kind === "stroke" && d.closed && !d.shapeHint));
+  if (closed) return { pts: closed.pts, closed: true };
+  const open = leaves.find((d) => d.kind === "stroke" && !d.shapeHint && d.pts.length >= 2);
+  return open ? { pts: open.pts, closed: false } : null;
+}
+
+/**
+ * `measure` (design §2.3): the length/width/height of an element or the
+ * span between two points, or the area/perimeter of a closed outline — a
+ * dimension line with end ticks (`<id>`, `<id>_guides`, `<id>_dot`) plus a
+ * separate text element `label_<id>` that never rotates. `of` reads the
+ * element's own box/ring; `from`/`to` measures a segment between two
+ * resolved points instead. The dimension line sits `offset` (default 24)
+ * to the `side` away from the measured element's centroid, unless `side`
+ * is given explicitly.
+ */
+function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const format: M.MeasureFormat = { label: typeof el.label === "string" ? el.label : "{value}", unit: el.unit, scale: el.scale ?? 1, decimals: el.decimals };
+  const textId = `label_${el.id}`;
+  const style = resolveStyle(el.style, { strokeWidth: 2 });
+  const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });
+  let a: Pt | null = null, b: Pt | null = null;
+  let ring: Pt[] | null = null;
+  let what: M.MeasureWhat;
+  let fromSrc: M.PointSource | undefined, toSrc: M.PointSource | undefined;
+  let awayFrom: Pt | null = null;
+  const src = (p: PointRef | undefined): M.PointSource | undefined => (p === undefined ? undefined : !Array.isArray(p) && p.ref ? { ref: p.ref, anchor: p.anchor ?? "center" } : (() => { const pt = resolvePointRef(p, ctx); return pt ? { pt } : undefined; })());
+  if (el.from !== undefined && el.to !== undefined) {
+    a = resolvePointRef(el.from as PointRef, ctx);
+    b = resolvePointRef(el.to as PointRef, ctx);
+    fromSrc = src(el.from as PointRef);
+    toSrc = src(el.to as PointRef);
+    what = (el.what as M.MeasureWhat | undefined) ?? "length";
+    const refId = !Array.isArray(el.from) && (el.from as EndRef).ref;
+    if (refId) { const r = primaryRingSoFar(ctx, refId); if (r) awayFrom = M.ringCentroid(r.pts); }
+  } else if (el.of !== undefined) {
+    const r = primaryRingSoFar(ctx, el.of);
+    if (!r) { ctx.warnings.push(`measure "${el.id}": "${el.of}" has nothing to measure`); return []; }
+    ring = r.pts;
+    what = (el.what as M.MeasureWhat | undefined) ?? (r.closed ? "area" : "length");
+    if (what === "length") { a = r.pts[0]; b = r.pts[r.pts.length - 1]; }
+    if (what === "width") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const y = Math.min(...ys); a = [Math.min(...xs), y]; b = [Math.max(...xs), y]; }
+    if (what === "height") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const x = Math.max(...xs); a = [x, Math.min(...ys)]; b = [x, Math.max(...ys)]; }
+    awayFrom = M.ringCentroid(r.pts);
+  } else {
+    ctx.warnings.push(`measure "${el.id}": needs of, or from and to`);
+    return [];
+  }
+  const value = M.measureValue(what, { a: a ?? undefined, b: b ?? undefined, ring: ring ?? undefined });
+  if (value === null || (what !== "area" && what !== "perimeter" && (!a || !b))) { ctx.warnings.push(`measure "${el.id}": cannot resolve what to measure`); return []; }
+  const out: Drawable[] = [];
+  let textPos: Pt;
+  let side: "left" | "right" = "left";
+  if (a && b && what !== "area" && what !== "perimeter") {
+    if (el.side === "right" || el.side === "left") side = el.side;
+    else if (awayFrom) {
+      const cross = (b[0] - a[0]) * (awayFrom[1] - a[1]) - (b[1] - a[1]) * (awayFrom[0] - a[0]);
+      side = cross > 0 ? "right" : "left"; // the centroid is on the left → put the line on the right
+    }
+    const d = M.dimensionLine(a, b, el.offset ?? 24, side);
+    out.push({ id: el.id, kind: "stroke", pts: d.line, z: Z_STROKE, style, drawOpts });
+    out.push({ id: `${el.id}_guides`, kind: "stroke", pts: d.ticks[0], z: Z_STROKE, style, drawOpts });
+    out.push({ id: `${el.id}_dot`, kind: "stroke", pts: d.ticks[1], z: Z_STROKE, style, drawOpts });
+    textPos = d.textPos;
+    ctx.anchors[el.id] = [(d.line[0][0] + d.line[1][0]) / 2, (d.line[0][1] + d.line[1][1]) / 2];
+  } else {
+    textPos = ring ? (what === "perimeter" ? [M.ringCentroid(ring)[0], Math.max(...ring.map((p) => p[1])) + 26] : M.ringCentroid(ring)) : [CANVAS.w / 2, CANVAS.h / 2];
+    ctx.anchors[el.id] = textPos;
+  }
+  out.push({ id: textId, kind: "text", pos: textPos, text: M.formatMeasure(value, format), fontSize: 24, anchor: "middle", z: Z_TEXT, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
+  ctx.extraOrder.push(textId);
+  ctx.anchors[textId] = textPos;
+  ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId };
   return out;
 }
 

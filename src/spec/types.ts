@@ -29,7 +29,8 @@ export type ElementType =
   | "arc"
   | "polygon"
   | "pieces"
-  | "angle";
+  | "angle"
+  | "measure";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -138,8 +139,18 @@ export interface SpecElement {
   label?: string | boolean;
   /** angle: draw the right-angle square (default: automatically when the angle is within 0.5° of 90). */
   right?: boolean;
+  /** measure: what to read — length, width, height, area, or perimeter (default: length for a segment/open outline, area for a closed one). */
+  what?: "length" | "width" | "height" | "area" | "perimeter";
+  /** measure: appended to the value — "cm". */
+  unit?: string;
+  /** measure: logical units per unit (default 1) — 50 with unit cm makes a 100-unit side read 2.0 cm. */
+  scale?: number;
+  /** measure: decimals shown (default 0 when the value is 100 or more, else 1). */
+  decimals?: number;
+  /** measure: how far the dimension line sits from the segment (default 24). */
+  offset?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
-  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). */
+  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). measure: the element to measure. */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;

@@ -101,7 +101,7 @@ const elementSchema = {
       type: "string",
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
-        "sector", "arc", "polygon", "pieces", "angle",
+        "sector", "arc", "polygon", "pieces", "angle", "measure",
       ],
     },
     // axes
@@ -152,7 +152,7 @@ const elementSchema = {
     side: {
       type: "string",
       enum: ["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"],
-      description: "label: preferred side relative to the attached element. The collision solver may move it.",
+      description: "label: preferred side relative to the attached element. The collision solver may move it. measure: left/right of the segment's direction (default: away from the measured element).",
     },
     link: {
       type: "array",
@@ -209,13 +209,24 @@ const elementSchema = {
       description: "angle/measure: the text — angle default the degrees (\"62°\"); false hides it; measure default \"{value}\" e.g. \"b = {value}\".",
     },
     right: { type: "boolean", description: "angle: draw the right-angle square (default: automatically when the angle is 90°)." },
+    what: {
+      type: "string",
+      enum: ["length", "width", "height", "area", "perimeter"],
+      description:
+        "measure: what to read — length (a segment, arrow or path), width / height (of the element's box), area or perimeter (of its outline). Default: length for a segment, area for a closed shape.",
+    },
+    unit: { type: "string", description: "measure: appended to the value — \"cm\"." },
+    scale: { type: "number", exclusiveMinimum: 0, description: "measure: logical units per unit (default 1) — 50 with unit cm makes a 100-unit side read 2.0 cm." },
+    decimals: { type: "integer", minimum: 0, maximum: 4, description: "measure: decimals shown (default 0 when the value is 100 or more, else 1)." },
+    offset: { type: "number", description: "measure: how far the dimension line sits from the segment (default 24)." },
     // portrait / source
     of: {
       type: "string",
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
-        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips) or \"grid\" (the same rectangle, n columns × rows rows).",
+        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips) or \"grid\" (the same rectangle, n columns × rows rows). " +
+        "measure: the element to measure.",
     },
     url: {
       type: "string",
@@ -1287,6 +1298,9 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "angle":
       need(el.at !== undefined && el.from !== undefined && el.to !== undefined, "needs at, from and to");
+      break;
+    case "measure":
+      need(el.of !== undefined || (el.from !== undefined && el.to !== undefined), "needs of, or from and to");
       break;
     case "code":
       // A machine with a program on it and nothing to run (`game`, no code) is
