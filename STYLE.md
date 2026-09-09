@@ -54,6 +54,10 @@ a labelled assembly, not as a sketch waiting for a template to rescue it.
 points at"). In the exemplars as of Task 11: three freehand few-shots (a pump,
 a free-fall curve with its formulas, a wind turbine with a photo) and six
 bundled examples, two per target and at least one Norwegian in each pair.
+The two bundled photos are embedded as the Commons thumbnail's own colour
+bytes rather than through the app's grayscale-and-warm-tint pass, which needs
+a canvas node does not have — an accepted difference between a bundled example
+and a freshly generated one, not a defect.
 
 ### 2026-09-07 — A bundled example starts from a question, or from something worth explaining
 

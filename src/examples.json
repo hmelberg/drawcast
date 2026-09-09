@@ -15589,7 +15589,7 @@
             },
             "gesture": "tap"
           },
-          "speak": "Nåla stikker ned gjennom stoffet, og i det den løfter seg igjen, blir overtråden hengende som en liten løkke under."
+          "speak": "Nåla stikker ned gjennom stoffet, og idet den løfter seg igjen, blir overtråden hengende som en liten løkke under."
         },
         {
           "point": {
@@ -15634,7 +15634,7 @@
           "type": "shape",
           "shape": "rect",
           "width": 340,
-          "height": 90,
+          "height": 130,
           "at": {
             "ref": "housing",
             "anchor": "bottom"
@@ -15652,7 +15652,7 @@
             "anchor": "bottom",
             "offset": [
               -100,
-              0
+              40
             ]
           },
           "anchor": "bottom",
@@ -15672,7 +15672,7 @@
             "anchor": "bottom",
             "offset": [
               0,
-              0
+              40
             ]
           },
           "anchor": "bottom",
@@ -15692,7 +15692,7 @@
             "anchor": "bottom",
             "offset": [
               100,
-              0
+              40
             ]
           },
           "anchor": "bottom",
@@ -15786,66 +15786,87 @@
             "dp3",
             "shear"
           ],
-          "fit": "right"
+          "fit": {
+            "x": 530,
+            "y": 220,
+            "w": 400,
+            "h": 260
+          }
         },
         {
           "id": "key",
           "type": "polygon",
           "points": [
             [
-              -280,
+              0,
+              -40
+            ],
+            [
+              400,
+              -40
+            ],
+            [
+              420,
+              -10
+            ],
+            [
+              390,
               0
             ],
             [
-              0,
+              365,
+              38
+            ],
+            [
+              335,
+              38
+            ],
+            [
+              310,
               0
             ],
             [
-              0,
-              44
+              265,
+              66
             ],
             [
-              -40,
-              44
+              235,
+              66
             ],
             [
-              -62,
-              22
+              190,
+              0
             ],
             [
-              -90,
-              30
+              165,
+              50
             ],
             [
-              -118,
-              22
+              135,
+              50
             ],
             [
-              -150,
+              110,
+              0
+            ],
+            [
+              80,
+              0
+            ],
+            [
+              80,
               40
             ],
             [
-              -182,
-              22
-            ],
-            [
-              -212,
-              30
-            ],
-            [
-              -244,
-              22
-            ],
-            [
-              -280,
-              12
+              0,
+              40
             ]
           ],
           "at": {
             "ref": "plug",
-            "side": "left",
-            "gap": 30
+            "anchor": "bottom_left"
           },
+          "anchor": "bottom_right",
           "style": {
             "fill": "#f2c14e",
             "color": "#b5482e"
@@ -15922,12 +15943,12 @@
               "key"
             ],
             "by": [
-              330,
+              340,
               0
             ],
             "duration": 1.4
           },
-          "speak": "Slide it in, and each cut props up one brass pin."
+          "speak": "Slide it in, tip first, and each cut comes to rest under one brass pin."
         },
         {
           "move": {
@@ -16136,7 +16157,7 @@
             ],
             "effect": "glow"
           },
-          "speak": "Der den første bilen har stanset, holder den andre fortsatt åtti-sju kilometer i timen. Dobbel fart er ikke dobbelt så farlig — den er en helt annen kollisjon."
+          "speak": "Der den første bilen har stanset, holder den andre fortsatt åttisju kilometer i timen. Dobbel fart er ikke dobbelt så farlig — den er en helt annen kollisjon."
         }
       ]
     }
@@ -16412,7 +16433,7 @@
         {
           "id": "t_nitro",
           "type": "text",
-          "text": "under 100 km: blått",
+          "text": "under 100 km: blått og fiolett",
           "at": {
             "ref": "lag_nitro",
             "side": "right",
@@ -16483,7 +16504,7 @@
             ],
             "effect": "glow"
           },
-          "speak": "Så fargen er en høydemåler: grønt betyr hundre kilometer, rødt betyr enda tynnere luft, og blått betyr at partiklene har trengt uvanlig dypt ned."
+          "speak": "Så fargen er en høydemåler: grønt betyr oksygen mellom hundre og to hundre og femti kilometer, rødt betyr enda tynnere luft over det, og blått betyr at partiklene har trengt uvanlig dypt ned."
         }
       ]
     }
