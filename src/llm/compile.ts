@@ -302,6 +302,7 @@ export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cle
 5. IN PASSING — explanations live inside working sentences; no "note that", "it is important", or lecture signposting.
 6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
 7. MOMENTS MARKED — highlight/focus/annotation sit at the moments of meaning (the reveal, the contrast), never as decoration.
+8. NAMED PARTS — if the figure is a thing rather than a plot, its parts are named elements the narration points at, not anonymous strokes.
 If the spec already does all of this, return it EXACTLY unchanged. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
 
 /**

@@ -279,6 +279,10 @@ describe("bundled offline examples (src/examples.json)", () => {
     // `render()`'s `planCommands` (via `planOptionsFor`'s `expandId`) resolves
     // it live — so it is a known, drawable id here too.
     for (const id of Object.keys(res.pieceGroups)) known.add(id);
+    // Same for a `group` (freehand round, 2026-09-09): the element draws no
+    // ink of its own — naming its members as one thing is the whole point —
+    // and `planOptionsFor`'s `expandGroup` resolves `draw: ["<id>"]` live.
+    for (const id of Object.keys(res.groups)) known.add(id);
     for (const cmd of spec.commands ?? []) {
       const drawn = (cmd as { draw?: string[] }).draw;
       for (const id of drawn ?? []) {

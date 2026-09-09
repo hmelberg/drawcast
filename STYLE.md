@@ -21,6 +21,40 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-09 — A thing is drawn as named parts
+
+Hans's ruling for the freehand round, recorded in its design spec
+(`docs/superpowers/specs/2026-09-09-freehand-figures-design.md`, §1):
+
+> the round is judged on three kinds of request — schematic THINGS with
+> named parts (a bicycle pump, a neuron, a heart with its circulation),
+> maths/physics with FORMULAS next to curves and figures, and ILLUSTRATED
+> explanations with a photo as part of the figure.
+
+and, on where freehand now sits relative to authoring a template:
+
+> Freehand comes first: the automatic template-on-demand path no longer
+> fires on a single freehand figure with named parts; a template is an
+> upgrade the user asks for.
+
+**Distillation.** A figure of a THING is not a pile of strokes that happens
+to look like the thing: each part is its own element, with its own id, sitting
+against the part it hangs off. That is not tidiness. It is what makes the
+figure answerable afterwards — "Find the part" can only ask about something
+that has a name, and click-to-explain can only open a card on an element that
+exists. A drawing whose piston is three anonymous polylines teaches the viewer
+the same picture and leaves the app nothing to work with. The same rule sets
+the ceiling on how good a freehand figure has to be: since freehand is now the
+first answer rather than the fallback, a request for a thing must come back as
+a labelled assembly, not as a sketch waiting for a template to rescue it.
+
+**Status.** In the prompt — the "Freehand figures" section of
+`src/llm/prompts/compiler-v1.md` (Task 10) — and in `PEDAGOGY_RUBRIC` as item
+8 ("If the figure is a thing, its parts are named elements the narration
+points at"). In the exemplars as of Task 11: three freehand few-shots (a pump,
+a free-fall curve with its formulas, a wind turbine with a photo) and six
+bundled examples, two per target and at least one Norwegian in each pair.
+
 ### 2026-09-07 — A bundled example starts from a question, or from something worth explaining
 
 Hans: «Generelt er det fint om eksemplene tar utgangspunkt i et spørsmål

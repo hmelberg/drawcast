@@ -101,26 +101,675 @@
     "spec": {
       "title": "Client-server request flow",
       "elements": [
-        { "id": "client", "type": "node", "shape": "rect", "text": "Client" },
-        { "id": "server", "type": "node", "shape": "rect", "text": "Server" },
-        { "id": "db", "type": "node", "shape": "rect", "text": "Database" },
-        { "id": "req", "type": "arrow", "from": { "ref": "client" }, "to": { "ref": "server" }, "curved": true },
-        { "id": "resp", "type": "arrow", "from": { "ref": "server" }, "to": { "ref": "client" }, "curved": true },
-        { "id": "query", "type": "arrow", "from": { "ref": "server" }, "to": { "ref": "db" }, "curved": true },
-        { "id": "rows", "type": "arrow", "from": { "ref": "db" }, "to": { "ref": "server" }, "curved": true },
-        { "id": "label_req", "type": "label", "text": "GET /profile", "attach_to": "req", "side": "above" },
-        { "id": "label_query", "type": "label", "text": "SELECT * FROM users", "attach_to": "query", "side": "above" }
+        {
+          "id": "client",
+          "type": "node",
+          "shape": "rect",
+          "text": "Client"
+        },
+        {
+          "id": "server",
+          "type": "node",
+          "shape": "rect",
+          "text": "Server"
+        },
+        {
+          "id": "db",
+          "type": "node",
+          "shape": "rect",
+          "text": "Database"
+        },
+        {
+          "id": "req",
+          "type": "arrow",
+          "from": {
+            "ref": "client"
+          },
+          "to": {
+            "ref": "server"
+          },
+          "curved": true
+        },
+        {
+          "id": "resp",
+          "type": "arrow",
+          "from": {
+            "ref": "server"
+          },
+          "to": {
+            "ref": "client"
+          },
+          "curved": true
+        },
+        {
+          "id": "query",
+          "type": "arrow",
+          "from": {
+            "ref": "server"
+          },
+          "to": {
+            "ref": "db"
+          },
+          "curved": true
+        },
+        {
+          "id": "rows",
+          "type": "arrow",
+          "from": {
+            "ref": "db"
+          },
+          "to": {
+            "ref": "server"
+          },
+          "curved": true
+        },
+        {
+          "id": "note_req",
+          "type": "text",
+          "text": "GET /profile",
+          "at": {
+            "ref": "req",
+            "side": "above",
+            "gap": 6
+          }
+        },
+        {
+          "id": "note_query",
+          "type": "text",
+          "text": "SELECT * FROM users",
+          "at": {
+            "ref": "query",
+            "side": "below",
+            "gap": 6
+          }
+        }
       ],
       "commands": [
-        { "speak": "A web request usually passes through three parts before an answer comes back." },
-        { "draw": ["client", "server", "db"], "parallel": true, "speak": "The client, the server, and its database." },
-        { "pause": 0.3 },
-        { "draw": ["req", "label_req"], "speak": "The client asks the server for a page." },
-        { "pause": 0.3 },
-        { "draw": ["query", "label_query"], "speak": "The server, in turn, queries the database for the data it needs." },
-        { "pause": 0.3 },
-        { "draw": ["rows", "resp"], "speak": "The database returns rows, and the server sends its response back to the client." },
-        { "point": { "at": { "ref": "server" }, "gesture": "circle" }, "speak": "The server sits in the middle, coordinating both sides." }
+        {
+          "draw": [
+            "client",
+            "server",
+            "db"
+          ],
+          "parallel": true,
+          "speak": "A web request passes through three parts before an answer comes back: the client, the server, and its database."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "req",
+            "note_req"
+          ],
+          "speak": "The client asks the server for a page."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "query",
+            "note_query"
+          ],
+          "speak": "The server, in turn, queries the database for the data it needs."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "rows",
+            "resp"
+          ],
+          "speak": "The database returns rows, and the server sends its response back to the client."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "server"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The server sits in the middle, coordinating both sides."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a bicycle pump push air into a tyre?",
+    "spec": {
+      "title": "Inside a bicycle pump",
+      "elements": [
+        {
+          "id": "body",
+          "type": "shape",
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 90,
+          "height": 320
+        },
+        {
+          "id": "piston",
+          "type": "shape",
+          "shape": "rect",
+          "width": 74,
+          "height": 26,
+          "at": {
+            "ref": "body",
+            "anchor": "top"
+          },
+          "anchor": "top",
+          "style": {
+            "fill": "#2f6b8f",
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "rod",
+          "type": "shape",
+          "shape": "rect",
+          "width": 10,
+          "height": 110,
+          "at": {
+            "ref": "piston",
+            "anchor": "top"
+          },
+          "anchor": "bottom"
+        },
+        {
+          "id": "handle",
+          "type": "shape",
+          "shape": "rect",
+          "width": 150,
+          "height": 26,
+          "at": {
+            "ref": "rod",
+            "anchor": "top"
+          },
+          "anchor": "bottom"
+        },
+        {
+          "id": "plunger",
+          "type": "group",
+          "members": [
+            "piston",
+            "rod",
+            "handle"
+          ]
+        },
+        {
+          "id": "hose",
+          "type": "path",
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              90,
+              -40
+            ],
+            [
+              210,
+              -70
+            ]
+          ],
+          "smooth": true,
+          "at": {
+            "ref": "body",
+            "anchor": "bottom_right"
+          },
+          "anchor": "top_left"
+        },
+        {
+          "id": "valve",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 16,
+          "at": {
+            "ref": "hose",
+            "anchor": "end"
+          },
+          "style": {
+            "fill": "#b5482e",
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_body",
+          "type": "label",
+          "text": "Cylinder",
+          "attach_to": "body",
+          "side": "right"
+        },
+        {
+          "id": "l_piston",
+          "type": "label",
+          "text": "Piston",
+          "attach_to": "piston",
+          "side": "right"
+        },
+        {
+          "id": "l_valve",
+          "type": "label",
+          "text": "One-way valve",
+          "attach_to": "valve",
+          "side": "right"
+        },
+        {
+          "id": "pumpe",
+          "type": "group",
+          "members": [
+            "body",
+            "plunger",
+            "hose",
+            "valve"
+          ],
+          "fit": "left"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "pumpe",
+            "l_body",
+            "l_piston",
+            "l_valve"
+          ],
+          "speak": "A pump pushes air into a tyre already tighter than the air outside. Why does none of it come back?"
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "piston"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The piston seals the tube, trapping a column of ordinary air beneath it."
+        },
+        {
+          "move": {
+            "target": "plunger",
+            "to": {
+              "ref": "body",
+              "anchor": "center"
+            },
+            "anchor": "bottom",
+            "duration": 1.6
+          },
+          "speak": "Push down, and that air is squeezed into half the space, so its pressure climbs past the tyre's."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "valve"
+            },
+            "gesture": "circle"
+          },
+          "speak": "At the end of the hose sits a flap that only the higher pressure can push open."
+        },
+        {
+          "highlight": {
+            "target": [
+              "valve"
+            ],
+            "effect": "pulse"
+          },
+          "speak": "Let go, and the tyre's own pressure slams it shut. Each stroke adds air and none returns: the pump never holds the pressure — the valve does."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does a dropped ball speed up? Show the equations with the curve.",
+    "spec": {
+      "title": "How far a dropped ball has fallen",
+      "domain": {
+        "x": [
+          0,
+          3
+        ],
+        "y": [
+          0,
+          50
+        ]
+      },
+      "elements": [
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Time (s)",
+          "y_label": "Distance fallen (m)"
+        },
+        {
+          "id": "steady",
+          "type": "curve",
+          "expr": "14.7*x",
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "fall",
+          "type": "curve",
+          "expr": "4.9*x*x",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p2",
+          "type": "point",
+          "at": {
+            "x": 2,
+            "y": 19.6
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "tang",
+          "type": "line",
+          "through": [
+            {
+              "ref": "p2"
+            }
+          ],
+          "slope": 19.6,
+          "style": {
+            "color": "#2f6b8f",
+            "dash": true
+          }
+        },
+        {
+          "id": "lab_v",
+          "type": "label",
+          "tex": "v = gt",
+          "attach_to": "p2",
+          "side": "below-right"
+        },
+        {
+          "id": "eq_s",
+          "type": "math",
+          "tex": "s = \\tfrac{1}{2} g t^2",
+          "size": 34,
+          "at": {
+            "ref": "p2",
+            "side": "above-left",
+            "gap": 30
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "ax"
+          ],
+          "speak": "A dropped ball covers far more ground in its second second than in its first. Here is why."
+        },
+        {
+          "draw": [
+            "steady"
+          ],
+          "speak": "At a steady speed, the distance would grow along this straight line."
+        },
+        {
+          "draw": [
+            "fall"
+          ],
+          "speak": "It does not. The real fall bends upward: every second adds more than the one before."
+        },
+        {
+          "erase": [
+            "steady"
+          ],
+          "speak": "Gravity does not hand out distance at a fixed rate — it hands out speed."
+        },
+        {
+          "draw": [
+            "p2",
+            "tang",
+            "lab_v"
+          ],
+          "speak": "The steepness at any instant is the speed, and it grows ten metres per second every second."
+        },
+        {
+          "draw": [
+            "eq_s"
+          ],
+          "speak": "Add that growing speed up and the distance goes as the square of the time."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fall"
+            ],
+            "effect": "glow"
+          },
+          "speak": "So it falls five metres in the first second and fifteen in the next — three times as far, from a standing start."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does a wind turbine's gearbox actually do?",
+    "spec": {
+      "title": "Inside the nacelle",
+      "elements": [
+        {
+          "id": "tower",
+          "type": "polygon",
+          "points": [
+            [
+              -22,
+              0
+            ],
+            [
+              22,
+              0
+            ],
+            [
+              13,
+              330
+            ],
+            [
+              -13,
+              330
+            ]
+          ]
+        },
+        {
+          "id": "nacelle",
+          "type": "shape",
+          "shape": "rect",
+          "width": 110,
+          "height": 46,
+          "at": {
+            "ref": "tower",
+            "anchor": "top"
+          },
+          "anchor": "bottom"
+        },
+        {
+          "id": "gearbox",
+          "type": "shape",
+          "shape": "rect",
+          "width": 42,
+          "height": 26,
+          "at": {
+            "ref": "nacelle",
+            "anchor": "center"
+          },
+          "style": {
+            "fill": "#f2c14e",
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "hub",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 13,
+          "at": {
+            "ref": "nacelle",
+            "anchor": "left"
+          }
+        },
+        {
+          "id": "blade_up",
+          "type": "path",
+          "points": [
+            [
+              -8,
+              0
+            ],
+            [
+              8,
+              0
+            ],
+            [
+              0,
+              150
+            ]
+          ],
+          "closed": true,
+          "smooth": true,
+          "at": {
+            "ref": "hub",
+            "anchor": "center"
+          },
+          "anchor": "bottom"
+        },
+        {
+          "id": "blade_dl",
+          "type": "path",
+          "points": [
+            [
+              4,
+              -7
+            ],
+            [
+              -130,
+              -75
+            ],
+            [
+              -4,
+              7
+            ]
+          ],
+          "closed": true,
+          "smooth": true,
+          "at": {
+            "ref": "hub",
+            "anchor": "center"
+          },
+          "anchor": "top_right"
+        },
+        {
+          "id": "blade_dr",
+          "type": "path",
+          "points": [
+            [
+              -4,
+              -7
+            ],
+            [
+              130,
+              -75
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "closed": true,
+          "smooth": true,
+          "at": {
+            "ref": "hub",
+            "anchor": "center"
+          },
+          "anchor": "top_left"
+        },
+        {
+          "id": "turbin",
+          "type": "group",
+          "members": [
+            "tower",
+            "nacelle",
+            "gearbox",
+            "hub",
+            "blade_up",
+            "blade_dl",
+            "blade_dr"
+          ],
+          "fit": "left"
+        },
+        {
+          "id": "foto",
+          "type": "image",
+          "of": "Wind turbine",
+          "width": 220,
+          "x": 790,
+          "y": 420
+        },
+        {
+          "id": "l_gearbox",
+          "type": "label",
+          "text": "Gearbox",
+          "attach_to": "gearbox",
+          "side": "above-right"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "turbin"
+          ],
+          "speak": "A wind turbine's blades turn about fifteen times a minute. The generator behind them wants fifteen hundred."
+        },
+        {
+          "draw": [
+            "foto"
+          ],
+          "speak": "Each blade is longer than an airliner's wing, so the tips are already doing 250 kilometres an hour."
+        },
+        {
+          "erase": [
+            "foto"
+          ],
+          "speak": "Something between rotor and generator has to make up the missing factor of a hundred."
+        },
+        {
+          "draw": [
+            "l_gearbox"
+          ],
+          "speak": "That is the gearbox, buried in the nacelle."
+        },
+        {
+          "highlight": {
+            "target": [
+              "gearbox"
+            ],
+            "effect": "glow"
+          },
+          "speak": "It trades force for speed: the rotor's slow, enormous twist comes out fast and weak — what a generator eats."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "gearbox"
+            },
+            "gesture": "circle"
+          },
+          "speak": "It is also what breaks most often, which is why the newest turbines drop it and bolt the generator straight onto the rotor."
+        }
       ]
     }
   },
