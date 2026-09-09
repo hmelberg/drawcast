@@ -18,6 +18,14 @@ describe("freehand spec fields", () => {
     expect(ok([{ id: "i", type: "image", x: 1, y: 1 }]).errors.join(" ")).toMatch(/"i".*of/);
     expect(ok([{ id: "k", type: "icon", x: 1, y: 1 }]).errors.join(" ")).toMatch(/"k".*of/);
   });
+  test("math needs somewhere to go: x and y, or at.ref", () => {
+    expect(ok([{ id: "m", type: "math", tex: "x" }]).errors.join(" ")).toMatch(/"m": math needs x and y, or at\.ref/);
+    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 1, y: 1 }, { id: "m", type: "math", tex: "x", at: { ref: "a", side: "above" } }]).ok).toBe(true);
+    // A label written as TeX says it with attach_to — normalizeSpec turns that
+    // into at.ref, so it satisfies the same rule; without one it does not.
+    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 1, y: 1 }, { id: "l", type: "label", tex: "x", attach_to: "a" }]).ok).toBe(true);
+    expect(ok([{ id: "l", type: "label", tex: "x" }]).errors.join(" ")).toMatch(/"l": math needs x and y, or at\.ref/);
+  });
   test("a full freehand thing validates", () => {
     expect(ok([
       { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },

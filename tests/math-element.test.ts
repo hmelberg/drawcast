@@ -96,6 +96,28 @@ describe("math element (real mathjax, node)", () => {
     expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 
+  test("the x-height IS the scale: the row is half the size, and it doubles with it", () => {
+    const heightAt = (size: number): number => {
+      const r = layoutSpec({
+        elements: [{ id: "m", type: "math", tex: "x", size, x: 500, y: 400 }],
+        commands: [{ draw: ["m"] }],
+      });
+      return elementBBoxes(r).get("m")!.h;
+    };
+    // "x" is one x-height tall, and an x-height is MATH_X_HEIGHT × size — to
+    // within the glyph's own overshoot (a rounded letterform rises ~2% past
+    // the nominal x-height line), which is why 60 is bounded rather than
+    // toBeCloseTo(30, 0): the measured row is 30.66, not the constant's fault.
+    expect(heightAt(30)).toBeCloseTo(15, 0);
+    expect(heightAt(60)).toBeGreaterThan(29);
+    expect(heightAt(60)).toBeLessThan(31);
+    // …and it is linear in size, so the constant cannot hide in a
+    // size-dependent fudge. Not linear to the last digit: RING_EPS is an
+    // absolute tolerance, so a bigger glyph keeps marginally more of its
+    // extremes (2.012, not 2.000).
+    expect(heightAt(60) / heightAt(30)).toBeCloseTo(2, 1);
+  });
+
   test("the glyphs are FILLED in the element's ink, and drawn as text is drawn", () => {
     const r = layoutSpec({
       elements: [{ id: "m", type: "math", tex: "x", size: 30, x: 500, y: 400, style: { color: "#b5482e" } }],

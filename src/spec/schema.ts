@@ -1342,11 +1342,19 @@ function elementErrors(el: SpecElement): string[] {
         errs.push(`element "${el.id}": group needs members`);
       }
       break;
-    case "math":
+    case "math": {
       if (typeof el.tex !== "string" || el.tex.trim() === "") {
         errs.push(`element "${el.id}": math needs tex`);
       }
+      // Same rule as `text`: an equation with nowhere to go would land in the
+      // middle of the canvas, on top of the drawing. A `label` with tex says
+      // it with attach_to, which normalizeSpec has already turned into at.ref.
+      const mathAtRef = el.at !== undefined && !Array.isArray(el.at) && typeof (el.at as { ref?: string }).ref === "string";
+      if (!((typeof el.x === "number" && typeof el.y === "number") || mathAtRef)) {
+        errs.push(`element "${el.id}": math needs x and y, or at.ref`);
+      }
       break;
+    }
     case "image":
     case "icon":
       if (typeof el.of !== "string" || el.of.trim() === "") {

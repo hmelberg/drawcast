@@ -174,9 +174,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   await ensureFonts();
   // Whatever the spec needs to be laid out at all: a template's engines, and
   // the mathjax engine a `math` element (or a TeX label) draws with. Layout is
-  // synchronous, so an engine that is not here by now is an element that
-  // silently does not draw.
-  await ensureEnginesForSpecs([spec]);
+  // synchronous, so an engine that is not here by now is an element that does
+  // not draw — and SAYS so (tier2 pushes a warning per element). A failed
+  // chunk fetch must therefore never reject here: that would blank the whole
+  // figure instead of dropping the one element that needed the engine.
+  await ensureEnginesForSpecs([spec]).catch((err) => {
+    console.warn(`engine load failed: ${(err as Error).message}`);
+  });
   // Portraits and sources resolve BEFORE layout (layout is synchronous):
   // cache-warm this is milliseconds; cache-cold it fetches + traces (or
   // fetches + renders a PDF page) during figure preparation, so playback never
