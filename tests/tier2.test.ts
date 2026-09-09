@@ -60,6 +60,15 @@ describe("layoutElements (tier 2/3)", () => {
     expect(get(r.drawables, "eq_guides")).toBeDefined();
   });
 
+  test("a point given angle's vertex shape ({ref, anchor}) is a defensive no-op with a warning, not a silent miss", () => {
+    // validateSpec already rejects this shape on a point element (schema.test.ts);
+    // this exercises the resolvePointDomain fallback directly, the way a
+    // hand-built spec that skips validateSpec would reach it.
+    const r = layoutElements([{ id: "p", type: "point", at: { ref: "somewhere", anchor: "vertex_1" } }] as SpecElement[], undefined);
+    expect(get(r.drawables, "p")).toBeUndefined();
+    expect(r.warnings).toEqual([`point "p": at must be {x, y} or {intersection_of} — {ref, anchor} is not valid on a point`]);
+  });
+
   test("region between two curves builds a closed area", () => {
     const r = layoutElements(
       [

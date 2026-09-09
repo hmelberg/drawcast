@@ -14852,7 +14852,7 @@
         { "draw": ["piece_1", "piece_2", "piece_3", "piece_4", "piece_5", "piece_6", "piece_7", "piece_8", "piece_9", "piece_10", "piece_11", "piece_12"], "parallel": true, "speak": "πr² ser ut som noe man bare må pugge, men formelen kan du klippe ut med saks. Her er en sirkel delt i tolv like kakestykker." },
         { "draw": ["radius_line", "label_r"], "speak": "Radien er r, og hele buen rundt er omkretsen, to π r." },
         { "pause": 0.4 },
-        { "animate": { "t": 1 }, "duration": 4, "speak": "Nå snur vi annenhvert stykke og skyver dem sammen, som tenner i en glidelås. Arealet er uendret, vi har bare flyttet bitene." },
+        { "animate": { "t": 1 }, "duration": 4, "ghost": true, "speak": "Nå snur vi annenhvert stykke og skyver dem sammen, som tenner i en glidelås. Arealet er uendret, vi har bare flyttet bitene, mens den oppdelte sirkelen blir stående bak." },
         { "draw": ["label_base", "label_height"], "speak": "Halve omkretsen ligger nede og halve oppe, så grunnlinjen er πr, og høyden er radien r." },
         { "animate": { "n": 40 }, "duration": 3, "easing": "linear", "speak": "Med førti tynnere stykker blir den bulkete kanten nesten helt rett: et rektangel." },
         { "draw": ["eq", "mark"], "speak": "Grunnlinje ganger høyde: πr ganger r, altså πr²." },
@@ -15245,6 +15245,124 @@
         { "animate": { "h": 0.05 }, "duration": 4, "speak": "Flytt B nærmere A. Linja vipper, og stigningstallet nærmer seg én bestemt verdi." },
         { "draw": ["tangent", "derivative_label"], "speak": "Den verdien er den deriverte i A: stigningen til tangenten, linja som bare så vidt berører kurven." },
         { "highlight": { "target": ["derivative_label"], "effect": "glow" }, "speak": "Den deriverte er altså ikke en stigning mellom to punkter, men det stigningen går mot når punktene smelter sammen." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er arealet av en sirkel πr², ringversjonen?",
+    "packs": [],
+    "spec": {
+      "title": "Sirkelen som ringer",
+      "elements": [
+        { "id": "ringer", "type": "pieces", "of": "rings", "x": 250, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
+        { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right", "offset": 110 },
+        { "id": "hoyde", "type": "measure", "from": [250, 400], "to": [250, 500], "label": "r = {value}", "side": "left", "offset": 112 }
+      ],
+      "commands": [
+        { "draw": ["ringer"], "speak": "Del sirkelen i tynne ringer i stedet for kakestykker. Hver ring er nesten en smal stripe bøyd rundt sentrum." },
+        { "draw": ["hoyde", "label_hoyde"], "speak": "Stablet oppå hverandre er ringene til sammen så høye som radien r." },
+        { "keep": { "target": "ringer" }, "speak": "Behold sirkelen der den står." },
+        { "arrange": { "target": "ringer", "layout": "unroll", "at": [670, 400], "duration": 3 }, "speak": "Rett ut hver ring til en stripe. Den innerste er kort, den ytterste nesten hele omkretsen: to pi r." },
+        { "draw": ["lengste", "label_lengste"], "speak": "Stripene danner en trapp som nærmer seg en trekant med grunnlinje to pi r og høyde r." },
+        { "highlight": { "target": ["label_hoyde", "label_lengste"], "effect": "glow" }, "speak": "Arealet av trekanten er en halv ganger to pi r ganger r. Det er pi r i annen." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er arealet av en regulær mangekant halve omkretsen ganger apotemet?",
+    "packs": [],
+    "spec": {
+      "title": "Sekskanten som trekanter",
+      "elements": [
+        { "id": "trek", "type": "pieces", "of": "triangles", "x": 250, "y": 400, "radius": 140, "sides": 6, "style": { "fill": "#f2c14e" } },
+        { "id": "apotem", "type": "measure", "from": { "ref": "trek_1", "anchor": "apex" }, "to": { "ref": "trek_1", "anchor": "base" }, "label": "a = {value}", "side": "right" }
+      ],
+      "commands": [
+        { "draw": ["trek"], "speak": "En regulær sekskant delt i seks like trekanter fra sentrum." },
+        { "draw": ["apotem", "label_apotem"], "speak": "Høyden i hver trekant, fra sentrum til midten av en side, heter apotemet a." },
+        { "keep": { "target": "trek" }, "speak": "Behold sekskanten i tankene." },
+        { "arrange": { "target": "trek", "layout": "zipper", "at": [700, 400], "duration": 3 }, "speak": "Legg trekantene annenhver opp og ned. De danner et parallellogram med høyde a." },
+        { "highlight": { "target": ["label_apotem"], "effect": "glow" }, "speak": "Grunnlinja er tre sider, halve omkretsen. Arealet er halve omkretsen ganger apotemet. Med flere og flere sider blir det sirkelens pi r i annen." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er 1/2 + 1/4 + 1/8 + … = 1?",
+    "packs": [],
+    "spec": {
+      "title": "Halvparten av resten",
+      "elements": [
+        { "id": "ramme", "type": "polygon", "points": [[300, 175], [700, 175], [700, 575], [300, 575]], "style": { "color": "#3d3833", "stroke_width": 3 } },
+        { "id": "kv", "type": "pieces", "of": "halving", "x": 500, "y": 375, "width": 400, "height": 400, "n": 6, "style": { "fill": "#2f6b8f" } }
+      ],
+      "commands": [
+        { "draw": ["ramme"], "speak": "Et kvadrat med areal 1. Kan vi fylle det med biter som er halvparten så store hver gang?" },
+        { "draw": ["kv_1"], "speak": "Først en halv." },
+        { "draw": ["kv_2"], "speak": "Så en firedel, halvparten av det som var igjen." },
+        { "draw": ["kv_3"], "speak": "En åttedel." },
+        { "draw": ["kv_4", "kv_5", "kv_6", "kv_rest"], "speak": "En sekstendel, en trettitodel, en sekstifiredel. Hver bit tar halvparten av resten." },
+        { "highlight": { "target": ["kv_rest"], "effect": "glow" }, "speak": "Det som er igjen er alltid like stort som den siste biten, og det halveres for alltid. Summen nærmer seg 1 uten noen gang å nå den." }
+      ]
+    }
+  },
+  {
+    "request": "Hva skjer med arealet når sidene dobles?",
+    "packs": [],
+    "spec": {
+      "title": "Dobbel side, firedobbelt areal",
+      "elements": [
+        { "id": "kv", "type": "polygon", "points": [[150, 150], [350, 150], [350, 350], [150, 350]], "style": { "fill": "#87a878" } },
+        { "id": "side", "type": "measure", "from": { "ref": "kv", "anchor": "vertex_1" }, "to": { "ref": "kv", "anchor": "vertex_2" }, "label": "s = {value}" },
+        { "id": "areal", "type": "measure", "of": "kv", "label": "A = {value}" }
+      ],
+      "commands": [
+        { "draw": ["kv", "side", "label_side", "areal", "label_areal"], "speak": "Et kvadrat med side 200 og areal 40 000. Hva skjer om vi dobler siden?" },
+        { "move": { "target": ["kv"], "scale": 2, "pivot": { "anchor": "bottom_left" }, "duration": 2, "ghost": true }, "speak": "Siden blir 400. Men arealet blir 160 000: fire ganger så stort, ikke to." },
+        { "highlight": { "target": ["label_areal"], "effect": "glow" }, "speak": "Areal vokser med kvadratet av skaleringen. Dobler du siden, får du to ganger to." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor er en ytre vinkel lik summen av de to motstående indre?",
+    "packs": [],
+    "spec": {
+      "title": "Ytre vinkel",
+      "elements": [
+        { "id": "tri", "type": "polygon", "points": [[200, 250], [600, 250], [450, 500]], "style": { "fill": "#f2c14e" } },
+        { "id": "forl", "type": "line", "through": [{ "ref": "tri", "anchor": "vertex_1" }, { "ref": "tri", "anchor": "vertex_2" }], "style": { "dash": true, "color": "#8f887c" } },
+        { "id": "a", "type": "angle", "at": { "ref": "tri", "anchor": "vertex_1" }, "from": { "ref": "tri", "anchor": "vertex_2" }, "to": { "ref": "tri", "anchor": "vertex_3" }, "style": { "color": "#b5482e" } },
+        { "id": "c", "type": "angle", "at": { "ref": "tri", "anchor": "vertex_3" }, "from": { "ref": "tri", "anchor": "vertex_1" }, "to": { "ref": "tri", "anchor": "vertex_2" }, "style": { "color": "#2f6b8f" } },
+        { "id": "ytre", "type": "angle", "at": { "ref": "tri", "anchor": "vertex_2" }, "from": 0, "to": { "ref": "tri", "anchor": "vertex_3" }, "radius": 60, "style": { "color": "#8a5fa8" } }
+      ],
+      "commands": [
+        { "draw": ["tri"], "speak": "En trekant med hjørnene A, B og C." },
+        { "draw": ["a"], "speak": "Vinkelen ved A er 45 grader." },
+        { "draw": ["c"], "speak": "Vinkelen ved C er 76 grader." },
+        { "draw": ["forl", "ytre"], "speak": "Forleng siden AB forbi B. Vinkelen mellom forlengelsen og siden BC er den ytre vinkelen: 121 grader." },
+        { "move": { "target": ["a"], "anchor": "vertex", "to": { "ref": "tri", "anchor": "vertex_2" }, "duration": 1.5, "ghost": true }, "speak": "Flytt vinkelen ved A bort til B. Den fyller den første delen av den ytre vinkelen." },
+        { "move": { "target": ["c"], "anchor": "vertex", "to": { "ref": "tri", "anchor": "vertex_2" }, "rotate": -180, "pivot": { "anchor": "vertex" }, "duration": 1.5, "ghost": true }, "speak": "Snu vinkelen ved C og legg den inntil. Sammen fyller de nøyaktig den ytre vinkelen: 45 pluss 76 er 121." }
+      ]
+    }
+  },
+  {
+    "request": "Hva er en ellipse?",
+    "packs": [],
+    "spec": {
+      "title": "Ellipsen: to brennpunkter",
+      "elements": [
+        { "id": "ell", "type": "ellipse", "x": 500, "y": 375, "rx": 300, "ry": 180 },
+        { "id": "akse", "type": "line", "through": [{ "ref": "ell", "anchor": "focus_1" }, { "ref": "ell", "anchor": "focus_2" }], "style": { "dash": true, "color": "#8f887c" } },
+        { "id": "f1", "type": "shape", "shape": "circle", "x": 260, "y": 375, "radius": 6, "style": { "fill": "#3d3833" } },
+        { "id": "f2", "type": "shape", "shape": "circle", "x": 740, "y": 375, "radius": 6, "style": { "fill": "#3d3833" } },
+        { "id": "p", "type": "shape", "shape": "circle", "x": 500, "y": 555, "radius": 7, "style": { "color": "#b5482e", "fill": "#b5482e" } },
+        { "id": "d1", "type": "measure", "from": { "ref": "p" }, "to": { "ref": "f1" }, "style": { "color": "#b5482e" } },
+        { "id": "d2", "type": "measure", "from": { "ref": "p" }, "to": { "ref": "f2" }, "style": { "color": "#2f6b8f" } }
+      ],
+      "commands": [
+        { "draw": ["ell", "akse", "f1", "f2"], "speak": "En ellipse har to brennpunkter på den lange aksen." },
+        { "draw": ["p", "d1", "label_d1", "d2", "label_d2"], "speak": "Fra et punkt på kurven måler vi avstanden til hvert brennpunkt: 300 og 300." },
+        { "move": { "target": ["p"], "to": { "ref": "ell", "anchor": "right" }, "duration": 3 }, "speak": "Flytt punktet til enden av den lange aksen: den ene avstanden vokser til 540, den andre krymper til 60." },
+        { "highlight": { "target": ["label_d1", "label_d2"], "effect": "glow" }, "speak": "Summen er alltid 600, to ganger den halve storaksen. Det er definisjonen på en ellipse." }
       ]
     }
   }

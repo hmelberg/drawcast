@@ -1,10 +1,15 @@
 import { describe, expect, test } from "vitest";
 import { planCommands, type PlanStep } from "../src/render/plan";
-import { cumulativeLengthFractions, lengthFractionAt, withTrails } from "../src/render/trails";
+import { cumulativeLengthFractions, lengthFractionAt } from "../src/render/trails";
+import { withMinted, type MintedSpec } from "../src/render/minted";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 
 const box = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
+
+/** The trail-kind entries of a Plan's minted array, in order — these tests
+ *  never mint a ghost, so this is exactly what `plan.trails` used to be. */
+const trailsOf = (minted: MintedSpec[]) => minted.filter((m): m is Extract<MintedSpec, { kind: "trail" }> => m.kind === "trail");
 
 describe("trail helpers", () => {
   test("cumulativeLengthFractions runs 0 → 1 and lengthFractionAt interpolates", () => {
@@ -14,14 +19,14 @@ describe("trail helpers", () => {
     expect(lengthFractionAt(t, 1)).toBe(1);
     expect(cumulativeLengthFractions([[5, 5], [5, 5]])).toEqual([0, 0]);
   });
-  test("withTrails appends a stroke in the source's colour and keeps the layout otherwise", () => {
+  test("withMinted appends a trail stroke in the source's colour and keeps the layout otherwise", () => {
     const layout = layoutSpec({ elements: [{ id: "w", type: "shape", shape: "circle", x: 100, y: 100, radius: 20, style: { color: "#b5482e" } }], commands: [] } as never, heuristicMeasure);
-    const out = withTrails(layout, [{ id: "w_trail", pts: [[100, 80], [200, 80]], width: 2.5 }]);
+    const out = withMinted(layout, [{ kind: "trail", id: "w_trail", pts: [[100, 80], [200, 80]], width: 2.5 }], () => layout);
     expect(out.order).toEqual([...layout.order, "w_trail"]);
     const d = out.drawables.find((x) => x.id === "w_trail") as { style: { color: string; strokeWidth: number } };
     expect(d.style.color).toBe("#b5482e");
     expect(d.style.strokeWidth).toBe(2.5);
-    expect(withTrails(layout, [])).toBe(layout);
+    expect(withMinted(layout, [], () => layout)).toBe(layout);
   });
 });
 
@@ -33,8 +38,9 @@ describe("trail planning", () => {
     // — it shifts every step/state index in this test by one.
     const plan = planCommands([{ draw: ["w"] }, { move: { target: ["w"], by: [377, 0], rotate: -360, trail: { anchor: "bottom" }, duration: 4 } }], ["w"], opts);
     expect(plan.warnings).toEqual([]);
-    expect(plan.trails).toHaveLength(1);
-    const tr = plan.trails[0];
+    const trails = trailsOf(plan.minted);
+    expect(trails).toHaveLength(1);
+    const tr = trails[0];
     expect(tr.id).toBe("w_trail");
     expect(tr.pts).toHaveLength(61);
     expect(tr.pts[0]).toEqual([160, 200]);
@@ -59,8 +65,9 @@ describe("trail planning", () => {
       opts,
     );
     expect(plan.warnings).toEqual([]);
-    expect(plan.trails.map((t) => t.id)).toEqual(["w_trail", "w_trail_2"]);
-    expect(plan.trails[0].pts[60]).toEqual([260, 310]);
+    const trails = trailsOf(plan.minted);
+    expect(trails.map((t) => t.id)).toEqual(["w_trail", "w_trail_2"]);
+    expect(trails[0].pts[60]).toEqual([260, 310]);
     expect((plan.steps[1] as Extract<PlanStep, { kind: "move" }>).trails![0].id).toBe("w_trail");
     expect(plan.states[2].opacities.w_trail).toBe(0.3);
   });
@@ -75,7 +82,7 @@ describe("trail planning", () => {
       two,
     );
     expect(plan.warnings).toEqual([]);
-    const tr = plan.trails[0];
+    const tr = trailsOf(plan.minted)[0];
     expect(tr.pts[0]).toEqual([160, 195]);
     // pivot (160,260) for BOTH targets, so the dot swings on r = 65 and peaks
     // 2r above its start. Resolved per target, "d" saw the wheel's post-move
@@ -95,7 +102,7 @@ describe("trail planning", () => {
   });
   test("trail.of must be one of the targets", () => {
     const plan = planCommands([{ move: { target: ["w"], by: [10, 0], trail: { of: "nope" } } }], ["w"], opts);
-    expect(plan.trails).toHaveLength(0);
+    expect(trailsOf(plan.minted)).toHaveLength(0);
     expect(plan.warnings.join(" ")).toMatch(/nope/);
   });
 });

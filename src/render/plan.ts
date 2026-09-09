@@ -10,7 +10,7 @@ import type { CodeWindow } from "../layout/code";
 import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
-import type { Command, Easing, EndRef, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
+import type { Command, Easing, EndRef, GhostOption, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
@@ -19,8 +19,10 @@ import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/anchors";
 import { morphPair, stretchPts } from "./morph";
+import { dimensionLine, formatMeasure, heuristicLabelWidth, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
 import { pathPosition } from "./effects";
-import { cumulativeLengthFractions, type TrailSpec } from "./trails";
+import { cumulativeLengthFractions } from "./trails";
+import type { GhostSpec, MintedSpec } from "./minted";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -78,10 +80,10 @@ export type PlanStep = (
       untilNarrationEnd?: boolean;
     }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
-  | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
-  | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
+  | ({ kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow)
+  | ({ kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow)
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
-  | { kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing }
+  | ({ kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing } & MeasureFollow)
   | {
       kind: "flow";
       ids: string[];
@@ -132,6 +134,25 @@ export interface MorphItem {
   leaves: { leafId: string; from: Pt[]; to: Pt[] }[];
 }
 
+/** One text leaf's new content at a step boundary (design §2.3): a measure's
+ *  recomputed value, written where the layout's own string was. */
+export interface TextItem {
+  id: string;
+  leafId: string;
+  text: string;
+}
+
+/** What a step carries on TOP of its own items so the measures that read the
+ *  moved figure follow it (design §2.3): their dimension lines re-pointed,
+ *  their labels slid to the new spot, their values rewritten. Every verb that
+ *  changes a measured element's pose or shape — move, arrange, flip, morph —
+ *  fills these in. */
+export interface MeasureFollow {
+  extraMorphs?: MorphItem[];
+  extraTransforms?: TransformItem[];
+  texts?: TextItem[];
+}
+
 /** A trail's progress table for one step (design §2.5): the player looks up
  *  the eased time in `lengthAt` (arc-length parameterized) and hands the
  *  result to the trail element's setProgress. */
@@ -156,9 +177,11 @@ export interface SceneState {
   opacities: Record<string, number>;
   /** Current ORIGINAL-frame points of every morphed leaf: element id → leaf id → points (absent = the layout's own). */
   shapes: Record<string, Record<string, Pt[]>>;
+  /** Current content of every rewritten text leaf: element id → leaf id → string (absent = the layout's own). A measure's value lives here once the figure it reads has moved (design §2.3). */
+  texts: Record<string, Record<string, string>>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {} };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {}, texts: {} };
 
 /** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
 export function boundaryAt(plan: Plan, n: number): SceneState {
@@ -202,8 +225,9 @@ export interface Plan {
   /** Label name → step index (the label step itself). Gotos resolve here. */
   labels: Record<string, number>;
   warnings: string[];
-  /** Trails the moves minted (design §2.5): render() appends them to every layout it mounts. */
-  trails: TrailSpec[];
+  /** Elements minted at plan time — trails (design §2.5) and ghosts (design
+   *  §2.1, round 3): render() appends them to every layout it mounts. */
+  minted: MintedSpec[];
 }
 
 export interface PlanOptions {
@@ -232,6 +256,17 @@ export interface PlanOptions {
   anchorOf?: (id: string, name: string) => Pt | null;
   /** The morphable leaves of an element (stroke/area with pts, no shapeHint) in draw order, with their layout points. */
   leafPointsOf?: (id: string) => { leafId: string; pts: Pt[]; closed: boolean }[] | null;
+  /** The measure an id names (layout.measures), or null when it is not a measure. */
+  measureOf?: (id: string) => MeasureSpec | null;
+  /** The measure ids that read an element — its `of`, or the ref of its `from`/`to` (design §2.3). */
+  measuresDependingOn?: (id: string) => string[];
+}
+
+/** A PointRef that names a place in the SCENE (an array, a ref, or x+y) rather than the acting element's own anchor — resolved once per command, never per target. */
+export function isExplicitPointRef(p: PointRef | undefined): boolean {
+  if (p === undefined) return false;
+  if (Array.isArray(p)) return true;
+  return p.ref !== undefined || (p.x !== undefined && p.anchor === undefined);
 }
 
 const CAMERA_MAX_ZOOM = 8;
@@ -246,12 +281,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const states: SceneState[] = [];
   const warnings: string[] = [];
   const labels: Record<string, number> = {};
-  /** Trails minted by move.trail (design §2.5), returned on the Plan. */
-  const trails: TrailSpec[] = [];
-  /** A minted trail's box, in its own current (already-posed) coordinates — boxOf checks this first. */
-  const trailBoxes = new Map<string, BBox>();
+  /** Trails (move.trail, design §2.5) and ghosts (keep/ghost, design §2.1
+   *  round 3) minted at plan time, returned on the Plan. */
+  const minted: MintedSpec[] = [];
+  /** A minted element's box, in its own current (already-posed) coordinates —
+   *  boxOf checks this first. At mint time a minted id carries no offset or
+   *  turn of its own, so currentBox is a no-op on it right then and this box,
+   *  recorded once in CURRENT coordinates, is exactly where it sits (a LATER
+   *  move/arrange/etc targeting the minted id by its own id composes on top,
+   *  same as an already-minted trail can be arranged — trail.test.ts). */
+  const mintedBoxes = new Map<string, BBox>();
   /** How many trails a given target has already left — the `_2`, `_3` … suffix. */
   const trailCount = new Map<string, number>();
+  /** How many ghosts a given target has already left — the `_2`, `_3` … suffix. */
+  const ghostCount = new Map<string, number>();
   /** Ask store → default, in command order — the fallback for "{var}" animate targets. */
   const storeDefaults: Record<string, string> = {};
   /** Ids whose visibility the spec manages explicitly — excluded from the implicit final draw. */
@@ -263,6 +306,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const turns: Record<string, Turn> = {};
   const opacities: Record<string, number> = {};
   const shapes: Record<string, Record<string, Pt[]>> = {};
+  const texts: Record<string, Record<string, string>> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
@@ -291,6 +335,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       params: { ...params },
       opacities: { ...opacities },
       shapes: Object.fromEntries(Object.entries(shapes).map(([id, m]) => [id, { ...m }])),
+      texts: Object.fromEntries(Object.entries(texts).map(([id, m]) => [id, { ...m }])),
     });
   };
   /** The window's scroll: the highest visible line's bottom sits at the
@@ -331,14 +376,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
     // A `pieces` parent id stands for all its pieces: naming it draws,
     // highlights or arranges every piece, which is what the prompt promises.
-    return requested.flatMap((id) => {
+    // Deduped (first occurrence wins): a parent and one of its children can
+    // both be named — `draw: ["kake", "kake_1"]`, or a measure beside its own
+    // `label_<id>` (the measure's group IS that label) — and the draw loop
+    // awaits every entry, so a repeat re-sketches the element from zero.
+    const out = requested.flatMap((id) => {
       const kids = opts.expandId?.(id);
       if (kids && kids.length > 0) return kids.filter((k) => known.has(k));
       if (known.has(id)) return [id];
       warnings.push(`${verb} command references unknown id "${id}" (dropped)`);
       return [];
     });
+    return [...new Set(out)];
   };
+  /** How a command's target reads back in a warning: the id(s) the author wrote, not the expanded pieces. */
+  const targetLabel = (raw: string[] | string | undefined): string => (typeof raw === "string" ? raw : (raw ?? []).join(", "));
   /** Element's current visual bbox: layout bbox under its accumulated pose —
    *  shifted by the offset, and, when it has been turned, the bounds of the
    *  four rotated corners, so highlight/camera/arrange aim where it now is. */
@@ -353,9 +405,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
-  /** The layout box of an id: a minted trail's own box first, else — once it has morphed — the box of its current points, else the layout box. */
+  /** The layout box of an id: a minted element's own box first, else — once it has morphed — the box of its current points, else the layout box. */
   const boxOf = (id: string): BBox | null => {
-    const t = trailBoxes.get(id);
+    const t = mintedBoxes.get(id);
     if (t) return t;
     const s = shapes[id];
     if (s) {
@@ -438,6 +490,72 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return anchorNow(id, r.anchor ?? "center", verb);
   };
 
+  /** Mint a faded copy of each id where it is NOW (design §2.1 round 3): known, mentioned, boxed and visible at once. Returns the ghost ids.
+   *  `params`: pass `ghostParams()` — null for a tier-2 spec (the ghost reads
+   *  the layout being wrapped), or the boundary params for a template spec
+   *  (the ghost reads its OWN boundary through `layoutAt`, never whatever
+   *  frame the wrapped layout happens to be — see minted.ts). */
+  const mintGhosts = (ids: string[], opacity: number, params: Record<string, number> | null): string[] => {
+    const out: string[] = [];
+    for (const id of ids) {
+      // A minted element (a trail, an earlier ghost) is not in the layout
+      // ghostDrawables reads from — ghosting it would mint an id that
+      // renders as nothing but stays in the plan, known and visible.
+      if (mintedBoxes.has(id)) {
+        warnings.push(`ghost of "${id}": a minted element cannot be ghosted (skipped)`);
+        continue;
+      }
+      const box = currentBox(id);
+      if (!box) {
+        warnings.push(`ghost of "${id}": no geometry (skipped)`);
+        continue;
+      }
+      const n = (ghostCount.get(id) ?? 0) + 1;
+      ghostCount.set(id, n);
+      const ghostId = n === 1 ? `${id}_ghost` : `${id}_ghost_${n}`;
+      const g: GhostSpec = { kind: "ghost", id: ghostId, sourceId: id, offset: offsets[id] ?? [0, 0], turn: turns[id], shapes: shapes[id], opacity, params };
+      minted.push(g);
+      mintedBoxes.set(ghostId, box);
+      known.add(ghostId);
+      mentioned.add(ghostId);
+      makeVisible([ghostId]);
+      out.push(ghostId);
+    }
+    return out;
+  };
+  /** The ghost option of a verb, resolved against its targets: which ids, at what opacity. */
+  const ghostIdsFor = (opt: GhostOption | undefined, targets: string[]): { ids: string[]; opacity: number } | null => {
+    if (opt === undefined || opt === false) return null;
+    if (opt === true) return { ids: targets, opacity: 0.3 };
+    if (Array.isArray(opt)) return { ids: resolveIds(opt, "ghost"), opacity: 0.3 };
+    return { ids: opt.of ? resolveIds(opt.of, "ghost") : targets, opacity: opt.opacity ?? 0.3 };
+  };
+  /** The params argument every mintGhosts call passes: null for a tier-2 spec
+   *  (no template — the ghost reads the layout being wrapped, whatever it
+   *  is); the CURRENT boundary params for a template spec, so a ghost minted
+   *  at the base ({} before the first animate) is still routed through
+   *  layoutAt and stays frozen there instead of riding a later tween frame. */
+  const ghostParams = (): Record<string, number> | null => (opts.animateBase === undefined || opts.animateBase === null ? null : { ...params });
+  /** Mint a motion verb's ghosts AND give them a step of their own, ahead of
+   *  the motion — the same `{kind:"show"}` `keep` pushes. Without it nothing
+   *  ever calls `finish()` on the ghost's handle: `mentioned.add(ghostId)`
+   *  keeps it out of the implicit final draw on purpose, and `applyScene`
+   *  only runs on a scrub, so a plain `visible: true` left the ghost at
+   *  reveal progress 0 for the whole cast (round 3 review, C1).
+   *  The step carries NO narration: the beat's spoken line belongs to the
+   *  motion step that follows, and `pushStep` would otherwise attach it to
+   *  both and speak it twice. */
+  const showGhosts = (opt: GhostOption | undefined, targets: string[]): void => {
+    const ghosts = ghostIdsFor(opt, targets);
+    if (!ghosts) return;
+    const ghostIds = mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+    if (ghostIds.length === 0) return;
+    const saidNarration = currentNarration;
+    currentNarration = undefined;
+    pushStep({ kind: "show", ids: ghostIds });
+    currentNarration = saidNarration;
+  };
+
   const IDENTITY: Turn = { deg: 0, pivot: [0, 0] };
   /** Followers ride their target's pose change: each is moved by where its own
    *  box centre goes under the target's new pose minus where it was under the
@@ -473,7 +591,117 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return out;
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "camera", "animate", "play"] as const;
+  /** The current geometry a measure reads (design §2.3): a segment's ends
+   *  through anchorNow, a circle's centre and radius through the pose, or the
+   *  primary ring's points through the pose. */
+  const measureGeometryNow = (m: MeasureSpec): { a?: Pt; b?: Pt; ring?: Pt[]; circle?: { c: Pt; r: number } } | null => {
+    const pointNow = (s: PointSource): Pt | null => ("pt" in s ? s.pt : anchorNow(s.ref, s.anchor, "measure"));
+    if (m.from && m.to) {
+      const a = pointNow(m.from), b = pointNow(m.to);
+      return a && b ? { a, b } : null;
+    }
+    const of = m.of;
+    if (!of) return null;
+    // A circle carries no literal ring: its centre rides the pose and its
+    // radius the pose's scale (a mirror or a rotation leaves it a circle).
+    if (m.circle) {
+      const c = poseOf(offsets[of] ?? [0, 0], turns[of])(m.circle.c);
+      const r = m.circle.r * (turns[of]?.scale ?? 1);
+      const g: { a?: Pt; b?: Pt; circle: { c: Pt; r: number } } = { circle: { c, r } };
+      // The same ends tier-2 lays a circle's width/height line between.
+      if (m.what === "width") return { ...g, a: [c[0] - r, c[1] - r], b: [c[0] + r, c[1] - r] };
+      if (m.what === "height") return { ...g, a: [c[0] + r, c[1] - r], b: [c[0] + r, c[1] + r] };
+      return g;
+    }
+    const leaves = currentLeaves(of);
+    const primary = leaves?.find((l) => l.closed) ?? leaves?.[0];
+    if (!primary) {
+      // a shape rect has no morphable leaves: measure its current box instead
+      const box = currentBox(of);
+      return box ? { ring: [[box.x, box.y], [box.x + box.w, box.y], [box.x + box.w, box.y + box.h], [box.x, box.y + box.h]] } : null;
+    }
+    const ring = primary.pts.map(poseOf(offsets[of] ?? [0, 0], turns[of]));
+    if (m.what === "length") return { a: ring[0], b: ring[ring.length - 1], ring };
+    if (m.what === "width") { const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]); const y = Math.min(...ys); return { a: [Math.min(...xs), y], b: [Math.max(...xs), y], ring }; }
+    if (m.what === "height") { const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]); const x = Math.max(...xs); return { a: [x, Math.min(...ys)], b: [x, Math.max(...ys)], ring }; }
+    return { ring };
+  };
+  /** After `changed` moved or morphed — one rule for every branch: the step's
+   *  targets AND the followers that rode with them, so a measure of an element
+   *  that moved only as someone's label follows it too.
+   *  Every measure that reads one of them is
+   *  re-read — its dimension line re-pointed (a morph of its own leaves), its
+   *  label slid to the new spot, its value rewritten. The label is an attached
+   *  follower of the LINE, and a morph moves no followers, so the slide has to
+   *  be spelled out here as a transform of its own. */
+  const measureUpdates = (changed: string[]): MeasureFollow => {
+    const extraMorphs: MorphItem[] = [];
+    const extraTransforms: TransformItem[] = [];
+    const written: TextItem[] = [];
+    const seen = new Set<string>();
+    for (const id of changed) {
+      for (const mid of opts.measuresDependingOn?.(id) ?? []) {
+        if (seen.has(mid)) continue;
+        seen.add(mid);
+        const m = opts.measureOf?.(mid);
+        if (!m) continue;
+        // In the scene at all? A line-less (area/perimeter) measure draws no
+        // element under its own id — layout.ts keeps it out of the order on
+        // purpose — so its text is what has to be known.
+        if (!known.has(mid) && !known.has(m.textId)) continue;
+        const g = measureGeometryNow(m);
+        if (!g) continue;
+        const value = measureValue(m.what, g);
+        if (value === null) continue;
+        const text = formatMeasure(value, m.format);
+        let textPos: Pt | null = null;
+        if (g.a && g.b && m.what !== "area" && m.what !== "perimeter") {
+          // Same label-width clearance tier-2 used, so the slid label lands
+          // exactly where a fresh layout would have put it (see dimensionLine).
+          const d = dimensionLine(g.a, g.b, m.offset, m.side, undefined, heuristicLabelWidth(text));
+          const targets: Record<string, Pt[]> = { [m.lineId]: d.line, [`${m.lineId}_guides`]: d.ticks[0], [`${m.lineId}_dot`]: d.ticks[1] };
+          const leafItems: MorphItem["leaves"] = [];
+          const next: Record<string, Pt[]> = {};
+          for (const l of currentLeaves(m.lineId) ?? []) {
+            const to = targets[l.leafId];
+            if (!to) continue;
+            // The tween lerps point by point, so a mismatched count would read
+            // past the end: snap that leaf instead (dimensionLine's own leaves
+            // are always two points, so this is belt-and-braces).
+            leafItems.push({ leafId: l.leafId, from: l.pts.length === to.length ? l.pts : to, to });
+            next[l.leafId] = to;
+          }
+          if (leafItems.length > 0) {
+            extraMorphs.push({ id: m.lineId, leaves: leafItems });
+            shapes[m.lineId] = { ...(shapes[m.lineId] ?? {}), ...next };
+          }
+          textPos = d.textPos;
+        } else if (g.circle) {
+          textPos = m.what === "perimeter" ? [g.circle.c[0], g.circle.c[1] + g.circle.r + 26] : g.circle.c;
+        } else if (g.ring) {
+          textPos = m.what === "perimeter" ? [ringCentroid(g.ring)[0], Math.max(...g.ring.map((p) => p[1])) + 26] : ringCentroid(g.ring);
+        }
+        // `label: false` draws no text at all — there is nothing to slide.
+        const tb = textPos ? bboxOf(m.textId) : null;
+        if (tb && textPos) {
+          const o: Pt = offsets[m.textId] ?? [0, 0];
+          const c: Pt = [tb.x + tb.w / 2 + o[0], tb.y + tb.h / 2 + o[1]];
+          const nextOffset: Pt = [o[0] + textPos[0] - c[0], o[1] + textPos[1] - c[1]];
+          extraTransforms.push({ id: m.textId, from: { offset: o, turn: turns[m.textId] ?? IDENTITY }, to: { offset: nextOffset, turn: turns[m.textId] ?? IDENTITY } });
+          offsets[m.textId] = nextOffset;
+        }
+        texts[m.textId] = { ...(texts[m.textId] ?? {}), [m.textId]: text };
+        written.push({ id: m.textId, leafId: m.textId, text });
+      }
+    }
+    return {
+      ...(extraMorphs.length > 0 ? { extraMorphs } : {}),
+      ...(extraTransforms.length > 0 ? { extraTransforms } : {}),
+      ...(written.length > 0 ? { texts: written } : {}),
+    };
+  };
+
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -719,6 +947,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (!hasPath && !hasBy && !hasTo && !hasRotate && !hasScale) warnings.push("move command needs one of by, to, path, rotate or scale — skipped");
         continue;
       }
+      // Minted BEFORE either half below changes offsets/turns/shapes — a
+      // ghost of where the targets are RIGHT NOW, ahead of this move.
+      showGhosts(cmd.move.ghost, ids);
       const seconds = cmd.move.duration ?? 1;
       const easing = cmd.move.easing ?? "ease-in-out";
       const trailOpt = cmd.move.trail === true ? {} : cmd.move.trail || null;
@@ -740,9 +971,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const n = (trailCount.get(of) ?? 0) + 1;
         trailCount.set(of, n);
         const trailId = n === 1 ? `${of}_trail` : `${of}_trail_${n}`;
-        trails.push({ id: trailId, pts, color: trailOpt.color, width: trailOpt.width ?? 2.5 });
+        minted.push({ kind: "trail", id: trailId, pts, color: trailOpt.color, width: trailOpt.width ?? 2.5 });
         const b = ptsBox(pts);
-        if (b) trailBoxes.set(trailId, b);
+        if (b) mintedBoxes.set(trailId, b);
         known.add(trailId);
         mentioned.add(trailId);
         makeVisible([trailId]);
@@ -767,7 +998,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           const [px, py] = pathPosition(path, u);
           return { offset: [bases[id][0] + px, bases[id][1] + py], turn: turns[id] };
         });
-        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails });
+        // Last, so the measures read the offsets this step has already
+        // settled. `moving` — targets AND the followers that rode with them,
+        // the same rule the pose branches use — so a measure of an element
+        // that only moved as someone's label still follows it.
+        const upd = measureUpdates(moving);
+        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails, ...upd });
       } else {
         // A pose change: per-id from/to, tweened together.
         // `to` and an explicit pivot name a point in the SCENE, not in each
@@ -776,11 +1012,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // itself one of the targets hand later targets the wheel's ALREADY
         // moved centre — the cycloid that came out as a giant arc.
         const dest = hasTo ? resolvePoint(cmd.move.to, undefined, "move") : null;
-        const pivotIsExplicit =
-          cmd.move.pivot !== undefined &&
-          (Array.isArray(cmd.move.pivot) ||
-            (cmd.move.pivot as EndRef).ref !== undefined ||
-            ((cmd.move.pivot as EndRef).x !== undefined && (cmd.move.pivot as EndRef).anchor === undefined));
+        const pivotIsExplicit = isExplicitPointRef(cmd.move.pivot);
         // A ref-less {anchor} pivot stays per target: it names the moving element's own anchor.
         const pivot0 = pivotIsExplicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
         const items: TransformItem[] = [];
@@ -840,7 +1072,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             turn: { deg: lerp(it.from.turn.deg, it.to.turn.deg), pivot: it.to.turn.pivot, scale: lerp(it.from.turn.scale ?? 1, it.to.turn.scale ?? 1), mirror: it.to.turn.mirror },
           };
         });
-        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails });
+        // items = the targets plus the followers followerItems moved.
+        const upd = measureUpdates(items.map((it) => it.id));
+        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails, ...upd });
       }
     } else if (cmd.arrange !== undefined) {
       const ids = resolveIds(cmd.arrange.target, "arrange");
@@ -859,6 +1093,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         inputs.push({ id, box, centre: poseCentre(raw, pose.offset, pose.turn), piece: opts.pieceOf?.(id) ?? undefined, pose });
       }
       if (inputs.length === 0) continue;
+      // A ring piece spans the whole turn (halfAngle 180°), so zipper's
+      // half-chord r·sin(halfAngle) is 0 and fan has no apex to swing about:
+      // every strip would pile up at one x, silently (the guard below passes,
+      // because a ring IS a piece). `unroll` is the layout rings have.
+      if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && inputs.every((i) => i.piece?.ring)) {
+        warnings.push(`arrange "${targetLabel(cmd.arrange.target)}": ${cmd.arrange.layout} needs sector or triangle pieces; rings unroll (skipped)`);
+        continue;
+      }
+      // Minted only once the command is known to survive the guards above —
+      // a warned-and-skipped arrange must not leave a permanent ghost behind.
+      showGhosts(cmd.arrange.ghost, ids);
       const at = resolvePoint(cmd.arrange.at, undefined, "arrange") ?? undefined;
       if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && !inputs.some((i) => i.piece)) {
         warnings.push(`arrange ${cmd.arrange.layout}: none of the targets is a sector piece — laid out as a row instead`);
@@ -866,7 +1111,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // A honeycomb is a zero-seam packing, so hex alone defaults to no gap.
       const gap = cmd.arrange.gap ?? (cmd.arrange.layout === "hex" ? 0 : 6);
       const placed = arrangeTargets(inputs, cmd.arrange.layout, { at, gap, columns: cmd.arrange.columns, start: cmd.arrange.start });
+      if (cmd.arrange.layout === "unroll" && !inputs.some((i) => i.piece?.ring)) {
+        warnings.push("arrange unroll: none of the targets is a ring piece — laid out as a row instead");
+      }
       const items: TransformItem[] = [];
+      const extraMorphs: MorphItem[] = [];
+      const unrolledIds: string[] = [];
       // Attached labels ride the pose change exactly as under move (design
       // §2.2) — a row, a zipper or a fan of labeled shapes must not leave its
       // labels behind. Dedupe across the whole loop, since two targets can
@@ -874,6 +1124,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const movedFollowers = new Set<string>();
       for (const p of placed) {
         const input = inputs.find((i) => i.id === p.id)!;
+        if (p.rect) {
+          // unroll: the ring's pose does not change — it morphs its leaves
+          // (the wash/outer/inner circles) into the strip's rectangle instead.
+          const leaves = currentLeaves(p.id) ?? [];
+          const inv = poseOf(input.pose.offset, input.pose.turn, true);
+          const item: MorphItem = { id: p.id, leaves: [] };
+          const next: Record<string, Pt[]> = {};
+          for (const l of leaves) {
+            const pair = morphPair(l.pts, l.closed, p.rect.map(inv), true);
+            item.leaves.push({ leafId: l.leafId, from: pair.from, to: pair.to });
+            next[l.leafId] = pair.to;
+          }
+          shapes[p.id] = next;
+          extraMorphs.push(item);
+          unrolledIds.push(p.id);
+          continue;
+        }
         const from = { offset: input.pose.offset, turn: input.pose.turn ?? { deg: 0, pivot: [0, 0] as Pt } };
         let offset: Pt = input.pose.offset;
         let turn: Turn | undefined = input.pose.turn;
@@ -893,7 +1160,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (turn) turns[p.id] = turn;
         items.push(...followerItems(p.id, { offset: input.pose.offset, turn: input.pose.turn }, { offset, turn }, movedFollowers, ids));
       }
-      pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
+      const upd = measureUpdates([...items.map((it) => it.id), ...unrolledIds]);
+      const mergedMorphs = [...extraMorphs, ...(upd.extraMorphs ?? [])];
+      pushStep({
+        kind: "transform",
+        items,
+        seconds: cmd.arrange.duration ?? 2,
+        easing: cmd.arrange.easing ?? "ease-in-out",
+        ...upd,
+        ...(mergedMorphs.length > 0 ? { extraMorphs: mergedMorphs } : {}),
+      });
     } else if (cmd.flip !== undefined) {
       const ids = resolveIds(cmd.flip.target, "flip");
       if (ids.length === 0) continue;
@@ -909,14 +1185,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         warnings.push("flip: the line's two endpoints are the same point, so it names no direction — skipped");
         continue;
       }
+      // Minted only once the command is known to survive the guards above —
+      // a warned-and-skipped flip must not leave a permanent ghost behind.
+      showGhosts(cmd.flip.ghost, ids);
       // `through` with a ref (or a literal point) names a place in the scene:
       // resolve it once, before any target has been flipped. A ref-less
       // {anchor} stays per target — it names the flipping element's own anchor.
-      const throughIsExplicit =
-        cmd.flip.through !== undefined &&
-        (Array.isArray(cmd.flip.through) ||
-          (cmd.flip.through as EndRef).ref !== undefined ||
-          ((cmd.flip.through as EndRef).x !== undefined && (cmd.flip.through as EndRef).anchor === undefined));
+      const throughIsExplicit = isExplicitPointRef(cmd.flip.through);
       const through0 = throughIsExplicit ? resolvePoint(cmd.flip.through, undefined, "flip") : null;
       const items: TransformItem[] = [];
       const movedFollowers = new Set<string>();
@@ -944,7 +1219,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         items.push(...followerItems(id, { offset: offset0, turn: turn0 }, c, movedFollowers, ids));
       }
       if (items.length === 0) continue;
-      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out" });
+      const upd = measureUpdates(items.map((it) => it.id));
+      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out", ...upd });
     } else if (cmd.morph !== undefined) {
       const ids = resolveIds(cmd.morph.target, "morph");
       if (ids.length === 0) continue;
@@ -953,6 +1229,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         warnings.push("morph needs exactly one of to, stretch or reset — skipped");
         continue;
       }
+      // Minted only once the command is known to survive the guard above —
+      // a warned-and-skipped morph must not leave a permanent ghost behind.
+      showGhosts(cmd.morph.ghost, ids);
       let refRing: { pts: Pt[]; closed: boolean } | null = null;
       if (cmd.morph.to !== undefined && !Array.isArray(cmd.morph.to)) {
         const ref = cmd.morph.to.ref;
@@ -968,11 +1247,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // Same rule as move and flip: a pivot that names a ref (or a literal
       // point) is resolved once, from the pre-morph state, so target two does
       // not stretch about target one's already stretched outline.
-      const morphPivotIsExplicit =
-        cmd.morph.pivot !== undefined &&
-        (Array.isArray(cmd.morph.pivot) ||
-          (cmd.morph.pivot as EndRef).ref !== undefined ||
-          ((cmd.morph.pivot as EndRef).x !== undefined && (cmd.morph.pivot as EndRef).anchor === undefined));
+      const morphPivotIsExplicit = isExplicitPointRef(cmd.morph.pivot);
       const morphPivot0 = morphPivotIsExplicit ? resolvePoint(cmd.morph.pivot, undefined, "morph") : null;
       const items: MorphItem[] = [];
       for (const id of ids) {
@@ -1012,7 +1287,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         items.push({ id, leaves: leafItems });
       }
       if (items.length === 0) continue;
-      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out" });
+      const upd = measureUpdates(items.map((it) => it.id));
+      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out", ...upd });
     } else if (cmd.flow !== undefined) {
       const ids = resolveIds(cmd.flow.along, "flow");
       if (ids.length === 0) continue;
@@ -1028,6 +1304,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         reverse: cmd.flow.reverse === true,
         ...(cmd.flow.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
+    } else if (cmd.keep !== undefined) {
+      const ids = resolveIds(cmd.keep.target, "keep");
+      if (ids.length === 0) continue;
+      const ghostIds = mintGhosts(ids, cmd.keep.opacity ?? 0.3, ghostParams());
+      if (ghostIds.length === 0) continue;
+      pushStep({ kind: "show", ids: ghostIds });
     } else if (cmd.fade !== undefined) {
       const ids = resolveIds(cmd.fade.target, "fade");
       if (ids.length === 0) continue;
@@ -1125,6 +1407,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         starts[key] = start;
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
+      // Ghost the visible figure at THIS boundary — the params BEFORE this
+      // animate updates them — excluding minted ids already on screen (a
+      // trail or an earlier ghost: mintGhosts would only warn and skip them).
+      const ghosts = ghostIdsFor(
+        cmd.ghost,
+        visible.filter((id) => !mintedBoxes.has(id)),
+      );
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       params = { ...params, ...targets };
       pushStep({
         kind: "animate",
@@ -1211,5 +1501,5 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, labels, warnings, trails };
+  return { steps, states, labels, warnings, minted };
 }

@@ -52,7 +52,7 @@ const drawSchema = {
 };
 
 const ANCHOR_NAMES =
-  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…";
+  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…; angle vertex, arc; ellipse focus_1, focus_2; line start, end, mid, point_1…";
 
 const endRefSchema = {
   type: "object",
@@ -79,6 +79,16 @@ const pointRefSchema = (what: string) => ({
   description: `${what} — [x, y] (domain units when a domain is declared, else logical), or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
 });
 
+/** A verb's ghost option: true (every target), a list of ids, or {of, opacity}. */
+const ghostSchema = (what: string) => ({
+  oneOf: [
+    { type: "boolean" },
+    { type: "array", items: { type: "string" } },
+    { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
+  ],
+  description: `${what} — KEEP a faded copy of the original where it is while this plays: true keeps every target at 0.3, ["id", …] keeps those, {"of": […], "opacity": 0.2} sets the shade. The copy is an element <id>_ghost you can erase or fade later — a pieces id ghosts every piece: kake_1_ghost, kake_2_ghost, … Default: nothing is kept.`,
+});
+
 const elementSchema = {
   type: "object",
   description:
@@ -91,7 +101,7 @@ const elementSchema = {
       type: "string",
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
-        "sector", "arc", "polygon", "pieces",
+        "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
       ],
     },
     // axes
@@ -104,21 +114,38 @@ const elementSchema = {
     expr: { type: "string", description: "curve: explicit function of x over the domain, e.g. \"100 - 0.5*x\". Use instead of direction/curvature when you know the function." },
     x_from: { type: "number", description: "curve/region: start of the x interval (domain units). Defaults to the whole domain." },
     x_to: { type: "number", description: "curve/region: end of the x interval (domain units)." },
-    // point
+    // point / angle
     at: {
-      type: "object",
-      description: "point: location, either x+y in domain units, or intersection_of two curve ids.",
-      properties: {
-        x: { type: "number" },
-        y: { type: "number" },
-        intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
-      },
-      additionalProperties: false,
+      oneOf: [
+        {
+          type: "object",
+          properties: {
+            x: { type: "number" },
+            y: { type: "number" },
+            intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
+            ref: { type: "string" },
+            anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
+          },
+          additionalProperties: false,
+        },
+        { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+      ],
+      description:
+        "point: location — x+y in domain units, or intersection_of two curve ids. angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
     },
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
-    // arrow / edge
-    from: endRefSchema,
-    to: endRefSchema,
+    // arrow / edge / angle
+    from: {
+      oneOf: [{ type: "number" }, { type: "string" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      description:
+        "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. from: {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}. " +
+        "pieces of triangles: the vertex to fan from (\"vertex_1\").",
+    },
+    to: {
+      oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      description:
+        "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. to: {\"ref\": \"tri\", \"anchor\": \"vertex_3\"}.",
+    },
     curved: { type: "boolean", description: "arrow/edge: bow the line slightly." },
     // label
     text: { type: "string", description: "label/text/node: the text content." },
@@ -126,7 +153,7 @@ const elementSchema = {
     side: {
       type: "string",
       enum: ["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"],
-      description: "label: preferred side relative to the attached element. The collision solver may move it.",
+      description: "label: preferred side relative to the attached element. The collision solver may move it. measure: left/right of the segment's direction (default: away from the measured element).",
     },
     link: {
       type: "array",
@@ -159,17 +186,17 @@ const elementSchema = {
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
     closed: { type: "boolean", description: "path: close the polyline." },
-    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical x (y-up canvas) — the centre, for the shapes that have one." },
-    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical y (y-up canvas) — the centre, for the shapes that have one." },
+    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one." },
+    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one." },
     width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
     height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
-    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces: radius in logical units." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
     end: { type: "number", description: "sector/arc: end angle in degrees, counter-clockwise from +x — e.g. start: 0, end: 90 is the upper-right quarter." },
     sides: { type: "integer", minimum: 3, description: "polygon: sides of a REGULAR polygon centred at x,y with radius — instead of points." },
-    rotation: { type: "number", description: "polygon: turn a regular polygon by this many degrees." },
+    rotation: { type: "number", description: "polygon/ellipse: turn by this many degrees (polygon: the regular polygon; ellipse: its major axis, counter-clockwise from +x)." },
     n: {
       type: "integer",
       minimum: 1,
@@ -178,13 +205,43 @@ const elementSchema = {
         "pieces: how many pieces to cut — e.g. 12 sectors of a circle, 4 strips of a rectangle, or the COLUMNS of a grid (rows in `rows`; n: 1 with rows: 4 gives four horizontal bands). Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
     },
     rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left. At most 256 cells in all." },
+    label: {
+      oneOf: [{ type: "string" }, { type: "boolean" }],
+      description: "angle/measure: the text — angle default the degrees (\"62°\"); false hides it; measure default \"{value}\" e.g. \"b = {value}\".",
+    },
+    right: { type: "boolean", description: "angle: draw the right-angle square (default: automatically when the angle is 90°)." },
+    what: {
+      type: "string",
+      enum: ["length", "width", "height", "area", "perimeter"],
+      description:
+        "measure: what to read — length (a segment, arrow or path), width / height (of the element's box), area or perimeter (of its outline). Default: length for a segment, area for a closed shape.",
+    },
+    unit: { type: "string", description: "measure: appended to the value — \"cm\"." },
+    scale: { type: "number", exclusiveMinimum: 0, description: "measure: logical units per unit (default 1) — 50 with unit cm makes a 100-unit side read 2.0 cm." },
+    decimals: { type: "integer", minimum: 0, maximum: 4, description: "measure: decimals shown (default 0 when the value is 100 or more, else 1)." },
+    offset: { type: "number", description: "measure: how far the dimension line sits from the segment (default 24)." },
+    // ellipse / line (design §2.5) — x/y/rotation reused above
+    rx: { type: "number", exclusiveMinimum: 0, description: "ellipse: half-axis along +x before rotation, logical units (default 150)." },
+    ry: { type: "number", exclusiveMinimum: 0, description: "ellipse: half-axis along +y before rotation, logical units (default 100)." },
+    through: {
+      type: "array",
+      items: pointRefSchema("line: a point it passes through"),
+      minItems: 1,
+      maxItems: 2,
+      description:
+        "line: one or two points the line passes through — [{\"ref\": \"tri\", \"anchor\": \"vertex_1\"}, {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}] extends a side; with one point give slope or angle.",
+    },
+    slope: { type: "number", description: "line: rise over run in domain units when a domain is declared, else logical." },
+    angle: { type: "number", description: "line: direction in degrees counter-clockwise from +x (not the angle element type — this is the `line` element's own direction field)." },
     // portrait / source
     of: {
       type: "string",
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
-        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips) or \"grid\" (the same rectangle, n columns × rows rows).",
+        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips), \"grid\" (the same rectangle, n columns × rows rows), \"rings\" (n concentric rings of a circle of radius at x, y — unroll them with arrange), " +
+        "\"triangles\" (fans a regular polygon (sides + radius) or a polygon (points, from: \"vertex_k\") into triangles) or \"halving\" (halves a width × height rectangle n times, alternately, with `<id>_rest` the remainder — 1/2 + 1/4 + …). " +
+        "measure: the element to measure.",
     },
     url: {
       type: "string",
@@ -308,7 +365,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / flow / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / flow / keep / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -550,6 +607,7 @@ const commandSchema = {
           ],
           description: "Leave the TRACK of the motion as a new element <id>_trail (the locus): true traces the first target's centre; {\"of\": \"dot\", \"anchor\": \"bottom\"} traces that target's anchor — a point on a rolling wheel draws the cycloid, a planet its orbit. Fade, erase or highlight the trail afterwards by its id.",
         },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target"],
       additionalProperties: false,
@@ -562,8 +620,8 @@ const commandSchema = {
         target: idListSchema("Element ids, or one pieces id."),
         layout: {
           type: "string",
-          enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex"],
-          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right.",
+          enum: ["row", "zipper", "grid", "ring", "stack", "fan", "hex", "unroll"],
+          description: "Pick the shape the targets end up in — e.g. \"layout\": \"zipper\" interleaves sector pieces into a rectangle, \"fan\" sets torn-off corner angles side by side about one point, \"hex\" packs hexagons into a honeycomb, \"row\" lines them up left to right, \"unroll\" straightens ring pieces into strips stacked bottom-up (innermost first) — the circumference-equals-length proof.",
         },
         at: pointRefSchema("Centre of the arrangement (default: where the targets are now; fan: the first sector's apex)"),
         start: { type: "number", description: "fan: the angle where the first piece begins, degrees counter-clockwise from +x — e.g. \"start\": 0 lays the angles along a horizontal line rightwards (default 0)." },
@@ -571,6 +629,7 @@ const commandSchema = {
         columns: { type: "integer", minimum: 1, description: "grid: pieces per row — e.g. \"columns\": 4 lays twelve pieces out four wide." },
         duration: { type: "number", description: "Seconds (default 2)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target", "layout"],
       additionalProperties: false,
@@ -605,6 +664,7 @@ const commandSchema = {
         },
         duration: { type: "number", description: "Seconds (default 1.2)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target"],
       additionalProperties: false,
@@ -627,6 +687,7 @@ const commandSchema = {
         reset: { type: "boolean", description: "Back to the layout's own points." },
         duration: { type: "number", description: "Seconds (default 1.5)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target"],
       additionalProperties: false,
@@ -645,6 +706,17 @@ const commandSchema = {
         reverse: { type: "boolean", description: "Stream from the stroke's end to its start." },
       },
       required: ["along"],
+      additionalProperties: false,
+    },
+    keep: {
+      type: "object",
+      description:
+        "Keep a faded copy of elements where they are NOW, as elements <id>_ghost — the original stays on screen while its pieces move away: {\"keep\": {\"target\": \"kake\"}, \"speak\": \"Keep the circle in mind while the slices move.\"} before an arrange or a morph. A pieces id ghosts every piece: kake_1_ghost, kake_2_ghost, … Default opacity 0.3.",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        opacity: { type: "number", minimum: 0, maximum: 1, description: "Shade of the kept copy (default 0.3) — e.g. 0.5 for a stronger ghost." },
+      },
+      required: ["target"],
       additionalProperties: false,
     },
     camera: {
@@ -670,6 +742,7 @@ const commandSchema = {
       enum: ["linear", "ease-in", "ease-out", "ease-in-out"],
       description: "With animate: velocity profile over the whole tween (default: today's smoothstep). A long race (many seconds) reads better as \"linear\" — constant speed — than the default's ease in/out, which blurs the middle and crawls at the ends.",
     },
+    ghost: ghostSchema("With animate: ghost of the figure at this boundary"),
     play: {
       description:
         'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass) — or a whole tune as {"abc": "K:C\\nC D E F|…"} in ABC notation. ONLY for figures genuinely about sound or music.',
@@ -870,6 +943,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.morph) cmd.morph.target = toList(cmd.morph.target)!;
     // flow's along follows the same one-or-many convention as morph's target.
     if (cmd.flow) cmd.flow.along = toList(cmd.flow.along)!;
+    // keep's target follows the same one-or-many convention as the motion verbs.
+    if (cmd.keep) cmd.keep.target = toList(cmd.keep.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -909,7 +984,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {
@@ -1124,13 +1199,14 @@ function semanticErrors(spec: Spec): string[] {
       if (seen.has(base)) errors.push(`element ids "${base}" and "${id}" collide: "${tail}" is reserved for the sub-drawables of "${base}" — rename one of them`);
     }
   }
-  // A pieces element mints "<id>_1 … <id>_n"; an author-declared element with
-  // such an id would draw twice under one name.
+  // A pieces element mints "<id>_1 … <id>_n" (and, halving, "<id>_rest"); an
+  // author-declared element with such an id would draw twice under one name.
   for (const el of spec.elements ?? []) {
     if (el.type !== "pieces") continue;
     const prefix = `${el.id}_`;
     for (const id of seen) {
       if (id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))) errors.push(`element id "${id}" collides with a numbered piece of "${el.id}" — rename it`);
+      if (el.of === "halving" && id === `${el.id}_rest`) errors.push(`element id "${id}" collides with the remainder piece of "${el.id}" — rename it`);
     }
   }
 
@@ -1191,10 +1267,23 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "point":
       need(!!el.at, "needs at ({x,y} or {intersection_of})");
+      // at is a shared property (angle reuses it for its vertex — an array
+      // or a {ref, anchor} object) — a point's at stays {x, y} or
+      // {intersection_of}, so it never silently resolves to nothing.
+      if (el.at !== undefined) {
+        const at = el.at as { ref?: string; anchor?: string };
+        need(!Array.isArray(el.at) && at.ref === undefined && at.anchor === undefined, "at must be {x, y} or {intersection_of: [...]} — not [x, y] or {ref, anchor} (that's angle's vertex); write at: {x: ..., y: ...} instead");
+      }
       break;
     case "arrow":
     case "edge":
       need(!!el.from && !!el.to, "needs from and to");
+      // from/to is a shared property (angle reuses it for a numeric arm
+      // direction, or a bare [x, y]) — an arrow/edge endpoint stays an
+      // object ({ref, anchor} or {x, y}) so it never collides with sector/
+      // arc's start/end degrees or angle's own arm shorthand.
+      const badEnd = (v: unknown) => v !== undefined && (typeof v !== "object" || Array.isArray(v));
+      need(!badEnd(el.from) && !badEnd(el.to), "from/to must be an endpoint ({ref, anchor} or {x, y}), not a bare number (sector/arc's start/end) or [x, y] (angle's arm)");
       break;
     case "path":
       need(Array.isArray(el.points) && el.points.length >= 2, "needs points (≥ 2)");
@@ -1217,11 +1306,27 @@ function elementErrors(el: SpecElement): string[] {
       );
       break;
     case "pieces":
-      need(el.of === "sectors" || el.of === "strips" || el.of === "grid", 'needs of: "sectors", "strips" or "grid"');
-      if (el.of === "sectors") need(typeof el.radius === "number", "needs radius");
-      if (el.of === "strips" || el.of === "grid") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
+      need(["sectors", "strips", "grid", "rings", "triangles", "halving"].includes(el.of as string), 'needs of: "sectors", "strips", "grid", "rings", "triangles" or "halving"');
+      if (el.of === "sectors" || el.of === "rings") need(typeof el.radius === "number", "needs radius");
+      if (el.of === "strips" || el.of === "grid" || el.of === "halving") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
       if (el.of === "grid") need(typeof el.rows === "number", "needs rows (n is the columns)");
-      need(typeof el.n === "number", "needs n (how many pieces)");
+      if (el.of === "triangles") need((Array.isArray(el.points) && el.points.length >= 3) || (typeof el.sides === "number" && typeof el.radius === "number"), "needs points (≥ 3), or sides + radius for a regular polygon");
+      if (el.of !== "triangles") need(typeof el.n === "number", "needs n (how many pieces)");
+      break;
+    case "angle":
+      need(el.at !== undefined && el.from !== undefined && el.to !== undefined, "needs at, from and to");
+      break;
+    case "measure":
+      need(el.of !== undefined || (el.from !== undefined && el.to !== undefined), "needs of, or from and to");
+      break;
+    case "ellipse":
+      need(typeof el.rx === "number" && typeof el.ry === "number", "needs rx and ry");
+      break;
+    case "line":
+      need(Array.isArray(el.through) && el.through.length >= 1 && el.through.length <= 2, "needs through (1 or 2 points)");
+      if (Array.isArray(el.through) && el.through.length === 1) {
+        need(typeof el.slope === "number" || typeof el.angle === "number", "with one point in through, needs slope or angle");
+      }
       break;
     case "code":
       // A machine with a program on it and nothing to run (`game`, no code) is

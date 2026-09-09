@@ -633,6 +633,15 @@ class SvgElementHandle implements RenderedElement {
   private entries: LeafEntry[];
   /** Per-leaf id: the points setPoints last applied (null = the layout's own). */
   private current = new Map<string, Pt[] | null>();
+  /** Per-leaf id: the string setText last applied (null = the layout's own). */
+  private currentText = new Map<string, string | null>();
+  /** The reveal progress this element was last put at — 0 after mount and
+   *  after hide(), 1 after finish(), whatever setProgress was handed
+   *  mid-draw. A leaf rebuilt by setPoints/setText is restored to THIS, not
+   *  to 1: a measure whose figure moves before the measure has been drawn
+   *  would otherwise pop into view mid-move (design §2.3), and so would one
+   *  the cast has hidden or erased. */
+  private lastProgress = 0;
 
   constructor(id: string, entries: LeafEntry[], private readonly rc: RoughSVG | null) {
     this.id = id;
@@ -650,6 +659,19 @@ class SvgElementHandle implements RenderedElement {
     this.leaves.forEach((l) => l.prepare());
   }
 
+  /** Redraw one leaf from a changed drawable, in place: new nodes under the
+   *  leaf's own `<g>` (so the pose transform, the fade wrapper and anything
+   *  holding the node keep working), a fresh leaf handle, and the reveal put
+   *  back exactly where this element already stood. NEVER at progress 1 —
+   *  see `lastProgress`. */
+  private rebuildLeaf(i: number, drawable: Exclude<Drawable, { kind: "group" }>): void {
+    const rebuilt = drawLeaf(this.rc, drawable);
+    this.entries[i].g.replaceChildren(...Array.from(rebuilt.children));
+    this.leaves[i] = makeLeafHandle(this.entries[i].g, drawable);
+    this.leaves[i].prepare();
+    this.leaves[i].setProgress(this.leafProgressAt(i, this.lastProgress));
+  }
+
   /** Morph support: rebuild a leaf with new points, or with its own when
    *  unlisted. Same-reference points are a no-op, so applyScene's per-boundary
    *  call costs nothing once a boundary's shapes are already applied. */
@@ -663,12 +685,24 @@ class SvgElementHandle implements RenderedElement {
       const want = points[leaf.id] ?? null;
       if (want === (this.current.get(leaf.id) ?? null)) return;
       this.current.set(leaf.id, want);
-      const drawable = want ? { ...leaf, pts: want } : leaf;
-      const rebuilt = drawLeaf(this.rc, drawable);
-      e.g.replaceChildren(...Array.from(rebuilt.children));
-      this.leaves[i] = makeLeafHandle(e.g, drawable);
-      this.leaves[i].prepare();
-      this.leaves[i].setProgress(1);
+      this.rebuildLeaf(i, want ? { ...leaf, pts: want } : leaf);
+    });
+  }
+
+  /** A measure's value follows what it measures (design §2.3): rebuild a text
+   *  leaf with a new string, or with its own when unlisted. Same-value calls
+   *  are a no-op, so applyScene's per-boundary call costs nothing once a
+   *  boundary's texts are already applied. `lines` is dropped with the old
+   *  string: the wrap was measured for THAT text, and a stale line list would
+   *  paint the old words. */
+  setText(texts: Record<string, string>): void {
+    this.entries.forEach((e, i) => {
+      const leaf = e.leaf;
+      if (leaf.kind !== "text") return;
+      const want = texts[leaf.id] ?? null;
+      if (want === (this.currentText.get(leaf.id) ?? null)) return;
+      this.currentText.set(leaf.id, want);
+      this.rebuildLeaf(i, want !== null ? { ...leaf, text: want, lines: undefined } : leaf);
     });
   }
 
@@ -702,21 +736,21 @@ class SvgElementHandle implements RenderedElement {
     }
   }
 
-  setProgress(t: number): void {
+  /** Where leaf `i` stands when the whole element is at `t` — the element's
+   *  duration split across its leaves in draw order. Factored out of
+   *  setProgress so rebuildLeaf can put one leaf back on that same curve. */
+  private leafProgressAt(i: number, t: number): number {
+    if (t >= 1) return 1;
+    if (this.durationMs === 0) return 0;
     const elapsed = t * this.durationMs;
-    this.leaves.forEach((leaf, i) => {
-      if (this.durationMs === 0) {
-        leaf.setProgress(t >= 1 ? 1 : 0);
-        return;
-      }
-      if (leaf.durationMs === 0) {
-        leaf.setProgress(elapsed >= this.cumulative[i] && t > 0 ? 1 : 0);
-      } else {
-        const local = (elapsed - this.cumulative[i]) / leaf.durationMs;
-        leaf.setProgress(Math.min(Math.max(local, 0), 1));
-      }
-    });
-    if (t >= 1) this.leaves.forEach((l) => l.setProgress(1));
+    const leaf = this.leaves[i];
+    if (leaf.durationMs === 0) return elapsed >= this.cumulative[i] && t > 0 ? 1 : 0;
+    return Math.min(Math.max((elapsed - this.cumulative[i]) / leaf.durationMs, 0), 1);
+  }
+
+  setProgress(t: number): void {
+    this.lastProgress = t;
+    this.leaves.forEach((leaf, i) => leaf.setProgress(this.leafProgressAt(i, t)));
   }
 
   finish(): void {
@@ -724,6 +758,7 @@ class SvgElementHandle implements RenderedElement {
   }
 
   hide(): void {
+    this.lastProgress = 0;
     this.leaves.forEach((l) => l.setProgress(0));
   }
 }
@@ -1010,6 +1045,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         turns?: Record<string, Turn>,
         opacities?: Record<string, number>,
         shapes?: Record<string, Record<string, Pt[]>>,
+        texts?: Record<string, Record<string, string>>,
       ) => {
         for (const id of l.order) {
           if (visible && !visible.has(id)) continue;
@@ -1022,7 +1058,15 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
             // the same handle-less-rebuild path a rotated/scaled tween frame
             // already relies on (see the pose comment just below).
             const pts = shapes?.[id]?.[leaf.id];
-            const drawn = pts && (leaf.kind === "stroke" || leaf.kind === "area") ? { ...leaf, pts } : leaf;
+            // …and a measure's rewritten value substitutes its string, the
+            // same way (design §2.3): a handle-less frame carries no setText.
+            const text = texts?.[id]?.[leaf.id];
+            const drawn =
+              pts && (leaf.kind === "stroke" || leaf.kind === "area")
+                ? { ...leaf, pts }
+                : text !== undefined && leaf.kind === "text"
+                  ? { ...leaf, text, lines: undefined }
+                  : leaf;
             const g = drawLeaf(rc, drawn);
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
@@ -1092,11 +1136,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         // overwrites (a knocked-down fill-opacity, say) would show up here as
         // a flicker for the whole tween. Keep the two in step — makeLeafHandle
         // ends its reveal on the node's own authored values.
-        swapGeometry: (l, visible, offsets, turns, opacities, shapes) => {
+        swapGeometry: (l, visible, offsets, turns, opacities, shapes, texts) => {
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
-          buildNodes(l, new Map(), visible, offsets, turns, opacities, shapes); // throwaway map: no handles, effects keep the mount-time nodes
+          buildNodes(l, new Map(), visible, offsets, turns, opacities, shapes, texts); // throwaway map: no handles, effects keep the mount-time nodes
         },
         remount: (l) => {
           layers[0].replaceChildren();

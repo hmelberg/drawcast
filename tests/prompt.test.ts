@@ -44,16 +44,31 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("line_chart");
   });
 
-  test("the action-verb inventory lists flip, morph and flow", () => {
+  test("the action-verb inventory lists flip, morph, flow and keep", () => {
     const line = compilerV1.split("\n").find((l) => l.includes("Each command sets ONE action verb"));
     expect(line).toBeDefined();
     expect(line).toMatch(/`flip`/);
     expect(line).toMatch(/`morph`/);
     expect(line).toMatch(/`flow`/);
+    expect(line).toMatch(/`keep`/);
   });
 
   test("teaches anchors and the four motion-round-2 verbs", () => {
     for (const s of ["\"anchor\": \"tail\"", "`flip`", "`morph`", "`flow`", "\"trail\": true", "riemann_sum", "tangent_secant", "compute a coordinate for a point you can name"]) expect(compilerV1).toContain(s);
+  });
+
+  test("teaches keep/ghost, the minted-elements verb of motion round 3", () => {
+    for (const s of ["`keep`", "`ghost`", "\"keep\": {\"target\": \"kake\"}", "\"ghost\": true"]) expect(compilerV1).toContain(s);
+  });
+
+  test("teaches angle, measure, ellipse, line, unroll and halving — motion round 3's new elements and cut", () => {
+    for (const s of ["`angle`", "`measure`", "`ellipse`", "`line`", "unroll", "halving", "`keep`"]) expect(compilerV1).toContain(s);
+  });
+
+  test("teaches that a measure's number is the separate element label_<id>, named in draw beside the line", () => {
+    // Round 3 review, I2: without this the model writes `draw: ["side"]` and
+    // the number falls into the implicit final draw at the end of the cast.
+    for (const s of ["`label_<id>`", '"draw": ["side", "label_side"]', '"draw": ["areal"]']) expect(compilerV1).toContain(s);
   });
 });
 

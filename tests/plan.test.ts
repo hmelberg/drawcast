@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { planCommands, INITIAL_STATE, type PlanStep } from "../src/render/plan";
+import { planCommands, INITIAL_STATE, isExplicitPointRef, type PlanStep } from "../src/render/plan";
 import { poseOf } from "../src/render/pose";
 import { CANVAS } from "../src/layout/canvas";
 
@@ -529,5 +529,15 @@ describe("anchors in commands (design §2.1)", () => {
     expect(plan.steps[0]).toMatchObject({ kind: "point", x: 300, y: 110 });
     const cam = plan.steps[1] as Extract<PlanStep, { kind: "camera" }>;
     expect(cam.box!.x + cam.box!.w / 2).toBeCloseTo(300, 6); // (300,110) at zoom 4 stays inside the canvas clamp
+  });
+});
+
+describe("isExplicitPointRef", () => {
+  test("arrays, refs and x+y are explicit; a ref-less anchor is not", () => {
+    expect(isExplicitPointRef([1, 2])).toBe(true);
+    expect(isExplicitPointRef({ ref: "a" })).toBe(true);
+    expect(isExplicitPointRef({ x: 1, y: 2 })).toBe(true);
+    expect(isExplicitPointRef({ anchor: "vertex_2" })).toBe(false);
+    expect(isExplicitPointRef(undefined)).toBe(false);
   });
 });

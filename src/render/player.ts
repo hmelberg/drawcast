@@ -5,7 +5,7 @@
 // stepping, and a live speed multiplier. Scrubbing applies the plan's
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
-import type { Plan, PlanStep, SceneState } from "./plan";
+import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TransformItem } from "./plan";
 import { answersMatch, subVars } from "../spec/answers";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
@@ -41,6 +41,7 @@ export interface Reprojector {
     revealNew?: boolean,
     elements?: SpecElement[],
     shapes?: Record<string, Record<string, Pt[]>>,
+    texts?: Record<string, Record<string, string>>,
   ): LayoutResult | void;
   /** Full remount at settled params; returns the new element handles. */
   commit(params: Record<string, number>): Map<string, RenderedElement>;
@@ -421,6 +422,7 @@ export class Player {
       else el.setOffset?.(dx, dy);
       el.setOpacity?.(scene.opacities[id] ?? 1);
       el.setPoints?.(scene.shapes[id] ?? {});
+      el.setText?.(scene.texts[id] ?? {});
       if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
       else el.hide();
     }
@@ -486,7 +488,7 @@ export class Player {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew, undefined, scene.shapes) || null;
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew, undefined, scene.shapes, scene.texts) || null;
     this.geometryDirty = true;
   }
 
@@ -507,7 +509,7 @@ export class Player {
     const visible = new Set(scene.visible);
     for (const id of patch.hide ?? []) visible.delete(id);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements, scene.shapes) || null;
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements, scene.shapes, scene.texts) || null;
     this.geometryDirty = true;
   }
 
@@ -1040,7 +1042,7 @@ export class Player {
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
-          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true, undefined, before.shapes);
+          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true, undefined, before.shapes, before.texts);
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
@@ -1065,7 +1067,11 @@ export class Player {
             else el.setOffset!(bx + px, by + py);
           }
           for (const tr of step.trails ?? []) this.elements.get(tr.id)?.setProgress(lengthFractionAt(tr.lengthAt, e));
+          this.tweenMorphItems(step.extraMorphs, e, before);
+          this.tweenTransformItems(step.extraTransforms, e);
         });
+        if (signal.aborted) return; // a scrub's renderUpTo owns the state now
+        this.settleMeasures(step, this.plan.states[index]);
         return;
       }
       case "transform": {
@@ -1091,7 +1097,11 @@ export class Player {
             else el!.setOffset!(dx, dy);
           }
           for (const tr of step.trails ?? []) this.elements.get(tr.id)?.setProgress(lengthFractionAt(tr.lengthAt, e));
+          this.tweenMorphItems(step.extraMorphs, e, before);
+          this.tweenTransformItems(step.extraTransforms, e);
         });
+        if (signal.aborted) return; // a scrub's renderUpTo owns the state now
+        this.settleMeasures(step, this.plan.states[index]);
         return;
       }
       case "fade": {
@@ -1113,6 +1123,8 @@ export class Player {
             for (const leaf of it.leaves) pts[leaf.leafId] = leaf.from.map((p, i): Pt => [p[0] + (leaf.to[i][0] - p[0]) * e, p[1] + (leaf.to[i][1] - p[1]) * e]);
             el!.setPoints!(pts);
           }
+          this.tweenMorphItems(step.extraMorphs, e, before);
+          this.tweenTransformItems(step.extraTransforms, e);
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
         // Settle on the boundary's own points — the last tween frame is
@@ -1122,6 +1134,7 @@ export class Player {
         // next applyScene (a scrub).
         const after = this.plan.states[index];
         for (const { it, el } of items) el!.setPoints!(after.shapes[it.id] ?? {});
+        this.settleMeasures(step, after);
         return;
       }
       case "camera": {
@@ -1156,6 +1169,47 @@ export class Player {
       return Promise.resolve();
     }
     return this.progress(ms, signal, (t) => el.setProgress(from + (to - from) * t));
+  }
+
+  /**
+   * A measure's dimension line rides its figure (design §2.3): the same
+   * per-leaf lerp the morph case runs for its own items, merged over the
+   * boundary's existing points so leaves this step does not touch stay put.
+   */
+  private tweenMorphItems(items: MorphItem[] | undefined, e: number, before: SceneState): void {
+    for (const it of items ?? []) {
+      const el = this.elements.get(it.id);
+      if (!el?.setPoints) continue;
+      const pts: Record<string, Pt[]> = { ...(before.shapes[it.id] ?? {}) };
+      for (const leaf of it.leaves) pts[leaf.leafId] = leaf.from.map((p, i): Pt => [p[0] + (leaf.to[i][0] - p[0]) * e, p[1] + (leaf.to[i][1] - p[1]) * e]);
+      el.setPoints(pts);
+    }
+  }
+
+  /** A measure's label slides to the new spot alongside the step it belongs to — the transform case's own pose lerp, on ids the step does not otherwise touch. */
+  private tweenTransformItems(items: TransformItem[] | undefined, e: number): void {
+    for (const it of items ?? []) {
+      const el = this.elements.get(it.id);
+      if (!el) continue;
+      const dx = it.from.offset[0] + (it.to.offset[0] - it.from.offset[0]) * e;
+      const dy = it.from.offset[1] + (it.to.offset[1] - it.from.offset[1]) * e;
+      const deg = it.from.turn.deg + (it.to.turn.deg - it.from.turn.deg) * e;
+      const sc = (it.from.turn.scale ?? 1) + ((it.to.turn.scale ?? 1) - (it.from.turn.scale ?? 1)) * e;
+      if (el.setTransform) el.setTransform(dx, dy, deg, it.to.turn.pivot, sc, it.to.turn.mirror ?? false);
+      else el.setOffset?.(dx, dy);
+    }
+  }
+
+  /**
+   * Land the step's measure extras on the boundary the plan recorded: the
+   * dimension lines on their exact points (the tween's last frame is a fresh
+   * array, and a later scrub reads these), and the labels on their recomputed
+   * strings. The VALUE never tweens — a measure reads what the figure is once
+   * it has arrived, so it is written in one go at the end.
+   */
+  private settleMeasures(step: MeasureFollow, after: SceneState): void {
+    for (const it of step.extraMorphs ?? []) this.elements.get(it.id)?.setPoints?.(after.shapes[it.id] ?? {});
+    for (const t of step.texts ?? []) this.elements.get(t.id)?.setText?.({ ...(after.texts[t.id] ?? {}) });
   }
 
   /**

@@ -9,7 +9,7 @@ import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
 import { withNewIdsVisible, withOverrides } from "./params";
 import { planCommands, type Plan, type PlanOptions } from "./plan";
-import { withTrails, type TrailSpec } from "./trails";
+import { withMinted, type MintedSpec } from "./minted";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
@@ -95,9 +95,36 @@ function contactEmail(): string {
  * command-addressable ids), so `draw`/`arrange` naming just the parent
  * silently drops as an unknown id instead of expanding.
  */
-export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf"> {
+export function planOptionsFor(
+  spec: Spec,
+  layout: LayoutResult,
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn"> {
+  // Which group each id belongs to: `arrange`/`move` change the resolved
+  // CHILDREN of a `pieces` cut, while a measure anchored to the cut names the
+  // PARENT — matching ids exactly left that measure stale and unwarned.
+  const groupsOf = new Map<string, string[]>();
+  for (const [parent, kids] of Object.entries(layout.pieceGroups)) {
+    for (const kid of kids) {
+      const cur = groupsOf.get(kid);
+      if (cur) cur.push(parent);
+      else groupsOf.set(kid, [parent]);
+    }
+  }
   return {
     pieceOf: (id) => layout.pieces[id] ?? null,
+    measureOf: (id) => layout.measures[id] ?? null,
+    // Which measures read this element: the one that measures it outright, and
+    // the ones whose segment ends name it (design §2.3) — under either the id
+    // itself or the pieces parent it belongs to, since a segment end on the
+    // parent re-resolves through the planner's union-box `anchorNow`.
+    // (`of: <parent>` stays a layout-time warning: pieces populate no shapes
+    // for the parent, so there is nothing to measure — only the ends work.)
+    measuresDependingOn: (id) => {
+      const names = new Set([id, ...(groupsOf.get(id) ?? [])]);
+      return Object.entries(layout.measures)
+        .filter(([, m]) => (m.of !== undefined && names.has(m.of)) || (m.from && "ref" in m.from && m.from.ref !== undefined && names.has(m.from.ref)) || (m.to && "ref" in m.to && m.to.ref !== undefined && names.has(m.to.ref)))
+        .map(([k]) => k);
+    },
     expandId: (id) => layout.pieceGroups[id] ?? null,
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     leafPointsOf: (id) => {
@@ -201,24 +228,30 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
   // is a distinct param set — caching them would hoard hundreds of layouts).
   const boundaryLayouts = new Map<string, LayoutResult>();
-  // Trails (design §2.5): set once the plan is known, below — layoutFor and
-  // the mounted layout both append them, so a reprojected preview or a
-  // scrub carries the trail element too.
-  let trails: TrailSpec[] = [];
-  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult => {
-    if (Object.keys(params).length === 0 && !elements) return withTrails(layout, trails);
+  // Minted elements (design §2.1 round 3, §2.5 round 2 — trails, ghosts): set
+  // once the plan is known, below — layoutFor and the mounted layout both
+  // append them, so a reprojected preview or a scrub carries them too.
+  // rawLayoutFor is the plain (unwrapped) layout at a param set, cached the
+  // same way as before; layoutFor wraps it with withMinted, and hands
+  // withMinted a RAW layoutAt so a ghost's boundary layout (minted under
+  // animate) is never itself re-wrapped.
+  let minted: MintedSpec[] = [];
+  const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult => {
+    if (Object.keys(params).length === 0 && !elements) return layout;
     // An elements override is the code editor's preview: never cached, its
     // key would be the whole patched script.
     const key = cache && !elements ? JSON.stringify(Object.entries(params).sort()) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
-    if (hit) return withTrails(hit, trails);
+    if (hit) return hit;
     const l = applyTextStyle(
       layoutSpec({ ...spec, params: withOverrides(spec.params, params), ...(elements ? { elements } : {}) }, measure),
       textStyle,
     );
     if (key !== undefined) boundaryLayouts.set(key, l);
-    return withTrails(l, trails);
+    return l;
   };
+  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult =>
+    withMinted(rawLayoutFor(params, cache, elements), minted, (p) => rawLayoutFor(p, true));
 
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
@@ -231,8 +264,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     },
     ...planOptionsFor(spec, layout),
   });
-  trails = plan.trails;
-  const mountedLayout = withTrails(layout, trails);
+  minted = plan.minted;
+  const mountedLayout = withMinted(layout, minted, (p) => rawLayoutFor(p, true));
 
   const mounted = await renderer.mount(mountedLayout, spec, stage);
 
@@ -250,13 +283,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, turns, opacities, revealNew, elements, shapes) => {
+      frame: (params, visible, offsets, turns, opacities, revealNew, elements, shapes, texts) => {
         const l = layoutFor(params, false, elements);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
         const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
-        mounted.swapGeometry!(l, vis, offsets, turns, opacities, shapes);
+        mounted.swapGeometry!(l, vis, offsets, turns, opacities, shapes, texts);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
 
       },

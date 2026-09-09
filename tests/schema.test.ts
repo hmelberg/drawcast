@@ -230,6 +230,25 @@ describe("arrow/edge from/to stay endpoint objects — sector/arc's angles are s
   });
 });
 
+describe("point's at stays {x, y} or {intersection_of} — angle reuses at for its [x, y] or {ref, anchor} vertex", () => {
+  test("a point given angle's vertex shape ({ref, anchor} or [x, y]) is rejected, not silently unresolved", () => {
+    expect(validateSpec({ elements: [{ id: "p", type: "point", at: { ref: "tri", anchor: "vertex_1" } }], commands: [{ draw: ["p"] }] }).ok).toBe(false);
+    expect(validateSpec({ elements: [{ id: "p", type: "point", at: [5, 5] }], commands: [{ draw: ["p"] }] }).ok).toBe(false);
+  });
+  test("a point's ordinary {x, y} still validates", () => {
+    expect(validateSpec({ elements: [{ id: "p", type: "point", at: { x: 5, y: 5 } }], commands: [{ draw: ["p"] }] }).ok).toBe(true);
+  });
+  test("an angle's vertex ([x, y] or {ref, anchor}) still validates — the guard is point-only", () => {
+    expect(validateSpec({ elements: [{ id: "a", type: "angle", at: [0, 0], from: 0, to: 90 }], commands: [] }).ok).toBe(true);
+    expect(
+      validateSpec({
+        elements: [{ id: "tri", type: "polygon", points: [[0, 0], [10, 0], [0, 10]] }, { id: "a", type: "angle", at: { ref: "tri", anchor: "vertex_1" }, from: { ref: "tri", anchor: "vertex_2" }, to: { ref: "tri", anchor: "vertex_3" } }],
+        commands: [],
+      }).ok,
+    ).toBe(true);
+  });
+});
+
 describe("move: rotate / to / pivot", () => {
   const base = (move: object) => ({ elements: [{ id: "a", type: "path", points: [[0, 0], [10, 10]] }], commands: [{ draw: ["a"] }, { move }] });
   test("rotate alone is a valid move", () => {

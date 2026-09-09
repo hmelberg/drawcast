@@ -6,6 +6,7 @@ import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
 import { centroid, type BBox } from "./geometry";
 import { heuristicMeasure } from "./measure";
+import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import {
@@ -18,6 +19,7 @@ import {
   defaultStyle,
   drawablesForId,
   leafDrawables,
+  type AreaDrawable,
   type Drawable,
   type GroupDrawable,
   type Pt,
@@ -28,7 +30,7 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
-import type { SpecElement } from "../spec/types";
+import type { EndRef, PointRef, SpecElement } from "../spec/types";
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -42,6 +44,10 @@ export interface PieceGeometry {
   midAngle: number;
   halfAngle: number;
   radius: number;
+  /** A ring piece: its inner and outer radii (pieces of rings). */
+  ring?: { rIn: number; rOut: number };
+  /** The piece's height across its apex-to-base direction (a triangle's apothem); absent = radius. */
+  height?: number;
 }
 
 export interface Tier2Result {
@@ -49,7 +55,7 @@ export interface Tier2Result {
   labels: LabelRequest[];
   /** Logical anchor point per element id (for labels, arrows, and commands). */
   anchors: Record<string, Pt>;
-  /** Geometric anchors per element id (design §2.1): polygon vertex_k/side_k/centroid, sector apex/arc/start/end, arrow tail/tip/mid, path start/end/mid/point_k. */
+  /** Geometric anchors per element id (design §2.1, §2.5): polygon vertex_k/side_k/centroid, sector apex/arc/start/end, arrow tail/tip/mid, path start/end/mid/point_k, ellipse focus_1/focus_2, line start/end/mid/point_k. */
   namedAnchors: Record<string, Record<string, Pt>>;
   /**
    * Command-addressable ids tier-2 minted that are NOT spec element ids — a
@@ -68,6 +74,8 @@ export interface Tier2Result {
   pieces: Record<string, PieceGeometry>;
   /** parent `pieces` element id → its child piece ids, in order. */
   pieceGroups: Record<string, string[]>;
+  /** `measure` element specs (design §2.3), keyed by the measure's own element id. */
+  measures: Record<string, M.MeasureSpec>;
 }
 
 interface Ctx {
@@ -89,6 +97,7 @@ interface Ctx {
   panes: Record<string, BBox>;
   pieces: Record<string, PieceGeometry>;
   pieceGroups: Record<string, string[]>;
+  measures: Record<string, M.MeasureSpec>;
 }
 
 export function layoutElements(
@@ -118,6 +127,7 @@ export function layoutElements(
     warnings: [],
     pieces: {},
     pieceGroups: {},
+    measures: {},
   };
 
   // Pass 1: position free nodes deterministically on a circle.
@@ -243,6 +253,20 @@ export function layoutElements(
       case "pieces":
         drawables.push(...piecesDrawables(el, ctx));
         break;
+      case "angle":
+        drawables.push(...angleDrawables(el, ctx));
+        break;
+      case "measure":
+        drawables.push(...measureDrawables(el, ctx));
+        break;
+      case "ellipse":
+        drawables.push(...ellipseDrawables(el, ctx));
+        break;
+      case "line": {
+        const line = lineDrawable(el, ctx);
+        if (line) drawables.push(line);
+        break;
+      }
     }
   }
 
@@ -257,6 +281,7 @@ export function layoutElements(
     panes: ctx.panes,
     pieces: ctx.pieces,
     pieceGroups: ctx.pieceGroups,
+    measures: ctx.measures,
   };
 }
 
@@ -297,6 +322,10 @@ function curveDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
 function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
   const at = el.at;
   if (!at) return null;
+  if (Array.isArray(at)) {
+    ctx.warnings.push(`point "${el.id}": at must be an object ({x, y} or intersection_of), not an array`);
+    return null;
+  }
   if (at.intersection_of && at.intersection_of.length === 2) {
     const a = ctx.curveSamples.get(at.intersection_of[0]);
     const b = ctx.curveSamples.get(at.intersection_of[1]);
@@ -312,6 +341,14 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return hit;
   }
   if (at.x !== undefined && at.y !== undefined) return [at.x, at.y];
+  if (at.ref !== undefined || at.anchor !== undefined) {
+    // Defensive: validateSpec already rejects this shape on a point (at is a
+    // shared property — angle reuses it for a {ref, anchor} vertex), but a
+    // spec built by hand and never validated must still fail loudly, not
+    // silently resolve to nothing.
+    ctx.warnings.push(`point "${el.id}": at must be {x, y} or {intersection_of} — {ref, anchor} is not valid on a point`);
+    return null;
+  }
   return null;
 }
 
@@ -552,9 +589,20 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
   return null;
 }
 
+/** A PointRef of a tier-2 element, in logical coordinates (arrays and {x, y} follow the arrow-endpoint rule: domain units when a domain is declared). */
+function resolvePointRef(p: PointRef | undefined, ctx: Ctx): Pt | null {
+  if (p === undefined) return null;
+  if (Array.isArray(p)) return resolveEnd({ x: p[0], y: p[1] }, ctx)?.pt ?? null;
+  return resolveEnd(p, ctx)?.pt ?? null;
+}
+
 function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
-  const fromEnd = resolveEnd(el.from, ctx);
-  const toEnd = resolveEnd(el.to, ctx);
+  // arrow/edge always carries an EndRef object here — angle is the only
+  // element type that can put a number or a bare [x, y] in from/to.
+  const fromRef = el.from as { ref?: string; x?: number; y?: number; anchor?: string } | undefined;
+  const toRef = el.to as { ref?: string; x?: number; y?: number; anchor?: string } | undefined;
+  const fromEnd = resolveEnd(fromRef, ctx);
+  const toEnd = resolveEnd(toRef, ctx);
   if (!fromEnd || !toEnd) return [];
   const from = fromEnd.pt;
   const to = toEnd.pt;
@@ -565,8 +613,8 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   // name), backs off toward the target's edge (its node radius, or a guessed
   // bubble); a point that DID resolve through a named/box anchor is already
   // exact, so it lands there with no further shrink.
-  const rFrom = el.from?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
-  const rTo = el.to?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
+  const rFrom = fromRef?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) + 4 : 0;
+  const rTo = toRef?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(toRef.ref) ?? 10) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];
@@ -1098,6 +1146,185 @@ function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
   return { id: el.id, kind: "stroke", pts, z: Z_STROKE, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw) };
 }
 
+/**
+ * `angle` (design §2.2): the angle between two arms at a vertex — `at`
+ * (a PointRef), `from`/`to` (a PointRef, resolved like an arrow endpoint, or
+ * a bare direction in degrees), swept counter-clockwise from `from` to `to`
+ * in (0, 360]. Drawables `<id>` (the arc, or the right-angle square when
+ * `right` is true, or the angle is within 0.5° of 90 and `right` is not
+ * false) and `<id>_text` (the label, default the rounded degrees). Anchors
+ * `vertex`, `arc` (the bisector point on the arc). Static at layout.
+ */
+function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const at = resolvePointRef(el.at as PointRef, ctx);
+  if (!at) {
+    ctx.warnings.push(`angle "${el.id}": its vertex does not resolve`);
+    return [];
+  }
+  const dirOf = (arm: unknown): number | null => {
+    if (typeof arm === "number") return arm;
+    const p = resolvePointRef(arm as PointRef, ctx);
+    if (!p) return null;
+    // A resolved arm that lands exactly on the vertex has no direction —
+    // atan2(0, 0) reads as a silent 0° rather than the degenerate angle it is.
+    if (Math.hypot(p[0] - at[0], p[1] - at[1]) < 1e-9) return NaN;
+    return (Math.atan2(p[1] - at[1], p[0] - at[0]) * 180) / Math.PI;
+  };
+  const a0 = dirOf(el.from);
+  const a1 = dirOf(el.to);
+  if (a0 === null || a1 === null) {
+    ctx.warnings.push(`angle "${el.id}": an arm does not resolve`);
+    return [];
+  }
+  if (Number.isNaN(a0) || Number.isNaN(a1)) {
+    ctx.warnings.push(`angle "${el.id}": an arm coincides with the vertex`);
+    return [];
+  }
+  let sweep = (((a1 - a0) % 360) + 360) % 360;
+  if (sweep === 0) sweep = 360;
+  const r = el.radius ?? 40;
+  const style = resolveStyle(el.style);
+  const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });
+  const right = el.right === true || (el.right !== false && Math.abs(sweep - 90) <= 0.5);
+  let pts: Pt[];
+  if (right) {
+    const s = r * 0.6;
+    const d0: Pt = [at[0] + s * Math.cos(a0 * DEG), at[1] + s * Math.sin(a0 * DEG)];
+    const d1: Pt = [at[0] + s * Math.cos((a0 + sweep) * DEG), at[1] + s * Math.sin((a0 + sweep) * DEG)];
+    pts = [d0, [d0[0] + d1[0] - at[0], d0[1] + d1[1] - at[1]], d1];
+  } else {
+    pts = arcPts(at, r, a0, a0 + sweep, Math.max(12, Math.round(sweep / 6)));
+  }
+  const bis = (a0 + sweep / 2) * DEG;
+  const arcPt: Pt = [at[0] + r * Math.cos(bis), at[1] + r * Math.sin(bis)];
+  const out: Drawable[] = [{ id: el.id, kind: "stroke", pts, z: Z_STROKE, style, drawOpts }];
+  const labelText = el.label === false ? null : typeof el.label === "string" ? el.label : `${Math.round(sweep)}°`;
+  if (labelText !== null) {
+    const pos: Pt = [at[0] + (r + 22) * Math.cos(bis), at[1] + (r + 22) * Math.sin(bis)];
+    out.push({ id: `${el.id}_text`, kind: "text", pos, text: labelText, fontSize: 22, anchor: "middle", z: Z_TEXT, style, drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
+  }
+  ctx.anchors[el.id] = arcPt;
+  ctx.namedAnchors[el.id] = { vertex: at, arc: arcPt };
+  return out;
+}
+
+/**
+ * The primary ring of an element laid out so far: a circle shapeHint (its
+ * `pts` is just the centre, so its centre+radius are returned separately —
+ * a `shape`/`node` circle has no literal ring points to read); else its
+ * first closed leaf (area, or a closed stroke — a rect shapeHint's `pts`
+ * ARE its four real corners, so it needs no special case here); else its
+ * first open stroke's points.
+ */
+function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean; circle?: { c: Pt; r: number } } | null {
+  const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => d.kind === "stroke" || d.kind === "area");
+  const circleLeaf = leaves.find((d): d is StrokeDrawable & { shapeHint: { type: "circle"; c: Pt; r: number } } => d.kind === "stroke" && d.shapeHint?.type === "circle");
+  if (circleLeaf) return { pts: [], closed: true, circle: { c: circleLeaf.shapeHint.c, r: circleLeaf.shapeHint.r } };
+  const closed = leaves.find((d) => d.kind === "area" || (d.kind === "stroke" && d.closed));
+  if (closed) return { pts: closed.pts, closed: true };
+  const open = leaves.find((d) => d.kind === "stroke" && !d.shapeHint && d.pts.length >= 2);
+  return open ? { pts: open.pts, closed: false } : null;
+}
+
+/**
+ * `measure` (design §2.3): the length/width/height of an element or the
+ * span between two points, or the area/perimeter of a closed outline — a
+ * dimension line with end ticks (`<id>`, `<id>_guides`, `<id>_dot`) plus a
+ * separate text element `label_<id>` that never rotates. `of` reads the
+ * element's own box/ring; `from`/`to` measures a segment between two
+ * resolved points instead. The dimension line sits `offset` (default 24)
+ * to the `side` away from the measured element's centroid, unless `side`
+ * is given explicitly.
+ */
+function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const format: M.MeasureFormat = { label: typeof el.label === "string" ? el.label : "{value}", unit: el.unit, scale: el.scale ?? 1, decimals: el.decimals };
+  const textId = `label_${el.id}`;
+  const style = resolveStyle(el.style, { strokeWidth: 2 });
+  const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });
+  let a: Pt | null = null, b: Pt | null = null;
+  let ring: Pt[] | null = null;
+  let circle: { c: Pt; r: number } | null = null;
+  let what: M.MeasureWhat;
+  let fromSrc: M.PointSource | undefined, toSrc: M.PointSource | undefined;
+  let awayFrom: Pt | null = null;
+  const src = (p: PointRef | undefined): M.PointSource | undefined => (p === undefined ? undefined : !Array.isArray(p) && p.ref ? { ref: p.ref, anchor: p.anchor ?? "center" } : (() => { const pt = resolvePointRef(p, ctx); return pt ? { pt } : undefined; })());
+  if (el.from !== undefined && el.to !== undefined) {
+    a = resolvePointRef(el.from as PointRef, ctx);
+    b = resolvePointRef(el.to as PointRef, ctx);
+    fromSrc = src(el.from as PointRef);
+    toSrc = src(el.to as PointRef);
+    what = (el.what as M.MeasureWhat | undefined) ?? "length";
+    const refId = !Array.isArray(el.from) && (el.from as EndRef).ref;
+    if (refId) { const r = primaryRingSoFar(ctx, refId); if (r) awayFrom = r.circle ? r.circle.c : M.ringCentroid(r.pts); }
+  } else if (el.of !== undefined) {
+    const r = primaryRingSoFar(ctx, el.of);
+    if (!r) { ctx.warnings.push(`measure "${el.id}": "${el.of}" has nothing to measure`); return []; }
+    what = (el.what as M.MeasureWhat | undefined) ?? (r.closed ? "area" : "length");
+    if (r.circle) {
+      circle = r.circle;
+      const { c, r: rad } = r.circle;
+      if (what === "width") { a = [c[0] - rad, c[1] - rad]; b = [c[0] + rad, c[1] - rad]; }
+      if (what === "height") { a = [c[0] + rad, c[1] - rad]; b = [c[0] + rad, c[1] + rad]; }
+      awayFrom = c;
+    } else {
+      ring = r.pts;
+      if (what === "length") { a = r.pts[0]; b = r.pts[r.pts.length - 1]; }
+      if (what === "width") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const y = Math.min(...ys); a = [Math.min(...xs), y]; b = [Math.max(...xs), y]; }
+      if (what === "height") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const x = Math.max(...xs); a = [x, Math.min(...ys)]; b = [x, Math.max(...ys)]; }
+      awayFrom = M.ringCentroid(r.pts);
+    }
+  } else {
+    ctx.warnings.push(`measure "${el.id}": needs of, or from and to`);
+    return [];
+  }
+  const value = M.measureValue(what, { a: a ?? undefined, b: b ?? undefined, ring: ring ?? undefined, circle: circle ?? undefined });
+  if (value === null || (what !== "area" && what !== "perimeter" && (!a || !b))) { ctx.warnings.push(`measure "${el.id}": cannot resolve what to measure`); return []; }
+  const text = M.formatMeasure(value, format);
+  // The label is centred on textPos, so the dimension line needs to know how
+  // wide it is to clear it on a vertical or oblique measure (see dimensionLine).
+  const textWidth = M.heuristicLabelWidth(text);
+  const out: Drawable[] = [];
+  let textPos: Pt;
+  let hasLine = false;
+  let side: "left" | "right" = "left";
+  if (a && b && what !== "area" && what !== "perimeter") {
+    if (el.side === "right" || el.side === "left") side = el.side;
+    else if (awayFrom) {
+      const cross = (b[0] - a[0]) * (awayFrom[1] - a[1]) - (b[1] - a[1]) * (awayFrom[0] - a[0]);
+      side = cross > 0 ? "right" : "left"; // the centroid is on the left → put the line on the right
+    }
+    const d = M.dimensionLine(a, b, el.offset ?? 24, side, undefined, textWidth);
+    hasLine = true;
+    out.push({ id: el.id, kind: "stroke", pts: d.line, z: Z_STROKE, style, drawOpts });
+    out.push({ id: `${el.id}_guides`, kind: "stroke", pts: d.ticks[0], z: Z_STROKE, style, drawOpts });
+    out.push({ id: `${el.id}_dot`, kind: "stroke", pts: d.ticks[1], z: Z_STROKE, style, drawOpts });
+    textPos = d.textPos;
+    ctx.anchors[el.id] = [(d.line[0][0] + d.line[1][0]) / 2, (d.line[0][1] + d.line[1][1]) / 2];
+  } else if (circle) {
+    textPos = what === "perimeter" ? [circle.c[0], circle.c[1] + circle.r + 26] : circle.c;
+    ctx.anchors[el.id] = textPos;
+  } else {
+    textPos = ring ? (what === "perimeter" ? [M.ringCentroid(ring)[0], Math.max(...ring.map((p) => p[1])) + 26] : M.ringCentroid(ring)) : [CANVAS.w / 2, CANVAS.h / 2];
+    ctx.anchors[el.id] = textPos;
+  }
+  // label: false suppresses the text drawable (and its extraOrder/anchor
+  // entry) but not the dimension line — measures[id].textId still names the
+  // id the text WOULD have had, so a later step can turn it back on.
+  if (el.label !== false) {
+    out.push({ id: textId, kind: "text", pos: textPos, text, fontSize: M.MEASURE_FONT_SIZE, anchor: "middle", z: Z_TEXT, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
+    ctx.extraOrder.push(textId);
+    ctx.anchors[textId] = textPos;
+    // An area/perimeter measure draws no dimension line, so nothing carries
+    // the element's own id: register the text as the measure's group, the way
+    // a `pieces` cut registers its children, so `draw: ["areal"]` (and
+    // focus/highlight/keep) resolves through pieceGroups to `label_areal`
+    // instead of dropping as an id that paints nothing.
+    if (!hasLine) ctx.pieceGroups[el.id] = [textId];
+  }
+  ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId, circle: circle ?? undefined };
+  return out;
+}
+
 function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   let pts: Pt[];
   if (el.points && el.points.length >= 3) {
@@ -1120,6 +1347,75 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 }
 
 /**
+ * `ellipse` (design §2.5): a 48-point outline, counter-clockwise from the +x end of the
+ * x-radius (the major axis only when rx ≥ ry), rotated by `rotation` — a filledOutline pair
+ * measurable through primaryRingSoFar like any other closed ring, no special
+ * case needed. Anchors `focus_1`/`focus_2` sit on the major axis (`focus_1`
+ * toward −x before rotation); when rx === ry the foci coincide at the centre
+ * (f = 0, not NaN).
+ */
+function ellipseDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const rx = el.rx ?? 150, ry = el.ry ?? 100;
+  const rot = (el.rotation ?? 0) * DEG;
+  const turn = (p: Pt): Pt => [c[0] + (p[0] - c[0]) * Math.cos(rot) - (p[1] - c[1]) * Math.sin(rot), c[1] + (p[0] - c[0]) * Math.sin(rot) + (p[1] - c[1]) * Math.cos(rot)];
+  const pts = Array.from({ length: 48 }, (_, i): Pt => turn([c[0] + rx * Math.cos((2 * Math.PI * i) / 48), c[1] + ry * Math.sin((2 * Math.PI * i) / 48)]));
+  const f = Math.sqrt(Math.abs(rx * rx - ry * ry));
+  const [f1, f2]: [Pt, Pt] = rx >= ry ? [turn([c[0] - f, c[1]]), turn([c[0] + f, c[1]])] : [turn([c[0], c[1] - f]), turn([c[0], c[1] + f])];
+  ctx.anchors[el.id] = c;
+  ctx.namedAnchors[el.id] = { focus_1: f1, focus_2: f2 };
+  return filledOutline(el.id, pts, el);
+}
+
+/** Where the line P + t·d enters and leaves a box, or null when it misses. */
+function clipToBox(P: Pt, d: Pt, box: { x0: number; x1: number; y0: number; y1: number }): [Pt, Pt] | null {
+  let t0 = -Infinity, t1 = Infinity;
+  for (const [lo, hi, p, v] of [[box.x0, box.x1, P[0], d[0]], [box.y0, box.y1, P[1], d[1]]] as [number, number, number, number][]) {
+    if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) return null; continue; }
+    const ta = (lo - p) / v, tb = (hi - p) / v;
+    t0 = Math.max(t0, Math.min(ta, tb)); t1 = Math.min(t1, Math.max(ta, tb));
+  }
+  if (!(t0 < t1)) return null;
+  return [[P[0] + t0 * d[0], P[1] + t0 * d[1]], [P[0] + t1 * d[0], P[1] + t1 * d[1]]];
+}
+
+/**
+ * `line` (design §2.5): a straight stroke clipped to the plot box (domain
+ * declared) or the canvas — `through` gives one or two PointRefs; with one
+ * point, direction comes from `angle` (degrees, y-up) or `slope` (domain
+ * units when a domain is declared, else logical). Anchors `start`/`end`
+ * (the clipped endpoints), `mid`, and `point_1`[, `point_2`] (the resolved
+ * `through` points themselves, un-clipped).
+ */
+function lineDrawable(el: SpecElement, ctx: Ctx): Drawable | null {
+  const through = ((el.through ?? []) as PointRef[]).map((p) => resolvePointRef(p, ctx));
+  if (through.length === 0 || through.some((p) => p === null)) { ctx.warnings.push(`line "${el.id}": through does not resolve`); return null; }
+  const P = through[0]!;
+  let d: Pt;
+  if (through.length >= 2) d = [through[1]![0] - P[0], through[1]![1] - P[1]];
+  else if (typeof el.slope === "number") {
+    // domain slope → logical: scale dy by the y-scale and dx by the x-scale
+    const plot = plotArea();
+    const kx = ctx.domainDeclared ? (plot.x1 - plot.x0) / (ctx.domainX[1] - ctx.domainX[0]) : 1;
+    const ky = ctx.domainDeclared ? (plot.y1 - plot.y0) / (ctx.domainY[1] - ctx.domainY[0]) : 1;
+    d = [kx, el.slope * ky];
+  } else if (typeof el.angle === "number") d = [Math.cos(el.angle * DEG), Math.sin(el.angle * DEG)];
+  else { ctx.warnings.push(`line "${el.id}": needs a second point, a slope or an angle`); return null; }
+  if (Math.hypot(d[0], d[1]) < 1e-9) { ctx.warnings.push(`line "${el.id}": its two points coincide`); return null; }
+  const plot = plotArea();
+  const box = ctx.domainDeclared ? { x0: plot.x0, x1: plot.x1, y0: plot.y0, y1: plot.y1 } : { x0: 0, x1: CANVAS.w, y0: 0, y1: CANVAS.h };
+  const seg = clipToBox(P, d, box);
+  if (!seg) { ctx.warnings.push(`line "${el.id}": misses the canvas`); return null; }
+  const [A, B] = seg;
+  const mid: Pt = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+  ctx.anchors[el.id] = mid;
+  const named: Record<string, Pt> = { start: A, end: B, mid };
+  through.forEach((p, i) => { named[`point_${i + 1}`] = p!; });
+  ctx.namedAnchors[el.id] = named;
+  return { id: el.id, kind: "stroke", pts: [A, B], z: Z_STROKE, style: resolveStyle(el.style, { strokeWidth: 2.5 }), drawOpts: resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides }) };
+}
+
+/**
  * `pieces: {of: "sectors"}` cuts a circle into n equal sectors, each its own
  * command-addressable id `<id>_1` … `<id>_n` (pushed to extraOrder — the
  * parent id itself draws nothing and is skipped in layout.ts's order loop).
@@ -1129,6 +1425,9 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
   if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
+  if (el.of === "rings") return ringPiecesDrawables(el, ctx, c);
+  if (el.of === "triangles") return trianglePiecesDrawables(el, ctx, c);
+  if (el.of === "halving") return halvingPiecesDrawables(el, ctx, c);
   const r = el.radius ?? 120;
   const n = Math.max(2, Math.round(el.n ?? 8));
   const step = 360 / n;
@@ -1194,6 +1493,154 @@ function rectPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
       ctx.extraOrder.push(id);
     }
   }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
+  return out;
+}
+
+/** A circle of points, counter-clockwise from +x. */
+function circlePts(c: Pt, r: number, n = 48): Pt[] {
+  return Array.from({ length: n }, (_, i): Pt => [c[0] + r * Math.cos((2 * Math.PI * i) / n), c[1] + r * Math.sin((2 * Math.PI * i) / n)]);
+}
+
+/**
+ * `pieces: {of: "rings"}` — n concentric annuli of equal width, `<id>_1` the
+ * innermost. The wash is a KEYHOLE polygon (the outer circle, a seam in to
+ * the inner circle walked the other way, and back), not an area with a hole,
+ * so a morph can straighten it into a strip (design §2.4).
+ */
+function ringPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  const R = el.radius ?? 120;
+  const n = Math.max(1, Math.min(64, Math.round(el.n ?? 6)));
+  const w = R / n;
+  const style = resolveStyle(el.style);
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  for (let k = 0; k < n; k++) {
+    const rIn = k * w, rOut = (k + 1) * w;
+    const id = `${el.id}_${k + 1}`;
+    const outer = circlePts(c, rOut);
+    const inner = rIn > 0 ? circlePts(c, rIn).reverse() : [];
+    const keyhole: Pt[] = rIn > 0 ? [...outer, outer[0], inner[inner.length - 1], ...inner] : outer;
+    if (style.fill) out.push({ id: `${id}_wash`, kind: "area", pts: keyhole, z: Z_AREA, style: resolveStyle(el.style, { opacity: 0.35 }), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.region }) });
+    out.push({ id, kind: "stroke", pts: outer, closed: true, z: Z_STROKE, style, drawOpts: resolveDrawOpts(el.draw) });
+    if (rIn > 0) out.push({ id: `${id}_body`, kind: "stroke", pts: circlePts(c, rIn), closed: true, z: Z_STROKE, style, drawOpts: resolveDrawOpts(el.draw) });
+    const mid = (rIn + rOut) / 2;
+    const centroid: Pt = [c[0], c[1] + mid];
+    ctx.anchors[id] = centroid;
+    ctx.pieces[id] = { apex: c, centroid, midAngle: 90, halfAngle: 180, radius: rOut, ring: { rIn, rOut } };
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
+  return out;
+}
+
+/**
+ * Parses `from: "vertex_k"` into a 0-based index among `n` vertices, shared
+ * by both branches of `trianglePiecesDrawables` so they cannot drift apart.
+ * `from` absent → `null` (the caller's own default: the centre for a
+ * regular polygon, vertex_1 for a points polygon — the latter has no
+ * centre option, so its caller treats `null` as index 0 itself). `from`
+ * present but malformed or out of range (1..n) → a warning and index 0
+ * (vertex_1) — falling back to vertex_1 rather than the centre keeps the
+ * warning text honest: the author asked for a vertex fan, so they get one.
+ */
+function fanVertexIndex(from: unknown, n: number, id: string, warnings: string[]): number | null {
+  if (from === undefined) return null;
+  if (typeof from === "string") {
+    const m = /^vertex_(\d+)$/.exec(from);
+    if (m) {
+      const k = Number(m[1]);
+      if (k >= 1 && k <= n) return k - 1;
+    }
+  }
+  warnings.push(`pieces "${id}": from "${String(from)}" is out of range (1..${n}); using vertex_1`);
+  return 0;
+}
+
+/**
+ * `pieces: {of: "triangles"}` — a regular polygon (`sides` + `radius`, like
+ * `polygonDrawables`) fanned into triangles from its centre, or a polygon
+ * (`points`) fanned from `vertex_1` — `from: "vertex_k"` picks the fan vertex
+ * for either. Each triangle carries sector-like geometry (apex/centroid/
+ * midAngle/halfAngle/radius/height) so the zipper and fan arrange it exactly
+ * like a sector piece; `height` is the apex-to-base-midpoint distance (a
+ * regular polygon's apothem when fanned from the centre), read instead of
+ * `radius` by the zipper (design §2.4).
+ */
+function trianglePiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  let verts: Pt[];
+  let apexIndex: number | null = null; // null = fan from the centre
+  if (el.points && el.points.length >= 3) {
+    verts = el.points as Pt[];
+    apexIndex = fanVertexIndex(el.from, verts.length, el.id, ctx.warnings) ?? 0;
+  } else {
+    const n = Math.max(3, Math.round(el.sides ?? 6));
+    const r = el.radius ?? 100;
+    const rot = (el.rotation ?? 0) * DEG;
+    verts = Array.from({ length: n }, (_, i): Pt => { const a = rot + Math.PI / 2 + (2 * Math.PI * i) / n; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; });
+    apexIndex = fanVertexIndex(el.from, n, el.id, ctx.warnings);
+  }
+  const tris: { apex: Pt; a: Pt; b: Pt }[] = [];
+  if (apexIndex === null) {
+    for (let i = 0; i < verts.length; i++) tris.push({ apex: c, a: verts[i], b: verts[(i + 1) % verts.length] });
+  } else {
+    const apex = verts[apexIndex];
+    for (let s = 1; s + 1 < verts.length; s++) tris.push({ apex, a: verts[(apexIndex + s) % verts.length], b: verts[(apexIndex + s + 1) % verts.length] });
+  }
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  tris.forEach((t, k) => {
+    const id = `${el.id}_${k + 1}`;
+    const pts = [t.apex, t.a, t.b];
+    out.push(...filledOutline(id, pts, el));
+    const base: Pt = [(t.a[0] + t.b[0]) / 2, (t.a[1] + t.b[1]) / 2];
+    const mid = (Math.atan2(base[1] - t.apex[1], base[0] - t.apex[0]) * 180) / Math.PI;
+    const da = (Math.atan2(t.a[1] - t.apex[1], t.a[0] - t.apex[0]) * 180) / Math.PI;
+    const db = (Math.atan2(t.b[1] - t.apex[1], t.b[0] - t.apex[0]) * 180) / Math.PI;
+    const span = Math.abs(((db - da + 540) % 360) - 180);
+    const height = Math.hypot(base[0] - t.apex[0], base[1] - t.apex[1]);
+    const radius = Math.max(Math.hypot(t.a[0] - t.apex[0], t.a[1] - t.apex[1]), Math.hypot(t.b[0] - t.apex[0], t.b[1] - t.apex[1]));
+    const cen = centroid(pts);
+    ctx.anchors[id] = cen;
+    ctx.pieces[id] = { apex: t.apex, centroid: cen, midAngle: mid, halfAngle: span / 2, radius, height };
+    ctx.namedAnchors[id] = { ...polygonAnchors(pts), apex: t.apex, base };
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  });
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = apexIndex === null ? c : verts[apexIndex];
+  return out;
+}
+
+/**
+ * `pieces: {of: "halving"}` — a width × height rectangle centred on `c`,
+ * halved `n` times: odd cuts take the LEFT half of what remains, even cuts
+ * the TOP half — `<id>_1` … `<id>_n` in the order cut, `<id>_rest` the
+ * uncut remainder (1/2 + 1/4 + … of the whole). Plain boxes, no piece
+ * geometry — a halving cell is not a wedge, so fan/zipper treat it (like a
+ * strip/grid cell) as an ordinary box.
+ */
+function halvingPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  const w = el.width ?? 400, h = el.height ?? 400;
+  const n = Math.max(1, Math.min(20, Math.round(el.n ?? 4)));
+  let rest = { x: c[0] - w / 2, y: c[1] - h / 2, w, h };
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  const emit = (id: string, b: { x: number; y: number; w: number; h: number }) => {
+    const pts: Pt[] = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
+    out.push(...filledOutline(id, pts, el));
+    ctx.anchors[id] = [b.x + b.w / 2, b.y + b.h / 2];
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  };
+  for (let k = 1; k <= n; k++) {
+    if (k % 2 === 1) { emit(`${el.id}_${k}`, { ...rest, w: rest.w / 2 }); rest = { ...rest, x: rest.x + rest.w / 2, w: rest.w / 2 }; }
+    else { emit(`${el.id}_${k}`, { ...rest, y: rest.y + rest.h / 2, h: rest.h / 2 }); rest = { ...rest, h: rest.h / 2 }; }
+  }
+  emit(`${el.id}_rest`, rest);
   ctx.pieceGroups[el.id] = ids;
   ctx.anchors[el.id] = c;
   return out;

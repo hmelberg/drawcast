@@ -28,7 +28,11 @@ export type ElementType =
   | "sector"
   | "arc"
   | "polygon"
-  | "pieces";
+  | "pieces"
+  | "angle"
+  | "measure"
+  | "ellipse"
+  | "line";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -87,12 +91,12 @@ export interface SpecElement {
   expr?: string;
   x_from?: number;
   x_to?: number;
-  // point
-  at?: { x?: number; y?: number; intersection_of?: string[] };
+  // point / angle
+  at?: { x?: number; y?: number; intersection_of?: string[]; ref?: string; anchor?: string } | [number, number];
   guides?: boolean;
-  // arrow / edge
-  from?: EndRef;
-  to?: EndRef;
+  // arrow / edge / angle / pieces of triangles ("vertex_k")
+  from?: EndRef | [number, number] | number | string;
+  to?: EndRef | [number, number] | number;
   curved?: boolean;
   // label
   text?: string;
@@ -127,14 +131,39 @@ export interface SpecElement {
   end?: number;
   /** polygon: number of sides of a regular polygon (with radius, x, y). */
   sides?: number;
-  /** polygon: rotation of a regular polygon in degrees. */
+  /** polygon/ellipse: rotation in degrees (polygon: of a regular polygon; ellipse: of the major axis). */
   rotation?: number;
   /** pieces: how many pieces to cut a shape into (sectors, strips, or the columns of a grid). */
   n?: number;
   /** pieces grid: rows (n is the columns). */
   rows?: number;
+  /** angle/measure: the label text — angle default the rounded degrees ("62°"); false hides it. */
+  label?: string | boolean;
+  /** angle: draw the right-angle square (default: automatically when the angle is within 0.5° of 90). */
+  right?: boolean;
+  /** measure: what to read — length, width, height, area, or perimeter (default: length for a segment/open outline, area for a closed one). */
+  what?: "length" | "width" | "height" | "area" | "perimeter";
+  /** measure: appended to the value — "cm". */
+  unit?: string;
+  /** measure: logical units per unit (default 1) — 50 with unit cm makes a 100-unit side read 2.0 cm. */
+  scale?: number;
+  /** measure: decimals shown (default 0 when the value is 100 or more, else 1). */
+  decimals?: number;
+  /** measure: how far the dimension line sits from the segment (default 24). */
+  offset?: number;
+  // ellipse / line (design §2.5) — x/y/rotation reused above (ellipse: x, y is its centre)
+  /** ellipse: half-axis along +x before rotation (logical units). */
+  rx?: number;
+  /** ellipse: half-axis along +y before rotation (logical units). */
+  ry?: number;
+  /** line: one or two points it passes through — two points draw the segment through both (extended); one needs slope or angle for its direction. */
+  through?: PointRef[];
+  /** line: rise over run — domain units when a domain is declared, else logical (with one point in `through`). */
+  slope?: number;
+  /** line: direction in degrees, counter-clockwise from +x (with one point in `through`). Not to be confused with the `angle` element type. */
+  angle?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
-  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). */
+  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). measure: the element to measure. */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
@@ -215,6 +244,9 @@ export interface PointArgs {
   duration?: number;
 }
 
+/** Keep a faded copy of the targets where they are now — true, a list of ids, or {of, opacity}. */
+export type GhostOption = boolean | string[] | { of?: string[]; opacity?: number };
+
 export interface MoveArgs {
   target: string[] | string;
   /** [dx, dy] delta — domain units when a domain is declared, else logical. */
@@ -241,12 +273,14 @@ export interface MoveArgs {
   easing?: Easing;
   /** Leave the track of one target's anchor as an element `<id>_trail` — e.g. `true` traces the first target's centre, `{"of": "wheel", "anchor": "bottom"}` traces that point (a rolling wheel's bottom draws the cycloid). */
   trail?: boolean | { of?: string; anchor?: string; color?: string; width?: number };
+  /** Keep a faded copy of the targets where they are BEFORE this move. */
+  ghost?: GhostOption;
 }
 
 export interface ArrangeArgs {
   /** Element ids, or ONE pieces id (all its pieces). */
   target: string[] | string;
-  layout: "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex";
+  layout: "row" | "zipper" | "grid" | "ring" | "stack" | "fan" | "hex" | "unroll";
   /** Centre of the arrangement (same units as move.by); default: the targets' current centroid (fan: the first sector's apex). */
   at?: PointRef;
   /** fan: the angle (degrees, counter-clockwise from +x) where the first piece begins (default 0). */
@@ -258,6 +292,8 @@ export interface ArrangeArgs {
   /** seconds (default 2) */
   duration?: number;
   easing?: Easing;
+  /** Keep a faded copy of the targets where they are BEFORE this arrange. */
+  ghost?: GhostOption;
 }
 
 export interface FadeArgs {
@@ -282,6 +318,8 @@ export interface FlipArgs {
   /** seconds (default 1.2) */
   duration?: number;
   easing?: Easing;
+  /** Keep a faded copy of the targets where they are BEFORE this flip. */
+  ghost?: GhostOption;
 }
 
 export interface MorphArgs {
@@ -297,6 +335,8 @@ export interface MorphArgs {
   /** seconds (default 1.5) */
   duration?: number;
   easing?: Easing;
+  /** Keep a faded copy of the targets where they are BEFORE this morph. */
+  ghost?: GhostOption;
 }
 
 export interface FlowArgs {
@@ -336,6 +376,13 @@ export interface FocusArgs {
 export interface ClearArgs {
   /** Ids to leave visible (e.g. the axes). */
   keep?: string[] | string;
+}
+
+export interface KeepArgs {
+  /** Element ids, or one pieces id. */
+  target: string[] | string;
+  /** Opacity of the kept copy (default 0.3). */
+  opacity?: number;
 }
 
 export interface Command {
@@ -380,6 +427,8 @@ export interface Command {
   morph?: MorphArgs;
   /** Dots or dashes streaming along strokes while the sentence lands. */
   flow?: FlowArgs;
+  /** Keep a faded copy of what is about to be drawn over, in place. */
+  keep?: KeepArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths
@@ -388,6 +437,8 @@ export interface Command {
   animate?: Record<string, number | string>;
   /** With animate: seconds the animation takes (default 2). */
   duration?: number;
+  /** With animate: keep a faded copy of the figure at this boundary (true = every visible id). */
+  ghost?: GhostOption;
   /** With animate: velocity profile over the whole tween (default: today's
    *  smoothstep — ease in AND out). A long race wants `linear` so the
    *  middle years run at constant speed instead of blurring past. */
