@@ -122,6 +122,17 @@ export const LINE_HEIGHT = 1.25;
 export interface GroupDrawable extends BaseDrawable {
   kind: "group";
   children: Drawable[];
+  /**
+   * The group's NOMINAL extent — a declared slot, not a measurement — for
+   * layout (unionBBoxForId, boxes.ts) to place and size against instead of
+   * unioning the children's ink. Set it when a group's meaningful box is a
+   * fixed size its content may not fill edge-to-edge (an icon's rings rarely
+   * touch its size×size box — see iconDrawable, layout/tier2.ts) — leave it
+   * unset when the ink-union IS the right box (image, math, …). shiftDrawables
+   * and scaleDrawables (place.ts) move/scale it along with the children so a
+   * placed-then-shifted group's nominal box never goes stale.
+   */
+  box?: { x: number; y: number; w: number; h: number };
 }
 
 /**

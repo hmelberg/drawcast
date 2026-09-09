@@ -46,11 +46,12 @@ describe("shiftDrawables", () => {
   test("moves pts, pos, shapeHint and children", () => {
     const ds: Drawable[] = [
       { id: "s", kind: "stroke", pts: [[0, 0], [1, 1]], z: 1, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch"), shapeHint: { type: "circle", c: [0, 0], r: 5 } },
-      { id: "g", kind: "group", z: 1, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch"), children: [{ id: "t", kind: "text", pos: [2, 2], text: "x", fontSize: 20, anchor: "middle", z: 2, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch") }] },
+      { id: "g", kind: "group", z: 1, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch"), box: { x: 0, y: 0, w: 20, h: 20 }, children: [{ id: "t", kind: "text", pos: [2, 2], text: "x", fontSize: 20, anchor: "middle", z: 2, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch") }] },
     ];
     shiftDrawables(ds, 10, -5);
     expect((ds[0] as { pts: number[][] }).pts).toEqual([[10, -5], [11, -4]]);
     expect((ds[0] as { shapeHint: { c: number[] } }).shapeHint.c).toEqual([10, -5]);
     expect(((ds[1] as { children: { pos: number[] }[] }).children[0]).pos).toEqual([12, -3]);
+    expect((ds[1] as { box: { x: number; y: number; w: number; h: number } }).box).toEqual({ x: 10, y: -5, w: 20, h: 20 });
   });
 });

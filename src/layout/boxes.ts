@@ -8,8 +8,16 @@ import { drawablesForId, leafDrawables, type Drawable } from "./model";
  * not the element — including them would make annotations and gestures land
  * on the scaffolding instead of the thing (a label pushed aside by the
  * collision solver drags a long leader behind it).
+ *
+ * A group carrying an explicit `box` (its NOMINAL extent — an icon's declared
+ * size×size slot, which its rings rarely fill edge-to-edge) short-circuits
+ * this entirely: that box IS the answer, not a union to fold children into —
+ * an icon's `at`/gap placement must track `size`, not how much ink a
+ * particular glyph happens to have near its edges.
  */
 export function unionBBoxForId(drawables: Drawable[], id: string, measure: MeasureFn): BBox | null {
+  const top = drawables.find((d) => d.id === id);
+  if (top?.kind === "group" && top.box) return top.box;
   const boxes: BBox[] = [];
   for (const d of leafDrawables(drawablesForId(drawables, id))) {
     if (d.id === `${id}_leader` || d.id === `${id}_guides`) continue;

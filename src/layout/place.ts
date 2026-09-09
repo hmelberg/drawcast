@@ -204,7 +204,11 @@ export function relativeDelta(own: BBox, ref: BBox, refAnchors: Record<string, P
 /** Translate drawables in place (pts, pos, shapeHint, children). */
 export function shiftDrawables(ds: Drawable[], dx: number, dy: number): void {
   for (const d of ds) {
-    if (d.kind === "group") { shiftDrawables(d.children, dx, dy); continue; }
+    if (d.kind === "group") {
+      if (d.box) d.box = { x: d.box.x + dx, y: d.box.y + dy, w: d.box.w, h: d.box.h };
+      shiftDrawables(d.children, dx, dy);
+      continue;
+    }
     if (d.kind === "text" || d.kind === "image") { d.pos = [d.pos[0] + dx, d.pos[1] + dy]; continue; }
     d.pts = d.pts.map(([x, y]): Pt => [x + dx, y + dy]);
     if (d.kind === "area" && d.holes) d.holes = d.holes.map((h) => h.map(([x, y]): Pt => [x + dx, y + dy]));
@@ -235,7 +239,11 @@ export function scaleDrawables(ds: Drawable[], s: number, dx: number, dy: number
   for (const d of ds) {
     // The window a code pane scrolls under travels with the pane.
     if (d.clip) d.clip = { x: d.clip.x * s + dx, y: d.clip.y * s + dy, w: d.clip.w * s, h: d.clip.h * s };
-    if (d.kind === "group") { scaleDrawables(d.children, s, dx, dy); continue; }
+    if (d.kind === "group") {
+      if (d.box) d.box = { x: d.box.x * s + dx, y: d.box.y * s + dy, w: d.box.w * s, h: d.box.h * s };
+      scaleDrawables(d.children, s, dx, dy);
+      continue;
+    }
     if (d.kind === "text") { d.pos = m(d.pos); d.fontSize *= s; continue; }
     if (d.kind === "image") { d.pos = m(d.pos); d.w *= s; d.h *= s; continue; }
     d.pts = d.pts.map(m);

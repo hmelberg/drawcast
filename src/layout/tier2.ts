@@ -1228,6 +1228,11 @@ function iconDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
     style: defaultStyle(),
     drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
     children,
+    // The declared size×size slot, not the ink: an icon's rings rarely touch
+    // the box's edges, so unionBBoxForId (boxes.ts) must read this nominal
+    // box directly rather than union the rings' bbox — otherwise `at`
+    // placement (side/gap) would vary per icon instead of tracking `size`.
+    box,
   };
 }
 
