@@ -32,7 +32,7 @@ import {
 import { mathDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
-import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
 import { linkKindOf } from "../ui/link-model";
@@ -307,6 +307,11 @@ export function layoutElements(
         break;
       case "image": {
         const group = imageDrawable(el, ctx);
+        if (group) drawables.push(group);
+        break;
+      }
+      case "icon": {
+        const group = iconDrawable(el, ctx);
         if (group) drawables.push(group);
         break;
       }
@@ -1177,6 +1182,44 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
   }
   ctx.anchors[el.id] = [cx, cy];
   const box = { x: cx - w / 2, y: cy - h / 2, w, h };
+  ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
+  return {
+    id: el.id,
+    kind: "group",
+    z: Z_STROKE,
+    style: defaultStyle(),
+    drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+    children,
+  };
+}
+
+/**
+ * An icon element: an Iconify keyword icon's outline rings (resolveIcons,
+ * render/icon.ts), redrawn hand-drawn at `size` — never the raw SVG. A ring's
+ * points are normalised 0..1 in SVG y-down space (decodeIcon); painting them
+ * flips y (canvas is y-up) and scales into a `size`×`size` box centred on the
+ * element's origin. The credit (if any) rides in the spec for `creditsOf`
+ * (export/credits.ts) only — spec §3.7 keeps icon attribution off the canvas.
+ */
+function iconDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
+  const rings = el.strokes ? decodeIcon(el.strokes) : null;
+  if (!rings || rings.length === 0) {
+    ctx.warnings.push(`no icon for "${el.of ?? el.id}"`);
+    return null;
+  }
+  const size = el.size ?? 100;
+  const [cx, cy] = originOr(el, ctx, [500, 375]);
+  const children: Drawable[] = rings.map((ring, k) => ({
+    id: `${el.id}__r${k}`,
+    kind: "stroke",
+    pts: ring.map(([u, v]) => [cx - size / 2 + u * size, cy + size / 2 - v * size] as Pt),
+    closed: true,
+    z: Z_STROKE,
+    style: resolveStyle(el.style),
+    drawOpts: resolveDrawOpts(el.draw),
+  }));
+  ctx.anchors[el.id] = [cx, cy];
+  const box = { x: cx - size / 2, y: cy - size / 2, w: size, h: size };
   ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
   return {
     id: el.id,
