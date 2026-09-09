@@ -54,10 +54,34 @@ function groupClosure(id: string, byId: Map<string, SpecElement>, seen = new Set
 }
 
 /**
- * A `fit` group scales and moves its members as one, so a member placed
- * against something OUTSIDE the group is placed against geometry the fit
- * then walks away from — the relation the spec asked for silently breaks.
- * Refuse it rather than draw it wrong.
+ * Every tie one element has to another's GEOMETRY, with the spec field that
+ * ties it — the same set `deps` walks, minus `members` (a group holding its
+ * own members is not a tie across anything) and minus `attach_to` (a label
+ * has no ink of its own to strand). Each of these breaks if the thing at the
+ * other end moves after this element was placed against it.
+ */
+function geometryTies(el: SpecElement): { field: string; ref: string }[] {
+  const out: { field: string; ref: string }[] = [];
+  const ref = relAt(el)?.ref;
+  if (ref) out.push({ field: "at.ref", ref });
+  if (el.type === "measure" && el.of) out.push({ field: "of", ref: el.of });
+  if (el.type === "measure" || el.type === "arrow" || el.type === "edge") {
+    for (const [field, end] of [["from", el.from], ["to", el.to]] as const) {
+      if (end && !Array.isArray(end) && typeof end === "object" && end.ref) out.push({ field: `${field}.ref`, ref: end.ref });
+    }
+  }
+  return out;
+}
+
+/**
+ * A `fit` group scales and moves its members as one, so a member tied to
+ * something OUTSIDE the group is tied to geometry the fit then walks away
+ * from — the relation the spec asked for silently breaks. Refuse it rather
+ * than draw it wrong: an ERROR, so the repair loop rewrites the spec instead
+ * of the figure quietly coming out distorted.
+ *
+ * The other direction needs no rule: an element outside that points INTO the
+ * group is simply emitted after the fit (see `fitOrderEdges`).
  */
 function fitBoundaryIssues(elements: SpecElement[], byId: Map<string, SpecElement>): LintIssue[] {
   const issues: LintIssue[] = [];
@@ -66,13 +90,30 @@ function fitBoundaryIssues(elements: SpecElement[], byId: Map<string, SpecElemen
     if (g.type !== "group" || !g.fit) continue;
     const inside = groupClosure(g.id, byId);
     for (const id of inside) {
-      const ref = relAt(byId.get(id) ?? ({} as SpecElement))?.ref;
-      if (!ref || ref === g.id || inside.has(ref) || reported.has(id)) continue;
-      reported.add(id);
-      issues.push({ rule: "placement", ids: [id], severity: "error", message: `element "${id}": at.ref "${ref}" is outside its fit group "${g.id}"` });
+      for (const { field, ref } of geometryTies(byId.get(id) ?? ({} as SpecElement))) {
+        if (ref === g.id || inside.has(ref) || reported.has(`${id}|${field}`)) continue;
+        reported.add(`${id}|${field}`);
+        issues.push({ rule: "placement", ids: [id], severity: "error", message: `element "${id}": ${field} "${ref}" is outside its fit group "${g.id}"` });
+      }
     }
   }
   return issues;
+}
+
+/**
+ * id → the fitted groups it lies inside. An element OUTSIDE a fitted group
+ * that is placed against a member has to wait for the fit, or it lands beside
+ * where the member used to be — and which of the two happens would otherwise
+ * depend on the order the author happened to list them in. So the tie to a
+ * member is also a tie to the group: deterministic, and always after.
+ */
+function fitOrderEdges(elements: SpecElement[], byId: Map<string, SpecElement>): Map<string, string[]> {
+  const owners = new Map<string, string[]>();
+  for (const g of elements) {
+    if (g.type !== "group" || !g.fit) continue;
+    for (const id of groupClosure(g.id, byId)) owners.set(id, [...(owners.get(id) ?? []), g.id]);
+  }
+  return owners;
 }
 
 /** Topological order over at.ref / attach_to / members. Unknown refs and
@@ -84,15 +125,25 @@ export function placementOrder(elements: SpecElement[], known: Set<string> = new
   const issues: LintIssue[] = [];
   const state = new Map<string, 0 | 1 | 2>(); // unvisited / on stack / done
   const order: SpecElement[] = [];
+  const fitOwners = fitOrderEdges(elements, byId);
   const visit = (el: SpecElement): void => {
     const s = state.get(el.id);
     if (s === 2) return;
     if (s === 1) { issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `element "${el.id}": placement cycle through at.ref/attach_to/members` }); return; }
     state.set(el.id, 1);
+    const mine = fitOwners.get(el.id) ?? [];
     for (const d of deps(el)) {
       const dep = byId.get(d);
       if (dep) visit(dep);
       else if (!known.has(d) && relAt(el)?.ref === d) issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `element "${el.id}": unknown ref "${d}" in at` });
+      // Depending on a member of a fitted group means depending on the fit.
+      // Not for a member of that same group (it moves WITH the fit, and the
+      // edge would be a cycle), and not for the group itself.
+      for (const g of fitOwners.get(d) ?? []) {
+        if (g === el.id || mine.includes(g)) continue;
+        const group = byId.get(g);
+        if (group) visit(group);
+      }
     }
     state.set(el.id, 2);
     order.push(el);

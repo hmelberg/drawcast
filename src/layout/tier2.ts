@@ -371,6 +371,8 @@ export function layoutElements(
         // --- fit (spec §3.2): scale and centre the whole thing into a region.
         if (el.fit && box && box.w > 0 && box.h > 0) {
           box = fitGroup(el, leaves, box, all, ctx, measure, issues);
+        } else if (el.fit) {
+          issues.push({ rule: "placement", ids: [el.id], severity: "warn", message: `group "${el.id}": nothing to fit (no member has a box)` });
         }
         // --- end fit
         if (box) {

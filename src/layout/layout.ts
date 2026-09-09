@@ -180,7 +180,13 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
     drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
   }
 
-  const composed = (a: string, b: string) => Object.values(fitGroups).some((ls) => ls.includes(a) && ls.includes(b));
+  // lint hands us TOP-LEVEL drawable ids (`n1_text`, a pieces cell, a
+  // measure's number), while a group holds ELEMENT ids: resolve each to the
+  // member that owns it — the same ownership tier-2 scaled by — or the
+  // exemption never fires for the parts an element mints.
+  const ownsId = (m: string, id: string) => id === m || id.startsWith(`${m}_`) || (pieceGroups[m] ?? []).includes(id);
+  const composed = (a: string, b: string) =>
+    Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
   return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures };

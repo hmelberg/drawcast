@@ -55,6 +55,64 @@ describe("group.fit", () => {
     expect(r.issues.some((i) => i.rule === "placement" && /"b".*outside its fit group "g"/.test(i.message))).toBe(true);
   });
 
+  // Review fix 1: lint names the drawables an element MINTS (`n1_text`), not
+  // the element, so the exemption has to resolve those back to the member.
+  const twoNodes = (fit: unknown) => ({
+    elements: [
+      { id: "n1", type: "node", text: "alpha", x: 300, y: 300 },
+      { id: "n2", type: "node", text: "beta", x: 330, y: 320 },
+      { id: "g", type: "group", members: ["n1", "n2"], ...(fit ? { fit } : {}) },
+    ],
+    commands: [{ draw: ["g"] }],
+  });
+  test("the exemption reaches the drawables a member mints, not just its own id", () => {
+    const loose = layoutSpec(twoNodes(undefined) as never);
+    expect(loose.issues.some((i) => i.rule.startsWith("overlap"))).toBe(true);
+    const fitted = layoutSpec(twoNodes("left") as never);
+    expect(fitted.issues.filter((i) => i.rule.startsWith("overlap"))).toEqual([]);
+  });
+
+  // Review fix 2: an at.ref is not the only tie to another element's geometry.
+  test("an arrow member pointing out of its fit group is a placement error", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "o", type: "shape", shape: "rect", x: 600, y: 600 },
+        { id: "a", type: "shape", shape: "rect", x: 0, y: 0 },
+        { id: "arr", type: "arrow", from: { ref: "a" }, to: { ref: "o" } },
+        { id: "g", type: "group", members: ["a", "arr"], fit: "left" },
+      ],
+      commands: [{ draw: ["o", "g"] }],
+    } as never);
+    expect(r.issues.some((i) => i.rule === "placement" && i.severity === "error" && /"arr": to\.ref "o" is outside its fit group "g"/.test(i.message))).toBe(true);
+  });
+
+  // Review fix 3: the other direction is ordered, not refused.
+  test("an element placed against a member waits for the fit, whatever the spec order", () => {
+    const spec = (elements: unknown[]) => ({ elements, commands: [{ draw: ["g", "out"] }] });
+    const a = { id: "a", type: "shape", shape: "rect", x: 0, y: 0, width: 60, height: 200 };
+    const b = { id: "b", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "top" }, anchor: "bottom" };
+    const out = { id: "out", type: "text", text: "note", font_size: 24, at: { ref: "a", side: "right", gap: 10 } };
+    const g = { id: "g", type: "group", members: ["a", "b"], fit: "left" };
+    const first = elementBBoxes(layoutSpec(spec([a, out, b, g]) as never));
+    const second = elementBBoxes(layoutSpec(spec([a, b, g, out]) as never));
+    expect(first.get("out")).toEqual(second.get("out"));
+    // …and it sits beside the SCALED "a", not beside where "a" started.
+    const scaled = first.get("a")!;
+    expect(scaled.h).toBeGreaterThan(200);
+    expect(first.get("out")!.x).toBeCloseTo(scaled.x + scaled.w + 10, 0);
+  });
+
+  test("a group with a fit and nothing to fit says so", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "lab", type: "label", text: "only words", attach_to: "lab" },
+        { id: "g", type: "group", members: ["lab"], fit: "left" },
+      ],
+      commands: [{ draw: ["g"] }],
+    } as never);
+    expect(r.issues.some((i) => i.rule === "placement" && /group "g": nothing to fit/.test(i.message))).toBe(true);
+  });
+
   test("a fit box with no area is refused, and the figure is left where it was", () => {
     const flat = layoutSpec(pump({ x: 100, y: 100, w: 0, h: 60 }) as never);
     expect(flat.issues.some((i) => i.rule === "placement" && /group "pump": fit needs a region name or a box/.test(i.message))).toBe(true);
