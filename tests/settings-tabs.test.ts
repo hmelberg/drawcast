@@ -28,6 +28,10 @@ describe("SETTINGS_TABS", () => {
     expect(tabOf("developerMode")).toBe("advanced");
   });
 
+  it("puts the visual repair toggle under advanced (freehand Task 14b)", () => {
+    expect(tabOf("visualRepair")).toBe("advanced");
+  });
+
   it("files every field exactly once", () => {
     const all = SETTINGS_TABS.flatMap((t) => t.fields);
     expect(new Set(all).size).toBe(all.length);

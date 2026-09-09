@@ -567,3 +567,73 @@ describe("icon seed rides the request (Task 13b)", () => {
     expect(group?.credit).toMatch(/^based on/);
   });
 });
+
+describe("visual repair round (freehand-figures Task 14b)", () => {
+  // Same idiom as the icon-seed test above: `type: "group"` is not yet
+  // schema-valid (freehand-figures Task 13/14 land the schema support in a
+  // later dispatch), so a real model reply carrying one would fail
+  // structural validation and never become `best`. validateSpec is stubbed
+  // per-call, standing in for that future schema support, so the visual
+  // round's own wiring — which doesn't depend on the schema — can be
+  // exercised end to end.
+  const SPEC_WITH_GROUP = {
+    title: "t",
+    elements: [
+      { id: "a", type: "shape", shape: "rect", x: 1, y: 1 },
+      { id: "g", type: "group", members: ["a"] },
+    ],
+    commands: [],
+  };
+
+  test("a qualifying freehand spec gets one extra call carrying the PNG as an image block, and the rounds end with 'visual'", async () => {
+    const validateSpy = vi
+      .spyOn(schemaModule, "validateSpec")
+      .mockReturnValueOnce({ ok: true, errors: [] }) // initial round
+      .mockReturnValueOnce({ ok: true, errors: [] }); // visual round's candidate
+    mockCallForJson.mockResolvedValueOnce(respond(SPEC_WITH_GROUP)).mockResolvedValueOnce(respond(SPEC_WITH_GROUP));
+
+    const outcome = await generateSpec("draw a bicycle pump", baseCfg({ visualRepair: async () => "AAAA" }));
+    validateSpy.mockRestore();
+
+    expect(mockCallForJson).toHaveBeenCalledTimes(2);
+    const lastMessages = mockCallForJson.mock.calls[1][3] as { role: string; content: unknown }[];
+    const lastUserContent = lastMessages[lastMessages.length - 1].content as { type: string }[];
+    expect(lastUserContent[0]).toMatchObject({ type: "image" });
+    expect(outcome.rounds[outcome.rounds.length - 1].label).toBe("visual");
+  });
+
+  test("an invalid spec from the visual round leaves best unchanged", async () => {
+    const validateSpy = vi
+      .spyOn(schemaModule, "validateSpec")
+      .mockReturnValueOnce({ ok: true, errors: [] }) // initial round
+      .mockReturnValueOnce({ ok: false, errors: ["bad"] }); // visual round's candidate
+    mockCallForJson.mockResolvedValueOnce(respond(SPEC_WITH_GROUP)).mockResolvedValueOnce(respond({ nonsense: true }));
+
+    const outcome = await generateSpec("draw a bicycle pump", baseCfg({ visualRepair: async () => "AAAA" }));
+    validateSpy.mockRestore();
+
+    expect(outcome.spec).toEqual(SPEC_WITH_GROUP);
+    expect(outcome.rounds[outcome.rounds.length - 1].label).toBe("visual");
+    expect(outcome.rounds[outcome.rounds.length - 1].adopted).toBe(false);
+  });
+
+  test("no extra call when visualRepair is undefined, even for a qualifying spec", async () => {
+    const validateSpy = vi.spyOn(schemaModule, "validateSpec").mockReturnValueOnce({ ok: true, errors: [] });
+    mockCallForJson.mockResolvedValueOnce(respond(SPEC_WITH_GROUP));
+
+    const outcome = await generateSpec("draw a bicycle pump", baseCfg());
+    validateSpy.mockRestore();
+
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    expect(outcome.rounds.every((r) => r.label !== "visual")).toBe(true);
+  });
+
+  test("no extra call when the spec has no group, even with visualRepair configured", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ visualRepair: async () => "AAAA" }));
+
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    expect(outcome.rounds.every((r) => r.label !== "visual")).toBe(true);
+  });
+});

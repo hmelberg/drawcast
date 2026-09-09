@@ -69,6 +69,7 @@ import {
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
+import { snapshotPng } from "./export/snapshot";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
@@ -1649,6 +1650,12 @@ const burnCaptionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 burnCaptionsCb.checked = settings.burnCaptions;
 const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 developerCb.checked = settings.developerMode;
+const visualRepairCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+visualRepairCb.checked = settings.visualRepair;
+visualRepairCb.addEventListener("change", () => {
+  settings.visualRepair = visualRepairCb.checked;
+  persist();
+});
 const contactEmailInput = h("input", { type: "email", placeholder: "you@example.org", autocomplete: "off" }) as HTMLInputElement;
 contactEmailInput.value = settings.contactEmail;
 contactEmailInput.addEventListener("change", () => {
@@ -1923,6 +1930,19 @@ const settingsBlocks = new Map<string, HTMLElement>([
       h("label", { class: "settings-check" }, developerCb, " Developer mode — show the 1–5 rating, all lint warnings and the Data panel"),
     ),
   ],
+  [
+    "visualRepair",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", { class: "settings-check" }, visualRepairCb, " Visual repair"),
+      h(
+        "div",
+        { class: "settings-note" },
+        "Renders the figure and lets the model look at it once (one extra call). Off until measured.",
+      ),
+    ),
+  ],
   ["backup", h("div", { class: "settings-field" }, backupBtn)],
 ]);
 
@@ -1961,6 +1981,7 @@ function openSettings(): void {
   skipQuestionsCb.checked = settings.skipQuestions;
   burnCaptionsCb.checked = settings.burnCaptions;
   developerCb.checked = settings.developerMode;
+  visualRepairCb.checked = settings.visualRepair;
   usageNote.textContent = usageSummary();
   usageNote.hidden = usageNote.textContent === "";
   dialog.showModal();
@@ -3145,6 +3166,7 @@ async function generate(): Promise<void> {
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
       pedagogyReview: true,
+      visualRepair: settings.visualRepair ? snapshotPng : undefined,
       model: settings.model,
       effort: settings.effort,
       variant: currentVariant(),

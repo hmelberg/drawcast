@@ -15,6 +15,7 @@ import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
 import { attachSeedCredit, type SeedBlock } from "./seed";
+import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
@@ -76,12 +77,12 @@ export function apiSchema(): object {
 }
 
 export interface GenerationRound {
-  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch" | "pedagogy";
+  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch" | "pedagogy" | "visual";
   spec: unknown;
   validationErrors: string[];
   lintIssues: LintIssue[];
   meta: JsonCallMeta;
-  /** Pedagogy round only: whether the revision replaced the delivered spec. */
+  /** Pedagogy and visual rounds only: whether the revision replaced the delivered spec. */
   adopted?: boolean;
 }
 
@@ -116,6 +117,15 @@ export interface GenerateConfig {
    * no worse. Off by default; the app turns it on.
    */
   pedagogyReview?: boolean;
+  /**
+   * Visual repair (freehand-figures Task 14), injected by the app: after the
+   * pedagogy pass, renders the delivered spec's last frame (src/export/
+   * snapshot.ts's snapshotPng) and hands back a PNG data URL (or null on
+   * failure) — one extra call, only for a freehand spec with a group
+   * (wantsVisualRepair). Absent (tests, Settings off) means the round never
+   * runs. Off by default; the app turns it on from Settings → Advanced.
+   */
+  visualRepair?: (spec: Spec) => Promise<string | null>;
   apiKey: string;
   model: string;
   variant: PromptVariant;
@@ -280,6 +290,34 @@ export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cle
 6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
 7. MOMENTS MARKED — highlight/focus/annotation sit at the moments of meaning (the reveal, the contrast), never as decoration.
 If the spec already does all of this, return it EXACTLY unchanged. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
+
+/**
+ * The adoption rule shared by every optional improvement round (pedagogy,
+ * visual repair): a candidate replaces `current` only when it validates,
+ * keeps the same template (no new engines), lints no worse than `current`
+ * already does, and actually differs — a finished spec is never traded for
+ * a worse or merely-identical one. `lintOf` is the caller's own
+ * layoutSpec+lintCommands closure (it needs `measure`, which lives in
+ * generateSpec), so this stays a pure function of its arguments.
+ */
+function adoptIfNoWorse(
+  current: Spec,
+  candidateJson: unknown,
+  baseLint: LintIssue[],
+  lintOf: (spec: Spec) => LintIssue[] | null,
+): { spec: Spec; adopted: boolean; lintIssues: LintIssue[]; validationErrors: string[] } {
+  const v = validateSpec(candidateJson);
+  if (!v.ok) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: v.errors };
+  const candidate = candidateJson as Spec;
+  if (candidate.template !== current.template) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
+  const candidateLint = lintOf(candidate);
+  if (candidateLint === null) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
+  const count = (issues: LintIssue[], sev: string) => issues.filter((i) => i.severity === sev).length;
+  const noWorse = count(candidateLint, "error") <= count(baseLint, "error") && count(candidateLint, "warn") <= count(baseLint, "warn");
+  const changed = JSON.stringify(candidate) !== JSON.stringify(current);
+  if (noWorse && changed) return { spec: candidate, adopted: true, lintIssues: candidateLint, validationErrors: [] };
+  return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
+}
 
 export async function generateSpec(request: string, cfg: GenerateConfig): Promise<GenerationOutcome> {
   const client = makeClient(cfg.apiKey);
@@ -506,18 +544,20 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // One extra round at low effort; the revision is adopted only when it stays
   // valid, keeps the same template (no new engines), and lints no worse —
   // a finished spec is never traded for a worse one, and an API hiccup here
-  // never costs the spec we already have.
+  // never costs the spec we already have. `lintOf` is shared with the visual
+  // repair round just below — both score a candidate against the same
+  // closure (it needs `measure`, which only exists inside this function).
+  const lintOf = (spec: Spec): LintIssue[] | null => {
+    try {
+      return [...layoutSpec(spec, measure).issues, ...lintCommands(spec)];
+    } catch {
+      return null;
+    }
+  };
+
   if (best && !forcedMismatch && cfg.pedagogyReview) {
     try {
-      const lintOf = (spec: Spec): LintIssue[] | null => {
-        try {
-          return [...layoutSpec(spec, measure).issues, ...lintCommands(spec)];
-        } catch {
-          return null;
-        }
-      };
       const baseLint = lintOf(best) ?? [];
-      const count = (issues: LintIssue[], sev: string) => issues.filter((i) => i.severity === sev).length;
       const round = rounds.length + 1;
       const { json, meta } = await callForJson(
         client,
@@ -531,35 +571,56 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label: "pedagogy", round, text })),
         },
       );
-      const v = validateSpec(json);
-      // Recorded lint must always describe the DELIVERED spec (`best` after
-      // this block), not whichever candidate the model proposed: default to
-      // the base spec's lint, and only swap in the candidate's when it is
-      // actually adopted below — a rejected (invalid, wrong-template, or
-      // worse-linting) candidate must never overwrite this round's signal.
-      let lintIssues: LintIssue[] = baseLint;
-      let adopted = false;
-      if (v.ok && (json as Spec).template === best.template) {
-        const revised = json as Spec;
-        const revisedLint = lintOf(revised);
-        if (revisedLint !== null) {
-          const noWorse =
-            count(revisedLint, "error") <= count(baseLint, "error") && count(revisedLint, "warn") <= count(baseLint, "warn");
-          const changed = JSON.stringify(revised) !== JSON.stringify(best);
-          if (noWorse && changed) {
-            best = revised;
-            adopted = true;
-            lintIssues = revisedLint;
-          }
-        }
-      }
-      rounds.push({ label: "pedagogy", spec: json, validationErrors: v.ok ? [] : v.errors, lintIssues, meta, adopted });
+      const result = adoptIfNoWorse(best, json, baseLint, lintOf);
+      if (result.adopted) best = result.spec;
+      rounds.push({ label: "pedagogy", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
     } catch {
       /* best-effort by design */
     }
   }
-  // best is final now (the pedagogy pass, if it ran, has already adopted or
-  // discarded its candidate) — credit whichever seed paths survived into it.
+
+  // The visual repair round (Task 14b): after everything else, let the model
+  // see its own last frame once — off by default (cfg.visualRepair is
+  // undefined unless Settings → Advanced turns it on), and only for a
+  // freehand spec with a group (wantsVisualRepair) — a templated figure has
+  // no loose parts for a snapshot to catch that text-only lint could not
+  // already. Same adoption rule as the pedagogy pass above. best-effort by
+  // design, same as pedagogy: a snapshot or API failure never costs the spec
+  // already in hand.
+  if (best && cfg.visualRepair && wantsVisualRepair(best)) {
+    const png = await cfg.visualRepair(best).catch(() => null);
+    if (png) {
+      try {
+        const baseLint = lintOf(best) ?? [];
+        const round = rounds.length + 1;
+        const { json, meta } = await callForJson(
+          client,
+          cfg.model,
+          system,
+          [
+            ...messages,
+            { role: "assistant", content: JSON.stringify(best) },
+            ...visualRepairMessages(png.replace(/^data:image\/png;base64,/, ""), baseLint),
+          ],
+          schema,
+          {
+            signal: cfg.signal,
+            effort: "low",
+            onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label: "visual", round, text })),
+          },
+        );
+        const result = adoptIfNoWorse(best, json, baseLint, lintOf);
+        if (result.adopted) best = result.spec;
+        rounds.push({ label: "visual", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
+      } catch {
+        /* best-effort by design */
+      }
+    }
+  }
+
+  // best is final now (the pedagogy pass and the visual round, if they ran,
+  // have already adopted or discarded their candidates) — credit whichever
+  // seed paths survived into it.
   if (seed && best) attachSeedCredit(best, seed);
   return {
     spec: best,
