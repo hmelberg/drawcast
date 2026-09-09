@@ -15256,7 +15256,7 @@
       "elements": [
         { "id": "ringer", "type": "pieces", "of": "rings", "x": 200, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
         { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right" },
-        { "id": "hoyde", "type": "measure", "from": { "ref": "ringer_1", "anchor": "bottom" }, "to": { "ref": "ringer_8", "anchor": "top" }, "label": "{value}", "side": "left", "offset": 110 }
+        { "id": "hoyde", "type": "measure", "from": { "ref": "ringer_1", "anchor": "bottom" }, "to": { "ref": "ringer_8", "anchor": "top" }, "label": "r = {value}", "side": "left", "offset": 60 }
       ],
       "commands": [
         { "draw": ["ringer"], "speak": "Del sirkelen i tynne ringer i stedet for kakestykker. Hver ring er nesten en smal stripe bøyd rundt sentrum." },
@@ -15275,7 +15275,7 @@
       "title": "Sekskanten som trekanter",
       "elements": [
         { "id": "trek", "type": "pieces", "of": "triangles", "x": 250, "y": 400, "radius": 140, "sides": 6, "style": { "fill": "#f2c14e" } },
-        { "id": "apotem", "type": "measure", "from": { "ref": "trek_1", "anchor": "apex" }, "to": { "ref": "trek_1", "anchor": "base" }, "label": "{value}", "side": "right", "offset": 50 }
+        { "id": "apotem", "type": "measure", "from": { "ref": "trek_1", "anchor": "apex" }, "to": { "ref": "trek_1", "anchor": "base" }, "label": "a = {value}", "side": "right" }
       ],
       "commands": [
         { "draw": ["trek"], "speak": "En regulær sekskant delt i seks like trekanter fra sentrum." },
@@ -15316,7 +15316,7 @@
         { "id": "areal", "type": "measure", "of": "kv", "label": "A = {value}" }
       ],
       "commands": [
-        { "draw": ["kv", "side", "label_side", "label_areal"], "speak": "Et kvadrat med side 200 og areal 40 000. Hva skjer om vi dobler siden?" },
+        { "draw": ["kv", "side", "label_side", "areal", "label_areal"], "speak": "Et kvadrat med side 200 og areal 40 000. Hva skjer om vi dobler siden?" },
         { "move": { "target": ["kv"], "scale": 2, "pivot": { "anchor": "bottom_left" }, "duration": 2, "ghost": true }, "speak": "Siden blir 400. Men arealet blir 160 000: fire ganger så stort, ikke to." },
         { "highlight": { "target": ["label_areal"], "effect": "glow" }, "speak": "Areal vokser med kvadratet av skaleringen. Dobler du siden, får du to ganger to." }
       ]

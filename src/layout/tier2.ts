@@ -1279,8 +1279,13 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   }
   const value = M.measureValue(what, { a: a ?? undefined, b: b ?? undefined, ring: ring ?? undefined, circle: circle ?? undefined });
   if (value === null || (what !== "area" && what !== "perimeter" && (!a || !b))) { ctx.warnings.push(`measure "${el.id}": cannot resolve what to measure`); return []; }
+  const text = M.formatMeasure(value, format);
+  // The label is centred on textPos, so the dimension line needs to know how
+  // wide it is to clear it on a vertical or oblique measure (see dimensionLine).
+  const textWidth = M.heuristicLabelWidth(text);
   const out: Drawable[] = [];
   let textPos: Pt;
+  let hasLine = false;
   let side: "left" | "right" = "left";
   if (a && b && what !== "area" && what !== "perimeter") {
     if (el.side === "right" || el.side === "left") side = el.side;
@@ -1288,7 +1293,8 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       const cross = (b[0] - a[0]) * (awayFrom[1] - a[1]) - (b[1] - a[1]) * (awayFrom[0] - a[0]);
       side = cross > 0 ? "right" : "left"; // the centroid is on the left → put the line on the right
     }
-    const d = M.dimensionLine(a, b, el.offset ?? 24, side);
+    const d = M.dimensionLine(a, b, el.offset ?? 24, side, undefined, textWidth);
+    hasLine = true;
     out.push({ id: el.id, kind: "stroke", pts: d.line, z: Z_STROKE, style, drawOpts });
     out.push({ id: `${el.id}_guides`, kind: "stroke", pts: d.ticks[0], z: Z_STROKE, style, drawOpts });
     out.push({ id: `${el.id}_dot`, kind: "stroke", pts: d.ticks[1], z: Z_STROKE, style, drawOpts });
@@ -1305,9 +1311,15 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   // entry) but not the dimension line — measures[id].textId still names the
   // id the text WOULD have had, so a later step can turn it back on.
   if (el.label !== false) {
-    out.push({ id: textId, kind: "text", pos: textPos, text: M.formatMeasure(value, format), fontSize: 24, anchor: "middle", z: Z_TEXT, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
+    out.push({ id: textId, kind: "text", pos: textPos, text, fontSize: M.MEASURE_FONT_SIZE, anchor: "middle", z: Z_TEXT, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
     ctx.extraOrder.push(textId);
     ctx.anchors[textId] = textPos;
+    // An area/perimeter measure draws no dimension line, so nothing carries
+    // the element's own id: register the text as the measure's group, the way
+    // a `pieces` cut registers its children, so `draw: ["areal"]` (and
+    // focus/highlight/keep) resolves through pieceGroups to `label_areal`
+    // instead of dropping as an id that paints nothing.
+    if (!hasLine) ctx.pieceGroups[el.id] = [textId];
   }
   ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId, circle: circle ?? undefined };
   return out;

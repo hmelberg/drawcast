@@ -96,6 +96,34 @@ describe("measure element (design §2.3)", () => {
     expect(flattenDrawables(out.drawables).some((d) => d.id === "label_hidden")).toBe(false);
     expect(out.measures.hidden.textId).toBe("label_hidden");
   });
+  test("a wide label on a vertical measure clears its own dimension line (16 + half the label's width)", () => {
+    // "r = 100" is 7 characters: heuristicMeasure gives 7 × 24 × 0.52 = 87.36
+    // wide, so the centred text reaches 43.68 each way — a fixed 16 would put
+    // it back across its own line. The vertical line's normal is (±1, 0), so
+    // the clearance is the full 16 + 43.68 = 59.68.
+    const out = layoutSpec(spec([sq, { id: "h", type: "measure", of: "sq", what: "height", label: "r = {value}" }]), heuristicMeasure);
+    expect(out.warnings).toEqual([]);
+    expect(textOf(out, "label_h")).toBe("r = 100");
+    expect(out.issues.filter((i) => i.message.includes('sits on stroke "h"'))).toEqual([]);
+    const w = heuristicMeasure("r = 100", 24).w;
+    const line = flattenDrawables(out.drawables).find((d) => d.id === "h") as { pts: [number, number][] };
+    const t = flattenDrawables(out.drawables).find((d) => d.id === "label_h") as { pos: [number, number] };
+    expect(line.pts[0][0]).toBe(line.pts[1][0]); // vertical
+    expect(Math.abs(t.pos[0] - line.pts[0][0])).toBeGreaterThanOrEqual(16 + w / 2);
+    expect(Math.abs(t.pos[0] - line.pts[0][0])).toBeCloseTo(59.68, 6);
+  });
+  test("an area measure registers its text as its own group, so draw: [<id>] reveals label_<id>", () => {
+    // area/perimeter draw no dimension line, so nothing else carries the id.
+    const s = { elements: [{ ...sq, id: "kv" }, { id: "areal", type: "measure", of: "kv" }], commands: [{ draw: ["kv"] }, { draw: ["areal"] }] };
+    const layout = layoutSpec(s as never, heuristicMeasure);
+    expect(layout.warnings).toEqual([]);
+    expect(layout.pieceGroups.areal).toEqual(["label_areal"]);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    const plan = planCommands(s.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s as never, layout) });
+    expect(plan.warnings).toEqual([]);
+    const draws = plan.steps.filter((st): st is Extract<PlanStep, { kind: "draw" }> => st.kind === "draw");
+    expect(draws[1].ids).toContain("label_areal");
+  });
 });
 
 describe("the measure follows (design §2.3)", () => {
@@ -155,5 +183,24 @@ describe("the measure follows (design §2.3)", () => {
     const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
     // label: false draws no text, so there is nothing to slide — only the area's label moves.
     expect(step.extraTransforms?.map((t) => t.id)).toEqual(["label_ca"]);
+  });
+  test("a moved figure's vertical measure slides its wide label clear of the re-pointed line", () => {
+    const s = {
+      elements: [sq, { id: "h", type: "measure", of: "sq", what: "height", label: "r = {value}" }],
+      commands: [{ draw: ["sq", "h", "label_h"] }, { move: { target: ["sq"], by: [120, 0] } }],
+    };
+    const layout = layoutSpec(s as never, heuristicMeasure);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    const plan = planCommands(s.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s as never, layout) });
+    expect(plan.warnings).toEqual([]);
+    const st = plan.states[1];
+    expect(st.texts.label_h.label_h).toBe("r = 100"); // the height is unchanged by a translation
+    const w = heuristicMeasure("r = 100", 24).w; // 7 × 24 × 0.52 = 87.36
+    const laidOut = (flattenDrawables(layout.drawables).find((d) => d.id === "label_h") as { pos: [number, number] }).pos;
+    const textX = laidOut[0] + (st.offsets.label_h?.[0] ?? 0);
+    const lineX = st.shapes.h.h[0][0]; // the re-pointed dimension line
+    expect(st.shapes.h.h[0][0]).toBeCloseTo(st.shapes.h.h[1][0], 6); // still vertical
+    expect(Math.abs(textX - lineX)).toBeGreaterThanOrEqual(16 + w / 2);
+    expect(Math.abs(textX - lineX)).toBeCloseTo(59.68, 6);
   });
 });

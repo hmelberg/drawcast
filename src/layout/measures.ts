@@ -2,6 +2,7 @@
 // figure, and how it is written. Pure — tier-2 lays the element out with
 // it, and the planner recomputes with it after every step that moves or
 // morphs what it measures.
+import { heuristicMeasure } from "./measure";
 import type { Pt } from "./model";
 
 export type MeasureWhat = "length" | "width" | "height" | "area" | "perimeter";
@@ -74,8 +75,34 @@ export function formatMeasure(value: number, f: MeasureFormat): string {
   return f.unit ? `${text} ${f.unit}` : text;
 }
 
-/** The dimension line for a → b, offset to its `side` (left = the left-hand normal of a → b), with end ticks and the text spot 16 further out. */
-export function dimensionLine(a: Pt, b: Pt, offset: number, side: "left" | "right", tick = 12): { line: [Pt, Pt]; ticks: [Pt, Pt][]; textPos: Pt } {
+/** The font size every measure label is drawn at — tier-2 draws the text with
+ *  it, and both tier-2 and the planner's recompute estimate the label's width
+ *  at it to place the text clear of the dimension line. */
+export const MEASURE_FONT_SIZE = 24;
+
+/** The label width tier-2 and the planner both feed to `dimensionLine`: the
+ *  deterministic node-side heuristic at the measure font size, never the
+ *  browser's canvas measurer — so a label that follows a move lands exactly
+ *  where a fresh layout would have put it, in either backend. */
+export function heuristicLabelWidth(text: string): number {
+  return heuristicMeasure(text, MEASURE_FONT_SIZE).w;
+}
+
+/**
+ * The dimension line for a → b, offset to its `side` (left = the left-hand
+ * normal of a → b), with end ticks and the text spot further out along that
+ * same normal (nx, ny).
+ *
+ * The clearance is `16 + |nx| · textWidth / 2`: the text is centred on the
+ * spot, so on a vertical or oblique measure (nx ≠ 0) half a wide label would
+ * otherwise reach back across the line it belongs to — "r = 113" at font 24 is
+ * ~87 units wide, i.e. ~44 each side of centre, far past a fixed 16. A
+ * horizontal measure has nx = 0 and is unchanged (its label sits above or
+ * below the line, and its width points along it). Pass `textWidth` as
+ * `heuristicMeasure(text, MEASURE_FONT_SIZE).w` — omit it (0) only when no
+ * text is drawn.
+ */
+export function dimensionLine(a: Pt, b: Pt, offset: number, side: "left" | "right", tick = 12, textWidth = 0): { line: [Pt, Pt]; ticks: [Pt, Pt][]; textPos: Pt } {
   const len = segmentLength(a, b) || 1;
   const ux = (b[0] - a[0]) / len, uy = (b[1] - a[1]) / len;
   const sgn = side === "left" ? 1 : -1;
@@ -87,6 +114,7 @@ export function dimensionLine(a: Pt, b: Pt, offset: number, side: "left" | "righ
     [[A[0] - nx * t, A[1] - ny * t], [A[0] + nx * t, A[1] + ny * t]],
     [[B[0] - nx * t, B[1] - ny * t], [B[0] + nx * t, B[1] + ny * t]],
   ];
-  const textPos: Pt = [(A[0] + B[0]) / 2 + nx * 16, (A[1] + B[1]) / 2 + ny * 16];
+  const clear = 16 + (Math.abs(nx) * textWidth) / 2;
+  const textPos: Pt = [(A[0] + B[0]) / 2 + nx * clear, (A[1] + B[1]) / 2 + ny * clear];
   return { line: [A, B], ticks, textPos };
 }

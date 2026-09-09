@@ -19,7 +19,7 @@ import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/anchors";
 import { morphPair, stretchPts } from "./morph";
-import { dimensionLine, formatMeasure, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
+import { dimensionLine, formatMeasure, heuristicLabelWidth, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
 import { pathPosition } from "./effects";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
@@ -626,7 +626,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const text = formatMeasure(value, m.format);
         let textPos: Pt | null = null;
         if (g.a && g.b && m.what !== "area" && m.what !== "perimeter") {
-          const d = dimensionLine(g.a, g.b, m.offset, m.side);
+          // Same label-width clearance tier-2 used, so the slid label lands
+          // exactly where a fresh layout would have put it (see dimensionLine).
+          const d = dimensionLine(g.a, g.b, m.offset, m.side, undefined, heuristicLabelWidth(text));
           const targets: Record<string, Pt[]> = { [m.lineId]: d.line, [`${m.lineId}_guides`]: d.ticks[0], [`${m.lineId}_dot`]: d.ticks[1] };
           const leafItems: MorphItem["leaves"] = [];
           const next: Record<string, Pt[]> = {};
