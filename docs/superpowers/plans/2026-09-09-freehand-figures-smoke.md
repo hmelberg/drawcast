@@ -101,7 +101,13 @@ covered by a node test only, not by this checklist.)
 
 ## 6. A fresh request — freehand-first and Templates on demand
 
-Turn **Templates on demand ON** (Settings) and generate a fresh request:
+There is no Settings control for this. In the editor, open the **"…"**
+choices row next to Generate and find the checkbox labelled **"Author
+templates when none fits"** ("Templates on demand" is only the summary
+that shows in the "…" button's tooltip, not a label anywhere in the UI).
+Whether this checkbox is on or off makes NO difference to what follows —
+it only gates course/multi-part runs (`src/llm/multi.ts:241`), and a single
+figure never reads it. Leave it either way and generate a fresh request:
 `hvordan virker en sykkelpumpe`.
 
 Expect: no scene template exists for a bicycle pump, so the figure is
@@ -110,8 +116,9 @@ shows **"No scene template draws this figure, so it was drawn freehand."**
 with an action button **"Author a template and redraw (~4 min)"** — offered,
 never taken automatically, because a single freehand figure never
 auto-authors (that only fires when a second freehand part in the same
-course lands on the same on-demand brief). Do NOT click the button for this
-check.
+course lands on the same on-demand brief) and, again, regardless of the
+"Author templates when none fits" checkbox above. Do NOT click the button
+for this check.
 
 Icon seeding is automatic (no separate toggle) — every generation tries to
 resolve the request's subject to an Iconify icon and, when it succeeds, the
