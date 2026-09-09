@@ -15255,7 +15255,7 @@
       "title": "Sirkelen som ringer",
       "elements": [
         { "id": "ringer", "type": "pieces", "of": "rings", "x": 250, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
-        { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right" },
+        { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right", "offset": 110 },
         { "id": "hoyde", "type": "measure", "from": [250, 400], "to": [250, 500], "label": "r = {value}", "side": "left", "offset": 112 }
       ],
       "commands": [
