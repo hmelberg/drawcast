@@ -90,3 +90,26 @@ export function centroid(pts: Pt[]): Pt {
   const n = pts.length || 1;
   return [sx / n, sy / n];
 }
+
+/** Ramer–Douglas–Peucker. Keeps endpoints; drops points within epsilon of the chord. */
+export function simplifyPolyline(pts: Pt[], epsilon: number): Pt[] {
+  if (pts.length <= 2) return pts.slice();
+  const [a, b] = [pts[0], pts[pts.length - 1]];
+  let maxD = -1, idx = -1;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const d = pointToSegment(pts[i], a, b);
+    if (d > maxD) { maxD = d; idx = i; }
+  }
+  if (maxD <= epsilon) return [a, b];
+  const left = simplifyPolyline(pts.slice(0, idx + 1), epsilon);
+  const right = simplifyPolyline(pts.slice(idx), epsilon);
+  return left.slice(0, -1).concat(right);
+}
+
+function pointToSegment(p: Pt, a: Pt, b: Pt): number {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2));
+  const qx = a[0] + t * dx, qy = a[1] + t * dy;
+  return Math.hypot(p[0] - qx, p[1] - qy);
+}
