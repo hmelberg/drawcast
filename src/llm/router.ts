@@ -25,6 +25,8 @@ export interface RouteResult {
   ids: string[];
   /** The router judged that no template draws this figure — the compiler will compose freehand. */
   noneFits: boolean;
+  /** The THING the figure is about, as a two-to-four word noun phrase — "" when the request has none (a relation, a quantity, a process). Feeds the icon seed. */
+  subject: string;
   meta?: JsonCallMeta;
 }
 
@@ -34,8 +36,9 @@ export const ROUTE_SCHEMA = {
   properties: {
     ids: { type: "array", items: { type: "string" }, maxItems: HOT_SHORTLIST },
     none_fits: { type: "boolean" },
+    subject: { type: "string" },
   },
-  required: ["ids", "none_fits"],
+  required: ["ids", "none_fits", "subject"],
   additionalProperties: false,
 } as const;
 
@@ -45,7 +48,9 @@ Given a request, return the ids of the templates most likely to be THE FIGURE th
 
 If no template in the index draws the figure the request needs (the compiler will then draw it freehand), return an empty list and none_fits: true. A template that merely shares a topic is not a fit: a request for a violin's parts is not a piano keyboard.
 
-Reply with JSON only: {"ids": [...], "none_fits": false}.
+Also return subject: the THING the figure is about, as a two-to-four word noun phrase in English ("bicycle pump", "sewing machine"), or "" when the request is about a relation, a quantity or a process rather than a thing.
+
+Reply with JSON only: {"ids": [...], "none_fits": false, "subject": "..."}.
 
 ## Template index
 
@@ -62,8 +67,8 @@ export function buildRouterSystem(index: string = routerIndexText()): Anthropic.
  * list is empty (a router that names templates AND says none fits is
  * contradicting itself — the ids win, they are checkable).
  */
-export function parseRouteReply(json: unknown, readyIds: ReadonlySet<string> = new Set(Object.keys(scenes).filter((id) => scenes[id].manifest.status === "ready"))): { ids: string[]; noneFits: boolean } {
-  if (typeof json !== "object" || json === null || Array.isArray(json)) return { ids: [], noneFits: false };
+export function parseRouteReply(json: unknown, readyIds: ReadonlySet<string> = new Set(Object.keys(scenes).filter((id) => scenes[id].manifest.status === "ready"))): { ids: string[]; noneFits: boolean; subject: string } {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return { ids: [], noneFits: false, subject: "" };
   const r = json as Record<string, unknown>;
   const raw = Array.isArray(r.ids) ? r.ids : [];
   const ids: string[] = [];
@@ -72,7 +77,8 @@ export function parseRouteReply(json: unknown, readyIds: ReadonlySet<string> = n
     ids.push(id);
     if (ids.length >= HOT_SHORTLIST) break;
   }
-  return { ids, noneFits: ids.length === 0 && r.none_fits === true };
+  const subject = typeof r.subject === "string" ? r.subject.trim() : "";
+  return { ids, noneFits: ids.length === 0 && r.none_fits === true, subject };
 }
 
 export interface RouterConfig {

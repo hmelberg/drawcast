@@ -82,7 +82,7 @@ function cfg(run: OnDemandRun | undefined, extra: Partial<GenerateConfig> = {}):
     onDemandRun: run,
     // The router sees the live registry: once anything was authored in this
     // run it offers it; before that, nothing fits.
-    route: async () => (run && run.authored > 0 ? { ids: ["boat_anatomy"], noneFits: false } : { ids: [], noneFits: true }),
+    route: async () => (run && run.authored > 0 ? { ids: ["boat_anatomy"], noneFits: false, subject: "" } : { ids: [], noneFits: true, subject: "" }),
     ...extra,
   };
 }
@@ -144,7 +144,7 @@ describe("the cap", () => {
     authorLikeReal();
     const phases: string[] = [];
     // A router that never finds a fit, so nothing is reused and every part wants its own template.
-    const r = await generateFromOutline(req, plan(3), cfg(run, { route: async () => ({ ids: [], noneFits: true }) }), { onPhase: (t) => phases.push(t) });
+    const r = await generateFromOutline(req, plan(3), cfg(run, { route: async () => ({ ids: [], noneFits: true, subject: "" }) }), { onPhase: (t) => phases.push(t) });
 
     expect(mockAuthor).toHaveBeenCalledTimes(1);
     expect(run.authored).toBe(1);
@@ -180,13 +180,13 @@ describe("without a shared run", () => {
   it("templatesOnDemandMax alone caps a single multi-part generation", async () => {
     mockGenerate.mockImplementation(async () => freehand());
     authorLikeReal();
-    await generateFromOutline(req, plan(3), cfg(undefined, { templatesOnDemandMax: 2, route: async () => ({ ids: [], noneFits: true }) }));
+    await generateFromOutline(req, plan(3), cfg(undefined, { templatesOnDemandMax: 2, route: async () => ({ ids: [], noneFits: true, subject: "" }) }));
     expect(mockAuthor).toHaveBeenCalledTimes(2);
   });
   it("no cap given means the default of three", async () => {
     mockGenerate.mockImplementation(async () => freehand());
     authorLikeReal();
-    await generateFromOutline(req, plan(5), cfg(undefined, { route: async () => ({ ids: [], noneFits: true }) }));
+    await generateFromOutline(req, plan(5), cfg(undefined, { route: async () => ({ ids: [], noneFits: true, subject: "" }) }));
     expect(mockAuthor).toHaveBeenCalledTimes(3);
   });
   it("the switch off authors nothing at all", async () => {

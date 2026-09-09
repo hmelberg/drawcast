@@ -50,17 +50,23 @@ describe("parseRouteReply", () => {
   const ready = new Set(["supply_demand", "decision_tree", "timeline"]);
   test("keeps known ids in order, drops unknown and duplicate ones, caps at HOT_SHORTLIST", () => {
     const r = parseRouteReply({ ids: ["timeline", "nope", "supply_demand", "timeline", "decision_tree", "x", "y"], none_fits: false }, ready);
-    expect(r).toEqual({ ids: ["timeline", "supply_demand", "decision_tree"], noneFits: false });
+    expect(r).toEqual({ ids: ["timeline", "supply_demand", "decision_tree"], noneFits: false, subject: "" });
     const many = new Set(Array.from({ length: 9 }, (_, i) => `t${i}`));
     expect(parseRouteReply({ ids: [...many], none_fits: false }, many).ids).toHaveLength(HOT_SHORTLIST);
   });
   test("none_fits is honoured only with an empty list", () => {
-    expect(parseRouteReply({ ids: [], none_fits: true }, ready)).toEqual({ ids: [], noneFits: true });
-    expect(parseRouteReply({ ids: ["timeline"], none_fits: true }, ready)).toEqual({ ids: ["timeline"], noneFits: false });
-    expect(parseRouteReply({ ids: ["nope"], none_fits: true }, ready)).toEqual({ ids: [], noneFits: true });
+    expect(parseRouteReply({ ids: [], none_fits: true }, ready)).toEqual({ ids: [], noneFits: true, subject: "" });
+    expect(parseRouteReply({ ids: ["timeline"], none_fits: true }, ready)).toEqual({ ids: ["timeline"], noneFits: false, subject: "" });
+    expect(parseRouteReply({ ids: ["nope"], none_fits: true }, ready)).toEqual({ ids: [], noneFits: true, subject: "" });
   });
   test("garbage is an empty, non-none answer (the keyword selector takes over)", () => {
-    for (const bad of [null, "x", 42, [], { ids: "timeline" }, {}]) expect(parseRouteReply(bad, ready)).toEqual({ ids: [], noneFits: false });
+    for (const bad of [null, "x", 42, [], { ids: "timeline" }, {}]) expect(parseRouteReply(bad, ready)).toEqual({ ids: [], noneFits: false, subject: "" });
+  });
+  test("keeps subject as a trimmed string; missing or non-string becomes \"\"", () => {
+    expect(parseRouteReply({ ids: [], none_fits: true, subject: "bicycle pump" }, ready).subject).toBe("bicycle pump");
+    expect(parseRouteReply({ ids: [], none_fits: true, subject: "  bicycle pump  " }, ready).subject).toBe("bicycle pump");
+    expect(parseRouteReply({ ids: [], none_fits: true }, ready).subject).toBe("");
+    expect(parseRouteReply({ ids: [], none_fits: true, subject: 42 }, ready).subject).toBe("");
   });
 });
 
