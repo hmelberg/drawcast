@@ -1335,8 +1335,8 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 }
 
 /**
- * `ellipse` (design §2.5): a 48-point outline, counter-clockwise from the
- * +x end of the major axis, rotated by `rotation` — a filledOutline pair
+ * `ellipse` (design §2.5): a 48-point outline, counter-clockwise from the +x end of the
+ * x-radius (the major axis only when rx ≥ ry), rotated by `rotation` — a filledOutline pair
  * measurable through primaryRingSoFar like any other closed ring, no special
  * case needed. Anchors `focus_1`/`focus_2` sit on the major axis (`focus_1`
  * toward −x before rotation); when rx === ry the foci coincide at the centre
