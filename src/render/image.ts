@@ -71,10 +71,14 @@ export function creditFromInfo(json: unknown): { credit: string; licence: string
 export interface ImageDeps {
   fetch: typeof fetch;
   loadRaster: (url: string, maxDim: number) => Promise<Raster>;
+  /** Raster → embeddable data URI. Its own seam (not folded into loadRaster)
+   *  for the same reason source.ts injects `renderImage` whole: a node test
+   *  can supply a fake raster without needing a real canvas to encode it on. */
+  encode: (raster: Raster) => string;
 }
 
 function defaultDeps(): ImageDeps {
-  return { fetch: globalThis.fetch, loadRaster };
+  return { fetch: globalThis.fetch, loadRaster, encode: styledPhotoDataUri };
 }
 
 export interface ImageResolution {
@@ -94,20 +98,6 @@ function imageCacheKey(el: Pick<ImageEl, "type" | "of" | "strokes">): string | n
 function fileTitleFromUrl(url: string): string {
   const last = url.split("/").pop() ?? "";
   return `File:${decodeURIComponent(last)}`;
-}
-
-/**
- * The embeddable data URI for a loaded raster. Every real caller runs in a
- * browser (`document` always exists there), where this is the same styled
- * canvas encode portraits use — sharing the look on purpose. The `document`
- * guard exists only for this module's own node tests, which inject a fake
- * `loadRaster` that returns raw pixel data with no canvas to encode it on
- * (the same guard shape already used for other DOM globals in
- * svg-backend.ts, figure-style.ts and render/index.ts).
- */
-function photoDataUri(raster: Raster): string {
-  if (typeof document === "undefined") return "data:image/jpeg;base64,";
-  return styledPhotoDataUri(raster);
 }
 
 /**
@@ -167,14 +157,14 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
 
         if (!thumburl) throw new Error(`no image found on Commons for "${el.of}"`);
         const raster = await deps.loadRaster(thumburl, LOOK_DIM.photo);
-        const photo = encodePhoto(raster.height / raster.width, photoDataUri(raster));
+        const photo = encodePhoto(raster.height / raster.width, deps.encode(raster));
         encoded = JSON.stringify({ strokes: photo, credit, source: thumburl });
         await cachePut(key, encoded);
       }
       const parsed = JSON.parse(encoded) as { strokes: string; credit: string; source: string };
       el.strokes = parsed.strokes;
       el.credit = parsed.credit;
-      el.source = el.source ?? parsed.source;
+      el.source = parsed.source;
       results.push({ id: el.id, ok: true });
     } catch (err) {
       results.push({ id: el.id, ok: false, error: (err as Error).message });

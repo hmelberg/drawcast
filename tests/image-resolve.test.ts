@@ -10,6 +10,7 @@ const raster = async () => ({ width: 4, height: 2, data: new Uint8ClampedArray(4
 const deps = (routes: Record<string, unknown>) => ({
   fetch: (async (url: string) => ({ ok: url in routes, status: url in routes ? 200 : 404, json: async () => routes[url] })) as unknown as typeof fetch,
   loadRaster: raster as never,
+  encode: () => "data:image/jpeg;base64,AAAA",
 });
 
 describe("resolveImages", () => {
@@ -20,9 +21,10 @@ describe("resolveImages", () => {
       [commonsFileInfoUrl("File:Bicycle_pump.jpg")]: info("CC BY-SA 4.0"),
     }));
     expect(r).toEqual([{ id: "p", ok: true }]);
-    const el = (spec.elements[0] as { strokes?: string; credit?: string });
+    const el = (spec.elements[0] as { strokes?: string; credit?: string; source?: string });
     expect(decodePhoto(el.strokes!)?.aspect).toBeCloseTo(0.5);
     expect(el.credit).toBe("Jane Doe · CC BY-SA 4.0");
+    expect(el.source).toBe("https://upload.wikimedia.org/x.jpg");
   });
   test("summary miss falls back to a Commons search", async () => {
     const spec = { elements: [{ id: "p", type: "image", of: "Hand pump", x: 1, y: 1 }], commands: [] };
