@@ -49,4 +49,28 @@ describe("group as a command target", () => {
     expect([step.x, step.y]).toEqual([330, 420]);
     expect(step.box).toEqual({ x: 300, y: 300, w: 60, h: 240 });
   });
+  test("`to` moves the group as one: one delta for every member", () => {
+    const plan = planCommands([{ draw: ["body", "cap"] }, { move: { target: ["pump"], to: [600, 500] } }], ["body", "cap"], {
+      expandGroup: (id) => (id === "pump" ? ["body", "cap"] : null), bboxOf: (id) => bbox[id as keyof typeof bbox],
+    });
+    expect(plan.warnings).toEqual([]);
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    const off = (id: string) => step.items.find((x) => x.id === id)!.to.offset;
+    expect(off("body")).toEqual(off("cap"));
+    // union centre (330, 420) → (600, 500), so every member shifts by (270, 80)
+    expect(off("body")).toEqual([270, 80]);
+    const moved = (id: keyof typeof bbox) => ({ x: bbox[id].x + off(id)[0], y: bbox[id].y + off(id)[1], w: bbox[id].w, h: bbox[id].h });
+    const b = [moved("body"), moved("cap")];
+    const x0 = Math.min(...b.map((q) => q.x)), y0 = Math.min(...b.map((q) => q.y));
+    const x1 = Math.max(...b.map((q) => q.x + q.w)), y1 = Math.max(...b.map((q) => q.y + q.h));
+    expect([(x0 + x1) / 2, (y0 + y1) / 2]).toEqual([600, 500]);
+  });
+  test("`by` and `path` are already uniform — one move step for the whole group", () => {
+    const plan = planCommands([{ draw: ["body", "cap"] }, { move: { target: ["pump"], path: [[10, 0], [0, 20]] } }], ["body", "cap"], {
+      expandGroup: (id) => (id === "pump" ? ["body", "cap"] : null), bboxOf: (id) => bbox[id as keyof typeof bbox],
+    });
+    expect(plan.warnings).toEqual([]);
+    // One `move` step carrying both members and one path: the same offsets by construction.
+    expect(plan.steps[1]).toMatchObject({ kind: "move", ids: ["body", "cap"], path: [[10, 0], [0, 20]] });
+  });
 });

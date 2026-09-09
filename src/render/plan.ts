@@ -1033,23 +1033,33 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const pivotIsExplicit = isExplicitPointRef(cmd.move.pivot);
         // A ref-less {anchor} pivot stays per target: it names the moving element's own anchor.
         const pivot0 = pivotIsExplicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
-        // --- group targets turn as ONE thing (design: `group`): the default
-        // pivot of every member is the group's union centre, read once from
-        // the pre-move boxes. Per-element centres would spin each part where
-        // it stands and tear the figure apart.
+        // --- a group moves as ONE thing (spec §3.2), so both halves of the
+        // pose are read from the group, once, before anything moves: the
+        // default pivot is the union-box centre (per-element centres would
+        // spin each part where it stands and tear the figure apart), and a
+        // `to` lands the GROUP's anchor on the destination with one delta for
+        // every member (per-element deltas would pile the parts on the point).
         const groupPivot = new Map<string, Pt>();
-        if (cmd.move.pivot === undefined) {
-          for (const raw of typeof cmd.move.target === "string" ? [cmd.move.target] : cmd.move.target ?? []) {
-            if (!opts.expandGroup?.(raw)) continue;
-            const members = resolveIds(raw, "move", true);
-            if (members.length < 2) continue;
-            const box = unionBox(members.map(currentBox));
-            if (!box) continue;
+        const groupDelta = new Map<string, Pt>();
+        for (const raw of typeof cmd.move.target === "string" ? [cmd.move.target] : cmd.move.target ?? []) {
+          if (!opts.expandGroup?.(raw)) continue;
+          const members = resolveIds(raw, "move", true);
+          if (members.length < 2) continue;
+          const box = unionBox(members.map(currentBox));
+          if (!box) continue;
+          if (hasTo && dest) {
+            const from = anchorNow(raw, cmd.move.anchor ?? "center", "move");
+            if (from) {
+              const d: Pt = [dest[0] - from[0], dest[1] - from[1]];
+              for (const m of members) if (!groupDelta.has(m)) groupDelta.set(m, d);
+            }
+          }
+          if (cmd.move.pivot === undefined) {
             const centre: Pt = [box.x + box.w / 2, box.y + box.h / 2];
             for (const m of members) if (!groupPivot.has(m)) groupPivot.set(m, centre);
           }
         }
-        // --- end group pivot
+        // --- end group pose
         const items: TransformItem[] = [];
         // Two targets in the same move can share a follower (e.g. two
         // elements both labeled by the same annotation) — move it once,
@@ -1065,8 +1075,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           let turn: Turn | undefined = turn0;
           let delta: Pt = [0, 0];
           if (hasTo) {
-            const from = anchorNow(id, cmd.move.anchor ?? "center", "move");
-            if (dest && from) delta = [dest[0] - from[0], dest[1] - from[1]];
+            const shared = groupDelta.get(id);
+            if (shared) delta = shared;
+            else {
+              const from = anchorNow(id, cmd.move.anchor ?? "center", "move");
+              if (dest && from) delta = [dest[0] - from[0], dest[1] - from[1]];
+            }
           } else if (hasBy) {
             delta = deltaToLogical(cmd.move.by as Pt);
           } else if (hasPath) {

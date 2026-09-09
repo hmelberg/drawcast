@@ -37,4 +37,22 @@ describe("group", () => {
     expect(bad.map((i) => i.severity)).toEqual(["error"]);
     expect(bad[0].message).toMatch(/"bad".*"ghost"/);
   });
+  test("a label is a legal member: it joins the leaves but not the box", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "box", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 40 },
+        { id: "tag", type: "label", text: "Tag", attach_to: "box", side: "right" },
+        { id: "g", type: "group", members: ["box", "tag"] },
+      ],
+      commands: [{ draw: ["g"] }],
+    } as never);
+    expect(r.issues.filter((i) => i.rule === "group-empty")).toEqual([]);
+    expect(r.groups.g).toEqual(["box", "tag"]);
+    const b = elementBBoxes(r);
+    // The label is placed after tier-2, so the group's box is the rect's alone.
+    expect(r.namedAnchors.g.center).toEqual([b.get("box")!.x + b.get("box")!.w / 2, b.get("box")!.y + b.get("box")!.h / 2]);
+    // …and the label is a real, drawable id, so the group reaches it.
+    expect(r.order).toContain("tag");
+    expect(b.get("tag")).toBeDefined();
+  });
 });
