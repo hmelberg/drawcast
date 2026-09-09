@@ -217,6 +217,32 @@ hundred tokens per icon. The subject keyword comes from the router call
 (it already reads the request); when the router yields no subject, no
 seed is fetched.
 
+### 3.7 Licences for icons and seeds
+
+A stamp is an unchanged icon inside a larger work; a seed is a
+modification, i.e. a derivative work. Share-alike licences bind the
+derivative, so the two are treated differently. Ruling (Hans + Claude
+2026-09-09):
+
+| Licence class | Sets (examples) | Stamp | Seed | Credit |
+|---|---|---|---|---|
+| MIT / ISC / Apache / CC0 | Lucide, Tabler, Phosphor, Heroicons, Material Symbols | yes (default) | yes (default) | recorded in `credit`, not shown |
+| CC BY | Font Awesome Free, Twemoji | yes | yes | export credits list + player info menu |
+| CC BY-SA | OpenMoji | only with explicit `set:` | no | export credits list + player info menu |
+| Trademarked logo sets | simple-icons and the like | no | no | — |
+
+- The resolver's default search covers the permissive sets only; CC BY
+  sets are searched when the permissive sets miss; BY-SA sets are never
+  searched, only addressed by name.
+- The seed's credit is attached to the group by the pipeline, not
+  written by the model, as "based on <icon> from <set>, <licence>". If no
+  seed path survives in the result the credit is dropped.
+- Icon credits never go on the canvas; photo credits (`image`) do. Both
+  are written to the export credits list, and the player's info menu
+  lists the figure's credits.
+- Published drawcasts carry the strokes baked in; the viewer never calls
+  Iconify. The Iconify API is public and keyless.
+
 ## 4. Layout and lint (deterministic code)
 
 1. **Resolution order.** Layout builds a dependency graph from `at.ref`
@@ -320,7 +346,8 @@ seed is fetched.
    strokes from a known TeX string have a box and a stroke count; image
    resolution against a stubbed API with a hit, a miss and a missing
    licence; icon resolution with a stubbed Iconify (hit, miss, disallowed
-   licence) and flattening of a known SVG to a bounded point count; the
+   licence, BY-SA refused as seed, credit attached to the group and
+   dropped when no seed path survives) and flattening of a known SVG to a bounded point count; the
    seed block's format and its absence when the router gives no subject;
    planner expansion of a group for every verb; the
    `placement` and `group-empty` lint rules.
