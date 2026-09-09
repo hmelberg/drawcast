@@ -34,8 +34,8 @@ export interface LayoutResult {
    *  by the piece's own id `<parentId>_<k>` — what move (rotate) and arrange
    *  read. Empty when the spec has no pieces elements. */
   pieces: Record<string, PieceGeometry>;
-  /** `pieces` parent element id → its child piece ids, in order. Empty when
-   *  the spec has no pieces elements. */
+  /** `pieces` parent element id → its child piece ids, in order; also a line-less
+   *  `measure` (area, perimeter) → its text id. Empty when neither occurs. */
   pieceGroups: Record<string, string[]>;
   /** Geometric anchors per tier-2 element id (design §2.1). Empty for a pure template spec. */
   namedAnchors: Record<string, Record<string, Pt>>;

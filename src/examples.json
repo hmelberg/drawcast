@@ -15256,7 +15256,7 @@
       "elements": [
         { "id": "ringer", "type": "pieces", "of": "rings", "x": 250, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
         { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right" },
-        { "id": "hoyde", "type": "measure", "from": { "ref": "ringer" }, "to": { "ref": "ringer_8", "anchor": "top" }, "label": "r = {value}", "side": "left", "offset": 112 }
+        { "id": "hoyde", "type": "measure", "from": [250, 400], "to": [250, 500], "label": "r = {value}", "side": "left", "offset": 112 }
       ],
       "commands": [
         { "draw": ["ringer"], "speak": "Del sirkelen i tynne ringer i stedet for kakestykker. Hver ring er nesten en smal stripe bøyd rundt sentrum." },
