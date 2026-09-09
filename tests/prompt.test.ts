@@ -60,6 +60,10 @@ describe("compiler prompt style rules", () => {
   test("teaches keep/ghost, the minted-elements verb of motion round 3", () => {
     for (const s of ["`keep`", "`ghost`", "\"keep\": {\"target\": \"kake\"}", "\"ghost\": true"]) expect(compilerV1).toContain(s);
   });
+
+  test("teaches angle, measure, ellipse, line, unroll and halving — motion round 3's new elements and cut", () => {
+    for (const s of ["`angle`", "`measure`", "`ellipse`", "`line`", "unroll", "halving", "`keep`"]) expect(compilerV1).toContain(s);
+  });
 });
 
 describe("buildSystemPrompt", () => {

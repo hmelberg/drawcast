@@ -367,6 +367,39 @@ solids, more `pieces` cuts (rings, triangles, halving), more `arrange`
 layouts (sort, align, mirror), rotated text, anchors on template ids beyond
 the box, a persistent flow, morphing a `shape` circle.
 
+## Ghosts, angle and measure, three more cuts — done 2026-09-09
+
+Hans's idea: keep the original on screen, faded, while its pieces animate
+away — sometimes you want the circle to stay while its sectors zip into
+the rectangle, sometimes not; a choice, default off. Design
+`docs/superpowers/specs/2026-09-09-ghost-angle-measure-design.md`, ledger
+`docs/superpowers/plans/2026-09-09-ghost-angle-measure-ledger.md`. Shipped:
+
+1. **`keep` and `ghost`.** `keep: {target}` mints a faded copy `<id>_ghost`
+   of any element where it is now; `ghost: true` on `move`, `arrange`,
+   `flip`, `morph` and `animate` does the same for the targets before they
+   go. Ghosts are minted elements like trails (`Plan.minted`), painted
+   under the original, erasable and fadeable by id.
+2. **`angle`** — vertex plus two arms (points or directions), writes its
+   own degrees, draws the right-angle square when it is one.
+3. **`measure`** — length / width / height / area / perimeter of an element
+   or a segment, written as `label_<id>`; the value FOLLOWS the figure
+   (`SceneState.texts`, backend `setText`): scale the square and its area
+   text goes ×4; the dimension line is re-pointed through `shapes`.
+4. **Three more cuts** — `pieces` of `rings` (with `arrange: unroll`, the
+   staircase that becomes the πr² triangle), `triangles` (fan a polygon;
+   zipper them into the parallelogram), `halving` (1/2 + 1/4 + … = 1).
+5. **`ellipse`** (with foci as anchors) and **`line`** (infinite, through
+   points or by slope/angle, clipped to the plot or the canvas).
+6. Round-2 leftovers: one `isExplicitPointRef`; the examples gate plans
+   with `bboxesFor`.
+7. Seven bundled examples, every one a question.
+
+Deliberately not done: rotated text; solids (own round); a copies
+generator; `arrange` sort/align; ghosts that follow later motion;
+measuring in domain units; `unroll` beyond ring pieces; an `angle` that
+updates when its arms move.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
