@@ -54,6 +54,17 @@ describe("relative placement in layoutSpec", () => {
     expect(r.pieces.pie_1.apex[0]).toBeCloseTo(a.x + a.w + 20 + 50, 0);
     expect(one.x).toBeGreaterThan(a.x + a.w);
   });
+  test("at.ref may name a template id: the text lands on the template's own ink", () => {
+    const r = layoutSpec({
+      template: "supply_demand",
+      params: {},
+      elements: [{ id: "t", type: "text", text: "shift", font_size: 24, at: { ref: "axes", side: "above", gap: 6 } }],
+      commands: [{ draw: ["axes", "t"] }],
+    });
+    const b = elementBBoxes(r);
+    expect(r.issues.filter((i) => i.rule === "placement")).toEqual([]);
+    expect(b.get("t")!.y).toBeCloseTo(b.get("axes")!.y + b.get("axes")!.h + 6, 0);
+  });
   test("unknown ref is an error-severity issue and the element still draws", () => {
     const r = layoutSpec({ elements: [{ id: "t", type: "text", text: "x", at: { ref: "ghost", side: "above" } }], commands: [{ draw: ["t"] }] });
     expect(r.issues.some((i) => i.rule === "placement" && i.severity === "error")).toBe(true);

@@ -171,7 +171,10 @@ export function layoutElements(
   const drawables: Drawable[] = [];
   ctx.drawablesSoFar = drawables;
   const labels: LabelRequest[] = [];
-  const { order: emitOrder, issues } = placementOrder(elements, new Set(Object.keys(seedAnchors)));
+  // Ids that exist outside `elements` and are therefore legal `at.ref`
+  // targets: everything the template exported — an anchor, or just ink.
+  const known = new Set([...Object.keys(seedAnchors), ...(opts.seedDrawables ?? []).map((d) => d.id)]);
+  const { order: emitOrder, issues } = placementOrder(elements, known);
   for (const el of emitOrder) {
     const start = drawables.length;
     switch (el.type) {
