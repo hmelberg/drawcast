@@ -28,7 +28,8 @@ export type ElementType =
   | "sector"
   | "arc"
   | "polygon"
-  | "pieces";
+  | "pieces"
+  | "angle";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -87,12 +88,12 @@ export interface SpecElement {
   expr?: string;
   x_from?: number;
   x_to?: number;
-  // point
-  at?: { x?: number; y?: number; intersection_of?: string[] };
+  // point / angle
+  at?: { x?: number; y?: number; intersection_of?: string[]; ref?: string; anchor?: string } | [number, number];
   guides?: boolean;
-  // arrow / edge
-  from?: EndRef;
-  to?: EndRef;
+  // arrow / edge / angle
+  from?: EndRef | [number, number] | number;
+  to?: EndRef | [number, number] | number;
   curved?: boolean;
   // label
   text?: string;
@@ -133,6 +134,10 @@ export interface SpecElement {
   n?: number;
   /** pieces grid: rows (n is the columns). */
   rows?: number;
+  /** angle/measure: the label text — angle default the rounded degrees ("62°"); false hides it. */
+  label?: string | boolean;
+  /** angle: draw the right-angle square (default: automatically when the angle is within 0.5° of 90). */
+  right?: boolean;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
   /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). */
   of?: string;

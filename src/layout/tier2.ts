@@ -28,7 +28,7 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { wrapText, type LabelRequest } from "./labels";
 import { linkKindOf } from "../ui/link-model";
-import type { SpecElement } from "../spec/types";
+import type { PointRef, SpecElement } from "../spec/types";
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -243,6 +243,9 @@ export function layoutElements(
       case "pieces":
         drawables.push(...piecesDrawables(el, ctx));
         break;
+      case "angle":
+        drawables.push(...angleDrawables(el, ctx));
+        break;
     }
   }
 
@@ -297,6 +300,10 @@ function curveDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
 function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
   const at = el.at;
   if (!at) return null;
+  if (Array.isArray(at)) {
+    ctx.warnings.push(`point "${el.id}": at must be an object ({x, y} or intersection_of), not an array`);
+    return null;
+  }
   if (at.intersection_of && at.intersection_of.length === 2) {
     const a = ctx.curveSamples.get(at.intersection_of[0]);
     const b = ctx.curveSamples.get(at.intersection_of[1]);
@@ -552,9 +559,20 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
   return null;
 }
 
+/** A PointRef of a tier-2 element, in logical coordinates (arrays and {x, y} follow the arrow-endpoint rule: domain units when a domain is declared). */
+function resolvePointRef(p: PointRef | undefined, ctx: Ctx): Pt | null {
+  if (p === undefined) return null;
+  if (Array.isArray(p)) return resolveEnd({ x: p[0], y: p[1] }, ctx)?.pt ?? null;
+  return resolveEnd(p, ctx)?.pt ?? null;
+}
+
 function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
-  const fromEnd = resolveEnd(el.from, ctx);
-  const toEnd = resolveEnd(el.to, ctx);
+  // arrow/edge always carries an EndRef object here — angle is the only
+  // element type that can put a number or a bare [x, y] in from/to.
+  const fromRef = el.from as { ref?: string; x?: number; y?: number; anchor?: string } | undefined;
+  const toRef = el.to as { ref?: string; x?: number; y?: number; anchor?: string } | undefined;
+  const fromEnd = resolveEnd(fromRef, ctx);
+  const toEnd = resolveEnd(toRef, ctx);
   if (!fromEnd || !toEnd) return [];
   const from = fromEnd.pt;
   const to = toEnd.pt;
@@ -565,8 +583,8 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   // name), backs off toward the target's edge (its node radius, or a guessed
   // bubble); a point that DID resolve through a named/box anchor is already
   // exact, so it lands there with no further shrink.
-  const rFrom = el.from?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(el.from.ref) ?? 10) + 4 : 0;
-  const rTo = el.to?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(el.to.ref) ?? 10) + 4 : 0;
+  const rFrom = fromRef?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) + 4 : 0;
+  const rTo = toRef?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(toRef.ref) ?? 10) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];
@@ -1096,6 +1114,60 @@ function arcDrawable(el: SpecElement, ctx: Ctx): Drawable {
   ctx.anchors[el.id] = pts[Math.floor(pts.length / 2)];
   ctx.namedAnchors[el.id] = polylineAnchors(pts, "arc");
   return { id: el.id, kind: "stroke", pts, z: Z_STROKE, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw) };
+}
+
+/**
+ * `angle` (design §2.2): the angle between two arms at a vertex — `at`
+ * (a PointRef), `from`/`to` (a PointRef, resolved like an arrow endpoint, or
+ * a bare direction in degrees), swept counter-clockwise from `from` to `to`
+ * in (0, 360]. Drawables `<id>` (the arc, or the right-angle square when
+ * `right` is true, or the angle is within 0.5° of 90 and `right` is not
+ * false) and `<id>_text` (the label, default the rounded degrees). Anchors
+ * `vertex`, `arc` (the bisector point on the arc). Static at layout.
+ */
+function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const at = resolvePointRef(el.at as PointRef, ctx);
+  if (!at) {
+    ctx.warnings.push(`angle "${el.id}": its vertex does not resolve`);
+    return [];
+  }
+  const dirOf = (arm: unknown): number | null => {
+    if (typeof arm === "number") return arm;
+    const p = resolvePointRef(arm as PointRef, ctx);
+    return p ? (Math.atan2(p[1] - at[1], p[0] - at[0]) * 180) / Math.PI : null;
+  };
+  const a0 = dirOf(el.from);
+  const a1 = dirOf(el.to);
+  if (a0 === null || a1 === null) {
+    ctx.warnings.push(`angle "${el.id}": an arm does not resolve`);
+    return [];
+  }
+  let sweep = (((a1 - a0) % 360) + 360) % 360;
+  if (sweep === 0) sweep = 360;
+  const r = el.radius ?? 40;
+  const style = resolveStyle(el.style);
+  const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });
+  const right = el.right === true || (el.right !== false && Math.abs(sweep - 90) <= 0.5);
+  let pts: Pt[];
+  if (right) {
+    const s = r * 0.6;
+    const d0: Pt = [at[0] + s * Math.cos(a0 * DEG), at[1] + s * Math.sin(a0 * DEG)];
+    const d1: Pt = [at[0] + s * Math.cos((a0 + sweep) * DEG), at[1] + s * Math.sin((a0 + sweep) * DEG)];
+    pts = [d0, [d0[0] + d1[0] - at[0], d0[1] + d1[1] - at[1]], d1];
+  } else {
+    pts = arcPts(at, r, a0, a0 + sweep, Math.max(12, Math.round(sweep / 6)));
+  }
+  const bis = (a0 + sweep / 2) * DEG;
+  const arcPt: Pt = [at[0] + r * Math.cos(bis), at[1] + r * Math.sin(bis)];
+  const out: Drawable[] = [{ id: el.id, kind: "stroke", pts, z: Z_STROKE, style, drawOpts }];
+  const labelText = el.label === false ? null : typeof el.label === "string" ? el.label : `${Math.round(sweep)}°`;
+  if (labelText !== null) {
+    const pos: Pt = [at[0] + (r + 22) * Math.cos(bis), at[1] + (r + 22) * Math.sin(bis)];
+    out.push({ id: `${el.id}_text`, kind: "text", pos, text: labelText, fontSize: 22, anchor: "middle", z: Z_TEXT, style, drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
+  }
+  ctx.anchors[el.id] = arcPt;
+  ctx.namedAnchors[el.id] = { vertex: at, arc: arcPt };
+  return out;
 }
 
 function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {

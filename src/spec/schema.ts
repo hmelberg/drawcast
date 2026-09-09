@@ -101,7 +101,7 @@ const elementSchema = {
       type: "string",
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
-        "sector", "arc", "polygon", "pieces",
+        "sector", "arc", "polygon", "pieces", "angle",
       ],
     },
     // axes
@@ -114,21 +114,37 @@ const elementSchema = {
     expr: { type: "string", description: "curve: explicit function of x over the domain, e.g. \"100 - 0.5*x\". Use instead of direction/curvature when you know the function." },
     x_from: { type: "number", description: "curve/region: start of the x interval (domain units). Defaults to the whole domain." },
     x_to: { type: "number", description: "curve/region: end of the x interval (domain units)." },
-    // point
+    // point / angle
     at: {
-      type: "object",
-      description: "point: location, either x+y in domain units, or intersection_of two curve ids.",
-      properties: {
-        x: { type: "number" },
-        y: { type: "number" },
-        intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
-      },
-      additionalProperties: false,
+      oneOf: [
+        {
+          type: "object",
+          properties: {
+            x: { type: "number" },
+            y: { type: "number" },
+            intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
+            ref: { type: "string" },
+            anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
+          },
+          additionalProperties: false,
+        },
+        { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+      ],
+      description:
+        "point: location — x+y in domain units, or intersection_of two curve ids. angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
     },
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
-    // arrow / edge
-    from: endRefSchema,
-    to: endRefSchema,
+    // arrow / edge / angle
+    from: {
+      oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      description:
+        "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. from: {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}.",
+    },
+    to: {
+      oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      description:
+        "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. to: {\"ref\": \"tri\", \"anchor\": \"vertex_3\"}.",
+    },
     curved: { type: "boolean", description: "arrow/edge: bow the line slightly." },
     // label
     text: { type: "string", description: "label/text/node: the text content." },
@@ -173,7 +189,7 @@ const elementSchema = {
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical y (y-up canvas) — the centre, for the shapes that have one." },
     width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
     height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
-    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces: radius in logical units." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
@@ -188,6 +204,11 @@ const elementSchema = {
         "pieces: how many pieces to cut — e.g. 12 sectors of a circle, 4 strips of a rectangle, or the COLUMNS of a grid (rows in `rows`; n: 1 with rows: 4 gives four horizontal bands). Each becomes its own element <id>_1 … <id>_n that move, arrange and highlight can name; `draw: [\"<id>\"]` draws them all.",
     },
     rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left. At most 256 cells in all." },
+    label: {
+      oneOf: [{ type: "string" }, { type: "boolean" }],
+      description: "angle/measure: the text — angle default the degrees (\"62°\"); false hides it; measure default \"{value}\" e.g. \"b = {value}\".",
+    },
+    right: { type: "boolean", description: "angle: draw the right-angle square (default: automatically when the angle is 90°)." },
     // portrait / source
     of: {
       type: "string",
@@ -1223,6 +1244,12 @@ function elementErrors(el: SpecElement): string[] {
     case "arrow":
     case "edge":
       need(!!el.from && !!el.to, "needs from and to");
+      // from/to is a shared property (angle reuses it for a numeric arm
+      // direction, or a bare [x, y]) — an arrow/edge endpoint stays an
+      // object ({ref, anchor} or {x, y}) so it never collides with sector/
+      // arc's start/end degrees or angle's own arm shorthand.
+      const badEnd = (v: unknown) => v !== undefined && (typeof v !== "object" || Array.isArray(v));
+      need(!badEnd(el.from) && !badEnd(el.to), "from/to must be an endpoint ({ref, anchor} or {x, y}), not a bare number (sector/arc's start/end) or [x, y] (angle's arm)");
       break;
     case "path":
       need(Array.isArray(el.points) && el.points.length >= 2, "needs points (≥ 2)");
@@ -1250,6 +1277,9 @@ function elementErrors(el: SpecElement): string[] {
       if (el.of === "strips" || el.of === "grid") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
       if (el.of === "grid") need(typeof el.rows === "number", "needs rows (n is the columns)");
       need(typeof el.n === "number", "needs n (how many pieces)");
+      break;
+    case "angle":
+      need(el.at !== undefined && el.from !== undefined && el.to !== undefined, "needs at, from and to");
       break;
     case "code":
       // A machine with a program on it and nothing to run (`game`, no code) is
