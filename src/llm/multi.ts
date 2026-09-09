@@ -6,7 +6,7 @@
 import { generateOutline, generateSpec, type GenerateConfig, type GenerationOutcome } from "./compile";
 import { buildPartRequest, type Outline } from "./outline";
 import { generationGate } from "./limit";
-import { authorOnDemand, templateWorthy } from "./on-demand";
+import { authorOnDemand, describeTemplateFor, templateWorthy, type TemplateBrief } from "./on-demand";
 import { createOnDemandRun, type OnDemandRun } from "./on-demand-run";
 import type { Spec } from "../spec/types";
 
@@ -41,13 +41,32 @@ export interface PartsHooks {
 }
 
 /**
- * Template on demand across the parts (cfg.templatesOnDemand): after the
- * parallel pass, every part the compiler drew freehand with named parts
- * (templateWorthy — whatever the router said) is handled IN ORDER — first re-routed, because a template
- * authored earlier in the RUN (by this lecture or a parallel one) may now fit
- * (then it is simply regenerated with the router's shortlist); otherwise a
- * template is authored for it and it is redrawn, if the run's cap allows —
- * past the cap it stays freehand and the run counts it.
+ * Ids two or more freehand parts' on-demand briefs agree on (llm/on-demand.ts
+ * describeTemplateFor). One freehand part naming an id proves nothing — the
+ * model might invent any snake_case label for a one-off figure; TWO parts
+ * landing on the same id is the run's own evidence that they are the same
+ * kind of figure, worth a template.
+ */
+export function sharedBriefIds(briefs: (TemplateBrief | null)[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const b of briefs) if (b) counts.set(b.id, (counts.get(b.id) ?? 0) + 1);
+  const shared = new Set<string>();
+  for (const [id, n] of counts) if (n >= 2) shared.add(id);
+  return shared;
+}
+
+/**
+ * Template on demand across the parts (cfg.templatesOnDemand): a lone
+ * freehand part with named parts (templateWorthy — whatever the router said)
+ * stays freehand, exactly like the single-figure path (spec §5.5) — courses
+ * author automatically only when the on-demand brief step (describeTemplateFor)
+ * lands two or more parts on the SAME template id, i.e. a course whose
+ * lecture(s) draw the same kind of figure more than once. Every part that
+ * clears that bar is then handled IN ORDER — first re-routed, because a
+ * template authored earlier in the RUN (by this lecture or a parallel one)
+ * may now fit (then it is simply regenerated with the router's shortlist);
+ * otherwise a template is authored for it and it is redrawn, if the run's cap
+ * allows — past the cap it stays freehand and the run counts it.
  *
  * The run object (on-demand-run.ts) is what makes this hold across a course:
  * its lock authors one template at a time for the WHOLE run, so the next
@@ -71,14 +90,35 @@ async function authorTemplatesForParts(
     const doc = spec?.template ? run.docs.get(spec.template) : undefined;
     if (spec && doc) spec.templates = [doc];
   };
-  for (let i = 0; i < outcomes.length; i++) {
+
+  // Freehand with named parts is the trigger, not the router's verdict
+  // (on-demand.ts templateWorthy) — but a single such part, here as in the
+  // single-figure path, stays freehand: spec §5.5.
+  const worthy = outcomes.map((o, i) => (o.spec && templateWorthy(o.spec) ? i : -1)).filter((i) => i >= 0);
+  if (worthy.length < 2 || cfg.signal?.aborted) return;
+
+  const describe = cfg.describe ?? describeTemplateFor;
+  const briefs = new Map<number, TemplateBrief | null>();
+  await Promise.all(
+    worthy.map(async (i) => {
+      const request = buildPartRequest(req.request, plan, i, req.brief);
+      const { brief } = await describe(request, outcomes[i].spec as Spec, { apiKey: cfg.apiKey, model: cfg.model, signal: cfg.signal }).catch(
+        () => ({ brief: null }) as { brief: TemplateBrief | null },
+      );
+      briefs.set(i, brief);
+    }),
+  );
+  const shared = sharedBriefIds(worthy.map((i) => briefs.get(i) ?? null));
+
+  for (const i of worthy) {
     if (cfg.signal?.aborted) return;
     const o = outcomes[i];
-    // Freehand with named parts is the trigger, not the router's verdict (on-demand.ts templateWorthy).
-    if (!o.spec || !templateWorthy(o.spec)) continue;
+    const brief = briefs.get(i) ?? null;
+    if (!o.spec || !brief || !shared.has(brief.id)) continue;
     const request = buildPartRequest(req.request, plan, i, req.brief);
     const label = `part ${i + 1}`;
     const freehand = o.spec;
+    hooks.onPhase?.(`${label}: shares a subject with another part — authoring`);
 
     // Inside the lock: is there now a template for this part, and if not, may
     // one be authored? Returns the id to redraw with when the router found one.
@@ -100,6 +140,10 @@ async function authorTemplatesForParts(
         model: cfg.model,
         effort: cfg.effort,
         signal: cfg.signal,
+        // OnDemandConfig has no seam for a precomputed brief — it writes its
+        // own (cheap, and the model's response cache makes the repeat cost
+        // negligible) — only the describe SEAM carries over, for tests.
+        describe: cfg.describe,
         onProgress: ({ phase, round }) => hooks.onPhase?.(`${label}: ${phase === "brief" ? "writing the brief" : phase === "author" ? (round > 1 ? `authoring, repair ${round - 1}` : "authoring a template") : "redrawing with the new template"}`),
         generate: (r2, forced) => generateSpec(r2, { ...cfg, forcedTemplate: forced, route: undefined }),
       });

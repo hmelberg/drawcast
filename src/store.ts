@@ -71,7 +71,7 @@ export interface Settings {
   model: string;
   /** Effort for the creative rounds (generate, revise, author): thinking depth and token spend. Repairs always run low. */
   effort: "low" | "medium" | "high";
-  /** Template on demand without asking: a single figure the router found nothing for is authored a template and redrawn at once; in a multi-part drawcast or a course every such part is, one after another. Off = the single-figure OFFER only. */
+  /** Template on demand without asking, for COURSE (and other multi-part) runs: when two or more freehand parts turn out to be the same kind of figure (their on-demand briefs agree), a template is authored and they are redrawn with it, one after another. A single freehand figure — in a course or standalone — always gets the OFFER instead; this setting never applies to it (spec §5.5). */
   templatesOnDemand: boolean;
   /** At most this many templates are authored in ONE multi-part drawcast or course run (0 = none there; a single figure is unaffected). Bounds time (~4 min each) and spend. */
   templatesOnDemandMax: number;

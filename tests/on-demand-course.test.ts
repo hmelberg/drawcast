@@ -14,9 +14,10 @@ vi.mock("../src/llm/on-demand", async (importOriginal) => {
 });
 
 import { generateSpec, type GenerateConfig, type GenerationOutcome } from "../src/llm/compile";
-import { authorOnDemand } from "../src/llm/on-demand";
+import { authorOnDemand, type TemplateBrief } from "../src/llm/on-demand";
 import { generateFromOutline } from "../src/llm/multi";
 import { createOnDemandRun, type OnDemandRun } from "../src/llm/on-demand-run";
+import type { JsonCallMeta } from "../src/llm/client";
 import type { Outline } from "../src/llm/outline";
 import type { TemplateDoc } from "../src/scenes/doc";
 import type { Spec } from "../src/spec/types";
@@ -24,6 +25,21 @@ import type { Spec } from "../src/spec/types";
 const mockGenerate = vi.mocked(generateSpec);
 const mockAuthor = vi.mocked(authorOnDemand);
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const BRIEF_META: JsonCallMeta = { ms: 1, structuredOutput: true };
+/** The seam authorTemplatesForParts reads (GenerateConfig.describe) instead
+ *  of the real describeTemplateFor, which would otherwise hit the network —
+ *  every worthy part lands on the SAME id, the run's evidence that they are
+ *  the same kind of figure (llm/multi.ts sharedBriefIds). */
+const describeSame = async (): Promise<{ brief: TemplateBrief | null; meta: JsonCallMeta }> => ({
+  brief: { id: "boat_anatomy", description: "A boat, in cross-section, with labelled parts." },
+  meta: BRIEF_META,
+});
+/** Two worthy parts whose briefs never agree — sharedBriefIds finds nothing, so neither is authored. */
+function describeDistinct(): () => Promise<{ brief: TemplateBrief | null; meta: JsonCallMeta }> {
+  let n = 0;
+  return async () => ({ brief: { id: n++ === 0 ? "sewing_machine" : "violin", description: "x".repeat(40) }, meta: BRIEF_META });
+}
 
 const DOC: TemplateDoc = {
   template: "boat_anatomy", version: 1, kit: 1, status: "ready", description: "A boat.",
@@ -83,6 +99,7 @@ function cfg(run: OnDemandRun | undefined, extra: Partial<GenerateConfig> = {}):
     // The router sees the live registry: once anything was authored in this
     // run it offers it; before that, nothing fits.
     route: async () => (run && run.authored > 0 ? { ids: ["boat_anatomy"], noneFits: false, subject: "" } : { ids: [], noneFits: true, subject: "" }),
+    describe: describeSame,
     ...extra,
   };
 }
@@ -93,7 +110,7 @@ beforeEach(() => {
 });
 
 describe("one template for the whole course", () => {
-  it("two parallel lectures needing the same figure author ONCE; the second is re-routed and embeds the shared document", async () => {
+  it("two parallel lectures each with two shared-subject parts author ONCE; the rest are re-routed and embed the shared document", async () => {
     const run = createOnDemandRun(3);
     // The parallel pass draws freehand; a redraw after the template exists uses it.
     mockGenerate.mockImplementation(async () => (run.authored > 0 ? templated() : freehand()));
@@ -101,30 +118,49 @@ describe("one template for the whole course", () => {
     const authored: string[] = [];
     const c = cfg(run, { onTemplateAuthored: (t) => authored.push(t.id) });
 
-    const [a, b] = await Promise.all([generateFromOutline(req, plan(1), c), generateFromOutline(req, plan(1), c)]);
+    // Each lecture has two parts of its own (plan(2)) — the sharing that
+    // triggers authoring is the on-demand brief agreeing across parts, here
+    // both within a lecture and across the two parallel ones.
+    const [a, b] = await Promise.all([generateFromOutline(req, plan(2), c), generateFromOutline(req, plan(2), c)]);
 
     expect(mockAuthor).toHaveBeenCalledTimes(1);
     expect(authored).toEqual(["boat_anatomy"]);
     expect(run.authored).toBe(1);
     expect(run.skipped).toBe(0);
-    expect(a.specs[0].template).toBe("boat_anatomy");
-    expect(b.specs[0].template).toBe("boat_anatomy");
-    // Both parts carry the document — the re-routed one from the shared docs.
-    expect(a.specs[0].templates).toEqual([DOC]);
-    expect(b.specs[0].templates).toEqual([DOC]);
-    // Two freehand drawings, one redraw.
-    expect(mockGenerate).toHaveBeenCalledTimes(3);
+    expect(a.specs.every((s) => s.template === "boat_anatomy")).toBe(true);
+    expect(b.specs.every((s) => s.template === "boat_anatomy")).toBe(true);
+    // Every part carries the document — authored or re-routed, from the shared docs.
+    expect(a.specs.every((s) => s.templates?.[0] === DOC)).toBe(true);
+    expect(b.specs.every((s) => s.templates?.[0] === DOC)).toBe(true);
+    // Four freehand drawings (2 parts x 2 lectures), three redraws (everything but the one authored part).
+    expect(mockGenerate).toHaveBeenCalledTimes(7);
   });
 });
 
-describe("the trigger is freehand with named parts, not the router's verdict", () => {
-  it("a freehand part with parts is handled even though the router OFFERED a template the compiler declined", async () => {
+describe("the trigger is freehand with named parts sharing a subject, not the router's verdict", () => {
+  it("two templateWorthy parts are handled even though the router OFFERED a template the compiler declined", async () => {
     const run = createOnDemandRun(3);
-    mockGenerate.mockImplementation(async () => freehand({ ids: ["violin_anatomy"], noneFits: false }));
+    mockGenerate.mockImplementation(async () => (run.authored > 0 ? templated() : freehand({ ids: ["violin_anatomy"], noneFits: false })));
+    authorLikeReal();
+    const r = await generateFromOutline(req, plan(2), cfg(run));
+    expect(mockAuthor).toHaveBeenCalledTimes(1);
+    expect(r.specs.every((s) => s.template === "boat_anatomy")).toBe(true);
+  });
+  it("two templateWorthy parts whose briefs land on DIFFERENT ids are never authored (spec §5.5 — sharing, not mere worthiness, triggers it)", async () => {
+    const run = createOnDemandRun(3);
+    mockGenerate.mockImplementation(async () => freehand());
+    authorLikeReal();
+    const r = await generateFromOutline(req, plan(2), cfg(run, { describe: describeDistinct() }));
+    expect(mockAuthor).not.toHaveBeenCalled();
+    expect(r.specs.every((s) => !s.template)).toBe(true);
+  });
+  it("a single templateWorthy part is left freehand — a lone freehand figure never auto-authors (spec §5.5)", async () => {
+    const run = createOnDemandRun(3);
+    mockGenerate.mockImplementation(async () => freehand());
     authorLikeReal();
     const r = await generateFromOutline(req, plan(1), cfg(run));
-    expect(mockAuthor).toHaveBeenCalledTimes(1);
-    expect(r.specs[0].template).toBe("boat_anatomy");
+    expect(mockAuthor).not.toHaveBeenCalled();
+    expect(r.specs[0].template).toBeUndefined();
   });
   it("a freehand part WITHOUT named parts is left alone even though the router said none fits", async () => {
     const run = createOnDemandRun(3);

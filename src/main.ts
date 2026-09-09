@@ -612,9 +612,10 @@ const effortSel = h(
 );
 effortSel.value = settings.effort;
 // Template on demand without asking (Hans, 2026-09-07): decided BEFORE
-// Generate so a course never stops to ask part by part. Off = the single-
-// figure offer only.
-const templatesOnDemandBox = h("input", { type: "checkbox", title: "When a figure with named parts is drawn freehand (no template fit it), author a template and redraw at once — in a multi-part drawcast or a course, for every such part in turn (~4 min each). Off: single figures get an offer instead." }) as HTMLInputElement;
+// Generate so a course never stops to ask part by part. Applies to course
+// (and other multi-part) runs only — a single freehand figure always gets
+// the offer instead (spec §5.5).
+const templatesOnDemandBox = h("input", { type: "checkbox", title: "In a course or other multi-part run, when two or more freehand parts (no template fit them) turn out to be the same kind of figure, author a template and redraw them at once (~4 min each). A single freehand figure always gets an offer instead." }) as HTMLInputElement;
 templatesOnDemandBox.checked = settings.templatesOnDemand;
 // The cap (Hans, 2026-09-08): a course with many template-less figures must
 // not run for an hour — at most this many templates per multi-part run or
@@ -626,7 +627,7 @@ const templatesOnDemandMaxInput = h("input", {
   max: "20",
   step: "1",
   "aria-label": "Templates authored per run, at most",
-  title: "At most this many templates are authored in one multi-part drawcast or course run (~4 min and a few dollars each). A template authored for one figure is reused by the rest of the run. 0 = none in courses; a single figure is unaffected.",
+  title: "At most this many templates are authored in one multi-part drawcast or course run (~4 min and a few dollars each), for parts that turn out to share a subject. A template authored for one figure is reused by the rest of the run. 0 = none there; a single figure is unaffected.",
 }) as HTMLInputElement;
 templatesOnDemandMaxInput.value = String(settings.templatesOnDemandMax);
 
@@ -3114,13 +3115,6 @@ async function generate(): Promise<void> {
   const priorityIds = settings.priorityPacks.flatMap((p) => packTemplateIds(p));
   const controller = new AbortController();
   setAiBusy(true, controller);
-  // Template on demand, automatic: decided inside the try, RUN after the
-  // finally below has released the busy flag. authorTemplateAndRedraw is its
-  // own AI span (own controller, own Cancel) and refuses to start while a
-  // call is marked busy — awaited from inside this try it refused every time
-  // ("An AI call is still running — wait for it to finish before authoring a
-  // template", Hans 2026-09-09), so the automatic path never ran.
-  let authorNext: (() => Promise<void>) | null = null;
   try {
     if (parsed.playlist) {
       await generateMulti(rawRequest, parsed, brief, apiKey, forcedTemplate, priorityIds, controller.signal);
@@ -3179,20 +3173,17 @@ async function generate(): Promise<void> {
     lastLogId = logId; // after setDoc, so the rating stars target this generation
     // Template on demand: the figure is freehand and names its parts —
     // whatever the router said (it offered the violin for a Norwegian sewing
-    // machine; the compiler, shown the violin in full, rightly declined).
-    // With the option on (decided before Generate), author a template and
-    // redraw at once; otherwise offer — it costs four minutes and a few
-    // dollars' worth of tokens, and the freehand drawing may already be
-    // what was wanted.
+    // machine; the compiler, shown the violin in full, rightly declined). A
+    // single freehand figure never authors automatically (spec §5.5 — that
+    // requires a second freehand part landing on the same on-demand brief,
+    // which only a multi-part or course run can have); it always OFFERS —
+    // it costs four minutes and a few dollars' worth of tokens, and the
+    // freehand drawing may already be what was wanted.
     if (templateWorthy(outcome.spec)) {
       const freehand = outcome.spec;
-      if (settings.templatesOnDemand) {
-        authorNext = () => authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
-      } else {
-        setStatusAction("No scene template draws this figure, so it was drawn freehand.", "Author a template and redraw (~4 min)", () => {
-          void authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
-        });
-      }
+      setStatusAction("No scene template draws this figure, so it was drawn freehand.", "Author a template and redraw (~4 min)", () => {
+        void authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
+      });
     }
   } finally {
     // Unconditional, in this order: an early return above (or a throw) must not
@@ -3201,8 +3192,6 @@ async function generate(): Promise<void> {
     endSpecStream(true);
     setAiBusy(false);
   }
-  // The freehand result is on screen and in history; authoring starts as its own span.
-  if (authorNext) await authorNext();
 }
 
 /**

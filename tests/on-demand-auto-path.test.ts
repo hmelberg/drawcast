@@ -1,9 +1,8 @@
-// The automatic template-on-demand path in the editor (checkbox on) must run
-// AFTER generate() has released its busy flag: authorTemplateAndRedraw guards
-// itself with blockedByAi, so awaited from inside generate()'s try it refused
-// every time — "An AI call is still running — wait for it to finish before
-// authoring a template" (Hans, 2026-09-09) — and the automatic path never
-// ran. No DOM in vitest, so this pins the SOURCE: the order of the two calls.
+// A single freehand figure never starts automatic template authoring — it
+// only ever OFFERS (spec §5.5, freehand round Task 9): the checkbox that
+// used to run authoring automatically now applies to course/multi-part runs
+// only (llm/multi.ts authorTemplatesForParts), never to the single-figure
+// trigger in generate(). No DOM in vitest, so this pins the SOURCE.
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
@@ -15,17 +14,20 @@ async function generateBody(): Promise<string> {
   return src.slice(start, end);
 }
 
-describe("the automatic authoring runs after generate() is no longer busy", () => {
-  it("generate() never awaits authorTemplateAndRedraw inside its busy span", async () => {
+describe("the single-figure trigger always offers, never auto-authors", () => {
+  it("generate() never calls authorTemplateAndRedraw except from the offer's own click handler", async () => {
     const body = await generateBody();
     expect(body).not.toMatch(/await authorTemplateAndRedraw\(/);
+    // The one call left is inside the button's click callback (void, not awaited by generate()).
+    expect(body).toMatch(/void authorTemplateAndRedraw\(/);
   });
-  it("the deferred call comes after the finally that clears the busy flag", async () => {
+  it("the templateWorthy block no longer branches on settings.templatesOnDemand", async () => {
     const body = await generateBody();
-    const release = body.lastIndexOf("setAiBusy(false)");
-    const run = body.indexOf("if (authorNext) await authorNext()");
-    expect(release).toBeGreaterThan(0);
-    expect(run).toBeGreaterThan(release);
+    const at = body.indexOf("templateWorthy(outcome.spec)");
+    expect(at).toBeGreaterThan(0);
+    const block = body.slice(at, at + 600);
+    expect(block).not.toMatch(/settings\.templatesOnDemand/);
+    expect(block).toContain("setStatusAction(");
   });
   it("authorTemplateAndRedraw keeps its own guard — the offer clicked mid-call must still be refused", async () => {
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");

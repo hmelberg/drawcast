@@ -10,6 +10,7 @@ import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import type { RouteResult } from "./router";
 import type { OnDemandRun } from "./on-demand-run";
+import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForTemplate } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
@@ -145,12 +146,15 @@ export interface GenerateConfig {
   /**
    * Multi-part generation only (llm/multi.ts): after the parts land, every
    * part the compiler drew freehand with named parts (on-demand.ts
-   * templateWorthy — whatever the router said) gets a template authored and
-   * is redrawn with it, one part after another, each new template in the
-   * registry before the next part is looked at. Read nowhere in generateSpec
-   * itself; the single-figure path OFFERS instead.
+   * templateWorthy — whatever the router said) that SHARES its on-demand
+   * brief's template id with another such part gets a template authored and
+   * is redrawn with it (spec §5.5 — a lone freehand part, in a run of one or
+   * of many, stays freehand and is never auto-authored). Read nowhere in
+   * generateSpec itself; the single-figure path OFFERS instead, always.
    */
   templatesOnDemand?: boolean;
+  /** Test seam for llm/multi.ts's per-part brief step (on-demand.ts describeTemplateFor by default). */
+  describe?: typeof describeTemplateFor;
   /** The app's hook to keep a template authored on demand (My templates + panels). */
   onTemplateAuthored?: (t: { id: string; yaml: string; doc: TemplateDoc }) => void;
   /** Cap on templates authored in one multi-part run (Settings; default DEFAULT_ON_DEMAND_MAX, 0 = none). Read only when no onDemandRun is given. */
