@@ -21,7 +21,9 @@ describe("measure geometry", () => {
     expect(measureValue("width", { ring: sq })).toBe(100);
     expect(measureValue("area", { a: [0, 0] })).toBeNull();
     expect(formatMeasure(10000, { label: "{value}", scale: 1 })).toBe("10000");
-    expect(formatMeasure(50, { label: "b = {value}", scale: 1 })).toBe("b = 50.0");
+    expect(formatMeasure(50, { label: "b = {value}", scale: 1 })).toBe("b = 50");
+    expect(formatMeasure(12.5, { label: "{value}", scale: 1 })).toBe("12.5");
+    expect(formatMeasure(60, { label: "{value}", scale: 1, decimals: 1 })).toBe("60.0");
     expect(formatMeasure(250, { label: "{value}", scale: 100, unit: "cm", decimals: 1 })).toBe("2.5 cm");
   });
   test("dimensionLine offsets to the left of a→b, with ticks and the text further out", () => {
@@ -59,7 +61,7 @@ describe("measure element (design §2.3)", () => {
       { id: "p", type: "measure", of: "sq", what: "perimeter" },
       { id: "l", type: "measure", of: "arr", decimals: 2 }]), heuristicMeasure);
     expect(out.warnings).toEqual([]);
-    expect(textOf(out, "label_w")).toBe("2.0 cm");
+    expect(textOf(out, "label_w")).toBe("2 cm");
     expect(textOf(out, "label_p")).toBe("400");
     expect(textOf(out, "label_l")).toBe("100.00");
     expect(out.measures.l.what).toBe("length");

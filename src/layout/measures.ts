@@ -71,7 +71,10 @@ export function measureValue(what: MeasureWhat, g: { a?: Pt; b?: Pt; ring?: Pt[]
 export function formatMeasure(value: number, f: MeasureFormat): string {
   const v = value / (f.scale || 1);
   const decimals = f.decimals ?? (Math.abs(v) >= 100 ? 0 : 1);
-  const text = f.label.includes("{value}") ? f.label.replace("{value}", v.toFixed(decimals)) : `${f.label}${v.toFixed(decimals)}`;
+  // Defaulted decimals drop a trailing ".0" — 60 beside 540, not 60.0 — while
+  // 12.5 keeps its half; an explicit `decimals` is kept as written.
+  const num = f.decimals === undefined ? v.toFixed(decimals).replace(/\.0$/, "") : v.toFixed(decimals);
+  const text = f.label.includes("{value}") ? f.label.replace("{value}", num) : `${f.label}${num}`;
   return f.unit ? `${text} ${f.unit}` : text;
 }
 
