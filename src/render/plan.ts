@@ -10,7 +10,7 @@ import type { CodeWindow } from "../layout/code";
 import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
-import type { Command, Easing, EndRef, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
+import type { Command, Easing, EndRef, GhostOption, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
@@ -20,7 +20,8 @@ import type { PieceGeometry } from "../layout/tier2";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/anchors";
 import { morphPair, stretchPts } from "./morph";
 import { pathPosition } from "./effects";
-import { cumulativeLengthFractions, type TrailSpec } from "./trails";
+import { cumulativeLengthFractions } from "./trails";
+import type { GhostSpec, MintedSpec } from "./minted";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -202,8 +203,9 @@ export interface Plan {
   /** Label name → step index (the label step itself). Gotos resolve here. */
   labels: Record<string, number>;
   warnings: string[];
-  /** Trails the moves minted (design §2.5): render() appends them to every layout it mounts. */
-  trails: TrailSpec[];
+  /** Elements minted at plan time — trails (design §2.5) and ghosts (design
+   *  §2.1, round 3): render() appends them to every layout it mounts. */
+  minted: MintedSpec[];
 }
 
 export interface PlanOptions {
@@ -246,12 +248,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const states: SceneState[] = [];
   const warnings: string[] = [];
   const labels: Record<string, number> = {};
-  /** Trails minted by move.trail (design §2.5), returned on the Plan. */
-  const trails: TrailSpec[] = [];
-  /** A minted trail's box, in its own current (already-posed) coordinates — boxOf checks this first. */
-  const trailBoxes = new Map<string, BBox>();
+  /** Trails (move.trail, design §2.5) and ghosts (keep/ghost, design §2.1
+   *  round 3) minted at plan time, returned on the Plan. */
+  const minted: MintedSpec[] = [];
+  /** A minted element's box, in its own current (already-posed) coordinates —
+   *  boxOf checks this first. At mint time a minted id carries no offset or
+   *  turn of its own, so currentBox is a no-op on it right then and this box,
+   *  recorded once in CURRENT coordinates, is exactly where it sits (a LATER
+   *  move/arrange/etc targeting the minted id by its own id composes on top,
+   *  same as an already-minted trail can be arranged — trail.test.ts). */
+  const mintedBoxes = new Map<string, BBox>();
   /** How many trails a given target has already left — the `_2`, `_3` … suffix. */
   const trailCount = new Map<string, number>();
+  /** How many ghosts a given target has already left — the `_2`, `_3` … suffix. */
+  const ghostCount = new Map<string, number>();
   /** Ask store → default, in command order — the fallback for "{var}" animate targets. */
   const storeDefaults: Record<string, string> = {};
   /** Ids whose visibility the spec manages explicitly — excluded from the implicit final draw. */
@@ -353,9 +363,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
-  /** The layout box of an id: a minted trail's own box first, else — once it has morphed — the box of its current points, else the layout box. */
+  /** The layout box of an id: a minted element's own box first, else — once it has morphed — the box of its current points, else the layout box. */
   const boxOf = (id: string): BBox | null => {
-    const t = trailBoxes.get(id);
+    const t = mintedBoxes.get(id);
     if (t) return t;
     const s = shapes[id];
     if (s) {
@@ -438,6 +448,36 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return anchorNow(id, r.anchor ?? "center", verb);
   };
 
+  /** Mint a faded copy of each id where it is NOW (design §2.1 round 3): known, mentioned, boxed and visible at once. Returns the ghost ids. */
+  const mintGhosts = (ids: string[], opacity: number, params: Record<string, number> = {}): string[] => {
+    const out: string[] = [];
+    for (const id of ids) {
+      const box = currentBox(id);
+      if (!box) {
+        warnings.push(`ghost of "${id}": no geometry (skipped)`);
+        continue;
+      }
+      const n = (ghostCount.get(id) ?? 0) + 1;
+      ghostCount.set(id, n);
+      const ghostId = n === 1 ? `${id}_ghost` : `${id}_ghost_${n}`;
+      const g: GhostSpec = { kind: "ghost", id: ghostId, sourceId: id, offset: offsets[id] ?? [0, 0], turn: turns[id], shapes: shapes[id], opacity, params };
+      minted.push(g);
+      mintedBoxes.set(ghostId, box);
+      known.add(ghostId);
+      mentioned.add(ghostId);
+      makeVisible([ghostId]);
+      out.push(ghostId);
+    }
+    return out;
+  };
+  /** The ghost option of a verb, resolved against its targets: which ids, at what opacity. */
+  const ghostIdsFor = (opt: GhostOption | undefined, targets: string[]): { ids: string[]; opacity: number } | null => {
+    if (opt === undefined || opt === false) return null;
+    if (opt === true) return { ids: targets, opacity: 0.3 };
+    if (Array.isArray(opt)) return { ids: resolveIds(opt, "ghost"), opacity: 0.3 };
+    return { ids: opt.of ? resolveIds(opt.of, "ghost") : targets, opacity: opt.opacity ?? 0.3 };
+  };
+
   const IDENTITY: Turn = { deg: 0, pivot: [0, 0] };
   /** Followers ride their target's pose change: each is moved by where its own
    *  box centre goes under the target's new pose minus where it was under the
@@ -473,7 +513,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return out;
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -719,6 +759,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (!hasPath && !hasBy && !hasTo && !hasRotate && !hasScale) warnings.push("move command needs one of by, to, path, rotate or scale — skipped");
         continue;
       }
+      // Minted BEFORE either half below changes offsets/turns/shapes — a
+      // ghost of where the targets are RIGHT NOW, ahead of this move.
+      const ghosts = ghostIdsFor(cmd.move.ghost, ids);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
       const seconds = cmd.move.duration ?? 1;
       const easing = cmd.move.easing ?? "ease-in-out";
       const trailOpt = cmd.move.trail === true ? {} : cmd.move.trail || null;
@@ -740,9 +784,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const n = (trailCount.get(of) ?? 0) + 1;
         trailCount.set(of, n);
         const trailId = n === 1 ? `${of}_trail` : `${of}_trail_${n}`;
-        trails.push({ id: trailId, pts, color: trailOpt.color, width: trailOpt.width ?? 2.5 });
+        minted.push({ kind: "trail", id: trailId, pts, color: trailOpt.color, width: trailOpt.width ?? 2.5 });
         const b = ptsBox(pts);
-        if (b) trailBoxes.set(trailId, b);
+        if (b) mintedBoxes.set(trailId, b);
         known.add(trailId);
         mentioned.add(trailId);
         makeVisible([trailId]);
@@ -845,6 +889,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.arrange !== undefined) {
       const ids = resolveIds(cmd.arrange.target, "arrange");
       if (ids.length === 0) continue;
+      const ghosts = ghostIdsFor(cmd.arrange.ghost, ids);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
       const inputs: ArrangeInput[] = [];
       for (const id of ids) {
         const box = currentBox(id);
@@ -897,6 +943,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.flip !== undefined) {
       const ids = resolveIds(cmd.flip.target, "flip");
       if (ids.length === 0) continue;
+      const ghosts = ghostIdsFor(cmd.flip.ghost, ids);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
       const line = cmd.flip.line ? { from: resolvePoint(cmd.flip.line.from, undefined, "flip"), to: resolvePoint(cmd.flip.line.to, undefined, "flip") } : null;
       // A named line that does not resolve, or that has no length, used to fall
       // back to the axis default — a silent horizontal mirror about a point the
@@ -948,6 +996,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.morph !== undefined) {
       const ids = resolveIds(cmd.morph.target, "morph");
       if (ids.length === 0) continue;
+      const ghosts = ghostIdsFor(cmd.morph.ghost, ids);
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity);
       const modes = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true].filter(Boolean).length;
       if (modes !== 1) {
         warnings.push("morph needs exactly one of to, stretch or reset — skipped");
@@ -1028,6 +1078,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         reverse: cmd.flow.reverse === true,
         ...(cmd.flow.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
+    } else if (cmd.keep !== undefined) {
+      const ids = resolveIds(cmd.keep.target, "keep");
+      if (ids.length === 0) continue;
+      const ghostIds = mintGhosts(ids, cmd.keep.opacity ?? 0.3, { ...params });
+      if (ghostIds.length === 0) continue;
+      pushStep({ kind: "show", ids: ghostIds });
     } else if (cmd.fade !== undefined) {
       const ids = resolveIds(cmd.fade.target, "fade");
       if (ids.length === 0) continue;
@@ -1125,6 +1181,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         starts[key] = start;
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
+      // Ghost the visible figure at THIS boundary — the params BEFORE this
+      // animate updates them — excluding ghosts already on screen.
+      const ghosts = ghostIdsFor(
+        cmd.ghost,
+        visible.filter((id) => !id.endsWith("_ghost") && !/_ghost_\d+$/.test(id)),
+      );
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, { ...params });
       params = { ...params, ...targets };
       pushStep({
         kind: "animate",
@@ -1211,5 +1274,5 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, labels, warnings, trails };
+  return { steps, states, labels, warnings, minted };
 }

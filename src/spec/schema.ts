@@ -79,6 +79,16 @@ const pointRefSchema = (what: string) => ({
   description: `${what} — [x, y] (domain units when a domain is declared, else logical), or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
 });
 
+/** A verb's ghost option: true (every target), a list of ids, or {of, opacity}. */
+const ghostSchema = (what: string) => ({
+  oneOf: [
+    { type: "boolean" },
+    { type: "array", items: { type: "string" } },
+    { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
+  ],
+  description: `${what} — KEEP a faded copy of the original where it is while this plays: true keeps every target at 0.3, ["id", …] keeps those, {"of": […], "opacity": 0.2} sets the shade. The copy is an element <id>_ghost you can erase or fade later. Default: nothing is kept.`,
+});
+
 const elementSchema = {
   type: "object",
   description:
@@ -308,7 +318,7 @@ const idListSchema = (description: string) => ({
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / flow / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / flow / keep / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -550,6 +560,7 @@ const commandSchema = {
           ],
           description: "Leave the TRACK of the motion as a new element <id>_trail (the locus): true traces the first target's centre; {\"of\": \"dot\", \"anchor\": \"bottom\"} traces that target's anchor — a point on a rolling wheel draws the cycloid, a planet its orbit. Fade, erase or highlight the trail afterwards by its id.",
         },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target"],
       additionalProperties: false,
@@ -571,6 +582,7 @@ const commandSchema = {
         columns: { type: "integer", minimum: 1, description: "grid: pieces per row — e.g. \"columns\": 4 lays twelve pieces out four wide." },
         duration: { type: "number", description: "Seconds (default 2)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target", "layout"],
       additionalProperties: false,
@@ -605,6 +617,7 @@ const commandSchema = {
         },
         duration: { type: "number", description: "Seconds (default 1.2)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target"],
       additionalProperties: false,
@@ -627,6 +640,7 @@ const commandSchema = {
         reset: { type: "boolean", description: "Back to the layout's own points." },
         duration: { type: "number", description: "Seconds (default 1.5)." },
         easing: { type: "string", enum: ["linear", "ease-in", "ease-out", "ease-in-out"], description: "Velocity profile (default ease-in-out)." },
+        ghost: ghostSchema("Ghost of the targets before they move"),
       },
       required: ["target"],
       additionalProperties: false,
@@ -645,6 +659,17 @@ const commandSchema = {
         reverse: { type: "boolean", description: "Stream from the stroke's end to its start." },
       },
       required: ["along"],
+      additionalProperties: false,
+    },
+    keep: {
+      type: "object",
+      description:
+        "Keep a faded copy of elements where they are NOW, as elements <id>_ghost — the original stays on screen while its pieces move away: {\"keep\": {\"target\": \"kake\"}, \"speak\": \"Keep the circle in mind while the slices move.\"} before an arrange or a morph. Default opacity 0.3.",
+      properties: {
+        target: idListSchema("Element ids, or one pieces id."),
+        opacity: { type: "number", minimum: 0, maximum: 1, description: "Shade of the kept copy (default 0.3) — e.g. 0.5 for a stronger ghost." },
+      },
+      required: ["target"],
       additionalProperties: false,
     },
     camera: {
@@ -670,6 +695,7 @@ const commandSchema = {
       enum: ["linear", "ease-in", "ease-out", "ease-in-out"],
       description: "With animate: velocity profile over the whole tween (default: today's smoothstep). A long race (many seconds) reads better as \"linear\" — constant speed — than the default's ease in/out, which blurs the middle and crawls at the ends.",
     },
+    ghost: ghostSchema("With animate: ghost of the figure at this boundary"),
     play: {
       description:
         'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass) — or a whole tune as {"abc": "K:C\\nC D E F|…"} in ABC notation. ONLY for figures genuinely about sound or music.',
@@ -870,6 +896,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (cmd.morph) cmd.morph.target = toList(cmd.morph.target)!;
     // flow's along follows the same one-or-many convention as morph's target.
     if (cmd.flow) cmd.flow.along = toList(cmd.flow.along)!;
+    // keep's target follows the same one-or-many convention as the motion verbs.
+    if (cmd.keep) cmd.keep.target = toList(cmd.keep.target)!;
     if (cmd.press !== undefined) cmd.press = toList(cmd.press);
     if (cmd.reveal !== undefined) cmd.reveal = toList(cmd.reveal);
   }
@@ -909,7 +937,7 @@ function semanticErrors(spec: Spec): string[] {
     errors.push("spec has neither a template nor any elements — nothing to draw");
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

@@ -215,6 +215,9 @@ export interface PointArgs {
   duration?: number;
 }
 
+/** Keep a faded copy of the targets where they are now — true, a list of ids, or {of, opacity}. */
+export type GhostOption = boolean | string[] | { of?: string[]; opacity?: number };
+
 export interface MoveArgs {
   target: string[] | string;
   /** [dx, dy] delta — domain units when a domain is declared, else logical. */
@@ -241,6 +244,8 @@ export interface MoveArgs {
   easing?: Easing;
   /** Leave the track of one target's anchor as an element `<id>_trail` — e.g. `true` traces the first target's centre, `{"of": "wheel", "anchor": "bottom"}` traces that point (a rolling wheel's bottom draws the cycloid). */
   trail?: boolean | { of?: string; anchor?: string; color?: string; width?: number };
+  /** Keep a faded copy of the targets where they are BEFORE this move. */
+  ghost?: GhostOption;
 }
 
 export interface ArrangeArgs {
@@ -258,6 +263,8 @@ export interface ArrangeArgs {
   /** seconds (default 2) */
   duration?: number;
   easing?: Easing;
+  /** Keep a faded copy of the targets where they are BEFORE this arrange. */
+  ghost?: GhostOption;
 }
 
 export interface FadeArgs {
@@ -282,6 +289,8 @@ export interface FlipArgs {
   /** seconds (default 1.2) */
   duration?: number;
   easing?: Easing;
+  /** Keep a faded copy of the targets where they are BEFORE this flip. */
+  ghost?: GhostOption;
 }
 
 export interface MorphArgs {
@@ -297,6 +306,8 @@ export interface MorphArgs {
   /** seconds (default 1.5) */
   duration?: number;
   easing?: Easing;
+  /** Keep a faded copy of the targets where they are BEFORE this morph. */
+  ghost?: GhostOption;
 }
 
 export interface FlowArgs {
@@ -336,6 +347,13 @@ export interface FocusArgs {
 export interface ClearArgs {
   /** Ids to leave visible (e.g. the axes). */
   keep?: string[] | string;
+}
+
+export interface KeepArgs {
+  /** Element ids, or one pieces id. */
+  target: string[] | string;
+  /** Opacity of the kept copy (default 0.3). */
+  opacity?: number;
 }
 
 export interface Command {
@@ -380,6 +398,8 @@ export interface Command {
   morph?: MorphArgs;
   /** Dots or dashes streaming along strokes while the sentence lands. */
   flow?: FlowArgs;
+  /** Keep a faded copy of what is about to be drawn over, in place. */
+  keep?: KeepArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
   /** Smoothly animate numeric template params to target values (dot paths
@@ -388,6 +408,8 @@ export interface Command {
   animate?: Record<string, number | string>;
   /** With animate: seconds the animation takes (default 2). */
   duration?: number;
+  /** With animate: keep a faded copy of the figure at this boundary (true = every visible id). */
+  ghost?: GhostOption;
   /** With animate: velocity profile over the whole tween (default: today's
    *  smoothstep — ease in AND out). A long race wants `linear` so the
    *  middle years run at constant speed instead of blurring past. */

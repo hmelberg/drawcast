@@ -64,7 +64,7 @@ describe("Player morph settle vs. a mid-tween scrub", () => {
       ],
       labels: {},
       warnings: [],
-      trails: [],
+      minted: [],
     };
     const player = new Player(plan, new Map([["a", el]]), new SpeechManager(), null, { mode: "narrated" });
     const frames: ((now: number) => void)[] = [];

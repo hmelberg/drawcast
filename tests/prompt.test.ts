@@ -44,16 +44,21 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("line_chart");
   });
 
-  test("the action-verb inventory lists flip, morph and flow", () => {
+  test("the action-verb inventory lists flip, morph, flow and keep", () => {
     const line = compilerV1.split("\n").find((l) => l.includes("Each command sets ONE action verb"));
     expect(line).toBeDefined();
     expect(line).toMatch(/`flip`/);
     expect(line).toMatch(/`morph`/);
     expect(line).toMatch(/`flow`/);
+    expect(line).toMatch(/`keep`/);
   });
 
   test("teaches anchors and the four motion-round-2 verbs", () => {
     for (const s of ["\"anchor\": \"tail\"", "`flip`", "`morph`", "`flow`", "\"trail\": true", "riemann_sum", "tangent_secant", "compute a coordinate for a point you can name"]) expect(compilerV1).toContain(s);
+  });
+
+  test("teaches keep/ghost, the minted-elements verb of motion round 3", () => {
+    for (const s of ["`keep`", "`ghost`", "\"keep\": {\"target\": \"kake\"}", "\"ghost\": true"]) expect(compilerV1).toContain(s);
   });
 });
 
