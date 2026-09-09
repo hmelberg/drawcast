@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEngines, enginesForSpec } from "../src/scenes/engines";
 import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { normalizeSpec } from "../src/spec/schema";
-import { flattenDrawables } from "../src/layout/model";
+import { flattenDrawables, SKETCH_MS } from "../src/layout/model";
 
 describe("math element (real mathjax, node)", () => {
   beforeAll(async () => { await ensureEngines(["mathjax"]); });
@@ -93,6 +93,26 @@ describe("math element (real mathjax, node)", () => {
     const b = elementBBoxes(r);
     expect(b.get("l")).toBeDefined();
     expect(b.get("l")!.x).toBeCloseTo(b.get("a")!.x + 60 + 8, 0);
+    expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  test("the glyphs are FILLED in the element's ink, and drawn as text is drawn", () => {
+    const r = layoutSpec({
+      elements: [{ id: "m", type: "math", tex: "x", size: 30, x: 500, y: 400, style: { color: "#b5482e" } }],
+      commands: [{ draw: ["m"] }],
+    });
+    const glyph = flattenDrawables(r.drawables).find((d) => d.id === "m__g0")!;
+    expect(glyph.style.fill).toBe("#b5482e");
+    expect(glyph.style.opacity).toBe(1);
+    expect(glyph.drawOpts).toEqual({ mode: "sketch", duration: SKETCH_MS.text });
+  });
+
+  test("TeX that renders no ink draws nothing and says nothing", () => {
+    const r = layoutSpec({
+      elements: [{ id: "m", type: "math", tex: "\\hspace{1em}", x: 500, y: 400 }],
+      commands: [{ draw: ["m"] }],
+    });
+    expect(r.drawables).toEqual([]);
     expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 
