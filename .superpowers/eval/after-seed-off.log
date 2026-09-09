@@ -1,0 +1,25 @@
+(node:32817) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+WebSocket server error: Port 24678 is already in use
+ready templates: 88; model: claude-opus-5; seed: off; cases: 12/12; out: .superpowers/eval/after-seed-off
+1. [thing] ok 51378ms ≈ $1.09 · 171k tokens in (158k cached) · 4k out · 3 calls rounds=initial>pedagogy template=none "How does a bicycle pump push air into a tyre?"
+2. [thing] ok 231806ms ≈ $1.46 · 180k tokens in (170k cached) · 17k out · 3 calls rounds=initial>pedagogy template=none "Hva er delene i en symaskin, og hva gjør de?"
+3. [thing] ok 30942ms ≈ $0.19 · 171k tokens in (158k cached) · 2k out · 3 calls rounds=initial>pedagogy template=neuron "What are the parts of a neuron and what does each "
+4. [thing] ok 246545ms ≈ $0.44 · 86k tokens in (86k cached) · 16k out · 2 calls rounds= template=none "Hvordan virker en dørlås?"
+5. [math] ok 59053ms ≈ $0.44 · 250k tokens in (231k cached) · 5k out · 4 calls rounds=initial>lint-repair>pedagogy template=none "Why does a dropped ball speed up? Show the equatio"
+6. [math] ok 68127ms ≈ $0.29 · 176k tokens in (158k cached) · 5k out · 3 calls rounds=initial>pedagogy template=none "Hvorfor blir renters rente så stor? Vis formelen v"
+7. [math] ok 86318ms ≈ $0.36 · 333k tokens in (303k cached) · 8k out · 5 calls rounds=initial>lint-repair>schema-repair>pedagogy template=none "What does the logistic equation say, drawn next to"
+8. [math] ok 50033ms ≈ $0.23 · 173k tokens in (158k cached) · 3k out · 3 calls rounds=initial>pedagogy template=circle_sectors "Vis formelen for arealet av en sirkel ved siden av"
+9. [image] ok 162261ms ≈ $0.44 · 244k tokens in (231k cached) · 13k out · 4 calls rounds=initial>schema-repair>pedagogy template=none "Why is the Eiffel Tower shaped like that?"
+10. [image] ok 130119ms ≈ $0.41 · 175k tokens in (158k cached) · 10k out · 3 calls rounds=initial>pedagogy template=none "Hvorfor har en bikube sekskanter? Vis et ekte bild"
+11. [image] ok 68924ms ≈ $0.29 · 175k tokens in (158k cached) · 5k out · 3 calls rounds=initial>pedagogy template=violin_anatomy "What makes a violin sound the way it does?"
+12. [image] ok 172524ms ≈ $0.43 · 164k tokens in (158k cached) · 13k out · 3 calls rounds=initial>pedagogy template=none "Hvordan ser Stortinget ut, og hvorfor er det bygge"
+
+label      pass  lintErr lintWarn  ms(med)  target-field hits
+thing      FAIL        0        0   231806  2/4 (usesGroup)
+math       PASS        0        1    68127  4/4 (usesMath)
+image      FAIL        0        1   162261  1/4 (usesImage)
+
+overall median 86318ms (< 90000 required: ok)
+FAIL
+EXIT 1

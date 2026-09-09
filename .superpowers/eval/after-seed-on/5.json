@@ -1,0 +1,235 @@
+{
+ "title": "Why a dropped ball speeds up",
+ "domain": {
+  "x": [
+   0,
+   3
+  ],
+  "y": [
+   0,
+   50
+  ]
+ },
+ "elements": [
+  {
+   "id": "ax",
+   "type": "axes",
+   "x_label": "Time (s)",
+   "y_label": "Distance fallen (m)"
+  },
+  {
+   "id": "steady",
+   "type": "curve",
+   "expr": "14.7*x",
+   "style": {
+    "color": "#8f887c",
+    "dash": true
+   }
+  },
+  {
+   "id": "lab_steady",
+   "type": "label",
+   "text": "steady speed",
+   "attach_to": "steady",
+   "side": "above-left",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "fall",
+   "type": "curve",
+   "expr": "4.9*x*x",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "lab_fall",
+   "type": "label",
+   "text": "the real fall",
+   "attach_to": "fall",
+   "side": "left",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "p1",
+   "type": "point",
+   "at": {
+    "x": 1,
+    "y": 4.9
+   },
+   "guides": true,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "p2",
+   "type": "point",
+   "at": {
+    "x": 2,
+    "y": 19.6
+   },
+   "guides": true,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "p3",
+   "type": "point",
+   "at": {
+    "x": 3,
+    "y": 44.1
+   },
+   "guides": true,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "tang",
+   "type": "line",
+   "through": [
+    {
+     "ref": "p2"
+    }
+   ],
+   "slope": 19.6,
+   "style": {
+    "color": "#2f6b8f",
+    "dash": true
+   }
+  },
+  {
+   "id": "lab_v",
+   "type": "math",
+   "tex": "v = gt",
+   "size": 32,
+   "at": {
+    "ref": "p2",
+    "side": "below-right",
+    "gap": 18
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "eq_s",
+   "type": "math",
+   "tex": "s = \\tfrac{1}{2}gt^2",
+   "size": 34,
+   "at": {
+    "ref": "p1",
+    "side": "above-left",
+    "gap": 40
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "mark_eq",
+   "type": "annotation",
+   "target": "eq_s",
+   "kind": "box"
+  },
+  {
+   "id": "galileo",
+   "type": "portrait",
+   "of": "Galileo Galilei",
+   "cameo": true
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "ax"
+   ],
+   "speak": "Guess how far a ball falls in three seconds, and most people guess three times the first second's drop. It's nine times — and the curve shows why."
+  },
+  {
+   "draw": [
+    "steady",
+    "lab_steady"
+   ],
+   "speak": "Three times would mean falling at a fixed speed, piling distance up along this straight line."
+  },
+  {
+   "draw": [
+    "fall",
+    "lab_fall"
+   ],
+   "speak": "The real fall bends upward instead, each second adding more than the one before."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "erase": [
+    "steady",
+    "lab_steady"
+   ],
+   "speak": "Gravity doesn't hand out distance at a fixed rate — it hands out speed."
+  },
+  {
+   "draw": [
+    "p2",
+    "tang",
+    "lab_v"
+   ],
+   "speak": "The steepness of the curve at any instant is the speed, and it grows by about ten metres per second every second."
+  },
+  {
+   "draw": [
+    "eq_s",
+    "mark_eq"
+   ],
+   "speak": "Add that ever-growing speed up, and distance goes as the square of the time — hence nine, not three."
+  },
+  {
+   "draw": [
+    "p1",
+    "p3"
+   ],
+   "parallel": true,
+   "speak": "Five metres after one second, twenty after two, forty-five after three."
+  },
+  {
+   "highlight": {
+    "target": [
+     "p1",
+     "p2",
+     "p3"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Take the differences: five, then fifteen, then twenty-five — the odd numbers one, three, five."
+  },
+  {
+   "draw": [
+    "galileo"
+   ],
+   "speak": "That odd-number pattern is what Galileo measured, rolling balls down gentle ramps to slow the fall enough to time it by ear."
+  },
+  {
+   "erase": [
+    "galileo"
+   ],
+   "speak": "The squared law and the odd numbers are one fact seen twice."
+  },
+  {
+   "highlight": {
+    "target": [
+     "fall"
+    ],
+    "effect": "glow"
+   },
+   "speak": "You can now see the difference between what gravity gives — a fixed slice of speed each second — and what you measure: a distance that curves."
+  }
+ ]
+}

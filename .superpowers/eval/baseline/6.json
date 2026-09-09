@@ -1,0 +1,245 @@
+{
+ "title": "Renters rente",
+ "domain": {
+  "x": [
+   0,
+   40
+  ],
+  "y": [
+   0,
+   800
+  ]
+ },
+ "elements": [
+  {
+   "id": "tittel",
+   "type": "text",
+   "text": "Renters rente",
+   "x": 500,
+   "y": 718,
+   "font_size": 34
+  },
+  {
+   "id": "ax",
+   "type": "axes",
+   "x_label": "År",
+   "y_label": "Beløp (tusen kr)"
+  },
+  {
+   "id": "enkel",
+   "type": "curve",
+   "expr": "100 + 5*x",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "label_enkel",
+   "type": "label",
+   "text": "Renten tas ut hvert år",
+   "attach_to": "enkel",
+   "side": "below",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "sammensatt",
+   "type": "curve",
+   "expr": "100*exp(0.04879*x)",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "label_sammensatt",
+   "type": "label",
+   "text": "Renten står inne",
+   "attach_to": "sammensatt",
+   "side": "above-left",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "formel",
+   "type": "text",
+   "text": "K = 100 000 · 1,05ⁿ",
+   "x": 300,
+   "y": 610,
+   "font_size": 32,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "d1",
+   "type": "point",
+   "at": {
+    "x": 14,
+    "y": 198
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "d2",
+   "type": "point",
+   "at": {
+    "x": 28,
+    "y": 393
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "label_d2",
+   "type": "label",
+   "text": "dobler seg ca. hvert 14. år",
+   "attach_to": "d2",
+   "side": "above-left",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "p_enkel",
+   "type": "point",
+   "at": {
+    "x": 40,
+    "y": 300
+   },
+   "guides": true,
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "p_samm",
+   "type": "point",
+   "at": {
+    "x": 40,
+    "y": 704
+   },
+   "guides": true,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "gap",
+   "type": "arrow",
+   "from": {
+    "ref": "p_enkel"
+   },
+   "to": {
+    "ref": "p_samm"
+   },
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "label_gap",
+   "type": "label",
+   "text": "404 000 kr: renter på rentene",
+   "attach_to": "gap",
+   "side": "left",
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "ramme",
+   "type": "annotation",
+   "target": "formel",
+   "kind": "box"
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "tittel"
+   ],
+   "speak": "Du setter 100 000 kroner i banken til fem prosent, og glemmer dem i førti år — hvor mye står der?"
+  },
+  {
+   "draw": [
+    "ax"
+   ]
+  },
+  {
+   "draw": [
+    "enkel",
+    "label_enkel"
+   ],
+   "speak": "Tar du ut renten hvert år, får du 5 000 i året — en rett linje opp til 300 000."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "sammensatt",
+    "label_sammensatt"
+   ],
+   "speak": "Lar du renten stå, begynner renten selv å gi rente, og linjen bøyer oppover."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "formel"
+   ],
+   "speak": "Formelen er enkel: startbeløpet ganget med 1,05, én gang for hvert år."
+  },
+  {
+   "highlight": {
+    "target": [
+     "formel"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Det er ikke pluss fem prosent førti ganger — det er ganger 1,05 førti ganger, og der ligger hele forskjellen."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "d1",
+    "d2",
+    "label_d2"
+   ],
+   "parallel": true,
+   "speak": "Tommelfingerregelen 72 delt på renten sier at pengene dobler seg omtrent hvert fjortende år: 200 000, så 400 000."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "p_enkel",
+    "p_samm"
+   ],
+   "speak": "Etter førti år: 300 000 med renten tatt ut, 704 000 med renten stående."
+  },
+  {
+   "draw": [
+    "gap",
+    "label_gap"
+   ],
+   "speak": "Gapet er over 400 000 kroner — fire ganger mer enn du selv satte inn."
+  },
+  {
+   "draw": [
+    "ramme"
+   ],
+   "speak": "Renters rente er ikke at pengene vokser — det er at veksten selv vokser.",
+   "delivery": "grave"
+  }
+ ]
+}

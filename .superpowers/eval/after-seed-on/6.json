@@ -1,0 +1,274 @@
+{
+ "title": "Renters rente",
+ "domain": {
+  "x": [
+   0,
+   30
+  ],
+  "y": [
+   0,
+   85000
+  ]
+ },
+ "elements": [
+  {
+   "id": "tittel",
+   "type": "text",
+   "text": "Renters rente",
+   "x": 500,
+   "y": 715,
+   "font_size": 40
+  },
+  {
+   "id": "ax",
+   "type": "axes",
+   "x_label": "År",
+   "y_label": "Kroner"
+  },
+  {
+   "id": "enkel",
+   "type": "curve",
+   "expr": "10000 + 700*x",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "l_enkel",
+   "type": "label",
+   "text": "Enkel rente",
+   "attach_to": "enkel",
+   "side": "below-right",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "sammensatt",
+   "type": "curve",
+   "expr": "10000*exp(0.06766*x)",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "l_samm",
+   "type": "label",
+   "text": "Renters rente",
+   "attach_to": "sammensatt",
+   "side": "above-left",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "ps10",
+   "type": "point",
+   "at": {
+    "x": 10,
+    "y": 17000
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "pc10",
+   "type": "point",
+   "at": {
+    "x": 10,
+    "y": 19672
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "ps30",
+   "type": "point",
+   "at": {
+    "x": 30,
+    "y": 31000
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "pc30",
+   "type": "point",
+   "at": {
+    "x": 30,
+    "y": 76130
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "f_enkel",
+   "type": "math",
+   "tex": "K = K_0(1 + r\\,n)",
+   "size": 30,
+   "at": {
+    "ref": "ps30",
+    "side": "below-left",
+    "gap": 24
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "f_samm",
+   "type": "math",
+   "tex": "K = K_0(1 + r)^n",
+   "size": 34,
+   "at": {
+    "ref": "pc10",
+    "side": "above-left",
+    "gap": 24
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "gap10",
+   "type": "arrow",
+   "from": {
+    "ref": "ps10"
+   },
+   "to": {
+    "ref": "pc10"
+   },
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "l_gap10",
+   "type": "label",
+   "text": "≈ 2 700 kr",
+   "attach_to": "gap10",
+   "side": "right",
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "gap30",
+   "type": "arrow",
+   "from": {
+    "ref": "ps30"
+   },
+   "to": {
+    "ref": "pc30"
+   },
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "l_gap30",
+   "type": "label",
+   "text": "≈ 45 000 kr mer",
+   "attach_to": "gap30",
+   "side": "left",
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "mark_f",
+   "type": "annotation",
+   "target": "f_samm",
+   "kind": "box"
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "tittel"
+   ],
+   "speak": "Ti tusen kroner til sju prosent i året — og to måter å regne renten på som ender svært ulikt."
+  },
+  {
+   "draw": [
+    "ax"
+   ]
+  },
+  {
+   "draw": [
+    "enkel",
+    "l_enkel",
+    "f_enkel"
+   ],
+   "speak": "Får du bare rente av startbeløpet, kommer det 700 kroner inn hvert år, og beløpet vokser i rett linje."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "sammensatt",
+    "l_samm"
+   ],
+   "speak": "Men lar du rentene stå på kontoen, gir de selv rente, og kurven bøyer oppover."
+  },
+  {
+   "draw": [
+    "f_samm"
+   ],
+   "speak": "Formelen ved kurven: startbeløpet ganget med 1,07 én gang for hvert år som går."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "ps10",
+    "pc10",
+    "gap10",
+    "l_gap10"
+   ],
+   "speak": "Etter ti år er avstanden nesten ikke til å se — knapt 2 700 kroner skiller dem."
+  },
+  {
+   "point": {
+    "at": {
+     "ref": "pc10"
+    },
+    "gesture": "tap"
+   },
+   "speak": "Her har pengene nesten doblet seg, helt som regelen om 72 sier: 72 delt på sju blir omtrent ti år."
+  },
+  {
+   "draw": [
+    "ps30",
+    "pc30",
+    "gap30",
+    "l_gap30"
+   ],
+   "speak": "Etter tretti år står det 31 000 på den ene kontoen og 76 000 på den andre."
+  },
+  {
+   "highlight": {
+    "target": [
+     "sammensatt"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Veksten ble aldri raskere i starten — den bare fortsatte å akselerere, fordi sju prosent hele tiden regnes av et større beløp."
+  },
+  {
+   "draw": [
+    "mark_f"
+   ],
+   "speak": "Alt ligger i at antall år står som eksponent, og ikke som en faktor du ganger renten med."
+  },
+  {
+   "speak": "Renters rente er derfor ikke en litt bedre rente, men en helt annen kurveform — og den betaler seg først i de siste årene."
+  }
+ ]
+}

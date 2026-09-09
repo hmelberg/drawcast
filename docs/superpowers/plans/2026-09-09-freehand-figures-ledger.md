@@ -307,3 +307,68 @@ nothing found here calls the elements themselves (`group`, `math`,
 `image`, `fit`, `at`) into question. Hans's live smoke test (checklist
 sections 1–5) remains the actual merge condition, as for every prior
 round.
+
+## Final review and fix wave
+
+The whole-branch review (2026-09-10, at HEAD `8e15869`, 6411 tests green)
+returned **"merge with fixes"**: no finding questioned the round's design
+or its elements, and none of the fixes below touched the layout engine's
+emit loop. One implementer took every "fix before merge" finding in one
+dispatch, grouped into five commits by seam (A attribution/baking,
+B prompt/status, C layout/lint, D tests, E docs) so the re-review can read
+it seam by seam.
+
+### A — attribution and baking (one seam)
+
+| # | Finding | Done |
+| --- | --- | --- |
+| A1 | `creditsOf` read only `image`/`icon`, but the SEED credit is written on a `group` (`src/llm/seed.ts:69`, spec §3.7) — so it reached nothing | `src/export/credits.ts` collects a `credit` from every element type, order and dedupe unchanged |
+| A2 | `embeddedPlaylist` resolved portraits and sources only: a published cast re-fetched Commons and Iconify in every viewer's browser, against §3.5/§3.6 | `EmbedDeps` gained `resolveImages`/`resolveIcons` (required); wired from `main.ts`'s new `embedDeps()` and `ui/course.ts` |
+| A3 | `creditsOf(exportSequence(...))` read the UNRESOLVED document, so `<name>.credits.txt` was empty for every freshly generated figure and icon credits appeared nowhere in an exported video | both video paths in `ui/share.ts` resolve the sequence ONCE (through `embeddedPlaylist`, on a clone) and hand the same specs to `renderVideo` and to `creditsOf`; the second `exportSequence` computation is gone; the two literal-text pins were updated, not worked around |
+| A4 | `blobField` hoisted `strokes` for portrait/source only, so 10–34 KB of base64 per bundled example rode into revise rounds and exemplar prompts | `src/llm/hoist.ts` returns `"strokes"` for `image` and `icon` too; a test asserts the beehive exemplar's prompt text contains no `data:image` |
+
+### B — prompt and status
+
+| # | Finding | Done |
+| --- | --- | --- |
+| B1 | `CODE_WORDS` had no Norwegian stems; `simulat\w*` missed `simuler`; the tag branch matched `code\|python\|r\|microdata\|c64`, none of which `src/llm/tags.ts` has ever defined | stems added (`kode`, `skript`, `program`, `beregn`, "regn ut"), `simul(at\|er)\w*`, and the dead tag branch DROPPED — `wantsCode(request)` now takes the request alone, and the two assertions that tested the fabricated tag are gone |
+| B2 | The prompt never said which element a photo of a THING is, and nothing capped a figure's size (the door-lock case overran the 16k output cap in all three eval runs) | `compiler-v1.md` says "`portrait` is for people; a photo of a THING … is `image`" on BOTH the freehand image bullet and the portrait bullet, and caps a figure at "about 30 elements and 15 beats; … name the six that matter". Measured: a non-code system prompt is **216,280 chars** against the 216,427 budget (`tests/prompt-size.test.ts`). The Freehand section is 11 lines |
+| B3 | Task 11 had rewritten the client–server few-shot's two notes as at-placed `text`, teaching the model the very anti-pattern the prompt names | reverted to `label` + `attach_to` + `side`; `tests/freehand-examples.test.ts`'s `at.ref` assertion retargeted at the bicycle-pump few-shot, where the freehand assembly rule belongs |
+| B4 | The "· seeded from `<set>`" suffix was clobbered by the freehand template offer in the same tick, and `logOutcome` did not persist `seeded` | the suffix is built once and appended to BOTH the `setDoc` status and the `setStatusAction` offer; `LogEntry` (main.ts and `src/store.ts`) records `seeded`. `fetchSeed` does NOT forward the signal — `resolveIcons(spec, IconDeps, IconResolveOpts)` accepts none |
+| B5 | `phaseText` had no `"visual"` case | reads "looking at the drawing" |
+
+### C — layout and lint
+
+| # | Finding | Done |
+| --- | --- | --- |
+| C1 | An unknown `at.anchor` silently became the reference's centre, and `side` + `anchor` together silently let `side` win | tier2's `at` block pushes a `placement` WARN for each, mirroring `render/plan.ts:493`'s "— using center" wording; two tests in `tests/placement-layout.test.ts` |
+| C2 | Annotations resolved their target with `unionBBoxForId`, which cannot see a `group` (ink filed under its members' ids) or a line-less `measure` (draws only its number) — both were reported "unknown or empty target" and skipped | `src/layout/layout.ts` uses `boxOfId(drawables, target, measure, groups, pieceGroups)`; two tests in `tests/group-layout.test.ts` |
+| C3 | `resolveImages`/`resolveIcons` were still optional in `RenderResolveDeps` with "not passed yet" comments, though the wiring had landed | both required, comments deleted, test fakes updated |
+
+### D — tests that did not discriminate
+
+| # | Finding | Done |
+| --- | --- | --- |
+| D1 | The template-switch and invalid-candidate pedagogy fixtures used a base spec that lints CLEAN, so `expect(lintIssues).toEqual([])` passed on the old bug too | both fixtures now start from a base with a slow-start WARN (two speaks before the first draw) and assert the recorded lint EQUALS that base lint. Verified by inverting the source: the test fails |
+| D2 | No bundled example had a `closed` + `fill` `path`, so the examples gate never rendered `filledOutline` for a path | the Stortinget example's `stairs` (a closed trapezoid) carries a stone wash; a new assertion in `tests/freehand-examples.test.ts` keeps that coverage from being edited away |
+
+### E — docs
+
+- The smoke checklist gained **§8** (export «Vegg er voks», open
+  `<name>.credits.txt`, expect the photo credit — an empty file is a
+  failure of that step), the line for Hans about **#200 vs #225**, and the
+  Part C table naming the three promoted examples with their source runs.
+  Its §6 and §7 notes — the invisible seed suffix and the missing "visual"
+  label — were rewritten: both are fixed now, and a checklist that still
+  described them as gaps would send Hans looking for the wrong thing.
+- `ROADMAP.md`'s follow-up list strikes what this wave fixed and gains
+  `### Follow-ups the whole-branch review left (2026-09-10)`: the
+  `startsWith` ownership heuristic → an emitted-slice map; a cross-lecture
+  brief pool; `at` on a `group` as a validation error rather than silence;
+  a heading and per-item context for the Credits panel; one automatic
+  retry on `TypeError: terminated`; and the `scaleDrawables`/
+  `shiftDrawables` collapse (already listed) specifically for `clip`.
+
+Gates after the wave: `npm test` 6425 passing in 329 files, `npx tsc
+--noEmit` clean, `npm run build` clean, examples gate at zero issues and
+zero plan warnings. Hans's live smoke test remains the merge condition.

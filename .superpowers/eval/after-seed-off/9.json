@@ -1,0 +1,486 @@
+{
+ "title": "Why the Eiffel Tower curves",
+ "elements": [
+  {
+   "id": "title",
+   "type": "text",
+   "text": "Why is the Eiffel Tower shaped like that?",
+   "x": 500,
+   "y": 706,
+   "font_size": 36
+  },
+  {
+   "id": "ground",
+   "type": "path",
+   "points": [
+    [
+     -250,
+     0
+    ],
+    [
+     190,
+     0
+    ]
+   ],
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "leg_left",
+   "type": "path",
+   "smooth": true,
+   "points": [
+    [
+     -120,
+     0
+    ],
+    [
+     -84,
+     80
+    ],
+    [
+     -58,
+     160
+    ],
+    [
+     -40,
+     250
+    ],
+    [
+     -28,
+     340
+    ],
+    [
+     -20,
+     420
+    ],
+    [
+     -16,
+     500
+    ]
+   ]
+  },
+  {
+   "id": "leg_right",
+   "type": "path",
+   "smooth": true,
+   "points": [
+    [
+     120,
+     0
+    ],
+    [
+     84,
+     80
+    ],
+    [
+     58,
+     160
+    ],
+    [
+     40,
+     250
+    ],
+    [
+     28,
+     340
+    ],
+    [
+     20,
+     420
+    ],
+    [
+     16,
+     500
+    ]
+   ]
+  },
+  {
+   "id": "arch",
+   "type": "path",
+   "smooth": true,
+   "points": [
+    [
+     -74,
+     100
+    ],
+    [
+     -40,
+     58
+    ],
+    [
+     0,
+     46
+    ],
+    [
+     40,
+     58
+    ],
+    [
+     74,
+     100
+    ]
+   ],
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "plat1",
+   "type": "path",
+   "points": [
+    [
+     -84,
+     115
+    ],
+    [
+     84,
+     115
+    ]
+   ]
+  },
+  {
+   "id": "plat2",
+   "type": "path",
+   "points": [
+    [
+     -44,
+     280
+    ],
+    [
+     44,
+     280
+    ]
+   ]
+  },
+  {
+   "id": "plat3",
+   "type": "path",
+   "points": [
+    [
+     -22,
+     460
+    ],
+    [
+     22,
+     460
+    ]
+   ]
+  },
+  {
+   "id": "spire",
+   "type": "path",
+   "points": [
+    [
+     -16,
+     500
+    ],
+    [
+     0,
+     565
+    ],
+    [
+     16,
+     500
+    ]
+   ]
+  },
+  {
+   "id": "wind_1",
+   "type": "arrow",
+   "from": {
+    "x": -230,
+    "y": 180
+   },
+   "to": {
+    "x": -66,
+    "y": 180
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "wind_2",
+   "type": "arrow",
+   "from": {
+    "x": -230,
+    "y": 300
+   },
+   "to": {
+    "x": -45,
+    "y": 300
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "wind_3",
+   "type": "arrow",
+   "from": {
+    "x": -230,
+    "y": 400
+   },
+   "to": {
+    "x": -34,
+    "y": 400
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "wind_4",
+   "type": "arrow",
+   "from": {
+    "x": -230,
+    "y": 470
+   },
+   "to": {
+    "x": -30,
+    "y": 470
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "tan_left",
+   "type": "path",
+   "points": [
+    [
+     -62,
+     120
+    ],
+    [
+     0,
+     490
+    ]
+   ],
+   "style": {
+    "color": "#2f6b8f",
+    "dash": true
+   }
+  },
+  {
+   "id": "tan_right",
+   "type": "path",
+   "points": [
+    [
+     62,
+     120
+    ],
+    [
+     0,
+     490
+    ]
+   ],
+   "style": {
+    "color": "#2f6b8f",
+    "dash": true
+   }
+  },
+  {
+   "id": "meet",
+   "type": "shape",
+   "shape": "circle",
+   "radius": 9,
+   "x": 0,
+   "y": 490,
+   "style": {
+    "color": "#2f6b8f",
+    "fill": "#2f6b8f"
+   }
+  },
+  {
+   "id": "resultant",
+   "type": "arrow",
+   "from": {
+    "x": -200,
+    "y": 490
+   },
+   "to": {
+    "x": -26,
+    "y": 490
+   },
+   "style": {
+    "color": "#b5482e",
+    "stroke_width": 4
+   }
+  },
+  {
+   "id": "tower",
+   "type": "group",
+   "members": [
+    "ground",
+    "leg_left",
+    "leg_right",
+    "arch",
+    "plat1",
+    "plat2",
+    "plat3",
+    "spire",
+    "wind_1",
+    "wind_2",
+    "wind_3",
+    "wind_4",
+    "tan_left",
+    "tan_right",
+    "meet",
+    "resultant"
+   ],
+   "fit": {
+    "x": 70,
+    "y": 50,
+    "w": 520,
+    "h": 580
+   }
+  },
+  {
+   "id": "l_wind",
+   "type": "label",
+   "text": "Wind",
+   "attach_to": "wind_3",
+   "side": "left",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "l_meet",
+   "type": "label",
+   "text": "Tangents meet here",
+   "attach_to": "meet",
+   "side": "right",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "l_conclusion",
+   "type": "label",
+   "text": "The curve is the wind load, drawn in iron",
+   "attach_to": "leg_right",
+   "side": "right"
+  },
+  {
+   "id": "mark",
+   "type": "annotation",
+   "target": "l_conclusion",
+   "kind": "box"
+  },
+  {
+   "id": "eiffel",
+   "type": "portrait",
+   "of": "Gustave Eiffel",
+   "cameo": true
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "title"
+   ],
+   "speak": "Splayed feet, a needle top, a curve between them — every guess about that shape is usually the wrong one."
+  },
+  {
+   "draw": [
+    "ground",
+    "leg_left",
+    "leg_right",
+    "arch",
+    "plat1",
+    "plat2",
+    "plat3",
+    "spire"
+   ],
+   "speak": "Three hundred metres of iron lattice on four feet, spread a hundred metres apart."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "highlight": {
+    "target": [
+     "leg_left",
+     "leg_right"
+    ],
+    "effect": "glow"
+   },
+   "speak": "The natural guess is that the wide base carries the weight — but weight is the easy part here."
+  },
+  {
+   "point": {
+    "at": {
+     "ref": "ground"
+    },
+    "gesture": "underline"
+   },
+   "speak": "Seven thousand tonnes, shared among four feet, press the ground about as hard as a person on a chair."
+  },
+  {
+   "draw": [
+    "wind_1",
+    "wind_2",
+    "wind_3",
+    "wind_4",
+    "l_wind"
+   ],
+   "parallel": true,
+   "speak": "The dangerous load comes sideways: wind, pushing on an open lattice all the way up."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "eiffel"
+   ],
+   "speak": "Gustave Eiffel had built wind-loaded iron all his life — railway viaducts, and the skeleton inside the Statue of Liberty."
+  },
+  {
+   "erase": [
+    "eiffel"
+   ],
+   "speak": "His rule for the outline was almost embarrassingly simple."
+  },
+  {
+   "draw": [
+    "tan_left",
+    "tan_right",
+    "meet",
+    "l_meet"
+   ],
+   "speak": "At every height, the tangents to the two uprights must cross where all the wind above is pushing."
+  },
+  {
+   "draw": [
+    "resultant"
+   ],
+   "speak": "Obey that, and the wind's push runs straight down the line of each leg."
+  },
+  {
+   "highlight": {
+    "target": [
+     "leg_left",
+     "leg_right"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Nothing bends and nothing pries at the joints — only compression, which iron takes without complaint."
+  },
+  {
+   "draw": [
+    "l_conclusion",
+    "mark"
+   ],
+   "speak": "So the flare is neither taste nor decoration: the silhouette is the wind load itself, solved and then built.",
+   "delivery": "grave"
+  },
+  {
+   "speak": "And it holds — in a gale the top shifts about a hand's width, less than the sun moves it by warming one side."
+  }
+ ]
+}

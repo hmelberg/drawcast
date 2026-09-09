@@ -1,0 +1,244 @@
+[
+ {
+  "label": "thing",
+  "request": "How does a bicycle pump push air into a tyre?",
+  "template": null,
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 51378,
+  "cost": 1.09253175,
+  "usesAt": true,
+  "usesGroup": true,
+  "usesFit": true,
+  "usesMath": true,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "thing",
+  "request": "Hva er delene i en symaskin, og hva gjør de?",
+  "template": null,
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 231806,
+  "cost": 1.4618251999999998,
+  "usesAt": true,
+  "usesGroup": true,
+  "usesFit": true,
+  "usesMath": false,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "thing",
+  "request": "What are the parts of a neuron and what does each do?",
+  "template": "neuron",
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 30942,
+  "cost": 0.19218269999999998,
+  "usesAt": false,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": false,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "thing",
+  "request": "Hvordan virker en dørlås?",
+  "template": null,
+  "rounds": [],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 246545,
+  "cost": 0.4378887,
+  "usesAt": false,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": false,
+  "usesImage": false,
+  "usesIcon": false,
+  "error": "The reply was cut off at the output limit (16000 tokens, thinking included) — try again, or ask for something smaller."
+ },
+ {
+  "label": "math",
+  "request": "Why does a dropped ball speed up? Show the equations with the curve.",
+  "template": null,
+  "rounds": [
+   "initial",
+   "lint-repair",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 59053,
+  "cost": 0.4388457,
+  "usesAt": true,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": true,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "math",
+  "request": "Hvorfor blir renters rente så stor? Vis formelen ved kurven.",
+  "template": null,
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 1,
+  "ms": 68127,
+  "cost": 0.2883277,
+  "usesAt": true,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": true,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "math",
+  "request": "What does the logistic equation say, drawn next to its S-curve?",
+  "template": null,
+  "rounds": [
+   "initial",
+   "lint-repair",
+   "schema-repair",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 86318,
+  "cost": 0.3587197,
+  "usesAt": false,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": true,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "math",
+  "request": "Vis formelen for arealet av en sirkel ved siden av sirkelen.",
+  "template": "circle_sectors",
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 50033,
+  "cost": 0.2290317,
+  "usesAt": false,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": true,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "image",
+  "request": "Why is the Eiffel Tower shaped like that?",
+  "template": null,
+  "rounds": [
+   "initial",
+   "schema-repair",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 162261,
+  "cost": 0.4437917,
+  "usesAt": false,
+  "usesGroup": true,
+  "usesFit": true,
+  "usesMath": false,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "image",
+  "request": "Hvorfor har en bikube sekskanter? Vis et ekte bilde og skissen.",
+  "template": null,
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 130119,
+  "cost": 0.40662570000000003,
+  "usesAt": false,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": false,
+  "usesImage": true,
+  "usesIcon": false
+ },
+ {
+  "label": "image",
+  "request": "What makes a violin sound the way it does?",
+  "template": "violin_anatomy",
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "ms": 68924,
+  "cost": 0.28941870000000003,
+  "usesAt": false,
+  "usesGroup": false,
+  "usesFit": false,
+  "usesMath": true,
+  "usesImage": false,
+  "usesIcon": false
+ },
+ {
+  "label": "image",
+  "request": "Hvordan ser Stortinget ut, og hvorfor er det bygget slik?",
+  "template": null,
+  "rounds": [
+   "initial",
+   "pedagogy"
+  ],
+  "seeded": false,
+  "lintErrors": 0,
+  "lintWarns": 1,
+  "ms": 172524,
+  "cost": 0.4326597,
+  "usesAt": true,
+  "usesGroup": true,
+  "usesFit": true,
+  "usesMath": false,
+  "usesImage": false,
+  "usesIcon": false
+ }
+]

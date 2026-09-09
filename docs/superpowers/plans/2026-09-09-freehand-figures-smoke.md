@@ -123,19 +123,19 @@ for this check.
 Icon seeding is automatic (no separate toggle) — every generation tries to
 resolve the request's subject to an Iconify icon and, when it succeeds, the
 round's status text gains a `" · seeded from <set>"` suffix (`main.ts`
-line ~3214). **But** watch closely: for exactly this case — a figure that
-is BOTH seeded AND freehand-worthy, which is the common case, since a seed
-only matters when there is no template to fall back on — that suffix and
-the "drawn freehand" message are written to the same status line one right
-after the other with no render in between, so the seeded note is
-overwritten before it is ever painted; only "No scene template draws this
-figure…" is visible. Checked and confirmed by reading `main.ts`: `logOutcome`
-does not persist `seeded` either, so there is currently NO way to see the
-seed indicator through the app's UI on a freehand-worthy figure — only
-opening the browser's network tab and watching for the Iconify request
-would confirm it happened. Do not fail this smoke step over the missing
-"seeded from" text; it is a real (newly found) gap in this round, now on
-the roadmap's follow-up list, not something the smoke test can show today.
+line ~3216). This used to be invisible for exactly this case — a figure
+that is BOTH seeded AND freehand-worthy, which is the common case, since a
+seed only matters when there is no template to fall back on — because the
+suffix and the "drawn freehand" message were written to the same status
+line one right after the other with no render in between. FIXED in the
+final fix wave (B4): the suffix is built once and appended to BOTH lines.
+
+So expect, when the pump seeds successfully: **"No scene template draws
+this figure, so it was drawn freehand. · seeded from <set>"** with the
+Author-a-template button beside it. A seed can legitimately fail to
+resolve (no icon matches, or the only match is share-alike, which is never
+picked unattended) — then there is no suffix, and that is not a failure
+either. `logOutcome` now records `seeded` on the log entry as well.
 
 ## 7. Settings → Advanced → Visual repair
 
@@ -143,18 +143,46 @@ Open **Settings → Advanced**, turn on **Visual repair**, and regenerate any
 request (a fresh one, or one from the steps above).
 
 Expect: one extra round beyond the usual ones, and the figure is not worse
-than without it (no lint newly broken, nothing missing). Known deferred
-minor: the status line's round label has no "visual" case, so this extra
-round is misreported as **"repair N"** in the status text rather than
-"visual" — the round itself runs correctly; only the label is wrong. This
-is tracked in the roadmap as a follow-up, not a smoke failure.
+than without it (no lint newly broken, nothing missing). While that round
+runs, the status line should read **"looking at the drawing"** — the
+"visual" case landed in the final fix wave (B5); before it, the round was
+misreported as "repair N".
+
+## 8. «Vegg er voks» — the credits file after an export
+
+Load **«Vegg er voks»** (bundled, request "Hvorfor har en bikube
+sekskanter? Vis et ekte bilde og skissen.") and export it to video
+(**Share → Video → Export**).
+
+Expect: three files download — `<name>.webm`, `<name>.vtt`, and
+`<name>.credits.txt`. Open the credits file: it must contain the
+honeycomb photo's Commons credit line (photographer · licence), the same
+line drawn under the photo on the canvas. Before the final fix wave this
+file was EMPTY (or absent) for a freshly generated figure, because the
+credits were read off the unresolved document rather than the resolved
+export (A3) — an empty or missing credits file is a failure of this step.
+
+No bundled example uses an `icon` element yet, so the icon credit line
+cannot be shown here; the same collector handles it (see
+`tests/credits.test.ts`). If you generate a figure that seeds from an
+Iconify set, its `based on …` line belongs in this file too — worth a
+glance if you happen to have one open.
 
 ---
 
-Eval-promoted examples: see Part C — up to three of the eval's generated
-specs may be promoted into `src/examples.json` after hand-fixing (Hans's
-2026-09-09 ruling); when that lands, strike through whichever of the steps
-above it makes redundant rather than deleting them.
+Eval-promoted examples (Part C, Hans's 2026-09-09 ruling — up to three of
+the eval's generated specs promoted into `src/examples.json` after
+hand-fixing; strike whichever of the steps above they make redundant):
+
+| Example (list title) | Request | Source run |
+| --- | --- | --- |
+| **Fasaden er salen sett utenfra** (#223) | Hvordan ser Stortinget ut, og hvorfor er det bygget slik? | after-eval **seed OFF**, case 12 (image) |
+| **Årene står i eksponenten** (#224) | Hvorfor blir renters rente så stor? Vis formelen ved kurven. | after-eval **seed ON**, case 6 (math) |
+| **Vegg er voks** (#225) | Hvorfor har en bikube sekskanter? Vis et ekte bilde og skissen. | after-eval **seed OFF**, case 10 (image) |
+
+**#200 (old beehive) vs #225 «Vegg er voks»: keep one — your call.** Both
+answer "why hexagons in a beehive"; #200 proves the tiling, #225 shows a
+real photo beside the sketch. Nothing in the code needs both.
 
 Delete any screenshot or downloaded `.webm`/`.credits.txt` from the
 worktree root before a commit or merge.

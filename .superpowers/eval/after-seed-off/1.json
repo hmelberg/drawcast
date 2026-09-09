@@ -1,0 +1,247 @@
+{
+ "title": "Inside a bicycle pump",
+ "elements": [
+  {
+   "id": "body",
+   "type": "shape",
+   "shape": "rect",
+   "x": 0,
+   "y": 0,
+   "width": 92,
+   "height": 330
+  },
+  {
+   "id": "piston",
+   "type": "shape",
+   "shape": "rect",
+   "width": 76,
+   "height": 26,
+   "at": {
+    "ref": "body",
+    "anchor": "top"
+   },
+   "anchor": "top",
+   "style": {
+    "fill": "#2f6b8f",
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "rod",
+   "type": "shape",
+   "shape": "rect",
+   "width": 10,
+   "height": 115,
+   "at": {
+    "ref": "piston",
+    "anchor": "top"
+   },
+   "anchor": "bottom"
+  },
+  {
+   "id": "handle",
+   "type": "shape",
+   "shape": "rect",
+   "width": 150,
+   "height": 26,
+   "at": {
+    "ref": "rod",
+    "anchor": "top"
+   },
+   "anchor": "bottom"
+  },
+  {
+   "id": "plunger",
+   "type": "group",
+   "members": [
+    "piston",
+    "rod",
+    "handle"
+   ]
+  },
+  {
+   "id": "hose",
+   "type": "path",
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     95,
+     -45
+    ],
+    [
+     215,
+     -70
+    ]
+   ],
+   "smooth": true,
+   "at": {
+    "ref": "body",
+    "anchor": "bottom_right"
+   },
+   "anchor": "top_left"
+  },
+  {
+   "id": "valve",
+   "type": "shape",
+   "shape": "circle",
+   "radius": 16,
+   "at": {
+    "ref": "hose",
+    "anchor": "end"
+   },
+   "style": {
+    "fill": "#b5482e",
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "pumpe",
+   "type": "group",
+   "members": [
+    "body",
+    "plunger",
+    "hose",
+    "valve"
+   ],
+   "fit": "left"
+  },
+  {
+   "id": "l_body",
+   "type": "label",
+   "text": "Cylinder",
+   "attach_to": "body",
+   "side": "right"
+  },
+  {
+   "id": "l_piston",
+   "type": "label",
+   "text": "Piston (sealed)",
+   "attach_to": "piston",
+   "side": "right",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "l_valve",
+   "type": "label",
+   "text": "One-way valve",
+   "attach_to": "valve",
+   "side": "right",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "eq",
+   "type": "math",
+   "tex": "P_1 V_1 = P_2 V_2",
+   "size": 32,
+   "at": {
+    "ref": "body",
+    "side": "above-right",
+    "gap": 40
+   }
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "pumpe",
+    "l_body",
+    "l_piston"
+   ],
+   "speak": "A bicycle tyre already holds air at three times the pressure outside — so pushing more in should be like blowing into a bottle that blows back."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "highlight": {
+    "target": [
+     "piston"
+    ],
+    "effect": "glow"
+   },
+   "speak": "The piston seals the tube tightly, trapping a column of ordinary air beneath it."
+  },
+  {
+   "move": {
+    "target": [
+     "plunger"
+    ],
+    "to": {
+     "ref": "body",
+     "anchor": "center"
+    },
+    "anchor": "bottom",
+    "duration": 1.6
+   },
+   "speak": "Push down, and that same air is squeezed into half the space."
+  },
+  {
+   "draw": [
+    "eq"
+   ],
+   "speak": "Halve the volume and you double the pressure — briefly, the air in the barrel beats the tyre."
+  },
+  {
+   "draw": [
+    "l_valve"
+   ],
+   "speak": "At the far end sits a flap that only the higher pressure can push open."
+  },
+  {
+   "flow": {
+    "along": [
+     "hose"
+    ],
+    "speed": 150
+   },
+   "speak": "So the squeezed air rushes down the hose and in."
+  },
+  {
+   "move": {
+    "target": [
+     "plunger"
+    ],
+    "to": {
+     "ref": "body",
+     "anchor": "top"
+    },
+    "anchor": "top",
+    "duration": 1.2
+   },
+   "speak": "Lift the handle, and the tyre's own pressure slams that flap shut behind the air."
+  },
+  {
+   "highlight": {
+    "target": [
+     "valve"
+    ],
+    "effect": "pulse"
+   },
+   "speak": "Fresh air sneaks past the piston seal, and the next stroke repeats it."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "speak": "Squeeze air quickly and it heats — that warm barrel after twenty strokes is the work you just did.",
+   "delivery": "soft"
+  },
+  {
+   "point": {
+    "at": {
+     "ref": "valve"
+    },
+    "gesture": "circle"
+   },
+   "speak": "So the pump never holds the tyre's pressure — the valve does. The pump only has to beat it, for an instant, once per stroke.",
+   "delivery": "grave"
+  }
+ ]
+}

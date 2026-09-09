@@ -1,0 +1,330 @@
+{
+ "title": "Hvorfor sekskanter i bikuben?",
+ "elements": [
+  {
+   "id": "tittel",
+   "type": "text",
+   "text": "Hvorfor sekskanter?",
+   "x": 300,
+   "y": 705,
+   "font_size": 42
+  },
+  {
+   "id": "foto",
+   "type": "image",
+   "of": "Honeycomb",
+   "width": 300,
+   "x": 810,
+   "y": 470
+  },
+  {
+   "id": "tri",
+   "type": "polygon",
+   "sides": 3,
+   "radius": 87.7,
+   "x": 130,
+   "y": 460,
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "kvad",
+   "type": "polygon",
+   "sides": 4,
+   "radius": 70.7,
+   "x": 330,
+   "y": 460,
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "heks",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 62,
+   "x": 515,
+   "y": 460,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "l_tri",
+   "type": "label",
+   "text": "Trekant",
+   "attach_to": "tri",
+   "side": "above",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "l_kvad",
+   "type": "label",
+   "text": "Firkant",
+   "attach_to": "kvad",
+   "side": "above",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "l_heks",
+   "type": "label",
+   "text": "Sekskant",
+   "attach_to": "heks",
+   "side": "above",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "m_tri",
+   "type": "measure",
+   "of": "tri",
+   "what": "perimeter",
+   "label": "vegg = {value}",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "m_kvad",
+   "type": "measure",
+   "of": "kvad",
+   "what": "perimeter",
+   "label": "vegg = {value}",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "m_heks",
+   "type": "measure",
+   "of": "heks",
+   "what": "perimeter",
+   "label": "vegg = {value}",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "mark",
+   "type": "annotation",
+   "target": "m_heks",
+   "kind": "box"
+  },
+  {
+   "id": "c1",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 100,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "c2",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 230,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "c3",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 360,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "c4",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 490,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "c5",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 620,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "c6",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 750,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "c7",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 45,
+   "x": 880,
+   "y": 140,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "tittel"
+   ],
+   "speak": "Voks er det dyreste bien lager — hun må spise mange ganger så mye honning for å svette ut ett gram."
+  },
+  {
+   "draw": [
+    "foto"
+   ],
+   "speak": "Så hver vegg hun sparer, er honning hun beholder — og alle cellene i kaka er sekskanter."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "tri",
+    "l_tri",
+    "kvad",
+    "l_kvad",
+    "heks",
+    "l_heks"
+   ],
+   "speak": "Tre celleformer med nøyaktig samme areal — like mye plass til honning i hver."
+  },
+  {
+   "draw": [
+    "m_tri",
+    "m_kvad",
+    "m_heks"
+   ],
+   "parallel": true,
+   "speak": "Men veggen rundt dem er ikke like lang."
+  },
+  {
+   "highlight": {
+    "target": [
+     "heks",
+     "m_heks"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Sekskanten gjerder inn samme areal med kortest vegg av de tre."
+  },
+  {
+   "draw": [
+    "mark"
+   ],
+   "speak": "Og vegg er voks."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "erase": [
+    "tri",
+    "l_tri",
+    "m_tri",
+    "kvad",
+    "l_kvad",
+    "m_kvad"
+   ],
+   "speak": "Bare disse tre formene fyller en flate uten hull igjen — sirkler ville latt luft stå igjen mellom cellene."
+  },
+  {
+   "draw": [
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5",
+    "c6",
+    "c7"
+   ],
+   "parallel": true,
+   "speak": "Så hun bygger celle etter celle av samme form."
+  },
+  {
+   "arrange": {
+    "target": [
+     "c1",
+     "c2",
+     "c3",
+     "c4",
+     "c5",
+     "c6",
+     "c7"
+    ],
+    "layout": "hex",
+    "at": [
+     480,
+     170
+    ],
+    "gap": 0,
+    "duration": 2.5
+   },
+   "speak": "Presset sammen deler naboene vegg, så hver vegg bygges bare én gang."
+  },
+  {
+   "point": {
+    "at": {
+     "ref": "foto"
+    },
+    "gesture": "circle"
+   },
+   "speak": "Mønsteret i fotografiet er nøyaktig denne skissen."
+  },
+  {
+   "highlight": {
+    "target": [
+     "c1",
+     "c3",
+     "c5"
+    ],
+    "effect": "pulse"
+   },
+   "speak": "At ingen annen oppdeling i det hele tatt slår sekskantene — heller ikke en med buede vegger — ble først bevist av Thomas Hales i 1999."
+  },
+  {
+   "speak": "Sekskanten er altså ikke pynt: den er den billigste måten å dele opp en flate på.",
+   "delivery": "grave"
+  }
+ ]
+}

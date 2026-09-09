@@ -1,0 +1,179 @@
+{
+ "title": "Arealet av en sirkel",
+ "elements": [
+  {
+   "id": "tittel",
+   "type": "text",
+   "text": "Arealet av en sirkel",
+   "x": 500,
+   "y": 700,
+   "font_size": 40
+  },
+  {
+   "id": "sirkel",
+   "type": "shape",
+   "shape": "circle",
+   "x": 330,
+   "y": 340,
+   "radius": 190,
+   "style": {
+    "color": "#2f6b8f",
+    "stroke_width": 2.5
+   }
+  },
+  {
+   "id": "senter",
+   "type": "shape",
+   "shape": "circle",
+   "x": 330,
+   "y": 340,
+   "radius": 6,
+   "style": {
+    "fill": "#3d3833"
+   }
+  },
+  {
+   "id": "radius",
+   "type": "arrow",
+   "from": {
+    "x": 330,
+    "y": 340
+   },
+   "to": {
+    "x": 520,
+    "y": 340
+   },
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "lab_r",
+   "type": "label",
+   "text": "r",
+   "attach_to": "radius",
+   "side": "above",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "formel",
+   "type": "math",
+   "tex": "A = \\pi r^2",
+   "size": 50,
+   "x": 790,
+   "y": 400
+  },
+  {
+   "id": "ruter",
+   "type": "pieces",
+   "of": "grid",
+   "x": 330,
+   "y": 340,
+   "width": 380,
+   "height": 380,
+   "n": 2,
+   "rows": 2,
+   "style": {
+    "fill": "#f2c14e",
+    "color": "#8f887c",
+    "opacity": 0.35
+   }
+  },
+  {
+   "id": "lab_kv",
+   "type": "text",
+   "text": "r²",
+   "x": 425,
+   "y": 435,
+   "font_size": 32
+  },
+  {
+   "id": "mark",
+   "type": "annotation",
+   "target": "formel",
+   "kind": "box"
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "tittel",
+    "sirkel"
+   ],
+   "speak": "Bestiller du en pizza med dobbelt så stor radius, betaler du sjelden dobbelt — og du burde ikke."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "senter",
+    "radius",
+    "lab_r"
+   ],
+   "speak": "Det eneste målet en sirkel har, er radien r, fra sentrum ut til kanten."
+  },
+  {
+   "draw": [
+    "formel"
+   ],
+   "speak": "Formelen står her ved siden av: arealet er pi ganger r i andre."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "ruter"
+   ],
+   "parallel": true,
+   "speak": "Vi legger fire kvadrater med side r oppå sirkelen."
+  },
+  {
+   "draw": [
+    "lab_kv"
+   ],
+   "speak": "Hvert av dem har arealet r ganger r — nettopp r i andre."
+  },
+  {
+   "point": {
+    "at": {
+     "ref": "ruter_2",
+     "anchor": "top_right"
+    },
+    "gesture": "circle"
+   },
+   "speak": "De fire dekker for mye: hvert hjørne stikker utenfor buen."
+  },
+  {
+   "highlight": {
+    "target": [
+     "sirkel"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Sirkelen fyller bare 3,14 av de fire kvadratene — og det tallet er pi."
+  },
+  {
+   "draw": [
+    "mark"
+   ],
+   "speak": "Så pi er ikke noe mystisk påheng: det er hvor mange r-kvadrater sirkelen faktisk rommer.",
+   "delivery": "grave"
+  },
+  {
+   "highlight": {
+    "target": [
+     "formel"
+    ],
+    "effect": "pulse"
+   },
+   "speak": "Arkimedes kom fram til dette uten å kjenne pi som tall — han viste at sirkelen har samme areal som en rettvinklet trekant med radien og omkretsen som kateter."
+  },
+  {
+   "speak": "Og fordi r står i andre potens: dobler du radien, firedobler du pizzaen."
+  }
+ ]
+}

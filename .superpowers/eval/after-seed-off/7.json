@@ -1,0 +1,209 @@
+{
+ "title": "The logistic equation",
+ "domain": {
+  "x": [
+   0,
+   100
+  ],
+  "y": [
+   0,
+   120
+  ]
+ },
+ "elements": [
+  {
+   "id": "title",
+   "type": "text",
+   "text": "The logistic equation",
+   "x": 500,
+   "y": 712,
+   "font_size": 34
+  },
+  {
+   "id": "ax",
+   "type": "axes",
+   "x_label": "Time",
+   "y_label": "Population N"
+  },
+  {
+   "id": "kline",
+   "type": "curve",
+   "expr": "100",
+   "style": {
+    "color": "#8f887c",
+    "dash": true
+   }
+  },
+  {
+   "id": "k_label",
+   "type": "label",
+   "text": "K — carrying capacity",
+   "attach_to": "kline",
+   "side": "below",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "eq",
+   "type": "math",
+   "tex": "\\frac{dN}{dt} = rN\\left(1 - \\frac{N}{K}\\right)",
+   "size": 28,
+   "x": 300,
+   "y": 660
+  },
+  {
+   "id": "exp_curve",
+   "type": "curve",
+   "expr": "5*exp(0.09*x)",
+   "x_from": 0,
+   "x_to": 33,
+   "style": {
+    "color": "#b5482e",
+    "dash": true
+   }
+  },
+  {
+   "id": "exp_label",
+   "type": "label",
+   "text": "pure exponential",
+   "attach_to": "exp_curve",
+   "side": "left",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "curve",
+   "type": "curve",
+   "expr": "100/(1+19*exp(-0.09*x))",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "curve_label",
+   "type": "label",
+   "text": "N(t)",
+   "attach_to": "curve",
+   "side": "below-right",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "p_infl",
+   "type": "point",
+   "at": {
+    "x": 32.7,
+    "y": 50
+   },
+   "guides": true,
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "infl_label",
+   "type": "label",
+   "text": "fastest growth at N = K/2",
+   "attach_to": "p_infl",
+   "side": "right"
+  },
+  {
+   "id": "verhulst",
+   "type": "portrait",
+   "of": "Pierre François Verhulst",
+   "cameo": true
+  },
+  {
+   "id": "eq_mark",
+   "type": "annotation",
+   "target": "eq",
+   "kind": "box"
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "title"
+   ],
+   "speak": "Bacteria in a flask double and double — and then, without warning, stop. Forecast from the early doublings and you will be badly wrong."
+  },
+  {
+   "draw": [
+    "ax"
+   ]
+  },
+  {
+   "draw": [
+    "kline",
+    "k_label"
+   ],
+   "speak": "Start with a ceiling: K, the carrying capacity — the largest population this environment can feed."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "eq"
+   ],
+   "speak": "The whole idea: growth equals r times N, times one minus N over K."
+  },
+  {
+   "draw": [
+    "exp_curve",
+    "exp_label"
+   ],
+   "speak": "When N is tiny, that bracket is almost one, so growth is just r times N — the runaway exponential."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "curve",
+    "curve_label"
+   ],
+   "speak": "The real population starts on that same path, then peels away from it."
+  },
+  {
+   "draw": [
+    "p_infl",
+    "infl_label"
+   ],
+   "speak": "Halfway to the ceiling the two factors balance, and the population gains members faster than at any other moment of its life."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "highlight": {
+    "target": [
+     "curve"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Past that, the bracket shrinks toward zero — plenty of parents, no room left — and the curve lies down on K."
+  },
+  {
+   "draw": [
+    "verhulst"
+   ],
+   "speak": "Pierre-François Verhulst wrote this in 1838, answering Malthus, and it was he who named the S-shape logistic."
+  },
+  {
+   "erase": [
+    "verhulst"
+   ],
+   "speak": "His curve now fits yeast in a flask, epidemics, and a new phone's sales."
+  },
+  {
+   "draw": [
+    "eq_mark"
+   ],
+   "speak": "So the S is not two laws stitched together: it is one product, r N pushing up while one minus N over K pushes back — and the fastest growth is the sign that the slowdown has already begun."
+  }
+ ]
+}

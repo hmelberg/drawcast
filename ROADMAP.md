@@ -486,17 +486,19 @@ nothing draws it as a caption.
   (readability), not a defect; the font-too-small warn can still fire on it.
 - A `point` may carry `side`/`gap`/`offset` inside `at` (the schema does not
   restrict them by type) — silently ignored rather than rejected.
-- `phaseText` in the status line has no "visual" case, so the visual repair
-  round is misreported as "repair N" (see smoke checklist §7).
+- ~~`phaseText` in the status line has no "visual" case~~ — FIXED in the
+  final fix wave (B5): the round reads "looking at the drawing".
 - Courses describe an authored part's brief twice (once for the sharing
   decision, once inside `authorOnDemand`) — parked for a final fix wave;
   costs one extra ~1.5k-token Sonnet call per course authoring, at most
   `templatesOnDemandMax` times per run.
 - Prompt wording: point 8 hedges point 4 (the "path/shape as last resort"
-  phrasing); the `wantsCode` tag branch names a `#code` tag that does not
-  exist; Norwegian code triggers (kode/skript/simuler) are missing.
+  phrasing). ~~the `wantsCode` tag branch names a `#code` tag that does not
+  exist; Norwegian code triggers (kode/skript/simuler) are missing~~ — both
+  FIXED in the final fix wave (B1): the tag branch is gone (no such tag has
+  ever existed in `src/llm/tags.ts`) and the Norwegian stems are in.
 - Two prompt follow-ups found by the live eval (see the ledger's `## Eval`
-  section) — queued for the final fix wave, not yet done: (1) the model
+  section) — both DONE in the final fix wave (B2): (1) the model
   reaches for `portrait` on a real photo of a THING (a building) — one
   sentence should say `portrait` is for people, a photo of a thing is
   `image`; (2) a big "thing" (a door lock, in every one of the three eval
@@ -516,15 +518,41 @@ nothing draws it as a caption.
   after-runs measured 86 s and 105 s against that baseline's 190,416 ms —
   both pass the relative bar (the absolute 90 s bar passed once, failed
   once, on run-to-run latency variance, not on anything the round changed).
-- Newly found while writing the smoke checklist (not yet fixed): the
-  "· seeded from `<set>`" status suffix (`main.ts` ~line 3214) and the
-  freehand template-offer message (`setStatusAction`, right after) both
-  write the same status line synchronously, with no render between — for
-  any figure that is both seeded and freehand-worthy (the common case,
-  since a seed only matters when there is no template), the seeded note is
-  overwritten before it paints. `logOutcome` does not persist `seeded`
-  either, so there is currently no way to see the seed indicator in the UI
-  on exactly the figures where it happened.
+- Found while writing the smoke checklist, FIXED in the final fix wave
+  (B4): the "· seeded from `<set>`" status suffix and the freehand
+  template-offer message (`setStatusAction`, right after) both wrote the
+  same status line synchronously, so on any figure that is both seeded and
+  freehand-worthy — the common case, since a seed only matters when there
+  is no template — the seeded note was overwritten before it painted. The
+  suffix is now built once and appended to BOTH messages, and `logOutcome`
+  records `seeded` on the log entry.
+
+### Follow-ups the whole-branch review left (2026-09-10)
+
+The review's verdict was **"merge with fixes"**; every finding it marked
+"fix before merge" was done in the final fix wave (see the round ledger's
+`## Final review and fix wave`). These it marked FOLLOW-UP instead:
+
+- The ownership heuristic `id.startsWith(`${m}_`)` (layout.ts's `ownsId`,
+  and the same shape in `place.ts`) guesses which element minted a
+  drawable. An element whose id is a prefix of another's (`wing` and
+  `wing_left` as siblings) is mis-attributed. The honest fix is an
+  emitted-slice map — tier-2 already knows which drawables each element
+  produced — rather than a naming convention.
+- A course describes an authored part's brief once per lecture; two
+  lectures needing the same template each pay for their own brief call. A
+  cross-lecture brief POOL would let the second reuse the first's.
+- `at` on a `group` is accepted and silently ignored (a group has no ink of
+  its own to move; `fit` is the group's placement verb). It should be a
+  validation error, not silence.
+- The player's Credits panel lists the lines with no heading and no
+  per-item context — a bare list of "X · CC BY 4.0". A heading and the
+  element each line belongs to would make it readable.
+- `TypeError: terminated` (an undici socket teardown mid-stream) kills a
+  whole eval case and, in the app, a whole generation. It is transient and
+  worth ONE automatic retry at the client level.
+- `scaleDrawables`/`shiftDrawables` collapse (already listed above) is the
+  review's too, specifically for the `clip` divergence.
 
 ## Sound (the play command) — done 2026-08-26
 

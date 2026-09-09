@@ -1,0 +1,550 @@
+{
+ "title": "Why the Eiffel Tower curves",
+ "elements": [
+  {
+   "id": "title",
+   "type": "text",
+   "text": "Why is the Eiffel Tower shaped like that?",
+   "x": 500,
+   "y": 712,
+   "font_size": 32
+  },
+  {
+   "id": "ground",
+   "type": "path",
+   "points": [
+    [
+     110,
+     110
+    ],
+    [
+     650,
+     110
+    ]
+   ],
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "leg_l",
+   "type": "path",
+   "points": [
+    [
+     180,
+     110
+    ],
+    [
+     218,
+     164
+    ],
+    [
+     245,
+     218
+    ],
+    [
+     265,
+     272
+    ],
+    [
+     280,
+     326
+    ],
+    [
+     290,
+     380
+    ],
+    [
+     298,
+     434
+    ],
+    [
+     303,
+     488
+    ],
+    [
+     307,
+     542
+    ],
+    [
+     310,
+     596
+    ],
+    [
+     312,
+     650
+    ]
+   ]
+  },
+  {
+   "id": "leg_r",
+   "type": "path",
+   "points": [
+    [
+     480,
+     110
+    ],
+    [
+     442,
+     164
+    ],
+    [
+     415,
+     218
+    ],
+    [
+     395,
+     272
+    ],
+    [
+     380,
+     326
+    ],
+    [
+     370,
+     380
+    ],
+    [
+     362,
+     434
+    ],
+    [
+     357,
+     488
+    ],
+    [
+     353,
+     542
+    ],
+    [
+     350,
+     596
+    ],
+    [
+     348,
+     650
+    ]
+   ]
+  },
+  {
+   "id": "arch",
+   "type": "arc",
+   "x": 330,
+   "y": 212,
+   "radius": 90,
+   "start": 180,
+   "end": 360,
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "plat1",
+   "type": "path",
+   "points": [
+    [
+     243,
+     212
+    ],
+    [
+     417,
+     212
+    ]
+   ]
+  },
+  {
+   "id": "plat2",
+   "type": "path",
+   "points": [
+    [
+     277,
+     317
+    ],
+    [
+     383,
+     317
+    ]
+   ]
+  },
+  {
+   "id": "plat3",
+   "type": "path",
+   "points": [
+    [
+     310,
+     607
+    ],
+    [
+     350,
+     607
+    ]
+   ]
+  },
+  {
+   "id": "cap",
+   "type": "path",
+   "points": [
+    [
+     312,
+     650
+    ],
+    [
+     348,
+     650
+    ]
+   ]
+  },
+  {
+   "id": "mast",
+   "type": "path",
+   "points": [
+    [
+     330,
+     650
+    ],
+    [
+     330,
+     700
+    ]
+   ]
+  },
+  {
+   "id": "wind1",
+   "type": "arrow",
+   "from": {
+    "x": 90,
+    "y": 580
+   },
+   "to": {
+    "x": 300,
+    "y": 580
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "wind2",
+   "type": "arrow",
+   "from": {
+    "x": 118,
+    "y": 432
+   },
+   "to": {
+    "x": 289,
+    "y": 432
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "wind3",
+   "type": "arrow",
+   "from": {
+    "x": 150,
+    "y": 300
+   },
+   "to": {
+    "x": 260,
+    "y": 300
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "wind4",
+   "type": "arrow",
+   "from": {
+    "x": 172,
+    "y": 170
+   },
+   "to": {
+    "x": 212,
+    "y": 170
+   },
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "label_wind",
+   "type": "label",
+   "text": "Wind",
+   "attach_to": "wind1",
+   "side": "above",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "sect",
+   "type": "path",
+   "points": [
+    [
+     262,
+     280
+    ],
+    [
+     398,
+     280
+    ]
+   ],
+   "style": {
+    "color": "#8f887c",
+    "dash": true
+   }
+  },
+  {
+   "id": "pt_p",
+   "type": "shape",
+   "shape": "circle",
+   "x": 268,
+   "y": 280,
+   "radius": 6,
+   "style": {
+    "color": "#8a5fa8",
+    "fill": "#8a5fa8"
+   }
+  },
+  {
+   "id": "res",
+   "type": "shape",
+   "shape": "circle",
+   "x": 328,
+   "y": 480,
+   "radius": 6,
+   "style": {
+    "color": "#2f6b8f",
+    "fill": "#2f6b8f"
+   }
+  },
+  {
+   "id": "wind_res",
+   "type": "arrow",
+   "from": {
+    "x": 225,
+    "y": 480
+   },
+   "to": {
+    "x": 318,
+    "y": 480
+   },
+   "style": {
+    "color": "#2f6b8f",
+    "stroke_width": 3
+   }
+  },
+  {
+   "id": "label_res",
+   "type": "label",
+   "text": "all the wind above pushes here",
+   "attach_to": "res",
+   "side": "right",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "tangent",
+   "type": "path",
+   "points": [
+    [
+     250,
+     220
+    ],
+    [
+     362,
+     590
+    ]
+   ],
+   "style": {
+    "color": "#8a5fa8",
+    "dash": true
+   }
+  },
+  {
+   "id": "thrust",
+   "type": "arrow",
+   "from": {
+    "x": 268,
+    "y": 280
+   },
+   "to": {
+    "x": 221,
+    "y": 168
+   },
+   "style": {
+    "color": "#8a5fa8",
+    "stroke_width": 3
+   }
+  },
+  {
+   "id": "label_thrust",
+   "type": "label",
+   "text": "squeezed, never pulled",
+   "attach_to": "thrust",
+   "side": "left",
+   "style": {
+    "color": "#8a5fa8"
+   }
+  },
+  {
+   "id": "mark",
+   "type": "annotation",
+   "target": "label_thrust",
+   "kind": "box"
+  },
+  {
+   "id": "cone",
+   "type": "path",
+   "points": [
+    [
+     180,
+     110
+    ],
+    [
+     312,
+     650
+    ]
+   ],
+   "style": {
+    "color": "#8f887c",
+    "dash": true
+   }
+  },
+  {
+   "id": "label_cone",
+   "type": "label",
+   "text": "a straight taper",
+   "attach_to": "cone",
+   "side": "left",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "label_lattice",
+   "type": "label",
+   "text": "open lattice: most wind blows through",
+   "attach_to": "leg_r",
+   "side": "right"
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "title"
+   ],
+   "speak": "That famous flare: is it a style choice, or is it arithmetic?"
+  },
+  {
+   "draw": [
+    "ground",
+    "leg_l",
+    "leg_r",
+    "cap",
+    "mast",
+    "arch",
+    "plat1",
+    "plat2",
+    "plat3"
+   ],
+   "parallel": true,
+   "speak": "Three hundred metres of iron, flaring hard at the feet and almost straight near the top."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "highlight": {
+    "target": [
+     "ground"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Its own weight is not the problem — spread over four feet, the tower presses the ground about as hard as a man sitting in a chair."
+  },
+  {
+   "draw": [
+    "wind1",
+    "wind2",
+    "wind3",
+    "wind4"
+   ],
+   "parallel": true,
+   "speak": "The enemy is wind, and it bites hardest high up, where every push works on a long lever."
+  },
+  {
+   "draw": [
+    "label_wind"
+   ]
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "sect",
+    "pt_p"
+   ],
+   "speak": "So cut the tower at some height and ask what the part above is doing to this edge."
+  },
+  {
+   "draw": [
+    "res",
+    "wind_res",
+    "label_res"
+   ],
+   "speak": "Every gust above the cut adds up to one single push, acting at one single point."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "tangent"
+   ],
+   "speak": "Eiffel's own stated rule was this: at each height, tilt the edge so it aims exactly at that point."
+  },
+  {
+   "draw": [
+    "thrust",
+    "label_thrust",
+    "mark"
+   ],
+   "speak": "Aimed that way, the wind's shove runs straight down the leg as squeezing — and wrought iron held by rivets hates being pulled far more than being squeezed."
+  },
+  {
+   "pause": 0.5
+  },
+  {
+   "draw": [
+    "cone",
+    "label_cone"
+   ],
+   "speak": "A straight taper would sit out here — for most of its height the real tower is actually thinner than that."
+  },
+  {
+   "highlight": {
+    "target": [
+     "leg_l",
+     "leg_r"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Because the wind's leverage piles up as you descend, nearly all the widening is spent in the bottom fifty metres."
+  },
+  {
+   "draw": [
+    "label_lattice"
+   ],
+   "speak": "And the openwork finishes the job: most of the air simply passes through the lattice instead of leaning on it."
+  },
+  {
+   "speak": "So the silhouette is not decoration — it is a graph of the wind's leverage, drawn in iron; in a full storm the top shifts only a hand's breadth, less than the sun bends it by warming one side.",
+   "delivery": "grave"
+  }
+ ]
+}

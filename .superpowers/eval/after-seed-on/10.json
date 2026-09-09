@@ -1,0 +1,278 @@
+{
+ "title": "Hvorfor sekskanter?",
+ "elements": [
+  {
+   "id": "tittel",
+   "type": "text",
+   "text": "Hvorfor sekskanter?",
+   "x": 320,
+   "y": 700,
+   "font_size": 42
+  },
+  {
+   "id": "foto",
+   "type": "image",
+   "of": "Honeycomb",
+   "width": 300,
+   "x": 800,
+   "y": 470
+  },
+  {
+   "id": "tri",
+   "type": "polygon",
+   "sides": 3,
+   "radius": 96,
+   "rotation": 90,
+   "x": 130,
+   "y": 460,
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "kvad",
+   "type": "polygon",
+   "sides": 4,
+   "radius": 77,
+   "rotation": 45,
+   "x": 330,
+   "y": 460,
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "heks",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 68,
+   "x": 510,
+   "y": 460,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "l_tri",
+   "type": "label",
+   "text": "Trekant: 4,56",
+   "attach_to": "tri",
+   "side": "below",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "l_kvad",
+   "type": "label",
+   "text": "Kvadrat: 4,00",
+   "attach_to": "kvad",
+   "side": "below",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "l_heks",
+   "type": "label",
+   "text": "Sekskant: 3,72",
+   "attach_to": "heks",
+   "side": "below",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "mark",
+   "type": "annotation",
+   "target": "l_heks",
+   "kind": "box"
+  },
+  {
+   "id": "hc1",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 90,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "hc2",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 180,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "hc3",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 270,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "hc4",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 360,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "hc5",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 450,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "hc6",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 540,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  },
+  {
+   "id": "hc7",
+   "type": "polygon",
+   "sides": 6,
+   "radius": 40,
+   "x": 630,
+   "y": 155,
+   "style": {
+    "color": "#b5482e",
+    "fill": "#f2c14e"
+   }
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "tittel"
+   ],
+   "speak": "Voks er biens dyreste byggemateriale — hun må spise flere gram honning for hvert gram voks hun skiller ut."
+  },
+  {
+   "draw": [
+    "foto"
+   ],
+   "speak": "Så hver vegg i kuben er en regning, og de betaler den i sekskanter."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "tri",
+    "kvad",
+    "heks"
+   ],
+   "parallel": true,
+   "speak": "Bare tre regelmessige figurer dekker en flate uten hull: trekant, kvadrat og sekskant."
+  },
+  {
+   "highlight": {
+    "target": [
+     "tri",
+     "kvad",
+     "heks"
+    ],
+    "effect": "pulse"
+   },
+   "speak": "Alle tre er tegnet med nøyaktig samme areal — like romslige celler."
+  },
+  {
+   "draw": [
+    "l_tri",
+    "l_kvad",
+    "l_heks"
+   ],
+   "speak": "Men veggen rundt blir ulik: 4,56 for trekanten, 4,00 for kvadratet, 3,72 for sekskanten."
+  },
+  {
+   "draw": [
+    "mark"
+   ],
+   "speak": "Sekskanten gjerder inn samme plass med minst vegg — rundt syv prosent mindre voks enn kvadrater.",
+   "delivery": "grave"
+  },
+  {
+   "pause": 0.5
+  },
+  {
+   "draw": [
+    "hc1",
+    "hc2",
+    "hc3",
+    "hc4",
+    "hc5",
+    "hc6",
+    "hc7"
+   ],
+   "parallel": true,
+   "speak": "Ta så en håndfull slike celler."
+  },
+  {
+   "arrange": {
+    "target": [
+     "hc1",
+     "hc2",
+     "hc3",
+     "hc4",
+     "hc5",
+     "hc6",
+     "hc7"
+    ],
+    "layout": "hex",
+    "at": [
+     360,
+     160
+    ],
+    "gap": 0,
+    "duration": 2
+   },
+   "speak": "De klikker sammen uten en eneste luke, og hver vegg deles mellom to celler — den billige veggen betales bare én gang."
+  },
+  {
+   "point": {
+    "at": {
+     "ref": "heks"
+    },
+    "gesture": "circle"
+   },
+   "speak": "At ingen oppdeling i like store celler klarer seg med mindre vegg, ble gjettet i antikken og først bevist av Thomas Hales i 1999."
+  },
+  {
+   "speak": "Sekskanten er ikke pynt — den er den billigste måten å dele opp en flate på."
+  }
+ ]
+}

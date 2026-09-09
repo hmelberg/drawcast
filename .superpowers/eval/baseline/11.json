@@ -1,0 +1,168 @@
+{
+ "title": "What makes a violin sound like a violin?",
+ "template": "violin_anatomy",
+ "params": {
+  "instrument": "violin",
+  "labels": [
+   "strings",
+   "bridge",
+   "f_holes",
+   "bow"
+  ],
+  "bow": true,
+  "strings": true
+ },
+ "elements": [
+  {
+   "id": "title",
+   "type": "text",
+   "x": 500,
+   "y": 714,
+   "text": "What makes a violin sound like a violin?",
+   "font_size": 31
+  },
+  {
+   "id": "cap1",
+   "type": "text",
+   "x": 170,
+   "y": 175,
+   "text": "The string picks the note.",
+   "font_size": 24
+  },
+  {
+   "id": "cap2",
+   "type": "text",
+   "x": 170,
+   "y": 138,
+   "text": "The body picks the tone.",
+   "font_size": 24,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "mark",
+   "type": "annotation",
+   "target": "cap2",
+   "kind": "box"
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "title"
+   ],
+   "speak": "Same note, violin or flute, and nobody confuses them — so the thing we call an instrument's voice is not the pitch at all."
+  },
+  {
+   "draw": [
+    "body_fill",
+    "body",
+    "purfling",
+    "neck",
+    "fingerboard_fill",
+    "fingerboard",
+    "pegbox",
+    "pegbox_slot",
+    "pegs",
+    "scroll",
+    "tailpiece_fill",
+    "tailpiece",
+    "tailgut",
+    "chinrest",
+    "chinrest_clamp"
+   ],
+   "parallel": true
+  },
+  {
+   "draw": [
+    "strings",
+    "label_strings"
+   ],
+   "speak": "The four strings do just one job: they set the pitch."
+  },
+  {
+   "play": "G3:q D4:q A4:q E5:q",
+   "instrument": "pluck",
+   "speak": "Open G, D, A and E — and a string on its own is nearly silent, too thin to push much air."
+  },
+  {
+   "draw": [
+    "bow",
+    "label_bow"
+   ],
+   "speak": "The bow never glides: the rosin grips the string, drags it sideways, and lets it snap back, hundreds of times a second."
+  },
+  {
+   "flow": {
+    "along": [
+     "strings"
+    ],
+    "speed": 200
+   },
+   "speak": "That grab-and-release makes a jagged sawtooth wriggle, crowded with overtones, and it runs straight into the bridge."
+  },
+  {
+   "draw": [
+    "bridge",
+    "bridge_leader",
+    "label_bridge"
+   ],
+   "speak": "The bridge rocks on its feet and hands the whole crowd of overtones to the wooden box."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "fholes",
+    "label_f_holes"
+   ],
+   "speak": "The f-holes let the air inside breathe in and out — a resonance tuned near the open D string."
+  },
+  {
+   "focus": {
+    "target": [
+     "body",
+     "body_fill",
+     "purfling",
+     "fholes",
+     "bridge"
+    ]
+   },
+   "speak": "And the box is no neutral amplifier: wood and air lift some overtones and swallow others, which is the whole trick."
+  },
+  {
+   "play": "A3:w",
+   "instrument": "tone",
+   "speak": "A bare fundamental, no overtones: thin, and like nothing in particular."
+  },
+  {
+   "play": "A3+A4+E5+A5+C#6:w",
+   "instrument": "tone",
+   "speak": "Weight the overtones the way a violin body does, and an instrument appears — identical pitch, different voice."
+  },
+  {
+   "highlight": {
+    "target": [
+     "fholes",
+     "bridge"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Violins swell a broad band near three thousand hertz, exactly where our ears are sharpest — one violin can ride over sixty players."
+  },
+  {
+   "speak": "Measure the old Cremona instruments and their f-holes are longer and narrower than the round holes that came before — a slow drift toward more sound per hole, over generations of makers copying whatever worked.",
+   "delivery": "soft"
+  },
+  {
+   "draw": [
+    "cap1",
+    "cap2",
+    "mark"
+   ],
+   "speak": "So the string chooses the note, and the body chooses the sound — which is why a great violin is a great box, not a great string."
+  }
+ ]
+}

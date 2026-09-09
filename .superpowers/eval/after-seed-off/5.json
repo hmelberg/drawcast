@@ -1,0 +1,213 @@
+{
+ "title": "Why a dropped ball speeds up",
+ "domain": {
+  "x": [
+   0,
+   3
+  ],
+  "y": [
+   0,
+   50
+  ]
+ },
+ "elements": [
+  {
+   "id": "tit",
+   "type": "text",
+   "text": "A dropped ball",
+   "x": 500,
+   "y": 715,
+   "font_size": 34
+  },
+  {
+   "id": "ax",
+   "type": "axes",
+   "x_label": "Time (s)",
+   "y_label": "Distance fallen (m)"
+  },
+  {
+   "id": "steady",
+   "type": "curve",
+   "expr": "14.7*x",
+   "style": {
+    "color": "#8f887c",
+    "dash": true
+   }
+  },
+  {
+   "id": "lab_steady",
+   "type": "label",
+   "text": "steady speed",
+   "attach_to": "steady",
+   "side": "below-right",
+   "style": {
+    "color": "#8f887c"
+   }
+  },
+  {
+   "id": "fall",
+   "type": "curve",
+   "expr": "4.9*x*x",
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "p1",
+   "type": "point",
+   "at": {
+    "x": 1,
+    "y": 4.9
+   },
+   "guides": true,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "p2",
+   "type": "point",
+   "at": {
+    "x": 2,
+    "y": 19.6
+   },
+   "guides": true,
+   "style": {
+    "color": "#b5482e"
+   }
+  },
+  {
+   "id": "tang",
+   "type": "line",
+   "through": [
+    {
+     "ref": "p2"
+    }
+   ],
+   "slope": 19.6,
+   "style": {
+    "color": "#2f6b8f",
+    "dash": true
+   }
+  },
+  {
+   "id": "lab_v",
+   "type": "label",
+   "tex": "v = gt",
+   "attach_to": "p2",
+   "side": "above-left",
+   "style": {
+    "color": "#2f6b8f"
+   }
+  },
+  {
+   "id": "eq_s",
+   "type": "math",
+   "tex": "s = \\tfrac{1}{2} g t^2",
+   "size": 34,
+   "at": {
+    "ref": "p1",
+    "side": "above-left",
+    "gap": 24
+   }
+  },
+  {
+   "id": "mark_eq",
+   "type": "annotation",
+   "target": "eq_s",
+   "kind": "box"
+  },
+  {
+   "id": "gal",
+   "type": "portrait",
+   "of": "Galileo Galilei",
+   "cameo": true
+  }
+ ],
+ "commands": [
+  {
+   "draw": [
+    "tit"
+   ],
+   "speak": "Fall from one metre and you land unhurt; from four metres, hospital — and the reason is in this curve."
+  },
+  {
+   "draw": [
+    "ax"
+   ]
+  },
+  {
+   "draw": [
+    "steady",
+    "lab_steady"
+   ],
+   "speak": "If the ball held a single speed, distance would pile up along this straight grey line."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "fall"
+   ],
+   "speak": "The real fall bends upward instead."
+  },
+  {
+   "pause": 0.4
+  },
+  {
+   "draw": [
+    "p1",
+    "p2"
+   ],
+   "parallel": true,
+   "speak": "Five metres in the first second, about twenty by the end of the second."
+  },
+  {
+   "erase": [
+    "steady",
+    "lab_steady"
+   ],
+   "speak": "Gravity never hands out distance at a fixed rate — it hands out speed."
+  },
+  {
+   "draw": [
+    "tang",
+    "lab_v"
+   ],
+   "speak": "The steepness here is the speed, and it grows by ten metres per second every second."
+  },
+  {
+   "pause": 0.3
+  },
+  {
+   "draw": [
+    "eq_s",
+    "mark_eq"
+   ],
+   "speak": "Add up a speed rising in step with time, and distance goes as time squared."
+  },
+  {
+   "highlight": {
+    "target": [
+     "fall"
+    ],
+    "effect": "glow"
+   },
+   "speak": "Doubling the fall time quadruples the drop — the second second alone is worth fifteen metres.",
+   "delivery": "grave"
+  },
+  {
+   "draw": [
+    "gal"
+   ],
+   "speak": "Galileo couldn't time a free fall by hand, so he rolled balls down a gentle ramp and stretched the same law out in time."
+  },
+  {
+   "erase": [
+    "gal"
+   ],
+   "speak": "You can now read the bend itself: a steady pull, a growing speed, and distance that runs away with the square of the time."
+  }
+ ]
+}

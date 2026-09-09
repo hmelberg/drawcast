@@ -1,0 +1,24 @@
+(node:27979) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ready templates: 88; model: claude-opus-5; seed: off; cases: 12/12; out: ../freehand/.superpowers/eval/baseline
+1. [thing] ok 225279ms ≈ $0.90 · 91k tokens in (86k cached) · 16k out · 2 calls rounds= template=none "How does a bicycle pump push air into a tyre?"
+2. [thing] ok 221378ms ≈ $0.96 · 168k tokens in (158k cached) · 17k out · 3 calls rounds=initial>pedagogy template=none "Hva er delene i en symaskin, og hva gjør de?"
+3. [thing] ok 43367ms ≈ $0.44 · 331k tokens in (303k cached) · 4k out · 5 calls rounds=initial>schema-repair>schema-repair>pedagogy template=neuron "What are the parts of a neuron and what does each "
+4. [thing] ok 235254ms ≈ $0.44 · 86k tokens in (86k cached) · 16k out · 2 calls rounds= template=none "Hvordan virker en dørlås?"
+5. [math] ok 100666ms ≈ $0.74 · 170k tokens in (158k cached) · 8k out · 3 calls rounds=initial>pedagogy template=none "Why does a dropped ball speed up? Show the equatio"
+6. [math] ok 66494ms ≈ $0.31 · 179k tokens in (158k cached) · 5k out · 3 calls rounds=initial>pedagogy template=none "Hvorfor blir renters rente så stor? Vis formelen v"
+7. [math] ok 101496ms ≈ $0.54 · 329k tokens in (303k cached) · 8k out · 5 calls rounds=initial>schema-repair>schema-repair>pedagogy template=generic_axes_diagram "What does the logistic equation say, drawn next to"
+8. [math] ok 67754ms ≈ $0.27 · 174k tokens in (158k cached) · 5k out · 3 calls rounds=initial>pedagogy template=none "Vis formelen for arealet av en sirkel ved siden av"
+9. [image] ok 190416ms ≈ $0.51 · 244k tokens in (230k cached) · 16k out · 4 calls rounds=initial>schema-repair>pedagogy template=none "Why is the Eiffel Tower shaped like that?"
+10. [image] ok 224426ms ≈ $0.59 · 176k tokens in (158k cached) · 17k out · 3 calls rounds=initial>pedagogy template=none "Hvorfor har en bikube sekskanter? Vis et ekte bild"
+11. [image] ok 90759ms ≈ $0.55 · 339k tokens in (303k cached) · 8k out · 5 calls rounds=initial>schema-repair>schema-repair>pedagogy template=violin_anatomy "What makes a violin sound the way it does?"
+12. [image] ok 221389ms ≈ $0.57 · 245k tokens in (230k cached) · 18k out · 4 calls rounds=initial>lint-repair>pedagogy template=none "Hvordan ser Stortinget ut, og hvorfor er det bygge"
+
+label      pass  lintErr lintWarn  ms(med)  target-field hits
+thing      FAIL        0        1   225279  0/4 (usesGroup)
+math       FAIL        0        4   100666  0/4 (usesMath)
+image      FAIL        0        9   221389  0/4 (usesImage)
+
+overall median 190416ms (< 90000 required: FAIL)
+FAIL
+EXIT 1
