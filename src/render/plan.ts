@@ -262,6 +262,13 @@ export interface PlanOptions {
   measuresDependingOn?: (id: string) => string[];
 }
 
+/** A PointRef that names a place in the SCENE (an array, a ref, or x+y) rather than the acting element's own anchor — resolved once per command, never per target. */
+export function isExplicitPointRef(p: PointRef | undefined): boolean {
+  if (p === undefined) return false;
+  if (Array.isArray(p)) return true;
+  return p.ref !== undefined || (p.x !== undefined && p.anchor === undefined);
+}
+
 const CAMERA_MAX_ZOOM = 8;
 
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
@@ -974,11 +981,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // itself one of the targets hand later targets the wheel's ALREADY
         // moved centre — the cycloid that came out as a giant arc.
         const dest = hasTo ? resolvePoint(cmd.move.to, undefined, "move") : null;
-        const pivotIsExplicit =
-          cmd.move.pivot !== undefined &&
-          (Array.isArray(cmd.move.pivot) ||
-            (cmd.move.pivot as EndRef).ref !== undefined ||
-            ((cmd.move.pivot as EndRef).x !== undefined && (cmd.move.pivot as EndRef).anchor === undefined));
+        const pivotIsExplicit = isExplicitPointRef(cmd.move.pivot);
         // A ref-less {anchor} pivot stays per target: it names the moving element's own anchor.
         const pivot0 = pivotIsExplicit ? resolvePoint(cmd.move.pivot, undefined, "move") : null;
         const items: TransformItem[] = [];
@@ -1149,11 +1152,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // `through` with a ref (or a literal point) names a place in the scene:
       // resolve it once, before any target has been flipped. A ref-less
       // {anchor} stays per target — it names the flipping element's own anchor.
-      const throughIsExplicit =
-        cmd.flip.through !== undefined &&
-        (Array.isArray(cmd.flip.through) ||
-          (cmd.flip.through as EndRef).ref !== undefined ||
-          ((cmd.flip.through as EndRef).x !== undefined && (cmd.flip.through as EndRef).anchor === undefined));
+      const throughIsExplicit = isExplicitPointRef(cmd.flip.through);
       const through0 = throughIsExplicit ? resolvePoint(cmd.flip.through, undefined, "flip") : null;
       const items: TransformItem[] = [];
       const movedFollowers = new Set<string>();
@@ -1210,11 +1209,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // Same rule as move and flip: a pivot that names a ref (or a literal
       // point) is resolved once, from the pre-morph state, so target two does
       // not stretch about target one's already stretched outline.
-      const morphPivotIsExplicit =
-        cmd.morph.pivot !== undefined &&
-        (Array.isArray(cmd.morph.pivot) ||
-          (cmd.morph.pivot as EndRef).ref !== undefined ||
-          ((cmd.morph.pivot as EndRef).x !== undefined && (cmd.morph.pivot as EndRef).anchor === undefined));
+      const morphPivotIsExplicit = isExplicitPointRef(cmd.morph.pivot);
       const morphPivot0 = morphPivotIsExplicit ? resolvePoint(cmd.morph.pivot, undefined, "morph") : null;
       const items: MorphItem[] = [];
       for (const id of ids) {

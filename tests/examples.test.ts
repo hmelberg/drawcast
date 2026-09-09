@@ -84,6 +84,14 @@ describe("bundled examples stay exemplary", () => {
       windows: layout.windows ?? {},
       ...domainMapping(spec.domain),
       animateBase: spec.template ? spec.params ?? {} : null,
+      // Same shape render() builds (src/render/index.ts): after an animate
+      // step the planner switches its bbox source to the post-animate
+      // layout, so later steps (a move to a ref, a flip through a point)
+      // target where things actually are, not where they started.
+      bboxesFor: (params) => {
+        const b = elementBBoxes(layoutSpec({ ...spec, params: withOverrides(spec.params, params) }));
+        return (id) => b.get(id) ?? null;
+      },
       ...planOptionsFor(spec, layout),
     });
     expect(plan.warnings).toEqual([]);
