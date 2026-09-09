@@ -419,22 +419,34 @@ describe("pedagogy review pass", () => {
   });
 
   test("a revision that switches template or breaks validation is discarded", async () => {
-    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(VALID_FREE_BODY));
-    const switched = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
-    expect(switched.spec).toEqual(VALID_SUPPLY_DEMAND);
-    expect(switched.rounds[1].adopted).toBe(false);
-    // The round's lintIssues describe the DELIVERED (base) spec, not the
-    // rejected candidate — VALID_SUPPLY_DEMAND (commands: []) lints clean.
-    expect(switched.rounds[1].lintIssues).toEqual([]);
+    // The base spec deliberately does NOT lint clean (D1): two speaks before
+    // any draw is a slow-start WARN. With the old fixture — VALID_SUPPLY_DEMAND,
+    // commands: [] — base and candidate both linted to [], so `toEqual([])`
+    // passed on the bug this test exists to catch as happily as on the fix.
+    const SLOW_BASE = { ...VALID_SUPPLY_DEMAND, commands: [{ speak: "One." }, { speak: "Two." }] };
+    mockCallForJson.mockResolvedValueOnce(respond(SLOW_BASE));
+    const plain = await generateSpec("draw supply and demand", baseCfg());
+    const baseLint = plain.rounds[0].lintIssues;
+    expect(baseLint.some((i) => i.rule === "slow-start")).toBe(true);
 
     mockCallForJson.mockReset();
-    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond({ nonsense: true }));
+    mockCallForJson.mockResolvedValueOnce(respond(SLOW_BASE)).mockResolvedValueOnce(respond(VALID_FREE_BODY));
+    const switched = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(switched.spec).toEqual(SLOW_BASE);
+    expect(switched.rounds[1].adopted).toBe(false);
+    // The round's lintIssues describe the DELIVERED (base) spec, not the
+    // rejected candidate — which is a different template with its own lint.
+    expect(switched.rounds[1].lintIssues).toEqual(baseLint);
+
+    mockCallForJson.mockReset();
+    mockCallForJson.mockResolvedValueOnce(respond(SLOW_BASE)).mockResolvedValueOnce(respond({ nonsense: true }));
     const broken = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
-    expect(broken.spec).toEqual(VALID_SUPPLY_DEMAND);
+    expect(broken.spec).toEqual(SLOW_BASE);
     expect(broken.rounds[1].adopted).toBe(false);
     expect(broken.rounds[1].validationErrors.length).toBeGreaterThan(0);
-    // Same: an invalid candidate must never overwrite the base spec's lint.
-    expect(broken.rounds[1].lintIssues).toEqual([]);
+    // Same: an invalid candidate (whose own lint is empty) must never
+    // overwrite the base spec's.
+    expect(broken.rounds[1].lintIssues).toEqual(baseLint);
   });
 
   test("a revision that lints worse (more warns than the base spec) is rejected, and the round's lintIssues describe the DELIVERED spec, not the candidate", async () => {

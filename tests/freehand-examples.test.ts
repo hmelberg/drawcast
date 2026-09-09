@@ -10,7 +10,7 @@ import { describe, expect, test } from "vitest";
 import examples from "../src/examples.json";
 import fewshots from "../src/llm/prompts/fewshots.json";
 
-type Ex = { request: string; spec?: { template?: string; elements?: { type: string; at?: { ref?: string }; fit?: unknown; tex?: unknown }[] } };
+type Ex = { request: string; spec?: { template?: string; elements?: { type: string; at?: { ref?: string }; fit?: unknown; tex?: unknown; closed?: boolean; style?: { fill?: string } }[] } };
 const uses = (ex: Ex, pred: (e: NonNullable<NonNullable<Ex["spec"]>["elements"]>[number]) => boolean) => !!ex.spec?.elements?.some(pred);
 
 describe("freehand exemplars (spec §6.2)", () => {
@@ -26,6 +26,11 @@ describe("freehand exemplars (spec §6.2)", () => {
     expect((fewshots as Ex[]).find((e) => e.request.startsWith("How does a bicycle pump"))!.spec!.elements!.some((x) => x.at?.ref)).toBe(true);
     expect((fewshots as Ex[]).find((e) => e.request.startsWith("Show a client"))!.spec!.elements!.every((x) => x.at === undefined)).toBe(true);
   });
+  test("a bundled example fills a closed path, so the gate renders filledOutline for paths (D2)", () => {
+    const filled = (examples as Ex[]).filter((e) => e.spec && !e.spec.template && uses(e, (x) => x.type === "path" && x.closed === true && !!x.style?.fill));
+    expect(filled.length).toBeGreaterThanOrEqual(1);
+  });
+
   test("six bundled examples, question-shaped, two per target", () => {
     const fh = (examples as Ex[]).filter((e) => e.spec && !e.spec.template);
     const things = fh.filter((e) => uses(e, (x) => x.type === "group"));

@@ -16916,6 +16916,9 @@
             ]
           ],
           "closed": true,
+          "style": {
+            "fill": "#8f887c"
+          },
           "at": {
             "ref": "tower",
             "anchor": "bottom"
