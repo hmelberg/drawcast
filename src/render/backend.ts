@@ -54,6 +54,8 @@ export interface RenderedElement {
   setOpacity?(alpha: number): void;
   /** Replace the points of the listed leaves (ORIGINAL-frame, keyed by leaf id) and rebuild them; every leaf NOT listed returns to its layout points. The pose transform stays on the leaf's group. */
   setPoints?(points: Record<string, Pt[]>): void;
+  /** Rewrite the listed text leaves' content (keyed by leaf id); unlisted ones return to the layout's text. */
+  setText?(texts: Record<string, string>): void;
 }
 
 /**
@@ -114,6 +116,7 @@ export interface MountResult {
     turns?: Record<string, Turn>,
     opacities?: Record<string, number>,
     shapes?: Record<string, Record<string, Pt[]>>,
+    texts?: Record<string, Record<string, string>>,
   ): void;
   /**
    * Full re-mount of a new layout into the same svg: rebuilds nodes AND

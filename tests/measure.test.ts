@@ -1,10 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { dimensionLine, formatMeasure, measureValue, ringArea, ringPerimeter, segmentLength } from "../src/layout/measures";
-import { layoutSpec } from "../src/layout/layout";
+import { elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
+import { planCommands, type PlanStep } from "../src/render/plan";
+import { planOptionsFor } from "../src/render/index";
 
 const spec = (elements: unknown[]): Spec => ({ elements, commands: [] }) as unknown as Spec;
 const textOf = (out: ReturnType<typeof layoutSpec>, id: string) => (flattenDrawables(out.drawables).find((d) => d.id === id) as { text?: string } | undefined)?.text;
@@ -93,5 +95,65 @@ describe("measure element (design §2.3)", () => {
     expect(out.warnings).toEqual([]);
     expect(flattenDrawables(out.drawables).some((d) => d.id === "label_hidden")).toBe(false);
     expect(out.measures.hidden.textId).toBe("label_hidden");
+  });
+});
+
+describe("the measure follows (design §2.3)", () => {
+  const sq = { id: "sq", type: "polygon", points: [[200, 200], [300, 200], [300, 300], [200, 300]], style: { fill: "#87a878" } };
+  const els = [sq,
+    { id: "ar", type: "measure", of: "sq", label: "A = {value}" },
+    { id: "side", type: "measure", from: { ref: "sq", anchor: "vertex_1" }, to: { ref: "sq", anchor: "vertex_2" }, label: "b = {value}" },
+    { id: "p", type: "point", at: { x: 600, y: 600 } },
+    { id: "d", type: "measure", from: { ref: "p" }, to: { ref: "sq", anchor: "vertex_3" } }];
+  const planOf = (commands: unknown[]) => {
+    const s = { elements: els, commands: [{ draw: ["sq", "ar", "side", "p", "d"] }, ...commands] };
+    const layout = layoutSpec(s as never, heuristicMeasure);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    return { layout, plan: planCommands(s.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s as never, layout) }) };
+  };
+  test("a scale ×2 about a corner writes A ×4 and b ×2, re-points the dimension line, and moves its label", () => {
+    const { plan } = planOf([{ move: { target: ["sq"], scale: 2, pivot: { anchor: "bottom_left" } } }]);
+    expect(plan.warnings).toEqual([]);
+    const st = plan.states[1];
+    expect(st.texts.label_ar.label_ar).toBe("A = 40000");
+    expect(st.texts.label_side.label_side).toBe("b = 200");
+    expect(st.shapes.side.side[1][0]).toBeCloseTo(400, 6); // the line now spans 200 → 400
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    expect(step.texts?.map((t) => t.id).sort()).toEqual(["label_ar", "label_d", "label_side"]);
+    expect(step.extraMorphs?.some((m) => m.id === "side")).toBe(true);
+    expect(st.offsets.label_side?.[0]).toBeCloseTo(50, 6); // the label slid to the new midpoint
+  });
+  test("a mirror keeps the area positive; a morph stretch doubles it; moving a from-ref point changes a segment measure", () => {
+    const { layout, plan } = planOf([{ flip: { target: ["sq"] } }, { morph: { target: ["sq"], stretch: [2, 1] } }, { move: { target: ["p"], by: [0, -100] } }]);
+    expect(plan.warnings).toEqual([]);
+    expect(plan.states[1].texts.label_ar.label_ar).toBe("A = 10000");
+    expect(plan.states[2].texts.label_ar.label_ar).toBe("A = 20000");
+    // label_d depends on p (from) and sq (to): the flip and the stretch rewrite it, the move of p rewrites it again — every time to a different number
+    const layoutText = textOf(layout, "label_d")!;
+    const after1 = plan.states[1].texts.label_d.label_d;
+    const after3 = plan.states[3].texts.label_d.label_d;
+    expect(after1).not.toBe(layoutText);
+    expect(after3).not.toBe(plan.states[2].texts.label_d.label_d);
+  });
+  test("a circle scales by πr² through the pose; a label:false measure re-points its line with no text to slide", () => {
+    const s = {
+      elements: [
+        { id: "c", type: "shape", shape: "circle", x: 500, y: 400, radius: 100 },
+        { id: "ca", type: "measure", of: "c", label: "A = {value}" },
+        { id: "cw", type: "measure", of: "c", what: "width", label: false },
+      ],
+      commands: [{ draw: ["c", "ca", "cw"] }, { move: { target: ["c"], scale: 2 } }],
+    };
+    const layout = layoutSpec(s as never, heuristicMeasure);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    const plan = planCommands(s.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s as never, layout) });
+    expect(plan.warnings).toEqual([]);
+    const st = plan.states[1];
+    expect(st.texts.label_ca.label_ca).toBe("A = 125664"); // π · 200²
+    expect(st.texts.label_cw.label_cw).toBe("400"); // the doubled diameter
+    expect(segmentLength(st.shapes.cw.cw[0], st.shapes.cw.cw[1])).toBeCloseTo(400, 6);
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    // label: false draws no text, so there is nothing to slide — only the area's label moves.
+    expect(step.extraTransforms?.map((t) => t.id)).toEqual(["label_ca"]);
   });
 });

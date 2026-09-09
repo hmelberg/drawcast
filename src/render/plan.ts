@@ -19,6 +19,7 @@ import { arrangeTargets, type ArrangeInput } from "./arrange";
 import type { PieceGeometry } from "../layout/tier2";
 import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/anchors";
 import { morphPair, stretchPts } from "./morph";
+import { dimensionLine, formatMeasure, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
 import { pathPosition } from "./effects";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
@@ -79,10 +80,10 @@ export type PlanStep = (
       untilNarrationEnd?: boolean;
     }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
-  | { kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
-  | { kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] }
+  | ({ kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow)
+  | ({ kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow)
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
-  | { kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing }
+  | ({ kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing } & MeasureFollow)
   | {
       kind: "flow";
       ids: string[];
@@ -133,6 +134,25 @@ export interface MorphItem {
   leaves: { leafId: string; from: Pt[]; to: Pt[] }[];
 }
 
+/** One text leaf's new content at a step boundary (design §2.3): a measure's
+ *  recomputed value, written where the layout's own string was. */
+export interface TextItem {
+  id: string;
+  leafId: string;
+  text: string;
+}
+
+/** What a step carries on TOP of its own items so the measures that read the
+ *  moved figure follow it (design §2.3): their dimension lines re-pointed,
+ *  their labels slid to the new spot, their values rewritten. Every verb that
+ *  changes a measured element's pose or shape — move, arrange, flip, morph —
+ *  fills these in. */
+interface MeasureFollow {
+  extraMorphs?: MorphItem[];
+  extraTransforms?: TransformItem[];
+  texts?: TextItem[];
+}
+
 /** A trail's progress table for one step (design §2.5): the player looks up
  *  the eased time in `lengthAt` (arc-length parameterized) and hands the
  *  result to the trail element's setProgress. */
@@ -157,9 +177,11 @@ export interface SceneState {
   opacities: Record<string, number>;
   /** Current ORIGINAL-frame points of every morphed leaf: element id → leaf id → points (absent = the layout's own). */
   shapes: Record<string, Record<string, Pt[]>>;
+  /** Current content of every rewritten text leaf: element id → leaf id → string (absent = the layout's own). A measure's value lives here once the figure it reads has moved (design §2.3). */
+  texts: Record<string, Record<string, string>>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {} };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {}, texts: {} };
 
 /** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
 export function boundaryAt(plan: Plan, n: number): SceneState {
@@ -234,6 +256,10 @@ export interface PlanOptions {
   anchorOf?: (id: string, name: string) => Pt | null;
   /** The morphable leaves of an element (stroke/area with pts, no shapeHint) in draw order, with their layout points. */
   leafPointsOf?: (id: string) => { leafId: string; pts: Pt[]; closed: boolean }[] | null;
+  /** The measure an id names (layout.measures), or null when it is not a measure. */
+  measureOf?: (id: string) => MeasureSpec | null;
+  /** The measure ids that read an element — its `of`, or the ref of its `from`/`to` (design §2.3). */
+  measuresDependingOn?: (id: string) => string[];
 }
 
 const CAMERA_MAX_ZOOM = 8;
@@ -273,6 +299,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const turns: Record<string, Turn> = {};
   const opacities: Record<string, number> = {};
   const shapes: Record<string, Record<string, Pt[]>> = {};
+  const texts: Record<string, Record<string, string>> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
@@ -301,6 +328,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       params: { ...params },
       opacities: { ...opacities },
       shapes: Object.fromEntries(Object.entries(shapes).map(([id, m]) => [id, { ...m }])),
+      texts: Object.fromEntries(Object.entries(texts).map(([id, m]) => [id, { ...m }])),
     });
   };
   /** The window's scroll: the highest visible line's bottom sits at the
@@ -528,6 +556,107 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       offsets[f] = next;
     }
     return out;
+  };
+
+  /** The current geometry a measure reads (design §2.3): a segment's ends
+   *  through anchorNow, a circle's centre and radius through the pose, or the
+   *  primary ring's points through the pose. */
+  const measureGeometryNow = (m: MeasureSpec): { a?: Pt; b?: Pt; ring?: Pt[]; circle?: { c: Pt; r: number } } | null => {
+    const pointNow = (s: PointSource): Pt | null => ("pt" in s ? s.pt : anchorNow(s.ref, s.anchor, "measure"));
+    if (m.from && m.to) {
+      const a = pointNow(m.from), b = pointNow(m.to);
+      return a && b ? { a, b } : null;
+    }
+    const of = m.of;
+    if (!of) return null;
+    // A circle carries no literal ring: its centre rides the pose and its
+    // radius the pose's scale (a mirror or a rotation leaves it a circle).
+    if (m.circle) {
+      const c = poseOf(offsets[of] ?? [0, 0], turns[of])(m.circle.c);
+      const r = m.circle.r * (turns[of]?.scale ?? 1);
+      const g: { a?: Pt; b?: Pt; circle: { c: Pt; r: number } } = { circle: { c, r } };
+      // The same ends tier-2 lays a circle's width/height line between.
+      if (m.what === "width") return { ...g, a: [c[0] - r, c[1] - r], b: [c[0] + r, c[1] - r] };
+      if (m.what === "height") return { ...g, a: [c[0] + r, c[1] - r], b: [c[0] + r, c[1] + r] };
+      return g;
+    }
+    const leaves = currentLeaves(of);
+    const primary = leaves?.find((l) => l.closed) ?? leaves?.[0];
+    if (!primary) {
+      // a shape rect has no morphable leaves: measure its current box instead
+      const box = currentBox(of);
+      return box ? { ring: [[box.x, box.y], [box.x + box.w, box.y], [box.x + box.w, box.y + box.h], [box.x, box.y + box.h]] } : null;
+    }
+    const ring = primary.pts.map(poseOf(offsets[of] ?? [0, 0], turns[of]));
+    if (m.what === "length") return { a: ring[0], b: ring[ring.length - 1], ring };
+    if (m.what === "width") { const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]); const y = Math.min(...ys); return { a: [Math.min(...xs), y], b: [Math.max(...xs), y], ring }; }
+    if (m.what === "height") { const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]); const x = Math.max(...xs); return { a: [x, Math.min(...ys)], b: [x, Math.max(...ys)], ring }; }
+    return { ring };
+  };
+  /** After `changed` moved or morphed: every measure that reads one of them is
+   *  re-read — its dimension line re-pointed (a morph of its own leaves), its
+   *  label slid to the new spot, its value rewritten. The label is an attached
+   *  follower of the LINE, and a morph moves no followers, so the slide has to
+   *  be spelled out here as a transform of its own. */
+  const measureUpdates = (changed: string[]): MeasureFollow => {
+    const extraMorphs: MorphItem[] = [];
+    const extraTransforms: TransformItem[] = [];
+    const written: TextItem[] = [];
+    const seen = new Set<string>();
+    for (const id of changed) {
+      for (const mid of opts.measuresDependingOn?.(id) ?? []) {
+        if (seen.has(mid) || !known.has(mid)) continue;
+        seen.add(mid);
+        const m = opts.measureOf?.(mid);
+        if (!m) continue;
+        const g = measureGeometryNow(m);
+        if (!g) continue;
+        const value = measureValue(m.what, g);
+        if (value === null) continue;
+        const text = formatMeasure(value, m.format);
+        let textPos: Pt | null = null;
+        if (g.a && g.b && m.what !== "area" && m.what !== "perimeter") {
+          const d = dimensionLine(g.a, g.b, m.offset, m.side);
+          const targets: Record<string, Pt[]> = { [m.lineId]: d.line, [`${m.lineId}_guides`]: d.ticks[0], [`${m.lineId}_dot`]: d.ticks[1] };
+          const leafItems: MorphItem["leaves"] = [];
+          const next: Record<string, Pt[]> = {};
+          for (const l of currentLeaves(m.lineId) ?? []) {
+            const to = targets[l.leafId];
+            if (!to) continue;
+            // The tween lerps point by point, so a mismatched count would read
+            // past the end: snap that leaf instead (dimensionLine's own leaves
+            // are always two points, so this is belt-and-braces).
+            leafItems.push({ leafId: l.leafId, from: l.pts.length === to.length ? l.pts : to, to });
+            next[l.leafId] = to;
+          }
+          if (leafItems.length > 0) {
+            extraMorphs.push({ id: m.lineId, leaves: leafItems });
+            shapes[m.lineId] = { ...(shapes[m.lineId] ?? {}), ...next };
+          }
+          textPos = d.textPos;
+        } else if (g.circle) {
+          textPos = m.what === "perimeter" ? [g.circle.c[0], g.circle.c[1] + g.circle.r + 26] : g.circle.c;
+        } else if (g.ring) {
+          textPos = m.what === "perimeter" ? [ringCentroid(g.ring)[0], Math.max(...g.ring.map((p) => p[1])) + 26] : ringCentroid(g.ring);
+        }
+        // `label: false` draws no text at all — there is nothing to slide.
+        const tb = textPos ? bboxOf(m.textId) : null;
+        if (tb && textPos) {
+          const o: Pt = offsets[m.textId] ?? [0, 0];
+          const c: Pt = [tb.x + tb.w / 2 + o[0], tb.y + tb.h / 2 + o[1]];
+          const nextOffset: Pt = [o[0] + textPos[0] - c[0], o[1] + textPos[1] - c[1]];
+          extraTransforms.push({ id: m.textId, from: { offset: o, turn: turns[m.textId] ?? IDENTITY }, to: { offset: nextOffset, turn: turns[m.textId] ?? IDENTITY } });
+          offsets[m.textId] = nextOffset;
+        }
+        texts[m.textId] = { ...(texts[m.textId] ?? {}), [m.textId]: text };
+        written.push({ id: m.textId, leafId: m.textId, text });
+      }
+    }
+    return {
+      ...(extraMorphs.length > 0 ? { extraMorphs } : {}),
+      ...(extraTransforms.length > 0 ? { extraTransforms } : {}),
+      ...(written.length > 0 ? { texts: written } : {}),
+    };
   };
 
   const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;
@@ -828,7 +957,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           const [px, py] = pathPosition(path, u);
           return { offset: [bases[id][0] + px, bases[id][1] + py], turn: turns[id] };
         });
-        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails });
+        // Last, so the measures read the offsets this step has already settled.
+        const upd = measureUpdates(ids);
+        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails, ...upd });
       } else {
         // A pose change: per-id from/to, tweened together.
         // `to` and an explicit pivot name a point in the SCENE, not in each
@@ -901,7 +1032,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             turn: { deg: lerp(it.from.turn.deg, it.to.turn.deg), pivot: it.to.turn.pivot, scale: lerp(it.from.turn.scale ?? 1, it.to.turn.scale ?? 1), mirror: it.to.turn.mirror },
           };
         });
-        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails });
+        const upd = measureUpdates(ids);
+        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails, ...upd });
       }
     } else if (cmd.arrange !== undefined) {
       const ids = resolveIds(cmd.arrange.target, "arrange");
@@ -956,7 +1088,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (turn) turns[p.id] = turn;
         items.push(...followerItems(p.id, { offset: input.pose.offset, turn: input.pose.turn }, { offset, turn }, movedFollowers, ids));
       }
-      pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out" });
+      const upd = measureUpdates(placed.map((p) => p.id));
+      pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out", ...upd });
     } else if (cmd.flip !== undefined) {
       const ids = resolveIds(cmd.flip.target, "flip");
       if (ids.length === 0) continue;
@@ -1011,7 +1144,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         items.push(...followerItems(id, { offset: offset0, turn: turn0 }, c, movedFollowers, ids));
       }
       if (items.length === 0) continue;
-      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out" });
+      const upd = measureUpdates(items.map((it) => it.id));
+      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out", ...upd });
     } else if (cmd.morph !== undefined) {
       const ids = resolveIds(cmd.morph.target, "morph");
       if (ids.length === 0) continue;
@@ -1083,7 +1217,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         items.push({ id, leaves: leafItems });
       }
       if (items.length === 0) continue;
-      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out" });
+      const upd = measureUpdates(items.map((it) => it.id));
+      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out", ...upd });
     } else if (cmd.flow !== undefined) {
       const ids = resolveIds(cmd.flow.along, "flow");
       if (ids.length === 0) continue;

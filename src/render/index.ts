@@ -95,9 +95,19 @@ function contactEmail(): string {
  * command-addressable ids), so `draw`/`arrange` naming just the parent
  * silently drops as an unknown id instead of expanding.
  */
-export function planOptionsFor(spec: Spec, layout: LayoutResult): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf"> {
+export function planOptionsFor(
+  spec: Spec,
+  layout: LayoutResult,
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn"> {
   return {
     pieceOf: (id) => layout.pieces[id] ?? null,
+    measureOf: (id) => layout.measures[id] ?? null,
+    // Which measures read this element: the one that measures it outright, and
+    // the ones whose segment ends name it (design §2.3).
+    measuresDependingOn: (id) =>
+      Object.entries(layout.measures)
+        .filter(([, m]) => m.of === id || (m.from && "ref" in m.from && m.from.ref === id) || (m.to && "ref" in m.to && m.to.ref === id))
+        .map(([k]) => k),
     expandId: (id) => layout.pieceGroups[id] ?? null,
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     leafPointsOf: (id) => {
@@ -256,13 +266,13 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, turns, opacities, revealNew, elements, shapes) => {
+      frame: (params, visible, offsets, turns, opacities, revealNew, elements, shapes, texts) => {
         const l = layoutFor(params, false, elements);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
         const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
-        mounted.swapGeometry!(l, vis, offsets, turns, opacities, shapes);
+        mounted.swapGeometry!(l, vis, offsets, turns, opacities, shapes, texts);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
 
       },

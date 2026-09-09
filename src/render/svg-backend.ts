@@ -633,6 +633,8 @@ class SvgElementHandle implements RenderedElement {
   private entries: LeafEntry[];
   /** Per-leaf id: the points setPoints last applied (null = the layout's own). */
   private current = new Map<string, Pt[] | null>();
+  /** Per-leaf id: the string setText last applied (null = the layout's own). */
+  private currentText = new Map<string, string | null>();
 
   constructor(id: string, entries: LeafEntry[], private readonly rc: RoughSVG | null) {
     this.id = id;
@@ -664,6 +666,28 @@ class SvgElementHandle implements RenderedElement {
       if (want === (this.current.get(leaf.id) ?? null)) return;
       this.current.set(leaf.id, want);
       const drawable = want ? { ...leaf, pts: want } : leaf;
+      const rebuilt = drawLeaf(this.rc, drawable);
+      e.g.replaceChildren(...Array.from(rebuilt.children));
+      this.leaves[i] = makeLeafHandle(e.g, drawable);
+      this.leaves[i].prepare();
+      this.leaves[i].setProgress(1);
+    });
+  }
+
+  /** A measure's value follows what it measures (design §2.3): rebuild a text
+   *  leaf with a new string, or with its own when unlisted. Same-value calls
+   *  are a no-op, so applyScene's per-boundary call costs nothing once a
+   *  boundary's texts are already applied. `lines` is dropped with the old
+   *  string: the wrap was measured for THAT text, and a stale line list would
+   *  paint the old words. */
+  setText(texts: Record<string, string>): void {
+    this.entries.forEach((e, i) => {
+      const leaf = e.leaf;
+      if (leaf.kind !== "text") return;
+      const want = texts[leaf.id] ?? null;
+      if (want === (this.currentText.get(leaf.id) ?? null)) return;
+      this.currentText.set(leaf.id, want);
+      const drawable = want !== null ? { ...leaf, text: want, lines: undefined } : leaf;
       const rebuilt = drawLeaf(this.rc, drawable);
       e.g.replaceChildren(...Array.from(rebuilt.children));
       this.leaves[i] = makeLeafHandle(e.g, drawable);
@@ -1010,6 +1034,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         turns?: Record<string, Turn>,
         opacities?: Record<string, number>,
         shapes?: Record<string, Record<string, Pt[]>>,
+        texts?: Record<string, Record<string, string>>,
       ) => {
         for (const id of l.order) {
           if (visible && !visible.has(id)) continue;
@@ -1022,7 +1047,15 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
             // the same handle-less-rebuild path a rotated/scaled tween frame
             // already relies on (see the pose comment just below).
             const pts = shapes?.[id]?.[leaf.id];
-            const drawn = pts && (leaf.kind === "stroke" || leaf.kind === "area") ? { ...leaf, pts } : leaf;
+            // …and a measure's rewritten value substitutes its string, the
+            // same way (design §2.3): a handle-less frame carries no setText.
+            const text = texts?.[id]?.[leaf.id];
+            const drawn =
+              pts && (leaf.kind === "stroke" || leaf.kind === "area")
+                ? { ...leaf, pts }
+                : text !== undefined && leaf.kind === "text"
+                  ? { ...leaf, text, lines: undefined }
+                  : leaf;
             const g = drawLeaf(rc, drawn);
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
@@ -1092,11 +1125,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         // overwrites (a knocked-down fill-opacity, say) would show up here as
         // a flicker for the whole tween. Keep the two in step — makeLeafHandle
         // ends its reveal on the node's own authored values.
-        swapGeometry: (l, visible, offsets, turns, opacities, shapes) => {
+        swapGeometry: (l, visible, offsets, turns, opacities, shapes, texts) => {
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
-          buildNodes(l, new Map(), visible, offsets, turns, opacities, shapes); // throwaway map: no handles, effects keep the mount-time nodes
+          buildNodes(l, new Map(), visible, offsets, turns, opacities, shapes, texts); // throwaway map: no handles, effects keep the mount-time nodes
         },
         remount: (l) => {
           layers[0].replaceChildren();
