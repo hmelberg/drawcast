@@ -83,10 +83,8 @@ export function ownBBox(mine: Drawable[], id: string, measure: MeasureFn): BBox 
  * Null when the id is nowhere at all.
  */
 export function refBBox(ds: Drawable[], id: string, measure: MeasureFn, ctx: { pieceGroups: Record<string, string[]>; anchors: Record<string, Pt>; groups: Record<string, string[]> }): BBox | null {
-  const direct = boxOfId(ds, id, measure, ctx.groups);
+  const direct = boxOfId(ds, id, measure, ctx.groups, ctx.pieceGroups);
   if (direct) return direct;
-  const kids = unionBoxes((ctx.pieceGroups[id] ?? []).map((k) => unionBBoxForId(ds, k, measure)));
-  if (kids) return kids;
   const a = ctx.anchors[id];
   return a ? { x: a[0], y: a[1], w: 0, h: 0 } : null;
 }

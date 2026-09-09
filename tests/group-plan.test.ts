@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { planCommands, type PlanStep } from "../src/render/plan";
+import { poseOf } from "../src/render/pose";
 
 const bbox = { body: { x: 300, y: 300, w: 60, h: 200 }, cap: { x: 310, y: 500, w: 40, h: 40 } };
 
@@ -72,5 +73,27 @@ describe("group as a command target", () => {
     expect(plan.warnings).toEqual([]);
     // One `move` step carrying both members and one path: the same offsets by construction.
     expect(plan.steps[1]).toMatchObject({ kind: "move", ids: ["body", "cap"], path: [[10, 0], [0, 20]] });
+  });
+  test("flip on a group mirrors it about one axis through the group's centre", () => {
+    // Deliberately asymmetric: two boxes 200 apart, so a shared axis SWAPS
+    // them while per-member axes would leave both centres exactly where they are.
+    const wide = { left: { x: 300, y: 300, w: 60, h: 200 }, right: { x: 500, y: 300, w: 60, h: 200 } };
+    const plan = planCommands([{ draw: ["left", "right"] }, { flip: { target: ["pair"] } }], ["left", "right"], {
+      expandGroup: (id) => (id === "pair" ? ["left", "right"] : null), bboxOf: (id) => wide[id as keyof typeof wide],
+    });
+    expect(plan.warnings).toEqual([]);
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    const item = (id: string) => step.items.find((x) => x.id === id)!;
+    // union box x 300..560 → one axis at x = 430, recorded on both items
+    expect(item("left").flip!.at[0]).toBeCloseTo(430, 6);
+    expect(item("right").flip!.at[0]).toBeCloseTo(430, 6);
+    const centreNow = (id: keyof typeof wide) => {
+      const it = item(id);
+      return poseOf(it.to.offset, it.to.turn)([wide[id].x + wide[id].w / 2, wide[id].y + wide[id].h / 2]);
+    };
+    // …so the two swap sides, instead of each turning inside out where it stands.
+    expect(centreNow("left")[0]).toBeCloseTo(530, 6);
+    expect(centreNow("right")[0]).toBeCloseTo(330, 6);
+    expect(centreNow("left")[1]).toBeCloseTo(400, 6);
   });
 });

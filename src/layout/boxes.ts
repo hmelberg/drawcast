@@ -48,9 +48,20 @@ export function unionBoxes(boxes: (BBox | null)[]): BBox | null {
  * The box of an element id, or — when the id names a group — the union box of
  * its flattened members. `groups` is the layout's group map (leaf ids), so a
  * group id, which draws nothing of its own, still has a box to place against.
+ * `pieceGroups` covers the other kind of id with no ink under its own name: a
+ * `pieces` parent, whose cells are `<id>_k` — as a group member it would
+ * otherwise contribute nothing and leave the whole group boxless.
  */
-export function boxOfId(drawables: Drawable[], id: string, measure: MeasureFn, groups: Record<string, string[]> = {}): BBox | null {
+export function boxOfId(
+  drawables: Drawable[],
+  id: string,
+  measure: MeasureFn,
+  groups: Record<string, string[]> = {},
+  pieceGroups: Record<string, string[]> = {},
+): BBox | null {
   const members = groups[id];
-  if (!members) return unionBBoxForId(drawables, id, measure);
-  return unionBoxes(members.map((m) => boxOfId(drawables, m, measure, groups)));
+  if (members) return unionBoxes(members.map((m) => boxOfId(drawables, m, measure, groups, pieceGroups)));
+  const own = unionBBoxForId(drawables, id, measure);
+  if (own) return own;
+  return unionBoxes((pieceGroups[id] ?? []).map((k) => unionBBoxForId(drawables, k, measure)));
 }

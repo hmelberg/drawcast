@@ -55,4 +55,38 @@ describe("group", () => {
     expect(r.order).toContain("tag");
     expect(b.get("tag")).toBeDefined();
   });
+  test("a pieces parent as a member gives the group its cells' box", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "kake", type: "pieces", of: "sectors", x: 300, y: 400, radius: 120, n: 4, style: { fill: "#2f6b8f" } },
+        { id: "g", type: "group", members: ["kake"] },
+        { id: "t", type: "text", text: "T", font_size: 24, at: { ref: "g", side: "above", gap: 10 } },
+      ],
+      commands: [{ draw: ["g", "t"] }],
+    } as never);
+    expect(r.issues.filter((i) => i.rule === "group-empty" || i.rule === "placement")).toEqual([]);
+    expect(r.warnings).toEqual([]);
+    const b = elementBBoxes(r);
+    const cells = r.pieceGroups.kake.map((id) => b.get(id)!);
+    const x0 = Math.min(...cells.map((c) => c.x)), y0 = Math.min(...cells.map((c) => c.y));
+    const x1 = Math.max(...cells.map((c) => c.x + c.w)), y1 = Math.max(...cells.map((c) => c.y + c.h));
+    expect(r.namedAnchors.g.bottom_left[0]).toBeCloseTo(x0, 6);
+    expect(r.namedAnchors.g.bottom_left[1]).toBeCloseTo(y0, 6);
+    expect(r.namedAnchors.g.top_right[0]).toBeCloseTo(x1, 6);
+    expect(r.namedAnchors.g.top_right[1]).toBeCloseTo(y1, 6);
+    // …and text placed above the group clears the cut cake, gap and all.
+    expect(b.get("t")!.y).toBeCloseTo(y1 + 10, 0);
+  });
+  test("an annotation is a legal member too", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "box", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 40 },
+        { id: "mark", type: "annotation", target: "box" },
+        { id: "g", type: "group", members: ["box", "mark"] },
+      ],
+      commands: [{ draw: ["g"] }],
+    } as never);
+    expect(r.issues.filter((i) => i.rule === "group-empty")).toEqual([]);
+    expect(r.groups.g).toEqual(["box", "mark"]);
+  });
 });

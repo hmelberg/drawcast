@@ -187,9 +187,10 @@ export function layoutElements(
   // Ids that exist outside `elements` and are therefore legal `at.ref`
   // targets: everything the template exported — an anchor, or just ink.
   const known = new Set([...Object.keys(seedAnchors), ...(opts.seedDrawables ?? []).map((d) => d.id)]);
-  // Label ids: real elements that draw nothing until the collision solver
-  // places them (layout.ts), so a group naming one is not naming a ghost.
-  const laterLabels = new Set(elements.filter((e) => e.type === "label").map((e) => e.id));
+  // Ids of real elements that draw nothing until layout.ts places them — a
+  // label (collision solver) and an annotation (drawn onto already-placed
+  // geometry) — so a group naming one is not naming a ghost.
+  const placedLater = new Set(elements.filter((e) => e.type === "label" || e.type === "annotation").map((e) => e.id));
   const { order: emitOrder, issues } = placementOrder(elements, known);
   for (const el of emitOrder) {
     const start = drawables.length;
@@ -306,12 +307,12 @@ export function layoutElements(
         const leaves: string[] = [];
         const missing: string[] = [];
         for (const m of el.members ?? []) {
-          // A label is a legal member even though it has no ink yet: the
-          // solver places it after tier-2, so it contributes nothing to the
-          // box here, but it IS one of the leaves — draw/hide/fade on the
-          // group must reach the words attached to the thing.
+          // A label or an annotation is a legal member even though it has no
+          // ink yet: layout.ts places it after tier-2, so it contributes
+          // nothing to the box here, but it IS one of the leaves — draw/hide/
+          // fade on the group must reach the words attached to the thing.
           if (ctx.groups[m]) leaves.push(...ctx.groups[m]);
-          else if (drawables.some((d) => d.id === m || d.id.startsWith(`${m}_`)) || (opts.seedDrawables ?? []).some((d) => d.id === m) || laterLabels.has(m)) leaves.push(m);
+          else if (drawables.some((d) => d.id === m || d.id.startsWith(`${m}_`)) || (opts.seedDrawables ?? []).some((d) => d.id === m) || placedLater.has(m)) leaves.push(m);
           else missing.push(m);
         }
         if (missing.length > 0 || leaves.length === 0) {
@@ -323,7 +324,7 @@ export function layoutElements(
           });
         }
         ctx.groups[el.id] = leaves;
-        const box = boxOfId([...(opts.seedDrawables ?? []), ...drawables], el.id, measure, ctx.groups);
+        const box = boxOfId([...(opts.seedDrawables ?? []), ...drawables], el.id, measure, ctx.groups, ctx.pieceGroups);
         if (box) {
           ctx.groupBoxes[el.id] = box;
           ctx.anchors[el.id] = [box.x + box.w / 2, box.y + box.h / 2];

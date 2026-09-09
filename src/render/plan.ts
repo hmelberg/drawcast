@@ -423,6 +423,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
+  /** The centre of the box around several ids AS THEY STAND — what a group
+   *  turns, scales and flips about, so the figure moves as one thing. */
+  const groupCentre = (ids: string[]): Pt | null => {
+    const box = unionBox(ids.map(currentBox));
+    return box ? [box.x + box.w / 2, box.y + box.h / 2] : null;
+  };
   /** The layout box of an id: a minted element's own box first, else — once it has morphed — the box of its current points, else the layout box. */
   const boxOf = (id: string): BBox | null => {
     const t = mintedBoxes.get(id);
@@ -1045,8 +1051,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           if (!opts.expandGroup?.(raw)) continue;
           const members = resolveIds(raw, "move", true);
           if (members.length < 2) continue;
-          const box = unionBox(members.map(currentBox));
-          if (!box) continue;
           if (hasTo && dest) {
             const from = anchorNow(raw, cmd.move.anchor ?? "center", "move");
             if (from) {
@@ -1055,8 +1059,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             }
           }
           if (cmd.move.pivot === undefined) {
-            const centre: Pt = [box.x + box.w / 2, box.y + box.h / 2];
-            for (const m of members) if (!groupPivot.has(m)) groupPivot.set(m, centre);
+            const centre = groupCentre(members);
+            if (centre) for (const m of members) if (!groupPivot.has(m)) groupPivot.set(m, centre);
           }
         }
         // --- end group pose
@@ -1245,6 +1249,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // {anchor} stays per target — it names the flipping element's own anchor.
       const throughIsExplicit = isExplicitPointRef(cmd.flip.through);
       const through0 = throughIsExplicit ? resolvePoint(cmd.flip.through, undefined, "flip") : null;
+      // --- a group flips as ONE thing (spec §3.2): with no line and no
+      // through, the axis runs through the group's union centre, read once
+      // before anything moves. Per-member axes mirror every part where it
+      // stands — each piece turns inside out and the figure comes apart.
+      const groupAxis = new Map<string, Pt>();
+      if (!line && cmd.flip.through === undefined) {
+        for (const raw of typeof cmd.flip.target === "string" ? [cmd.flip.target] : cmd.flip.target ?? []) {
+          if (!opts.expandGroup?.(raw)) continue;
+          const members = resolveIds(raw, "flip", true);
+          if (members.length < 2) continue;
+          const centre = groupCentre(members);
+          if (centre) for (const m of members) if (!groupAxis.has(m)) groupAxis.set(m, centre);
+        }
+      }
+      // --- end group axis
       const items: TransformItem[] = [];
       const movedFollowers = new Set<string>();
       for (const id of ids) {
@@ -1257,7 +1276,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           at = line.from;
           angle = (Math.atan2(line.to[1] - line.from[1], line.to[0] - line.from[0]) * 180) / Math.PI;
         } else {
-          at = (throughIsExplicit ? through0 : resolvePoint(cmd.flip.through, id, "flip")) ?? anchorNow(id, "center", "flip");
+          at = groupAxis.get(id) ?? (throughIsExplicit ? through0 : resolvePoint(cmd.flip.through, id, "flip")) ?? anchorNow(id, "center", "flip");
           angle = cmd.flip.axis === "horizontal" ? 0 : 90;
         }
         if (!at) {
