@@ -16,3 +16,6 @@ __pycache__/
 
 # BodyParts3D downloads for scripts/build-anatomy-atlas.mjs — tens of MB, refetched on demand
 .cache/
+
+# SDD/eval scratch (ledger docs carry the numbers; the specs stay on disk, not in git)
+.superpowers/
