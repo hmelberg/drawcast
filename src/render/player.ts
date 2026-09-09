@@ -5,7 +5,7 @@
 // stepping, and a live speed multiplier. Scrubbing applies the plan's
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
-import type { MorphItem, Plan, PlanStep, SceneState, TransformItem } from "./plan";
+import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TransformItem } from "./plan";
 import { answersMatch, subVars } from "../spec/answers";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
@@ -1207,7 +1207,7 @@ export class Player {
    * strings. The VALUE never tweens — a measure reads what the figure is once
    * it has arrived, so it is written in one go at the end.
    */
-  private settleMeasures(step: PlanStep & { extraMorphs?: MorphItem[]; texts?: { id: string; text: string }[] }, after: SceneState): void {
+  private settleMeasures(step: MeasureFollow, after: SceneState): void {
     for (const it of step.extraMorphs ?? []) this.elements.get(it.id)?.setPoints?.(after.shapes[it.id] ?? {});
     for (const t of step.texts ?? []) this.elements.get(t.id)?.setText?.({ ...(after.texts[t.id] ?? {}) });
   }

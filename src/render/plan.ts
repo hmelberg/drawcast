@@ -147,7 +147,7 @@ export interface TextItem {
  *  their labels slid to the new spot, their values rewritten. Every verb that
  *  changes a measured element's pose or shape — move, arrange, flip, morph —
  *  fills these in. */
-interface MeasureFollow {
+export interface MeasureFollow {
   extraMorphs?: MorphItem[];
   extraTransforms?: TransformItem[];
   texts?: TextItem[];
@@ -593,7 +593,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     if (m.what === "height") { const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]); const x = Math.max(...xs); return { a: [x, Math.min(...ys)], b: [x, Math.max(...ys)], ring }; }
     return { ring };
   };
-  /** After `changed` moved or morphed: every measure that reads one of them is
+  /** After `changed` moved or morphed — one rule for every branch: the step's
+   *  targets AND the followers that rode with them, so a measure of an element
+   *  that moved only as someone's label follows it too.
+   *  Every measure that reads one of them is
    *  re-read — its dimension line re-pointed (a morph of its own leaves), its
    *  label slid to the new spot, its value rewritten. The label is an attached
    *  follower of the LINE, and a morph moves no followers, so the slide has to
@@ -957,8 +960,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           const [px, py] = pathPosition(path, u);
           return { offset: [bases[id][0] + px, bases[id][1] + py], turn: turns[id] };
         });
-        // Last, so the measures read the offsets this step has already settled.
-        const upd = measureUpdates(ids);
+        // Last, so the measures read the offsets this step has already
+        // settled. `moving` — targets AND the followers that rode with them,
+        // the same rule the pose branches use — so a measure of an element
+        // that only moved as someone's label still follows it.
+        const upd = measureUpdates(moving);
         pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails, ...upd });
       } else {
         // A pose change: per-id from/to, tweened together.
@@ -1032,7 +1038,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             turn: { deg: lerp(it.from.turn.deg, it.to.turn.deg), pivot: it.to.turn.pivot, scale: lerp(it.from.turn.scale ?? 1, it.to.turn.scale ?? 1), mirror: it.to.turn.mirror },
           };
         });
-        const upd = measureUpdates(ids);
+        // items = the targets plus the followers followerItems moved.
+        const upd = measureUpdates(items.map((it) => it.id));
         pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails, ...upd });
       }
     } else if (cmd.arrange !== undefined) {
@@ -1088,7 +1095,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (turn) turns[p.id] = turn;
         items.push(...followerItems(p.id, { offset: input.pose.offset, turn: input.pose.turn }, { offset, turn }, movedFollowers, ids));
       }
-      const upd = measureUpdates(placed.map((p) => p.id));
+      const upd = measureUpdates(items.map((it) => it.id));
       pushStep({ kind: "transform", items, seconds: cmd.arrange.duration ?? 2, easing: cmd.arrange.easing ?? "ease-in-out", ...upd });
     } else if (cmd.flip !== undefined) {
       const ids = resolveIds(cmd.flip.target, "flip");

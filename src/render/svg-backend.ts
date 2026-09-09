@@ -635,6 +635,13 @@ class SvgElementHandle implements RenderedElement {
   private current = new Map<string, Pt[] | null>();
   /** Per-leaf id: the string setText last applied (null = the layout's own). */
   private currentText = new Map<string, string | null>();
+  /** The reveal progress this element was last put at — 0 after mount and
+   *  after hide(), 1 after finish(), whatever setProgress was handed
+   *  mid-draw. A leaf rebuilt by setPoints/setText is restored to THIS, not
+   *  to 1: a measure whose figure moves before the measure has been drawn
+   *  would otherwise pop into view mid-move (design §2.3), and so would one
+   *  the cast has hidden or erased. */
+  private lastProgress = 0;
 
   constructor(id: string, entries: LeafEntry[], private readonly rc: RoughSVG | null) {
     this.id = id;
@@ -652,6 +659,19 @@ class SvgElementHandle implements RenderedElement {
     this.leaves.forEach((l) => l.prepare());
   }
 
+  /** Redraw one leaf from a changed drawable, in place: new nodes under the
+   *  leaf's own `<g>` (so the pose transform, the fade wrapper and anything
+   *  holding the node keep working), a fresh leaf handle, and the reveal put
+   *  back exactly where this element already stood. NEVER at progress 1 —
+   *  see `lastProgress`. */
+  private rebuildLeaf(i: number, drawable: Exclude<Drawable, { kind: "group" }>): void {
+    const rebuilt = drawLeaf(this.rc, drawable);
+    this.entries[i].g.replaceChildren(...Array.from(rebuilt.children));
+    this.leaves[i] = makeLeafHandle(this.entries[i].g, drawable);
+    this.leaves[i].prepare();
+    this.leaves[i].setProgress(this.leafProgressAt(i, this.lastProgress));
+  }
+
   /** Morph support: rebuild a leaf with new points, or with its own when
    *  unlisted. Same-reference points are a no-op, so applyScene's per-boundary
    *  call costs nothing once a boundary's shapes are already applied. */
@@ -665,12 +685,7 @@ class SvgElementHandle implements RenderedElement {
       const want = points[leaf.id] ?? null;
       if (want === (this.current.get(leaf.id) ?? null)) return;
       this.current.set(leaf.id, want);
-      const drawable = want ? { ...leaf, pts: want } : leaf;
-      const rebuilt = drawLeaf(this.rc, drawable);
-      e.g.replaceChildren(...Array.from(rebuilt.children));
-      this.leaves[i] = makeLeafHandle(e.g, drawable);
-      this.leaves[i].prepare();
-      this.leaves[i].setProgress(1);
+      this.rebuildLeaf(i, want ? { ...leaf, pts: want } : leaf);
     });
   }
 
@@ -687,12 +702,7 @@ class SvgElementHandle implements RenderedElement {
       const want = texts[leaf.id] ?? null;
       if (want === (this.currentText.get(leaf.id) ?? null)) return;
       this.currentText.set(leaf.id, want);
-      const drawable = want !== null ? { ...leaf, text: want, lines: undefined } : leaf;
-      const rebuilt = drawLeaf(this.rc, drawable);
-      e.g.replaceChildren(...Array.from(rebuilt.children));
-      this.leaves[i] = makeLeafHandle(e.g, drawable);
-      this.leaves[i].prepare();
-      this.leaves[i].setProgress(1);
+      this.rebuildLeaf(i, want !== null ? { ...leaf, text: want, lines: undefined } : leaf);
     });
   }
 
@@ -726,21 +736,21 @@ class SvgElementHandle implements RenderedElement {
     }
   }
 
-  setProgress(t: number): void {
+  /** Where leaf `i` stands when the whole element is at `t` — the element's
+   *  duration split across its leaves in draw order. Factored out of
+   *  setProgress so rebuildLeaf can put one leaf back on that same curve. */
+  private leafProgressAt(i: number, t: number): number {
+    if (t >= 1) return 1;
+    if (this.durationMs === 0) return 0;
     const elapsed = t * this.durationMs;
-    this.leaves.forEach((leaf, i) => {
-      if (this.durationMs === 0) {
-        leaf.setProgress(t >= 1 ? 1 : 0);
-        return;
-      }
-      if (leaf.durationMs === 0) {
-        leaf.setProgress(elapsed >= this.cumulative[i] && t > 0 ? 1 : 0);
-      } else {
-        const local = (elapsed - this.cumulative[i]) / leaf.durationMs;
-        leaf.setProgress(Math.min(Math.max(local, 0), 1));
-      }
-    });
-    if (t >= 1) this.leaves.forEach((l) => l.setProgress(1));
+    const leaf = this.leaves[i];
+    if (leaf.durationMs === 0) return elapsed >= this.cumulative[i] && t > 0 ? 1 : 0;
+    return Math.min(Math.max((elapsed - this.cumulative[i]) / leaf.durationMs, 0), 1);
+  }
+
+  setProgress(t: number): void {
+    this.lastProgress = t;
+    this.leaves.forEach((leaf, i) => leaf.setProgress(this.leafProgressAt(i, t)));
   }
 
   finish(): void {
@@ -748,6 +758,7 @@ class SvgElementHandle implements RenderedElement {
   }
 
   hide(): void {
+    this.lastProgress = 0;
     this.leaves.forEach((l) => l.setProgress(0));
   }
 }
