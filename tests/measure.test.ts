@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { dimensionLine, formatMeasure, measureValue, ringArea, ringPerimeter } from "../src/layout/measures";
+import { dimensionLine, formatMeasure, measureValue, ringArea, ringPerimeter, segmentLength } from "../src/layout/measures";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables } from "../src/layout/model";
@@ -65,5 +65,33 @@ describe("measure element (design §2.3)", () => {
   test("schema: needs of, or from and to", () => {
     expect(validateSpec(spec([{ id: "m", type: "measure" }])).ok).toBe(false);
     expect(validateSpec(spec([sq, { id: "m", type: "measure", of: "sq" }])).ok).toBe(true);
+  });
+  test("of a shape (rect or circle) is measurable — a shapeHint stroke's pts are not a literal ring", () => {
+    const rect = { id: "r", type: "shape", shape: "rect", x: 100, y: 100, width: 100, height: 100 };
+    const circle = { id: "c", type: "shape", shape: "circle", x: 500, y: 400, radius: 100 };
+    const out = layoutSpec(
+      spec([
+        rect,
+        circle,
+        { id: "ra", type: "measure", of: "r" },
+        { id: "ca", type: "measure", of: "c" },
+        { id: "cp", type: "measure", of: "c", what: "perimeter" },
+        { id: "cw", type: "measure", of: "c", what: "width" },
+      ]),
+      heuristicMeasure,
+    );
+    expect(out.warnings).toEqual([]);
+    expect(textOf(out, "label_ra")).toBe("10000"); // a 100 × 100 rect
+    expect(textOf(out, "label_ca")).toBe("31416"); // π · 100²
+    expect(textOf(out, "label_cp")).toBe("628"); // 2π · 100
+    const line = flattenDrawables(out.drawables).find((d) => d.id === "cw") as { pts: [number, number][] };
+    expect(segmentLength(line.pts[0], line.pts[1])).toBe(200); // the circle's diameter
+    expect(out.measures.ca.circle).toEqual({ c: [500, 400], r: 100 });
+  });
+  test("label: false hides the text but the measure still records its textId", () => {
+    const out = layoutSpec(spec([sq, { id: "hidden", type: "measure", of: "sq", label: false }]), heuristicMeasure);
+    expect(out.warnings).toEqual([]);
+    expect(flattenDrawables(out.drawables).some((d) => d.id === "label_hidden")).toBe(false);
+    expect(out.measures.hidden.textId).toBe("label_hidden");
   });
 });

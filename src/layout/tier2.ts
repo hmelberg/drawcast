@@ -1196,10 +1196,19 @@ function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   return out;
 }
 
-/** The primary ring of an element laid out so far: its first closed leaf (area or closed stroke), else its first stroke's points. */
-function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean } | null {
+/**
+ * The primary ring of an element laid out so far: a circle shapeHint (its
+ * `pts` is just the centre, so its centre+radius are returned separately —
+ * a `shape`/`node` circle has no literal ring points to read); else its
+ * first closed leaf (area, or a closed stroke — a rect shapeHint's `pts`
+ * ARE its four real corners, so it needs no special case here); else its
+ * first open stroke's points.
+ */
+function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean; circle?: { c: Pt; r: number } } | null {
   const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => d.kind === "stroke" || d.kind === "area");
-  const closed = leaves.find((d) => d.kind === "area" || (d.kind === "stroke" && d.closed && !d.shapeHint));
+  const circleLeaf = leaves.find((d): d is StrokeDrawable & { shapeHint: { type: "circle"; c: Pt; r: number } } => d.kind === "stroke" && d.shapeHint?.type === "circle");
+  if (circleLeaf) return { pts: [], closed: true, circle: { c: circleLeaf.shapeHint.c, r: circleLeaf.shapeHint.r } };
+  const closed = leaves.find((d) => d.kind === "area" || (d.kind === "stroke" && d.closed));
   if (closed) return { pts: closed.pts, closed: true };
   const open = leaves.find((d) => d.kind === "stroke" && !d.shapeHint && d.pts.length >= 2);
   return open ? { pts: open.pts, closed: false } : null;
@@ -1222,6 +1231,7 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });
   let a: Pt | null = null, b: Pt | null = null;
   let ring: Pt[] | null = null;
+  let circle: { c: Pt; r: number } | null = null;
   let what: M.MeasureWhat;
   let fromSrc: M.PointSource | undefined, toSrc: M.PointSource | undefined;
   let awayFrom: Pt | null = null;
@@ -1233,21 +1243,29 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     toSrc = src(el.to as PointRef);
     what = (el.what as M.MeasureWhat | undefined) ?? "length";
     const refId = !Array.isArray(el.from) && (el.from as EndRef).ref;
-    if (refId) { const r = primaryRingSoFar(ctx, refId); if (r) awayFrom = M.ringCentroid(r.pts); }
+    if (refId) { const r = primaryRingSoFar(ctx, refId); if (r) awayFrom = r.circle ? r.circle.c : M.ringCentroid(r.pts); }
   } else if (el.of !== undefined) {
     const r = primaryRingSoFar(ctx, el.of);
     if (!r) { ctx.warnings.push(`measure "${el.id}": "${el.of}" has nothing to measure`); return []; }
-    ring = r.pts;
     what = (el.what as M.MeasureWhat | undefined) ?? (r.closed ? "area" : "length");
-    if (what === "length") { a = r.pts[0]; b = r.pts[r.pts.length - 1]; }
-    if (what === "width") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const y = Math.min(...ys); a = [Math.min(...xs), y]; b = [Math.max(...xs), y]; }
-    if (what === "height") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const x = Math.max(...xs); a = [x, Math.min(...ys)]; b = [x, Math.max(...ys)]; }
-    awayFrom = M.ringCentroid(r.pts);
+    if (r.circle) {
+      circle = r.circle;
+      const { c, r: rad } = r.circle;
+      if (what === "width") { a = [c[0] - rad, c[1] - rad]; b = [c[0] + rad, c[1] - rad]; }
+      if (what === "height") { a = [c[0] + rad, c[1] - rad]; b = [c[0] + rad, c[1] + rad]; }
+      awayFrom = c;
+    } else {
+      ring = r.pts;
+      if (what === "length") { a = r.pts[0]; b = r.pts[r.pts.length - 1]; }
+      if (what === "width") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const y = Math.min(...ys); a = [Math.min(...xs), y]; b = [Math.max(...xs), y]; }
+      if (what === "height") { const xs = r.pts.map((p) => p[0]), ys = r.pts.map((p) => p[1]); const x = Math.max(...xs); a = [x, Math.min(...ys)]; b = [x, Math.max(...ys)]; }
+      awayFrom = M.ringCentroid(r.pts);
+    }
   } else {
     ctx.warnings.push(`measure "${el.id}": needs of, or from and to`);
     return [];
   }
-  const value = M.measureValue(what, { a: a ?? undefined, b: b ?? undefined, ring: ring ?? undefined });
+  const value = M.measureValue(what, { a: a ?? undefined, b: b ?? undefined, ring: ring ?? undefined, circle: circle ?? undefined });
   if (value === null || (what !== "area" && what !== "perimeter" && (!a || !b))) { ctx.warnings.push(`measure "${el.id}": cannot resolve what to measure`); return []; }
   const out: Drawable[] = [];
   let textPos: Pt;
@@ -1264,14 +1282,22 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     out.push({ id: `${el.id}_dot`, kind: "stroke", pts: d.ticks[1], z: Z_STROKE, style, drawOpts });
     textPos = d.textPos;
     ctx.anchors[el.id] = [(d.line[0][0] + d.line[1][0]) / 2, (d.line[0][1] + d.line[1][1]) / 2];
+  } else if (circle) {
+    textPos = what === "perimeter" ? [circle.c[0], circle.c[1] + circle.r + 26] : circle.c;
+    ctx.anchors[el.id] = textPos;
   } else {
     textPos = ring ? (what === "perimeter" ? [M.ringCentroid(ring)[0], Math.max(...ring.map((p) => p[1])) + 26] : M.ringCentroid(ring)) : [CANVAS.w / 2, CANVAS.h / 2];
     ctx.anchors[el.id] = textPos;
   }
-  out.push({ id: textId, kind: "text", pos: textPos, text: M.formatMeasure(value, format), fontSize: 24, anchor: "middle", z: Z_TEXT, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
-  ctx.extraOrder.push(textId);
-  ctx.anchors[textId] = textPos;
-  ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId };
+  // label: false suppresses the text drawable (and its extraOrder/anchor
+  // entry) but not the dimension line — measures[id].textId still names the
+  // id the text WOULD have had, so a later step can turn it back on.
+  if (el.label !== false) {
+    out.push({ id: textId, kind: "text", pos: textPos, text: M.formatMeasure(value, format), fontSize: 24, anchor: "middle", z: Z_TEXT, style: resolveStyle(el.style), drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }) });
+    ctx.extraOrder.push(textId);
+    ctx.anchors[textId] = textPos;
+  }
+  ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId, circle: circle ?? undefined };
   return out;
 }
 

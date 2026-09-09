@@ -17,6 +17,10 @@ export interface MeasureSpec {
   format: MeasureFormat;
   lineId: string;
   textId: string;
+  /** Set when `of` resolved to a circle (a shape or node drawn with a circle
+   *  shapeHint, which carries no literal ring points) — so a future step can
+   *  recompute it under a pose (centre through the pose, radius × scale). */
+  circle?: { c: Pt; r: number };
 }
 
 export function segmentLength(a: Pt, b: Pt): number {
@@ -49,8 +53,13 @@ export function boxSize(pts: Pt[]): { w: number; h: number } {
   return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
 }
 
-export function measureValue(what: MeasureWhat, g: { a?: Pt; b?: Pt; ring?: Pt[] }): number | null {
+export function measureValue(what: MeasureWhat, g: { a?: Pt; b?: Pt; ring?: Pt[]; circle?: { c: Pt; r: number } }): number | null {
   if (what === "length") return g.a && g.b ? segmentLength(g.a, g.b) : g.ring && g.ring.length >= 2 ? segmentLength(g.ring[0], g.ring[g.ring.length - 1]) : null;
+  if (g.circle) {
+    if (what === "width" || what === "height") return 2 * g.circle.r;
+    if (what === "perimeter") return 2 * Math.PI * g.circle.r;
+    return Math.PI * g.circle.r * g.circle.r; // area
+  }
   if (!g.ring || g.ring.length < 2) return null;
   if (what === "width") return boxSize(g.ring).w;
   if (what === "height") return boxSize(g.ring).h;
