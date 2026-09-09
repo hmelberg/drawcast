@@ -77,14 +77,22 @@ export const OPTIONAL_PROMPT_PLACEHOLDERS = ["{{CODE}}"] as const;
  * Does this request want the code block (15k chars of script/runtime rules)?
  * Cheap and generous on purpose: a missed code request writes a code element
  * against the schema alone, while a false positive only costs tokens.
+ *
+ * NORWEGIAN counts too: half this app's requests are written in it, and a
+ * `Simuler 500 myntkast` got the schema alone until these stems landed.
+ *
+ * The request text is the ONLY input. There used to be a tag branch matching
+ * `code|python|r|microdata|c64`, but src/llm/tags.ts has never defined any of
+ * them — the vocabulary is length/level/language/style/…, and `#basic` there
+ * is the DIFFICULTY tag ("assume no background"), the very request this
+ * budget exists to protect. The branch could only ever fire from a test that
+ * fabricated a tag, so it is gone rather than left looking load-bearing.
+ * (`basic` stays in the words below: in free text it may be Commodore BASIC.)
  */
-const CODE_WORDS = /\b(code|script|python|pandas|numpy|matplotlib|plotly|simulat\w*|tidyverse|ggplot|brython|micropython|microdata|c64|commodore|basic)\b|\bR\b/i;
-export function wantsCode(request: string, tags: string[]): boolean {
-  // No `basic` here, unlike CODE_WORDS: #basic is an existing difficulty tag
-  // ("assume no background", src/llm/tags.ts), so matching it would post the
-  // code block to every beginner-level request — the one case this budget
-  // exists to protect. In free text `basic` may still be Commodore BASIC.
-  return tags.some((t) => /^(code|python|r|microdata|c64)$/i.test(t)) || CODE_WORDS.test(request);
+const CODE_WORDS =
+  /\b(code|script|python|pandas|numpy|matplotlib|plotly|simul(at|er)\w*|tidyverse|ggplot|brython|micropython|microdata|c64|commodore|basic|kode\w*|skript\w*|program\w*|beregn\w*|regn ut)\b|\bR\b/i;
+export function wantsCode(request: string): boolean {
+  return CODE_WORDS.test(request);
 }
 
 /**

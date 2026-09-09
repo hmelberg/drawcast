@@ -149,7 +149,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     // The code block is conditional now (Task 10), and a revision needs it
     // whenever the DOCUMENT already has a code element — the instruction
     // ("make it 1000 draws") rarely says so itself.
-    code: wantsCode(instruction, []) || /\btype:\s*['"]?code\b/.test(docText) ? CODE_PROMPT_SOURCE : "",
+    code: wantsCode(instruction) || /\btype:\s*['"]?code\b/.test(docText) ? CODE_PROMPT_SOURCE : "",
   });
   const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   // systemBlocks drops a whitespace-only tail. Passing no exemplars leaves the

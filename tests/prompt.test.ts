@@ -33,6 +33,25 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("Speaking and drawing are not turns");
   });
 
+  test("says which element a photo is, on both bullets that could be picked (B2)", () => {
+    const clause = "`portrait` is for people; a photo of a THING";
+    expect(compilerV1).toContain(clause);
+    // Once in the freehand image bullet, once on the portrait bullet itself —
+    // the model reads whichever it happens to be looking at.
+    expect(compilerV1.split(clause).length - 1).toBe(2);
+    expect(compilerV1).toContain("a photo of a THING — a building, an instrument, an animal — is `image`");
+  });
+
+  test("caps how big a freehand figure may get (B2)", () => {
+    expect(compilerV1).toContain("A figure is at most about 30 elements and 15 beats; when a thing has more parts, name the six that matter.");
+  });
+
+  test("the freehand section stays short enough to be read", () => {
+    const from = compilerV1.indexOf("## Freehand figures");
+    const section = compilerV1.slice(from, compilerV1.indexOf("\n## ", from + 1));
+    expect(section.split("\n").length).toBeLessThanOrEqual(25);
+  });
+
   // The data bridge and the data templates are part of the CODE block, so they
   // are pinned in compiler-v1-code.md — the file {{CODE}} fills for a request
   // that wants a running script (Task 10). Same phrases, new home.

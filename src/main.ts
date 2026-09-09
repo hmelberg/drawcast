@@ -2962,6 +2962,7 @@ function logOutcome(prompt: string, outcome: Awaited<ReturnType<typeof generateS
     spec: outcome.spec,
     lintIssues: [],
     warnings: [],
+    seeded: outcome.seeded,
     error: outcome.error,
   };
   appendLog(entry);
@@ -3077,6 +3078,7 @@ function costText(): string {
 function phaseText(label: string, round: number): string {
   if (label === "template-fetch") return "fetching a template";
   if (label === "pedagogy") return "teaching pass";
+  if (label === "visual") return "looking at the drawing";
   if (label === "initial") return round > 1 ? `attempt ${round}` : "";
   return `repair ${round - 1}`;
 }
@@ -3208,11 +3210,15 @@ async function generate(): Promise<void> {
     // cost is visible and accepted (§F.3.3): a generated single figure now
     // opens with a two-line `playlist:` header above its spec.
     playlist.meta.prompt = rawRequest;
+    // Built once and appended to BOTH status lines below: the template offer
+    // fires in the same tick as setDoc and used to overwrite the whole line,
+    // so a seeded figure never told anyone which icon set it started from.
+    const seedSuffix = outcome.seeded ? ` · seeded from ${seededSet ?? "icon"}` : "";
     setDoc(
       { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist },
       (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) +
         routeText(outcome.spec.template, outcome.route) +
-        (outcome.seeded ? ` · seeded from ${seededSet ?? "icon"}` : "") +
+        seedSuffix +
         costText(),
       { label: rawRequest, kind: "generate" },
     );
@@ -3228,7 +3234,7 @@ async function generate(): Promise<void> {
     // freehand drawing may already be what was wanted.
     if (templateWorthy(outcome.spec)) {
       const freehand = outcome.spec;
-      setStatusAction("No scene template draws this figure, so it was drawn freehand.", "Author a template and redraw (~4 min)", () => {
+      setStatusAction(`No scene template draws this figure, so it was drawn freehand.${seedSuffix}`, "Author a template and redraw (~4 min)", () => {
         void authorTemplateAndRedraw(rawRequest, parsed.clean, freehand, brief, priorityIds);
       });
     }

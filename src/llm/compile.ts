@@ -152,7 +152,7 @@ export interface GenerateConfig {
    * itself stays clean — it also drives exemplar selection and logging.
    */
   brief?: string;
-  /** The canonical #tag ids behind `brief` (src/llm/tags.ts) — read by wantsCode to decide on the code block. */
+  /** The canonical #tag ids behind `brief` (src/llm/tags.ts). */
   tags?: string[];
   /** #template=<id> — the model must use this template (checked post-validation). */
   forcedTemplate?: string;
@@ -377,7 +377,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist });
   // The code block rides along only for a request that wants a script; every
   // other request keeps 15k chars out of its (cached) prefix.
-  const code = wantsCode(request, cfg.tags ?? []) ? CODE_PROMPT_SOURCE : "";
+  const code = wantsCode(request) ? CODE_PROMPT_SOURCE : "";
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
     catalog: catalog.stable,

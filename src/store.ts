@@ -649,6 +649,9 @@ export interface LogEntry {
   spec: Spec | null;
   lintIssues: Pick<LintIssue, "rule" | "ids" | "message" | "severity">[];
   warnings: string[];
+  /** True when an icon seed was sent with the request (spec §3.7) — the log
+   *  is where a seeded run is told apart from a freehand one after the fact. */
+  seeded?: boolean;
   renderMs?: number;
   error?: string;
   rating?: number;

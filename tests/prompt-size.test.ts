@@ -22,13 +22,17 @@ describe("prompt budget (spec §6.3)", () => {
     expect(system(false)).not.toContain("**code** runs a real script");
     expect(system(true)).toContain("**code** runs a real script");
   });
-  test("wantsCode", () => {
-    expect(wantsCode("Explain a demand curve", [])).toBe(false);
-    expect(wantsCode("Simulate 500 coin flips in Python", [])).toBe(true);
-    expect(wantsCode("Show the C64 booting", [])).toBe(true);
-    expect(wantsCode("anything", ["code"])).toBe(true);
-    // #basic is the DIFFICULTY tag ("assume no background", src/llm/tags.ts),
-    // not Commodore BASIC — the beginner request this budget exists to protect.
-    expect(wantsCode("Explain inflation for a beginner", ["basic"])).toBe(false);
+  test("wantsCode reads the request text — in Norwegian too", () => {
+    expect(wantsCode("Explain a demand curve")).toBe(false);
+    expect(wantsCode("Simulate 500 coin flips in Python")).toBe(true);
+    expect(wantsCode("Show the C64 booting")).toBe(true);
+    // Norwegian stems: half the requests this app sees are written in it.
+    expect(wantsCode("Simuler 500 myntkast i Python")).toBe(true);
+    expect(wantsCode("Skriv et skript som regner ut renters rente")).toBe(true);
+    expect(wantsCode("Lag et program som simulerer terningkast")).toBe(true);
+    expect(wantsCode("Beregn nåverdien og vis koden")).toBe(true);
+    // Ordinary explanations still pay nothing for the code block.
+    expect(wantsCode("Hvorfor er himmelen blå?")).toBe(false);
+    expect(wantsCode("Forklar inflasjon for en nybegynner")).toBe(false);
   });
 });

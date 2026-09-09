@@ -164,24 +164,18 @@
           "curved": true
         },
         {
-          "id": "note_req",
-          "type": "text",
+          "id": "label_req",
+          "type": "label",
           "text": "GET /profile",
-          "at": {
-            "ref": "req",
-            "side": "above",
-            "gap": 6
-          }
+          "attach_to": "req",
+          "side": "above"
         },
         {
-          "id": "note_query",
-          "type": "text",
+          "id": "label_query",
+          "type": "label",
           "text": "SELECT * FROM users",
-          "at": {
-            "ref": "query",
-            "side": "below",
-            "gap": 6
-          }
+          "attach_to": "query",
+          "side": "above"
         }
       ],
       "commands": [
@@ -200,7 +194,7 @@
         {
           "draw": [
             "req",
-            "note_req"
+            "label_req"
           ],
           "speak": "The client asks the server for a page."
         },
@@ -210,7 +204,7 @@
         {
           "draw": [
             "query",
-            "note_query"
+            "label_query"
           ],
           "speak": "The server, in turn, queries the database for the data it needs."
         },

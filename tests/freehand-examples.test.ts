@@ -19,7 +19,12 @@ describe("freehand exemplars (spec §6.2)", () => {
     expect(fh.some((e) => uses(e, (x) => x.type === "group" && x.fit !== undefined))).toBe(true);
     expect(fh.some((e) => uses(e, (x) => x.type === "math"))).toBe(true);
     expect(fh.some((e) => uses(e, (x) => x.type === "image"))).toBe(true);
-    expect((fewshots as Ex[]).find((e) => e.request.startsWith("Show a client"))!.spec!.elements!.some((x) => x.at?.ref)).toBe(true);
+    // `at` is the freehand assembly rule, so it is pinned on a FREEHAND
+    // few-shot (the bicycle pump) — the client-server one places its notes
+    // with label + attach_to, which is what the prompt tells the model to do
+    // for text that names an element (anti-pattern 2, compiler-v1.md).
+    expect((fewshots as Ex[]).find((e) => e.request.startsWith("How does a bicycle pump"))!.spec!.elements!.some((x) => x.at?.ref)).toBe(true);
+    expect((fewshots as Ex[]).find((e) => e.request.startsWith("Show a client"))!.spec!.elements!.every((x) => x.at === undefined)).toBe(true);
   });
   test("six bundled examples, question-shaped, two per target", () => {
     const fh = (examples as Ex[]).filter((e) => e.spec && !e.spec.template);
