@@ -136,9 +136,10 @@ const elementSchema = {
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
     // arrow / edge / angle
     from: {
-      oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      oneOf: [{ type: "number" }, { type: "string" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
       description:
-        "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. from: {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}.",
+        "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. from: {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}. " +
+        "pieces of triangles: the vertex to fan from (\"vertex_1\").",
     },
     to: {
       oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
@@ -225,7 +226,8 @@ const elementSchema = {
       description:
         "portrait: the person's name, e.g. \"John Maynard Keynes\" — the app resolves it to their Wikipedia portrait and traces it into sketch strokes, and draws this name as a centered caption with the photo automatically (do NOT add a separate label element for the name). Use a portrait SPARINGLY, only when the person or history genuinely serves the topic; place it small (width ~150-200) off to a side with x/y. NEVER invent an image url; only copy a url the user's request explicitly provided. " +
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
-        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips), \"grid\" (the same rectangle, n columns × rows rows) or \"rings\" (n concentric rings of a circle of radius at x, y — unroll them with arrange). " +
+        "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips), \"grid\" (the same rectangle, n columns × rows rows), \"rings\" (n concentric rings of a circle of radius at x, y — unroll them with arrange), " +
+        "\"triangles\" (fans a regular polygon (sides + radius) or a polygon (points, from: \"vertex_k\") into triangles) or \"halving\" (halves a width × height rectangle n times, alternately, with `<id>_rest` the remainder — 1/2 + 1/4 + …). " +
         "measure: the element to measure.",
     },
     url: {
@@ -1184,13 +1186,14 @@ function semanticErrors(spec: Spec): string[] {
       if (seen.has(base)) errors.push(`element ids "${base}" and "${id}" collide: "${tail}" is reserved for the sub-drawables of "${base}" — rename one of them`);
     }
   }
-  // A pieces element mints "<id>_1 … <id>_n"; an author-declared element with
-  // such an id would draw twice under one name.
+  // A pieces element mints "<id>_1 … <id>_n" (and, halving, "<id>_rest"); an
+  // author-declared element with such an id would draw twice under one name.
   for (const el of spec.elements ?? []) {
     if (el.type !== "pieces") continue;
     const prefix = `${el.id}_`;
     for (const id of seen) {
       if (id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))) errors.push(`element id "${id}" collides with a numbered piece of "${el.id}" — rename it`);
+      if (el.of === "halving" && id === `${el.id}_rest`) errors.push(`element id "${id}" collides with the remainder piece of "${el.id}" — rename it`);
     }
   }
 
@@ -1290,11 +1293,12 @@ function elementErrors(el: SpecElement): string[] {
       );
       break;
     case "pieces":
-      need(["sectors", "strips", "grid", "rings", "triangles", "halving"].includes(el.of as string), 'needs of: "sectors", "strips", "grid" or "rings"');
+      need(["sectors", "strips", "grid", "rings", "triangles", "halving"].includes(el.of as string), 'needs of: "sectors", "strips", "grid", "rings", "triangles" or "halving"');
       if (el.of === "sectors" || el.of === "rings") need(typeof el.radius === "number", "needs radius");
-      if (el.of === "strips" || el.of === "grid") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
+      if (el.of === "strips" || el.of === "grid" || el.of === "halving") need(typeof el.width === "number" && typeof el.height === "number", "needs width and height (the rectangle to cut)");
       if (el.of === "grid") need(typeof el.rows === "number", "needs rows (n is the columns)");
-      need(typeof el.n === "number", "needs n (how many pieces)");
+      if (el.of === "triangles") need((Array.isArray(el.points) && el.points.length >= 3) || (typeof el.sides === "number" && typeof el.radius === "number"), "needs points (≥ 3), or sides + radius for a regular polygon");
+      if (el.of !== "triangles") need(typeof el.n === "number", "needs n (how many pieces)");
       break;
     case "angle":
       need(el.at !== undefined && el.from !== undefined && el.to !== undefined, "needs at, from and to");

@@ -1337,6 +1337,8 @@ function piecesDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
   if (el.of === "strips" || el.of === "grid") return rectPiecesDrawables(el, ctx, c);
   if (el.of === "rings") return ringPiecesDrawables(el, ctx, c);
+  if (el.of === "triangles") return trianglePiecesDrawables(el, ctx, c);
+  if (el.of === "halving") return halvingPiecesDrawables(el, ctx, c);
   const r = el.radius ?? 120;
   const n = Math.max(2, Math.round(el.n ?? 8));
   const step = 360 / n;
@@ -1441,6 +1443,93 @@ function ringPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
     ids.push(id);
     ctx.extraOrder.push(id);
   }
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = c;
+  return out;
+}
+
+/**
+ * `pieces: {of: "triangles"}` — a regular polygon (`sides` + `radius`, like
+ * `polygonDrawables`) fanned into triangles from its centre, or a polygon
+ * (`points`) fanned from `vertex_1` — `from: "vertex_k"` picks the fan vertex
+ * for either. Each triangle carries sector-like geometry (apex/centroid/
+ * midAngle/halfAngle/radius/height) so the zipper and fan arrange it exactly
+ * like a sector piece; `height` is the apex-to-base-midpoint distance (a
+ * regular polygon's apothem when fanned from the centre), read instead of
+ * `radius` by the zipper (design §2.4).
+ */
+function trianglePiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  let verts: Pt[];
+  let apexIndex: number | null = null; // null = fan from the centre
+  if (el.points && el.points.length >= 3) {
+    verts = el.points as Pt[];
+    const m = /^vertex_(\d+)$/.exec(typeof el.from === "string" ? el.from : "vertex_1");
+    apexIndex = Math.max(0, Math.min(verts.length - 1, (m ? Number(m[1]) : 1) - 1));
+  } else {
+    const n = Math.max(3, Math.round(el.sides ?? 6));
+    const r = el.radius ?? 100;
+    const rot = (el.rotation ?? 0) * DEG;
+    verts = Array.from({ length: n }, (_, i): Pt => { const a = rot + Math.PI / 2 + (2 * Math.PI * i) / n; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; });
+    if (typeof el.from === "string" && /^vertex_\d+$/.test(el.from)) apexIndex = Number(el.from.slice(7)) - 1;
+  }
+  const tris: { apex: Pt; a: Pt; b: Pt }[] = [];
+  if (apexIndex === null) {
+    for (let i = 0; i < verts.length; i++) tris.push({ apex: c, a: verts[i], b: verts[(i + 1) % verts.length] });
+  } else {
+    const apex = verts[apexIndex];
+    for (let s = 1; s + 1 < verts.length; s++) tris.push({ apex, a: verts[(apexIndex + s) % verts.length], b: verts[(apexIndex + s + 1) % verts.length] });
+  }
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  tris.forEach((t, k) => {
+    const id = `${el.id}_${k + 1}`;
+    const pts = [t.apex, t.a, t.b];
+    out.push(...filledOutline(id, pts, el));
+    const base: Pt = [(t.a[0] + t.b[0]) / 2, (t.a[1] + t.b[1]) / 2];
+    const mid = (Math.atan2(base[1] - t.apex[1], base[0] - t.apex[0]) * 180) / Math.PI;
+    const da = (Math.atan2(t.a[1] - t.apex[1], t.a[0] - t.apex[0]) * 180) / Math.PI;
+    const db = (Math.atan2(t.b[1] - t.apex[1], t.b[0] - t.apex[0]) * 180) / Math.PI;
+    const span = Math.abs(((db - da + 540) % 360) - 180);
+    const height = Math.hypot(base[0] - t.apex[0], base[1] - t.apex[1]);
+    const radius = Math.max(Math.hypot(t.a[0] - t.apex[0], t.a[1] - t.apex[1]), Math.hypot(t.b[0] - t.apex[0], t.b[1] - t.apex[1]));
+    const cen = centroid(pts);
+    ctx.anchors[id] = cen;
+    ctx.pieces[id] = { apex: t.apex, centroid: cen, midAngle: mid, halfAngle: span / 2, radius, height };
+    ctx.namedAnchors[id] = { ...polygonAnchors(pts), apex: t.apex, base };
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  });
+  ctx.pieceGroups[el.id] = ids;
+  ctx.anchors[el.id] = apexIndex === null ? c : verts[apexIndex];
+  return out;
+}
+
+/**
+ * `pieces: {of: "halving"}` — a width × height rectangle centred on `c`,
+ * halved `n` times: odd cuts take the LEFT half of what remains, even cuts
+ * the TOP half — `<id>_1` … `<id>_n` in the order cut, `<id>_rest` the
+ * uncut remainder (1/2 + 1/4 + … of the whole). Plain boxes, no piece
+ * geometry — a halving cell is not a wedge, so fan/zipper treat it (like a
+ * strip/grid cell) as an ordinary box.
+ */
+function halvingPiecesDrawables(el: SpecElement, ctx: Ctx, c: Pt): Drawable[] {
+  const w = el.width ?? 400, h = el.height ?? 400;
+  const n = Math.max(1, Math.min(20, Math.round(el.n ?? 4)));
+  let rest = { x: c[0] - w / 2, y: c[1] - h / 2, w, h };
+  const out: Drawable[] = [];
+  const ids: string[] = [];
+  const emit = (id: string, b: { x: number; y: number; w: number; h: number }) => {
+    const pts: Pt[] = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
+    out.push(...filledOutline(id, pts, el));
+    ctx.anchors[id] = [b.x + b.w / 2, b.y + b.h / 2];
+    ids.push(id);
+    ctx.extraOrder.push(id);
+  };
+  for (let k = 1; k <= n; k++) {
+    if (k % 2 === 1) { emit(`${el.id}_${k}`, { ...rest, w: rest.w / 2 }); rest = { ...rest, x: rest.x + rest.w / 2, w: rest.w / 2 }; }
+    else { emit(`${el.id}_${k}`, { ...rest, y: rest.y + rest.h / 2, h: rest.h / 2 }); rest = { ...rest, h: rest.h / 2 }; }
+  }
+  emit(`${el.id}_rest`, rest);
   ctx.pieceGroups[el.id] = ids;
   ctx.anchors[el.id] = c;
   return out;

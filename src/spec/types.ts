@@ -92,8 +92,8 @@ export interface SpecElement {
   // point / angle
   at?: { x?: number; y?: number; intersection_of?: string[]; ref?: string; anchor?: string } | [number, number];
   guides?: boolean;
-  // arrow / edge / angle
-  from?: EndRef | [number, number] | number;
+  // arrow / edge / angle / pieces of triangles ("vertex_k")
+  from?: EndRef | [number, number] | number | string;
   to?: EndRef | [number, number] | number;
   curved?: boolean;
   // label
