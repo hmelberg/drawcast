@@ -55,4 +55,29 @@ describe("pieces of rings (design §2.4)", () => {
     expect(plan.states[1].shapes.r_3).toBeDefined();
     expect(plan.warnings.join(" ")).toMatch(/unroll/);
   });
+  test("zipper or fan on rings is degenerate — it warns and skips instead of piling every strip at one x", () => {
+    // Round 3 review, M3: a ring's halfAngle is 180°, so zipper's half-chord
+    // r·sin(halfAngle) is 0 and fan has no apex to swing about. The existing
+    // "none of the targets is a sector piece" guard passes, because a ring IS
+    // a piece — so the layout came out silently degenerate.
+    for (const layout of ["zipper", "fan"] as const) {
+      const s = spec([{ id: "r", type: "pieces", of: "rings", x: 300, y: 400, radius: 120, n: 3, style: { fill: "#2f6b8f" } }],
+        [{ draw: ["r"] }, { arrange: { target: "r", layout, ghost: true } }]);
+      const out = layoutSpec(s, heuristicMeasure);
+      const bboxes = elementBBoxes(out, heuristicMeasure);
+      const plan = planCommands(s.commands, out.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s, out) });
+      expect(plan.warnings).toEqual([`arrange "r": ${layout} needs sector or triangle pieces; rings unroll (skipped)`]);
+      expect(plan.steps.map((st) => st.kind)).toEqual(["draw"]); // skipped: no transform…
+      expect(plan.minted).toEqual([]); // …and no ghost left behind by a command that never ran
+    }
+  });
+  test("zipper still runs when the targets are sectors, not rings", () => {
+    const s = spec([{ id: "k", type: "pieces", of: "sectors", x: 300, y: 400, radius: 120, n: 4, style: { fill: "#2f6b8f" } }],
+      [{ draw: ["k"] }, { arrange: { target: "k", layout: "zipper" } }]);
+    const out = layoutSpec(s, heuristicMeasure);
+    const bboxes = elementBBoxes(out, heuristicMeasure);
+    const plan = planCommands(s.commands, out.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s, out) });
+    expect(plan.warnings).toEqual([]);
+    expect(plan.steps.map((st) => st.kind)).toEqual(["draw", "transform"]);
+  });
 });

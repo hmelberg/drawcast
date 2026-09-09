@@ -206,3 +206,75 @@ describe("the measure follows (design §2.3)", () => {
     expect(Math.abs(textX - lineX)).toBeCloseTo(59.68, 6);
   });
 });
+
+describe("the pieceGroups follow-ons (round 3 review: I1, I3, M1)", () => {
+  const planOf = (s: unknown) => {
+    const layout = layoutSpec(s as never, heuristicMeasure);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    return { layout, plan: planCommands((s as { commands: unknown[] }).commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(s as never, layout) }) };
+  };
+  const kake = { id: "kake", type: "pieces", of: "sectors", x: 300, y: 400, radius: 120, n: 3, style: { fill: "#2f6b8f" } };
+
+  test("I1: a measure whose ends name a pieces PARENT is re-read when the pieces move", () => {
+    // arrange/move hand measureUpdates the resolved CHILDREN (kake_1 …), so an
+    // exact id match never saw the measure that spans the whole cut: the number
+    // on screen kept its pre-arrange value, with no warning. The parent's ends
+    // re-resolve through the planner's union-box anchorNow.
+    const { plan } = planOf({
+      elements: [
+        kake,
+        { id: "d", type: "measure", from: { ref: "kake", anchor: "left" }, to: { ref: "kake", anchor: "right" }, label: "d = {value}" },
+        { id: "e", type: "measure", from: { ref: "kake_1", anchor: "left" }, to: { ref: "kake_1", anchor: "right" }, label: "e = {value}" },
+      ],
+      commands: [{ draw: ["kake", "d", "label_d", "e", "label_e"] }, { arrange: { target: "kake", layout: "row" } }],
+    });
+    expect(plan.warnings).toEqual([]);
+    const step = plan.steps[1] as Extract<PlanStep, { kind: "transform" }>;
+    // Before the fix only label_e (the child's measure) was here.
+    expect(step.texts?.map((t) => t.id).sort()).toEqual(["label_d", "label_e"]);
+    const d = step.texts!.find((t) => t.id === "label_d")!.text;
+    expect(d).toMatch(/^d = /);
+    expect(Number(d.slice(4))).toBeGreaterThan(240); // a row of three sectors is wider than the circle was
+  });
+
+  test("I1: `of` a pieces parent still warns at layout — pieces populate no shapes for the parent", () => {
+    const { layout } = planOf({ elements: [kake, { id: "ar", type: "measure", of: "kake", what: "area" }], commands: [{ draw: ["kake"] }] });
+    expect(layout.warnings.join(" ")).toContain('measure "ar": "kake" has nothing to measure');
+  });
+
+  test("I3: resolveIds dedupes — a measure named beside its own label, and a pieces parent beside one of its pieces", () => {
+    const { plan } = planOf({
+      elements: [
+        { id: "kv", type: "polygon", points: [[200, 200], [400, 200], [400, 400], [200, 400]], style: { fill: "#87a878" } },
+        { id: "areal", type: "measure", of: "kv", what: "area", label: "A = {value}" },
+        kake,
+      ],
+      // "areal" resolves through pieceGroups to label_areal, which is named
+      // right after it: without the dedupe the draw loop awaited label_areal
+      // twice and it sketched, then re-sketched from zero — a visible flicker.
+      commands: [{ draw: ["kv", "areal", "label_areal"] }, { draw: ["kake", "kake_1"] }],
+    });
+    expect(plan.warnings).toEqual([]);
+    expect((plan.steps[0] as Extract<PlanStep, { kind: "draw" }>).ids).toEqual(["kv", "label_areal"]);
+    expect((plan.steps[1] as Extract<PlanStep, { kind: "draw" }>).ids).toEqual(["kake_1", "kake_2", "kake_3"]);
+  });
+
+  test("M1: a line-less measure's own id is not in layout.order, so the cast ends with no phantom draw of it", () => {
+    const { layout, plan } = planOf({
+      elements: [
+        { id: "kv", type: "polygon", points: [[200, 200], [400, 200], [400, 400], [200, 400]], style: { fill: "#87a878" } },
+        { id: "areal", type: "measure", of: "kv", what: "area", label: "A = {value}" },
+        { id: "b", type: "measure", from: { ref: "kv", anchor: "vertex_1" }, to: { ref: "kv", anchor: "vertex_2" }, label: "b = {value}" },
+        { id: "sent", type: "label", attach_to: "kv", side: "above", text: "later" },
+      ],
+      commands: [{ draw: ["kv", "areal"] }],
+    });
+    expect(plan.warnings).toEqual([]);
+    expect(layout.order).not.toContain("areal"); // it paints nothing under its own id
+    expect(layout.order).toContain("b"); // a measure WITH a dimension line still does
+    const last = plan.steps[plan.steps.length - 1] as Extract<PlanStep, { kind: "draw" }>;
+    expect(last.implicit).toBe(true);
+    expect(last.ids).not.toContain("areal");
+    expect(last.ids).toEqual(expect.arrayContaining(["b", "label_b", "sent"]));
+  });
+});

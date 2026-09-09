@@ -99,15 +99,32 @@ export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
 ): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn"> {
+  // Which group each id belongs to: `arrange`/`move` change the resolved
+  // CHILDREN of a `pieces` cut, while a measure anchored to the cut names the
+  // PARENT — matching ids exactly left that measure stale and unwarned.
+  const groupsOf = new Map<string, string[]>();
+  for (const [parent, kids] of Object.entries(layout.pieceGroups)) {
+    for (const kid of kids) {
+      const cur = groupsOf.get(kid);
+      if (cur) cur.push(parent);
+      else groupsOf.set(kid, [parent]);
+    }
+  }
   return {
     pieceOf: (id) => layout.pieces[id] ?? null,
     measureOf: (id) => layout.measures[id] ?? null,
     // Which measures read this element: the one that measures it outright, and
-    // the ones whose segment ends name it (design §2.3).
-    measuresDependingOn: (id) =>
-      Object.entries(layout.measures)
-        .filter(([, m]) => m.of === id || (m.from && "ref" in m.from && m.from.ref === id) || (m.to && "ref" in m.to && m.to.ref === id))
-        .map(([k]) => k),
+    // the ones whose segment ends name it (design §2.3) — under either the id
+    // itself or the pieces parent it belongs to, since a segment end on the
+    // parent re-resolves through the planner's union-box `anchorNow`.
+    // (`of: <parent>` stays a layout-time warning: pieces populate no shapes
+    // for the parent, so there is nothing to measure — only the ends work.)
+    measuresDependingOn: (id) => {
+      const names = new Set([id, ...(groupsOf.get(id) ?? [])]);
+      return Object.entries(layout.measures)
+        .filter(([, m]) => (m.of !== undefined && names.has(m.of)) || (m.from && "ref" in m.from && m.from.ref !== undefined && names.has(m.from.ref)) || (m.to && "ref" in m.to && m.to.ref !== undefined && names.has(m.to.ref)))
+        .map(([k]) => k);
+    },
     expandId: (id) => layout.pieceGroups[id] ?? null,
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     leafPointsOf: (id) => {

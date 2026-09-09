@@ -117,6 +117,11 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
       // A pieces element's parent id draws nothing itself — its n pieces
       // (already in tier2.extraOrder) are the command-addressable elements.
       if (el.type === "pieces") continue;
+      // Same for a line-less measure (area/perimeter): it draws no dimension
+      // line of its own, only the number, which tier-2 registers as the group
+      // `pieceGroups[<id>] = ["label_<id>"]`. Leaving the parent in the order
+      // would end the cast with a phantom `{draw: ["<id>"]}` painting nothing.
+      if (el.type === "measure" && pieceGroups[el.id]) continue;
       if (!order.includes(el.id)) order.push(el.id);
     }
     // Ids tier-2 minted itself (a source element's quote highlights) come

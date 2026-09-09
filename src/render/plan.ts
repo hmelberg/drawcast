@@ -376,14 +376,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
     // A `pieces` parent id stands for all its pieces: naming it draws,
     // highlights or arranges every piece, which is what the prompt promises.
-    return requested.flatMap((id) => {
+    // Deduped (first occurrence wins): a parent and one of its children can
+    // both be named — `draw: ["kake", "kake_1"]`, or a measure beside its own
+    // `label_<id>` (the measure's group IS that label) — and the draw loop
+    // awaits every entry, so a repeat re-sketches the element from zero.
+    const out = requested.flatMap((id) => {
       const kids = opts.expandId?.(id);
       if (kids && kids.length > 0) return kids.filter((k) => known.has(k));
       if (known.has(id)) return [id];
       warnings.push(`${verb} command references unknown id "${id}" (dropped)`);
       return [];
     });
+    return [...new Set(out)];
   };
+  /** How a command's target reads back in a warning: the id(s) the author wrote, not the expanded pieces. */
+  const targetLabel = (raw: string[] | string | undefined): string => (typeof raw === "string" ? raw : (raw ?? []).join(", "));
   /** Element's current visual bbox: layout bbox under its accumulated pose —
    *  shifted by the offset, and, when it has been turned, the bounds of the
    *  four rotated corners, so highlight/camera/arrange aim where it now is. */
@@ -529,6 +536,25 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
    *  at the base ({} before the first animate) is still routed through
    *  layoutAt and stays frozen there instead of riding a later tween frame. */
   const ghostParams = (): Record<string, number> | null => (opts.animateBase === undefined || opts.animateBase === null ? null : { ...params });
+  /** Mint a motion verb's ghosts AND give them a step of their own, ahead of
+   *  the motion — the same `{kind:"show"}` `keep` pushes. Without it nothing
+   *  ever calls `finish()` on the ghost's handle: `mentioned.add(ghostId)`
+   *  keeps it out of the implicit final draw on purpose, and `applyScene`
+   *  only runs on a scrub, so a plain `visible: true` left the ghost at
+   *  reveal progress 0 for the whole cast (round 3 review, C1).
+   *  The step carries NO narration: the beat's spoken line belongs to the
+   *  motion step that follows, and `pushStep` would otherwise attach it to
+   *  both and speak it twice. */
+  const showGhosts = (opt: GhostOption | undefined, targets: string[]): void => {
+    const ghosts = ghostIdsFor(opt, targets);
+    if (!ghosts) return;
+    const ghostIds = mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+    if (ghostIds.length === 0) return;
+    const saidNarration = currentNarration;
+    currentNarration = undefined;
+    pushStep({ kind: "show", ids: ghostIds });
+    currentNarration = saidNarration;
+  };
 
   const IDENTITY: Turn = { deg: 0, pivot: [0, 0] };
   /** Followers ride their target's pose change: each is moved by where its own
@@ -615,10 +641,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const seen = new Set<string>();
     for (const id of changed) {
       for (const mid of opts.measuresDependingOn?.(id) ?? []) {
-        if (seen.has(mid) || !known.has(mid)) continue;
+        if (seen.has(mid)) continue;
         seen.add(mid);
         const m = opts.measureOf?.(mid);
         if (!m) continue;
+        // In the scene at all? A line-less (area/perimeter) measure draws no
+        // element under its own id — layout.ts keeps it out of the order on
+        // purpose — so its text is what has to be known.
+        if (!known.has(mid) && !known.has(m.textId)) continue;
         const g = measureGeometryNow(m);
         if (!g) continue;
         const value = measureValue(m.what, g);
@@ -919,8 +949,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       // Minted BEFORE either half below changes offsets/turns/shapes — a
       // ghost of where the targets are RIGHT NOW, ahead of this move.
-      const ghosts = ghostIdsFor(cmd.move.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+      showGhosts(cmd.move.ghost, ids);
       const seconds = cmd.move.duration ?? 1;
       const easing = cmd.move.easing ?? "ease-in-out";
       const trailOpt = cmd.move.trail === true ? {} : cmd.move.trail || null;
@@ -1050,8 +1079,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.arrange !== undefined) {
       const ids = resolveIds(cmd.arrange.target, "arrange");
       if (ids.length === 0) continue;
-      const ghosts = ghostIdsFor(cmd.arrange.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       const inputs: ArrangeInput[] = [];
       for (const id of ids) {
         const box = currentBox(id);
@@ -1066,6 +1093,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         inputs.push({ id, box, centre: poseCentre(raw, pose.offset, pose.turn), piece: opts.pieceOf?.(id) ?? undefined, pose });
       }
       if (inputs.length === 0) continue;
+      // A ring piece spans the whole turn (halfAngle 180°), so zipper's
+      // half-chord r·sin(halfAngle) is 0 and fan has no apex to swing about:
+      // every strip would pile up at one x, silently (the guard below passes,
+      // because a ring IS a piece). `unroll` is the layout rings have.
+      if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && inputs.every((i) => i.piece?.ring)) {
+        warnings.push(`arrange "${targetLabel(cmd.arrange.target)}": ${cmd.arrange.layout} needs sector or triangle pieces; rings unroll (skipped)`);
+        continue;
+      }
+      // Minted only once the command is known to survive the guards above —
+      // a warned-and-skipped arrange must not leave a permanent ghost behind.
+      showGhosts(cmd.arrange.ghost, ids);
       const at = resolvePoint(cmd.arrange.at, undefined, "arrange") ?? undefined;
       if ((cmd.arrange.layout === "zipper" || cmd.arrange.layout === "fan") && !inputs.some((i) => i.piece)) {
         warnings.push(`arrange ${cmd.arrange.layout}: none of the targets is a sector piece — laid out as a row instead`);
@@ -1149,8 +1187,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       // Minted only once the command is known to survive the guards above —
       // a warned-and-skipped flip must not leave a permanent ghost behind.
-      const ghosts = ghostIdsFor(cmd.flip.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+      showGhosts(cmd.flip.ghost, ids);
       // `through` with a ref (or a literal point) names a place in the scene:
       // resolve it once, before any target has been flipped. A ref-less
       // {anchor} stays per target — it names the flipping element's own anchor.
@@ -1194,8 +1231,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       // Minted only once the command is known to survive the guard above —
       // a warned-and-skipped morph must not leave a permanent ghost behind.
-      const ghosts = ghostIdsFor(cmd.morph.ghost, ids);
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+      showGhosts(cmd.morph.ghost, ids);
       let refRing: { pts: Pt[]; closed: boolean } | null = null;
       if (cmd.morph.to !== undefined && !Array.isArray(cmd.morph.to)) {
         const ref = cmd.morph.to.ref;

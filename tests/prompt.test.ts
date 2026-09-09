@@ -64,6 +64,12 @@ describe("compiler prompt style rules", () => {
   test("teaches angle, measure, ellipse, line, unroll and halving — motion round 3's new elements and cut", () => {
     for (const s of ["`angle`", "`measure`", "`ellipse`", "`line`", "unroll", "halving", "`keep`"]) expect(compilerV1).toContain(s);
   });
+
+  test("teaches that a measure's number is the separate element label_<id>, named in draw beside the line", () => {
+    // Round 3 review, I2: without this the model writes `draw: ["side"]` and
+    // the number falls into the implicit final draw at the end of the cast.
+    for (const s of ["`label_<id>`", '"draw": ["side", "label_side"]', '"draw": ["areal"]']) expect(compilerV1).toContain(s);
+  });
 });
 
 describe("buildSystemPrompt", () => {
