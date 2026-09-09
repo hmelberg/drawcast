@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { buildSystemPrompt, missingPlaceholders, selectExemplars, stripFence, styleBlock } from "../src/llm/prompt";
 
 const compilerV1 = readFileSync(new URL("../src/llm/prompts/compiler-v1.md", import.meta.url), "utf8");
+const compilerV1Code = readFileSync(new URL("../src/llm/prompts/compiler-v1-code.md", import.meta.url), "utf8");
 
 describe("compiler prompt style rules", () => {
   test("carries the color-by-role palette rule", () => {
@@ -32,16 +33,19 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("Speaking and drawing are not turns");
   });
 
+  // The data bridge and the data templates are part of the CODE block, so they
+  // are pinned in compiler-v1-code.md — the file {{CODE}} fills for a request
+  // that wants a running script (Task 10). Same phrases, new home.
   test("teaches the data bridge: tokens, depth-means-staged, typed labels", () => {
-    expect(compilerV1).toContain('"{sim.y}"');
-    expect(compilerV1).toContain("Depth means staged");
-    expect(compilerV1).toContain("TYPE the labels");
-    expect(compilerV1).toContain('"show": "none"');
+    expect(compilerV1Code).toContain('"{sim.y}"');
+    expect(compilerV1Code).toContain("Depth means staged");
+    expect(compilerV1Code).toContain("TYPE the labels");
+    expect(compilerV1Code).toContain('"show": "none"');
   });
 
   test("names the other data templates (line_chart, scatter_plot)", () => {
-    expect(compilerV1).toContain("scatter_plot");
-    expect(compilerV1).toContain("line_chart");
+    expect(compilerV1Code).toContain("scatter_plot");
+    expect(compilerV1Code).toContain("line_chart");
   });
 
   test("the action-verb inventory lists flip, morph, flow and keep", () => {
@@ -63,6 +67,36 @@ describe("compiler prompt style rules", () => {
 
   test("teaches angle, measure, ellipse, line, unroll and halving — motion round 3's new elements and cut", () => {
     for (const s of ["`angle`", "`measure`", "`ellipse`", "`line`", "unroll", "halving", "`keep`"]) expect(compilerV1).toContain(s);
+  });
+
+  test("the freehand section makes the model plan the parts before writing elements", () => {
+    // The rule the whole section hangs on: an assembly planned as a chain of
+    // `at`s comes out assembled; one planned element by element comes out a pile.
+    expect(compilerV1).toContain("## Freehand figures");
+    expect(compilerV1).toContain("List the parts and how they sit BEFORE writing elements");
+    expect(compilerV1).toContain('{"ref": "nucleus", "side": "right", "gap": 20}');
+    expect(compilerV1).toContain('{"fit": "left"}');
+  });
+
+  test("the freehand section separates the icon STAMP from the seed's ready paths", () => {
+    expect(compilerV1).toContain("`icon` is a STAMP; the seed is a starting shape");
+    expect(compilerV1).toContain("arrives as ready `path` elements in a group named `seed`");
+  });
+
+  test("the freehand section names the anti-patterns", () => {
+    const line = compilerV1.split("\n").find((l) => l.includes("**Anti-patterns, by name**"));
+    expect(line).toBeDefined();
+    expect(line).toContain("coordinates computed per element");
+    expect(line).toContain("more than one image");
+    expect(line).toContain("a formula typed as `text`");
+    expect(line).toContain("an icon used as the whole figure");
+  });
+
+  test("the code bullets moved to their own file, reached through the optional {{CODE}} placeholder", () => {
+    expect(compilerV1).toContain("\n{{CODE}}\n"); // on its own line, where the bullets were
+    expect(compilerV1).not.toContain("**code** runs a real script");
+    expect(compilerV1Code).toContain("**code** runs a real script");
+    expect(compilerV1Code).toContain("**Data from code, drawn as ink.**");
   });
 
   test("teaches that a measure's number is the separate element label_<id>, named in draw beside the line", () => {

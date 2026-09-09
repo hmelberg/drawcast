@@ -40,6 +40,17 @@ beforeEach(() => {
 });
 
 describe("reviseDocument", () => {
+  test("the conditional code block rides along only when the document or the instruction wants a script", async () => {
+    // Task 10: the 15k code bullet is filled into {{CODE}} on demand. A
+    // revision of a document that HAS a code element still needs the rules.
+    replies = [GOOD, GOOD];
+    await reviseDocument(GOOD, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**code** runs a real script");
+    const withCode = GOOD.replace("  - { id: c1", "  - { id: sim, type: code, language: python, code: \"print(1)\" }\n  - { id: c1");
+    await reviseDocument(withCode, "make it print two", cfg());
+    expect(systemText(1)).toContain("**code** runs a real script");
+  });
+
   test("a clean reply returns the playlist in one round", async () => {
     replies = [GOOD];
     const out = await reviseDocument(GOOD, "make the curve steeper", cfg());

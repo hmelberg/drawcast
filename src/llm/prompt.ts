@@ -9,6 +9,12 @@ export interface PromptParts {
   catalog: string;
   fewshots: string;
   exemplars: string;
+  /**
+   * The code-element block (src/llm/prompts/compiler-v1-code.md), sent ONLY
+   * for a request that wants a running script — 15k chars every other request
+   * paid for nothing. Absent or "" fills {{CODE}} with nothing; see wantsCode.
+   */
+  code?: string;
 }
 
 export function buildSystemPrompt(variantSource: string, parts: PromptParts): string {
@@ -27,7 +33,8 @@ export function buildSystemBlocks(variantSource: string, parts: PromptParts): { 
     s
       .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema, null, 2))
       .replaceAll("{{CATALOG}}", parts.catalog)
-      .replaceAll("{{FEWSHOTS}}", parts.fewshots);
+      .replaceAll("{{FEWSHOTS}}", parts.fewshots)
+      .replaceAll("{{CODE}}", parts.code ?? "");
   const at = variantSource.indexOf("{{EXEMPLARS}}");
   if (at === -1) return { prefix: fill(variantSource), suffix: "" };
   return {
@@ -57,6 +64,28 @@ export function systemBlocks(prefix: string, suffix: string): { type: "text"; te
 
 /** The placeholders every compiler prompt must carry; filled in at generation time. */
 export const PROMPT_PLACEHOLDERS = ["{{SCHEMA}}", "{{CATALOG}}", "{{FEWSHOTS}}", "{{EXEMPLARS}}"] as const;
+
+/**
+ * Placeholders a prompt MAY carry: filled when present, ignored when not, and
+ * never reported by missingPlaceholders — a user's own prompt fork predates
+ * them and is not broken for lacking one. {{CODE}} is the conditional code
+ * block (wantsCode); a fork without it simply never gets the code element.
+ */
+export const OPTIONAL_PROMPT_PLACEHOLDERS = ["{{CODE}}"] as const;
+
+/**
+ * Does this request want the code block (15k chars of script/runtime rules)?
+ * Cheap and generous on purpose: a missed code request writes a code element
+ * against the schema alone, while a false positive only costs tokens.
+ */
+const CODE_WORDS = /\b(code|script|python|pandas|numpy|matplotlib|plotly|simulat\w*|tidyverse|ggplot|brython|micropython|microdata|c64|commodore|basic)\b|\bR\b/i;
+export function wantsCode(request: string, tags: string[]): boolean {
+  // No `basic` here, unlike CODE_WORDS: #basic is an existing difficulty tag
+  // ("assume no background", src/llm/tags.ts), so matching it would post the
+  // code block to every beginner-level request — the one case this budget
+  // exists to protect. In free text `basic` may still be Commodore BASIC.
+  return tags.some((t) => /^(code|python|r|microdata|c64)$/i.test(t)) || CODE_WORDS.test(request);
+}
 
 /**
  * The author's style profile as a prompt block (B5, S §4): ADDED to the

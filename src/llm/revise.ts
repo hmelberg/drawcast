@@ -10,14 +10,14 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
-import { buildSystemBlocks, stripFence, styleBlock, systemBlocks } from "./prompt";
+import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode } from "./prompt";
 import { validateSpec } from "../spec/schema";
 import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { callForText, describeApiError, makeClient, type Effort } from "./client";
-import { apiSchema, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
+import { apiSchema, CODE_PROMPT_SOURCE, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "../scenes/engines";
 import { makeBrowserMeasure } from "../render/svg-backend";
@@ -146,6 +146,10 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: "",
+    // The code block is conditional now (Task 10), and a revision needs it
+    // whenever the DOCUMENT already has a code element — the instruction
+    // ("make it 1000 draws") rarely says so itself.
+    code: wantsCode(instruction, []) || /\btype:\s*['"]?code\b/.test(docText) ? CODE_PROMPT_SOURCE : "",
   });
   const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   // systemBlocks drops a whitespace-only tail. Passing no exemplars leaves the

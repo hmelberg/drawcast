@@ -5,7 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import type { RouteResult } from "./router";
@@ -26,6 +26,7 @@ import { paramsStrictness, templateParamIssues } from "../scenes/params-check";
 import { isPackTemplateId, packTemplateIds } from "../scenes/packs";
 import { scanDataTokens } from "../code/tokens";
 import fewshots from "./prompts/fewshots.json";
+import codeMd from "./prompts/compiler-v1-code.md?raw";
 
 /** Budget for the authoring-time code-execution check (real pyodide WASM in
  *  a hidden run). The underlying run cannot be cancelled once started (no
@@ -54,8 +55,18 @@ export interface PromptVariant {
 
 const variantModules = import.meta.glob("./prompts/compiler-*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
+/**
+ * The code block of the compiler prompt, kept in its own file and filled into
+ * {{CODE}} only for a request that wants a running script (prompt.ts's
+ * wantsCode): 15k chars every other request used to pay for and never use.
+ */
+export const CODE_PROMPT_SOURCE = codeMd;
+
 export function promptVariants(): PromptVariant[] {
   return Object.entries(variantModules)
+    // compiler-v1-code.md is a FRAGMENT of compiler-v1, not a variant of its
+    // own — the glob above would otherwise offer it in the prompt picker.
+    .filter(([path]) => !path.endsWith("-code.md"))
     .map(([path, source]) => ({
       name: path.replace(/^.*compiler-/, "").replace(/\.md$/, ""),
       source,
@@ -141,6 +152,8 @@ export interface GenerateConfig {
    * itself stays clean — it also drives exemplar selection and logging.
    */
   brief?: string;
+  /** The canonical #tag ids behind `brief` (src/llm/tags.ts) — read by wantsCode to decide on the code block. */
+  tags?: string[];
   /** #template=<id> — the model must use this template (checked post-validation). */
   forcedTemplate?: string;
   /** Template ids to always give a full catalog entry, above the two-level threshold. */
@@ -223,7 +236,7 @@ export function buildImproveMessages(source: string, cases: ImproveCase[]): { sy
     "You will receive the CURRENT prompt and a set of logged FAILURE CASES (requests that produced errors, lint problems, or low human ratings).",
     "Propose a revised prompt that addresses the observed failure patterns while keeping everything that already works.",
     "Hard rules:",
-    `- Preserve these placeholders EXACTLY as written, each on its own line where they appear now: ${PROMPT_PLACEHOLDERS.join(", ")}. They are substituted at runtime; a prompt without them is broken.`,
+    `- Preserve these placeholders EXACTLY as written, each on its own line where they appear now: ${[...PROMPT_PLACEHOLDERS, ...OPTIONAL_PROMPT_PLACEHOLDERS].join(", ")}. They are substituted at runtime; a prompt without them is broken.`,
     "- Keep the coordinate convention and the LLM-writes-semantics principle intact.",
     "- Make targeted edits, not a rewrite from scratch; keep roughly the current length.",
     "Return ONLY the complete revised prompt text (markdown). No commentary before or after.",
@@ -361,11 +374,15 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const seeded = seed !== null;
   // ---- end icon seed ----
   let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist });
+  // The code block rides along only for a request that wants a script; every
+  // other request keeps 15k chars out of its (cached) prefix.
+  const code = wantsCode(request, cfg.tags ?? []) ? CODE_PROMPT_SOURCE : "";
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
     catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
+    code,
   });
   let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   let system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
@@ -428,6 +445,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           catalog: catalog.stable,
           fewshots: fewshotsText(),
           exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
+          code,
         });
         suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
         system = systemBlocks(blocks.prefix, suffixText);

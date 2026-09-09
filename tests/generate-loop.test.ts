@@ -72,6 +72,18 @@ beforeEach(() => {
 });
 
 describe("generateSpec loop", () => {
+  test("the conditional code block reaches the system prompt only when the request or a tag asks for a script (Task 10)", async () => {
+    const variant: PromptVariant = { name: "test", source: `${VARIANT.source}\nCODE:{{CODE}}` };
+    const systemOf = (i: number) => (mockCallForJson.mock.calls[i][2] as { text: string }[]).map((b) => b.text).join("\n");
+    mockCallForJson.mockResolvedValue(respond(VALID_SUPPLY_DEMAND));
+    await generateSpec("Draw supply and demand", baseCfg({ variant }));
+    expect(systemOf(0)).not.toContain("**code** runs a real script");
+    await generateSpec("Simulate 500 coin flips in python", baseCfg({ variant }));
+    expect(systemOf(1)).toContain("**code** runs a real script");
+    await generateSpec("Draw supply and demand", baseCfg({ variant, tags: ["code"] }));
+    expect(systemOf(2)).toContain("**code** runs a real script");
+  });
+
   test("happy path: one valid response -> single 'initial' round on cfg.model", async () => {
     mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
 
