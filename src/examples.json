@@ -15254,15 +15254,15 @@
     "spec": {
       "title": "Sirkelen som ringer",
       "elements": [
-        { "id": "ringer", "type": "pieces", "of": "rings", "x": 200, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
+        { "id": "ringer", "type": "pieces", "of": "rings", "x": 250, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
         { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right" },
-        { "id": "hoyde", "type": "measure", "from": { "ref": "ringer_1", "anchor": "bottom" }, "to": { "ref": "ringer_8", "anchor": "top" }, "label": "r = {value}", "side": "left", "offset": 60 }
+        { "id": "hoyde", "type": "measure", "from": { "ref": "ringer" }, "to": { "ref": "ringer_8", "anchor": "top" }, "label": "r = {value}", "side": "left", "offset": 112 }
       ],
       "commands": [
         { "draw": ["ringer"], "speak": "Del sirkelen i tynne ringer i stedet for kakestykker. Hver ring er nesten en smal stripe bøyd rundt sentrum." },
         { "draw": ["hoyde", "label_hoyde"], "speak": "Stablet oppå hverandre er ringene til sammen så høye som radien r." },
         { "keep": { "target": "ringer" }, "speak": "Behold sirkelen der den står." },
-        { "arrange": { "target": "ringer", "layout": "unroll", "at": [640, 400], "duration": 3 }, "speak": "Rett ut hver ring til en stripe. Den innerste er kort, den ytterste nesten hele omkretsen: to pi r." },
+        { "arrange": { "target": "ringer", "layout": "unroll", "at": [670, 400], "duration": 3 }, "speak": "Rett ut hver ring til en stripe. Den innerste er kort, den ytterste nesten hele omkretsen: to pi r." },
         { "draw": ["lengste", "label_lengste"], "speak": "Stripene danner en trapp som nærmer seg en trekant med grunnlinje to pi r og høyde r." },
         { "highlight": { "target": ["label_hoyde", "label_lengste"], "effect": "glow" }, "speak": "Arealet av trekanten er en halv ganger to pi r ganger r. Det er pi r i annen." }
       ]
