@@ -2,7 +2,8 @@
 // font glyphs arrive as filled outlines, and drawcast draws polylines, so the
 // curves have to be flattened. Kept general enough for any path data a font
 // emits — MathJax's TeX fonts use M/L/H/V/Q/T/Z (and C/S in a few glyphs),
-// never arcs.
+// never arcs. The `icon` element (render/icon.ts) reuses this for Iconify
+// SVGs, which do use A/a.
 
 type Pt = [number, number];
 
@@ -69,6 +70,53 @@ export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
     }
     qcx = x1; qcy = y1;
   };
+  /**
+   * SVG 1.1 F.6.5 endpoint → centre parameterisation, then sample the
+   * elliptical arc from θ1 through θ1+Δθ.
+   */
+  const arc = (rx0: number, ry0: number, xAxisRotationDeg: number, largeArc: boolean, sweep: boolean, x: number, y: number) => {
+    const x0 = cx, y0 = cy;
+    if ((rx0 === 0 || ry0 === 0) || (x0 === x && y0 === y)) { push(x, y); return; }
+    let rx = Math.abs(rx0), ry = Math.abs(ry0);
+    const phi = (xAxisRotationDeg * Math.PI) / 180;
+    const cosPhi = Math.cos(phi), sinPhi = Math.sin(phi);
+    // Step 1: compute (x1', y1') — the midpoint in the rotated frame.
+    const dx2 = (x0 - x) / 2, dy2 = (y0 - y) / 2;
+    const x1p = cosPhi * dx2 + sinPhi * dy2;
+    const y1p = -sinPhi * dx2 + cosPhi * dy2;
+    // Correct out-of-range radii (F.6.6.2).
+    const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+    if (lambda > 1) { const s = Math.sqrt(lambda); rx *= s; ry *= s; }
+    // Step 2: compute (cx', cy').
+    const rx2 = rx * rx, ry2 = ry * ry, x1p2 = x1p * x1p, y1p2 = y1p * y1p;
+    let num = rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2;
+    num = Math.max(0, num);
+    const den = rx2 * y1p2 + ry2 * x1p2;
+    const coef = (largeArc === sweep ? -1 : 1) * (den === 0 ? 0 : Math.sqrt(num / den));
+    const cxp = (coef * (rx * y1p)) / ry;
+    const cyp = (coef * -(ry * x1p)) / rx;
+    // Step 3: (cx, cy) from (cx', cy').
+    const centerX = cosPhi * cxp - sinPhi * cyp + (x0 + x) / 2;
+    const centerY = sinPhi * cxp + cosPhi * cyp + (y0 + y) / 2;
+    // Step 4: theta1 and delta-theta.
+    const angle = (ux: number, uy: number, vx: number, vy: number): number => {
+      const dot = ux * vx + uy * vy;
+      const len = Math.sqrt(ux * ux + uy * uy) * Math.sqrt(vx * vx + vy * vy);
+      let a = Math.acos(Math.min(1, Math.max(-1, dot / len)));
+      if (ux * vy - uy * vx < 0) a = -a;
+      return a;
+    };
+    const theta1 = angle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+    let dTheta = angle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+    if (!sweep && dTheta > 0) dTheta -= 2 * Math.PI;
+    if (sweep && dTheta < 0) dTheta += 2 * Math.PI;
+    const n = Math.max(segments, Math.ceil(Math.abs(dTheta) / (Math.PI / 8)) * 4);
+    for (let s = 1; s <= n; s++) {
+      const theta = theta1 + (dTheta * s) / n;
+      const ex = rx * Math.cos(theta), ey = ry * Math.sin(theta);
+      push(centerX + cosPhi * ex - sinPhi * ey, centerY + sinPhi * ex + cosPhi * ey);
+    }
+  };
 
   while (i < cmds.length) {
     const tok = cmds[i];
@@ -101,6 +149,11 @@ export function sampleSvgPath(d: string, segments = CURVE_SEGMENTS): Pt[][] {
       case "T": {
         const smooth = prev.toUpperCase() === "Q" || prev.toUpperCase() === "T";
         quad(smooth ? 2 * cx - qcx : cx, smooth ? 2 * cy - qcy : cy, ox + num(), oy + num());
+        break;
+      }
+      case "A": {
+        const rx = num(), ry = num(), rot = num(), largeArc = num() !== 0, sweep = num() !== 0;
+        arc(rx, ry, rot, largeArc, sweep, ox + num(), oy + num());
         break;
       }
       case "Z": closeRing(); cx = sx; cy = sy; break;

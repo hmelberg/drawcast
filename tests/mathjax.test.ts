@@ -48,8 +48,10 @@ describe("svg path sampler", () => {
     expect(box(smooth[0]).y0).toBeLessThan(0);       // the S mirrors the bulge downward
   });
 
-  test("arcs are rejected rather than silently mis-sampled", () => {
-    expect(() => sampleSvgPath("M0 0 A5 5 0 0 1 10 0")).toThrow(/unsupported/i);
+  test("arcs are sampled (Task 12: Iconify SVGs use A/a)", () => {
+    const [ring] = sampleSvgPath("M0 0 A5 5 0 0 1 10 0 Z", 8);
+    expect(ring.length).toBeGreaterThan(2);
+    expect(ring.every(([, y]) => y <= 0.001)).toBe(true); // sweep=1 arcs below the chord
   });
 
   test("malformed data is refused, never looped on", () => {

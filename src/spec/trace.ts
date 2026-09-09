@@ -11,6 +11,10 @@
 //
 // The photo looks share the file: `img1:` (a framed grayscale photo) and
 // `img2:` (a source page — the same photo plus quote-highlight rects).
+// `ic1:` is a third, unrelated look: an Iconify icon's outline rings,
+// JSON-encoded rather than base64-packed (see encodeIcon below) — a glyph
+// is small enough that JSON's overhead doesn't matter, and JSON keeps the
+// per-ring, per-point structure legible for debugging.
 //
 // Wire format: `t2:<2-char aspect>:<shape>.<shape>...` where each shape is
 // one kind char (l/i/m/p) followed by 4 chars per point (12-bit x then
@@ -167,4 +171,38 @@ export function decodeTrace(s: string): PortraitTrace | null {
     }
   }
   return { aspect, shapes };
+}
+
+/**
+ * The `icon` look's wire form: `ic1:<JSON>` where the JSON is an array of
+ * rings (each an array of `[x, y]` pairs, coordinates in 0..1 — the
+ * viewBox-normalised space `render/icon.ts`'s `svgToRings` produces).
+ * Rounded to 4 decimals: plenty of precision for a glyph, far shorter than
+ * full float strings once JSON-stringified.
+ */
+export function encodeIcon(rings: readonly (readonly (readonly [number, number])[])[]): string {
+  const rounded = rings.map((ring) => ring.map(([x, y]) => [+x.toFixed(4), +y.toFixed(4)]));
+  return `ic1:${JSON.stringify(rounded)}`;
+}
+
+export function decodeIcon(s: string): [number, number][][] | null {
+  if (typeof s !== "string" || !s.startsWith("ic1:")) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(s.slice(4));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  const rings: [number, number][][] = [];
+  for (const ring of parsed) {
+    if (!Array.isArray(ring)) return null;
+    const pts: [number, number][] = [];
+    for (const pt of ring) {
+      if (!Array.isArray(pt) || pt.length !== 2 || typeof pt[0] !== "number" || typeof pt[1] !== "number") return null;
+      pts.push([pt[0], pt[1]]);
+    }
+    rings.push(pts);
+  }
+  return rings;
 }
