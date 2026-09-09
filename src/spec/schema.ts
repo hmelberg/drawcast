@@ -52,7 +52,7 @@ const drawSchema = {
 };
 
 const ANCHOR_NAMES =
-  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…; angle vertex, arc";
+  "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…; angle vertex, arc; ellipse focus_1, focus_2; line start, end, mid, point_1…";
 
 const endRefSchema = {
   type: "object",
@@ -101,7 +101,7 @@ const elementSchema = {
       type: "string",
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
-        "sector", "arc", "polygon", "pieces", "angle", "measure",
+        "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
       ],
     },
     // axes
@@ -186,8 +186,8 @@ const elementSchema = {
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
     closed: { type: "boolean", description: "path: close the polyline." },
-    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical x (y-up canvas) — the centre, for the shapes that have one." },
-    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces: logical y (y-up canvas) — the centre, for the shapes that have one." },
+    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one." },
+    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one." },
     width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880)." },
     height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
@@ -196,7 +196,7 @@ const elementSchema = {
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
     end: { type: "number", description: "sector/arc: end angle in degrees, counter-clockwise from +x — e.g. start: 0, end: 90 is the upper-right quarter." },
     sides: { type: "integer", minimum: 3, description: "polygon: sides of a REGULAR polygon centred at x,y with radius — instead of points." },
-    rotation: { type: "number", description: "polygon: turn a regular polygon by this many degrees." },
+    rotation: { type: "number", description: "polygon/ellipse: turn by this many degrees (polygon: the regular polygon; ellipse: its major axis, counter-clockwise from +x)." },
     n: {
       type: "integer",
       minimum: 1,
@@ -220,6 +220,19 @@ const elementSchema = {
     scale: { type: "number", exclusiveMinimum: 0, description: "measure: logical units per unit (default 1) — 50 with unit cm makes a 100-unit side read 2.0 cm." },
     decimals: { type: "integer", minimum: 0, maximum: 4, description: "measure: decimals shown (default 0 when the value is 100 or more, else 1)." },
     offset: { type: "number", description: "measure: how far the dimension line sits from the segment (default 24)." },
+    // ellipse / line (design §2.5) — x/y/rotation reused above
+    rx: { type: "number", exclusiveMinimum: 0, description: "ellipse: half-axis along +x before rotation, logical units (default 150)." },
+    ry: { type: "number", exclusiveMinimum: 0, description: "ellipse: half-axis along +y before rotation, logical units (default 100)." },
+    through: {
+      type: "array",
+      items: pointRefSchema("line: a point it passes through"),
+      minItems: 1,
+      maxItems: 2,
+      description:
+        "line: one or two points the line passes through — [{\"ref\": \"tri\", \"anchor\": \"vertex_1\"}, {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}] extends a side; with one point give slope or angle.",
+    },
+    slope: { type: "number", description: "line: rise over run in domain units when a domain is declared, else logical." },
+    angle: { type: "number", description: "line: direction in degrees counter-clockwise from +x (not the angle element type — this is the `line` element's own direction field)." },
     // portrait / source
     of: {
       type: "string",
@@ -1305,6 +1318,15 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "measure":
       need(el.of !== undefined || (el.from !== undefined && el.to !== undefined), "needs of, or from and to");
+      break;
+    case "ellipse":
+      need(typeof el.rx === "number" && typeof el.ry === "number", "needs rx and ry");
+      break;
+    case "line":
+      need(Array.isArray(el.through) && el.through.length >= 1 && el.through.length <= 2, "needs through (1 or 2 points)");
+      if (Array.isArray(el.through) && el.through.length === 1) {
+        need(typeof el.slope === "number" || typeof el.angle === "number", "with one point in through, needs slope or angle");
+      }
       break;
     case "code":
       // A machine with a program on it and nothing to run (`game`, no code) is

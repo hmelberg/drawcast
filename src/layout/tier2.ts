@@ -55,7 +55,7 @@ export interface Tier2Result {
   labels: LabelRequest[];
   /** Logical anchor point per element id (for labels, arrows, and commands). */
   anchors: Record<string, Pt>;
-  /** Geometric anchors per element id (design §2.1): polygon vertex_k/side_k/centroid, sector apex/arc/start/end, arrow tail/tip/mid, path start/end/mid/point_k. */
+  /** Geometric anchors per element id (design §2.1, §2.5): polygon vertex_k/side_k/centroid, sector apex/arc/start/end, arrow tail/tip/mid, path start/end/mid/point_k, ellipse focus_1/focus_2, line start/end/mid/point_k. */
   namedAnchors: Record<string, Record<string, Pt>>;
   /**
    * Command-addressable ids tier-2 minted that are NOT spec element ids — a
@@ -259,6 +259,14 @@ export function layoutElements(
       case "measure":
         drawables.push(...measureDrawables(el, ctx));
         break;
+      case "ellipse":
+        drawables.push(...ellipseDrawables(el, ctx));
+        break;
+      case "line": {
+        const line = lineDrawable(el, ctx);
+        if (line) drawables.push(line);
+        break;
+      }
     }
   }
 
@@ -1324,6 +1332,75 @@ function polygonDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   ctx.anchors[el.id] = [cx, cy];
   ctx.namedAnchors[el.id] = polygonAnchors(pts);
   return filledOutline(el.id, pts, el);
+}
+
+/**
+ * `ellipse` (design §2.5): a 48-point outline, counter-clockwise from the
+ * +x end of the major axis, rotated by `rotation` — a filledOutline pair
+ * measurable through primaryRingSoFar like any other closed ring, no special
+ * case needed. Anchors `focus_1`/`focus_2` sit on the major axis (`focus_1`
+ * toward −x before rotation); when rx === ry the foci coincide at the centre
+ * (f = 0, not NaN).
+ */
+function ellipseDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
+  const c: Pt = [el.x ?? CANVAS.w / 2, el.y ?? CANVAS.h / 2];
+  const rx = el.rx ?? 150, ry = el.ry ?? 100;
+  const rot = (el.rotation ?? 0) * DEG;
+  const turn = (p: Pt): Pt => [c[0] + (p[0] - c[0]) * Math.cos(rot) - (p[1] - c[1]) * Math.sin(rot), c[1] + (p[0] - c[0]) * Math.sin(rot) + (p[1] - c[1]) * Math.cos(rot)];
+  const pts = Array.from({ length: 48 }, (_, i): Pt => turn([c[0] + rx * Math.cos((2 * Math.PI * i) / 48), c[1] + ry * Math.sin((2 * Math.PI * i) / 48)]));
+  const f = Math.sqrt(Math.abs(rx * rx - ry * ry));
+  const [f1, f2]: [Pt, Pt] = rx >= ry ? [turn([c[0] - f, c[1]]), turn([c[0] + f, c[1]])] : [turn([c[0], c[1] - f]), turn([c[0], c[1] + f])];
+  ctx.anchors[el.id] = c;
+  ctx.namedAnchors[el.id] = { focus_1: f1, focus_2: f2 };
+  return filledOutline(el.id, pts, el);
+}
+
+/** Where the line P + t·d enters and leaves a box, or null when it misses. */
+function clipToBox(P: Pt, d: Pt, box: { x0: number; x1: number; y0: number; y1: number }): [Pt, Pt] | null {
+  let t0 = -Infinity, t1 = Infinity;
+  for (const [lo, hi, p, v] of [[box.x0, box.x1, P[0], d[0]], [box.y0, box.y1, P[1], d[1]]] as [number, number, number, number][]) {
+    if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) return null; continue; }
+    const ta = (lo - p) / v, tb = (hi - p) / v;
+    t0 = Math.max(t0, Math.min(ta, tb)); t1 = Math.min(t1, Math.max(ta, tb));
+  }
+  if (!(t0 < t1)) return null;
+  return [[P[0] + t0 * d[0], P[1] + t0 * d[1]], [P[0] + t1 * d[0], P[1] + t1 * d[1]]];
+}
+
+/**
+ * `line` (design §2.5): a straight stroke clipped to the plot box (domain
+ * declared) or the canvas — `through` gives one or two PointRefs; with one
+ * point, direction comes from `angle` (degrees, y-up) or `slope` (domain
+ * units when a domain is declared, else logical). Anchors `start`/`end`
+ * (the clipped endpoints), `mid`, and `point_1`[, `point_2`] (the resolved
+ * `through` points themselves, un-clipped).
+ */
+function lineDrawable(el: SpecElement, ctx: Ctx): Drawable | null {
+  const through = ((el.through ?? []) as PointRef[]).map((p) => resolvePointRef(p, ctx));
+  if (through.length === 0 || through.some((p) => p === null)) { ctx.warnings.push(`line "${el.id}": through does not resolve`); return null; }
+  const P = through[0]!;
+  let d: Pt;
+  if (through.length >= 2) d = [through[1]![0] - P[0], through[1]![1] - P[1]];
+  else if (typeof el.slope === "number") {
+    // domain slope → logical: scale dy by the y-scale and dx by the x-scale
+    const plot = plotArea();
+    const kx = ctx.domainDeclared ? (plot.x1 - plot.x0) / (ctx.domainX[1] - ctx.domainX[0]) : 1;
+    const ky = ctx.domainDeclared ? (plot.y1 - plot.y0) / (ctx.domainY[1] - ctx.domainY[0]) : 1;
+    d = [kx, el.slope * ky];
+  } else if (typeof el.angle === "number") d = [Math.cos(el.angle * DEG), Math.sin(el.angle * DEG)];
+  else { ctx.warnings.push(`line "${el.id}": needs a second point, a slope or an angle`); return null; }
+  if (Math.hypot(d[0], d[1]) < 1e-9) { ctx.warnings.push(`line "${el.id}": its two points coincide`); return null; }
+  const plot = plotArea();
+  const box = ctx.domainDeclared ? { x0: plot.x0, x1: plot.x1, y0: plot.y0, y1: plot.y1 } : { x0: 0, x1: CANVAS.w, y0: 0, y1: CANVAS.h };
+  const seg = clipToBox(P, d, box);
+  if (!seg) { ctx.warnings.push(`line "${el.id}": misses the canvas`); return null; }
+  const [A, B] = seg;
+  const mid: Pt = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+  ctx.anchors[el.id] = mid;
+  const named: Record<string, Pt> = { start: A, end: B, mid };
+  through.forEach((p, i) => { named[`point_${i + 1}`] = p!; });
+  ctx.namedAnchors[el.id] = named;
+  return { id: el.id, kind: "stroke", pts: [A, B], z: Z_STROKE, style: resolveStyle(el.style, { strokeWidth: 2.5 }), drawOpts: resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides }) };
 }
 
 /**

@@ -30,7 +30,9 @@ export type ElementType =
   | "polygon"
   | "pieces"
   | "angle"
-  | "measure";
+  | "measure"
+  | "ellipse"
+  | "line";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -129,7 +131,7 @@ export interface SpecElement {
   end?: number;
   /** polygon: number of sides of a regular polygon (with radius, x, y). */
   sides?: number;
-  /** polygon: rotation of a regular polygon in degrees. */
+  /** polygon/ellipse: rotation in degrees (polygon: of a regular polygon; ellipse: of the major axis). */
   rotation?: number;
   /** pieces: how many pieces to cut a shape into (sectors, strips, or the columns of a grid). */
   n?: number;
@@ -149,6 +151,17 @@ export interface SpecElement {
   decimals?: number;
   /** measure: how far the dimension line sits from the segment (default 24). */
   offset?: number;
+  // ellipse / line (design §2.5) — x/y/rotation reused above (ellipse: x, y is its centre)
+  /** ellipse: half-axis along +x before rotation (logical units). */
+  rx?: number;
+  /** ellipse: half-axis along +y before rotation (logical units). */
+  ry?: number;
+  /** line: one or two points it passes through — two points draw the segment through both (extended); one needs slope or angle for its direction. */
+  through?: PointRef[];
+  /** line: rise over run — domain units when a domain is declared, else logical (with one point in `through`). */
+  slope?: number;
+  /** line: direction in degrees, counter-clockwise from +x (with one point in `through`). Not to be confused with the `angle` element type. */
+  angle?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
   /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). measure: the element to measure. */
   of?: string;
