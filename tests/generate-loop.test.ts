@@ -409,6 +409,9 @@ describe("pedagogy review pass", () => {
     const switched = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
     expect(switched.spec).toEqual(VALID_SUPPLY_DEMAND);
     expect(switched.rounds[1].adopted).toBe(false);
+    // The round's lintIssues describe the DELIVERED (base) spec, not the
+    // rejected candidate — VALID_SUPPLY_DEMAND (commands: []) lints clean.
+    expect(switched.rounds[1].lintIssues).toEqual([]);
 
     mockCallForJson.mockReset();
     mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond({ nonsense: true }));
@@ -416,6 +419,26 @@ describe("pedagogy review pass", () => {
     expect(broken.spec).toEqual(VALID_SUPPLY_DEMAND);
     expect(broken.rounds[1].adopted).toBe(false);
     expect(broken.rounds[1].validationErrors.length).toBeGreaterThan(0);
+    // Same: an invalid candidate must never overwrite the base spec's lint.
+    expect(broken.rounds[1].lintIssues).toEqual([]);
+  });
+
+  test("a revision that lints worse (more warns than the base spec) is rejected, and the round's lintIssues describe the DELIVERED spec, not the candidate", async () => {
+    const WORSE_CANDIDATE = {
+      ...VALID_SUPPLY_DEMAND,
+      // No draw before two speaks -> a slow-start WARN; the base spec
+      // (commands: []) lints perfectly clean, so this is strictly worse.
+      commands: [{ speak: "One." }, { speak: "Two." }],
+    };
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond(WORSE_CANDIDATE));
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(outcome.rounds[1].adopted).toBe(false);
+    expect(outcome.spec).toEqual(VALID_SUPPLY_DEMAND);
+    // Read the candidate's OWN lint (had it been adopted, it would carry a
+    // slow-start warn) so this test would fail if the source regressed to
+    // recording the candidate's lint unconditionally.
+    expect(outcome.rounds[1].lintIssues.some((i) => i.rule === "slow-start")).toBe(false);
+    expect(outcome.rounds[1].lintIssues).toEqual([]);
   });
 
   test("an API error in the pedagogy pass never costs the finished spec", async () => {

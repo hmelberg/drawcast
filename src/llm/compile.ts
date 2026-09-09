@@ -506,19 +506,24 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         },
       );
       const v = validateSpec(json);
-      let lintIssues: LintIssue[] = [];
+      // Recorded lint must always describe the DELIVERED spec (`best` after
+      // this block), not whichever candidate the model proposed: default to
+      // the base spec's lint, and only swap in the candidate's when it is
+      // actually adopted below — a rejected (invalid, wrong-template, or
+      // worse-linting) candidate must never overwrite this round's signal.
+      let lintIssues: LintIssue[] = baseLint;
       let adopted = false;
       if (v.ok && (json as Spec).template === best.template) {
         const revised = json as Spec;
         const revisedLint = lintOf(revised);
         if (revisedLint !== null) {
-          lintIssues = revisedLint;
           const noWorse =
             count(revisedLint, "error") <= count(baseLint, "error") && count(revisedLint, "warn") <= count(baseLint, "warn");
           const changed = JSON.stringify(revised) !== JSON.stringify(best);
           if (noWorse && changed) {
             best = revised;
             adopted = true;
+            lintIssues = revisedLint;
           }
         }
       }

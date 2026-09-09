@@ -12,6 +12,10 @@
 //   --seed on|off (default off)   --visual on|off (node: unavailable, always off)
 //   --out <dir> (default .superpowers/eval/freehand-<ISO timestamp>)
 //   --limit N   --model <id> (default the app's DEFAULT_MODEL)
+//
+// generateSpec runs with executeCode: false — this node harness has no code
+// runtime (no pyodide/browser), so no case here exercises the code-execution
+// check; that path is covered elsewhere (tests/code/*, the real app in a browser).
 
 import { createServer } from "vite";
 import { resolve } from "node:path";
@@ -116,61 +120,98 @@ try {
 
     const route = (request, signal) => routeTemplates(request, { apiKey: key, model: undefined, signal });
 
+    // A blank record shared by the success and failure paths below, so a
+    // thrown case still has every field the table/verdict code reads
+    // (false/0/null, never undefined) — it just can't hit any target field,
+    // which is exactly "counts as a failed case" (findings review, fix round 1).
+    const blankRecord = (label, request) => ({
+      label,
+      request,
+      template: null,
+      rounds: [],
+      seeded: false,
+      lintErrors: 0,
+      lintWarns: 0,
+      ms: 0,
+      cost: 0,
+      usesAt: false,
+      usesGroup: false,
+      usesFit: false,
+      usesMath: false,
+      usesImage: false,
+      usesIcon: false,
+    });
+
     const records = [];
     let i = 0;
     for (const [label, request] of cases) {
       i++;
       resetCallLedger();
       const t0 = Date.now();
-      const outcome = await generateSpec(request, {
-        apiKey: key,
-        model,
-        variant,
-        exemplars: [],
-        route,
-        fetchSeed: seedOn ? fetchSeed : undefined,
-        pedagogyReview: true,
-        effort: "high",
-        executeCode: false,
-      });
-      const ms = Date.now() - t0;
-      const cost = costSummary(callLedger());
-      const spec = outcome.spec;
-      const elements = spec?.elements ?? [];
-      const usesAt = elements.some((e) => e.at?.ref);
-      const usesGroup = elements.some((e) => e.type === "group");
-      const usesFit = elements.some((e) => e.type === "group" && e.fit);
-      const usesMath = elements.some((e) => e.type === "math");
-      const usesImage = elements.some((e) => e.type === "image");
-      const usesIcon = elements.some((e) => e.type === "icon");
-      const lastRound = outcome.rounds[outcome.rounds.length - 1];
-      const lintIssues = lastRound?.lintIssues ?? [];
-      const lintErrors = lintIssues.filter((iss) => iss.severity === "error").length;
-      const lintWarns = lintIssues.filter((iss) => iss.severity === "warn").length;
-      const record = {
-        label,
-        request,
-        template: spec?.template ?? null,
-        rounds: outcome.rounds.map((r) => r.label),
-        seeded: outcome.seeded ?? false,
-        lintErrors,
-        lintWarns,
-        ms,
-        cost: cost.usd,
-        usesAt,
-        usesGroup,
-        usesFit,
-        usesMath,
-        usesImage,
-        usesIcon,
-      };
-      if (outcome.error) record.error = outcome.error;
+      let spec = null;
+      let record;
+      // One bad case (an API error, a thrown validation bug, a network
+      // hiccup on the seed fetch) must not abort the whole run — the point
+      // of a 12-case eval is the aggregate, and a single throw shouldn't
+      // erase the other 11 results.
+      try {
+        const outcome = await generateSpec(request, {
+          apiKey: key,
+          model,
+          variant,
+          exemplars: [],
+          route,
+          fetchSeed: seedOn ? fetchSeed : undefined,
+          pedagogyReview: true,
+          effort: "high",
+          executeCode: false,
+        });
+        const ms = Date.now() - t0;
+        const cost = costSummary(callLedger());
+        spec = outcome.spec;
+        const elements = spec?.elements ?? [];
+        const usesAt = elements.some((e) => e.at?.ref);
+        const usesGroup = elements.some((e) => e.type === "group");
+        const usesFit = elements.some((e) => e.type === "group" && e.fit);
+        const usesMath = elements.some((e) => e.type === "math");
+        const usesImage = elements.some((e) => e.type === "image");
+        const usesIcon = elements.some((e) => e.type === "icon");
+        // Safe to read directly: compile.ts's pedagogy round always records
+        // the DELIVERED spec's lint (base, unless its candidate was actually
+        // adopted), never a rejected candidate's — so the last round's
+        // lintIssues describes `outcome.spec`, whichever round produced it.
+        const lastRound = outcome.rounds[outcome.rounds.length - 1];
+        const lintIssues = lastRound?.lintIssues ?? [];
+        const lintErrors = lintIssues.filter((iss) => iss.severity === "error").length;
+        const lintWarns = lintIssues.filter((iss) => iss.severity === "warn").length;
+        record = {
+          ...blankRecord(label, request),
+          template: spec?.template ?? null,
+          rounds: outcome.rounds.map((r) => r.label),
+          seeded: outcome.seeded ?? false,
+          lintErrors,
+          lintWarns,
+          ms,
+          cost: cost.usd,
+          usesAt,
+          usesGroup,
+          usesFit,
+          usesMath,
+          usesImage,
+          usesIcon,
+        };
+        if (outcome.error) record.error = outcome.error;
+        console.log(
+          `${i}. [${label}] ${lintErrors === 0 ? "ok" : "LINT-ERROR"} ${ms}ms ${formatCost(cost) || "—"} rounds=${record.rounds.join(">")}` +
+            `${record.seeded ? " seeded" : ""} template=${record.template ?? "none"} "${request.slice(0, 50)}"`,
+        );
+      } catch (err) {
+        const ms = Date.now() - t0;
+        record = { ...blankRecord(label, request), ms, error: String(err) };
+        console.log(`${i}. [${label}] THREW ${ms}ms: ${record.error} "${request.slice(0, 50)}"`);
+      }
       records.push(record);
       writeFileSync(`${outDir}/${i}.json`, JSON.stringify(spec, null, 1));
-      console.log(
-        `${i}. [${label}] ${lintErrors === 0 ? "ok" : "LINT-ERROR"} ${ms}ms ${formatCost(cost) || "—"} rounds=${record.rounds.join(">")}` +
-          `${record.seeded ? " seeded" : ""} template=${record.template ?? "none"} "${request.slice(0, 50)}"`,
-      );
     }
 
     console.log("\nlabel      pass  lintErr lintWarn  ms(med)  target-field hits");
@@ -179,7 +220,14 @@ try {
     const allMs = [];
     for (const l of Object.keys(TARGET_FIELD)) {
       const rs = records.filter((r) => r.label === l);
-      if (rs.length === 0) continue;
+      if (rs.length === 0) {
+        // --limit smaller than 12 (or 0, handled above) can leave a label
+        // with no sampled cases at all — that is not a failure of the
+        // label, just nothing to score; exclude it from the verdict rather
+        // than reporting a false FAIL.
+        console.log(`${l.padEnd(10)} no cases`);
+        continue;
+      }
       const field = TARGET_FIELD[l];
       const hits = rs.filter((r) => r[field]).length;
       const lintErr = rs.reduce((s, r) => s + r.lintErrors, 0);
@@ -188,7 +236,11 @@ try {
       allMs.push(...mses);
       const median = mses[Math.floor(mses.length / 2)];
       if (lintErr > 0) anyLintError = true;
-      const labelPass = hits >= 3;
+      // The real gate is "≥ 3 of 4"; under a smaller --limit sample there
+      // may be fewer than 4 cases for this label at all, so the bar can
+      // never exceed the sample size — otherwise every --limit run below 4
+      // would fail this label by construction, regardless of quality.
+      const labelPass = hits >= Math.min(3, rs.length);
       if (!labelPass) anyLabelFailed = true;
       console.log(`${l.padEnd(10)} ${labelPass ? "PASS" : "FAIL"}  ${String(lintErr).padStart(7)} ${String(lintWarn).padStart(8)}  ${String(median).padStart(7)}  ${hits}/${rs.length} (${field})`);
     }
