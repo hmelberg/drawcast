@@ -33,6 +33,9 @@ what to watch for. A ✓ per line, or a note of what looked wrong.
 - [ ] The example line ("$500 more, 0.1 extra years → $5,000 per year")
       draws underneath.
 - [ ] The formula glows again.
+- [ ] During a morph the formula's box is the union of both formulas, so
+      anything anchored to it shifts slightly and settles at the end —
+      expected.
 
 ## 3. "Why do cos and sin draw a circle?"
 

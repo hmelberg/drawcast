@@ -179,7 +179,7 @@ Update the interface's doc comment (one sentence on glyph/token). `tests/packs.t
 export function normalizeTex(s: string): string;                 // collapse whitespace, trim
 export function colorFor(chain: string[], colors: Record<string, string> | undefined): string | null; // deepest chain entry equal (normalised) to a key
 export interface TokenMatch { pairs: [number, number][]; unmatchedFrom: number[]; unmatchedTo: number[] } // token indices
-export function matchTokens(from: MathToken[], to: MathToken[]): TokenMatch;   // LCS on `${node} ${normalizeTex(latex)}`
+export function matchTokens(from: MathToken[], to: MathToken[]): TokenMatch;   // LCS on `${node}\0${normalizeTex(latex)}`
 export interface ShapeMatch { pairs: [number, number][]; unmatchedFrom: number[]; unmatchedTo: number[] } // outline indices
 export function matchShapes(from: { tokens: MathToken[]; outlines: MathOutline[] }, to: { tokens: MathToken[]; outlines: MathOutline[] }): ShapeMatch;
 ```
@@ -269,7 +269,7 @@ export function colorFor(chain: string[], colors: Record<string, string> | undef
 
 export interface TokenMatch { pairs: [number, number][]; unmatchedFrom: number[]; unmatchedTo: number[] }
 
-const keyOf = (t: MathToken): string => `${t.node} ${normalizeTex(t.latex)}`;
+const keyOf = (t: MathToken): string => `${t.node}\0${normalizeTex(t.latex)}`;
 
 /** Longest common subsequence over token keys, in reading order; each token matches at most once. */
 export function matchTokens(from: MathToken[], to: MathToken[]): TokenMatch {

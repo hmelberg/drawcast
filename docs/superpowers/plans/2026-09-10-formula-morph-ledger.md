@@ -12,7 +12,8 @@ between), 2026-09-10.
 | | Files | Tests |
 |---|---|---|
 | Baseline (`bec8698`) | 341 | 6816 |
-| After Task 9 (`fe5602c`, current `HEAD`) | 348 | 7126 |
+| After Task 9 (`fe5602c`) | 348 | 7126 |
+| After the final fix wave (current `HEAD`) | 348 | 7134 |
 
 `npx tsc --noEmit`, `npm run build` and `npm run build:engine` all clean at
 `HEAD`.
@@ -108,7 +109,104 @@ one mistake, no `t_from === t_to` guard (Task 7).
 
 ## Whole-branch review
 
-Pending — filled in after the final review.
+A read across the whole branch (all nine tasks together) after Task 9,
+findings fixed in one dispatch, one commit per logical group, 2026-09-10.
+
+Important:
+
+1. **`erase`/`hide`/`clear` on a copy was undone at the next commit — the
+   copy reappeared.** `player.ts`'s `planTimeIds` was built only from the
+   plan-time (mounted) elements, which never includes a `copy`-minted id, so
+   every copy fell through the "minted by a param change" escape hatch and
+   was unconditionally `finish()`ed on every later scrub. Fixed: seeded
+   `planTimeIds` with every id in every `state.copies` too.
+2. **A copy did not appear where the source now stands, once the source had
+   already moved.** `plan.ts`'s copy branch recorded `copies[as] = id` but
+   never seeded `offsets[as]`/`turns[as]`/`shapes[as]` from the source's
+   CURRENT pose, so the clone was laid out at the source's declared place
+   instead — contradicting the schema's own promise. Fixed: seed the
+   clone's offset/turn/shape from the source's current pose at copy time.
+3. **An auto-named copy whose default name (`<id>_copy`) was already taken
+   silently replaced the existing element.** The `as === undefined` path
+   computed `${id}_copy` from a counter alone, skipping the `known.has(as)`
+   guard the explicit-`as` path applies. Fixed: the auto-name loop now
+   checks `known` and counts past any taken name; `tier2.ts`'s `withCopies`
+   gained the same guard for a layout-level caller (a `copies` key naming an
+   existing element id is refused with a warning, not silently spliced in).
+
+Minor (fixed):
+
+4. A warned-and-skipped `morph.tex` (a non-math target with `ghost: true`)
+   still minted a permanent ghost — `showGhosts` ran before the tex-mode
+   validity check. Fixed: in tex mode, ghosts are minted only for targets
+   that actually resolve to math TeX.
+5. The ICER example's `colors` used bare `C`/`E`, so only the letters were
+   coloured — after the morph, `\Delta C` showed a black Δ with a red C.
+   Investigated a full-subterm fix (`C_1`, `C_0`, `\Delta C`, `E_1`, `E_0`,
+   `\Delta E`); it fails two real, pre-existing gates that check disjoint
+   tex strings (`tests/molecule3d.test.ts` checks the base declared spec —
+   before any morph, no `\Delta` term exists yet; `tests/examples.test.ts`
+   checks the post-morph override — no `C_1`/`E_1` term exists any more), so
+   no superset of `{C, E}` can satisfy both without a colour-override channel
+   the layer does not have. Per the deferred ruling below, left as `{C, E}`
+   — this specific complaint (the black Δ) is NOT resolved by this round;
+   carried forward as deferred ruling (b).
+6. Two parametric-curve rough edges in `tier2.ts`: (a) a failed
+   `x_expr`/`y_expr` warned twice in effect — the Pass 2 catch's straight-line
+   fallback left the id registered in `ctx.parametric`, so a later
+   `point.at.on` wrongly warned "is parametric" and skipped a curve that was,
+   in fact, an ordinary polyline; fixed by deleting the id from
+   `ctx.parametric` in the catch. (b) `t_from === t_to` silently produced 61
+   identical samples; fixed with a warning naming the curve.
+7. `docs/superpowers/plans/2026-09-10-formula-morph.md` contained two literal
+   NUL bytes (a `\0` key separator in a code comment, written raw instead of
+   as the two characters `\`+`0`), making the file binary for git and grep.
+   Fixed with `perl -pi -e 's/\x00/\\0/g'`; `file` now reports it as UTF-8
+   text and `git diff --stat` shows line counts instead of `Bin`.
+8. Two test names promised more than they proved: `math-morph-layout.test.ts`
+   "an unpaired counter appears only from t ≥ 0.5" actually exercises an
+   UNMATCHED shape that fades in continuously (opacity == t), not one that
+   appears only past the midpoint — renamed. `formula-overrides.test.ts`
+   "…and can carry its own pose" asserted nothing about position (`poses` is
+   a renderer-only override the layout's own `namedAnchors` never reflects)
+   — renamed to what it actually proves and the unused pose override dropped
+   from the test.
+9. Copying a `pieces` parent minted an un-expandable clone parent into
+   `order` (it draws nothing of its own). Fixed: the copy branch refuses a
+   target `opts.expandId?.(id)` expands, with a warning to copy the pieces
+   instead.
+
+Every item above has a regression test (`tests/formula-plan.test.ts`,
+`tests/formula-player.test.ts`, `tests/formula-overrides.test.ts`,
+`tests/parametric-curve.test.ts`) except 5 (an example content change,
+already covered by the existing example/prompt gates) and 7-8 (a doc fix and
+test renames).
+
+## Deferred with rulings
+
+- **(a)** An `equation_steps` `colors` key that matches nothing is silent —
+  the template layout has no warnings channel to report through. A later
+  round can add one.
+- **(b)** A colour key for a term that leaves in a morph warns "matches
+  nothing" at the OTHER boundary — a known limitation of checking unused
+  keys against a single static TeX, with no notion of "this key targets the
+  other side of a morph." This is exactly what blocked the ICER's full
+  subterm colouring (finding 5 above): `colorFor` reads one element-level
+  `colors` dict against whichever tex is currently laid out, so a key aimed
+  at the post-morph formula is always "unused" pre-morph and vice versa.
+  Fixing this for real needs either a per-morph-side colours channel or the
+  unused-key check to know about a morph's `to` tex too — both out of scope
+  here.
+- **(c)** Style duplications, left as observed by review and not touched:
+  `matchedColorKey` re-implements `colorFor`'s logic instead of calling it;
+  `pf`/`pt` sets built the same way in two places; the path/rect two-line
+  pattern repeated rather than factored; a redundant `slice(0, 5)`.
+- **(d)** The examples gate's morph-boundary test
+  (`tests/examples.test.ts`, "every morph.tex boundary lays out cleanly")
+  re-implements the planner's copy naming and tex accumulation by hand
+  instead of reading `plan.states` off a real `planCommands` run. It works,
+  but two naming/accumulation rules now live in two places. A stronger gate
+  for a later round would drive the check off `plan.states` directly.
 
 ## What the round leaves open
 
