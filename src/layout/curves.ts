@@ -68,6 +68,31 @@ export function sampleExpression(expr: string, x0: number, x1: number, vars: Var
   return pts;
 }
 
+/**
+ * Sample a parametric curve x = x_expr(t), y = y_expr(t) over [t0, t1] in
+ * domain units; the spec's `vars` are read by name, as for `sampleExpression`
+ * (design 2026-09-10 §2.6). Unlike `sampleExpression`, a var named `t` does
+ * NOT shadow the parameter here — `t` always means the sweep, so the caller
+ * (layout/tier2.ts sampleCurveDomain) warns when the spec also has a var by
+ * that name and the parameter wins.
+ */
+export function sampleParametric(xExpr: string, yExpr: string, t0: number, t1: number, vars: Vars = {}): Pt[] {
+  const names = exprVariables(vars);
+  const fx = compileExpression(xExpr, names);
+  const fy = compileExpression(yExpr, names);
+  const { t: _t, ...varsWithoutT } = vars;
+  const pts: Pt[] = [];
+  for (let i = 0; i <= CURVE_SAMPLES; i++) {
+    const t = t0 + ((t1 - t0) * i) / CURVE_SAMPLES;
+    const scope = { x: t, X: t, q: t, Q: t, t, T: t, ...varsWithoutT };
+    const x = fx(scope);
+    const y = fy(scope);
+    if (Number.isFinite(x) && Number.isFinite(y)) pts.push([x, y]);
+  }
+  if (pts.length < 2) throw new Error(`parametric curve (x_expr/y_expr) produced no finite points over t in [${t0}, ${t1}]`);
+  return pts;
+}
+
 /** Interpolate a polyline (sorted by x) at a given x. */
 export function interpolateAtX(pts: Pt[], x: number): number | null {
   for (let i = 0; i + 1 < pts.length; i++) {

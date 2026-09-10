@@ -117,6 +117,10 @@ const elementSchema = {
     expr: { type: "string", description: "curve: explicit function of x over the domain, e.g. \"100 - 0.5*x\". Use instead of direction/curvature when you know the function." },
     x_from: { type: "number", description: "curve/region: start of the x interval (domain units). Defaults to the whole domain." },
     x_to: { type: "number", description: "curve/region: end of the x interval (domain units)." },
+    x_expr: { type: "string", description: "curve: parametric x(t) — use with y_expr instead of expr, e.g. \"cos(t)\" for a circle." },
+    y_expr: { type: "string", description: "curve: parametric y(t), paired with x_expr." },
+    t_from: { type: "number", description: "curve: start of the parameter interval for x_expr/y_expr, domain units (default 0)." },
+    t_to: { type: "number", description: "curve: end of the parameter interval for x_expr/y_expr, domain units (default 1)." },
     // point / angle
     at: {
       oneOf: [
@@ -1356,7 +1360,12 @@ function elementErrors(el: SpecElement): string[] {
   }
   switch (el.type) {
     case "curve":
-      need(!!el.expr || !!el.direction, "needs either expr or a qualitative direction");
+      need(
+        !!el.expr || !!el.direction || (el.x_expr !== undefined && el.y_expr !== undefined),
+        "needs either expr, x_expr + y_expr, or a qualitative direction",
+      );
+      need(!(el.expr !== undefined && (el.x_expr !== undefined || el.y_expr !== undefined)), "a curve is expr OR x_expr + y_expr, not both");
+      need((el.x_expr === undefined) === (el.y_expr === undefined), "x_expr and y_expr go together");
       break;
     case "portrait":
       need(!!el.of || !!el.url || !!el.strokes, "needs of (a person's name), url, or embedded strokes");

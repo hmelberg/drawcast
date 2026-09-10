@@ -28,8 +28,12 @@ import { buildSystemPrompt, wantsCode } from "../src/llm/prompt";
 // new morph property + one sentence in its description) grew the schema by
 // +1,017 chars, which lands on the system prompt too (+1,026, the schema
 // embedded verbatim plus the verb-list entry in the narration bullet).
-const BASELINE_SYSTEM_CHARS = 220467;
-const BASELINE_SCHEMA_CHARS = 107396;
+// Re-pinned again 2026-09-10 for the formula-morph round (Task 7): the
+// parametric curve fields — `x_expr`, `y_expr`, `t_from`, `t_to`, one
+// sentence each — grew the schema by +672 chars, which lands on the system
+// prompt too (the schema is embedded verbatim).
+const BASELINE_SYSTEM_CHARS = 221139;
+const BASELINE_SCHEMA_CHARS = 108068;
 
 const system = (code: boolean) => buildSystemPrompt(promptVariants()[0].source, { schema: apiSchema(), catalog: catalogParts({}).stable, fewshots: fewshotsText(), exemplars: "", code: code ? CODE_PROMPT_SOURCE : "" });
 

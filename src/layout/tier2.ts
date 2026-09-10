@@ -3,7 +3,7 @@
 
 import { CANVAS, linearScale, plotArea } from "./canvas";
 import { makeAxes } from "./axes";
-import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression } from "./curves";
+import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression, sampleParametric } from "./curves";
 import { centroid, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
@@ -103,6 +103,10 @@ interface Ctx {
   domainDeclared: boolean;
   /** curve samples in domain coordinates, for intersections/regions */
   curveSamples: Map<string, Pt[]>;
+  /** Ids of curves sampled from x_expr/y_expr (design 2026-09-10 §2.6) — not
+   *  an x-monotone polyline, so intersection_of/at.on/region.between refuse
+   *  to read them. */
+  parametric: Set<string>;
   nodeRadius: Map<string, number>;
   anchors: Record<string, Pt>;
   namedAnchors: Record<string, Record<string, Pt>>;
@@ -205,6 +209,7 @@ export function layoutElements(
     domainY,
     domainDeclared: domain !== undefined,
     curveSamples: new Map(Object.entries(seedCurveSamples)),
+    parametric: new Set(),
     nodeRadius: new Map(),
     anchors: { ...seedAnchors },
     namedAnchors: {},
@@ -284,7 +289,10 @@ export function layoutElements(
       ctx.curveSamples.set(el.id, sampleCurveDomain(el, ctx));
     } catch (err) {
       ctx.warnings.push(`curve "${el.id}": ${(err as Error).message} — using a straight line`);
-      ctx.curveSamples.set(el.id, sampleCurveDomain({ ...el, expr: undefined, direction: el.direction ?? "decreasing" }, ctx));
+      ctx.curveSamples.set(
+        el.id,
+        sampleCurveDomain({ ...el, expr: undefined, x_expr: undefined, y_expr: undefined, direction: el.direction ?? "decreasing" }, ctx),
+      );
     }
   }
 
@@ -764,6 +772,13 @@ function originOr(el: SpecElement, ctx: Ctx, fallback: Pt): Pt {
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
   const [dx0, dx1] = ctx.domainX;
   const [dy0, dy1] = ctx.domainY;
+  if (el.x_expr !== undefined && el.y_expr !== undefined) {
+    ctx.parametric.add(el.id);
+    if (Object.prototype.hasOwnProperty.call(ctx.vars, "t")) {
+      ctx.warnings.push(`curve "${el.id}": a var named t is shadowed by the parameter`);
+    }
+    return sampleParametric(el.x_expr, el.y_expr, el.t_from ?? 0, el.t_to ?? 1, ctx.vars);
+  }
   const x0 = el.x_from ?? dx0 + (dx1 - dx0) * 0.02;
   const x1 = el.x_to ?? dx1 - (dx1 - dx0) * 0.02;
   if (el.expr) {
@@ -815,8 +830,14 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return null;
   }
   if (at.intersection_of && at.intersection_of.length === 2) {
-    const a = samplesOf(ctx, at.intersection_of[0]);
-    const b = samplesOf(ctx, at.intersection_of[1]);
+    const [idA, idB] = at.intersection_of;
+    const parametricId = ctx.parametric.has(idA) ? idA : ctx.parametric.has(idB) ? idB : undefined;
+    if (parametricId !== undefined) {
+      ctx.warnings.push(`curve "${parametricId}" is parametric, not a function of x — intersection skipped`);
+      return null;
+    }
+    const a = samplesOf(ctx, idA);
+    const b = samplesOf(ctx, idB);
     if (!a || !b) {
       ctx.warnings.push(`point "${el.id}": intersection_of references unknown curves`);
       return null;
@@ -830,6 +851,10 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
   }
   if (typeof at.on === "string") {
     // A point ON a curve at x (design 2026-09-10 §2.3): y read off the samples.
+    if (ctx.parametric.has(at.on)) {
+      ctx.warnings.push(`curve "${at.on}" is parametric, not a function of x — point on curve skipped`);
+      return null;
+    }
     const samples = samplesOf(ctx, at.on);
     if (!samples) {
       ctx.warnings.push(`point "${el.id}": at.on names unknown curve "${at.on}"`);
@@ -892,6 +917,11 @@ function pointDrawables(el: SpecElement, ctx: Ctx, plot: ReturnType<typeof plotA
 
 function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   const [aId, bId] = el.between ?? [];
+  const parametricId = ctx.parametric.has(aId) ? aId : ctx.parametric.has(bId) ? bId : undefined;
+  if (parametricId !== undefined) {
+    ctx.warnings.push(`curve "${parametricId}" is parametric, not a function of x — region skipped`);
+    return [];
+  }
   const a = samplesOf(ctx, aId);
   const b = samplesOf(ctx, bId);
   if (!a || !b) {

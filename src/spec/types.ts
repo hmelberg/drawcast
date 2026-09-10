@@ -95,6 +95,14 @@ export interface SpecElement {
   expr?: string;
   x_from?: number;
   x_to?: number;
+  /** curve: parametric x(t), used with y_expr instead of expr (design 2026-09-10 §2.6). */
+  x_expr?: string;
+  /** curve: parametric y(t), used with x_expr instead of expr. */
+  y_expr?: string;
+  /** curve: start of the parameter interval for x_expr/y_expr (domain units, default 0). */
+  t_from?: number;
+  /** curve: end of the parameter interval for x_expr/y_expr (domain units, default 1). */
+  t_to?: number;
   // point / angle / relative placement
   /** Where the element goes. point: `{x, y}` or `intersection_of`. Any coordinate-placed element: `{ref, side?, gap?, anchor?, offset?}` — placed relative to another element's box (side: outside it, gap units away; anchor: a named point on it). Never together with x/y. */
   at?: { x?: number; y?: number; on?: string; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number] } | [number, number];
