@@ -13,6 +13,7 @@ import { annotationDrawables } from "./annotate";
 import { obstacleBoxes, placeLabels, type LabelRequest } from "./labels";
 import type { BBox } from "./geometry";
 import { boxOfId, unionBBoxForId } from "./boxes";
+import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
@@ -50,7 +51,14 @@ export interface LayoutResult {
   measures: Record<string, MeasureSpec>;
 }
 
-export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure): LayoutResult {
+/**
+ * `overrides` (design 2026-09-10 §2.5, layout/posed.ts): the poses and morphed
+ * shapes of elements something is DEFINED by. Their own ink stays in its
+ * original frame (the renderer poses it); what depends on them — an
+ * intersection, a region between, an arrow's end, an angle's arm, a line's
+ * point, a measure — is computed from where they now stand.
+ */
+export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure, overrides?: LayoutOverrides): LayoutResult {
   const spec = normalizeSpec(rawSpec) as Spec;
   // A template and a script on screen each get their own half of the canvas
   // before anything is laid out — the default the two used to lack, so a
@@ -111,7 +119,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure)
 
   if (spec.elements && spec.elements.length > 0) {
     // `drawables` here is the template's output — an at.ref may name a template id.
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables] });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);

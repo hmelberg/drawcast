@@ -5,6 +5,7 @@
 import type { LayoutResult } from "../layout/layout";
 import { Z_STROKE, drawablesForId, leafDrawables, type Drawable, type Pt } from "../layout/model";
 import { resolveDrawOpts, resolveStyle } from "../layout/resolve";
+import { mapLeaf } from "../layout/posed";
 import { poseOf, type Turn } from "./pose";
 import type { TrailSpec } from "./trails";
 
@@ -55,22 +56,8 @@ function ghostDrawables(sourceLayout: LayoutResult, g: GhostSpec): Drawable[] {
     const id = ghostLeafId(leaf.id, g.sourceId, g.id);
     const style = { ...leaf.style, opacity: leaf.style.opacity * g.opacity };
     const drawOpts = resolveDrawOpts({ mode: "instant" });
-    if (leaf.kind === "text") {
-      out.push({ ...leaf, id, pos: map(leaf.pos), style, drawOpts });
-    } else if (leaf.kind === "image") {
-      out.push({ ...leaf, id, pos: map(leaf.pos), w: leaf.w * s, h: leaf.h * s, style, drawOpts });
-    } else if (leaf.kind === "stroke" && leaf.shapeHint?.type === "circle") {
-      const c = map(leaf.shapeHint.c);
-      out.push({ ...leaf, id, pts: [c], shapeHint: { type: "circle", c, r: leaf.shapeHint.r * s }, style, drawOpts });
-    } else if (leaf.kind === "stroke" && leaf.shapeHint?.type === "rect") {
-      const h = leaf.shapeHint;
-      const corners: Pt[] = [[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h]];
-      const { shapeHint: _drop, ...rest } = leaf;
-      out.push({ ...rest, id, pts: corners.map(map), closed: true, style, drawOpts });
-    } else {
-      const pts = (g.shapes?.[leaf.id] ?? leaf.pts).map(map);
-      out.push(leaf.kind === "area" ? { ...leaf, id, pts, holes: leaf.holes?.map((ring) => ring.map(map)), style, drawOpts } : { ...leaf, id, pts, style, drawOpts });
-    }
+    // The same point map the posed lookup view uses (layout/posed.ts).
+    out.push({ ...mapLeaf(leaf, map, s, g.shapes), id, style, drawOpts });
   }
   return out;
 }

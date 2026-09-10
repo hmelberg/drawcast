@@ -126,7 +126,7 @@ const elementSchema = {
             x: { type: "number" },
             y: { type: "number" },
             intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
-            on: { type: "string", description: "point: the curve id this point sits ON at x — y is read off the curve (with x; not with y or intersection_of)." },
+            on: { type: "string", description: "point: the curve this point sits on at x (y is read off it)." },
             ref: { type: "string" },
             anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
             side: { type: "string", enum: [...SIDE_VALUES], description: "Place OUTSIDE ref's box on this side, gap units away." },
@@ -374,7 +374,7 @@ const elementSchema = {
     bind: {
       type: "object",
       additionalProperties: { type: "string" },
-      description: 'Numeric fields computed from the top-level vars: {"end": "30 + 60*f", "at.x": "t"} — a field name or a dot path to a number; the written value is the start. Same expression language as curve expr.',
+      description: 'Numeric fields computed from vars: {"end": "30 + 60*f", "at.x": "t"} — a field or a dot path to a number; the written value is the start.',
     },
     style: styleSchema,
     draw: drawSchema,
@@ -774,13 +774,13 @@ const commandSchema = {
       type: "object",
       properties: {
         of: { type: "string", description: "The element whose point is traced." },
-        anchor: { type: "string", description: `Its anchor (default center): ${ANCHOR_NAMES}.` },
+        anchor: { type: "string", description: "Its anchor (default center)." },
         color: { type: "string" },
         width: { type: "number", exclusiveMinimum: 0 },
       },
       required: ["of"],
       additionalProperties: false,
-      description: "With animate: leave the track of that point across the sweep as the element <of>_trail (a locus — the spectrum a winding frequency traces); erase or fade it by id later.",
+      description: "With animate: leave the track of that point across the sweep as the element <of>_trail; erase or fade it by id later.",
     },
     play: {
       description:
@@ -870,7 +870,7 @@ export const specSchema = {
     vars: {
       type: "object",
       additionalProperties: { type: "number" },
-      description: 'Named numbers for a freehand figure, e.g. {"f": 1}: curve expr may use them ("sin(f*x)"), bind computes fields from them, drawn text shows them as {f}, and animate sweeps them ({"animate": {"f": 4}}). Names must not be x/t/q or a function name.',
+      description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function.',
     },
     elements: { type: "array", items: elementSchema, description: "Tier-2/3 elements (also allowed alongside a template, for annotations)." },
     commands: {

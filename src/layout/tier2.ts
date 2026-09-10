@@ -19,6 +19,7 @@ import {
   Z_STROKE,
   Z_TEXT,
   SKETCH_MS,
+  SUB_SUFFIXES,
   defaultStyle,
   drawablesForId,
   leafDrawables,
@@ -38,6 +39,8 @@ import { enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/e
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { EndRef, PointRef, SpecElement } from "../spec/types";
+import { evalBindings, interpolateVars, type Vars } from "../spec/vars";
+import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -122,6 +125,18 @@ interface Ctx {
    *  would have gone WITHOUT `at`, so a ref that never resolves can still put
    *  the element somewhere sane instead of in the bottom-left corner. */
   atFallback: Record<string, Pt>;
+  /** The spec's vars (spec/vars.ts): read by curve expr, bind and `{name}` text tokens. */
+  vars: Vars;
+  /** Logical → domain, the inverse of sx/sy (a posed curve's samples go through logical space and back). */
+  ix: (v: number) => number;
+  iy: (v: number) => number;
+  /** The posed lookup view (design 2026-09-10 §2.5, posed.ts): anchors of an
+   *  element under its override, read by DEFINITIONAL references (arrow and
+   *  edge endpoints, angle arms, a line's points, a measure's ring) — never by
+   *  placement (`at`) or labels, which read the raw `anchors`. */
+  posedAnchors: Record<string, Pt>;
+  posedNamed: Record<string, Record<string, Pt>>;
+  overrides: LayoutOverrides;
 }
 
 export function layoutElements(
@@ -131,10 +146,13 @@ export function layoutElements(
   /** Scene curves (in the spec's domain space): valid region/intersection references. */
   seedCurveSamples: Record<string, Pt[]> = {},
   /** measure: the text measurer relative placement sizes boxes with.
-   *  seedDrawables: the template's drawables, so `at.ref` can name a template id. */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[] } = {},
+   *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
+   *  vars: the spec's top-level numbers (spec/vars.ts).
+   *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
+  const vars = opts.vars ?? {};
   const plot = plotArea();
   const domainX: [number, number] = domain?.x ?? [0, 100];
   const domainY: [number, number] = domain?.y ?? [0, 100];
@@ -160,6 +178,12 @@ export function layoutElements(
     groupBoxes: {},
     measures: {},
     atFallback: {},
+    vars,
+    ix: linearScale([plot.x0, plot.x1], domainX),
+    iy: linearScale([plot.y0, plot.y1], domainY),
+    posedAnchors: {},
+    posedNamed: {},
+    overrides: opts.overrides ?? {},
   };
 
   // Pass 1: position free nodes deterministically on a circle.
@@ -178,8 +202,32 @@ export function layoutElements(
     ctx.anchors[node.id] = [node.x!, node.y ?? CANVAS.h / 2];
   }
 
+  // Ids that exist outside `elements` and are therefore legal `at.ref`
+  // targets: everything the template exported — an anchor, or just ink.
+  const known = new Set([...Object.keys(seedAnchors), ...(opts.seedDrawables ?? []).map((d) => d.id)]);
+  // Ids of real elements that draw nothing until layout.ts places them — a
+  // label (collision solver) and an annotation (drawn onto already-placed
+  // geometry) — so a group naming one is not naming a ghost.
+  const placedLater = new Set(elements.filter((e) => e.type === "label" || e.type === "annotation").map((e) => e.id));
+  const { order: emitOrder, issues } = placementOrder(elements, known);
+
+  // bind (design 2026-09-10 §2.2): every element is laid out from a copy
+  // with its bound fields computed from the vars; a binding that cannot be
+  // evaluated is error-severity lint (the repair round sees it) and is
+  // dropped. Cached so Pass 2 and Pass 3 see the same copy.
+  const boundCache = new Map<string, SpecElement>();
+  const bound = (el: SpecElement): SpecElement => {
+    const hit = boundCache.get(el.id);
+    if (hit) return hit;
+    const r = evalBindings(el, vars);
+    for (const message of r.errors) issues.push({ rule: "bind", ids: [el.id], severity: "error", message });
+    boundCache.set(el.id, r.el);
+    return r.el;
+  };
+
   // Pass 2: sample curves (needed before points/regions regardless of order).
-  for (const el of elements.filter((e) => e.type === "curve")) {
+  for (const raw of elements.filter((e) => e.type === "curve")) {
+    const el = bound(raw);
     try {
       ctx.curveSamples.set(el.id, sampleCurveDomain(el, ctx));
     } catch (err) {
@@ -192,17 +240,44 @@ export function layoutElements(
   // has to wait) — an element placed relative to another, and a label or a
   // measure that reads one, must come after the geometry it depends on.
   const drawables: Drawable[] = [];
-  ctx.drawablesSoFar = drawables;
+  // The posed lookup view (posed.ts): what DEFINITIONAL readers — arrow and
+  // edge endpoints, angle arms, a line's points, a measure's ring — see.
+  // Placement (`at`, labels) reads `drawables`/`seedDrawables` and the raw
+  // anchors. Same objects as `drawables` except where an id is overridden,
+  // whose leaves are replaced by posed copies.
+  const view: Drawable[] = [];
+  ctx.drawablesSoFar = view;
+  const overriddenIds = new Set([...Object.keys(ctx.overrides.poses ?? {}), ...Object.keys(ctx.overrides.shapes ?? {})]);
+  /** Register an id's posed geometry: its anchors, its curve samples, and its leaves in `view` from index `from` on. */
+  const applyOverride = (id: string, from: number) => {
+    if (!overriddenIds.has(id)) return;
+    const pose = ctx.overrides.poses?.[id];
+    const shp = ctx.overrides.shapes?.[id];
+    const { map, scale } = pose ? poseMapOf(pose) : { map: (p: Pt) => p, scale: 1 };
+    for (let i = from; i < view.length; i++) {
+      const d = view[i];
+      if (d.id === id || SUB_SUFFIXES.some((s) => d.id === `${id}_${s}`)) view[i] = mapDrawable(d, map, scale, shp);
+    }
+    const a = ctx.anchors[id];
+    if (a) ctx.posedAnchors[id] = map(a);
+    const named = ctx.namedAnchors[id];
+    if (named) ctx.posedNamed[id] = Object.fromEntries(Object.entries(named).map(([k, p]) => [k, map(p)]));
+    const cs = ctx.curveSamples.get(id);
+    if (cs) {
+      const logical = shp?.[id] ?? cs.map((p): Pt => [ctx.sx(p[0]), ctx.sy(p[1])]);
+      ctx.curveSamples.set(id, logical.map(map).map((p): Pt => [ctx.ix(p[0]), ctx.iy(p[1])]));
+    }
+  };
+  // Template ink and anchors first, so a moved template id reads posed too.
+  // Only ids no element declares: a tier-2 element is registered right after
+  // it is emitted (below), so its own ink is built from its RAW samples and
+  // only what comes after it reads the posed ones.
+  view.push(...(opts.seedDrawables ?? []));
+  const elementIds = new Set(elements.map((e) => e.id));
+  for (const id of overriddenIds) if (!elementIds.has(id)) applyOverride(id, 0);
   const labels: LabelRequest[] = [];
-  // Ids that exist outside `elements` and are therefore legal `at.ref`
-  // targets: everything the template exported — an anchor, or just ink.
-  const known = new Set([...Object.keys(seedAnchors), ...(opts.seedDrawables ?? []).map((d) => d.id)]);
-  // Ids of real elements that draw nothing until layout.ts places them — a
-  // label (collision solver) and an annotation (drawn onto already-placed
-  // geometry) — so a group naming one is not naming a ghost.
-  const placedLater = new Set(elements.filter((e) => e.type === "label" || e.type === "annotation").map((e) => e.id));
-  const { order: emitOrder, issues } = placementOrder(elements, known);
-  for (const el of emitOrder) {
+  for (const raw of emitOrder) {
+    const el = bound(raw);
     const start = drawables.length;
     switch (el.type) {
       case "axes":
@@ -234,7 +309,7 @@ export function layoutElements(
           id: el.id,
           anchor: anchor ?? [CANVAS.w / 2, CANVAS.h / 2],
           side: el.side ?? "above-right",
-          text: el.text ?? el.id,
+          text: withVars(el.text ?? el.id, el, ctx),
           fontSize: el.font_size ?? 28,
           style: resolveStyle(el.style),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
@@ -267,7 +342,7 @@ export function layoutElements(
           id: el.id,
           kind: "text",
           pos,
-          text: el.text ?? "",
+          text: withVars(el.text ?? "", el, ctx),
           fontSize: el.font_size ?? 28,
           anchor: "middle",
           z: Z_TEXT,
@@ -384,6 +459,15 @@ export function layoutElements(
           ctx.groupBoxes[el.id] = box;
           ctx.anchors[el.id] = [box.x + box.w / 2, box.y + box.h / 2];
           ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
+          // A moved member moves the group's DEFINITIONAL anchor (an arrow
+          // from the group); its placement anchor stays where it was assembled.
+          if (leaves.some((m) => overriddenIds.has(m))) {
+            const vbox = boxOfId(view, el.id, measure, ctx.groups, ctx.pieceGroups);
+            if (vbox) {
+              ctx.posedAnchors[el.id] = [vbox.x + vbox.w / 2, vbox.y + vbox.h / 2];
+              ctx.posedNamed[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(vbox, n)]));
+            }
+          }
         }
         break;
       }
@@ -466,6 +550,12 @@ export function layoutElements(
       }
     }
     // --- end relative placement
+    // The element's ink joins the lookup view, posed where an override says so
+    // (a pieces cut registers each of its cells under its own id).
+    const viewStart = view.length;
+    view.push(...drawables.slice(start));
+    applyOverride(el.id, viewStart);
+    for (const kid of ctx.pieceGroups[el.id] ?? []) applyOverride(kid, viewStart);
   }
 
   return {
@@ -597,7 +687,7 @@ function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
   const x0 = el.x_from ?? dx0 + (dx1 - dx0) * 0.02;
   const x1 = el.x_to ?? dx1 - (dx1 - dx0) * 0.02;
   if (el.expr) {
-    return sampleExpression(el.expr, x0, x1).map(([x, y]): Pt => [x, clamp(y, dy0, dy1)]);
+    return sampleExpression(el.expr, x0, x1, ctx.vars).map(([x, y]): Pt => [x, clamp(y, dy0, dy1)]);
   }
   const shape = qualitativeShape(el.direction ?? "decreasing", el.curvature ?? "linear", el.steepness ?? "medium");
   return shape.map(([tx, ty]): Pt => [x0 + (x1 - x0) * tx, dy0 + (dy1 - dy0) * ty]);
@@ -609,6 +699,13 @@ function clamp(v: number, lo: number, hi: number): number {
 
 function toLogical(pts: Pt[], ctx: Ctx): Pt[] {
   return pts.map(([x, y]): Pt => [ctx.sx(x), ctx.sy(y)]);
+}
+
+/** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
+function withVars(text: string, el: SpecElement, ctx: Ctx): string {
+  const r = interpolateVars(text, ctx.vars);
+  for (const name of r.unknown) ctx.warnings.push(`${el.type} "${el.id}": text names {${name}}, which is not one of the vars — left as written`);
+  return r.text;
 }
 
 function curveDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
@@ -645,6 +742,24 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
       return null;
     }
     return hit;
+  }
+  if (typeof at.on === "string") {
+    // A point ON a curve at x (design 2026-09-10 §2.3): y read off the samples.
+    const samples = ctx.curveSamples.get(at.on);
+    if (!samples) {
+      ctx.warnings.push(`point "${el.id}": at.on names unknown curve "${at.on}"`);
+      return null;
+    }
+    if (typeof at.x !== "number") {
+      ctx.warnings.push(`point "${el.id}": at.on needs x`);
+      return null;
+    }
+    const y = interpolateAtX(samples, at.x);
+    if (y === null) {
+      ctx.warnings.push(`point "${el.id}": x = ${at.x} is outside curve "${at.on}"`);
+      return null;
+    }
+    return [at.x, y];
   }
   if (at.x !== undefined && at.y !== undefined) return [at.x, at.y];
   if (at.ref !== undefined || at.anchor !== undefined) {
@@ -732,7 +847,7 @@ const NODE_FONT = 24;
 function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
   const shape = el.shape ?? "circle";
-  const text = el.text;
+  const text = el.text === undefined ? undefined : withVars(el.text, el, ctx);
   const style = resolveStyle(el.style, { strokeWidth: 3 });
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.node });
   const out: Drawable[] = [];
@@ -860,13 +975,14 @@ interface ResolvedEnd {
 function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string } | undefined, ctx: Ctx): ResolvedEnd | null {
   if (!end) return null;
   if (end.ref) {
-    const a = ctx.anchors[end.ref];
+    // Definitional readers see the posed view (design 2026-09-10 §2.5).
+    const a = ctx.posedAnchors[end.ref] ?? ctx.anchors[end.ref];
     if (!a) {
       ctx.warnings.push(`arrow/edge endpoint references unknown id "${end.ref}"`);
       return null;
     }
     if (end.anchor === undefined) return { pt: a, anchored: false };
-    const named = ctx.namedAnchors[end.ref]?.[end.anchor];
+    const named = (ctx.posedNamed[end.ref] ?? ctx.namedAnchors[end.ref])?.[end.anchor];
     if (named) return { pt: named, anchored: true };
     if (isUniversalAnchor(end.anchor)) {
       // Universal anchors come off the box of what the element drew so far
