@@ -7,9 +7,12 @@ import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
-import { withNewIdsVisible, withOverrides } from "./params";
+import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
 import { planCommands, type Plan, type PlanOptions } from "./plan";
 import { withMinted, type MintedSpec } from "./minted";
+import { dependentsMap, sourceIds } from "../spec/deps";
+import { boxAnchor } from "../layout/anchors";
+import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
@@ -101,7 +104,9 @@ function contactEmail(): string {
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn"> {
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds"> {
+  // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of what.
+  const deps = dependentsMap(spec.elements ?? []);
   // Which group each id belongs to: `arrange`/`move` change the resolved
   // CHILDREN of a `pieces` cut, while a measure anchored to the cut names the
   // PARENT — matching ids exactly left that measure stale and unwarned.
@@ -114,6 +119,8 @@ export function planOptionsFor(
     }
   }
   return {
+    dependentsOf: (id) => deps.get(id) ?? [],
+    sourceIds: sourceIds(spec.elements ?? []),
     pieceOf: (id) => layout.pieces[id] ?? null,
     measureOf: (id) => layout.measures[id] ?? null,
     // Which measures read this element: the one that measures it outright, and
@@ -249,31 +256,53 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // withMinted a RAW layoutAt so a ghost's boundary layout (minted under
   // animate) is never itself re-wrapped.
   let minted: MintedSpec[] = [];
-  const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult => {
-    if (Object.keys(params).length === 0 && !elements) return layout;
+  // `overrides` (design 2026-09-10 §2.5): the poses and shapes of the elements
+  // something is defined by, at the boundary or frame being laid out. A
+  // `vars.<name>` key in params is a var's swept value (design §2.4) and goes
+  // to spec.vars, not to the template params.
+  const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides): LayoutResult => {
+    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides)) return layout;
     // An elements override is the code editor's preview: never cached, its
     // key would be the whole patched script.
-    const key = cache && !elements ? JSON.stringify(Object.entries(params).sort()) : undefined;
+    const key = cache && !elements ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides)]) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
+    const split = splitVarOverrides(params);
     const l = applyTextStyle(
-      layoutSpec({ ...spec, params: withOverrides(spec.params, params), ...(elements ? { elements } : {}) }, measure),
+      layoutSpec(
+        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(elements ? { elements } : {}) },
+        measure,
+        overrides,
+      ),
       textStyle,
     );
     if (key !== undefined) boundaryLayouts.set(key, l);
     return l;
   };
-  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[]): LayoutResult =>
-    withMinted(rawLayoutFor(params, cache, elements), minted, (p) => rawLayoutFor(p, true));
+  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>): LayoutResult =>
+    withMinted(rawLayoutFor(params, cache, elements, overrides), minted, (p) => rawLayoutFor(p, true), trailProgress);
 
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
     windows: layout.windows ?? {},
     ...domainMapping(spec.domain),
     animateBase: spec.template ? spec.params ?? {} : null,
-    bboxesFor: (params) => {
-      const b = elementBBoxes(layoutFor(params, true), measure);
+    varsBase: spec.vars ?? null,
+    bboxesFor: (params, overrides) => {
+      const b = elementBBoxes(layoutFor(params, true, undefined, overrides), measure);
       return (id) => b.get(id) ?? null;
+    },
+    // trail on animate samples 61 of these per sweep: uncached, or the
+    // boundary cache would hoard them.
+    anchorsAt: (params, overrides) => {
+      const l = layoutFor(params, false, undefined, overrides);
+      const b = elementBBoxes(l, measure);
+      return (id, name) => {
+        const named = l.namedAnchors[id]?.[name];
+        if (named) return named;
+        const box = b.get(id);
+        return box ? boxAnchor(box, name) : null;
+      };
     },
     ...planOptionsFor(spec, layout),
   });
@@ -296,17 +325,16 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   if (mounted.swapGeometry && mounted.remount) {
     player.reprojector = {
-      frame: (params, visible, offsets, turns, opacities, revealNew, elements, shapes, texts) => {
-        const l = layoutFor(params, false, elements);
+      frame: (params, scene, o = {}) => {
+        const l = layoutFor(params, false, o.elements, o.overrides, o.trailProgress);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
-        const vis = revealNew ? withNewIdsVisible(new Set(layout.order), l.order, visible) : visible;
-        mounted.swapGeometry!(l, vis, offsets, turns, opacities, shapes, texts);
+        const vis = o.revealNew ? withNewIdsVisible(new Set(layout.order), l.order, scene.visible) : scene.visible;
+        mounted.swapGeometry!(l, vis, scene.offsets, scene.turns, scene.opacities, scene.shapes, scene.texts);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
-
       },
-      commit: (params) => mounted.remount!(layoutFor(params, true)),
+      commit: (params, overrides) => mounted.remount!(layoutFor(params, true, undefined, overrides)),
     };
   }
 

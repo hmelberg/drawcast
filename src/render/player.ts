@@ -5,46 +5,58 @@
 // stepping, and a live speed multiplier. Scrubbing applies the plan's
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
-import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TransformItem } from "./plan";
+import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TrailProgress, TransformItem } from "./plan";
+import { moveFrame, morphFrame, transformFrame } from "./tween";
+import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, subVars } from "../spec/answers";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
-import { EASINGS, FULL_CANVAS_BOX, lerpBox, pathPosition, pointerPath, unionBoxes } from "./effects";
+import { EASINGS, FULL_CANVAS_BOX, lerpBox, pointerPath, unionBoxes } from "./effects";
 import { lengthFractionAt } from "./trails";
 import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import type { SpecElement } from "../spec/types";
+import type { Easing, SpecElement } from "../spec/types";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
-import type { Turn } from "./pose";
+import { isIdentity, type Turn } from "./pose";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
 
+/** The per-element scene state a frame paints (the rebuilt nodes carry NO
+ *  handles, so everything a handle would apply has to be repeated here). */
+export interface FrameScene {
+  visible: ReadonlySet<string>;
+  offsets: Record<string, Pt>;
+  turns: Record<string, Turn>;
+  opacities: Record<string, number>;
+  shapes: Record<string, Record<string, Pt[]>>;
+  texts: Record<string, Record<string, string>>;
+}
+
+export interface FrameOpts {
+  /** Show ids the previewed layout mints that the plan's visible set has never heard of (a chess piece on a fresh square). */
+  revealNew?: boolean;
+  /** The code editor's preview: a patched element list. */
+  elements?: SpecElement[];
+  /** The poses and shapes of the source ids the layout reads (design 2026-09-10 §2.5). */
+  overrides?: LayoutOverrides;
+  /** Trails mid-sweep: id → fraction of the trail drawn so far. */
+  trailProgress?: Record<string, number>;
+}
+
 export interface Reprojector {
   /** Cheap per-frame swap at interpolated params. Values are numbers from
    *  animate/sliders except under free-play previews (a fen string, a moves
-   *  array). The rebuilt nodes carry NO handles, so the caller must hand over
-   *  the whole per-element scene state — `offsets`, `turns` AND `opacities` —
-   *  or a rotated/scaled/faded element snaps back for the length of the tween.
-   *  revealNew shows ids the previewed layout mints that the plan's
-   *  visible set has never heard of (a chess piece on a fresh square). */
-  frame(
-    params: Record<string, unknown>,
-    visible: ReadonlySet<string>,
-    offsets: Record<string, Pt>,
-    turns: Record<string, Turn>,
-    opacities: Record<string, number>,
-    revealNew?: boolean,
-    elements?: SpecElement[],
-    shapes?: Record<string, Record<string, Pt[]>>,
-    texts?: Record<string, Record<string, string>>,
-  ): LayoutResult | void;
-  /** Full remount at settled params; returns the new element handles. */
-  commit(params: Record<string, number>): Map<string, RenderedElement>;
+   *  array). The caller hands over the whole per-element scene state —
+   *  `offsets`, `turns`, `opacities`, `shapes`, `texts` — or a rotated,
+   *  scaled, faded or morphed element snaps back for the length of the tween. */
+  frame(params: Record<string, unknown>, scene: FrameScene, opts?: FrameOpts): LayoutResult | void;
+  /** Full remount at settled params (and the source poses/shapes of that boundary); returns the new element handles. */
+  commit(params: Record<string, number>, overrides?: LayoutOverrides): Map<string, RenderedElement>;
 }
 
 /** One graded answer from a LIVE viewer (never a movie's auto path): what
@@ -253,11 +265,14 @@ export class Player {
   /** Speaker "a"'s gender (from Spec.voice), passed through to every speech.speak call. */
   private narratorGender: "male" | "female" | null = null;
   /** Animate params currently reflected on screen (last reprojector.commit call). */
-  private appliedParams: Record<string, number> = {};
+  /** What is mounted: the params plus the source poses/shapes (design 2026-09-10 §2.5) the last commit ran at. */
+  private appliedKey = Player.keyOf({}, undefined);
   /** True once any reprojector.frame() has run since the last commit — forces the next applyParams to commit even if params compare equal (frame() left the DOM at a live, possibly detached, mid-tween state). */
   private geometryDirty = false;
   /** Ids the plan-time layout had: anything a later param change mints beyond these was never addressable by a visibility verb and joins the implicit final draw (shown as soon as it exists). */
   private readonly planTimeIds: ReadonlySet<string>;
+  /** The ids something is DEFINED by (plan.sources): only their poses and shapes are part of a boundary's layout key. */
+  private readonly sources: ReadonlySet<string>;
   state: PlayerState = "idle";
 
   constructor(
@@ -272,6 +287,7 @@ export class Player {
     this.holdFrom = heldFrom(plan);
     this.elements = elements;
     this.planTimeIds = new Set(elements.keys());
+    this.sources = new Set(plan.sources ?? []);
     this.speech = speech;
     this.captionEl = captionEl;
     this.effects = opts.effects ?? null;
@@ -320,7 +336,7 @@ export class Player {
     // A pending tray preview (geometryDirty) must settle before stepping:
     // frame() leaves handle-less DOM, and the run's actions need honest
     // elements. No-op when nothing is dirty and params already match.
-    this.applyParams(this.stateAt(this.completed).params);
+    this.applyKey(this.stateAt(this.completed));
 
     const ac = new AbortController();
     this.ac = ac;
@@ -397,7 +413,7 @@ export class Player {
    *  the run's own AbortController must survive the jump). */
   private jumpTo(n: number, keepPlaying: boolean): void {
     const scene = this.stateAt(n);
-    this.applyParams(scene.params);
+    this.applyKey(scene);
     this.applyScene(scene);
     this.completed = n;
     // Show the most recent narration line at this boundary.
@@ -430,10 +446,28 @@ export class Player {
     this.effects?.setCamera(scene.camera);
   }
 
-  private static sameParams(a: Record<string, number>, b: Record<string, number>): boolean {
-    const ka = Object.keys(a);
-    const kb = Object.keys(b);
-    return ka.length === kb.length && ka.every((k) => a[k] === b[k]);
+  private static keyOf(params: Record<string, number>, ov: LayoutOverrides | undefined): string {
+    return JSON.stringify([Object.entries(params).sort(([a], [b]) => (a < b ? -1 : 1)), overridesKey(ov)]);
+  }
+
+  /** The poses and shapes of the source ids at a scene — the part of the
+   *  scene a layout reads (design 2026-09-10 §2.5); undefined when none is
+   *  posed. Restricted to sources so a move of anything else never changes
+   *  the key (and never forces a remount). */
+  private overridesOf(offsets: Record<string, Pt>, turns: Record<string, Turn>, shapes: Record<string, Record<string, Pt[]>>): LayoutOverrides | undefined {
+    const poses: Record<string, { offset: Pt; turn?: Turn }> = {};
+    const shp: Record<string, Record<string, Pt[]>> = {};
+    for (const id of this.sources) {
+      const o = offsets[id];
+      const t = turns[id];
+      if ((o && (o[0] !== 0 || o[1] !== 0)) || (t && !isIdentity(t))) poses[id] = { offset: o ?? [0, 0], turn: t };
+      if (shapes[id]) shp[id] = shapes[id];
+    }
+    return Object.keys(poses).length === 0 && Object.keys(shp).length === 0 ? undefined : { poses, shapes: shp };
+  }
+
+  private frameScene(scene: SceneState, visible: ReadonlySet<string> = new Set(scene.visible)): FrameScene {
+    return { visible, offsets: scene.offsets, turns: scene.turns, opacities: scene.opacities, shapes: scene.shapes, texts: scene.texts };
   }
 
   /**
@@ -446,7 +480,7 @@ export class Player {
    *  gate's way back after slider previews (renderUpTo would abort the run
    *  the gate is parked on). Adopts fresh element handles. */
   settleParams(): void {
-    this.applyParams(this.stateAt(this.completed).params);
+    this.applyKey(this.stateAt(this.completed));
   }
 
   /** The viewer's runtime var-animate values (path → number) — the tray
@@ -467,13 +501,15 @@ export class Player {
     return out;
   }
 
-  private applyParams(params: Record<string, number>): void {
+  private applyKey(scene: SceneState): void {
     if (!this.reprojector) return;
     this.painted = null; // back to the plan-time geometry
-    const merged = this.withVarOverrides(params);
-    if (!this.geometryDirty && Player.sameParams(this.appliedParams, merged)) return;
-    this.elements = this.reprojector.commit(merged);
-    this.appliedParams = { ...merged };
+    const merged = this.withVarOverrides(scene.params);
+    const ov = this.overridesOf(scene.offsets, scene.turns, scene.shapes);
+    const key = Player.keyOf(merged, ov);
+    if (!this.geometryDirty && key === this.appliedKey) return;
+    this.elements = this.reprojector.commit(merged, ov);
+    this.appliedKey = key;
     this.geometryDirty = false;
   }
 
@@ -488,7 +524,10 @@ export class Player {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, new Set(scene.visible), scene.offsets, scene.turns, scene.opacities, opts.revealNew, undefined, scene.shapes, scene.texts) || null;
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, this.frameScene(scene), {
+        revealNew: opts.revealNew,
+        overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes),
+      }) || null;
     this.geometryDirty = true;
   }
 
@@ -509,7 +548,11 @@ export class Player {
     const visible = new Set(scene.visible);
     for (const id of patch.hide ?? []) visible.delete(id);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, visible, scene.offsets, scene.turns, scene.opacities, true, patch.elements, scene.shapes, scene.texts) || null;
+      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, this.frameScene(scene, visible), {
+        revealNew: true,
+        elements: patch.elements,
+        overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes),
+      }) || null;
     this.geometryDirty = true;
   }
 
@@ -1010,7 +1053,6 @@ export class Player {
         await this.narrationBarrier();
         if (signal.aborted) return;
         const rp = this.reprojector;
-        const after = this.plan.states[index].params;
         if (!rp) {
           // No reprojection surface (headless tests, degraded backends): keep the pacing.
           return this.waitScaled(step.seconds * 1000, signal);
@@ -1029,7 +1071,10 @@ export class Player {
             this.varParamOverrides[key] = n;
           }
         }
-        const visible = new Set(before.visible);
+        // A trail minted by this step is visible from its first frame (the
+        // plan makes it visible in the AFTER state); cut to the sweep's progress.
+        const visible = new Set([...before.visible, ...(step.trails ?? []).map((tr) => tr.id)]);
+        const overrides = this.overridesOf(before.offsets, before.turns, before.shapes);
         // Absent easing keeps the historical smoothstep exactly; a long race
         // asks for `linear` so the middle years do not blur past while the
         // ends crawl.
@@ -1042,29 +1087,29 @@ export class Player {
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
           }
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
-          rp.frame(cur, visible, before.offsets, before.turns, before.opacities, true, undefined, before.shapes, before.texts);
+          rp.frame(cur, this.frameScene(before, visible), { revealNew: true, overrides, trailProgress: Player.trailProgressAt(step.trails, e) });
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
-        this.applyParams(after);
+        this.applyKey(this.plan.states[index]);
         this.applyScene(this.plan.states[index]);
         return;
       }
       case "move": {
+        if (step.relayout && this.reprojector) return this.relayoutTween(index, step, before, signal, (e) => ({ offsets: moveFrame(step, before, e) }));
         const els = this.els(step.ids).filter((el) => el.setOffset);
-        const bases = new Map<string, Pt>(els.map((el): [string, Pt] => [el.id, before.offsets[el.id] ?? [0, 0]]));
         const ease = EASINGS[step.easing];
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
-          const [px, py] = pathPosition(step.path, e);
+          const offsets = moveFrame(step, before, e);
           for (const el of els) {
-            const [bx, by] = bases.get(el.id)!;
+            const [x, y] = offsets[el.id];
             // A plain move never changes an element's turn — carry the
             // existing pose through setTransform so an earlier rotate isn't
             // dropped by setOffset's transform-attribute rewrite.
             const turn = before.turns[el.id];
-            if (turn && el.setTransform) el.setTransform(bx + px, by + py, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
-            else el.setOffset!(bx + px, by + py);
+            if (turn && el.setTransform) el.setTransform(x, y, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
+            else el.setOffset!(x, y);
           }
           for (const tr of step.trails ?? []) this.elements.get(tr.id)?.setProgress(lengthFractionAt(tr.lengthAt, e));
           this.tweenMorphItems(step.extraMorphs, e, before);
@@ -1075,25 +1120,23 @@ export class Player {
         return;
       }
       case "transform": {
+        if (step.relayout && this.reprojector) {
+          // A flip with dependents runs on its two half-poses; the turn-over
+          // squash is a handle-only prefix and is dropped for that step (design §2.5).
+          return this.relayoutTween(index, step, before, signal, (e) => {
+            const f = transformFrame(step.items, e);
+            return { offsets: f.offsets, turns: f.turns };
+          });
+        }
         const ease = EASINGS[step.easing];
         const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setTransform || x.el?.setOffset);
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
+          const f = transformFrame(step.items, e);
           for (const { it, el } of items) {
-            if (it.flip) {
-              const half = e < 0.5;
-              const pose = half ? it.from : it.to;
-              const k = half ? 1 - 2 * e : 2 * e - 1;
-              if (el!.setTransform) el!.setTransform(pose.offset[0], pose.offset[1], pose.turn.deg, pose.turn.pivot, pose.turn.scale ?? 1, pose.turn.mirror ?? false, e >= 1 ? undefined : { at: it.flip.at, angle: it.flip.angle, k });
-              else el!.setOffset!(pose.offset[0], pose.offset[1]);
-              continue;
-            }
-            const dx = it.from.offset[0] + (it.to.offset[0] - it.from.offset[0]) * e;
-            const dy = it.from.offset[1] + (it.to.offset[1] - it.from.offset[1]) * e;
-            const deg = it.from.turn.deg + (it.to.turn.deg - it.from.turn.deg) * e;
-            const pivot = it.to.turn.pivot;
-            const sc = (it.from.turn.scale ?? 1) + ((it.to.turn.scale ?? 1) - (it.from.turn.scale ?? 1)) * e;
-            if (el!.setTransform) el!.setTransform(dx, dy, deg, pivot, sc, it.to.turn.mirror ?? false);
+            const [dx, dy] = f.offsets[it.id];
+            const turn = f.turns[it.id];
+            if (el!.setTransform) el!.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false, f.squash[it.id]);
             else el!.setOffset!(dx, dy);
           }
           for (const tr of step.trails ?? []) this.elements.get(tr.id)?.setProgress(lengthFractionAt(tr.lengthAt, e));
@@ -1114,15 +1157,13 @@ export class Player {
         return;
       }
       case "morph": {
+        if (step.relayout && this.reprojector) return this.relayoutTween(index, step, before, signal, (e) => ({ shapes: morphFrame(step.items, before, e) }));
         const ease = EASINGS[step.easing];
         const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setPoints);
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
-          for (const { it, el } of items) {
-            const pts: Record<string, Pt[]> = { ...(before.shapes[it.id] ?? {}) };
-            for (const leaf of it.leaves) pts[leaf.leafId] = leaf.from.map((p, i): Pt => [p[0] + (leaf.to[i][0] - p[0]) * e, p[1] + (leaf.to[i][1] - p[1]) * e]);
-            el!.setPoints!(pts);
-          }
+          const shapes = morphFrame(step.items, before, e);
+          for (const { it, el } of items) el!.setPoints!(shapes[it.id]);
           this.tweenMorphItems(step.extraMorphs, e, before);
           this.tweenTransformItems(step.extraTransforms, e);
         });
@@ -1176,6 +1217,50 @@ export class Player {
    * per-leaf lerp the morph case runs for its own items, merged over the
    * boundary's existing points so leaves this step does not touch stay put.
    */
+  private static trailProgressAt(trails: TrailProgress[] | undefined, e: number): Record<string, number> {
+    return Object.fromEntries((trails ?? []).map((tr) => [tr.id, lengthFractionAt(tr.lengthAt, e)]));
+  }
+
+  /**
+   * A step whose targets something is DEFINED by (design 2026-09-10 §2.5):
+   * every frame is a re-layout at the interpolated poses and shapes, handed
+   * to the reprojector — the moved element from its original-frame layout
+   * under its interpolated transform (the same look as the handle path), the
+   * dependents from their recomputed geometry. The handles are bypassed and
+   * the boundary is committed at the end, as after an animate.
+   */
+  private async relayoutTween(
+    index: number,
+    step: { seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow,
+    before: SceneState,
+    signal: AbortSignal,
+    frameAt: (e: number) => { offsets?: Record<string, Pt>; turns?: Record<string, Turn>; shapes?: Record<string, Record<string, Pt[]>> },
+  ): Promise<void> {
+    const rp = this.reprojector!;
+    const ease = EASINGS[step.easing];
+    // This step's own measure extras are recomputed by the layout each frame;
+    // their boundary overrides would pin them to the old geometry mid-tween.
+    const skipShapes = new Set((step.extraMorphs ?? []).map((m) => m.id));
+    const skipTexts = new Set((step.texts ?? []).map((t) => t.id));
+    const visible = new Set([...before.visible, ...(step.trails ?? []).map((t) => t.id)]);
+    await this.progress(step.seconds * 1000, signal, (t) => {
+      const e = ease(t);
+      const f = frameAt(e);
+      const offsets = { ...before.offsets, ...(f.offsets ?? {}) };
+      const turns = { ...before.turns, ...(f.turns ?? {}) };
+      const shapes: Record<string, Record<string, Pt[]>> = { ...before.shapes, ...(f.shapes ?? {}) };
+      for (const id of skipShapes) if (!(f.shapes && id in f.shapes)) delete shapes[id];
+      const texts = { ...before.texts };
+      for (const id of skipTexts) delete texts[id];
+      rp.frame(before.params, { visible, offsets, turns, opacities: before.opacities, shapes, texts }, { overrides: this.overridesOf(offsets, turns, shapes), trailProgress: Player.trailProgressAt(step.trails, e) });
+      this.geometryDirty = true;
+    });
+    if (signal.aborted) return; // a scrub's renderUpTo owns the state now
+    const after = this.plan.states[index];
+    this.applyKey(after);
+    this.applyScene(after);
+  }
+
   private tweenMorphItems(items: MorphItem[] | undefined, e: number, before: SceneState): void {
     for (const it of items ?? []) {
       const el = this.elements.get(it.id);

@@ -7,7 +7,7 @@ import { Z_STROKE, drawablesForId, leafDrawables, type Drawable, type Pt } from 
 import { resolveDrawOpts, resolveStyle } from "../layout/resolve";
 import { mapLeaf } from "../layout/posed";
 import { poseOf, type Turn } from "./pose";
-import type { TrailSpec } from "./trails";
+import { cutTrail, type TrailSpec } from "./trails";
 
 export interface GhostSpec {
   kind: "ghost";
@@ -75,14 +75,21 @@ function ghostDrawables(sourceLayout: LayoutResult, g: GhostSpec): Drawable[] {
  * spec (`params: null`) `layoutAt` is never called; the wrapped layout IS
  * the source layout.
  */
-export function withMinted(layout: LayoutResult, minted: MintedSpec[], layoutAt: (params: Record<string, number>) => LayoutResult): LayoutResult {
+export function withMinted(
+  layout: LayoutResult,
+  minted: MintedSpec[],
+  layoutAt: (params: Record<string, number>) => LayoutResult,
+  /** A trail mid-sweep (design 2026-09-10 §2.4): id → fraction of its length drawn so far. */
+  trailProgress: Record<string, number> = {},
+): LayoutResult {
   if (minted.length === 0) return layout;
   const drawables = [...layout.drawables];
   const order = [...layout.order];
   for (const m of minted) {
     if (order.includes(m.id)) continue;
     if (m.kind === "trail") {
-      drawables.push(trailDrawable(layout, m));
+      const p = trailProgress[m.id];
+      drawables.push(trailDrawable(layout, p === undefined ? m : { ...m, pts: cutTrail(m.pts, p) }));
       order.push(m.id);
       continue;
     }
