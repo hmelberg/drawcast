@@ -10,7 +10,7 @@ import { describe, expect, test } from "vitest";
 import examples from "../src/examples.json";
 import fewshots from "../src/llm/prompts/fewshots.json";
 
-type Ex = { request: string; spec?: { template?: string; elements?: { type: string; at?: { ref?: string }; fit?: unknown; tex?: unknown; closed?: boolean; style?: { fill?: string } }[] } };
+type Ex = { request: string; spec?: { template?: string; elements?: { type: string; at?: { ref?: string }; fit?: unknown; tex?: unknown; closed?: boolean; style?: { fill?: string }; strokes?: string; credit?: string }[] } };
 const uses = (ex: Ex, pred: (e: NonNullable<NonNullable<Ex["spec"]>["elements"]>[number]) => boolean) => !!ex.spec?.elements?.some(pred);
 
 describe("freehand exemplars (spec §6.2)", () => {
@@ -29,6 +29,21 @@ describe("freehand exemplars (spec §6.2)", () => {
   test("a bundled example fills a closed path, so the gate renders filledOutline for paths (D2)", () => {
     const filled = (examples as Ex[]).filter((e) => e.spec && !e.spec.template && uses(e, (x) => x.type === "path" && x.closed === true && !!x.style?.fill));
     expect(filled.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // The `icon` STAMP (compiler-v1.md, "Freehand figures" rule 7) needs its own
+  // worked examples: an icon element whose keyword has already been resolved
+  // — rings in `strokes`, the set in `set`, the attribution in `credit` — so
+  // the Examples list draws it offline and the credits collector has a line to
+  // collect. Two, so the pair covers both languages the bundle teaches in.
+  test("two bundled examples stamp resolved icons, credit and all", () => {
+    const stamped = (examples as Ex[]).filter((e) =>
+      uses(e, (x) => x.type === "icon" && typeof x.strokes === "string" && x.strokes.length > 0 && typeof x.credit === "string" && x.credit.length > 0),
+    );
+    expect(stamped.length).toBeGreaterThanOrEqual(2);
+    // An icon is a stamp beside the drawing, never the drawing: each of these
+    // places its icons with `at`, against a part that is already there.
+    for (const e of stamped) for (const el of e.spec!.elements!.filter((x) => x.type === "icon")) expect(el.at?.ref, e.request).toBeTruthy();
   });
 
   test("six bundled examples, question-shaped, two per target", () => {

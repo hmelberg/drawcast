@@ -162,11 +162,54 @@ file was EMPTY (or absent) for a freshly generated figure, because the
 credits were read off the unresolved document rather than the resolved
 export (A3) — an empty or missing credits file is a failure of this step.
 
-No bundled example uses an `icon` element yet, so the icon credit line
-cannot be shown here; the same collector handles it (see
+Two bundled examples DO stamp icons now (step 9), so the icon credit
+lines can be checked the same way — the same collector handles both (see
 `tests/credits.test.ts`). If you generate a figure that seeds from an
 Iconify set, its `based on …` line belongs in this file too — worth a
 glance if you happen to have one open.
+
+## 9. The two icon examples — a stamp beside the drawing
+
+Load **«Kraften kunne ikke flytte seg»** (bundled, request "Hvorfor ligger
+de gamle fabrikkene ved elva?") and then **"The road, not the blood"**
+(bundled, request "Why does a vaccine protect people who never got it?").
+These are the first bundled examples that use the `icon` element, and they
+use it the way the prompt says to: as a STAMP for a thing that only has to
+be recognised (a factory, a house, a bolt of electricity; a virus, a
+syringe, a baby), never as the drawing that does the explaining.
+
+Expect, in the Norwegian one: the river is drawn first as a hand-drawn
+blue curve, the mill wheel (circle + hub) lands ON the river's steep
+stretch, and the factory then appears BESIDE the wheel as a hand-drawn
+outline about 130 units across — an outlined ph glyph traced as closed
+rings, drawn stroke by stroke like everything else on the canvas, not
+pasted in as a flat image. The house stamp follows to its right at 90
+units, the lightning bolt above the factory at 85. Nothing about the icons
+is placed by coordinates: only the river has absolute geometry, and every
+stamp sits `at` a part already drawn. In the last beats a power line is
+drawn from the bolt to the right, and the factory stamp MOVES to the
+line's far end (its "Fabrikk" label travelling with it) — that is the
+whole point of the figure.
+
+Expect, in the English one: four plain circles and, at the end of the row,
+the baby stamp — the icon IS the fifth neighbour, so the chain of red
+arrows runs into it. Two syringe stamps appear above the second and third
+circle when the vaccine beat lands, and the virus stamp sits to the left
+of the first circle from the second beat on.
+
+Expect in BOTH: **no credit text anywhere on the canvas.** Unlike a photo
+(step 4, where the credit is drawn under the picture), an icon's
+attribution never reaches the drawing. Pause and open the **⋯** overflow
+menu: the **Credits** item lists the icon lines — `factory from ph · MIT`,
+`house from ph · MIT`, `lightning from ph · MIT` for the Norwegian one;
+`baby`, `virus`, `syringe` `from ph · MIT` for the English one (the two
+syringes are one line, not two). Export either to video and open the
+`<name>.credits.txt` beside it: the same lines are in the file.
+
+Both figures are fully resolved in `src/examples.json` (the rings are
+embedded in each icon's `strokes`), so they must draw with **no network at
+all** — worth checking offline once: an icon that silently fails to
+resolve draws nothing and only warns.
 
 ---
 
